@@ -1,0 +1,24 @@
+{
+  "culture": "scottish",
+  "decomposition_rate_a": 1.0,
+  "decomposition_rate_b": 1.0,
+  "decomposition_rate_delta": 0.0,
+  "morpheme_rank_correlation": 0.6550358636927579,
+  "morpheme_rank_top_k": 100,
+  "position_distribution_a": {
+    "inner": 0.15327257663628832,
+    "post": 0.4221209610604805,
+    "pre": 0.4246064623032311
+  },
+  "position_distribution_b": {
+    "inner": 0.15327257663628832,
+    "post": 0.4221209610604805,
+    "pre": 0.4246064623032311
+  },
+  "sample_size_a": 1000,
+  "sample_size_b": 1000,
+  "tag_kl_divergence": 0.014041021813068625,
+  "tag_total_variation": 0.035931700414527507,
+  "top_n_name_overlap": 0.041666666666666664,
+  "top_n_overlap_n": 100
+}

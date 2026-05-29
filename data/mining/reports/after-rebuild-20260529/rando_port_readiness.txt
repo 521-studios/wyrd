@@ -1,0 +1,29 @@
+# Rando-port retirement readiness (wyrd-j2bv)
+
+**Overall: FAIL — retirement gate closed**
+
+Coverage threshold: 80%
+
+## Per-language criteria
+
+| Language | Total | Scholar | Empirical | Rando-only | Uncited | Scholar only | Coverage | C1 ≥thresh | C2 rando=0 | C3 slice |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |
+| old_english | 1385 | 540 | 455 | 0 | 390 | 39.0% | 71.8% | ✗ | ✓ | ✓ |
+| old_french | 498 | 10 | 458 | 0 | 30 | 2.0% | 94.0% | ✓ | ✓ | ✓ |
+| old_scandinavian | 413 | 146 | 161 | 0 | 106 | 35.4% | 74.3% | ✗ | ✓ | ✓ |
+| celtic_mix | 1987 | 469 | 1279 | 0 | 239 | 23.6% | 88.0% | ✓ | ✓ | ✓ |
+| latin | 20 | 5 | 0 | 0 | 15 | 25.0% | 25.0% | ✗ | ✓ | ✓ |
+
+## Criterion definitions
+
+- **C1 (coverage)** — scholar + empirical attestation covers ≥80% of bundle subjects.
+- **C2 (rando-only zero)** — no bundle subject is attested ONLY by rando-port.
+- **C3 (slice comparison)** — rando-only count ≤ scholar-attested count per language (rando is no longer the dominant slice).
+- **Scholar only** (visibility, not a gate) — scholar-attested share of bundle subjects (excluding the empirical wedge). Surfaces how much of a language's coverage rests on the wiktionary-empirical pipeline vs the named bibliographic sources.
+
+## Why the gate is closed
+
+- `old_english` — C1 (71.8% < 80%)
+- `old_scandinavian` — C1 (74.3% < 80%)
+- `latin` — C1 (25.0% < 80%)
+

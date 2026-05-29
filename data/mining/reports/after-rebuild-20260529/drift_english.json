@@ -1,0 +1,26 @@
+{
+  "culture": "english",
+  "decomposition_rate_a": 1.0,
+  "decomposition_rate_b": 1.0,
+  "decomposition_rate_delta": 0.0,
+  "morpheme_rank_correlation": 0.637038449074429,
+  "morpheme_rank_top_k": 100,
+  "position_distribution_a": {
+    "bare": 0.281134401972873,
+    "inner": 0.0694615700780929,
+    "post": 0.311960542540074,
+    "pre": 0.33744348540896013
+  },
+  "position_distribution_b": {
+    "bare": 0.281134401972873,
+    "inner": 0.0694615700780929,
+    "post": 0.311960542540074,
+    "pre": 0.33744348540896013
+  },
+  "sample_size_a": 1000,
+  "sample_size_b": 1000,
+  "tag_kl_divergence": 0.04839642414916635,
+  "tag_total_variation": 0.06135125871196253,
+  "top_n_name_overlap": 0.005025125628140704,
+  "top_n_overlap_n": 100
+}

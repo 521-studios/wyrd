@@ -1,0 +1,14 @@
+## L3 enrichment status
+
+- Total etymons: 2361875
+
+### Column coverage
+- `lemma_id`:    94059 / 2361875 (  4.0%)
+  - method=`link-lemmas-v1`: 97463
+  - method=`manual-curation-v1`: 5
+- `merged_into_id`:    54586 / 2361875 (  2.3%)
+- `cognate_id`:   648901 / 2361875 ( 27.5%)
+  - method=`cluster-cognates-v1`: 649278
+- `stratum`:   159046 / 2361875 (  6.7%)
+- `english_shaped`:    48170 / 2361875 (  2.0%)
+- `phonological_vector`:  2361875 / 2361875 (100.0%)

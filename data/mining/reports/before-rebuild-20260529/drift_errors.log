@@ -1,0 +1,366 @@
+drift-report (culture=english, count=1000, seed=0, priors=yes)...
+wyrd-van9: MeaningGenerator: 2 proportions usages have no Meaning in the bundle; skipping. Re-emit the bundle (and re-rebuild proportions against it) to clear the drift.
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    from wyrd.cli import main; main()
+                               ~~~~^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1514, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1435, in main
+    rv = self.invoke(ctx)
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1298, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 853, in invoke
+    return callback(*args, **kwargs)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/cli/lexicon/drift_report.py", line 130, in lexicon_drift_report
+    samples_a, samples_b = run_drift_samples(
+                           ~~~~~~~~~~~~~~~~~^
+        culture=culture,
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        cohesion=cohesion,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/drift_runner.py", line 142, in run_drift_samples
+    r_prop = k.generate({**base_params, "scoring_mode": "proportions"}, seed=seed)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/generators/kenning.py", line 484, in generate
+    new_name = name_gen.select(
+        rng,
+    ...<8 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 734, in select
+    new_name = self._select_no_tag(
+        rng,
+    ...<5 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 1073, in _select_no_tag
+    picked = self.meaning_gen.select(
+        rng,
+    ...<6 lines>...
+        key_boost=key_boost,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 370, in select
+    return self.generators[key].select(
+           ~~~~~~~~~~~~~~~^^^^^
+KeyError: ('post', 'name', 'single')
+drift-report (culture=english, count=1000, seed=0, priors=yes)...
+wyrd-van9: MeaningGenerator: 2 proportions usages have no Meaning in the bundle; skipping. Re-emit the bundle (and re-rebuild proportions against it) to clear the drift.
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    from wyrd.cli import main; main()
+                               ~~~~^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1514, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1435, in main
+    rv = self.invoke(ctx)
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1298, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 853, in invoke
+    return callback(*args, **kwargs)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/cli/lexicon/drift_report.py", line 130, in lexicon_drift_report
+    samples_a, samples_b = run_drift_samples(
+                           ~~~~~~~~~~~~~~~~~^
+        culture=culture,
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        cohesion=cohesion,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/drift_runner.py", line 142, in run_drift_samples
+    r_prop = k.generate({**base_params, "scoring_mode": "proportions"}, seed=seed)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/generators/kenning.py", line 484, in generate
+    new_name = name_gen.select(
+        rng,
+    ...<8 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 734, in select
+    new_name = self._select_no_tag(
+        rng,
+    ...<5 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 1073, in _select_no_tag
+    picked = self.meaning_gen.select(
+        rng,
+    ...<6 lines>...
+        key_boost=key_boost,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 370, in select
+    return self.generators[key].select(
+           ~~~~~~~~~~~~~~~^^^^^
+KeyError: ('post', 'name', 'single')
+drift-report (culture=scottish, count=1000, seed=0, priors=yes)...
+wyrd-van9: MeaningGenerator: 4 proportions usages have no Meaning in the bundle; skipping. Re-emit the bundle (and re-rebuild proportions against it) to clear the drift.
+  sample sizes: proportions=1000, vector=1000
+  wrote: /home/devon/521Studios/wyrd/data/mining/reports/before-rebuild-20260529/drift_scottish.md
+drift-report (culture=scottish, count=1000, seed=0, priors=yes)...
+wyrd-van9: MeaningGenerator: 4 proportions usages have no Meaning in the bundle; skipping. Re-emit the bundle (and re-rebuild proportions against it) to clear the drift.
+  sample sizes: proportions=1000, vector=1000
+  wrote: /home/devon/521Studios/wyrd/data/mining/reports/before-rebuild-20260529/drift_scottish.json
+drift-report (culture=welsh, count=1000, seed=0, priors=yes)...
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    from wyrd.cli import main; main()
+                               ~~~~^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1514, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1435, in main
+    rv = self.invoke(ctx)
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1298, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 853, in invoke
+    return callback(*args, **kwargs)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/cli/lexicon/drift_report.py", line 130, in lexicon_drift_report
+    samples_a, samples_b = run_drift_samples(
+                           ~~~~~~~~~~~~~~~~~^
+        culture=culture,
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        cohesion=cohesion,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/drift_runner.py", line 142, in run_drift_samples
+    r_prop = k.generate({**base_params, "scoring_mode": "proportions"}, seed=seed)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/generators/kenning.py", line 484, in generate
+    new_name = name_gen.select(
+        rng,
+    ...<8 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 734, in select
+    new_name = self._select_no_tag(
+        rng,
+    ...<5 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 1073, in _select_no_tag
+    picked = self.meaning_gen.select(
+        rng,
+    ...<6 lines>...
+        key_boost=key_boost,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 370, in select
+    return self.generators[key].select(
+           ~~~~~~~~~~~~~~~^^^^^
+KeyError: ('post', 'name', 'single')
+drift-report (culture=welsh, count=1000, seed=0, priors=yes)...
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    from wyrd.cli import main; main()
+                               ~~~~^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1514, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1435, in main
+    rv = self.invoke(ctx)
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1298, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 853, in invoke
+    return callback(*args, **kwargs)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/cli/lexicon/drift_report.py", line 130, in lexicon_drift_report
+    samples_a, samples_b = run_drift_samples(
+                           ~~~~~~~~~~~~~~~~~^
+        culture=culture,
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        cohesion=cohesion,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/drift_runner.py", line 142, in run_drift_samples
+    r_prop = k.generate({**base_params, "scoring_mode": "proportions"}, seed=seed)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/generators/kenning.py", line 484, in generate
+    new_name = name_gen.select(
+        rng,
+    ...<8 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 734, in select
+    new_name = self._select_no_tag(
+        rng,
+    ...<5 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 1073, in _select_no_tag
+    picked = self.meaning_gen.select(
+        rng,
+    ...<6 lines>...
+        key_boost=key_boost,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 370, in select
+    return self.generators[key].select(
+           ~~~~~~~~~~~~~~~^^^^^
+KeyError: ('post', 'name', 'single')
+drift-report (culture=irish, count=1000, seed=0, priors=yes)...
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    from wyrd.cli import main; main()
+                               ~~~~^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1514, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1435, in main
+    rv = self.invoke(ctx)
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1298, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 853, in invoke
+    return callback(*args, **kwargs)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/cli/lexicon/drift_report.py", line 130, in lexicon_drift_report
+    samples_a, samples_b = run_drift_samples(
+                           ~~~~~~~~~~~~~~~~~^
+        culture=culture,
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        cohesion=cohesion,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/drift_runner.py", line 142, in run_drift_samples
+    r_prop = k.generate({**base_params, "scoring_mode": "proportions"}, seed=seed)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/generators/kenning.py", line 484, in generate
+    new_name = name_gen.select(
+        rng,
+    ...<8 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 734, in select
+    new_name = self._select_no_tag(
+        rng,
+    ...<5 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 1073, in _select_no_tag
+    picked = self.meaning_gen.select(
+        rng,
+    ...<6 lines>...
+        key_boost=key_boost,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 370, in select
+    return self.generators[key].select(
+           ~~~~~~~~~~~~~~~^^^^^
+KeyError: ('pre', 'name')
+drift-report (culture=irish, count=1000, seed=0, priors=yes)...
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    from wyrd.cli import main; main()
+                               ~~~~^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1514, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1435, in main
+    rv = self.invoke(ctx)
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1902, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 1298, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/devon/521Studios/wyrd/.venv/lib/python3.13/site-packages/click/core.py", line 853, in invoke
+    return callback(*args, **kwargs)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/cli/lexicon/drift_report.py", line 130, in lexicon_drift_report
+    samples_a, samples_b = run_drift_samples(
+                           ~~~~~~~~~~~~~~~~~^
+        culture=culture,
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        cohesion=cohesion,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/drift_runner.py", line 142, in run_drift_samples
+    r_prop = k.generate({**base_params, "scoring_mode": "proportions"}, seed=seed)
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/generators/kenning.py", line 484, in generate
+    new_name = name_gen.select(
+        rng,
+    ...<8 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 734, in select
+    new_name = self._select_no_tag(
+        rng,
+    ...<5 lines>...
+        cohesion=cohesion,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 1073, in _select_no_tag
+    picked = self.meaning_gen.select(
+        rng,
+    ...<6 lines>...
+        key_boost=key_boost,
+    )
+  File "/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/proportions.py", line 370, in select
+    return self.generators[key].select(
+           ~~~~~~~~~~~~~~~^^^^^
+KeyError: ('pre', 'name')
+drift-report (culture=breton, count=1000, seed=0, priors=yes)...
+wyrd-van9: MeaningGenerator: 1 proportions usages have no Meaning in the bundle; skipping. Re-emit the bundle (and re-rebuild proportions against it) to clear the drift.
+  sample sizes: proportions=1000, vector=1000
+  wrote: /home/devon/521Studios/wyrd/data/mining/reports/before-rebuild-20260529/drift_breton.md
+drift-report (culture=breton, count=1000, seed=0, priors=yes)...
+wyrd-van9: MeaningGenerator: 1 proportions usages have no Meaning in the bundle; skipping. Re-emit the bundle (and re-rebuild proportions against it) to clear the drift.
+  sample sizes: proportions=1000, vector=1000
+  wrote: /home/devon/521Studios/wyrd/data/mining/reports/before-rebuild-20260529/drift_breton.json

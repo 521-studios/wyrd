@@ -1,0 +1,24 @@
+{
+  "culture": "breton",
+  "decomposition_rate_a": 1.0,
+  "decomposition_rate_b": 1.0,
+  "decomposition_rate_delta": 0.0,
+  "morpheme_rank_correlation": 0.8195221575256383,
+  "morpheme_rank_top_k": 100,
+  "position_distribution_a": {
+    "inner": 0.1652754590984975,
+    "post": 0.41736227045075125,
+    "pre": 0.41736227045075125
+  },
+  "position_distribution_b": {
+    "inner": 0.1652754590984975,
+    "post": 0.41736227045075125,
+    "pre": 0.41736227045075125
+  },
+  "sample_size_a": 1000,
+  "sample_size_b": 1000,
+  "tag_kl_divergence": 0.006361739829183257,
+  "tag_total_variation": 0.04313564086090587,
+  "top_n_name_overlap": 0.16279069767441862,
+  "top_n_overlap_n": 100
+}

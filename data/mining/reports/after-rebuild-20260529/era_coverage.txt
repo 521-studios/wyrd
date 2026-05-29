@@ -1,0 +1,25 @@
+# Cross-era coverage report
+
+- Total toponyms: 21,207
+- Toponyms with ≥1 attestation: 19,947
+- Toponyms with ≥3 dated eras: 1.7%
+
+## Per-era coverage
+
+| Era | Toponyms covered |
+| --- | ---: |
+| Anglo-Saxon | 17,729 |
+| Middle English | 3,271 |
+| Early Modern | 1,185 |
+| Modern | 0 |
+| Undated | 10,082 |
+
+## Dated-era-count distribution
+
+| # eras dated | toponyms |
+| ---: | ---: |
+| 0 | 2,294 |
+| 1 | 16,005 |
+| 2 | 2,544 |
+| 3 | 364 |
+

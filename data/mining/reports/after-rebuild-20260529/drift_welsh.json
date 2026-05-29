@@ -1,0 +1,26 @@
+{
+  "culture": "welsh",
+  "decomposition_rate_a": 1.0,
+  "decomposition_rate_b": 1.0,
+  "decomposition_rate_delta": 0.0,
+  "morpheme_rank_correlation": 0.7631972250452742,
+  "morpheme_rank_top_k": 100,
+  "position_distribution_a": {
+    "bare": 0.4253758709204254,
+    "inner": 0.11734506784011735,
+    "post": 0.22368903557022368,
+    "pre": 0.2335900256692336
+  },
+  "position_distribution_b": {
+    "bare": 0.4253758709204254,
+    "inner": 0.11734506784011735,
+    "post": 0.22368903557022368,
+    "pre": 0.2335900256692336
+  },
+  "sample_size_a": 1000,
+  "sample_size_b": 1000,
+  "tag_kl_divergence": 0.037259620858677296,
+  "tag_total_variation": 0.04692483550797368,
+  "top_n_name_overlap": 0.005025125628140704,
+  "top_n_overlap_n": 100
+}

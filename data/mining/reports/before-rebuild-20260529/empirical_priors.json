@@ -1,0 +1,5139 @@
+{
+  "loan": [
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:coed": 3
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:druim": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:coed": 3,
+        "celtic:ros": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:l\u012bn": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:caer": 4,
+        "celtic:cair": 1,
+        "celtic:tref": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:cair": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:mynydd": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "celtic:bryn": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:bolg": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "item"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:cair": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "military"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:l\u012bn": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:pres": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:tref": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:mynydd": 2,
+        "celtic:rhyd": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:rhos": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "celtic:bryn": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:rhyd": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "celtic",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:rhos": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:hope": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:stock": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:hope": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "religious"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:hope": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:stock": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:farm": 1,
+        "modern-english:land": 2,
+        "modern-english:ley": 1,
+        "modern-english:shiel": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:head": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bank": 3,
+        "modern-english:blade": 3,
+        "modern-english:castle": 1,
+        "modern-english:house": 2,
+        "modern-english:mill": 1,
+        "modern-english:spring": 1,
+        "modern-english:tail": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:bank": 4,
+        "modern-english:cote": 1,
+        "modern-english:mill": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "modern-english:cliff": 1,
+        "modern-english:valley": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:beck": 1,
+        "modern-english:bergh": 2,
+        "modern-english:clough": 1,
+        "modern-english:dene": 2,
+        "modern-english:hill": 8,
+        "modern-english:hoe": 2,
+        "modern-english:land": 2,
+        "modern-english:moor": 1,
+        "modern-english:ridge": 2,
+        "modern-english:spring": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:crag": 1,
+        "modern-english:head": 2,
+        "modern-english:hill": 1,
+        "modern-english:moor": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:gate": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:head": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bank": 3,
+        "modern-english:blade": 3,
+        "modern-english:ford": 1,
+        "modern-english:hop": 1,
+        "modern-english:house": 2,
+        "modern-english:land": 2,
+        "modern-english:sac": 1,
+        "modern-english:side": 6,
+        "modern-english:stone": 1,
+        "modern-english:tail": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:bank": 4,
+        "modern-english:flat": 1,
+        "modern-english:head": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "modern-english:cliff": 1,
+        "modern-english:valley": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:beck": 1,
+        "modern-english:bergh": 2,
+        "modern-english:clough": 1,
+        "modern-english:dene": 2,
+        "modern-english:hill": 8,
+        "modern-english:hoe": 2,
+        "modern-english:land": 2,
+        "modern-english:moor": 1,
+        "modern-english:ridge": 2,
+        "modern-english:spring": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:crag": 1,
+        "modern-english:hill": 1,
+        "modern-english:moor": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bank": 3,
+        "modern-english:blade": 3,
+        "modern-english:ford": 1,
+        "modern-english:house": 2,
+        "modern-english:land": 2,
+        "modern-english:sac": 1,
+        "modern-english:side": 6,
+        "modern-english:stone": 1,
+        "modern-english:tail": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:bank": 4,
+        "modern-english:flat": 1,
+        "modern-english:head": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:beck": 1,
+        "modern-english:pool": 1,
+        "modern-english:spring": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:brake": 1,
+        "modern-english:fallow": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bell": 2,
+        "modern-english:cow": 1,
+        "modern-english:crane": 2,
+        "modern-english:fink": 1,
+        "modern-english:low": 1,
+        "modern-english:stable": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:buck": 1,
+        "modern-english:head": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bell": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:castle": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:crane": 2,
+        "modern-english:fink": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "bird"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:black": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "color"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:white": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "color"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:black": 2,
+        "modern-english:low": 1,
+        "modern-english:pot": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:white": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:crag": 1,
+        "modern-english:hill": 1,
+        "modern-english:sea": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:head": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:silver": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:buck": 1,
+        "modern-english:head": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bell": 2,
+        "modern-english:black": 2,
+        "modern-english:broad": 1,
+        "modern-english:cockle": 1,
+        "modern-english:cow": 1,
+        "modern-english:dox": 1,
+        "modern-english:flat": 1,
+        "modern-english:four": 1,
+        "modern-english:gaiter": 1,
+        "modern-english:light": 1,
+        "modern-english:low": 1,
+        "modern-english:mouse": 1,
+        "modern-english:pot": 1,
+        "modern-english:silver": 1,
+        "modern-english:street": 1,
+        "modern-english:whin": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:breast": 1,
+        "modern-english:buck": 1,
+        "modern-english:head": 2,
+        "modern-english:mallow": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:abbot": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "religious"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:low": 1,
+        "modern-english:pot": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "size"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:crag": 1,
+        "modern-english:hill": 1,
+        "modern-english:sea": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bell": 2,
+        "modern-english:black": 2,
+        "modern-english:broad": 1,
+        "modern-english:cow": 1,
+        "modern-english:dox": 1,
+        "modern-english:flat": 1,
+        "modern-english:four": 1,
+        "modern-english:light": 1,
+        "modern-english:low": 1,
+        "modern-english:mouse": 1,
+        "modern-english:pot": 1,
+        "modern-english:silver": 1,
+        "modern-english:street": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:breast": 1,
+        "modern-english:head": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "modern-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:collier": 2,
+        "modern-english:sea": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "norman-french",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:mont": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "norman-french",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:mont": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "norman-french",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:ville": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "norman-french",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:ville": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "norman-french",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:blanche": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "color"
+    },
+    {
+      "donor": "norman-french",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:beau": 3,
+        "norman-french:blanche": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "norman-french",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:blanche": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "religious"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:brocc": 2
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:weg": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bold": 1,
+        "old-english:h\u0101m": 1,
+        "old-english:weg": 4
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "food"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:weg": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:weg": 4
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:clif": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:dun": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "grain"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:brocc": 2
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "mammal"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:sand": 2
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:weard": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "military"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:hus": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:beorc": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:inga": 2,
+        "old-english:weard": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cyning": 1,
+        "old-english:h\u0101m": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:clif": 1,
+        "old-english:ford": 3
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:dun": 1,
+        "old-english:feld": 1,
+        "old-english:ford": 2,
+        "old-english:sand": 2
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:denu": 3
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:hus": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:beorc": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:ford": 3
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:ford": 2
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:wind": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "weather"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:land": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:croft": 12,
+        "old-english:ingas": 1,
+        "old-english:land": 17,
+        "old-english:lin": 2,
+        "old-english:w\u012bc": 6
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:w\u014dr": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 5,
+        "old-english:geard": 1,
+        "old-english:hop": 3,
+        "old-english:h\u0101m": 3,
+        "old-english:land": 1,
+        "old-english:t\u016bn": 3
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:botl": 6,
+        "old-english:burh": 4,
+        "old-english:byrig": 4,
+        "old-english:cot": 2,
+        "old-english:croft": 12,
+        "old-english:fald": 1,
+        "old-english:haga": 4,
+        "old-english:hamm": 1,
+        "old-english:hop": 6,
+        "old-english:h\u0101m": 11,
+        "old-english:ingas": 1,
+        "old-english:land": 17,
+        "old-english:m\u014dt": 1,
+        "old-english:stead": 2,
+        "old-english:steall": 3,
+        "old-english:t\u016bn": 20,
+        "old-english:weg": 2,
+        "old-english:worth": 12,
+        "old-english:w\u012bc": 6
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:brycg": 3,
+        "old-english:burh": 1,
+        "old-english:hop": 1,
+        "old-english:t\u016bn": 1,
+        "old-english:worth": 4
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:w\u014dr": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "bird"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:ende": 2,
+        "old-english:hol": 1,
+        "old-english:h\u0113afod": 1,
+        "old-english:wella": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:wella": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:land": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "economic"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:land": 17,
+        "old-english:w\u012bc": 6
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "economic"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 5,
+        "old-english:land": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:burh": 4,
+        "old-english:byrig": 4,
+        "old-english:land": 17,
+        "old-english:m\u014dt": 1,
+        "old-english:stead": 2,
+        "old-english:weg": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:burh": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:clif": 1,
+        "old-english:dun": 2,
+        "old-english:hyll": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:clif": 2,
+        "old-english:dene": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:burne": 12,
+        "old-english:clif": 8,
+        "old-english:dene": 22,
+        "old-english:dun": 14,
+        "old-english:d\u016bn": 10,
+        "old-english:hyll": 9,
+        "old-english:s\u012bde": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:sand": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:ende": 2,
+        "old-english:h\u0113afod": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "measurement"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 5
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "military"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:burh": 4,
+        "old-english:byrig": 4,
+        "old-english:m\u014dt": 1,
+        "old-english:weard": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "military"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:burh": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "military"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:wudu": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cot": 2,
+        "old-english:hus": 3,
+        "old-english:lin": 2,
+        "old-english:sceaga": 3,
+        "old-english:thorn": 1,
+        "old-english:wudu": 5
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:h\u0101m": 3,
+        "old-english:land": 1,
+        "old-english:t\u016bn": 3
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:croft": 12,
+        "old-english:h\u0101m": 11,
+        "old-english:ingas": 1,
+        "old-english:land": 17,
+        "old-english:t\u016bn": 20,
+        "old-english:weard": 1,
+        "old-english:w\u012bc": 6
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:t\u016bn": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:clif": 1,
+        "old-english:dun": 2,
+        "old-english:ford": 1,
+        "old-english:hyll": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:clif": 2,
+        "old-english:dene": 2,
+        "old-english:feld": 5,
+        "old-english:ford": 5,
+        "old-english:halh": 1,
+        "old-english:land": 1,
+        "old-english:mersc": 1,
+        "old-english:ofer": 1,
+        "old-english:wudu": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:burna": 9,
+        "old-english:burne": 12,
+        "old-english:clif": 8,
+        "old-english:dene": 22,
+        "old-english:dun": 14,
+        "old-english:d\u016bn": 10,
+        "old-english:feld": 19,
+        "old-english:fenn": 2,
+        "old-english:ford": 26,
+        "old-english:halh": 3,
+        "old-english:hyll": 9,
+        "old-english:hyrst": 11,
+        "old-english:land": 17,
+        "old-english:luh": 1,
+        "old-english:l\u0113ah": 3,
+        "old-english:mere": 6,
+        "old-english:m\u014dr": 1,
+        "old-english:ofer": 2,
+        "old-english:sand": 1,
+        "old-english:sceaga": 3,
+        "old-english:stall": 1,
+        "old-english:stead": 2,
+        "old-english:s\u012bde": 1,
+        "old-english:twisla": 2,
+        "old-english:wudu": 5,
+        "old-english:\u0113a": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:ford": 1,
+        "old-english:halh": 1,
+        "old-english:mersc": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:denu": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:denu": 1,
+        "old-english:hop": 3
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:denu": 25,
+        "old-english:hol": 1,
+        "old-english:hop": 6
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:hop": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cot": 2,
+        "old-english:hus": 3,
+        "old-english:thorn": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:ford": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:ford": 5,
+        "old-english:mersc": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:burna": 9,
+        "old-english:burne": 12,
+        "old-english:fenn": 2,
+        "old-english:ford": 26,
+        "old-english:luh": 1,
+        "old-english:mere": 6,
+        "old-english:m\u014dr": 1,
+        "old-english:stall": 1,
+        "old-english:twisla": 2,
+        "old-english:\u0113a": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:ford": 1,
+        "old-english:mersc": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:bere": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 9,
+        "old-english:b\u0113o": 1,
+        "old-english:celf": 1,
+        "old-english:cu": 1,
+        "old-english:hors": 1,
+        "old-english:h\u0113g": 1,
+        "old-english:h\u012bgna": 1,
+        "old-english:lin": 7
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:cu": 1,
+        "old-english:eorth": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:heorot": 1,
+        "old-english:mycg": 1,
+        "old-english:wulf": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:brocc": 6,
+        "old-english:b\u0113o": 1,
+        "old-english:catt": 2,
+        "old-english:celf": 1,
+        "old-english:corn": 1,
+        "old-english:cu": 1,
+        "old-english:fisc": 1,
+        "old-english:fox": 2,
+        "old-english:g\u014ds": 1,
+        "old-english:hafoc": 2,
+        "old-english:heorot": 9,
+        "old-english:hind": 3,
+        "old-english:hors": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:cu": 1,
+        "old-english:culfre": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:haga": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 3
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bold": 1,
+        "old-english:botl": 2,
+        "old-english:burh": 5,
+        "old-english:cot": 3,
+        "old-english:cros": 1,
+        "old-english:cweorn": 1,
+        "old-english:haga": 8,
+        "old-english:hop": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:haga": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:corn": 1,
+        "old-english:g\u014ds": 1,
+        "old-english:hafoc": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "bird"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:culfre": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "bird"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:brun": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "color"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:brun": 3
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "color"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:brun": 1,
+        "old-english:gegn": 1,
+        "old-english:hol": 2,
+        "old-english:horu": 1,
+        "old-english:lang": 1,
+        "old-english:manig": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:brun": 3,
+        "old-english:cald": 4,
+        "old-english:efen": 2,
+        "old-english:f\u016bl": 1,
+        "old-english:hol": 3,
+        "old-english:lang": 3,
+        "old-english:manig": 1,
+        "old-english:\u0101na": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:north": 2,
+        "old-english:west": 3
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "direction"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cweorn": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "economic"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:fox": 2,
+        "old-english:ram": 4
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "fantasy"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:\u0101na": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "female name"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:fisc": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "fish"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:bere": 1,
+        "old-english:heorot": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "food"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 9,
+        "old-english:celf": 1,
+        "old-english:cu": 1,
+        "old-english:heorot": 9,
+        "old-english:hind": 3
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "food"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:cu": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "food"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 3
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:burh": 5,
+        "old-english:mearc": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:billing": 3,
+        "old-english:clif": 1,
+        "old-english:cnoll": 2,
+        "old-english:dun": 3,
+        "old-english:d\u016bn": 2,
+        "old-english:eard": 1,
+        "old-english:ecg": 2,
+        "old-english:scelf": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:bere": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "grain"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 9
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "grain"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:mycg": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "insect"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:b\u0113o": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "insect"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:heorot": 1,
+        "old-english:wulf": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "mammal"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:brocc": 6,
+        "old-english:catt": 2,
+        "old-english:celf": 1,
+        "old-english:cu": 1,
+        "old-english:fox": 2,
+        "old-english:heorot": 9,
+        "old-english:hind": 3,
+        "old-english:hors": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "mammal"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:cu": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "mammal"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:stapol": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:sand": 4,
+        "old-english:stapol": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:gegn": 1,
+        "old-english:lang": 1,
+        "old-english:manig": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "measurement"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:efen": 2,
+        "old-english:lang": 3,
+        "old-english:manig": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "measurement"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 3,
+        "old-english:helm": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "military"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:burh": 5,
+        "old-english:here": 6,
+        "old-english:hors": 1,
+        "old-english:weard": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "military"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:fox": 2,
+        "old-english:ram": 4
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "monster"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:elm": 1,
+        "old-english:roth": 1,
+        "old-english:secg": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:beonet": 2,
+        "old-english:cot": 3,
+        "old-english:elm": 2,
+        "old-english:fearn": 1,
+        "old-english:gorst": 2,
+        "old-english:holegn": 2,
+        "old-english:holt": 3,
+        "old-english:lin": 7,
+        "old-english:lind": 4,
+        "old-english:thorn": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:golde": 1,
+        "old-english:salh": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:helm": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "possession"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cros": 1,
+        "old-english:h\u0113g": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "possession"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:fisc": 1,
+        "old-english:heorde": 2,
+        "old-english:munuc": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "profession"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cros": 1,
+        "old-english:h\u0101lig": 1,
+        "old-english:h\u012bgna": 1,
+        "old-english:munuc": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "religious"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:\u0101na": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "saint"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:cyne": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cyne": 1,
+        "old-english:cyning": 1,
+        "old-english:h\u0101lig": 1,
+        "old-english:inga": 3,
+        "old-english:weard": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cald": 4
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "temperature"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:halh": 1,
+        "old-english:roth": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:billing": 3,
+        "old-english:br\u014dc": 1,
+        "old-english:burna": 1,
+        "old-english:clif": 1,
+        "old-english:cnoll": 2,
+        "old-english:cr\u014dc": 1,
+        "old-english:dun": 3,
+        "old-english:d\u016bn": 2,
+        "old-english:eard": 1,
+        "old-english:feld": 3,
+        "old-english:fenn": 1,
+        "old-english:fl\u0113ot": 1,
+        "old-english:ford": 2,
+        "old-english:halh": 3,
+        "old-english:holt": 3,
+        "old-english:hyrst": 4,
+        "old-english:kers": 2,
+        "old-english:luh": 1,
+        "old-english:mere": 4,
+        "old-english:mixen": 1,
+        "old-english:ofer": 2,
+        "old-english:ord": 1,
+        "old-english:sand": 4,
+        "old-english:stall": 2,
+        "old-english:\u0113a": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:eorth": 1,
+        "old-english:mersc": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:hol": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:denu": 2,
+        "old-english:hlinc": 4,
+        "old-english:hol": 3,
+        "old-english:hop": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:dael": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:elm": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cot": 3,
+        "old-english:elm": 2,
+        "old-english:lind": 4,
+        "old-english:thorn": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:salh": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:br\u014dc": 1,
+        "old-english:burna": 1,
+        "old-english:cr\u014dc": 1,
+        "old-english:fenn": 1,
+        "old-english:fl\u0113ot": 1,
+        "old-english:ford": 2,
+        "old-english:hlinc": 4,
+        "old-english:kers": 2,
+        "old-english:luh": 1,
+        "old-english:mere": 4,
+        "old-english:pull": 1,
+        "old-english:stall": 2,
+        "old-english:\u0113a": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:mersc": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cald": 4
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "weather"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:gata": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:gata": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:eski": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:dalr": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:eski": 1
+      },
+      "position": "inner",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:vogn": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-norse:by": 4,
+        "old-norse:toft": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:by": 17,
+        "old-norse:gata": 4,
+        "old-norse:haugr": 1,
+        "old-norse:toft": 4
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:gata": 1,
+        "old-norse:haugr": 8
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:melr": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "color"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "death"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 8
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "death"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:melr": 2,
+        "old-norse:saurr": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "element"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:gata": 4,
+        "old-norse:holm": 1,
+        "old-norse:holmr": 8
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:ey": 3,
+        "old-norse:gata": 1,
+        "old-norse:holmr": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-norse:skjalf": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:brekka": 14,
+        "old-norse:holm": 1,
+        "old-norse:holmr": 8,
+        "old-norse:land": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:brekka": 1,
+        "old-norse:ey": 3,
+        "old-norse:holmr": 2,
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:vogn": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "mammal"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:sandr": 3
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "religious"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 8
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "religious"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-norse:by": 4,
+        "old-norse:konungr": 1,
+        "old-norse:thorp": 1,
+        "old-norse:toft": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:by": 17,
+        "old-norse:thorp": 5,
+        "old-norse:toft": 4
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:bekkr": 3,
+        "old-norse:brekka": 14,
+        "old-norse:gil": 2,
+        "old-norse:holm": 1,
+        "old-norse:holmr": 8,
+        "old-norse:kjarr": 2,
+        "old-norse:land": 2,
+        "old-norse:melr": 2,
+        "old-norse:mynni": 2,
+        "old-norse:sandr": 3,
+        "old-norse:slakki": 5,
+        "old-norse:thveit": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:brekka": 1,
+        "old-norse:ey": 3,
+        "old-norse:gil": 4,
+        "old-norse:holmr": 2,
+        "old-norse:kjarr": 1,
+        "old-norse:myrr": 1,
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:dalr": 3
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "topology"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 1
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "undead"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 8
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "undead"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:bekkr": 3,
+        "old-norse:holmr": 8,
+        "old-norse:kjarr": 2,
+        "old-norse:melr": 2,
+        "old-norse:mynni": 2,
+        "old-norse:slakki": 5
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:holmr": 2,
+        "old-norse:kjarr": 1,
+        "old-norse:myrr": 1,
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "recipient": "english",
+      "tag": "water"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:hestr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:hreysi": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "agriculture"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:sveinn": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "anatomy"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-norse:ulfr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:hestr": 1,
+        "old-norse:r\u00e1": 1,
+        "old-norse:ulfr": 1,
+        "old-norse:vogn": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:fugl": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "animal"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 2,
+        "old-norse:toft": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "architecture"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:fugl": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "bird"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-norse:rauthr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "color"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "death"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "death"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-norse:rauthr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:saurr": 3
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "descriptive"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:r\u00e1": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "food"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:sveinn": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "gender"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-norse:holm": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-norse:holm": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-norse:klakkr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "geology"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-norse:ulfr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "mammal"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:hestr": 1,
+        "old-norse:r\u00e1": 1,
+        "old-norse:ulfr": 1,
+        "old-norse:vogn": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "mammal"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:sandr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "material"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:hestr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "military"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:eski": 2,
+        "old-norse:lundr": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "plant"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "religious"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "religious"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:jarl": 2,
+        "old-norse:thing": 1,
+        "old-norse:toft": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "social"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-norse:holm": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-norse:hryggr": 2,
+        "old-norse:klakkr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:lundr": 2,
+        "old-norse:sandr": 1
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:hreysi": 2,
+        "old-norse:slakki": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "topography"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:eski": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "tree"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "undead"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "undead"
+    },
+    {
+      "donor": "old-norse",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:slakki": 2
+      },
+      "position": "pre",
+      "recipient": "english",
+      "tag": "water"
+    }
+  ],
+  "native": [
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 1
+      },
+      "position": "inner",
+      "tag": "agriculture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:brocc": 2
+      },
+      "position": "inner",
+      "tag": "animal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:weg": 1
+      },
+      "position": "inner",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bold": 1,
+        "old-english:h\u0101m": 1,
+        "old-english:weg": 4
+      },
+      "position": "inner",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:gata": 1
+      },
+      "position": "inner",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 1
+      },
+      "position": "inner",
+      "tag": "food"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:weg": 1
+      },
+      "position": "inner",
+      "tag": "geography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:weg": 4
+      },
+      "position": "inner",
+      "tag": "geography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:gata": 1
+      },
+      "position": "inner",
+      "tag": "geography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:clif": 1
+      },
+      "position": "inner",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:mont": 1,
+        "old-english:dun": 1
+      },
+      "position": "inner",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 1
+      },
+      "position": "inner",
+      "tag": "grain"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:brocc": 2
+      },
+      "position": "inner",
+      "tag": "mammal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:sand": 2
+      },
+      "position": "inner",
+      "tag": "material"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:weard": 1
+      },
+      "position": "inner",
+      "tag": "military"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:hope": 1,
+        "old-english:hus": 1
+      },
+      "position": "inner",
+      "tag": "plant"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:stock": 1,
+        "old-english:beorc": 1,
+        "old-norse:eski": 1
+      },
+      "position": "inner",
+      "tag": "plant"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:hope": 1
+      },
+      "position": "inner",
+      "tag": "religious"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:inga": 2,
+        "old-english:weard": 1
+      },
+      "position": "inner",
+      "tag": "social"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cyning": 1,
+        "old-english:h\u0101m": 1
+      },
+      "position": "inner",
+      "tag": "social"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:clif": 1,
+        "old-english:ford": 3
+      },
+      "position": "inner",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:mont": 1,
+        "old-english:dun": 1,
+        "old-english:feld": 1,
+        "old-english:ford": 2,
+        "old-english:sand": 2
+      },
+      "position": "inner",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:denu": 3
+      },
+      "position": "inner",
+      "tag": "topology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:dalr": 1
+      },
+      "position": "inner",
+      "tag": "topology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:hope": 1,
+        "old-english:hus": 1
+      },
+      "position": "inner",
+      "tag": "tree"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:stock": 1,
+        "old-english:beorc": 1,
+        "old-norse:eski": 1
+      },
+      "position": "inner",
+      "tag": "tree"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:ford": 3
+      },
+      "position": "inner",
+      "tag": "water"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:ford": 2
+      },
+      "position": "inner",
+      "tag": "water"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:wind": 1
+      },
+      "position": "inner",
+      "tag": "weather"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:land": 1
+      },
+      "position": "post",
+      "tag": "agriculture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:farm": 1,
+        "modern-english:land": 2,
+        "modern-english:ley": 1,
+        "modern-english:shiel": 2,
+        "old-english:croft": 12,
+        "old-english:ingas": 1,
+        "old-english:land": 17,
+        "old-english:lin": 2,
+        "old-english:w\u012bc": 6
+      },
+      "position": "post",
+      "tag": "agriculture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:w\u014dr": 1,
+        "old-norse:vogn": 1
+      },
+      "position": "post",
+      "tag": "animal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:head": 2
+      },
+      "position": "post",
+      "tag": "animal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 5,
+        "old-english:geard": 1,
+        "old-english:hop": 3,
+        "old-english:h\u0101m": 3,
+        "old-english:land": 1,
+        "old-english:t\u016bn": 3,
+        "old-norse:by": 4,
+        "old-norse:toft": 1
+      },
+      "position": "post",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bank": 3,
+        "modern-english:blade": 3,
+        "modern-english:castle": 1,
+        "modern-english:house": 2,
+        "modern-english:mill": 1,
+        "modern-english:spring": 1,
+        "modern-english:tail": 2,
+        "norman-french:ville": 1,
+        "old-english:botl": 6,
+        "old-english:burh": 4,
+        "old-english:byrig": 4,
+        "old-english:cot": 2,
+        "old-english:croft": 12,
+        "old-english:fald": 1,
+        "old-english:haga": 4,
+        "old-english:hamm": 1,
+        "old-english:hop": 6,
+        "old-english:h\u0101m": 11,
+        "old-english:ingas": 1,
+        "old-english:land": 17,
+        "old-english:m\u014dt": 1,
+        "old-english:stead": 2,
+        "old-english:steall": 3,
+        "old-english:t\u016bn": 20,
+        "old-english:weg": 2,
+        "old-english:worth": 12,
+        "old-english:w\u012bc": 6,
+        "old-norse:by": 17,
+        "old-norse:gata": 4,
+        "old-norse:haugr": 1,
+        "old-norse:toft": 4
+      },
+      "position": "post",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:bank": 4,
+        "modern-english:cote": 1,
+        "modern-english:mill": 1,
+        "old-english:brycg": 3,
+        "old-english:burh": 1,
+        "old-english:hop": 1,
+        "old-english:t\u016bn": 1,
+        "old-english:worth": 4,
+        "old-norse:gata": 1,
+        "old-norse:haugr": 8
+      },
+      "position": "post",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:w\u014dr": 1
+      },
+      "position": "post",
+      "tag": "bird"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:melr": 2
+      },
+      "position": "post",
+      "tag": "color"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 1
+      },
+      "position": "post",
+      "tag": "death"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 8
+      },
+      "position": "post",
+      "tag": "death"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:ende": 2,
+        "old-english:hol": 1,
+        "old-english:h\u0113afod": 1,
+        "old-english:wella": 1,
+        "old-norse:melr": 2,
+        "old-norse:saurr": 1
+      },
+      "position": "post",
+      "tag": "descriptive"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:wella": 2
+      },
+      "position": "post",
+      "tag": "descriptive"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:land": 1
+      },
+      "position": "post",
+      "tag": "economic"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:land": 17,
+        "old-english:w\u012bc": 6
+      },
+      "position": "post",
+      "tag": "economic"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "tag": "element"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 5,
+        "old-english:land": 1
+      },
+      "position": "post",
+      "tag": "geography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:burh": 4,
+        "old-english:byrig": 4,
+        "old-english:land": 17,
+        "old-english:m\u014dt": 1,
+        "old-english:stead": 2,
+        "old-english:weg": 2,
+        "old-norse:gata": 4,
+        "old-norse:holm": 1,
+        "old-norse:holmr": 8
+      },
+      "position": "post",
+      "tag": "geography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:burh": 1,
+        "old-norse:ey": 3,
+        "old-norse:gata": 1,
+        "old-norse:holmr": 2
+      },
+      "position": "post",
+      "tag": "geography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:clif": 1,
+        "old-english:dun": 2,
+        "old-english:hyll": 2
+      },
+      "position": "post",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "modern-english:cliff": 1,
+        "modern-english:valley": 1,
+        "old-english:clif": 2,
+        "old-english:dene": 2,
+        "old-norse:skjalf": 1
+      },
+      "position": "post",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:beck": 1,
+        "modern-english:bergh": 2,
+        "modern-english:clough": 1,
+        "modern-english:dene": 2,
+        "modern-english:hill": 8,
+        "modern-english:hoe": 2,
+        "modern-english:land": 2,
+        "modern-english:moor": 1,
+        "modern-english:ridge": 2,
+        "modern-english:spring": 1,
+        "old-english:burne": 12,
+        "old-english:clif": 8,
+        "old-english:dene": 22,
+        "old-english:dun": 14,
+        "old-english:d\u016bn": 10,
+        "old-english:hyll": 9,
+        "old-english:s\u012bde": 1,
+        "old-norse:brekka": 14,
+        "old-norse:holm": 1,
+        "old-norse:holmr": 8,
+        "old-norse:land": 2
+      },
+      "position": "post",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:crag": 1,
+        "modern-english:head": 2,
+        "modern-english:hill": 1,
+        "modern-english:moor": 1,
+        "old-norse:brekka": 1,
+        "old-norse:ey": 3,
+        "old-norse:holmr": 2,
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:vogn": 1
+      },
+      "position": "post",
+      "tag": "mammal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:gate": 1,
+        "old-english:sand": 1,
+        "old-norse:sandr": 3
+      },
+      "position": "post",
+      "tag": "material"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:head": 2,
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "tag": "material"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:ende": 2,
+        "old-english:h\u0113afod": 1
+      },
+      "position": "post",
+      "tag": "measurement"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 5
+      },
+      "position": "post",
+      "tag": "military"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:burh": 4,
+        "old-english:byrig": 4,
+        "old-english:m\u014dt": 1,
+        "old-english:weard": 1
+      },
+      "position": "post",
+      "tag": "military"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:burh": 1
+      },
+      "position": "post",
+      "tag": "military"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:wudu": 1
+      },
+      "position": "post",
+      "tag": "plant"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:coed": 3,
+        "modern-english:bank": 3,
+        "modern-english:blade": 3,
+        "modern-english:ford": 1,
+        "modern-english:hop": 1,
+        "modern-english:house": 2,
+        "modern-english:land": 2,
+        "modern-english:sac": 1,
+        "modern-english:side": 6,
+        "modern-english:stone": 1,
+        "modern-english:tail": 2,
+        "old-english:cot": 2,
+        "old-english:hus": 3,
+        "old-english:lin": 2,
+        "old-english:sceaga": 3,
+        "old-english:thorn": 1,
+        "old-english:wudu": 5
+      },
+      "position": "post",
+      "tag": "plant"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:bank": 4,
+        "modern-english:flat": 1,
+        "modern-english:head": 2
+      },
+      "position": "post",
+      "tag": "plant"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 1
+      },
+      "position": "post",
+      "tag": "religious"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 8
+      },
+      "position": "post",
+      "tag": "religious"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:h\u0101m": 3,
+        "old-english:land": 1,
+        "old-english:t\u016bn": 3,
+        "old-norse:by": 4,
+        "old-norse:konungr": 1,
+        "old-norse:thorp": 1,
+        "old-norse:toft": 1
+      },
+      "position": "post",
+      "tag": "social"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "norman-french:ville": 1,
+        "old-english:croft": 12,
+        "old-english:h\u0101m": 11,
+        "old-english:ingas": 1,
+        "old-english:land": 17,
+        "old-english:t\u016bn": 20,
+        "old-english:weard": 1,
+        "old-english:w\u012bc": 6,
+        "old-norse:by": 17,
+        "old-norse:thorp": 5,
+        "old-norse:toft": 4
+      },
+      "position": "post",
+      "tag": "social"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:t\u016bn": 1
+      },
+      "position": "post",
+      "tag": "social"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:clif": 1,
+        "old-english:dun": 2,
+        "old-english:ford": 1,
+        "old-english:hyll": 2
+      },
+      "position": "post",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:druim": 2,
+        "modern-english:cliff": 1,
+        "modern-english:valley": 1,
+        "old-english:clif": 2,
+        "old-english:dene": 2,
+        "old-english:feld": 5,
+        "old-english:ford": 5,
+        "old-english:halh": 1,
+        "old-english:land": 1,
+        "old-english:mersc": 1,
+        "old-english:ofer": 1,
+        "old-english:wudu": 1
+      },
+      "position": "post",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:coed": 3,
+        "celtic:ros": 1,
+        "modern-english:beck": 1,
+        "modern-english:bergh": 2,
+        "modern-english:clough": 1,
+        "modern-english:dene": 2,
+        "modern-english:hill": 8,
+        "modern-english:hoe": 2,
+        "modern-english:land": 2,
+        "modern-english:moor": 1,
+        "modern-english:ridge": 2,
+        "modern-english:spring": 1,
+        "old-english:burna": 9,
+        "old-english:burne": 12,
+        "old-english:clif": 8,
+        "old-english:dene": 22,
+        "old-english:dun": 14,
+        "old-english:d\u016bn": 10,
+        "old-english:feld": 19,
+        "old-english:fenn": 2,
+        "old-english:ford": 26,
+        "old-english:halh": 3,
+        "old-english:hyll": 9,
+        "old-english:hyrst": 11,
+        "old-english:land": 17,
+        "old-english:luh": 1,
+        "old-english:l\u0113ah": 3,
+        "old-english:mere": 6,
+        "old-english:m\u014dr": 1,
+        "old-english:ofer": 2,
+        "old-english:sand": 1,
+        "old-english:sceaga": 3,
+        "old-english:stall": 1,
+        "old-english:stead": 2,
+        "old-english:s\u012bde": 1,
+        "old-english:twisla": 2,
+        "old-english:wudu": 5,
+        "old-english:\u0113a": 1,
+        "old-norse:bekkr": 3,
+        "old-norse:brekka": 14,
+        "old-norse:gil": 2,
+        "old-norse:holm": 1,
+        "old-norse:holmr": 8,
+        "old-norse:kjarr": 2,
+        "old-norse:land": 2,
+        "old-norse:melr": 2,
+        "old-norse:mynni": 2,
+        "old-norse:sandr": 3,
+        "old-norse:slakki": 5,
+        "old-norse:thveit": 1
+      },
+      "position": "post",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:crag": 1,
+        "modern-english:hill": 1,
+        "modern-english:moor": 1,
+        "old-english:ford": 1,
+        "old-english:halh": 1,
+        "old-english:mersc": 1,
+        "old-norse:brekka": 1,
+        "old-norse:ey": 3,
+        "old-norse:gil": 4,
+        "old-norse:holmr": 2,
+        "old-norse:kjarr": 1,
+        "old-norse:myrr": 1,
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:denu": 1
+      },
+      "position": "post",
+      "tag": "topology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:denu": 1,
+        "old-english:hop": 3
+      },
+      "position": "post",
+      "tag": "topology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:denu": 25,
+        "old-english:hol": 1,
+        "old-english:hop": 6,
+        "old-norse:dalr": 3
+      },
+      "position": "post",
+      "tag": "topology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:hop": 1
+      },
+      "position": "post",
+      "tag": "topology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bank": 3,
+        "modern-english:blade": 3,
+        "modern-english:ford": 1,
+        "modern-english:house": 2,
+        "modern-english:land": 2,
+        "modern-english:sac": 1,
+        "modern-english:side": 6,
+        "modern-english:stone": 1,
+        "modern-english:tail": 2,
+        "old-english:cot": 2,
+        "old-english:hus": 3,
+        "old-english:thorn": 1
+      },
+      "position": "post",
+      "tag": "tree"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:bank": 4,
+        "modern-english:flat": 1,
+        "modern-english:head": 2
+      },
+      "position": "post",
+      "tag": "tree"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 1
+      },
+      "position": "post",
+      "tag": "undead"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 8
+      },
+      "position": "post",
+      "tag": "undead"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:ford": 1
+      },
+      "position": "post",
+      "tag": "water"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:ford": 5,
+        "old-english:mersc": 1
+      },
+      "position": "post",
+      "tag": "water"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:beck": 1,
+        "modern-english:pool": 1,
+        "modern-english:spring": 1,
+        "old-english:burna": 9,
+        "old-english:burne": 12,
+        "old-english:fenn": 2,
+        "old-english:ford": 26,
+        "old-english:luh": 1,
+        "old-english:mere": 6,
+        "old-english:m\u014dr": 1,
+        "old-english:stall": 1,
+        "old-english:twisla": 2,
+        "old-english:\u0113a": 1,
+        "old-norse:bekkr": 3,
+        "old-norse:holmr": 8,
+        "old-norse:kjarr": 2,
+        "old-norse:melr": 2,
+        "old-norse:mynni": 2,
+        "old-norse:slakki": 5
+      },
+      "position": "post",
+      "tag": "water"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:ford": 1,
+        "old-english:mersc": 1,
+        "old-norse:holmr": 2,
+        "old-norse:kjarr": 1,
+        "old-norse:myrr": 1,
+        "old-norse:sker": 2
+      },
+      "position": "post",
+      "tag": "water"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:l\u012bn": 1,
+        "old-english:bere": 1
+      },
+      "position": "pre",
+      "tag": "agriculture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:brake": 1,
+        "modern-english:fallow": 1,
+        "old-english:bere": 9,
+        "old-english:b\u0113o": 1,
+        "old-english:celf": 1,
+        "old-english:cu": 1,
+        "old-english:hors": 1,
+        "old-english:h\u0113g": 1,
+        "old-english:h\u012bgna": 1,
+        "old-english:lin": 7,
+        "old-norse:hestr": 1
+      },
+      "position": "pre",
+      "tag": "agriculture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:cu": 1,
+        "old-english:eorth": 1,
+        "old-norse:hreysi": 2
+      },
+      "position": "pre",
+      "tag": "agriculture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:sveinn": 1
+      },
+      "position": "pre",
+      "tag": "anatomy"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:heorot": 1,
+        "old-english:mycg": 1,
+        "old-english:wulf": 1,
+        "old-norse:ulfr": 1
+      },
+      "position": "pre",
+      "tag": "animal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bell": 2,
+        "modern-english:cow": 1,
+        "modern-english:crane": 2,
+        "modern-english:fink": 1,
+        "modern-english:low": 1,
+        "modern-english:stable": 1,
+        "old-english:brocc": 6,
+        "old-english:b\u0113o": 1,
+        "old-english:catt": 2,
+        "old-english:celf": 1,
+        "old-english:corn": 1,
+        "old-english:cu": 1,
+        "old-english:fisc": 1,
+        "old-english:fox": 2,
+        "old-english:g\u014ds": 1,
+        "old-english:hafoc": 2,
+        "old-english:heorot": 9,
+        "old-english:hind": 3,
+        "old-english:hors": 1,
+        "old-norse:hestr": 1,
+        "old-norse:r\u00e1": 1,
+        "old-norse:ulfr": 1,
+        "old-norse:vogn": 1
+      },
+      "position": "pre",
+      "tag": "animal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:buck": 1,
+        "modern-english:head": 2,
+        "old-english:cu": 1,
+        "old-english:culfre": 1,
+        "old-norse:fugl": 2
+      },
+      "position": "pre",
+      "tag": "animal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-english:haga": 1
+      },
+      "position": "pre",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 3
+      },
+      "position": "pre",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:caer": 4,
+        "celtic:cair": 1,
+        "celtic:tref": 1,
+        "modern-english:bell": 2,
+        "old-english:bold": 1,
+        "old-english:botl": 2,
+        "old-english:burh": 5,
+        "old-english:cot": 3,
+        "old-english:cros": 1,
+        "old-english:cweorn": 1,
+        "old-english:haga": 8,
+        "old-english:hop": 1,
+        "old-norse:haugr": 2,
+        "old-norse:toft": 2
+      },
+      "position": "pre",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:castle": 1,
+        "old-english:haga": 1,
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "tag": "architecture"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:crane": 2,
+        "modern-english:fink": 1,
+        "old-english:corn": 1,
+        "old-english:g\u014ds": 1,
+        "old-english:hafoc": 2
+      },
+      "position": "pre",
+      "tag": "bird"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:culfre": 1,
+        "old-norse:fugl": 2
+      },
+      "position": "pre",
+      "tag": "bird"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:brun": 1,
+        "old-norse:rauthr": 1
+      },
+      "position": "pre",
+      "tag": "color"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:black": 2,
+        "norman-french:blanche": 1,
+        "old-english:brun": 3
+      },
+      "position": "pre",
+      "tag": "color"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:white": 1
+      },
+      "position": "pre",
+      "tag": "color"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "tag": "death"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "tag": "death"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:brun": 1,
+        "old-english:gegn": 1,
+        "old-english:hol": 2,
+        "old-english:horu": 1,
+        "old-english:lang": 1,
+        "old-english:manig": 1,
+        "old-norse:rauthr": 1
+      },
+      "position": "pre",
+      "tag": "descriptive"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:black": 2,
+        "modern-english:low": 1,
+        "modern-english:pot": 1,
+        "norman-french:beau": 3,
+        "norman-french:blanche": 1,
+        "old-english:brun": 3,
+        "old-english:cald": 4,
+        "old-english:efen": 2,
+        "old-english:f\u016bl": 1,
+        "old-english:hol": 3,
+        "old-english:lang": 3,
+        "old-english:manig": 1,
+        "old-english:\u0101na": 1,
+        "old-norse:saurr": 3
+      },
+      "position": "pre",
+      "tag": "descriptive"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:white": 1
+      },
+      "position": "pre",
+      "tag": "descriptive"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:north": 2,
+        "old-english:west": 3
+      },
+      "position": "pre",
+      "tag": "direction"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cweorn": 1
+      },
+      "position": "pre",
+      "tag": "economic"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:fox": 2,
+        "old-english:ram": 4
+      },
+      "position": "pre",
+      "tag": "fantasy"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:\u0101na": 1
+      },
+      "position": "pre",
+      "tag": "female name"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:fisc": 1
+      },
+      "position": "pre",
+      "tag": "fish"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:bere": 1,
+        "old-english:heorot": 1
+      },
+      "position": "pre",
+      "tag": "food"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 9,
+        "old-english:celf": 1,
+        "old-english:cu": 1,
+        "old-english:heorot": 9,
+        "old-english:hind": 3,
+        "old-norse:r\u00e1": 1
+      },
+      "position": "pre",
+      "tag": "food"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:cu": 1
+      },
+      "position": "pre",
+      "tag": "food"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:sveinn": 1
+      },
+      "position": "pre",
+      "tag": "gender"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-norse:holm": 1
+      },
+      "position": "pre",
+      "tag": "geography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 3
+      },
+      "position": "pre",
+      "tag": "geography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:cair": 1,
+        "old-english:burh": 5,
+        "old-english:mearc": 1
+      },
+      "position": "pre",
+      "tag": "geography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-norse:holm": 1
+      },
+      "position": "pre",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:mynydd": 2,
+        "old-norse:klakkr": 1
+      },
+      "position": "pre",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:crag": 1,
+        "modern-english:hill": 1,
+        "modern-english:sea": 1,
+        "old-english:billing": 3,
+        "old-english:clif": 1,
+        "old-english:cnoll": 2,
+        "old-english:dun": 3,
+        "old-english:d\u016bn": 2,
+        "old-english:eard": 1,
+        "old-english:ecg": 2,
+        "old-english:scelf": 1
+      },
+      "position": "pre",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "celtic:bryn": 1,
+        "modern-english:head": 2
+      },
+      "position": "pre",
+      "tag": "geology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:bere": 1
+      },
+      "position": "pre",
+      "tag": "grain"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:bere": 9
+      },
+      "position": "pre",
+      "tag": "grain"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:mycg": 1
+      },
+      "position": "pre",
+      "tag": "insect"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:b\u0113o": 1
+      },
+      "position": "pre",
+      "tag": "insect"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:bolg": 1
+      },
+      "position": "pre",
+      "tag": "item"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:heorot": 1,
+        "old-english:wulf": 1,
+        "old-norse:ulfr": 1
+      },
+      "position": "pre",
+      "tag": "mammal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:brocc": 6,
+        "old-english:catt": 2,
+        "old-english:celf": 1,
+        "old-english:cu": 1,
+        "old-english:fox": 2,
+        "old-english:heorot": 9,
+        "old-english:hind": 3,
+        "old-english:hors": 1,
+        "old-norse:hestr": 1,
+        "old-norse:r\u00e1": 1,
+        "old-norse:ulfr": 1,
+        "old-norse:vogn": 1
+      },
+      "position": "pre",
+      "tag": "mammal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:cu": 1
+      },
+      "position": "pre",
+      "tag": "mammal"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:stapol": 2
+      },
+      "position": "pre",
+      "tag": "material"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:silver": 1,
+        "old-english:sand": 4,
+        "old-english:stapol": 2,
+        "old-norse:sandr": 1
+      },
+      "position": "pre",
+      "tag": "material"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:buck": 1,
+        "modern-english:head": 2
+      },
+      "position": "pre",
+      "tag": "material"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:gegn": 1,
+        "old-english:lang": 1,
+        "old-english:manig": 1
+      },
+      "position": "pre",
+      "tag": "measurement"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:efen": 2,
+        "old-english:lang": 3,
+        "old-english:manig": 1
+      },
+      "position": "pre",
+      "tag": "measurement"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:burh": 3,
+        "old-english:helm": 2
+      },
+      "position": "pre",
+      "tag": "military"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:cair": 1,
+        "old-english:burh": 5,
+        "old-english:here": 6,
+        "old-english:hors": 1,
+        "old-english:weard": 1,
+        "old-norse:hestr": 1
+      },
+      "position": "pre",
+      "tag": "military"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:fox": 2,
+        "old-english:ram": 4
+      },
+      "position": "pre",
+      "tag": "monster"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:l\u012bn": 1,
+        "old-english:elm": 1,
+        "old-english:roth": 1,
+        "old-english:secg": 1
+      },
+      "position": "pre",
+      "tag": "plant"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:pres": 2,
+        "modern-english:bell": 2,
+        "modern-english:black": 2,
+        "modern-english:broad": 1,
+        "modern-english:cockle": 1,
+        "modern-english:cow": 1,
+        "modern-english:dox": 1,
+        "modern-english:flat": 1,
+        "modern-english:four": 1,
+        "modern-english:gaiter": 1,
+        "modern-english:light": 1,
+        "modern-english:low": 1,
+        "modern-english:mouse": 1,
+        "modern-english:pot": 1,
+        "modern-english:silver": 1,
+        "modern-english:street": 1,
+        "modern-english:whin": 1,
+        "old-english:beonet": 2,
+        "old-english:cot": 3,
+        "old-english:elm": 2,
+        "old-english:fearn": 1,
+        "old-english:gorst": 2,
+        "old-english:holegn": 2,
+        "old-english:holt": 3,
+        "old-english:lin": 7,
+        "old-english:lind": 4,
+        "old-english:thorn": 2,
+        "old-norse:eski": 2,
+        "old-norse:lundr": 2
+      },
+      "position": "pre",
+      "tag": "plant"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:breast": 1,
+        "modern-english:buck": 1,
+        "modern-english:head": 2,
+        "modern-english:mallow": 1,
+        "old-english:golde": 1,
+        "old-english:salh": 1
+      },
+      "position": "pre",
+      "tag": "plant"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:helm": 2
+      },
+      "position": "pre",
+      "tag": "possession"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cros": 1,
+        "old-english:h\u0113g": 1
+      },
+      "position": "pre",
+      "tag": "possession"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:fisc": 1,
+        "old-english:heorde": 2,
+        "old-english:munuc": 1
+      },
+      "position": "pre",
+      "tag": "profession"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:abbot": 1,
+        "norman-french:blanche": 1,
+        "old-english:cros": 1,
+        "old-english:h\u0101lig": 1,
+        "old-english:h\u012bgna": 1,
+        "old-english:munuc": 1,
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "tag": "religious"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "tag": "religious"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:\u0101na": 1
+      },
+      "position": "pre",
+      "tag": "saint"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:low": 1,
+        "modern-english:pot": 1
+      },
+      "position": "pre",
+      "tag": "size"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:cyne": 1
+      },
+      "position": "pre",
+      "tag": "social"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:tref": 1,
+        "old-english:cyne": 1,
+        "old-english:cyning": 1,
+        "old-english:h\u0101lig": 1,
+        "old-english:inga": 3,
+        "old-english:weard": 1,
+        "old-norse:jarl": 2,
+        "old-norse:thing": 1,
+        "old-norse:toft": 2
+      },
+      "position": "pre",
+      "tag": "social"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cald": 4
+      },
+      "position": "pre",
+      "tag": "temperature"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 700,
+      "lemmas": {
+        "old-norse:holm": 1
+      },
+      "position": "pre",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:mynydd": 2,
+        "celtic:rhyd": 1,
+        "old-english:halh": 1,
+        "old-english:roth": 1,
+        "old-norse:hryggr": 2,
+        "old-norse:klakkr": 1
+      },
+      "position": "pre",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:rhos": 2,
+        "modern-english:crag": 1,
+        "modern-english:hill": 1,
+        "modern-english:sea": 1,
+        "old-english:billing": 3,
+        "old-english:br\u014dc": 1,
+        "old-english:burna": 1,
+        "old-english:clif": 1,
+        "old-english:cnoll": 2,
+        "old-english:cr\u014dc": 1,
+        "old-english:dun": 3,
+        "old-english:d\u016bn": 2,
+        "old-english:eard": 1,
+        "old-english:feld": 3,
+        "old-english:fenn": 1,
+        "old-english:fl\u0113ot": 1,
+        "old-english:ford": 2,
+        "old-english:halh": 3,
+        "old-english:holt": 3,
+        "old-english:hyrst": 4,
+        "old-english:kers": 2,
+        "old-english:luh": 1,
+        "old-english:mere": 4,
+        "old-english:mixen": 1,
+        "old-english:ofer": 2,
+        "old-english:ord": 1,
+        "old-english:sand": 4,
+        "old-english:stall": 2,
+        "old-english:\u0113a": 1,
+        "old-norse:lundr": 2,
+        "old-norse:sandr": 1
+      },
+      "position": "pre",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "celtic:bryn": 1,
+        "old-english:eorth": 1,
+        "old-english:mersc": 1,
+        "old-norse:hreysi": 2,
+        "old-norse:slakki": 2
+      },
+      "position": "pre",
+      "tag": "topography"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:hol": 2
+      },
+      "position": "pre",
+      "tag": "topology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:denu": 2,
+        "old-english:hlinc": 4,
+        "old-english:hol": 3,
+        "old-english:hop": 1
+      },
+      "position": "pre",
+      "tag": "topology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:dael": 1
+      },
+      "position": "pre",
+      "tag": "topology"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "old-english:elm": 1
+      },
+      "position": "pre",
+      "tag": "tree"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "modern-english:bell": 2,
+        "modern-english:black": 2,
+        "modern-english:broad": 1,
+        "modern-english:cow": 1,
+        "modern-english:dox": 1,
+        "modern-english:flat": 1,
+        "modern-english:four": 1,
+        "modern-english:light": 1,
+        "modern-english:low": 1,
+        "modern-english:mouse": 1,
+        "modern-english:pot": 1,
+        "modern-english:silver": 1,
+        "modern-english:street": 1,
+        "old-english:cot": 3,
+        "old-english:elm": 2,
+        "old-english:lind": 4,
+        "old-english:thorn": 2,
+        "old-norse:eski": 2
+      },
+      "position": "pre",
+      "tag": "tree"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "modern-english:breast": 1,
+        "modern-english:head": 2,
+        "old-english:salh": 1
+      },
+      "position": "pre",
+      "tag": "tree"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "tag": "undead"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-norse:haugr": 2
+      },
+      "position": "pre",
+      "tag": "undead"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 950,
+      "lemmas": {
+        "celtic:rhyd": 1
+      },
+      "position": "pre",
+      "tag": "water"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "celtic:rhos": 2,
+        "modern-english:collier": 2,
+        "modern-english:sea": 1,
+        "old-english:br\u014dc": 1,
+        "old-english:burna": 1,
+        "old-english:cr\u014dc": 1,
+        "old-english:fenn": 1,
+        "old-english:fl\u0113ot": 1,
+        "old-english:ford": 2,
+        "old-english:hlinc": 4,
+        "old-english:kers": 2,
+        "old-english:luh": 1,
+        "old-english:mere": 4,
+        "old-english:pull": 1,
+        "old-english:stall": 2,
+        "old-english:\u0113a": 1
+      },
+      "position": "pre",
+      "tag": "water"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1600,
+      "lemmas": {
+        "old-english:mersc": 1,
+        "old-norse:slakki": 2
+      },
+      "position": "pre",
+      "tag": "water"
+    },
+    {
+      "culture": "english",
+      "era_midpoint": 1300,
+      "lemmas": {
+        "old-english:cald": 4
+      },
+      "position": "pre",
+      "tag": "weather"
+    }
+  ],
+  "version": "before-rebuild-20260529"
+}

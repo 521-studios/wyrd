@@ -1,0 +1,11 @@
+source                               63
+etymon                          2370418
+etymon_gloss                      14319
+etymon_tag                        53028
+etymon_citation                   13442
+reflex                            12455
+reflex_etymon                     12030
+toponym                           22590
+toponym_attestation               58345
+toponym_etymology                  6320
+toponym_etymology_element         11959

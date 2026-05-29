@@ -1,0 +1,26 @@
+{
+  "culture": "irish",
+  "decomposition_rate_a": 1.0,
+  "decomposition_rate_b": 1.0,
+  "decomposition_rate_delta": 0.0,
+  "morpheme_rank_correlation": 0.7611212253176656,
+  "morpheme_rank_top_k": 100,
+  "position_distribution_a": {
+    "bare": 0.47355696585071017,
+    "inner": 0.19069205197945,
+    "post": 0.1656089453006951,
+    "pre": 0.17014203686914475
+  },
+  "position_distribution_b": {
+    "bare": 0.47355696585071017,
+    "inner": 0.19069205197945,
+    "post": 0.1656089453006951,
+    "pre": 0.17014203686914475
+  },
+  "sample_size_a": 1000,
+  "sample_size_b": 1000,
+  "tag_kl_divergence": 0.022696306828669424,
+  "tag_total_variation": 0.05478015344940302,
+  "top_n_name_overlap": 0.005025125628140704,
+  "top_n_overlap_n": 100
+}
