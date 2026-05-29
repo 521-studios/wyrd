@@ -423,8 +423,12 @@ def _insert_citation_rows(
     etymon_id_by_ref: dict[str, int],
     counts: dict[str, Any],
 ) -> None:
-    """Insert ``citation`` rows for one source. Unknown ``etymon_ref``
-    → counted in ``citation_orphans`` and skipped (wyrd-lene)."""
+    """Insert ``citation`` rows. Default attribution is the file's
+    ``source_id``; a row may override it with an explicit ``source_id``
+    naming a ``cited_source`` the file registered (wyrd-2b50 — lets one
+    file record attestations from sources it cites on behalf of, without
+    a separate JSONL per source). Unknown ``etymon_ref`` → counted in
+    ``citation_orphans`` and skipped (wyrd-lene)."""
     for row in rows:
         eref = row["etymon_ref"]
         eid = etymon_id_by_ref.get(eref)
@@ -433,7 +437,7 @@ def _insert_citation_rows(
             if len(counts["citation_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
                 counts["citation_orphan_refs"].append(eref)
             continue
-        _insert_citation(conn, eid, source_id, row)
+        _insert_citation(conn, eid, row.get("source_id") or source_id, row)
         counts["citation"] += 1
 
 
@@ -858,6 +862,15 @@ def build_from_jsonl(
     for _path, source_id, state in file_states:
         _upsert_source(conn, source_id, state.keyed["source"][source_id])
         counts["source"] += 1
+        # wyrd-2b50: register secondary sources this file cites on behalf
+        # of (e.g. Briggs indexes PASE/DLV/Anglo-Saxon-charter attestations
+        # we have never ingested directly). etymon_citation.source_id is an
+        # FK to source(id), so each must exist before pass 3 inserts the
+        # citations that target it. INSERT OR IGNORE in _upsert_source makes
+        # re-declaration across files a no-op.
+        for cited_id, cited_payload in state.keyed.get("cited_source", {}).items():
+            _upsert_source(conn, cited_id, cited_payload)
+            counts["source"] += 1
 
     etymon_id_by_ref: dict[str, int] = {}
     for ref, payload in merged_etymons.items():

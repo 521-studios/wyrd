@@ -112,6 +112,19 @@ KEYED_TYPES: frozenset[str] = frozenset(
         "etymon_split",
         "toponym",
         "source",
+        # wyrd-2b50: secondary sources a file cites ON BEHALF OF. ``ref``
+        # is the source_id (e.g. ``"pase"``, ``"dlv"``,
+        # ``"anglo_saxon_charters"``); payload carries title/notes like a
+        # ``source`` row. Distinct from ``source`` (of which each file has
+        # exactly one — its PRIMARY) so a single L2 file can register the
+        # other scholarly references it attests without fabricating a
+        # separate JSONL per source. Build pass 2 upserts each into the
+        # ``source`` table; ``citation`` rows then target them via an
+        # explicit ``source_id``. This is the general "a source adds
+        # citations for sources it has consumed" path — Briggs is the
+        # first consumer (it indexes PASE / DLV / Anglo-Saxon-charter
+        # attestations we have never ingested directly).
+        "cited_source",
         # wyrd-11zh: Briggs EPNS personal-names index. ``ref`` is the
         # PN headform (e.g. ``"Ēadwulf"``). Payload carries PASE count,
         # DLV/ASCh refs, language hints, feminine marker. Briggs
