@@ -64,28 +64,28 @@ def lexicon_ingest_briggs_personal_names(
     restores the Briggs rows from the JSONL alone — no .txt re-parse,
     no PDF re-fetch.
 
-    Two artifacts land in the DB on a fresh ingest:
+    What lands in the DB on a fresh ingest (wyrd-2b50 — Briggs names are
+    standard etymons, not bespoke tables):
 
-    1. ``personal_name`` rows — one per unique PN headform with the
-       full Briggs metadata (PASE count, DLV presence, ASCh refs,
-       language hints, feminine marker). Diacritics preserved in the
-       ``headform`` column; the ``normalized_form`` column holds the
-       diacritic-folded ASCII spelling for lookup against the lexicon's
-       existing toponym data.
+    1. one ``etymon`` per unique PN headform (``canonical_form`` =
+       headform with diacritics preserved; ``language`` resolved from
+       the Briggs hint, defaulting to old-english), tagged ``male name``
+       / ``female name``.
 
-    2. ``personal_name_toponym_attestation`` rows — one per (PN,
-       toponym, county) occurrence. ``attested_variant`` captures the
-       PN's surface form as it appears IN the toponym when Briggs's
-       "X in Y" syntax exposes it.
+    2. one ``etymon_citation`` per source attesting the name: Briggs
+       (the file's primary source) plus, where Briggs records them,
+       secondary citations to PASE / DLV (Durham Liber Vitae) /
+       Anglo-Saxon charters — registered as ``cited_source`` rows so
+       one file can cite on their behalf. A name attested in ≥2 of
+       these promotes through the normal witness gate.
 
-    Both tables key on ``source_doc = "briggs_2024_personal_names_index"``
-    so this ingest can coexist with future PN-index ingests from
-    other scholars.
+    Name→toponym attestations are not stored as rows: the decompose-all
+    enrichment re-derives name elements in toponyms for proportions.
 
-    The ingest is idempotent — UNIQUE indexes on (headform, source_doc)
-    and the COALESCE-padded attestation dedup tuple absorb duplicates.
-    Re-running this command, or re-running ``rebuild-from-jsonl``, is
-    a no-op on a populated DB.
+    The ingest is idempotent — etymon UNIQUE(canonical_form, language)
+    merge-on-conflict and etymon_citation UNIQUE(etymon_id, source_id,
+    page) absorb duplicates. Re-running this command, or re-running
+    ``rebuild-from-jsonl``, is a no-op on a populated DB.
 
     Source format: pdftotext output of the EPNS-distributed PDF. Get
     the pdf from

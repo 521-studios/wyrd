@@ -477,6 +477,32 @@ def test_build_unregistered_citation_source_is_counted_not_swallowed(tmp_path: P
     assert conn.execute("SELECT COUNT(*) FROM etymon_citation").fetchone()[0] == 0
 
 
+def test_build_empty_source_id_is_orphan_not_file_fallback(tmp_path: Path):
+    """wyrd-2b50: a present-but-empty ``source_id`` is kept verbatim
+    (``.get`` keys on absence, not falsiness) and surfaces as an orphan
+    — it does NOT silently fall back to the file's primary source."""
+    _write_jsonl(
+        tmp_path,
+        "primary",
+        [
+            {"_type": "source", "ref": "primary", "title": "Primary"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:x",
+                "language": "old-english",
+                "canonical_form": "x",
+            },
+            {"_type": "citation", "etymon_ref": "old-english:x", "source_id": ""},
+        ],
+    )
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["citation"] == 0
+    assert counts["citation_source_orphans"] == 1
+    # Not misattributed to "primary".
+    assert conn.execute("SELECT COUNT(*) FROM etymon_citation").fetchone()[0] == 0
+
+
 def test_build_inserts_descent_with_resolved_fks(tmp_path: Path):
     _write_jsonl(
         tmp_path,
