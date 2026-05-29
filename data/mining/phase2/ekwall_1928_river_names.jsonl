@@ -24674,3 +24674,4 @@
 {"source_id": "ekwall_1928_river_names", "form": "Raven", "date_year": null, "region_hint": "Cumberland", "context": "Back-formations are Annas, perhaps King, Raven.", "extractor": "anthropic:claude-sonnet-4-6"}
 {"source_id": "ekwall_1928_river_names", "form": "Polgaver", "date_year": null, "region_hint": null, "context": "compounds with the defining element last, as Polgaver, Powmaughan &c. (see further under glen and poll). British names are", "extractor": "anthropic:claude-sonnet-4-6"}
 {"source_id": "ekwall_1928_river_names", "form": "Gileambon", "date_year": null, "region_hint": null, "context": "Scandinavian names of a similar type occur, as Gileambon ' Kamban's gill', which cannot be British.", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "ekwall_1928_river_names", "form": "Dike", "date_year": null, "region_hint": "East Riding of Yorkshire", "context": "Yorkshire (East Riding) rivers", "extractor": "claude-opus-4-8:manual"}

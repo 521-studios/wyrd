@@ -16876,3 +16876,6 @@
 {"source_id": "smith_1937_east_riding_yorkshire", "form": "Towton", "date_year": null, "region_hint": "WRY", "context": "Towton (WRY), 134 Yawthorpe (L), 176", "extractor": "anthropic:claude-sonnet-4-6"}
 {"source_id": "smith_1937_east_riding_yorkshire", "form": "Yawthorpe", "date_year": null, "region_hint": "L", "context": "Towton (WRY), 134 Yawthorpe (L), 176", "extractor": "anthropic:claude-sonnet-4-6"}
 {"source_id": "smith_1937_east_riding_yorkshire", "form": "Trumfleet", "date_year": null, "region_hint": "WRY", "context": "Trumfleet (WRY), 259", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "smith_1937_east_riding_yorkshire", "form": "West Tarring", "date_year": null, "region_hint": "Sussex", "context": "Corrigenda to PN Sussex (etymology notes)", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "smith_1937_east_riding_yorkshire", "form": "Roffey", "date_year": null, "region_hint": "Sussex", "context": "Corrigenda to PN Sussex (etymology notes)", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "smith_1937_east_riding_yorkshire", "form": "Pyecombe", "date_year": null, "region_hint": "Sussex", "context": "Corrigenda to PN Sussex (etymology notes)", "extractor": "claude-opus-4-8:manual"}

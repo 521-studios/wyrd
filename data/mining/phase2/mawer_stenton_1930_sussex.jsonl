@@ -30822,3 +30822,102 @@
 {"source_id": "mawer_stenton_1930_sussex", "form": "Tillinghurst", "date_year": null, "region_hint": null, "context": "*Tirheard (Turzes), *Titta (Tillinghurst), *Toppa (Topleigh), *Torhta (Tortington),", "extractor": "anthropic:claude-sonnet-4-6"}
 {"source_id": "mawer_stenton_1930_sussex", "form": "Topleigh", "date_year": null, "region_hint": null, "context": "*Titta (Tillinghurst), *Toppa (Topleigh), *Torhta (Tortington),", "extractor": "anthropic:claude-sonnet-4-6"}
 {"source_id": "mawer_stenton_1930_sussex", "form": "Tortington", "date_year": null, "region_hint": null, "context": "*Toppa (Topleigh), *Torhta (Tortington),", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Birchfold", "date_year": null, "region_hint": "Sussex", "context": "falod: Ashfold, Barfold...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Buckfold", "date_year": null, "region_hint": "Sussex", "context": "falod: Ashfold, Barfold...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Durfold", "date_year": null, "region_hint": "Sussex", "context": "falod: Ashfold, Barfold...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Frithfold", "date_year": null, "region_hint": "Sussex", "context": "falod: Ashfold, Barfold...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Hurstfold", "date_year": null, "region_hint": "Sussex", "context": "falod: Ashfold, Barfold...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Linfold", "date_year": null, "region_hint": "Sussex", "context": "falod: Ashfold, Barfold...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Ramsfold", "date_year": null, "region_hint": "Sussex", "context": "falod: Ashfold, Barfold...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Rowfold", "date_year": null, "region_hint": "Sussex", "context": "falod: Ashfold, Barfold...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Vox", "date_year": null, "region_hint": "Sussex", "context": "feax: Flexborough, Vox, Wax End", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Wax End", "date_year": null, "region_hint": "Sussex", "context": "feax: Flexborough, Vox, Wax End", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Blackfold", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Castle Fields", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Churchfield", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Eastfield", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Field", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Freshfield", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Greenfield", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Kingsfield", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Lovell's", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Merryfield", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Smithfield", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Southfield", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Spitalfield", "date_year": null, "region_hint": "Sussex", "context": "feld: Barnfold, Benefeld...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Fincham", "date_year": null, "region_hint": "Sussex", "context": "fin: Fincham, Findon, Fyning, Vinehall", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Float", "date_year": null, "region_hint": "Sussex", "context": "flot: Float", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Blackford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Bradford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Cinderford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Fulfords", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Holford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Lyford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Rushford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Stamford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Summerford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Twyford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Wickford", "date_year": null, "region_hint": "Sussex", "context": "ford: Blackford, Bradford...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Forstal", "date_year": null, "region_hint": "Sussex", "context": "forstall ME: Forstal", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Freek's", "date_year": null, "region_hint": "Sussex", "context": "fyrhp(e): Fatland, Frag Barrow...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Freezeland", "date_year": null, "region_hint": "Sussex", "context": "fyrhp(e): Fatland, Frag Barrow...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Limbo", "date_year": null, "region_hint": "Sussex", "context": "haga: Limbo, Priesthaus, Vinehall, Beckhall", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Broadham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Chestham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Crainham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Flexham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Horeham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Longham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Malham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Newham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Newnham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Nutham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Ockham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Saltham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Smallham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Southam", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Stammerham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Stoneham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Thornham", "date_year": null, "region_hint": "Sussex", "context": "ham(m): Appledram, Ashburnham...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Headhone", "date_year": null, "region_hint": "Sussex", "context": "han: Headhone, Marringdean, Medhone", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Medhone", "date_year": null, "region_hint": "Sussex", "context": "han: Headhone, Marringdean, Medhone", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Hoads", "date_year": null, "region_hint": "Sussex", "context": "*hap: Haywards Heath, High-hoad...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Hoards", "date_year": null, "region_hint": "Sussex", "context": "*hap: Haywards Heath, High-hoad...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Lywood", "date_year": null, "region_hint": "Sussex", "context": "*hap: Haywards Heath, High-hoad...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Hairley", "date_year": null, "region_hint": "Sussex", "context": "heald: Hairley, Hanlye", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Barkhale", "date_year": null, "region_hint": "Sussex", "context": "healh: Barkhale, Clothall's...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Clothall's", "date_year": null, "region_hint": "Sussex", "context": "healh: Barkhale, Clothall's...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Hall", "date_year": null, "region_hint": "Sussex", "context": "healh: Barkhale, Clothall's...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Tinghale", "date_year": null, "region_hint": "Sussex", "context": "healh: Barkhale, Clothall's...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "East Hale", "date_year": null, "region_hint": "Sussex", "context": "heall: Cophall, East Hale...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Hallgate", "date_year": null, "region_hint": "Sussex", "context": "heall: Cophall, East Hale...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Heaseland", "date_year": null, "region_hint": "Sussex", "context": "hese: Heaseland, Heys, Northease, Southease", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Hide", "date_year": null, "region_hint": "Sussex", "context": "hid: Hide, Hyde, Hyffold", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Hyde", "date_year": null, "region_hint": "Sussex", "context": "hid: Hide, Hyde, Hyffold", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Highland", "date_year": null, "region_hint": "Sussex", "context": "land: Bedlam, Beechland...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Rocklands", "date_year": null, "region_hint": "Sussex", "context": "land: Bedlam, Beechland...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Wellen's", "date_year": null, "region_hint": "Sussex", "context": "land: Bedlam, Beechland...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Westerland", "date_year": null, "region_hint": "Sussex", "context": "land: Bedlam, Beechland...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Whitelands", "date_year": null, "region_hint": "Sussex", "context": "land: Bedlam, Beechland...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Apsley", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Broomlye", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Dunly", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Early", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Hailey", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Harley", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Horleigh", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Lay", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Lea", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Lee", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Ley", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Morley", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Ockleigh", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Oley", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Bolen Rendlie", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Stanley", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Truleigh", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Wattlehill", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Woolfly", "date_year": null, "region_hint": "Sussex", "context": "leah: Apsley, Ashleigh...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Minnis", "date_year": null, "region_hint": "Sussex", "context": "(ge)mzennes: Minnis", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Shiremark", "date_year": null, "region_hint": "Sussex", "context": "mearc: Mark Cross, Mark Dyke...", "extractor": "claude-opus-4-8:manual"}
+{"source_id": "mawer_stenton_1930_sussex", "form": "Elmer", "date_year": null, "region_hint": "Sussex", "context": "mere: Balmer, Elmer, Falmer", "extractor": "claude-opus-4-8:manual"}
