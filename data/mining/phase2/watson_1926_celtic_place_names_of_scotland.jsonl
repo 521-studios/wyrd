@@ -20275,3 +20275,181 @@
 {"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Rannoch", "date_year": null, "region_hint": null, "context": "'Rannoch 78, 81, 120", "extractor": "anthropic:claude-haiku-4-5-20251001"}
 {"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Raskill", "date_year": null, "region_hint": null, "context": "-Raskill 498", "extractor": "anthropic:claude-haiku-4-5-20251001"}
 {"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Rath-elpie", "date_year": null, "region_hint": null, "context": "Rath-elpie 237", "extractor": "anthropic:claude-haiku-4-5-20251001"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gillecallumkille", "date_year": null, "region_hint": null, "context": "Gillecallumkille 240", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gillecalmestun", "date_year": null, "region_hint": null, "context": "Gillecalmestun 134", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gillemorestun", "date_year": null, "region_hint": null, "context": "Gillemorestun 135", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gillemunesden", "date_year": null, "region_hint": null, "context": "Gillemunesden 134", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gillepedre", "date_year": null, "region_hint": null, "context": "Gillepedre 240", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gilliquhamby", "date_year": null, "region_hint": null, "context": "Gilliquhamby 240", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gilmahaguistoun", "date_year": null, "region_hint": null, "context": "Gilmahaguistoun 196", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gilmerton", "date_year": null, "region_hint": null, "context": "Gilmerton 134", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Giltre", "date_year": null, "region_hint": null, "context": "Giltre 362", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gilzacrest", "date_year": null, "region_hint": null, "context": "Gilzacrest 240", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Girvan", "date_year": null, "region_hint": null, "context": "Girvan 32", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glack", "date_year": null, "region_hint": null, "context": "Glack 140", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glais", "date_year": null, "region_hint": null, "context": "Glais 456 seq.", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glammis", "date_year": null, "region_hint": null, "context": "Glammis 323", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glan -Tanat", "date_year": null, "region_hint": null, "context": "Glan -Tanat 475", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glascogrene", "date_year": null, "region_hint": null, "context": "Glascogrene 385", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glasfhasadhnan", "date_year": null, "region_hint": null, "context": "Glasfhasadhnan 500", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glasgow", "date_year": null, "region_hint": null, "context": "Glasgow 197", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Ego", "date_year": null, "region_hint": null, "context": "— Ego 385", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Forest", "date_year": null, "region_hint": "Glasgow", "context": "— Forest 385", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glasimpere", "date_year": null, "region_hint": null, "context": "Glasimpere 217", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glassiehow", "date_year": null, "region_hint": null, "context": "Glassiehow 457", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glassmount", "date_year": null, "region_hint": null, "context": "Glassmount 402", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glastonbury", "date_year": null, "region_hint": null, "context": "Glastonbury 11, 217", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gleann :-Amain", "date_year": null, "region_hint": null, "context": "Gleann :-Amain 430", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Banbhaidh", "date_year": null, "region_hint": null, "context": "— -Banbhaidh 232", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Breun", "date_year": null, "region_hint": null, "context": "— Breun 449", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Cainneir", "date_year": null, "region_hint": null, "context": "— -Cainneir 276, 518", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Caiseig", "date_year": null, "region_hint": null, "context": "— -Caiseig 449", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Cheatharnaich", "date_year": null, "region_hint": null, "context": "— -Cheatharnaich 145, 449", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Chonghlais", "date_year": null, "region_hint": null, "context": "— -Chonghlais 458", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Dea", "date_year": null, "region_hint": null, "context": "— Dea 428", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Dubh", "date_year": null, "region_hint": null, "context": "— Dubh 451", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Fhaolaéin", "date_year": null, "region_hint": null, "context": "'Fhaolaéin 285", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Fithich", "date_year": null, "region_hint": null, "context": "— -Fithich 115", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gamhair", "date_year": null, "region_hint": null, "context": "*Gamhair 432", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Geundid", "date_year": null, "region_hint": null, "context": "-Geundid 445", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Salach", "date_year": null, "region_hint": null, "context": "— -Salach 46", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Sasunn", "date_year": null, "region_hint": null, "context": "— -Sasunn 356", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "an t-Suidhe", "date_year": null, "region_hint": null, "context": "— an t-Suidhe 263", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Truim", "date_year": null, "region_hint": null, "context": "— Truim 443", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Urchaidh", "date_year": null, "region_hint": null, "context": "*Urchaidh, -Urchain 475", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Urchain", "date_year": null, "region_hint": null, "context": "*Urchaidh, -Urchain 475", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gledfield", "date_year": null, "region_hint": null, "context": "Gledfield 349", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glen Ample", "date_year": null, "region_hint": null, "context": "Glen Ample 448", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Banchor", "date_year": null, "region_hint": null, "context": "— -Banchor 481", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "barton", "date_year": null, "region_hint": null, "context": "— -barton 184", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "birnie", "date_year": null, "region_hint": null, "context": "Glen -birnie 141", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "bower", "date_year": null, "region_hint": null, "context": "'bower 52", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Buchat", "date_year": null, "region_hint": null, "context": "-Buchat 237", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "callader", "date_year": null, "region_hint": null, "context": "-callader 106", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "calvie", "date_year": null, "region_hint": null, "context": "-calvie 442", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "cannell", "date_year": null, "region_hint": null, "context": "-cannell 276, 518", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Casley", "date_year": null, "region_hint": null, "context": "-Casley 516", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "coe", "date_year": null, "region_hint": null, "context": "'coe 434", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "corse", "date_year": null, "region_hint": null, "context": "-corse 145, 180, 486", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Creran", "date_year": null, "region_hint": null, "context": "'Creran 78", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "erosk", "date_year": null, "region_hint": null, "context": "-erosk 486", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Cuaich", "date_year": null, "region_hint": null, "context": "— Cuaich 426", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "dale", "date_year": null, "region_hint": null, "context": "— -dale 415", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "da-lough", "date_year": null, "region_hint": null, "context": "— da-lough 258", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "daruel", "date_year": null, "region_hint": null, "context": "—daruel 123, 289, 473", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Derby", "date_year": null, "region_hint": null, "context": "'Derby 445", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Devon", "date_year": null, "region_hint": null, "context": "-Devon 438", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Dibidale", "date_year": null, "region_hint": null, "context": "-Dibidale 93", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "doe", "date_year": null, "region_hint": null, "context": "'doe 80, 436", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "elg", "date_year": null, "region_hint": null, "context": "-elg 61, 231", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Erichdie", "date_year": null, "region_hint": null, "context": "-Erichdie 439, 491", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Falloch", "date_year": null, "region_hint": null, "context": "-Falloch 15", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Farquhar", "date_year": null, "region_hint": null, "context": "'Farquhar 237", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "fernate", "date_year": null, "region_hint": null, "context": "'fernate 445", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Fiddich", "date_year": null, "region_hint": null, "context": "-Fiddich 115", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Finlas", "date_year": null, "region_hint": null, "context": "'Finlas 457", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Finnan", "date_year": null, "region_hint": null, "context": "-Finnan 239", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Fruin", "date_year": null, "region_hint": null, "context": "-Fruin 470", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Fyne", "date_year": null, "region_hint": null, "context": "'Fyne 437", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "gaber", "date_year": null, "region_hint": null, "context": "'gaber 138", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "gairn", "date_year": null, "region_hint": null, "context": "'gairn 324", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Garry", "date_year": null, "region_hint": null, "context": "-Garry 432, 470", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "gennet", "date_year": null, "region_hint": null, "context": "-gennet 446", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Girnaig", "date_year": null, "region_hint": null, "context": "'Girnaig 449", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glass", "date_year": null, "region_hint": null, "context": "'Glass 457", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glaster", "date_year": null, "region_hint": null, "context": "'Glaster 455", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gloy", "date_year": null, "region_hint": null, "context": "'Gloy 470", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Grivie", "date_year": null, "region_hint": null, "context": "'Grivie 470", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Isla", "date_year": null, "region_hint": null, "context": "'Isla, 513", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "jorrie", "date_year": null, "region_hint": null, "context": "'jorrie 266", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "kenner", "date_year": null, "region_hint": null, "context": "-kenner 276", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "kerry", "date_year": null, "region_hint": null, "context": "'kerry 138", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "ketland", "date_year": null, "region_hint": null, "context": "'ketland 355", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "kinglas", "date_year": null, "region_hint": null, "context": "'kinglas 458", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Livet", "date_year": null, "region_hint": null, "context": "-Livet 445", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Lochy", "date_year": null, "region_hint": null, "context": "-Lochy 12, 81", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Loy", "date_year": null, "region_hint": null, "context": "'Loy 453", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Lyon", "date_year": null, "region_hint": null, "context": "'Lyon 12", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Mallie", "date_year": null, "region_hint": null, "context": "-Mallie 290", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Marxie", "date_year": null, "region_hint": null, "context": "— Marxie 500", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Masan", "date_year": null, "region_hint": null, "context": "-'Masan 239", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Noe", "date_year": null, "region_hint": null, "context": "'Noe 54", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Ogle", "date_year": null, "region_hint": null, "context": "'Ogle 12, 48, 378, 485", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "orchy", "date_year": null, "region_hint": null, "context": "-orchy 475", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Pean", "date_year": null, "region_hint": null, "context": "-Pean 435", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "puitty", "date_year": null, "region_hint": null, "context": "'puitty 147", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Roy", "date_year": null, "region_hint": null, "context": "'Roy 437", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glen -Salach", "date_year": null, "region_hint": null, "context": "Glen -Salach 46, 426", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Shanna", "date_year": null, "region_hint": null, "context": "— 'Shanna 478", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Shee", "date_year": null, "region_hint": null, "context": "— Shee 477, 478", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Shiara", "date_year": null, "region_hint": null, "context": "'Shiara 477, 478", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Tarvie", "date_year": null, "region_hint": null, "context": "'Tarvie 147", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "tenmont", "date_year": null, "region_hint": null, "context": "'tenmont 180, 399", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "terf", "date_year": null, "region_hint": null, "context": "'terf 142", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "tress", "date_year": null, "region_hint": null, "context": "'tress 444", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Turret", "date_year": null, "region_hint": null, "context": "'Turret 446", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "whinnie", "date_year": null, "region_hint": null, "context": "— -whinnie 145", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glenn Ailbe", "date_year": null, "region_hint": null, "context": "Glenn Ailbe 512", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Garadh", "date_year": null, "region_hint": null, "context": "— Garadh 471", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "dé Ruadh", "date_year": null, "region_hint": null, "context": "— dé Ruadh 473", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glespin", "date_year": null, "region_hint": null, "context": "Glespin 198", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glin -Mannou", "date_year": null, "region_hint": null, "context": "Glin -Mannou 104", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Glorat", "date_year": null, "region_hint": null, "context": "Glorat 445", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gob na Heiste", "date_year": null, "region_hint": null, "context": "Gob na Heiste 487", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gober-nuisgich", "date_year": null, "region_hint": null, "context": "Gober-nuisgich 424", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gocam:go", "date_year": null, "region_hint": null, "context": "Gocam:go 105n.", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Goddeu", "date_year": null, "region_hint": null, "context": "-Goddeu 343", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "God-oddin", "date_year": null, "region_hint": null, "context": "God-oddin 71", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Godre -Dewi", "date_year": null, "region_hint": null, "context": "'Godre -Dewi 114", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gogar", "date_year": null, "region_hint": null, "context": "'Gogar 210", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Goirnedg", "date_year": null, "region_hint": null, "context": "'Goirnedg 449, 551", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Goitmureheidis", "date_year": null, "region_hint": null, "context": "Goitmureheidis 493", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Goitt", "date_year": null, "region_hint": null, "context": "Goitt 493", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Goladair", "date_year": null, "region_hint": null, "context": "-Goladair 487", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gollaidh", "date_year": null, "region_hint": null, "context": "-Gollaidh, Golly, 442", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Golly", "date_year": null, "region_hint": null, "context": "-Gollaidh, Golly, 442", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Goodie", "date_year": null, "region_hint": null, "context": "-Goodie 444", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gormag", "date_year": null, "region_hint": null, "context": "'Gormag 449", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gorno", "date_year": null, "region_hint": null, "context": "-Gorno 379", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gortan -Eorna", "date_year": null, "region_hint": null, "context": "-Gortan -Eorna 80", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gort-eeshal", "date_year": null, "region_hint": null, "context": "Gort-eeshal 405", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gospartie", "date_year": null, "region_hint": null, "context": "'Gospartie 210", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gossocks", "date_year": null, "region_hint": null, "context": "-Gossocks 178", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gouder-annet", "date_year": null, "region_hint": null, "context": "Gouder-annet 251", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gourdie", "date_year": null, "region_hint": null, "context": "'Gourdie 418", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gourdon", "date_year": null, "region_hint": null, "context": "-Gourdon 210", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gourock", "date_year": null, "region_hint": null, "context": "-Gourock 201", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gowmac-morran", "date_year": null, "region_hint": null, "context": "Gowmac-morran 198", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gowrie", "date_year": null, "region_hint": null, "context": "'Gowrie, Gouerin, 107, 122", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gouerin", "date_year": null, "region_hint": null, "context": "'Gowrie, Gouerin, 107, 122", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Grampians", "date_year": null, "region_hint": null, "context": "Grampians 395", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Grangemyre", "date_year": null, "region_hint": null, "context": "Grangemyre 379", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Graupius", "date_year": null, "region_hint": null, "context": "Graupius 7, 22, 55 seq.", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Greenan", "date_year": null, "region_hint": null, "context": "Greenan 200", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Greenock", "date_year": null, "region_hint": null, "context": "Greenock 201", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Grennich", "date_year": null, "region_hint": null, "context": "-Grennich 141", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Grieveship", "date_year": null, "region_hint": null, "context": "Grieveship, Greshope, 229, 230", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Greshope", "date_year": null, "region_hint": null, "context": "Grieveship, Greshope, 229, 230", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Grife", "date_year": null, "region_hint": null, "context": "Grife, Gryfe, 470", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gryfe", "date_year": null, "region_hint": null, "context": "Grife, Gryfe, 470", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Groam", "date_year": null, "region_hint": null, "context": "Groam, Groan 379, 380", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Groan", "date_year": null, "region_hint": null, "context": "Groam, Groan 379, 380", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Groidich", "date_year": null, "region_hint": null, "context": "'Groidich 445", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gromyre", "date_year": null, "region_hint": null, "context": "Gromyre 379", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gronna Magna", "date_year": null, "region_hint": null, "context": "Gronna Magna 378", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Grund.cruie", "date_year": null, "region_hint": null, "context": "Grund.cruie 380", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Guay", "date_year": null, "region_hint": null, "context": "Guay 493", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gueith", "date_year": null, "region_hint": null, "context": "Gueith 210", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gullane", "date_year": null, "region_hint": null, "context": "'Gullane 142", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Guo-todin", "date_year": null, "region_hint": null, "context": "Guo-todin 103, 128, see Fothudan", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Fothudan", "date_year": null, "region_hint": null, "context": "Guo-todin 103, 128, see Fothudan", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gweir", "date_year": null, "region_hint": null, "context": "Gweir (Wear R.) 365", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Wear R.", "date_year": null, "region_hint": null, "context": "Gweir (Wear R.) 365", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gwenddwr", "date_year": null, "region_hint": null, "context": "-Gwenddwr 455", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gwenlais", "date_year": null, "region_hint": null, "context": "-Gwenlais 457", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gwen -Ystrad", "date_year": null, "region_hint": null, "context": "Gwen -Ystrad 344", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gwerid", "date_year": null, "region_hint": null, "context": "Gwerid, Werid, 48, 52, 72, 212", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Werid", "date_year": null, "region_hint": null, "context": "Gwerid, Werid, 48, 52, 72, 212", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gwynfynydd", "date_year": null, "region_hint": null, "context": "Gwynfynydd 402", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gylitalargyn", "date_year": null, "region_hint": null, "context": "Gylitalargyn 240", "extractor": "anthropic:claude-sonnet-4-6"}
+{"source_id": "watson_1926_celtic_place_names_of_scotland", "form": "Gyvelestone", "date_year": null, "region_hint": null, "context": "Gyvelestone 474", "extractor": "anthropic:claude-sonnet-4-6"}
