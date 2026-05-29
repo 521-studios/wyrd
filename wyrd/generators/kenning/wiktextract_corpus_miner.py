@@ -366,17 +366,34 @@ def _iter_wiktextract_entries(slice_path: Path) -> Iterator[dict[str, Any]]:
                 continue
 
 
+# wyrd-33cv: wiktextract part-of-speech codes for the function-word
+# class. A place-name lexicon wants content words (noun / verb / adj /
+# name / …); function words (prepositions, conjunctions, pronouns,
+# particles, determiners, articles) that happen to surface-match an
+# unaccounted fragment are noise — they never carry toponymic meaning.
+# Skipping them at ingest stops the ~function-word slice of the
+# wiktextract pollution the wyrd-smtc epic identified. Content POS pass
+# through unchanged.
+_FUNCTION_WORD_POS: frozenset[str] = frozenset(
+    {"prep", "postp", "conj", "pron", "particle", "det", "article"}
+)
+
+
 def _select_canonical_sense(entry: dict[str, Any]) -> tuple[str, list[str]] | None:
     """Pick a representative gloss for an entry, plus mapped tags.
 
     Returns ``(gloss, tag_list)`` or ``None`` if the entry has no usable
     sense — and the etymon is then skipped at the caller.
 
-    Skips Wiktionary-tagged redirect senses (``alt-of`` / ``form-of``)
-    AND any sense whose gloss TEXT matches our derivative classifier
-    (catches the ~50% of Wiktionary derivative entries that aren't
-    tag-marked — "inflection of X" / "plural of X" / "soft mutation
-    of X" in prose).
+    Skips, in order:
+
+    * function-word entries by part-of-speech (wyrd-33cv) — the entry's
+      top-level ``pos`` is in ``_FUNCTION_WORD_POS``;
+    * Wiktionary-tagged redirect senses (``alt-of`` / ``form-of``);
+    * any sense whose gloss TEXT matches our derivative classifier
+      (catches the ~50% of Wiktionary derivative entries that aren't
+      tag-marked — "inflection of X" / "plural of X" / "soft mutation
+      of X" in prose).
 
     wyrd-a106 root-cause fix (2026-05-23): pre-fix, when every sense
     was a redirect, a fallback returned the first redirect anyway
@@ -390,6 +407,10 @@ def _select_canonical_sense(entry: dict[str, Any]) -> tuple[str, list[str]] | No
     # Lazy import to avoid a module-load cycle — wyrd.generators.kenning
     # imports from this package elsewhere.
     from wyrd.generators.kenning import _is_derivative_gloss
+
+    # wyrd-33cv: POS gate — drop function words before inspecting senses.
+    if (entry.get("pos") or "").strip() in _FUNCTION_WORD_POS:
+        return None
 
     senses = entry.get("senses") or []
     for sense in senses:
