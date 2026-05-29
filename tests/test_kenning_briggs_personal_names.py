@@ -824,6 +824,71 @@ def test_emit_briggs_jsonl_threads_stats_through_parse_pipeline(
 # ---------------------------------------------------------------------
 
 
+def test_emit_briggs_jsonl_dedupes_repeated_headform_first_wins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two entries sharing a headform emit only ONE personal_name row — the
+    first (richer) one — while BOTH entries' attestations still emit. Pins
+    the ``seen_headforms`` first-wins invariant in ``emit_briggs_jsonl``: a
+    switch to last-wins or per-entry emit would silently corrupt PN metadata
+    and duplicate rows on rebuild."""
+    src = tmp_path / "briggs.txt"
+    # Same headform "Aba" in two entries; first carries PASE1, second PASE9.
+    src.write_text("—A—\nAba PASE1 Foo (Bk).\nAba PASE9 Bar (D).\n", encoding="utf-8")
+    monkeypatch.setattr(briggs, "INDEX_FIRST_LINE_NUM", 0)
+    out = tmp_path / "briggs.jsonl"
+    emit_briggs_jsonl(src, out)
+    rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    aba_pn = [r for r in rows if r.get("_type") == "personal_name" and r["headform"] == "Aba"]
+    assert len(aba_pn) == 1  # deduped to a single PN row
+    assert aba_pn[0]["pase_count"] == 1  # first wins (PASE1), not the later PASE9
+    att_toponyms = {
+        r["toponym_form"] for r in rows if r.get("_type") == "personal_name_toponym_attestation"
+    }
+    assert {"Foo", "Bar"} <= att_toponyms  # both entries' attestations still emit
+
+
+def test_emit_briggs_jsonl_truncates_on_rerun(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``emit_briggs_jsonl`` opens the artifact in ``"w"`` mode — re-emitting
+    to the same path REWRITES rather than appends, so line count and the
+    single ``_type: source`` anchor stay stable. Guards the canonical-artifact
+    contract that the DB-level idempotency tests can't see (INSERT OR IGNORE
+    keeps DB counts stable even if emit silently flipped to append-mode)."""
+    src = _write_fixture(tmp_path / "briggs.txt", monkeypatch)
+    out = tmp_path / "briggs.jsonl"
+    emit_briggs_jsonl(src, out)
+    first = out.read_text(encoding="utf-8").splitlines()
+    emit_briggs_jsonl(src, out)
+    second = out.read_text(encoding="utf-8").splitlines()
+    assert len(first) == len(second)  # rewrite, not append
+    source_anchors = [line for line in second if json.loads(line).get("_type") == "source"]
+    assert len(source_anchors) == 1  # exactly one anchor after re-run
+
+
+@pytest.mark.parametrize(
+    ("body", "expected_date"),
+    [
+        ("Abington Hy3 (Bk)", "Hy3"),
+        ("Acton Edw1 (D)", "Edw1"),
+        ("Barton Ric2 (O)", "Ric2"),
+        ("Carlton John (We)", "John"),
+        ("Dalton Steph (Sf)", "Steph"),
+    ],
+)
+def test_parse_attestations_regnal_year_date_qualifiers(body: str, expected_date: str) -> None:
+    """``RE_DATE_PREFIX`` recognizes regnal-year date forms
+    (``Hy[1-8] | Edw[1-3] | Ric[1-3] | John | Steph``), not just numeric
+    years — a break in that alternation would misparse the date/toponym
+    split. The toponym preceding the regnal year is kept; the year lands in
+    ``date_qualifier``."""
+    atts = list(_parse_attestations(body))
+    assert len(atts) == 1
+    assert atts[0].date_qualifier == expected_date
+    assert atts[0].toponym_form == body.split()[0]
+
+
 def test_emit_briggs_jsonl_serializes_ascharter_refs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -890,8 +955,10 @@ def test_column_reconstruct_trims_leading_and_trailing_blank_rows() -> None:
     """Blank first/last page lines must not survive as spurious entry
     boundaries — both columns get their leading AND trailing blank slots
     trimmed before the linear join."""
-    # 38-char left field (COLUMN_BOUNDARY); right field begins at col 38.
-    wide = "Aalfra DLV.".ljust(38) + "Abba PASE3 Abbington (Bk)."
+    # Left field is exactly COLUMN_BOUNDARY wide; the right field begins
+    # at that column. Derive the pad from the source constant so the test
+    # tracks the boundary instead of silently desyncing if it changes.
+    wide = "Aalfra DLV.".ljust(briggs.COLUMN_BOUNDARY) + "Abba PASE3 Abbington (Bk)."
     out = _column_reconstruct(["", wide, ""])
     lines = out.split("\n")
     assert lines[0].startswith("Aalfra DLV.")
