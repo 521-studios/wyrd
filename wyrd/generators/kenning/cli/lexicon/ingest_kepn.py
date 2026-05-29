@@ -100,8 +100,10 @@ def lexicon_ingest_kepn(
         migrate_schema(db)
         for cp in csvs:
             this_county = county if (county and not csv_path.is_dir()) else county_from_filename(cp)
-            jout = jsonl_path if (jsonl_path and not csv_path.is_dir()) else (
-                Path("data/mining") / f"kepn_{cp.stem}.jsonl"
+            jout = (
+                jsonl_path
+                if (jsonl_path and not csv_path.is_dir())
+                else (Path("data/mining") / f"kepn_{cp.stem}.jsonl")
             )
             start = time.monotonic()
             click.echo(f"KEPN ingest: {cp.name}  (county={this_county})", err=True)
@@ -118,8 +120,12 @@ def lexicon_ingest_kepn(
                 )
 
             stats = ingest_kepn_csv(
-                db, cp, county=this_county, jsonl_path=jout,
-                briggs_jsonl=briggs_jsonl, element_whitelist_path=wl,
+                db,
+                cp,
+                county=this_county,
+                jsonl_path=jout,
+                briggs_jsonl=briggs_jsonl,
+                element_whitelist_path=wl,
                 on_progress=_report,
             )
             click.echo(
@@ -134,7 +140,10 @@ def lexicon_ingest_kepn(
                 err=True,
             )
             if stats.unmapped_lang_slots:
-                click.echo(f"    UNMAPPED language slots (investigate): {stats.unmapped_lang_sample}", err=True)
+                click.echo(
+                    f"    UNMAPPED language slots (investigate): {stats.unmapped_lang_sample}",
+                    err=True,
+                )
             if stats.whitelist_quarantined:
                 click.echo(f"    quarantined forms (sample): {stats.quarantine_sample}", err=True)
     finally:
