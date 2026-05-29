@@ -102,10 +102,10 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import ingest_domesday as _ingest_domesday_module
 from wyrd.generators.kenning.cli.lexicon import ingest_etymonline as _ingest_etymonline_module
 from wyrd.generators.kenning.cli.lexicon import ingest_hearth_tax as _ingest_hearth_tax_module
-from wyrd.generators.kenning.cli.lexicon import ingest_kepn as _ingest_kepn_module
 from wyrd.generators.kenning.cli.lexicon import (
     ingest_hundred_rolls as _ingest_hundred_rolls_module,
 )
+from wyrd.generators.kenning.cli.lexicon import ingest_kepn as _ingest_kepn_module
 from wyrd.generators.kenning.cli.lexicon import (
     ingest_os_open_names as _ingest_os_open_names_module,
 )
