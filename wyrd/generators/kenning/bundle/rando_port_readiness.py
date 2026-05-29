@@ -77,6 +77,22 @@ class LanguageCriterion:
             return 0.0
         return 100.0 * self.attested_count / self.total_subjects
 
+    @property
+    def scholar_only_pct(self) -> float:
+        """wyrd-w1ak: scholar-attested share of bundle subjects, ignoring
+        the empirical wedge. Surfaces 'how much of this language's
+        coverage rests on one mining pipeline (wiktionary-empirical)
+        vs the 40+ named bibliographic sources'.
+
+        C1 verdict math is unchanged — still uses ``coverage_pct``
+        (scholar + empirical). This is a visibility metric, not a gate
+        change. A language can clear C1 cleanly while scholar_only_pct
+        sits low because empirical is doing most of the work.
+        """
+        if self.total_subjects == 0:
+            return 0.0
+        return 100.0 * self.scholar_attested / self.total_subjects
+
     def passes_coverage(self, threshold: float = DEFAULT_COVERAGE_THRESHOLD) -> bool:
         """Criterion 1: ≥threshold attested. A language with zero
         subjects vacuously passes — we're not gating retirement on
@@ -169,9 +185,9 @@ def format_readiness(report: ReadinessReport) -> str:
     lines.append("")
     lines.append(
         "| Language | Total | Scholar | Empirical | Rando-only | Uncited "
-        "| Coverage | C1 ≥thresh | C2 rando=0 | C3 slice |"
+        "| Scholar only | Coverage | C1 ≥thresh | C2 rando=0 | C3 slice |"
     )
-    lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |")
+    lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |")
     for lc in report.per_language:
         c1 = "✓" if lc.passes_coverage(report.coverage_threshold) else "✗"
         c2 = "✓" if lc.passes_rando_only_zero() else "✗"
@@ -179,7 +195,8 @@ def format_readiness(report: ReadinessReport) -> str:
         lines.append(
             f"| {lc.language} | {lc.total_subjects} | {lc.scholar_attested} "
             f"| {lc.empirical_only} | {lc.rando_only} | {lc.uncited} "
-            f"| {lc.coverage_pct:.1f}% | {c1} | {c2} | {c3} |"
+            f"| {lc.scholar_only_pct:.1f}% | {lc.coverage_pct:.1f}% "
+            f"| {c1} | {c2} | {c3} |"
         )
     lines.append("")
     lines.append("## Criterion definitions")
@@ -192,6 +209,12 @@ def format_readiness(report: ReadinessReport) -> str:
     lines.append(
         "- **C3 (slice comparison)** — rando-only count ≤ scholar-attested "
         "count per language (rando is no longer the dominant slice)."
+    )
+    lines.append(
+        "- **Scholar only** (visibility, not a gate) — scholar-attested "
+        "share of bundle subjects (excluding the empirical wedge). "
+        "Surfaces how much of a language's coverage rests on the "
+        "wiktionary-empirical pipeline vs the named bibliographic sources."
     )
     lines.append("")
     if not report.overall_passes:
