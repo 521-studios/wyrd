@@ -121,11 +121,22 @@ def test_select_canonical_sense_keeps_content_word_pos(pos: str) -> None:
     assert gloss == "enclosure, farmstead"
 
 
-def test_select_canonical_sense_keeps_entry_with_missing_pos() -> None:
-    """wyrd-33cv: a missing/empty pos is NOT treated as a function word
-    — only the explicit denylist is filtered, so entries lacking a pos
-    field (or with pos='') still get their gloss selected."""
-    entry = {"word": "tun", "senses": [{"glosses": ["enclosure, farmstead"]}]}
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {"word": "tun", "senses": [{"glosses": ["enclosure, farmstead"]}]},  # absent
+        {"word": "tun", "pos": "", "senses": [{"glosses": ["enclosure, farmstead"]}]},  # empty
+        {"word": "tun", "pos": "  ", "senses": [{"glosses": ["enclosure, farmstead"]}]},  # whitespace
+    ],
+    ids=["absent", "empty", "whitespace"],
+)
+def test_select_canonical_sense_keeps_entry_with_missing_pos(entry: dict) -> None:
+    """wyrd-33cv: a missing/empty/whitespace pos is NOT treated as a
+    function word — the gate is ``(entry.get("pos") or "").strip() in
+    _FUNCTION_WORD_POS``, so absent → '', empty → '', whitespace →
+    '' after strip, none of which are in the denylist. Denylist, not
+    allowlist: entries lacking a usable pos still get their gloss
+    selected."""
     result = _select_canonical_sense(entry)
     assert result is not None
     assert result[0] == "enclosure, farmstead"
