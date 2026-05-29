@@ -126,7 +126,11 @@ def test_select_canonical_sense_keeps_content_word_pos(pos: str) -> None:
     [
         {"word": "tun", "senses": [{"glosses": ["enclosure, farmstead"]}]},  # absent
         {"word": "tun", "pos": "", "senses": [{"glosses": ["enclosure, farmstead"]}]},  # empty
-        {"word": "tun", "pos": "  ", "senses": [{"glosses": ["enclosure, farmstead"]}]},  # whitespace
+        {
+            "word": "tun",
+            "pos": "  ",
+            "senses": [{"glosses": ["enclosure, farmstead"]}],
+        },  # whitespace
     ],
     ids=["absent", "empty", "whitespace"],
 )
