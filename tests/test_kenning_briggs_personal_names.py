@@ -101,10 +101,11 @@ def test_resolve_pn_language_first_recognized_hint_wins() -> None:
 
 
 def test_resolve_pn_language_defaults_to_old_english() -> None:
-    """No hint, or an unrecognized hint, falls back to the old-english
-    substrate default."""
+    """No hint, an unrecognized hint, or None falls back to the
+    old-english substrate default (None guards an unhinted name)."""
     assert _resolve_pn_language([]) == "old-english"
     assert _resolve_pn_language(["Xx"]) == "old-english"
+    assert _resolve_pn_language(None) == "old-english"
 
 
 # ---------------------------------------------------------------------

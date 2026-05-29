@@ -761,8 +761,11 @@ _CITED_SOURCES: tuple[tuple[str, str], ...] = (
 )
 
 
-def _resolve_pn_language(language_hints: list[str]) -> str:
-    """First recognized Briggs hint → canonical language; else default."""
+def _resolve_pn_language(language_hints: list[str] | None) -> str:
+    """First recognized Briggs hint → canonical language; else default.
+    ``None`` / empty hints (unhinted names) return the default directly."""
+    if not language_hints:
+        return _DEFAULT_PN_LANGUAGE
     for hint in language_hints:
         language = _LANG_HINT_TO_LANGUAGE.get(hint)
         if language is not None:
