@@ -125,15 +125,6 @@ KEYED_TYPES: frozenset[str] = frozenset(
         # first consumer (it indexes PASE / DLV / Anglo-Saxon-charter
         # attestations we have never ingested directly).
         "cited_source",
-        # wyrd-11zh: Briggs EPNS personal-names index. ``ref`` is the
-        # PN headform (e.g. ``"Ēadwulf"``). Payload carries PASE count,
-        # DLV/ASCh refs, language hints, feminine marker. Briggs
-        # convention: each Briggs JSONL emits one ``source`` row plus
-        # one ``personal_name`` row per unique headform. The kernel
-        # itself imposes no per-file count contract on this type —
-        # future PN-index sources from other scholars may interleave
-        # events differently.
-        "personal_name",
     }
 )
 
@@ -149,11 +140,6 @@ LIST_TYPES: frozenset[str] = frozenset(
         "etymon_descent",
         "mining_run",
         "fantasy_morpheme",
-        # wyrd-11zh: one row per (PN, toponym, county) occurrence from
-        # Briggs. FKs to ``personal_name`` via ``personal_name_ref`` (=
-        # the PN's headform). Same shape as ``attestation`` — append-
-        # only fact rows, no event semantics.
-        "personal_name_toponym_attestation",
     }
 )
 

@@ -692,9 +692,9 @@ class IngestStats:
     re-reading the source against a debugger. Most map to a single
     ``continue`` in the parsing pipeline; the exceptions are
     ``entries_with_zero_attestations`` / ``entries_citation_only``
-    (observational — the entry still yields), and
-    ``personal_names_lookup_failed`` (pulled post-parse from the
-    ``personal_name_orphans`` count returned by ``build_from_jsonl``)."""
+    (observational — the entry still yields). ``etymons_inserted`` /
+    ``citations_inserted`` / ``citation_orphans`` are pulled post-replay
+    from ``build_from_jsonl`` (wyrd-2b50)."""
 
     entries_seen: int = 0
     pn_rows_emitted: int = 0
@@ -706,21 +706,19 @@ class IngestStats:
     # (no standard row type; decompose-all re-derives name elements for
     # proportions). Counted for visibility.
     attestations_dropped: int = 0
-    attestation_rows_emitted: int = 0
-    attestations_unknown_county: int = 0
-    personal_names_inserted: int = 0
-    attestations_inserted: int = 0
-    # Silent-skip visibility counters (wyrd-jac1).
+    # wyrd-2b50: pulled from build_from_jsonl after the standard-row
+    # replay. citations_inserted > etymons_inserted is the multi-witness
+    # signal; citation_orphans should be 0 (every citation's etymon_ref
+    # is defined in the same file).
+    etymons_inserted: int = 0
+    citations_inserted: int = 0
+    citation_orphans: int = 0
+    # Silent-skip visibility counters (wyrd-jac1) — set by the parser.
     entries_unparsed: int = 0
     attestation_groups_skipped_no_county: int = 0
     attestation_groups_skipped_lang_only: int = 0
     entries_with_zero_attestations: int = 0
     entries_citation_only: int = 0
-    # Pulled from build_from_jsonl's per-file counts during
-    # ingest_briggs_index. Non-zero means the SELECT-after-INSERT-OR-
-    # IGNORE guard failed for some personal-name rows (malformed payload
-    # missing headform/source_doc, or a UNIQUE-conflict lookup miss).
-    personal_names_lookup_failed: int = 0
     jsonl_path: Path | None = None
 
 
@@ -962,9 +960,9 @@ def ingest_briggs_index(
         jsonl_path = Path("data/mining") / f"{SOURCE_DOC}.jsonl"
     stats = emit_briggs_jsonl(txt_path, jsonl_path, on_progress=on_progress)
     counts = build_from_jsonl(db.conn, [jsonl_path])
-    stats.personal_names_inserted = counts.get("personal_name", 0)
-    stats.attestations_inserted = counts.get("personal_name_toponym_attestation", 0)
-    stats.personal_names_lookup_failed = counts.get("personal_name_orphans", 0)
+    stats.etymons_inserted = counts.get("etymon", 0)
+    stats.citations_inserted = counts.get("citation", 0)
+    stats.citation_orphans = counts.get("citation_orphans", 0)
     return stats
 
 

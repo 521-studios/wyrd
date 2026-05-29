@@ -113,9 +113,9 @@ def lexicon_ingest_briggs_personal_names(
             s_per_entry = elapsed / stats.entries_seen if stats.entries_seen > 0 else 0.0
             click.echo(
                 f"  [{stats.entries_seen}] "
-                f"pn_emitted={stats.pn_rows_emitted} "
-                f"att_emitted={stats.attestation_rows_emitted} "
-                f"att_unknown_county={stats.attestations_unknown_county} "
+                f"etymons={stats.pn_rows_emitted} "
+                f"citations={stats.citations_emitted} "
+                f"att_dropped={stats.attestations_dropped} "
                 f"({s_per_entry:.3f}s/entry)",
                 err=True,
             )
@@ -129,10 +129,11 @@ def lexicon_ingest_briggs_personal_names(
     click.echo(
         f"Done in {elapsed:.1f}s. "
         f"entries={stats.entries_seen} "
-        f"pn_emitted={stats.pn_rows_emitted} pn_inserted_in_db={stats.personal_names_inserted} "
-        f"att_emitted={stats.attestation_rows_emitted} "
-        f"att_inserted_in_db={stats.attestations_inserted} "
-        f"att_unknown_county={stats.attestations_unknown_county}",
+        f"etymons_emitted={stats.pn_rows_emitted} etymons_inserted_in_db={stats.etymons_inserted} "
+        f"citations_emitted={stats.citations_emitted} "
+        f"citations_inserted_in_db={stats.citations_inserted} "
+        f"citation_orphans={stats.citation_orphans} "
+        f"attestations_dropped={stats.attestations_dropped}",
         err=True,
     )
     # Silent-skip visibility line (wyrd-jac1): each non-zero value here
@@ -143,8 +144,7 @@ def lexicon_ingest_briggs_personal_names(
         f"att_groups_no_county={stats.attestation_groups_skipped_no_county} "
         f"att_groups_lang_only={stats.attestation_groups_skipped_lang_only} "
         f"entries_no_atts={stats.entries_with_zero_attestations} "
-        f"entries_citation_only={stats.entries_citation_only} "
-        f"pn_lookup_failed={stats.personal_names_lookup_failed}",
+        f"entries_citation_only={stats.entries_citation_only}",
         err=True,
     )
     click.echo(f"  JSONL artifact: {stats.jsonl_path}", err=True)
