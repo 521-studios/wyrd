@@ -698,6 +698,14 @@ class IngestStats:
 
     entries_seen: int = 0
     pn_rows_emitted: int = 0
+    # wyrd-2b50: total citation rows emitted across all names (Briggs
+    # primary + PASE/DLV/charter secondary). citations_emitted >
+    # pn_rows_emitted is the multi-witness signal.
+    citations_emitted: int = 0
+    # wyrd-2b50: Briggs name→toponym attestations seen but not emitted
+    # (no standard row type; decompose-all re-derives name elements for
+    # proportions). Counted for visibility.
+    attestations_dropped: int = 0
     attestation_rows_emitted: int = 0
     attestations_unknown_county: int = 0
     personal_names_inserted: int = 0
@@ -724,6 +732,44 @@ _BRIGGS_SOURCE_TITLE = (
     "(Keith Briggs, EPNS Supplementary Series 2, 3rd revised pdf edn 2024)"
 )
 
+# wyrd-2b50: Briggs language hints → canonical etymon language. Mapping
+# to the identifiers used across the etymon table lets a Briggs name
+# corroborate (merge with) an existing same-form etymon in the same
+# language (e.g. an OFr hint → the wiktextract old-french record).
+# Unhinted names default to old-english — the dominant English-place-
+# name personal-name substrate; tunable as gating is tuned (wyrd-ty27).
+_LANG_HINT_TO_LANGUAGE: dict[str, str] = {
+    "OE": "old-english",
+    "ME": "middle-english",
+    "OFr": "old-french",
+    "ON": "old-norse",
+    "ODan": "old-norse",  # Old Danish — North Germanic; nearest canonical bucket
+    "Bib": "biblical",
+}
+_DEFAULT_PN_LANGUAGE = "old-english"
+
+# wyrd-2b50: secondary scholarly sources the Briggs index attests but
+# which we have never ingested directly. Emitted as cited_source rows so
+# each name etymon can carry real, distinct witnesses from them — a name
+# Briggs records in PASE + DLV is briggs+pase+dlv = 3 witnesses and
+# promotes through the normal gate. (DLV = Durham Liber Vitae; PASE =
+# Prosopography of Anglo-Saxon England; ASCh = Anglo-Saxon charters.)
+_PASE_SOURCE, _DLV_SOURCE, _ASCHARTER_SOURCE = "pase", "dlv", "anglo_saxon_charters"
+_CITED_SOURCES: tuple[tuple[str, str], ...] = (
+    (_PASE_SOURCE, "Prosopography of Anglo-Saxon England (PASE), per the Briggs index"),
+    (_DLV_SOURCE, "Durham Liber Vitae, per the Briggs index"),
+    (_ASCHARTER_SOURCE, "Anglo-Saxon charters (Sawyer catalogue), per the Briggs index"),
+)
+
+
+def _resolve_pn_language(language_hints: list[str]) -> str:
+    """First recognized Briggs hint → canonical language; else default."""
+    for hint in language_hints:
+        language = _LANG_HINT_TO_LANGUAGE.get(hint)
+        if language is not None:
+            return language
+    return _DEFAULT_PN_LANGUAGE
+
 
 def _emit_source_row(sink: TextIO) -> None:
     """Write the canonical ``_type: source`` row that anchors every L2
@@ -737,52 +783,84 @@ def _emit_source_row(sink: TextIO) -> None:
     sink.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def _emit_personal_name_row(sink: TextIO, entry: ParsedEntry) -> None:
-    """One ``_type: personal_name`` keyed-state row per Briggs entry.
-    JSON-encoded list payloads (language_hints, ascharter_refs) match
-    the column shapes the DB inserter expects."""
-    row: dict[str, object] = {
-        "_type": "personal_name",
-        "ref": entry.name.headform,
-        "headform": entry.name.headform,
-        "normalized_form": entry.name.normalized_form,
-        "is_feminine": 1 if entry.name.is_feminine else 0,
-        "has_dlv": 1 if entry.name.has_dlv else 0,
-        "source_doc": SOURCE_DOC,
-    }
-    if entry.name.language_hints:
-        row["language_hints"] = json.dumps(entry.name.language_hints, ensure_ascii=False)
-    if entry.name.ascharter_refs:
-        row["ascharter_refs"] = json.dumps(entry.name.ascharter_refs, ensure_ascii=False)
-    if entry.name.pase_count is not None:
-        row["pase_count"] = entry.name.pase_count
-    if entry.name.raw_entry:
-        row["raw_entry"] = entry.name.raw_entry
+def _emit_cited_source_rows(sink: TextIO) -> None:
+    """wyrd-2b50: declare the secondary sources Briggs attests (PASE /
+    DLV / Anglo-Saxon charters) so name etymons can carry real witnesses
+    from them. See :data:`_CITED_SOURCES`."""
+    for source_id, title in _CITED_SOURCES:
+        row = {
+            "_type": "cited_source",
+            "ref": source_id,
+            "title": title,
+            "notes": "Registered by the Briggs personal-names ingest (wyrd-2b50).",
+        }
+        sink.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def _emit_citation_row(
+    sink: TextIO,
+    etymon_ref: str,
+    *,
+    source_id: str | None = None,
+    context_snippet: str | None = None,
+) -> None:
+    """One ``_type: citation`` row. Omitting ``source_id`` attributes it
+    to the file's primary source (Briggs); naming one attributes it to a
+    registered cited_source (wyrd-2b50)."""
+    row: dict[str, object] = {"_type": "citation", "etymon_ref": etymon_ref}
+    if source_id is not None:
+        row["source_id"] = source_id
+    if context_snippet:
+        row["context_snippet"] = context_snippet
     sink.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def _emit_attestation_row(sink: TextIO, headform: str, att: AttestationRecord) -> None:
-    """One ``_type: personal_name_toponym_attestation`` list row per
-    (PN, toponym, county) occurrence. ``personal_name_ref`` is the FK
-    the build pipeline resolves to a ``personal_name.id`` via the
-    per-file headform → id map."""
-    row: dict[str, object] = {
-        "_type": "personal_name_toponym_attestation",
-        "personal_name_ref": headform,
-        "toponym_form": att.toponym_form,
-        "county_code": att.county_code,
-        "county_canonical": att.county_canonical,
-        "is_uncertain": 1 if att.is_uncertain else 0,
-        "is_serious_doubt": 1 if att.is_serious_doubt else 0,
-        "source_doc": SOURCE_DOC,
+def _emit_personal_name_row(sink: TextIO, entry: ParsedEntry) -> int:
+    """wyrd-2b50: emit one Briggs name as STANDARD rows the normal build
+    pipeline already handles — an ``etymon`` (canonical_form=headform,
+    language resolved from the Briggs hint) tagged ``male name`` /
+    ``female name``, plus one ``citation`` per source attesting it:
+    Briggs (primary) and, where Briggs records them, PASE / DLV /
+    Anglo-Saxon-charter secondary-source citations. Returns the count of
+    citation rows emitted (>= 1)."""
+    pn = entry.name
+    language = _resolve_pn_language(pn.language_hints)
+    ref = f"{language}:{pn.headform}"
+    tag = "female name" if pn.is_feminine else "male name"
+    gloss = "a feminine personal name" if pn.is_feminine else "a personal name"
+    etymon_row = {
+        "_type": "etymon",
+        "ref": ref,
+        "canonical_form": pn.headform,
+        "language": language,
+        "glosses": [gloss],
+        "tags": [tag],
     }
-    if att.attested_variant:
-        row["attested_variant"] = att.attested_variant
-    if att.date_qualifier:
-        row["date_qualifier"] = att.date_qualifier
-    if att.raw_text:
-        row["raw_text"] = att.raw_text
-    sink.write(json.dumps(row, ensure_ascii=False) + "\n")
+    sink.write(json.dumps(etymon_row, ensure_ascii=False) + "\n")
+    # Briggs primary-source citation (no explicit source_id → file source).
+    _emit_citation_row(sink, ref, context_snippet=pn.raw_entry or None)
+    n_citations = 1
+    # Secondary-source citations — each a distinct witness (wyrd-2b50).
+    if pn.has_dlv:
+        _emit_citation_row(sink, ref, source_id=_DLV_SOURCE)
+        n_citations += 1
+    if pn.pase_count:
+        _emit_citation_row(
+            sink,
+            ref,
+            source_id=_PASE_SOURCE,
+            context_snippet=f"PASE attestation count {pn.pase_count}",
+        )
+        n_citations += 1
+    if pn.ascharter_refs:
+        _emit_citation_row(
+            sink,
+            ref,
+            source_id=_ASCHARTER_SOURCE,
+            context_snippet="Anglo-Saxon charter refs: " + ", ".join(pn.ascharter_refs),
+        )
+        n_citations += 1
+    return n_citations
 
 
 def emit_briggs_jsonl(
@@ -823,23 +901,21 @@ def emit_briggs_jsonl(
     seen_headforms: set[str] = set()
     with jsonl_path.open("w", encoding="utf-8") as sink:
         _emit_source_row(sink)
+        _emit_cited_source_rows(sink)  # wyrd-2b50: PASE / DLV / charters
         sink.flush()
         for entry in parse_briggs_index(txt_path, stats=stats):
             stats.entries_seen += 1
             if entry.name.headform not in seen_headforms:
                 seen_headforms.add(entry.name.headform)
-                _emit_personal_name_row(sink, entry)
+                stats.citations_emitted += _emit_personal_name_row(sink, entry)
                 stats.pn_rows_emitted += 1
-            for att in entry.attestations:
-                if att.county_code not in COUNTY_CODE_TO_NAME:
-                    # Skip emit (and therefore skip the DB) — the
-                    # build pipeline has no county-membership filter,
-                    # so emitting unknown-county rows would persist
-                    # them on rebuild. Counted for operator visibility.
-                    stats.attestations_unknown_county += 1
-                    continue
-                _emit_attestation_row(sink, entry.name.headform, att)
-                stats.attestation_rows_emitted += 1
+            # wyrd-2b50: Briggs name→toponym attestations are NOT emitted.
+            # They don't map to a standard row type (toponym_attestation is
+            # for toponym spelling variants, not name→toponym links), and
+            # the decompose-all enrichment pass re-derives name elements in
+            # toponyms for proportions. Counted for visibility; wiring the
+            # curated links into toponym_etymology_element is a follow-up.
+            stats.attestations_dropped += len(entry.attestations)
             sink.flush()
             if on_progress is not None and stats.entries_seen % 250 == 0:
                 on_progress(stats)
