@@ -330,9 +330,7 @@ def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
         row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
     assert row is not None, "alembic_version row missing"
     # Head revision id per the wyrd-67fv layered migrations.
-    assert row[0] == "0015_report_snapshot", (
-        f"expected head '0015_report_snapshot', got {row[0]!r}"
-    )
+    assert row[0] == "0015_report_snapshot", f"expected head '0015_report_snapshot', got {row[0]!r}"
 
 
 def test_migration_0013_backfills_element_confidence_from_parent(

@@ -15,8 +15,9 @@ before/after comparisons are SQL-diffable instead of file-diffable — the D24
 - ``report_metric`` is the long-form (category, metric) → value store. Numeric
   values land in ``value_num`` for SQL diffing; the verbatim string is kept in
   ``value_text`` so non-numeric cells (gate verdicts, etc.) round-trip too.
-  UNIQUE(snapshot_label, category, metric) makes re-ingesting a snapshot
-  idempotent (INSERT OR REPLACE in the writer).
+  UNIQUE(snapshot_label, category, metric) keeps each (category, metric) once
+  per snapshot; the writer re-ingests idempotently by DELETE-then-INSERT of
+  the snapshot's metric rows.
 """
 
 from __future__ import annotations
