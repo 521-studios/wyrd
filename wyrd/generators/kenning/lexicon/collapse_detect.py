@@ -1,0 +1,199 @@
+"""Deterministic collapse detection — wyrd-y651 (consolidation epic P2b).
+
+Finds the UNAMBIGUOUS form-of / variant etymons that should fold into
+their lemma, for emission to ``data/mining/_collapses.jsonl`` (replayed
+by :func:`enrichment.apply_collapses`). Two methods, both high-confidence:
+
+(A) **variant-gloss-overlap** — an etymon whose ``(form, language)`` is a
+    wiktextract-asserted :data:`etymon_variant` of a DIFFERENT same-
+    language lemma AND shares an exact gloss with that lemma. The variant
+    assertion + the shared meaning together rule out the generic-gloss
+    false positive (two different words that merely both gloss "hill").
+
+(B) **pointer-parse** — a PURE form-of etymon: every one of its glosses
+    is a cross-reference ("alternative form of burg", "h-prothesized form
+    of ea") and the named target resolves to an existing same-language
+    lemma. These carry no meaning of their own, so folding them onto the
+    target (which holds the real gloss) is lossless.
+
+Ambiguous cases — a doubling that does NOT share a gloss, or a
+pointer+real-gloss etymon — are left for the LLM merge pass (P3).
+"""
+
+from __future__ import annotations
+
+import re
+import sqlite3
+
+VARIANT_GLOSS_METHOD = "deterministic-variant-gloss-overlap"
+POINTER_PARSE_METHOD = "deterministic-pointer-parse"
+
+# A gloss that is a cross-reference, not a meaning. Anchored to the START
+# (allowing ≤3 leading qualifier words like "alternative" / "h-prothesized"
+# / "early modern") so a real pointer — "alternative form of burg",
+# "h-prothesized form of ea" — matches, but prose that merely CONTAINS the
+# phrase does not (e.g. "...holding land by a particular form of free
+# tenure", where "form of" is 6 words deep, stays a real definition).
+_POINTER_GLOSS_RE = re.compile(
+    r"^\s*(?:[a-zà-öø-ÿ0-9'-]+\s+){0,3}(?:form|spelling|variant)\s+of\s+\S",
+    re.IGNORECASE,
+)
+# Extract the target lemma named by a form-of pointer ("... form of <X>").
+_POINTER_TARGET_RE = re.compile(r"\b(?:form|variant|spelling) of\s+([^\s(,.;\"']+)", re.IGNORECASE)
+
+
+def _detect_variant_gloss_overlap(conn: sqlite3.Connection) -> list[dict[str, str]]:
+    """Method A: variant-doublings that share an exact gloss with their
+    same-language parent lemma. One collapse per ``from`` (the
+    lexicographically-first parent wins, deterministically)."""
+    sql = """
+        SELECT e.language || ':' || e.canonical_form AS from_ref,
+               parent.language || ':' || parent.canonical_form AS into_ref,
+               v.variant_class AS variant_class
+        FROM etymon e
+        JOIN etymon_variant v
+          ON v.form = e.canonical_form AND v.etymon_id != e.id
+        JOIN etymon parent
+          ON parent.id = v.etymon_id
+         AND parent.language = e.language
+         AND parent.merged_into_id IS NULL
+        WHERE e.merged_into_id IS NULL
+          AND EXISTS (SELECT 1 FROM etymon_gloss gp WHERE gp.etymon_id = parent.id)
+          AND EXISTS (
+                SELECT 1
+                  FROM etymon_gloss g1
+                  JOIN etymon_gloss g2
+                    ON LOWER(TRIM(g1.gloss)) = LOWER(TRIM(g2.gloss))
+                 WHERE g1.etymon_id = e.id AND g2.etymon_id = parent.id
+          )
+        ORDER BY from_ref, into_ref
+    """
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for r in conn.execute(sql):
+        if r["from_ref"] == r["into_ref"] or r["from_ref"] in seen:
+            continue
+        seen.add(r["from_ref"])
+        out.append(
+            {
+                "ref": r["from_ref"],
+                "into": r["into_ref"],
+                "variant_class": r["variant_class"] or "alternative",
+                "method": VARIANT_GLOSS_METHOD,
+            }
+        )
+    return out
+
+
+def _detect_pointer_parse(conn: sqlite3.Connection) -> list[dict[str, str]]:
+    """Method B: pure form-of etymons (every gloss is a pointer) whose
+    named target resolves to an existing same-language lemma."""
+    candidates = conn.execute(
+        """
+        SELECT e.id, e.language, e.canonical_form
+          FROM etymon e
+         WHERE e.merged_into_id IS NULL
+           AND EXISTS (
+                 SELECT 1 FROM etymon_gloss g
+                  WHERE g.etymon_id = e.id
+                    AND (g.gloss LIKE '% form of %'
+                      OR g.gloss LIKE 'alternative %'
+                      OR g.gloss LIKE 'variant %'
+                      OR g.gloss LIKE '%spelling of %'
+                      OR g.gloss LIKE '%prothesi%')
+           )
+        """
+    ).fetchall()
+    out: list[dict[str, str]] = []
+    for c in candidates:
+        glosses = [
+            row["gloss"]
+            for row in conn.execute(
+                "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (c["id"],)
+            )
+        ]
+        # require EVERY gloss to be a pointer — a pure form-of etymon. A
+        # pointer+real-gloss etymon might be a real lemma; that's P3's call.
+        if not glosses or not all(_POINTER_GLOSS_RE.search(g) for g in glosses):
+            continue
+        target = None
+        for g in glosses:
+            m = _POINTER_TARGET_RE.search(g)
+            if m:
+                target = m.group(1).strip(".,;\"'")
+                break
+        if not target or target == c["canonical_form"]:
+            continue
+        resolved = conn.execute(
+            "SELECT 1 FROM etymon "
+            "WHERE language = ? AND canonical_form = ? AND merged_into_id IS NULL",
+            (c["language"], target),
+        ).fetchone()
+        if resolved is None:
+            continue
+        out.append(
+            {
+                "ref": f"{c['language']}:{c['canonical_form']}",
+                "into": f"{c['language']}:{target}",
+                "variant_class": "alternative",
+                "method": POINTER_PARSE_METHOD,
+            }
+        )
+    return out
+
+
+def detect_deterministic_collapses(conn: sqlite3.Connection) -> list[dict[str, str]]:
+    """Return collapse rows for the deterministic cases, with cycles broken.
+
+    Method A wins on ``ref`` collisions (it carries the wiktextract
+    variant_class). Then union-find drops any edge that would close a
+    cycle in the ``merged_into_id`` graph — wiktextract registers some
+    variants BIDIRECTIONALLY (``wode`` is a variant of ``wood`` AND
+    ``wood`` of ``wode``), so naively emitting both would tombstone each
+    into the other and make ``find_canonical`` loop forever. Edges are
+    processed in deterministic ``(ref, into)`` order; the first direction
+    seen for a pair survives, the cycle-closer is skipped.
+    """
+    rows = _detect_variant_gloss_overlap(conn)
+    seen = {r["ref"] for r in rows}
+    for r in _detect_pointer_parse(conn):
+        if r["ref"] not in seen:
+            seen.add(r["ref"])
+            rows.append(r)
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:  # path compression
+            parent[x], x = root, parent[x]
+        return root
+
+    kept: list[dict[str, str]] = []
+    for r in sorted(rows, key=lambda e: (e["ref"], e["into"])):
+        ra, rb = find(r["ref"]), find(r["into"])
+        if ra == rb:
+            continue  # already in one cluster — this edge would close a cycle
+        parent[ra] = rb
+        kept.append(r)
+
+    # Flatten chains: re-point every collapse at its cluster's TERMINAL
+    # survivor (the node that is never itself a ``ref``), so the ledger is
+    # a flat forest. Without this a chain ``wella -> well -> wiell`` is
+    # apply-order-fragile: if ``well`` is tombstoned before the
+    # ``wella -> well`` row, ``well`` no longer resolves and that fold is
+    # silently missed. Transitively still correct — a variant of a variant
+    # of X is a variant of X.
+    direct = {r["ref"]: r["into"] for r in kept}
+
+    def survivor(ref: str) -> str:
+        cur, seen = ref, set()
+        while cur in direct and cur not in seen:
+            seen.add(cur)
+            cur = direct[cur]
+        return cur
+
+    return [{**r, "into": survivor(r["ref"])} for r in kept if survivor(r["ref"]) != r["ref"]]

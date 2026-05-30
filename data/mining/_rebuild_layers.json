@@ -15,6 +15,7 @@
   "non_rebuild_commands": {
     "backfill-fantasy-tags": "Backfills tags on fantasy_morpheme rows; the fantasy layer round-trips via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores it. Not a wipe-restore step.",
     "backfill-pages": "Backfills citation page numbers from source-specific data; one-off enrichment, not part of a from-scratch rebuild.",
+    "detect-collapses": "Generates deterministic form-of/variant collapse rows into the data/mining/_collapses.jsonl ledger (wyrd-y651). The rows round-trip through L2 and are replayed for free by run_full_enrichment's collapse pass; this detector itself is never re-run on rebuild.",
     "ingest-briggs-personal-names": "Source-specific ingester; output lands in L2 and is replayed by rebuild-from-jsonl. Not a wipe-restore step.",
     "ingest-domesday": "Source-specific ingester (Open Domesday); output lands in L2. Not a wipe-restore step.",
     "ingest-etymonline": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
