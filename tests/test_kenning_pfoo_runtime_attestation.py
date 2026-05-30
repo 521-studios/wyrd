@@ -12,9 +12,11 @@ filter branches in ``vector_name_select.build_non_position_eligible``.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 
+from wyrd.generators.kenning.lexicon import init_schema
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
     _insert_attested_languages,
     _write_proportions,
@@ -454,7 +456,7 @@ def test_primary_language_caches_first_result():
 # ---- _compute_proportions_inline canonical-miss fallback ------------------
 
 
-def test_inline_canonical_miss_fallback_uses_fresh_name_for_tiebreaker():
+def test_inline_canonical_miss_fallback_uses_fresh_name_for_tiebreaker(tmp_path: Path):
     """wyrd-pfoo: when a recorded canonical signature misses the
     current word_db's cross-product, ``_compute_proportions_inline``
     must re-run ``find_meaning(reduce=True, culture_languages=...)``
@@ -502,13 +504,26 @@ def test_inline_canonical_miss_fallback_uses_fresh_name_for_tiebreaker():
     ]
     # Canonical decompositions map: name → {signature} that doesn't
     # match the current word_db cross-product. The synthetic name
-    # "Penbryn" lives in the welsh corpus (per the bundled
-    # welsh_place_names.json); a junk signature forces the
+    # "Penbryn" lives in the welsh corpus; a junk signature forces the
     # canonical-miss fallback path.
     canonical_decompositions = {
         "Penbryn": {"signature": "0000000000000000000000000000000000000000"},
     }
-    out = _compute_proportions_inline(subjects, canonical_decompositions)
+    # wyrd-bo01.3: the welsh corpus is now read from the DB toponym
+    # table (country='Wales'), not the static welsh_place_names.json —
+    # seed Penbryn there so the canonical-miss fallback has it.
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+            ("Penbryn", "Wales", None),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    out = _compute_proportions_inline(subjects, canonical_decompositions, source_lexicon_db=db_path)
     # Welsh attestation should record Pen- under celtic_mix only
     # (not old_english). If the dedup-collision bug regressed, the
     # OE Meaning of Pen- would have been picked too and we'd see

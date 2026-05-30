@@ -33,6 +33,7 @@ from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 # Bumped when the L4 table shape changes incompatibly. The loader rejects
 # DBs whose schema_version row doesn't match the runtime's expected
@@ -55,6 +56,49 @@ CULTURE_PROPORTIONS = (
     "irish",
     "breton",
 )
+
+# wyrd-bo01.3: culture → the set of ``toponym.country`` values that belong
+# to it. Unions the gazetteer's country names (England / The Isle of Man /
+# Scotland / Wales / Northern Ireland / Republic of Ireland / Brittany) with
+# the scholarly + KEPN rows' country variants (Ireland and France, plus the
+# region-derived ``Isle of Man`` form distinct from the gazetteer's ``The
+# Isle of Man``) — otherwise irish and breton silently lose the half of
+# their corpus that came from the other source. Replaces the static
+# {culture}_place_names.json corpus: the proportions corpus is now the DB's
+# toponyms, filtered by culture.
+CULTURE_COUNTRIES: dict[str, frozenset[str]] = {
+    "english": frozenset({"England", "Isle of Man", "The Isle of Man"}),
+    "scottish": frozenset({"Scotland"}),
+    "welsh": frozenset({"Wales"}),
+    "irish": frozenset({"Ireland", "Northern Ireland", "Republic of Ireland"}),
+    "breton": frozenset({"Brittany", "France"}),
+}
+
+
+def _load_culture_toponyms(conn: sqlite3.Connection, culture: str) -> list[tuple[str, str | None]]:
+    """The culture's toponyms from the L3 DB as ``(modern_name, region)``,
+    deduped by surface name (first in ``(name, country, region)`` sort
+    order wins) — matching ``load_names_with_regions``'s dedup contract so
+    the matcher doesn't double-count a name shared across counties. Replaces
+    the static ``{culture}_place_names.json`` load."""
+    countries = CULTURE_COUNTRIES.get(culture)
+    if not countries:
+        return []
+    placeholders = ",".join("?" * len(countries))
+    rows = conn.execute(
+        f"SELECT modern_name, country, region FROM toponym WHERE country IN ({placeholders})",
+        tuple(sorted(countries)),
+    ).fetchall()
+    tagged = sorted((str(n), c or "", r or "") for n, c, r in rows)
+    out: list[tuple[str, str | None]] = []
+    seen: set[str] = set()
+    for name, _country, region in tagged:
+        if name in seen:
+            continue
+        seen.add(name)
+        out.append((name, region or None))
+    return out
+
 
 # Sibling-suffix metadata keys on word entries that are NOT language axes.
 # Mirrors the suffix set ``runtime/meaning.py:load_meanings`` strips off
@@ -139,7 +183,9 @@ def write_runtime_db(
     ``seed-runtime.db``).
     """
     if proportions_dir is None:
-        proportions_by_culture = _compute_proportions_inline(subjects, canonical_decompositions)
+        proportions_by_culture = _compute_proportions_inline(
+            subjects, canonical_decompositions, source_lexicon_db
+        )
     else:
         proportions_by_culture = _load_proportions(proportions_dir)
 
@@ -237,16 +283,17 @@ def _load_proportions(
 def _compute_proportions_inline(
     subjects: list[dict[str, Any]],
     canonical_decompositions: dict[str, dict[str, str]],
+    source_lexicon_db: Path,
 ) -> dict[str, dict[str, Any]]:
-    """Build per-culture proportions on the fly from the subjects we
-    just exported + the bundled ``<culture>_place_names.json`` corpus.
+    """Build per-culture proportions on the fly from the subjects we just
+    exported + the culture's toponyms read from the L3 DB.
 
-    The d90t cutover removed the bundled ``<culture>_proportions.json``
-    files; this rebuilds the same data deterministically as part of
-    the emit so an operator only needs to point ``export-runtime-db``
-    at the L3 to produce a fully-populated L4. Operator can still
-    supply ``--proportions-dir`` to bypass this with a hand-edited or
-    frozen proportions set.
+    wyrd-bo01.3: the proportions corpus is now the DB's ``toponym`` rows
+    (filtered by :data:`CULTURE_COUNTRIES`), not the static
+    ``{culture}_place_names.json`` gazetteer — so the gazetteer's own
+    names PLUS every attested KEPN/scholarly toponym contribute, and the
+    static JSON is retired from the runtime path. Operators still supply
+    ``--proportions-dir`` to bypass this with a hand-edited or frozen set.
 
     ``canonical_decompositions`` lets the inline rebuild honor
     scholar-attributed picks the L3 carries (the ``is_canonical=1`` rows
@@ -264,25 +311,31 @@ def _compute_proportions_inline(
     )
     from wyrd.generators.kenning.runtime.decomposition import apply_canonical_to_name
     from wyrd.generators.kenning.runtime.meaning import load_meanings
-    from wyrd.generators.kenning.runtime.name import Name, load_names_with_regions
+    from wyrd.generators.kenning.runtime.name import Name
 
     word_db, _ = load_meanings({"subjects": subjects})
+    # wyrd-bo01.3: read the per-culture corpus from the L3 toponym table
+    # (read-only) instead of the static {culture}_place_names.json gazetteer.
+    # quote() the path so a directory containing ?/#/space doesn't corrupt
+    # the file: URI (matches cli/utils._readonly_lexicon's convention).
+    conn = sqlite3.connect(f"file:{quote(str(source_lexicon_db))}?mode=ro", uri=True)
+    try:
+        culture_toponyms = {c: _load_culture_toponyms(conn, c) for c in CULTURE_PROPORTIONS}
+    finally:
+        conn.close()
     out: dict[str, dict[str, Any]] = {}
     for culture in CULTURE_PROPORTIONS:
-        place_names_entry = resources.files("wyrd.generators.kenning.data").joinpath(
-            f"{culture}_place_names.json"
-        )
-        if not place_names_entry.is_file():
+        toponyms = culture_toponyms[culture]
+        if not toponyms:
             continue
-        names_data = json.loads(place_names_entry.read_text())
-        name_entries = load_names_with_regions(names_data)
         # wyrd-pfoo: thread the culture's expected-language set into
         # heuristic matcher fallbacks (canonical-pick path bypasses
         # the tiebreaker; only the reduce=True heuristic branch
         # consults it).
         culture_languages = CULTURE_LANGUAGES.get(culture)
         resolved = []
-        for name, _region in name_entries:
+        for name_str, _region in toponyms:
+            name = Name(name_str)
             canonical = canonical_decompositions.get(name.name)
             if canonical:
                 # Populate every alternate (reduce=False) so
