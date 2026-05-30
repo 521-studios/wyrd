@@ -66,6 +66,7 @@ from wyrd.generators.kenning.cli.lexicon import (
     commit_toponym_candidates as _commit_toponym_candidates_module,
 )
 from wyrd.generators.kenning.cli.lexicon import compact_jsonl as _compact_jsonl_module
+from wyrd.generators.kenning.cli.lexicon import convert_place_names as _convert_place_names_module
 from wyrd.generators.kenning.cli.lexicon import curate_etymon as _curate_etymon_module
 from wyrd.generators.kenning.cli.lexicon import curate_gloss as _curate_gloss_module
 from wyrd.generators.kenning.cli.lexicon import decompose as _decompose_module
@@ -238,6 +239,7 @@ _fuzzy_search_module.add_to(lexicon)
 _ingest_briggs_personal_names_module.add_to(lexicon)
 _ingest_hearth_tax_module.add_to(lexicon)
 _ingest_kepn_module.add_to(lexicon)
+_convert_place_names_module.add_to(lexicon)
 _ingest_hundred_rolls_module.add_to(lexicon)
 _ingest_os_open_names_module.add_to(lexicon)
 _ingest_domesday_module.add_to(lexicon)
