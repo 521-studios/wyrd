@@ -645,6 +645,13 @@ DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
         "welsh_place_names",
         "irish_place_names",
         "breton_place_names",
+        # wyrd-ned5: synthetic source owning the seed reflex layer at
+        # data/mining/_reflexes.jsonl. The live DB has no "reflex-seed"
+        # row in source; a rebuilt DB does (inserted from the JSONL).
+        # Excluded so dump_all_sources doesn't emit a competing
+        # per-source reflex-seed.jsonl — the reflex layer is dumped via
+        # the dedicated dump_reflexes_to_file path instead.
+        "reflex-seed",
     }
 )
 
@@ -854,6 +861,97 @@ def dump_fantasy_morphemes_to_file(
     no fantasy_morpheme rows."""
     rows = dump_fantasy_morphemes_to_rows(conn)
     path = Path(out_dir) / _FANTASY_MINING_FILENAME
+    if not rows:
+        return path, 0
+    n = write_jsonl(path, rows)
+    return path, n
+
+
+# wyrd-ned5: seed reflex layer round-trip. The reflex / reflex_etymon
+# tables map modern_usage surface fragments (-ton, -ham) to the etymons
+# they descend from. The SEED reflexes (rando-port modern_usage) are
+# created by seed_from_meanings and are NOT carried anywhere else in L2,
+# so a full rebuild-from-jsonl drops them — the bug wyrd-ned5 fixes. (The
+# place-name-derived reflexes that derive_positions writes during
+# mine-wiktextract-corpus ARE re-derivable from the corpus, but dumping
+# the whole layer is simpler and idempotent.) Dumping to a synthetic-
+# source file (same pattern as _fantasy_morphemes.jsonl) lets the rebuild
+# restore them.
+_REFLEX_SEED_SOURCE_ID = "reflex-seed"
+_REFLEX_SEED_FILENAME = "_reflexes.jsonl"
+_REFLEX_SEED_SOURCE_ROW = {
+    "_type": "source",
+    "ref": _REFLEX_SEED_SOURCE_ID,
+    "title": "Seed reflex layer (wyrd-ned5)",
+    "notes": (
+        "Synthetic source for the reflex / reflex_etymon L2 round-trip "
+        "(wyrd-ned5). Rows map a modern_usage surface fragment to the "
+        "etymons it descends from; etymon FKs are resolved on dump via "
+        "etymon_ref and re-linked on rebuild. This source declaration is "
+        "JSONL-only; the live DB has no reflex-seed row in source. "
+        "productivity is NOT carried — it's recomputed from corpus "
+        "observations at the rebuild tail (wyrd-14p)."
+    ),
+}
+
+
+def _dump_reflex_rows(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:
+    """Yield one ``reflex`` list row per (surface_form, position),
+    folding every linked etymon into a sorted ``etymon_refs`` list.
+
+    Ordered by (surface_form, position) for diff-stable output. OCR-
+    cluster loser etymons (merged_into_id NOT NULL) are excluded by the
+    query so a tombstone doesn't resurface as a reflex target."""
+    from ..lexicon.sql.queries.reflex import (  # lazy: keep dump import-time light
+        SELECT_REFLEXES_FOR_DUMP,
+    )
+
+    current: dict[str, Any] | None = None
+    key: tuple[str, str] | None = None
+    for row in conn.execute(SELECT_REFLEXES_FOR_DUMP).fetchall():
+        rkey = (row["surface_form"], row["position"])
+        if rkey != key:
+            if current is not None:
+                yield current
+            key = rkey
+            current = {
+                "_type": "reflex",
+                "surface_form": row["surface_form"],
+                "position": row["position"],
+                "etymon_refs": [],
+            }
+        current["etymon_refs"].append(etymon_ref(row["language"], row["canonical_form"]))
+    if current is not None:
+        yield current
+
+
+def dump_reflexes_to_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """The rows ``_reflexes.jsonl`` carries: the synthetic ``reflex-seed``
+    source declaration followed by one ``reflex`` row per
+    (surface_form, position).
+
+    Returns ``[]`` (file not written) when the ``reflex`` table is absent
+    (older DBs) or carries zero linked reflexes — so a DB that never
+    seeded reflexes doesn't get an empty-but-meaningful artifact."""
+    table_exists = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='reflex'"
+    ).fetchone()
+    if not table_exists:
+        return []
+    reflexes = list(_dump_reflex_rows(conn))
+    if not reflexes:
+        return []
+    return [_REFLEX_SEED_SOURCE_ROW, *reflexes]
+
+
+def dump_reflexes_to_file(
+    conn: sqlite3.Connection,
+    out_dir: str | Path,
+) -> tuple[Path, int]:
+    """Write ``<out_dir>/_reflexes.jsonl``. Returns ``(path, row_count)``;
+    row_count is 0 (file not written) when the DB has no linked reflexes."""
+    rows = dump_reflexes_to_rows(conn)
+    path = Path(out_dir) / _REFLEX_SEED_FILENAME
     if not rows:
         return path, 0
     n = write_jsonl(path, rows)

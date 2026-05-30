@@ -2169,3 +2169,176 @@ def test_build_fantasy_morpheme_via_init_schema_dedups_case_insensitively(tmp_pa
         assert rows[0]["processed_at"] == "2026-05-01T00:00:00+00:00"
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# wyrd-ned5: seed reflex layer L2 round-trip
+# ---------------------------------------------------------------------------
+
+
+def _init_real_schema(tmp_path: Path) -> Path:
+    """A real L3 schema (not the minimal fixture) so reflex/reflex_etymon
+    exist for the reflex round-trip tests."""
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    return db_path
+
+
+def test_build_replays_reflex_rows_links_modern_usage_to_etymon(tmp_path: Path):
+    """wyrd-ned5: a ``_reflexes.jsonl`` reflex row restores the
+    modern_usage→etymon link (-ton → OE tūn) on rebuild — the mapping a
+    full rebuild-from-jsonl used to drop."""
+    db_path = _init_real_schema(tmp_path)
+    _write_jsonl(
+        tmp_path,
+        "rando-port",
+        [
+            {"_type": "source", "ref": "rando-port", "title": "Rando"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:tūn",
+                "language": "old-english",
+                "canonical_form": "tūn",
+                "glosses": ["estate"],
+            },
+        ],
+    )
+    write_jsonl(
+        tmp_path / "_reflexes.jsonl",
+        [
+            {"_type": "source", "ref": "reflex-seed", "title": "Seed reflex"},
+            {
+                "_type": "reflex",
+                "surface_form": "-ton",
+                "position": "post",
+                "etymon_refs": ["old-english:tūn"],
+            },
+        ],
+    )
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+        assert counts["reflex"] == 1
+        assert counts["reflex_link_orphans"] == 0
+        row = conn.execute(
+            """
+            SELECT r.surface_form, r.position, e.canonical_form, e.language
+            FROM reflex r
+            JOIN reflex_etymon re ON re.reflex_id = r.id
+            JOIN etymon e ON e.id = re.etymon_id
+            WHERE r.surface_form = '-ton'
+            """
+        ).fetchone()
+        assert (row["surface_form"], row["position"], row["canonical_form"], row["language"]) == (
+            "-ton",
+            "post",
+            "tūn",
+            "old-english",
+        )
+    finally:
+        conn.close()
+
+
+def test_build_reflex_unresolved_ref_is_orphan_but_reflex_upserts(tmp_path: Path):
+    """An etymon_ref that doesn't resolve is counted as a link orphan +
+    skipped; the reflex row itself still upserts (empty link set is a
+    valid intermediate state)."""
+    db_path = _init_real_schema(tmp_path)
+    _write_jsonl(
+        tmp_path,
+        "rando-port",
+        [{"_type": "source", "ref": "rando-port", "title": "Rando"}],
+    )
+    write_jsonl(
+        tmp_path / "_reflexes.jsonl",
+        [
+            {"_type": "source", "ref": "reflex-seed", "title": "Seed reflex"},
+            {
+                "_type": "reflex",
+                "surface_form": "-ham",
+                "position": "post",
+                "etymon_refs": ["old-english:hām"],  # etymon never declared
+            },
+        ],
+    )
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+        assert counts["reflex"] == 1
+        assert counts["reflex_link_orphans"] == 1
+        assert "old-english:hām" in counts["reflex_link_orphan_refs"]
+        # Reflex upserted; no links.
+        assert (
+            conn.execute("SELECT COUNT(*) FROM reflex WHERE surface_form='-ham'").fetchone()[0] == 1
+        )
+        assert conn.execute("SELECT COUNT(*) FROM reflex_etymon").fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+def test_dump_reflexes_round_trips_through_rebuild(tmp_path: Path):
+    """Seed a DB with a reflex, dump ``_reflexes.jsonl``, rebuild a fresh
+    DB from the dumped L2, and confirm the reflex link survives."""
+    from wyrd.generators.kenning.jsonl.dump import dump_reflexes_to_file
+    from wyrd.generators.kenning.lexicon import init_schema
+    from wyrd.generators.kenning.lexicon.sql.queries.reflex import (
+        LINK_REFLEX_ETYMON_OR_IGNORE,
+        UPSERT_REFLEX,
+    )
+
+    # --- source DB: one etymon + one linked reflex.
+    src_db = tmp_path / "src.db"
+    init_schema(src_db)
+    sconn = sqlite3.connect(src_db)
+    sconn.row_factory = sqlite3.Row
+    eid = sconn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('tūn','old-english') RETURNING id"
+    ).fetchone()[0]
+    rid = sconn.execute(UPSERT_REFLEX, ("-ton", "post")).fetchone()[0]
+    sconn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (rid, eid))
+    sconn.commit()
+
+    # --- dump reflexes; also write a rando-port file so the etymon exists on rebuild.
+    out_dir = tmp_path / "l2"
+    out_dir.mkdir()
+    _, n = dump_reflexes_to_file(sconn, out_dir)
+    sconn.close()
+    assert n == 2  # synthetic source row + one reflex row
+    _write_jsonl(
+        out_dir,
+        "rando-port",
+        [
+            {"_type": "source", "ref": "rando-port", "title": "Rando"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:tūn",
+                "language": "old-english",
+                "canonical_form": "tūn",
+            },
+        ],
+    )
+
+    # --- rebuild fresh DB from the dumped L2.
+    dst_db = tmp_path / "dst.db"
+    init_schema(dst_db)
+    dconn = sqlite3.connect(dst_db)
+    dconn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(dconn, jsonl_paths_in(out_dir))
+        assert counts["reflex"] == 1
+        row = dconn.execute(
+            """
+            SELECT e.canonical_form, e.language
+            FROM reflex r
+            JOIN reflex_etymon re ON re.reflex_id = r.id
+            JOIN etymon e ON e.id = re.etymon_id
+            WHERE r.surface_form = '-ton'
+            """
+        ).fetchone()
+        assert (row["canonical_form"], row["language"]) == ("tūn", "old-english")
+    finally:
+        dconn.close()

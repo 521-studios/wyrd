@@ -34,6 +34,21 @@ LINK_REFLEX_ETYMON_OR_IGNORE = (
     "INSERT OR IGNORE INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)"
 )
 
+# wyrd-ned5: dump the reflex layer for the ``_reflexes.jsonl`` L2
+# round-trip. One row per (reflex × linked etymon); the dumper groups
+# by (surface_form, position) and folds the etymon forms into an
+# ``etymon_refs`` list. merged_into_id IS NULL skips OCR-cluster losers
+# (D22) so a tombstoned etymon doesn't resurface as a reflex target.
+# Sorted for byte-stable output.
+SELECT_REFLEXES_FOR_DUMP = """
+    SELECT r.surface_form, r.position, e.language, e.canonical_form
+    FROM reflex r
+    JOIN reflex_etymon re ON re.reflex_id = r.id
+    JOIN etymon e ON e.id = re.etymon_id
+    WHERE e.merged_into_id IS NULL
+    ORDER BY r.surface_form, r.position, e.language, e.canonical_form
+"""
+
 # wyrd-14p: derive reflex.productivity from corpus observations.
 #
 # For each reflex (id, surface_form, position), count the distinct
