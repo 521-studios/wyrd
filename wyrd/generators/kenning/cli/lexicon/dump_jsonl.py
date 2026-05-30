@@ -72,6 +72,7 @@ def lexicon_dump_jsonl(
         DEFAULT_BULK_EXCLUDED_SOURCES,
         dump_all_sources,
         dump_fantasy_morphemes_to_file,
+        dump_reflexes_to_file,
         dump_source_to_file,
     )
 
@@ -88,6 +89,7 @@ def lexicon_dump_jsonl(
     # this block won't trip on a phantom name binding).
     counts: dict[str, int] = {}
     fm_count = 0
+    reflex_count = 0
     try:
         if source_id is not None:
             path, count = dump_source_to_file(conn, source_id, out_dir)
@@ -97,11 +99,14 @@ def lexicon_dump_jsonl(
         # wyrd-2thc: fantasy_morpheme has no source attribution — emit
         # to the synthetic ``_fantasy_morphemes.jsonl`` file.
         _, fm_count = dump_fantasy_morphemes_to_file(conn, out_dir)
+        # wyrd-ned5: the seed reflex layer has no source attribution —
+        # emit to the synthetic ``_reflexes.jsonl`` file.
+        _, reflex_count = dump_reflexes_to_file(conn, out_dir)
     finally:
         conn.close()
 
-    total_rows = sum(counts.values()) + fm_count
-    sources_dumped = len(counts) + (1 if fm_count else 0)
+    total_rows = sum(counts.values()) + fm_count + reflex_count
+    sources_dumped = len(counts) + (1 if fm_count else 0) + (1 if reflex_count else 0)
     click.echo(f"Dumped {sources_dumped} sources, {total_rows} rows → {out_dir}", err=True)
     for sid, n in sorted(counts.items()):
         click.echo(f"  {sid:<40} {n:>6}", err=True)

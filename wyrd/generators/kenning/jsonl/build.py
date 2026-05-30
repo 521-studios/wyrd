@@ -52,6 +52,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from ..lexicon.sql.queries.reflex import LINK_REFLEX_ETYMON_OR_IGNORE, UPSERT_REFLEX
 from .log import ReplayState, replay_file
 
 _logger = logging.getLogger(__name__)
@@ -686,6 +687,46 @@ def _insert_fantasy_morpheme_rows(
             counts["fantasy_morpheme"] += 1
 
 
+def _insert_reflex_rows(
+    conn: sqlite3.Connection,
+    rows: list[dict[str, Any]],
+    etymon_id_by_ref: dict[str, int],
+    counts: dict[str, Any],
+) -> None:
+    """Replay ``reflex`` rows (wyrd-ned5): upsert the (surface_form,
+    position) reflex, then link it to every etymon named in
+    ``etymon_refs`` that resolves in ``etymon_id_by_ref``.
+
+    Reflexes are the seed modern_usage→etymon layer (e.g. -ton → OE
+    tūn). They're created only by ``seed_from_meanings`` and were lost
+    by a full rebuild before this round-trip existed. ``productivity``
+    is intentionally NOT carried in L2 — it's recomputed from corpus
+    observations by ``_recompute_reflex_productivity_after_build`` at
+    the rebuild tail, matching the existing wyrd-14p contract.
+
+    Orphan = an ``etymon_ref`` that doesn't resolve (the linked etymon
+    was removed via a kernel ``remove`` event, or was never dumped).
+    Orphaned refs are skipped + counted; a reflex whose refs ALL
+    orphan still upserts the reflex row (an empty link set is a valid
+    intermediate state — a later mining pass may add the etymon).
+    """
+    for row in rows:
+        surface_form = row.get("surface_form")
+        position = row.get("position")
+        if not surface_form or not position:
+            raise BuildError(f"reflex row missing surface_form/position: {row!r}")
+        reflex_id = conn.execute(UPSERT_REFLEX, (surface_form, position)).fetchone()[0]
+        counts["reflex"] += 1
+        for eref in row.get("etymon_refs", []) or []:
+            eid = etymon_id_by_ref.get(eref)
+            if eid is None:
+                counts["reflex_link_orphans"] += 1
+                if len(counts["reflex_link_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                    counts["reflex_link_orphan_refs"].append(eref)
+                continue
+            conn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (reflex_id, eid))
+
+
 def _extract_source_id(path: Path, state: ReplayState) -> str:
     """Validate the contract: exactly one ``source`` row per file.
     Returns its ref (= the source_id)."""
@@ -751,6 +792,14 @@ def build_from_jsonl(
         # swallowed by INSERT OR IGNORE; count + skip it visibly instead.
         "citation_source_orphans": 0,
         "citation_source_orphan_refs": [],
+        # wyrd-ned5: seed reflex layer round-trip. ``reflex`` counts the
+        # (surface_form, position) reflexes whose etymon_refs resolved +
+        # linked. Orphan = an etymon_ref in a reflex row that doesn't
+        # resolve in the rebuilt etymon table (the linked etymon was
+        # removed via a kernel ``remove`` event, or never dumped).
+        "reflex": 0,
+        "reflex_link_orphans": 0,
+        "reflex_link_orphan_refs": [],
     }
 
     # ----- Pass 1: replay every file, accumulate merged state.
@@ -821,6 +870,9 @@ def build_from_jsonl(
         _insert_fantasy_morpheme_rows(
             conn, state.lists["fantasy_morpheme"], etymon_id_by_ref, counts
         )
+        # wyrd-ned5: replay the seed reflex layer (from _reflexes.jsonl).
+        # Runs after etymons are inserted so etymon_refs resolve.
+        _insert_reflex_rows(conn, state.lists["reflex"], etymon_id_by_ref, counts)
 
     conn.commit()
 

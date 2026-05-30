@@ -140,6 +140,12 @@ LIST_TYPES: frozenset[str] = frozenset(
         "etymon_descent",
         "mining_run",
         "fantasy_morpheme",
+        # wyrd-ned5: seed reflex layer (modern_usage → etymon links).
+        # Carried in the synthetic ``_reflexes.jsonl`` file so the
+        # canonical morpheme→etymon mappings (e.g. -ton → OE tūn) survive
+        # a full rebuild-from-jsonl — they're created only by
+        # seed_from_meanings and are NOT otherwise re-derivable from L2.
+        "reflex",
     }
 )
 
