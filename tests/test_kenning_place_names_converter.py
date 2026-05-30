@@ -7,9 +7,18 @@ import json
 import sqlite3
 from pathlib import Path
 
+from click.testing import CliRunner
+
+from wyrd.generators.kenning.cli.lexicon.convert_place_names import lexicon_convert_place_names
 from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+from wyrd.generators.kenning.jsonl.dump import DEFAULT_BULK_EXCLUDED_SOURCES
 from wyrd.generators.kenning.lexicon import init_schema
-from wyrd.generators.kenning.place_names_converter import emit_place_names_jsonl, source_id_for
+from wyrd.generators.kenning.place_names_converter import (
+    CULTURES,
+    convert_file,
+    emit_place_names_jsonl,
+    source_id_for,
+)
 
 # Minimal 3-level {country: {region: [names]}} gazetteer. "California" appears
 # in two counties (distinct toponyms) and "Bedford" is duplicated within one
@@ -78,3 +87,52 @@ def test_build_roundtrip_lands_toponyms_with_country_and_region(tmp_path: Path):
         == 2
     )
     conn.close()
+
+
+def test_convert_file_reads_json_and_writes_jsonl(tmp_path: Path):
+    """The disk leg: read a gazetteer JSON, mkdir the parent, write the
+    JSONL, return the toponym count."""
+    src = tmp_path / "english_place_names.json"
+    src.write_text(json.dumps(SAMPLE), encoding="utf-8")
+    out = tmp_path / "sub" / "english_place_names.jsonl"  # forces parent mkdir
+    n = convert_file("english", src, out)
+    assert n == 5
+    rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    assert rows[0]["_type"] == "source"
+    assert sum(r["_type"] == "toponym" for r in rows) == 5
+
+
+def test_cli_single_culture_and_default_all(tmp_path: Path):
+    """The CLI: --culture writes one file; no --culture writes all five
+    (exercises the filter branch + bundled-resource resolution)."""
+    runner = CliRunner()
+    r = runner.invoke(
+        lexicon_convert_place_names, ["--culture", "english", "--out-dir", str(tmp_path)]
+    )
+    assert r.exit_code == 0, r.output
+    assert (tmp_path / "english_place_names.jsonl").exists()
+    assert not (tmp_path / "irish_place_names.jsonl").exists()
+
+    r2 = runner.invoke(lexicon_convert_place_names, ["--out-dir", str(tmp_path)])
+    assert r2.exit_code == 0, r2.output
+    for c in CULTURES:
+        assert (tmp_path / f"{c}_place_names.jsonl").exists()
+
+
+def test_emit_empty_gazetteer_yields_only_source():
+    rows = _emit({})
+    assert len(rows) == 1 and rows[0]["_type"] == "source"
+
+
+def test_emit_coerces_non_string_name():
+    rows = _emit({"England": {"Berkshire": [42]}})
+    topo = next(r for r in rows if r["_type"] == "toponym")
+    assert topo["modern_name"] == "42"
+
+
+def test_gazetteer_sources_excluded_from_bulk_dump():
+    """The 5 gazetteer sources are converter-owned committed artifacts —
+    they MUST be in DEFAULT_BULK_EXCLUDED_SOURCES so a bulk dump can't emit
+    a competing (toponym-less) file and clobber the committed JSONL."""
+    for c in CULTURES:
+        assert source_id_for(c) in DEFAULT_BULK_EXCLUDED_SOURCES
