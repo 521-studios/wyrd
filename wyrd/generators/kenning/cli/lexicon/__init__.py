@@ -170,6 +170,9 @@ from wyrd.generators.kenning.cli.lexicon import (
     report as _report_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
+    report_snapshot as _report_snapshot_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
     report_wikipedia_backfill as _report_wikipedia_backfill_module,
 )
 from wyrd.generators.kenning.cli.lexicon import reverse_search as _reverse_search_module
@@ -279,6 +282,7 @@ _reverse_search_toponyms_module.add_to(lexicon)
 _review_module.add_to(lexicon)
 _synsets_module.add_to(lexicon)
 _report_module.add_to(lexicon)
+_report_snapshot_module.add_to(lexicon)
 _report_wikipedia_backfill_module.add_to(lexicon)
 _reverse_search_module.add_to(lexicon)
 _set_stratum_module.add_to(lexicon)
