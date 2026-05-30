@@ -75,28 +75,31 @@ def test_explainer_decomposes_single_word_manorial_affix() -> None:
 
 def test_explainer_decomposes_multi_word_manorial_affix() -> None:
     """For multi-word families ("La Zouche"), the surname token
-    decomposes via the synthesized Meaning; the leading particle
-    ("La") stays unaccounted by design — registering particles
-    standalone would match outside manorial contexts. The
-    explainer's gloss still surfaces the full "La Zouche" because
-    the synthesized Meaning's gloss carries the full family string.
+    decomposes via the synthesized Meaning, and the explainer's gloss
+    surfaces the full "La Zouche" because the synthesized Meaning's
+    gloss carries the full family string.
 
-    Pinning so a future refactor that ALSO registers the particles
-    as standalone manorial Meanings (which would be a deliberate
-    enhancement) trips the test rather than silently changing
-    semantics."""
+    The leading particle "La" now resolves to the Old-French definite
+    article ``la`` — the converged corpus (post-f1ss-tail) gained that
+    etymon, so the particle is no longer an unaccounted ``[La]``
+    fragment. The original docstring anticipated exactly this: "a future
+    refactor that ALSO registers the particles ... trips the test"; here
+    it was the corpus growth, not a refactor, that registered ``la``.
+    The manorial synthesis still carries the surname + full family gloss
+    regardless of whether the particle accounts."""
     discover()
     exp = get("kenning-explain")
     results = exp.generate_all({"name": "Ashby La Zouche"}, seed=0)
     first = results[0]
-    # Surname token recognized.
+    # Surname token recognized + full family name in the gloss.
     assert "Zouche" in first.explanation
     assert "La Zouche" in first.explanation, (
         f"explainer should surface full family name in gloss: {first.explanation[:300]}"
     )
-    # Particle "La" stays as an unaccounted fragment in the canonical
-    # decomposition (delimited by [..] in the explainer's output).
-    assert "[La]" in first.explanation
+    # Particle "La" now decomposes via the French definite article
+    # ``la`` rather than staying an unaccounted ``[La]`` fragment.
+    assert "la " in first.explanation.lower()
+    assert "[La]" not in first.explanation
 
 
 def test_generate_then_explain_round_trip_recognizes_affix() -> None:
