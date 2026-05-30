@@ -132,6 +132,11 @@ etymon_citation = Table(
     Column("page", Text),
     Column("short_quote", Text),
     Column("context_snippet", Text),
+    # wyrd-jhdw (0016): the attested surface FORM when this cite migrated
+    # from a folded form-of etymon to its parent lemma. NULL = attested
+    # under the etymon's own canonical form (no collapse). See the
+    # collapse applier (run_full_enrichment step 3 / _collapses.jsonl).
+    Column("attested_form", Text),
 )
 # SQLite forbids expressions in inline UNIQUE constraints, so the
 # "treat NULL page as ''" uniqueness goes here as a unique index using

@@ -330,7 +330,9 @@ def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
         row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
     assert row is not None, "alembic_version row missing"
     # Head revision id per the wyrd-67fv layered migrations.
-    assert row[0] == "0015_report_snapshot", f"expected head '0015_report_snapshot', got {row[0]!r}"
+    assert row[0] == "0016_etymon_citation_attested_form", (
+        f"expected head '0016_etymon_citation_attested_form', got {row[0]!r}"
+    )
 
 
 def test_migration_0013_backfills_element_confidence_from_parent(
@@ -1110,7 +1112,32 @@ def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
 
     with sqlite3.connect(fresh_db) as conn:
         version = conn.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert version[0] == "0015_report_snapshot"
+    assert version[0] == "0016_etymon_citation_attested_form"
+
+
+def test_etymon_citation_attested_form_column(fresh_db: Path) -> None:
+    """wyrd-jhdw (0016): etymon_citation carries a nullable attested_form
+    column. NULL = cite attested under the etymon's own canonical form;
+    a non-NULL value records the original surface form when the cite
+    migrated to a parent lemma during a collapse (the hybrid handling)."""
+    with sqlite3.connect(fresh_db) as conn:
+        cols = {r[1]: r for r in conn.execute("PRAGMA table_info(etymon_citation)")}
+        assert "attested_form" in cols, "attested_form column missing"
+        # PRAGMA row: (cid, name, type, notnull, dflt_value, pk)
+        assert cols["attested_form"][2] == "TEXT"
+        assert cols["attested_form"][3] == 0, "attested_form must be nullable"
+        # round-trips NULL (default) and an explicit form
+        conn.execute("INSERT INTO source (id, title) VALUES ('s-jhdw', 'Test Source')")
+        conn.execute(
+            "INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'burg', 'old-english')"
+        )
+        conn.execute("INSERT INTO etymon_citation (etymon_id, source_id) VALUES (1, 's-jhdw')")
+        conn.execute(
+            "INSERT INTO etymon_citation (etymon_id, source_id, page, attested_form) "
+            "VALUES (1, 's-jhdw', 'p1', 'burh')"
+        )
+        rows = conn.execute("SELECT attested_form FROM etymon_citation ORDER BY id").fetchall()
+    assert [r[0] for r in rows] == [None, "burh"]
 
 
 def test_idx_attestation_unique_dedups_null_year_and_source(fresh_db: Path) -> None:
