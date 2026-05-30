@@ -239,22 +239,49 @@ def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
 
 
 def _insert_toponym(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
-    """Plain INSERT (no OR IGNORE / no merge), unlike :func:`_insert_etymon`.
-    Currently safe: the toponym table has no UNIQUE constraint (multiple
-    villages share modern_name + region; uniqueness is enforced via the
-    COALESCE-padded ``idx_toponym_unique`` index at the bridge layer,
-    not as a table-level UNIQUE). If a future schema change adds a
-    plain UNIQUE here, this function will need the same conflict-merge
-    path _insert_etymon uses."""
+    """INSERT, or REUSE the existing row on conflict. Uniqueness is
+    enforced by the COALESCE-padded ``idx_toponym_unique`` index on
+    ``(modern_name, COALESCE(country,''), COALESCE(region,''))``. An
+    additive replay whose toponym already exists (e.g. KEPN ingesting
+    Bedford/Bedfordshire when a scholarly source already mined it) must
+    reuse the existing row's id so the colliding place merges its
+    decomposition onto the existing toponym instead of aborting the
+    whole build with an IntegrityError. Mirrors :func:`_insert_etymon`'s
+    INSERT-OR-IGNORE-then-lookup contract (wyrd-bo01.1)."""
+    # Validate up front (mirrors _insert_etymon's guard): modern_name is
+    # NOT NULL in the schema, and INSERT OR IGNORE below would otherwise
+    # SWALLOW a NOT NULL violation — leaving rowcount=0, a lookup that
+    # matches nothing, and a stale ``lastrowid`` from the prior insert.
+    modern_name = payload.get("modern_name")
+    if not modern_name:
+        raise BuildError(f"toponym row missing modern_name: {payload}")
+    country = payload.get("country")
+    region = payload.get("region")
     cur = conn.execute(
-        "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
-        (
-            payload["modern_name"],
-            payload.get("country"),
-            payload.get("region"),
-        ),
+        "INSERT OR IGNORE INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+        (modern_name, country, region),
     )
-    return cur.lastrowid
+    if cur.rowcount > 0:
+        return int(cur.lastrowid)
+    # INSERT OR IGNORE hit idx_toponym_unique; reuse the existing row.
+    # COALESCE padding matches the index so NULL country/region collide.
+    row = conn.execute(
+        "SELECT id FROM toponym "
+        "WHERE modern_name = ? "
+        "AND COALESCE(country, '') = COALESCE(?, '') "
+        "AND COALESCE(region, '') = COALESCE(?, '')",
+        (modern_name, country, region),
+    ).fetchone()
+    if row is None:
+        # With modern_name validated, the only rowcount==0 cause is the
+        # genuine unique conflict — which the lookup MUST find. None here
+        # means schema/logic drift; fail loud like _merge_etymon_conflict.
+        raise BuildError(
+            "toponym INSERT OR IGNORE was rejected but no conflicting row "
+            f"could be located: modern_name={modern_name!r} "
+            f"country={country!r} region={region!r}"
+        )
+    return int(row[0])
 
 
 def _insert_citation(
