@@ -1,0 +1,115 @@
+{
+  "_doc": "Source of truth for the from-scratch lexicon rebuild. Paired with wyrd/generators/kenning/REBUILD.md (the prose runbook) and tests/test_kenning_rebuild_runbook.py (the CI gate that ties the two together). When you add a data-population CLI (mine-*/ingest-*/backfill-*/cleanup-*), the test fails until you categorize it here AND, if it is a rebuild step, document it in REBUILD.md. See the 'Keeping this runbook honest' section of REBUILD.md.",
+
+  "_principle": "A full wipe (rebuild-from-jsonl) restores only what L2 JSONL carries plus the enrichment-derived columns. FREE re-runnable mining against the local bulk slices is an acceptable manual rebuild step PROVIDED it is listed in rebuild_step_commands and documented in REBUILD.md. PAID mining (LLM/Gemini/Ollama API cost) must NOT be a rebuild step -- its output must round-trip through L2 so rebuild-from-jsonl replays it for free (enforced separately by .reviewers/db-reconstructibility-reviewer.md).",
+
+  "rebuild_step_commands": [
+    "backfill-toponym-country",
+    "ingest-toponym-mentions",
+    "mine-wiktextract-forms",
+    "mine-wiktextract-corpus",
+    "cleanup-wiktionary-empirical",
+    "mine-empirical-baselines"
+  ],
+
+  "non_rebuild_commands": {
+    "backfill-fantasy-tags": "Backfills tags on fantasy_morpheme rows; the fantasy layer round-trips via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores it. Not a wipe-restore step.",
+    "backfill-pages": "Backfills citation page numbers from source-specific data; one-off enrichment, not part of a from-scratch rebuild.",
+    "ingest-briggs-personal-names": "Source-specific ingester; output lands in L2 and is replayed by rebuild-from-jsonl. Not a wipe-restore step.",
+    "ingest-domesday": "Source-specific ingester (Open Domesday); output lands in L2. Not a wipe-restore step.",
+    "ingest-etymonline": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
+    "ingest-hearth-tax": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
+    "ingest-hundred-rolls": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
+    "ingest-kepn": "Source-specific ingester (KEPN county files); output lands in L2. Not a wipe-restore step.",
+    "ingest-os-open-names": "Source-specific ingester (OS OpenNames gazetteer); output lands in L2. Not a wipe-restore step.",
+    "ingest-report-snapshot": "Reporting tool: loads dashboard report snapshots into the DB for diffing. Not corpus data, not a rebuild step.",
+    "ingest-speed-1611": "Source-specific ingester (Speed 1611 atlas); output lands in L2. Not a wipe-restore step.",
+    "ingest-wiktionary": "L1 bulk wiktextract descent-graph ingest; performed by rebuild-from-jsonl's bulk phase internally (slices fetched via fetch-bulk-sources / --fetch-bulk). Not a separate manual step.",
+    "mine-attestations": "Extracts dated historical forms from toponym_etymology.notes. The canonical rebuild restores toponym_attestation via ingest-toponym-mentions over the committed data/mining/phase2/*.jsonl, not via this path. If the rebuild ever routes attestations through this command, move it to rebuild_step_commands and document it.",
+    "mine-fantasy-name": "Paid (Gemini) creature-name research. The usable fantasy_morpheme rows round-trip via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores them. Not a wipe-restore step.",
+    "mine-llm": "Paid LLM mining of new OCR sources. Output is dumped to L2 (dump-jsonl) and replayed by rebuild-from-jsonl. Must never be a rebuild step (it costs money).",
+    "mine-skeat": "Source-specific parser mine of a new book; output dumped to L2. Not a wipe-restore step.",
+    "mine-toponym-mentions": "Source-capture mining that PRODUCES the committed data/mining/phase2/*.jsonl files; the rebuild replays those via ingest-toponym-mentions. The mining itself is source capture, not a wipe-restore step.",
+    "mine-toponym-mentions-staged": "Staged variant of mine-toponym-mentions (source capture). Not a wipe-restore step.",
+    "mine-toponym-mentions-tiered": "Tiered variant of mine-toponym-mentions (source capture). Not a wipe-restore step."
+  },
+
+  "layers": [
+    {
+      "layer": "l2-corpus",
+      "summary": "etymon / citations / descent / glosses / tags / toponym / toponym_etymology / mining_run",
+      "restored_by": "l2-replay",
+      "cost": "free",
+      "runbook_token": "rebuild-from-jsonl"
+    },
+    {
+      "layer": "enrichment-derived-columns",
+      "summary": "OCR clusters, lemma links, cognate_id, stratum, english_shaped, phonological_vector, toponym_decomposition, etymon_period_form",
+      "restored_by": "enrichment",
+      "cost": "free",
+      "runbook_token": "--with-enrichment"
+    },
+    {
+      "layer": "reflexes",
+      "summary": "reflex / reflex_etymon (modern_usage -> etymon links)",
+      "restored_by": "l2-replay",
+      "cost": "free",
+      "runbook_token": "_reflexes.jsonl"
+    },
+    {
+      "layer": "fantasy-morphemes",
+      "summary": "fantasy_morpheme (wyrd-ami)",
+      "restored_by": "l2-replay",
+      "cost": "free",
+      "runbook_token": "_fantasy_morphemes.jsonl"
+    },
+    {
+      "layer": "curation-overrides",
+      "summary": "operator lemma/merge overrides applied after auto-clustering",
+      "restored_by": "l2-replay",
+      "cost": "free",
+      "runbook_token": "_curation.jsonl"
+    },
+    {
+      "layer": "toponym-country",
+      "summary": "toponym.country (prerequisite for empirical baselines)",
+      "restored_by": "free-mining",
+      "cost": "free",
+      "restore_command": "backfill-toponym-country",
+      "runbook_token": "backfill-toponym-country"
+    },
+    {
+      "layer": "phase2-attestations",
+      "summary": "toponym_attestation (L3-only; replays committed data/mining/phase2/*.jsonl)",
+      "restored_by": "free-mining",
+      "cost": "free",
+      "restore_command": "ingest-toponym-mentions",
+      "runbook_token": "ingest-toponym-mentions"
+    },
+    {
+      "layer": "forms-variants",
+      "summary": "etymon_text_match (D18 spelling-variant pools; L3-only)",
+      "restored_by": "free-mining",
+      "cost": "free",
+      "restore_command": "mine-wiktextract-forms",
+      "runbook_token": "mine-wiktextract-forms"
+    },
+    {
+      "layer": "empirical",
+      "summary": "wiktionary-empirical citations (L3-only); mine then cleanup",
+      "restored_by": "free-mining",
+      "cost": "free",
+      "restore_command": "mine-wiktextract-corpus",
+      "cleanup_command": "cleanup-wiktionary-empirical",
+      "runbook_token": "mine-wiktextract-corpus"
+    },
+    {
+      "layer": "empirical-baselines",
+      "summary": "empirical_priors_native / empirical_priors_loan (derived from country + attestations + empirical)",
+      "restored_by": "free-mining",
+      "cost": "free",
+      "restore_command": "mine-empirical-baselines",
+      "runbook_token": "mine-empirical-baselines"
+    }
+  ]
+}

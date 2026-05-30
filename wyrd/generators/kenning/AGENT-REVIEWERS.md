@@ -44,6 +44,15 @@ Read `wyrd/generators/kenning/.reviewers/docstring-grep-verify-reviewer.md` and 
 
 ---
 
+## rebuild-runbook-currency-reviewer
+
+**What it checks:** new/renamed data-population CLIs (`mine-*` / `ingest-*` / `backfill-*` / `cleanup-*`) and new mined L3-only layers are registered in `data/mining/_rebuild_layers.json` and documented in `REBUILD.md` so a from-scratch rebuild never silently drops a layer. Free re-runnable mining is an acceptable *documented* rebuild step; paid mining must round-trip through L2 (defers to the repo-root `db-reconstructibility-reviewer`). The doc-currency complement to that reviewer: it asks "is the recovery automatic OR written down in the runbook?", not just "is it recoverable at all?".
+**When to spawn:** PR adds/renames a `mine-*`/`ingest-*`/`backfill-*`/`cleanup-*` subcommand under `cli/lexicon/`, adds a new mined/ingested table or column, or edits `REBUILD.md` / `_rebuild_layers.json` / `tests/test_kenning_rebuild_runbook.py`. Skip read-only/enrichment-only diffs. (Note: `tests/test_kenning_rebuild_runbook.py` already gates *categorization* in CI — the reviewer judges whether the bucket + reason + runbook placement are **correct**.)
+
+Read `wyrd/generators/kenning/.reviewers/rebuild-runbook-currency-reviewer.md` and follow it as your complete review specification.
+
+---
+
 ## dataclass-extraction-decorator-reviewer
 
 **What it checks:** classes moved between files via line-range copy that use `field(default_factory=...)` or `field(default=...)` without a `@dataclass` decorator on the line above. The bug surfaces at instance-construction time, not import time, so type checkers and smoke imports won't catch it.

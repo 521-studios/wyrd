@@ -337,6 +337,42 @@ follow-up tracked in `L2_L3_BOUNDARY.md` ("Deferred (planned L2)").
 
 ---
 
+## Keeping this runbook honest (enforcement)
+
+This runbook drifts out of date the instant someone adds a new mined
+layer and forgets to document its restore. Three things keep it complete:
+
+1. **`data/mining/_rebuild_layers.json`** — the structured source of
+   truth. Every data-population CLI (`mine-*` / `ingest-*` / `backfill-*`
+   / `cleanup-*`) is categorized as a `rebuild_step_commands` entry (a
+   free step you must run after a wipe) or a `non_rebuild_commands` entry
+   (with a one-line reason — paid mining, source-specific ingester whose
+   output round-trips through L2, etc.). The `layers` array records each
+   layer a wipe affects and how it's restored.
+
+2. **`tests/test_kenning_rebuild_runbook.py`** — a CI gate (no DB, runs in
+   ms). It walks the live Click group and **fails** if a new
+   data-population command isn't categorized in the manifest, if the
+   manifest references a command that no longer exists, or if a
+   rebuild-step command / layer token isn't written into this file. So a
+   newly-added free-mining step can't merge until it's documented here.
+
+3. **`rebuild-runbook-currency-reviewer`** (`AGENT-REVIEWERS.md`) — judges
+   what the test can't: whether a command landed in the *right* bucket,
+   whether its reason is accurate (paid mining must never be a rebuild
+   step), and whether it's placed in the correct Phase-2 order.
+
+The division of labour: the repo-root **`db-reconstructibility-reviewer`**
+asks *"can this data be recovered at all without re-paying for mining?"*
+(→ L2 round-trip or free-rebuildable). This runbook + its reviewer ask the
+follow-on: *"is that recovery automatic, or at least written down here in
+order?"* When you add a layer, satisfy both.
+
+**So: adding a new mined/ingested layer is a four-file change** — the
+ingester, a `_rebuild_layers.json` entry, a REBUILD.md restore step (if
+it's a free rebuild step), and (if it's a new table moving the L2/L3 line)
+the `L2_L3_BOUNDARY.md` map.
+
 ## See also
 
 - `L2_L3_BOUNDARY.md` — the authoritative L2/L3 column-by-column map and

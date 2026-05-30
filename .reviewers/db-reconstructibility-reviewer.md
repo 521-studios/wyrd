@@ -68,6 +68,7 @@ rebuild-from-jsonl
 
 - Schema migrations with no data (pure `CREATE TABLE` / `ALTER TABLE` with no INSERT).
 - L3 enrichment columns whose values are deterministically derivable from existing DB rows via a re-runnable `lexicon enrich --apply` pass. These are computed from DB content, not from external sources.
+- **FREE re-runnable mining** against the local bulk slices (no LLM / Gemini / Ollama API cost) — e.g. `mine-wiktextract-corpus`, `mine-wiktextract-forms` — **PROVIDED** the layer is registered in `data/mining/_rebuild_layers.json` and documented as a rebuild step in `wyrd/generators/kenning/REBUILD.md`. Free re-mining is an acceptable manual rebuild step; what's NOT acceptable is a free-mined layer a wipe drops with no documented restore (that's how the May-2026 rebuild lost the empirical / forms / attestation layers silently). The doc-currency half is enforced by `wyrd/generators/kenning/.reviewers/rebuild-runbook-currency-reviewer.md` + `tests/test_kenning_rebuild_runbook.py` — coordinate with it rather than waving the layer through here. **Paid** mining is never acceptable as a rebuild step: its output must round-trip through L2.
 - Test fixtures, smoke-test code, or paths gated by `if TESTING` / `pytest`-only construction. Tests build throwaway DBs.
 - Read-only paths (queries, reports, browse, audit) that don't write to the DB.
 - The bundle export path (`bundle.json` / `meanings.json`) — those are downstream artifacts derived from DB queries, not ingest sources.
