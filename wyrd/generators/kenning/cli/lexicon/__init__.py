@@ -105,6 +105,7 @@ from wyrd.generators.kenning.cli.lexicon import ingest_hearth_tax as _ingest_hea
 from wyrd.generators.kenning.cli.lexicon import (
     ingest_hundred_rolls as _ingest_hundred_rolls_module,
 )
+from wyrd.generators.kenning.cli.lexicon import ingest_kepn as _ingest_kepn_module
 from wyrd.generators.kenning.cli.lexicon import (
     ingest_os_open_names as _ingest_os_open_names_module,
 )
@@ -236,6 +237,7 @@ _fetch_bulk_sources_module.add_to(lexicon)
 _fuzzy_search_module.add_to(lexicon)
 _ingest_briggs_personal_names_module.add_to(lexicon)
 _ingest_hearth_tax_module.add_to(lexicon)
+_ingest_kepn_module.add_to(lexicon)
 _ingest_hundred_rolls_module.add_to(lexicon)
 _ingest_os_open_names_module.add_to(lexicon)
 _ingest_domesday_module.add_to(lexicon)
