@@ -42,6 +42,7 @@ DB and must be re-run by hand after the rebuild.
 | reflexes (`reflex` / `reflex_etymon`) | ✅ **now** — via synthetic `data/mining/_reflexes.jsonl` (wyrd-ned5, PR #387) | — |
 | fantasy morphemes | ✅ **now** — via synthetic `data/mining/_fantasy_morphemes.jsonl` (PR #388) | — |
 | curation overrides | ✅ yes — `data/mining/_curation.jsonl` | — |
+| collapse ledger (form-of/variant folds, wyrd-y651) | ✅ yes — `data/mining/_collapses.jsonl`, replayed by `run_full_enrichment`'s curation slot (`apply_collapses`) | — |
 | **`toponym.country`** | ❌ dropped | `backfill-toponym-country` |
 | **phase-2 attestations** (`toponym_attestation`) | ❌ L3-only (boundary doc "deferred") | `ingest-toponym-mentions` over `data/mining/phase2/*.jsonl` |
 | **empirical layer** (`wiktionary-empirical` citations) | ❌ L3-only | `mine-wiktextract-corpus` + `cleanup-wiktionary-empirical` |
@@ -142,11 +143,12 @@ What it does, in order:
 2. Ingests the L1 wiktextract bulk (skip with `--skip-bulk`; download
    with `--fetch-bulk`).
 3. Replays every `data/mining/*.jsonl` L2 file — including the synthetic
-   `_reflexes.jsonl`, `_fantasy_morphemes.jsonl`, `_curation.jsonl`.
+   `_reflexes.jsonl`, `_fantasy_morphemes.jsonl`, `_curation.jsonl`,
+   `_collapses.jsonl`.
    Later file order wins on scalar conflicts; glosses/tags union.
 4. Runs the 12-pass `run_full_enrichment` chain (because
    `--with-enrichment`): `normalize-ocr → link-lemmas → [curation /
-   gloss-suppress / gloss-add / etymon-splits] → decompose →
+   gloss-suppress / gloss-add / etymon-splits / collapses] → decompose →
    cluster-cognates → classify-stratum → derive-english-shaped →
    tag-phonological-vectors → project-period-forms`.
 

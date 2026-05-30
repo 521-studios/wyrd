@@ -201,6 +201,7 @@ def _rebuild_lexicon_db(
     from wyrd.generators.kenning.enrichment import run_full_enrichment
     from wyrd.generators.kenning.jsonl.build import (
         build_from_jsonl,
+        collect_collapses,
         collect_curation_overrides,
         collect_etymon_splits,
         collect_gloss_additions,
@@ -234,6 +235,7 @@ def _rebuild_lexicon_db(
     suppression_state = collect_gloss_suppressions(paths)
     addition_state = collect_gloss_additions(paths)
     split_state = collect_etymon_splits(paths)
+    collapse_state = collect_collapses(paths)
     with LexiconDB(rebuilt_path) as db:
         run_full_enrichment(
             db,
@@ -242,6 +244,7 @@ def _rebuild_lexicon_db(
             suppression_state=suppression_state or None,
             addition_state=addition_state or None,
             split_state=split_state or None,
+            collapse_state=collapse_state or None,
         )
 
 

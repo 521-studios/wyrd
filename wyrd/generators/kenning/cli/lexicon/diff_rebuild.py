@@ -94,6 +94,7 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
         if with_enrichment:
             from wyrd.generators.kenning.enrichment import run_full_enrichment
             from wyrd.generators.kenning.jsonl.build import (
+                collect_collapses,
                 collect_curation_overrides,
                 collect_etymon_splits,
                 collect_gloss_additions,
@@ -104,6 +105,7 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
             suppressions = collect_gloss_suppressions(paths) or None
             additions = collect_gloss_additions(paths) or None
             splits = collect_etymon_splits(paths) or None
+            collapses = collect_collapses(paths) or None
             with LexiconDB(rebuilt_path) as db:
                 run_full_enrichment(
                     db,
@@ -112,6 +114,7 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
                     suppression_state=suppressions,
                     addition_state=additions,
                     split_state=splits,
+                    collapse_state=collapses,
                 )
 
         rebuilt_conn = sqlite3.connect(rebuilt_path)

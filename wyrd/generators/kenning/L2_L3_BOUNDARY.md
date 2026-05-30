@@ -201,6 +201,25 @@ blame data/mining/_curation.jsonl` shows who curated what and when.
 Reverting an event is appending another event with the cleared
 value (`lemma_ref: ''` via the CLI), preserving the audit trail.
 
+## Collapse ledger (wyrd-y651)
+
+`data/mining/_collapses.jsonl` is the single ledger for **consolidations**:
+folding a form-of / variant etymon into its lemma so it stops being its
+own lemma (the inverse of `etymon_split`). Each `collapse` row carries
+`ref` (the etymon being absorbed) + `into` (`"<language>:<canonical_form>"`
+of the surviving lemma) + `variant_class` / `method` / `reason`.
+
+It is L2 (committed, git-tracked) and replayed by
+`run_full_enrichment`'s curation slot (`apply_collapses`), AFTER
+`link_lemmas` (so the target lemma exists) and BEFORE the L3 derivations
+(so decompose / cluster / proportions see the post-collapse graph). The
+apply tombstones `ref` into `into` (`merged_into_id`), records the form
+as an `etymon_variant` of the lemma, and migrates reflexes + citations
+(stamping `attested_form`) — D21 evidence-preservation. Both the
+deterministic detector and the LLM merge pass append here, differing
+only in `method`; the LLM verdicts persisting to L2 is what keeps the
+rebuild free (no re-mining). Last-write-wins per ref; `into: ''` reverts.
+
 ## Prune commands — toponym + etymon row removal
 
 `lexicon prune-toponym` (wyrd-lene) and `lexicon prune-etymon`
