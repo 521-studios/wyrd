@@ -147,6 +147,20 @@ def test_reflex_conflict_left_on_tombstone(tmp_path: Path) -> None:
     _ = ids
 
 
+def test_bad_variant_class_coerced_to_other(tmp_path: Path) -> None:
+    """An out-of-vocabulary variant_class (hand-edited / LLM row) is
+    coerced to 'other' rather than tripping the CHECK constraint."""
+    _seed(tmp_path / "lex.db")
+    state = {"old-english:burh": {"into": "old-english:burg", "variant_class": "bogus-class"}}
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, state, apply=True)
+        vc = db.conn.execute(
+            "SELECT variant_class FROM etymon_variant WHERE etymon_id = 2 AND form = 'burh'"
+        ).fetchone()[0]
+    assert counts["collapses_processed"] == 1
+    assert vc == "other"
+
+
 def test_collect_collapses_round_trip(tmp_path: Path) -> None:
     """A _collapses.jsonl row replays into {from_ref: payload}; last-write
     wins, and into:'' reverts."""

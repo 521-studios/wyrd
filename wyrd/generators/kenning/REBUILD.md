@@ -143,7 +143,8 @@ What it does, in order:
 2. Ingests the L1 wiktextract bulk (skip with `--skip-bulk`; download
    with `--fetch-bulk`).
 3. Replays every `data/mining/*.jsonl` L2 file — including the synthetic
-   `_reflexes.jsonl`, `_fantasy_morphemes.jsonl`, `_curation.jsonl`.
+   `_reflexes.jsonl`, `_fantasy_morphemes.jsonl`, `_curation.jsonl`,
+   `_collapses.jsonl`.
    Later file order wins on scalar conflicts; glosses/tags union.
 4. Runs the 12-pass `run_full_enrichment` chain (because
    `--with-enrichment`): `normalize-ocr → link-lemmas → [curation /

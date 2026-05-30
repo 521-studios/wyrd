@@ -68,6 +68,10 @@ GLOSS_SUPPRESSION_METHOD_VERSION = "gloss-suppression-v1"
 GLOSS_ADD_METHOD_VERSION = "gloss-add-v1"
 ETYMON_SPLIT_METHOD_VERSION = "etymon-split-v1"
 COLLAPSE_METHOD_VERSION = "collapse-v1"
+# Allowed etymon_variant.variant_class values (mirrors the table's CHECK
+# constraint). A collapse row with anything else is coerced to "other"
+# so a hand-edited / LLM-emitted payload can't raise a CHECK violation.
+_VARIANT_CLASSES = frozenset({"alternative", "inflection", "romanization", "canonical", "other"})
 # Synthetic source for collapse-registered variant rows (the assertion
 # "this form is a variant of that lemma" comes from the collapse decision
 # itself, not a corpus). Derived + idempotently re-created on rebuild.
@@ -867,8 +871,14 @@ def apply_collapses(
     ``from``, which ``merged_into_id`` routes through at read time.
 
     No-ops: empty/absent ``into``, ``into == from``, or an unresolved
-    ref. Idempotent: re-apply finds the reflexes/cites already moved and
-    ``merged_into_id`` already set, so it changes nothing further.
+    ref. Idempotent: ``_resolve`` excludes already-tombstoned rows
+    (``merged_into_id IS NULL``), so a second apply no longer finds the
+    ``from`` etymon — it is counted ``unresolved_from`` and changes
+    nothing further.
+
+    An out-of-vocabulary ``variant_class`` is coerced to ``"other"`` so
+    a hand-edited / LLM-emitted row can't trip the table's CHECK
+    constraint.
 
     Validation always runs; DB writes happen only when ``apply=True``.
     Returns a counts dict for telemetry.
@@ -929,6 +939,8 @@ def apply_collapses(
         from_id, into_id = from_row["id"], into_row["id"]
         from_form = from_row["canonical_form"]
         variant_class = payload.get("variant_class") or "alternative"
+        if variant_class not in _VARIANT_CLASSES:
+            variant_class = "other"
 
         # 1. Record the form as a variant of the surviving lemma. UNIQUE
         #    (etymon_id, form, variant_class) → OR IGNORE no-ops when the
