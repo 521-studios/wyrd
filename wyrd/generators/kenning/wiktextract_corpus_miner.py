@@ -484,9 +484,10 @@ def build_index(
 
     Languages with no slice file on disk are silently skipped (covered
     by ``_LANG_TO_SLICE_BASENAME[lang] is None``). That includes Latin,
-    Anglo-Norman, modern English, and the old/middle Welsh+Breton
-    splits that aren't separately published — those targets simply
-    don't surface from this miner.
+    Anglo-Norman, Scots, and the old/middle Welsh+Breton splits that
+    aren't separately published — those targets simply don't surface
+    from this miner. (Modern English is NOT in this set — it maps to
+    ``wiktextract_english.jsonl`` since wyrd-dxu2.)
 
     NOTE: a language that DOES have a published slice but whose file is
     absent from ``sources_dir`` is also skipped silently here — by design,
