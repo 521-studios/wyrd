@@ -1272,16 +1272,33 @@ def test_required_tags_or_semantics_across_multiple_tags():
     assert got == {"-mere", "-burn", "-grim"}  # settlement-only lemma excluded
 
 
-def test_build_request_vector_tags_become_hard_gate_but_moods_stay_soft():
-    """The adapter routes explicit --tag into the HARD gate.required_tags,
-    but mood-expanded tags (grim) stay a SOFT semantic bias — a mood
-    narrows toward, it does not hard-exclude."""
+def test_build_request_vector_tags_and_mood_tags_become_hard_gate():
+    """wyrd-wv85 Gap 1+2: the adapter routes BOTH explicit --tag and a
+    mood's semantic tags into the HARD gate.required_tags, matching
+    proportions (whose _apply_mood appends mood tags to filter_for_tag).
+    The mood's tags ALSO reach the soft semantic axis."""
     from wyrd.generators.kenning.runtime.vector_kenning_adapter import build_request_vector
 
+    # Explicit --tag → hard gate.
     rv = build_request_vector(culture="english", tags=["water", "death"])
     assert rv.gate.required_tags == frozenset({"water", "death"})
 
+    # Gap 2: a mood's semantic tags → hard gate too. grim expands to
+    # {death, military, monster, undead, magic} (mood_spec_to_legacy_form).
     rv_mood = build_request_vector(culture="english", mood=["grim"])
-    assert rv_mood.gate.required_tags == frozenset()  # grim is NOT a hard gate
-    # grim's tags still reach the soft semantic axis:
+    assert rv_mood.gate.required_tags == frozenset(
+        {"death", "military", "monster", "undead", "magic"}
+    )
+    # and still reach the soft semantic axis for within-pool discrimination:
     assert set(rv_mood.register.semantic_tags) & {"death", "monster", "undead"}
+
+    # --tag + --mood union in the gate.
+    rv_both = build_request_vector(culture="english", tags=["water"], mood=["grim"])
+    assert rv_both.gate.required_tags == frozenset(
+        {"water", "death", "military", "monster", "undead", "magic"}
+    )
+
+    # A purely PHONOLOGICAL mood (harsh: harshness only, no semantic tags)
+    # contributes NO required tags — it gates nothing, only re-weights phon.
+    rv_harsh = build_request_vector(culture="english", mood=["harsh"])
+    assert rv_harsh.gate.required_tags == frozenset()

@@ -13,9 +13,11 @@ This adapter is the bridge. It accepts the same knob set the legacy
 path uses and emits a fully-built RequestVector. The translation is
 deliberately conservative for v1:
 
-* ``culture`` + ``era`` + ``stratum`` + ``tags`` map to the
-  EligibilityGate's hard predicates (``tags`` → ``required_tags``,
-  the D36.6 hard ``--tag`` filter, wyrd-wv85).
+* ``culture`` + ``era`` + ``stratum`` + ``tags`` + a mood's SEMANTIC
+  tags map to the EligibilityGate's hard predicates (``required_tags``,
+  the D36.6 hard filter, wyrd-wv85). Both explicit ``--tag`` and the
+  tags a mood expands to (``grim`` → death/military/monster/...) gate
+  the pool, mirroring proportions' ``_apply_mood`` → ``filter_for_tag``.
 * ``tags`` ALSO becomes ``register.semantic_tags = {tag: 1.0, ...}``
   so the sem-axis biases among the (now tag-gated) lemmas. The hard
   gate restricts the pool; the soft axis discriminates within it.
@@ -248,17 +250,26 @@ def build_request_vector(
 
     register = compose_register_effects([adapter_effect, *mood_effects])
 
-    # wyrd-wv85: the explicit ``--tag`` args become a HARD eligibility
-    # gate (D36.6), in addition to the soft semantic_tags bias above.
-    # Mood-expanded tags (grim, pastoral, ...) are NOT promoted to the
-    # gate — they stay a soft semantic bias so a mood narrows toward,
-    # rather than hard-excludes, off-theme morphemes.
+    # wyrd-wv85 Gap 1+2: --tag AND a mood's SEMANTIC tags both become the
+    # HARD eligibility gate (D36.6), matching proportions exactly — its
+    # ``_apply_mood`` appends the mood's tags into the same ``tags`` list
+    # that ``filter_for_tag`` hard-filters on, so ``--mood grim`` filters
+    # to {death, military, monster, undead, magic} there. We mirror that:
+    # explicit --tag + every positive-weighted mood semantic tag union
+    # into required_tags. (Only positive weights — a mood that PENALIZES a
+    # tag must not REQUIRE it; the real catalog's semantic_tags are all
+    # positive, so this is parity with proportions in practice.) A mood's
+    # PHONOLOGICAL component stays in the register's phon axis (e.g. harsh
+    # contributes no required tags, only harshness).
+    mood_required_tags = frozenset(
+        tag for effect in mood_effects for tag, weight in effect.semantic_tags.items() if weight > 0
+    )
     gate = EligibilityGate(
         culture=culture,
         era_min=era_min,
         era_max=era_max,
         stratum=stratum,
-        required_tags=frozenset(tags),
+        required_tags=frozenset(tags) | mood_required_tags,
     )
 
     return RequestVector(
