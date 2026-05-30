@@ -433,6 +433,14 @@ class EligibilityGate:
     era_min: int | None = None
     era_max: int | None = None
     stratum: str | None = None
+    # wyrd-wv85: the operator's ``--tag`` semantic filter as a HARD gate
+    # (D36.6). A lemma must carry AT LEAST ONE of these tags to be
+    # eligible (OR semantics, matching proportions' ``filter_for_tag``
+    # which unions the keys for each requested tag). Empty = no tag
+    # constraint. Distinct from the SOFT ``register.semantic_tags`` axis
+    # (which biases among already-eligible lemmas) and from the pack-tag
+    # filters (which gate scenario-pack overlays only).
+    required_tags: frozenset[str] = frozenset()
     allowed_pack_tags: frozenset[str] = frozenset()
     excluded_pack_tags: frozenset[str] = frozenset()
 
