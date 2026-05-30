@@ -55,6 +55,28 @@ def _seed_minimal_lexicon(db_path: Path) -> None:
         db.commit()
 
 
+def _seed_lexicon_with_toponyms(db_path: Path, toponyms: list[tuple[str, str, str | None]]) -> None:
+    """Init an L3 lexicon DB and insert ``(modern_name, country, region)``
+    toponym rows.
+
+    wyrd-bo01.3: the inline proportions rebuild now reads its per-culture
+    corpus from the DB ``toponym`` table (filtered by
+    ``CULTURE_COUNTRIES``) instead of the static
+    ``{culture}_place_names.json`` gazetteer, so the inline-rebuild tests
+    must seed the names they expect to decompose into the DB rather than
+    relying on the bundled corpus."""
+    init_schema(db_path)
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.executemany(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+            toponyms,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def _write_proportions_fixture(directory: Path, culture: str = "english") -> None:
     """Write a small-but-shape-correct proportions JSON into ``directory``.
 
@@ -839,9 +861,9 @@ def _three_subject_acton_fixture() -> list[dict[str, Any]]:
     ]
 
 
-def test_inline_rebuild_emits_populated_proportions_with_canonical() -> None:
+def test_inline_rebuild_emits_populated_proportions_with_canonical(tmp_path: Path) -> None:
     """The inline-rebuild path must produce non-empty proportions when
-    the fixture meanings + bundled place_names corpus can perfectly
+    the fixture meanings + the culture's DB toponyms can perfectly
     decompose at least one name. Directly exercises
     ``_compute_proportions_inline`` so the assertion pins the
     function's output dict, not just the presence of well-formed
@@ -850,8 +872,15 @@ def test_inline_rebuild_emits_populated_proportions_with_canonical() -> None:
         _compute_proportions_inline,
     )
 
+    # wyrd-bo01.3: seed the english corpus (Acton + Bath, England) into
+    # the DB toponym table — the inline rebuild reads it from there now.
+    db_path = tmp_path / "lexicon.db"
+    _seed_lexicon_with_toponyms(db_path, [("Acton", "England", None), ("Bath", "England", None)])
+
     # Empty canonical map → every name flows through the heuristic.
-    out = _compute_proportions_inline(_three_subject_acton_fixture(), canonical_decompositions={})
+    out = _compute_proportions_inline(
+        _three_subject_acton_fixture(), canonical_decompositions={}, source_lexicon_db=db_path
+    )
 
     # Acton perfectly decomposes against the fixture → both Ac- and
     # -ton end up in the english usages map. Pin both so a regression
@@ -872,7 +901,7 @@ def test_inline_rebuild_emits_populated_proportions_with_canonical() -> None:
         ), f"culture {culture!r} missing keys: {set(payload.keys())}"
 
 
-def test_inline_rebuild_honors_canonical_decomposition() -> None:
+def test_inline_rebuild_honors_canonical_decomposition(tmp_path: Path) -> None:
     """When a canonical_decompositions entry exists for a name in the
     corpus, ``_compute_proportions_inline`` routes through
     ``apply_canonical_to_name`` rather than the heuristic. Test the
@@ -887,11 +916,18 @@ def test_inline_rebuild_honors_canonical_decomposition() -> None:
         _compute_proportions_inline,
     )
 
+    # wyrd-bo01.3: Acton must live in the DB toponym corpus for the
+    # canonical-miss fallback to have a name to re-decompose.
+    db_path = tmp_path / "lexicon.db"
+    _seed_lexicon_with_toponyms(db_path, [("Acton", "England", None)])
+
     canonical_decompositions = {
         "Acton": {"signature": "nonsense-signature-no-cell-will-match", "source": "test"},
     }
 
-    out = _compute_proportions_inline(_three_subject_acton_fixture(), canonical_decompositions)
+    out = _compute_proportions_inline(
+        _three_subject_acton_fixture(), canonical_decompositions, source_lexicon_db=db_path
+    )
     # Canonical-miss must fall back to the heuristic — Acton still
     # decomposes via Ac- + -ton and both morphemes still surface.
     assert out["english"].get("usages", {}).get("Ac-"), (
