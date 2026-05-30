@@ -103,6 +103,18 @@ from typing import Any
 # sense the bundle has no gloss for. Add-gloss surfaces it without
 # requiring a full lexicon re-mine. Last-write-wins per ref (same
 # kernel contract as the other curation event types).
+#
+# ``collapse`` rows (wyrd-y651, the consolidation epic) fold a form-of /
+# variant etymon into its lemma — the inverse of ``etymon_split``.
+# ``ref`` is the etymon being absorbed; payload's ``into`` names the
+# surviving lemma (``"<language>:<canonical_form>"``) plus ``variant_class``
+# / ``method`` / ``reason``. Replayed by ``enrichment.apply_collapses`` in
+# the curation slot: tombstones ``ref`` into ``into`` (merged_into_id),
+# records the form as a variant of the lemma, and migrates reflexes +
+# citations (stamping ``attested_form``) to the lemma. Single ledger for
+# all consolidations — the deterministic detector AND the LLM merge pass
+# append here, differing only in ``method``. Last-write-wins per ref;
+# ``into: ""`` reverts a recorded collapse.
 KEYED_TYPES: frozenset[str] = frozenset(
     {
         "etymon",
@@ -110,6 +122,7 @@ KEYED_TYPES: frozenset[str] = frozenset(
         "etymon_gloss_suppression",
         "etymon_gloss_add",
         "etymon_split",
+        "collapse",
         "toponym",
         "source",
         # wyrd-2b50: secondary sources a file cites ON BEHALF OF. ``ref``

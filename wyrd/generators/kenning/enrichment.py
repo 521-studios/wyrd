@@ -67,6 +67,11 @@ CURATION_METHOD_VERSION = "manual-curation-v1"
 GLOSS_SUPPRESSION_METHOD_VERSION = "gloss-suppression-v1"
 GLOSS_ADD_METHOD_VERSION = "gloss-add-v1"
 ETYMON_SPLIT_METHOD_VERSION = "etymon-split-v1"
+COLLAPSE_METHOD_VERSION = "collapse-v1"
+# Synthetic source for collapse-registered variant rows (the assertion
+# "this form is a variant of that lemma" comes from the collapse decision
+# itself, not a corpus). Derived + idempotently re-created on rebuild.
+COLLAPSE_VARIANT_SOURCE_ID = "collapse"
 
 # wyrd-van9: single source of truth for the split-suffix charset
 # constraint. ``curate-split-etymon --into 'suffix=X'`` (CLI) and
@@ -824,6 +829,188 @@ def format_etymon_split_run(counts: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def apply_collapses(
+    db: LexiconDB,
+    collapse_state: dict[str, dict[str, Any]],
+    *,
+    apply: bool = True,
+) -> dict[str, Any]:
+    """Fold form-of / variant etymons into their lemma (wyrd-y651, the
+    consolidation epic's shared collapse applier — used by both the
+    deterministic detector and the LLM merge pass, which differ only in
+    how they emit ``_collapses.jsonl`` rows).
+
+    ``collapse_state`` is the merged ``{from_ref: payload}`` dict from
+    :func:`jsonl.build.collect_collapses`. ``from_ref`` is the etymon
+    being absorbed (``"<language>:<canonical_form>"``); the payload names
+    the surviving lemma + variant class::
+
+        {
+          "into": "old-english:burg",
+          "variant_class": "alternative",
+          "method": "deterministic-gloss-overlap",
+          "reason": "..."
+        }
+
+    For each collapse the ``from`` etymon is TOMBSTONED into ``into`` via
+    ``merged_into_id`` (the existing pointer cluster_cognates / the export
+    resolution respect), its surface form recorded as an
+    ``etymon_variant`` of ``into``, and its **reflexes + citations
+    MIGRATED** to ``into`` (D21: evidence is moved, not destroyed).
+    Migrating citations stamp ``attested_form`` with the from-form
+    (wyrd-jhdw hybrid) so scholar-witness counts read off the surviving
+    lemma while the original attested form ("Ekwall attests the burh form
+    of burg") is preserved.
+
+    UNIQUE-conflict survivors — a reflex/cite ``into`` already has — are
+    ``OR IGNORE`` skipped and counted; they stay on the tombstoned
+    ``from``, which ``merged_into_id`` routes through at read time.
+
+    No-ops: empty/absent ``into``, ``into == from``, or an unresolved
+    ref. Idempotent: re-apply finds the reflexes/cites already moved and
+    ``merged_into_id`` already set, so it changes nothing further.
+
+    Validation always runs; DB writes happen only when ``apply=True``.
+    Returns a counts dict for telemetry.
+    """
+    counts: dict[str, Any] = {
+        "collapses_processed": 0,
+        "variants_created": 0,
+        "reflexes_moved": 0,
+        "reflexes_skipped_conflict": 0,
+        "citations_moved": 0,
+        "citations_skipped_conflict": 0,
+        "unresolved_from": 0,
+        "unresolved_into": 0,
+        "self_collapse_skipped": 0,
+        "empty_into_skipped": 0,
+        "applied": apply,
+        "method_version": COLLAPSE_METHOD_VERSION,
+    }
+
+    def _resolve(ref: str | None):
+        if not ref:
+            return None
+        return db.conn.execute(
+            "SELECT id, canonical_form, language FROM etymon "
+            "WHERE (language || ':' || canonical_form) = ? AND merged_into_id IS NULL",
+            (ref,),
+        ).fetchone()
+
+    if apply and collapse_state:
+        # Ensure the synthetic variant source exists (derived; re-created
+        # idempotently on every rebuild). source.title is NOT NULL.
+        db.conn.execute(
+            "INSERT OR IGNORE INTO source (id, title) VALUES (?, ?)",
+            (COLLAPSE_VARIANT_SOURCE_ID, "Etymon collapse (derived)"),
+        )
+
+    for from_ref, payload in collapse_state.items():
+        into_ref = payload.get("into")
+        if not into_ref:
+            counts["empty_into_skipped"] += 1
+            continue
+        from_row = _resolve(from_ref)
+        if from_row is None:
+            counts["unresolved_from"] += 1
+            continue
+        into_row = _resolve(into_ref)
+        if into_row is None:
+            counts["unresolved_into"] += 1
+            continue
+        if from_row["id"] == into_row["id"]:
+            counts["self_collapse_skipped"] += 1
+            continue
+
+        counts["collapses_processed"] += 1
+        if not apply:
+            continue
+
+        from_id, into_id = from_row["id"], into_row["id"]
+        from_form = from_row["canonical_form"]
+        variant_class = payload.get("variant_class") or "alternative"
+
+        # 1. Record the form as a variant of the surviving lemma. UNIQUE
+        #    (etymon_id, form, variant_class) → OR IGNORE no-ops when the
+        #    bulk ingest already registered it (the common case).
+        cur = db.conn.execute(
+            "INSERT OR IGNORE INTO etymon_variant "
+            "(etymon_id, form, variant_class, source_id) VALUES (?, ?, ?, ?)",
+            (into_id, from_form, variant_class, COLLAPSE_VARIANT_SOURCE_ID),
+        )
+        counts["variants_created"] += cur.rowcount or 0
+
+        # 2. Migrate reflexes. PRIMARY KEY (reflex_id, etymon_id) → OR
+        #    IGNORE survives the case where `into` already carries the
+        #    same reflex; those rows stay on `from` (counted).
+        reflex_before = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM reflex_etymon WHERE etymon_id = ?", (from_id,)
+        ).fetchone()["n"]
+        cur = db.conn.execute(
+            "UPDATE OR IGNORE reflex_etymon SET etymon_id = ? WHERE etymon_id = ?",
+            (into_id, from_id),
+        )
+        reflex_moved = cur.rowcount or 0
+        counts["reflexes_moved"] += reflex_moved
+        counts["reflexes_skipped_conflict"] += reflex_before - reflex_moved
+
+        # 3. Migrate citations + stamp the attested form (wyrd-jhdw hybrid).
+        #    UNIQUE (etymon_id, source_id, COALESCE(page,'')) → OR IGNORE.
+        #    attested_form IS NULL guard keeps a cite that already carries
+        #    an earlier collapse's form from being re-stamped.
+        cit_before = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon_citation "
+            "WHERE etymon_id = ? AND attested_form IS NULL",
+            (from_id,),
+        ).fetchone()["n"]
+        cur = db.conn.execute(
+            "UPDATE OR IGNORE etymon_citation "
+            "SET etymon_id = ?, attested_form = ? "
+            "WHERE etymon_id = ? AND attested_form IS NULL",
+            (into_id, from_form, from_id),
+        )
+        cit_moved = cur.rowcount or 0
+        counts["citations_moved"] += cit_moved
+        counts["citations_skipped_conflict"] += cit_before - cit_moved
+
+        # 4. Tombstone `from` into `into` — it is no longer an independent
+        #    lemma. cluster_cognates + the export resolution follow this.
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (into_id, from_id),
+        )
+
+    return counts
+
+
+def format_collapse_run(counts: dict[str, Any]) -> str:
+    """Render :func:`apply_collapses` output as a short markdown block."""
+    mode = "APPLIED" if counts["applied"] else "DRY-RUN"
+    lines = [
+        f"## Etymon collapses ({mode}, {counts['method_version']})",
+        f"- Collapses processed: {counts['collapses_processed']}",
+        f"- Variants registered: {counts['variants_created']}",
+        f"- Reflexes migrated: {counts['reflexes_moved']} "
+        f"(left on tombstone, conflict: {counts['reflexes_skipped_conflict']})",
+        f"- Citations migrated: {counts['citations_moved']} "
+        f"(left on tombstone, conflict: {counts['citations_skipped_conflict']})",
+    ]
+    skipped = (
+        counts["unresolved_from"]
+        + counts["unresolved_into"]
+        + counts["self_collapse_skipped"]
+        + counts["empty_into_skipped"]
+    )
+    if skipped:
+        lines.append(
+            f"- Skipped: unresolved_from={counts['unresolved_from']} "
+            f"unresolved_into={counts['unresolved_into']} "
+            f"self={counts['self_collapse_skipped']} "
+            f"empty_into={counts['empty_into_skipped']}"
+        )
+    return "\n".join(lines)
+
+
 def run_full_enrichment(
     db: LexiconDB,
     *,
@@ -832,6 +1019,7 @@ def run_full_enrichment(
     suppression_state: dict[str, dict[str, Any]] | None = None,
     addition_state: dict[str, dict[str, Any]] | None = None,
     split_state: dict[str, dict[str, Any]] | None = None,
+    collapse_state: dict[str, dict[str, Any]] | None = None,
     skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
     """Run the canonical L3 enrichment chain (wyrd-hidb Phase 2).
@@ -842,8 +1030,12 @@ def run_full_enrichment(
        later passes don't waste work on dead rows.
     2. ``link_lemmas`` — inflected → canonical-lemma linkage. Must
        follow OCR (lemma candidates can't be tombstoned variants).
-    3. ``apply_curation_overrides`` (when ``curation_state`` passed)
-       — overlay operator decisions on lemma / merge assignments.
+    3. ``apply_curation_overrides`` / ``apply_etymon_splits`` /
+       ``apply_collapses`` (when the respective state is passed) — overlay
+       operator + derived decisions on lemma / merge / split / collapse
+       assignments. Collapses (wyrd-y651) fold form-of/variant etymons
+       into their lemma; they run here, before the L3 derivations, so
+       decompose / cluster / proportions see the post-collapse graph.
     4. ``decompose_all`` — matcher-derived toponym decompositions.
        Matches the toponym's modern_name against the live
        ``meanings.json`` bundle, so it doesn't strictly need OCR /
@@ -911,6 +1103,14 @@ def run_full_enrichment(
     if split_state is not None:
         split_counts = apply_etymon_splits(db, split_state, apply=apply)
 
+    # wyrd-y651: collapse form-of/variant etymons into their lemma. Runs
+    # in the curation slot (after link-lemmas, beside etymon-splits — its
+    # inverse) and BEFORE the L3 derivations so decompose / cluster /
+    # proportions derive over the post-collapse graph.
+    collapse_counts: dict[str, Any] | None = None
+    if collapse_state is not None:
+        collapse_counts = apply_collapses(db, collapse_state, apply=apply)
+
     order: list[str] = ["normalize-ocr", "link-lemmas"]
     if curation_counts is not None:
         order.append("apply-curation")
@@ -920,6 +1120,8 @@ def run_full_enrichment(
         order.append("apply-gloss-additions")
     if split_counts is not None:
         order.append("apply-etymon-splits")
+    if collapse_counts is not None:
+        order.append("apply-collapses")
 
     decompose_result: dict[str, Any] | None = None
     cognate_result: dict[str, Any] | None = None
@@ -965,6 +1167,7 @@ def run_full_enrichment(
         "gloss_suppressions": suppression_counts,
         "gloss_additions": addition_counts,
         "etymon_splits": split_counts,
+        "collapses": collapse_counts,
         "decompose": decompose_result,
         "cognates": cognate_result,
         "stratum": stratum_result,

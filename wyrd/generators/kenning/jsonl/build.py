@@ -1199,6 +1199,30 @@ def collect_etymon_splits(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, An
     return merged
 
 
+def collect_collapses(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
+    """Scan ``jsonl_paths`` for ``collapse`` rows and return the merged
+    ``{from_ref: payload}`` state (wyrd-y651, the consolidation epic).
+
+    A ``collapse`` row folds the ``from`` etymon (``ref``) into the
+    ``into`` lemma — both as ``"<language>:<canonical_form>"``. Replayed
+    by :func:`enrichment.apply_collapses` in the curation slot of
+    ``run_full_enrichment``. Last-write-wins per ref; pass ``into: ""``
+    (or drop ``into``) to revert a recorded collapse.
+
+    This is the single ledger for ALL consolidations — the deterministic
+    detector (P2) and the LLM merge pass (P3) both append here, differing
+    only in the ``method`` field.
+    """
+    from .log import replay_file
+
+    merged: dict[str, dict[str, Any]] = {}
+    for path in sorted(Path(p) for p in jsonl_paths):
+        state = replay_file(path)
+        for ref, payload in state.keyed["collapse"].items():
+            merged[ref] = dict(payload)
+    return merged
+
+
 def collect_gloss_additions(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
     """Scan ``jsonl_paths`` for ``etymon_gloss_add`` rows and return
     the merged ``{etymon_ref: payload}`` state (wyrd-wz82).
