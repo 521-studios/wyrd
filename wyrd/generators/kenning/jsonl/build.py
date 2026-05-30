@@ -248,7 +248,13 @@ def _insert_toponym(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
     decomposition onto the existing toponym instead of aborting the
     whole build with an IntegrityError. Mirrors :func:`_insert_etymon`'s
     INSERT-OR-IGNORE-then-lookup contract (wyrd-bo01.1)."""
-    modern_name = payload["modern_name"]
+    # Validate up front (mirrors _insert_etymon's guard): modern_name is
+    # NOT NULL in the schema, and INSERT OR IGNORE below would otherwise
+    # SWALLOW a NOT NULL violation — leaving rowcount=0, a lookup that
+    # matches nothing, and a stale ``lastrowid`` from the prior insert.
+    modern_name = payload.get("modern_name")
+    if not modern_name:
+        raise BuildError(f"toponym row missing modern_name: {payload}")
     country = payload.get("country")
     region = payload.get("region")
     cur = conn.execute(
@@ -257,6 +263,8 @@ def _insert_toponym(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
     )
     if cur.rowcount > 0:
         return int(cur.lastrowid)
+    # INSERT OR IGNORE hit idx_toponym_unique; reuse the existing row.
+    # COALESCE padding matches the index so NULL country/region collide.
     row = conn.execute(
         "SELECT id FROM toponym "
         "WHERE modern_name = ? "
@@ -264,7 +272,16 @@ def _insert_toponym(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
         "AND COALESCE(region, '') = COALESCE(?, '')",
         (modern_name, country, region),
     ).fetchone()
-    return int(row[0]) if row is not None else int(cur.lastrowid)
+    if row is None:
+        # With modern_name validated, the only rowcount==0 cause is the
+        # genuine unique conflict — which the lookup MUST find. None here
+        # means schema/logic drift; fail loud like _merge_etymon_conflict.
+        raise BuildError(
+            "toponym INSERT OR IGNORE was rejected but no conflicting row "
+            f"could be located: modern_name={modern_name!r} "
+            f"country={country!r} region={region!r}"
+        )
+    return int(row[0])
 
 
 def _insert_citation(
