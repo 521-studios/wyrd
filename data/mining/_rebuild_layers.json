@@ -110,6 +110,27 @@
       "cost": "free",
       "restore_command": "mine-empirical-baselines",
       "runbook_token": "mine-empirical-baselines"
+    },
+    {
+      "layer": "wiktextract-form-variants",
+      "summary": "etymon_variant (~5.8M rows; forms arrays from the L1 wiktextract slices). Distinct from etymon_text_match (the D18 forms-variants layer above). Restored AUTOMATICALLY by rebuild-from-jsonl's default bulk L1 ingest -- NOT a manual step. Skipped only under --skip-bulk.",
+      "restored_by": "l1-bulk-ingest",
+      "cost": "free",
+      "runbook_token": "etymon_variant"
+    },
+    {
+      "layer": "meaning-synsets",
+      "summary": "meaning_synset (semantic-equivalence catalog, D28). Seeded FREE from committed wyrd/generators/kenning/data/meaning_synsets.json via `lexicon synsets seed`. DEFERRED/EMPTY today (0 rows). rebuild-from-jsonl does NOT seed it; if you ever populate it, run `synsets seed` after the rebuild and add it as a documented step.",
+      "restored_by": "free-seed-deferred",
+      "cost": "free",
+      "runbook_token": "meaning_synset"
+    },
+    {
+      "layer": "etymon-meaning-synset-assignments",
+      "summary": "etymon_meaning_synset (LLM Phase-2 semantic classification, D28). DEFERRED/EMPTY today (0 rows). If activated it is PAID (LLM) -- per the principle above it must then round-trip through L2 (synthetic JSONL), NOT become a re-mine rebuild step.",
+      "restored_by": "paid-deferred",
+      "cost": "paid",
+      "runbook_token": "etymon_meaning_synset"
     }
   ]
 }

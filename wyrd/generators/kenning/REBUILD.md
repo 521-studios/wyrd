@@ -38,6 +38,7 @@ DB and must be re-run by hand after the rebuild.
 | `etymon` / citations / descent / glosses / tags | ✅ yes (per-source JSONL) | — |
 | `toponym` / `toponym_etymology` / elements | ✅ yes | — |
 | `mining_run` audit | ✅ yes | — |
+| `etymon_variant` (~5.8M form rows from the wiktextract slices) | ✅ yes — via the **bulk L1 ingest** rebuild-from-jsonl runs by default (skipped only under `--skip-bulk`) | — |
 | reflexes (`reflex` / `reflex_etymon`) | ✅ **now** — via synthetic `data/mining/_reflexes.jsonl` (wyrd-ned5, PR #387) | — |
 | fantasy morphemes | ✅ **now** — via synthetic `data/mining/_fantasy_morphemes.jsonl` (PR #388) | — |
 | curation overrides | ✅ yes — `data/mining/_curation.jsonl` | — |
@@ -52,6 +53,26 @@ rebuild** and were the cause of the worst surprises (16 canonical-
 morpheme test failures). They now round-trip through L2 synthetic files,
 so a fresh rebuild restores them automatically. The remaining four rows
 above are still manual — that's Phase 2 below.
+
+### Deferred / empty layers (no data to lose today, but know the rule)
+
+A code audit (the same pass that confirmed the table above is complete)
+found three more tables a wipe touches. None holds data on the current
+DB, so they aren't active rebuild steps — but if you ever populate them,
+here's the obligation:
+
+- **`meaning_synset`** (semantic-equivalence catalog, D28) — seeded FREE
+  from the committed `data/meaning_synsets.json` via `lexicon synsets
+  seed`. `rebuild-from-jsonl` does **not** run it. If you populate it,
+  run `synsets seed` after the rebuild and promote it to a documented
+  rebuild step.
+- **`etymon_meaning_synset`** (LLM Phase-2 classification, D28) — empty /
+  deferred. If activated it is **paid** (LLM), so per this doc's
+  principle it must round-trip through L2 (a synthetic JSONL like
+  `_reflexes.jsonl`), **not** become a re-mine step.
+- **`personal_name` / `personal_name_toponym_attestation`** (Briggs) —
+  the tables no longer exist on the live DB (re-routed into the `etymon`
+  schema by PR #380); nothing to restore.
 
 ---
 
