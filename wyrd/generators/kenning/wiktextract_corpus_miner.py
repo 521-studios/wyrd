@@ -441,6 +441,38 @@ def _select_canonical_sense(entry: dict[str, Any]) -> tuple[str, list[str]] | No
 # keep working unchanged.
 
 
+def missing_slice_languages(
+    sources_dir: Path,
+    languages: Iterable[str],
+) -> list[tuple[str, str]]:
+    """Return ``[(language, slice_basename), ...]`` for languages that
+    HAVE a published wiktextract slice (``_LANG_TO_SLICE_BASENAME[lang]``
+    is non-None) but whose file is absent from ``sources_dir``.
+
+    This is the observable counterpart to ``build_index``'s silent skip.
+    A language mapped to ``None`` (Latin, Anglo-Norman, the unpublished
+    Welsh/Breton splits) is NOT reported — there's no slice to find, so
+    its absence is expected, not an operator error. A language mapped to
+    a real basename whose file isn't on disk almost always means
+    ``--sources-dir`` points at the wrong place (the repo's OCR-text
+    ``sources/`` instead of the bulk cache at ``~/.wyrd/sources``) — the
+    failure mode behind wyrd-34kt, where every slice silently skipped and
+    the run reported 0 hits with no error.
+    """
+    seen: set[str] = set()
+    missing: list[tuple[str, str]] = []
+    for lang in languages:
+        if lang in seen:
+            continue
+        seen.add(lang)
+        slice_basename = _LANG_TO_SLICE_BASENAME.get(lang)
+        if not slice_basename:
+            continue
+        if not (sources_dir / slice_basename).exists():
+            missing.append((lang, slice_basename))
+    return sorted(missing)
+
+
 def build_index(
     sources_dir: Path,
     target_forms_lower: set[str],
@@ -452,9 +484,17 @@ def build_index(
 
     Languages with no slice file on disk are silently skipped (covered
     by ``_LANG_TO_SLICE_BASENAME[lang] is None``). That includes Latin,
-    Anglo-Norman, modern English, and the old/middle Welsh+Breton
-    splits that aren't separately published — those targets simply
-    don't surface from this miner.
+    Anglo-Norman, Scots, and the old/middle Welsh+Breton splits that
+    aren't separately published — those targets simply don't surface
+    from this miner. (Modern English is NOT in this set — it maps to
+    ``wiktextract_english.jsonl`` since wyrd-dxu2.)
+
+    NOTE: a language that DOES have a published slice but whose file is
+    absent from ``sources_dir`` is also skipped silently here — by design,
+    so the index builder stays a pure pass over whatever's present. The
+    observable signal for that case is ``missing_slice_languages``, which
+    ``mine_corpus`` surfaces into ``counts['missing_slices']`` so the CLI
+    can warn the operator (wyrd-34kt).
     """
     index: dict[tuple[str, str], dict[str, Any]] = {}
     seen_languages: set[str] = set()
@@ -520,6 +560,10 @@ def mine_corpus(
     target_forms, union_languages = _candidate_targets(fragments_by_culture)
     index = build_index(sources_dir, target_forms, union_languages)
     counts = _init_mine_counts(target_forms, index, fragments_by_culture)
+    # wyrd-34kt: surface languages whose published slice file is absent
+    # from sources_dir so a wrong --sources-dir (or an un-fetched bulk
+    # cache) reads as a loud warning instead of a silent 0-hits run.
+    counts["missing_slices"] = missing_slice_languages(sources_dir, union_languages)
 
     if not apply:
         _dry_run_count(fragments_by_culture, index, counts)
@@ -568,6 +612,9 @@ def _init_mine_counts(
         "transliteration_captured": 0,
         "by_culture": defaultdict(lambda: {"fragments": 0, "hits": 0}),
         "by_language": Counter(),
+        # wyrd-34kt: [(language, slice_basename), ...] for published
+        # slices missing from sources_dir; populated by mine_corpus.
+        "missing_slices": [],
     }
     for culture, frags in fragments_by_culture.items():
         counts["by_culture"][culture]["fragments"] = len(frags)

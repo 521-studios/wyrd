@@ -11,6 +11,7 @@ from typing import Any
 import click
 
 from wyrd.generators.kenning import CULTURES
+from wyrd.generators.kenning.bulk_sources import DEFAULT_LOCAL_CACHE_DIR
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _load_meanings_data
 from wyrd.generators.kenning.lexicon import LexiconDB, record_mining_run
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
@@ -33,9 +34,13 @@ from wyrd.generators.kenning.wiktextract_corpus_miner import (
 @click.option(
     "--sources-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=Path("sources"),
-    show_default=True,
-    help="Directory containing wiktextract_*.jsonl slice files.",
+    default=DEFAULT_LOCAL_CACHE_DIR,
+    show_default="~/.wyrd/sources",
+    help="Directory containing wiktextract_*.jsonl slice files. Defaults "
+    "to the bulk-source cache (~/.wyrd/sources), NOT the repo's "
+    "OCR-text sources/ dir — this command consumes wiktextract slices, "
+    "not the scholarly OCR books. Run 'fetch-bulk-sources' to populate "
+    "the cache on a fresh checkout.",
 )
 @click.option(
     "--culture",
@@ -249,6 +254,7 @@ def _collect_fragments_per_culture(
 
 def _print_mine_summary(counts: dict[str, Any], apply_changes: bool) -> None:
     """Echo per-culture + per-language hit summaries to stderr."""
+    _warn_missing_slices(counts)
     click.echo(
         f"fragments_input={counts['fragments_input']} wiktionary_hits={counts['wiktionary_hits']}",
         err=True,
@@ -272,6 +278,34 @@ def _print_mine_summary(counts: dict[str, Any], apply_changes: bool) -> None:
         click.echo(f"  {lang:25s} {n:6d}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+def _warn_missing_slices(counts: dict[str, Any]) -> None:
+    """Loudly warn when languages in scope have a published wiktextract
+    slice that isn't present in --sources-dir.
+
+    This is the wyrd-34kt guardrail: such a run produces 0 hits for the
+    affected languages with no other signal. Pointing --sources-dir at
+    the repo's OCR-text ``sources/`` (instead of ~/.wyrd/sources) skips
+    EVERY slice this way, which is exactly how the f1ss rebuild's
+    empirical layer came back empty.
+    """
+    missing = counts.get("missing_slices") or []
+    if not missing:
+        return
+    click.echo(
+        f"WARNING: {len(missing)} in-scope language slice(s) NOT found in "
+        "--sources-dir — those languages contribute 0 hits:",
+        err=True,
+    )
+    for lang, basename in missing:
+        click.echo(f"  missing: {lang:20s} ({basename})", err=True)
+    click.echo(
+        "  → Check --sources-dir points at the bulk cache (~/.wyrd/sources), "
+        "not the OCR-text sources/ dir; run 'fetch-bulk-sources' if the "
+        "cache is empty.",
+        err=True,
+    )
 
 
 def _print_position_summary(pos_counts: dict[str, Any]) -> None:

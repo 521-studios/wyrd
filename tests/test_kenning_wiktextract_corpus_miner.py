@@ -28,6 +28,7 @@ from wyrd.generators.kenning.wiktextract_corpus_miner import (
     compute_unaccounted_fragments,
     derive_positions,
     mine_corpus,
+    missing_slice_languages,
 )
 
 
@@ -183,6 +184,59 @@ def test_build_index_filters_by_target_form_and_language(tmp_path: Path) -> None
     assert ("eglwys", "welsh") in index
     assert ("betws", "welsh") in index
     assert len(index) == 2
+
+
+def test_missing_slice_languages_reports_only_published_absent_slices(
+    tmp_path: Path,
+) -> None:
+    """wyrd-34kt: a published slice absent from sources_dir is reported;
+    a language with no published slice (None mapping) is NOT — its
+    absence is expected, not an operator error."""
+    # welsh IS present; proto-celtic + scottish-gaelic are NOT.
+    _write_slice(
+        tmp_path / "wiktextract_welsh.jsonl",
+        [{"word": "eglwys", "lang_code": "cy", "senses": [{"glosses": ["church"]}]}],
+    )
+    missing = missing_slice_languages(
+        tmp_path,
+        # 'latin' maps to None (no published slice) → must not be reported.
+        {"welsh", "proto-celtic", "scottish-gaelic", "latin"},
+    )
+    assert missing == [
+        ("proto-celtic", "wiktextract_proto_celtic.jsonl"),
+        ("scottish-gaelic", "wiktextract_scottish_gaelic.jsonl"),
+    ]
+
+
+def test_missing_slice_languages_empty_when_all_present(tmp_path: Path) -> None:
+    _write_slice(
+        tmp_path / "wiktextract_welsh.jsonl",
+        [{"word": "eglwys", "lang_code": "cy", "senses": [{"glosses": ["church"]}]}],
+    )
+    assert missing_slice_languages(tmp_path, {"welsh", "latin"}) == []
+
+
+def test_mine_corpus_surfaces_missing_slices_in_counts(tmp_path: Path, fresh_db: Path) -> None:
+    """The wrong-sources-dir failure mode (wyrd-34kt) lands as an
+    observable counter, not a silent 0-hits run: welsh's slice is on
+    disk but proto-celtic's is not, so it's reported."""
+    _write_slice(
+        tmp_path / "wiktextract_welsh.jsonl",
+        [{"word": "eglwys", "lang_code": "cy", "senses": [{"glosses": ["church"]}]}],
+    )
+    fragments_by_culture = {"welsh": Counter({"eglwys": 1})}
+    with LexiconDB(fresh_db) as db:
+        counts = mine_corpus(
+            db,
+            fragments_by_culture=fragments_by_culture,
+            sources_dir=tmp_path,
+            apply=False,
+        )
+    # welsh resolved (the eglwys headword is a hit); proto-celtic's slice
+    # is absent and surfaces in missing_slices.
+    assert counts["wiktionary_hits"] == 1
+    assert ("proto-celtic", "wiktextract_proto_celtic.jsonl") in counts["missing_slices"]
+    assert ("welsh", "wiktextract_welsh.jsonl") not in counts["missing_slices"]
 
 
 def test_culture_scope_keeps_welsh_morphemes_out_of_english_bundle(
