@@ -33,6 +33,7 @@ from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 # Bumped when the L4 table shape changes incompatibly. The loader rejects
 # DBs whose schema_version row doesn't match the runtime's expected
@@ -58,11 +59,13 @@ CULTURE_PROPORTIONS = (
 
 # wyrd-bo01.3: culture → the set of ``toponym.country`` values that belong
 # to it. Unions the gazetteer's country names (England / The Isle of Man /
-# Wales / Northern Ireland / Republic of Ireland / Brittany) with the
-# scholarly + KEPN rows' variants (Ireland / France) — otherwise irish and
-# breton silently lose the half of their corpus that came from the other
-# source. Replaces the static {culture}_place_names.json corpus: the
-# proportions corpus is now the DB's toponyms, filtered by culture.
+# Scotland / Wales / Northern Ireland / Republic of Ireland / Brittany) with
+# the scholarly + KEPN rows' country variants (Ireland and France, plus the
+# region-derived ``Isle of Man`` form distinct from the gazetteer's ``The
+# Isle of Man``) — otherwise irish and breton silently lose the half of
+# their corpus that came from the other source. Replaces the static
+# {culture}_place_names.json corpus: the proportions corpus is now the DB's
+# toponyms, filtered by culture.
 CULTURE_COUNTRIES: dict[str, frozenset[str]] = {
     "english": frozenset({"England", "Isle of Man", "The Isle of Man"}),
     "scottish": frozenset({"Scotland"}),
@@ -313,7 +316,9 @@ def _compute_proportions_inline(
     word_db, _ = load_meanings({"subjects": subjects})
     # wyrd-bo01.3: read the per-culture corpus from the L3 toponym table
     # (read-only) instead of the static {culture}_place_names.json gazetteer.
-    conn = sqlite3.connect(f"file:{source_lexicon_db}?mode=ro", uri=True)
+    # quote() the path so a directory containing ?/#/space doesn't corrupt
+    # the file: URI (matches cli/utils._readonly_lexicon's convention).
+    conn = sqlite3.connect(f"file:{quote(str(source_lexicon_db))}?mode=ro", uri=True)
     try:
         culture_toponyms = {c: _load_culture_toponyms(conn, c) for c in CULTURE_PROPORTIONS}
     finally:
