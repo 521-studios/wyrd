@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import click
 import pytest
 
 from wyrd.generators.kenning.cli.lexicon import lexicon
@@ -36,10 +37,22 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _MANIFEST_PATH = _REPO_ROOT / "data" / "mining" / "_rebuild_layers.json"
 _RUNBOOK_PATH = _REPO_ROOT / "wyrd" / "generators" / "kenning" / "REBUILD.md"
 
-# Command prefixes that POPULATE data (the silent-drop risk class). Read-only
+# Leaf-name prefixes that POPULATE data (the silent-drop risk class). Read-only
 # / structural commands (report, export-*, enrich, decompose, ...) are not in
 # scope here -- the manifest's `layers` + REBUILD.md prose cover those.
 _DATA_POPULATION_PREFIXES = ("mine-", "ingest-", "backfill-", "cleanup-")
+
+# Data-population commands whose names don't match the prefixes above and so
+# must be enumerated by hand (whole-word or subgroup commands). Name-based
+# discovery can't infer these; a genuinely-novel non-prefixed data command
+# still needs the reviewer to spot it and add it here. Full space-joined paths.
+_EXTRA_DATA_POPULATION_COMMANDS = frozenset(
+    {
+        "build",  # legacy seed-from-meanings.json path
+        "synsets seed",  # seeds meaning_synset from committed JSON
+        "synsets assign",  # writes etymon_meaning_synset (D28 Phase 2)
+    }
+)
 
 
 def _load_manifest() -> dict:
@@ -50,15 +63,33 @@ def _runbook_text() -> str:
     return _RUNBOOK_PATH.read_text()
 
 
+def _walk_commands(group: click.Group, prefix: str = "") -> "list[str]":
+    """Yield full space-joined paths of every *leaf* command, recursing into
+    subgroups (so ``synsets seed`` / ``browse etymon`` are reached)."""
+    paths: list[str] = []
+    for name, cmd in group.commands.items():
+        path = f"{prefix}{name}"
+        if isinstance(cmd, click.Group):
+            paths.extend(_walk_commands(cmd, path + " "))
+        else:
+            paths.append(path)
+    return paths
+
+
 def _all_lexicon_commands() -> set[str]:
-    return set(lexicon.commands.keys())
+    return set(_walk_commands(lexicon))
+
+
+def _leaf(path: str) -> str:
+    return path.rsplit(" ", 1)[-1]
 
 
 def _data_population_commands() -> set[str]:
     return {
-        name
-        for name in _all_lexicon_commands()
-        if name.startswith(_DATA_POPULATION_PREFIXES)
+        path
+        for path in _all_lexicon_commands()
+        if _leaf(path).startswith(_DATA_POPULATION_PREFIXES)
+        or path in _EXTRA_DATA_POPULATION_COMMANDS
     }
 
 

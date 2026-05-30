@@ -31,7 +31,10 @@
     "mine-skeat": "Source-specific parser mine of a new book; output dumped to L2. Not a wipe-restore step.",
     "mine-toponym-mentions": "Source-capture mining that PRODUCES the committed data/mining/phase2/*.jsonl files; the rebuild replays those via ingest-toponym-mentions. The mining itself is source capture, not a wipe-restore step.",
     "mine-toponym-mentions-staged": "Staged variant of mine-toponym-mentions (source capture). Not a wipe-restore step.",
-    "mine-toponym-mentions-tiered": "Tiered variant of mine-toponym-mentions (source capture). Not a wipe-restore step."
+    "mine-toponym-mentions-tiered": "Tiered variant of mine-toponym-mentions (source capture). Not a wipe-restore step.",
+    "build": "Legacy seed-from-meanings.json path; superseded by rebuild-from-jsonl for the rebuild (etymons + reflexes now arrive via L2 replay incl. _reflexes.jsonl). Not a wipe-restore step.",
+    "synsets seed": "Seeds meaning_synset FREE from the committed data/meaning_synsets.json. Currently deferred/unused (0 rows); rebuild-from-jsonl does not run it. If meaning_synset is ever populated, promote to a rebuild step and document in REBUILD.md.",
+    "synsets assign": "Writes etymon_meaning_synset (D28 Phase-2 semantic classification). Deferred/unused (0 rows); if activated via LLM it is paid and must round-trip through L2, not become a re-mine step."
   },
 
   "layers": [
