@@ -309,6 +309,11 @@ def build_non_position_eligible(
                 continue
             if exclude_tags and any(t in exclude_tags for t in m.tags):
                 continue
+            # wyrd-wv85: --tag HARD gate (D36.6). Drop lemmas carrying
+            # none of the requested tags — OR semantics, matching
+            # proportions' filter_for_tag. Empty required_tags = no-op.
+            if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
+                continue
             non_position_eligible.append(m)
 
     # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Pack-
@@ -326,6 +331,12 @@ def build_non_position_eligible(
                     if not _matches_stratum(m, gate.stratum):
                         continue
                     if exclude_tags and any(t in exclude_tags for t in m.tags):
+                        continue
+                    # wyrd-wv85: --tag HARD gate applies to pack lemmas
+                    # too, so a --tag request doesn't admit off-tag pack
+                    # morphemes (the pack-tag filters are an additional,
+                    # pack-scoped narrowing on top).
+                    if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
                         continue
                     if pack.allowed_pack_tags and not any(
                         t in pack.allowed_pack_tags for t in m.tags
@@ -347,9 +358,11 @@ def request_signature(request: RequestVector) -> tuple:
 
     The signature folds:
 
-    * The gate (culture / era / stratum). Score doesn't read these
-      directly, but they're already filtered into the eligibility
-      pool, so different gates need different caches.
+    * The gate (culture / era / stratum / required_tags). Score
+      doesn't read these directly, but they're already filtered into
+      the eligibility pool, so different gates need different caches —
+      two requests differing only in ``--tag`` (required_tags) have
+      different pools and must not share cached scores.
     * The register's three dict axes (``semantic_tags``,
       ``phonological``, ``position_bias``) as frozensets so dict-
       iteration order doesn't change the key. All three are read by
@@ -365,6 +378,7 @@ def request_signature(request: RequestVector) -> tuple:
         request.gate.era_min,
         request.gate.era_max,
         request.gate.stratum,
+        request.gate.required_tags,
         frozenset(request.register.semantic_tags.items()),
         frozenset(request.register.phonological.items()),
         frozenset(request.register.position_bias.items()),

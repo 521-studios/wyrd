@@ -13,10 +13,12 @@ This adapter is the bridge. It accepts the same knob set the legacy
 path uses and emits a fully-built RequestVector. The translation is
 deliberately conservative for v1:
 
-* ``culture`` + ``era`` + ``stratum`` map to the EligibilityGate's
-  hard predicates.
-* ``tags`` becomes ``register.semantic_tags = {tag: 1.0, ...}`` so
-  the sem-axis scores lemmas carrying any of those tags.
+* ``culture`` + ``era`` + ``stratum`` + ``tags`` map to the
+  EligibilityGate's hard predicates (``tags`` → ``required_tags``,
+  the D36.6 hard ``--tag`` filter, wyrd-wv85).
+* ``tags`` ALSO becomes ``register.semantic_tags = {tag: 1.0, ...}``
+  so the sem-axis biases among the (now tag-gated) lemmas. The hard
+  gate restricts the pool; the soft axis discriminates within it.
 * ``harshness`` (D6) becomes ``register.phonological`` weights —
   positive on cluster_density / final_fortition, negative on
   vowel_final_bias / soft_consonants. This mirrors the legacy
@@ -170,9 +172,11 @@ def build_request_vector(
 
     Args:
         culture: hard-gate culture (e.g. ``english``, ``welsh``).
-        tags: optional list of semantic tags the operator wants the
-            request to favor. Each contributes weight 1.0 to the
-            register's ``semantic_tags`` dict.
+        tags: the operator's ``--tag`` filter. Becomes a HARD
+            eligibility gate (``gate.required_tags``, wyrd-wv85): only
+            lemmas carrying at least one requested tag survive. Each
+            also contributes weight 1.0 to the soft ``semantic_tags``
+            axis for within-pool discrimination.
         harshness: D6 harshness scalar in [0, 1]. Translates to the
             register's ``phonological`` weights (see
             :func:`_harshness_to_phonological`).
@@ -244,11 +248,17 @@ def build_request_vector(
 
     register = compose_register_effects([adapter_effect, *mood_effects])
 
+    # wyrd-wv85: the explicit ``--tag`` args become a HARD eligibility
+    # gate (D36.6), in addition to the soft semantic_tags bias above.
+    # Mood-expanded tags (grim, pastoral, ...) are NOT promoted to the
+    # gate — they stay a soft semantic bias so a mood narrows toward,
+    # rather than hard-excludes, off-theme morphemes.
     gate = EligibilityGate(
         culture=culture,
         era_min=era_min,
         era_max=era_max,
         stratum=stratum,
+        required_tags=frozenset(tags),
     )
 
     return RequestVector(

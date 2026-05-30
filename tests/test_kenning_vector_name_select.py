@@ -1227,3 +1227,61 @@ def test_frequency_weighted_pool_zero_score_fallback_within_usage_is_uniform():
     assert a_wins > 60
     assert b_wins > 60
     assert a_wins + b_wins == 200
+
+
+# ---------------------------------------------------------------------------
+# wyrd-wv85: --tag HARD eligibility gate
+# ---------------------------------------------------------------------------
+
+
+def _tag_pool():
+    return {
+        "-mere": [_meaning("-mere", tags=["water"])],
+        "-burn": [_meaning("-burn", tags=["water", "nature"])],
+        "-ton": [_meaning("-ton", tags=["settlement"])],
+        "-grim": [_meaning("-grim", tags=["death"])],
+    }
+
+
+def _eligible(gate):
+    return {
+        m.usage
+        for m in build_non_position_eligible(
+            _tag_pool(), gate=gate, exclude_tags=frozenset(), pack_meaning_dbs=None, packs=()
+        )
+    }
+
+
+def test_required_tags_hard_gate_keeps_only_tagged():
+    """wyrd-wv85: required_tags drops every Meaning that carries none of
+    the requested tags — the D36.6 hard --tag filter."""
+    got = _eligible(EligibilityGate(culture="english", required_tags=frozenset({"water"})))
+    assert got == {"-mere", "-burn"}  # settlement + death lemmas excluded
+
+
+def test_required_tags_empty_is_noop():
+    """No --tag → no filtering; the whole pool is eligible (back-compat)."""
+    got = _eligible(EligibilityGate(culture="english"))
+    assert got == {"-mere", "-burn", "-ton", "-grim"}
+
+
+def test_required_tags_or_semantics_across_multiple_tags():
+    """Multiple --tag values union (a lemma matching ANY survives) —
+    matches proportions' filter_for_tag."""
+    got = _eligible(EligibilityGate(culture="english", required_tags=frozenset({"water", "death"})))
+    assert got == {"-mere", "-burn", "-grim"}  # settlement-only lemma excluded
+
+
+def test_build_request_vector_tags_become_hard_gate_but_moods_stay_soft():
+    """The adapter routes explicit --tag into the HARD gate.required_tags,
+    but mood-expanded tags (grim) stay a SOFT semantic bias — a mood
+    narrows toward, it does not hard-exclude."""
+    from wyrd.generators.kenning.runtime.vector_kenning_adapter import build_request_vector
+
+    rv = build_request_vector(culture="english", tags=["water", "death"])
+    assert rv.gate.required_tags == frozenset({"water", "death"})
+
+    rv_mood = build_request_vector(culture="english", mood=["grim"])
+    assert rv_mood.gate.required_tags == frozenset()  # grim is NOT a hard gate
+    # grim's tags still reach the soft semantic axis:
+    assert set(rv_mood.register.semantic_tags) & {"death", "monster", "undead"}
