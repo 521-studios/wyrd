@@ -84,7 +84,6 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from ..lexicon.sql.queries.reflex import SELECT_REFLEXES_FOR_DUMP
 from .log import write_jsonl
 
 _logger = logging.getLogger(__name__)
@@ -870,10 +869,14 @@ def dump_fantasy_morphemes_to_file(
 
 # wyrd-ned5: seed reflex layer round-trip. The reflex / reflex_etymon
 # tables map modern_usage surface fragments (-ton, -ham) to the etymons
-# they descend from. They're created ONLY by seed_from_meanings and are
-# NOT re-derivable from the rest of L2, so a full rebuild-from-jsonl drops
-# them — the bug wyrd-ned5 fixes. Dumping them to a synthetic-source file
-# (same pattern as _fantasy_morphemes.jsonl) lets the rebuild restore them.
+# they descend from. The SEED reflexes (rando-port modern_usage) are
+# created by seed_from_meanings and are NOT carried anywhere else in L2,
+# so a full rebuild-from-jsonl drops them — the bug wyrd-ned5 fixes. (The
+# place-name-derived reflexes that derive_positions writes during
+# mine-wiktextract-corpus ARE re-derivable from the corpus, but dumping
+# the whole layer is simpler and idempotent.) Dumping to a synthetic-
+# source file (same pattern as _fantasy_morphemes.jsonl) lets the rebuild
+# restore them.
 _REFLEX_SEED_SOURCE_ID = "reflex-seed"
 _REFLEX_SEED_FILENAME = "_reflexes.jsonl"
 _REFLEX_SEED_SOURCE_ROW = {
@@ -899,6 +902,10 @@ def _dump_reflex_rows(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:
     Ordered by (surface_form, position) for diff-stable output. OCR-
     cluster loser etymons (merged_into_id NOT NULL) are excluded by the
     query so a tombstone doesn't resurface as a reflex target."""
+    from ..lexicon.sql.queries.reflex import (  # lazy: keep dump import-time light
+        SELECT_REFLEXES_FOR_DUMP,
+    )
+
     current: dict[str, Any] | None = None
     key: tuple[str, str] | None = None
     for row in conn.execute(SELECT_REFLEXES_FOR_DUMP).fetchall():

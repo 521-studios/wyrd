@@ -52,7 +52,6 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from ..lexicon.sql.queries.reflex import LINK_REFLEX_ETYMON_OR_IGNORE, UPSERT_REFLEX
 from .log import ReplayState, replay_file
 
 _logger = logging.getLogger(__name__)
@@ -697,19 +696,30 @@ def _insert_reflex_rows(
     position) reflex, then link it to every etymon named in
     ``etymon_refs`` that resolves in ``etymon_id_by_ref``.
 
-    Reflexes are the seed modern_usage→etymon layer (e.g. -ton → OE
-    tūn). They're created only by ``seed_from_meanings`` and were lost
-    by a full rebuild before this round-trip existed. ``productivity``
-    is intentionally NOT carried in L2 — it's recomputed from corpus
-    observations by ``_recompute_reflex_productivity_after_build`` at
-    the rebuild tail, matching the existing wyrd-14p contract.
+    Reflexes are the modern_usage→etymon layer (e.g. -ton → OE tūn).
+    The SEED reflexes (rando-port modern_usage) are created by
+    ``seed_from_meanings`` and are NOT carried anywhere else in L2, so a
+    full rebuild dropped them — the bug this round-trip fixes. (The
+    place-name-derived reflexes that ``derive_positions`` writes during
+    ``mine-wiktextract-corpus`` ARE re-derivable from the corpus, but
+    round-tripping the whole layer here is simpler and idempotent.)
+    ``productivity`` is intentionally NOT carried in L2 — it's recomputed
+    from corpus observations by ``_recompute_reflex_productivity_after_build``
+    at the rebuild tail, matching the existing wyrd-14p contract.
 
     Orphan = an ``etymon_ref`` that doesn't resolve (the linked etymon
-    was removed via a kernel ``remove`` event, or was never dumped).
-    Orphaned refs are skipped + counted; a reflex whose refs ALL
-    orphan still upserts the reflex row (an empty link set is a valid
-    intermediate state — a later mining pass may add the etymon).
+    was removed via a kernel ``remove`` event, or — common on an
+    L2-only rebuild — is a bulk/wiktextract etymon not present without
+    ``--fetch-bulk``). Orphaned refs are skipped + counted; a reflex
+    whose refs ALL orphan still upserts the reflex row (an empty link
+    set is a valid intermediate state — a later mining pass may add the
+    etymon).
     """
+    from ..lexicon.sql.queries.reflex import (  # lazy: keep build import-time light (cold-start)
+        LINK_REFLEX_ETYMON_OR_IGNORE,
+        UPSERT_REFLEX,
+    )
+
     for row in rows:
         surface_form = row.get("surface_form")
         position = row.get("position")
@@ -792,11 +802,13 @@ def build_from_jsonl(
         # swallowed by INSERT OR IGNORE; count + skip it visibly instead.
         "citation_source_orphans": 0,
         "citation_source_orphan_refs": [],
-        # wyrd-ned5: seed reflex layer round-trip. ``reflex`` counts the
-        # (surface_form, position) reflexes whose etymon_refs resolved +
-        # linked. Orphan = an etymon_ref in a reflex row that doesn't
-        # resolve in the rebuilt etymon table (the linked etymon was
-        # removed via a kernel ``remove`` event, or never dumped).
+        # wyrd-ned5: seed reflex layer round-trip. ``reflex`` counts
+        # every upserted (surface_form, position) reflex row — including
+        # all-orphan reflexes that ended up with zero links.
+        # ``reflex_link_orphans`` counts the individual etymon_refs that
+        # didn't resolve in the rebuilt etymon table (linked etymon
+        # removed via a kernel ``remove`` event, or — on an L2-only
+        # rebuild — a bulk/wiktextract etymon absent without --fetch-bulk).
         "reflex": 0,
         "reflex_link_orphans": 0,
         "reflex_link_orphan_refs": [],
