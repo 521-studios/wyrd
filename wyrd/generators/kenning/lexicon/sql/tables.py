@@ -33,6 +33,7 @@ schema's quirks.
 from __future__ import annotations
 
 from sqlalchemy import (
+    REAL,
     CheckConstraint,
     Column,
     ForeignKey,
@@ -574,3 +575,38 @@ Index("idx_fantasy_morpheme_approach", fantasy_morpheme.c.approach_version)
 Index("idx_fantasy_morpheme_etymon", fantasy_morpheme.c.etymon_id)
 Index("idx_fantasy_morpheme_usable", fantasy_morpheme.c.usable)
 Index("idx_fantasy_morpheme_unapproved", fantasy_morpheme.c.unapproved_language)
+
+
+# ---------------------------------------------------------------------------
+# Report snapshots (wyrd-d24): file-based dashboard reports ported to a
+# queryable pair of tables so before/after comparisons are SQL-diffable.
+# See migration 0015_report_snapshot.
+# ---------------------------------------------------------------------------
+
+report_snapshot = Table(
+    "report_snapshot",
+    metadata,
+    Column("label", Text, primary_key=True),
+    Column("captured_at", Text, nullable=False),
+    Column("source_dir", Text),
+    Column("notes", Text),
+)
+
+report_metric = Table(
+    "report_metric",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "snapshot_label",
+        Text,
+        ForeignKey("report_snapshot.label", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("category", Text, nullable=False),
+    Column("metric", Text, nullable=False),
+    Column("value_num", REAL),
+    Column("value_text", Text),
+    UniqueConstraint("snapshot_label", "category", "metric"),
+)
+Index("idx_report_metric_snapshot", report_metric.c.snapshot_label)
+Index("idx_report_metric_cat", report_metric.c.category, report_metric.c.metric)
