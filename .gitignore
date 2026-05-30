@@ -70,3 +70,14 @@ scratch/
 # data/audit/ (operator-maintained allowlists) are NOT caught.
 /audit/
 /audit-cleaned/
+
+# wyrd-d24: dashboard report snapshots are transitional progress-
+# monitoring artifacts — the durable, queryable record now lives in the
+# report_snapshot / report_metric DB tables (regenerate with
+# `lexicon ingest-report-snapshot`). Keep the report dirs out of git.
+data/mining/reports/
+
+# Regenerable bundle exports (`export-meanings` output). These are
+# large (100MB+, over GitHub's push limit) and rebuildable from the L3
+# DB, so they never belong in git wherever they land.
+meanings_*.json
