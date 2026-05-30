@@ -1302,3 +1302,51 @@ def test_build_request_vector_tags_and_mood_tags_become_hard_gate():
     # contributes NO required tags — it gates nothing, only re-weights phon.
     rv_harsh = build_request_vector(culture="english", mood=["harsh"])
     assert rv_harsh.gate.required_tags == frozenset()
+
+
+# ---------------------------------------------------------------------------
+# wyrd-glos: gloss policy (glossed-only default + include_unglossed opt-in)
+# ---------------------------------------------------------------------------
+
+
+def _gloss_pool(include_unglossed):
+    db = {
+        "-ton": [_meaning("-ton", tags=["settlement"])],  # glossed below
+        "-xyz": [_meaning("-xyz")],  # multi-char UNGLOSSED
+        "-q": [_meaning("-q")],  # 1-char UNGLOSSED
+        "a": [_meaning("a")],  # 1-char UNGLOSSED (no dash)
+    }
+    # give -ton a gloss; _meaning() defaults meanings=[] (unglossed)
+    db["-ton"][0].meanings = ["estate, farmstead"]
+    # a glossed single-char survives (Norse á = river)
+    db["á"] = [_meaning("á")]
+    db["á"][0].meanings = ["river"]
+    return {
+        m.usage
+        for m in build_non_position_eligible(
+            db,
+            gate=EligibilityGate(culture="english"),
+            exclude_tags=frozenset(),
+            pack_meaning_dbs=None,
+            packs=(),
+            include_unglossed=include_unglossed,
+        )
+    }
+
+
+def test_gloss_policy_default_is_glossed_only():
+    """Default (include_unglossed=False): only morphemes with a gloss
+    survive — the rando-era behavior, so every generated component can be
+    explained."""
+    assert _gloss_pool(include_unglossed=False) == {"-ton", "á"}
+
+
+def test_gloss_policy_opt_in_admits_multichar_unglossed_but_never_single_char():
+    """include_unglossed=True admits MULTI-char unglossed morphemes, but
+    single-char unglossed fragments (the rando 'Silver' letters, stray
+    -m-/A-) are ALWAYS dropped. Glossed single-char (á = river) survives
+    on the has-gloss branch regardless."""
+    assert _gloss_pool(include_unglossed=True) == {"-ton", "-xyz", "á"}
+    # -q and "a" (1-char unglossed) excluded in BOTH states:
+    assert "-q" not in _gloss_pool(include_unglossed=True)
+    assert "a" not in _gloss_pool(include_unglossed=True)

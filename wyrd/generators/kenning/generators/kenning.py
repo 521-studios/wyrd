@@ -173,6 +173,22 @@ class Kenning(Generator):
                         "pipelines (wyrd-0ab, wyrd-kjc)."
                     ),
                 },
+                "include_unglossed": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": (
+                        "wyrd-glos: when True, allow morphemes that carry no gloss "
+                        "(no recorded meaning) to appear in generated names — their "
+                        "etymology line shows '(unglossed)'. Default False restricts "
+                        "generation to morphemes the system can explain (the rando-era "
+                        "behavior), because the etymology line is the load-bearing "
+                        "feature of a kenning. Enabling this trades explainability for "
+                        "a larger morpheme inventory (~46% of the English pool is "
+                        "currently unglossed — mostly real place-name elements awaiting "
+                        "gloss backfill). Single-character unglossed fragments are "
+                        "ALWAYS dropped, regardless of this flag."
+                    ),
+                },
                 "harshness": {
                     "type": "number",
                     "default": 0.0,
@@ -392,6 +408,12 @@ class Kenning(Generator):
         manorial_affix = float(params.get("manorial_affix", 0.0) or 0.0)
         joiner_density = float(params.get("joiner_density", 0.0) or 0.0)
         include_fiction = _coerce_bool(params.get("include_fiction", False))
+        # wyrd-glos: glossing is a project pillar — the etymology line is
+        # the load-bearing feature — so the generator only draws morphemes
+        # it can explain unless the operator opts in. Default False
+        # (glossed-only, the rando-era behavior). Single-char unglossed
+        # fragments are dropped regardless of this flag.
+        include_unglossed = _coerce_bool(params.get("include_unglossed", False))
         scoring_mode = params.get("scoring_mode", "proportions") or "proportions"
         priors_path = params.get("priors_path")
         # wyrd-ecjp.9: per-axis ScoringWeights (vector mode only). The
@@ -468,6 +490,7 @@ class Kenning(Generator):
                 priors_path=priors_path,
                 scoring_weights_raw=scoring_weights_raw,
                 packs_raw=packs_raw,
+                include_unglossed=include_unglossed,
             )
             if new_name is None:
                 # Vector path filtered everything (empty register +
@@ -492,6 +515,7 @@ class Kenning(Generator):
                 era_range=era_range,
                 stratum=stratum,
                 cohesion=cohesion,
+                include_unglossed=include_unglossed,
             )
         t_sample_ms = (time.perf_counter() - t_sample) * 1000
         t_render = time.perf_counter()
@@ -594,6 +618,7 @@ def _generate_via_vector(
     priors_path: str | None,
     scoring_weights_raw: dict[str, float] | None = None,
     packs_raw: list[dict[str, Any]] | None = None,
+    include_unglossed: bool = False,
 ):
     """Dispatch helper for scoring_mode='vector'.
 
@@ -711,4 +736,5 @@ def _generate_via_vector(
         cohesion=cohesion,
         exclude_tags=exclude_tags,
         pack_meaning_dbs=pack_meaning_dbs or None,
+        include_unglossed=include_unglossed,
     )

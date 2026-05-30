@@ -1137,8 +1137,14 @@ def test_name_generator_select_no_era_matches_pre_pr_weighted_choice():
     # sequence change rather than a 50/50 noise wash. "family name" tag
     # makes the single-element struct pass the wyrd-zzli + wyrd-80ib
     # filter; weighted_choice bit-stability is the actual test target.
-    m_a = Meaning("-a", ["family name"], [], {})
-    m_b = Meaning("-b", ["family name"], [], {})
+    # wyrd-glos: glosses (3rd arg) make these gloss-eligible so the default
+    # gloss filter takes its no-op fast path. Without them, these 1-char
+    # UNGLOSSED probes ("-a"/"-b") would be dropped — the gloss policy
+    # always removes single-char unglossed fragments — defeating the
+    # weighted_choice bit-stability check that is this test's actual
+    # target. Gloss text is irrelevant to selection order.
+    m_a = Meaning("-a", ["family name"], ["letter a"], {})
+    m_b = Meaning("-b", ["family name"], ["letter b"], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 30, "-b": 70}
     mg = MeaningGenerator(meaning_db, {}, proportions)
@@ -2598,3 +2604,43 @@ def test_new_name_str_drops_fully_empty_words() -> None:
     # Fully-empty input
     empty_all = NewName(struct=None, meaning_db={}, name=[])
     assert str(empty_all) == ""
+
+
+def test_keep_keys_for_gloss_policy():
+    """wyrd-glos: MeaningGenerator.keep_keys_for_gloss is the proportions-
+    side twin of the vector pool filter — same _gloss_eligible predicate,
+    so both scoring modes apply identical generation-pool rules."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
+
+    def m(usage, glossed):
+        return Meaning(usage, [], (["g"] if glossed else []), {})
+
+    meaning_db = {
+        "-ton": [m("-ton", True)],  # glossed multi-char
+        "-xyz": [m("-xyz", False)],  # unglossed multi-char
+        "-q": [m("-q", False)],  # unglossed 1-char
+        "á": [m("á", True)],  # glossed 1-char (survives)
+    }
+    mg = MeaningGenerator(meaning_db, {}, {})
+
+    # Default: glossed-only.
+    assert mg.keep_keys_for_gloss(include_unglossed=False) == frozenset({"-ton", "á"})
+    # Opt-in: + multi-char unglossed, never the 1-char unglossed.
+    assert mg.keep_keys_for_gloss(include_unglossed=True) == frozenset({"-ton", "-xyz", "á"})
+
+
+def test_keep_keys_for_gloss_full_coverage_returns_none():
+    """All-glossed (or all glossed-or-multichar under the flag) bundle →
+    keep-set covers every usage → None, the no-filter fast path, so a
+    fully-glossed bundle stays bit-stable with the pre-wyrd-glos sampler."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
+
+    meaning_db = {
+        "-ton": [Meaning("-ton", [], ["estate"], {})],
+        "-ham": [Meaning("-ham", [], ["village"], {})],
+    }
+    mg = MeaningGenerator(meaning_db, {}, {})
+    assert mg.keep_keys_for_gloss(include_unglossed=False) is None
+    assert mg.keep_keys_for_gloss(include_unglossed=True) is None
