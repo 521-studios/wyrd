@@ -48,6 +48,12 @@ import random
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+# wyrd-glos: the gloss-policy predicate is defined in proportions (the
+# canonical keep_keys_for_gloss home). Safe module-level import — proportions
+# imports vector_name_select only lazily (inside select_via_vector), so there
+# is no module-load cycle; this module is itself imported lazily, by which
+# point proportions is fully loaded.
+from wyrd.generators.kenning.runtime.proportions import _gloss_eligible
 from wyrd.generators.kenning.vectors.schemas import (
     EmpiricalPriors,
     PhonologicalVector,
@@ -217,6 +223,7 @@ def build_non_position_eligible(
     packs,
     culture_attested_usages: frozenset[str] | None = None,
     culture_attested_meanings: dict[str, frozenset[str]] | None = None,
+    include_unglossed: bool = True,
 ) -> list[Meaning]:
     """Pre-compute the non-position-filtered eligibility pool.
 
@@ -314,6 +321,10 @@ def build_non_position_eligible(
             # proportions' filter_for_tag. Empty required_tags = no-op.
             if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
                 continue
+            # wyrd-glos: gloss policy — same predicate the proportions
+            # keep_keys_for_gloss applies, so both modes share the rule.
+            if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
+                continue
             non_position_eligible.append(m)
 
     # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Pack-
@@ -337,6 +348,9 @@ def build_non_position_eligible(
                     # morphemes (the pack-tag filters are an additional,
                     # pack-scoped narrowing on top).
                     if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
+                        continue
+                    # wyrd-glos: gloss policy applies to pack lemmas too.
+                    if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
                         continue
                     if pack.allowed_pack_tags and not any(
                         t in pack.allowed_pack_tags for t in m.tags

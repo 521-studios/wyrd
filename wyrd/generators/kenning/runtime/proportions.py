@@ -200,6 +200,27 @@ def _bucket_keys_matching_surface(
     return frozenset(matches) if matches else None
 
 
+def _gloss_eligible(usage: str, has_gloss: bool, include_unglossed: bool) -> bool:
+    """Gloss-policy predicate shared by the proportions keep-key filter
+    (:meth:`MeaningGenerator.keep_keys_for_gloss`) and the vector pool
+    filter (:func:`vector_name_select.build_non_position_eligible`) so
+    both scoring modes apply identical generation-pool rules (wyrd-glos).
+
+    * has_gloss → eligible (any length; a glossed single-char like Norse
+      ``á`` = river is a real morpheme).
+    * unglossed single-char (dash/space-stripped core ≤ 1) → NEVER
+      eligible. These are the rando 'Silver' letters + stray ``-m-``/
+      ``A-`` fragments; junk regardless of the flag.
+    * unglossed multi-char → eligible only when ``include_unglossed``.
+    """
+    if has_gloss:
+        return True
+    core = usage.replace("-", "").replace(" ", "")
+    if len(core) <= 1:
+        return False
+    return include_unglossed
+
+
 def _intersect_keep_keys(
     a: frozenset[str] | None,
     b: frozenset[str] | None,
@@ -244,6 +265,10 @@ class MeaningGenerator:
         # single computation per stratum value lasts the process
         # lifetime.
         self._stratum_keep_cache: dict[str, frozenset[str] | None] = {}
+        # Gloss-policy keep cache: include_unglossed bool → frozenset of
+        # allowed usages (or None for the full-coverage / no-filter fast
+        # path). Only two keys ever; same immutable-meaning_db contract.
+        self._gloss_keep_cache: dict[bool, frozenset[str] | None] = {}
         self.load_parts(proportions)
 
     def load_parts(self, proportions, *addkeys):
@@ -353,6 +378,43 @@ class MeaningGenerator:
         if len(allowed) == len(self.meaning_db):
             allowed = None
         self._stratum_keep_cache[stratum] = allowed
+        return allowed
+
+    def keep_keys_for_gloss(self, include_unglossed: bool) -> frozenset[str] | None:
+        """Resolve the gloss policy to the set of usages eligible for
+        GENERATION (wyrd-glos). Glossing is a project pillar — the
+        etymology line is the load-bearing feature — so by default the
+        generator only draws usages it can explain (``include_unglossed
+        =False``, the historical rando-era behavior). The operator opts
+        into unglossed morphemes via the SPA/CLI flag, accepting names
+        whose components show ``(unglossed)``.
+
+        A usage is gloss-eligible iff it has at least one glossed Meaning,
+        OR (``include_unglossed`` AND it is not a single-character
+        fragment). Single-character UNGLOSSED usages (the ``t``/``n``/
+        ``r`` rando 'Silver' letters, stray ``-m-``/``A-`` fragments) are
+        ALWAYS dropped — they are never valid place-name elements and
+        carry no meaning to show. A single-char GLOSSED usage (Norse
+        ``á`` = river) survives on the has-gloss branch.
+
+        Mirrors ``keep_keys_for_era`` / ``keep_keys_for_stratum``: None
+        when the keep-set covers every usage (no-filter fast path), else
+        the frozenset; cached per include_unglossed value. Same
+        USAGE-level granularity caveat — a usage with one glossed and one
+        unglossed sense stays in the pool, and the downstream
+        ``_pick_surface`` may surface the unglossed sense; tightening to
+        sense level needs ``_render_substitutions`` reworked.
+        """
+        if include_unglossed in self._gloss_keep_cache:
+            return self._gloss_keep_cache[include_unglossed]
+        allowed: frozenset[str] | None = frozenset(
+            usage
+            for usage, meanings in self.meaning_db.items()
+            if _gloss_eligible(usage, any(m.meanings for m in meanings), include_unglossed)
+        )
+        if len(allowed) == len(self.meaning_db):
+            allowed = None
+        self._gloss_keep_cache[include_unglossed] = allowed
         return allowed
 
     def select(
@@ -648,6 +710,7 @@ class NameGenerator:
         era_range: tuple[int | None, int | None] | None = None,
         stratum: str | None = None,
         cohesion: float = 0.0,
+        include_unglossed: bool = True,
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
         each usage as an attested archaic spelling variant (D18) or an
@@ -729,10 +792,21 @@ class NameGenerator:
         When both inflection_density and spelling_variety would fire on the
         same morpheme, inflection wins — it carries grammatical meaning
         that the variant axis doesn't.
+
+        ``include_unglossed`` (wyrd-glos) is the gloss policy. ``True``
+        (this method's back-compat default) admits unglossed morphemes;
+        the Kenning.generate operator surface defaults it to ``False``
+        (glossed-only, the rando-era behavior) so the etymology line —
+        the load-bearing feature — is always meaningful. Single-char
+        UNGLOSSED usages are dropped regardless. Composes with era/stratum
+        via the same keep-key intersection.
         """
         keep_keys = _intersect_keep_keys(
-            self.meaning_gen.keep_keys_for_era(era_range),
-            self.meaning_gen.keep_keys_for_stratum(stratum),
+            _intersect_keep_keys(
+                self.meaning_gen.keep_keys_for_era(era_range),
+                self.meaning_gen.keep_keys_for_stratum(stratum),
+            ),
+            self.meaning_gen.keep_keys_for_gloss(include_unglossed),
         )
         items = list(self.structs.items())
         struct = weighted_choice(rng, items)
@@ -775,6 +849,7 @@ class NameGenerator:
         cohesion: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
         pack_meaning_dbs: dict | None = None,
+        include_unglossed: bool = True,
     ):
         """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
 
@@ -850,6 +925,7 @@ class NameGenerator:
             exclude_tags_fz,
             request.packs,
             id(pack_meaning_dbs),
+            include_unglossed,
         )
         non_position_eligible = self._vector_eligible_cache.get(cache_key)
         if non_position_eligible is None:
@@ -861,6 +937,7 @@ class NameGenerator:
                 packs=request.packs,
                 culture_attested_usages=self.culture_attested_usages,
                 culture_attested_meanings=self.culture_attested_meanings,
+                include_unglossed=include_unglossed,
             )
             self._vector_eligible_cache[cache_key] = non_position_eligible
 

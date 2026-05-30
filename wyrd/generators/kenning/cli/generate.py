@@ -101,6 +101,19 @@ _VALID_SCORING_MODES = ("proportions", "vector")
     ),
 )
 @click.option(
+    "--include-unglossed",
+    "include_unglossed",
+    is_flag=True,
+    default=False,
+    help=(
+        "wyrd-glos: allow morphemes with no recorded gloss (meaning) to "
+        "appear — their etymology line shows '(unglossed)'. Off by default: "
+        "generation draws only morphemes it can explain (the rando-era "
+        "behavior), since the etymology line is a kenning's load-bearing "
+        "feature. Single-character unglossed fragments are dropped regardless."
+    ),
+)
+@click.option(
     "--era",
     type=str,
     default=None,
@@ -257,6 +270,7 @@ def generate(
     inflection_density: float,
     moods: tuple[str, ...],
     include_fiction: bool,
+    include_unglossed: bool,
     era: str | None,
     stratum: str | None,
     cohesion: float,
@@ -301,6 +315,7 @@ def generate(
         "inflection_density": inflection_density,
         "mood": list(moods),
         "include_fiction": include_fiction,
+        "include_unglossed": include_unglossed,
         "era": era,
         "stratum": stratum,
         "cohesion": cohesion,
