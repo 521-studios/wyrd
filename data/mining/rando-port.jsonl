@@ -3197,3 +3197,9 @@
 {"_type": "citation", "etymon_ref": "biblical:mary"}
 {"_type": "citation", "etymon_ref": "old-english:philip"}
 {"_type": "citation", "etymon_ref": "old-english:philipa"}
+{"_op": "remove", "_type": "etymon", "ref": "norman-french:a", "_reason": "wyrd-26hn: rando mis-decomposed 'argent' (FR silver) into single letters glossed 'Silver'; junk. Real silver morpheme is celtic:airgid, retained on -arget/-argid."}
+{"_op": "remove", "_type": "etymon", "ref": "norman-french:e", "_reason": "wyrd-26hn: rando mis-decomposed 'argent' (FR silver) into single letters glossed 'Silver'; junk. Real silver morpheme is celtic:airgid, retained on -arget/-argid."}
+{"_op": "remove", "_type": "etymon", "ref": "norman-french:g", "_reason": "wyrd-26hn: rando mis-decomposed 'argent' (FR silver) into single letters glossed 'Silver'; junk. Real silver morpheme is celtic:airgid, retained on -arget/-argid."}
+{"_op": "remove", "_type": "etymon", "ref": "norman-french:n", "_reason": "wyrd-26hn: rando mis-decomposed 'argent' (FR silver) into single letters glossed 'Silver'; junk. Real silver morpheme is celtic:airgid, retained on -arget/-argid."}
+{"_op": "remove", "_type": "etymon", "ref": "norman-french:r", "_reason": "wyrd-26hn: rando mis-decomposed 'argent' (FR silver) into single letters glossed 'Silver'; junk. Real silver morpheme is celtic:airgid, retained on -arget/-argid."}
+{"_op": "remove", "_type": "etymon", "ref": "norman-french:t", "_reason": "wyrd-26hn: rando mis-decomposed 'argent' (FR silver) into single letters glossed 'Silver'; junk. Real silver morpheme is celtic:airgid, retained on -arget/-argid."}

@@ -233,9 +233,9 @@
 {"_type": "reflex", "surface_form": "-arf-", "position": "inner", "etymon_refs": ["welsh:arf"]}
 {"_type": "reflex", "surface_form": "-arg", "position": "post", "etymon_refs": ["irish:arg"]}
 {"_type": "reflex", "surface_form": "-arg-", "position": "inner", "etymon_refs": ["irish:arg", "welsh:arg"]}
-{"_type": "reflex", "surface_form": "-arget", "position": "post", "etymon_refs": ["celtic:airgid", "norman-french:a", "norman-french:e", "norman-french:g", "norman-french:n", "norman-french:r", "norman-french:t"]}
+{"_type": "reflex", "surface_form": "-arget", "position": "post", "etymon_refs": ["celtic:airgid"]}
 {"_type": "reflex", "surface_form": "-argh", "position": "post", "etymon_refs": ["middle-english:argh"]}
-{"_type": "reflex", "surface_form": "-argid", "position": "post", "etymon_refs": ["celtic:airgid", "norman-french:a", "norman-french:e", "norman-french:g", "norman-french:n", "norman-french:r", "norman-french:t"]}
+{"_type": "reflex", "surface_form": "-argid", "position": "post", "etymon_refs": ["celtic:airgid"]}
 {"_type": "reflex", "surface_form": "-argoed", "position": "post", "etymon_refs": ["welsh:Argoed"]}
 {"_type": "reflex", "surface_form": "-ari-", "position": "inner", "etymon_refs": ["old-norse:Ari"]}
 {"_type": "reflex", "surface_form": "-arian", "position": "post", "etymon_refs": ["welsh:arian"]}
