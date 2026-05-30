@@ -63,7 +63,7 @@ def _runbook_text() -> str:
     return _RUNBOOK_PATH.read_text()
 
 
-def _walk_commands(group: click.Group, prefix: str = "") -> "list[str]":
+def _walk_commands(group: click.Group, prefix: str = "") -> list[str]:
     """Yield full space-joined paths of every *leaf* command, recursing into
     subgroups (so ``synsets seed`` / ``browse etymon`` are reached)."""
     paths: list[str] = []
@@ -144,8 +144,7 @@ def test_command_buckets_are_disjoint() -> None:
     m = _load_manifest()
     both = sorted(set(m["rebuild_step_commands"]) & set(m["non_rebuild_commands"]))
     assert not both, (
-        f"commands appear in BOTH rebuild_step_commands and "
-        f"non_rebuild_commands: {both}"
+        f"commands appear in BOTH rebuild_step_commands and non_rebuild_commands: {both}"
     )
 
 
@@ -190,10 +189,8 @@ def test_layer_commands_are_real_rebuild_steps(key: str) -> None:
         if cmd is None:
             continue
         assert cmd in all_cmds, (
-            f"layer {layer['layer']!r} {key}={cmd!r} is not a real "
-            "`wyrd kenning lexicon` command"
+            f"layer {layer['layer']!r} {key}={cmd!r} is not a real `wyrd kenning lexicon` command"
         )
         assert cmd in rebuild_steps, (
-            f"layer {layer['layer']!r} {key}={cmd!r} must be listed in "
-            "rebuild_step_commands"
+            f"layer {layer['layer']!r} {key}={cmd!r} must be listed in rebuild_step_commands"
         )
