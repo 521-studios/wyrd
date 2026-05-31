@@ -17,6 +17,10 @@
   let { morpheme, morphemeIndex } = $props();
 
   const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
+  // Case- + dash-insensitive key for MATCHING a surface to a form row.
+  // Accents are KEPT (so "hy" and "hȳ" stay distinct — clicking the
+  // accented row is a real upgrade, not a no-op).
+  const norm = (s) => stripDashes(s).toLowerCase();
 
   // The cell's ORIGINAL generated surface (col-2 result), used to
   // detect a revert-click. Read from currentResult, NOT the displayed
@@ -28,23 +32,24 @@
   );
 
   // wyrd-2b50 follow-up: swap to the ACCENTED display form
-  // (original_script, e.g. "Wālum") when the row has one, not the
-  // ASCII transliteration ("Walum"), so the name keeps its accents.
-  // Routes through setSwap so re-clicks edit the one swap step and a
-  // click on the original form reverts.
+  // (original_script, e.g. "Wālum"/"hȳ") when the row has one, not the
+  // ASCII transliteration, so the name keeps its accents.
   function swapTo(form, rendering) {
-    // Clicking the row that's already current is the revert affordance
-    // (matches the "click to revert" tooltip) — clear the cell's swap
-    // by identity, which also covers the case where no row's target
-    // normalizes back to an ASCII original.
-    if (isCurrent(form, rendering)) {
+    const target = rendering?.original_script || form;
+    // Same form modulo CASE only (generated "Laug-" vs row "laug") →
+    // revert, no pointless swap. But an ACCENT upgrade ("hy" -> "hȳ")
+    // differs under toLowerCase, so it falls through to a real swap —
+    // ONE click applies the accent (vs the old click-off-then-on).
+    const sameModuloCase =
+      stripDashes(morpheme.usage).toLowerCase() ===
+      stripDashes(target).toLowerCase();
+    if (sameModuloCase) {
       pipeline.clearSwap({
         wordIndex: morpheme._wordIndex,
         morphemeIndex,
       });
       return;
     }
-    const target = rendering?.original_script || form;
     pipeline.setSwap({
       wordIndex: morpheme._wordIndex,
       morphemeIndex,
@@ -53,17 +58,6 @@
     });
   }
 
-  // A form row is "current" when the displayed usage matches either
-  // its plain form or its accented original_script (post-swap the
-  // usage IS the accented form, so the plain-form compare alone
-  // would miss it).
-  function isCurrent(form, rendering) {
-    const u = stripDashes(morpheme.usage);
-    return (
-      u === stripDashes(form) ||
-      u === stripDashes(rendering?.original_script)
-    );
-  }
 
   // Language display order, mirroring _ANCHOR_LANG_PREFERENCE in
   // wyrd/generators/kenning/era/rewind.py — the etymological-anchor
@@ -98,11 +92,22 @@
       ...Object.keys(renderings),
     ]);
     const entries = [...langs].map((lang) => {
-      const forms = new Set([
+      // Dedup forms that collapse to the same normalized key (e.g.
+      // "bere" and "-bere") so a morpheme doesn't show — or highlight —
+      // the same form twice. First occurrence wins (sources before
+      // rendering keys).
+      const seen = new Set();
+      const forms = [];
+      for (const f of [
         ...(sources[lang] || []),
         ...Object.keys(renderings[lang] || {}),
-      ]);
-      return [lang, [...forms]];
+      ]) {
+        const k = norm(f);
+        if (!k || seen.has(k)) continue;
+        seen.add(k);
+        forms.push(f);
+      }
+      return [lang, forms];
     });
     entries.sort(([a], [b]) => {
       const ai = LANG_PRIORITY.indexOf(a);
@@ -114,6 +119,32 @@
     });
     return entries;
   });
+
+  // The SINGLE canonical current row across the whole card: the first
+  // (lang, form) in priority order whose normalized value matches the
+  // usage. Computing one ref — rather than a per-row predicate — means
+  // exactly ONE row highlights even when the same form appears under
+  // several source languages (e.g. "Wal-" matching "wal" in both OE
+  // and Modern English). Matches plain form OR accented original_script,
+  // case- + dash-insensitive. Null when the surface isn't in any row.
+  let currentRef = $derived.by(() => {
+    const u = norm(morpheme.usage);
+    if (!u) return null;
+    for (const [lang, forms] of orderedSourceEntries) {
+      for (const f of forms) {
+        if (u === norm(f) || u === norm(renderingFor(lang, f).original_script)) {
+          return { lang, form: f };
+        }
+      }
+    }
+    return null;
+  });
+
+  // When the generated surface isn't among the etymon's own forms (the
+  // "-m-"/"-le-" derived-surface case), the card synthesizes a "current
+  // surface" row so the active form is always shown + highlighted +
+  // clickable — the user's "include the variant in the list" ask.
+  let usageInForms = $derived(currentRef !== null);
 
   // For each form within a source language, pull the matching
   // renderings slot (ipa / reader_pronunciation / original_script /
@@ -164,6 +195,35 @@
     </p>
   {/if}
 
+  {#if !usageInForms}
+    <!-- The generated surface isn't among the etymon's own forms (e.g.
+         "-m-"/"-le-" — derived/abbreviated surfaces). Show it as a
+         synthetic "current surface" row so the active form is always in
+         the list, highlighted, and clickable (to revert). -->
+    <section class="source-lang">
+      <h4>current surface</h4>
+      <table class="forms">
+        <tbody>
+          <tr class="form-row current">
+            <td class="form">
+              <button
+                type="button"
+                class="form-btn"
+                onclick={() => swapTo(morpheme.usage, null)}
+                title="Current generated surface — click to revert"
+              >
+                {morpheme.usage}
+              </button>
+            </td>
+            <td class="ipa"></td>
+            <td class="reader"></td>
+            <td class="dialect"></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  {/if}
+
   {#each orderedSourceEntries as [lang, forms] (lang)}
     <section class="source-lang">
       <h4>{languageLabel(lang)}</h4>
@@ -179,7 +239,7 @@
         <tbody>
           {#each forms as form (form)}
             {@const r = renderingFor(lang, form)}
-            {@const current = isCurrent(form, r)}
+            {@const current = currentRef?.lang === lang && currentRef?.form === form}
             <tr class="form-row" class:current>
               <td class="form">
                 <!-- wyrd-hpjg: each form is a click-to-swap button.
