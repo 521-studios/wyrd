@@ -23,7 +23,18 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-from wyrd.generators.kenning.registers.phonology import _VOWELS, PHONOLOGY, to_ipa
+from wyrd.generators.kenning.registers.phonology import _VOWELS, to_ipa
+
+# Etymon language → the G2P table to run. The lexicon's "celtic" place-name
+# elements are Brittonic (rhyd, bedd, llan, tref), so the Welsh table fits them
+# (bedd → /bɛð/, llan → /ɬan/); Goidelic (irish / gaelic) is too orthographically
+# opaque for a clean table and is handled separately (LLM, lower-confidence).
+_G2P_LANG: dict[str, str] = {
+    "old-english": "old-english",
+    "old-norse": "old-norse",
+    "welsh": "welsh",
+    "celtic": "welsh",
+}
 
 
 def _clean_form(form: str | None) -> str | None:
@@ -55,7 +66,7 @@ def _initial_h_is_x(form: str, existing_ipa: str) -> bool:
 def derive_pronunciation_ipa(db, *, apply: bool = True) -> dict[str, Any]:
     """Fill + fix etymon ``pronunciation_ipa`` from the G2P. Returns a summary."""
     conn = db.conn
-    langs = tuple(PHONOLOGY)  # languages with a real phonology table
+    langs = tuple(_G2P_LANG)  # languages we can derive IPA for
     placeholders = ",".join("?" for _ in langs)
     rows = conn.execute(
         f"SELECT id, language, canonical_form, pronunciation_ipa "
@@ -69,7 +80,7 @@ def derive_pronunciation_ipa(db, *, apply: bool = True) -> dict[str, Any]:
         if cf is None:
             summary["skipped_unclean"] += 1
             continue
-        derived = to_ipa(cf, lang)
+        derived = to_ipa(cf, _G2P_LANG[lang])
         if not _is_real_ipa(derived, cf):
             summary["skipped_passthrough"] += 1
             continue

@@ -67,8 +67,9 @@ def _etymon_db() -> sqlite3.Connection:
         (2, "old-english", "ham", "/xɑːm/"),  # FIX initial-h
         (3, "old-english", "tun", "/tʊn/"),  # KEEP (already good)
         (4, "old-english", "burh", "/bʊrx/"),  # KEEP (coda h, not onset)
-        (5, "celtic", "crom", None),  # not in PHONOLOGY → not selected
+        (5, "celtic", "bedd", None),  # FILL via welsh table (Brittonic)
         (6, "old-english", "*x y", None),  # unclean → skipped
+        (7, "irish", "baile", None),  # Goidelic → not in _G2P_LANG → not selected
     ]
     conn.executemany("INSERT INTO etymon VALUES (?,?,?,?)", rows)
     conn.commit()
@@ -78,20 +79,20 @@ def _etymon_db() -> sqlite3.Connection:
 def test_derive_pronunciation_ipa_fill_and_fix():
     conn = _etymon_db()
     res = derive_pronunciation_ipa(_fake_db(conn), apply=True)
-    assert res["filled"] == 1  # dalr
+    assert res["filled"] == 2  # haugr (ON) + bedd (celtic via welsh)
     assert res["fixed_initial_h"] == 1  # ham
     assert res["kept_existing"] == 2  # tun + burh
     assert res["skipped_unclean"] == 1  # "*x y"
-    # celtic row not selected at all (not in PHONOLOGY)
     ipa = dict(conn.execute("SELECT canonical_form, pronunciation_ipa FROM etymon"))
     assert ipa["haugr"] == "/haʊgr/"
+    assert ipa["bedd"] == "/bɛð/"  # celtic filled via welsh table
     assert ipa["ham"] == "/hɑm/"  # fixed: /x/ → /h/
     assert ipa["tun"] == "/tʊn/"  # untouched
-    assert ipa["crom"] is None  # celtic left alone
+    assert ipa["baile"] is None  # irish (Goidelic) not selected
 
 
 def test_dry_run_writes_nothing():
     conn = _etymon_db()
     res = derive_pronunciation_ipa(_fake_db(conn), apply=False)
-    assert res["filled"] == 1 and res["fixed_initial_h"] == 1
+    assert res["filled"] == 2 and res["fixed_initial_h"] == 1
     assert conn.execute("SELECT pronunciation_ipa FROM etymon WHERE id=1").fetchone()[0] is None
