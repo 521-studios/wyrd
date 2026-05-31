@@ -62,6 +62,7 @@ REMAINING (for follow-up)
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 import unicodedata
@@ -207,82 +208,92 @@ def derive_element_glosses(
     return rows
 
 
-def _link_indexes(live: sqlite3.Connection):
-    """(glossed-etymon index, reflex index) used by both ingest paths."""
-    ety: dict[tuple[str, str], list[int]] = defaultdict(list)
-    for eid, lang, form in live.execute(
-        "SELECT e.id, e.language, e.canonical_form FROM etymon e "
-        "WHERE EXISTS (SELECT 1 FROM etymon_gloss g WHERE g.etymon_id=e.id)"
-    ):
-        ety[(lang, _normform(form))].append(eid)
-    refl = {
-        (sf, pos): rid
-        for rid, sf, pos in live.execute("SELECT id, surface_form, position FROM reflex")
-    }
-    return ety, refl
-
-
-def _link_surface(live, ety, refl, summary, surface, position, candidate) -> None:
-    """Link one surface's orphan reflex to the candidate etymon's gloss(es)."""
-    pos = _POSITION_TO_REFLEX.get(position)
-    rid = refl.get((surface, pos)) if pos else None
-    if rid is None:
-        summary["no_reflex"] += 1
-        return
-    eids = ety.get((candidate["language"], _normform(candidate["form"])), [])
-    if not eids:
-        summary["no_etymon"] += 1
-        return
-    for eid in eids:
-        live.execute(
-            "INSERT OR IGNORE INTO reflex_etymon(reflex_id, etymon_id) VALUES(?,?)",
-            (rid, eid),
-        )
-        summary["links"] += 1
-    summary["linked_surfaces"] += 1
-
-
-def ingest_element_glosses(live: sqlite3.Connection, rows: list[dict[str, Any]]) -> dict[str, int]:
-    """Link each CONFIDENT consensus surface's orphan reflex to its etymon(s).
-
-    The reflex then inherits the etymon's authoritative gloss at export.
-    Additive + idempotent (``INSERT OR IGNORE``). Returns a summary counter.
-    """
-    ety, refl = _link_indexes(live)
-    summary = Counter()
-    for r in rows:
-        if r.get("is_element") and r.get("candidates"):
-            _link_surface(live, ety, refl, summary, r["surface"], r["position"], r["candidates"][0])
-    live.commit()
-    return dict(summary)
-
-
 def _has_vowel(surface: str) -> bool:
     """Real place-name elements have a vowel; a vowel-less core ('nt', 'sf') is
     a consonant-fragment that occasionally slips past the adjudicator."""
     return bool(re.search(r"[aeiouyà-öø-ÿ]", surface.strip("-").strip().lower()))
 
 
-def ingest_adjudications(
-    live: sqlite3.Connection, adj_rows: list[dict[str, Any]]
-) -> dict[str, int]:
-    """Link the ACCEPTED weak-tail adjudications (LLM-picked grounded candidate).
+def collect_element_glosses(
+    consensus_path: str | None, adjudication_path: str | None = None
+) -> list[dict[str, str]]:
+    """Load the accepted surface→etymon links from the L2 jsonl record(s).
 
-    Each accepted row carries the chosen ``candidate`` (a real consensus etymon
-    the model selected over its siblings) — grounded, never invented. A vowel
-    guard drops consonant-fragment surfaces the adjudicator wrongly accepted.
-    Same linkage + idempotency as the consensus path.
+    The rebuildable counterpart of :func:`derive_element_glosses` /
+    :func:`accept_adjudication`: read the *decisions* already persisted to
+    ``data/mining/_element_glosses.jsonl`` (consensus: each is_element row's top
+    candidate) and ``_element_gloss_adjudications.jsonl`` (accepted, vowel-
+    guarded LLM picks) into a replay state ``[{surface, position, language,
+    form}]``. Consensus wins on overlap. ``run_full_enrichment`` replays it for
+    free — no LLM, no mining — so the backfill survives a full rebuild.
     """
-    ety, refl = _link_indexes(live)
-    summary = Counter()
-    for r in adj_rows:
-        if not (r.get("accepted") and r.get("candidate")):
+    state: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def _add(surface: str, position: str, language: str, form: str) -> None:
+        key = (surface, position)
+        if key in seen:
+            return
+        seen.add(key)
+        state.append({"surface": surface, "position": position, "language": language, "form": form})
+
+    if consensus_path and os.path.exists(consensus_path):
+        with open(consensus_path, encoding="utf-8") as fh:
+            for line in fh:
+                r = json.loads(line)
+                if r.get("is_element") and r.get("candidates"):
+                    c = r["candidates"][0]
+                    _add(r["surface"], r["position"], c["language"], c["form"])
+    if adjudication_path and os.path.exists(adjudication_path):
+        with open(adjudication_path, encoding="utf-8") as fh:
+            for line in fh:
+                r = json.loads(line)
+                if r.get("accepted") and r.get("candidate") and _has_vowel(r["surface"]):
+                    c = r["candidate"]
+                    _add(r["surface"], r["position"], c["language"], c["form"])
+    return state
+
+
+def apply_element_glosses(db, state: list[dict[str, str]], *, apply: bool = True) -> dict[str, int]:
+    """Replay surface→etymon links into ``reflex_etymon`` (wyrd-u9k6).
+
+    Each link makes an orphan-reflex surface inherit a glossed etymon's
+    authoritative gloss at export (reflexes WITH an etymon link are never
+    unglossed). Idempotent (``INSERT OR IGNORE``); ``apply=False`` is a dry-run
+    that only counts. Runs in ``run_full_enrichment``'s curation slot — does NOT
+    commit (the caller owns the transaction), matching :func:`apply_collapses`.
+    """
+    conn = db.conn
+    ety: dict[tuple[str, str], list[int]] = defaultdict(list)
+    for eid, lang, form in conn.execute(
+        "SELECT e.id, e.language, e.canonical_form FROM etymon e "
+        "WHERE EXISTS (SELECT 1 FROM etymon_gloss g WHERE g.etymon_id=e.id)"
+    ):
+        ety[(lang, _normform(form))].append(eid)
+    refl = {
+        (sf, pos): rid
+        for rid, sf, pos in conn.execute("SELECT id, surface_form, position FROM reflex")
+    }
+
+    summary: Counter = Counter()
+    for link in state:
+        pos = _POSITION_TO_REFLEX.get(link["position"])
+        rid = refl.get((link["surface"], pos)) if pos else None
+        if rid is None:
+            summary["no_reflex"] += 1
             continue
-        if not _has_vowel(r["surface"]):
-            summary["dropped_consonant_fragment"] += 1
+        eids = ety.get((link["language"], _normform(link["form"])), [])
+        if not eids:
+            summary["no_etymon"] += 1
             continue
-        _link_surface(live, ety, refl, summary, r["surface"], r["position"], r["candidate"])
-    live.commit()
+        summary["linked_surfaces"] += 1
+        if apply:
+            for eid in eids:
+                conn.execute(
+                    "INSERT OR IGNORE INTO reflex_etymon(reflex_id, etymon_id) VALUES(?,?)",
+                    (rid, eid),
+                )
+                summary["links"] += 1
     return dict(summary)
 
 
@@ -315,6 +326,31 @@ def build_adjudication_user(
     )
 
 
+def toponym_context(
+    surface: str, position: str, toponym_lowers: list[tuple[str, str]], k: int = 8
+) -> list[str]:
+    """Up to ``k`` real place-names containing ``surface`` at its position —
+    the grounding examples shown to the adjudicating LLM. ``toponym_lowers`` is
+    a precomputed ``[(original_name, lowercased_name)]`` list."""
+    core = surface.strip("-").strip().lower()
+    if len(core) < 2:
+        return []
+    out: list[str] = []
+    for orig, low in toponym_lowers:
+        ok = (
+            low.endswith(core)
+            if position == "suffix"
+            else low.startswith(core)
+            if position == "prefix"
+            else core in low
+        )
+        if ok:
+            out.append(orig)
+            if len(out) >= k:
+                break
+    return out
+
+
 def accept_adjudication(row: dict[str, Any], response: dict[str, Any]) -> dict[str, Any] | None:
     """Turn an LLM adjudication response into an accepted candidate, or None.
 
@@ -336,3 +372,28 @@ def write_jsonl(rows: list[dict[str, Any]], path: str) -> None:
     with open(path, "w", encoding="utf-8") as fh:
         for r in rows:
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+
+def _ro(path: str) -> sqlite3.Connection:
+    return sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+
+
+def mine_to_jsonl(
+    census_path: str, db_path: str, output_path: str, culture: str = "english"
+) -> list[dict[str, Any]]:
+    """Open the census bundle + lexicon (read-only), derive grounded glosses,
+    and write the consensus jsonl. Returns the rows. The DB-touching entry point
+    for the ``mine-element-glosses`` CLI (which stays pure glue)."""
+    rows = derive_element_glosses(_ro(census_path), _ro(db_path), culture)
+    write_jsonl(rows, output_path)
+    return rows
+
+
+def load_toponym_lowers(db_path: str) -> list[tuple[str, str]]:
+    """``[(modern_name, lowercased)]`` for the adjudicator's grounding context."""
+    return [
+        (t, t.lower())
+        for (t,) in _ro(db_path).execute(
+            "SELECT DISTINCT modern_name FROM toponym WHERE modern_name IS NOT NULL"
+        )
+    ]

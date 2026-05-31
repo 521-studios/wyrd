@@ -26,6 +26,9 @@ from __future__ import annotations
 import click
 
 from wyrd.generators.kenning.cli.lexicon import (
+    adjudicate_element_glosses as _adjudicate_element_glosses_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
     audit_etymology_alignment as _audit_etymology_alignment_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
@@ -124,6 +127,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import merge_collapses as _merge_collapses_module
 from wyrd.generators.kenning.cli.lexicon import migrate as _migrate_module
 from wyrd.generators.kenning.cli.lexicon import mine_attestations as _mine_attestations_module
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_element_glosses as _mine_element_glosses_module,
+)
 from wyrd.generators.kenning.cli.lexicon import (
     mine_empirical_baselines as _mine_empirical_baselines_module,
 )
@@ -263,6 +269,8 @@ _mine_attestations_module.add_to(lexicon)
 _mine_empirical_baselines_module.add_to(lexicon)
 _mine_fantasy_name_module.add_to(lexicon)
 _mine_llm_module.add_to(lexicon)
+_mine_element_glosses_module.add_to(lexicon)
+_adjudicate_element_glosses_module.add_to(lexicon)
 _mine_skeat_module.add_to(lexicon)
 _mine_toponym_mentions_module.add_to(lexicon)
 _mine_toponym_mentions_staged_module.add_to(lexicon)

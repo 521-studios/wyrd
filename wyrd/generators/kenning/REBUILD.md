@@ -43,6 +43,7 @@ DB and must be re-run by hand after the rebuild.
 | fantasy morphemes | ✅ **now** — via synthetic `data/mining/_fantasy_morphemes.jsonl` (PR #388) | — |
 | curation overrides | ✅ yes — `data/mining/_curation.jsonl` | — |
 | collapse ledger (form-of/variant folds, wyrd-y651) | ✅ yes — `data/mining/_collapses.jsonl`, replayed by `run_full_enrichment`'s curation slot (`apply_collapses`) | — |
+| element-gloss backfill (`reflex_etymon` links for unglossed generation surfaces, wyrd-u9k6) | ✅ yes — `data/mining/_element_glosses.jsonl` (deterministic consensus) + `_element_gloss_adjudications.jsonl` (LLM picks), replayed by `run_full_enrichment`'s element-gloss pass (`apply_element_glosses`) | — |
 | **`toponym.country`** | ❌ dropped | `backfill-toponym-country` |
 | **phase-2 attestations** (`toponym_attestation`) | ❌ L3-only (boundary doc "deferred") | `ingest-toponym-mentions` over `data/mining/phase2/*.jsonl` |
 | **empirical layer** (`wiktionary-empirical` citations) | ❌ L3-only | `mine-wiktextract-corpus` + `cleanup-wiktionary-empirical` |

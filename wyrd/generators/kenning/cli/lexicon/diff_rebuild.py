@@ -100,12 +100,22 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
                 collect_gloss_additions,
                 collect_gloss_suppressions,
             )
+            from wyrd.generators.kenning.lexicon.element_gloss_backfill import (
+                collect_element_glosses,
+            )
 
             curation = collect_curation_overrides(paths) or None
             suppressions = collect_gloss_suppressions(paths) or None
             additions = collect_gloss_additions(paths) or None
             splits = collect_etymon_splits(paths) or None
             collapses = collect_collapses(paths) or None
+            element_glosses = (
+                collect_element_glosses(
+                    str(jsonl_dir / "_element_glosses.jsonl"),
+                    str(jsonl_dir / "_element_gloss_adjudications.jsonl"),
+                )
+                or None
+            )
             with LexiconDB(rebuilt_path) as db:
                 run_full_enrichment(
                     db,
@@ -115,6 +125,7 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
                     addition_state=additions,
                     split_state=splits,
                     collapse_state=collapses,
+                    element_gloss_state=element_glosses,
                 )
 
         rebuilt_conn = sqlite3.connect(rebuilt_path)

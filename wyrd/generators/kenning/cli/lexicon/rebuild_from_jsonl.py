@@ -158,12 +158,19 @@ def lexicon_rebuild_from_jsonl(
             collect_gloss_additions,
             collect_gloss_suppressions,
         )
+        from wyrd.generators.kenning.lexicon.element_gloss_backfill import (
+            collect_element_glosses,
+        )
 
         curation_state = collect_curation_overrides(paths)
         suppression_state = collect_gloss_suppressions(paths)
         addition_state = collect_gloss_additions(paths)
         split_state = collect_etymon_splits(paths)
         collapse_state = collect_collapses(paths)
+        element_gloss_state = collect_element_glosses(
+            str(jsonl_dir / "_element_glosses.jsonl"),
+            str(jsonl_dir / "_element_gloss_adjudications.jsonl"),
+        )
         click.echo("", err=True)
         with LexiconDB(db_path) as db:
             result = run_full_enrichment(
@@ -174,6 +181,7 @@ def lexicon_rebuild_from_jsonl(
                 addition_state=addition_state or None,
                 split_state=split_state or None,
                 collapse_state=collapse_state or None,
+                element_gloss_state=element_gloss_state or None,
             )
         click.echo(format_enrichment_run(result), err=True)
 

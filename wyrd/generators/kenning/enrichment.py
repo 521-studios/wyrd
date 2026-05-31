@@ -1032,6 +1032,7 @@ def run_full_enrichment(
     addition_state: dict[str, dict[str, Any]] | None = None,
     split_state: dict[str, dict[str, Any]] | None = None,
     collapse_state: dict[str, dict[str, Any]] | None = None,
+    element_gloss_state: list[dict[str, str]] | None = None,
     skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
     """Run the canonical L3 enrichment chain (wyrd-hidb Phase 2).
@@ -1123,6 +1124,16 @@ def run_full_enrichment(
     if collapse_state is not None:
         collapse_counts = apply_collapses(db, collapse_state, apply=apply)
 
+    # wyrd-u9k6: backfill glosses for unglossed generation surfaces by linking
+    # each orphan-reflex surface to a grounded etymon (reflex_etymon). Runs
+    # after collapses (targets the post-collapse graph) + before the L3
+    # derivations so the now-glossed surfaces flow into proportions.
+    element_gloss_counts: dict[str, int] | None = None
+    if element_gloss_state is not None:
+        from .lexicon.element_gloss_backfill import apply_element_glosses
+
+        element_gloss_counts = apply_element_glosses(db, element_gloss_state, apply=apply)
+
     order: list[str] = ["normalize-ocr", "link-lemmas"]
     if curation_counts is not None:
         order.append("apply-curation")
@@ -1134,6 +1145,8 @@ def run_full_enrichment(
         order.append("apply-etymon-splits")
     if collapse_counts is not None:
         order.append("apply-collapses")
+    if element_gloss_counts is not None:
+        order.append("apply-element-glosses")
 
     decompose_result: dict[str, Any] | None = None
     cognate_result: dict[str, Any] | None = None
@@ -1180,6 +1193,7 @@ def run_full_enrichment(
         "gloss_additions": addition_counts,
         "etymon_splits": split_counts,
         "collapses": collapse_counts,
+        "element_glosses": element_gloss_counts,
         "decompose": decompose_result,
         "cognates": cognate_result,
         "stratum": stratum_result,
@@ -1398,6 +1412,15 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     if result.get("etymon_splits"):
         lines.append("")
         lines.append(format_etymon_split_run(result["etymon_splits"]))
+    if result.get("element_glosses"):
+        eg = result["element_glosses"]
+        lines.append("")
+        lines.append("### Element-gloss backfill (wyrd-u9k6)")
+        lines.append(
+            f"- Orphan-reflex surfaces linked to a grounded etymon: "
+            f"{eg.get('linked_surfaces', 0)} (links {eg.get('links', 0)}; "
+            f"no-reflex {eg.get('no_reflex', 0)}, no-etymon {eg.get('no_etymon', 0)})"
+        )
     for key, render in _OPTIONAL_SECTIONS:
         payload = result.get(key)
         if payload is None:
