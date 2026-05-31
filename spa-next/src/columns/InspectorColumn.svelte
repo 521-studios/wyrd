@@ -159,15 +159,17 @@
           {#each displayState.morphemes_by_word as word}
             <span class="pron-word">
               {#each word as m}
-                {@const slot = renderingForUsage(m)}
-                <span class="pron-col">
-                  <span class="pron-surface">{m.usage}</span>
-                  <span class="pron-reader"
-                    >{slot?.reader_pronunciation || '·'}</span>
-                  {#if slot?.ipa}
-                    <span class="pron-ipa">{slot.ipa}</span>
-                  {/if}
-                </span>
+                {#if m.usage?.trim()}
+                  {@const slot = renderingForUsage(m)}
+                  <span class="pron-col">
+                    <span class="pron-surface">{m.usage}</span>
+                    <span class="pron-reader"
+                      >{slot?.reader_pronunciation || '·'}</span>
+                    {#if slot?.ipa}
+                      <span class="pron-ipa">{slot.ipa}</span>
+                    {/if}
+                  </span>
+                {/if}
               {/each}
             </span>
           {/each}

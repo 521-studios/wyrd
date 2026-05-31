@@ -33,6 +33,17 @@
   // Routes through setSwap so re-clicks edit the one swap step and a
   // click on the original form reverts.
   function swapTo(form, rendering) {
+    // Clicking the row that's already current is the revert affordance
+    // (matches the "click to revert" tooltip) — clear the cell's swap
+    // by identity, which also covers the case where no row's target
+    // normalizes back to an ASCII original.
+    if (isCurrent(form, rendering)) {
+      pipeline.clearSwap({
+        wordIndex: morpheme._wordIndex,
+        morphemeIndex,
+      });
+      return;
+    }
     const target = rendering?.original_script || form;
     pipeline.setSwap({
       wordIndex: morpheme._wordIndex,

@@ -127,6 +127,22 @@ class PipelineState {
     }
   }
 
+  /** Remove the swap step for a (wordIndex, morphemeIndex) cell, if any
+   *  — an identity-based revert. setSwap's value-based revert can be
+   *  unreachable when the generated surface is ASCII but every form row
+   *  carries an accented original_script (no clickable row ever
+   *  normalizes back to the bare original). Clicking the CURRENT form
+   *  routes here so "click to revert" always works. No-op if no swap. */
+  clearSwap({ wordIndex, morphemeIndex }) {
+    const idx = this.steps.findIndex(
+      (s) =>
+        s.kind === 'swap' &&
+        s.params.wordIndex === wordIndex &&
+        s.params.morphemeIndex === morphemeIndex,
+    );
+    if (idx !== -1) this.removeStep(idx);
+  }
+
   /** Replace step at index i with a new params object (callers
    *  mutate the step's params in-place via bind:value; this
    *  helper is for callers that want explicit replacement). */
