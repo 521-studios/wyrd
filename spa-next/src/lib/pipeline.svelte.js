@@ -103,11 +103,12 @@ class PipelineState {
    *  instead of stacking a new step (10 clicks → 1 step, not 10).
    *  Clicking the cell's ORIGINAL generated form removes the swap —
    *  i.e. clicking the original is "revert". `original` is the col-2
-   *  result's usage for that cell. Dash markers are normalized away
-   *  for the revert comparison ("-wald-" vs "wald") but accents are
-   *  kept, so adding an accent to a plain original counts as a swap. */
+   *  result's usage for that cell. Dashes + case are normalized away
+   *  for the revert comparison ("-wald-" vs "Wald") — matching
+   *  MorphemeCard.swapTo's folding so the two never disagree — but
+   *  accents are kept, so adding an accent to a plain original is a swap. */
   setSwap({ wordIndex, morphemeIndex, to, original }) {
-    const norm = (s) => (s || '').replace(/^-+|-+$/g, '');
+    const norm = (s) => (s || '').replace(/^-+|-+$/g, '').toLowerCase();
     const idx = this.steps.findIndex(
       (s) =>
         s.kind === 'swap' &&
