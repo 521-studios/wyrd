@@ -49,6 +49,7 @@ REMAINING (the long tail, for follow-up)
 * 15 standalone surfaces (``Bourne``) aren't in the pre/post/inner ``reflex``
   table and need a separate linkage path.
 """
+
 from __future__ import annotations
 
 import json
@@ -145,8 +146,9 @@ def _confidence(top_support: int, top_share: float) -> str:
     return "low"
 
 
-def derive_element_glosses(census: sqlite3.Connection, live: sqlite3.Connection,
-                           culture: str = "english") -> list[dict[str, Any]]:
+def derive_element_glosses(
+    census: sqlite3.Connection, live: sqlite3.Connection, culture: str = "english"
+) -> list[dict[str, Any]]:
     """Grounded-consensus gloss derivation — one row per unglossed surface."""
     g = _load_grounding(live)
     key_glosses, topo_etys, names = g["key_glosses"], g["topo_etys"], g["names"]
@@ -167,16 +169,27 @@ def derive_element_glosses(census: sqlite3.Connection, live: sqlite3.Connection,
                     key = (lang, _normform(form))
                     if key in key_glosses:  # only glossed etymons vote
                         votes[key] += 1
-        row: dict[str, Any] = {"surface": usage, "weight": weight, "position": pos,
-                               "n_toponyms": len(mn), "method": METHOD_VERSION}
+        row: dict[str, Any] = {
+            "surface": usage,
+            "weight": weight,
+            "position": pos,
+            "n_toponyms": len(mn),
+            "method": METHOD_VERSION,
+        }
         if not votes:
             row["is_element"], row["candidates"] = False, []
         else:
             total = sum(votes.values())
-            cands = [{"language": lang, "form": form, "support": sup,
-                      "share": round(sup / total, 2),
-                      "glosses": sorted(key_glosses[(lang, form)])[:10]}
-                     for (lang, form), sup in votes.most_common(3)]
+            cands = [
+                {
+                    "language": lang,
+                    "form": form,
+                    "support": sup,
+                    "share": round(sup / total, 2),
+                    "glosses": sorted(key_glosses[(lang, form)])[:10],
+                }
+                for (lang, form), sup in votes.most_common(3)
+            ]
             row["candidates"] = cands
             row["confidence"] = _confidence(cands[0]["support"], cands[0]["share"])
             row["is_element"] = row["confidence"] != "low"
@@ -196,8 +209,10 @@ def ingest_element_glosses(live: sqlite3.Connection, rows: list[dict[str, Any]])
         "WHERE EXISTS (SELECT 1 FROM etymon_gloss g WHERE g.etymon_id=e.id)"
     ):
         ety[(lang, _normform(form))].append(eid)
-    refl = {(sf, pos): rid for rid, sf, pos in
-            live.execute("SELECT id, surface_form, position FROM reflex")}
+    refl = {
+        (sf, pos): rid
+        for rid, sf, pos in live.execute("SELECT id, surface_form, position FROM reflex")
+    }
 
     summary = Counter()
     for r in rows:
