@@ -43,6 +43,15 @@ _POINTER_GLOSS_RE = re.compile(
 _POINTER_TARGET_RE = re.compile(r"\b(?:form|variant|spelling) of\s+([^\s(,.;\"']+)", re.IGNORECASE)
 
 
+def is_form_of_pointer(gloss: str) -> bool:
+    """True if a gloss is a form-of cross-reference ("alternative form of
+    burg", "h-prothesized form of ea") rather than a meaning. Used both to
+    detect collapse candidates here and to drop pointer glosses from the
+    exported bundle (wyrd-6r09) so a folded form-of etymon shows its
+    lemma's real meaning, not the pointer."""
+    return bool(_POINTER_GLOSS_RE.search(gloss))
+
+
 def _detect_variant_gloss_overlap(conn: sqlite3.Connection) -> list[dict[str, str]]:
     """Method A: variant-doublings that share a gloss with their same-
     language parent lemma (case/whitespace-normalized equality, via the

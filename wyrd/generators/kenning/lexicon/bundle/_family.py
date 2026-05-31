@@ -21,6 +21,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from wyrd.generators.kenning.lexicon.collapse_detect import is_form_of_pointer
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.era_reflex import etymon_era_reflexes
 
@@ -332,6 +333,12 @@ def _fetch_member_glosses(db: LexiconDB, member_ids: list[int]) -> list[str]:
             member_ids,
         )
     ]
+    # wyrd-6r09: drop form-of pointer glosses ("h-prothesized form of ea",
+    # "alternative form of burg"). They are cross-references, not meanings.
+    # When a collapse folds a form-of etymon into its lemma, the lemma's
+    # real glosses carry the meaning across the family; the folded member's
+    # pointer gloss must not leak into the bundle as a displayed sense.
+    raw = [g for g in raw if not is_form_of_pointer(g)]
     return _filter_concatenation_glosses(raw)
 
 

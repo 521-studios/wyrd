@@ -132,3 +132,14 @@ def test_merged_rows_excluded(tmp_path):
     _variant(conn, 2, "burh")
     conn.execute("UPDATE etymon SET merged_into_id = 2 WHERE id = 1")
     assert detect_deterministic_collapses(conn) == []
+
+
+def test_is_form_of_pointer():
+    from wyrd.generators.kenning.lexicon.collapse_detect import is_form_of_pointer
+
+    assert is_form_of_pointer("alternative form of burg")
+    assert is_form_of_pointer("h-prothesized form of ea")
+    assert is_form_of_pointer("variant of X")
+    # a real definition that merely contains the phrase mid-sentence is NOT
+    assert not is_form_of_pointer("A man holding land by a particular form of free tenure.")
+    assert not is_form_of_pointer("fort")
