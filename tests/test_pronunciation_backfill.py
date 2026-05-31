@@ -13,7 +13,7 @@ from wyrd.generators.kenning.lexicon.pronunciation_backfill import (
     derive_pronunciation_ipa,
     surface_ipa,
 )
-from wyrd.generators.kenning.registers.phonology import to_ipa
+from wyrd.generators.kenning.registers.phonology import to_ipa, to_respelling
 
 
 def _fake_db(conn):
@@ -38,6 +38,14 @@ def test_oe_h_is_positional():
 def test_on_h_stays_plain():
     # Old Norse has no coda-h rule — h is always /h/
     assert to_ipa("hof", "old-norse") == "/hɔf/"
+
+
+def test_oe_h_respelling_is_positional():
+    # The reader respelling tracks the same positional rule: onset "h", coda "kh".
+    assert to_respelling("hām", "old-english").startswith("h")  # onset h
+    assert to_respelling("burh", "old-english").endswith("kh")  # coda h → kh
+    assert "kh" in to_respelling("niht", "old-english")  # coda h before t
+    assert to_respelling("hof", "old-norse").startswith("h")  # ON has no coda rule
 
 
 # --- backfill helpers ------------------------------------------------------
@@ -132,6 +140,36 @@ def test_collect_pronunciation_confidence_filter(tmp_path):
     state = collect_pronunciation(str(p))
     assert state == {("irish", "baile"): "/bˠalʲə/", ("irish", "cnoc"): "/knɔk/"}
     assert collect_pronunciation(str(tmp_path / "missing.jsonl")) == {}
+
+
+def test_run_full_enrichment_threads_pronunciation_state(tmp_path):
+    """The pronunciation_state kwarg flows through run_full_enrichment into the
+    pass and fills a no-G2P-table etymon (mirrors the sibling thread-through
+    tests for addition/suppression/split state)."""
+    from wyrd.generators.kenning.enrichment import run_full_enrichment
+    from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.execute("INSERT INTO etymon (canonical_form, language) VALUES ('baile', 'irish')")
+    conn.commit()
+    conn.close()
+
+    with LexiconDB(db_path) as db:
+        result = run_full_enrichment(
+            db, apply=True, pronunciation_state={("irish", "baile"): "/bˠalʲə/"}
+        )
+    assert "derive-pronunciation-ipa" in result["order"]
+    assert result["pronunciation_ipa"]["filled_llm"] == 1
+    check = sqlite3.connect(db_path)
+    assert (
+        check.execute(
+            "SELECT pronunciation_ipa FROM etymon WHERE canonical_form='baile'"
+        ).fetchone()[0]
+        == "/bˠalʲə/"
+    )
+    check.close()
 
 
 def test_llm_state_fills_no_table_languages_gaps_only():

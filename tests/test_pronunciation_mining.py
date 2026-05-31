@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from wyrd.generators.kenning.cli.lexicon.mine_pronunciation_llm import _load_done
 from wyrd.generators.kenning.lexicon.pronunciation_mining import (
     METHOD,
     build_messages,
@@ -33,6 +34,23 @@ def test_record():
     assert hit["ref"] == "irish:cnoc" and hit["ipa"] == "/knɔk/" and hit["method"] == METHOD
     miss = record("irish", "x", None, "qwen2.5:7b")
     assert miss["skipped"] == "no-ipa" and "ipa" not in miss
+
+
+def test_load_done_retries_errored_rows(tmp_path):
+    p = tmp_path / "_pronunciation.jsonl"
+    p.write_text(
+        "\n".join(
+            [
+                '{"language":"irish","form":"baile","ipa":"/bˠalʲə/","confidence":"high"}',
+                '{"language":"irish","form":"x","skipped":"no-ipa"}',  # real outcome → done
+                '{"language":"irish","form":"cnoc","error":"timeout"}',  # transient → retry
+            ]
+        ),
+        encoding="utf-8",
+    )
+    # The errored row is NOT counted done, so a resumed run retries it.
+    assert _load_done(p) == {("irish", "baile"), ("irish", "x")}
+    assert _load_done(tmp_path / "missing.jsonl") == set()
 
 
 def test_select_targets(tmp_path):

@@ -40,7 +40,11 @@ def _load_done(path: Path) -> set[tuple[str, str]]:
             rec = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if rec.get("language") and rec.get("form"):
+        # A row counts as done only if it captured a real outcome (IPA or an
+        # explicit no-ipa skip). Rows carrying an "error" key were transient
+        # failures (timeout, Ollama down) — leave them out so a resumed run
+        # retries them rather than treating the blip as permanent.
+        if rec.get("language") and rec.get("form") and "error" not in rec:
             done.add((rec["language"], rec["form"]))
     return done
 
@@ -78,7 +82,6 @@ def lexicon_mine_pronunciation_llm(
     ipa_n = 0
     with out_path.open("a", encoding="utf-8") as fh:
         for n, (lang, form) in enumerate(todo, 1):
-            parsed = None
             try:
                 resp = requests.post(
                     chat_url,
@@ -91,26 +94,21 @@ def lexicon_mine_pronunciation_llm(
                     },
                     timeout=60,
                 )
+                resp.raise_for_status()  # surface HTTP status (e.g. model not loaded)
                 parsed = parse_response(resp.json()["message"]["content"])
+                rec = record(lang, form, parsed, model)
+                if parsed is not None:
+                    ipa_n += 1
             except Exception as exc:  # noqa: BLE001 — record the failure, keep going
-                fh.write(
-                    json.dumps(
-                        {**record(lang, form, None, model), "error": str(exc)[:80]},
-                        ensure_ascii=False,
-                    )
-                    + "\n"
-                )
-                fh.flush()
-                continue
-            if parsed is not None:
-                ipa_n += 1
-            fh.write(json.dumps(record(lang, form, parsed, model), ensure_ascii=False) + "\n")
+                rec = {**record(lang, form, None, model), "error": str(exc)[:80]}
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
             fh.flush()
-            if n % 50 == 0 or n == len(todo):
+            # Progress on both paths (per the mining convention; final line always fires).
+            if n % 10 == 0 or n == len(todo):
                 rate = (time.time() - t0) / n
                 eta = rate * (len(todo) - n) / 60
                 click.echo(
-                    f"  [{n}/{len(todo)}] ipa={ipa_n} ({rate:.1f}s/each, ETA {eta:.0f}m)", err=True
+                    f"  [{n}/{len(todo)}] ipa={ipa_n} ({rate:.1f}s/entry, ETA {eta:.0f}m)", err=True
                 )
 
 

@@ -42,6 +42,17 @@ from wyrd.generators.kenning.lexicon.bundle._family import _better_era_reflex_so
 from wyrd.generators.kenning.lexicon.pronunciation_backfill import surface_ipa
 
 
+def _fill_surface_pronunciation(bucket: Any, json_field: str) -> None:
+    """wyrd-vm8t Loop 4: deterministic G2P fallback for surface forms
+    (variants/reflexes) that are not etymon canonical_forms and so carry no
+    etymon IPA. Table languages only; gaps only (never overrides etymon IPA)."""
+    for form in bucket.forms:
+        if form not in bucket.pronunciation:
+            ipa = surface_ipa(form, json_field)
+            if ipa:
+                bucket.pronunciation[form] = {"ipa": ipa, "dialect": None}
+
+
 def _group_families_into_subjects(families: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Group families by (modifier_type, glosses, tags) into meanings.json subjects.
 
@@ -559,14 +570,7 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
             word[f"{json_field}_transliteration"] = _emit_transliteration_list(
                 bucket.transliteration
             )
-        # wyrd-vm8t Loop 4: deterministic G2P fallback for surface forms
-        # (variants/reflexes) that are not etymon canonical_forms and so carry
-        # no etymon IPA. Table languages only; gaps only.
-        for form in bucket.forms:
-            if form not in bucket.pronunciation:
-                ipa = surface_ipa(form, json_field)
-                if ipa:
-                    bucket.pronunciation[form] = {"ipa": ipa, "dialect": None}
+        _fill_surface_pronunciation(bucket, json_field)
         if bucket.pronunciation:
             word[f"{json_field}_pronunciation"] = _emit_pronunciation_list(bucket.pronunciation)
         if bucket.stratum:
