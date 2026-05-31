@@ -38,21 +38,29 @@ WITH an etymon link are never unglossed). The mined rows persist to
 enrichment step replays them into ``reflex_etymon`` so the backfill survives a
 full rebuild (same pattern as ``_collapses.jsonl``).
 
-REMAINING (the long tail, for follow-up)
-----------------------------------------
-* ~1,756 "weak" surfaces have a sub-threshold consensus (compound endings like
-  ``-ingham`` = -inga-+hām where neither component dominates, or genuinely
-  ambiguous). Candidate-grounded LLM adjudication (give the model the consensus
-  candidates + context, let it PICK — not invent) is the credible next lever.
+WEAK-TAIL ADJUDICATION (added 2026-05-31)
+-----------------------------------------
+The ~1,758 "weak" surfaces have sub-threshold consensus but REAL candidate
+etymons (from the toponyms' actual etymologies). ``build_adjudication_user`` +
+``accept_adjudication`` have a fast LLM (qwen2.5:7b) PICK among those grounded
+candidates — never invent — and accept high/medium-confidence picks (a vowel
+guard drops the rare consonant-fragment, ``nt``→tun, that slips through). Yield:
+776 accepted (44%), 691 linked → ``data/mining/_element_gloss_adjudications.jsonl``.
+
+REMAINING (for follow-up)
+-------------------------
 * ~682 "no-match" surfaces have no toponym-etymology support — mostly junk
   fragments correctly excluded (overlaps wyrd-lp3n degenerate morphemes).
-* 15 standalone surfaces (``Bourne``) aren't in the pre/post/inner ``reflex``
-  table and need a separate linkage path.
+* Standalone surfaces (``Bourne``) + 77 weak surfaces aren't in the
+  pre/post/inner ``reflex`` table and need a separate linkage path.
+* PRODUCTIONIZE: replay both jsonls into ``reflex_etymon`` in the enrichment
+  chain (rebuildable, like ``_collapses.jsonl``) + a CLI command.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import unicodedata
 from collections import Counter, defaultdict
@@ -197,12 +205,8 @@ def derive_element_glosses(
     return rows
 
 
-def ingest_element_glosses(live: sqlite3.Connection, rows: list[dict[str, Any]]) -> dict[str, int]:
-    """Link each confident surface's orphan reflex to its consensus etymon(s).
-
-    The reflex then inherits the etymon's authoritative gloss at export.
-    Additive + idempotent (``INSERT OR IGNORE``). Returns a summary counter.
-    """
+def _link_indexes(live: sqlite3.Connection):
+    """(glossed-etymon index, reflex index) used by both ingest paths."""
     ety: dict[tuple[str, str], list[int]] = defaultdict(list)
     for eid, lang, form in live.execute(
         "SELECT e.id, e.language, e.canonical_form FROM etymon e "
@@ -213,30 +217,117 @@ def ingest_element_glosses(live: sqlite3.Connection, rows: list[dict[str, Any]])
         (sf, pos): rid
         for rid, sf, pos in live.execute("SELECT id, surface_form, position FROM reflex")
     }
+    return ety, refl
 
+
+def _link_surface(live, ety, refl, summary, surface, position, candidate) -> None:
+    """Link one surface's orphan reflex to the candidate etymon's gloss(es)."""
+    pos = _POSITION_TO_REFLEX.get(position)
+    rid = refl.get((surface, pos)) if pos else None
+    if rid is None:
+        summary["no_reflex"] += 1
+        return
+    eids = ety.get((candidate["language"], _normform(candidate["form"])), [])
+    if not eids:
+        summary["no_etymon"] += 1
+        return
+    for eid in eids:
+        live.execute(
+            "INSERT OR IGNORE INTO reflex_etymon(reflex_id, etymon_id) VALUES(?,?)",
+            (rid, eid),
+        )
+        summary["links"] += 1
+    summary["linked_surfaces"] += 1
+
+
+def ingest_element_glosses(live: sqlite3.Connection, rows: list[dict[str, Any]]) -> dict[str, int]:
+    """Link each CONFIDENT consensus surface's orphan reflex to its etymon(s).
+
+    The reflex then inherits the etymon's authoritative gloss at export.
+    Additive + idempotent (``INSERT OR IGNORE``). Returns a summary counter.
+    """
+    ety, refl = _link_indexes(live)
     summary = Counter()
     for r in rows:
-        if not r.get("is_element") or not r.get("candidates"):
-            continue
-        pos = _POSITION_TO_REFLEX.get(r["position"])
-        rid = refl.get((r["surface"], pos)) if pos else None
-        if rid is None:
-            summary["no_reflex"] += 1
-            continue
-        cand = r["candidates"][0]
-        eids = ety.get((cand["language"], _normform(cand["form"])), [])
-        if not eids:
-            summary["no_etymon"] += 1
-            continue
-        for eid in eids:
-            live.execute(
-                "INSERT OR IGNORE INTO reflex_etymon(reflex_id, etymon_id) VALUES(?,?)",
-                (rid, eid),
-            )
-            summary["links"] += 1
-        summary["linked_surfaces"] += 1
+        if r.get("is_element") and r.get("candidates"):
+            _link_surface(live, ety, refl, summary, r["surface"], r["position"], r["candidates"][0])
     live.commit()
     return dict(summary)
+
+
+def _has_vowel(surface: str) -> bool:
+    """Real place-name elements have a vowel; a vowel-less core ('nt', 'sf') is
+    a consonant-fragment that occasionally slips past the adjudicator."""
+    return bool(re.search(r"[aeiouyà-öø-ÿ]", surface.strip("-").strip().lower()))
+
+
+def ingest_adjudications(
+    live: sqlite3.Connection, adj_rows: list[dict[str, Any]]
+) -> dict[str, int]:
+    """Link the ACCEPTED weak-tail adjudications (LLM-picked grounded candidate).
+
+    Each accepted row carries the chosen ``candidate`` (a real consensus etymon
+    the model selected over its siblings) — grounded, never invented. A vowel
+    guard drops consonant-fragment surfaces the adjudicator wrongly accepted.
+    Same linkage + idempotency as the consensus path.
+    """
+    ety, refl = _link_indexes(live)
+    summary = Counter()
+    for r in adj_rows:
+        if not (r.get("accepted") and r.get("candidate")):
+            continue
+        if not _has_vowel(r["surface"]):
+            summary["dropped_consonant_fragment"] += 1
+            continue
+        _link_surface(live, ety, refl, summary, r["surface"], r["position"], r["candidate"])
+    live.commit()
+    return dict(summary)
+
+
+# --- Weak-tail adjudication prompt (the LLM PICKS among grounded candidates) ---
+ADJUDICATION_SYS = (
+    "You are an expert in English place-name etymology (English Place-Name Society "
+    "tradition). You are given a recurring morpheme surface from real place-names, "
+    "example names, and a SHORT LIST of CANDIDATE source elements derived from those "
+    "names' actual scholarly etymologies. Choose which candidate is the true element "
+    "behind this surface (consider position and the examples). Reply strict JSON: "
+    '{"choice": <1-based index, or 0 if none fit / it is just a fragment>, '
+    '"confidence":"high|medium|low", "why":"<=12 words"}.'
+)
+
+
+def build_adjudication_user(
+    surface: str, position: str, context: list[str], candidates: list[dict[str, Any]]
+) -> str:
+    """The user prompt presenting the grounded candidates for the model to pick."""
+    lines = [
+        f"[{i + 1}] {c['language']} {c['form']} = "
+        f"{', '.join(c['glosses'][:2]) or '(no gloss)'} "
+        f"(seen in {c['support']}, {int(c['share'] * 100)}%)"
+        for i, c in enumerate(candidates)
+    ]
+    return (
+        f"Surface: {surface!r}  (position: {position})\n"
+        f"Example place-names: {', '.join(context) or 'none'}\n"
+        "Candidates:\n" + "\n".join(lines)
+    )
+
+
+def accept_adjudication(row: dict[str, Any], response: dict[str, Any]) -> dict[str, Any] | None:
+    """Turn an LLM adjudication response into an accepted candidate, or None.
+
+    Accepts a high/medium-confidence pick of a real candidate; rejects choice 0
+    (none/junk) and low confidence.
+    """
+    try:
+        choice = int(response.get("choice") or 0)
+    except (TypeError, ValueError):
+        return None
+    conf = (response.get("confidence") or "").lower()
+    cands = row.get("candidates") or []
+    if 1 <= choice <= len(cands) and conf in ("high", "medium"):
+        return cands[choice - 1]
+    return None
 
 
 def write_jsonl(rows: list[dict[str, Any]], path: str) -> None:
