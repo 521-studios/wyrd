@@ -8,10 +8,10 @@
 // (the safe default — small schemas don't benefit from disclosure).
 
 // wyrd-ppk6: keys that should NOT appear in the col 1 form for any
-// generator — handled elsewhere in the UI. Currently just 'seed',
-// which lives in the Header (universal control). Pre-fix, kenning's
-// 'seed' field landed in Advanced because it wasn't in HEADLINE_FIELDS;
-// the duplicate was redundant + confusing.
+// generator. 'seed' is kept here defensively: reproducibility-by-seed
+// was removed from the SPA (a seed only reproduces against one bundle
+// version), so should a generator's schema ever surface a 'seed' param,
+// it must not render an input that re-introduces the broken affordance.
 export const HIDDEN_FIELDS = new Set(['seed']);
 
 export const HEADLINE_FIELDS = {

@@ -92,16 +92,6 @@
   </div>
 
   <div class="center">
-    <label class="seed-field">
-      <span class="seed-label">seed</span>
-      <input
-        type="number"
-        class="seed-input"
-        bind:value={appState.seed}
-        placeholder="—"
-        aria-label="Seed (blank = random)"
-      />
-    </label>
     <button
       class="roll-btn"
       type="button"
@@ -239,50 +229,6 @@
     display: flex;
     align-items: center;
     gap: 10px;
-  }
-  .seed-field {
-    display: inline-flex;
-    align-items: center;
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 0 10px;
-    height: 32px;
-    transition: border-color 120ms ease;
-  }
-  .seed-field:focus-within {
-    border-color: var(--accent);
-  }
-  .seed-label {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--fg-muted);
-    margin-right: 8px;
-  }
-  .seed-input {
-    background: transparent;
-    border: none;
-    color: var(--fg);
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-    width: 80px;
-    padding: 0;
-    outline: none;
-  }
-  .seed-input::-webkit-outer-spin-button,
-  .seed-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  .seed-input[type='number'] {
-    -moz-appearance: textfield;
-    appearance: textfield;
-  }
-  .seed-input::placeholder {
-    color: var(--fg-muted);
   }
   .roll-btn {
     background: var(--accent);

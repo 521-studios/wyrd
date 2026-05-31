@@ -19,9 +19,13 @@ import { pipeline } from './pipeline.svelte.js';
 
 /**
  * Returns a workspace snapshot ready for savedStore.add() or
- * encodeWorkspace(): { generator, params, seed, original, pipeline }.
+ * encodeWorkspace(): { generator, params, original, pipeline }.
  * Returns null when no result is currently selected (caller should
  * disable the save/share action in that case).
+ *
+ * A snapshot freezes the actual RESULT (original) — no seed, because a
+ * seed only reproduces against one bundle version. Restoring a snapshot
+ * shows the frozen name + etymology; it does not re-roll.
  */
 export function currentWorkspaceSnapshot() {
   const r = appState.currentResult;
@@ -34,11 +38,6 @@ export function currentWorkspaceSnapshot() {
     // that produced THIS result; selectedGeneratorName may have
     // since changed via the picker without a re-roll.
     params: appState.paramsByGenerator[generator] || {},
-    // wyrd-hia1: lastSeed = the seed the server USED to produce
-    // this result. appState.seed is the input (may be blank for
-    // random-each-roll mode); we want the specific seed so
-    // save/share reproduce THIS exact result.
-    seed: appState.lastSeed,
     original: {
       name: r.result,
       morphemes_by_word: r.morphemes_by_word || [],
