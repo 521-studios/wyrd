@@ -236,6 +236,14 @@ def _rebuild_lexicon_db(
     addition_state = collect_gloss_additions(paths)
     split_state = collect_etymon_splits(paths)
     collapse_state = collect_collapses(paths)
+    from wyrd.generators.kenning.lexicon.element_gloss_backfill import (
+        collect_element_glosses,
+    )
+
+    element_gloss_state = collect_element_glosses(
+        str(jsonl_dir / "_element_glosses.jsonl"),
+        str(jsonl_dir / "_element_gloss_adjudications.jsonl"),
+    )
     with LexiconDB(rebuilt_path) as db:
         run_full_enrichment(
             db,
@@ -245,6 +253,7 @@ def _rebuild_lexicon_db(
             addition_state=addition_state or None,
             split_state=split_state or None,
             collapse_state=collapse_state or None,
+            element_gloss_state=element_gloss_state or None,
         )
 
 

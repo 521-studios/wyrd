@@ -53,6 +53,7 @@ _EXTRA_DATA_POPULATION_COMMANDS = frozenset(
         "synsets assign",  # writes etymon_meaning_synset (D28 Phase 2)
         "detect-collapses",  # generates the _collapses.jsonl ledger (wyrd-y651)
         "merge-collapses",  # non-deterministic LLM (Ollama) merge judgment → _collapses.jsonl (wyrd-6xzs)
+        "adjudicate-element-glosses",  # LLM weak-tail pick → _element_gloss_adjudications.jsonl (wyrd-u9k6)
     }
 )
 
