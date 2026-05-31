@@ -5,10 +5,25 @@
   // Star icon on each result stays inline (per-result quick save).
   import { appState } from '../lib/appState.svelte.js';
   import StarToggle from '../components/StarToggle.svelte';
+  import {
+    representativeMeanings,
+    isNameMorpheme,
+  } from '../lib/morphemeGloss.js';
 
   function selectResult(i) {
     appState.currentResultIndex =
       i === appState.currentResultIndex ? null : i;
+  }
+
+  // The 1–2 word gloss shown under a morpheme. Falls back to a dim "name"
+  // marker for proper-name elements (manorial families etc.) — but only when
+  // the surface is capitalized, so lowercase connectives (and/et/be) whose
+  // pooled meanings happen to include "a personal name" stay blank.
+  function glossFor(morph) {
+    const g = representativeMeanings(morph.meanings);
+    if (g.length) return g.join(' · ');
+    const looksProper = /^[A-Z]/.test(morph.usage || '');
+    return looksProper && isNameMorpheme(morph) ? 'name' : '';
   }
 </script>
 
@@ -35,7 +50,21 @@
               onclick={() => selectResult(i)}
             >
               <span class="name">{r.result}</span>
-              {#if r.explanation}
+              {#if r.morphemes_by_word?.length}
+                <span class="etymology">
+                  {#each r.morphemes_by_word as word}
+                    <span class="word-group">
+                      {#each word as morph}
+                        {@const g = glossFor(morph)}
+                        <span class="morph-col">
+                          <span class="surface">{morph.usage || ''}</span>
+                          {#if g}<span class="gloss">{g}</span>{/if}
+                        </span>
+                      {/each}
+                    </span>
+                  {/each}
+                </span>
+              {:else if r.explanation}
                 <span class="explanation">{r.explanation}</span>
               {/if}
             </button>
@@ -88,8 +117,39 @@
     box-shadow: 0 0 0 1px var(--accent);
   }
   .name {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
+  }
+  /* wyrd-2b50: aligned etymology grid — each morpheme's surface form sits
+     directly above its 1–2 word gloss; words are spaced apart, wrap as a
+     group. Replaces the old multi-line meaning dump. */
+  .etymology {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .word-group {
+    display: flex;
+    gap: 10px;
+  }
+  .morph-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+  .surface {
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 12px;
+    color: var(--fg);
+  }
+  .gloss {
+    font-size: 11px;
+    color: var(--fg-muted);
+    line-height: 1.3;
   }
   .explanation {
     margin-top: 4px;
