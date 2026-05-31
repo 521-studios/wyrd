@@ -210,3 +210,43 @@ def test_collect_collapses_resolves_cycles(tmp_path: Path) -> None:
     # chain flattened to the terminal survivor c
     assert intos["x:a"] == "x:c"
     assert intos["x:b"] == "x:c"
+
+
+def test_folded_form_exports_with_lemma_gloss_not_pointer(tmp_path: Path) -> None:
+    """wyrd-6r09 (P4): after a collapse folds a form-of etymon into its
+    lemma, the exported family shows the LEMMA's real meaning — the folded
+    member's pointer gloss is dropped, while its form is kept in the
+    family. This is what makes the fold visible in generation."""
+    from wyrd.generators.kenning.lexicon.bundle._export import export_meanings
+
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.execute("INSERT INTO source (id, title) VALUES ('rando-port', 'seed')")
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'Hea', 'old-english')"
+    )
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (2, 'ea', 'old-english')"
+    )
+    conn.execute(
+        "INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (1, 'h-prothesized form of ea')"
+    )
+    conn.execute("INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (2, 'river')")
+    conn.execute("INSERT INTO etymon_citation (etymon_id, source_id) VALUES (2, 'rando-port')")
+    conn.execute("INSERT INTO etymon_citation (etymon_id, source_id) VALUES (1, 'rando-port')")
+    conn.commit()
+    conn.close()
+
+    with LexiconDB(db_path) as db:
+        apply_collapses(
+            db,
+            {"old-english:Hea": {"into": "old-english:ea", "variant_class": "alternative"}},
+            apply=True,
+        )
+        subjects = export_meanings(db, include_rando=True, min_witnesses=1)
+
+    assert len(subjects) == 1
+    s = subjects[0]
+    assert s["meaning"] == ["river"]  # the pointer gloss is gone
+    assert set(s["words"][0]["old_english"]) == {"ea", "Hea"}  # form still in the family
