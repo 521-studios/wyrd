@@ -1212,6 +1212,13 @@ def collect_collapses(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
     This is the single ledger for ALL consolidations — the deterministic
     detector (P2) and the LLM merge pass (P3) both append here, differing
     only in the ``method`` field.
+
+    Cycles are resolved HERE, at the single load point, so the ledger is
+    always safe to apply regardless of what wrote it. The LLM merge can
+    judge a pair same-meaning in BOTH directions (``fau`` ≈ ``fou`` AND
+    ``fou`` ≈ ``fau``) — a ``merged_into_id`` cycle that would never settle.
+    :func:`_resolve_collapse_cycles` drops the cycle-closers (to no-ops)
+    and flattens chains to their terminal survivor.
     """
     from .log import replay_file
 
@@ -1220,7 +1227,56 @@ def collect_collapses(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
         state = replay_file(path)
         for ref, payload in state.keyed["collapse"].items():
             merged[ref] = dict(payload)
-    return merged
+    return _resolve_collapse_cycles(merged)
+
+
+def _resolve_collapse_cycles(
+    state: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Make the collapse graph acyclic + flat. Positive edges (non-empty
+    ``into``) are unioned in deterministic ``ref`` order; an edge that would
+    close a cycle is demoted to a no-op (``into: ""``), and every surviving
+    edge is re-pointed at its cluster's terminal survivor so a chain
+    ``a -> b -> c`` becomes ``a -> c`` / ``b -> c`` (apply-order independent).
+    No-op rows (rejections, reverts) pass through untouched."""
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:
+            parent[x], x = root, parent[x]
+        return root
+
+    kept_into: dict[str, str] = {}
+    for ref in sorted(state):
+        into = state[ref].get("into")
+        if not into:
+            continue
+        ra, rb = find(ref), find(into)
+        if ra == rb:
+            continue  # cycle-closer — demoted to a no-op below
+        parent[ra] = rb
+        kept_into[ref] = into
+
+    def survivor(ref: str) -> str:
+        cur, seen = ref, set()
+        while cur in kept_into and cur not in seen:
+            seen.add(cur)
+            cur = kept_into[cur]
+        return cur
+
+    out: dict[str, dict[str, Any]] = {}
+    for ref, payload in state.items():
+        if not payload.get("into"):
+            out[ref] = payload  # already a no-op
+        elif ref in kept_into:
+            out[ref] = {**payload, "into": survivor(ref)}  # flatten
+        else:
+            out[ref] = {**payload, "into": ""}  # cycle-closer → no-op
+    return out
 
 
 def collect_gloss_additions(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
