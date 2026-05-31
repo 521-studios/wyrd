@@ -186,3 +186,27 @@ def test_collect_collapses_round_trip(tmp_path: Path) -> None:
     state = collect_collapses([p])
     assert state["old-english:burh"]["into"] == "old-english:burg"
     assert state["old-english:fen"]["into"] == ""  # reverted (last-write-wins)
+
+
+def test_collect_collapses_resolves_cycles(tmp_path: Path) -> None:
+    """collect_collapses breaks cycles at load (the LLM merge can judge a
+    pair same-meaning in both directions). One direction survives, the
+    cycle-closer is demoted to a no-op; chains flatten to the survivor."""
+    p = tmp_path / "_collapses.jsonl"
+    rows = [
+        # mutual cycle: fau<->fou
+        {"_type": "collapse", "ref": "old-french:fou", "into": "old-french:fau"},
+        {"_type": "collapse", "ref": "old-french:fau", "into": "old-french:fou"},
+        # chain: a -> b -> c
+        {"_type": "collapse", "ref": "x:a", "into": "x:b"},
+        {"_type": "collapse", "ref": "x:b", "into": "x:c"},
+    ]
+    p.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    state = collect_collapses([p])
+    intos = {r: p_["into"] for r, p_ in state.items()}
+    # exactly one direction of the cycle survives (sorted-ref: 'fau' first)
+    assert intos["old-french:fau"] == "old-french:fou"
+    assert intos["old-french:fou"] == ""  # cycle-closer demoted
+    # chain flattened to the terminal survivor c
+    assert intos["x:a"] == "x:c"
+    assert intos["x:b"] == "x:c"

@@ -17,6 +17,7 @@
     "backfill-pages": "Backfills citation page numbers from source-specific data; one-off enrichment, not part of a from-scratch rebuild.",
     "detect-collapses": "Generates deterministic form-of/variant collapse rows into the data/mining/_collapses.jsonl ledger (wyrd-y651). The rows round-trip through L2 and are replayed for free by run_full_enrichment's collapse pass; this detector itself is never re-run on rebuild.",
     "ingest-briggs-personal-names": "Source-specific ingester; output lands in L2 and is replayed by rebuild-from-jsonl. Not a wipe-restore step.",
+    "merge-collapses": "LLM (Ollama) same-meaning judgment over variant-doubling candidates (wyrd-6xzs). NON-DETERMINISTIC, so per the reconstructibility rule its verdicts persist to the data/mining/_collapses.jsonl ledger and are replayed deterministically — it must never be a rebuild step (re-judging would make rebuilds non-reproducible).",
     "ingest-domesday": "Source-specific ingester (Open Domesday); output lands in L2. Not a wipe-restore step.",
     "ingest-etymonline": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
     "ingest-hearth-tax": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
