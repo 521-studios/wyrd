@@ -26,10 +26,12 @@ lexicon's existing scholarly data, not LLM invention. Spot-checked correct
 across hard cases — ``gor-``→celtic *gort*, ``-huish``→OE *hiwisc*,
 ``-erby``→ON *bȳ*, ``Chur-``→OE *cirice*.
 
-MEASURED (2026-05-31): linking the 394 confident surfaces and re-exporting
-dropped English unglossed generation usages 2,861 → 2,488 (46.6% → 40.6%) —
-373 surfaces newly glossed end-to-end. (21 of 394 didn't flow — mostly a
-Celtic reflex→gloss edge, e.g. ``gor-``; follow-up.)
+MEASURED (2026-05-31): the consensus layer alone glossed 373 surfaces
+(2,861 → 2,488, 46.6% → 40.6%). With the weak-tail adjudication layer (below)
+added, the combined backfill glossed **1,034 surfaces end-to-end** — English
+unglossed generation usages **2,861 → 1,827 (46.6% → 30.3%)**, a 16-point
+reduction. (A small fraction don't flow — mostly a Celtic reflex→gloss edge,
+e.g. ``gor-``; follow-up.)
 
 Ingestion: link the orphan reflex to the consensus etymon(s) via
 ``reflex_etymon``; the surface then inherits the gloss at export (reflexes
