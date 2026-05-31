@@ -51,19 +51,19 @@
             >
               <span class="name">{r.result}</span>
               {#if r.morphemes_by_word?.length}
-                <div class="etymology">
+                <span class="etymology">
                   {#each r.morphemes_by_word as word}
-                    <div class="word-group">
+                    <span class="word-group">
                       {#each word as morph}
                         {@const g = glossFor(morph)}
-                        <div class="morph-col">
+                        <span class="morph-col">
                           <span class="surface">{morph.usage || ''}</span>
                           {#if g}<span class="gloss">{g}</span>{/if}
-                        </div>
+                        </span>
                       {/each}
-                    </div>
+                    </span>
                   {/each}
-                </div>
+                </span>
               {:else if r.explanation}
                 <span class="explanation">{r.explanation}</span>
               {/if}

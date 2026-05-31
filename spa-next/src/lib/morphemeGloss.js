@@ -27,20 +27,32 @@ const GRAMMAR = [
   'place-name forming',
 ];
 
+// A cleaned gloss that is nothing but a bare article is not a meaning.
+const BARE_ARTICLES = new Set(['a', 'an', 'the', 'of']);
+
 // Reduce one raw gloss to its head term: drop a leading article, keep only the
 // first clause (before ; , ( or " of "), strip trailing periods/quotes.
+// Returns '' for non-strings (defensive — the array comes from upstream JSON).
 function clean(raw) {
-  let s = String(raw).trim().replace(/^["']+|["']+$/g, '').trim();
+  if (typeof raw !== 'string') return '';
+  let s = raw.trim().replace(/^["']+|["']+$/g, '').trim();
   s = s.split(/\s+of\s+|[;,(]/i)[0].trim();
   s = s.replace(ARTICLE, '').trim().replace(/[.\s]+$/, '').trim();
   return s;
 }
 
-// A cleaned term is junk if it's too short, still multi-clause/verbose
-// (> 2 words), or grammatical.
+// A raw entry to skip outright before cleaning: non-string, or a quoted
+// grammatical particle ('"at the"' / "'at the'").
+function skippable(raw) {
+  return typeof raw !== 'string' || /^['"]/.test(raw.trim());
+}
+
+// A cleaned term is junk if it's too short, a bare article, still
+// multi-clause/verbose (> 2 words), or grammatical.
 function isJunk(cleaned) {
   if (!cleaned || cleaned.length < 2) return true;
   const lo = cleaned.toLowerCase();
+  if (BARE_ARTICLES.has(lo)) return true;
   if (GRAMMAR.some((g) => lo.includes(g))) return true;
   if (cleaned.split(/\s+/).length > 2) return true;
   return false;
@@ -54,7 +66,7 @@ function isJunk(cleaned) {
 export function representativeMeaning(meanings) {
   if (!Array.isArray(meanings) || meanings.length === 0) return '';
   for (const raw of meanings) {
-    if (String(raw).trim().startsWith('"')) continue; // quoted particle
+    if (skippable(raw)) continue;
     const c = clean(raw);
     if (!isJunk(c)) return c.toLowerCase();
   }
@@ -87,7 +99,7 @@ export function representativeMeanings(meanings, max = 2) {
   const counts = new Map();
   const order = [];
   for (const raw of meanings) {
-    if (String(raw).trim().startsWith('"')) continue;
+    if (skippable(raw)) continue;
     const c = clean(raw).toLowerCase();
     if (isJunk(c)) continue;
     if (!counts.has(c)) order.push(c);
