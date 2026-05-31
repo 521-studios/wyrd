@@ -73,6 +73,7 @@ from wyrd.generators.kenning.cli.lexicon import decompose as _decompose_module
 from wyrd.generators.kenning.cli.lexicon import (
     derive_english_shaped as _derive_english_shaped_module,
 )
+from wyrd.generators.kenning.cli.lexicon import detect_collapses as _detect_collapses_module
 from wyrd.generators.kenning.cli.lexicon import diff_bundle as _diff_bundle_module
 from wyrd.generators.kenning.cli.lexicon import diff_rebuild as _diff_rebuild_module
 from wyrd.generators.kenning.cli.lexicon import disambiguate_fuzzy as _disambiguate_fuzzy_module
@@ -221,6 +222,7 @@ _compact_jsonl_module.add_to(lexicon)
 _curate_etymon_module.add_to(lexicon)
 _curate_gloss_module.add_to(lexicon)
 _decompose_module.add_to(lexicon)
+_detect_collapses_module.add_to(lexicon)
 _dump_empirical_priors_module.add_to(lexicon)
 _extract_pfsrd2_monsters_module.add_to(lexicon)
 _derive_english_shaped_module.add_to(lexicon)
