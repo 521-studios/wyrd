@@ -70,10 +70,10 @@ from wyrd.generators.kenning.cli.lexicon import convert_place_names as _convert_
 from wyrd.generators.kenning.cli.lexicon import curate_etymon as _curate_etymon_module
 from wyrd.generators.kenning.cli.lexicon import curate_gloss as _curate_gloss_module
 from wyrd.generators.kenning.cli.lexicon import decompose as _decompose_module
-from wyrd.generators.kenning.cli.lexicon import detect_collapses as _detect_collapses_module
 from wyrd.generators.kenning.cli.lexicon import (
     derive_english_shaped as _derive_english_shaped_module,
 )
+from wyrd.generators.kenning.cli.lexicon import detect_collapses as _detect_collapses_module
 from wyrd.generators.kenning.cli.lexicon import diff_bundle as _diff_bundle_module
 from wyrd.generators.kenning.cli.lexicon import diff_rebuild as _diff_rebuild_module
 from wyrd.generators.kenning.cli.lexicon import disambiguate_fuzzy as _disambiguate_fuzzy_module

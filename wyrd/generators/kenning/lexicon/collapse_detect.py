@@ -6,7 +6,8 @@ by :func:`enrichment.apply_collapses`). Two methods, both high-confidence:
 
 (A) **variant-gloss-overlap** — an etymon whose ``(form, language)`` is a
     wiktextract-asserted :data:`etymon_variant` of a DIFFERENT same-
-    language lemma AND shares an exact gloss with that lemma. The variant
+    language lemma AND shares a gloss with that lemma (case/whitespace-
+    normalized equality, not generic-substring overlap). The variant
     assertion + the shared meaning together rule out the generic-gloss
     false positive (two different words that merely both gloss "hill").
 
@@ -43,8 +44,9 @@ _POINTER_TARGET_RE = re.compile(r"\b(?:form|variant|spelling) of\s+([^\s(,.;\"']
 
 
 def _detect_variant_gloss_overlap(conn: sqlite3.Connection) -> list[dict[str, str]]:
-    """Method A: variant-doublings that share an exact gloss with their
-    same-language parent lemma. One collapse per ``from`` (the
+    """Method A: variant-doublings that share a gloss with their same-
+    language parent lemma (case/whitespace-normalized equality, via the
+    ``LOWER(TRIM(...))`` join). One collapse per ``from`` (the
     lexicographically-first parent wins, deterministically)."""
     sql = """
         SELECT e.language || ':' || e.canonical_form AS from_ref,
@@ -150,9 +152,11 @@ def detect_deterministic_collapses(conn: sqlite3.Connection) -> list[dict[str, s
     cycle in the ``merged_into_id`` graph — wiktextract registers some
     variants BIDIRECTIONALLY (``wode`` is a variant of ``wood`` AND
     ``wood`` of ``wode``), so naively emitting both would tombstone each
-    into the other and make ``find_canonical`` loop forever. Edges are
-    processed in deterministic ``(ref, into)`` order; the first direction
-    seen for a pair survives, the cycle-closer is skipped.
+    into the other — a ``merged_into_id`` cycle that
+    ``apply_collapses._resolve`` (it excludes already-tombstoned rows)
+    could never settle. Edges are processed in deterministic ``(ref,
+    into)`` order; the first direction seen for a pair survives, the
+    cycle-closer is skipped.
     """
     rows = _detect_variant_gloss_overlap(conn)
     seen = {r["ref"] for r in rows}
