@@ -26,6 +26,11 @@ lexicon's existing scholarly data, not LLM invention. Spot-checked correct
 across hard cases — ``gor-``→celtic *gort*, ``-huish``→OE *hiwisc*,
 ``-erby``→ON *bȳ*, ``Chur-``→OE *cirice*.
 
+MEASURED (2026-05-31): linking the 394 confident surfaces and re-exporting
+dropped English unglossed generation usages 2,861 → 2,488 (46.6% → 40.6%) —
+373 surfaces newly glossed end-to-end. (21 of 394 didn't flow — mostly a
+Celtic reflex→gloss edge, e.g. ``gor-``; follow-up.)
+
 Ingestion: link the orphan reflex to the consensus etymon(s) via
 ``reflex_etymon``; the surface then inherits the gloss at export (reflexes
 WITH an etymon link are never unglossed). The mined rows persist to
