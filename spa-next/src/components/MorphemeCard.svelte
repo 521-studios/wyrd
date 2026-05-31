@@ -215,9 +215,6 @@
                 {morpheme.usage}
               </button>
             </td>
-            <td class="ipa"></td>
-            <td class="reader"></td>
-            <td class="dialect"></td>
           </tr>
         </tbody>
       </table>
