@@ -22,9 +22,12 @@
   // accented row is a real upgrade, not a no-op).
   const norm = (s) => stripDashes(s).toLowerCase();
 
-  // The cell's ORIGINAL generated surface (col-2 result), used to
-  // detect a revert-click. Read from currentResult, NOT the displayed
-  // morpheme (which may already be swapped).
+  // The cell's ORIGINAL generated surface (col-2 result), used by
+  // setSwap's value-based revert. Intentionally the RAW pre-accent
+  // surface ("hy"), which may differ from the inspector's accent-
+  // upgraded default ("hȳ"); reverts route through swapTo's
+  // sameModuloCase → clearSwap (identity-based) first, so this value
+  // path is a backstop and the divergence is benign.
   let originalUsage = $derived(
     appState.currentResult?.morphemes_by_word?.[morpheme._wordIndex]?.[
       morphemeIndex
