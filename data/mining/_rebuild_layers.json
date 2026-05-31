@@ -51,7 +51,7 @@
     },
     {
       "layer": "enrichment-derived-columns",
-      "summary": "OCR clusters, lemma links, cognate_id, stratum, english_shaped, phonological_vector, toponym_decomposition, etymon_period_form",
+      "summary": "OCR clusters, lemma links, cognate_id, stratum, english_shaped, pronunciation_ipa (G2P fill for OE/ON/welsh gaps + OE onset-h fix, wyrd-vm8t), phonological_vector, toponym_decomposition, etymon_period_form",
       "restored_by": "enrichment",
       "cost": "free",
       "runbook_token": "--with-enrichment"
