@@ -61,12 +61,14 @@ REMAINING (for follow-up)
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
 import sqlite3
 import unicodedata
 from collections import Counter, defaultdict
+from collections.abc import Iterator
 from typing import Any
 
 METHOD_VERSION = "grounded-consensus-v1"
@@ -157,6 +159,33 @@ def _confidence(top_support: int, top_share: float) -> str:
     return "low"
 
 
+def _pick_for_position(elems: list, pos: str) -> list:
+    """The element(s) of one toponym's etymology that the surface's position
+    targets: the last for a suffix, the first for a prefix, all otherwise."""
+    if not elems:
+        return []
+    if pos == "suffix":
+        return [elems[-1]]
+    if pos == "prefix":
+        return [elems[0]]
+    return elems
+
+
+def _collect_votes(
+    matching_names: list[str], pos: str, topo_etys: dict, key_glosses: dict
+) -> Counter:
+    """Consensus-vote the position-appropriate etymon across the matching
+    toponyms' etymologies. Only glossed etymons vote."""
+    votes: Counter = Counter()
+    for nm in matching_names:
+        for elems in topo_etys[nm].values():
+            for _ordi, lang, form in _pick_for_position(elems, pos):
+                key = (lang, _normform(form))
+                if key in key_glosses:
+                    votes[key] += 1
+    return votes
+
+
 def derive_element_glosses(
     census: sqlite3.Connection, live: sqlite3.Connection, culture: str = "english"
 ) -> list[dict[str, Any]]:
@@ -167,19 +196,7 @@ def derive_element_glosses(
     for usage, weight in _unglossed_surfaces(census, culture):
         pos = _position(usage)
         mn = _matching_names(usage, names)
-        votes: Counter = Counter()
-        for nm in mn:
-            for elems in topo_etys[nm].values():
-                if pos == "suffix":
-                    picks = [elems[-1]] if elems else []
-                elif pos == "prefix":
-                    picks = [elems[0]] if elems else []
-                else:
-                    picks = elems
-                for _ordi, lang, form in picks:
-                    key = (lang, _normform(form))
-                    if key in key_glosses:  # only glossed etymons vote
-                        votes[key] += 1
+        votes = _collect_votes(mn, pos, topo_etys, key_glosses)
         row: dict[str, Any] = {
             "surface": usage,
             "weight": weight,
@@ -374,8 +391,15 @@ def write_jsonl(rows: list[dict[str, Any]], path: str) -> None:
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
 
 
-def _ro(path: str) -> sqlite3.Connection:
-    return sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+@contextlib.contextmanager
+def _ro(path: str) -> Iterator[sqlite3.Connection]:
+    """Read-only sqlite connection, closed on exit — matches the package's
+    ``try/finally: conn.close()`` discipline for the lexicon CLIs."""
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def mine_to_jsonl(
@@ -384,16 +408,18 @@ def mine_to_jsonl(
     """Open the census bundle + lexicon (read-only), derive grounded glosses,
     and write the consensus jsonl. Returns the rows. The DB-touching entry point
     for the ``mine-element-glosses`` CLI (which stays pure glue)."""
-    rows = derive_element_glosses(_ro(census_path), _ro(db_path), culture)
+    with _ro(census_path) as census, _ro(db_path) as live:
+        rows = derive_element_glosses(census, live, culture)
     write_jsonl(rows, output_path)
     return rows
 
 
 def load_toponym_lowers(db_path: str) -> list[tuple[str, str]]:
     """``[(modern_name, lowercased)]`` for the adjudicator's grounding context."""
-    return [
-        (t, t.lower())
-        for (t,) in _ro(db_path).execute(
-            "SELECT DISTINCT modern_name FROM toponym WHERE modern_name IS NOT NULL"
-        )
-    ]
+    with _ro(db_path) as conn:
+        return [
+            (t, t.lower())
+            for (t,) in conn.execute(
+                "SELECT DISTINCT modern_name FROM toponym WHERE modern_name IS NOT NULL"
+            )
+        ]
