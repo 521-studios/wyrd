@@ -97,11 +97,13 @@ class SavedStore {
 
   /** Add a new save. Returns the new entry's id. Accepts a payload
    *  with everything needed to rehydrate the workspace (generator,
-   *  params, seed, original, pipeline) + an optional user label.
+   *  params, original, pipeline) + an optional user label. No seed — a
+   *  save freezes the actual result, it does not re-derive it. Older
+   *  entries may still carry a seed field; it is simply ignored on load.
    *  wyrd-34tn round 2 (HIGH x2): every nested payload field is
    *  deep-cloned so subsequent edits to the live $state forms /
    *  pipeline don't alias-mutate the saved entry. */
-  add({ label, generator, params, seed, original, pipeline }) {
+  add({ label, generator, params, original, pipeline }) {
     const entry = {
       id: newId(),
       schema_version: CURRENT_SCHEMA,
@@ -109,7 +111,6 @@ class SavedStore {
       label: label || (original?.name ?? '(unlabeled)'),
       generator,
       params: deepClone(params),
-      seed,
       original: deepClone(original),
       pipeline: deepClone(pipeline),
     };

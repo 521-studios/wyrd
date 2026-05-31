@@ -24,19 +24,11 @@ class AppState {
   // field built — string, number, boolean, array of strings (tag grid).
   paramsByGenerator = $state({});
 
-  // Reproducibility seed INPUT. Null/blank = "let the server pick a
-  // fresh one each Roll". User-controlled; Roll does NOT write back.
-  seed = $state(null);
-
-  // wyrd-hia1: the seed the server USED for the most recent roll
-  // (whether operator-supplied or server-chosen-random). Drives
-  // the result meta display ('seed 42'), save/share payloads, and
-  // any future 're-roll exact' affordance. Decoupled from the
-  // input field so blank-seed rolls actually pick a fresh random
-  // each click (pre-fix, the first roll wrote the random seed
-  // back into the input — locking every subsequent roll to that
-  // seed = same name forever).
-  lastSeed = $state(null);
+  // No reproducibility seed: a seed only reproduces names against ONE
+  // bundle version, so it silently breaks the instant a new dataset
+  // ships. Every Roll is a fresh random draw; saved/shared workspaces
+  // persist the actual RESULT (a frozen name + etymology), not a seed
+  // to re-derive it.
 
   // Most recent roll output. results[i].result + .explanation +
   // .morphemes_by_word + .components etc.

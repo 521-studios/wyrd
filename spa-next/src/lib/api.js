@@ -65,15 +65,13 @@ export async function rewindWithMorphemes(name, morphemesByWord) {
 }
 
 /**
- * Roll one generator with the supplied params + seed. POSTs to
- * /api/<generator>. Returns the envelope: { generator, parameters,
- * seed, results: [{ result, explanation, components, morphemes_by_word, ... }] }.
+ * Roll one generator with the supplied params. POSTs to
+ * /api/<generator>. No seed is sent — the server picks a fresh random
+ * one each call. Returns the envelope: { generator, parameters,
+ * results: [{ result, explanation, components, morphemes_by_word, ... }] }.
  */
-export async function rollGenerator(generatorName, params, seed) {
+export async function rollGenerator(generatorName, params) {
   const body = { ...params };
-  if (seed !== null && seed !== undefined && seed !== '') {
-    body.seed = Number(seed);
-  }
   const resp = await postSignedJson(`/api/${generatorName}`, body);
   if (!resp.ok) {
     const text = await resp.text();

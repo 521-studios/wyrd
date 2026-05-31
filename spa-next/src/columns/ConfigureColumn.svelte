@@ -119,17 +119,9 @@
     {/if}
 
     {#if appState.isMobileViewport}
-      <!-- wyrd-14hn: mobile-only seed + Roll. The header hides these
-           at narrow widths; drawer is where mobile users find them. -->
+      <!-- wyrd-14hn: mobile-only Roll. The header hides it at narrow
+           widths; the drawer is where mobile users find it. -->
       <div class="mobile-controls">
-        <label class="seed-row">
-          <span class="seed-label">Seed</span>
-          <input
-            type="number"
-            bind:value={appState.seed}
-            placeholder="random"
-          />
-        </label>
         <button
           class="roll-btn-mobile"
           type="button"
@@ -255,29 +247,6 @@
     margin-top: 24px;
     padding-top: 16px;
     border-top: 1px solid var(--border);
-  }
-  .seed-row {
-    display: block;
-    margin-bottom: 12px;
-  }
-  .seed-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--fg-muted);
-    margin-bottom: 4px;
-  }
-  .seed-row input {
-    width: 100%;
-    background: var(--bg-elev);
-    color: var(--fg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 8px;
-    font: inherit;
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
   }
   .roll-btn-mobile {
     width: 100%;

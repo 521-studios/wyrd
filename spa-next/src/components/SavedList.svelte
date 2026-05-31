@@ -61,11 +61,6 @@
     appState.isLoadingSavedWorkspace = true;
     // Restore col 1 state.
     appState.selectedGeneratorName = entry.generator;
-    // wyrd-hia1: restore both fields — seed (input) so user can
-    // re-roll the exact result, AND lastSeed (meta display) so the
-    // result card shows the seed it was rolled with.
-    appState.seed = entry.seed;
-    appState.lastSeed = entry.seed;
     if (entry.params) {
       appState.paramsByGenerator[entry.generator] = entry.params;
     }

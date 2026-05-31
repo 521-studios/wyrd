@@ -7,24 +7,24 @@
 // decodes + restores all 3 columns.
 //
 // v1 uses one opaque `?s=` param for simplicity. Pretty URLs
-// (?gen=kenning&seed=42&culture=english) can layer on later as a
-// secondary encoding path — the decoder just needs to try both
-// shapes at boot.
+// (?gen=kenning&culture=english) can layer on later as a secondary
+// encoding path — the decoder just needs to try both shapes at boot.
 
 const SHARE_SCHEMA = 1;
 
 /**
  * Encode a workspace state into a URL-safe base64 string. Caller
  * supplies the same fields as savedStore.add: { generator, params,
- * seed, original, pipeline }. The encoded string goes into the
- * `?s=` query param.
+ * original, pipeline }. No seed — a share freezes the actual result,
+ * not a seed to re-derive it (a seed only reproduces against one
+ * bundle version). Older `?s=` links may still carry a seed; it's
+ * ignored on decode. The encoded string goes into the `?s=` query param.
  */
-export function encodeWorkspace({ generator, params, seed, original, pipeline }) {
+export function encodeWorkspace({ generator, params, original, pipeline }) {
   const payload = {
     schema_version: SHARE_SCHEMA,
     generator,
     params,
-    seed,
     original,
     pipeline,
   };
