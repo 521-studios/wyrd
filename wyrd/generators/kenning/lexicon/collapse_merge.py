@@ -54,7 +54,7 @@ class Verdict:
 
 def detect_merge_candidates(conn: sqlite3.Connection) -> list[MergeCandidate]:
     """Reflex-linked variant-doublings (both etymons glossed) that do NOT
-    already share an exact gloss — i.e. exactly the cases the deterministic
+    already share a gloss (case/whitespace-normalized) — i.e. exactly the cases the deterministic
     detector leaves behind. One candidate per ``from`` (first parent in
     ``(from_ref, into_ref)`` order). The shared-gloss filter runs in Python
     (the correlated SQL form is prohibitively slow over the variant table)."""
