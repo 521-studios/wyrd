@@ -53,11 +53,20 @@ class Verdict:
 
 
 def detect_merge_candidates(conn: sqlite3.Connection) -> list[MergeCandidate]:
-    """Reflex-linked variant-doublings (both etymons glossed) that do NOT
-    already share a gloss (case/whitespace-normalized) — i.e. exactly the cases the deterministic
-    detector leaves behind. One candidate per ``from`` (first parent in
-    ``(from_ref, into_ref)`` order). The shared-gloss filter runs in Python
-    (the correlated SQL form is prohibitively slow over the variant table)."""
+    """Candidates for the LLM same-meaning judge, from two sources:
+
+    1. Reflex-linked variant-doublings (both etymons glossed) that do NOT
+       already share a gloss (case/whitespace-normalized) — the cases the
+       deterministic variant-gloss detector leaves behind.
+    2. MIXED form-of pointers (:func:`_detect_pointer_merge_candidates`) —
+       an etymon glossed both "form of X" AND a real sense, where X
+       resolves to a glossed lemma. The deterministic pointer-parse only
+       takes PURE pointers; the mixed ones go to the LLM because the real
+       sense can expose a homograph the pointer mislinked.
+
+    One candidate per ``from`` (doublings first). The shared-gloss filter
+    runs in Python (the correlated SQL form is prohibitively slow over the
+    variant table)."""
     pairs = conn.execute(
         """
         SELECT DISTINCT
@@ -113,6 +122,80 @@ def detect_merge_candidates(conn: sqlite3.Connection) -> list[MergeCandidate]:
                 from_glosses=tuple(sorted(fg)),
                 into_glosses=tuple(sorted(ig)),
                 variant_class=r["variant_class"] or "alternative",
+            )
+        )
+
+    # Second source: MIXED form-of pointers. An etymon glossed BOTH "form
+    # of X" AND a real sense (so the deterministic pointer-parse skipped it
+    # — that's pure-pointer only) is a fold candidate iff X resolves to a
+    # glossed lemma. These need the LLM because the real sense can reveal a
+    # homograph the pointer mislinked (``wal`` "form of wæl" but means
+    # wall/cliff, not slaughter), which a blind fold would get wrong.
+    for c in _detect_pointer_merge_candidates(conn):
+        if c.from_ref not in seen:
+            seen.add(c.from_ref)
+            out.append(c)
+    return out
+
+
+def _detect_pointer_merge_candidates(conn: sqlite3.Connection) -> list[MergeCandidate]:
+    from wyrd.generators.kenning.lexicon.collapse_detect import (
+        _POINTER_GLOSS_RE,
+        _POINTER_TARGET_RE,
+    )
+
+    candidates = conn.execute(
+        """
+        SELECT e.id, e.language, e.canonical_form
+          FROM etymon e
+         WHERE e.merged_into_id IS NULL
+           AND EXISTS (SELECT 1 FROM etymon_gloss g WHERE g.etymon_id = e.id
+                       AND (g.gloss LIKE '% form of %' OR g.gloss LIKE 'alternative %'
+                         OR g.gloss LIKE 'variant %' OR g.gloss LIKE '%spelling of %'))
+        """
+    ).fetchall()
+    out: list[MergeCandidate] = []
+    for c in candidates:
+        gl = [
+            r["gloss"]
+            for r in conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (c["id"],))
+        ]
+        ptr = [g for g in gl if _POINTER_GLOSS_RE.search(g)]
+        # MIXED only: skip pure-pointer (the deterministic detector owns those).
+        if not ptr or all(_POINTER_GLOSS_RE.search(g) for g in gl):
+            continue
+        target = None
+        for g in ptr:
+            m = _POINTER_TARGET_RE.search(g)
+            if m:
+                target = m.group(1).strip(".,;\"'")
+                break
+        if not target or target == c["canonical_form"]:
+            continue
+        tgt = conn.execute(
+            "SELECT id, canonical_form FROM etymon "
+            "WHERE language = ? AND canonical_form = ? AND merged_into_id IS NULL",
+            (c["language"], target),
+        ).fetchone()
+        if tgt is None:
+            continue
+        ig = [
+            r["gloss"]
+            for r in conn.execute(
+                "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (tgt["id"],)
+            )
+        ]
+        if not ig:
+            continue  # target unglossed → nothing to judge against
+        out.append(
+            MergeCandidate(
+                from_ref=f"{c['language']}:{c['canonical_form']}",
+                into_ref=f"{c['language']}:{tgt['canonical_form']}",
+                from_form=c["canonical_form"],
+                into_form=tgt["canonical_form"],
+                from_glosses=tuple(sorted(gl)),
+                into_glosses=tuple(sorted(ig)),
+                variant_class="alternative",
             )
         )
     return out

@@ -79,6 +79,21 @@ def test_detect_only_no_shared_gloss_doublings(tmp_path):
     assert c.into_glosses == ("fort",)
 
 
+def test_detect_mixed_pointer_candidates(tmp_path):
+    """A MIXED form-of pointer (real gloss + 'alternative form of X', X
+    glossed) is a candidate; a PURE pointer is the deterministic
+    detector's, and an unglossed target is skipped."""
+    conn = _conn(tmp_path / "lex.db")
+    _ety(conn, 1, "wall", ["wall", "alternative form of weall"])
+    _ety(conn, 2, "weall", ["wall, rampart"])
+    _ety(conn, 3, "Hea", ["h-prothesized form of ea"])  # PURE → deterministic's
+    _ety(conn, 4, "ea", ["river"])
+    _ety(conn, 5, "x", ["thing", "variant of y"])  # target unglossed → skip
+    _ety(conn, 6, "y", [])
+    cands = {c.from_ref: c.into_ref for c in detect_merge_candidates(conn)}
+    assert cands == {"old-english:wall": "old-english:weall"}
+
+
 def _cand():
     return MergeCandidate(
         from_ref="old-english:burh",
