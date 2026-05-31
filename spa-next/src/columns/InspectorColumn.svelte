@@ -86,6 +86,43 @@
     });
     return out;
   });
+
+  const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
+
+  // The rendering slot (ipa / reader_pronunciation) for a morpheme's
+  // CURRENT usage — matched against either the plain form key or its
+  // accented original_script, since a swapped usage carries the accent.
+  function renderingForUsage(m) {
+    const u = stripDashes(m.usage);
+    const renderings = m.renderings || {};
+    for (const lang of Object.keys(renderings)) {
+      for (const form of Object.keys(renderings[lang])) {
+        const slot = renderings[lang][form];
+        if (u === stripDashes(form) || u === stripDashes(slot.original_script)) {
+          return slot;
+        }
+      }
+    }
+    return null;
+  }
+
+  // wyrd-2b50 follow-up: a pronunciation guide at the top, where it
+  // matters — instead of only buried per-form in the cards. Rendered
+  // PER-MORPHEME and aligned (surface over its reader-pronunciation /
+  // IPA) rather than as one joined string, because pronunciation
+  // coverage is sparse: most generated morphemes carry no rendering,
+  // so a joined string would silently show one morpheme's sound as if
+  // it were the whole name. Gaps render as a dim '·' so the guide is
+  // honest about what it knows. Reflects swaps live (displayState is
+  // post-pipeline). Hidden entirely when no morpheme has any data.
+  let hasPronunciation = $derived(
+    (displayState?.morphemes_by_word || [])
+      .flat()
+      .some((m) => {
+        const s = renderingForUsage(m);
+        return s?.reader_pronunciation || s?.ipa;
+      }),
+  );
 </script>
 
 <section class="column">
@@ -116,6 +153,27 @@
             .filter((s) => s.trim())
             .join(' · ')}
         </p>
+      {/if}
+      {#if hasPronunciation}
+        <div class="pronunciation" aria-label="pronunciation guide">
+          {#each displayState.morphemes_by_word as word}
+            <span class="pron-word">
+              {#each word as m}
+                {#if m.usage?.trim()}
+                  {@const slot = renderingForUsage(m)}
+                  <span class="pron-col">
+                    <span class="pron-surface">{m.usage}</span>
+                    <span class="pron-reader"
+                      >{slot?.reader_pronunciation || '·'}</span>
+                    {#if slot?.ipa}
+                      <span class="pron-ipa">{slot.ipa}</span>
+                    {/if}
+                  </span>
+                {/if}
+              {/each}
+            </span>
+          {/each}
+        </div>
       {/if}
       {#if pipeline.steps.length > 0 && displayState.name !== original.name}
         <p class="provenance">
@@ -174,6 +232,42 @@
     font-size: 12px;
     color: var(--fg-muted);
     font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  }
+  /* wyrd-2b50 follow-up: per-morpheme aligned pronunciation guide —
+     each surface over its reader-pronunciation (accent) + IPA, words
+     spaced apart, gaps shown as a dim '·'. */
+  .pronunciation {
+    margin: 10px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+  .pron-word {
+    display: flex;
+    gap: 10px;
+  }
+  .pron-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+  .pron-surface {
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 12px;
+    color: var(--fg);
+  }
+  .pron-reader {
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+  .pron-ipa {
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 10px;
+    color: var(--fg-muted);
   }
   .provenance {
     margin: 4px 0 0;

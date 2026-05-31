@@ -12,15 +12,57 @@
   // lands in a follow-up.
   import { languageLabel } from '../lib/languageLabels.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
+  import { appState } from '../lib/appState.svelte.js';
 
   let { morpheme, morphemeIndex } = $props();
 
-  function swapTo(form) {
-    pipeline.addStep('swap', {
+  const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
+
+  // The cell's ORIGINAL generated surface (col-2 result), used to
+  // detect a revert-click. Read from currentResult, NOT the displayed
+  // morpheme (which may already be swapped).
+  let originalUsage = $derived(
+    appState.currentResult?.morphemes_by_word?.[morpheme._wordIndex]?.[
+      morphemeIndex
+    ]?.usage || '',
+  );
+
+  // wyrd-2b50 follow-up: swap to the ACCENTED display form
+  // (original_script, e.g. "Wālum") when the row has one, not the
+  // ASCII transliteration ("Walum"), so the name keeps its accents.
+  // Routes through setSwap so re-clicks edit the one swap step and a
+  // click on the original form reverts.
+  function swapTo(form, rendering) {
+    // Clicking the row that's already current is the revert affordance
+    // (matches the "click to revert" tooltip) — clear the cell's swap
+    // by identity, which also covers the case where no row's target
+    // normalizes back to an ASCII original.
+    if (isCurrent(form, rendering)) {
+      pipeline.clearSwap({
+        wordIndex: morpheme._wordIndex,
+        morphemeIndex,
+      });
+      return;
+    }
+    const target = rendering?.original_script || form;
+    pipeline.setSwap({
       wordIndex: morpheme._wordIndex,
       morphemeIndex,
-      to: form,
+      to: target,
+      original: originalUsage,
     });
+  }
+
+  // A form row is "current" when the displayed usage matches either
+  // its plain form or its accented original_script (post-swap the
+  // usage IS the accented form, so the plain-form compare alone
+  // would miss it).
+  function isCurrent(form, rendering) {
+    const u = stripDashes(morpheme.usage);
+    return (
+      u === stripDashes(form) ||
+      u === stripDashes(rendering?.original_script)
+    );
   }
 
   // Language display order, mirroring _ANCHOR_LANG_PREFERENCE in
@@ -137,22 +179,21 @@
         <tbody>
           {#each forms as form (form)}
             {@const r = renderingFor(lang, form)}
-            <tr
-              class="form-row"
-              class:current={(morpheme.usage || '').replace(/^-+|-+$/g, '') ===
-                form.replace(/^-+|-+$/g, '')}
-            >
+            {@const current = isCurrent(form, r)}
+            <tr class="form-row" class:current>
               <td class="form">
                 <!-- wyrd-hpjg: each form is a click-to-swap button.
-                     Picks the form + appends a Swap step to the
-                     pipeline targeting this (word, morpheme) cell.
-                     The button approach is keyboard- + screen-reader-
-                     accessible; the table semantics still apply. -->
+                     Routes through pipeline.setSwap so re-clicks edit
+                     the single swap step for this (word, morpheme)
+                     cell, and clicking the current/original form
+                     reverts. Keyboard- + screen-reader-accessible. -->
                 <button
                   type="button"
                   class="form-btn"
-                  onclick={() => swapTo(form)}
-                  title="Swap this morpheme's surface to: {form}"
+                  onclick={() => swapTo(form, r)}
+                  title={current
+                    ? 'Current form — click to revert to the original'
+                    : `Swap this morpheme's surface to: ${r.original_script || form}`}
                 >
                   {#if r.original_script && r.original_script !== form}
                     <span class="original">{r.original_script}</span>

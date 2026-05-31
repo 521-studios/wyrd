@@ -97,6 +97,52 @@ class PipelineState {
 
   #nextStepId = 0;
 
+  /** Direct-manipulation swap (wyrd-2b50 follow-up): maintain AT MOST
+   *  ONE swap step per (wordIndex, morphemeIndex) cell. Clicking a
+   *  variant on a morpheme card updates that cell's swap in place
+   *  instead of stacking a new step (10 clicks → 1 step, not 10).
+   *  Clicking the cell's ORIGINAL generated form removes the swap —
+   *  i.e. clicking the original is "revert". `original` is the col-2
+   *  result's usage for that cell. Dash markers are normalized away
+   *  for the revert comparison ("-wald-" vs "wald") but accents are
+   *  kept, so adding an accent to a plain original counts as a swap. */
+  setSwap({ wordIndex, morphemeIndex, to, original }) {
+    const norm = (s) => (s || '').replace(/^-+|-+$/g, '');
+    const idx = this.steps.findIndex(
+      (s) =>
+        s.kind === 'swap' &&
+        s.params.wordIndex === wordIndex &&
+        s.params.morphemeIndex === morphemeIndex,
+    );
+    if (norm(to) === norm(original)) {
+      if (idx !== -1) this.removeStep(idx);
+      return;
+    }
+    if (idx !== -1) {
+      const next = [...this.steps];
+      next[idx] = { ...next[idx], params: { ...next[idx].params, to } };
+      this.steps = next;
+    } else {
+      this.addStep('swap', { wordIndex, morphemeIndex, to });
+    }
+  }
+
+  /** Remove the swap step for a (wordIndex, morphemeIndex) cell, if any
+   *  — an identity-based revert. setSwap's value-based revert can be
+   *  unreachable when the generated surface is ASCII but every form row
+   *  carries an accented original_script (no clickable row ever
+   *  normalizes back to the bare original). Clicking the CURRENT form
+   *  routes here so "click to revert" always works. No-op if no swap. */
+  clearSwap({ wordIndex, morphemeIndex }) {
+    const idx = this.steps.findIndex(
+      (s) =>
+        s.kind === 'swap' &&
+        s.params.wordIndex === wordIndex &&
+        s.params.morphemeIndex === morphemeIndex,
+    );
+    if (idx !== -1) this.removeStep(idx);
+  }
+
   /** Replace step at index i with a new params object (callers
    *  mutate the step's params in-place via bind:value; this
    *  helper is for callers that want explicit replacement). */
