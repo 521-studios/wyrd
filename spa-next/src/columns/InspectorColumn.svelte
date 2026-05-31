@@ -15,6 +15,7 @@
   import { untrack } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
+  import { renderName } from '../lib/transforms/swap.js';
   import MorphemeCard from '../components/MorphemeCard.svelte';
   import TransformStack from '../components/TransformStack.svelte';
   // wyrd-8jjx: SaveWorkspaceButton + ShareWorkspaceButton moved to
@@ -23,15 +24,67 @@
 
   let result = $derived(appState.currentResult);
 
-  // The "original" state the pipeline feeds — the col-2 selection.
-  // Snapshotting to { name, morphemes_by_word } pins the shape the
-  // pipeline engine expects (transforms return the same shape).
+  const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
+  const norm = (s) => stripDashes(s).toLowerCase();
+  // A string carries a diacritic if NFD-decomposing it yields combining
+  // marks (i.e. it changes under decomposition).
+  const hasAccent = (s) => !!s && s.normalize('NFD') !== s;
+
+  // wyrd-2b50 follow-up: the bundle's generated `usage` is often the
+  // lossy ASCII surface ("hy"), while the etymon's renderings carry the
+  // accented original_script ("hȳ"). Return the accented surface —
+  // grafted onto the usage's dash markers — when a rendering for this
+  // morpheme's own surface supplies one. Null otherwise.
+  function accentedUsage(m) {
+    const u = norm(m.usage);
+    if (!u) return null;
+    const R = m.renderings || {};
+    for (const lang of Object.keys(R)) {
+      for (const form of Object.keys(R[lang])) {
+        const os = R[lang][form].original_script;
+        if (os && norm(form) === u && hasAccent(os)) {
+          const lead = m.usage.match(/^-+/)?.[0] || '';
+          const trail = m.usage.match(/-+$/)?.[0] || '';
+          return lead + stripDashes(os) + trail;
+        }
+      }
+    }
+    return null;
+  }
+
+  function upgradeAccents(mbw) {
+    let changed = false;
+    const words = mbw.map((word) =>
+      word.map((m) => {
+        const acc = accentedUsage(m);
+        if (acc && acc !== m.usage) {
+          changed = true;
+          return { ...m, usage: acc };
+        }
+        return m;
+      }),
+    );
+    return { words, changed };
+  }
+
+  // The "original" state the pipeline feeds — the col-2 selection, with
+  // accents applied by default (the user's "show hȳ, not hy" ask). The
+  // accented head name is only re-rendered when renderName is PROVEN
+  // lossless for this name (reproduces the plain bundle name) — the
+  // renderer reproduces ~9/10 names, so an unsafe one keeps the bundle
+  // name + plain morphemes (1-click accent via the cards) rather than
+  // risk corrupting casing (e.g. "HamySide" -> "Hamyside").
   let original = $derived.by(() => {
     if (!result) return null;
-    return {
-      name: result.result,
-      morphemes_by_word: result.morphemes_by_word || [],
-    };
+    const plain = result.morphemes_by_word || [];
+    const up = upgradeAccents(plain);
+    if (!up.changed) {
+      return { name: result.result, morphemes_by_word: plain };
+    }
+    const lossless = renderName(plain) === result.result;
+    return lossless
+      ? { name: renderName(up.words), morphemes_by_word: up.words }
+      : { name: result.result, morphemes_by_word: plain };
   });
 
   // wyrd-kppy round 2: unified subject-change + pipeline-run
@@ -86,8 +139,6 @@
     });
     return out;
   });
-
-  const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
 
   // The rendering slot (ipa / reader_pronunciation) for a morpheme's
   // CURRENT usage — matched against either the plain form key or its

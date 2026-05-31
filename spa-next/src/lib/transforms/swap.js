@@ -88,7 +88,7 @@ function isFreeParticle(usage) {
   return FREE_PARTICLES.has(usage.toLowerCase());
 }
 
-function renderName(wordsList) {
+export function renderName(wordsList) {
   const wordRenders = wordsList.map((w) => {
     // Per-word: smart-join particles as separate tokens, concat the
     // rest, title-case the non-particle tokens. Mirrors
