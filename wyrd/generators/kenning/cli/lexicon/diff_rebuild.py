@@ -120,9 +120,7 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
                 collect_pronunciation,
             )
 
-            pronunciations = (
-                collect_pronunciation(str(jsonl_dir / "_pronunciation.jsonl")) or None
-            )
+            pronunciations = collect_pronunciation(str(jsonl_dir / "_pronunciation.jsonl")) or None
             with LexiconDB(rebuilt_path) as db:
                 run_full_enrichment(
                     db,
