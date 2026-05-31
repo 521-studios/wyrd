@@ -49,6 +49,31 @@ _G2P_LANG: dict[str, str] = {
     "celtic": "welsh",
 }
 
+# Bundle json_field (underscore form name) → G2P table language, for the
+# export-side surface-form fallback (wyrd-vm8t Loop 4). Many bundle forms are
+# variants / reflexes that are not etymon canonical_forms and so carry no
+# etymon IPA; for the table languages we can still derive one deterministically.
+_JSON_FIELD_G2P: dict[str, str] = {
+    "old_english": "old-english",
+    "old_norse": "old-norse",
+    "welsh": "welsh",
+    "celtic": "welsh",
+}
+
+
+def surface_ipa(form: str, json_field: str) -> str | None:
+    """Deterministic G2P IPA for a bundle surface form whose etymon carried
+    none. Table languages only (``json_field`` is the bundle's underscore name,
+    e.g. ``old_english``); returns None when the form isn't derivable."""
+    g2p_lang = _JSON_FIELD_G2P.get(json_field)
+    if g2p_lang is None:
+        return None
+    cf = _clean_form(form)
+    if cf is None:
+        return None
+    ipa = to_ipa(cf, g2p_lang)
+    return ipa if _is_real_ipa(ipa, cf) else None
+
 
 def _clean_form(form: str | None) -> str | None:
     """The G2P-ready surface, or None when the form isn't a single clean word

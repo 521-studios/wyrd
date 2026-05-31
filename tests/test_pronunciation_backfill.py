@@ -11,6 +11,7 @@ from wyrd.generators.kenning.lexicon.pronunciation_backfill import (
     _is_real_ipa,
     collect_pronunciation,
     derive_pronunciation_ipa,
+    surface_ipa,
 )
 from wyrd.generators.kenning.registers.phonology import to_ipa
 
@@ -97,6 +98,18 @@ def test_dry_run_writes_nothing():
     res = derive_pronunciation_ipa(_fake_db(conn), apply=False)
     assert res["filled"] == 2 and res["fixed_initial_h"] == 1
     assert conn.execute("SELECT pronunciation_ipa FROM etymon WHERE id=1").fetchone()[0] is None
+
+
+# --- export-side surface fallback (Loop 4) ---------------------------------
+def test_surface_ipa():
+    # table language (bundle underscore name) → G2P IPA
+    assert surface_ipa("burh", "old_english") == "/bʊrx/"  # coda-h via G2P
+    assert surface_ipa("bedd", "celtic") == "/bɛð/"  # celtic → welsh table
+    # non-table bundle field → None (LLM tier handles those, via etymon column)
+    assert surface_ipa("baile", "irish") is None
+    assert surface_ipa("ville", "old_french") is None
+    # unclean form → None
+    assert surface_ipa("*x y", "old_english") is None
 
 
 # --- the LLM jsonl tier ----------------------------------------------------
