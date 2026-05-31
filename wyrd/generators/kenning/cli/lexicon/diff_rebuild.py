@@ -116,6 +116,13 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
                 )
                 or None
             )
+            from wyrd.generators.kenning.lexicon.pronunciation_backfill import (
+                collect_pronunciation,
+            )
+
+            pronunciations = (
+                collect_pronunciation(str(jsonl_dir / "_pronunciation.jsonl")) or None
+            )
             with LexiconDB(rebuilt_path) as db:
                 run_full_enrichment(
                     db,
@@ -126,6 +133,7 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
                     split_state=splits,
                     collapse_state=collapses,
                     element_gloss_state=element_glosses,
+                    pronunciation_state=pronunciations,
                 )
 
         rebuilt_conn = sqlite3.connect(rebuilt_path)

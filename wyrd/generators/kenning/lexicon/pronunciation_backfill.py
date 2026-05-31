@@ -20,10 +20,23 @@ follows automatically from the IPA at export.
 
 from __future__ import annotations
 
+import json
+import os
+import re
 from collections import Counter
 from typing import Any
 
 from wyrd.generators.kenning.registers.phonology import _VOWELS, to_ipa
+
+# LLM transcriptions occasionally leak non-IPA artifacts (an ASCII capital like
+# /troP/, a stray Greek λ in /pλym/). IPA uses lowercase ASCII + phonetic
+# extensions, never ASCII A–Z or Greek letters, so reject those rows.
+_IPA_ARTIFACT = re.compile("[A-Z\u0370-\u03ff]")
+
+# Confidence tiers from the LLM pronunciation mining that we trust enough to
+# ship. "low" rows stay recorded in the jsonl but are not applied (operator
+# upgrades them on review).
+_ACCEPT_CONFIDENCE = ("high", "medium")
 
 # Etymon language → the G2P table to run. The lexicon's "celtic" place-name
 # elements are Brittonic (rhyd, bedd, llan, tref), so the Welsh table fits them
@@ -63,8 +76,43 @@ def _initial_h_is_x(form: str, existing_ipa: str) -> bool:
     )
 
 
-def derive_pronunciation_ipa(db, *, apply: bool = True) -> dict[str, Any]:
-    """Fill + fix etymon ``pronunciation_ipa`` from the G2P. Returns a summary."""
+def collect_pronunciation(path: str | None) -> dict[tuple[str, str], str]:
+    """Load the LLM pronunciation jsonl → ``{(language, form): ipa}`` for the
+    rows we trust enough to ship (see :data:`_ACCEPT_CONFIDENCE`). The jsonl is
+    the L2 record for the no-G2P-table languages (irish/gaelic/french/…);
+    ``derive_pronunciation_ipa`` replays it deterministically at enrichment."""
+    state: dict[tuple[str, str], str] = {}
+    if not path or not os.path.exists(path):
+        return state
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            ipa = (rec.get("ipa") or "").strip()
+            lang, form = rec.get("language"), rec.get("form")
+            if (
+                ipa
+                and lang
+                and form
+                and rec.get("confidence") in _ACCEPT_CONFIDENCE
+                and not _IPA_ARTIFACT.search(ipa)
+            ):
+                state[(lang, form)] = ipa  # last write wins (jsonl is append-log)
+    return state
+
+
+def derive_pronunciation_ipa(
+    db, *, apply: bool = True, llm_state: dict[tuple[str, str], str] | None = None
+) -> dict[str, Any]:
+    """Fill + fix etymon ``pronunciation_ipa``: deterministic G2P for the
+    table languages (OE/ON/welsh/celtic), then the LLM jsonl (``llm_state``,
+    from :func:`collect_pronunciation`) for the no-table languages. Both only
+    fill etymons that still lack IPA (G2P additionally fixes OE onset-h)."""
     conn = db.conn
     langs = tuple(_G2P_LANG)  # languages we can derive IPA for
     placeholders = ",".join("?" for _ in langs)
@@ -94,6 +142,17 @@ def derive_pronunciation_ipa(db, *, apply: bool = True) -> dict[str, Any]:
             continue
         if apply:
             conn.execute("UPDATE etymon SET pronunciation_ipa=? WHERE id=?", (derived, eid))
+
+    # LLM jsonl replay — no-G2P-table languages, gaps only (never overrides).
+    for (lang, form), ipa in (llm_state or {}).items():
+        for (eid,) in conn.execute(
+            "SELECT id FROM etymon WHERE language=? AND canonical_form=? "
+            "AND (pronunciation_ipa IS NULL OR pronunciation_ipa='')",
+            (lang, form),
+        ).fetchall():
+            summary["filled_llm"] += 1
+            if apply:
+                conn.execute("UPDATE etymon SET pronunciation_ipa=? WHERE id=?", (ipa, eid))
     return dict(summary)
 
 
@@ -101,7 +160,8 @@ def format_pronunciation_run(counts: dict[str, Any]) -> str:
     """Render :func:`derive_pronunciation_ipa` output as a markdown block."""
     return (
         "### IPA backfill (wyrd-vm8t, G2P)\n"
-        f"- Filled (was empty): {counts.get('filled', 0)}\n"
+        f"- Filled from G2P (was empty): {counts.get('filled', 0)}\n"
+        f"- Filled from LLM jsonl (no-table langs): {counts.get('filled_llm', 0)}\n"
         f"- Fixed OE initial-h (/x/ → /h/): {counts.get('fixed_initial_h', 0)}\n"
         f"- Kept existing: {counts.get('kept_existing', 0)}; "
         f"skipped: {counts.get('skipped_unclean', 0) + counts.get('skipped_passthrough', 0)}"

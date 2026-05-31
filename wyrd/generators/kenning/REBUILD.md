@@ -44,6 +44,7 @@ DB and must be re-run by hand after the rebuild.
 | curation overrides | ✅ yes — `data/mining/_curation.jsonl` | — |
 | collapse ledger (form-of/variant folds, wyrd-y651) | ✅ yes — `data/mining/_collapses.jsonl`, replayed by `run_full_enrichment`'s curation slot (`apply_collapses`) | — |
 | element-gloss backfill (`reflex_etymon` links for unglossed generation surfaces, wyrd-u9k6) | ✅ yes — `data/mining/_element_glosses.jsonl` (deterministic consensus) + `_element_gloss_adjudications.jsonl` (LLM picks), replayed by `run_full_enrichment`'s element-gloss pass (`apply_element_glosses`) | — |
+| pronunciation IPA backfill (`etymon.pronunciation_ipa`, wyrd-vm8t) | ✅ yes — **two tiers**: (1) the deterministic G2P fill for OE/ON/welsh/celtic is re-derived for free by `run_full_enrichment`'s `derive_pronunciation_ipa` pass (no jsonl — same as english-shaped/stratum); (2) the LLM tier for the no-G2P-table languages (Goidelic/Romance/Middle English/Breton) replays the high+medium-confidence rows of `data/mining/_pronunciation.jsonl` through the same pass (`collect_pronunciation` → `llm_state`, gaps only) | — |
 | **`toponym.country`** | ❌ dropped | `backfill-toponym-country` |
 | **phase-2 attestations** (`toponym_attestation`) | ❌ L3-only (boundary doc "deferred") | `ingest-toponym-mentions` over `data/mining/phase2/*.jsonl` |
 | **empirical layer** (`wiktionary-empirical` citations) | ❌ L3-only | `mine-wiktextract-corpus` + `cleanup-wiktionary-empirical` |

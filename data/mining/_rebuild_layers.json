@@ -20,6 +20,7 @@
     "merge-collapses": "LLM (Ollama) same-meaning judgment over variant-doubling candidates (wyrd-6xzs). NON-DETERMINISTIC, so per the reconstructibility rule its verdicts persist to the data/mining/_collapses.jsonl ledger and are replayed deterministically — it must never be a rebuild step (re-judging would make rebuilds non-reproducible).",
     "mine-element-glosses": "DETERMINISTIC grounded-consensus gloss backfill for unglossed generation surfaces (wyrd-u9k6). Votes the toponyms' mined etymologies + inherits authoritative glosses, writing the data/mining/_element_glosses.jsonl ledger. The rows round-trip through L2 and are replayed for free by run_full_enrichment's element-gloss pass (links the orphan reflex to its etymon in reflex_etymon); the miner itself is never re-run on rebuild.",
     "adjudicate-element-glosses": "LLM (Ollama) weak-tail adjudication that PICKS among the grounded consensus candidates (wyrd-u9k6). NON-DETERMINISTIC / PAID, so per the reconstructibility rule its accepted picks persist to the data/mining/_element_gloss_adjudications.jsonl ledger and are replayed deterministically by run_full_enrichment — it must never be a rebuild step.",
+    "mine-pronunciation-llm": "LLM (Ollama) broad-IPA transcription for the no-G2P-table generation languages — Goidelic (irish/gaelic), Romance (old/norman French, latin), Middle English, Breton (wyrd-vm8t). NON-DETERMINISTIC / PAID, so its high+medium-confidence rows persist to the data/mining/_pronunciation.jsonl ledger and are replayed deterministically by run_full_enrichment's pronunciation pass (collect_pronunciation → derive_pronunciation_ipa llm_state) — never a rebuild step. The OE/ON/welsh/celtic IPA is NOT here: that is the deterministic G2P fill, re-derived for free on rebuild.",
     "ingest-domesday": "Source-specific ingester (Open Domesday); output lands in L2. Not a wipe-restore step.",
     "ingest-etymonline": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
     "ingest-hearth-tax": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
@@ -69,6 +70,13 @@
       "restored_by": "enrichment",
       "cost": "free",
       "runbook_token": "_element_glosses.jsonl"
+    },
+    {
+      "layer": "pronunciation-ipa-llm",
+      "summary": "etymon.pronunciation_ipa for the no-G2P-table generation languages (Goidelic, Romance, Middle English, Breton; wyrd-vm8t). run_full_enrichment's pronunciation pass replays the high+medium-confidence rows of the committed data/mining/_pronunciation.jsonl (LLM broad IPA, gaps only — never overrides Wiktionary). Distinct from the deterministic G2P fill of OE/ON/welsh/celtic, which is re-derived for free (enrichment-derived-columns layer above).",
+      "restored_by": "enrichment",
+      "cost": "free",
+      "runbook_token": "_pronunciation.jsonl"
     },
     {
       "layer": "fantasy-morphemes",

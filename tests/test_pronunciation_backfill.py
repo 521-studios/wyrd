@@ -9,6 +9,7 @@ from wyrd.generators.kenning.lexicon.pronunciation_backfill import (
     _clean_form,
     _initial_h_is_x,
     _is_real_ipa,
+    collect_pronunciation,
     derive_pronunciation_ipa,
 )
 from wyrd.generators.kenning.registers.phonology import to_ipa
@@ -96,3 +97,36 @@ def test_dry_run_writes_nothing():
     res = derive_pronunciation_ipa(_fake_db(conn), apply=False)
     assert res["filled"] == 2 and res["fixed_initial_h"] == 1
     assert conn.execute("SELECT pronunciation_ipa FROM etymon WHERE id=1").fetchone()[0] is None
+
+
+# --- the LLM jsonl tier ----------------------------------------------------
+def test_collect_pronunciation_confidence_filter(tmp_path):
+    p = tmp_path / "_pronunciation.jsonl"
+    p.write_text(
+        "\n".join(
+            [
+                '{"language":"irish","form":"baile","ipa":"/bˠalʲə/","confidence":"high"}',
+                '{"language":"irish","form":"cnoc","ipa":"/knɔk/","confidence":"medium"}',
+                '{"language":"irish","form":"aint","ipa":"/iːnt/","confidence":"low"}',  # dropped
+                '{"language":"irish","form":"x","confidence":"high"}',  # no ipa → dropped
+                '{"language":"old-french","form":"trop","ipa":"/troP/","confidence":"high"}',  # ASCII artifact
+                '{"language":"old-french","form":"plume","ipa":"/pλym/","confidence":"high"}',  # Greek artifact
+                "not json",  # tolerated
+            ]
+        ),
+        encoding="utf-8",
+    )
+    state = collect_pronunciation(str(p))
+    assert state == {("irish", "baile"): "/bˠalʲə/", ("irish", "cnoc"): "/knɔk/"}
+    assert collect_pronunciation(str(tmp_path / "missing.jsonl")) == {}
+
+
+def test_llm_state_fills_no_table_languages_gaps_only():
+    conn = _etymon_db()  # has irish "baile" with no IPA
+    conn.execute("INSERT INTO etymon VALUES (8,'irish','cnoc','/EXISTING/')")
+    llm = {("irish", "baile"): "/bˠalʲə/", ("irish", "cnoc"): "/SHOULD-NOT-OVERRIDE/"}
+    res = derive_pronunciation_ipa(_fake_db(conn), apply=True, llm_state=llm)
+    assert res["filled_llm"] == 1  # only baile (cnoc already had IPA)
+    ipa = dict(conn.execute("SELECT canonical_form, pronunciation_ipa FROM etymon"))
+    assert ipa["baile"] == "/bˠalʲə/"  # filled from LLM
+    assert ipa["cnoc"] == "/EXISTING/"  # never overridden

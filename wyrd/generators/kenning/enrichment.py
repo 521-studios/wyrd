@@ -1034,6 +1034,7 @@ def run_full_enrichment(
     split_state: dict[str, dict[str, Any]] | None = None,
     collapse_state: dict[str, dict[str, Any]] | None = None,
     element_gloss_state: list[dict[str, str]] | None = None,
+    pronunciation_state: dict[tuple[str, str], str] | None = None,
     skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
     """Run the canonical L3 enrichment chain (wyrd-hidb Phase 2).
@@ -1169,7 +1170,9 @@ def run_full_enrichment(
         # wyrd-vm8t: backfill pronunciation_ipa from the G2P (fill the
         # ON/OE/welsh gaps + fix OE initial-h /x/→/h/). Runs before
         # phonological-vectors so the vectors read the now-fuller IPA.
-        pronunciation_result = derive_pronunciation_ipa(db, apply=apply)
+        pronunciation_result = derive_pronunciation_ipa(
+            db, apply=apply, llm_state=pronunciation_state
+        )
         order.append("derive-pronunciation-ipa")
         # wyrd-kq7w.1: tag phonological vectors after english_shaped so
         # both passes have settled IPA + canonical_form values to read

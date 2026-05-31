@@ -138,6 +138,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import mine_fantasy_name as _mine_fantasy_name_module
 from wyrd.generators.kenning.cli.lexicon import mine_llm as _mine_llm_module
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_pronunciation_llm as _mine_pronunciation_llm_module,
+)
 from wyrd.generators.kenning.cli.lexicon import mine_skeat as _mine_skeat_module
 from wyrd.generators.kenning.cli.lexicon import (
     mine_toponym_mentions as _mine_toponym_mentions_module,
@@ -237,6 +240,7 @@ _dump_empirical_priors_module.add_to(lexicon)
 _extract_pfsrd2_monsters_module.add_to(lexicon)
 _derive_english_shaped_module.add_to(lexicon)
 _derive_pronunciation_ipa_module.add_to(lexicon)
+_mine_pronunciation_llm_module.add_to(lexicon)
 _diff_bundle_module.add_to(lexicon)
 _diff_rebuild_module.add_to(lexicon)
 _disambiguate_fuzzy_module.add_to(lexicon)

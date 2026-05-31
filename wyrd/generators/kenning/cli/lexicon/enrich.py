@@ -123,6 +123,9 @@ def lexicon_enrich(
             )
             or None
         )
+    from wyrd.generators.kenning.lexicon.pronunciation_backfill import collect_pronunciation
+
+    pronunciation_state = collect_pronunciation(str(jsonl_dir / "_pronunciation.jsonl")) or None
     with LexiconDB(db_path) as db:
         result = run_full_enrichment(
             db,
@@ -133,6 +136,7 @@ def lexicon_enrich(
             split_state=split_state,
             collapse_state=collapse_state,
             element_gloss_state=element_gloss_state,
+            pronunciation_state=pronunciation_state,
         )
     click.echo(format_enrichment_run(result), err=True)
     if not apply_changes:
