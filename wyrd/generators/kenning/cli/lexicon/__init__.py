@@ -76,6 +76,9 @@ from wyrd.generators.kenning.cli.lexicon import decompose as _decompose_module
 from wyrd.generators.kenning.cli.lexicon import (
     derive_english_shaped as _derive_english_shaped_module,
 )
+from wyrd.generators.kenning.cli.lexicon import (
+    derive_pronunciation_ipa as _derive_pronunciation_ipa_module,
+)
 from wyrd.generators.kenning.cli.lexicon import detect_collapses as _detect_collapses_module
 from wyrd.generators.kenning.cli.lexicon import diff_bundle as _diff_bundle_module
 from wyrd.generators.kenning.cli.lexicon import diff_rebuild as _diff_rebuild_module
@@ -135,6 +138,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import mine_fantasy_name as _mine_fantasy_name_module
 from wyrd.generators.kenning.cli.lexicon import mine_llm as _mine_llm_module
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_pronunciation_llm as _mine_pronunciation_llm_module,
+)
 from wyrd.generators.kenning.cli.lexicon import mine_skeat as _mine_skeat_module
 from wyrd.generators.kenning.cli.lexicon import (
     mine_toponym_mentions as _mine_toponym_mentions_module,
@@ -233,6 +239,8 @@ _detect_collapses_module.add_to(lexicon)
 _dump_empirical_priors_module.add_to(lexicon)
 _extract_pfsrd2_monsters_module.add_to(lexicon)
 _derive_english_shaped_module.add_to(lexicon)
+_derive_pronunciation_ipa_module.add_to(lexicon)
+_mine_pronunciation_llm_module.add_to(lexicon)
 _diff_bundle_module.add_to(lexicon)
 _diff_rebuild_module.add_to(lexicon)
 _disambiguate_fuzzy_module.add_to(lexicon)

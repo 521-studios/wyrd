@@ -46,6 +46,7 @@ from .lexicon.english_shaping import derive_english_shaped_all
 from .lexicon.phonological_vector_enrichment import (
     tag_phonological_vectors_all,
 )
+from .lexicon.pronunciation_backfill import derive_pronunciation_ipa
 from .lexicon.strata import classify_stratum_all
 from .runtime.decomposition import decompose_all
 
@@ -1033,6 +1034,7 @@ def run_full_enrichment(
     split_state: dict[str, dict[str, Any]] | None = None,
     collapse_state: dict[str, dict[str, Any]] | None = None,
     element_gloss_state: list[dict[str, str]] | None = None,
+    pronunciation_state: dict[tuple[str, str], str] | None = None,
     skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
     """Run the canonical L3 enrichment chain (wyrd-hidb Phase 2).
@@ -1152,6 +1154,7 @@ def run_full_enrichment(
     cognate_result: dict[str, Any] | None = None
     stratum_result: dict[str, Any] | None = None
     english_shaped_result: dict[str, Any] | None = None
+    pronunciation_result: dict[str, Any] | None = None
     phonological_vector_result: dict[str, Any] | None = None
     period_form_result: dict[str, Any] | None = None
 
@@ -1164,6 +1167,13 @@ def run_full_enrichment(
         order.append("classify-stratum")
         english_shaped_result = derive_english_shaped_all(db, apply=apply)
         order.append("derive-english-shaped")
+        # wyrd-vm8t: backfill pronunciation_ipa from the G2P (fill the
+        # ON/OE/welsh gaps + fix OE initial-h /x/→/h/). Runs before
+        # phonological-vectors so the vectors read the now-fuller IPA.
+        pronunciation_result = derive_pronunciation_ipa(
+            db, apply=apply, llm_state=pronunciation_state
+        )
+        order.append("derive-pronunciation-ipa")
         # wyrd-kq7w.1: tag phonological vectors after english_shaped so
         # both passes have settled IPA + canonical_form values to read
         # from. Incremental (NULL-only) by default; the standalone
@@ -1194,6 +1204,7 @@ def run_full_enrichment(
         "etymon_splits": split_counts,
         "collapses": collapse_counts,
         "element_glosses": element_gloss_counts,
+        "pronunciation_ipa": pronunciation_result,
         "decompose": decompose_result,
         "cognates": cognate_result,
         "stratum": stratum_result,
@@ -1421,6 +1432,11 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
             f"{eg.get('linked_surfaces', 0)} (links {eg.get('links', 0)}; "
             f"no-reflex {eg.get('no_reflex', 0)}, no-etymon {eg.get('no_etymon', 0)})"
         )
+    if result.get("pronunciation_ipa"):
+        from .lexicon.pronunciation_backfill import format_pronunciation_run
+
+        lines.append("")
+        lines.append(format_pronunciation_run(result["pronunciation_ipa"]))
     for key, render in _OPTIONAL_SECTIONS:
         payload = result.get(key)
         if payload is None:

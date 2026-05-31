@@ -244,6 +244,9 @@ def _rebuild_lexicon_db(
         str(jsonl_dir / "_element_glosses.jsonl"),
         str(jsonl_dir / "_element_gloss_adjudications.jsonl"),
     )
+    from wyrd.generators.kenning.lexicon.pronunciation_backfill import collect_pronunciation
+
+    pronunciation_state = collect_pronunciation(str(jsonl_dir / "_pronunciation.jsonl"))
     with LexiconDB(rebuilt_path) as db:
         run_full_enrichment(
             db,
@@ -254,6 +257,7 @@ def _rebuild_lexicon_db(
             split_state=split_state or None,
             collapse_state=collapse_state or None,
             element_gloss_state=element_gloss_state or None,
+            pronunciation_state=pronunciation_state or None,
         )
 
 

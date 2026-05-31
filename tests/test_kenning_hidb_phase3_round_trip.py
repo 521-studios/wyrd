@@ -259,6 +259,7 @@ def test_round_trip_rebuild_enrich_export_byte_identical(tmp_path: Path) -> None
         "cluster-cognates",
         "classify-stratum",
         "derive-english-shaped",
+        "derive-pronunciation-ipa",
         "tag-phonological-vectors",
         "project-period-forms",
     ], "orchestrator skipped a pass — fixture doesn't exercise the full chain"

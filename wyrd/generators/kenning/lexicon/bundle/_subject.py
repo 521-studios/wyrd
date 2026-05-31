@@ -39,6 +39,18 @@ from wyrd.generators.kenning.lexicon.bundle._emit import (
     _synthesize_modern_usage,
 )
 from wyrd.generators.kenning.lexicon.bundle._family import _better_era_reflex_source
+from wyrd.generators.kenning.lexicon.pronunciation_backfill import surface_ipa
+
+
+def _fill_surface_pronunciation(bucket: Any, json_field: str) -> None:
+    """wyrd-vm8t Loop 4: deterministic G2P fallback for surface forms
+    (variants/reflexes) that are not etymon canonical_forms and so carry no
+    etymon IPA. Table languages only; gaps only (never overrides etymon IPA)."""
+    for form in bucket.forms:
+        if form not in bucket.pronunciation:
+            ipa = surface_ipa(form, json_field)
+            if ipa:
+                bucket.pronunciation[form] = {"ipa": ipa, "dialect": None}
 
 
 def _group_families_into_subjects(families: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -558,6 +570,7 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
             word[f"{json_field}_transliteration"] = _emit_transliteration_list(
                 bucket.transliteration
             )
+        _fill_surface_pronunciation(bucket, json_field)
         if bucket.pronunciation:
             word[f"{json_field}_pronunciation"] = _emit_pronunciation_list(bucket.pronunciation)
         if bucket.stratum:

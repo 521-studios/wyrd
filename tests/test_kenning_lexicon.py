@@ -9021,7 +9021,15 @@ def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
     assert subj["meaning"] == ["Acorn"]
     assert subj["modifier_tags"] == ["food", "plant"]
     assert subj["modifier_type"] == "Topographical"
-    assert subj["words"] == [{"modern_usage": "-ock", "old_english": ["aecern"]}]
+    # wyrd-vm8t Loop 4: the OE surface form gets a deterministic G2P pronunciation
+    # even though the etymon carried no IPA.
+    assert subj["words"] == [
+        {
+            "modern_usage": "-ock",
+            "old_english": ["aecern"],
+            "old_english_pronunciation": [{"form": "aecern", "ipa": "/ɑɛkɛrn/", "dialect": None}],
+        }
+    ]
     assert without_rando == []
 
 
@@ -9214,6 +9222,8 @@ def test_export_meanings_promotes_at_witness_threshold(fresh_db: Path) -> None:
             "modern_usage": "ham",
             "old_english": ["ham"],
             "old_english_citations": ["a", "b", "c"],
+            # wyrd-vm8t Loop 4: G2P surface pronunciation (onset-h → /h/).
+            "old_english_pronunciation": [{"form": "ham", "ipa": "/hɑm/", "dialect": None}],
         }
     ]
 
@@ -9972,10 +9982,14 @@ def test_export_meanings_omits_phase2d_siblings_when_columns_null(fresh_db: Path
         subjects = export_meanings(db, include_rando=True)
 
     word = subjects[0]["words"][0]
-    for suffix in ("_original_script", "_transliteration", "_pronunciation"):
+    # wyrd-vm8t Loop 4: _pronunciation is now G2P-derived for table-language
+    # forms even when the etymon IPA column is null, so it is no longer omitted
+    # (script/transliteration remain column-driven and stay absent).
+    for suffix in ("_original_script", "_transliteration"):
         assert all(not k.endswith(suffix) for k in word), (
             f"unexpected {suffix} sibling on Latin-script row: {list(word.keys())}"
         )
+    assert "old_english_pronunciation" in word, "expected G2P surface pronunciation"
 
 
 def test_export_meanings_emits_english_shaped_per_language(fresh_db: Path) -> None:
@@ -10851,6 +10865,8 @@ def test_export_meanings_synthesizes_word_for_mined_only_family(
             "modern_usage": "tune",
             "old_english": ["tune"],
             "old_english_citations": ["a", "b", "c"],
+            # wyrd-vm8t Loop 4: G2P surface pronunciation.
+            "old_english_pronunciation": [{"form": "tune", "ipa": "/tʊnɛ/", "dialect": None}],
         }
     ]
 

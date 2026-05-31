@@ -21,6 +21,7 @@ def test_run_full_enrichment_phase2_chain_smoke(tmp_path: Path):
         "cluster-cognates",
         "classify-stratum",
         "derive-english-shaped",
+        "derive-pronunciation-ipa",
         "tag-phonological-vectors",
         "project-period-forms",
     ]

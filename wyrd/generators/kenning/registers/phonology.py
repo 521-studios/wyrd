@@ -27,11 +27,26 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Phoneme:
-    """One grapheme-to-sound mapping."""
+    """One grapheme-to-sound mapping.
+
+    ``coda_ipa`` / ``coda_respelling`` (wyrd-vm8t): when set, the grapheme takes
+    these values in CODA position — i.e. when it is NOT followed by a vowel
+    (before a consonant, or word-final). Used for OE ``h``, which is [h] in the
+    onset (``hām`` → /hɑːm/) but the velar fricative [x] in the coda (``burh`` →
+    /burx/, ``niht`` → /nixt/). ``None`` means the grapheme is position-neutral.
+    """
 
     grapheme: str  # The letter or digraph in the orthography.
-    ipa: str  # IPA representation.
+    ipa: str  # IPA representation (onset / position-neutral).
     respelling: str  # English-friendly approximation.
+    coda_ipa: str | None = None
+    coda_respelling: str | None = None
+
+
+# Vowel graphemes across the supported orthographies — drives the onset-vs-coda
+# decision for position-sensitive phonemes (a grapheme is in coda position when
+# the NEXT character is not one of these, or it is word-final).
+_VOWELS: frozenset[str] = frozenset("aeiouyæøǫ" + "āēīōūȳǣáéíóúýǽǿœ")
 
 
 # --- Old English ----------------------------------------------------------
@@ -83,7 +98,11 @@ OLD_ENGLISH = [
     # Single consonants
     Phoneme("c", "k", "k"),  # default; palatalization handled separately
     Phoneme("g", "g", "g"),  # ditto
-    Phoneme("h", "h", "h"),
+    # OE h: [h] in onset (hām), velar fricative [x] in coda (burh, niht).
+    # The hl/hr/hn/hw clusters above are matched first, so this single-h rule
+    # only fires for h before a vowel ([h]) or before a non-cluster consonant /
+    # word-end ([x]).
+    Phoneme("h", "h", "h", coda_ipa="x", coda_respelling="kh"),
     Phoneme("b", "b", "b"),
     Phoneme("d", "d", "d"),
     Phoneme("f", "f", "f"),
@@ -261,8 +280,10 @@ def to_respelling(form: str, language: str) -> str:
             out.append(s[i])
             i += 1
         else:
-            out.append(match.respelling)
-            i += len(match.grapheme)
+            nxt = i + len(match.grapheme)
+            coda = match.coda_respelling is not None and (nxt >= len(s) or s[nxt] not in _VOWELS)
+            out.append(match.coda_respelling if coda else match.respelling)
+            i = nxt
     return "".join(out)
 
 
@@ -284,6 +305,8 @@ def to_ipa(form: str, language: str) -> str:
             out.append(s[i])
             i += 1
         else:
-            out.append(match.ipa)
-            i += len(match.grapheme)
+            nxt = i + len(match.grapheme)
+            coda = match.coda_ipa is not None and (nxt >= len(s) or s[nxt] not in _VOWELS)
+            out.append(match.coda_ipa if coda else match.ipa)
+            i = nxt
     return "/" + "".join(out) + "/"
