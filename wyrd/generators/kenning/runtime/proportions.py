@@ -259,22 +259,35 @@ def _intersect_keep_keys(
     return a & b
 
 
-_SURFACE_INDEX_CACHE: dict[int, dict[str, list]] = {}
+# Maps id(meaning_db) → (meaning_db, surface_index). Storing the meaning_db
+# reference alongside the index is load-bearing: it keeps the dict ALIVE while
+# cached, so CPython can't recycle its id() for a different meaning_db (the
+# wyrd-eyjk round-2 staleness hazard), and the ``is`` identity check below
+# catches any collision defensively. Bounded so ad-hoc test meaning_dbs don't
+# accumulate; also dropped wholesale on bundle reload via
+# ``_clear_surface_index_cache`` (wired into the kenning coupled cache-clear).
+_SURFACE_INDEX_CACHE: dict[int, tuple[dict, dict[str, list]]] = {}
+_SURFACE_INDEX_CACHE_MAX = 32
 
 
 def _surface_index_for(meaning_db: dict) -> dict[str, list]:
     """wyrd-eyjk/D40: bare-surface (dash-stripped, lowercased) → [Meaning]
     index for a meaning_db. Proportions usages are POSITION-FORMS (`-giles`);
     the morpheme is resolved by its surface since the bundle may store it only
-    under another dash-variant. Cached by ``id(meaning_db)`` — meaning_db is
-    immutable post-load, so a single build lasts the process lifetime."""
+    under another dash-variant. Cached by ``id(meaning_db)`` with an identity
+    check so an id() recycled after GC can never return a stale index."""
     key = id(meaning_db)
-    idx = _SURFACE_INDEX_CACHE.get(key)
-    if idx is None:
-        idx = {}
-        for usage, meanings in meaning_db.items():
-            idx.setdefault(usage.lower().replace("-", ""), []).extend(meanings)
-        _SURFACE_INDEX_CACHE[key] = idx
+    entry = _SURFACE_INDEX_CACHE.get(key)
+    if entry is not None and entry[0] is meaning_db:
+        return entry[1]
+    idx: dict[str, list] = {}
+    for usage, meanings in meaning_db.items():
+        idx.setdefault(usage.lower().replace("-", ""), []).extend(meanings)
+    # Production uses one long-lived bundle meaning_db; the cap only matters for
+    # the many small ad-hoc meaning_dbs tests build. Evict oldest on overflow.
+    if key not in _SURFACE_INDEX_CACHE and len(_SURFACE_INDEX_CACHE) >= _SURFACE_INDEX_CACHE_MAX:
+        del _SURFACE_INDEX_CACHE[next(iter(_SURFACE_INDEX_CACHE))]
+    _SURFACE_INDEX_CACHE[key] = (meaning_db, idx)
     return idx
 
 

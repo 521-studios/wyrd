@@ -65,6 +65,22 @@ def test_lone_word_records_bare_surface():
     assert lone.get_samples() == set()
 
 
+def test_partial_decomposition_positions_account_for_unmatched_fragments():
+    """wyrd-eyjk round 2: a matched morpheme in a partially-decomposed word
+    derives its position over ALL word elements, not just the Meanings — a
+    word-final ``giles`` after an unmatched ``Stoke`` fragment is post (would
+    record ``-giles``), not bare. (Recorded corpus words are fully decomposed,
+    so this only bites a partial-decomposition caller; pinned for robustness +
+    to keep get_samples / get_structure in lockstep.)"""
+    w = Word(["Stoke", Meaning("Giles-", ["saint"], [], {})])
+    assert w.get_samples() == {"-giles"}
+    assert w.get_structure() == (("post",),)
+    # And a leading matched morpheme before an unmatched tail → pre.
+    w2 = Word([Meaning("Stoke-", [], [], {}), "giles"])
+    assert w2.get_samples() == {"Stoke-"}
+    assert w2.get_structure() == (("pre",),)
+
+
 @pytest.mark.parametrize(
     "usage,expected",
     [("-x-", "inner"), ("x-", "pre"), ("-x", "post"), ("x", "bare"), ("", "bare")],

@@ -94,9 +94,20 @@ class Word:
         stored dash-shape. ``Stokegiles`` → ``Stoke-`` (pre) + ``-giles``
         (post). This is the (morpheme, derived-position) increment the
         proportions tally is built from."""
-        meanings = [m for m in self.word if isinstance(m, Meaning)]
-        count = len(meanings)
-        return [_position_form(m, _structural_position(i, count)) for i, m in enumerate(meanings)]
+        # wyrd-eyjk round 2 (Gemini): derive position over ALL word elements
+        # (count = len(self.word)), not just the matched Meanings, so a morpheme
+        # in a partially-decomposed word (with unmatched string fragments) gets
+        # its true structural position — a word-final ``giles`` after an
+        # unmatched ``Stoke`` is post, not bare. Recorded corpus words are fully
+        # decomposed (the exporter keeps only count_unaccounted()==0), so this
+        # is a no-op on production data and robust for any partial caller. Kept
+        # in lockstep with ``get_structure``.
+        count = len(self.word)
+        return [
+            _position_form(m, _structural_position(i, count))
+            for i, m in enumerate(self.word)
+            if isinstance(m, Meaning)
+        ]
 
     def get_samples(self):
         # Multi-morpheme words feed the ``usages`` (part) pool.
@@ -123,10 +134,18 @@ class Word:
         #
         # The ``name`` / ``saint`` flags stay orthogonal — they ride alongside
         # whatever structural position the morpheme occupies.
-        meanings = [m for m in self.word if isinstance(m, Meaning)]
-        count = len(meanings)
+        #
+        # wyrd-eyjk round 2: position is derived over ALL word elements
+        # (count = len(self.word)), in lockstep with ``_positioned_usages`` —
+        # so a matched morpheme keeps the same position in the structure tuple
+        # as in the recorded usage form even when the word has unmatched string
+        # fragments (a no-op for the fully-decomposed corpus words actually
+        # recorded).
+        count = len(self.word)
         structure = []
-        for index, m in enumerate(meanings):
+        for index, m in enumerate(self.word):
+            if not isinstance(m, Meaning):
+                continue
             position = _structural_position(index, count)
             if m.is_name():
                 structure.append((position, "name"))
