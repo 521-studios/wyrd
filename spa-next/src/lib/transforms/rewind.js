@@ -78,17 +78,25 @@ export const rewindTransform = {
         word.map((m) => {
           const rw = rewound[i];
           i += 1;
-          const langField = (rw.language || '').replace(/-/g, '_') || 'rewound';
-          const renderings = { ...(m.renderings || {}) };
-          // Add the rewound form's pronunciation under its language so the
-          // guide (which matches on usage) finds it; keep any originals.
-          renderings[langField] = {
-            ...(renderings[langField] || {}),
-            [rw.form]: {
-              ...(renderings[langField]?.[rw.form] || {}),
-              ...(rw.respelling ? { reader_pronunciation: rw.respelling } : {}),
-            },
-          };
+          // Defensive: a malformed entry (missing form) → keep the original
+          // morpheme rather than blanking its usage.
+          if (!rw || !rw.form) return m;
+          const langField = (rw.language || '').replace(/-/g, '_');
+          // Only inject a rendering when we have BOTH a language bucket and a
+          // respelling — otherwise we'd add a spurious empty language panel
+          // to the morpheme card (orderedSourceEntries unions renderings
+          // keys). Keep any pre-existing renderings.
+          let renderings = m.renderings;
+          if (langField && rw.respelling) {
+            renderings = { ...(m.renderings || {}) };
+            renderings[langField] = {
+              ...(renderings[langField] || {}),
+              [rw.form]: {
+                ...(renderings[langField]?.[rw.form] || {}),
+                reader_pronunciation: rw.respelling,
+              },
+            };
+          }
           return { ...m, usage: rw.form, renderings };
         }),
       );
