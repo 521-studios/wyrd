@@ -608,6 +608,9 @@ class NameGenerator:
         # (re-exported as ``_encode_structs`` from ``cli.rebuild_proportions``)
         # prevents future rebuilds from emitting them; this runtime gate
         # defends against bundles built before that data fix lands.
+        # wyrd-5z5j: retain the UNFILTERED structures so list_structures() /
+        # force_structure can surface + use shapes the wyrd-zzli filter drops.
+        self._all_structs = dict(structs)
         self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
         # Loud-failure guard (generator-contract-reviewer P2, round 1):
         # if the filter empties an otherwise-non-empty structs dict, the
@@ -698,6 +701,29 @@ class NameGenerator:
             out[bucket_key] = dict(gen.elements)
         return out
 
+    def list_structures(self) -> list[dict]:
+        """All structure templates (INCLUDING the wyrd-zzli-filtered ones),
+        each as a readable label passable to ``force_structure``, sorted by
+        weight. Feeds the SPA's Advanced 'force structure' dropdown."""
+        total = sum(self._all_structs.values()) or 1
+        return [
+            {
+                "label": structure_key_to_label(key),
+                "weight": weight,
+                "proportion": weight / total,
+                "words": len(key),
+                "grammatical": is_structurally_grammatical(key),
+            }
+            for key, weight in sorted(self._all_structs.items(), key=lambda kv: -kv[1])
+        ]
+
+    @staticmethod
+    def _resolve_forced_structure(force_structure):
+        """A force_structure arg (label string or key tuple) → a struct key."""
+        if isinstance(force_structure, str):
+            return structure_label_to_key(force_structure)
+        return force_structure
+
     def select(
         self,
         rng,
@@ -711,6 +737,7 @@ class NameGenerator:
         stratum: str | None = None,
         cohesion: float = 0.0,
         include_unglossed: bool = True,
+        force_structure=None,
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
         each usage as an attested archaic spelling variant (D18) or an
@@ -808,8 +835,13 @@ class NameGenerator:
             ),
             self.meaning_gen.keep_keys_for_gloss(include_unglossed),
         )
-        items = list(self.structs.items())
-        struct = weighted_choice(rng, items)
+        if force_structure is not None:
+            # wyrd-5z5j: bypass the weighted sample AND the wyrd-zzli filter so
+            # the operator can force any template (incl. filter-dropped shapes).
+            struct = self._resolve_forced_structure(force_structure)
+        else:
+            items = list(self.structs.items())
+            struct = weighted_choice(rng, items)
         if len(tags) == 0:
             new_name = self._select_no_tag(
                 rng,
@@ -1858,6 +1890,56 @@ def word_to_key(word):
     if len(word) == 1:
         elements[0].append("single")
     return tuple(tuple(e) for e in elements)
+
+
+# wyrd-5z5j force-structure: a structure key (tuple of word-keys) <-> a readable
+# template label like 'A | B- -c- -d'. Words are separated by ' | ', slots
+# within a word by spaces; each slot is a placeholder letter (word-INITIAL
+# capitalized, else lowercase — mirroring D39's case rule) decorated with its
+# position dashes (pre 'X-', post '-x', inner '-x-', bare 'X'); a name/saint
+# flag is appended as '@name'/'@saint'. The letters are decorative — round-trip
+# reads position from the dashes, flags from '@', word boundaries from ' | '.
+_LOC_TO_DASHES = {"pre": ("", "-"), "post": ("-", ""), "inner": ("-", "-"), "bare": ("", "")}
+
+
+def structure_key_to_label(key) -> str:
+    """Render a structure key as a readable template string."""
+    words_out: list[str] = []
+    n = 0
+    for word in key:
+        slots: list[str] = []
+        for i, elem in enumerate(word):
+            loc = elem[0]
+            flags = [f for f in elem[1:] if f in ("name", "saint")]
+            ch = chr(65 + n % 26)
+            ch = ch if i == 0 else ch.lower()  # word-initial cap, else lower
+            lead, trail = _LOC_TO_DASHES.get(loc, ("", ""))
+            tok = f"{lead}{ch}{trail}" + "".join(f"@{f}" for f in flags)
+            slots.append(tok)
+            n += 1
+        words_out.append(" ".join(slots))
+    return " | ".join(words_out)
+
+
+def structure_label_to_key(label: str):
+    """Parse a structure label back to a key (inverse of structure_key_to_label)."""
+    words = []
+    for word_str in label.split("|"):
+        word_str = word_str.strip()
+        if not word_str:
+            continue
+        elements = []
+        for tok in word_str.split():
+            parts = tok.split("@")
+            base = parts[0]
+            flags = [p for p in parts[1:] if p in ("name", "saint")]
+            lead, trail = base.startswith("-"), base.endswith("-")
+            loc = "inner" if (lead and trail) else "pre" if trail else "post" if lead else "bare"
+            elements.append((loc, *flags))
+        if len(elements) == 1:
+            elements[0] = (*elements[0], "single")
+        words.append(tuple(elements))
+    return tuple(words)
 
 
 def load_proportions(data, meaning_db, tag_db):

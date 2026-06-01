@@ -49,6 +49,38 @@ def test_render_variants_obey_the_slot():
     assert _render([["x"]], rendered=[["McLeod"]]) == "McLeod"
 
 
+# wyrd-5z5j force-structure: structure label <-> key round-trip + listing.
+def test_structure_label_round_trips():
+    from wyrd.generators.kenning.runtime.proportions import (
+        structure_key_to_label,
+        structure_label_to_key,
+    )
+
+    for key in [
+        ((("bare", "single"),), (("pre",), ("inner",), ("post",))),  # A | B- -c- -d
+        ((("post", "single"),), (("pre", "single"),)),  # filtered By Green: -A | B-
+        ((("pre", "name", "single"),), (("bare", "single"),)),  # name-qualifier
+        ((("bare", "single"),),),  # single bare word
+    ]:
+        assert structure_label_to_key(structure_key_to_label(key)) == key
+
+
+def test_list_structures_includes_filter_dropped_shapes():
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
+
+    mg = MeaningGenerator({}, {}, {})
+    # one grammatical (bare standalone word) + one wyrd-zzli-filtered (single
+    # standalone pre attachment).
+    structs = {((("bare", "single"),),): 7, ((("pre", "single"),),): 3}
+    ng = NameGenerator({}, mg, structs)
+    listed = ng.list_structures()
+    # the filter-dropped shape is still listed (so the dropdown can offer it)
+    assert len(listed) == 2
+    assert sum(s["grammatical"] for s in listed) == 1  # only the bare one is grammatical
+    # but normal sampling only sees the grammatical one
+    assert len(ng.structs) == 1 and len(ng._all_structs) == 2
+
+
 def test_weighted_choice_all_zero_weights_returns_none():
     assert weighted_choice(random.Random(0), [("a", 0), ("b", 0)]) is None
 
