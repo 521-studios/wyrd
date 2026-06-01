@@ -49,14 +49,18 @@ def test_meaning_generator_select_missing_bucket_returns_none(caplog):
     present_key = next(iter(mg.generators))
     assert mg.select(rng_for(0), present_key) is not None
 
-    # Missing key returns None (was KeyError) and warns once, not per call.
+    # Missing key returns None (was KeyError) and warns once PER KEY — not
+    # once-ever (a boolean flag) and not once-per-call (log flooding).
     bogus_key = ("bare", "__no_such_tag__", "single")
+    bogus_key2 = ("post", "__also_missing__", "single")
     assert bogus_key not in mg.generators
+    assert bogus_key2 not in mg.generators
     with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.runtime.proportions"):
         assert mg.select(rng_for(0), bogus_key) is None
-        assert mg.select(rng_for(1), bogus_key) is None  # repeat → no second warning
+        assert mg.select(rng_for(1), bogus_key) is None  # repeat key → no 2nd warning
+        assert mg.select(rng_for(2), bogus_key2) is None  # different key → its own warning
     cj6f_warnings = [r for r in caplog.records if "wyrd-cj6f" in r.getMessage()]
-    assert len(cj6f_warnings) == 1, "missing-bucket drift should warn exactly once per key"
+    assert len(cj6f_warnings) == 2, "missing-bucket drift should warn once per UNIQUE key"
 
 
 def test_welsh_proportions_seed_806_does_not_crash():
@@ -73,7 +77,14 @@ def test_welsh_proportions_seed_806_does_not_crash():
 def test_welsh_proportions_no_crash_across_seed_range():
     """Robustness guard spanning the known crashing seed (806): welsh
     proportions generation must not raise for any seed in the range, so a
-    future seed-mapping shift can't silently reintroduce the crash."""
+    future seed-mapping shift can't silently reintroduce the crash. Also
+    asserts welsh actually RENDERS — guarding against an over-apply
+    regression that treated every bucket as missing (all-empty, no crash)
+    would pass green otherwise. Only the rare orphan structure is empty."""
     k = Kenning()
+    non_empty = 0
     for seed in range(750, 870):
-        k.generate({"culture": "welsh", "scoring_mode": "proportions"}, seed=seed)
+        result = k.generate({"culture": "welsh", "scoring_mode": "proportions"}, seed=seed)
+        if result.result:
+            non_empty += 1
+    assert non_empty >= 100, f"welsh proportions rendered mostly empty ({non_empty}/120)"
