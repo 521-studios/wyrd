@@ -1,0 +1,147 @@
+"""Absolute corpus-realism reference (wyrd-jfaz).
+
+The realism gate originally measured vector-mode DRIFT against the
+legacy proportions scoring path (``drift_measurement.compute_drift_report``
+over two sample sets). Once the proportions *scoring* mode is retired
+(epic wyrd-ej28), that baseline disappears — you can't generate
+proportions samples to compare against.
+
+This module re-anchors the gate to an ABSOLUTE corpus reference derived
+purely from the bundle DATA (which survives the scoring-mode deletion
+under fork A and is rebuilt from the real toponym corpus on every
+``rebuild-proportions`` / re-export):
+
+* tags / positions / morpheme frequencies come from the per-bucket
+  empirical frequency tables (``usage_frequency_by_bucket``) and the
+  structure proportions (``structs``) — exactly the data the generator
+  samples from.
+
+So as the corpus grows (more toponyms / morphemes / variants mined), the
+reference updates automatically with the next export — no frozen snapshot
+to go stale, and no dependency on the proportions ``select()`` path.
+
+Correctness is provable by construction + checked empirically: the
+reference is the EXACT expected distribution of a corpus-faithful
+sampler, so the legacy proportions samples (which draw structs by
+proportion and usages by frequency) land at ~0 divergence against it
+(see ``test_kenning_realism_absolute``'s cross-check). The vector path's
+divergence against this reference is the absolute realism signal.
+
+The per-usage features (morpheme surface, position label, tags) are
+computed the SAME way ``NewName.components`` computes them — resolve the
+usage by bare surface, ``_rank_siblings``, take the top sibling's
+``location`` and the union of the ranked siblings' tags — so the
+reference distributions are directly comparable to the ``NameSample``
+distributions the drift metrics build from generated names.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class CorpusReference:
+    """The corpus-empirical distributions a corpus-faithful generator
+    would produce, derived analytically from a culture's bundle data.
+
+    * ``tag_distribution`` — normalized tag-occurrence shares ({tag: p}),
+      comparable to ``drift_measurement._tag_distribution``.
+    * ``position_distribution`` — normalized slot-position shares
+      ({position: p}), comparable to
+      ``drift_measurement.position_distribution``.
+    * ``morpheme_counts`` — expected per-morpheme pick weights
+      ({bare_surface: weight}); only the RANKING is used (vs a sample's
+      morpheme counts) by ``morpheme_rank_correlation``, so the absolute
+      scale is irrelevant.
+    """
+
+    culture: str
+    tag_distribution: dict[str, float] = field(default_factory=dict)
+    position_distribution: dict[str, float] = field(default_factory=dict)
+    morpheme_counts: dict[str, float] = field(default_factory=dict)
+
+
+def compute_corpus_reference(culture: str, name_gen) -> CorpusReference:
+    """Build the :class:`CorpusReference` for ``culture`` from a
+    ``NameGenerator``'s bundle data.
+
+    Analytical expected distribution of a corpus-faithful sampler:
+
+        P(struct S)              = structs[S] / sum(structs)
+        P(usage e | slot)        = freq[e] / sum(freq[bucket(slot)])
+        weight of a slot's pick  = P(S) * P(e | slot)
+
+    accumulated over every (struct, slot, usage) into per-tag,
+    per-position, and per-morpheme weights. Per-usage features mirror
+    ``NewName.components`` exactly (resolve by bare surface →
+    ``_rank_siblings`` → top sibling ``location`` + union of ranked
+    siblings' tags; morpheme = dash-stripped usage, case preserved, per
+    ``drift_runner._sample_from_generation_result``).
+    """
+    # Lazy import: ``_rank_siblings`` lives on the package ``__init__``;
+    # importing it at module load would create a runtime→package cycle
+    # (the same reason ``NewName.components`` imports it lazily).
+    from wyrd.generators.kenning import _rank_siblings
+    from wyrd.generators.kenning.runtime.proportions import _resolve_surface
+
+    structs: dict = name_gen.structs
+    freq_by_bucket: dict = name_gen.usage_frequency_by_bucket
+    meaning_db: dict = name_gen.meaning_db
+    total_struct = sum(structs.values()) or 1.0
+
+    tag_weight: dict[str, float] = {}
+    position_weight: dict[str, float] = {}
+    morpheme_weight: dict[str, float] = {}
+
+    # Resolve each usage's (morpheme, tags, location) once — the same
+    # _resolve_surface + _rank_siblings work NewName.components does.
+    feature_cache: dict[str, tuple[str | None, list[str], str | None]] = {}
+
+    def _usage_features(usage: str) -> tuple[str | None, list[str], str | None]:
+        cached = feature_cache.get(usage)
+        if cached is not None:
+            return cached
+        ranked = _rank_siblings(_resolve_surface(meaning_db, usage))
+        if not ranked:
+            feat: tuple[str | None, list[str], str | None] = (None, [], None)
+        else:
+            tags = list(dict.fromkeys(t for m in ranked for t in m.tags))
+            feat = (usage.replace("-", ""), tags, ranked[0].location)
+        feature_cache[usage] = feat
+        return feat
+
+    for struct_key, proportion in structs.items():
+        p_struct = proportion / total_struct
+        for word in struct_key:
+            for slot in word:
+                # ``slot`` IS the per-bucket key the frequency table is
+                # keyed by (select_via_vector threads the slot key straight
+                # into _resolve_slot_usage_frequency).
+                bucket = freq_by_bucket.get(slot, {})
+                total_f = sum(bucket.values())
+                if total_f <= 0:
+                    continue
+                for usage, f in bucket.items():
+                    weight = p_struct * (f / total_f)
+                    morpheme, tags, location = _usage_features(usage)
+                    if morpheme is None:
+                        continue
+                    morpheme_weight[morpheme] = morpheme_weight.get(morpheme, 0.0) + weight
+                    if location:
+                        position_weight[location] = position_weight.get(location, 0.0) + weight
+                    for tag in tags:
+                        tag_weight[tag] = tag_weight.get(tag, 0.0) + weight
+
+    def _normalize(weights: dict[str, float]) -> dict[str, float]:
+        total = sum(weights.values())
+        if total <= 0:
+            return {}
+        return {k: v / total for k, v in weights.items()}
+
+    return CorpusReference(
+        culture=culture,
+        tag_distribution=_normalize(tag_weight),
+        position_distribution=_normalize(position_weight),
+        morpheme_counts=morpheme_weight,
+    )

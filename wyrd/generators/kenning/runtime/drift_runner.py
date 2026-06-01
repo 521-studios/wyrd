@@ -158,3 +158,59 @@ def run_drift_samples(
             pass
 
     return samples_proportions, samples_vector
+
+
+def run_realism_samples(
+    *,
+    culture: str,
+    count: int,
+    base_seed: int = 0,
+    priors_path: str | None = None,
+    tags: list[str] | None = None,
+    harshness: float = 0.0,
+    cohesion: float = 0.0,
+):
+    """Generate ``count`` VECTOR-mode samples for ``culture`` + compute the
+    absolute corpus reference from the same bundle (wyrd-jfaz).
+
+    The absolute-gate counterpart to :func:`run_drift_samples`: it drives
+    only the vector path (no proportions baseline) and pairs the samples
+    with a :class:`realism_reference.CorpusReference` derived from the same
+    ``NameGenerator`` data — so the gate has no dependency on the
+    proportions scoring path and survives its deletion (epic wyrd-ej28).
+
+    Returns ``(samples_vector, reference)`` ready to feed
+    :func:`drift_measurement.compute_realism_report`. The reference is
+    computed from the same ``_load_culture`` instance ``Kenning`` generates
+    from (both cached), so reference + samples reflect the same bundle.
+    """
+    from wyrd.generators.kenning import _load_culture
+    from wyrd.generators.kenning.generators.kenning import Kenning
+    from wyrd.generators.kenning.runtime.realism_reference import compute_corpus_reference
+
+    k = Kenning()
+    name_gen, _ = _load_culture(culture)
+    reference = compute_corpus_reference(culture, name_gen)
+
+    base_params: dict[str, Any] = {
+        "culture": culture,
+        "tags": tags or [],
+        "harshness": harshness,
+        "cohesion": cohesion,
+        "scoring_mode": "vector",
+    }
+    if priors_path:
+        base_params["priors_path"] = priors_path
+
+    samples_vector: list[NameSample] = []
+    for i in range(count):
+        try:
+            r_vec = k.generate(base_params, seed=base_seed + i)
+            samples_vector.append(_sample_from_generation_result(r_vec))
+        except ValueError:
+            # Post-wyrd-tbke the vector path degrades rather than raising,
+            # so this is now only a defensive skip for a genuinely empty
+            # (gate-excludes-everything) request.
+            pass
+
+    return samples_vector, reference

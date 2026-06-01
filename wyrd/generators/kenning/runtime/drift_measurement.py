@@ -347,6 +347,97 @@ def compute_drift_report(
     )
 
 
+# ---- absolute corpus-realism report (wyrd-jfaz) -------------------------
+
+
+@dataclass
+class RealismReport:
+    """ABSOLUTE realism report: one sample set (typically vector-mode)
+    measured against a :class:`realism_reference.CorpusReference` instead
+    of against a second sample set. Replaces the relative
+    :class:`DriftReport` once the proportions scoring baseline is retired
+    (epic wyrd-ej28) — the reference is derived from bundle data, so the
+    gate survives the deletion and tracks corpus growth.
+
+    Same metric semantics as DriftReport, with ``q`` = the reference:
+    ``tag_kl_divergence``/``tag_total_variation`` (tag-occurrence shift
+    vs corpus), ``position_total_variation`` (slot-position shift vs
+    corpus), ``morpheme_rank_correlation`` (Spearman vs the corpus's
+    expected morpheme ranks). ``decomposition_rate`` becomes an absolute
+    quality FLOOR rather than a delta.
+    """
+
+    culture: str
+    sample_size: int
+    tag_kl_divergence: float = 0.0
+    tag_total_variation: float = 0.0
+    position_total_variation: float = 0.0
+    morpheme_rank_correlation: float = 0.0
+    morpheme_rank_top_k: int = 0
+    decomposition_rate: float = 0.0
+
+
+def compute_realism_report(
+    culture: str,
+    samples: Iterable[NameSample],
+    reference,
+    *,
+    top_k_correlation: int = 100,
+) -> RealismReport:
+    """Measure ``samples`` against an absolute ``CorpusReference`` for one
+    culture (wyrd-jfaz).
+
+    ``reference`` is a :class:`realism_reference.CorpusReference`. The
+    metrics mirror :func:`compute_drift_report` but compare each sample
+    distribution against the reference's analytical distribution rather
+    than a second sample set:
+
+    * tag-KL / tag-TV: KL/TV of the sample tag distribution vs the
+      reference tag distribution.
+    * position-TV: TV of the sample position distribution vs the
+      reference position distribution.
+    * morpheme-rank ρ: Spearman of the sample's top-K morpheme ranks
+      against the reference's top-K morpheme ranks (the reference's
+      ranks come from its expected per-morpheme pick weights).
+    * decomposition-rate: absolute (the corpus reference has no
+      decomposition rate of its own; the band treats this as a floor).
+    """
+    samples_list = list(samples)
+
+    sample_tag = _tag_distribution(samples_list)
+    sample_position = position_distribution(samples_list)
+
+    sample_counts: Counter[str] = Counter()
+    for s in samples_list:
+        sample_counts.update(s.morphemes)
+    sample_ranks = {
+        morpheme: rank
+        for rank, (morpheme, _) in enumerate(sample_counts.most_common(top_k_correlation), start=1)
+    }
+    reference_ranks = {
+        morpheme: rank
+        for rank, (morpheme, _) in enumerate(
+            sorted(reference.morpheme_counts.items(), key=lambda kv: -kv[1])[:top_k_correlation],
+            start=1,
+        )
+    }
+    correlation = _spearman_correlation(sample_ranks, reference_ranks)
+    n_shared = len(set(sample_ranks) & set(reference_ranks))
+
+    return RealismReport(
+        culture=culture,
+        sample_size=len(samples_list),
+        tag_kl_divergence=kl_divergence(sample_tag, reference.tag_distribution),
+        tag_total_variation=total_variation_distance(sample_tag, reference.tag_distribution),
+        position_total_variation=total_variation_distance(
+            sample_position, reference.position_distribution
+        ),
+        morpheme_rank_correlation=correlation,
+        morpheme_rank_top_k=n_shared,
+        decomposition_rate=decomposition_rate(samples_list),
+    )
+
+
 def format_drift_report_markdown(report: DriftReport) -> str:
     """Render a DriftReport as operator-friendly markdown.
 
