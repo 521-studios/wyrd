@@ -4862,6 +4862,23 @@ def test_rewind_from_morphemes_uses_supplied_usages_no_trie(fresh_db: Path) -> N
     assert by_cell["modern"] == "Whit"
 
 
+def test_rewind_component_morpheme_carries_canonical_original_usage() -> None:
+    """wyrd-7cvv: each rewound morpheme component carries `canonical` = the
+    morpheme's ORIGINAL modern usage, so the SPA rewind transform can align
+    each rewound form back to the input morpheme it came from (and omit input
+    morphemes the rewind dropped) instead of mismatching the rewound name
+    against the full original morpheme set."""
+    from wyrd.generators.kenning.generators.kenning_rewind import _apply_meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    meaning = Meaning("-ton", tags=[], meanings=["enclosure"], sources={"old_english": ["tūn"]})
+    comps: list[dict] = []
+    _apply_meaning(meaning, None, comps)
+    assert len(comps) == 1
+    assert comps[0]["canonical"] == "-ton"  # the original usage, dashes intact
+    assert "form" in comps[0]
+
+
 def test_rewind_from_morphemes_preserves_multi_word_grouping(fresh_db: Path) -> None:
     """wyrd-cp2d: multi-word inputs keep their word boundaries. The
     JSON's outer list is per-word; rewind_from_morphemes renders
@@ -4917,6 +4934,31 @@ def test_rewind_from_morphemes_missing_usage_lands_in_unaccounted(fresh_db: Path
     assert "-dropped" in result.unaccounted
     by_cell = {stop.cell: stop.rendered for stop in result.eras}
     assert by_cell["oe-late"] == "Hwīt"
+
+
+def test_rewind_supplied_words_resolves_positional_usage_dash_insensitively() -> None:
+    """wyrd-7cvv: the generator/API rewind path (what the SPA uses) resolves a
+    morpheme whose usage is the POSITIONAL surface ('by' at a word end) to the
+    canonical meaning_db key ('-by') via the dash/case-insensitive fallback,
+    instead of dropping it as missing — so rewind keeps real morphemes instead
+    of rendering a fragment. A usage with no dash/case variant in the bundle
+    still lands in `missing`."""
+    from wyrd.generators.kenning.generators.kenning_rewind import (
+        _meanings_from_supplied_words,
+    )
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    by = Meaning("-by", tags=[], meanings=["farmstead"], sources={"old_scandinavian": ["bȳ"]})
+    meaning_db = {"-by": [by]}
+
+    per_word, missing = _meanings_from_supplied_words([[{"usage": "by"}]], meaning_db)
+    assert per_word == [[by]]  # "by" → "-by" via fallback
+    assert missing == []
+
+    # A genuinely-absent usage (no dash/case variant) still reports missing.
+    per_word2, missing2 = _meanings_from_supplied_words([[{"usage": "zzz"}]], meaning_db)
+    assert per_word2 == [[]]
+    assert missing2 == ["zzz"]
 
 
 def test_rewind_from_morphemes_raises_on_empty_name(fresh_db: Path) -> None:

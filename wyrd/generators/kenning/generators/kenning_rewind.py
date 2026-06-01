@@ -234,6 +234,25 @@ def _meanings_from_supplied_words(
     caller for unaccounted bookkeeping. First Meaning wins for
     ambiguous usages, mirroring NewName.to_dict.
     """
+    # wyrd-7cvv: dash/case-insensitive fallback index. morphemes_by_word
+    # carries the POSITIONAL surface ("by" at a word end, "m-" as a prefix)
+    # while meaning_db is keyed by the canonical form ("-by", "m"). An exact
+    # lookup misses those and the morpheme gets dropped — which made rewind
+    # silently shed real morphemes and render only a fragment ("Mhead By" →
+    # "Hēæd"). Build a normalized-key index (first key per dash-stripped,
+    # lowercased form wins, mirroring first-Meaning-wins) so a positional
+    # usage still resolves. Built lazily on the first miss.
+    #
+    # First-wins is benign: colliding norms in the bundle are same-morpheme
+    # positional variants of ONE Meaning ("-a"/"A-", "-by"/"By-"), and this
+    # only fires on the exact-lookup MISS path (an exact key always wins
+    # above). A future bundle introducing a genuinely different morpheme with
+    # a colliding norm could mis-resolve here — acceptable given the data.
+    norm_index: dict[str, list[Meaning]] | None = None
+
+    def _norm(s: str) -> str:
+        return s.strip("-").lower()
+
     per_word: list[list[Meaning]] = []
     missing: list[str] = []
     for word_morphs in supplied_words or []:
@@ -243,6 +262,12 @@ def _meanings_from_supplied_words(
             if not usage:
                 continue
             candidates = meaning_db.get(usage, [])
+            if not candidates:
+                if norm_index is None:
+                    norm_index = {}
+                    for key, ms in meaning_db.items():
+                        norm_index.setdefault(_norm(key), ms)
+                candidates = norm_index.get(_norm(usage), [])
             if candidates:
                 word_meanings.append(candidates[0])
             else:
@@ -281,6 +306,12 @@ def _apply_meaning(
             "form": form,
             "respelling": respelling,
             "language": target_language,
+            # wyrd-7cvv: the morpheme's ORIGINAL modern usage, so a consumer
+            # (the SPA rewind transform) can align each rewound form back to
+            # the input morpheme it came from — and omit input morphemes the
+            # rewind dropped (no era reflex) rather than mismatch the rewound
+            # name against the full original morpheme set.
+            "canonical": meaning.usage,
         }
     )
     return form, _is_free_particle(meaning)
