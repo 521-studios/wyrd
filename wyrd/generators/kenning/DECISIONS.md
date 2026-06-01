@@ -2465,3 +2465,12 @@ stored case. Do NOT "fix" this by mining four stored variants per morpheme —
 that is the very thing the four-slot + lowercase rule exists to avoid. Any base
 form can fill any slot correctly if the render honours the slot.
 
+**Spelling variants + inflections (added since rando) ride the same rule.** The
+render is the SINGLE owner of positional case + dash markers. Every surface form
+— the base usage, a substituted spelling variant (`pick_variant` /
+`_pick_surface`), an inflected form — stays raw/lowercase until the render
+applies the slot's markers. A substitution path must NEVER copy case from the
+stored usage (the `_mimic_case` bug): a variant dropped into a `-word-` slot
+lowercases exactly like the base would. If you touch the render's slot-casing,
+you MUST keep variants + inflections flowing through that same single owner.
+
