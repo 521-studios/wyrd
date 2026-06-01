@@ -79,6 +79,7 @@ export function graftPosition(positionFrom, surface) {
   const lead = (positionFrom || '').match(/^-+/)?.[0] || '';
   const trail = (positionFrom || '').match(/-+$/)?.[0] || '';
   let s = stripDashes(surface);
+  if (!s) return positionFrom || ''; // nothing to graft → keep the original
   if (lead) s = s.toLowerCase(); // leading dash ⇒ inner or post ⇒ lowercase
   return lead + s + trail;
 }

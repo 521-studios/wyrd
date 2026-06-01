@@ -87,9 +87,12 @@ export const rewindTransform = {
       const renderings = { ...(m.renderings || {}) };
       const langGroup = { ...(renderings[langField] || {}) };
       const cleanForm = deStar(rw.form);
+      // Match an existing rendering key dash-INSENSITIVELY too: the original
+      // morpheme's keys may carry position dashes ("-fǣre") that the bare era
+      // form ("fǣre") wouldn't otherwise match, which would split the data
+      // into a duplicate slot and hide the injected respelling.
       const key =
-        Object.keys(langGroup).find((k) => k.toLowerCase() === cleanForm.toLowerCase()) ||
-        cleanForm;
+        Object.keys(langGroup).find((k) => normKey(k) === normKey(cleanForm)) || cleanForm;
       langGroup[key] = { ...(langGroup[key] || {}), reader_pronunciation: rw.respelling };
       renderings[langField] = langGroup;
       return renderings;
