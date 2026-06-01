@@ -29,18 +29,13 @@
   // column) so the user flags the result they're inspecting. We flag the
   // original generated result (appState.currentResult) — the reproducible
   // generator output — not the post-transform displayState.
-  let defectOpen = $state(false);
-
-  // Close the modal whenever the inspected result changes (selection,
-  // deselection, or re-roll). Without this, an open modal would silently
-  // re-target the new result — or pop back open when the next result is
-  // selected, since defectOpen would still be true. Tracks the local
-  // derived `result` (changes on index change AND on re-roll) rather than
-  // reaching into the global index.
-  $effect(() => {
-    result; // track
-    defectOpen = false;
-  });
+  //
+  // Track the SPECIFIC result being flagged rather than a boolean: the
+  // modal's open state is then `flaggedResult === result`, derived
+  // synchronously. When the inspected result changes (selection,
+  // deselection, re-roll) the modal closes in the same render — no $effect,
+  // so no one-frame flash / double-render from effect-after-DOM timing.
+  let flaggedResult = $state(null);
 
   const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
   const norm = (s) => stripDashes(s).toLowerCase();
@@ -219,7 +214,7 @@
         <button
           type="button"
           class="flag"
-          onclick={() => (defectOpen = true)}
+          onclick={() => (flaggedResult = result)}
           title="Report defective"
         ><span aria-hidden="true">⚑</span> Report defective</button>
       </div>
@@ -286,9 +281,9 @@
     </section>
 
     <DefectModal
-      open={defectOpen}
+      open={flaggedResult === result}
       {result}
-      onclose={() => (defectOpen = false)}
+      onclose={() => (flaggedResult = null)}
     />
   {/if}
 </section>
