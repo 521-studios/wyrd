@@ -157,4 +157,12 @@ describe('snapEnumValue (wyrd-etvd: never preempt the config-default seed)', () 
     expect(snapEnumValue('banana', ['a', 'b'], 'gone')).toBe('a');
     expect(snapEnumValue('banana', ['a', 'b'], undefined)).toBe('a');
   });
+
+  it("preserves the '' no-filter sentinel when it is a valid option (era/stratum)", () => {
+    // era/stratum dependent-select lists always start with '' (no filter), and
+    // era's schema default is ''. '' is a real, valid value — it must NEVER be
+    // snapped away (e.g. on a culture change). Load-bearing now that era is a
+    // headline field.
+    expect(snapEnumValue('', ['', 'medieval', 'modern'], '')).toBeUndefined();
+  });
 });

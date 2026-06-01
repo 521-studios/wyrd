@@ -34,11 +34,13 @@ describe('partitionFields', () => {
     ]);
   });
 
-  it("drops HIDDEN_FIELDS ('seed') before partitioning", () => {
+  it("drops HIDDEN_FIELDS ('seed') before partitioning, keeping the rest", () => {
     const schema = schemaOf('culture', 'seed', 'count');
     const { headline, advanced } = partitionFields('kenning', schema);
-    const all = [...headline, ...advanced].map(([k]) => k);
-    expect(all).not.toContain('seed');
+    // seed is dropped; culture + count survive and partition normally (no
+    // over-drop of a non-hidden key).
+    expect(headline.map(([k]) => k)).toEqual(['culture', 'count']);
+    expect(advanced).toEqual([]);
   });
 
   it('falls back to all-headline (schema order) for a generator not in the map', () => {
