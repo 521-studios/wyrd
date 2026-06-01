@@ -183,10 +183,13 @@ def bundle_version() -> dict[str, str]:
     global _bundle_version_cache
     if _bundle_version_cache is not None:
         return _bundle_version_cache
+    # Resolve the connection BEFORE taking _conn_lock: get_runtime_db()
+    # acquires _conn_lock itself, and threading.Lock is non-reentrant — calling
+    # it while holding the lock would self-deadlock on a cold connection.
+    conn = get_runtime_db()
     with _conn_lock:
         if _bundle_version_cache is not None:
             return _bundle_version_cache
-        conn = get_runtime_db()
         try:
             rows = conn.execute("SELECT key, value FROM bundle_metadata").fetchall()
             _bundle_version_cache = {str(k): str(v) for k, v in rows}

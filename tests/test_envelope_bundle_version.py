@@ -85,6 +85,51 @@ def test_bundle_version_missing_table_returns_empty(monkeypatch):
         runtime_db.reset_runtime_db_cache()
 
 
+def test_bundle_version_cold_does_not_deadlock(tmp_path, monkeypatch):
+    # Regression: bundle_version() must not call get_runtime_db() while holding
+    # the non-reentrant _conn_lock. Exercises the REAL lock path on a cold
+    # connection (no get_runtime_db monkeypatch). Runs in a daemon thread with
+    # a join timeout so a re-entrancy regression fails the assertion instead of
+    # hanging the whole suite.
+    import sqlite3
+    import threading
+
+    from wyrd.generators.kenning.runtime import runtime_db
+
+    db = tmp_path / "rt.db"
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE bundle_metadata (key TEXT, value TEXT)")
+    conn.executemany(
+        "INSERT INTO bundle_metadata VALUES (?, ?)",
+        [
+            ("schema_version", "2"),  # must match _EXPECTED_SCHEMA_VERSION
+            ("built_at", "2026-05-30T00:00:00Z"),
+            ("emitter_version", "test"),
+            ("source_lexicon_db", "test"),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setenv("WYRD_RUNTIME_DB", str(db))
+    monkeypatch.delenv("WYRD_RUNTIME_DB_BUCKET", raising=False)
+    runtime_db.reset_runtime_db_cache()  # force a cold _conn so get_runtime_db re-resolves
+
+    result: dict = {}
+
+    def _call():
+        result["bv"] = runtime_db.bundle_version()
+
+    t = threading.Thread(target=_call, daemon=True)
+    t.start()
+    t.join(timeout=10)
+    try:
+        assert not t.is_alive(), "bundle_version() deadlocked on a cold connection"
+        assert result["bv"]["schema_version"] == "2"
+    finally:
+        runtime_db.reset_runtime_db_cache()
+
+
 def test_kenning_roll_stamps_bundle_version():
     # End-to-end: the kenning runtime_version binding + bundle_version() reader
     # surface on a real roll envelope (uses the committed dev seed DB).
