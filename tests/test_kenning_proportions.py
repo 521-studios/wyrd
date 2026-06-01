@@ -49,6 +49,40 @@ def test_render_variants_obey_the_slot():
     assert _render([["x"]], rendered=[["McLeod"]]) == "McLeod"
 
 
+def test_diversify_repeats_picks_cross_language_synonym():
+    """wyrd-vd6y: a repeated surface ("Hill Hill") renders its later
+    occurrence as a same-meaning synonym in a DIFFERENT language (Old Norse
+    "haeth" glossed "Hill"), not the canonical repeat — and NOT a
+    different-meaning sibling (Celtic "coille" = wood). The breakdown
+    (to_dict) follows, so name + morphemes stay consistent."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    hill = Meaning("hill", tags=[], meanings=["hill"], sources={"old_english": ["hill"]})
+    norse = Meaning("hill", tags=[], meanings=["Hill"], sources={"old_scandinavian": ["haeth"]})
+    wood = Meaning("hill", tags=[], meanings=["Wood"], sources={"celtic_mix": ["coille"]})
+    meaning_db = {"hill": [hill, norse, wood]}
+
+    nn = NewName(struct=None, meaning_db=meaning_db, name=[["hill"], ["hill"]])
+    assert str(nn) == "Hill Haeth"  # second diversified to the Norse synonym
+    d = nn.to_dict()
+    assert d["words"][0][0]["usage"] == "hill"
+    assert d["words"][1][0]["usage"] == "haeth"  # breakdown follows the name
+    assert d["words"][1][0]["sources"] == {"old_scandinavian": ["haeth"]}
+
+
+def test_diversify_repeats_leaves_dupe_when_no_cross_language_synonym():
+    """A repeated surface with NO same-meaning form in another language is
+    left as-is here (the 'pick a different morpheme' fallback lives in the
+    generator's selection, not the render)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    park = Meaning("park", tags=[], meanings=["park"], sources={"old_english": ["park"]})
+    nn = NewName(struct=None, meaning_db={"park": [park]}, name=[["park"], ["park"]])
+    assert str(nn) == "Park Park"  # unchanged — no cross-language synonym available
+
+
 # wyrd-5z5j force-structure: structure label <-> key round-trip + listing.
 def test_structure_label_round_trips():
     from wyrd.generators.kenning.runtime.proportions import (

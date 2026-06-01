@@ -1688,6 +1688,80 @@ class NewName:
         # surface 'cot@dative_or_pl' breakdowns (D8). None on the outer
         # list means no inflection rendering was performed at all.
         self.inflection_labels = inflection_labels
+        # wyrd-vd6y: per-element override Meaning for a slot whose surface
+        # repeated earlier in the name and was diversified to a different-
+        # language synonym ("Hill Hill" → "Hill Haeth"). Parallel to ``name``;
+        # None where no diversification happened. Both __str__ (via rendered)
+        # and to_dict honor it so the name + breakdown stay consistent.
+        self._lang_override: list[list[Meaning | None]] = [[None] * len(w) for w in (name or [])]
+        self._diversify_repeats()
+
+    def _diversify_repeats(self) -> None:
+        """wyrd-vd6y: when the SAME surface is selected for two+ slots
+        ("Hill Hill"), render the later occurrence(s) as a DIFFERENT-language
+        synonym of the same meaning (cf. "Table Mesa" = English + Spanish for
+        one referent). Deterministic (no rng) so it's seed-stable and only
+        touches names that actually repeated. Conservative: if no same-meaning
+        form in another language exists, the duplicate is left as-is.
+        """
+        if not self.meaning_db or not self.name:
+            return  # nothing to resolve siblings against (e.g. render-only tests)
+        from wyrd.generators.kenning import _rank_siblings
+
+        # Meaning.sources is normally a {lang: [forms]} dict, but synthetic
+        # Meanings (some tests) pass a bare list — treat a non-dict as "no
+        # language data" so diversification simply no-ops there.
+        def _langs(m) -> set[str]:
+            return set(m.sources.keys()) if isinstance(getattr(m, "sources", None), dict) else set()
+
+        seen: dict[str, set[str]] = {}  # folded surface -> languages already used
+        for wi, word in enumerate(self.name):
+            for ei, usage in enumerate(word):
+                if usage is None:
+                    continue
+                surface = (self.rendered[wi][ei] if self.rendered else None) or usage
+                fold = surface.replace("-", "").lower()
+                siblings = _rank_siblings(_resolve_surface(self.meaning_db, usage))
+                canon = siblings[0] if siblings else None
+                canon_langs = _langs(canon) if canon else set()
+                if fold not in seen:
+                    seen[fold] = set(canon_langs)
+                    continue
+                # Repeat: find a same-meaning sibling in an unused language.
+                alt = self._cross_lang_synonym(canon, siblings, seen[fold] | canon_langs)
+                if alt is None:
+                    continue  # no cross-language synonym → leave the dupe
+                sib, lang, form = alt
+                lead = usage[: len(usage) - len(usage.lstrip("-"))]
+                trail = usage[len(usage.rstrip("-")) :]
+                grafted = f"{lead}{form.strip('-')}{trail}"
+                if self.rendered is None:
+                    self.rendered = [[None] * len(w) for w in self.name]
+                self.rendered[wi][ei] = grafted
+                self._lang_override[wi][ei] = sib
+                seen.setdefault(form.strip("-").lower(), set()).add(lang)
+
+    @staticmethod
+    def _cross_lang_synonym(canon, siblings, exclude_langs):
+        """Pick a sibling Meaning that shares a gloss with ``canon`` but lives
+        in a language not in ``exclude_langs``. Returns (sibling, lang, form)
+        or None. Deterministic: first qualifying sibling in ranked order."""
+        if canon is None:
+            return None
+        canon_glosses = {g.strip().lower() for g in canon.meanings}
+        for sib in siblings:
+            if not isinstance(getattr(sib, "sources", None), dict):
+                continue
+            other = set(sib.sources.keys()) - exclude_langs
+            if not other:
+                continue
+            if not (canon_glosses & {g.strip().lower() for g in sib.meanings}):
+                continue  # different meaning — not a synonym
+            for lang in sorted(other):
+                forms = sib.sources.get(lang) or []
+                if forms:
+                    return sib, lang, forms[0]
+        return None
 
     def __str__(self):
         # wyrd-3xdb: title-case the first letter of each space-
@@ -1866,10 +1940,20 @@ class NewName:
             for ei, e in enumerate(word):
                 if e is None:
                     continue
-                meanings_list = _resolve_surface(self.meaning_db, e)
-                ranked = _rank_siblings(meanings_list)
+                # wyrd-vd6y: a diversified repeat ("Hill Hill" → "Hill Haeth")
+                # uses its override sibling — a different-language synonym — for
+                # BOTH the displayed surface and the etymology, so the breakdown
+                # matches the rendered name instead of showing the original
+                # repeated morpheme.
+                override = self._lang_override[wi][ei] if self._lang_override else None
+                if override is not None:
+                    ranked = [override]
+                    usage_str = (self.rendered[wi][ei] if self.rendered else None) or e
+                else:
+                    ranked = _rank_siblings(_resolve_surface(self.meaning_db, e))
+                    usage_str = e
                 first = ranked[0] if ranked else None
-                morpheme: dict = {"usage": e}
+                morpheme: dict = {"usage": usage_str}
                 if first is not None:
                     # Sources stay from the top-ranked sibling (the
                     # canonical etymon for THIS surface form). Tags
