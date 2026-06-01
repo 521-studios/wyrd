@@ -219,12 +219,35 @@ resource "aws_lambda_function" "api" {
   timeout          = 15
 
   environment {
-    variables = {
-      ENV                    = var.env
-      WYRD_RUNTIME_DB_BUCKET = aws_s3_bucket.runtime_db.bucket
-      WYRD_DEFECTS_TABLE     = aws_dynamodb_table.defects.name
-      LOG_LEVEL              = var.log_level
-    }
+    # wyrd-0gou: SPA feature flags. Staging flips WYRD_FF_ALL=true so every
+    # gated config option shows for validation; production defaults all off
+    # and enables validated flags one-by-one via var.enabled_feature_flags
+    # (each → WYRD_FF_<NAME>=true) and option default-value overrides via
+    # var.feature_flag_defaults (each → WYRD_DEFAULT_<OPTION>). The Flask app
+    # resolves these onto /api/manifest; see wyrd/feature_flags.py.
+    variables = merge(
+      {
+        ENV                    = var.env
+        WYRD_RUNTIME_DB_BUCKET = aws_s3_bucket.runtime_db.bucket
+        WYRD_DEFECTS_TABLE     = aws_dynamodb_table.defects.name
+        LOG_LEVEL              = var.log_level
+        WYRD_FF_ALL            = var.env == "staging" ? "true" : "false"
+      },
+      {
+        # Skip "all" so a stray entry can't shadow the env-based WYRD_FF_ALL
+        # conditional above (merge() is last-wins).
+        for name in var.enabled_feature_flags :
+        "WYRD_FF_${upper(replace(replace(name, ".", "_"), "-", "_"))}" => "true"
+        if lower(name) != "all"
+      },
+      {
+        # Normalize keys the same way as flag names so 'scoring-mode' /
+        # 'scoring.mode' → WYRD_DEFAULT_SCORING_MODE (the server lowercases the
+        # suffix → 'scoring_mode', matching the SPA's snake_case field key).
+        for opt, value in var.feature_flag_defaults :
+        "WYRD_DEFAULT_${upper(replace(replace(opt, ".", "_"), "-", "_"))}" => value
+      },
+    )
   }
 
   tags = local.tags

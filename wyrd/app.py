@@ -11,6 +11,7 @@ from flask import Flask, jsonify, request
 
 from wyrd import registry
 from wyrd.envelope import envelope
+from wyrd.feature_flags import resolve_feature_config
 from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
 
 MAX_COUNT = 10
@@ -71,7 +72,13 @@ def create_app() -> Flask:
                         "input_schema": g.input_schema(),
                     }
                     for g in registry.all_generators()
-                ]
+                ],
+                # wyrd-0gou: env-resolved SPA feature flags + default-value
+                # overrides. The SPA reads this to decide which advanced
+                # config options to render (default off; staging sets
+                # WYRD_FF_ALL=true). Resolved per-request so flipping a
+                # Lambda env var takes effect without a redeploy.
+                "config": resolve_feature_config(),
             }
         )
 
