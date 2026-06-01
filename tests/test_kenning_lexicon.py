@@ -4961,6 +4961,29 @@ def test_rewind_supplied_words_resolves_positional_usage_dash_insensitively() ->
     assert missing2 == ["zzz"]
 
 
+def test_rewind_supplied_words_anchors_on_ranked_canonical_sibling() -> None:
+    """wyrd-om67: when a usage maps to several sibling Meanings (a homograph),
+    the from-morphemes rewind anchors on the _rank_siblings canonical — the
+    etymon NewName.to_dict displays for the morpheme — not meaning_db's raw
+    first sibling. Otherwise a Celtic homograph dragged the rewind onto the
+    wrong etymon (OE "Wertūn" came out as "Werettan")."""
+    from wyrd.generators.kenning import _rank_siblings
+    from wyrd.generators.kenning.generators.kenning_rewind import (
+        _meanings_from_supplied_words,
+    )
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    celtic = Meaning("-ton", tags=[], meanings=["wave"], sources={"celtic_mix": ["ton"]})
+    old_eng = Meaning("-ton", tags=[], meanings=["enclosure"], sources={"old_english": ["tūn"]})
+    # raw meaning_db order puts the non-canonical sibling first
+    meaning_db = {"-ton": [celtic, old_eng]}
+
+    per_word, missing = _meanings_from_supplied_words([[{"usage": "-ton"}]], meaning_db)
+    # the function must return the SAME canonical _rank_siblings picks
+    assert per_word == [[_rank_siblings([celtic, old_eng])[0]]]
+    assert missing == []
+
+
 def test_rewind_from_morphemes_raises_on_empty_name(fresh_db: Path) -> None:
     """wyrd-cp2d: empty / whitespace-only name input raises
     ValueError, matching rewind_name's contract."""
