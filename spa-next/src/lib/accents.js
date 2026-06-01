@@ -15,19 +15,27 @@ import { renderName } from './transforms/swap.js';
 const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
 const norm = (s) => stripDashes(s).toLowerCase();
 
+// True for a combining diacritical mark (Unicode block U+0300–U+036F), the
+// marks NFD decomposition splits accents into.
+const isCombiningMark = (cp) => cp >= 0x300 && cp <= 0x36f;
+
 /**
  * Dedup key that folds BOTH case and diacritics: "bȳ", "by", and "By" all
  * map to "by". Used to collapse case/accent variants of the same form into a
  * single row (keeping the richest), while genuinely-distinct inflections
  * ("byht", "byhtas") stay separate. NFD-decompose, drop combining marks,
- * strip dashes, lowercase.
+ * strip dashes, lowercase. The mark range is checked by codepoint (not a
+ * raw-combining-char regex literal) so editors/git can't normalize it away.
  */
 export function accentFold(s) {
-  return stripDashes(s || '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
+  const decomposed = stripDashes(s || '').normalize('NFD');
+  let out = '';
+  for (const ch of decomposed) {
+    if (!isCombiningMark(ch.codePointAt(0))) out += ch;
+  }
+  return out.toLowerCase();
 }
+
 // A string carries a diacritic if NFD-decomposing it yields combining
 // marks (i.e. it changes under decomposition).
 const hasAccent = (s) => !!s && s.normalize('NFD') !== s;
@@ -66,7 +74,7 @@ export function accentedUsage(morph) {
 export function upgradeAccents(mbw) {
   let changed = false;
   const words = (mbw || []).map((word) =>
-    word.map((m) => {
+    (word || []).map((m) => {
       const acc = accentedUsage(m);
       if (acc && acc !== m.usage) {
         changed = true;
@@ -88,9 +96,10 @@ export function upgradeAccents(mbw) {
  */
 export function accentedName(result) {
   if (!result) return '';
+  const fallback = result.result || '';
   const plain = result.morphemes_by_word || [];
-  if (!plain.length) return result.result;
+  if (!plain.length) return fallback;
   const up = upgradeAccents(plain);
-  if (!up.changed) return result.result;
-  return renderName(plain) === result.result ? renderName(up.words) : result.result;
+  if (!up.changed) return fallback;
+  return renderName(plain) === fallback ? renderName(up.words) : fallback;
 }
