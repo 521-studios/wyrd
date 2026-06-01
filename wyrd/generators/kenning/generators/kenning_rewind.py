@@ -250,6 +250,15 @@ def _meanings_from_supplied_words(
     # a colliding norm could mis-resolve here — acceptable given the data.
     norm_index: dict[str, list[Meaning]] | None = None
 
+    # wyrd-om67: rank a usage's sibling Meanings the SAME way NewName.to_dict
+    # does (drop modern_english homographs, prefer older strata) and take the
+    # canonical, so the rewind anchors on the etymon the SPA actually DISPLAYS
+    # for this morpheme — not meaning_db's raw first sibling, which can be a
+    # different-language homograph (e.g. "-ton" picking a Celtic etymon → OE
+    # "Wertūn" came out as "Werettan"). Lazy import to dodge the circular dep
+    # with wyrd.generators.kenning.__init__ at module load.
+    from wyrd.generators.kenning import _rank_siblings
+
     def _norm(s: str) -> str:
         return s.strip("-").lower()
 
@@ -269,7 +278,8 @@ def _meanings_from_supplied_words(
                         norm_index.setdefault(_norm(key), ms)
                 candidates = norm_index.get(_norm(usage), [])
             if candidates:
-                word_meanings.append(candidates[0])
+                ranked = _rank_siblings(candidates)
+                word_meanings.append(ranked[0] if ranked else candidates[0])
             else:
                 missing.append(usage)
         per_word.append(word_meanings)
