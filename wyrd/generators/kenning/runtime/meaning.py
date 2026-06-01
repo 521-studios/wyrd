@@ -24,6 +24,23 @@ _PROPER_NOUN_TAGS = frozenset(
     {"male name", "female name", "family name", "saint", "personal-name", "religious"}
 )
 
+# wyrd-gwj3: connector SURFACES that require a complement and are never a valid
+# standalone English place-name word — the Latin/French toponym connectors
+# (`X cum Y`, `Chester-le-Street`, `Stoke sur Y`, `Stoke juxta Y`). They leaked
+# into the morpheme pool as untagged etymons (decomposed from real `X cum Y`
+# toponyms), so they can't be filtered by tag — matched by bare surface instead.
+# Excluded from the base generation pool so they don't dangle as a lone word
+# (`Newton Cum`). Their legitimate home is joiner-insertion
+# (`_apply_joiner_insertion`), which draws from a separate joiner pool — not the
+# base pool — and these connector surfaces are not yet wired into that pool.
+# Conservative set: only unambiguous connectors. NOT included: `magna` /
+# `parva` (real standalone qualifiers — `Wigston Magna`), and `saint` / `st`
+# (the dedication particle has a legitimate saint-SLOT mechanism — `Saint
+# <name>` — so excluding it would break valid dedications; the rarer trailing-
+# `St` dangle + `Saint <common-noun>` oddities are a separate saint-slot-quality
+# concern).
+_CONNECTOR_PARTICLE_SURFACES = frozenset({"cum", "le", "la", "sur", "sous", "juxta"})
+
 # Suffix used in meanings.json to mark per-language variant pools, e.g.
 # "old_english" canonical forms have their variants in "old_english_variants".
 # Matches the export-meanings emit shape in lexicon.py:_emit_variant_list.
@@ -385,6 +402,16 @@ class Meaning:
         exclusion (wyrd-g1hj) to keep pure given-name etymons out of plain
         generation."""
         return any(tag in ("male name", "female name") for tag in self.tags)
+
+    def is_connector_particle(self):
+        """wyrd-gwj3: True when this morpheme's bare surface is a connector that
+        requires a complement (`cum`, `le`, `la`, `sur`, `sous`, `juxta`). These
+        are never a valid standalone English place-name word; excluded from the
+        base generation pool so they don't dangle as a lone word (`Newton Cum`).
+        Matched by SURFACE because they leaked in as untagged etymons (no
+        connector tag). The saint particle is deliberately NOT here — see
+        ``_CONNECTOR_PARTICLE_SURFACES``."""
+        return self.usage.replace("-", "").lower() in _CONNECTOR_PARTICLE_SURFACES
 
     def is_pure_proper_noun(self):
         """True when this is name/saint-tagged and carries NO common-noun tag

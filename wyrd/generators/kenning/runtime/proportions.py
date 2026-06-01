@@ -389,10 +389,13 @@ class MeaningGenerator:
             # pure), or a FAMILY-name etymon (`Smith`/Norman manorial families —
             # those form legitimate toponyms + are what the synthetic test
             # fixtures use), so neither realism nor the fixtures are disturbed.
+            # wyrd-gwj3: also drop connector morphemes (cum / le / juxta …) —
+            # they require a complement and must not dangle as a lone word.
             keys = {
                 (position, *m.key()[1:])
                 for m in meanings
                 if not (m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()))
+                and not m.is_connector_particle()
             }
             for key in keys:
                 if addkeys:
