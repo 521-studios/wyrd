@@ -2372,15 +2372,17 @@ def test_load_proportions_handles_missing_cooccurrence_keys():
     from wyrd.generators.kenning.runtime.meaning import Meaning
     from wyrd.generators.kenning.runtime.proportions import load_proportions
 
-    # name=True on the structure word satisfies the wyrd-zzli +
-    # wyrd-80ib grammaticality filter; the test is about loader plumbing,
-    # not structure validity.
+    # A 2-morpheme compound (pre+post) survives both the wyrd-zzli/80ib
+    # grammaticality filter AND the wyrd-g1hj single-morpheme filter; the test
+    # is about loader plumbing, not structure validity.
     meaning_db = {"-a": [Meaning("-a", [], [], {})]}
     tag_db = {}
     legacy_data = {
         "usages": {"-a": 1},
         "single_usages": {"-a": 1},
-        "structures": [{"proportion": 1, "words": [[{"location": "post", "name": True}]]}],
+        "structures": [
+            {"proportion": 1, "words": [[{"location": "pre"}, {"location": "post", "name": True}]]}
+        ],
         # No tag_cooccurrence, no tag_marginal — legacy shape.
     }
     name_gen = load_proportions(legacy_data, meaning_db, tag_db)
@@ -2394,15 +2396,17 @@ def test_load_proportions_passes_cooccurrence_keys_through():
     from wyrd.generators.kenning.runtime.meaning import Meaning
     from wyrd.generators.kenning.runtime.proportions import load_proportions
 
-    # name=True on the structure word satisfies the wyrd-zzli +
-    # wyrd-80ib grammaticality filter; the test is about loader plumbing,
-    # not structure validity.
+    # A 2-morpheme compound (pre+post) survives both the wyrd-zzli/80ib
+    # grammaticality filter AND the wyrd-g1hj single-morpheme filter; the test
+    # is about loader plumbing, not structure validity.
     meaning_db = {"-a": [Meaning("-a", [], [], {})]}
     tag_db = {}
     data = {
         "usages": {"-a": 1},
         "single_usages": {"-a": 1},
-        "structures": [{"proportion": 1, "words": [[{"location": "post", "name": True}]]}],
+        "structures": [
+            {"proportion": 1, "words": [[{"location": "pre"}, {"location": "post", "name": True}]]}
+        ],
         "tag_cooccurrence": {"water|plant": 7},
         "tag_marginal": {"water": 7, "plant": 7},
     }

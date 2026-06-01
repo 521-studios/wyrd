@@ -667,12 +667,15 @@ def _is_single_morpheme_structure(struct_key: tuple) -> bool:
     (`Chislehurst`, `Enfield`) read as flat, uninteresting place names. Real
     interest comes from COMPOSITION: a multi-morpheme word (`Higham` =
     `High-`+`-ham`) or multiple words (`Green Park`, 2 morphemes). So these are
-    excluded from the GENERATION pool — but, unlike the grammaticality filter,
-    they are deliberately KEPT in the recorded/mined set (``_all_structs``):
-    they're valid corpus data, just not worth generating. This is a
-    generation-time "don't-generate" mark, NOT a mining/bundle change, so it
-    needs no re-export. A single bare word standing INSIDE a larger structure
-    (`Green` in `Green Park`) is unaffected — that's 2 morphemes total."""
+    filtered out at LOAD time (``load_proportions``), before the NameGenerator
+    is built — they're absent from BOTH ``structs`` and ``_all_structs``, so no
+    generation path (select / vector / force_structure) can emit them. (Unlike
+    the grammaticality filter, which runs inside ``NameGenerator.__init__`` and
+    leaves its drops in ``_all_structs`` — still forceable.) This is a
+    generation-time exclusion, NOT a mining/bundle change: the on-disk
+    proportions still RECORD these structures, so no re-export is needed. A
+    single bare word standing INSIDE a larger structure (`Green` in
+    `Green Park`) is unaffected — that's 2 morphemes total."""
     return sum(len(word_key) for word_key in struct_key) <= 1
 
 
@@ -2174,6 +2177,19 @@ def load_proportions(data, meaning_db, tag_db):
         if _is_single_morpheme_structure(words):
             continue
         struct[words] = proportion
+    # wyrd-g1hj loud-failure guard: the single-morpheme filter above runs
+    # BEFORE NameGenerator, so its empty-structs guard (which checks
+    # ``if structs and not self.structs``) can't see this case — a culture
+    # whose structures are ALL single-morpheme would yield an empty ``struct``,
+    # and the legacy select() path would later crash deep in _select_no_tag on
+    # a None from weighted_choice([]). Fail loud + attributable here instead.
+    if structures and not struct:
+        raise ValueError(
+            "load_proportions: every structure was a single morpheme (wyrd-g1hj) "
+            "— this culture has no multi-morpheme templates to generate from. "
+            "Re-emit the bundle (the proportions still record them) or relax the "
+            "single-morpheme exclusion."
+        )
     # wyrd-mj2: tag-level co-occurrence + marginal — empirical bigram
     # statistics over the (left.tags × right.tags) cartesian product
     # learned from each culture's place-name corpus. Optional: legacy

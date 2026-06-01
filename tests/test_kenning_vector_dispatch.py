@@ -606,3 +606,45 @@ def test_name_generator_usage_frequency_by_bucket_separates_qualifier_buckets():
     name_gen = NameGenerator(meaning_db, mg, structs)
     assert name_gen.usage_frequency_by_bucket[("pre",)] == {"Port-": 5}
     assert name_gen.usage_frequency_by_bucket[("pre", "name")] == {"Smith-": 3}
+
+
+def test_select_via_vector_renders_picks_at_slot_positions():
+    """wyrd-g1hj: the vector reconstruction renders each pick at its SLOT-derived
+    position, not the stored dash-variant — the regression behind `Gōstōn` →
+    `gōs-`/`tōn-` (two pre) and `-tre-` inner-at-word-start. For a (pre, post)
+    struct, slot 0 emits a pre-form (`X-`) and slot 1 a post-form (`-x`), even
+    though both morphemes are STORED pre-shaped (`Ton-` at the post slot must
+    render `-ton`)."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    db = {
+        "Gos-": [Meaning("Gos-", ["urban"], ["g"], {})],
+        "Ton-": [Meaning("Ton-", ["urban"], ["t"], {})],
+    }
+    mg = MeaningGenerator(db, {}, {})
+    mg.load_parts({"Gos-": 1})  # surface 'gos' → pre bucket
+    mg.load_parts({"-ton": 1})  # surface 'ton' → post bucket (stored variant is still 'Ton-')
+    structs = {((("pre",), ("post",)),): 1}
+    ng = NameGenerator(db, mg, structs)
+
+    seen = False
+    for seed in range(30):
+        r = ng.select_via_vector(
+            random.Random(seed), request=_vector_request(), priors=EmpiricalPriors()
+        )
+        if r is None:
+            continue
+        seen = True
+        word = r.name[0]  # one word, two morphemes
+        assert len(word) == 2
+        assert word[0].endswith("-") and not word[0].startswith("-"), (
+            f"pre slot must render a pre-form: {word}"
+        )
+        assert word[1].startswith("-"), (
+            f"post slot must render a slot-derived post-form, not the stored variant: {word}"
+        )
+    assert seen, "expected at least one generated name across seeds"
