@@ -14,6 +14,16 @@ import random
 
 from wyrd.generators.kenning.vectors.schemas import _DIMENSION_NAMES, PhonologicalVector
 
+# wyrd-eyjk/D40: tags that mark a morpheme as a proper noun. The QUALIFYING
+# tags — {male/female/family name} (via is_name) and {saint} (via is_saint) —
+# gate is_pure_proper_noun; {personal-name, religious} are COMPANION tags that
+# only keep a row "pure" alongside a qualifying one (so a synthesized saint
+# subject tagged {saint, personal-name, religious} reads as pure). Single
+# source of truth — __init__._is_pure_proper_noun delegates to the method below.
+_PROPER_NOUN_TAGS = frozenset(
+    {"male name", "female name", "family name", "saint", "personal-name", "religious"}
+)
+
 # Suffix used in meanings.json to mark per-language variant pools, e.g.
 # "old_english" canonical forms have their variants in "old_english_variants".
 # Matches the export-meanings emit shape in lexicon.py:_emit_variant_list.
@@ -264,13 +274,13 @@ class Meaning:
         # indistinguishable — the proportions grammaticality guard
         # (_is_ungrammatical_word_template) couldn't tell a legitimate
         # single bare word from a suffix-only morpheme rendered alone
-        # (the '-park' → "Park" standalone), and the vector-mode slot
-        # filter matched suffix keys into single-word slots. A distinct
-        # 'bare' location fixes both: bare is valid at any position
-        # (trie _location_allows falls through to permissive True) and
-        # single-word slots encode ('bare',) so suffix keys no longer
-        # fill them. NOTE: keep in lockstep with
-        # vector_name_select._slot_position_label, which mirrors this map.
+        # (the '-park' → "Park" standalone). A distinct 'bare' location
+        # fixes that: single-word occurrences record + bucket as ('bare', …).
+        # wyrd-eyjk/D40: ``.location`` is now only a render/scoring hint, NOT a
+        # match-time gate — matching is string-only and position is derived
+        # from the span (the trie ``_location_allows`` and vector
+        # ``_matches_position`` gates were removed). NOTE: keep in lockstep
+        # with vector_name_select._slot_position_label, which mirrors this map.
         if self.usage.startswith("-") and self.usage.endswith("-"):
             self.location = "inner"
         elif self.usage.endswith("-"):
@@ -364,6 +374,18 @@ class Meaning:
 
     def is_saint(self):
         return "saint" in self.tags
+
+    def is_pure_proper_noun(self):
+        """True when this is name/saint-tagged and carries NO common-noun tag
+        — a personal name / saint / synthesized saint-subject with no
+        place-element sense (``Bourne``, ``Andrew``, the ``Mary``/``John``
+        dedication subjects), as opposed to a place element merely co-tagged
+        with a name (``stān`` 'stone' + 'Stan'). Such morphemes belong only in
+        name/saint slots, never the generic base-generation pool (wyrd-eyjk/D40
+        — keeps synthesized saint subjects from leaking into plain names)."""
+        if not (self.is_name() or self.is_saint()):
+            return False
+        return all(tag in _PROPER_NOUN_TAGS for tag in self.tags)
 
     def english_shaped_for(self, lang_field: str, form: str) -> str | None:
         """wyrd-ha9q Phase 2c: return the English-friendly rendering of

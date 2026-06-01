@@ -415,7 +415,8 @@ def test_select_populates_inflection_labels_at_high_density():
         inflections={"old_english": [("cotum", "dative_or_pl")]},
     )
     meaning_db = {"-cot": [m]}
-    proportions = dict.fromkeys(meaning_db, 1)
+    # wyrd-eyjk/D40: lone-word occurrences record the bare surface form.
+    proportions = {k.replace("-", ""): 1 for k in meaning_db}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
     structs = {((("bare", "name", "single"),),): 1}
@@ -444,7 +445,8 @@ def test_select_default_skips_render_pass_entirely():
         inflections={"old_english": [("cotum", "dative_or_pl")]},
     )
     meaning_db = {"-cot": [m]}
-    proportions = dict.fromkeys(meaning_db, 1)
+    # wyrd-eyjk/D40: lone-word occurrences record the bare surface form.
+    proportions = {k.replace("-", ""): 1 for k in meaning_db}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
     structs = {((("bare", "name", "single"),),): 1}
@@ -972,7 +974,8 @@ def test_name_generator_select_excludes_fiction_end_to_end():
     m = Meaning("-mythron", ["family name"], ["constructed"], {"old_english": ["mythron"]})
     meaning_db = {"-mythron": [m]}
     tag_db = {"fiction": ["-mythron"]}
-    proportions = {"-mythron": 1}
+    # wyrd-eyjk/D40: bare-form proportions; exclude_tags now matches by surface.
+    proportions = {"mythron": 1}
     mg = MeaningGenerator(meaning_db, tag_db, proportions)
     # Same shape as production load_proportions: single-element words
     # register usages under ("bare", "name", "single") — a lone word is
@@ -987,7 +990,7 @@ def test_name_generator_select_excludes_fiction_end_to_end():
 
     # Include-fiction mode: morpheme draws cleanly.
     new_name = name_gen.select(random.Random(0), exclude_tags=())
-    assert new_name.name == [["-mythron"]]
+    assert new_name.name == [["mythron"]]
 
 
 def test_kenning_input_schema_exposes_include_fiction():
@@ -1075,7 +1078,9 @@ def test_meaning_generator_keep_keys_for_era_filters_by_attestation():
     meaning_db = {"-in": [in_window], "-out": [out_window], "-none": [no_data]}
     mg = MeaningGenerator(meaning_db, {}, dict.fromkeys(meaning_db, 1))
     keep = mg.keep_keys_for_era((800, 1100))
-    assert keep == frozenset({"-in", "-none"})
+    # wyrd-eyjk/D40: keep-sets are keyed by bare SURFACE (bucket items are
+    # position-forms compared by surface), so the dashes are stripped.
+    assert keep == frozenset({"in", "none"})
 
 
 def test_meaning_generator_keep_keys_for_era_full_coverage_returns_none():
@@ -1149,14 +1154,16 @@ def test_name_generator_select_drops_out_of_era_morphemes_at_pick_time():
         "-out", ["family name"], [], {}, attested_years={"old_english": [("out", 1500)]}
     )
     meaning_db = {"-in": [m_in], "-out": [m_out]}
-    proportions = {"-in": 1, "-out": 99}
+    # wyrd-eyjk/D40: lone-word occurrences record the BARE surface form, so a
+    # single-word ("bare", …, "single") bucket draws "in"/"out", not "-in".
+    proportions = {"in": 1, "out": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
     structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), era_range=(800, 1100))
-        assert new_name.name == [["-in"]]
+        assert new_name.name == [["in"]]
 
 
 def test_name_generator_select_era_range_threads_through_positive_tag_path():
@@ -1184,7 +1191,9 @@ def test_name_generator_select_era_range_threads_through_positive_tag_path():
         "-out", ["tree", "family name"], [], {}, attested_years={"old_english": [("out", 1500)]}
     )
     meaning_db = {"-in": [m_in], "-out": [m_out]}
-    proportions = {"-in": 1, "-out": 99}
+    # wyrd-eyjk/D40: bare-form proportions (lone-word recording). tag_db keeps
+    # the dash-variant keys — filter_for_tag now matches by surface.
+    proportions = {"in": 1, "out": 99}
     tag_db = {"tree": ["-in", "-out"]}
     mg = MeaningGenerator(meaning_db, tag_db, proportions)
     mg.load_parts(proportions, "single")
@@ -1192,7 +1201,7 @@ def test_name_generator_select_era_range_threads_through_positive_tag_path():
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), "tree", era_range=(800, 1100))
-        assert new_name.name == [["-in"]]
+        assert new_name.name == [["in"]]
 
 
 def test_name_generator_select_era_range_none_is_bit_stable():
@@ -1212,7 +1221,8 @@ def test_name_generator_select_era_range_none_is_bit_stable():
     m_a = Meaning("-a", ["family name"], [], {})
     m_b = Meaning("-b", ["family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
-    proportions = {"-a": 50, "-b": 50}
+    # wyrd-eyjk/D40: bare-form proportions for the single-word bucket.
+    proportions = {"a": 50, "b": 50}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
     structs = {((("bare", "name", "single"),),): 1}
@@ -1257,7 +1267,8 @@ def test_name_generator_select_no_era_matches_pre_pr_weighted_choice():
     m_a = Meaning("-a", ["family name"], ["letter a"], {})
     m_b = Meaning("-b", ["family name"], ["letter b"], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
-    proportions = {"-a": 30, "-b": 70}
+    # wyrd-eyjk/D40: bare-form proportions for the single-word bucket.
+    proportions = {"a": 30, "b": 70}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
     structs = {((("bare", "name", "single"),),): 1}
@@ -1543,7 +1554,8 @@ def test_meaning_generator_keep_keys_for_stratum_filters_by_classified_data():
     meaning_db = {"-in": [in_stratum], "-out": [other_stratum], "-none": [no_data]}
     mg = MeaningGenerator(meaning_db, {}, dict.fromkeys(meaning_db, 1))
     keep = mg.keep_keys_for_stratum("native-welsh")
-    assert keep == frozenset({"-in", "-none"})
+    # wyrd-eyjk/D40: keep-sets are keyed by bare SURFACE.
+    assert keep == frozenset({"in", "none"})
 
 
 def test_meaning_generator_keep_keys_for_stratum_full_coverage_returns_none():
@@ -1605,14 +1617,15 @@ def test_name_generator_select_drops_out_of_stratum_morphemes_at_pick_time():
     m_in = Meaning("-in", ["family name"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
     m_out = Meaning("-out", ["family name"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
     meaning_db = {"-in": [m_in], "-out": [m_out]}
-    proportions = {"-in": 1, "-out": 99}
+    # wyrd-eyjk/D40: bare-form proportions for the single-word bucket.
+    proportions = {"in": 1, "out": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
     structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), stratum="native-welsh")
-        assert new_name.name == [["-in"]]
+        assert new_name.name == [["in"]]
 
 
 def test_keep_keys_for_stratum_returns_empty_when_no_usage_admits():
@@ -1672,7 +1685,9 @@ def test_name_generator_select_stratum_threads_through_positive_tag_path():
         "-out", ["tree", "family name"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}}
     )
     meaning_db = {"-in": [m_in], "-out": [m_out]}
-    proportions = {"-in": 1, "-out": 99}
+    # wyrd-eyjk/D40: bare-form proportions; tag_db keeps dash-variants
+    # (filter_for_tag matches by surface).
+    proportions = {"in": 1, "out": 99}
     tag_db = {"tree": ["-in", "-out"]}
     mg = MeaningGenerator(meaning_db, tag_db, proportions)
     mg.load_parts(proportions, "single")
@@ -1680,7 +1695,7 @@ def test_name_generator_select_stratum_threads_through_positive_tag_path():
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), "tree", stratum="native-welsh")
-        assert new_name.name == [["-in"]]
+        assert new_name.name == [["in"]]
 
 
 def test_kenning_generate_treats_empty_stratum_as_no_filter():
@@ -1731,7 +1746,7 @@ def test_name_generator_select_stratum_none_is_bit_stable():
     m_a = Meaning("-a", ["family name"], [], {})
     m_b = Meaning("-b", ["family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
-    proportions = {"-a": 50, "-b": 50}
+    proportions = {"a": 50, "b": 50}  # wyrd-eyjk/D40: bare-form (lone-word)
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
     structs = {((("bare", "name", "single"),),): 1}
@@ -1785,7 +1800,8 @@ def test_name_generator_select_era_and_stratum_compose_via_intersection():
         "-wrong-stratum": [m_wrong_stratum],
         "-wrong-era": [m_wrong_era],
     }
-    proportions = {"-ok": 1, "-wrong-stratum": 99, "-wrong-era": 99}
+    # wyrd-eyjk/D40: bare-form proportions (lone-word recording strips dashes).
+    proportions = {"ok": 1, "wrongstratum": 99, "wrongera": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
     structs = {((("bare", "name", "single"),),): 1}
@@ -1796,7 +1812,7 @@ def test_name_generator_select_era_and_stratum_compose_via_intersection():
             era_range=(800, 1100),
             stratum="native-welsh",
         )
-        assert new_name.name == [["-ok"]]
+        assert new_name.name == [["ok"]]
 
 
 def test_intersect_keep_keys_handles_none_and_set_combinations():
@@ -1869,7 +1885,7 @@ def test_name_generator_cohesion_zero_is_bit_stable_with_no_cooccurrence():
     m_a = Meaning("-a", ["water", "family name"], [], {})
     m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
-    proportions = {"-a": 50, "-b": 50}
+    proportions = {"a": 50, "b": 50}  # wyrd-eyjk/D40: bare-form (lone-word)
     structs = {((("bare", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
@@ -1934,7 +1950,7 @@ def test_name_generator_cohesion_no_cooccurrence_data_is_no_op():
     m_a = Meaning("-a", ["water", "family name"], [], {})
     m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
-    proportions = {"-a": 50, "-b": 50}
+    proportions = {"a": 50, "b": 50}  # wyrd-eyjk/D40: bare-form (lone-word)
     structs = {((("bare", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(meaning_db, proportions, structs, cooc={}, marg={})
     seq_zero = [name_gen.select(random.Random(i), cohesion=0.0).name for i in range(20)]
@@ -1954,7 +1970,7 @@ def test_name_generator_cohesion_no_prior_tags_first_slot_unaffected():
     m_a = Meaning("-a", ["water", "family name"], [], {})
     m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
-    proportions = {"-a": 50, "-b": 50}
+    proportions = {"a": 50, "b": 50}  # wyrd-eyjk/D40: bare-form (lone-word)
     structs = {((("bare", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
@@ -2117,7 +2133,7 @@ def test_name_generator_cohesion_composes_with_novelty():
     m_a = Meaning("-a", ["water", "family name"], [], {})
     m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
-    proportions = {"-a": 70, "-b": 30}
+    proportions = {"a": 70, "b": 30}  # wyrd-eyjk/D40: bare-form (lone-word)
     structs = {((("bare", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
@@ -2735,10 +2751,10 @@ def test_keep_keys_for_gloss_policy():
     }
     mg = MeaningGenerator(meaning_db, {}, {})
 
-    # Default: glossed-only.
-    assert mg.keep_keys_for_gloss(include_unglossed=False) == frozenset({"-ton", "á"})
+    # Default: glossed-only. (wyrd-eyjk/D40: keep-sets keyed by bare SURFACE.)
+    assert mg.keep_keys_for_gloss(include_unglossed=False) == frozenset({"ton", "á"})
     # Opt-in: + multi-char unglossed, never the 1-char unglossed.
-    assert mg.keep_keys_for_gloss(include_unglossed=True) == frozenset({"-ton", "-xyz", "á"})
+    assert mg.keep_keys_for_gloss(include_unglossed=True) == frozenset({"ton", "xyz", "á"})
 
 
 def test_keep_keys_for_gloss_full_coverage_returns_none():

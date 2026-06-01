@@ -103,7 +103,9 @@ class Generator:
         if exclude_tags:
             items = self._apply_excludes(items, exclude_tags).items()
         if keep_keys is not None:
-            items = [(k, v) for k, v in items if k in keep_keys]
+            # wyrd-eyjk/D40: keep_keys holds bare SURFACES; bucket items are
+            # position-forms — compare by surface.
+            items = [(k, v) for k, v in items if k.lower().replace("-", "") in keep_keys]
         # wyrd-gzvr: exclude_keys drops specific usages from sampling
         # (the previously-picked usage at an adjacent slot, to break
         # the 'North North' / 'Green Green' duplicate-word pattern).
@@ -136,10 +138,19 @@ class Generator:
         # PYTHONHASHSEED, so without sort() the same (tags, seed) tuple
         # could produce different picks across processes. Same fix shape
         # as wyrd-mj2's _raw_class_score sort. wyrd-8ga.
-        keys: list[str] = []
-        for tag in tags:
-            keys.extend(self.tag_db.get(tag, []))
-        return {key: self.elements[key] for key in sorted(set(keys)) if key in self.elements}
+        # wyrd-eyjk/D40: tag_db is keyed by the bundle's meaning_db usages
+        # (dash-variants), but the bucket items (self.elements) are
+        # position-forms — match by bare SURFACE so a morpheme tagged under
+        # any variant is found at whatever position it was recorded. Iterate
+        # sorted(self.elements) for the same order-determinism reason.
+        tag_surfaces = {
+            u.lower().replace("-", "") for tag in tags for u in self.tag_db.get(tag, [])
+        }
+        return {
+            key: self.elements[key]
+            for key in sorted(self.elements)
+            if key.lower().replace("-", "") in tag_surfaces
+        }
 
     def _apply_excludes(self, items, exclude_tags: tuple[str, ...]):
         """Drop keys whose usage appears in tag_db under any exclude tag.
@@ -149,12 +160,15 @@ class Generator:
         bucket's tag_db, nothing can be filtered — return ``dict(items)``
         directly without the per-key membership check. Today's bundle has
         no fiction-tagged morphemes so this is the steady-state path."""
+        # wyrd-eyjk/D40: match by bare SURFACE (tag_db holds dash-variants,
+        # items are position-forms).
         excluded: set[str] = set()
         for tag in exclude_tags:
-            excluded.update(self.tag_db.get(tag, ()))
+            for u in self.tag_db.get(tag, ()):
+                excluded.add(u.lower().replace("-", ""))
         if not excluded:
             return dict(items)
-        return {k: v for k, v in items if k not in excluded}
+        return {k: v for k, v in items if k.lower().replace("-", "") not in excluded}
 
 
 _TRIPLE_LETTER_RUN_RE = re.compile(r"(.)\1{2,}")
@@ -245,6 +259,65 @@ def _intersect_keep_keys(
     return a & b
 
 
+# Maps id(meaning_db) → (meaning_db, surface_index). Storing the meaning_db
+# reference alongside the index is load-bearing: it keeps the dict ALIVE while
+# cached, so CPython can't recycle its id() for a different meaning_db (the
+# wyrd-eyjk round-2 staleness hazard), and the ``is`` identity check below
+# catches any collision defensively. Bounded so ad-hoc test meaning_dbs don't
+# accumulate; also dropped wholesale on bundle reload via
+# ``_clear_surface_index_cache`` (wired into the kenning coupled cache-clear).
+_SURFACE_INDEX_CACHE: dict[int, tuple[dict, dict[str, list]]] = {}
+_SURFACE_INDEX_CACHE_MAX = 32
+
+
+def _surface_index_for(meaning_db: dict) -> dict[str, list]:
+    """wyrd-eyjk/D40: bare-surface (dash-stripped, lowercased) → [Meaning]
+    index for a meaning_db. Proportions usages are POSITION-FORMS (`-giles`);
+    the morpheme is resolved by its surface since the bundle may store it only
+    under another dash-variant. Cached by ``id(meaning_db)`` with an identity
+    check so an id() recycled after GC can never return a stale index."""
+    key = id(meaning_db)
+    entry = _SURFACE_INDEX_CACHE.get(key)
+    if entry is not None and entry[0] is meaning_db:
+        return entry[1]
+    idx: dict[str, list] = {}
+    for usage, meanings in meaning_db.items():
+        idx.setdefault(usage.lower().replace("-", ""), []).extend(meanings)
+    # Production uses one long-lived bundle meaning_db; the cap only matters for
+    # the many small ad-hoc meaning_dbs tests build. Evict oldest on overflow.
+    if key not in _SURFACE_INDEX_CACHE and len(_SURFACE_INDEX_CACHE) >= _SURFACE_INDEX_CACHE_MAX:
+        del _SURFACE_INDEX_CACHE[next(iter(_SURFACE_INDEX_CACHE))]
+    _SURFACE_INDEX_CACHE[key] = (meaning_db, idx)
+    return idx
+
+
+def _resolve_surface(meaning_db: dict, usage: str) -> list:
+    """Resolve a usage (a position-form like ``-giles``, or any dash-variant)
+    to its morpheme's Meanings via the bare-surface index."""
+    return _surface_index_for(meaning_db).get(usage.lower().replace("-", ""), [])
+
+
+def _clear_surface_index_cache() -> None:
+    """Drop the bare-surface index cache. Wired into the kenning bundle's
+    coupled cache-clear so a meaning_db reload can't read a stale index via
+    an id() collision (the cache is keyed by ``id(meaning_db)``)."""
+    _SURFACE_INDEX_CACHE.clear()
+
+
+def _location_from_form(usage: str) -> str:
+    """The position a position-form usage encodes, from its dashes — mirrors
+    ``Meaning._set_location``: ``-x-`` inner, ``x-`` pre, ``-x`` post, bare."""
+    lead = usage.startswith("-")
+    trail = usage.endswith("-")
+    if lead and trail:
+        return "inner"
+    if trail:
+        return "pre"
+    if lead:
+        return "post"
+    return "bare"
+
+
 class MeaningGenerator:
     def __init__(self, meaning_db, tag_db, proportions):
         self.meaning_db = meaning_db
@@ -275,56 +348,54 @@ class MeaningGenerator:
         self._gloss_keep_cache: dict[bool, frozenset[str] | None] = {}
         self.load_parts(proportions)
 
+    def _surface_index(self) -> dict[str, list]:
+        # wyrd-eyjk/D40: bare-surface → [Meaning] index for resolving the
+        # position-form usages in the proportions. Shared module-level cache.
+        return _surface_index_for(self.meaning_db)
+
     def load_parts(self, proportions, *addkeys):
-        # wyrd-van9: tolerate proportions usages whose key isn't in
-        # meaning_db. This can happen when the bundle and proportions
-        # files are emitted from slightly different lexicon states —
-        # e.g. when a rebuild-proportions run produced matcher tokens
-        # for inflection-shadows that the bundle's later re-emit
-        # dropped. Pre-fix, a single missing key would KeyError out of
-        # the entire MeaningGenerator construction, taking down every
-        # downstream call. Skip + count instead so the bundle pair
-        # self-heals on next re-export and the operator sees the drift
-        # in the warning surface (rather than the runtime crashing).
-        # wyrd-5z5j/D39: the "single" pool is lone-word occurrences, which are
-        # structurally ``bare`` BY DEFINITION — a morpheme that fills a whole
-        # word sits in the bare slot no matter which dashed form the matcher
-        # used to match it (``pleasant`` filled by its only form ``-pleasant``).
-        # ``Meaning.key()`` buckets by the stored form's dash-shape, so a lone
-        # ``-pleasant`` would otherwise land only in the ``post`` bucket and
-        # never reach the ``bare`` single-word slots a current bundle's
-        # ``get_structure`` emits — starving them. We register single-pool
-        # usages under a ``bare`` bucket (keeping the dashed usage string as
-        # the ITEM so ``meaning_db`` still resolves and ``NewName.__str__``
-        # strips the dash + applies bare/word-initial case at render time —
-        # Defect B). This is the bucket-layer realization of the handoff's
-        # "bare occurrence records the dash-less surface", done where the
-        # bucket forms rather than by manufacturing dash-less meaning_db
-        # entries (the reverted derive_positions detour).
+        # wyrd-eyjk/D40: proportions usages are POSITION-FORMS — a morpheme's
+        # bare surface rendered at its DERIVED position (`-giles` post,
+        # `Stoke-` pre, `giles` bare). The morpheme is resolved by its
+        # dash-stripped SURFACE (the bundle may store it only under a different
+        # dash-variant, e.g. saints have `Giles-`/`Giles` but never `-giles`),
+        # and bucketed by the position the FORM encodes plus the morpheme's
+        # name/saint flag. Position is NEVER read off the stored variant's
+        # ``Meaning.location`` — it is carried by the recorded form. This
+        # retires the old per-Meaning-location bucketing and the wyrd-5z5j
+        # ``add_bare`` double-register (the lone pool's forms are already bare).
         #
-        # We ADD the bare bucket rather than MOVE to it: the dash-shape
-        # bucket is ALSO kept so a bundle built before this change (its
-        # structures still reference ``(post, …, "single")`` etc.) keeps
-        # working — backward-compat for stale S3 bundles loaded between a
-        # code deploy and the bundle re-emit (wyrd-j43l). A current bundle's
-        # structures reference only the bare single-word slots, so the legacy
-        # dash-shape single buckets are simply unreferenced dead weight there.
-        # Genuine compounds (the ``part`` pool, no "single" addkey) keep their
-        # dash-shape bucket untouched, so a morpheme stays additively available
-        # as bare (lone) and pre/post (compound).
-        add_bare = "single" in addkeys
+        # wyrd-van9: a usage whose surface isn't in meaning_db at all is
+        # skipped + counted (bundle/proportions drift) rather than crashing.
+        index = self._surface_index()
         missing_count = 0
         for usage, proportion in proportions.items():
-            meanings = self.meaning_db.get(usage)
+            meanings = index.get(usage.lower().replace("-", ""))
             if meanings is None:
                 missing_count += 1
                 continue
-            keys = {m.key() for m in meanings}
-            if add_bare:
-                keys |= {("bare", *k[1:]) for k in keys}
+            position = _location_from_form(usage)
+            # Flags (name/saint) come from the morpheme; position from the form.
+            # wyrd-eyjk/D40: a synthesized SAINT subject (a pure proper noun
+            # that is also saint-tagged — `Mary`, `John`, `Giles` from the
+            # St-dedication list) is a DECOMPOSITION aid + a param-gated
+            # synthesis element, never a base-generation morpheme. It is added
+            # to meaning_db so the matcher can explain real toponyms (Gileston →
+            # Giles) and the St-dedication affix injects it at generation only
+            # when its knob is set — it must NOT enter the empirical proportions
+            # pool, or high-frequency tokens leak into plain names (`Mary
+            # Margaret`, `By St Mary`). Exclude it from every bucket. NON-saint
+            # personal names (a real `Bourne`/`Stan` place element co-tagged
+            # with a name, or test family-name flags) are NOT touched — only the
+            # saint-tagged dedication subjects.
+            keys = {
+                (position, *m.key()[1:])
+                for m in meanings
+                if not (m.is_pure_proper_noun() and m.is_saint())
+            }
             for key in keys:
                 if addkeys:
-                    key = tuple(list(key) + list(addkeys))
+                    key = (*key, *addkeys)
                 gen = self.generators.setdefault(key, Generator(self.tag_db, {}))
                 gen.add_item(usage, proportion)
         if missing_count:
@@ -368,12 +439,14 @@ class MeaningGenerator:
             return None
         if era_range in self._era_keep_cache:
             return self._era_keep_cache[era_range]
+        # wyrd-eyjk/D40: keep-sets are keyed by bare SURFACE (the bucket items
+        # are position-forms; Generator.select compares the item's surface).
         allowed: frozenset[str] | None = frozenset(
-            usage
+            usage.lower().replace("-", "")
             for usage, meanings in self.meaning_db.items()
             if any(m.attested_in_era_range(era_range) for m in meanings)
         )
-        if len(allowed) == len(self.meaning_db):
+        if len(allowed) == len(self._surface_index()):
             allowed = None
         self._era_keep_cache[era_range] = allowed
         return allowed
@@ -404,11 +477,11 @@ class MeaningGenerator:
         if stratum in self._stratum_keep_cache:
             return self._stratum_keep_cache[stratum]
         allowed: frozenset[str] | None = frozenset(
-            usage
+            usage.lower().replace("-", "")
             for usage, meanings in self.meaning_db.items()
             if any(m.in_stratum(stratum) for m in meanings)
         )
-        if len(allowed) == len(self.meaning_db):
+        if len(allowed) == len(self._surface_index()):
             allowed = None
         self._stratum_keep_cache[stratum] = allowed
         return allowed
@@ -441,11 +514,11 @@ class MeaningGenerator:
         if include_unglossed in self._gloss_keep_cache:
             return self._gloss_keep_cache[include_unglossed]
         allowed: frozenset[str] | None = frozenset(
-            usage
+            usage.lower().replace("-", "")
             for usage, meanings in self.meaning_db.items()
             if _gloss_eligible(usage, any(m.meanings for m in meanings), include_unglossed)
         )
-        if len(allowed) == len(self.meaning_db):
+        if len(allowed) == len(self._surface_index()):
             allowed = None
         self._gloss_keep_cache[include_unglossed] = allowed
         return allowed
@@ -1195,7 +1268,13 @@ class NameGenerator:
                     word_rendered.append(None)
                     word_labels.append(None)
                     continue
-                meanings = self.meaning_db.get(usage) or []
+                # wyrd-eyjk/D40: usages are position-forms (`-giles`); resolve
+                # the morpheme by its bare surface (the bundle may store only a
+                # different dash-variant) so variant/inflection substitution
+                # still finds the pools.
+                meanings = (
+                    self.meaning_gen._surface_index().get(usage.lower().replace("-", "")) or []
+                )
                 # When a usage maps to multiple Meanings (different senses
                 # e.g. -y "district" vs "island"), each sense has its OWN
                 # variant + inflection pools because the underlying etymons
@@ -1429,7 +1508,7 @@ class NameGenerator:
         accumulate the prior-context tag set as the cohesion walk fills
         in slots."""
         out: set[str] = set()
-        for m in self.meaning_db.get(usage, ()):
+        for m in _resolve_surface(self.meaning_db, usage):
             out.update(m.tags)
         return out
 
@@ -1598,7 +1677,7 @@ class NewName:
             for e in w:
                 if e is None:
                     continue
-                words.append(self.meaning_db[e])
+                words.append(_resolve_surface(self.meaning_db, e))
         return repr(words)
 
     def description(self):
@@ -1625,7 +1704,7 @@ class NewName:
                 lemma = e.replace("-", "") if single else e
                 label = self._inflection_label_for(wi, ei)
                 head = f"{lemma}@{label}" if label else lemma
-                ranked = _rank_siblings(self.meaning_db.get(e, []))
+                ranked = _rank_siblings(_resolve_surface(self.meaning_db, e))
                 # wyrd-o53o round 3 (Gemini MED): partition once per
                 # sibling rather than twice (any-check + render loop).
                 partitioned = [(_partition_senses(list(m.meanings)), m) for m in ranked]
@@ -1710,7 +1789,7 @@ class NewName:
             for ei, e in enumerate(word):
                 if e is None:
                     continue
-                meanings_list = self.meaning_db.get(e, [])
+                meanings_list = _resolve_surface(self.meaning_db, e)
                 ranked = _rank_siblings(meanings_list)
                 first = ranked[0] if ranked else None
                 morpheme: dict = {"usage": e}
@@ -1792,7 +1871,7 @@ class NewName:
                 # came from the generator's pool) but the consistency
                 # win + no-IndexError-on-empty-siblings is worth the
                 # cost of one .get() + one truthy check.
-                meanings = self.meaning_db.get(e, [])
+                meanings = _resolve_surface(self.meaning_db, e)
                 ranked = _rank_siblings(meanings)
                 if not ranked:
                     continue
@@ -2067,7 +2146,16 @@ def load_proportions(data, meaning_db, tag_db):
     # filter rather than silently emptying the entire native pool —
     # an empty frozenset is truthy under the downstream
     # ``is not None`` guard.
-    culture_attested_usages = (frozenset(usages.keys()) | frozenset(single_usages.keys())) or None
+    # wyrd-eyjk/D40: proportions usages are POSITION-FORMS (`-giles`, `Stoke-`,
+    # bare `giles`); the vector path compares this against each meaning_db
+    # entry's STORED dash-variant key (`Giles-`). Collapse to bare SURFACE on
+    # this side so the cross-mode culture filter matches by morpheme identity,
+    # not by which dash-shape happened to be recorded vs stored (build_non_
+    # position_eligible strips the meaning_db side to match).
+    culture_attested_usages = (
+        frozenset(u.lower().replace("-", "") for u in usages)
+        | frozenset(u.lower().replace("-", "") for u in single_usages)
+    ) or None
     # wyrd-pfoo: per-Meaning attestation per culture. Bundle ships
     # this as ``{usage_key: [primary_language, ...]}``; we frozenset
     # the per-usage language sets so the runtime filter does cheap

@@ -346,9 +346,14 @@ def _build_synthetic_vector_name_gen(structs: dict, meaning_db: dict):
         NameGenerator,
     )
 
+    # wyrd-eyjk/D40: the part pool keeps the dash-variant forms (pre/post
+    # buckets); the single pool records the BARE surface (lone words are
+    # structurally bare), so it lands at the ("bare", …, "single") buckets a
+    # single-word struct references.
     proportions = dict.fromkeys(meaning_db, 1)
+    single_proportions = {k.replace("-", ""): 1 for k in meaning_db}
     mg = MeaningGenerator(meaning_db, {}, proportions)
-    mg.load_parts(proportions, "single")
+    mg.load_parts(single_proportions, "single")
     return NameGenerator(meaning_db, mg, structs)
 
 
@@ -556,7 +561,10 @@ def test_name_generator_usage_frequency_by_bucket_snapshots_generators():
     meaning_db = {"Common-": [common], "Rare-": [rare]}
 
     multi_word_proportions = {"Common-": 6, "Rare-": 2}
-    single_word_proportions = {"Common-": 3, "Rare-": 1}
+    # wyrd-eyjk/D40: lone-word occurrences record the BARE surface form, so the
+    # single pool's usages are dash-less (and land at the ("bare", "single")
+    # bucket by their derived position, not via the retired add_bare hack).
+    single_word_proportions = {"common": 3, "rare": 1}
     mg = MeaningGenerator(meaning_db, {}, multi_word_proportions)
     mg.load_parts(single_word_proportions, "single")
     # 2-element compound word — passes is_structurally_grammatical
@@ -566,8 +574,8 @@ def test_name_generator_usage_frequency_by_bucket_snapshots_generators():
     name_gen = NameGenerator(meaning_db, mg, structs)
     assert name_gen.usage_frequency_by_bucket[("pre",)] == {"Common-": 6, "Rare-": 2}
     assert name_gen.usage_frequency_by_bucket[("bare", "single")] == {
-        "Common-": 3,
-        "Rare-": 1,
+        "common": 3,
+        "rare": 1,
     }
 
 

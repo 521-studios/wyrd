@@ -73,44 +73,12 @@ def _default_empty_phon_vector() -> PhonologicalVector:
     return PhonologicalVector()
 
 
-def _matches_position(meaning: Meaning, slot_position: str) -> bool:
-    """Position-gate predicate. The slot's position label is one of
-    ``pre`` / ``inner`` / ``post`` / ``bare`` (matches Meaning.location;
-    ``bare`` added in wyrd-vpri for no-dash single-word keys). For the
-    ``pre`` / ``post`` / ``inner`` slots a meaning must match the slot's
-    location by exact equality, so a ``post`` slot accepts only suffix
-    keys (the separation that stops suffix keys filling compound slots).
-    The ``bare`` slot is permissive — see the wyrd-5z5j/D39 note below.
-
-    The legacy path filters at the per-structure / per-bucket level;
-    here we do the same check explicitly on the meaning's location
-    field. Joiners and other non-Meaning structural elements are
-    handled by the caller before reaching this function.
-
-    wyrd-5z5j/D39: a ``bare`` (whole-word) slot accepts a meaning of ANY
-    location. A lone word is structurally bare regardless of the matched
-    form's dashes (``pleasant`` filling a whole word via its only form
-    ``-pleasant``), so gating bare on ``location == "bare"`` would starve
-    the slot. The DATA-driven restriction — which morphemes actually
-    appear standalone — is carried by the ``("bare", …, "single")`` bucket
-    frequency (``_resolve_slot_usage_frequency``): a morpheme never observed
-    bare looks up to 0 there and is filtered. The render lowercases / strips
-    dashes per the slot, so admitting a pre/post form here is safe. pre /
-    post / inner slots stay strict — compounds matched the position-
-    appropriate dash-form, so location is meaningful for them.
-
-    Caveat (interim, retired by wyrd-eyjk): the bucket-frequency backstop
-    only applies when ``build_slot_base_scores`` is given a non-None
-    ``usage_frequency_by_bucket``. The production ``NameGenerator`` always
-    threads it, so a bare slot is never unrestricted in production; a
-    legacy/test caller that omits the frequency map would admit any
-    location unrestricted. The clean fix (string-match → derive position →
-    soft statistical ranking) lands under wyrd-eyjk, which removes this
-    gate entirely.
-    """
-    if slot_position == "bare":
-        return True
-    return meaning.location == slot_position
+# wyrd-eyjk/D40: the `_matches_position` position-gate predicate was removed —
+# position is no longer a match-time constraint. A morpheme may fill any slot;
+# the DATA-driven restriction is the per-(position) bucket frequency
+# (`_resolve_slot_usage_frequency`): a morpheme never observed at a position
+# looks up to 0 there and is filtered. `_slot_position_label` survives below —
+# it still labels the slot's position for the D36 position-axis SCORING.
 
 
 def _matches_era(
@@ -204,9 +172,10 @@ def _cohesion_multiplier(
 def _slot_position_label(structural_element: str) -> str:
     """Resolve the slot position label from a structural element string.
 
-    Matches ``Meaning._set_location`` exactly so a slot-position
-    string returned here can be compared directly to ``meaning.location``
-    by ``_matches_position``. The mapping (from
+    Matches ``Meaning._set_location`` exactly. wyrd-eyjk/D40: this label is
+    no longer used to *gate* eligibility (the ``_matches_position`` gate is
+    gone) — it feeds the D36 position-axis SCORING (``pos_score``) and the
+    per-(position) bucket-key lookup. The mapping (from
     ``runtime/meaning.py:_set_location``):
 
     * ``"-inner-"`` (both dashes) → ``"inner"``
@@ -215,14 +184,9 @@ def _slot_position_label(structural_element: str) -> str:
     * ``"Bare"`` (no dashes) → ``"bare"``
 
     wyrd-vpri: bare (no-dashes) maps to its own ``"bare"`` label, NOT
-    ``"post"``. Pre-fix this returned ``"post"`` for bare elements so
-    they'd match the (then bare==post) Meaning convention — but that's
-    exactly the conflation that let suffix-only keys ('-park' → post)
-    fill single bare-word slots. Now ``_set_location`` gives bare keys
-    location ``"bare"``, so a bare slot must resolve to ``"bare"`` to
-    match them via ``_matches_position`` (exact equality) — and a
-    genuine suffix slot ('post') no longer matches bare keys. Must stay
-    in lockstep with ``Meaning._set_location``.
+    ``"post"`` — the historical conflation that let suffix-only keys
+    ('-park' → post) be treated as bare single-word slots. Must stay in
+    lockstep with ``Meaning._set_location``.
     """
     s = structural_element.strip()
     has_leading = s.startswith("-")
@@ -300,7 +264,14 @@ def build_non_position_eligible(
     """
     non_position_eligible: list[Meaning] = []
     for usage_key, meanings_for_usage in meaning_db.items():
-        if culture_attested_usages is not None and usage_key not in culture_attested_usages:
+        # wyrd-eyjk/D40: culture_attested_usages holds bare SURFACES (the
+        # proportions side records position-forms); compare this meaning_db
+        # entry's stored variant by surface so a morpheme stored as `Giles-`
+        # but recorded as `-giles` isn't silently dropped from the pool.
+        if (
+            culture_attested_usages is not None
+            and usage_key.lower().replace("-", "") not in culture_attested_usages
+        ):
             continue
         # wyrd-pfoo: per-Meaning narrowing. When the per-usage filter
         # admits a usage_key, we further check that each Meaning's
@@ -347,6 +318,13 @@ def build_non_position_eligible(
             # wyrd-glos: gloss policy — same predicate the proportions
             # keep_keys_for_gloss applies, so both modes share the rule.
             if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
+                continue
+            # wyrd-eyjk/D40: exclude synthesized saint subjects (pure proper
+            # nouns that are saint-tagged) from the base pool — same rule
+            # MeaningGenerator.load_parts applies, so the two scoring modes
+            # stay aligned. They reach generation only via the param-gated
+            # St-dedication synthesis, never an unprompted base name.
+            if m.is_pure_proper_noun() and m.is_saint():
                 continue
             non_position_eligible.append(m)
 
@@ -507,10 +485,16 @@ def build_slot_base_scores(
     # remains pickable. Strictly-negative scores still get filtered
     # (a register that actively opposes a Meaning shouldn't surface
     # it).
+    # wyrd-eyjk/D40: no position gate. A morpheme is its string and may fill
+    # any slot; the data-driven restriction on WHICH morphemes appear in a
+    # given position is carried by the per-(position) bucket frequency
+    # (slot_bucket_key → usage_frequency_by_bucket), built from the
+    # build-time position-derived proportions — a morpheme never observed in
+    # this position looks up to 0 and is filtered there, never here. The
+    # name/saint QUALIFIER gates below stay: they're tag-based (which morpheme
+    # may fill a name/saint slot), orthogonal to position (D39).
     eligible_by_usage: dict[str, list[tuple[Meaning, float]]] = {}
     for m in non_position_eligible:
-        if not _matches_position(m, slot_position):
-            continue
         if slot_qualifier == "name" and not m.is_name():
             continue
         if slot_qualifier == "saint" and m.usage.replace("-", "").lower() != "saint":
@@ -597,9 +581,18 @@ def _apply_per_usage_frequency(
     ``NewName`` resolves the full Meaning list per usage downstream
     regardless of which Meaning was picked.
     """
+    # wyrd-eyjk/D40: the bucket frequency is keyed by recorded POSITION-FORMS
+    # (`-giles`, `Saint`), but the eligible pool is keyed by each Meaning's
+    # stored usage variant (`Giles-`, `Saint-`). Collapse both to bare surface
+    # so a morpheme's per-position frequency is found regardless of which
+    # dash-variant the bundle stored it under.
+    freq_by_surface: dict[str, float] = {}
+    for form, f in slot_usage_frequency.items():
+        surface = form.lower().replace("-", "")
+        freq_by_surface[surface] = freq_by_surface.get(surface, 0.0) + f
     out: list[tuple[Meaning, float]] = []
     for usage, items in eligible_by_usage.items():
-        freq = slot_usage_frequency.get(usage, 0.0)
+        freq = freq_by_surface.get(usage.lower().replace("-", ""), 0.0)
         if freq <= 0:
             continue
         score_sum = sum(s for _, s in items)
