@@ -107,7 +107,7 @@ class PipelineState {
    *  for the revert comparison ("-wald-" vs "Wald") — matching
    *  MorphemeCard.swapTo's folding so the two never disagree — but
    *  accents are kept, so adding an accent to a plain original is a swap. */
-  setSwap({ wordIndex, morphemeIndex, to, original }) {
+  setSwap({ wordIndex, morphemeIndex, to, original, language }) {
     const norm = (s) => (s || '').replace(/^-+|-+$/g, '').toLowerCase();
     const idx = this.steps.findIndex(
       (s) =>
@@ -115,16 +115,24 @@ class PipelineState {
         s.params.wordIndex === wordIndex &&
         s.params.morphemeIndex === morphemeIndex,
     );
-    if (norm(to) === norm(original)) {
+    // Value-based revert: clicking a form whose surface equals the original
+    // is a no-op revert — UNLESS a language is pinned (wyrd-thhb). For a
+    // cross-language homograph the surface CAN equal the original ("don" in
+    // Old French vs the generated Old English "don") while still being a real
+    // selection, so a language pin suppresses the surface-only revert.
+    if (!language && norm(to) === norm(original)) {
       if (idx !== -1) this.removeStep(idx);
       return;
     }
     if (idx !== -1) {
       const next = [...this.steps];
-      next[idx] = { ...next[idx], params: { ...next[idx].params, to } };
+      next[idx] = {
+        ...next[idx],
+        params: { ...next[idx].params, to, language },
+      };
       this.steps = next;
     } else {
-      this.addStep('swap', { wordIndex, morphemeIndex, to });
+      this.addStep('swap', { wordIndex, morphemeIndex, to, language });
     }
   }
 

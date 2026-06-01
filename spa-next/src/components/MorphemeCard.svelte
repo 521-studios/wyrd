@@ -14,6 +14,7 @@
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
   import { accentFold } from '../lib/accents.js';
+  import { activeRendering } from '../lib/variants.js';
 
   let { morpheme, morphemeIndex } = $props();
 
@@ -35,19 +36,28 @@
     ]?.usage || '',
   );
 
-  // wyrd-2b50 follow-up: swap to the ACCENTED display form
-  // (original_script, e.g. "Wālum"/"hȳ") when the row has one, not the
-  // ASCII transliteration, so the name keeps its accents.
-  function swapTo(form, rendering) {
+  // wyrd-2b50 follow-up / wyrd-thhb: swap to the ACCENTED display form
+  // (original_script, e.g. "Wālum"/"hȳ") when the row has one, not the ASCII
+  // transliteration, so the name keeps its accents. `lang` is the source-
+  // language panel the clicked row belongs to (null for the synthetic
+  // original-surface row) — it's pinned on the swap so a cross-language
+  // homograph (Old Norse "by" /biː/ vs Old English bȳ /byː/, or OE/OF/Celtic
+  // "don") selects the RIGHT pronunciation even when the surface is identical.
+  function swapTo(form, rendering, lang = null) {
     const target = rendering?.original_script || form;
-    // Same form modulo CASE only (generated "Laug-" vs row "laug") →
-    // revert, no pointless swap. But an ACCENT upgrade ("hy" -> "hȳ")
-    // differs under toLowerCase, so it falls through to a real swap —
-    // ONE click applies the accent (vs the old click-off-then-on).
-    const sameModuloCase =
-      stripDashes(morpheme.usage).toLowerCase() ===
-      stripDashes(target).toLowerCase();
-    if (sameModuloCase) {
+    // Clicking the row that is ALREADY active reverts to the canonical
+    // generated default. For a language-panel row the "active" test is the
+    // (lang, form) pair — not surface alone — so clicking a different
+    // language's same-surface row still registers as a real selection. The
+    // synthetic original row (lang == null) keeps the surface-only test.
+    const isCurrent =
+      lang != null
+        ? currentRef?.lang === lang &&
+          stripDashes(currentRef?.form).toLowerCase() ===
+            stripDashes(form).toLowerCase()
+        : stripDashes(morpheme.usage).toLowerCase() ===
+          stripDashes(target).toLowerCase();
+    if (isCurrent) {
       pipeline.clearSwap({
         wordIndex: morpheme._wordIndex,
         morphemeIndex,
@@ -59,6 +69,7 @@
       morphemeIndex,
       to: target,
       original: originalUsage,
+      language: lang || undefined,
     });
   }
 
@@ -154,24 +165,32 @@
     return entries;
   });
 
-  // The SINGLE canonical current row across the whole card: the first
-  // (lang, form) in priority order whose normalized value matches the
-  // usage. Computing one ref — rather than a per-row predicate — means
-  // exactly ONE row highlights even when the same form appears under
-  // several source languages (e.g. "Wal-" matching "wal" in both OE
-  // and Modern English). Matches plain form OR accented original_script,
-  // case- + dash-insensitive. Null when the surface isn't in any row.
+  // The SINGLE active row across the whole card. wyrd-thhb: derived from
+  // activeRendering (the pinned `_lang`, else the canonical `sources`
+  // language, else the first match) so exactly ONE row highlights — the SAME
+  // language the pronunciation guide shows — even when the surface appears
+  // under several languages ("don" in OE/OF/Celtic; "by" in OE + Old Norse).
+  // The active rendering's form is mapped to the surviving (deduped) row in
+  // its language via the same accent-fold the panel dedup uses. Null when the
+  // surface isn't in any rendering (e.g. "-ton"/"-ham" generated surfaces),
+  // so the synthetic original-surface row highlights instead.
   let currentRef = $derived.by(() => {
-    const u = norm(morpheme.usage);
-    if (!u) return null;
-    for (const [lang, forms] of orderedSourceEntries) {
-      for (const f of forms) {
-        if (u === norm(f) || u === norm(renderingFor(lang, f).original_script)) {
-          return { lang, form: f };
-        }
-      }
-    }
-    return null;
+    const active = activeRendering(morpheme);
+    if (!active) return null;
+    const entry = orderedSourceEntries.find(([lang]) => lang === active.lang);
+    if (!entry) return { lang: active.lang, form: active.form };
+    const activeKey = accentFold(
+      renderingFor(active.lang, active.form).original_script || active.form,
+    );
+    // The surviving form of active.form's fold-group folds to the same key,
+    // so this find matches it (active.form itself if it survived, else its
+    // deduped twin). Only a degenerate all-dashes form yields activeKey ===
+    // '' with no match → fall back to active.form (no row highlights, but no
+    // wrong-row highlight either).
+    const form = entry[1].find(
+      (f) => accentFold(renderingFor(active.lang, f).original_script || f) === activeKey,
+    );
+    return { lang: active.lang, form: form ?? active.form };
   });
 
   // wyrd-7lg1: persistent synthetic row for the ORIGINAL generated surface
@@ -319,7 +338,7 @@
                 <button
                   type="button"
                   class="form-btn"
-                  onclick={() => swapTo(form, r)}
+                  onclick={() => swapTo(form, r, lang)}
                   title={current
                     ? 'Current form — click to revert to the original'
                     : `Swap this morpheme's surface to: ${r.original_script || form}`}
