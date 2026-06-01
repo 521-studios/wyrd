@@ -6,27 +6,26 @@ regression test suite in ``tests/test_kenning_realism_regression.py``
 reads these tolerances + runs drift measurements against the live
 generators; tolerance violations fail the test.
 
-The tolerances here are SCAFFOLDING with operator-tunable defaults.
-The actual per-metric × per-culture bands need operator review of
-real drift output (post-ecjp.8 bundle changes when vector mode
-becomes more meaningfully different from proportions mode). Until
-then the defaults are deliberately wide:
+Two layers of policy:
 
-* KL divergence ceiling: 10.0 (very loose — accepts even highly
-  divergent distributions)
-* Total-variation ceiling: 1.0 (the maximum value; effectively
-  unchecked)
-* Top-N overlap floor: 0.0 (accepts no overlap)
-* Decomposition delta ceiling: 1.0 (accepts complete drift)
-* Spearman correlation floor: -1.0 (accepts inverse correlation)
+* ``DEFAULT_TOLERANCE`` — a single deliberately WIDE-OPEN
+  ``ToleranceBand`` (KL≤10, total-variation≤1, top-N overlap≥0,
+  decomposition delta≤1, Spearman≥-1). Any culture WITHOUT a
+  per-culture override falls back to this and is effectively
+  un-gated. This is the fallback, not a dict.
+* ``PER_CULTURE_TOLERANCES`` — per-culture overrides with REAL
+  bands. Populated 2026-06-01 for english / scottish / irish /
+  breton from empirical drift evidence (see the block above the
+  dict for the numbers + rationale).
 
-These wide defaults mean the regression test suite is INACTIVE as a
-drift gate today. The infrastructure is in place; the operator
-tightens the bands once empirical drift evidence stabilizes
-(Phase 6b's deliberate review-then-codify cycle).
-
-The DEFAULT_TOLERANCES dict is the single source of truth; per-
-culture overrides extend / replace it.
+Gate status: the regression suite in
+``tests/test_kenning_realism_regression.py`` is a LIVE gate for the
+cultures it parametrizes (``REGRESSION_CULTURES``) that produce
+non-zero vector samples — today english / irish / breton. It still
+``pytest.skip``s a culture that yields 0 samples on either side
+(welsh, pending wyrd-cj6f). ``scottish`` has a band but is NOT in
+``REGRESSION_CULTURES``, so it is only consulted by ``tolerance_for``
+for manual ``drift-report`` runs, not by CI.
 """
 
 from __future__ import annotations
@@ -63,10 +62,10 @@ class ToleranceBand:
     min_morpheme_rank_correlation: float | None = -1.0
 
 
-# Default tolerance for every culture not overridden below. Wide-open
-# defaults — the regression suite is inactive as a drift gate today.
-# Operator tightens via PER_CULTURE_TOLERANCES once Phase 6a evidence
-# is in hand.
+# Fallback for every culture NOT overridden in PER_CULTURE_TOLERANCES
+# below. Wide-open (all fields at "no constraint"), so a culture with no
+# override is effectively un-gated. The populated per-culture bands —
+# not this default — are what make the regression suite a live gate.
 DEFAULT_TOLERANCE = ToleranceBand()
 
 
@@ -88,15 +87,15 @@ DEFAULT_TOLERANCE = ToleranceBand()
 #
 # At N=100 KL/ρ are noise-dominated (KL up to 0.16, ρ down to 0.29);
 # the N=1000 columns show the real signal is far tighter. RECOMMENDATION:
-# bump SAMPLES_PER_MODE to 1000 before activating this as a hard gate,
-# then re-tighten toward the N=1000 numbers (e.g. KL<=0.05, ρ>=0.6). The
-# bands below carry ~1.5-2x headroom over the N=100 observations so the
-# gate is green today without being wide-open.
+# bump SAMPLES_PER_MODE to 1000 to make the gate less noise-driven, then
+# re-tighten toward the N=1000 numbers (e.g. KL<=0.05, ρ>=0.6). The bands
+# below carry ~2-3x headroom over the N=100 observations so the gate is
+# green today without being wide-open.
 #
 # Banding rationale:
 #  * max_kl_divergence / max_total_variation — SEMANTIC-character guard:
 #    vector should reshuffle WHICH names surface without shifting the tag
-#    mix. Ceilings ~2x the N=100 value.
+#    mix. Ceilings ~2-3x the N=100 value.
 #  * max_decomposition_rate_delta_abs — QUALITY floor: vector must not
 #    erode decomposition coverage. Observed 0.0 (stable across N); tight
 #    at 0.02 — the one band worth keeping strict regardless of N.
@@ -107,10 +106,16 @@ DEFAULT_TOLERANCE = ToleranceBand()
 #    the *intended* effect of vector scoring; gating on it fights the
 #    feature.
 #
-# Review-then-codify STARTING POINTS, not final policy. NOT yet active as
-# a real gate (the suite still skips a culture that yields 0 vector
-# samples). welsh is intentionally absent (falls back to wide-open
-# DEFAULT) until wyrd-cj6f is fixed and a clean welsh drift run exists.
+# Review-then-codify STARTING POINTS, not final policy — but NOW LIVE:
+# populating these bands turns the regression suite into a real gate for
+# the cultures it parametrizes (REGRESSION_CULTURES = english / welsh /
+# irish / breton) that produce non-zero vector samples — today english /
+# irish / breton. welsh stays in the suite but hits the 0-sample skip
+# until wyrd-cj6f (proportions crash) is fixed and a clean welsh drift
+# run exists, so it falls back to the wide-open DEFAULT meanwhile.
+# NOTE: scottish has a band here but is NOT in REGRESSION_CULTURES, so it
+# is consulted only by tolerance_for() for manual `drift-report
+# --culture scottish` runs — it is not CI-gated yet.
 PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {
     "english": ToleranceBand(
         max_kl_divergence=0.15,
