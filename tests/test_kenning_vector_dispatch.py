@@ -754,3 +754,63 @@ def test_select_via_vector_applies_d8_d18_rendering():
     )
     assert plain.rendered is None
     assert plain.inflection_labels is None
+
+
+def test_vector_mode_knobs_reach_render_path():
+    """wyrd-nbpw: scoring_mode='vector' threads inflection_density /
+    spelling_variety through generate → _generate_via_vector →
+    select_via_vector to the render pass. A dropped keyword anywhere in that
+    chain would leave the knobs inert; this pins the end-to-end wiring (mirror
+    of the proportions test_high_inflection_density_changes_output_when_pool_present)."""
+    k = Kenning()
+    canonical = set()
+    inflected = set()
+    varied = set()
+    for seed in range(20):
+        canonical.add(
+            k.generate({"culture": "english", "scoring_mode": "vector"}, seed=seed).result
+        )
+        inflected.add(
+            k.generate(
+                {"culture": "english", "scoring_mode": "vector", "inflection_density": 1.0},
+                seed=seed,
+            ).result
+        )
+        varied.add(
+            k.generate(
+                {"culture": "english", "scoring_mode": "vector", "spelling_variety": 1.0},
+                seed=seed,
+            ).result
+        )
+    assert inflected != canonical, "inflection_density must reach the vector render path"
+    assert varied != canonical, "spelling_variety must reach the vector render path"
+
+
+def test_select_via_vector_applies_d18_variant_without_label():
+    """wyrd-nbpw: the D18 spelling-variant branch (distinct from D8) — at
+    spelling_variety=1.0 the rendered surface is the attested variant and the
+    inflection label is None (variants carry no grammatical case). Mirrors the
+    proportions test_render_substitutions_substitutes_variant_with_case_mimic."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    m = Meaning(
+        "-cot",
+        ["family name", "urban"],
+        [],
+        {"old_english": ["cot"]},
+        variants={"old_english": [("cotte", 10)]},
+    )
+    structs = {((("bare", "name", "single"),),): 1}
+    ng = _build_synthetic_vector_name_gen(structs, {"-cot": [m]})
+    out = ng.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+        spelling_variety=1.0,
+    )
+    assert out.rendered is not None
+    assert out.rendered[0][0].lower() == "cotte", f"variant not applied: {out.rendered}"
+    assert out.inflection_labels == [[None]], "a D18 variant carries no inflection label"
