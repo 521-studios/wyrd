@@ -6,11 +6,12 @@ tolerance bands in :mod:`runtime.realism_tolerance`.
 
 The suite is a LIVE gate for cultures with a populated band in
 :mod:`runtime.realism_tolerance` (english / scottish / irish /
-breton) that produce non-zero vector samples: a drift report
-exceeding the band fails the test. A culture with no per-culture
-band falls back to the wide-open ``DEFAULT_TOLERANCE`` and is
-effectively un-gated. welsh is parametrized but currently hits the
-0-sample skip (pending wyrd-cj6f).
+breton): a drift report exceeding the band fails the test. welsh is
+parametrized too but has NO band — it runs un-gated against the
+wide-open ``DEFAULT_TOLERANCE`` and so passes regardless of drift.
+welsh has no band because its full drift can't be measured yet: its
+proportions path crashes at higher sample counts (wyrd-cj6f), so a
+band is deferred until that's fixed.
 
 Per-test cost: each regression test generates 100 names per scoring
 mode (200 total per culture). Reduced from the operator-facing
@@ -32,16 +33,18 @@ from wyrd.generators.kenning.runtime.realism_tolerance import (
 
 # Cultures to regression-test — the full kenning set. english / scottish /
 # irish / breton have populated bands in PER_CULTURE_TOLERANCES and are
-# live-gated; welsh is parametrized too but hits the 0-sample skip until
-# wyrd-cj6f (proportions crash) is fixed. The test parametrizes across
-# these; each culture independently checks tolerance compliance.
+# live-gated. welsh is parametrized too but has no band: it runs un-gated
+# against the wide-open DEFAULT, and a band is deferred until wyrd-cj6f
+# (its proportions crash) lets its full drift be measured. The test
+# parametrizes across these; each independently checks tolerance.
 REGRESSION_CULTURES = ("english", "scottish", "welsh", "irish", "breton")
 
-# Cultures EXPECTED to yield 0 vector samples — skipped instead of failed.
-# Only welsh today, because its proportions path crashes (wyrd-cj6f). Any
-# OTHER culture going to 0 samples is a regression and must FAIL the gate,
-# not silently skip. Remove welsh here once wyrd-cj6f is fixed.
-_EXPECTED_EMPTY_SAMPLE_CULTURES = frozenset({"welsh"})
+# Cultures EXPECTED to yield 0 vector samples (skip instead of fail).
+# Empty today: all five cultures produce samples at SAMPLES_PER_MODE, so a
+# 0-sample result is always a regression and must FAIL (see the 0-sample
+# branch below). This hook exists only so a future legitimately-empty
+# culture can be carved out without flipping the fail-loud default.
+_EXPECTED_EMPTY_SAMPLE_CULTURES: frozenset[str] = frozenset()
 
 # Per-test sample size. Smaller than the operator-facing default
 # (1000) to keep CI fast. Distribution-level metrics stabilize at
@@ -60,17 +63,14 @@ def test_realism_regression_per_culture(culture: str):
 
     Cultures with a populated band in :data:`PER_CULTURE_TOLERANCES`
     (english / scottish / irish / breton) are gated: a drift report
-    exceeding the band fails this test. A culture with no band falls
-    back to the wide-open :data:`DEFAULT_TOLERANCE` and effectively
-    passes regardless of drift.
+    exceeding the band fails this test. welsh has no band and runs
+    un-gated against the wide-open :data:`DEFAULT_TOLERANCE`.
 
-    Per-seed isolation: ``run_drift_samples`` skips seeds that raise
-    in either mode (proportions shouldn't raise; vector raises
-    ValueError on empty pick). A culture whose vector path produces
-    zero samples on a side is ``pytest.skip``ped below (the drift
-    comparison against an empty distribution is meaningless) — it is
-    NOT silently passed through the bands. welsh is the live example,
-    pending wyrd-cj6f.
+    Per-seed isolation: ``run_drift_samples`` runs proportions
+    (shouldn't raise) + vector (swallows the per-seed ValueError an
+    empty pick raises). If a culture nonetheless produces 0 samples on
+    a side, that's a regression — the 0-sample branch below FAILs
+    rather than letting the gate pass green.
     """
     samples_a, samples_b = run_drift_samples(
         culture=culture,
@@ -78,18 +78,17 @@ def test_realism_regression_per_culture(culture: str):
         base_seed=REGRESSION_BASE_SEED,
     )
 
-    # When one side has no samples, the drift comparison is meaningless
-    # — KL against an empty distribution diverges, but that's a
-    # data-presence question, not a drift signal. For a culture KNOWN to
-    # be empty (welsh / wyrd-cj6f) that's expected: skip. For any other
-    # (live-gated) culture, 0 samples means the generator regressed —
-    # FAIL loudly rather than silently skip, which would mask the
-    # regression and let the gate pass green.
+    # 0 samples on a side makes the drift comparison meaningless (KL
+    # against an empty distribution diverges). No current culture is
+    # expected to be empty (see _EXPECTED_EMPTY_SAMPLE_CULTURES), so this
+    # means the generator regressed — FAIL loudly rather than skip, which
+    # would mask the regression and let the gate pass green. An explicitly
+    # expected-empty culture skips instead.
     if not samples_a or not samples_b:
         msg = f"{culture}: one side produced 0 samples (a={len(samples_a)}, b={len(samples_b)})"
         if culture in _EXPECTED_EMPTY_SAMPLE_CULTURES:
-            pytest.skip(f"{msg} — expected until wyrd-cj6f is fixed.")
-        pytest.fail(f"{msg} — unexpected empty sample set for a live-gated culture.")
+            pytest.skip(f"{msg} — expected (see _EXPECTED_EMPTY_SAMPLE_CULTURES).")
+        pytest.fail(f"{msg} — unexpected empty sample set; the generator likely regressed.")
 
     report = compute_drift_report(culture, samples_a, samples_b)
     violations = check_drift_against_tolerance(report)

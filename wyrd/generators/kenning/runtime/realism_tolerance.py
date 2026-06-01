@@ -22,11 +22,12 @@ Two layers of policy:
 Gate status: the regression suite in
 ``tests/test_kenning_realism_regression.py`` parametrizes
 ``REGRESSION_CULTURES`` — the 5-tuple english / scottish / welsh /
-irish / breton — and is a LIVE gate for those of them that have a
-populated band here AND produce non-zero vector samples — today
-english / scottish / irish / breton. It still ``pytest.skip``s a
-culture that yields 0 samples on either side (welsh, pending
-wyrd-cj6f).
+irish / breton — and is a LIVE gate for those with a populated band
+here: today english / scottish / irish / breton. welsh is
+parametrized too but has no band, so it runs un-gated against
+``DEFAULT_TOLERANCE``; a welsh band is deferred until wyrd-cj6f (its
+proportions path crashes at higher sample counts) lets its full
+drift be measured.
 """
 
 from __future__ import annotations
@@ -114,10 +115,10 @@ DEFAULT_TOLERANCE = ToleranceBand()
 # populating these bands turns the regression suite into a real gate for
 # the cultures it parametrizes (REGRESSION_CULTURES = english / scottish
 # / welsh / irish / breton) that produce non-zero vector samples — today
-# english / scottish / irish / breton. welsh stays in the suite but hits
-# the 0-sample skip until wyrd-cj6f (proportions crash) is fixed and a
-# clean welsh drift run exists, so it falls back to the wide-open
-# DEFAULT meanwhile.
+# english / scottish / irish / breton. welsh stays in the suite but has
+# no band — it runs un-gated against the wide-open DEFAULT; a welsh band
+# is deferred until wyrd-cj6f (its proportions crash) lets a clean welsh
+# drift run exist.
 PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {
     "english": ToleranceBand(
         max_kl_divergence=0.15,
