@@ -1352,3 +1352,25 @@ def test_gloss_policy_opt_in_admits_multichar_unglossed_but_never_single_char():
     # -q and "a" (1-char unglossed) excluded in BOTH states:
     assert "-q" not in _gloss_pool(include_unglossed=True)
     assert "a" not in _gloss_pool(include_unglossed=True)
+
+
+def test_select_via_vector_scoring_permissive_returns_none_for_empty_slot():
+    """wyrd-tbke: ``permissive=True`` makes an unsatisfiable slot contribute
+    ``None`` and continue (full-length result), instead of the non-permissive
+    ``[]`` that aborts the whole struct. Pins the degrade contract at the
+    primitive level (the select_via_vector fallback relies on it)."""
+    # slot 0: no qualifier → fills with the urban morpheme; slot 1: 'saint'
+    # qualifier with no saint-usage morpheme in db → empty pool.
+    db = {"Port-": [Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])]}
+    kwargs = {
+        "structure": ["pre", "pre"],
+        "request": _request(),
+        "priors": EmpiricalPriors(),
+        "slot_qualifiers": [None, "saint"],
+    }
+    permissive = select_via_vector_scoring(random.Random(0), db, permissive=True, **kwargs)
+    assert len(permissive) == 2, "permissive result is always full-length"
+    assert permissive[0] is not None and permissive[0].usage == "Port-"
+    assert permissive[1] is None, "unsatisfiable saint slot → None, not aborted"
+    # Non-permissive (default) aborts the whole struct on the empty slot.
+    assert select_via_vector_scoring(random.Random(0), db, **kwargs) == []

@@ -445,6 +445,29 @@ def test_select_via_vector_degrades_instead_of_raising_on_partial_empty():
     assert len(str(result).split()) == 1
 
 
+def test_select_via_vector_degrades_with_empty_slot_first():
+    """wyrd-tbke: a dropped (None) slot at a NON-final reconstruction index —
+    the unsatisfiable saint slot FIRST, the fillable bare slot second — still
+    degrades to the 1-word name. Pins the reconstruction idx-walk against a
+    mid-sequence None (an off-by-one would mis-map the trailing pick)."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    db = {"Port-": [Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])]}
+    structs = {((("post", "saint", "single"),), (("bare", "single"),)): 1}
+    name_gen = _build_synthetic_vector_name_gen(structs, db)
+    result = name_gen.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert result is not None
+    assert "port" in str(result).lower()
+    assert len(str(result).split()) == 1
+
+
 def test_select_via_vector_retry_excludes_tried_structs():
     """wyrd-izcr: after an attempt fails (qualifier pool empty),
     that struct is excluded from subsequent retries. Without
