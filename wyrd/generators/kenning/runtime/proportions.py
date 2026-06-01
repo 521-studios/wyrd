@@ -429,7 +429,20 @@ class MeaningGenerator:
         keep_keys: frozenset[str] | None = None,
         key_boost: dict[str, float] | None = None,
     ):
-        return self.generators[key].select(
+        # wyrd-cj6f: a structure slot can reference a (position, tag,
+        # count) bucket that has no registered Generator — structures are
+        # kept in full while the usage(s) that would populate the bucket
+        # can be absent (bundle/proportions drift) or trimmed out (the
+        # --dev seed keeps top-N usages but all structures). Pre-fix this
+        # KeyError'd mid-generation (welsh proportions, seed 806). Treat a
+        # missing bucket like an empty one: return None, which the callers
+        # (`_select_no_tag` / `_select_tag`) already handle by leaving that
+        # element unfilled. Mirrors `load_parts`' wyrd-van9 skip-don't-
+        # crash policy and `bucket_keys`' existing `.get()`.
+        gen = self.generators.get(key)
+        if gen is None:
+            return None
+        return gen.select(
             rng,
             *tags,
             novelty=novelty,

@@ -2094,18 +2094,21 @@ Module locations as built:
   isolation. CLI: `wyrd kenning lexicon drift-report`.
 * **Tolerance bands** — `runtime/realism_tolerance.py` ships
   the `ToleranceBand` dataclass + `check_drift_against_tolerance`
-  primitive. Default bands are wide-open today (regression
-  suite is INACTIVE as a drift gate per the explicit Phase 6b
-  review-then-codify cycle); operator tightens via
-  `PER_CULTURE_TOLERANCES`.
+  primitive. `PER_CULTURE_TOLERANCES` now carries real
+  empirical-evidence bands for english / scottish / irish /
+  breton (PR #413), so the regression suite is a LIVE drift gate
+  for those cultures. `DEFAULT_TOLERANCE` stays wide-open as the
+  fallback for any culture without an override.
 * **Regression suite** —
   `tests/test_kenning_realism_regression.py` parametrizes
-  per-culture (english / welsh / irish / breton) +
-  register-composition smoke tests. Per-culture tests
-  `pytest.skip` when one side returns 0 samples (today's
-  expected state for cultures without operator-supplied
-  `--priors-path` — meaningless drift comparison shouldn't
-  bogusly fail).
+  per-culture (english / scottish / welsh / irish / breton) +
+  register-composition smoke tests. english / scottish / irish /
+  breton are gated against their bands; welsh runs un-gated
+  against the wide-open default (no band yet — its full drift
+  can't be measured until wyrd-cj6f's proportions crash is
+  fixed). A 0-sample result on either side FAILs as a regression
+  guard unless the culture is explicitly expected-empty
+  (`_EXPECTED_EMPTY_SAMPLE_CULTURES`, empty today).
 * **CLI surface** — `cli/generate.py` adds `--scoring-mode`,
   `--priors-path`, `--baseline-weight`,
   `--phonological-weight`, `--semantic-weight`,

@@ -71,9 +71,10 @@ def test_default_tolerance_passes_for_no_drift_report():
 
 
 def test_default_tolerance_passes_for_maximum_drift_report():
-    """Default tolerances are wide-open — even maximum drift passes.
-    This is the deliberate Phase 6b 'inactive as a gate today'
-    behavior; operator tightens via PER_CULTURE_TOLERANCES."""
+    """DEFAULT_TOLERANCE — the fallback for cultures without a
+    per-culture override — is wide-open by design: even maximum drift
+    passes. The populated PER_CULTURE_TOLERANCES bands are what gate the
+    live cultures; this pins the fallback's intentional permissiveness."""
     report = _report(kl=5.0, tv=1.0, overlap=0.0, decomp_delta=-1.0, rank=-1.0)
     assert check_drift_against_tolerance(report, DEFAULT_TOLERANCE) == []
 
