@@ -22,6 +22,13 @@ The fix gives bare keys a distinct ``location='bare'``. These tests pin
 the partition invariants that follow — independent of any proportions
 rebuild (the rebuild is what makes the fix take effect end-to-end; see
 the PR's operator note).
+
+wyrd-5z5j/D39 update: the structural-position model supersedes the
+vector-mode exact-equality gate for the ``bare`` slot specifically — a
+lone word is bare regardless of the matched form's dashes, so a bare
+slot now accepts any location and the data-driven restriction moves to
+the ``("bare", …, "single")`` bucket-frequency layer. pre/post/inner
+slots keep exact equality. See ``test_bare_slot_accepts_any_location_d39``.
 """
 
 from __future__ import annotations
@@ -115,12 +122,17 @@ def test_slot_position_label_bare():
     assert _slot_position_label("-inner-") == "inner"
 
 
-def test_bare_slot_matches_only_bare_meaning():
-    """A 'bare' slot accepts a bare-location meaning and REJECTS a
-    suffix (post) meaning — the exact-equality fix that stops suffix
-    keys filling single-word slots in vector mode."""
+def test_bare_slot_accepts_any_location_d39():
+    """wyrd-5z5j/D39: a 'bare' (whole-word) slot accepts a meaning of ANY
+    location. A lone word is structurally bare regardless of the matched
+    form's dashes, so the position gate is permissive for bare; the
+    DATA-driven restriction (which morphemes actually appear standalone)
+    moved to the ``("bare", …, "single")`` bucket-frequency layer
+    (_resolve_slot_usage_frequency), where a never-observed-bare morpheme
+    looks up to 0 and is filtered. This replaces the old wyrd-vpri
+    exact-equality gate that rejected suffix keys here."""
     assert _matches_position(_m("beck"), "bare")
-    assert not _matches_position(_m("-beck"), "bare")
+    assert _matches_position(_m("-beck"), "bare")
 
 
 def test_post_slot_no_longer_matches_bare_meaning():

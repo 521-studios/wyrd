@@ -566,7 +566,7 @@ def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:
     return min(decompositions, key=_decomposition_score)
 
 
-def _decomposition_score(decomposition: list[Any]) -> tuple[int, int, int]:
+def _decomposition_score(decomposition: list[Any]) -> tuple[int, int, int, int]:
     """Score tuple for the canonical picker. Lower wins."""
     unaccounted_chars = sum(len(e) for e in decomposition if isinstance(e, str))
     morpheme_count = sum(1 for e in decomposition if not isinstance(e, str))
@@ -577,7 +577,26 @@ def _decomposition_score(decomposition: list[Any]) -> tuple[int, int, int]:
         (i for i, e in enumerate(decomposition) if not isinstance(e, str)),
         len(decomposition),
     )
-    return (unaccounted_chars, morpheme_count, first_meaning_pos)
+    # wyrd-5z5j: among parses tied on (unaccounted, morpheme_count,
+    # first_meaning_pos), prefer the one whose FIRST morpheme is longer.
+    # A longer leading match is the more specific reading — 'Gileston'
+    # → 'Giles'(5) + 'ton' vs 'Gil'(3) + 'eston' both score (0, 2, 0),
+    # and without this the arbitrary DAG/insertion order could pick the
+    # 3-char 'Gil' (Welsh 'splendid') over the intended saint 'Giles'.
+    # Negated so longer wins under ``min``. Pure refinement of a
+    # previously-arbitrary tie — only reorders genuine ties.
+    first_meaning = next(
+        (e for e in decomposition if not isinstance(e, str)),
+        None,
+    )
+    # Dash-stripped surface length — the morpheme's own length, not its
+    # positional decoration. Read ``usage`` directly (not ``str(meaning)``) so
+    # the tiebreaker doesn't depend on ``Meaning.__str__`` staying a
+    # surface-returning override (Gemini review).
+    first_meaning_len = (
+        -len(first_meaning.usage.replace("-", "")) if first_meaning is not None else 0
+    )
+    return (unaccounted_chars, morpheme_count, first_meaning_pos, first_meaning_len)
 
 
 def iter_morphemes(decomposition: Iterable[Any]) -> Iterable[Any]:

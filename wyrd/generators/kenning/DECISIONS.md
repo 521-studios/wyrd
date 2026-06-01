@@ -2426,3 +2426,125 @@ Migration path: add culture as a nullable column, then a unique
 null (treated as "applies to all cultures"); new culture-tagged
 rows take precedence on conflict via runtime lookup order.
 
+## D39. Morpheme position slots: four forms, and post/inner are always lowercased (wyrd-5z5j, 2026-06-01).
+
+> **Corrected by D40 (wyrd-eyjk).** The RENDER half of this entry stands: there
+> are four slots, post/inner are always lowercased, only word-initial carries a
+> capital, and the render is the single owner of positional case + dashes. What
+> D40 corrects is the *matching* framing below — position is **derived from where
+> a morpheme lands in the split**, NOT decoded from stored dash markers and used
+> as a match-time constraint. Stored dashes (and `Meaning._set_location`) are a
+> position *rendering hint*, never a gate on what a morpheme may match. Read D40
+> before touching the matcher.
+
+There are exactly **four** position slots a morpheme can occupy, encoded as dash
+markers on its `usage` and decoded by `Meaning._set_location`
+(`runtime/meaning.py`):
+
+- `Word`   — bare / standalone word (no dash)
+- `Word-`  — prefix, word-initial (trailing dash)
+- `-word`  — suffix, word-final (leading dash)
+- `-word-` — inner, mid-word (dashes both sides)
+
+**The invariant: a morpheme used in `-word` or `-word-` is ALWAYS lowercased.**
+Only the word-initial slots (`Word`, `Word-`) carry a capital. This is what lets
+a single base form *switch* between slots — you derive the positional surface
+(add the dashes; lowercase unless word-initial) from the SLOT, instead of mining
+and storing four separate variants. A proper name `Buna` used mid-word renders
+`-buna-`; used at a word start it stays `Buna`.
+
+This is the original Rando model, and it is deliberately tiny — it is the entire
+grammar of how morphemes compose into words and words into names. Decomposition:
+break a toponym into words (on spaces), break each word into morphemes, tag each
+with the slot it occupied, and tally +1 for the structure (the tuple of slots)
+the toponym decomposed into. Generation: word boundaries become spaces (`Name`
+joins words with `" "` via `NewName.__str__`), morphemes inside a word join with `""` (no space), and
+only the word-initial morpheme is capitalized.
+
+**The bug this guards against (wyrd-5z5j):** when the position+case model
+degrades, names collapse to bare-only. `etymon_tag` showed **8932 bare** name
+morphemes vs **~0** in pre/post/inner. With no positioned variant to slot,
+generation drops the bare *capitalized* `Buna` into a mid-word slot, producing
+capital-mid-word run-togethers (`CornnamullacBunarath` instead of
+`Cornnamullac Bunarath`) and collapsing two-word structure weight.
+
+Why: the render must derive a morpheme's surface from the SLOT it fills (dashes +
+lowercase for post/inner; capital only word-initial), NOT from the morpheme's
+stored case. Do NOT "fix" this by mining four stored variants per morpheme —
+that is the very thing the four-slot + lowercase rule exists to avoid. Any base
+form can fill any slot correctly if the render honours the slot.
+
+**Spelling variants + inflections (added since rando) ride the same rule.** The
+render is the SINGLE owner of positional case + dash markers. Every surface form
+— the base usage, a substituted spelling variant (`pick_variant` /
+`_pick_surface`), an inflected form — stays raw/lowercase until the render
+applies the slot's markers. A substitution path must NEVER copy case from the
+stored usage (the `_mimic_case` bug): a variant dropped into a `-word-` slot
+lowercases exactly like the base would. If you touch the render's slot-casing,
+you MUST keep variants + inflections flowing through that same single owner.
+
+
+## D40. Position is a DERIVED label and a SOFT statistic — never a match-time enforcer (wyrd-eyjk, 2026-06-01).
+
+D39 described the four slots and (correctly) made the render derive surface from
+the slot. But the surrounding machinery had the dependency **backwards**: it used
+a morpheme's stored dash-position (`Meaning.location`, decoded from `-x` / `x-` /
+`-x-`) as a **hard constraint on matching** — `trie_matcher._location_allows` and
+its vector-path twin `vector_name_select._matches_position` would *reject* a
+string-match whose stored dash didn't fit the span. That is wrong in kind and
+produced clearly-bad results (lone `Andrew` matching the suffix `-andrew` instead
+of bare `Andrew`; two-word toponyms like `Mount Pleasant` dropped; saint /
+personal names leaking into base generation; one morpheme stored as three
+position-variant entries `-andrew` / `Andrew-` / `andrew`).
+
+### The model (what was always intended)
+
+**Two classes of toponym:**
+
+- **Known / pre-split** — we have the scholar-attributed breakdown (the
+  `is_canonical` decompositions). Ground truth, AND the only legitimate source of
+  position *evidence*.
+- **Unknown** — we do not know the composition. Every split is **prospective**:
+  could be two morphemes, could be fifteen. We enumerate candidates and rank them.
+
+**Matching is string-first.** A morpheme is its base *string* (dash-stripped). To
+decompose a toponym you credibly segment the *string* into morpheme strings. The
+trie already does exactly this — `build_morpheme_trie` keys every entry by
+`usage.lower().replace("-","")` and funnels all senses of a surface onto one node.
+The trie is **not** the bug; it is position-agnostic and correct.
+
+**Position is a derived label, computed AFTER the split** from where each morpheme
+landed in the word: sole piece → `bare`, first → `pre`, last → `post`, interior →
+`inner` (`Word.get_structure`, by index). The stored dashes never gate a match.
+
+**Position rarity is SOFT evidence, never grounds for rejection.** A morpheme that
+has only ever been recorded inner is "inner-only" merely because that is all the
+evidence we have so far — not a property of the morpheme. History is weird and
+words morph; `don` at the front of a word (`donhole`) is a *legitimate candidate*.
+If a morpheme is attested 1× front / 50× middle and the toponym has less
+statistically-weird parses, that weirdness should make the matcher *not select*
+that parse — but the parse stays on the candidate list. Selection is by
+credibility score (fewest unaccounted chars, then fewest morphemes, then a soft
+per-morpheme position-plausibility term learned from the known/pre-split
+breakdowns), **never** by a position gate that discards candidates outright.
+
+### Consequences (target state — tracked under wyrd-eyjk, NOT all landed yet)
+
+- `_location_allows` and `_matches_position` (the dash-as-constraint gates) **will
+  be removed** (wyrd-ffut); every string-match then stands and position is derived
+  from the span. As of this entry the gates still exist and run: `_location_allows`
+  is untouched and `_matches_position` is only *loosened* so the `bare` slot accepts
+  any location (D39) while pre/post/inner stay strict.
+- Redundant per-position entries (`-andrew` / `Andrew-` / `andrew`) collapse to
+  one morpheme; the derived position flows into structures + proportion buckets,
+  retiring dash-based `Meaning.location` for those purposes and the interim
+  `load_parts` double-register / vector bare-permissive workarounds added under
+  wyrd-5z5j.
+- `wyrd-zewx`'s strict-inner gate (which blocked `-don-` at boundaries to avoid
+  `donhole`) is *not* the right mechanism under this model: credibility scoring,
+  not a position constraint, is what should rank `donhole` below better parses.
+
+Tracked under wyrd-eyjk (P0) with steps wyrd-ffut (remove the gates) / wyrd-g6u9
+(soft position-plausibility scoring) / wyrd-fbdb (collapse entries + derived
+position into structures/buckets).
+

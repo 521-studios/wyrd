@@ -459,6 +459,31 @@ def test_joiner_does_not_pollute_word_get_structure() -> None:
             assert len(structure) == 2  # Bridge- + -water, joiner skipped
 
 
+def test_get_structure_derives_position_from_index_not_dashes() -> None:
+    """wyrd-5z5j/D39: a morpheme's structure position comes from its INDEX
+    among the word's Meanings, NOT the matched form's dashes.
+
+    - A sole morpheme matched via a dashed (`-pleasant`) form is structurally
+      BARE, not post (this is the two-word-loss bug fix).
+    - A 3-morpheme word is pre / inner / post by index, regardless of each
+      stored form's own dashes.
+    - The name/saint flag rides alongside the derived position."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.word import Word
+
+    # Sole morpheme, matched via a post-shaped (`-pleasant`) form → bare.
+    assert Word([Meaning("-pleasant", [], [], {})]).get_structure() == (("bare",),)
+
+    # Three morphemes → pre / inner / post by index, ignoring stored dashes.
+    three = Word(
+        [Meaning("al", [], [], {}), Meaning("-ham-", [], [], {}), Meaning("Ton-", [], [], {})]
+    )
+    assert three.get_structure() == (("pre",), ("inner",), ("post",))
+
+    # Name flag rides alongside (sole male-name morpheme → bare + name).
+    assert Word([Meaning("-andrew", ["male name"], [], {})]).get_structure() == (("bare", "name"),)
+
+
 def test_joiner_does_not_count_in_word_has_name() -> None:
     """Word.has_name acts on Meaning instances; a Joiner is non-Meaning
     so it can't accidentally satisfy has_name()."""

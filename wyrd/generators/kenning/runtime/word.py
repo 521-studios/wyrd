@@ -8,6 +8,23 @@ from __future__ import annotations
 from .meaning import Meaning
 
 
+def _structural_position(index: int, count: int) -> str:
+    """Map a morpheme's index within its word to a position slot (D39).
+
+    Sole morpheme → ``bare``; otherwise first → ``pre``, last → ``post``,
+    interior → ``inner``. Matches ``Meaning._set_location``'s vocabulary so
+    the tally, the grammaticality filter, and the render all speak the same
+    four slots.
+    """
+    if count <= 1:
+        return "bare"
+    if index == 0:
+        return "pre"
+    if index == count - 1:
+        return "post"
+    return "inner"
+
+
 class Word:
     def __init__(self, word):
         if isinstance(word, str):
@@ -70,14 +87,26 @@ class Word:
         return usage_set
 
     def get_structure(self):
+        # wyrd-5z5j/D39: a morpheme's structural position comes from WHERE it
+        # sits among the word's morphemes, NOT from the dash-shape of the form
+        # the matcher happened to match (``m.location``). The sole morpheme of
+        # a word is ``bare`` even when matched via a dashed form (``pleasant``
+        # filled by ``-pleasant``); only genuine compounds split into
+        # pre/inner/post. Deriving from the dash-shape was the indirection that
+        # mis-tagged standalone words as pre/post, tripped the grammaticality
+        # filter, and dropped two-word toponyms (``Mount Pleasant``).
+        #
+        # The ``name`` / ``saint`` flags stay orthogonal — they ride alongside
+        # whatever structural position the morpheme occupies.
+        meanings = [m for m in self.word if isinstance(m, Meaning)]
+        count = len(meanings)
         structure = []
-        for m in self.word:
-            if not isinstance(m, Meaning):
-                continue
+        for index, m in enumerate(meanings):
+            position = _structural_position(index, count)
             if m.is_name():
-                structure.append((m.location, "name"))
+                structure.append((position, "name"))
             elif m.usage == "Saint-":
-                structure.append((m.location, "saint"))
+                structure.append((position, "saint"))
             else:
-                structure.append((m.location,))
+                structure.append((position,))
         return tuple(structure)

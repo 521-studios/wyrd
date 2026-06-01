@@ -641,6 +641,29 @@ def test_canonical_decomposition_three_way_tie_falls_back_to_dict_order():
     assert matched and matched[0] is sense_a
 
 
+def test_canonical_decomposition_prefers_longer_leading_morpheme():
+    """wyrd-5z5j: the 4th score axis (first_meaning_len, negated dash-stripped
+    length) breaks a tie where (unaccounted, morpheme_count, first_meaning_pos)
+    are all equal, preferring the LONGER leading morpheme — the 'Gileston' →
+    Giles(5)+ton vs Gil(3)+eston case.
+
+    Here 'abc' parses two ways, both (0 unaccounted, 2 morphemes, first_pos 0):
+      - [ab, c]  — longer leading morpheme 'ab' (len 2)
+      - [a, bc]  — shorter leading morpheme 'a'  (len 1)
+    Without the 4th axis the trie walk surfaces 'a' first (found earlier along
+    the prefix path); the length tiebreaker flips canonical to 'ab'."""
+    db = {
+        "ab": [_meaning("ab")],
+        "c": [_meaning("c")],
+        "a": [_meaning("a")],
+        "bc": [_meaning("bc")],
+    }
+    trie = build_morpheme_trie(db)
+    canonical = canonical_decomposition("abc", trie)
+    matched = [m.usage for m in iter_morphemes(canonical)]
+    assert matched == ["ab", "c"], f"expected longer-leading [ab, c]; got {matched}"
+
+
 def test_walk_memoization_preserves_correctness_on_repeated_substrings():
     """Memoization guards an exponential blow-up on inputs where the
     same suffix is reached from many distinct paths. With 'aaaaaaaaaa'

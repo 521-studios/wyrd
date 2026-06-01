@@ -76,17 +76,40 @@ def _default_empty_phon_vector() -> PhonologicalVector:
 def _matches_position(meaning: Meaning, slot_position: str) -> bool:
     """Position-gate predicate. The slot's position label is one of
     ``pre`` / ``inner`` / ``post`` / ``bare`` (matches Meaning.location;
-    ``bare`` added in wyrd-vpri for no-dash single-word keys). A
-    meaning eligible for a slot must have a matching location — exact
-    equality, so a ``bare`` slot accepts only bare keys and a ``post``
-    slot only suffix keys (the separation that stops suffix keys
-    filling single-word slots).
+    ``bare`` added in wyrd-vpri for no-dash single-word keys). For the
+    ``pre`` / ``post`` / ``inner`` slots a meaning must match the slot's
+    location by exact equality, so a ``post`` slot accepts only suffix
+    keys (the separation that stops suffix keys filling compound slots).
+    The ``bare`` slot is permissive — see the wyrd-5z5j/D39 note below.
 
     The legacy path filters at the per-structure / per-bucket level;
     here we do the same check explicitly on the meaning's location
     field. Joiners and other non-Meaning structural elements are
     handled by the caller before reaching this function.
+
+    wyrd-5z5j/D39: a ``bare`` (whole-word) slot accepts a meaning of ANY
+    location. A lone word is structurally bare regardless of the matched
+    form's dashes (``pleasant`` filling a whole word via its only form
+    ``-pleasant``), so gating bare on ``location == "bare"`` would starve
+    the slot. The DATA-driven restriction — which morphemes actually
+    appear standalone — is carried by the ``("bare", …, "single")`` bucket
+    frequency (``_resolve_slot_usage_frequency``): a morpheme never observed
+    bare looks up to 0 there and is filtered. The render lowercases / strips
+    dashes per the slot, so admitting a pre/post form here is safe. pre /
+    post / inner slots stay strict — compounds matched the position-
+    appropriate dash-form, so location is meaningful for them.
+
+    Caveat (interim, retired by wyrd-eyjk): the bucket-frequency backstop
+    only applies when ``build_slot_base_scores`` is given a non-None
+    ``usage_frequency_by_bucket``. The production ``NameGenerator`` always
+    threads it, so a bare slot is never unrestricted in production; a
+    legacy/test caller that omits the frequency map would admit any
+    location unrestricted. The clean fix (string-match → derive position →
+    soft statistical ranking) lands under wyrd-eyjk, which removes this
+    gate entirely.
     """
+    if slot_position == "bare":
+        return True
     return meaning.location == slot_position
 
 

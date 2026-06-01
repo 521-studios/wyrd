@@ -858,6 +858,46 @@ def test_rank_siblings_orders_by_stratum_then_signal():
     assert out[1] is celtic
 
 
+def test_is_pure_proper_noun():
+    """wyrd-5z5j: _is_pure_proper_noun is True only when a sibling is
+    name/saint-tagged AND carries no common-noun tag."""
+    from wyrd.generators.kenning import _is_pure_proper_noun
+
+    # Pure personal name (only a name tag) → pure proper noun.
+    assert _is_pure_proper_noun(
+        _make_meaning("-bourne", {"old_english"}, ["Bourne"], tags=["male name"])
+    )
+    # Place element merely co-tagged with a name → NOT pure (keeps common-noun rank).
+    assert not _is_pure_proper_noun(
+        _make_meaning("-stone", {"old_english"}, ["stone"], tags=["geology", "male name"])
+    )
+    # Not name/saint-tagged at all → not a proper noun.
+    assert not _is_pure_proper_noun(
+        _make_meaning("-ton", {"old_english"}, ["estate"], tags=["topography"])
+    )
+
+
+def test_rank_siblings_demotes_pure_proper_noun_below_co_tagged_place_element():
+    """wyrd-5z5j: within the same stratum, a PURE proper-noun sense is
+    de-prioritized below a common-noun place element — even when the proper
+    noun surface-matches the usage better. The headline -bourne case: the
+    male name 'Bourne' (surface exactly 'bourne') must NOT outrank OE 'burna'
+    (the brook sense). A place element merely co-tagged with a name is NOT
+    demoted (covered by test_is_pure_proper_noun)."""
+    from wyrd.generators.kenning import _rank_siblings
+
+    surname = _make_meaning(
+        "-bourne", {"old_english": ["Bourne", "bourne"]}, ["a surname"], tags=["male name"]
+    )
+    brook = _make_meaning(
+        "-bourne", {"old_english": ["burna"]}, ["brook", "stream"], tags=["topography", "water"]
+    )
+    # surname surface-matches '-bourne' exactly (1.0) and would win the
+    # wyrd-ubbc surface tiebreaker; the pure-proper-noun demotion overrides it.
+    out = _rank_siblings([surname, brook])
+    assert out[0] is brook, "common-noun brook sense must outrank the pure surname sense"
+
+
 # wyrd-o53o + wyrd-aizb: derivative-gloss classifier. Suppresses
 # morphological pointers ('alternative form of X', 'plural of X',
 # 'soft mutation of X') when semantic glosses exist alongside;

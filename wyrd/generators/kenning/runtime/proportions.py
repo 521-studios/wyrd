@@ -282,6 +282,33 @@ class MeaningGenerator:
         # downstream call. Skip + count instead so the bundle pair
         # self-heals on next re-export and the operator sees the drift
         # in the warning surface (rather than the runtime crashing).
+        # wyrd-5z5j/D39: the "single" pool is lone-word occurrences, which are
+        # structurally ``bare`` BY DEFINITION — a morpheme that fills a whole
+        # word sits in the bare slot no matter which dashed form the matcher
+        # used to match it (``pleasant`` filled by its only form ``-pleasant``).
+        # ``Meaning.key()`` buckets by the stored form's dash-shape, so a lone
+        # ``-pleasant`` would otherwise land only in the ``post`` bucket and
+        # never reach the ``bare`` single-word slots a current bundle's
+        # ``get_structure`` emits — starving them. We register single-pool
+        # usages under a ``bare`` bucket (keeping the dashed usage string as
+        # the ITEM so ``meaning_db`` still resolves and ``NewName.__str__``
+        # strips the dash + applies bare/word-initial case at render time —
+        # Defect B). This is the bucket-layer realization of the handoff's
+        # "bare occurrence records the dash-less surface", done where the
+        # bucket forms rather than by manufacturing dash-less meaning_db
+        # entries (the reverted derive_positions detour).
+        #
+        # We ADD the bare bucket rather than MOVE to it: the dash-shape
+        # bucket is ALSO kept so a bundle built before this change (its
+        # structures still reference ``(post, …, "single")`` etc.) keeps
+        # working — backward-compat for stale S3 bundles loaded between a
+        # code deploy and the bundle re-emit (wyrd-j43l). A current bundle's
+        # structures reference only the bare single-word slots, so the legacy
+        # dash-shape single buckets are simply unreferenced dead weight there.
+        # Genuine compounds (the ``part`` pool, no "single" addkey) keep their
+        # dash-shape bucket untouched, so a morpheme stays additively available
+        # as bare (lone) and pre/post (compound).
+        add_bare = "single" in addkeys
         missing_count = 0
         for usage, proportion in proportions.items():
             meanings = self.meaning_db.get(usage)
@@ -289,6 +316,8 @@ class MeaningGenerator:
                 missing_count += 1
                 continue
             keys = {m.key() for m in meanings}
+            if add_bare:
+                keys |= {("bare", *k[1:]) for k in keys}
             for key in keys:
                 if addkeys:
                     key = tuple(list(key) + list(addkeys))
@@ -608,6 +637,9 @@ class NameGenerator:
         # (re-exported as ``_encode_structs`` from ``cli.rebuild_proportions``)
         # prevents future rebuilds from emitting them; this runtime gate
         # defends against bundles built before that data fix lands.
+        # wyrd-5z5j: retain the UNFILTERED structures so list_structures() /
+        # force_structure can surface + use shapes the wyrd-zzli filter drops.
+        self._all_structs = dict(structs)
         self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
         # Loud-failure guard (generator-contract-reviewer P2, round 1):
         # if the filter empties an otherwise-non-empty structs dict, the
@@ -698,6 +730,41 @@ class NameGenerator:
             out[bucket_key] = dict(gen.elements)
         return out
 
+    def list_structures(self) -> list[dict]:
+        """All structure templates (INCLUDING the wyrd-zzli-filtered ones),
+        each as a readable label passable to ``force_structure``, sorted by
+        weight. Intended to feed a future SPA Advanced 'force structure'
+        dropdown (the CLI/API/SPA wiring is not landed yet — wyrd-5z5j
+        force-structure backend; the consumer is a follow-up)."""
+        total = sum(self._all_structs.values()) or 1
+        return [
+            {
+                "label": structure_key_to_label(key),
+                "weight": weight,
+                "proportion": weight / total,
+                "words": len(key),
+                "grammatical": is_structurally_grammatical(key),
+            }
+            for key, weight in sorted(self._all_structs.items(), key=lambda kv: -kv[1])
+        ]
+
+    @staticmethod
+    def _resolve_forced_structure(force_structure: str | tuple | list) -> tuple:
+        """A force_structure arg (label string or key tuple) → a struct key.
+
+        A nested-list input (e.g. decoded from a JSON request body) is
+        recursively converted to tuples so the result is hashable for the
+        dict-key lookups the structure key feeds (Gemini review)."""
+        if isinstance(force_structure, str):
+            return structure_label_to_key(force_structure)
+
+        def _to_tuple(val):
+            if isinstance(val, list):
+                return tuple(_to_tuple(x) for x in val)
+            return val
+
+        return _to_tuple(force_structure)
+
     def select(
         self,
         rng,
@@ -711,6 +778,7 @@ class NameGenerator:
         stratum: str | None = None,
         cohesion: float = 0.0,
         include_unglossed: bool = True,
+        force_structure: str | tuple | list | None = None,
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
         each usage as an attested archaic spelling variant (D18) or an
@@ -808,8 +876,22 @@ class NameGenerator:
             ),
             self.meaning_gen.keep_keys_for_gloss(include_unglossed),
         )
-        items = list(self.structs.items())
-        struct = weighted_choice(rng, items)
+        if force_structure is not None:
+            # wyrd-5z5j: bypass the weighted sample AND the wyrd-zzli filter so
+            # the operator can force any template (incl. filter-dropped shapes).
+            struct = self._resolve_forced_structure(force_structure)
+            # Fail loud on an unknown/typo'd template rather than silently
+            # filling every slot from missing buckets and emitting a blank
+            # name (error-handling / type-design review). Validate against the
+            # UNFILTERED set so filter-dropped shapes are still forceable.
+            if struct not in self._all_structs:
+                raise ValueError(
+                    f"force_structure {force_structure!r} is not a known "
+                    "template; call list_structures() for valid labels"
+                )
+        else:
+            items = list(self.structs.items())
+            struct = weighted_choice(rng, items)
         if len(tags) == 0:
             new_name = self._select_no_tag(
                 rng,
@@ -1446,16 +1528,30 @@ class NewName:
         # word. Words join with spaces. Already-cased openings
         # pass through unchanged because ``ch.upper() == ch`` for
         # already-uppercase letters.
+        # wyrd-5z5j / DECISIONS D39: the render is the SINGLE owner of
+        # positional case, keyed on the SLOT (word position), not the
+        # morpheme's stored case. The word-INITIAL morpheme keeps its natural
+        # case and is front-capped (so internal caps like `McLeod` / `O'Brien`
+        # survive); every NON-initial morpheme (post/inner) is lowercased. So a
+        # name used mid-word (`-buna-`) renders `buna`, never a stray mid-word
+        # capital (`CornnamullacBunarath`), while a name at a word start stays
+        # capitalized. Substituted spelling-variants / inflections
+        # (``self.rendered``) obey the same slot rule — a variant dropped into
+        # an inner slot lowercases like the base would.
         words: list[str] = []
         for wi, w in enumerate(self.name):
             chunks: list[str] = []
+            first = True
             for ei, e in enumerate(w):
                 if e is None:
                     continue
                 if self.rendered is not None and self.rendered[wi][ei] is not None:
-                    chunks.append(self.rendered[wi][ei])
+                    surface = self.rendered[wi][ei]
                 else:
-                    chunks.append(e.replace("-", ""))
+                    surface = e
+                surface = surface.replace("-", "")
+                chunks.append(surface if first else surface.lower())
+                first = False
             joined = "".join(chunks)
             if joined:
                 joined = _collapse_triple_letters(joined)
@@ -1844,6 +1940,63 @@ def word_to_key(word):
     if len(word) == 1:
         elements[0].append("single")
     return tuple(tuple(e) for e in elements)
+
+
+# wyrd-5z5j force-structure: a structure key (tuple of word-keys) <-> a readable
+# template label like 'A | B- -c- -d'. Words are separated by ' | ', slots
+# within a word by spaces; each slot is a placeholder letter (word-INITIAL
+# capitalized, else lowercase — mirroring D39's case rule) decorated with its
+# position dashes (pre 'X-', post '-x', inner '-x-', bare 'X'); a name/saint
+# flag is appended as '@name'/'@saint'. The letters are decorative — round-trip
+# reads position from the dashes, flags from '@', word boundaries from ' | '.
+_LOC_TO_DASHES = {"pre": ("", "-"), "post": ("-", ""), "inner": ("-", "-"), "bare": ("", "")}
+# Exact inverse of _LOC_TO_DASHES, keyed by (has_leading_dash, has_trailing_dash).
+# structure_label_to_key decodes through this table so the two directions can't
+# drift (complexity review).
+_DASHES_TO_LOC = {(lead != "", trail != ""): loc for loc, (lead, trail) in _LOC_TO_DASHES.items()}
+
+
+def structure_key_to_label(key: tuple) -> str:
+    """Render a structure key as a readable template string."""
+    words_out: list[str] = []
+    n = 0
+    for word in key:
+        slots: list[str] = []
+        for i, elem in enumerate(word):
+            loc = elem[0]
+            flags = [f for f in elem[1:] if f in ("name", "saint")]
+            ch = chr(65 + n % 26)
+            ch = ch if i == 0 else ch.lower()  # word-initial cap, else lower
+            lead, trail = _LOC_TO_DASHES.get(loc, ("", ""))
+            tok = f"{lead}{ch}{trail}" + "".join(f"@{f}" for f in flags)
+            slots.append(tok)
+            n += 1
+        words_out.append(" ".join(slots))
+    return " | ".join(words_out)
+
+
+def structure_label_to_key(label: str) -> tuple:
+    """Parse a structure label back to a key (inverse of structure_key_to_label).
+
+    The label format does not encode the ``single`` flag; it is re-added below
+    for any single-element word, mirroring ``word_to_key``'s ``len(word) == 1``
+    rule. (Both directions depend on that arity↔``single`` coupling.)"""
+    words = []
+    for word_str in label.split("|"):
+        word_str = word_str.strip()
+        if not word_str:
+            continue
+        elements = []
+        for tok in word_str.split():
+            parts = tok.split("@")
+            base = parts[0]
+            flags = [p for p in parts[1:] if p in ("name", "saint")]
+            loc = _DASHES_TO_LOC[(base.startswith("-"), base.endswith("-"))]
+            elements.append((loc, *flags))
+        if len(elements) == 1:
+            elements[0] = (*elements[0], "single")
+        words.append(tuple(elements))
+    return tuple(words)
 
 
 def load_proportions(data, meaning_db, tag_db):
