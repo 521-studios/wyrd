@@ -4862,6 +4862,23 @@ def test_rewind_from_morphemes_uses_supplied_usages_no_trie(fresh_db: Path) -> N
     assert by_cell["modern"] == "Whit"
 
 
+def test_rewind_component_morpheme_carries_canonical_original_usage() -> None:
+    """wyrd-7cvv: each rewound morpheme component carries `canonical` = the
+    morpheme's ORIGINAL modern usage, so the SPA rewind transform can align
+    each rewound form back to the input morpheme it came from (and omit input
+    morphemes the rewind dropped) instead of mismatching the rewound name
+    against the full original morpheme set."""
+    from wyrd.generators.kenning.generators.kenning_rewind import _apply_meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    meaning = Meaning("-ton", tags=[], meanings=["enclosure"], sources={"old_english": ["tūn"]})
+    comps: list[dict] = []
+    _apply_meaning(meaning, None, comps)
+    assert len(comps) == 1
+    assert comps[0]["canonical"] == "-ton"  # the original usage, dashes intact
+    assert "form" in comps[0]
+
+
 def test_rewind_from_morphemes_preserves_multi_word_grouping(fresh_db: Path) -> None:
     """wyrd-cp2d: multi-word inputs keep their word boundaries. The
     JSON's outer list is per-word; rewind_from_morphemes renders

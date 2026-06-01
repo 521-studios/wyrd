@@ -281,6 +281,12 @@ def _apply_meaning(
             "form": form,
             "respelling": respelling,
             "language": target_language,
+            # wyrd-7cvv: the morpheme's ORIGINAL modern usage, so a consumer
+            # (the SPA rewind transform) can align each rewound form back to
+            # the input morpheme it came from — and omit input morphemes the
+            # rewind dropped (no era reflex) rather than mismatch the rewound
+            # name against the full original morpheme set.
+            "canonical": meaning.usage,
         }
     )
     return form, _is_free_particle(meaning)

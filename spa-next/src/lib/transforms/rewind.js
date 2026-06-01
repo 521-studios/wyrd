@@ -55,57 +55,72 @@ export const rewindTransform = {
           ')',
       );
     }
-    // wyrd-7cvv: re-project the rewound era-forms back onto the per-word
-    // structure so the inspector (morpheme cards + the pronunciation guide)
-    // reflects the REWOUND word, not the original. Pre-fix this returned
-    // state.morphemes_by_word unchanged, so the cards/guide kept showing the
-    // original forms + pronunciations even though the rendered name changed.
+    // wyrd-7cvv: rebuild morphemes_by_word from the REWOUND morphemes so the
+    // inspector (cards + breakdown + pronunciation guide) matches the rewound
+    // NAME — not the original morphemes.
     //
-    // The rewind endpoint returns a FLAT `morphemes` list ({form, language,
-    // respelling}) in morpheme order. Re-nest it onto the original word
-    // grouping positionally. Etymology (meanings/tags/sources) is preserved
-    // — it's the same morpheme at a later era — but `usage` becomes the
-    // rewound form and the rewound `respelling` is injected as a rendering
-    // keyed by that form so renderingForUsage() surfaces it in the guide.
-    // Count mismatch → keep the original morphemes (the rendered name is
-    // still the rewound one); never worse than the pre-fix behavior.
+    // The rewind drops morphemes with no era reflex, so its `morphemes` list
+    // is a subsequence (in order) of the input, each tagged with `canonical`
+    // = the original modern usage. Align by canonical with a two-pointer
+    // walk: a matched input morpheme keeps its meanings/sources/tags but
+    // takes the rewound surface + respelling; an input morpheme the rewind
+    // dropped is OMITTED (so the cards can't disagree with the name — the
+    // earlier "Hyrst Enlihtan" head over "hōl- -hurst low" cards bug).
     const rewound = picked.components?.[0]?.morphemes || [];
-    const total = state.morphemes_by_word.reduce((n, w) => n + w.length, 0);
-    let morphemes_by_word = state.morphemes_by_word;
-    if (rewound.length === total) {
-      let i = 0;
-      morphemes_by_word = state.morphemes_by_word.map((word) =>
-        word.map((m) => {
-          const rw = rewound[i];
-          i += 1;
-          // Defensive: a malformed entry (missing form) → keep the original
-          // morpheme rather than blanking its usage.
-          if (!rw || !rw.form) return m;
-          const langField = (rw.language || '').replace(/-/g, '_');
-          // Only inject a rendering when we have BOTH a language bucket and a
-          // respelling — otherwise we'd add a spurious empty language panel
-          // to the morpheme card (orderedSourceEntries unions renderings
-          // keys). Keep any pre-existing renderings.
-          let renderings = m.renderings;
-          if (langField && rw.respelling) {
-            renderings = { ...(m.renderings || {}) };
-            const langGroup = { ...(renderings[langField] || {}) };
-            // Merge into any existing entry for this form case-insensitively
-            // so we don't create a casing-variant duplicate ("Catt" vs
-            // "catt") that splits the rendering data.
-            const key =
-              Object.keys(langGroup).find(
-                (k) => k.toLowerCase() === rw.form.toLowerCase(),
-              ) || rw.form;
-            langGroup[key] = {
-              ...(langGroup[key] || {}),
-              reader_pronunciation: rw.respelling,
-            };
-            renderings[langField] = langGroup;
+    const normKey = (s) => (s || '').replace(/^-+|-+$/g, '').toLowerCase();
+
+    // Inject the rewound respelling so the pronunciation guide (which matches
+    // on usage) surfaces it; merge into any existing entry case-insensitively
+    // so we don't split data across a casing-variant duplicate.
+    const withRespelling = (m, rw) => {
+      const langField = (rw.language || '').replace(/-/g, '_');
+      if (!langField || !rw.respelling) return m.renderings;
+      const renderings = { ...(m.renderings || {}) };
+      const langGroup = { ...(renderings[langField] || {}) };
+      const key =
+        Object.keys(langGroup).find((k) => k.toLowerCase() === rw.form.toLowerCase()) || rw.form;
+      langGroup[key] = { ...(langGroup[key] || {}), reader_pronunciation: rw.respelling };
+      renderings[langField] = langGroup;
+      return renderings;
+    };
+
+    let ri = 0;
+    const aligned = state.morphemes_by_word
+      .map((word) => {
+        const kept = [];
+        for (const m of word) {
+          const rw = rewound[ri];
+          if (rw && rw.form && normKey(rw.canonical) === normKey(m.usage)) {
+            ri += 1;
+            kept.push({ ...m, usage: rw.form, renderings: withRespelling(m, rw) });
           }
-          return { ...m, usage: rw.form, renderings };
-        }),
-      );
+          // else: this input morpheme had no rewound counterpart → drop it.
+        }
+        return kept;
+      })
+      .filter((word) => word.length > 0);
+
+    let morphemes_by_word;
+    if (ri === rewound.length && aligned.some((w) => w.length > 0)) {
+      // Clean alignment — every rewound form mapped back to an input morpheme.
+      morphemes_by_word = aligned;
+    } else {
+      // Alignment didn't fully consume the rewound list (canonical didn't
+      // line up — unexpected). Fall back to the rewound morphemes as a single
+      // word so the cards still AGREE with the rewound name (degraded: no
+      // meanings/sources, but never disjoint). If even that's empty, keep the
+      // original morphemes.
+      const flat = rewound
+        .filter((rw) => rw.form)
+        .map((rw) => {
+          const m = { usage: rw.form };
+          const langField = (rw.language || '').replace(/-/g, '_');
+          if (langField && rw.respelling) {
+            m.renderings = { [langField]: { [rw.form]: { reader_pronunciation: rw.respelling } } };
+          }
+          return m;
+        });
+      morphemes_by_word = flat.length ? [flat] : state.morphemes_by_word;
     }
     return { name: picked.result, morphemes_by_word };
   },
