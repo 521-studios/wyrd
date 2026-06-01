@@ -67,6 +67,23 @@ export function accentedUsage(morph) {
 }
 
 /**
+ * wyrd-at53: graft a new surface into a morpheme slot's POSITION, taking the
+ * leading/trailing dash markers from `positionFrom` (the slot's generated
+ * usage, e.g. "-hām", "-ing-", "Cornel-") and applying the position's case
+ * rule: inner ("-X-") and post ("-X") positions render lowercase; pre ("X-")
+ * and bare ("X") keep their capitalization. So clicking etymon form "Hamm"
+ * for a "-hām" slot yields "-hamm" (dash kept, lowercased), not "Hamm".
+ * Diacritics survive toLowerCase (ā/ȳ unaffected).
+ */
+export function graftPosition(positionFrom, surface) {
+  const lead = (positionFrom || '').match(/^-+/)?.[0] || '';
+  const trail = (positionFrom || '').match(/-+$/)?.[0] || '';
+  let s = stripDashes(surface);
+  if (lead) s = s.toLowerCase(); // leading dash ⇒ inner or post ⇒ lowercase
+  return lead + s + trail;
+}
+
+/**
  * Accent-upgrade every morpheme in a per-word structure. Returns
  * `{ words, changed }` — `words` with each morpheme's usage swapped to its
  * accented form (when one exists), and `changed` true if anything moved.

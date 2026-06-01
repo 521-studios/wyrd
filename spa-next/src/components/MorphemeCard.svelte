@@ -13,7 +13,7 @@
   import { languageLabel } from '../lib/languageLabels.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
-  import { accentFold } from '../lib/accents.js';
+  import { accentFold, graftPosition } from '../lib/accents.js';
   import { activeRendering } from '../lib/variants.js';
 
   let { morpheme, morphemeIndex } = $props();
@@ -44,7 +44,13 @@
   // homograph (Old Norse "by" /biː/ vs Old English bȳ /byː/, or OE/OF/Celtic
   // "don") selects the RIGHT pronunciation even when the surface is identical.
   function swapTo(form, rendering, lang = null) {
-    const target = rendering?.original_script || form;
+    // wyrd-at53: graft the chosen surface into this slot's position (dashes
+    // from the ORIGINAL generated usage) + its case rule, so a suffix "-hām"
+    // swapped to "Hamm" becomes "-hamm" (dash kept, lowercased) — not "Hamm".
+    const target = graftPosition(
+      originalUsage || morpheme.usage,
+      rendering?.original_script || form,
+    );
     // Clicking the row that is ALREADY active reverts to the canonical
     // generated default. For a language-panel row the "active" test is the
     // (lang, form) pair — not surface alone — so clicking a different

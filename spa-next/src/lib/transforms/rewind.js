@@ -70,6 +70,13 @@ export const rewindTransform = {
     // earlier "Hyrst Enlihtan" head over "hōl- -hurst low" cards bug).
     const rewound = picked.components?.[0]?.morphemes || [];
     const normKey = (s) => (s || '').replace(/^-+|-+$/g, '').toLowerCase();
+    // wyrd-q1np: strip the '*' reconstructed-form marker from rewound surfaces
+    // and the rendered name. The asterisk is a scholarly "unattested form"
+    // convention — fine in an etymon list, but it reads as a glitch in a
+    // generated place-name ("Sūþ *fǣre", two '*' in one word). Surfaces are
+    // cleaned everywhere the rewind feeds the inspector (name + breakdown +
+    // cards + pronunciation-key) so they stay consistent.
+    const deStar = (s) => (s || '').replace(/\*/g, '');
 
     // Inject the rewound respelling so the pronunciation guide (which matches
     // on usage) surfaces it; merge into any existing entry case-insensitively
@@ -79,8 +86,10 @@ export const rewindTransform = {
       if (!langField || !rw.respelling) return m.renderings;
       const renderings = { ...(m.renderings || {}) };
       const langGroup = { ...(renderings[langField] || {}) };
+      const cleanForm = deStar(rw.form);
       const key =
-        Object.keys(langGroup).find((k) => k.toLowerCase() === rw.form.toLowerCase()) || rw.form;
+        Object.keys(langGroup).find((k) => k.toLowerCase() === cleanForm.toLowerCase()) ||
+        cleanForm;
       langGroup[key] = { ...(langGroup[key] || {}), reader_pronunciation: rw.respelling };
       renderings[langField] = langGroup;
       return renderings;
@@ -94,7 +103,7 @@ export const rewindTransform = {
           const rw = rewound[ri];
           if (rw && rw.form && normKey(rw.canonical) === normKey(m.usage)) {
             ri += 1;
-            kept.push({ ...m, usage: rw.form, renderings: withRespelling(m, rw) });
+            kept.push({ ...m, usage: deStar(rw.form), renderings: withRespelling(m, rw) });
           }
           // else: this input morpheme had no rewound counterpart → drop it.
         }
@@ -116,15 +125,16 @@ export const rewindTransform = {
       const flat = rewound
         .filter((rw) => rw.form)
         .map((rw) => {
-          const m = { usage: rw.form };
+          const surface = deStar(rw.form);
+          const m = { usage: surface };
           const langField = (rw.language || '').replace(/-/g, '_');
           if (langField && rw.respelling) {
-            m.renderings = { [langField]: { [rw.form]: { reader_pronunciation: rw.respelling } } };
+            m.renderings = { [langField]: { [surface]: { reader_pronunciation: rw.respelling } } };
           }
           return m;
         });
       morphemes_by_word = flat.length ? [flat] : state.morphemes_by_word;
     }
-    return { name: picked.result, morphemes_by_word };
+    return { name: deStar(picked.result), morphemes_by_word };
   },
 };
