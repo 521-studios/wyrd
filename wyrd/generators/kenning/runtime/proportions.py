@@ -1063,6 +1063,8 @@ class NameGenerator:
         exclude_tags: tuple[str, ...] = (),
         pack_meaning_dbs: dict | None = None,
         include_unglossed: bool = True,
+        spelling_variety: float = 0.0,
+        inflection_density: float = 0.0,
     ):
         """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
 
@@ -1091,6 +1093,16 @@ class NameGenerator:
                 ``request.packs`` declares overlays, pack lemmas enter
                 the eligible pool via this map. ``None`` (default) =
                 no pack lemmas (pure native generation).
+            spelling_variety: D18 per-morpheme probability of emitting an
+                attested archaic spelling variant instead of the modern
+                reflex. wyrd-nbpw: threaded through the SAME
+                ``_render_substitutions`` the legacy path uses, so both
+                scoring modes produce identical D8/D18 rendering for a
+                given pick. 0 (default) = no variant substitution.
+            inflection_density: D8 per-morpheme probability of emitting an
+                inflected morphological form (with a grammatical-case
+                label). 0 (default) = no inflection. Inflection wins ties
+                over the variant axis (same rule as the legacy path).
 
         Returns:
             A :class:`NewName` or None when the vector path's gate or
@@ -1098,11 +1110,6 @@ class NameGenerator:
             to raise or fall back).
 
         Out of scope for v1:
-            * D8 inflection / D18 variant substitution at render time
-              (no ``rendered`` / ``inflection_labels`` produced; surface
-              renders the dash-stripped usage). The legacy path's
-              substitution helpers can plug in here as a separate
-              follow-up.
             * Cohesion uses the simple-overlap form from
               ``vector_name_select._cohesion_multiplier``, not the
               legacy ``_cohesion_boost`` / ``tag_marginal`` form.
@@ -1301,7 +1308,20 @@ class NameGenerator:
                 idx += 1
             words.append(word_keys)
 
-        return NewName(struct, self.meaning_db, words)
+        new_name = NewName(struct, self.meaning_db, words)
+        # wyrd-nbpw: D8 inflection + D18 spelling-variant rendering — the SAME
+        # post-pick substitution the legacy proportions select() applies (it
+        # resolves each position-form by bare surface, so it works identically
+        # on the vector path's position-form words, and skips None slots). The
+        # guard keeps default generation (both knobs 0) bit-stable — no extra
+        # rng draws when neither axis is active.
+        if spelling_variety > 0 or inflection_density > 0:
+            rendered, labels = self._render_substitutions(
+                rng, new_name.name, spelling_variety, inflection_density
+            )
+            new_name.rendered = rendered
+            new_name.inflection_labels = labels
+        return new_name
 
     def _render_substitutions(self, rng, name, spelling_variety, inflection_density):
         """Walk the picked usages and produce two parallel lists: surface
