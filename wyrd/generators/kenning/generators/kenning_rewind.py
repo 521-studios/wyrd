@@ -242,6 +242,12 @@ def _meanings_from_supplied_words(
     # "Hēæd"). Build a normalized-key index (first key per dash-stripped,
     # lowercased form wins, mirroring first-Meaning-wins) so a positional
     # usage still resolves. Built lazily on the first miss.
+    #
+    # First-wins is benign: colliding norms in the bundle are same-morpheme
+    # positional variants of ONE Meaning ("-a"/"A-", "-by"/"By-"), and this
+    # only fires on the exact-lookup MISS path (an exact key always wins
+    # above). A future bundle introducing a genuinely different morpheme with
+    # a colliding norm could mis-resolve here — acceptable given the data.
     norm_index: dict[str, list[Meaning]] | None = None
 
     def _norm(s: str) -> str:
