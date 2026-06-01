@@ -86,10 +86,7 @@ def test_realism_regression_per_culture(culture: str):
     # FAIL loudly rather than silently skip, which would mask the
     # regression and let the gate pass green.
     if not samples_a or not samples_b:
-        msg = (
-            f"{culture}: one side produced 0 samples "
-            f"(a={len(samples_a)}, b={len(samples_b)})"
-        )
+        msg = f"{culture}: one side produced 0 samples (a={len(samples_a)}, b={len(samples_b)})"
         if culture in _EXPECTED_EMPTY_SAMPLE_CULTURES:
             pytest.skip(f"{msg} — expected until wyrd-cj6f is fixed.")
         pytest.fail(f"{msg} — unexpected empty sample set for a live-gated culture.")
