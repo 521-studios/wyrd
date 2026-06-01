@@ -327,6 +327,10 @@ def build_non_position_eligible(
             # Family-name etymons are NOT excluded (legitimate manorial places).
             if m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()):
                 continue
+            # wyrd-gwj3: connector morphemes (cum / le / juxta …) require a
+            # complement — keep them out of the base pool (same rule as load_parts).
+            if m.is_connector_particle():
+                continue
             non_position_eligible.append(m)
 
     # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Pack-

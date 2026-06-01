@@ -270,3 +270,57 @@ def test_given_name_excluded_from_base_pool_both_modes():
     }
     assert "-ham" in pool and "-smith" in pool
     assert "-john" not in pool, "given-name etymon excluded from vector base pool"
+
+
+# ---- wyrd-gwj3: connector/particle morphemes excluded from base generation ---
+
+
+def test_is_connector_particle():
+    assert Meaning("Cum-", [], [], {}).is_connector_particle()
+    assert Meaning("-cum", [], [], {}).is_connector_particle()
+    assert Meaning("le", [], [], {}).is_connector_particle()
+    assert Meaning("-juxta-", [], [], {}).is_connector_particle()
+    # NOT connectors: a real place element, and standalone qualifiers.
+    assert not Meaning("-ton", ["settlement"], [], {}).is_connector_particle()
+    assert not Meaning("Green-", [], [], {}).is_connector_particle()
+    assert not Meaning("Magna-", [], [], {}).is_connector_particle()  # 'Wigston Magna' is real
+    # The saint particle is NOT surface-excluded here — it has a legitimate
+    # saint-slot dedication mechanism (`Saint <name>`); only the pure
+    # complement-requiring connectors are surface-excluded.
+    assert not Meaning("St-", ["religious"], ["Saint"], {}).is_connector_particle()
+    assert not Meaning("Saint-", ["saint"], [], {}).is_connector_particle()
+
+
+def test_connector_particle_excluded_from_base_pool_both_modes():
+    """wyrd-gwj3: connector/particle morphemes (cum, le) are excluded from the
+    base pool in BOTH scoring modes so they don't dangle as a lone word; real
+    place elements (-ton) stay."""
+    from wyrd.generators.kenning.runtime.vector_name_select import build_non_position_eligible
+    from wyrd.generators.kenning.vectors.schemas import EligibilityGate
+
+    db = {
+        "-cum": [Meaning("-cum", [], [], {})],
+        "le": [Meaning("le", [], [], {})],
+        "-ton": [Meaning("-ton", ["settlement"], ["town"], {})],
+    }
+    # proportions mode
+    mg = MeaningGenerator(db, {}, {})
+    mg.load_parts({"ton": 1, "cum": 1, "le": 1}, "single")
+    items = (
+        set().union(*[set(g.elements) for g in mg.generators.values()]) if mg.generators else set()
+    )
+    assert "ton" in items
+    assert "cum" not in items and "le" not in items, "connectors must not seed the base pool"
+    # vector mode
+    pool = {
+        m.usage
+        for m in build_non_position_eligible(
+            db,
+            gate=EligibilityGate(culture="english"),
+            exclude_tags=frozenset(),
+            pack_meaning_dbs=None,
+            packs=(),
+        )
+    }
+    assert "-ton" in pool
+    assert "-cum" not in pool and "le" not in pool
