@@ -190,9 +190,13 @@
     }
     return false;
   });
-  // The original-surface row is the active (highlighted) one only while the
-  // current usage still equals the original (i.e. not swapped away).
-  let originalIsCurrent = $derived(norm(morpheme.usage) === norm(originalUsage));
+  // The original-surface row is the active (highlighted) one exactly when no
+  // etymon form row matches the current usage (currentRef === null). Keying
+  // off currentRef rather than a usage===originalUsage string compare keeps
+  // the highlight correct when the inspector accent-upgrades the default
+  // surface (usage "hȳ" vs raw original "hy"), and guarantees a single
+  // highlight: if a form row matches, IT highlights and this row doesn't.
+  let originalIsCurrent = $derived(currentRef === null);
 
   // For each form within a source language, pull the matching
   // renderings slot (ipa / reader_pronunciation / original_script /
