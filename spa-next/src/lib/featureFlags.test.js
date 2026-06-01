@@ -11,6 +11,7 @@ import {
   visibleCultures,
   coerceToType,
   seedDefault,
+  snapEnumValue,
 } from './featureFlags.js';
 
 describe('flagOn (fail-closed)', () => {
@@ -130,5 +131,30 @@ describe('seedDefault (override > schema default)', () => {
   it('a junk numeric override falls back to the schema default', () => {
     const cfg = { defaults: { count: 'abc' } };
     expect(seedDefault(cfg, 'count', { type: 'integer', default: 5 })).toBe(5);
+  });
+});
+
+describe('snapEnumValue (wyrd-etvd: never preempt the config-default seed)', () => {
+  const prop = ['proportions', 'vector'];
+
+  it('returns undefined for an UNSEEDED (undefined) value — the seed pass owns it', () => {
+    // THE regression: snapping undefined → schema default here clobbered the
+    // WYRD_DEFAULT_SCORING_MODE=vector override (Advanced menu stuck on
+    // Proportions despite the manifest serving vector).
+    expect(snapEnumValue(undefined, prop, 'proportions')).toBeUndefined();
+  });
+
+  it('returns undefined (no change) for a value already in the options', () => {
+    expect(snapEnumValue('vector', prop, 'proportions')).toBeUndefined();
+    expect(snapEnumValue('proportions', prop, 'proportions')).toBeUndefined();
+  });
+
+  it('snaps a DEFINED out-of-options value to the schema default when valid', () => {
+    expect(snapEnumValue('banana', prop, 'proportions')).toBe('proportions');
+  });
+
+  it('snaps to the first option when the schema default is also invalid/absent', () => {
+    expect(snapEnumValue('banana', ['a', 'b'], 'gone')).toBe('a');
+    expect(snapEnumValue('banana', ['a', 'b'], undefined)).toBe('a');
   });
 });

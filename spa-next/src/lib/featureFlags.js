@@ -95,3 +95,25 @@ export function seedDefault(config, fieldKey, prop) {
   }
   return prop?.default;
 }
+
+/** wyrd-etvd: snap-to-valid for an enum/option select. Returns the value the
+ *  field SHOULD be set to, or `undefined` to mean "leave it alone".
+ *
+ *  Critically, an `undefined` (not-yet-seeded) value returns `undefined` — the
+ *  seed pass (``seedDefault``) owns initial seeding, including the env
+ *  ``config.defaults`` override (e.g. WYRD_DEFAULT_SCORING_MODE=vector).
+ *  Snapping an unseeded field to ``schemaDefault`` here would clobber that
+ *  override and the seed pass would then skip (value no longer undefined).
+ *  Only a DEFINED-but-invalid value (e.g. a culture-filtered option) snaps —
+ *  to the schema default if it's valid, else the first option.
+ *
+ *  @param value the current field value (may be undefined)
+ *  @param options the valid options (prop.enum, or culture-filtered options)
+ *  @param schemaDefault the schema's default value (prop.default) */
+export function snapEnumValue(value, options, schemaDefault) {
+  if (value === undefined) return undefined;
+  if (options.includes(value)) return undefined;
+  return schemaDefault !== undefined && options.includes(schemaDefault)
+    ? schemaDefault
+    : options[0];
+}
