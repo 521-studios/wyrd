@@ -34,9 +34,11 @@
   // Close the modal whenever the inspected result changes (selection,
   // deselection, or re-roll). Without this, an open modal would silently
   // re-target the new result — or pop back open when the next result is
-  // selected, since defectOpen would still be true.
+  // selected, since defectOpen would still be true. Tracks the local
+  // derived `result` (changes on index change AND on re-roll) rather than
+  // reaching into the global index.
   $effect(() => {
-    appState.currentResultIndex; // track
+    result; // track
     defectOpen = false;
   });
 
@@ -218,9 +220,8 @@
           type="button"
           class="flag"
           onclick={() => (defectOpen = true)}
-          aria-label="report this name as defective"
           title="Report defective"
-        >⚑ Report defective</button>
+        ><span aria-hidden="true">⚑</span> Report defective</button>
       </div>
       {#if displayState.morphemes_by_word?.length > 0}
         <p class="breakdown">
