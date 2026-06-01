@@ -115,7 +115,16 @@
         const r = renderingFor(lang, f);
         const k = norm(r.original_script || f);
         if (!k) continue;
-        const rich = !!(r.ipa || r.original_script || r.reader_pronunciation);
+        // "rich" = the row would render distinct data: real IPA / reader, or
+        // an original_script that actually DIFFERS from the form (a plain
+        // form whose original_script === itself renders no differently, so
+        // it isn't rich and shouldn't block upgrading to a transliterated
+        // twin that carries IPA).
+        const rich = !!(
+          r.ipa ||
+          (r.original_script && r.original_script !== f) ||
+          r.reader_pronunciation
+        );
         const existing = byKey.get(k);
         if (!existing) {
           byKey.set(k, { form: f, rich });
@@ -123,6 +132,10 @@
           existing.form = f; // upgrade to the form that carries rendering data
           existing.rich = true;
         }
+        // When two DISTINCT forms are both rich and share a display key,
+        // first-seen wins (sources before rendering keys). Today's data has
+        // at most one rich twin per surface, so this is a documented
+        // assumption, not an observed case.
       }
       const forms = [...byKey.values()].map((v) => v.form);
       return [lang, forms];

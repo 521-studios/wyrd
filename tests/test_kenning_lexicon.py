@@ -4997,6 +4997,33 @@ def test_new_name_to_dict_includes_citations_when_meaning_has_them() -> None:
     ]
 
 
+def test_new_name_to_dict_citations_union_across_ranked_siblings() -> None:
+    """_collect_citations unions + dedupes citations across ALL ranked
+    siblings sharing a usage, not just the first-ranked Meaning."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m1 = Meaning(
+        "Whit-",
+        tags=[],
+        meanings=["white"],
+        sources={"old_english": ["hwīt"]},
+        citations={"old_english": ["skeat_1901"]},
+    )
+    m2 = Meaning(
+        "Whit-",
+        tags=[],
+        meanings=["bright"],
+        sources={"old_english": ["hwīt"]},
+        citations={"old_english": ["mawer_1920", "skeat_1901"]},  # skeat dup
+    )
+    meaning_db = {"Whit-": [m1, m2]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Whit-"]])
+    out = new_name.to_dict()
+    # Union across siblings, deduped + sorted.
+    assert out["words"][0][0]["citations"] == ["mawer_1920", "skeat_1901"]
+
+
 def test_new_name_to_dict_includes_renderings_when_meaning_has_pronunciation() -> None:
     """wyrd-cp2d round 3: pronunciation + cross-script renderings
     (IPA, original_script, transliteration, english_shaped) carry
