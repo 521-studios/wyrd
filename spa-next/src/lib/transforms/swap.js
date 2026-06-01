@@ -11,11 +11,14 @@
 // endpoint and land in a follow-up PR.
 //
 // Pipeline composition with Rewind: when the user has Rewind→OE
-// before Swap, the rewind output's morphemes_by_word is preserved
-// (rewind doesn't mutate it — only the rendered name); Swap then
-// operates on the post-rewind state. If Swap is BEFORE Rewind, the
-// downstream Rewind sees the swapped morphemes via the supplied-
-// morphemes path (wyrd-y9aa).
+// before Swap, Swap operates on the post-rewind state. NOTE (wyrd-7cvv):
+// rewind now REBUILDS morphemes_by_word at the rewound era (rewound
+// surfaces; input morphemes the rewind couldn't resolve are dropped), so a
+// Swap created against the post-rewind cards indexes into that rebuilt
+// structure. Swap's bounds check below fails loudly if a later reorder
+// leaves a (wordIndex, morphemeIndex) pointing past the current structure.
+// If Swap is BEFORE Rewind, the downstream Rewind sees the swapped
+// morphemes via the supplied-morphemes path (wyrd-y9aa).
 
 export const swapTransform = {
   kind: 'swap',

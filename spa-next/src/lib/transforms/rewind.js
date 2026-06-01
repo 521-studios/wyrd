@@ -59,8 +59,10 @@ export const rewindTransform = {
     // inspector (cards + breakdown + pronunciation guide) matches the rewound
     // NAME — not the original morphemes.
     //
-    // The rewind drops morphemes with no era reflex, so its `morphemes` list
-    // is a subsequence (in order) of the input, each tagged with `canonical`
+    // The rewind OMITS any input morpheme whose usage is no longer resolvable
+    // in the bundle (a meaning_db lookup miss — era-less morphemes still
+    // appear, via their canonical form). So its `morphemes` list is a
+    // subsequence (in order) of the input, each tagged with `canonical`
     // = the original modern usage. Align by canonical with a two-pointer
     // walk: a matched input morpheme keeps its meanings/sources/tags but
     // takes the rewound surface + respelling; an input morpheme the rewind
@@ -101,8 +103,9 @@ export const rewindTransform = {
       .filter((word) => word.length > 0);
 
     let morphemes_by_word;
-    if (ri === rewound.length && aligned.some((w) => w.length > 0)) {
-      // Clean alignment — every rewound form mapped back to an input morpheme.
+    if (rewound.length > 0 && ri === rewound.length) {
+      // Clean alignment — every rewound form mapped back to an input morpheme
+      // (so `aligned` has at least one kept morpheme).
       morphemes_by_word = aligned;
     } else {
       // Alignment didn't fully consume the rewound list (canonical didn't

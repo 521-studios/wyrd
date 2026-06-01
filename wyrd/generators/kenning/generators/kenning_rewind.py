@@ -234,6 +234,19 @@ def _meanings_from_supplied_words(
     caller for unaccounted bookkeeping. First Meaning wins for
     ambiguous usages, mirroring NewName.to_dict.
     """
+    # wyrd-7cvv: dash/case-insensitive fallback index. morphemes_by_word
+    # carries the POSITIONAL surface ("by" at a word end, "m-" as a prefix)
+    # while meaning_db is keyed by the canonical form ("-by", "m"). An exact
+    # lookup misses those and the morpheme gets dropped — which made rewind
+    # silently shed real morphemes and render only a fragment ("Mhead By" →
+    # "Hēæd"). Build a normalized-key index (first key per dash-stripped,
+    # lowercased form wins, mirroring first-Meaning-wins) so a positional
+    # usage still resolves. Built lazily on the first miss.
+    norm_index: dict[str, list[Meaning]] | None = None
+
+    def _norm(s: str) -> str:
+        return s.strip("-").lower()
+
     per_word: list[list[Meaning]] = []
     missing: list[str] = []
     for word_morphs in supplied_words or []:
@@ -243,6 +256,12 @@ def _meanings_from_supplied_words(
             if not usage:
                 continue
             candidates = meaning_db.get(usage, [])
+            if not candidates:
+                if norm_index is None:
+                    norm_index = {}
+                    for key, ms in meaning_db.items():
+                        norm_index.setdefault(_norm(key), ms)
+                candidates = norm_index.get(_norm(usage), [])
             if candidates:
                 word_meanings.append(candidates[0])
             else:

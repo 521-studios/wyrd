@@ -4936,6 +4936,31 @@ def test_rewind_from_morphemes_missing_usage_lands_in_unaccounted(fresh_db: Path
     assert by_cell["oe-late"] == "Hwīt"
 
 
+def test_rewind_supplied_words_resolves_positional_usage_dash_insensitively() -> None:
+    """wyrd-7cvv: the generator/API rewind path (what the SPA uses) resolves a
+    morpheme whose usage is the POSITIONAL surface ('by' at a word end) to the
+    canonical meaning_db key ('-by') via the dash/case-insensitive fallback,
+    instead of dropping it as missing — so rewind keeps real morphemes instead
+    of rendering a fragment. A usage with no dash/case variant in the bundle
+    still lands in `missing`."""
+    from wyrd.generators.kenning.generators.kenning_rewind import (
+        _meanings_from_supplied_words,
+    )
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    by = Meaning("-by", tags=[], meanings=["farmstead"], sources={"old_scandinavian": ["bȳ"]})
+    meaning_db = {"-by": [by]}
+
+    per_word, missing = _meanings_from_supplied_words([[{"usage": "by"}]], meaning_db)
+    assert per_word == [[by]]  # "by" → "-by" via fallback
+    assert missing == []
+
+    # A genuinely-absent usage (no dash/case variant) still reports missing.
+    per_word2, missing2 = _meanings_from_supplied_words([[{"usage": "zzz"}]], meaning_db)
+    assert per_word2 == [[]]
+    assert missing2 == ["zzz"]
+
+
 def test_rewind_from_morphemes_raises_on_empty_name(fresh_db: Path) -> None:
     """wyrd-cp2d: empty / whitespace-only name input raises
     ValueError, matching rewind_name's contract."""
