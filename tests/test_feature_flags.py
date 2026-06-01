@@ -80,6 +80,16 @@ def test_flags_and_defaults_partition_cleanly():
     assert cfg["defaults"] == {"scoring_mode": "proportions"}
 
 
+def test_scoring_mode_default_flips_to_vector_via_env():
+    """wyrd-lnt6 (Phase 2): the per-environment default scoring mode flips to
+    vector purely via WYRD_DEFAULT_SCORING_MODE (the terraform staging
+    rollout), with NO code/schema-default change. Pins that the env var flows
+    to the /api/manifest default the SPA seeds from — the mechanism the
+    proportions→vector cutover rides on."""
+    cfg = resolve_feature_config({"WYRD_DEFAULT_SCORING_MODE": "vector"})
+    assert cfg["defaults"]["scoring_mode"] == "vector"
+
+
 def test_manifest_includes_config_block_default_off(monkeypatch):
     """/api/manifest carries the resolved config; with no flag env set the
     master override is off and flags are empty (prod-safe default)."""

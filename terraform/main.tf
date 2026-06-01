@@ -25,6 +25,26 @@ locals {
     Environment = var.env
     ManagedBy   = "terraform"
   }
+
+  # wyrd-ej28 Phase 2 (wyrd-lnt6): roll the DEFAULT scoring mode to vector
+  # per-environment. Vector reached parity with the legacy proportions path
+  # (Phase 0: N=1000 realism, all cultures in band) and now has empty-pick
+  # parity (wyrd-tbke) + D8/D18 rendering (wyrd-nbpw) + an absolute realism
+  # gate (wyrd-jfaz). Staging defaults to vector NOW so the new default is
+  # validated on the deployed SPA; PRODUCTION stays on the proportions schema
+  # default until the cutover. THE GO: add "production" to this list + run the
+  # production `terraform apply` (deploy.yml workflow_dispatch); the
+  # WYRD_DEFAULT_SCORING_MODE env var then resolves per request — no code/SPA
+  # rebuild, just the apply. Phase 3 (wyrd-rt2m) then deletes the proportions
+  # scoring path.
+  # An explicit var.feature_flag_defaults["scoring_mode"] still wins (merge
+  # order in the Lambda environment block below).
+  vector_default_envs = ["staging"]
+  scoring_mode_default = (
+    contains(local.vector_default_envs, var.env)
+    ? { WYRD_DEFAULT_SCORING_MODE = "vector" }
+    : {}
+  )
 }
 
 # ─── SPA S3 bucket — static site assets, keyed by git sha ───────────────────
@@ -233,6 +253,10 @@ resource "aws_lambda_function" "api" {
         LOG_LEVEL              = var.log_level
         WYRD_FF_ALL            = var.env == "staging" ? "true" : "false"
       },
+      # wyrd-ej28 Phase 2: per-env default scoring-mode rollout (see locals).
+      # Placed BEFORE var.feature_flag_defaults so an explicit operator override
+      # in that map still wins (merge() is last-wins).
+      local.scoring_mode_default,
       {
         # Skip "all" so a stray entry can't shadow the env-based WYRD_FF_ALL
         # conditional above (merge() is last-wins).
