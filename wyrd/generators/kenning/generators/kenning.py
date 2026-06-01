@@ -323,9 +323,13 @@ class Kenning(Generator):
                         "phonological_vector data in the bundle (kq7w.1) "
                         "and a loaded EmpiricalPriors instance via the "
                         "priors_path knob; with neither, the score falls "
-                        "back to whatever axes have data. Default "
-                        "'proportions' until ecjp.6/7's realism-retention "
-                        "drift measurement confirms parity."
+                        "back to whatever axes have data. Parity with "
+                        "'proportions' is confirmed (wyrd-ej28 Phase 0: "
+                        "N=1000 realism, all cultures in band); the default "
+                        "is being rolled to 'vector' per environment via "
+                        "WYRD_DEFAULT_SCORING_MODE (staging first, wyrd-lnt6). "
+                        "The schema default stays 'proportions' as the "
+                        "fallback until the production cutover (wyrd-rt2m)."
                     ),
                 },
                 "priors_path": {
