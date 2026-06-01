@@ -13,6 +13,7 @@
   import { languageLabel } from '../lib/languageLabels.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
+  import { accentFold } from '../lib/accents.js';
 
   let { morpheme, morphemeIndex } = $props();
 
@@ -95,25 +96,27 @@
       ...Object.keys(renderings),
     ]);
     const entries = [...langs].map((lang) => {
-      // wyrd-0h96: dedup forms that collapse to the same DISPLAY surface,
-      // not just the same raw key. A row renders its accented
-      // original_script when present (e.g. form "tun" displays as
-      // "tūn (tun)"), so a plain "tūn" form and a "tun" form whose
-      // original_script is "tūn" are the SAME variant shown twice. Key on
-      // the displayed surface (original_script || form) to collapse them.
-      // Genuinely-distinct forms ("hy" vs an accented "hȳ") still differ
-      // and stay separate, so the accent-upgrade swap remains available.
+      // wyrd-0h96: dedup forms that collapse to the same surface under
+      // CASE + ACCENT folding, not just the raw key. A row renders its
+      // accented original_script when present (form "tun" displays as
+      // "tūn (tun)"), so a plain "tūn" form, a "tun" form whose
+      // original_script is "tūn", AND a bare "By" next to "bȳ (by)" are all
+      // the SAME variant shown two/three times. Key on the accent-folded,
+      // case-folded display surface (original_script || form) so "bȳ", "by",
+      // and "By" collapse to one row.
       //
       // On collision, keep the form whose rendering carries data
-      // (IPA/original_script/reader) so we don't drop the row's
-      // pronunciation by surviving the bare lemma over its rendered twin.
+      // (IPA/original_script/reader) so the surviving row is the accented one
+      // WITH its pronunciation — not the bare "By" that has neither. (The
+      // accent-upgrade is reached by clicking that accented row, so folding
+      // the bare twin away doesn't lose the upgrade.)
       const byKey = new Map(); // displayKey -> { form, rich }
       for (const f of [
         ...(sources[lang] || []),
         ...Object.keys(renderings[lang] || {}),
       ]) {
         const r = renderingFor(lang, f);
-        const k = norm(r.original_script || f);
+        const k = accentFold(r.original_script || f);
         if (!k) continue;
         // "rich" = the row would render distinct data: real IPA / reader, or
         // an original_script that actually DIFFERS from the form (a plain
