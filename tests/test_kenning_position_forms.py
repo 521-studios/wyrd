@@ -184,3 +184,89 @@ def test_saint_subject_excluded_from_vector_base_pool():
     usages = {m.usage for m in pool}
     assert "-ton" in usages
     assert "Mary-" not in usages, "saint subject must be excluded from the vector base pool"
+
+
+# ---- wyrd-g1hj: single-morpheme structure exclusion + given-name base-pool --
+
+
+def test_is_single_morpheme_structure():
+    from wyrd.generators.kenning.runtime.proportions import _is_single_morpheme_structure
+
+    assert _is_single_morpheme_structure(((("bare", "single"),),))  # 1 word, 1 morpheme
+    assert _is_single_morpheme_structure(((("bare", "name", "single"),),))
+    assert not _is_single_morpheme_structure(((("pre",), ("post",)),))  # Higham: 2 morphemes
+    # Green Park: 2 words, 2 morphemes total → not single
+    assert not _is_single_morpheme_structure(((("bare", "single"),), (("bare", "single"),)))
+
+
+def test_is_given_name():
+    assert Meaning("-andrew", ["male name"], [], {}).is_given_name()
+    assert Meaning("Mary-", ["female name"], [], {}).is_given_name()
+    # Family names are NOT given names (kept for manorial/place legitimacy).
+    assert not Meaning("-smith", ["family name"], [], {}).is_given_name()
+    assert not Meaning("-ton", ["settlement"], [], {}).is_given_name()
+
+
+def test_load_proportions_excludes_single_morpheme_from_generation():
+    """wyrd-g1hj: a single-morpheme structure (whole name = one morpheme) is
+    excluded from the loaded generator (both ``structs`` and ``_all_structs``),
+    so no generation path can produce it. Multi-morpheme structures survive.
+    (The bundle/proportions still RECORD it — this is a load-time generation
+    filter, not a mining change.)"""
+    from wyrd.generators.kenning.runtime.proportions import load_proportions
+
+    meaning_db = {
+        "Stoke-": [Meaning("Stoke-", [], [], {})],
+        "-ton": [Meaning("-ton", [], [], {})],
+        "Bath": [Meaning("Bath", [], [], {})],
+    }
+    data = {
+        "usages": {"Stoke-": 1, "-ton": 1},
+        "single_usages": {"Bath": 1},
+        "structures": [
+            {
+                "proportion": 5,
+                "words": [[{"location": "pre"}, {"location": "post"}]],
+            },  # 2 morphemes
+            {"proportion": 5, "words": [[{"location": "bare"}]]},  # 1 morpheme → excluded
+        ],
+    }
+    ng = load_proportions(data, meaning_db, {})
+    assert ((("pre",), ("post",)),) in ng.structs, "multi-morpheme structure must survive"
+    assert ((("bare", "single"),),) not in ng.structs, "single-morpheme excluded from generation"
+    assert ((("bare", "single"),),) not in ng._all_structs
+
+
+def test_given_name_excluded_from_base_pool_both_modes():
+    """wyrd-g1hj: pure given-name etymons (male/female) are excluded from the
+    base pool in BOTH scoring modes — like saints. Family names stay (manorial/
+    toponymic + the synthetic fixtures use them); co-tagged place elements stay."""
+    from wyrd.generators.kenning.runtime.vector_name_select import build_non_position_eligible
+    from wyrd.generators.kenning.vectors.schemas import EligibilityGate
+
+    db = {
+        "-john": [Meaning("-john", ["male name"], ["John"], {})],
+        "-smith": [Meaning("-smith", ["family name"], ["Smith"], {})],
+        "-ham": [Meaning("-ham", ["settlement"], ["homestead"], {})],
+    }
+    # proportions mode (load_parts buckets)
+    mg = MeaningGenerator(db, {}, {})
+    mg.load_parts({"john": 1, "smith": 1, "ham": 1}, "single")
+    items = (
+        set().union(*[set(g.elements) for g in mg.generators.values()]) if mg.generators else set()
+    )
+    assert "ham" in items and "smith" in items
+    assert "john" not in items, "given-name etymon excluded from proportions base pool"
+    # vector mode (build_non_position_eligible)
+    pool = {
+        m.usage
+        for m in build_non_position_eligible(
+            db,
+            gate=EligibilityGate(culture="english"),
+            exclude_tags=frozenset(),
+            pack_meaning_dbs=None,
+            packs=(),
+        )
+    }
+    assert "-ham" in pool and "-smith" in pool
+    assert "-john" not in pool, "given-name etymon excluded from vector base pool"
