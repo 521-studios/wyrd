@@ -481,9 +481,7 @@ def test_get_structure_derives_position_from_index_not_dashes() -> None:
     assert three.get_structure() == (("pre",), ("inner",), ("post",))
 
     # Name flag rides alongside (sole male-name morpheme → bare + name).
-    assert Word([Meaning("-andrew", ["male name"], [], {})]).get_structure() == (
-        ("bare", "name"),
-    )
+    assert Word([Meaning("-andrew", ["male name"], [], {})]).get_structure() == (("bare", "name"),)
 
 
 def test_joiner_does_not_count_in_word_has_name() -> None:

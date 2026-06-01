@@ -864,13 +864,17 @@ def test_is_pure_proper_noun():
     from wyrd.generators.kenning import _is_pure_proper_noun
 
     # Pure personal name (only a name tag) → pure proper noun.
-    assert _is_pure_proper_noun(_make_meaning("-bourne", {"old_english"}, ["Bourne"], tags=["male name"]))
+    assert _is_pure_proper_noun(
+        _make_meaning("-bourne", {"old_english"}, ["Bourne"], tags=["male name"])
+    )
     # Place element merely co-tagged with a name → NOT pure (keeps common-noun rank).
     assert not _is_pure_proper_noun(
         _make_meaning("-stone", {"old_english"}, ["stone"], tags=["geology", "male name"])
     )
     # Not name/saint-tagged at all → not a proper noun.
-    assert not _is_pure_proper_noun(_make_meaning("-ton", {"old_english"}, ["estate"], tags=["topography"]))
+    assert not _is_pure_proper_noun(
+        _make_meaning("-ton", {"old_english"}, ["estate"], tags=["topography"])
+    )
 
 
 def test_rank_siblings_demotes_pure_proper_noun_below_co_tagged_place_element():

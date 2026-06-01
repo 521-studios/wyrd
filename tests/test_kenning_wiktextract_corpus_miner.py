@@ -611,9 +611,7 @@ def test_derive_positions_picks_up_name_tagged_etymons(tmp_path: Path, fresh_db:
         eid = db.upsert_etymon("Buna", "modern-english")
         # name-tagged, but NO wiktionary-empirical citation — qualifies only via
         # the new name-tag arm of derive_positions.
-        db.conn.execute(
-            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, 'male name')", (eid,)
-        )
+        db.conn.execute("INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, 'male name')", (eid,))
         db.commit()
         counts = derive_positions(db, {"english": place_names_path}, apply=True)
 
