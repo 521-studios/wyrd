@@ -9,6 +9,7 @@
     representativeMeanings,
     isNameMorpheme,
   } from '../lib/morphemeGloss.js';
+  import { accentedUsage } from '../lib/accents.js';
 
   function selectResult(i) {
     appState.currentResultIndex =
@@ -60,7 +61,10 @@
                       {#each word as morph}
                         {@const g = glossFor(morph)}
                         <span class="morph-col">
-                          <span class="surface">{morph.usage || ''}</span>
+                          <!-- wyrd-de5t: show the accented surface (bȳ) when
+                               a rendering supplies one, matching the col-3
+                               inspector, instead of the lossy ASCII (by). -->
+                          <span class="surface">{accentedUsage(morph) || morph.usage || ''}</span>
                           {#if g}<span class="gloss">{g}</span>{/if}
                         </span>
                       {/each}
