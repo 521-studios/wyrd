@@ -31,6 +31,15 @@
   // generator output — not the post-transform displayState.
   let defectOpen = $state(false);
 
+  // Close the modal whenever the inspected result changes (selection,
+  // deselection, or re-roll). Without this, an open modal would silently
+  // re-target the new result — or pop back open when the next result is
+  // selected, since defectOpen would still be true.
+  $effect(() => {
+    appState.currentResultIndex; // track
+    defectOpen = false;
+  });
+
   const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
   const norm = (s) => stripDashes(s).toLowerCase();
   // A string carries a diacritic if NFD-decomposing it yields combining
