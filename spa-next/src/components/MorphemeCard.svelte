@@ -171,11 +171,32 @@
     return null;
   });
 
-  // When the generated surface isn't among the etymon's own forms (the
-  // "-m-"/"-le-" derived-surface case), the card synthesizes a "current
-  // surface" row so the active form is always shown + highlighted +
-  // clickable — the user's "include the variant in the list" ask.
-  let usageInForms = $derived(currentRef !== null);
+  // wyrd-7lg1: persistent synthetic row for the ORIGINAL generated surface
+  // when it isn't one of the etymon's own forms ("-ham", "-le-", "-ton"...).
+  // Keyed on the ORIGINAL surface — NOT the current usage — so after a swap
+  // the original stays listed as a revert target. Previously this was keyed
+  // on the current usage (`!usageInForms`), so swapping to a real form made
+  // `usageInForms` flip true and the original-surface row vanished ("click
+  // tūn → the -ton option disappears", "click read → Red- disappears").
+  let originalInForms = $derived.by(() => {
+    const u = norm(originalUsage);
+    if (!u) return false;
+    for (const [lang, forms] of orderedSourceEntries) {
+      for (const f of forms) {
+        if (u === norm(f) || u === norm(renderingFor(lang, f).original_script)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  });
+  // The original-surface row is the active (highlighted) one exactly when no
+  // etymon form row matches the current usage (currentRef === null). Keying
+  // off currentRef rather than a usage===originalUsage string compare keeps
+  // the highlight correct when the inspector accent-upgrades the default
+  // surface (usage "hȳ" vs raw original "hy"), and guarantees a single
+  // highlight: if a form row matches, IT highlights and this row doesn't.
+  let originalIsCurrent = $derived(currentRef === null);
 
   // For each form within a source language, pull the matching
   // renderings slot (ipa / reader_pronunciation / original_script /
@@ -240,24 +261,27 @@
     </details>
   {/if}
 
-  {#if !usageInForms}
-    <!-- The generated surface isn't among the etymon's own forms (e.g.
-         "-m-"/"-le-" — derived/abbreviated surfaces). Show it as a
-         synthetic "current surface" row so the active form is always in
-         the list, highlighted, and clickable (to revert). -->
+  {#if !originalInForms && originalUsage}
+    <!-- wyrd-7lg1: the original generated surface isn't among the etymon's
+         own forms (e.g. "-ton"/"-ham"/"-le-"). Show it as a persistent row
+         so it's always listed + clickable to revert, even after the user
+         swaps to a real form. Highlighted only while it's the active
+         surface. -->
     <section class="source-lang">
-      <h4>current surface</h4>
+      <h4>original surface</h4>
       <table class="forms">
         <tbody>
-          <tr class="form-row current">
+          <tr class="form-row" class:current={originalIsCurrent}>
             <td class="form">
               <button
                 type="button"
                 class="form-btn"
-                onclick={() => swapTo(morpheme.usage, null)}
-                title="Current generated surface — click to revert"
+                onclick={() => swapTo(originalUsage, null)}
+                title={originalIsCurrent
+                  ? 'Original generated surface (current)'
+                  : 'Original generated surface — click to revert'}
               >
-                {morpheme.usage}
+                {originalUsage}
               </button>
             </td>
           </tr>
