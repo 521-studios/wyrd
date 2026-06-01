@@ -982,6 +982,14 @@ def _max_form_similarity(matcher: SequenceMatcher, usage_norm: str, m: Meaning) 
 # as a canonical place-name sense; one that ALSO carries a common-noun tag
 # (geology, topography, water, …) is a place element with an incidental
 # name tag and keeps common-noun rank.
+#
+# Two roles are bundled here. The QUALIFYING tags — {male name, female name,
+# family name} (via ``is_name()``) and {saint} (via ``is_saint()``) — are what
+# make ``_is_pure_proper_noun`` even consider a sibling. ``personal-name`` and
+# ``religious`` are COMPANION tags: they never independently qualify (the gate
+# requires a real name/saint tag first), they only keep a row "pure" when they
+# ride alongside one — so a synthesized saint tagged {saint, personal-name,
+# religious} still reads as pure. Keeping them in the set is what makes that work.
 _PROPER_NOUN_TAGS = frozenset(
     {"male name", "female name", "family name", "saint", "personal-name", "religious"}
 )

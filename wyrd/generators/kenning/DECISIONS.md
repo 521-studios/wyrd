@@ -2458,7 +2458,7 @@ grammar of how morphemes compose into words and words into names. Decomposition:
 break a toponym into words (on spaces), break each word into morphemes, tag each
 with the slot it occupied, and tally +1 for the structure (the tuple of slots)
 the toponym decomposed into. Generation: word boundaries become spaces (`Name`
-joins words with `" "`), morphemes inside a word join with `""` (no space), and
+joins words with `" "` via `NewName.__str__`), morphemes inside a word join with `""` (no space), and
 only the word-initial morpheme is capitalized.
 
 **The bug this guards against (wyrd-5z5j):** when the position+case model
@@ -2528,10 +2528,13 @@ credibility score (fewest unaccounted chars, then fewest morphemes, then a soft
 per-morpheme position-plausibility term learned from the known/pre-split
 breakdowns), **never** by a position gate that discards candidates outright.
 
-### Consequences
+### Consequences (target state — tracked under wyrd-eyjk, NOT all landed yet)
 
-- `_location_allows` and `_matches_position` (the dash-as-constraint gates) are
-  removed; every string-match stands and position is derived from the span.
+- `_location_allows` and `_matches_position` (the dash-as-constraint gates) **will
+  be removed** (wyrd-ffut); every string-match then stands and position is derived
+  from the span. As of this entry the gates still exist and run: `_location_allows`
+  is untouched and `_matches_position` is only *loosened* so the `bare` slot accepts
+  any location (D39) while pre/post/inner stay strict.
 - Redundant per-position entries (`-andrew` / `Andrew-` / `andrew`) collapse to
   one morpheme; the derived position flows into structures + proportion buckets,
   retiring dash-based `Meaning.location` for those purposes and the interim

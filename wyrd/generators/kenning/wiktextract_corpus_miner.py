@@ -1099,7 +1099,10 @@ def _load_flat_names(place_names_path: Path) -> list[str]:
     ``Great-Abington`` like ``Great Abington`` — both are two words. This is
     what restores grammatical two-word structures (and the ~30% two-word rate).
     """
-    data = json.loads(place_names_path.read_text())
+    # encoding="utf-8" is required: place-name corpora carry non-ASCII
+    # diacritics (Welsh ŵ/ŷ, French é/è, OE æ/ð/þ) and the platform default
+    # encoding would raise UnicodeDecodeError on non-UTF-8 hosts (Gemini review).
+    data = json.loads(place_names_path.read_text(encoding="utf-8"))
     out: list[str] = []
     _walk_names(data, out)
     return out

@@ -81,6 +81,50 @@ def test_list_structures_includes_filter_dropped_shapes():
     assert len(ng.structs) == 1 and len(ng._all_structs) == 2
 
 
+def test_resolve_forced_structure_label_and_nested_list():
+    """wyrd-5z5j: _resolve_forced_structure accepts a label string (delegating
+    to structure_label_to_key) and a nested-list key (JSON-shaped), recursively
+    converting lists to tuples so the result is hashable for dict-key lookup."""
+    from wyrd.generators.kenning.runtime.proportions import (
+        NameGenerator,
+        structure_label_to_key,
+    )
+
+    # str label → key.
+    assert NameGenerator._resolve_forced_structure("A- -b") == structure_label_to_key("A- -b")
+    # nested list (e.g. decoded from JSON) → hashable nested tuple.
+    resolved = NameGenerator._resolve_forced_structure([[["bare", "single"]], [["pre"], ["post"]]])
+    assert resolved == ((("bare", "single"),), (("pre",), ("post",)))
+    hash(resolved)  # must not raise (lists would be unhashable)
+
+
+def test_select_force_structure_unknown_raises():
+    """wyrd-5z5j: forcing a structure not in _all_structs fails loud rather
+    than silently filling from missing buckets and emitting a blank name."""
+    import pytest
+
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
+
+    ng = NameGenerator({}, MeaningGenerator({}, {}, {}), {((("bare", "single"),),): 1})
+    with pytest.raises(ValueError, match="not a known template"):
+        ng.select(random.Random(0), force_structure="Z | Y")
+
+
+def test_select_force_structure_uses_given_template():
+    """wyrd-5z5j: a forced structure (here a 1-word pre+post compound) is used
+    verbatim, bypassing the weighted sample."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    mdb = {
+        "Bridg-": [Meaning("Bridg-", [], [], {"old_english": ["brycg"]})],
+        "-water": [Meaning("-water", [], [], {"old_english": ["water"]})],
+    }
+    ng = _build_minimal_name_generator(mdb)  # structs = {((("pre",), ("post",)),): 1}
+    forced = ((("pre",), ("post",)),)
+    new_name = ng.select(random.Random(0), force_structure=forced)
+    assert new_name.struct == forced
+
+
 def test_weighted_choice_all_zero_weights_returns_none():
     assert weighted_choice(random.Random(0), [("a", 0), ("b", 0)]) is None
 

@@ -733,7 +733,9 @@ class NameGenerator:
     def list_structures(self) -> list[dict]:
         """All structure templates (INCLUDING the wyrd-zzli-filtered ones),
         each as a readable label passable to ``force_structure``, sorted by
-        weight. Feeds the SPA's Advanced 'force structure' dropdown."""
+        weight. Intended to feed a future SPA Advanced 'force structure'
+        dropdown (the CLI/API/SPA wiring is not landed yet — wyrd-5z5j
+        force-structure backend; the consumer is a follow-up)."""
         total = sum(self._all_structs.values()) or 1
         return [
             {
@@ -747,11 +749,21 @@ class NameGenerator:
         ]
 
     @staticmethod
-    def _resolve_forced_structure(force_structure):
-        """A force_structure arg (label string or key tuple) → a struct key."""
+    def _resolve_forced_structure(force_structure: str | tuple | list) -> tuple:
+        """A force_structure arg (label string or key tuple) → a struct key.
+
+        A nested-list input (e.g. decoded from a JSON request body) is
+        recursively converted to tuples so the result is hashable for the
+        dict-key lookups the structure key feeds (Gemini review)."""
         if isinstance(force_structure, str):
             return structure_label_to_key(force_structure)
-        return force_structure
+
+        def _to_tuple(val):
+            if isinstance(val, list):
+                return tuple(_to_tuple(x) for x in val)
+            return val
+
+        return _to_tuple(force_structure)
 
     def select(
         self,
@@ -766,7 +778,7 @@ class NameGenerator:
         stratum: str | None = None,
         cohesion: float = 0.0,
         include_unglossed: bool = True,
-        force_structure=None,
+        force_structure: str | tuple | list | None = None,
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
         each usage as an attested archaic spelling variant (D18) or an
@@ -868,6 +880,15 @@ class NameGenerator:
             # wyrd-5z5j: bypass the weighted sample AND the wyrd-zzli filter so
             # the operator can force any template (incl. filter-dropped shapes).
             struct = self._resolve_forced_structure(force_structure)
+            # Fail loud on an unknown/typo'd template rather than silently
+            # filling every slot from missing buckets and emitting a blank
+            # name (error-handling / type-design review). Validate against the
+            # UNFILTERED set so filter-dropped shapes are still forceable.
+            if struct not in self._all_structs:
+                raise ValueError(
+                    f"force_structure {force_structure!r} is not a known "
+                    "template; call list_structures() for valid labels"
+                )
         else:
             items = list(self.structs.items())
             struct = weighted_choice(rng, items)
@@ -1929,9 +1950,13 @@ def word_to_key(word):
 # flag is appended as '@name'/'@saint'. The letters are decorative — round-trip
 # reads position from the dashes, flags from '@', word boundaries from ' | '.
 _LOC_TO_DASHES = {"pre": ("", "-"), "post": ("-", ""), "inner": ("-", "-"), "bare": ("", "")}
+# Exact inverse of _LOC_TO_DASHES, keyed by (has_leading_dash, has_trailing_dash).
+# structure_label_to_key decodes through this table so the two directions can't
+# drift (complexity review).
+_DASHES_TO_LOC = {(lead != "", trail != ""): loc for loc, (lead, trail) in _LOC_TO_DASHES.items()}
 
 
-def structure_key_to_label(key) -> str:
+def structure_key_to_label(key: tuple) -> str:
     """Render a structure key as a readable template string."""
     words_out: list[str] = []
     n = 0
@@ -1950,8 +1975,12 @@ def structure_key_to_label(key) -> str:
     return " | ".join(words_out)
 
 
-def structure_label_to_key(label: str):
-    """Parse a structure label back to a key (inverse of structure_key_to_label)."""
+def structure_label_to_key(label: str) -> tuple:
+    """Parse a structure label back to a key (inverse of structure_key_to_label).
+
+    The label format does not encode the ``single`` flag; it is re-added below
+    for any single-element word, mirroring ``word_to_key``'s ``len(word) == 1``
+    rule. (Both directions depend on that arity↔``single`` coupling.)"""
     words = []
     for word_str in label.split("|"):
         word_str = word_str.strip()
@@ -1962,8 +1991,7 @@ def structure_label_to_key(label: str):
             parts = tok.split("@")
             base = parts[0]
             flags = [p for p in parts[1:] if p in ("name", "saint")]
-            lead, trail = base.startswith("-"), base.endswith("-")
-            loc = "inner" if (lead and trail) else "pre" if trail else "post" if lead else "bare"
+            loc = _DASHES_TO_LOC[(base.startswith("-"), base.endswith("-"))]
             elements.append((loc, *flags))
         if len(elements) == 1:
             elements[0] = (*elements[0], "single")

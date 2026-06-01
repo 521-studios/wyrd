@@ -589,7 +589,13 @@ def _decomposition_score(decomposition: list[Any]) -> tuple[int, int, int, int]:
         (e for e in decomposition if not isinstance(e, str)),
         None,
     )
-    first_meaning_len = -len(str(first_meaning)) if first_meaning is not None else 0
+    # Dash-stripped surface length — the morpheme's own length, not its
+    # positional decoration. Read ``usage`` directly (not ``str(meaning)``) so
+    # the tiebreaker doesn't depend on ``Meaning.__str__`` staying a
+    # surface-returning override (Gemini review).
+    first_meaning_len = (
+        -len(first_meaning.usage.replace("-", "")) if first_meaning is not None else 0
+    )
     return (unaccounted_chars, morpheme_count, first_meaning_pos, first_meaning_len)
 
 
