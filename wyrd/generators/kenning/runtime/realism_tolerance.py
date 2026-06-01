@@ -305,16 +305,16 @@ def format_violations(violations: list[ToleranceViolation]) -> str:
 #
 # DRAFT bands (2026-06-01), review-then-tighten. Baselined from the
 # vector-vs-reference metrics at N=1000, seed 0, across all 5 cultures on
-# BOTH the committed --dev bundle (CI) and the full production bundle. The
-# bands sit ~2-3.5x over the worst observed value so the gate holds on
-# both bundles and absorbs N-noise; tighten toward the observed envelope
-# once the cutover is validated.
+# the committed --dev bundle (the CI gate); confirmed to also hold on the
+# full production bundle. The bands sit ~2-4x over the worst observed value
+# so the gate absorbs N-noise + bundle differences; tighten toward the
+# observed envelope once the cutover is validated.
 #
-#   metric          worst (dev / full)    band      headroom
-#   tag_kl          0.0137 / 0.0087       0.05      ~3.6x
-#   tag_tv          0.0630 / 0.0496       0.15      ~2.4x
-#   position_tv     0.0476 / 0.0626       0.15      ~2.4x
-#   morpheme_rho    0.5285 / 0.5163       0.30      floor, ~0.22 slack
+#   metric          worst (dev, N=1000)    band      headroom
+#   tag_kl          0.0139                 0.05      ~3.6x
+#   tag_tv          0.0640                 0.15      ~2.3x
+#   position_tv     0.0514                 0.15      ~2.9x
+#   morpheme_rho    0.5085                 0.30      floor, ~0.21 slack
 #   decomposition   1.000  / 1.000        0.95      floor (vector must decompose)
 
 

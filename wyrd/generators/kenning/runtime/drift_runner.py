@@ -169,6 +169,7 @@ def run_realism_samples(
     tags: list[str] | None = None,
     harshness: float = 0.0,
     cohesion: float = 0.0,
+    include_unglossed: bool = False,
 ):
     """Generate ``count`` VECTOR-mode samples for ``culture`` + compute the
     absolute corpus reference from the same bundle (wyrd-jfaz).
@@ -190,7 +191,9 @@ def run_realism_samples(
 
     k = Kenning()
     name_gen, _ = _load_culture(culture)
-    reference = compute_corpus_reference(culture, name_gen)
+    # The reference's gloss policy MUST match the generation request below
+    # (same include_unglossed), so it's the exact convergence target.
+    reference = compute_corpus_reference(culture, name_gen, include_unglossed=include_unglossed)
 
     base_params: dict[str, Any] = {
         "culture": culture,
@@ -198,6 +201,7 @@ def run_realism_samples(
         "harshness": harshness,
         "cohesion": cohesion,
         "scoring_mode": "vector",
+        "include_unglossed": include_unglossed,
     }
     if priors_path:
         base_params["priors_path"] = priors_path

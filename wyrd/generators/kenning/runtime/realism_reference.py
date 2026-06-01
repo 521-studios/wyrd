@@ -62,14 +62,16 @@ class CorpusReference:
     morpheme_counts: dict[str, float] = field(default_factory=dict)
 
 
-def compute_corpus_reference(culture: str, name_gen) -> CorpusReference:
+def compute_corpus_reference(
+    culture: str, name_gen, *, include_unglossed: bool = False
+) -> CorpusReference:
     """Build the :class:`CorpusReference` for ``culture`` from a
     ``NameGenerator``'s bundle data.
 
     Analytical expected distribution of a corpus-faithful sampler:
 
         P(struct S)              = structs[S] / sum(structs)
-        P(usage e | slot)        = freq[e] / sum(freq[bucket(slot)])
+        P(usage e | slot)        = freq[e] / sum(freq[ELIGIBLE bucket(slot)])
         weight of a slot's pick  = P(S) * P(e | slot)
 
     accumulated over every (struct, slot, usage) into per-tag,
@@ -78,6 +80,18 @@ def compute_corpus_reference(culture: str, name_gen) -> CorpusReference:
     ``_rank_siblings`` → top sibling ``location`` + union of ranked
     siblings' tags; morpheme = dash-stripped usage, case preserved, per
     ``drift_runner._sample_from_generation_result``).
+
+    ``include_unglossed`` MUST match the generation request the samples
+    are drawn under (the gate uses the ``False`` default — glossing is a
+    project pillar, so the generator only draws gloss-eligible usages
+    unless the operator opts in). The reference applies the SAME gloss
+    keep-set ``MeaningGenerator.select`` applies (``keep_keys_for_gloss``,
+    a frozenset of bare surfaces), filtering each bucket BEFORE
+    normalizing P(usage|slot) — so the reference is the exact convergence
+    target of the actual generator, not of a hypothetical unglossed one.
+    (era / stratum are not modeled: the gate runs at the open default, so
+    their keep-sets are None / no-op — add them here if the gate ever
+    requests a window.)
     """
     # Lazy import: ``_rank_siblings`` lives on the package ``__init__``;
     # importing it at module load would create a runtime→package cycle
@@ -89,6 +103,11 @@ def compute_corpus_reference(culture: str, name_gen) -> CorpusReference:
     freq_by_bucket: dict = name_gen.usage_frequency_by_bucket
     meaning_db: dict = name_gen.meaning_db
     total_struct = sum(structs.values()) or 1.0
+
+    # Gloss keep-set: frozenset of bare surfaces, or None when every usage
+    # is eligible (no-filter fast path). Mirrors the bucket filter in
+    # MeaningGenerator.select (``k.lower().replace("-","") in keep_keys``).
+    gloss_keep = name_gen.meaning_gen.keep_keys_for_gloss(include_unglossed)
 
     tag_weight: dict[str, float] = {}
     position_weight: dict[str, float] = {}
@@ -119,6 +138,13 @@ def compute_corpus_reference(culture: str, name_gen) -> CorpusReference:
                 # keyed by (select_via_vector threads the slot key straight
                 # into _resolve_slot_usage_frequency).
                 bucket = freq_by_bucket.get(slot, {})
+                # Apply the gloss keep-set BEFORE normalizing, so P(usage|slot)
+                # is over the eligible pool the generator actually samples
+                # (matches select's keep_keys filter + re-normalization).
+                if gloss_keep is not None:
+                    bucket = {
+                        e: f for e, f in bucket.items() if e.lower().replace("-", "") in gloss_keep
+                    }
                 total_f = sum(bucket.values())
                 if total_f <= 0:
                     continue
