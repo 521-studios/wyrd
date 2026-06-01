@@ -1187,28 +1187,17 @@ class NameGenerator:
         # with non-qualifier morphemes; now correctly fails and
         # retries to find a struct whose qualifier slots are
         # satisfiable.
-        struct = None
-        picked: list = []
-        tried: set = set()
-        for _attempt in range(_VECTOR_STRUCT_RETRY_LIMIT):
-            remaining = [it for it in items if it[0] not in tried]
-            if not remaining:
-                # Exhausted the structure pool entirely.
-                return None
-            candidate_struct = weighted_choice(rng, remaining)
-            if candidate_struct is None:
-                return None
-            tried.add(candidate_struct)
-            # Flatten the candidate's word_keys into bare position
-            # labels + parallel qualifier list. The struct shape is
-            # tuple-of-words, each word is tuple-of-keys, each key is
-            # a feature-tuple (e.g. ("pre", "single"), ("post",
-            # "name")) — the first element is the position label per
-            # ``word_to_key`` in this module; subsequent elements are
-            # flags (``name`` / ``saint`` / ``single``). The vector
-            # primitive applies the position+qualifier filter when
-            # building per-slot base scores so a qualifier-required
-            # slot only picks from name/saint-flagged morphemes.
+        # Flatten a candidate struct's word_keys into parallel position /
+        # qualifier / bucket-key lists for the vector primitive, then score it.
+        # Struct shape = tuple-of-words, each word tuple-of-keys, each key a
+        # feature-tuple (("pre","single"), ("post","name"), …): element 0 is
+        # the position label (per ``word_to_key``), the rest are flags
+        # (``name`` / ``saint`` / ``single``). Preserving the full key (incl.
+        # the "single" flag word_to_key adds for single-element words) makes
+        # the per-slot frequency lookup hit the exact bucket proportions
+        # samples from. ``permissive`` is threaded through for the wyrd-tbke
+        # graceful-degradation fallback below.
+        def _score(candidate_struct, *, permissive):
             candidate_positions: list[str] = []
             candidate_qualifiers: list[str | None] = []
             candidate_bucket_keys: list[tuple] = []
@@ -1221,16 +1210,8 @@ class NameGenerator:
                         candidate_qualifiers.append("saint")
                     else:
                         candidate_qualifiers.append(None)
-                    # wyrd-bol9: thread the full bucket-key per slot
-                    # so the frequency lookup hits the exact bucket
-                    # proportions samples from — including the
-                    # "single" flag (added by word_to_key for single-
-                    # element words). Without preserving "single",
-                    # single-word and multi-word bucket variants
-                    # collapse and the frequency distribution drifts
-                    # from proportions' per-bucket sampling.
                     candidate_bucket_keys.append(key)
-            picked = select_via_vector_scoring(
+            return select_via_vector_scoring(
                 rng,
                 self.meaning_db,
                 structure=candidate_positions,
@@ -1246,14 +1227,51 @@ class NameGenerator:
                 slot_qualifiers=candidate_qualifiers,
                 slot_bucket_keys=candidate_bucket_keys,
                 usage_frequency_by_bucket=self.usage_frequency_by_bucket,
+                permissive=permissive,
             )
+
+        struct = None
+        picked: list = []
+        tried: set = set()
+        for _attempt in range(_VECTOR_STRUCT_RETRY_LIMIT):
+            remaining = [it for it in items if it[0] not in tried]
+            if not remaining:
+                # Exhausted the distinct structure pool — fall through to the
+                # graceful-degradation fallback (don't raise).
+                break
+            candidate_struct = weighted_choice(rng, remaining)
+            if candidate_struct is None:
+                break
+            tried.add(candidate_struct)
+            picked = _score(candidate_struct, permissive=False)
             if picked:
                 struct = candidate_struct
                 break
-        else:
-            # All retries exhausted — pool is too restrictive for any
-            # tried struct's slot constraints to be satisfied.
-            return None
+
+        if struct is None:
+            # wyrd-tbke empty-pick PARITY: no struct is FULLY satisfiable under
+            # the gates (era / stratum / tag / qualifier). Rather than return
+            # None (→ the caller's loud "no eligible name" raise), degrade
+            # gracefully like the legacy proportions ``_select_no_tag`` path —
+            # pick a struct (weighted, as proportions does) and fill what we
+            # can, emitting ``None`` for slots whose gated pool is empty
+            # (NewName drops them → a shorter name). Only a genuinely
+            # structure-less bundle (nothing to draw) still returns None, which
+            # preserves the legitimate bundle-broken raise.
+            candidate_struct = weighted_choice(rng, items)
+            if candidate_struct is None:
+                return None
+            picked = _score(candidate_struct, permissive=True)
+            if not any(p is not None for p in picked):
+                # Even permissive filled NOTHING — the gate excludes every
+                # morpheme at every slot. Genuinely no eligible name: return
+                # None so the caller raises its operator-visible diagnostic (an
+                # all-empty name is useless, and proportions only ever emits an
+                # empty name in this same degenerate case). The PARTIAL case —
+                # some slots fillable, some empty — falls through to the
+                # degraded NewName below, matching the proportions contract.
+                return None
+            struct = candidate_struct
 
         # Reconstruct the words list-of-lists from the flat picks,
         # matching the original struct's word-grouping shape so the
@@ -1274,7 +1292,12 @@ class NameGenerator:
         for word in struct:
             word_keys: list[str | None] = []
             for slot in word:
-                word_keys.append(_position_form(picked[idx], slot[0]))
+                # wyrd-tbke: a permissive-fallback pick may be None (slot whose
+                # gated pool was empty) — pass it straight through as a dropped
+                # slot, matching the proportions path's None slots; NewName
+                # skips None elements when rendering.
+                pick = picked[idx]
+                word_keys.append(_position_form(pick, slot[0]) if pick is not None else None)
                 idx += 1
             words.append(word_keys)
 

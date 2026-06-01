@@ -629,7 +629,8 @@ def select_via_vector_scoring(
     slot_qualifiers: list[str | None] | None = None,
     slot_bucket_keys: list[tuple] | None = None,
     usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None = None,
-) -> list[Meaning]:
+    permissive: bool = False,
+) -> list[Meaning | None]:
     """Pick one Meaning per slot in the structure via the D36.2
     composition rule.
 
@@ -666,10 +667,22 @@ def select_via_vector_scoring(
             scores 0 via ``baseline_score_pack`` for any native
             lemma that happens to share lemma_ref). wyrd-ecjp.8.
 
+        permissive: wyrd-tbke graceful-degradation switch. When False
+            (default), a slot whose gated pool is empty aborts the whole
+            struct (returns ``[]``) so the caller can retry a different
+            struct. When True, such a slot instead contributes ``None`` and
+            scoring continues — mirroring the legacy proportions
+            ``_select_no_tag`` contract (an empty bucket → a ``None`` slot
+            the NewName drops), so the vector path degrades to a shorter
+            name instead of failing. The caller uses this as a last-resort
+            fallback once no struct is fully satisfiable.
+
     Returns:
-        list[Meaning] — one Meaning per structural slot, in order.
-        Empty list when the gate filters every meaning out for any
-        slot (the caller decides whether to retry or fall back).
+        list[Meaning | None] — one entry per structural slot, in order.
+        Non-permissive: empty list when the gate filters every meaning
+        out for any slot (the caller decides whether to retry or fall
+        back). Permissive: always full-length; unsatisfiable slots are
+        ``None``.
     """
     picked: list[Meaning] = []
     prior_tags: set[str] = set()
@@ -748,6 +761,9 @@ def select_via_vector_scoring(
             if slot_base_scores is not None:
                 slot_base_scores[cache_key] = base_scored
         if not base_scored:
+            if permissive:
+                picked.append(None)
+                continue
             return []
 
         # Apply per-sample cohesion bias + weighted choice. Cohesion
@@ -763,9 +779,15 @@ def select_via_vector_scoring(
             if final_score > 0:
                 weighted.append((m, final_score))
         if not weighted:
+            if permissive:
+                picked.append(None)
+                continue
             return []
         picked_meaning = _weighted_choice(rng, weighted)
         if picked_meaning is None:
+            if permissive:
+                picked.append(None)
+                continue
             return []
         picked.append(picked_meaning)
         # D17: accumulate picked tags for next slot's cohesion bias
