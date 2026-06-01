@@ -491,6 +491,8 @@ class Kenning(Generator):
                 scoring_weights_raw=scoring_weights_raw,
                 packs_raw=packs_raw,
                 include_unglossed=include_unglossed,
+                spelling_variety=spelling_variety,
+                inflection_density=inflection_density,
             )
             if new_name is None:
                 # Vector path filtered everything (empty register +
@@ -619,6 +621,8 @@ def _generate_via_vector(
     scoring_weights_raw: dict[str, float] | None = None,
     packs_raw: list[dict[str, Any]] | None = None,
     include_unglossed: bool = False,
+    spelling_variety: float = 0.0,
+    inflection_density: float = 0.0,
 ):
     """Dispatch helper for scoring_mode='vector'.
 
@@ -737,4 +741,6 @@ def _generate_via_vector(
         exclude_tags=exclude_tags,
         pack_meaning_dbs=pack_meaning_dbs or None,
         include_unglossed=include_unglossed,
+        spelling_variety=spelling_variety,
+        inflection_density=inflection_density,
     )

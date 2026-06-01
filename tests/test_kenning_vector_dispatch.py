@@ -708,3 +708,49 @@ def test_select_via_vector_renders_picks_at_slot_positions():
             f"post slot must render a slot-derived post-form, not the stored variant: {word}"
         )
     assert seen, "expected at least one generated name across seeds"
+
+
+def test_select_via_vector_applies_d8_d18_rendering():
+    """wyrd-nbpw: vector mode threads inflection_density / spelling_variety
+    through the SAME _render_substitutions the legacy proportions path uses, so
+    D8 inflection (form + grammatical-case label) and D18 spelling variants
+    render identically across both scoring modes. Default (both knobs 0) skips
+    the substitution pass entirely → rendered/inflection_labels stay None
+    (bit-stable). Mirrors test_select_populates_inflection_labels_at_high_density
+    on the proportions side."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    # 'family name' flips is_name() True so the single bare-name slot fills;
+    # 'urban' gives the request a non-zero score. old_english carries a variant
+    # pool (cot/cotum) + an inflection (cotum/dative_or_pl).
+    m = Meaning(
+        "-cot",
+        ["family name", "urban"],
+        [],
+        {"old_english": ["cot", "cotum"]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    db = {"-cot": [m]}
+    structs = {((("bare", "name", "single"),),): 1}
+    ng = _build_synthetic_vector_name_gen(structs, db)
+
+    inflected = ng.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+        inflection_density=1.0,
+    )
+    assert inflected.rendered == [["cotum"]]
+    assert inflected.inflection_labels == [["dative_or_pl"]]
+
+    # Default knobs off → no substitution pass (bit-stable path).
+    plain = ng.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert plain.rendered is None
+    assert plain.inflection_labels is None
