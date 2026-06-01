@@ -592,6 +592,51 @@ def test_derive_positions_writes_pre_and_post_reflexes_for_north(
         assert ("-north-", "inner") in north_reflexes
 
 
+def test_derive_positions_picks_up_name_tagged_etymons(tmp_path: Path, fresh_db: Path) -> None:
+    """wyrd-5z5j Defect A: a proper-name etymon (Briggs-style — name-tagged but
+    NOT cited by wiktionary-empirical) is now scanned + given its ATTESTED
+    positioned reflexes (Buna-/-buna-/-buna), instead of collapsing to a single
+    bare capitalized form. post/inner are lowercased; pre is word-initial cap."""
+    place_names_path = tmp_path / "english_place_names.json"
+    place_names_path.write_text(
+        json.dumps(
+            {
+                "England": {
+                    "ceremonial_counties": [
+                        "Buna Hall",  # bunahall -> pre
+                        "Old Buna",  # oldbuna  -> post
+                        "Webunary",  # webunary -> inner
+                    ]
+                }
+            }
+        )
+    )
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("Buna", "modern-english")
+        # name-tagged, but NO wiktionary-empirical citation — qualifies only via
+        # the new name-tag arm of derive_positions.
+        db.conn.execute(
+            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, 'male name')", (eid,)
+        )
+        db.commit()
+        counts = derive_positions(db, {"english": place_names_path}, apply=True)
+
+    assert counts["etymons_examined"] == 1  # picked up via the name tag alone
+    with LexiconDB(fresh_db) as db:
+        bid = db.conn.execute("SELECT id FROM etymon WHERE canonical_form='Buna'").fetchone()["id"]
+        reflexes = {
+            (r["surface_form"], r["position"])
+            for r in db.conn.execute(
+                "SELECT r.surface_form, r.position FROM reflex_etymon re "
+                "JOIN reflex r ON r.id = re.reflex_id WHERE re.etymon_id = ?",
+                (bid,),
+            )
+        }
+    assert ("Buna-", "pre") in reflexes
+    assert ("-buna", "post") in reflexes
+    assert ("-buna-", "inner") in reflexes
+
+
 def test_derive_positions_great_is_pre_only(tmp_path: Path, fresh_db: Path) -> None:
     """User's other example: 'Great Braitham' parses (great is pre);
     'Braitham Great' shouldn't (great is not post in any English place

@@ -949,9 +949,10 @@ def derive_positions(
     min_count: int = 1,
     apply: bool = False,
 ) -> dict[str, Any]:
-    """For every etymon cited by ``wiktionary-empirical``, scan the
-    relevant cultures' place-name corpora and write reflex rows for
-    every position the canonical form occurs in.
+    """For every etymon cited by ``wiktionary-empirical`` OR tagged as a
+    proper name (male/female/family name), scan the relevant cultures'
+    place-name corpora and write reflex rows for every position the
+    canonical form occurs in.
 
     Necessary because the empirical-mine writes etymons with no
     ``position_pref`` set; without per-position reflex rows the bundle
@@ -974,14 +975,31 @@ def derive_positions(
     flat_names_by_culture: dict[str, list[str]] = {
         culture: _load_flat_names(p) for culture, p in place_names_paths_by_culture.items()
     }
+    # Candidates: etymons cited by wiktionary-empirical, OR tagged as a proper
+    # name (wyrd-5z5j / Defect A). Personal-name etymons (Briggs) are cited by
+    # the names index, not wiktionary-empirical, so without the name-tag arm
+    # they never get positioned reflexes — they collapse to a single bare
+    # capitalized `modern_usage` and the runtime drops them mid-word as
+    # `...Buna...`. Scanning them against the place-name corpora here gives each
+    # name its ATTESTED positioned reflexes (`Buna-`, `-buna-`, `-buna`); names
+    # that never occur in a toponym observe no position and stay bare (correct).
     rows = list(
         db.conn.execute(
             """
             SELECT DISTINCT e.id, e.canonical_form, e.language
             FROM etymon e
-            JOIN etymon_citation c ON c.etymon_id = e.id
-            WHERE c.source_id = ?
-              AND e.merged_into_id IS NULL
+            WHERE e.merged_into_id IS NULL
+              AND (
+                EXISTS (
+                    SELECT 1 FROM etymon_citation c
+                    WHERE c.etymon_id = e.id AND c.source_id = ?
+                )
+                OR EXISTS (
+                    SELECT 1 FROM etymon_tag t
+                    WHERE t.etymon_id = e.id
+                      AND t.tag IN ('male name', 'female name', 'family name')
+                )
+              )
             ORDER BY e.id
             """,
             (WIKTIONARY_EMPIRICAL_SOURCE_ID,),
