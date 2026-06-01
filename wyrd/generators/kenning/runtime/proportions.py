@@ -1693,7 +1693,20 @@ class NewName:
         # language synonym ("Hill Hill" → "Hill Haeth"). Parallel to ``name``;
         # None where no diversification happened. Both __str__ (via rendered)
         # and to_dict honor it so the name + breakdown stay consistent.
-        self._lang_override: list[list[Meaning | None]] = [[None] * len(w) for w in (name or [])]
+        # Per-element override Meaning for a diversified slot (else None).
+        self._lang_override = [[None] * len(w) for w in (name or [])]
+        # Run lazily on first render (see _ensure_diversified): callers set
+        # self.rendered (variant/inflection substitution) AFTER __init__, and
+        # the diversification must layer on top of the FINAL rendered surfaces.
+        self._diversified = False
+
+    def _ensure_diversified(self) -> None:
+        """Run the repeat-diversification once, on first render. Deferred from
+        __init__ so it sees the final self.rendered (the caller applies
+        variant/inflection substitution after construction)."""
+        if self._diversified:
+            return
+        self._diversified = True
         self._diversify_repeats()
 
     def _diversify_repeats(self) -> None:
@@ -1801,6 +1814,7 @@ class NewName:
         # capitalized. Substituted spelling-variants / inflections
         # (``self.rendered``) obey the same slot rule — a variant dropped into
         # an inner slot lowercases like the base would.
+        self._ensure_diversified()
         words: list[str] = []
         for wi, w in enumerate(self.name):
             chunks: list[str] = []
@@ -1934,6 +1948,7 @@ class NewName:
             _split_senses_for_display,
         )
 
+        self._ensure_diversified()
         words: list[list[dict]] = []
         for wi, word in enumerate(self.name):
             morphemes: list[dict] = []
@@ -2022,25 +2037,34 @@ class NewName:
             _split_senses_for_display,
         )
 
+        self._ensure_diversified()
         out = []
-        for word in self.name:
-            for e in word:
+        for wi, word in enumerate(self.name):
+            for ei, e in enumerate(word):
                 if e is None:
                     continue
-                # wyrd-o53o round 4 (Gemini MED): defensive access
-                # matching to_dict()'s pattern. e SHOULD exist (it
-                # came from the generator's pool) but the consistency
-                # win + no-IndexError-on-empty-siblings is worth the
-                # cost of one .get() + one truthy check.
-                meanings = _resolve_surface(self.meaning_db, e)
-                ranked = _rank_siblings(meanings)
+                # wyrd-vd6y: a diversified repeat surfaces its override sibling
+                # (the cross-language synonym) here too, so the provenance panel
+                # matches the rendered name + to_dict breakdown.
+                override = self._lang_override[wi][ei] if self._lang_override else None
+                if override is not None:
+                    ranked = [override]
+                    usage_str = (self.rendered[wi][ei] if self.rendered else None) or e
+                else:
+                    # wyrd-o53o round 4 (Gemini MED): defensive access
+                    # matching to_dict()'s pattern. e SHOULD exist (it
+                    # came from the generator's pool) but the consistency
+                    # win + no-IndexError-on-empty-siblings is worth the
+                    # cost of one .get() + one truthy check.
+                    ranked = _rank_siblings(_resolve_surface(self.meaning_db, e))
+                    usage_str = e
                 if not ranked:
                     continue
                 first = ranked[0]
                 primary, derivative = _split_senses_for_display(_all_senses(ranked))
                 out.append(
                     {
-                        "usage": e,
+                        "usage": usage_str,
                         "location": first.location,
                         "meanings": primary,
                         "derivative_meanings": derivative,
