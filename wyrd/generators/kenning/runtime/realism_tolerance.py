@@ -6,27 +6,28 @@ regression test suite in ``tests/test_kenning_realism_regression.py``
 reads these tolerances + runs drift measurements against the live
 generators; tolerance violations fail the test.
 
-The tolerances here are SCAFFOLDING with operator-tunable defaults.
-The actual per-metric × per-culture bands need operator review of
-real drift output (post-ecjp.8 bundle changes when vector mode
-becomes more meaningfully different from proportions mode). Until
-then the defaults are deliberately wide:
+Two layers of policy:
 
-* KL divergence ceiling: 10.0 (very loose — accepts even highly
-  divergent distributions)
-* Total-variation ceiling: 1.0 (the maximum value; effectively
-  unchecked)
-* Top-N overlap floor: 0.0 (accepts no overlap)
-* Decomposition delta ceiling: 1.0 (accepts complete drift)
-* Spearman correlation floor: -1.0 (accepts inverse correlation)
+* ``DEFAULT_TOLERANCE`` — a single deliberately WIDE-OPEN
+  ``ToleranceBand`` (KL≤10, total-variation≤1, top-N overlap≥0,
+  decomposition delta≤1, Spearman≥-1). Any culture WITHOUT a
+  per-culture override falls back to this and is effectively
+  un-gated. This is the fallback, not a dict.
+* ``PER_CULTURE_TOLERANCES`` — per-culture overrides with REAL
+  bands. Populated 2026-06-01 for english / scottish / irish /
+  breton from empirical drift evidence (the in-source comment block
+  immediately above the ``PER_CULTURE_TOLERANCES`` definition carries
+  the per-culture numbers + banding rationale).
 
-These wide defaults mean the regression test suite is INACTIVE as a
-drift gate today. The infrastructure is in place; the operator
-tightens the bands once empirical drift evidence stabilizes
-(Phase 6b's deliberate review-then-codify cycle).
-
-The DEFAULT_TOLERANCES dict is the single source of truth; per-
-culture overrides extend / replace it.
+Gate status: the regression suite in
+``tests/test_kenning_realism_regression.py`` parametrizes
+``REGRESSION_CULTURES`` — the 5-tuple english / scottish / welsh /
+irish / breton — and is a LIVE gate for those with a populated band
+here: today english / scottish / irish / breton. welsh is
+parametrized too but has no band, so it runs un-gated against
+``DEFAULT_TOLERANCE``; a welsh band is deferred until wyrd-cj6f (its
+proportions path crashes at higher sample counts) lets its full
+drift be measured.
 """
 
 from __future__ import annotations
@@ -63,18 +64,91 @@ class ToleranceBand:
     min_morpheme_rank_correlation: float | None = -1.0
 
 
-# Default tolerance for every culture not overridden below. Wide-open
-# defaults — the regression suite is inactive as a drift gate today.
-# Operator tightens via PER_CULTURE_TOLERANCES once Phase 6a evidence
-# is in hand.
+# Fallback for every culture NOT overridden in PER_CULTURE_TOLERANCES
+# below. Its ToleranceBand() defaults are finite but deliberately loose
+# (KL<=10, TV<=1, overlap>=0, decomp<=1, rho>=-1) — they ARE evaluated
+# by check_drift_against_tolerance, but no realistic drift exceeds them,
+# so a culture with no override is effectively un-gated. The populated
+# per-culture bands — not this default — make the regression suite a
+# live gate.
 DEFAULT_TOLERANCE = ToleranceBand()
 
 
 # Per-culture tolerance overrides. Operator policy lives here.
-# Empty today (every culture uses DEFAULT_TOLERANCE); operator adds
-# entries like ``"english": ToleranceBand(max_kl_divergence=0.5,
-# min_top_n_overlap=0.3, ...)`` once the empirical bands are known.
-PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {}
+#
+# DRAFT bands (2026-06-01, kenning/scoring-mode-investigation). Sized
+# against the proportions-vs-vector drift the regression suite ACTUALLY
+# runs — SAMPLES_PER_MODE=100, REGRESSION_BASE_SEED=0, bare request
+# (priors are bundled in L4, so the baseline axis is already live; this
+# is full-fidelity drift). Bands gate that config, so they're set from
+# its (noisy) numbers, NOT the calmer N=1000 report.
+#
+#   culture   KL@100  TV@100  ρ@100    | KL@1000  ρ@1000   decompΔ
+#   english   0.0735  0.0789  0.3455   | 0.0040   0.742    0.0000
+#   scottish  0.0175  0.0627  0.2859   | 0.0034   0.710    0.0000
+#   irish     0.0429  0.0680  0.4774   | 0.0152   0.742    0.0000
+#   breton    0.1600  0.1036  0.4068   | 0.0043   0.872    0.0000
+#   welsh     —  blocked by wyrd-cj6f (proportions crash) —
+#
+# At N=100 KL/ρ are noise-dominated (KL up to 0.16, ρ down to 0.29);
+# the N=1000 columns show the real signal is far tighter. RECOMMENDATION:
+# bump SAMPLES_PER_MODE to 1000 to make the gate less noise-driven, then
+# re-tighten toward the N=1000 numbers (e.g. KL<=0.05, ρ>=0.6). The bands
+# below carry ~2-3x headroom over the N=100 observations so the gate is
+# green today without being wide-open.
+#
+# Banding rationale:
+#  * max_kl_divergence / max_total_variation — SEMANTIC-character guard:
+#    vector should reshuffle WHICH names surface without shifting the tag
+#    mix. Ceilings ~2-3x the N=100 value.
+#  * max_decomposition_rate_delta_abs — QUALITY floor: vector must not
+#    erode decomposition coverage. Observed 0.0 (stable across N); tight
+#    at 0.02 — the one band worth keeping strict regardless of N.
+#  * min_morpheme_rank_correlation — catches a frequency-collapse /
+#    near-inversion without flagging the intended reorder. Floor ~=
+#    N=100 observed minus ~0.20.
+#  * min_top_n_overlap — DELIBERATELY None. The top-N name reshuffle is
+#    the *intended* effect of vector scoring; gating on it fights the
+#    feature.
+#
+# Review-then-codify STARTING POINTS, not final policy — but NOW LIVE:
+# populating these bands turns the regression suite into a real gate for
+# the cultures it parametrizes (REGRESSION_CULTURES = english / scottish
+# / welsh / irish / breton) that produce non-zero vector samples — today
+# english / scottish / irish / breton. welsh stays in the suite but has
+# no band — it runs un-gated against the wide-open DEFAULT; a welsh band
+# is deferred until wyrd-cj6f (its proportions crash) lets a clean welsh
+# drift run exist.
+PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {
+    "english": ToleranceBand(
+        max_kl_divergence=0.15,
+        max_total_variation=0.16,
+        min_top_n_overlap=None,
+        max_decomposition_rate_delta_abs=0.02,
+        min_morpheme_rank_correlation=0.15,
+    ),
+    "scottish": ToleranceBand(
+        max_kl_divergence=0.06,
+        max_total_variation=0.15,
+        min_top_n_overlap=None,
+        max_decomposition_rate_delta_abs=0.02,
+        min_morpheme_rank_correlation=0.10,
+    ),
+    "irish": ToleranceBand(
+        max_kl_divergence=0.12,
+        max_total_variation=0.16,
+        min_top_n_overlap=None,
+        max_decomposition_rate_delta_abs=0.02,
+        min_morpheme_rank_correlation=0.25,
+    ),
+    "breton": ToleranceBand(
+        max_kl_divergence=0.30,
+        max_total_variation=0.20,
+        min_top_n_overlap=None,
+        max_decomposition_rate_delta_abs=0.02,
+        min_morpheme_rank_correlation=0.20,
+    ),
+}
 
 
 def tolerance_for(culture: str) -> ToleranceBand:
