@@ -35,6 +35,7 @@ from wyrd.generators.kenning import (
     _saint_personal_name_subjects,
     available_tags,
 )
+from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.trie_matcher import (
     build_morpheme_trie,
     canonical_decomposition,
@@ -161,6 +162,12 @@ def test_explainer_decomposes_dedication_suffix_picking_saint_giles() -> None:
         f"giles must be the word-final (post-position) morpheme; got {usages!r}"
     )
     giles_morpheme = decomp[-1]
+    # A decomposition regression that left `giles` unmatched would make the
+    # word-final element a raw string fragment — assert it's a matched Meaning
+    # so that fails cleanly here rather than AttributeError-ing on `.meanings`.
+    assert isinstance(giles_morpheme, Meaning), (
+        f"word-final giles must be a matched morpheme, not an unmatched fragment; got {usages!r}"
+    )
     assert giles_morpheme.meanings
     assert "Saint Giles" in giles_morpheme.meanings[0]
 

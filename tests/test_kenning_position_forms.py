@@ -120,6 +120,32 @@ def test_resolve_surface_matches_position_form_to_stored_variant():
     assert giles in resolved
 
 
+# ---- surface-index cache: bounded + identity-checked -----------------------
+
+
+def test_surface_index_cache_is_bounded_and_identity_checked():
+    """wyrd-eyjk round 3: the id()-keyed surface-index cache must stay bounded
+    (ad-hoc meaning_dbs don't accumulate) and never cross-contaminate — a
+    distinct meaning_db gets its OWN index, never a stale hit from a recycled
+    id(). The stored reference + ``is`` check guarantee the latter."""
+    from wyrd.generators.kenning.runtime import proportions as prop
+
+    prop._SURFACE_INDEX_CACHE.clear()
+    try:
+        for i in range(prop._SURFACE_INDEX_CACHE_MAX + 10):
+            prop._surface_index_for({f"-x{i}": [Meaning(f"-x{i}", [], [], {})]})
+        assert len(prop._SURFACE_INDEX_CACHE) <= prop._SURFACE_INDEX_CACHE_MAX
+        # Same object → cached (identity hit returns the same index object).
+        a = {"-ay": [Meaning("-ay", ["t"], [], {})]}
+        assert prop._surface_index_for(a) is prop._surface_index_for(a)
+        # A different db never returns another db's index.
+        b = {"-by": [Meaning("-by", ["t"], [], {})]}
+        idx_b = prop._surface_index_for(b)
+        assert "by" in idx_b and "ay" not in idx_b
+    finally:
+        prop._SURFACE_INDEX_CACHE.clear()
+
+
 # ---- synthesized-saint-subject base-pool exclusion (both scoring modes) ----
 
 
