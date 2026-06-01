@@ -19,6 +19,7 @@
   import MorphemeCard from '../components/MorphemeCard.svelte';
   import TransformStack from '../components/TransformStack.svelte';
   import DefectModal from '../components/DefectModal.svelte';
+  import { accentedUsage } from '../lib/accents.js';
   // wyrd-8jjx: SaveWorkspaceButton + ShareWorkspaceButton moved to
   // the Header (universal across workspaces). Components stay in
   // the tree for potential reuse but no longer rendered here.
@@ -53,32 +54,9 @@
   });
 
   const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
-  const norm = (s) => stripDashes(s).toLowerCase();
-  // A string carries a diacritic if NFD-decomposing it yields combining
-  // marks (i.e. it changes under decomposition).
-  const hasAccent = (s) => !!s && s.normalize('NFD') !== s;
 
-  // wyrd-2b50 follow-up: the bundle's generated `usage` is often the
-  // lossy ASCII surface ("hy"), while the etymon's renderings carry the
-  // accented original_script ("hȳ"). Return the accented surface —
-  // grafted onto the usage's dash markers — when a rendering for this
-  // morpheme's own surface supplies one. Null otherwise.
-  function accentedUsage(m) {
-    const u = norm(m.usage);
-    if (!u) return null;
-    const R = m.renderings || {};
-    for (const lang of Object.keys(R)) {
-      for (const form of Object.keys(R[lang])) {
-        const os = R[lang][form].original_script;
-        if (os && norm(form) === u && hasAccent(os)) {
-          const lead = m.usage.match(/^-+/)?.[0] || '';
-          const trail = m.usage.match(/-+$/)?.[0] || '';
-          return lead + stripDashes(os) + trail;
-        }
-      }
-    }
-    return null;
-  }
+  // wyrd-de5t: accentedUsage moved to lib/accents.js so the Output column
+  // (col 2) shares the exact same accent-upgrade logic.
 
   function upgradeAccents(mbw) {
     let changed = false;
