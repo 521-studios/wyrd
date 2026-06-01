@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import logging
 import sqlite3
 from collections import Counter
 from collections.abc import Iterable
@@ -34,6 +35,8 @@ from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
+
+_logger = logging.getLogger(__name__)
 
 # Bumped when the L4 table shape changes incompatibly. The loader rejects
 # DBs whose schema_version row doesn't match the runtime's expected
@@ -826,6 +829,22 @@ def select_dev_subset(
     # sorts; this guards the contract regardless).
     trimmed_subjects.sort(key=_subject_sort_key)
 
+    # wyrd-9eqk: prune structures that the top-N usage trim left
+    # UNRENDERABLE. select_dev_subset keeps every structure but trims
+    # usages to top-N-by-weight, so a structure whose only filler usage(s)
+    # ranked below the cut is orphaned — at runtime none of its slots can
+    # be filled and it renders an empty name. (welsh hit exactly this until
+    # wyrd-5z5j's bare-bucket fix; the *class* recurs whenever the corpus,
+    # mining, or top_n shifts, so this is a STANDING guard that runs on
+    # every --dev export rather than a one-off fix.) Build the real
+    # per-culture bucket set from the trimmed data and drop structures with
+    # no fillable slot; partially-fillable structures stay (they render a
+    # shorter, non-empty name). Dev-export-only — the full production export
+    # trims nothing, so it never orphans and this is a no-op there. The
+    # runtime MeaningGenerator.select->None (wyrd-cj6f) is the complementary
+    # crash guard; this keeps the dev seed itself empty-name-free.
+    _prune_unrenderable_dev_structures(trimmed_proportions, trimmed_subjects)
+
     # Fantasy + canonical: sort by key so re-runs against the same
     # source pick the same INSERT order across platforms / Python
     # versions, defensive against any future ingester whose dict
@@ -836,6 +855,61 @@ def select_dev_subset(
         dict(sorted(canonical_decompositions.items())),
         trimmed_proportions,
     )
+
+
+def _prune_unrenderable_dev_structures(
+    proportions_by_culture: dict[str, dict[str, Any]],
+    subjects: list[dict[str, Any]],
+) -> None:
+    """wyrd-9eqk: drop fully-unrenderable structures from each culture's
+    ``--dev`` proportions, in place. A structure is unrenderable when NONE
+    of its slots reference a bucket the (already top-N-trimmed) meaning
+    generator can fill — such a structure can only ever render an empty
+    name. Partially-fillable structures are kept (they render a shorter,
+    non-empty name).
+
+    Reuses the real runtime bucket logic — a ``MeaningGenerator`` built
+    from the trimmed usages exposes ``.generators`` (the authoritative
+    bucket set, including wyrd-5z5j's bare-bucket registration), and
+    ``word_to_key`` decodes each encoded structure's slots the same way the
+    runtime does — so no slot-key construction is duplicated here. It filters
+    the encoded structures list directly (no re-encode), and deliberately
+    avoids ``load_proportions`` / ``NameGenerator`` so it doesn't inherit the
+    grammar-filter loud-raise on minimal/test inputs.
+
+    Emits one warning per culture when it drops anything; on a clean build
+    (the expected case) it's silent and a no-op.
+    """
+    from wyrd.generators.kenning.runtime.meaning import load_meanings
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, word_to_key
+
+    meaning_db, tag_db = load_meanings({"subjects": subjects})
+    for culture in sorted(proportions_by_culture):
+        cp = proportions_by_culture[culture]
+        # Build the runtime bucket set exactly as load_proportions does:
+        # multi usages register under their dash-shape key; single usages
+        # also register a bare variant ("single" addkey, wyrd-5z5j).
+        meaning_gen = MeaningGenerator(meaning_db, tag_db, cp.get("usages") or {})
+        meaning_gen.load_parts(cp.get("single_usages") or {}, "single")
+        gens = meaning_gen.generators
+        kept_structs: list[dict[str, Any]] = []
+        dropped = 0
+        for encoded in cp.get("structures") or []:
+            decoded = tuple(word_to_key(w) for w in encoded["words"])
+            if any(slot_key in gens for word in decoded for slot_key in word):
+                kept_structs.append(encoded)
+            else:
+                dropped += 1
+        if dropped:
+            _logger.warning(
+                "wyrd-9eqk: --dev seed dropped %d unrenderable structure(s) for "
+                "culture %r — their filler usage(s) fell below the top-N usage cut, "
+                "so they would render empty names. Seed stays renderable; revisit "
+                "dev_top_n_per_culture if this is unexpected.",
+                dropped,
+                culture,
+            )
+            cp["structures"] = kept_structs
 
 
 def _subject_sort_key(subject: dict[str, Any]) -> tuple:

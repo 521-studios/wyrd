@@ -114,6 +114,104 @@ def test_select_dev_subset_keeps_words_whose_usage_appears_in_any_culture() -> N
     assert [s["words"][0]["modern_usage"] for s in subs_out] == ["caer-"]
 
 
+def test_select_dev_subset_prunes_unrenderable_structure_after_trim(caplog) -> None:
+    """wyrd-9eqk: a structure whose only filler usage is trimmed by the
+    top-N cut would render an empty name. select_dev_subset must drop such
+    fully-unrenderable structures (and warn), while keeping a structure
+    that still has a fillable slot. Guards against the trimming-induced
+    orphan class recurring on a future seed re-export."""
+    import logging
+
+    subjects = [
+        # high-weight pre morpheme — survives top_n=1
+        {
+            "meaning": ["Aa"],
+            "modifier_tags": ["topography"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "Aa-", "old_english": ["aa"]}],
+        },
+        # low-weight bare PERSONAL NAME — trimmed at top_n=1, so the
+        # ('bare','name','single') bucket it would fill goes unbuilt
+        {
+            "meaning": ["Bob"],
+            "modifier_tags": ["male name"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "Bob", "old_english": ["bob"]}],
+        },
+    ]
+    proportions = {
+        "english": {
+            "usages": {"Aa-": 10},
+            "single_usages": {"Aa-": 5, "Bob": 1},
+            "structures": [
+                # partially renderable (pre slot filled by Aa-) — KEEP
+                {"proportion": 10, "words": [[{"location": "pre"}, {"location": "post"}]]},
+                # fully unrenderable once Bob is trimmed — DROP (orphan)
+                {"proportion": 1, "words": [[{"location": "bare", "name": True}]]},
+            ],
+            "tag_marginal": {},
+            "tag_cooccurrence": {},
+            "attested_languages": {},
+        }
+    }
+    with caplog.at_level(
+        logging.WARNING, logger="wyrd.generators.kenning.lexicon.runtime_db_export"
+    ):
+        _, _, _, props_out = select_dev_subset(
+            subjects,
+            fantasy_morphemes={},
+            canonical_decompositions={},
+            proportions_by_culture=proportions,
+            top_n_per_culture=1,
+        )
+    structs = props_out["english"]["structures"]
+    # The bare-name orphan is gone; the partially-renderable pre+post stays.
+    assert {"proportion": 1, "words": [[{"location": "bare", "name": True}]]} not in structs
+    assert any(
+        w == [{"location": "pre"}, {"location": "post"}] for s in structs for w in [s["words"][0]]
+    )
+    assert any("wyrd-9eqk" in r.getMessage() for r in caplog.records)
+
+
+def test_select_dev_subset_keeps_renderable_structures_silently(caplog) -> None:
+    """No-op + silent on a clean build: every structure whose slots are
+    fillable by a kept usage survives, and no wyrd-9eqk warning fires."""
+    import logging
+
+    subjects = [
+        {
+            "meaning": ["Aa"],
+            "modifier_tags": ["topography"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "Aa-", "old_english": ["aa"]}],
+        },
+    ]
+    proportions = {
+        "english": {
+            "usages": {"Aa-": 10},
+            "single_usages": {"Aa-": 5},
+            "structures": [{"proportion": 10, "words": [[{"location": "pre"}]]}],
+            "tag_marginal": {},
+            "tag_cooccurrence": {},
+            "attested_languages": {},
+        }
+    }
+    with caplog.at_level(
+        logging.WARNING, logger="wyrd.generators.kenning.lexicon.runtime_db_export"
+    ):
+        _, _, _, props_out = select_dev_subset(
+            subjects,
+            fantasy_morphemes={},
+            canonical_decompositions={},
+            proportions_by_culture=proportions,
+            top_n_per_culture=1,
+        )
+    assert props_out["english"]["structures"] == [
+        {"proportion": 10, "words": [[{"location": "pre"}]]}
+    ]
+    assert not any("wyrd-9eqk" in r.getMessage() for r in caplog.records)
+
+
 def test_select_dev_subset_passes_fantasy_and_canonical_through_sorted() -> None:
     """Fantasy + canonical decompositions aren't trimmed (they're small
     enough that the seed shouldn't lose coverage of common names) but
