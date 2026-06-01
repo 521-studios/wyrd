@@ -250,6 +250,10 @@ class MeaningGenerator:
         self.meaning_db = meaning_db
         self.tag_db = tag_db
         self.generators: dict[tuple, Generator] = {}
+        # wyrd-cj6f: bucket keys a structure slot referenced but that have
+        # no registered Generator (see `select`). Tracked so the drift
+        # warning fires once per unique key, not once per generation.
+        self._warned_missing_buckets: set[tuple] = set()
         # D5-2 era-filter cache: era_range tuple → frozenset of allowed
         # usages, OR None when the era covers every usage (the
         # bit-stable fast-path signal — see keep_keys_for_era). Keyed by
@@ -458,7 +462,36 @@ class MeaningGenerator:
         keep_keys: frozenset[str] | None = None,
         key_boost: dict[str, float] | None = None,
     ):
-        return self.generators[key].select(
+        # wyrd-cj6f: a structure slot can reference a (position, tag,
+        # count) bucket that has no registered Generator — structures are
+        # kept in full while the usage(s) that would populate the bucket
+        # can be absent (bundle/proportions drift) or trimmed out (the
+        # --dev seed keeps top-N usages but all structures). Pre-fix this
+        # KeyError'd mid-generation (welsh proportions, seed 806). Treat a
+        # missing bucket like an empty one: return None, which the callers
+        # (`_select_no_tag` / `_select_tag`) already handle by leaving that
+        # element unfilled. Mirrors `load_parts`' wyrd-van9 skip-don't-
+        # crash policy and `bucket_keys`' existing `.get()`.
+        gen = self.generators.get(key)
+        if gen is None:
+            # Observability per DECISIONS.md D24: a returned-None here means
+            # a structure slot rendered nothing (degraded / empty element).
+            # Warn ONCE per unique key (bulk generation calls select per
+            # slot per name). This is a DISTINCT drift dimension from
+            # `load_parts`' wyrd-van9 warning — that one catches a
+            # proportions usage with no Meaning; this catches a structure
+            # slot whose bucket was never built — so it needs its own
+            # message, not the constructor's.
+            if key not in self._warned_missing_buckets:
+                self._warned_missing_buckets.add(key)
+                _logger.warning(
+                    "wyrd-cj6f: MeaningGenerator: structure slot references "
+                    "bucket %r with no registered Generator; rendering an "
+                    "empty element. Re-emit the bundle to clear the drift.",
+                    key,
+                )
+            return None
+        return gen.select(
             rng,
             *tags,
             novelty=novelty,
