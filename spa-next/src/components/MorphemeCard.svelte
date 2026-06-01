@@ -182,6 +182,11 @@
     const activeKey = accentFold(
       renderingFor(active.lang, active.form).original_script || active.form,
     );
+    // The surviving form of active.form's fold-group folds to the same key,
+    // so this find matches it (active.form itself if it survived, else its
+    // deduped twin). Only a degenerate all-dashes form yields activeKey ===
+    // '' with no match → fall back to active.form (no row highlights, but no
+    // wrong-row highlight either).
     const form = entry[1].find(
       (f) => accentFold(renderingFor(active.lang, f).original_script || f) === activeKey,
     );

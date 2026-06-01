@@ -47,7 +47,12 @@ export function activeRendering(m) {
     const r = matchIn(m._lang);
     if (r) return r;
   }
-  // 2. canonical: a language in `sources` (the etymon this surface came from)
+  // 2. canonical: a language in `sources` (the etymon this surface came
+  //    from). `sources` is the single top-ranked sibling's languages
+  //    (proportions.to_dict: `first.sources`) — in practice one language
+  //    key, so first-key-wins is deterministic; if a future bundle ever
+  //    carries cognate sources in several languages they're the SAME
+  //    etymon, so any of them is an acceptable canonical pick.
   for (const lang of Object.keys(m.sources || {})) {
     const r = matchIn(lang);
     if (r) return r;
