@@ -278,6 +278,12 @@ def _meanings_from_supplied_words(
                         norm_index.setdefault(_norm(key), ms)
                 candidates = norm_index.get(_norm(usage), [])
             if candidates:
+                # NOTE: to_dict resolves the candidate set via _resolve_surface
+                # (which unions all dash-variant keys for a bare surface) while
+                # this path uses exact get() + the norm_index fallback. For the
+                # typical one-dash-variant-per-morpheme bundle these match; a
+                # morpheme stored under several distinct dash-variants could
+                # diverge — a future pass could unify both on _resolve_surface.
                 ranked = _rank_siblings(candidates)
                 word_meanings.append(ranked[0] if ranked else candidates[0])
             else:
