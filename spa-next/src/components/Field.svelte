@@ -13,6 +13,7 @@
   // values persist across generator switches (paramsByGenerator stores
   // per-generator).
   import { appState } from '../lib/appState.svelte.js';
+  import { seedDefault } from '../lib/featureFlags.js';
 
   let { fieldKey, prop } = $props();
 
@@ -36,8 +37,12 @@
     const params = appState.currentParams;
     if (!params) return;
     if (params[fieldKey] === undefined) {
-      if (prop.default !== undefined) {
-        params[fieldKey] = prop.default;
+      // wyrd-0gou: an env-set default-override (config.defaults[key]) wins
+      // over the schema default; seedDefault returns undefined when neither
+      // is set, falling through to the type-based empty value below.
+      const seed = seedDefault(appState.config, fieldKey, prop);
+      if (seed !== undefined) {
+        params[fieldKey] = seed;
       } else if (prop.type === 'array') {
         params[fieldKey] = [];
       } else if (prop.type === 'boolean') {

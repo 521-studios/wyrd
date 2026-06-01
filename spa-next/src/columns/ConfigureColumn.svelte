@@ -11,6 +11,7 @@
   import { appState } from '../lib/appState.svelte.js';
   import { rollCurrent } from '../lib/roll.js';
   import { partitionFields } from '../lib/headlineFields.js';
+  import { fieldEnabled, flagOn, visibleCultures } from '../lib/featureFlags.js';
   import Field from '../components/Field.svelte';
   import MoodTagComposer from '../components/MoodTagComposer.svelte';
 
@@ -31,7 +32,8 @@
 
   let fieldPartition = $derived.by(() => {
     const gen = appState.selectedGenerator;
-    if (!gen) return { headline: [], advanced: [] };
+    if (!gen) return { headline: [], advanced: [], composerVisible: false };
+    const cfg = appState.config;
     const part = partitionFields(gen.name, gen.input_schema);
     // wyrd-vslw: when the schema has a mood field with x-pick-from
     // OR a tags field with items.enum, the MoodTagComposer handles
@@ -43,10 +45,27 @@
     const drop = new Set();
     if (moodComposable) drop.add('mood');
     if (tagsComposable) drop.add('tags');
+    // wyrd-0gou: headline fields always show, but the culture select is
+    // filtered to english (guaranteed) + flagged-on cultures.
+    const headline = part.headline
+      .filter(([k]) => !drop.has(k))
+      .map(([k, p]) =>
+        k === 'culture' && Array.isArray(p.enum)
+          ? [k, { ...p, enum: visibleCultures(cfg, p.enum) }]
+          : [k, p],
+      );
+    // wyrd-0gou: each advanced option is gated by its feature flag (default
+    // off). When none are on the list is empty and the Advanced panel below
+    // doesn't render at all.
+    const advanced = part.advanced.filter(([k]) => !drop.has(k) && fieldEnabled(cfg, k));
+    // wyrd-0gou: the moods/tags composer trigger shows only when the schema
+    // declares the control AND its feature flag is on.
+    const composerVisible =
+      (moodComposable && flagOn(cfg, 'moods')) || (tagsComposable && flagOn(cfg, 'tags'));
     return {
-      headline: part.headline.filter(([k]) => !drop.has(k)),
-      advanced: part.advanced.filter(([k]) => !drop.has(k)),
-      composerVisible: moodComposable || tagsComposable,
+      headline,
+      advanced,
+      composerVisible,
       composerSummary: summarizeComposer(),
     };
   });

@@ -88,6 +88,13 @@ class AppState {
     return this.results[this.currentResultIndex] || null;
   }
 
+  /** wyrd-0gou: env-resolved SPA feature-flag config from the manifest
+   *  ({all, flags, defaults}), or null on a legacy manifest with no config
+   *  block. Consumers pass this to lib/featureFlags helpers. */
+  get config() {
+    return this.manifest?.config || null;
+  }
+
   /** Look up the currently-selected generator's manifest entry. */
   get selectedGenerator() {
     if (!this.manifest || !this.selectedGeneratorName) return null;
