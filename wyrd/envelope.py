@@ -14,8 +14,13 @@ def envelope(
     parameters: dict[str, Any],
     seed: int,
     results: list[GenerationResult],
+    bundle_version: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    return {
+    # wyrd-dsl5: stamp the data/bundle version the generator ran against so
+    # the SPA can echo it back on a defect report (reproducibility). Omitted
+    # when the generator has no versioned data layer (runtime_version() is
+    # None), keeping the shape uniform across generators.
+    out: dict[str, Any] = {
         "generator": generator,
         "parameters": parameters,
         "seed": seed,
@@ -39,3 +44,6 @@ def envelope(
             for r in results
         ],
     }
+    if bundle_version is not None:
+        out["bundle_version"] = bundle_version
+    return out

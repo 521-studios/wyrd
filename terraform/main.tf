@@ -142,6 +142,60 @@ resource "aws_iam_role_policy" "lambda_runtime_db_read" {
   policy = data.aws_iam_policy_document.runtime_db_read.json
 }
 
+# ─── DynamoDB: defective-name reports (wyrd-dsl5) ───────────────────────────
+#
+# A user flags a generated name as defective in the SPA; the Lambda writes a
+# report here. The operator triage CLI (`wyrd defects list/show/accept/
+# dismiss`) reads + updates these rows under an admin profile.
+#
+# Hash key `id` (uuid). GSI `status-created_at-index` lets the CLI pull "all
+# new reports, newest first" without a table scan — status is the partition,
+# created_at (ISO-8601, lexicographically sortable) the range. PAY_PER_REQUEST
+# because volume is human-paced (a GM clicking a flag), not throughput-bound.
+resource "aws_dynamodb_table" "defects" {
+  name         = "521studios-${var.env}-wyrd-defects"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+  attribute {
+    name = "status"
+    type = "S"
+  }
+  attribute {
+    name = "created_at"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "status-created_at-index"
+    hash_key        = "status"
+    range_key       = "created_at"
+    projection_type = "ALL"
+  }
+
+  tags = local.tags
+}
+
+# The Lambda only WRITES reports (PutItem). Triage reads/updates happen from
+# the operator CLI under an admin profile, not the function role — so the
+# function gets the narrowest grant that lets a flag succeed.
+data "aws_iam_policy_document" "defects_write" {
+  statement {
+    actions   = ["dynamodb:PutItem"]
+    resources = [aws_dynamodb_table.defects.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "lambda_defects_write" {
+  name   = "${local.name}-${var.env}-defects-write"
+  role   = aws_iam_role.lambda.id
+  policy = data.aws_iam_policy_document.defects_write.json
+}
+
 # ─── Lambda function ────────────────────────────────────────────────────────
 
 resource "aws_lambda_function" "api" {
@@ -168,6 +222,7 @@ resource "aws_lambda_function" "api" {
     variables = {
       ENV                    = var.env
       WYRD_RUNTIME_DB_BUCKET = aws_s3_bucket.runtime_db.bucket
+      WYRD_DEFECTS_TABLE     = aws_dynamodb_table.defects.name
       LOG_LEVEL              = var.log_level
     }
   }

@@ -1,0 +1,275 @@
+"""Tests for the defective-name reporting subsystem (wyrd-dsl5): the
+``wyrd.defects`` DynamoDB module, the ``/api/defects`` endpoint, and the
+``wyrd defects`` triage CLI. Uses moto for offline DynamoDB — no real AWS,
+no live DB (project rule: tests use fixtures/fakes).
+"""
+
+from __future__ import annotations
+
+import boto3
+import pytest
+from click.testing import CliRunner
+from moto import mock_aws
+
+from wyrd import defects
+from wyrd.app import create_app
+from wyrd.cli_defects import defects as defects_cli
+
+TABLE = "521studios-test-wyrd-defects"
+
+_SAMPLE = {
+    "generator": "kenning",
+    "reason": "ungrammatical compound — 'Ton North' reads backwards",
+    "result": "Ton North",
+    "seed": 1234567890,
+    "parameters": {"culture": "english", "count": 5},
+    "explanation": "Ton + North",
+    "components": [{"word": "Ton North", "parts": []}],
+    "morphemes_by_word": [[{"usage": "Ton", "meanings": ["enclosure"]}]],
+    "bundle_version": {"built_at": "2026-05-30T00:00:00Z", "schema_version": "2"},
+}
+
+
+@pytest.fixture
+def defects_table(monkeypatch):
+    """moto DynamoDB fake + the defects table (hash id + status GSI).
+
+    Fake AWS creds + /dev/null config so boto3.Session() doesn't try to
+    refresh the operator's SSO under moto (mirrors the bulk-sources test
+    fixture). Sets WYRD_DEFECTS_TABLE so resolve_table_name finds it without
+    threading an env through every call."""
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "moto-test")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "moto-test")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-2")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.delenv("AWS_SESSION_TOKEN", raising=False)
+    monkeypatch.setenv("AWS_CONFIG_FILE", "/dev/null")
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", "/dev/null")
+    monkeypatch.setenv(defects.ENV_TABLE, TABLE)
+    with mock_aws():
+        ddb = boto3.client("dynamodb", region_name="us-east-2")
+        ddb.create_table(
+            TableName=TABLE,
+            AttributeDefinitions=[
+                {"AttributeName": "id", "AttributeType": "S"},
+                {"AttributeName": "status", "AttributeType": "S"},
+                {"AttributeName": "created_at", "AttributeType": "S"},
+            ],
+            KeySchema=[{"AttributeName": "id", "KeyType": "HASH"}],
+            GlobalSecondaryIndexes=[
+                {
+                    "IndexName": defects.STATUS_INDEX,
+                    "KeySchema": [
+                        {"AttributeName": "status", "KeyType": "HASH"},
+                        {"AttributeName": "created_at", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        ddb.get_waiter("table_exists").wait(TableName=TABLE)
+        yield TABLE
+
+
+# --- module: validation + serialization ------------------------------------
+
+
+def test_record_defect_rejects_blank_reason():
+    with pytest.raises(defects.DefectsError):
+        defects.record_defect({**_SAMPLE, "reason": "   "}, table_name=TABLE)
+
+
+def test_resolve_table_name_prefers_env(monkeypatch):
+    monkeypatch.setenv(defects.ENV_TABLE, "explicit-table")
+    assert defects.resolve_table_name(env="staging") == "explicit-table"
+
+
+def test_resolve_table_name_falls_back_to_env_convention(monkeypatch):
+    monkeypatch.delenv(defects.ENV_TABLE, raising=False)
+    assert defects.resolve_table_name(env="production") == "521studios-production-wyrd-defects"
+
+
+def test_resolve_table_name_unset_without_env_raises(monkeypatch):
+    monkeypatch.delenv(defects.ENV_TABLE, raising=False)
+    with pytest.raises(defects.DefectsError):
+        defects.resolve_table_name()
+
+
+def test_to_item_blobs_go_to_payload_seed_is_string():
+    item = defects._to_item({**_SAMPLE, "id": "abc", "status": "new", "created_at": "t"})
+    # Query keys are native attributes.
+    assert item["id"] == "abc"
+    assert item["generator"] == "kenning"
+    assert item["name"] == "Ton North"
+    assert item["seed"] == "1234567890"  # stringified to dodge Decimal coercion
+    # Nested blobs are JSON-encoded under payload, not top-level.
+    assert "parameters" not in item
+    assert "payload" in item
+    assert "morphemes_by_word" in item["payload"]
+
+
+def test_from_item_reexpands_payload():
+    record = {**_SAMPLE, "id": "abc", "status": "new", "created_at": "t"}
+    flat = defects._from_item(defects._to_item(record))
+    assert flat["parameters"] == _SAMPLE["parameters"]
+    assert flat["morphemes_by_word"] == _SAMPLE["morphemes_by_word"]
+    assert flat["bundle_version"] == _SAMPLE["bundle_version"]
+    assert "payload" not in flat
+
+
+# --- module: round-trip against moto ----------------------------------------
+
+
+def test_record_then_get_roundtrip(defects_table):
+    created = defects.record_defect(_SAMPLE, env="staging")
+    assert created["status"] == defects.STATUS_NEW
+    assert created["id"]
+    assert created["created_at"]
+
+    fetched = defects.get_defect(created["id"], env="staging")
+    assert fetched is not None
+    assert fetched["generator"] == "kenning"
+    assert fetched["name"] == "Ton North"
+    assert fetched["reason"].startswith("ungrammatical")
+    assert fetched["parameters"] == _SAMPLE["parameters"]
+    assert fetched["bundle_version"]["schema_version"] == "2"
+
+
+def test_get_missing_returns_none(defects_table):
+    assert defects.get_defect("does-not-exist", env="staging") is None
+
+
+def test_list_defaults_to_new_newest_first(defects_table):
+    a = defects.record_defect({**_SAMPLE, "result": "A"}, env="staging")
+    b = defects.record_defect({**_SAMPLE, "result": "B"}, env="staging")
+    rows = defects.list_defects(env="staging")
+    ids = [r["id"] for r in rows]
+    assert a["id"] in ids and b["id"] in ids
+    assert all(r["status"] == "new" for r in rows)
+
+
+def test_list_filters_by_generator(defects_table):
+    defects.record_defect({**_SAMPLE, "generator": "kenning"}, env="staging")
+    defects.record_defect({**_SAMPLE, "generator": "other-gen"}, env="staging")
+    only_other = defects.list_defects(env="staging", generator="other-gen")
+    assert only_other and all(r["generator"] == "other-gen" for r in only_other)
+
+
+def test_accept_sets_status_ticket_and_triaged_at(defects_table):
+    created = defects.record_defect(_SAMPLE, env="staging")
+    updated = defects.update_status(
+        created["id"], defects.STATUS_ACCEPTED, ticket="wyrd-zzzz", note="real bug", env="staging"
+    )
+    assert updated["status"] == "accepted"
+    assert updated["ticket"] == "wyrd-zzzz"
+    assert updated["triage_note"] == "real bug"
+    assert updated["triaged_at"]
+    # No longer surfaces under the default 'new' list.
+    assert created["id"] not in [r["id"] for r in defects.list_defects(env="staging")]
+    assert created["id"] in [
+        r["id"] for r in defects.list_defects(env="staging", status="accepted")
+    ]
+
+
+def test_dismiss_sets_status(defects_table):
+    created = defects.record_defect(_SAMPLE, env="staging")
+    updated = defects.update_status(
+        created["id"], defects.STATUS_DISMISSED, note="duplicate", env="staging"
+    )
+    assert updated["status"] == "dismissed"
+
+
+def test_update_unknown_id_raises(defects_table):
+    with pytest.raises(defects.DefectsError):
+        defects.update_status("nope", defects.STATUS_ACCEPTED, env="staging")
+
+
+def test_update_to_new_is_rejected(defects_table):
+    created = defects.record_defect(_SAMPLE, env="staging")
+    with pytest.raises(defects.DefectsError):
+        defects.update_status(created["id"], "new", env="staging")
+
+
+# --- /api/defects endpoint --------------------------------------------------
+
+
+def test_endpoint_rejects_missing_reason(defects_table):
+    app = create_app()
+    with app.test_client() as client:
+        resp = client.post("/api/defects", json={"generator": "kenning", "result": "X"})
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "bad_report"
+
+
+def test_endpoint_rejects_missing_generator(defects_table):
+    app = create_app()
+    with app.test_client() as client:
+        resp = client.post("/api/defects", json={"reason": "bad", "result": "X"})
+    assert resp.status_code == 400
+
+
+def test_endpoint_records_valid_report(defects_table):
+    app = create_app()
+    with app.test_client() as client:
+        resp = client.post("/api/defects", json=_SAMPLE)
+    assert resp.status_code == 201, resp.get_data(as_text=True)
+    body = resp.get_json()
+    assert body["status"] == "new"
+    stored = defects.get_defect(body["id"], env="staging")
+    assert stored["name"] == "Ton North"
+    assert stored["reason"].startswith("ungrammatical")
+
+
+def test_endpoint_503_when_table_unconfigured(monkeypatch):
+    # No WYRD_DEFECTS_TABLE and no env arg → resolve_table_name raises →
+    # the handler maps DefectsError to 503 rather than 500.
+    monkeypatch.delenv(defects.ENV_TABLE, raising=False)
+    app = create_app()
+    with app.test_client() as client:
+        resp = client.post("/api/defects", json=_SAMPLE)
+    assert resp.status_code == 503
+    assert resp.get_json()["error"] == "defects_unavailable"
+
+
+# --- wyrd defects CLI -------------------------------------------------------
+# --profile "" → default credential chain (no named profile) so moto works;
+# WYRD_DEFECTS_TABLE (set by the fixture) overrides the per-env table name.
+
+
+def test_cli_list_shows_new_report(defects_table):
+    created = defects.record_defect(_SAMPLE, env="staging")
+    runner = CliRunner()
+    result = runner.invoke(defects_cli, ["list", "--profile", "", "--json"])
+    assert result.exit_code == 0, result.output
+    assert created["id"] in result.output
+
+
+def test_cli_accept_moves_to_accepted(defects_table):
+    created = defects.record_defect(_SAMPLE, env="staging")
+    runner = CliRunner()
+    result = runner.invoke(
+        defects_cli, ["accept", created["id"], "--profile", "", "--ticket", "wyrd-aaaa"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "accepted" in result.output
+    assert defects.get_defect(created["id"], env="staging")["status"] == "accepted"
+
+
+def test_cli_dismiss_moves_to_dismissed(defects_table):
+    created = defects.record_defect(_SAMPLE, env="staging")
+    runner = CliRunner()
+    result = runner.invoke(
+        defects_cli, ["dismiss", created["id"], "--profile", "", "--reason", "dup"]
+    )
+    assert result.exit_code == 0, result.output
+    assert defects.get_defect(created["id"], env="staging")["status"] == "dismissed"
+
+
+def test_cli_show_renders_reproduce_block(defects_table):
+    created = defects.record_defect(_SAMPLE, env="staging")
+    runner = CliRunner()
+    result = runner.invoke(defects_cli, ["show", created["id"], "--profile", ""])
+    assert result.exit_code == 0, result.output
+    assert "reproduce" in result.output
+    assert "kenning" in result.output

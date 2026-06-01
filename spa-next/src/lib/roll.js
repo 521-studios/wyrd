@@ -20,6 +20,9 @@ export async function rollCurrent() {
     );
     appState.results = envelope.results;
     appState.resultsGenerator = envelope.generator;
+    // wyrd-dsl5: stash roll metadata for defect reports (not for replay).
+    appState.resultsSeed = envelope.seed ?? null;
+    appState.resultsBundleVersion = envelope.bundle_version ?? null;
     appState.currentResultIndex = null;
   } catch (err) {
     appState.rollError = err.message;

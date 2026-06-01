@@ -22,3 +22,8 @@ output "spa_bucket_regional_domain" {
   description = "wyrd SPA S3 bucket regional domain (used as CloudFront origin)"
   value       = aws_s3_bucket.spa.bucket_regional_domain_name
 }
+
+output "defects_table_name" {
+  description = "DynamoDB table holding defective-name reports (wyrd-dsl5)"
+  value       = aws_dynamodb_table.defects.name
+}

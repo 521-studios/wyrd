@@ -51,7 +51,8 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.4",
     # wyrd-0vj3: moto for offline S3 testing in bulk_sources tests.
-    "moto[s3]>=5.0",
+    # wyrd-dsl5: moto[dynamodb] for the defects-table tests (defects + CLI).
+    "moto[s3,dynamodb]>=5.0",
     "black>=24.0",
 ]
 
