@@ -212,6 +212,76 @@ def test_select_dev_subset_keeps_renderable_structures_silently(caplog) -> None:
     assert not any("wyrd-9eqk" in r.getMessage() for r in caplog.records)
 
 
+def test_select_dev_subset_prune_preserves_order_and_is_per_culture(caplog) -> None:
+    """wyrd-9eqk: the prune is an order-preserving filter (the committed
+    seed must stay byte-stable) and per-culture isolated. Keep A, drop the
+    orphan B, keep C → surviving list is exactly [A, C] in source order;
+    a second clean culture is untouched and draws no warning; the warning
+    names only the pruned culture."""
+    import logging
+
+    subjects = [
+        {
+            "meaning": ["Aa"],
+            "modifier_tags": ["topography"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "Aa-", "old_english": ["aa"]}],
+        },
+        {
+            "meaning": ["Bob"],
+            "modifier_tags": ["male name"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "Bob", "old_english": ["bob"]}],
+        },
+        {
+            "meaning": ["Caer"],
+            "modifier_tags": ["topography"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "caer-", "celtic_mix": ["caer"]}],
+        },
+    ]
+    struct_a = {"proportion": 9, "words": [[{"location": "pre"}, {"location": "post"}]]}
+    struct_b = {"proportion": 2, "words": [[{"location": "bare", "name": True}]]}
+    struct_c = {"proportion": 5, "words": [[{"location": "pre"}]]}
+    proportions = {
+        "english": {
+            "usages": {"Aa-": 10},
+            "single_usages": {"Aa-": 5, "Bob": 1},  # Bob trimmed at top_n=1
+            "structures": [struct_a, struct_b, struct_c],  # B is the orphan
+            "tag_marginal": {},
+            "tag_cooccurrence": {},
+            "attested_languages": {},
+        },
+        "welsh": {
+            "usages": {"caer-": 7},
+            "single_usages": {"caer-": 3},
+            "structures": [{"proportion": 7, "words": [[{"location": "pre"}]]}],  # renderable
+            "tag_marginal": {},
+            "tag_cooccurrence": {},
+            "attested_languages": {},
+        },
+    }
+    with caplog.at_level(
+        logging.WARNING, logger="wyrd.generators.kenning.lexicon.runtime_db_export"
+    ):
+        _, _, _, props_out = select_dev_subset(
+            subjects,
+            fantasy_morphemes={},
+            canonical_decompositions={},
+            proportions_by_culture=proportions,
+            top_n_per_culture=1,
+        )
+    # Order preserved: orphan B dropped, A and C kept in their source order.
+    assert props_out["english"]["structures"] == [struct_a, struct_c]
+    # Other culture untouched.
+    assert props_out["welsh"]["structures"] == [{"proportion": 7, "words": [[{"location": "pre"}]]}]
+    # Exactly one warning, naming the pruned culture and not the clean one.
+    cj_warnings = [r.getMessage() for r in caplog.records if "wyrd-9eqk" in r.getMessage()]
+    assert len(cj_warnings) == 1
+    assert "'english'" in cj_warnings[0]
+    assert "welsh" not in cj_warnings[0]
+
+
 def test_select_dev_subset_passes_fantasy_and_canonical_through_sorted() -> None:
     """Fantasy + canonical decompositions aren't trimmed (they're small
     enough that the seed shouldn't lose coverage of common names) but
