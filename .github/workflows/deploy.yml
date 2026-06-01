@@ -11,6 +11,18 @@ on:
         type: choice
         options: [staging, production]
 
+# wyrd-8f1p: serialize deploys per environment so two near-simultaneous
+# pushes to main (or a push racing a dispatch) don't run overlapping
+# `terraform apply` + Lambda `UpdateFunctionCode` against the same function —
+# which fails the second with a 409 ResourceConflictException. The group key
+# resolves to the target env: push → 'staging', dispatch → the chosen input.
+# cancel-in-progress: false lets an in-flight apply/update finish (never
+# cancelled mid-deploy); a newer run queues and supersedes any other pending
+# one, so the latest code still deploys.
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write  # OIDC
