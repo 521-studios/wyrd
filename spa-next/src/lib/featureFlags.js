@@ -61,9 +61,12 @@ export function visibleCultures(config, cultureEnum) {
 }
 
 /** Coerce an env-string default override to the field's schema type (env
- *  values arrive as strings; the schema default is already typed). Arrays
- *  aren't supported as default overrides — they fall through unchanged. */
+ *  values arrive as strings; the schema default is already typed). Array
+ *  fields can't be seeded from a scalar env string, so they return undefined
+ *  (caller falls back to the schema default / empty array) rather than
+ *  seeding a raw string into an array slot. */
 export function coerceToType(raw, prop) {
+  if (prop?.type === 'array') return undefined;
   if (prop?.type === 'integer' || prop?.type === 'number') {
     // A bad/empty numeric env (e.g. WYRD_DEFAULT_COUNT=abc, or '') would
     // otherwise yield NaN / 0 and silently seed a junk value (NaN serializes

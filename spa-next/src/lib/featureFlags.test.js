@@ -106,6 +106,10 @@ describe('coerceToType', () => {
   it('passes strings through unchanged', () => {
     expect(coerceToType('english', { type: 'string' })).toBe('english');
   });
+
+  it('returns undefined for array fields (no scalar string into an array slot)', () => {
+    expect(coerceToType('harsh', { type: 'array' })).toBeUndefined();
+  });
 });
 
 describe('seedDefault (override > schema default)', () => {
