@@ -19,7 +19,7 @@
   import MorphemeCard from '../components/MorphemeCard.svelte';
   import TransformStack from '../components/TransformStack.svelte';
   import DefectModal from '../components/DefectModal.svelte';
-  import { accentedUsage } from '../lib/accents.js';
+  import { upgradeAccents } from '../lib/accents.js';
   // wyrd-8jjx: SaveWorkspaceButton + ShareWorkspaceButton moved to
   // the Header (universal across workspaces). Components stay in
   // the tree for potential reuse but no longer rendered here.
@@ -55,23 +55,9 @@
 
   const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
 
-  // wyrd-de5t: accentedUsage moved to lib/accents.js so the Output column
-  // (col 2) shares the exact same accent-upgrade logic.
-
-  function upgradeAccents(mbw) {
-    let changed = false;
-    const words = mbw.map((word) =>
-      word.map((m) => {
-        const acc = accentedUsage(m);
-        if (acc && acc !== m.usage) {
-          changed = true;
-          return { ...m, usage: acc };
-        }
-        return m;
-      }),
-    );
-    return { words, changed };
-  }
+  // wyrd-de5t: upgradeAccents/accentedUsage moved to lib/accents.js so the
+  // Output column (col 2) shares the exact same accent-upgrade logic and the
+  // two columns agree on the accented surfaces + name.
 
   // The "original" state the pipeline feeds — the col-2 selection, with
   // accents applied by default (the user's "show hȳ, not hy" ask). The

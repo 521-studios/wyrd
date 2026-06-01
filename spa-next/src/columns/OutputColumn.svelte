@@ -9,7 +9,7 @@
     representativeMeanings,
     isNameMorpheme,
   } from '../lib/morphemeGloss.js';
-  import { accentedUsage } from '../lib/accents.js';
+  import { accentedUsage, accentedName } from '../lib/accents.js';
 
   function selectResult(i) {
     appState.currentResultIndex =
@@ -53,7 +53,7 @@
               class:selected={appState.currentResultIndex === i}
               onclick={() => selectResult(i)}
             >
-              <span class="name">{r.result}</span>
+              <span class="name">{accentedName(r)}</span>
               {#if r.morphemes_by_word?.length}
                 <span class="etymology">
                   {#each r.morphemes_by_word as word}
