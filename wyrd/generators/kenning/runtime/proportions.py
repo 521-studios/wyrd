@@ -1742,6 +1742,16 @@ class NewName:
                     renderings = _collect_renderings(ranked)
                     if renderings:
                         morpheme["renderings"] = renderings
+                    # wyrd-bvwu: carry the morpheme's scholarly citations
+                    # (source_ids, wyrd-9kh.1) so the SPA inspector can
+                    # surface them in an expandable view. Sparse — only
+                    # when non-empty — matching renderings, so rando-port-
+                    # only morphemes don't carry an empty list. components()
+                    # already exposes this; to_dict (morphemes_by_word, what
+                    # the cards iterate) didn't until now.
+                    citations = _collect_citations(ranked)
+                    if citations:
+                        morpheme["citations"] = citations
                 # D18 variant / D8 inflection substitute if present
                 if self.rendered is not None and self.rendered[wi][ei] is not None:
                     morpheme["rendered"] = self.rendered[wi][ei]

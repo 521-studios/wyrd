@@ -95,21 +95,49 @@
       ...Object.keys(renderings),
     ]);
     const entries = [...langs].map((lang) => {
-      // Dedup forms that collapse to the same normalized key (e.g.
-      // "bere" and "-bere") so a morpheme doesn't show — or highlight —
-      // the same form twice. First occurrence wins (sources before
-      // rendering keys).
-      const seen = new Set();
-      const forms = [];
+      // wyrd-0h96: dedup forms that collapse to the same DISPLAY surface,
+      // not just the same raw key. A row renders its accented
+      // original_script when present (e.g. form "tun" displays as
+      // "tūn (tun)"), so a plain "tūn" form and a "tun" form whose
+      // original_script is "tūn" are the SAME variant shown twice. Key on
+      // the displayed surface (original_script || form) to collapse them.
+      // Genuinely-distinct forms ("hy" vs an accented "hȳ") still differ
+      // and stay separate, so the accent-upgrade swap remains available.
+      //
+      // On collision, keep the form whose rendering carries data
+      // (IPA/original_script/reader) so we don't drop the row's
+      // pronunciation by surviving the bare lemma over its rendered twin.
+      const byKey = new Map(); // displayKey -> { form, rich }
       for (const f of [
         ...(sources[lang] || []),
         ...Object.keys(renderings[lang] || {}),
       ]) {
-        const k = norm(f);
-        if (!k || seen.has(k)) continue;
-        seen.add(k);
-        forms.push(f);
+        const r = renderingFor(lang, f);
+        const k = norm(r.original_script || f);
+        if (!k) continue;
+        // "rich" = the row would render distinct data: real IPA / reader, or
+        // an original_script that actually DIFFERS from the form (a plain
+        // form whose original_script === itself renders no differently, so
+        // it isn't rich and shouldn't block upgrading to a transliterated
+        // twin that carries IPA).
+        const rich = !!(
+          r.ipa ||
+          (r.original_script && r.original_script !== f) ||
+          r.reader_pronunciation
+        );
+        const existing = byKey.get(k);
+        if (!existing) {
+          byKey.set(k, { form: f, rich });
+        } else if (rich && !existing.rich) {
+          existing.form = f; // upgrade to the form that carries rendering data
+          existing.rich = true;
+        }
+        // When two DISTINCT forms are both rich and share a display key,
+        // first-seen wins (sources before rendering keys). Today's data has
+        // at most one rich twin per surface, so this is a documented
+        // assumption, not an observed case.
       }
+      const forms = [...byKey.values()].map((v) => v.form);
       return [lang, forms];
     });
     entries.sort(([a], [b]) => {
@@ -196,6 +224,20 @@
         <span class="tag">{tag}</span>
       {/each}
     </p>
+  {/if}
+
+  {#if morpheme.citations?.length}
+    <!-- wyrd-bvwu: scholarly attestations (source_ids, wyrd-9kh.1) surfaced
+         on demand — collapsed by default so they don't clutter the card,
+         expandable to view which sources attest this morpheme. -->
+    <details class="citations">
+      <summary>Citations ({morpheme.citations.length})</summary>
+      <ul>
+        {#each morpheme.citations as src}
+          <li>{src}</li>
+        {/each}
+      </ul>
+    </details>
   {/if}
 
   {#if !usageInForms}
@@ -440,5 +482,31 @@
     color: var(--fg-muted);
     font-size: 10px;
     font-style: italic;
+  }
+  /* wyrd-bvwu: collapsed-by-default citations disclosure. */
+  .citations {
+    margin: 0 0 10px;
+  }
+  .citations summary {
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .citations summary:hover {
+    color: var(--accent);
+  }
+  .citations ul {
+    margin: 6px 0 0;
+    padding-left: 16px;
+    list-style: disc;
+  }
+  .citations li {
+    font-size: 11px;
+    color: var(--fg-muted);
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    line-height: 1.5;
   }
 </style>
