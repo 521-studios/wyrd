@@ -375,6 +375,17 @@ class Meaning:
     def is_saint(self):
         return "saint" in self.tags
 
+    def is_given_name(self):
+        """True when tagged as a personal GIVEN name (male/female). Given names
+        (`John`, `Mary`, `Edmund`) dangle awkwardly as a bare place-name element
+        — a real toponym either composes them (`Edmund`+`-ton`) or marks a
+        dedication (`St John`). FAMILY names (`Smith`, Norman manorial families)
+        are NOT given names: they form legitimate manorial/toponymic places, so
+        they're excluded here. Used (alongside is_saint) by the base-pool
+        exclusion (wyrd-g1hj) to keep pure given-name etymons out of plain
+        generation."""
+        return any(tag in ("male name", "female name") for tag in self.tags)
+
     def is_pure_proper_noun(self):
         """True when this is name/saint-tagged and carries NO common-noun tag
         — a personal name / saint / synthesized saint-subject with no

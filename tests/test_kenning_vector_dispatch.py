@@ -521,10 +521,13 @@ def test_select_via_vector_saint_filter_matches_legacy_literal_usage_only():
     # the Saint- prefix form), so the slot key is ("bare", "saint", "single").
     structs = {((("bare", "saint", "single"),),): 1}
     name_gen = _build_synthetic_vector_name_gen(structs, db)
-    # Over many seeds, only Saint- should ever fill the saint slot
-    # — never Andrew-. NewName.name is list-of-words; the slot
-    # struct is a 1-word 1-element compound so name[0][0] is the
-    # picked morpheme's usage.
+    # Over many seeds, only the saint morpheme should ever fill the saint slot
+    # — never Andrew-. NewName.name is list-of-words; the slot struct is a
+    # 1-word 1-element compound so name[0][0] is the picked morpheme rendered
+    # at its slot-derived position. wyrd-g1hj: the vector path now emits the
+    # POSITION-FORM (not the stored ``Saint-`` variant), and a ("bare", …) slot
+    # renders bare → ``Saint`` (Andrew would render ``Andrew``); we assert the
+    # saint morpheme is the only one admitted.
     picked: set[str] = set()
     for seed in range(20):
         result = name_gen.select_via_vector(
@@ -535,7 +538,7 @@ def test_select_via_vector_saint_filter_matches_legacy_literal_usage_only():
         if result is None:
             continue
         picked.add(result.name[0][0])
-    assert picked == {"Saint-"}, f"saint slot admitted non-literal usage: {picked}"
+    assert picked == {"Saint"}, f"saint slot admitted non-literal usage: {picked}"
 
 
 # ---- wyrd-bol9: NameGenerator usage_frequency_by_bucket build -------------

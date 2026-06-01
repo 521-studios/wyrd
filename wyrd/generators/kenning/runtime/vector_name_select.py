@@ -319,12 +319,13 @@ def build_non_position_eligible(
             # keep_keys_for_gloss applies, so both modes share the rule.
             if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
                 continue
-            # wyrd-eyjk/D40: exclude synthesized saint subjects (pure proper
-            # nouns that are saint-tagged) from the base pool — same rule
-            # MeaningGenerator.load_parts applies, so the two scoring modes
-            # stay aligned. They reach generation only via the param-gated
-            # St-dedication synthesis, never an unprompted base name.
-            if m.is_pure_proper_noun() and m.is_saint():
+            # wyrd-eyjk/D40 + wyrd-g1hj: exclude pure-proper-noun saint subjects
+            # AND personal given names (male/female) from the base pool — same
+            # rule MeaningGenerator.load_parts applies, so the two scoring modes
+            # stay aligned. Saints reach names only via the param-gated
+            # St-dedication synthesis; given names dangle as bare personal names.
+            # Family-name etymons are NOT excluded (legitimate manorial places).
+            if m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()):
                 continue
             non_position_eligible.append(m)
 

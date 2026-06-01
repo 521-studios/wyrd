@@ -376,22 +376,22 @@ class MeaningGenerator:
                 continue
             position = _location_from_form(usage)
             # Flags (name/saint) come from the morpheme; position from the form.
-            # wyrd-eyjk/D40: a synthesized SAINT subject (a pure proper noun
-            # that is also saint-tagged — `Mary`, `John`, `Giles` from the
-            # St-dedication list) is a DECOMPOSITION aid + a param-gated
-            # synthesis element, never a base-generation morpheme. It is added
-            # to meaning_db so the matcher can explain real toponyms (Gileston →
-            # Giles) and the St-dedication affix injects it at generation only
-            # when its knob is set — it must NOT enter the empirical proportions
-            # pool, or high-frequency tokens leak into plain names (`Mary
-            # Margaret`, `By St Mary`). Exclude it from every bucket. NON-saint
-            # personal names (a real `Bourne`/`Stan` place element co-tagged
-            # with a name, or test family-name flags) are NOT touched — only the
-            # saint-tagged dedication subjects.
+            # wyrd-eyjk/D40 + wyrd-g1hj: a pure proper noun that is a SAINT
+            # subject (`Mary`/`John`/`Giles` from the St-dedication list) or a
+            # personal GIVEN name (`John`/`Edmund` male/female-name etymons)
+            # must NOT enter the empirical base pool — both dangle as bare
+            # personal names in plain generation (`Mary Margaret`, `By St Mary`,
+            # `Leigh Alton Chapel John`). Saint subjects reach names only via the
+            # param-gated St-dedication affix; given names need composition
+            # (`Edmund`+`-ton`) which the matcher still mines. NOT excluded: a
+            # place element merely co-tagged with a name (`stān`+`Stan` — not
+            # pure), or a FAMILY-name etymon (`Smith`/Norman manorial families —
+            # those form legitimate toponyms + are what the synthetic test
+            # fixtures use), so neither realism nor the fixtures are disturbed.
             keys = {
                 (position, *m.key()[1:])
                 for m in meanings
-                if not (m.is_pure_proper_noun() and m.is_saint())
+                if not (m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()))
             }
             for key in keys:
                 if addkeys:
@@ -656,6 +656,24 @@ def is_structurally_grammatical(struct_key: tuple) -> bool:
     `South` / `High` (from prefix-only morphemes `South-` / `High-`).
     """
     return not any(_is_ungrammatical_word_template(w) for w in struct_key)
+
+
+def _is_single_morpheme_structure(struct_key: tuple) -> bool:
+    """wyrd-g1hj: True when a structure is a SINGLE MORPHEME total — one word
+    of one morpheme (``((("bare","single"),),)`` / ``((("bare","name","single"),),)``).
+
+    Such a name renders as a lone dictionary word — `Old`, `In`, `St`, `Cum`,
+    `Green`, `Bath`, `Village` — and even the legit single-etymon ones
+    (`Chislehurst`, `Enfield`) read as flat, uninteresting place names. Real
+    interest comes from COMPOSITION: a multi-morpheme word (`Higham` =
+    `High-`+`-ham`) or multiple words (`Green Park`, 2 morphemes). So these are
+    excluded from the GENERATION pool — but, unlike the grammaticality filter,
+    they are deliberately KEPT in the recorded/mined set (``_all_structs``):
+    they're valid corpus data, just not worth generating. This is a
+    generation-time "don't-generate" mark, NOT a mining/bundle change, so it
+    needs no re-export. A single bare word standing INSIDE a larger structure
+    (`Green` in `Green Park`) is unaffected — that's 2 morphemes total."""
+    return sum(len(word_key) for word_key in struct_key) <= 1
 
 
 class NameGenerator:
@@ -1233,14 +1251,25 @@ class NameGenerator:
         # Reconstruct the words list-of-lists from the flat picks,
         # matching the original struct's word-grouping shape so the
         # NewName surfaces with the same word-boundary semantics as
-        # the legacy path. Each picked meaning's usage string is what
-        # NewName.__str__ renders (dash-stripped).
+        # the legacy path.
+        #
+        # wyrd-g1hj: render each pick at its SLOT-derived position (the eyjk
+        # position-form), NOT the stored dash-variant. Pre-fix the vector path
+        # emitted ``picked.usage`` (e.g. ``gōs-`` / ``tōn-`` / ``Grange-`` /
+        # ``-tre-``), so the morpheme breakdown showed nonsensical positions
+        # (two ``pre`` in ``Gōstōn``, a lone ``pre`` ``Grange-``, ``-tre-``
+        # inner-at-word-start) while the rendered NAME was fine. The proportions
+        # path already feeds position-forms to NewName; this brings the vector
+        # path into line — slot position is ``slot[0]``; NewName still strips
+        # dashes + applies word-initial case for the rendered name.
+        from .word import _position_form
+
         words: list[list[str | None]] = []
         idx = 0
         for word in struct:
             word_keys: list[str | None] = []
-            for _ in word:
-                word_keys.append(picked[idx].usage)
+            for slot in word:
+                word_keys.append(_position_form(picked[idx], slot[0]))
                 idx += 1
             words.append(word_keys)
 
@@ -2131,6 +2160,19 @@ def load_proportions(data, meaning_db, tag_db):
     for element in structures:
         proportion = element["proportion"]
         words = tuple(word_to_key(w) for w in element["words"])
+        # wyrd-g1hj: exclude SINGLE-MORPHEME structures from the loaded
+        # generator. A whole name that is one morpheme — `Old`, `In`, `St`,
+        # `Cum`, `Green`, `Bath`, `Village` (even legit single-etymon ones like
+        # `Chislehurst`) — renders as a flat lone dictionary word; real place
+        # names compose (>=2 morphemes: `Higham` = `High-`+`-ham`, or multiple
+        # words `Green Park`). The bundle/proportions STILL RECORD these (mining
+        # keeps them — this is a generation-time exclusion applied at load, so
+        # no re-export is needed); they're simply never loaded into a generator,
+        # so no path (select / vector / force_structure) can produce them. A
+        # bare word standing INSIDE a larger structure (`Green` in `Green Park`)
+        # is unaffected — that structure has 2 morphemes total.
+        if _is_single_morpheme_structure(words):
+            continue
         struct[words] = proportion
     # wyrd-mj2: tag-level co-occurrence + marginal — empirical bigram
     # statistics over the (left.tags × right.tags) cartesian product
