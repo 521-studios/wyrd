@@ -30,9 +30,10 @@ _PROPER_NOUN_TAGS = frozenset(
 # into the morpheme pool as untagged etymons (decomposed from real `X cum Y`
 # toponyms), so they can't be filtered by tag — matched by bare surface instead.
 # Excluded from the base generation pool so they don't dangle as a lone word
-# (`Newton Cum`). Their legitimate use is joiner-insertion
-# (`_apply_joiner_insertion`, currently unfed) — which doesn't draw from the base
-# pool. Conservative set: only unambiguous connectors. NOT included: `magna` /
+# (`Newton Cum`). Their legitimate home is joiner-insertion
+# (`_apply_joiner_insertion`), which draws from a separate joiner pool — not the
+# base pool — and these connector surfaces are not yet wired into that pool.
+# Conservative set: only unambiguous connectors. NOT included: `magna` /
 # `parva` (real standalone qualifiers — `Wigston Magna`), and `saint` / `st`
 # (the dedication particle has a legitimate saint-SLOT mechanism — `Saint
 # <name>` — so excluding it would break valid dedications; the rarer trailing-
