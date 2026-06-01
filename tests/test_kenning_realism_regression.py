@@ -37,6 +37,12 @@ from wyrd.generators.kenning.runtime.realism_tolerance import (
 # these; each culture independently checks tolerance compliance.
 REGRESSION_CULTURES = ("english", "scottish", "welsh", "irish", "breton")
 
+# Cultures EXPECTED to yield 0 vector samples — skipped instead of failed.
+# Only welsh today, because its proportions path crashes (wyrd-cj6f). Any
+# OTHER culture going to 0 samples is a regression and must FAIL the gate,
+# not silently skip. Remove welsh here once wyrd-cj6f is fixed.
+_EXPECTED_EMPTY_SAMPLE_CULTURES = frozenset({"welsh"})
+
 # Per-test sample size. Smaller than the operator-facing default
 # (1000) to keep CI fast. Distribution-level metrics stabilize at
 # N=100 for the gate-check use case.
@@ -72,19 +78,21 @@ def test_realism_regression_per_culture(culture: str):
         base_seed=REGRESSION_BASE_SEED,
     )
 
-    # When one side has no samples, the drift comparison is
-    # meaningless — KL against an empty distribution diverges, but
-    # that's a data-presence question, not a drift signal. Skip the
-    # tolerance check in that case rather than fail. Today this fires
-    # only for welsh, whose proportions path crashes (wyrd-cj6f); the
-    # other parametrized cultures produce samples and are gated.
+    # When one side has no samples, the drift comparison is meaningless
+    # — KL against an empty distribution diverges, but that's a
+    # data-presence question, not a drift signal. For a culture KNOWN to
+    # be empty (welsh / wyrd-cj6f) that's expected: skip. For any other
+    # (live-gated) culture, 0 samples means the generator regressed —
+    # FAIL loudly rather than silently skip, which would mask the
+    # regression and let the gate pass green.
     if not samples_a or not samples_b:
-        pytest.skip(
+        msg = (
             f"{culture}: one side produced 0 samples "
-            f"(a={len(samples_a)}, b={len(samples_b)}) — "
-            "drift comparison meaningless (expected for welsh until "
-            "wyrd-cj6f is fixed)."
+            f"(a={len(samples_a)}, b={len(samples_b)})"
         )
+        if culture in _EXPECTED_EMPTY_SAMPLE_CULTURES:
+            pytest.skip(f"{msg} — expected until wyrd-cj6f is fixed.")
+        pytest.fail(f"{msg} — unexpected empty sample set for a live-gated culture.")
 
     report = compute_drift_report(culture, samples_a, samples_b)
     violations = check_drift_against_tolerance(report)
