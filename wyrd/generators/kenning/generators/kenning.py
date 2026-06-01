@@ -329,7 +329,9 @@ class Kenning(Generator):
                         "is being rolled to 'vector' per environment via "
                         "WYRD_DEFAULT_SCORING_MODE (staging first, wyrd-lnt6). "
                         "The schema default stays 'proportions' as the "
-                        "fallback until the production cutover (wyrd-rt2m)."
+                        "fallback; flipping production is wyrd-lnt6's final "
+                        "step, and Phase 3 (wyrd-rt2m) then deletes the "
+                        "proportions scoring path."
                     ),
                 },
                 "priors_path": {
