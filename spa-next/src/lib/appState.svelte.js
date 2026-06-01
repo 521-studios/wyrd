@@ -35,6 +35,19 @@ class AppState {
   results = $state([]);
   resultsGenerator = $state(null); // which generator produced `results`
 
+  // wyrd-dsl5: the seed + bundle version the current `results` were rolled
+  // against. Not used to reproduce in the SPA (a seed only reproduces
+  // against one bundle) — captured solely so a "mark defective" report
+  // carries the full reproduction context for operator triage. null when
+  // results came from a loaded saved workspace (no live roll metadata).
+  resultsSeed = $state(null);
+  resultsBundleVersion = $state(null);
+  // Snapshot of the params that PRODUCED `results`, frozen at roll time. A
+  // defect report sends this (not the live form state, which the user may
+  // have edited after rolling — e.g. changing `count`), so the stored
+  // parameters actually reproduce the flagged name.
+  resultsParams = $state(null);
+
   // wyrd-yxf6: which result is currently selected for col 3 inspection.
   // null = nothing selected, show placeholder. Lifted out of
   // OutputColumn's local state so InspectorColumn can read it

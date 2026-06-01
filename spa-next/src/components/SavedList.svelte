@@ -75,6 +75,12 @@
       },
     ];
     appState.resultsGenerator = entry.generator;
+    // wyrd-dsl5: a loaded workspace has no live roll metadata — clear it so
+    // a defect report from it doesn't carry a stale seed/bundle from a
+    // prior roll.
+    appState.resultsSeed = null;
+    appState.resultsBundleVersion = null;
+    appState.resultsParams = entry.params || null;
     appState.currentResultIndex = 0;
     // wyrd-8jjx: close the drawer after restoring so the workspace
     // is visible immediately. Pre-fix SavedList lived inline in

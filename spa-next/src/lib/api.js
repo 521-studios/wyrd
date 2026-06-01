@@ -79,3 +79,23 @@ export async function rollGenerator(generatorName, params) {
   }
   return resp.json();
 }
+
+/**
+ * wyrd-dsl5: flag a generated name as defective. POSTs the full
+ * reproduction context plus the user's required free-text reason to
+ * /api/defects, which writes it to DynamoDB for operator triage.
+ *
+ * `reason` must be non-empty (the caller — DefectModal — enforces this in
+ * the UI; the server re-validates and 400s a blank reason). Generic across
+ * generators: `generator` is just a stored field.
+ *
+ * Returns { id, status } on success; throws on HTTP error.
+ */
+export async function reportDefect(report) {
+  const resp = await postSignedJson('/api/defects', report);
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`defect report failed: HTTP ${resp.status} — ${text.slice(0, 200)}`);
+  }
+  return resp.json();
+}

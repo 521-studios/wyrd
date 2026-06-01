@@ -77,6 +77,17 @@ class Generator(ABC):
         single-result generators don't need to implement both."""
         return [self.generate(params, seed)]
 
+    def runtime_version(self) -> dict[str, str] | None:
+        """Identify the data/bundle version this generator's output was
+        produced against, for defect-report reproducibility (wyrd-dsl5).
+
+        Returned verbatim on the API envelope as ``bundle_version`` and
+        echoed back when a user flags a name defective, so a triager can
+        tell whether a reported name is still reproducible against the
+        current data. ``None`` (the default) means the generator has no
+        versioned data layer — the envelope omits the key."""
+        return None
+
 
 _registry: dict[str, Generator] = {}
 

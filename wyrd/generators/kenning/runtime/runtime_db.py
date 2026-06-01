@@ -161,12 +161,52 @@ def _verify_schema_version(conn: sqlite3.Connection, path: Path) -> None:
         )
 
 
+_bundle_version_cache: dict[str, str] | None = None
+
+
+def bundle_version() -> dict[str, str]:
+    """Return the L4 bundle's identity stamp from ``bundle_metadata``
+    (wyrd-dsl5): ``schema_version`` / ``built_at`` / ``emitter_version`` /
+    ``source_lexicon_db``.
+
+    Surfaced on the API envelope (``bundle_version``) and stored on defect
+    reports so a triager can tell which data slice a flagged name came from
+    — the same seed + params can yield a different name after a re-emit, so
+    the report pins the bundle it was reproducible against.
+
+    Process-cached under ``_conn_lock`` (double-checked, mirroring
+    ``get_runtime_db``): the bundle is immutable for the connection's
+    lifetime (re-emit + re-upload is the only update path, which restarts
+    the process). Reset via :func:`reset_runtime_db_cache`. Returns ``{}``
+    (and caches it) when the DB predates the ``bundle_metadata`` table, so a
+    callable that reads this never re-queries a missing table per request."""
+    global _bundle_version_cache
+    if _bundle_version_cache is not None:
+        return _bundle_version_cache
+    # Resolve the connection BEFORE taking _conn_lock: get_runtime_db()
+    # acquires _conn_lock itself, and threading.Lock is non-reentrant — calling
+    # it while holding the lock would self-deadlock on a cold connection.
+    conn = get_runtime_db()
+    with _conn_lock:
+        if _bundle_version_cache is not None:
+            return _bundle_version_cache
+        try:
+            rows = conn.execute("SELECT key, value FROM bundle_metadata").fetchall()
+            _bundle_version_cache = {str(k): str(v) for k, v in rows}
+        except sqlite3.OperationalError:
+            # Pre-bundle_metadata DB. Cache empty so we don't re-query +
+            # re-raise on every roll; the envelope treats {} as "no version".
+            _logger.debug("bundle_metadata table absent; no version stamp")
+            _bundle_version_cache = {}
+    return _bundle_version_cache
+
+
 def reset_runtime_db_cache() -> None:
     """Drop the cached connection so the next ``get_runtime_db`` call
     re-resolves the path + reopens. For tests and operator-driven
     reload (a stat-the-pointer hook in a future PR could rotate
     connections without restarting the container)."""
-    global _conn
+    global _conn, _bundle_version_cache
     with _conn_lock:
         if _conn is not None:
             try:
@@ -174,6 +214,7 @@ def reset_runtime_db_cache() -> None:
             except sqlite3.Error:
                 _logger.exception("ignoring close error on cached runtime DB")
         _conn = None
+        _bundle_version_cache = None
 
 
 def _resolve_db_path() -> Path:

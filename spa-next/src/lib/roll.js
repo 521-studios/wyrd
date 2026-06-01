@@ -14,12 +14,19 @@ export async function rollCurrent() {
   appState.isRolling = true;
   appState.rollError = null;
   try {
+    const rolledParams = appState.currentParams;
     const envelope = await rollGenerator(
       appState.selectedGeneratorName,
-      appState.currentParams,
+      rolledParams,
     );
     appState.results = envelope.results;
     appState.resultsGenerator = envelope.generator;
+    // wyrd-dsl5: stash roll metadata for defect reports (not for replay).
+    appState.resultsSeed = envelope.seed ?? null;
+    appState.resultsBundleVersion = envelope.bundle_version ?? null;
+    // Freeze a copy of the params used, so a later form edit doesn't corrupt
+    // a defect report's reproduction context.
+    appState.resultsParams = rolledParams ? { ...rolledParams } : {};
     appState.currentResultIndex = null;
   } catch (err) {
     appState.rollError = err.message;

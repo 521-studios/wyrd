@@ -11,6 +11,7 @@ import json
 import click
 
 from wyrd import registry
+from wyrd.cli_defects import defects as defects_cli
 
 
 @click.group()
@@ -64,5 +65,9 @@ def _mount_generator_clis() -> None:
         if sub_cli is not None:
             main.add_command(sub_cli, name=g.name)
 
+
+# wyrd-dsl5: cross-generator triage CLI for defective-name reports. Mounted
+# at the top level (not under a generator) since reports span all generators.
+main.add_command(defects_cli)
 
 _mount_generator_clis()

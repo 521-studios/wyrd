@@ -85,6 +85,15 @@ def create_app() -> Flask:
         body = request.get_json(silent=True) or {}
         return _dispatch(generator_name, body)
 
+    @app.post("/api/defects")
+    def report_defect():
+        # wyrd-dsl5: a user flagged a generated name as defective. The body
+        # carries the full reproduction context the SPA had on hand plus the
+        # REQUIRED free-text reason. Generic across generators — `generator`
+        # is just a stored field.
+        body = request.get_json(silent=True) or {}
+        return _record_defect(body)
+
     @app.errorhandler(404)
     def not_found(_):
         return jsonify({"error": "not_found"}), 404
@@ -162,14 +171,75 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
         seed,
         param_snapshot,
     )
+    # wyrd-dsl5: stamp the data/bundle version so the SPA can echo it back on
+    # a defect report. A version-read failure must never sink a roll — the
+    # stamp is best-effort metadata, so swallow and ship without it.
+    try:
+        # `or None`: a generator may return an empty dict (e.g. an empty
+        # bundle_metadata table) — treat that as "no version" so the envelope
+        # omits the key rather than emitting a useless bundle_version: {}.
+        bundle_version = generator.runtime_version() or None
+    except Exception:
+        # WARNING (not DEBUG): a swallowed version-stamp failure should be
+        # visible in default INFO deployments — a misbehaving runtime_version()
+        # implementation otherwise looks identical to "no version".
+        _logger.warning("runtime_version failed for generator=%s", generator.name, exc_info=True)
+        bundle_version = None
     return jsonify(
         envelope(
             generator=generator.name,
             parameters=params,
             seed=seed,
             results=results,
+            bundle_version=bundle_version,
         )
     )
+
+
+def _record_defect(body: dict[str, Any]):
+    """Validate + persist a defect report (wyrd-dsl5). Requires a non-empty
+    ``reason`` and a ``generator``; everything else is reproduction context
+    stored verbatim. Returns ``201 {id, status}`` on success, ``400`` on a
+    bad report, ``503`` when the DynamoDB table is unconfigured / unreachable.
+    """
+    from wyrd.defects import DefectsError, record_defect
+
+    if not isinstance(body, dict):
+        # A non-object JSON body (list / string / number) would AttributeError
+        # on .get below → 500. Reject cleanly instead.
+        return jsonify({"error": "bad_report", "detail": "body must be a JSON object"}), 400
+
+    reason = (body.get("reason") or "").strip()
+    generator = (body.get("generator") or "").strip()
+    if not reason:
+        return jsonify({"error": "bad_report", "detail": "reason is required"}), 400
+    if not generator:
+        return jsonify({"error": "bad_report", "detail": "generator is required"}), 400
+
+    report = {
+        "generator": generator,
+        "reason": reason,
+        "result": body.get("result"),
+        "seed": body.get("seed"),
+        "parameters": body.get("parameters"),
+        "explanation": body.get("explanation"),
+        "components": body.get("components"),
+        "morphemes_by_word": body.get("morphemes_by_word"),
+        "bundle_version": body.get("bundle_version"),
+    }
+    try:
+        created = record_defect(report)
+    except DefectsError as exc:
+        _logger.warning("defect record failed: %s", exc)
+        return jsonify({"error": "defects_unavailable", "detail": str(exc)}), 503
+
+    _logger.info(
+        "defect recorded id=%s generator=%s name=%r",
+        created["id"],
+        generator,
+        body.get("result"),
+    )
+    return jsonify(created), 201
 
 
 def _coerce_count(value: Any) -> int:
