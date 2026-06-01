@@ -32,10 +32,25 @@
   //
   // Track the SPECIFIC result being flagged rather than a boolean: the
   // modal's open state is then `flaggedResult === result`, derived
-  // synchronously. When the inspected result changes (selection,
-  // deselection, re-roll) the modal closes in the same render — no $effect,
-  // so no one-frame flash / double-render from effect-after-DOM timing.
+  // synchronously. When the inspected result changes the modal closes in
+  // the same render (the derived comparison goes false) — no effect drives
+  // `open`, so no one-frame flash / double-render.
   let flaggedResult = $state(null);
+
+  // Housekeeping only: null out a stale flaggedResult once the inspected
+  // result has moved off it. Without this, navigating BACK to a result the
+  // user had previously flagged would re-satisfy `flaggedResult === result`
+  // and reopen the modal unexpectedly. This effect never drives `open`
+  // (that stays derived + already false here), so it adds no flash; untrack
+  // keeps the flaggedResult write from re-triggering the effect.
+  $effect(() => {
+    const current = result;
+    untrack(() => {
+      if (flaggedResult !== null && flaggedResult !== current) {
+        flaggedResult = null;
+      }
+    });
+  });
 
   const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
   const norm = (s) => stripDashes(s).toLowerCase();
