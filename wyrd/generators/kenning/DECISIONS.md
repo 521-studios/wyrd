@@ -2426,3 +2426,42 @@ Migration path: add culture as a nullable column, then a unique
 null (treated as "applies to all cultures"); new culture-tagged
 rows take precedence on conflict via runtime lookup order.
 
+## D39. Morpheme position slots: four forms, and post/inner are always lowercased (wyrd-5z5j, 2026-06-01).
+
+There are exactly **four** position slots a morpheme can occupy, encoded as dash
+markers on its `usage` and decoded by `Meaning._set_location`
+(`runtime/meaning.py`):
+
+- `Word`   — bare / standalone word (no dash)
+- `Word-`  — prefix, word-initial (trailing dash)
+- `-word`  — suffix, word-final (leading dash)
+- `-word-` — inner, mid-word (dashes both sides)
+
+**The invariant: a morpheme used in `-word` or `-word-` is ALWAYS lowercased.**
+Only the word-initial slots (`Word`, `Word-`) carry a capital. This is what lets
+a single base form *switch* between slots — you derive the positional surface
+(add the dashes; lowercase unless word-initial) from the SLOT, instead of mining
+and storing four separate variants. A proper name `Buna` used mid-word renders
+`-buna-`; used at a word start it stays `Buna`.
+
+This is the original Rando model, and it is deliberately tiny — it is the entire
+grammar of how morphemes compose into words and words into names. Decomposition:
+break a toponym into words (on spaces), break each word into morphemes, tag each
+with the slot it occupied, and tally +1 for the structure (the tuple of slots)
+the toponym decomposed into. Generation: word boundaries become spaces (`Name`
+joins words with `" "`), morphemes inside a word join with `""` (no space), and
+only the word-initial morpheme is capitalized.
+
+**The bug this guards against (wyrd-5z5j):** when the position+case model
+degrades, names collapse to bare-only. `etymon_tag` showed **8932 bare** name
+morphemes vs **~0** in pre/post/inner. With no positioned variant to slot,
+generation drops the bare *capitalized* `Buna` into a mid-word slot, producing
+capital-mid-word run-togethers (`CornnamullacBunarath` instead of
+`Cornnamullac Bunarath`) and collapsing two-word structure weight.
+
+Why: the render must derive a morpheme's surface from the SLOT it fills (dashes +
+lowercase for post/inner; capital only word-initial), NOT from the morpheme's
+stored case. Do NOT "fix" this by mining four stored variants per morpheme —
+that is the very thing the four-slot + lowercase rule exists to avoid. Any base
+form can fill any slot correctly if the render honours the slot.
+
