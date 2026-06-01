@@ -376,11 +376,15 @@ def _vector_request(culture: str = "english"):
 
 
 def test_select_via_vector_retry_exhausts_when_no_qualifier_pool():
-    """wyrd-izcr: when every struct in the pool requires a qualifier
-    slot but the meaning_db has zero qualifier-flagged morphemes,
-    NameGenerator.select_via_vector exhausts the retry budget and
-    returns None — caller (Kenning.generate) then raises the
-    operator-visible ValueError."""
+    """wyrd-izcr + wyrd-tbke: when every struct in the pool requires a
+    qualifier slot but the meaning_db has zero qualifier-flagged morphemes,
+    NameGenerator.select_via_vector exhausts the retry budget AND the
+    permissive fallback fills nothing (every slot is an unsatisfiable
+    qualifier slot → all-None). That degenerate all-empty result returns
+    None — caller (Kenning.generate) then raises the operator-visible
+    ValueError. (The PARTIAL case — some slots fillable — degrades to a
+    shorter name instead of None; see
+    test_select_via_vector_degrades_instead_of_raising_on_partial_empty.)"""
     import random
 
     from wyrd.generators.kenning.runtime.meaning import Meaning
@@ -406,6 +410,62 @@ def test_select_via_vector_retry_exhausts_when_no_qualifier_pool():
         priors=EmpiricalPriors(),
     )
     assert result is None
+
+
+def test_select_via_vector_degrades_instead_of_raising_on_partial_empty():
+    """wyrd-tbke empty-pick PARITY: when no struct is FULLY satisfiable under
+    the gates but SOME slots can fill, select_via_vector degrades to a shorter
+    name (dropping the unsatisfiable slot) instead of returning None — matching
+    the proportions ``_select_no_tag`` contract, so the dispatch never raises
+    'no eligible name'."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    # A fillable bare/single slot (urban-tagged morpheme, lands in the
+    # ("bare","single") bucket via the synthetic single pool) + an
+    # UNsatisfiable saint slot (no saint-usage morpheme in db). Both words are
+    # grammatical (bare word + saint qualifier word) so the struct survives the
+    # wyrd-zzli filter. Non-permissive can't complete the struct; the
+    # permissive fallback fills the bare slot and drops the saint slot → a
+    # non-empty degraded name rather than None.
+    db = {"Port-": [Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])]}
+    structs = {((("bare", "single"),), (("post", "saint", "single"),)): 1}
+    name_gen = _build_synthetic_vector_name_gen(structs, db)
+    result = name_gen.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert result is not None, "should degrade gracefully, not return None (→ raise)"
+    assert str(result), "degraded name must be non-empty (the pre slot filled)"
+    assert "port" in str(result).lower()
+    # The unsatisfiable saint slot was dropped → one rendered word, not two.
+    assert len(str(result).split()) == 1
+
+
+def test_select_via_vector_degrades_with_empty_slot_first():
+    """wyrd-tbke: a dropped (None) slot at a NON-final reconstruction index —
+    the unsatisfiable saint slot FIRST, the fillable bare slot second — still
+    degrades to the 1-word name. Pins the reconstruction idx-walk against a
+    mid-sequence None (an off-by-one would mis-map the trailing pick)."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    db = {"Port-": [Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])]}
+    structs = {((("post", "saint", "single"),), (("bare", "single"),)): 1}
+    name_gen = _build_synthetic_vector_name_gen(structs, db)
+    result = name_gen.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert result is not None
+    assert "port" in str(result).lower()
+    assert len(str(result).split()) == 1
 
 
 def test_select_via_vector_retry_excludes_tried_structs():
