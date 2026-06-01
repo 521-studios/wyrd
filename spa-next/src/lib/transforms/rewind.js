@@ -89,13 +89,19 @@ export const rewindTransform = {
           let renderings = m.renderings;
           if (langField && rw.respelling) {
             renderings = { ...(m.renderings || {}) };
-            renderings[langField] = {
-              ...(renderings[langField] || {}),
-              [rw.form]: {
-                ...(renderings[langField]?.[rw.form] || {}),
-                reader_pronunciation: rw.respelling,
-              },
+            const langGroup = { ...(renderings[langField] || {}) };
+            // Merge into any existing entry for this form case-insensitively
+            // so we don't create a casing-variant duplicate ("Catt" vs
+            // "catt") that splits the rendering data.
+            const key =
+              Object.keys(langGroup).find(
+                (k) => k.toLowerCase() === rw.form.toLowerCase(),
+              ) || rw.form;
+            langGroup[key] = {
+              ...(langGroup[key] || {}),
+              reader_pronunciation: rw.respelling,
             };
+            renderings[langField] = langGroup;
           }
           return { ...m, usage: rw.form, renderings };
         }),
