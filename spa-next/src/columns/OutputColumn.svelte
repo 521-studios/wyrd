@@ -5,26 +5,18 @@
   // Star icon on each result stays inline (per-result quick save).
   import { appState } from '../lib/appState.svelte.js';
   import StarToggle from '../components/StarToggle.svelte';
-  import DefectModal from '../components/DefectModal.svelte';
   import {
     representativeMeanings,
     isNameMorpheme,
   } from '../lib/morphemeGloss.js';
-
-  // wyrd-dsl5: which result (if any) is being flagged defective. Drives a
-  // single shared DefectModal instance rather than one per row.
-  let defectResult = $state(null);
 
   function selectResult(i) {
     appState.currentResultIndex =
       i === appState.currentResultIndex ? null : i;
   }
 
-  function flagDefect(e, r) {
-    // Don't let the click bubble to the row's select button.
-    e.stopPropagation();
-    defectResult = r;
-  }
+  // wyrd-z3fl: "report defective" moved to the Inspect & Transform column
+  // (col 3) — you flag the result you're inspecting there, not per-row here.
 
   // The 1–2 word gloss shown under a morpheme. Falls back to a dim "name"
   // marker for proper-name elements (manorial families etc.) — but only when
@@ -79,25 +71,12 @@
                 <span class="explanation">{r.explanation}</span>
               {/if}
             </button>
-            <button
-              type="button"
-              class="flag"
-              onclick={(e) => flagDefect(e, r)}
-              aria-label="report this name as defective"
-              title="Report defective"
-            >⚑</button>
             <StarToggle result={r} />
           </div>
         </li>
       {/each}
     </ul>
   {/if}
-
-  <DefectModal
-    open={defectResult !== null}
-    result={defectResult}
-    onclose={() => (defectResult = null)}
-  />
 </section>
 
 <style>
@@ -190,24 +169,5 @@
     color: var(--fg-muted);
     font-style: italic;
     padding: 24px 0;
-  }
-  /* wyrd-dsl5: per-result "report defective" flag, sits beside the star. */
-  .flag {
-    background: transparent;
-    border: none;
-    color: var(--fg-muted);
-    cursor: pointer;
-    font-size: 15px;
-    padding: 0 4px;
-    line-height: 1;
-    align-self: center;
-  }
-  .flag:hover {
-    color: #e06c6c;
-  }
-  .flag:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 2px;
   }
 </style>

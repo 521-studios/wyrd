@@ -18,11 +18,18 @@
   import { renderName } from '../lib/transforms/swap.js';
   import MorphemeCard from '../components/MorphemeCard.svelte';
   import TransformStack from '../components/TransformStack.svelte';
+  import DefectModal from '../components/DefectModal.svelte';
   // wyrd-8jjx: SaveWorkspaceButton + ShareWorkspaceButton moved to
   // the Header (universal across workspaces). Components stay in
   // the tree for potential reuse but no longer rendered here.
 
   let result = $derived(appState.currentResult);
+
+  // wyrd-z3fl: "report defective" lives here (moved from the Output
+  // column) so the user flags the result they're inspecting. We flag the
+  // original generated result (appState.currentResult) — the reproducible
+  // generator output — not the post-transform displayState.
+  let defectOpen = $state(false);
 
   const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
   const norm = (s) => stripDashes(s).toLowerCase();
@@ -191,12 +198,21 @@
          appState.currentResult is non-null, which is the very
          condition that brought us into this {:else}. -->
     <header class="head">
-      <h3 class="name">
-        {displayState.name}
-        {#if pipeline.isRunning}
-          <span class="pending-flag" title="pipeline running">…</span>
-        {/if}
-      </h3>
+      <div class="head-top">
+        <h3 class="name">
+          {displayState.name}
+          {#if pipeline.isRunning}
+            <span class="pending-flag" title="pipeline running">…</span>
+          {/if}
+        </h3>
+        <button
+          type="button"
+          class="flag"
+          onclick={() => (defectOpen = true)}
+          aria-label="report this name as defective"
+          title="Report defective"
+        >⚑ Report defective</button>
+      </div>
       {#if displayState.morphemes_by_word?.length > 0}
         <p class="breakdown">
           {displayState.morphemes_by_word
@@ -258,6 +274,12 @@
       <h4 class="section-head">Transforms</h4>
       <TransformStack />
     </section>
+
+    <DefectModal
+      open={defectOpen}
+      {result}
+      onclose={() => (defectOpen = false)}
+    />
   {/if}
 </section>
 
@@ -267,11 +289,38 @@
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border);
   }
+  /* wyrd-z3fl: name on the left, "report defective" action on the right. */
+  .head-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
   .name {
     margin: 0;
     font-size: 24px;
     font-weight: 700;
     color: var(--fg);
+  }
+  .flag {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .flag:hover {
+    color: #e06c6c;
+    border-color: #e06c6c;
+  }
+  .flag:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   .pending-flag {
     font-size: 14px;
