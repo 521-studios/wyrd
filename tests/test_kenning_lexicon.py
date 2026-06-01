@@ -4967,6 +4967,34 @@ def test_new_name_to_dict_emits_per_word_morpheme_metadata() -> None:
     # Sparse rendering: Latin-script-only sources omit the renderings
     # key entirely (no noisy '{}' clutter).
     assert "renderings" not in first
+    # wyrd-bvwu: citations are sparse too — a Meaning with no scholarly
+    # witnesses (citations default {}) omits the key entirely.
+    assert "citations" not in first
+
+
+def test_new_name_to_dict_includes_citations_when_meaning_has_them() -> None:
+    """wyrd-bvwu: to_dict (morphemes_by_word) carries the morpheme's
+    scholarly source_ids when present, so the SPA inspector can surface
+    them in an expandable view. Mirrors components()'s citations field;
+    sparse (only emitted when non-empty)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m = Meaning(
+        "Whit-",
+        tags=[],
+        meanings=["white"],
+        sources={"old_english": ["hwīt"]},
+        citations={"old_english": ["skeat_1901_cambridgeshire", "mawer_1920_nd"]},
+    )
+    meaning_db = {"Whit-": [m]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Whit-"]])
+    out = new_name.to_dict()
+    # Distinct + sorted source_ids.
+    assert out["words"][0][0]["citations"] == [
+        "mawer_1920_nd",
+        "skeat_1901_cambridgeshire",
+    ]
 
 
 def test_new_name_to_dict_includes_renderings_when_meaning_has_pronunciation() -> None:
