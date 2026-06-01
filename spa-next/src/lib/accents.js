@@ -23,12 +23,15 @@ const hasAccent = (s) => !!s && s.normalize('NFD') !== s;
  * original usage ("-by") are preserved on the result ("-bȳ").
  */
 export function accentedUsage(morph) {
+  if (!morph) return null;
   const u = norm(morph.usage);
   if (!u) return null;
   const R = morph.renderings || {};
   for (const lang of Object.keys(R)) {
-    for (const form of Object.keys(R[lang])) {
-      const os = R[lang][form].original_script;
+    const langForms = R[lang];
+    if (!langForms) continue; // a null lang bucket would crash Object.keys
+    for (const form of Object.keys(langForms)) {
+      const os = langForms[form]?.original_script;
       if (os && norm(form) === u && hasAccent(os)) {
         const lead = morph.usage.match(/^-+/)?.[0] || '';
         const trail = morph.usage.match(/-+$/)?.[0] || '';
