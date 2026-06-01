@@ -80,6 +80,7 @@
     // prior roll.
     appState.resultsSeed = null;
     appState.resultsBundleVersion = null;
+    appState.resultsParams = entry.params || null;
     appState.currentResultIndex = 0;
     // wyrd-8jjx: close the drawer after restoring so the workspace
     // is visible immediately. Pre-fix SavedList lived inline in

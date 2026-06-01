@@ -24,9 +24,12 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import logging
 import os
 import uuid
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 # Status lifecycle. ``new`` reports are untriaged; the operator CLI moves
 # each to ``accepted`` (real defect, optionally linked to a filed bd ticket)
@@ -83,8 +86,7 @@ def resolve_table_name(env: str | None = None) -> str:
         return explicit
     if not env:
         raise DefectsError(
-            f"defects table not configured: set ${ENV_TABLE} or pass an env "
-            f"(staging/production)"
+            f"defects table not configured: set ${ENV_TABLE} or pass an env (staging/production)"
         )
     return f"521studios-{env}-wyrd-defects"
 
@@ -107,12 +109,38 @@ def _defects_table(
     boto3 imported lazily (see module docstring). ``profile=None`` uses the
     default credential chain — the Lambda execution role in production, the
     operator's admin profile when the CLI passes one explicitly.
-    """
-    import boto3
 
+    The boto3 ``Session`` (whose construction does the credential resolution)
+    is cached per ``(profile, region)`` so a warm Lambda reuses it across
+    invocations. The ``resource``/``Table`` is built fresh each call (cheap,
+    and keeps test isolation clean under moto's per-test mock context).
+    """
     name = table_name or resolve_table_name(env)
-    session = boto3.Session(profile_name=profile, region_name=region)
+    session = _session(profile, region)
     return session.resource("dynamodb").Table(name)
+
+
+# Session cache keyed by (profile, region). Sessions are config-only (no live
+# network binding), so caching is safe across moto test contexts; clients are
+# created fresh per call from the cached session. reset_session_cache() drops
+# it (tests / operator reload).
+_session_cache: dict[tuple[str | None, str], Any] = {}
+
+
+def _session(profile: str | None, region: str) -> Any:
+    key = (profile, region)
+    cached = _session_cache.get(key)
+    if cached is None:
+        import boto3
+
+        cached = boto3.Session(profile_name=profile, region_name=region)
+        _session_cache[key] = cached
+    return cached
+
+
+def reset_session_cache() -> None:
+    """Drop the cached boto3 sessions. For tests and operator-driven reload."""
+    _session_cache.clear()
 
 
 def _to_item(report: dict[str, Any]) -> dict[str, Any]:
@@ -146,7 +174,9 @@ def _from_item(item: dict[str, Any]) -> dict[str, Any]:
         try:
             out.update(json.loads(raw))
         except (TypeError, ValueError):
-            # Corrupt payload shouldn't sink a list/show; surface raw.
+            # Corrupt payload shouldn't sink a list/show; surface raw + log so
+            # the storage-layer corruption isn't silent in CloudWatch.
+            _logger.warning("corrupt defect payload id=%s; surfacing raw", out.get("id"))
             out["payload_raw"] = raw
     return out
 
@@ -176,9 +206,7 @@ def record_defect(
         "reason": reason,
     }
     try:
-        table = _defects_table(
-            env=env, table_name=table_name, profile=profile, region=region
-        )
+        table = _defects_table(env=env, table_name=table_name, profile=profile, region=region)
         table.put_item(Item=_to_item(record))
     except DefectsError:
         raise
@@ -200,38 +228,52 @@ def list_defects(
     """List defect reports, newest first.
 
     ``status='all'`` scans the whole table; any other value queries the
-    ``status-created_at`` GSI (cheaper). ``generator`` filters in-memory
-    after the fetch (a low-cardinality field not worth its own index).
+    ``status-created_at`` GSI (cheaper, returned newest-first). ``generator``
+    filters in-memory (a low-cardinality field not worth its own index).
+
+    Both paths paginate: DynamoDB's ``Limit`` is a per-page evaluation cap,
+    not a total-results cap, and the generator filter is applied after the
+    fetch — so a single page could silently return fewer than ``limit``
+    matching rows. We page (following ``LastEvaluatedKey``) until ``limit``
+    matches are collected or the table is exhausted.
     """
-    table = _defects_table(env=env, table_name=table_name, profile=profile, region=region)
+    if status != "all" and status not in STATUSES:
+        raise DefectsError(f"unknown status {status!r}; expected one of {STATUSES} or 'all'")
     try:
-        if status == "all":
-            resp = table.scan(Limit=limit)
-            items = resp.get("Items", [])
-            items.sort(key=lambda i: i.get("created_at", ""), reverse=True)
-        else:
-            if status not in STATUSES:
-                raise DefectsError(
-                    f"unknown status {status!r}; expected one of {STATUSES} or 'all'"
-                )
-            resp = table.query(
-                IndexName=STATUS_INDEX,
-                KeyConditionExpression="#s = :s",
-                ExpressionAttributeNames={"#s": "status"},
-                ExpressionAttributeValues={":s": status},
-                ScanIndexForward=False,  # newest first
-                Limit=limit,
-            )
-            items = resp.get("Items", [])
+        table = _defects_table(env=env, table_name=table_name, profile=profile, region=region)
+        reports: list[dict[str, Any]] = []
+        start_key: dict | None = None
+        while len(reports) < limit:
+            if status == "all":
+                kwargs: dict[str, Any] = {}
+            else:
+                kwargs = {
+                    "IndexName": STATUS_INDEX,
+                    "KeyConditionExpression": "#s = :s",
+                    "ExpressionAttributeNames": {"#s": "status"},
+                    "ExpressionAttributeValues": {":s": status},
+                    "ScanIndexForward": False,  # newest first
+                }
+            if start_key:
+                kwargs["ExclusiveStartKey"] = start_key
+            resp = table.scan(**kwargs) if status == "all" else table.query(**kwargs)
+            for item in resp.get("Items", []):
+                report = _from_item(item)
+                if generator and report.get("generator") != generator:
+                    continue
+                reports.append(report)
+            start_key = resp.get("LastEvaluatedKey")
+            if not start_key:
+                break
     except DefectsError:
         raise
     except Exception as exc:
         raise DefectsError(f"failed to list defects: {exc}") from exc
 
-    reports = [_from_item(i) for i in items]
-    if generator:
-        reports = [r for r in reports if r.get("generator") == generator]
-    return reports
+    if status == "all":
+        # Scan order is arbitrary; impose newest-first like the query path.
+        reports.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+    return reports[:limit]
 
 
 def get_defect(
@@ -243,9 +285,11 @@ def get_defect(
     region: str = DEFAULT_REGION,
 ) -> dict[str, Any] | None:
     """Fetch one defect by id, or None if it doesn't exist."""
-    table = _defects_table(env=env, table_name=table_name, profile=profile, region=region)
     try:
+        table = _defects_table(env=env, table_name=table_name, profile=profile, region=region)
         resp = table.get_item(Key={"id": defect_id})
+    except DefectsError:
+        raise
     except Exception as exc:
         raise DefectsError(f"failed to fetch defect {defect_id}: {exc}") from exc
     item = resp.get("Item")
@@ -269,11 +313,8 @@ def update_status(
     """
     if status not in (STATUS_ACCEPTED, STATUS_DISMISSED):
         raise DefectsError(
-            f"can only set status to {STATUS_ACCEPTED!r} or {STATUS_DISMISSED!r}, "
-            f"got {status!r}"
+            f"can only set status to {STATUS_ACCEPTED!r} or {STATUS_DISMISSED!r}, got {status!r}"
         )
-    table = _defects_table(env=env, table_name=table_name, profile=profile, region=region)
-
     set_parts = ["#s = :s", "triaged_at = :t"]
     names = {"#s": "status"}
     values: dict[str, Any] = {":s": status, ":t": _now_iso()}
@@ -284,7 +325,10 @@ def update_status(
         set_parts.append("triage_note = :n")
         values[":n"] = note
 
+    from botocore.exceptions import ClientError
+
     try:
+        table = _defects_table(env=env, table_name=table_name, profile=profile, region=region)
         resp = table.update_item(
             Key={"id": defect_id},
             UpdateExpression="SET " + ", ".join(set_parts),
@@ -293,10 +337,15 @@ def update_status(
             ConditionExpression="attribute_exists(id)",
             ReturnValues="ALL_NEW",
         )
-    except Exception as exc:
-        # botocore raises ConditionalCheckFailedException when the id is
-        # absent; surface a clean message either way.
-        if "ConditionalCheckFailed" in type(exc).__name__:
+    except DefectsError:
+        raise
+    except ClientError as exc:
+        # The ConditionExpression fails (stable AWS error code) when no row
+        # with this id exists — match on the documented code, not the
+        # exception class name.
+        if exc.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
             raise DefectsError(f"no defect with id {defect_id!r}") from exc
+        raise DefectsError(f"failed to update defect {defect_id}: {exc}") from exc
+    except Exception as exc:
         raise DefectsError(f"failed to update defect {defect_id}: {exc}") from exc
     return _from_item(resp.get("Attributes", {}))

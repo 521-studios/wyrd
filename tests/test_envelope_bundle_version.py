@@ -42,3 +42,76 @@ def test_generator_runtime_version_defaults_to_none():
             return GenerationResult(result="x")
 
     assert _Dummy().runtime_version() is None
+
+
+# --- kenning bundle_version() reader + end-to-end (wyrd-dsl5) ---------------
+
+
+def test_bundle_version_reads_metadata(monkeypatch):
+    import sqlite3
+
+    from wyrd.generators.kenning.runtime import runtime_db
+
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE bundle_metadata (key TEXT, value TEXT)")
+    conn.executemany(
+        "INSERT INTO bundle_metadata VALUES (?, ?)",
+        [("schema_version", "2"), ("built_at", "2026-05-30T00:00:00Z")],
+    )
+    conn.commit()
+    monkeypatch.setattr(runtime_db, "get_runtime_db", lambda: conn)
+    runtime_db.reset_runtime_db_cache()
+    try:
+        bv = runtime_db.bundle_version()
+        assert bv["schema_version"] == "2"
+        assert bv["built_at"] == "2026-05-30T00:00:00Z"
+        # Cache hit — same object, no re-query.
+        assert runtime_db.bundle_version() is bv
+    finally:
+        runtime_db.reset_runtime_db_cache()  # don't leak the stub cache
+
+
+def test_bundle_version_missing_table_returns_empty(monkeypatch):
+    import sqlite3
+
+    from wyrd.generators.kenning.runtime import runtime_db
+
+    conn = sqlite3.connect(":memory:")  # no bundle_metadata table
+    monkeypatch.setattr(runtime_db, "get_runtime_db", lambda: conn)
+    runtime_db.reset_runtime_db_cache()
+    try:
+        assert runtime_db.bundle_version() == {}
+    finally:
+        runtime_db.reset_runtime_db_cache()
+
+
+def test_kenning_roll_stamps_bundle_version():
+    # End-to-end: the kenning runtime_version binding + bundle_version() reader
+    # surface on a real roll envelope (uses the committed dev seed DB).
+    from wyrd.app import create_app
+
+    app = create_app()
+    with app.test_client() as client:
+        resp = client.post("/api/kenning", json={"culture": "english", "count": 1})
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    bv = resp.get_json().get("bundle_version")
+    assert isinstance(bv, dict) and "schema_version" in bv
+
+
+def test_dispatch_swallows_runtime_version_error(monkeypatch):
+    # A generator whose runtime_version() raises must not sink the roll; the
+    # envelope just omits bundle_version.
+    from wyrd import registry
+    from wyrd.app import create_app
+
+    app = create_app()
+    gen = registry.get("kenning")
+
+    def _boom(self):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(type(gen), "runtime_version", _boom)
+    with app.test_client() as client:
+        resp = client.post("/api/kenning", json={"culture": "english", "count": 1})
+    assert resp.status_code == 200
+    assert "bundle_version" not in resp.get_json()

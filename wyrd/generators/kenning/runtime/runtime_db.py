@@ -174,15 +174,27 @@ def bundle_version() -> dict[str, str]:
     — the same seed + params can yield a different name after a re-emit, so
     the report pins the bundle it was reproducible against.
 
-    Process-cached: the bundle is immutable for the connection's lifetime
-    (re-emit + re-upload is the only update path, which restarts the
-    process). Reset via :func:`reset_runtime_db_cache`."""
+    Process-cached under ``_conn_lock`` (double-checked, mirroring
+    ``get_runtime_db``): the bundle is immutable for the connection's
+    lifetime (re-emit + re-upload is the only update path, which restarts
+    the process). Reset via :func:`reset_runtime_db_cache`. Returns ``{}``
+    (and caches it) when the DB predates the ``bundle_metadata`` table, so a
+    callable that reads this never re-queries a missing table per request."""
     global _bundle_version_cache
     if _bundle_version_cache is not None:
         return _bundle_version_cache
-    conn = get_runtime_db()
-    rows = conn.execute("SELECT key, value FROM bundle_metadata").fetchall()
-    _bundle_version_cache = {str(k): str(v) for k, v in rows}
+    with _conn_lock:
+        if _bundle_version_cache is not None:
+            return _bundle_version_cache
+        conn = get_runtime_db()
+        try:
+            rows = conn.execute("SELECT key, value FROM bundle_metadata").fetchall()
+            _bundle_version_cache = {str(k): str(v) for k, v in rows}
+        except sqlite3.OperationalError:
+            # Pre-bundle_metadata DB. Cache empty so we don't re-query +
+            # re-raise on every roll; the envelope treats {} as "no version".
+            _logger.debug("bundle_metadata table absent; no version stamp")
+            _bundle_version_cache = {}
     return _bundle_version_cache
 
 

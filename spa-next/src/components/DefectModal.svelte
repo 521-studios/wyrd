@@ -93,7 +93,9 @@
         reason: reason.trim(),
         result: result.result,
         seed: appState.resultsSeed,
-        parameters: appState.paramsByGenerator?.[generator] || {},
+        // The params frozen at roll time (resultsParams); fall back to the
+        // per-generator form state for a loaded saved workspace.
+        parameters: appState.resultsParams || appState.paramsByGenerator?.[generator] || {},
         explanation: result.explanation || '',
         components: result.components || [],
         morphemes_by_word: result.morphemes_by_word || null,

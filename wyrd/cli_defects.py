@@ -191,7 +191,9 @@ def accept_defect_cmd(env, profile, defect_id, ticket, note) -> None:
 @defects.command("dismiss")
 @_env_options
 @click.argument("defect_id")
-@click.option("--reason", "note", default=None, help="Why it's being dismissed (bogus/dup/wontfix).")
+@click.option(
+    "--reason", "note", default=None, help="Why it's being dismissed (bogus/dup/wontfix)."
+)
 def dismiss_defect_cmd(env, profile, defect_id, note) -> None:
     """Mark a report dismissed (bogus / duplicate / wontfix)."""
     from wyrd.defects import STATUS_DISMISSED, DefectsError, update_status

@@ -42,6 +42,11 @@ class AppState {
   // results came from a loaded saved workspace (no live roll metadata).
   resultsSeed = $state(null);
   resultsBundleVersion = $state(null);
+  // Snapshot of the params that PRODUCED `results`, frozen at roll time. A
+  // defect report sends this (not the live form state, which the user may
+  // have edited after rolling — e.g. changing `count`), so the stored
+  // parameters actually reproduce the flagged name.
+  resultsParams = $state(null);
 
   // wyrd-yxf6: which result is currently selected for col 3 inspection.
   // null = nothing selected, show placeholder. Lifted out of
