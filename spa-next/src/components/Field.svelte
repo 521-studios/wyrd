@@ -13,7 +13,7 @@
   // values persist across generator switches (paramsByGenerator stores
   // per-generator).
   import { appState } from '../lib/appState.svelte.js';
-  import { seedDefault } from '../lib/featureFlags.js';
+  import { seedDefault, snapEnumValue } from '../lib/featureFlags.js';
 
   let { fieldKey, prop } = $props();
 
@@ -68,12 +68,12 @@
     if (prop.type !== 'string' || !Array.isArray(prop.enum) || prop.enum.length === 0) return;
     const params = appState.currentParams;
     if (!params) return;
-    const value = params[fieldKey];
-    if (prop.enum.includes(value)) return;
-    params[fieldKey] =
-      prop.default !== undefined && prop.enum.includes(prop.default)
-        ? prop.default
-        : prop.enum[0];
+    // wyrd-etvd: snapEnumValue returns undefined for an unseeded (undefined)
+    // value, so this snap NEVER preempts the seed effect's config.defaults
+    // override (e.g. WYRD_DEFAULT_SCORING_MODE=vector). It only corrects a
+    // DEFINED-but-invalid value (the culture-filtered case).
+    const snapped = snapEnumValue(params[fieldKey], prop.enum, prop.default);
+    if (snapped !== undefined) params[fieldKey] = snapped;
   });
 
   // Dependent select: options depend on currently-selected culture.
@@ -91,13 +91,16 @@
   $effect(() => {
     if (!isDependentSelect(prop)) return;
     if (dependentOptions.length === 0) return;
-    const value = appState.currentParams[fieldKey];
-    if (dependentOptions.includes(value)) return;
-    if (prop.default !== undefined && dependentOptions.includes(prop.default)) {
-      appState.currentParams[fieldKey] = prop.default;
-    } else {
-      appState.currentParams[fieldKey] = dependentOptions[0];
-    }
+    // wyrd-etvd: same undefined-guard as the plain-enum snap — an unseeded
+    // value is left for the seed effect (preserving any config.defaults
+    // override); only a defined value invalid for the current culture's
+    // options snaps.
+    const snapped = snapEnumValue(
+      appState.currentParams[fieldKey],
+      dependentOptions,
+      prop.default,
+    );
+    if (snapped !== undefined) appState.currentParams[fieldKey] = snapped;
   });
 
   // Tag-grid checkbox toggle: array-of-strings field value.
