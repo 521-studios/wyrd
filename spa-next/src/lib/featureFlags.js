@@ -64,8 +64,15 @@ export function visibleCultures(config, cultureEnum) {
  *  values arrive as strings; the schema default is already typed). Arrays
  *  aren't supported as default overrides — they fall through unchanged. */
 export function coerceToType(raw, prop) {
-  if (prop?.type === 'integer') return parseInt(raw, 10);
-  if (prop?.type === 'number') return Number(raw);
+  if (prop?.type === 'integer' || prop?.type === 'number') {
+    // A bad/empty numeric env (e.g. WYRD_DEFAULT_COUNT=abc, or '') would
+    // otherwise yield NaN / 0 and silently seed a junk value (NaN serializes
+    // to null in the request). Return undefined so the caller falls back to
+    // the schema default / type-based empty rather than shipping garbage.
+    if (String(raw).trim() === '') return undefined;
+    const n = prop.type === 'integer' ? parseInt(raw, 10) : Number(raw);
+    return Number.isNaN(n) ? undefined : n;
+  }
   if (prop?.type === 'boolean') {
     return ['1', 'true', 'yes', 'on'].includes(String(raw).toLowerCase());
   }
@@ -77,6 +84,11 @@ export function coerceToType(raw, prop) {
  *  its type-based empty fallback). */
 export function seedDefault(config, fieldKey, prop) {
   const override = config?.defaults?.[fieldKey];
-  if (override !== undefined) return coerceToType(override, prop);
+  if (override !== undefined) {
+    const coerced = coerceToType(override, prop);
+    // A junk override (coerced → undefined, e.g. WYRD_DEFAULT_COUNT=abc)
+    // falls through to the schema default rather than seeding nothing.
+    if (coerced !== undefined) return coerced;
+  }
   return prop?.default;
 }

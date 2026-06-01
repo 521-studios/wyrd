@@ -57,6 +57,25 @@
     return Boolean(prop['x-options-by-culture']);
   }
 
+  // wyrd-0gou: snap-to-valid for plain string-enum selects. The culture enum
+  // is filtered by feature flags (visibleCultures), so a seeded value — incl.
+  // a WYRD_DEFAULT_<OPT> override — that isn't in the (filtered) options must
+  // snap to a valid one. Otherwise the <select> shows a blank/stale selection
+  // and an invisible value gets submitted. Mirrors the dependent-select snap
+  // below; skips dependent selects (they have their own) and non-enum fields.
+  $effect(() => {
+    if (isDependentSelect(prop)) return;
+    if (prop.type !== 'string' || !Array.isArray(prop.enum) || prop.enum.length === 0) return;
+    const params = appState.currentParams;
+    if (!params) return;
+    const value = params[fieldKey];
+    if (prop.enum.includes(value)) return;
+    params[fieldKey] =
+      prop.default !== undefined && prop.enum.includes(prop.default)
+        ? prop.default
+        : prop.enum[0];
+  });
+
   // Dependent select: options depend on currently-selected culture.
   // The derivation + snap-to-valid live in a single effect so we
   // avoid the round-1 footgun where the init effect set a default

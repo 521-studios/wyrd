@@ -1,6 +1,13 @@
 variable "env" {
   description = "Deployment environment (staging | production)"
   type        = string
+  # wyrd-0gou: the WYRD_FF_ALL conditional (main.tf) keys off env == "staging",
+  # so a typo'd env (e.g. "Staging" / "prod") would silently deploy with all
+  # flags off. Fail loud at plan time instead.
+  validation {
+    condition     = contains(["staging", "production"], var.env)
+    error_message = "env must be \"staging\" or \"production\"."
+  }
 }
 
 variable "aws_region" {

@@ -234,12 +234,18 @@ resource "aws_lambda_function" "api" {
         WYRD_FF_ALL            = var.env == "staging" ? "true" : "false"
       },
       {
+        # Skip "all" so a stray entry can't shadow the env-based WYRD_FF_ALL
+        # conditional above (merge() is last-wins).
         for name in var.enabled_feature_flags :
         "WYRD_FF_${upper(replace(replace(name, ".", "_"), "-", "_"))}" => "true"
+        if lower(name) != "all"
       },
       {
+        # Normalize keys the same way as flag names so 'scoring-mode' /
+        # 'scoring.mode' → WYRD_DEFAULT_SCORING_MODE (the server lowercases the
+        # suffix → 'scoring_mode', matching the SPA's snake_case field key).
         for opt, value in var.feature_flag_defaults :
-        "WYRD_DEFAULT_${upper(opt)}" => value
+        "WYRD_DEFAULT_${upper(replace(replace(opt, ".", "_"), "-", "_"))}" => value
       },
     )
   }
