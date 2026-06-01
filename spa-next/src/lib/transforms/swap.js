@@ -37,11 +37,12 @@ export const swapTransform = {
   // descriptor on the step card. Generic step UI fallback for
   // transforms with paramSchema is the bind:value controls; for
   // swap we just describe the targeted cell + the new form.
-  summary({ wordIndex, morphemeIndex, to }) {
-    return `morph[${wordIndex},${morphemeIndex}] → ${to}`;
+  summary({ wordIndex, morphemeIndex, to, language }) {
+    const lang = language ? ` (${language})` : '';
+    return `morph[${wordIndex},${morphemeIndex}] → ${to}${lang}`;
   },
   async apply(state, params) {
-    const { wordIndex, morphemeIndex, to } = params;
+    const { wordIndex, morphemeIndex, to, language } = params;
     if (!to) {
       throw new Error('swap target form is empty');
     }
@@ -61,12 +62,19 @@ export const swapTransform = {
     // morpheme is REPLACED with a new object (rest are reused).
     // Nothing downstream mutates morphemes_by_word so the shared
     // references are safe.
+    // wyrd-thhb: when the swap pins a LANGUAGE (selecting a cross-language
+    // homograph variant — e.g. Old Norse "by" /biː/ vs Old English bȳ /byː/),
+    // tag the morpheme with `_lang` so activeRendering() resolves the pinned
+    // language's pronunciation. A plain form/inflection swap (no language)
+    // clears any prior pin so it falls back to the canonical sources lang.
     const nextWords = state.morphemes_by_word.map((w, wi) =>
-      w.map((m, mi) =>
-        wi === wordIndex && mi === morphemeIndex
-          ? { ...m, usage: to }
-          : m,
-      ),
+      w.map((m, mi) => {
+        if (wi !== wordIndex || mi !== morphemeIndex) return m;
+        const next = { ...m, usage: to };
+        if (language) next._lang = language;
+        else delete next._lang;
+        return next;
+      }),
     );
     const name = renderName(nextWords);
     return { name, morphemes_by_word: nextWords };

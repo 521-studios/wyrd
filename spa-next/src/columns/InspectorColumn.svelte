@@ -20,6 +20,7 @@
   import TransformStack from '../components/TransformStack.svelte';
   import DefectModal from '../components/DefectModal.svelte';
   import { upgradeAccents } from '../lib/accents.js';
+  import { activeRendering } from '../lib/variants.js';
   // wyrd-8jjx: SaveWorkspaceButton + ShareWorkspaceButton moved to
   // the Header (universal across workspaces). Components stay in
   // the tree for potential reuse but no longer rendered here.
@@ -133,20 +134,12 @@
   });
 
   // The rendering slot (ipa / reader_pronunciation) for a morpheme's
-  // CURRENT usage — matched against either the plain form key or its
-  // accented original_script, since a swapped usage carries the accent.
+  // CURRENT usage. wyrd-thhb: delegate to activeRendering so the guide shows
+  // the CANONICAL language (the etymon in `sources`) by default — or the
+  // user's pinned `_lang` — instead of an arbitrary first dict match. Keeps
+  // the guide in lockstep with the card's highlighted row.
   function renderingForUsage(m) {
-    const u = stripDashes(m.usage);
-    const renderings = m.renderings || {};
-    for (const lang of Object.keys(renderings)) {
-      for (const form of Object.keys(renderings[lang])) {
-        const slot = renderings[lang][form];
-        if (u === stripDashes(form) || u === stripDashes(slot.original_script)) {
-          return slot;
-        }
-      }
-    }
-    return null;
+    return activeRendering(m)?.slot || null;
   }
 
   // wyrd-2b50 follow-up: a pronunciation guide at the top, where it
