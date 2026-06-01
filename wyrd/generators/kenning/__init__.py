@@ -977,6 +977,26 @@ def _max_form_similarity(matcher: SequenceMatcher, usage_norm: str, m: Meaning) 
     return best
 
 
+# wyrd-5z5j: tags that mark a PROPER-NOUN sense (personal name / saint).
+# A sibling carrying ONLY these is a pure proper noun and is de-prioritized
+# as a canonical place-name sense; one that ALSO carries a common-noun tag
+# (geology, topography, water, …) is a place element with an incidental
+# name tag and keeps common-noun rank.
+_PROPER_NOUN_TAGS = frozenset(
+    {"male name", "female name", "family name", "saint", "personal-name", "religious"}
+)
+
+
+def _is_pure_proper_noun(m: Meaning) -> bool:
+    """True when ``m`` is name/saint-tagged and carries NO common-noun tag —
+    i.e. a personal name / saint with no place-element sense (``Bourne``,
+    ``Andrew``), as opposed to a place element merely co-tagged with a name
+    (``stān`` 'stone' + 'Stan')."""
+    if not (m.is_name() or m.is_saint()):
+        return False
+    return all(tag in _PROPER_NOUN_TAGS for tag in m.tags)
+
+
 def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
     """Filter + rank sibling Meanings under one usage bucket so the
     highest-quality etymon's senses + tags surface first in the SPA's
@@ -1047,13 +1067,28 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
             (_STRATUM_PRIORITY[s] for s in m.sources if s in _STRATUM_PRIORITY),
             default=len(_ROOT_CODES),
         )
+        # wyrd-5z5j: a common-noun place-name sense outranks a PURE
+        # proper-name / saint sense within the same stratum. Defect-A
+        # (name-tagged derive_positions) introduced personal-name etymons
+        # whose modern surface spelling can EXACTLY match a suffix usage —
+        # e.g. the male name 'Bourne' (tags == {male name}, surface 'bourne')
+        # beating OE 'burna' on the surface tiebreaker for '-bourne'. We
+        # demote ONLY pure proper nouns: a morpheme that is genuinely a
+        # place element AND carries an incidental name tag (OE 'stān'
+        # 'stone' is also co-tagged 'male name' via the 'Stan' merge) keeps
+        # common-noun rank because it still carries geology/topography/etc.
+        # tags. Sorted ABOVE surface_similarity so canonicity-of-sense wins
+        # over surface match; a no-op when every sibling is a pure name
+        # (a genuine name morpheme like 'Saint-') — they all tie and fall
+        # through to the existing key.
+        is_common_sense = 0 if _is_pure_proper_noun(m) else 1
         # wyrd-ubbc: surface similarity is sorted AFTER stratum
         # (canonicity wins over surface similarity — an OE etymon
         # still beats a Celtic etymon at the same surface match)
         # but BEFORE meaning/tag counts (so 'hyll' beats 'holt'
         # inside OE for the -hill bucket).
         surface_similarity = _max_form_similarity(matcher, usage_norm, m) if matcher else 0.0
-        return (-stratum_rank, surface_similarity, len(m.meanings), len(m.tags))
+        return (-stratum_rank, is_common_sense, surface_similarity, len(m.meanings), len(m.tags))
 
     return sorted(filtered, key=_signal, reverse=True)
 

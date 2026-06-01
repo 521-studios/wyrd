@@ -86,7 +86,21 @@ def _matches_position(meaning: Meaning, slot_position: str) -> bool:
     here we do the same check explicitly on the meaning's location
     field. Joiners and other non-Meaning structural elements are
     handled by the caller before reaching this function.
+
+    wyrd-5z5j/D39: a ``bare`` (whole-word) slot accepts a meaning of ANY
+    location. A lone word is structurally bare regardless of the matched
+    form's dashes (``pleasant`` filling a whole word via its only form
+    ``-pleasant``), so gating bare on ``location == "bare"`` would starve
+    the slot. The DATA-driven restriction — which morphemes actually
+    appear standalone — is carried by the ``("bare", …, "single")`` bucket
+    frequency (``_resolve_slot_usage_frequency``): a morpheme never observed
+    bare looks up to 0 there and is filtered. The render lowercases / strips
+    dashes per the slot, so admitting a pre/post form here is safe. pre /
+    post / inner slots stay strict — compounds matched the position-
+    appropriate dash-form, so location is meaningful for them.
     """
+    if slot_position == "bare":
+        return True
     return meaning.location == slot_position
 
 

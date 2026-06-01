@@ -282,6 +282,33 @@ class MeaningGenerator:
         # downstream call. Skip + count instead so the bundle pair
         # self-heals on next re-export and the operator sees the drift
         # in the warning surface (rather than the runtime crashing).
+        # wyrd-5z5j/D39: the "single" pool is lone-word occurrences, which are
+        # structurally ``bare`` BY DEFINITION — a morpheme that fills a whole
+        # word sits in the bare slot no matter which dashed form the matcher
+        # used to match it (``pleasant`` filled by its only form ``-pleasant``).
+        # ``Meaning.key()`` buckets by the stored form's dash-shape, so a lone
+        # ``-pleasant`` would otherwise land only in the ``post`` bucket and
+        # never reach the ``bare`` single-word slots a current bundle's
+        # ``get_structure`` emits — starving them. We register single-pool
+        # usages under a ``bare`` bucket (keeping the dashed usage string as
+        # the ITEM so ``meaning_db`` still resolves and ``NewName.__str__``
+        # strips the dash + applies bare/word-initial case at render time —
+        # Defect B). This is the bucket-layer realization of the handoff's
+        # "bare occurrence records the dash-less surface", done where the
+        # bucket forms rather than by manufacturing dash-less meaning_db
+        # entries (the reverted derive_positions detour).
+        #
+        # We ADD the bare bucket rather than MOVE to it: the dash-shape
+        # bucket is ALSO kept so a bundle built before this change (its
+        # structures still reference ``(post, …, "single")`` etc.) keeps
+        # working — backward-compat for stale S3 bundles loaded between a
+        # code deploy and the bundle re-emit (wyrd-j43l). A current bundle's
+        # structures reference only the bare single-word slots, so the legacy
+        # dash-shape single buckets are simply unreferenced dead weight there.
+        # Genuine compounds (the ``part`` pool, no "single" addkey) keep their
+        # dash-shape bucket untouched, so a morpheme stays additively available
+        # as bare (lone) and pre/post (compound).
+        add_bare = "single" in addkeys
         missing_count = 0
         for usage, proportion in proportions.items():
             meanings = self.meaning_db.get(usage)
@@ -289,6 +316,8 @@ class MeaningGenerator:
                 missing_count += 1
                 continue
             keys = {m.key() for m in meanings}
+            if add_bare:
+                keys |= {("bare", *k[1:]) for k in keys}
             for key in keys:
                 if addkeys:
                     key = tuple(list(key) + list(addkeys))

@@ -511,8 +511,10 @@ def test_select_via_vector_saint_filter_matches_legacy_literal_usage_only():
         sources=[],
     )
     db = {"Andrew-": [andrew], "Saint-": [saint_literal]}
-    # Saint-flagged single-element 1-word struct.
-    structs = {((("pre", "saint", "single"),),): 1}
+    # Saint-flagged single-element 1-word struct. D39: a lone word is
+    # structurally bare (the single pool buckets as "bare" regardless of
+    # the Saint- prefix form), so the slot key is ("bare", "saint", "single").
+    structs = {((("bare", "saint", "single"),),): 1}
     name_gen = _build_synthetic_vector_name_gen(structs, db)
     # Over many seeds, only Saint- should ever fill the saint slot
     # — never Andrew-. NewName.name is list-of-words; the slot
@@ -539,9 +541,10 @@ def test_name_generator_usage_frequency_by_bucket_snapshots_generators():
     snapshots MeaningGenerator's per-bucket weight tables into a
     flat ``bucket_key → {usage: frequency}`` map. Single-element and
     multi-element bucket variants land at DISTINCT keys (``("pre",)``
-    vs ``("pre", "single")``) so the vector path can consult them
-    separately — proportions samples them as separate buckets and
-    the per-usage frequency distributions can diverge."""
+    vs ``("bare", "single")`` — D39: lone words bucket as bare) so the
+    vector path can consult them separately — proportions samples them
+    as separate buckets and the per-usage frequency distributions can
+    diverge."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
     from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
@@ -562,7 +565,7 @@ def test_name_generator_usage_frequency_by_bucket_snapshots_generators():
 
     name_gen = NameGenerator(meaning_db, mg, structs)
     assert name_gen.usage_frequency_by_bucket[("pre",)] == {"Common-": 6, "Rare-": 2}
-    assert name_gen.usage_frequency_by_bucket[("pre", "single")] == {
+    assert name_gen.usage_frequency_by_bucket[("bare", "single")] == {
         "Common-": 3,
         "Rare-": 1,
     }

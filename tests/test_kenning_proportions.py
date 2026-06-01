@@ -374,7 +374,7 @@ def test_select_populates_inflection_labels_at_high_density():
     proportions = dict.fromkeys(meaning_db, 1)
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m.location, "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     new_name = name_gen.select(random.Random(0), inflection_density=1.0)
     assert new_name.inflection_labels == [["dative_or_pl"]]
@@ -403,7 +403,7 @@ def test_select_default_skips_render_pass_entirely():
     proportions = dict.fromkeys(meaning_db, 1)
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m.location, "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     new_name = name_gen.select(random.Random(0))
     assert new_name.rendered is None
@@ -931,9 +931,10 @@ def test_name_generator_select_excludes_fiction_end_to_end():
     proportions = {"-mythron": 1}
     mg = MeaningGenerator(meaning_db, tag_db, proportions)
     # Same shape as production load_proportions: single-element words
-    # register usages under (location, "name", "single").
+    # register usages under ("bare", "name", "single") — a lone word is
+    # structurally bare regardless of the matched form's dashes (D39).
     mg.load_parts(proportions, "single")
-    structs = {(((m.location, "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
 
     # Default mode: fiction excluded → no morpheme in the slot.
@@ -1107,7 +1108,7 @@ def test_name_generator_select_drops_out_of_era_morphemes_at_pick_time():
     proportions = {"-in": 1, "-out": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_in.location, "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), era_range=(800, 1100))
@@ -1143,7 +1144,7 @@ def test_name_generator_select_era_range_threads_through_positive_tag_path():
     tag_db = {"tree": ["-in", "-out"]}
     mg = MeaningGenerator(meaning_db, tag_db, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_in.location, "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), "tree", era_range=(800, 1100))
@@ -1170,7 +1171,7 @@ def test_name_generator_select_era_range_none_is_bit_stable():
     proportions = {"-a": 50, "-b": 50}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {((("post", "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     seq_default = [name_gen.select(random.Random(i)).name for i in range(20)]
     seq_explicit_none = [name_gen.select(random.Random(i), era_range=None).name for i in range(20)]
@@ -1215,10 +1216,10 @@ def test_name_generator_select_no_era_matches_pre_pr_weighted_choice():
     proportions = {"-a": 30, "-b": 70}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {((("post", "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
 
-    bucket = mg.generators[("post", "name", "single")]
+    bucket = mg.generators[("bare", "name", "single")]
     items = list(bucket.elements.items())
     struct_items = list(structs.items())
 
@@ -1563,7 +1564,7 @@ def test_name_generator_select_drops_out_of_stratum_morphemes_at_pick_time():
     proportions = {"-in": 1, "-out": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_in.location, "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), stratum="native-welsh")
@@ -1631,7 +1632,7 @@ def test_name_generator_select_stratum_threads_through_positive_tag_path():
     tag_db = {"tree": ["-in", "-out"]}
     mg = MeaningGenerator(meaning_db, tag_db, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_in.location, "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), "tree", stratum="native-welsh")
@@ -1689,7 +1690,7 @@ def test_name_generator_select_stratum_none_is_bit_stable():
     proportions = {"-a": 50, "-b": 50}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {((("post", "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     seq_default = [name_gen.select(random.Random(i)).name for i in range(20)]
     seq_explicit_none = [name_gen.select(random.Random(i), stratum=None).name for i in range(20)]
@@ -1743,7 +1744,7 @@ def test_name_generator_select_era_and_stratum_compose_via_intersection():
     proportions = {"-ok": 1, "-wrong-stratum": 99, "-wrong-era": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_ok.location, "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(
@@ -1825,7 +1826,7 @@ def test_name_generator_cohesion_zero_is_bit_stable_with_no_cooccurrence():
     m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 50, "-b": 50}
-    structs = {((("post", "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
         proportions,
@@ -1890,7 +1891,7 @@ def test_name_generator_cohesion_no_cooccurrence_data_is_no_op():
     m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 50, "-b": 50}
-    structs = {((("post", "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(meaning_db, proportions, structs, cooc={}, marg={})
     seq_zero = [name_gen.select(random.Random(i), cohesion=0.0).name for i in range(20)]
     seq_one = [name_gen.select(random.Random(i), cohesion=1.0).name for i in range(20)]
@@ -1910,7 +1911,7 @@ def test_name_generator_cohesion_no_prior_tags_first_slot_unaffected():
     m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 50, "-b": 50}
-    structs = {((("post", "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
         proportions,
@@ -1937,7 +1938,7 @@ def test_name_generator_cohesion_no_signal_returns_none_boost():
     m_b = Meaning("-b", ["religion", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 1, "-b": 1}
-    structs = {((("post", "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     # marg has 'water' but no co-occurrence between water and any
     # candidate tag → raw scores are all zero → boost is None.
     name_gen = _build_cohesion_test_generator(
@@ -1947,7 +1948,7 @@ def test_name_generator_cohesion_no_signal_returns_none_boost():
         cooc={},
         marg={"water": 100},
     )
-    boost = name_gen._cohesion_boost(("post", "name", "single"), {"water"}, cohesion=1.0)
+    boost = name_gen._cohesion_boost(("bare", "name", "single"), {"water"}, cohesion=1.0)
     assert boost is None
 
 
@@ -1962,7 +1963,7 @@ def test_name_generator_cohesion_unknown_bucket_returns_none_boost():
     m = Meaning("-a", ["water", "family name"], [], {})
     meaning_db = {"-a": [m]}
     proportions = {"-a": 1}
-    structs = {((("post", "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
         proportions,
@@ -2073,7 +2074,7 @@ def test_name_generator_cohesion_composes_with_novelty():
     m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 70, "-b": 30}
-    structs = {((("post", "name", "single"),),): 1}
+    structs = {((("bare", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
         proportions,
