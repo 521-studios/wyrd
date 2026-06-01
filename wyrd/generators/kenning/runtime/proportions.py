@@ -14,6 +14,7 @@ import re
 from functools import lru_cache
 
 from .meaning import _mimic_case
+from .word import _position_form
 
 # wyrd-van9: runtime warnings (drift, stale bundle, missing keys) flow
 # through the logging module per the project's library-code convention
@@ -1265,8 +1266,6 @@ class NameGenerator:
         # path already feeds position-forms to NewName; this brings the vector
         # path into line — slot position is ``slot[0]``; NewName still strips
         # dashes + applies word-initial case for the rendered name.
-        from .word import _position_form
-
         words: list[list[str | None]] = []
         idx = 0
         for word in struct:
