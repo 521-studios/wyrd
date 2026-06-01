@@ -39,11 +39,7 @@ from wyrd.generators.kenning.runtime.proportions import (
     _is_ungrammatical_word_template,
     word_to_key,
 )
-from wyrd.generators.kenning.runtime.trie_matcher import _location_allows
-from wyrd.generators.kenning.runtime.vector_name_select import (
-    _matches_position,
-    _slot_position_label,
-)
+from wyrd.generators.kenning.runtime.vector_name_select import _slot_position_label
 
 
 def _m(usage: str) -> Meaning:
@@ -63,26 +59,11 @@ def test_dash_shapes_unchanged():
     assert _m("-by-").location == "inner"
 
 
-# --- _location_allows: bare is valid at ANY position -----------------------
-
-
-def test_location_allows_bare_anywhere():
-    """A bare key may match at the start, middle, or end of a word —
-    unconstrained (the original permissive Rando-port semantics).
-    Contrast post, which is end-anchored."""
-    bare = _m("beck")
-    # word_length 8, try a match at start (0-4), middle (2-6), end (4-8).
-    assert _location_allows(bare, 0, 4, 8)
-    assert _location_allows(bare, 2, 6, 8)
-    assert _location_allows(bare, 4, 8, 8)
-
-
-def test_location_allows_post_still_end_anchored():
-    """Regression guard: the bare change must not loosen post. A
-    suffix key still only matches at word-end."""
-    post = _m("-beck")
-    assert not _location_allows(post, 0, 4, 8)  # start — rejected
-    assert _location_allows(post, 4, 8, 8)  # end — allowed
+# wyrd-eyjk/D40: the `_location_allows` match-time position gate was REMOVED —
+# position is no longer a constraint on matching (a morpheme is its string and
+# may match anywhere; bare/pre/post/inner is derived from the span afterward and
+# statistically ranked at build time, never used to reject a match). Its tests
+# are gone with it. `Meaning.location` survives as a render hint (above).
 
 
 # --- grammaticality guard: bare single grammatical, suffix-alone not -------
@@ -122,24 +103,10 @@ def test_slot_position_label_bare():
     assert _slot_position_label("-inner-") == "inner"
 
 
-def test_bare_slot_accepts_any_location_d39():
-    """wyrd-5z5j/D39: a 'bare' (whole-word) slot accepts a meaning of ANY
-    location. A lone word is structurally bare regardless of the matched
-    form's dashes, so the position gate is permissive for bare; the
-    DATA-driven restriction (which morphemes actually appear standalone)
-    moved to the ``("bare", …, "single")`` bucket-frequency layer
-    (_resolve_slot_usage_frequency), where a never-observed-bare morpheme
-    looks up to 0 and is filtered. This replaces the old wyrd-vpri
-    exact-equality gate that rejected suffix keys here."""
-    assert _matches_position(_m("beck"), "bare")
-    assert _matches_position(_m("-beck"), "bare")
-
-
-def test_post_slot_no_longer_matches_bare_meaning():
-    """Symmetric: a genuine suffix slot does not pull in bare keys
-    (pre-fix it did, because bare==post)."""
-    assert _matches_position(_m("-beck"), "post")
-    assert not _matches_position(_m("beck"), "post")
+# wyrd-eyjk/D40: the vector-mode `_matches_position` position gate was REMOVED
+# (its tests with it). A morpheme may fill any slot; the per-position bucket
+# frequency is the data-driven restriction. `_slot_position_label` survives —
+# it still labels the slot's position for the D36 position-axis SCORING.
 
 
 # --- encode_meaning: bare serializes as a location, not a flag -------------

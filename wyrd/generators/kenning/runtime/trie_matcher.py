@@ -197,13 +197,6 @@ def build_morpheme_trie(meaning_db: dict[str, list[Any]]) -> MorphemeTrie:
     return trie
 
 
-def _location_for(meaning: Any) -> str:
-    """Extract a position constraint from a Meaning-like object.
-    Tolerates objects that don't carry .location (treats as 'inner')
-    so the matcher works on synthetic test fixtures too."""
-    return getattr(meaning, "location", "inner")
-
-
 def _find_matches_at(
     trie: MorphemeTrie,
     word: str,
@@ -213,7 +206,14 @@ def _find_matches_at(
     (end_position, meaning) pair where a morpheme matches starting at
     ``start``. Lowercases the input character-by-character so the match
     is case-insensitive while preserving the input's casing for
-    unaccounted fragments."""
+    unaccounted fragments.
+
+    wyrd-eyjk/D40: a morpheme is its STRING — it matches at any span, with NO
+    position gate or position-based variant selection. Every terminal at a
+    matching surface is emitted; bare/pre/-inner-/-post is derived from the
+    span/index downstream (``Word.get_structure`` / ``Word.get_samples``,
+    which re-dash the surface to the derived position) and the credible split
+    is chosen by the scorer — position is never smuggled into the match here."""
     matches: list[tuple[int, Any]] = []
     node = trie.forward
     pos = start
@@ -225,42 +225,9 @@ def _find_matches_at(
             break
         pos += 1
         node = nxt
-        if node.terminals:
-            for m in node.terminals:
-                matches.append((pos, m))
+        for m in node.terminals:
+            matches.append((pos, m))
     return matches
-
-
-def _location_allows(meaning: Any, start: int, end: int, word_length: int) -> bool:
-    """Filter a candidate match by its Meaning's position constraint.
-
-    * ``pre`` — must start at position 0.
-    * ``post`` — must end at ``word_length``.
-    * ``inner`` — must be STRICTLY inner: ``start > 0`` AND
-      ``end < word_length``. Inner-only morphemes (those with dashes
-      on both sides like ``-don-``, ``-stone-``) only make sense as
-      compound infixes; allowing them at boundaries produced the
-      ``donhole`` / ``nwydmillate`` style outputs that wyrd-zewx
-      caught in the post-wyrd-eni4 bundle.
-    * unset / unknown — no anchor constraint (same permissive
-      fallback the original Rando-port iterator used for synthetic
-      test fixtures and edge-case Meaning subclasses).
-
-    The strict-inner rule means a 4-char word whose only matching
-    morpheme is inner-only has no decomposition via that morpheme;
-    the matcher falls back to the skip-one-char branch and emits
-    the chars as unaccounted. That's correct: the morpheme really
-    isn't a valid compound element for that input position.
-    """
-    location = _location_for(meaning)
-    if location == "pre":
-        return start == 0
-    if location == "post":
-        return end == word_length
-    if location == "inner":
-        return start > 0 and end < word_length
-    # Unknown / synthetic — no anchor constraint.
-    return True
 
 
 # wyrd-p8ve: hard caps so adversarial / long inputs (the 58-char
@@ -337,11 +304,12 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
         if pos in cache:
             return cache[pos]
         results: list[list[Any]] = []
-        # Branch 1: every trie-match starting at pos that satisfies
-        # its meaning's position constraint.
+        # Branch 1: every trie-match starting at pos. wyrd-eyjk/D40: position
+        # is NOT a match constraint — a morpheme is its string and may match
+        # anywhere; bare/pre/post/inner is derived from the span afterward
+        # (Word.get_structure) and statistically ranked at build time, never
+        # used to reject a match here.
         for end, meaning in _find_matches_at(trie, word, pos):
-            if not _location_allows(meaning, pos, end, n):
-                continue
             for tail in walk(end):
                 if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
                     truncated[0] = True
@@ -467,9 +435,9 @@ def canonical_decompositions(
             return cache[pos]
         candidates: list[tuple[tuple[int, int], list[Any]]] = []
         # Branch 1: each trie-match contributes +1 morpheme, +0 unaccounted.
+        # wyrd-eyjk/D40: no position gate — every string-match stands; position
+        # is derived from the span and statistically ranked, never rejected.
         for end, meaning in _find_matches_at(trie, word, pos):
-            if not _location_allows(meaning, pos, end, n):
-                continue
             (tail_un, tail_mor), tails = walk_best(end)
             score = (tail_un, tail_mor + 1)
             for tail in tails:

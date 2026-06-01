@@ -999,10 +999,9 @@ def _is_pure_proper_noun(m: Meaning) -> bool:
     """True when ``m`` is name/saint-tagged and carries NO common-noun tag —
     i.e. a personal name / saint with no place-element sense (``Bourne``,
     ``Andrew``), as opposed to a place element merely co-tagged with a name
-    (``stān`` 'stone' + 'Stan')."""
-    if not (m.is_name() or m.is_saint()):
-        return False
-    return all(tag in _PROPER_NOUN_TAGS for tag in m.tags)
+    (``stān`` 'stone' + 'Stan'). Delegates to ``Meaning.is_pure_proper_noun``
+    (wyrd-eyjk/D40) so the predicate has a single definition."""
+    return m.is_pure_proper_noun()
 
 
 def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:

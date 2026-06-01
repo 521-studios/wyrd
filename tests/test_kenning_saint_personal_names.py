@@ -149,10 +149,18 @@ def test_explainer_decomposes_dedication_suffix_picking_saint_giles() -> None:
     trie = build_morpheme_trie(mdb)
     decomp = canonical_decomposition("StokeGiles", trie)
     usages = [getattr(e, "usage", e) for e in decomp]
-    assert "Giles" in usages, (
-        f"StokeGiles should decompose with post-position Giles morpheme; got {usages!r}"
+    # wyrd-eyjk/D40: the raw decomposition carries each morpheme's STORED
+    # variant (here ``Giles-``); position is DERIVED from the span, never read
+    # off the variant. StokeGiles → [stoke, giles] with giles word-FINAL, so
+    # its derived position is post (it would be recorded/rendered as ``-giles``)
+    # regardless of which dash-variant the matcher fetched. Assert the giles
+    # morpheme is present by SURFACE and is the word-final element.
+    surfaces = [u.replace("-", "").lower() if isinstance(u, str) else u for u in usages]
+    assert "giles" in surfaces, f"StokeGiles should decompose with a giles morpheme; got {usages!r}"
+    assert surfaces[-1] == "giles", (
+        f"giles must be the word-final (post-position) morpheme; got {usages!r}"
     )
-    giles_morpheme = next(e for e in decomp if getattr(e, "usage", None) == "Giles")
+    giles_morpheme = decomp[-1]
     assert giles_morpheme.meanings
     assert "Saint Giles" in giles_morpheme.meanings[0]
 

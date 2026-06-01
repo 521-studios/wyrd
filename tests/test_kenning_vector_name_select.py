@@ -330,8 +330,13 @@ def test_select_returns_one_meaning_per_slot(synthetic_meaning_db):
         priors=EmpiricalPriors(),
     )
     assert len(result) == 2
-    assert result[0].location == "pre"
-    assert result[1].location == "post"
+    # wyrd-eyjk/D40: position is the SLOT's (from the structure) and is applied
+    # at render time; the meaning chosen to fill a slot is selected by
+    # surface + composition score and need NOT carry that slot's stored
+    # .location (the per-position bucket frequency, not a hard gate, is what
+    # biases a morpheme toward the positions it was actually observed in).
+    # So we assert each slot is filled, not that location == slot.
+    assert all(isinstance(m, Meaning) for m in result)
 
 
 def test_select_seed_stable(synthetic_meaning_db):
@@ -481,6 +486,15 @@ def test_select_d17_cohesion_biases_second_slot_toward_overlapping_tags():
     # cohesion=1. With cohesion=0 the picks should be roughly 50/50
     # (equal sem_scores); with cohesion=1 they should bias toward the
     # match.
+    # wyrd-eyjk/D40: with the position gate removed, slot separation now comes
+    # from the per-(position) bucket frequency, not a hard location filter.
+    # Restrict slot 0 to Castle- (pre) and slot 1 to the -keep pair (post) so
+    # the second-slot cohesion competition is measured cleanly — mirroring how
+    # production's usage_frequency_by_bucket keeps a morpheme in the positions
+    # it was actually observed in.
+    usage_frequency_by_bucket = {("pre",): {"Castle-": 1.0}, ("post",): {"-keep": 1.0}}
+    slot_bucket_keys = [("pre",), ("post",)]
+
     def _count_match_wins(cohesion: float) -> int:
         wins = 0
         for seed in range(200):
@@ -492,6 +506,8 @@ def test_select_d17_cohesion_biases_second_slot_toward_overlapping_tags():
                 priors=EmpiricalPriors(),
                 cohesion=cohesion,
                 tag_cooccurrence=tag_cooccurrence,
+                slot_bucket_keys=slot_bucket_keys,
+                usage_frequency_by_bucket=usage_frequency_by_bucket,
             )
             if len(picks) == 2 and "fortified" in picks[1].tags:
                 wins += 1
@@ -1173,8 +1189,14 @@ def test_frequency_weighted_pool_admits_zero_score_usages():
             usage_frequency_by_bucket=usage_frequency_by_bucket,
         )
         if picks:
-            assert picks[0] is untagged_pre
-            assert picks[1] is untagged_post
+            # wyrd-eyjk/D40: Quiet- and -quiet are the SAME morpheme (surface
+            # "quiet"); the per-surface bucket frequency admits it at either
+            # slot and both stored variants render identically, so assert by
+            # surface rather than by which variant object was drawn. The
+            # admit-at-all property (a zero-vector-score usage is still
+            # pickable via its frequency) is what this test pins.
+            assert picks[0].usage.replace("-", "").lower() == "quiet"
+            assert picks[1].usage.replace("-", "").lower() == "quiet"
             pre_picked += 1
             post_picked += 1
     assert pre_picked == 20

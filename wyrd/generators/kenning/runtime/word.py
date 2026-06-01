@@ -25,6 +25,24 @@ def _structural_position(index: int, count: int) -> str:
     return "inner"
 
 
+def _position_form(meaning: Meaning, position: str) -> str:
+    """wyrd-eyjk/D40: render a morpheme's bare surface at its DERIVED position
+    as the recorded usage form. The morpheme's identity is its dash-stripped
+    surface; the dashes encode position and are applied here from the
+    span/index-derived ``position``, NOT read off whatever variant the matcher
+    happened to fetch. So a word-final ``giles`` records as ``-giles`` even
+    when only ``Giles-`` / ``Giles`` are stored. D39 casing: post/inner are
+    lowercased; pre/bare keep the surface's stored case (name capitals)."""
+    surface = meaning.usage.replace("-", "")
+    if position == "pre":
+        return f"{surface}-"
+    if position == "post":
+        return f"-{surface.lower()}"
+    if position == "inner":
+        return f"-{surface.lower()}-"
+    return surface  # bare
+
+
 class Word:
     def __init__(self, word):
         if isinstance(word, str):
@@ -70,21 +88,28 @@ class Word:
     def has_saint(self):
         return any(isinstance(m, Meaning) and m.is_saint() for m in self.word)
 
+    def _positioned_usages(self):
+        """wyrd-eyjk/D40: each morpheme's usage recorded at its DERIVED
+        position (index among the word's morphemes), not the matched variant's
+        stored dash-shape. ``Stokegiles`` → ``Stoke-`` (pre) + ``-giles``
+        (post). This is the (morpheme, derived-position) increment the
+        proportions tally is built from."""
+        meanings = [m for m in self.word if isinstance(m, Meaning)]
+        count = len(meanings)
+        return [_position_form(m, _structural_position(i, count)) for i, m in enumerate(meanings)]
+
     def get_samples(self):
-        usage_set = set()
-        if len(self.word) > 1:
-            for m in self.word:
-                if isinstance(m, Meaning):
-                    usage_set.add(m.usage)
-        return usage_set
+        # Multi-morpheme words feed the ``usages`` (part) pool.
+        if len(self.word) <= 1:
+            return set()
+        return set(self._positioned_usages())
 
     def get_lone_samples(self):
-        usage_set = set()
-        if len(self.word) == 1:
-            for m in self.word:
-                if isinstance(m, Meaning):
-                    usage_set.add(m.usage)
-        return usage_set
+        # Single-morpheme words feed the ``single_usages`` (lone/bare) pool;
+        # by definition the sole morpheme's derived position is ``bare``.
+        if len(self.word) != 1:
+            return set()
+        return set(self._positioned_usages())
 
     def get_structure(self):
         # wyrd-5z5j/D39: a morpheme's structural position comes from WHERE it

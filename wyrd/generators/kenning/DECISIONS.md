@@ -2486,6 +2486,29 @@ you MUST keep variants + inflections flowing through that same single owner.
 
 ## D40. Position is a DERIVED label and a SOFT statistic — never a match-time enforcer (wyrd-eyjk, 2026-06-01).
 
+> **READ THIS FIRST — the recurring confusion (corrected 5+ times across sessions).**
+> Position (`bare` / `pre-` / `-inner-` / `-post`) is an **OUTPUT of decomposition,
+> not an input to it.** A morpheme's identity is its **bare surface** (`giles`);
+> `Giles-` / `-giles` / `giles` are the *same morpheme rendered at a derived
+> position*, never separate things to match against or select between. Do NOT make
+> `Meaning.location` (the stored dash-shape) gate or filter what *can* match. If you
+> find yourself forcing location into the town-name deconstruction, STOP — that is
+> the exact, repeated error.
+>
+> **The three-layer pipeline:**
+> 1. **Scholarly prior** — the thousands of `is_canonical` / scholar-attributed
+>    splits give the per-(morpheme, position) frequency distribution. This is the
+>    ONLY role position statistics play: a credibility prior.
+> 2. **Decompose the real-town corpus** — puzzle-piece each town into morphemes by
+>    **string match only**; when several breakdowns are viable, a **heuristic
+>    grounded in the Layer-1 prior picks the most credible**; then **record that
+>    breakdown as `(morpheme, derived-position)` increments**. `Stokegiles` →
+>    `Stoke-` (pre) +1, `-giles` (post) +1; `Gileston` → `Giles-` (pre) +1, `-ton`
+>    (post) +1. A word-final morpheme records as `-post` regardless of which
+>    dash-variant is stored. Those increments ARE the proportions.
+> 3. **Generation** — samples per-morpheme position likelihoods from those
+>    proportions; structure slots are keyed by position.
+
 D39 described the four slots and (correctly) made the render derive surface from
 the slot. But the surrounding machinery had the dependency **backwards**: it used
 a morpheme's stored dash-position (`Meaning.location`, decoded from `-x` / `x-` /

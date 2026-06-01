@@ -348,6 +348,13 @@ def build_non_position_eligible(
             # keep_keys_for_gloss applies, so both modes share the rule.
             if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
                 continue
+            # wyrd-eyjk/D40: exclude synthesized saint subjects (pure proper
+            # nouns that are saint-tagged) from the base pool — same rule
+            # MeaningGenerator.load_parts applies, so the two scoring modes
+            # stay aligned. They reach generation only via the param-gated
+            # St-dedication synthesis, never an unprompted base name.
+            if m.is_pure_proper_noun() and m.is_saint():
+                continue
             non_position_eligible.append(m)
 
     # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Pack-
@@ -507,10 +514,16 @@ def build_slot_base_scores(
     # remains pickable. Strictly-negative scores still get filtered
     # (a register that actively opposes a Meaning shouldn't surface
     # it).
+    # wyrd-eyjk/D40: no position gate. A morpheme is its string and may fill
+    # any slot; the data-driven restriction on WHICH morphemes appear in a
+    # given position is carried by the per-(position) bucket frequency
+    # (slot_bucket_key → usage_frequency_by_bucket), built from the
+    # build-time position-derived proportions — a morpheme never observed in
+    # this position looks up to 0 and is filtered there, never here. The
+    # name/saint QUALIFIER gates below stay: they're tag-based (which morpheme
+    # may fill a name/saint slot), orthogonal to position (D39).
     eligible_by_usage: dict[str, list[tuple[Meaning, float]]] = {}
     for m in non_position_eligible:
-        if not _matches_position(m, slot_position):
-            continue
         if slot_qualifier == "name" and not m.is_name():
             continue
         if slot_qualifier == "saint" and m.usage.replace("-", "").lower() != "saint":
@@ -597,9 +610,18 @@ def _apply_per_usage_frequency(
     ``NewName`` resolves the full Meaning list per usage downstream
     regardless of which Meaning was picked.
     """
+    # wyrd-eyjk/D40: the bucket frequency is keyed by recorded POSITION-FORMS
+    # (`-giles`, `Saint`), but the eligible pool is keyed by each Meaning's
+    # stored usage variant (`Giles-`, `Saint-`). Collapse both to bare surface
+    # so a morpheme's per-position frequency is found regardless of which
+    # dash-variant the bundle stored it under.
+    freq_by_surface: dict[str, float] = {}
+    for form, f in slot_usage_frequency.items():
+        surface = form.lower().replace("-", "")
+        freq_by_surface[surface] = freq_by_surface.get(surface, 0.0) + f
     out: list[tuple[Meaning, float]] = []
     for usage, items in eligible_by_usage.items():
-        freq = slot_usage_frequency.get(usage, 0.0)
+        freq = freq_by_surface.get(usage.lower().replace("-", ""), 0.0)
         if freq <= 0:
             continue
         score_sum = sum(s for _, s in items)
