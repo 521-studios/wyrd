@@ -1076,7 +1076,13 @@ def _write_reflexes_for(
         if not apply:
             continue
         surface_form = _surface_form_for_position(canonical_form, pos)
-        reflex_id = db.upsert_reflex(surface_form, pos)
+        # wyrd-7nab: a 'bare' (standalone-word) reflex has a DASH-LESS surface;
+        # the runtime derives 'bare' from that (no dash markers), and
+        # reflex.position is only a sort key whose CHECK predates 'bare'. Store
+        # it under 'post' — matching the existing rando-port convention
+        # (position_from_usage maps a dash-less modern_usage to 'post').
+        stored_pos = "post" if pos == "bare" else pos
+        reflex_id = db.upsert_reflex(surface_form, stored_pos)
         counts["reflex_rows_upserted"] += 1
         db.link_reflex_etymon(reflex_id, etymon_id)
         counts["links_added"] += 1
@@ -1084,12 +1090,14 @@ def _write_reflexes_for(
 
 def _load_flat_names(place_names_path: Path) -> list[str]:
     """Read a place-names JSON corpus and return a flat list of lowercased
-    name strings with whitespace, hyphens and apostrophes stripped.
+    WORDS — each space-/hyphen-separated word of every name, apostrophes
+    stripped.
 
-    The bundled shape is ``{region: {subregion: [name, ...]}}`` and the
-    leaves are strings. Stripping makes substring matching insensitive
-    to ``Great Abington`` vs ``Great-Abington`` vs ``Greatabington`` —
-    the morpheme position is what matters, not the surface punctuation.
+    wyrd-7nab: words are kept SEPARATE (not flattened into one string) so a
+    standalone word (`Combe` in `Castle Combe`) is classifiable as ``bare``,
+    not mistaken for a suffix. Splitting on space AND hyphen treats
+    ``Great-Abington`` like ``Great Abington`` — both are two words. This is
+    what restores grammatical two-word structures (and the ~30% two-word rate).
     """
     data = json.loads(place_names_path.read_text())
     out: list[str] = []
@@ -1098,11 +1106,12 @@ def _load_flat_names(place_names_path: Path) -> list[str]:
 
 
 def _walk_names(node: Any, out: list[str]) -> None:
-    """Recursive flatten of the nested place_names JSON structure."""
+    """Recursive walk of the nested place_names JSON, emitting per-word tokens
+    (split on space + hyphen, lowercased, apostrophes stripped)."""
     if isinstance(node, str):
-        flat = node.lower().replace(" ", "").replace("-", "").replace("'", "")
-        if flat:
-            out.append(flat)
+        for word in node.lower().replace("-", " ").replace("'", "").split():
+            if word:
+                out.append(word)
     elif isinstance(node, list):
         for child in node:
             _walk_names(child, out)
@@ -1111,30 +1120,30 @@ def _walk_names(node: Any, out: list[str]) -> None:
             _walk_names(v, out)
 
 
-def _classify_positions(canonical_form: str, flat_names: list[str]) -> dict[str, int]:
-    """Count pre/post/inner occurrences of ``canonical_form`` across the
-    flat name list. Full-name matches count as both pre and post — a
-    morpheme that IS the whole place name (rare but possible — e.g.
-    welsh ``Aber`` as a town name) gets evidence for either edge."""
+def _classify_positions(canonical_form: str, words: list[str]) -> dict[str, int]:
+    """Count bare/pre/post/inner occurrences of ``canonical_form`` across the
+    word list (wyrd-7nab — word-aware). A word that IS the form → ``bare`` (a
+    standalone word); otherwise prefix → ``pre``, suffix → ``post``, interior →
+    ``inner``. The ``bare`` count is what was missing before (whitespace was
+    stripped, so standalone words always looked like a prefix/suffix)."""
     form = canonical_form.lower()
-    pos_counts = {"pre": 0, "post": 0, "inner": 0}
+    pos_counts = {"bare": 0, "pre": 0, "post": 0, "inner": 0}
     if len(form) < 2:
         return pos_counts
     flen = len(form)
-    for name in flat_names:
+    for word in words:
+        if word == form:
+            pos_counts["bare"] += 1
+            continue
         i = 0
-        nlen = len(name)
+        wlen = len(word)
         while True:
-            idx = name.find(form, i)
+            idx = word.find(form, i)
             if idx == -1:
                 break
-            ends = idx + flen
-            if idx == 0 and ends == nlen:
+            if idx == 0:
                 pos_counts["pre"] += 1
-                pos_counts["post"] += 1
-            elif idx == 0:
-                pos_counts["pre"] += 1
-            elif ends == nlen:
+            elif idx + flen == wlen:
                 pos_counts["post"] += 1
             else:
                 pos_counts["inner"] += 1

@@ -490,34 +490,30 @@ def test_idempotent_reapply_does_not_duplicate_glosses_or_citations(
 
 
 def test_classify_positions_detects_pre_post_inner() -> None:
-    """A morpheme appearing at the start of a name is pre, end is post,
-    interior is inner. Full-name match counts as pre+post."""
-    flat_names = [
+    """wyrd-7nab word-aware: a morpheme at the start of a WORD is pre, end is
+    post, interior is inner; a morpheme that IS the whole word is bare."""
+    words = [
         "greatabington",  # 'great' at start → pre
         "abbeydemesne",  # 'demesne' at end → post
         "stowmarket",  # 'mark' is interior → inner
-        "great",  # full match → pre+post
+        "great",  # whole word → bare (was pre+post pre-fix)
     ]
-    counts = _classify_positions("great", flat_names)
-    assert counts["pre"] == 2  # greatabington + great-as-full
-    assert counts["post"] == 1  # great-as-full
-    assert counts["inner"] == 0
+    counts = _classify_positions("great", words)
+    assert counts["pre"] == 1  # greatabington
+    assert counts["bare"] == 1  # 'great' standalone word
+    assert counts["post"] == 0 and counts["inner"] == 0
 
-    counts = _classify_positions("demesne", flat_names)
-    assert counts["pre"] == 0
-    assert counts["post"] == 1
-    assert counts["inner"] == 0
+    counts = _classify_positions("demesne", words)
+    assert counts == {"bare": 0, "pre": 0, "post": 1, "inner": 0}
 
-    counts = _classify_positions("mark", flat_names)
-    assert counts["pre"] == 0
-    assert counts["post"] == 0
-    assert counts["inner"] == 1
+    counts = _classify_positions("mark", words)
+    assert counts == {"bare": 0, "pre": 0, "post": 0, "inner": 1}
 
 
 def test_classify_positions_skips_too_short() -> None:
     """Single-char canonical forms are too noisy to classify."""
     counts = _classify_positions("a", ["abington", "great"])
-    assert counts == {"pre": 0, "post": 0, "inner": 0}
+    assert counts == {"bare": 0, "pre": 0, "post": 0, "inner": 0}
 
 
 def test_surface_form_for_position_emits_dash_conventions() -> None:
@@ -528,13 +524,13 @@ def test_surface_form_for_position_emits_dash_conventions() -> None:
     assert _surface_form_for_position("great", "post") == "-great"
 
 
-def test_derive_positions_writes_pre_and_post_reflexes_for_north(
+def test_derive_positions_classifies_standalone_word_as_bare(
     tmp_path: Path, fresh_db: Path
 ) -> None:
-    """Concrete worked example: 'north' appears at both ends in the
-    English corpus → derive_positions writes both Pre + Post reflex
-    rows + links them to the etymon. The bundle export then emits two
-    bundle words (one per dashed surface_form)."""
+    """wyrd-7nab: 'North' as a standalone word ('North Braitham') is classified
+    bare — a grammatical standalone word — not a prefix/suffix. Before the
+    word-aware fix, stripped whitespace made it look like a prefix/suffix, which
+    is what turned two-word toponyms into ungrammatical (filtered) structures."""
     place_names_path = tmp_path / "english_place_names.json"
     place_names_path.write_text(
         json.dumps(
@@ -564,12 +560,15 @@ def test_derive_positions_writes_pre_and_post_reflexes_for_north(
         )
 
     assert counts["etymons_examined"] == 1
-    # All three positions observed across the test corpus.
-    assert counts["by_position"]["pre"] == 1
-    assert counts["by_position"]["post"] == 1
+    # wyrd-7nab word-aware: 'North' is a STANDALONE word in 'North Braitham' /
+    # 'Braitham North' → bare (NOT a prefix/suffix — that was the
+    # whitespace-stripping artifact). Only 'Hithernorthville' is interior.
+    # by_position counts positions OBSERVED (1 per position), not occurrences.
+    assert counts["by_position"]["bare"] == 1
     assert counts["by_position"]["inner"] == 1
+    assert counts["by_position"]["pre"] == 0
+    assert counts["by_position"]["post"] == 0
 
-    # Verify the reflex rows landed.
     with LexiconDB(fresh_db) as db:
         north_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form='north'").fetchone()[
             "id"
@@ -577,19 +576,15 @@ def test_derive_positions_writes_pre_and_post_reflexes_for_north(
         north_reflexes = [
             (r["surface_form"], r["position"])
             for r in db.conn.execute(
-                """
-                SELECT r.surface_form, r.position
-                FROM reflex_etymon re
-                JOIN reflex r ON r.id = re.reflex_id
-                WHERE re.etymon_id = ?
-                ORDER BY r.position
-                """,
+                "SELECT r.surface_form, r.position FROM reflex_etymon re "
+                "JOIN reflex r ON r.id = re.reflex_id WHERE re.etymon_id = ?",
                 (north_id,),
             )
         ]
-        assert ("North-", "pre") in north_reflexes
-        assert ("-north", "post") in north_reflexes
+        # bare standalone-word reflex: DASH-LESS surface, stored under 'post'
+        assert ("north", "post") in north_reflexes
         assert ("-north-", "inner") in north_reflexes
+        assert not any(p == "pre" for _, p in north_reflexes)
 
 
 def test_derive_positions_picks_up_name_tagged_etymons(tmp_path: Path, fresh_db: Path) -> None:
@@ -603,9 +598,10 @@ def test_derive_positions_picks_up_name_tagged_etymons(tmp_path: Path, fresh_db:
             {
                 "England": {
                     "ceremonial_counties": [
-                        "Buna Hall",  # bunahall -> pre
-                        "Old Buna",  # oldbuna  -> post
-                        "Webunary",  # webunary -> inner
+                        "Bunaford",  # bunaford   -> pre
+                        "Oldbuna",  # oldbuna    -> post
+                        "Webunary",  # webunary   -> inner
+                        "Buna Hall",  # standalone -> bare
                     ]
                 }
             }
@@ -632,16 +628,19 @@ def test_derive_positions_picks_up_name_tagged_etymons(tmp_path: Path, fresh_db:
                 (bid,),
             )
         }
-    assert ("Buna-", "pre") in reflexes
-    assert ("-buna", "post") in reflexes
-    assert ("-buna-", "inner") in reflexes
+    assert ("Buna-", "pre") in reflexes  # word-initial cap
+    assert ("-buna", "post") in reflexes  # lowercased
+    assert ("-buna-", "inner") in reflexes  # lowercased
+    assert ("buna", "post") in reflexes  # bare standalone word (dash-less surface)
 
 
-def test_derive_positions_great_is_pre_only(tmp_path: Path, fresh_db: Path) -> None:
-    """User's other example: 'Great Braitham' parses (great is pre);
-    'Braitham Great' shouldn't (great is not post in any English place
-    name corpus). derive_positions must reflect this asymmetry — no
-    post reflex written if the corpus has no post evidence."""
+def test_derive_positions_great_is_bare_and_pre_never_a_suffix(
+    tmp_path: Path, fresh_db: Path
+) -> None:
+    """'Great' is a standalone qualifier word (bare) and a prefix (in 'Greater'),
+    but NEVER a real suffix — derive_positions must not write a '-great' post
+    reflex. wyrd-7nab: the bare standalone reflex is the dash-less 'great'
+    (stored under 'post'); a real suffix would be the dashed '-great'."""
     place_names_path = tmp_path / "english_place_names.json"
     place_names_path.write_text(
         json.dumps(
@@ -665,20 +664,17 @@ def test_derive_positions_great_is_pre_only(tmp_path: Path, fresh_db: Path) -> N
 
     with LexiconDB(fresh_db) as db:
         gid = db.conn.execute("SELECT id FROM etymon WHERE canonical_form='great'").fetchone()["id"]
-        positions = sorted(
-            r["position"]
+        reflexes = {
+            (r["surface_form"], r["position"])
             for r in db.conn.execute(
-                """
-                SELECT r.position
-                FROM reflex_etymon re
-                JOIN reflex r ON r.id = re.reflex_id
-                WHERE re.etymon_id = ?
-                """,
+                "SELECT r.surface_form, r.position FROM reflex_etymon re "
+                "JOIN reflex r ON r.id = re.reflex_id WHERE re.etymon_id = ?",
                 (gid,),
             )
-        )
-    # 'great' is pre-only in this corpus — no post reflex written.
-    assert positions == ["pre"]
+        }
+    assert ("Great-", "pre") in reflexes  # prefix (in 'Greater')
+    assert ("great", "post") in reflexes  # standalone qualifier word (bare)
+    assert ("-great", "post") not in reflexes  # never a real suffix
 
 
 def test_derive_positions_culture_scope_filters_languages(tmp_path: Path, fresh_db: Path) -> None:
