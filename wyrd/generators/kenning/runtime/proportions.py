@@ -1446,16 +1446,30 @@ class NewName:
         # word. Words join with spaces. Already-cased openings
         # pass through unchanged because ``ch.upper() == ch`` for
         # already-uppercase letters.
+        # wyrd-5z5j / DECISIONS D39: the render is the SINGLE owner of
+        # positional case, keyed on the SLOT (word position), not the
+        # morpheme's stored case. The word-INITIAL morpheme keeps its natural
+        # case and is front-capped (so internal caps like `McLeod` / `O'Brien`
+        # survive); every NON-initial morpheme (post/inner) is lowercased. So a
+        # name used mid-word (`-buna-`) renders `buna`, never a stray mid-word
+        # capital (`CornnamullacBunarath`), while a name at a word start stays
+        # capitalized. Substituted spelling-variants / inflections
+        # (``self.rendered``) obey the same slot rule — a variant dropped into
+        # an inner slot lowercases like the base would.
         words: list[str] = []
         for wi, w in enumerate(self.name):
             chunks: list[str] = []
+            first = True
             for ei, e in enumerate(w):
                 if e is None:
                     continue
                 if self.rendered is not None and self.rendered[wi][ei] is not None:
-                    chunks.append(self.rendered[wi][ei])
+                    surface = self.rendered[wi][ei]
                 else:
-                    chunks.append(e.replace("-", ""))
+                    surface = e
+                surface = surface.replace("-", "")
+                chunks.append(surface if first else surface.lower())
+                first = False
             joined = "".join(chunks)
             if joined:
                 joined = _collapse_triple_letters(joined)

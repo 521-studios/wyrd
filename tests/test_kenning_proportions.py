@@ -8,11 +8,45 @@ import textwrap
 from collections import Counter
 
 from wyrd.generators.kenning.runtime.proportions import (
+    NewName,
     _blend_harsh,
     _blend_uniform,
     _harshness_score,
     weighted_choice,
 )
+
+
+def _render(name, rendered=None):
+    return str(NewName(struct=None, meaning_db=None, name=name, rendered=rendered))
+
+
+# wyrd-5z5j / DECISIONS D39: the render is the single owner of positional case —
+# the SLOT (word position) decides, not the morpheme's stored case.
+def test_render_lowercases_non_initial_morphemes():
+    # a name morpheme used mid-word renders lowercase — no stray mid-word capital
+    assert _render([["Corn-", "na", "mul", "-lac-", "Buna", "-rath"]]) == "Cornnamullacbunarath"
+
+
+def test_render_splits_words_with_space_and_caps_each():
+    assert _render([["Corn-", "na", "mul", "-lac-"], ["Buna", "-rath"]]) == "Cornnamullac Bunarath"
+
+
+def test_render_front_caps_lowercase_initial():
+    assert _render([["buna", "-rath"]]) == "Bunarath"
+
+
+def test_render_preserves_word_initial_internal_caps():
+    # McLeod / O'Brien-style internal caps survive at a word start (front-cap,
+    # do NOT lowercase first); a non-initial McLeod still lowercases.
+    assert _render([["McLeod", "-ton"]]) == "McLeodton"
+    assert _render([["Glen"], ["McLeod"]]) == "Glen McLeod"
+
+
+def test_render_variants_obey_the_slot():
+    # a substituted variant (self.rendered) dropped into a non-initial slot
+    # lowercases like the base; word-initial keeps its case.
+    assert _render([["Whit-", "x"]], rendered=[["Whit", "BUNA"]]) == "Whitbuna"
+    assert _render([["x"]], rendered=[["McLeod"]]) == "McLeod"
 
 
 def test_weighted_choice_all_zero_weights_returns_none():
