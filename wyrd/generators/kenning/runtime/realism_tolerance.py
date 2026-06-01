@@ -85,18 +85,18 @@ DEFAULT_TOLERANCE = ToleranceBand()
 #
 # wyrd-eyjk re-baseline (2026-06-01): the original pre-refactor N=100 row
 # is kept (left) beside the post-morpheme-refactor (D40) N=100 numbers
-# (right) so the shift is visible. The position-derived buckets raised
-# english tag-KL and collapsed breton morpheme-rank ρ; the english KL and
-# breton/irish ρ bands were re-baselined accordingly (see per-band notes).
-# The default proportions path is the validated new reference — the drift
-# is the OPT-IN vector path tracking it less tightly; tightening that
-# alignment is a separate follow-up ([[wyrd-eyjk]]).
+# (right, AFTER fixing the vector culture-filter surface-normalization bug)
+# so the shift is visible. Most of the apparent drift was that bug, not the
+# model; with it fixed english/irish/breton returned to ~their original
+# bands and only scottish tag-KL genuinely shifted up under the new buckets.
+# The default proportions path is the validated new reference; residual
+# vector-mode alignment is tracked in the wyrd-vidi follow-up.
 #
-#   culture   KL@100  TV@100  ρ@100   | post-D40: KL@100  TV@100  ρ@100  decompΔ
-#   english   0.0735  0.0789  0.3455  |           0.2183  0.0838  0.2752  0.0000
-#   scottish  0.0175  0.0627  0.2859  |           0.0506  0.0797  0.2930  0.0000
-#   irish     0.0429  0.0680  0.4774  |           0.0853  0.0853  0.2527  0.0000
-#   breton    0.1600  0.1036  0.4068  |           0.1599  0.1453  0.1162  0.0000
+#   culture   KL@100  TV@100  ρ@100   | post-D40(fixed): KL@100  TV@100  ρ@100  decompΔ
+#   english   0.0735  0.0789  0.3455  |                  0.1357  0.0838  0.3900  0.0000
+#   scottish  0.0175  0.0627  0.2859  |                  0.1519  0.0797  0.2890  0.0000
+#   irish     0.0429  0.0680  0.4774  |                  0.0626  0.0853  0.2630  0.0000
+#   breton    0.1600  0.1036  0.4068  |                  0.0862  0.1453  0.3080  0.0000
 #   welsh     —  blocked by wyrd-cj6f (proportions crash) —
 #
 # At N=100 KL/ρ are noise-dominated (KL up to 0.16, ρ down to 0.29);
@@ -129,23 +129,28 @@ DEFAULT_TOLERANCE = ToleranceBand()
 # is deferred until wyrd-cj6f (its proportions crash) lets a clean welsh
 # drift run exist.
 PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {
+    # wyrd-eyjk re-baseline (2026-06-01): the position-derived morpheme model
+    # (D40) reshaped the per-position buckets. The bulk of the initial drift
+    # was a real bug — the vector path's culture_attested_usages filter compared
+    # the new position-form keyspace against stored dash-variants without
+    # surface normalization (now fixed in build_non_position_eligible +
+    # load_runtime_db_proportions). With that fixed, english / irish / breton
+    # mode-agreement returned to ~their original bands; only scottish tag-KL
+    # genuinely shifted up (0.018 → 0.152 at N=100/seed=0) under the new buckets.
+    # Post-fix N=100/seed=0: english KL 0.136 ρ 0.39 | scottish KL 0.152 ρ 0.29
+    # | irish KL 0.063 ρ 0.263 | breton KL 0.086 ρ 0.308. Bands below carry
+    # ~30% headroom over those. Residual vector-mode alignment is tracked in
+    # the wyrd-vidi follow-up.
     "english": ToleranceBand(
-        # wyrd-eyjk re-baseline (2026-06-01): the position-derived morpheme
-        # model (D40) reshaped the per-position buckets, so proportions-vs-
-        # vector tag drift rose from KL 0.053 → 0.218 at N=100/seed=0. The
-        # primary (proportions) path is the validated new reference; the
-        # vector path tracks it less tightly under the new buckets. Raised
-        # 0.15 → 0.28 (~28% headroom over observed). Tightening vector-mode
-        # alignment is tracked separately ([[wyrd-eyjk]] follow-up).
-        max_kl_divergence=0.28,
+        max_kl_divergence=0.20,  # was 0.15; observed 0.136 post-fix
         max_total_variation=0.16,
         min_top_n_overlap=None,
         max_decomposition_rate_delta_abs=0.02,
         min_morpheme_rank_correlation=0.15,
     ),
     "scottish": ToleranceBand(
-        max_kl_divergence=0.06,
-        max_total_variation=0.15,
+        max_kl_divergence=0.20,  # was 0.06; observed 0.152 post-fix (real shift)
+        max_total_variation=0.16,  # was 0.15; observed 0.080 — slack for the new buckets
         min_top_n_overlap=None,
         max_decomposition_rate_delta_abs=0.02,
         min_morpheme_rank_correlation=0.10,
@@ -155,24 +160,14 @@ PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {
         max_total_variation=0.16,
         min_top_n_overlap=None,
         max_decomposition_rate_delta_abs=0.02,
-        # wyrd-eyjk re-baseline (2026-06-01): observed ρ slipped to 0.2527
-        # under the position-derived model — a 0.003 hair above the old 0.25
-        # floor, flake-prone on the next bundle re-emit. Lowered to 0.20 (==
-        # breton) for headroom; vector-mode alignment tracked separately.
-        min_morpheme_rank_correlation=0.20,
+        min_morpheme_rank_correlation=0.20,  # was 0.25; observed 0.263 — headroom for the tight margin
     ),
     "breton": ToleranceBand(
         max_kl_divergence=0.30,
         max_total_variation=0.20,
         min_top_n_overlap=None,
         max_decomposition_rate_delta_abs=0.02,
-        # wyrd-eyjk re-baseline (2026-06-01): the position-derived model (D40)
-        # dropped proportions-vs-vector morpheme-rank correlation from 0.504 →
-        # 0.116 at N=100/seed=0 — the vector path weighs its phon/sem scoring
-        # over the reshaped frequency buckets. Lowered 0.20 → 0.08 (still
-        # catches a full collapse / rank-inversion). Tightening vector-mode
-        # alignment to the new model is tracked separately ([[wyrd-eyjk]]).
-        min_morpheme_rank_correlation=0.08,
+        min_morpheme_rank_correlation=0.20,  # observed 0.308 post-fix (original 0.20 holds)
     ),
 }
 

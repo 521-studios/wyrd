@@ -14,8 +14,8 @@ Both ended up ``location='post'``, so:
    (``_is_ungrammatical_word_template``) couldn't tell a legitimate
    single bare word from a suffix-only morpheme rendered alone — it
    filtered (or admitted) both identically; and
-2. vector-mode slot eligibility (``_matches_position``, exact equality)
-   let a suffix key fill a single-word slot, producing the
+2. vector-mode slot eligibility (the old ``_matches_position`` exact-equality
+   gate) let a suffix key fill a single-word slot, producing the
    ``-park`` → "Park" standalone the user QA'd.
 
 The fix gives bare keys a distinct ``location='bare'``. These tests pin
@@ -23,12 +23,14 @@ the partition invariants that follow — independent of any proportions
 rebuild (the rebuild is what makes the fix take effect end-to-end; see
 the PR's operator note).
 
-wyrd-5z5j/D39 update: the structural-position model supersedes the
-vector-mode exact-equality gate for the ``bare`` slot specifically — a
-lone word is bare regardless of the matched form's dashes, so a bare
-slot now accepts any location and the data-driven restriction moves to
-the ``("bare", …, "single")`` bucket-frequency layer. pre/post/inner
-slots keep exact equality. See ``test_bare_slot_accepts_any_location_d39``.
+wyrd-eyjk/D40 update: position is no longer a match-time gate at all — both
+the trie ``_location_allows`` and the vector ``_matches_position`` gates were
+removed. Matching is string-only; bare/pre/-inner-/-post is DERIVED from the
+span, and the data-driven restriction is the per-(position) bucket frequency.
+``Meaning.location`` survives only as a render/scoring hint. The string-only
+matching invariant is pinned by ``test_matching_is_string_only_no_position_gate``
+in ``test_kenning_trie_matcher.py``; the slot-position LABEL (still used for
+D36 scoring) by ``test_slot_position_label_bare`` below.
 """
 
 from __future__ import annotations

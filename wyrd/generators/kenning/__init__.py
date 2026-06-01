@@ -50,7 +50,10 @@ from wyrd.generators.kenning.runtime.meaning import (
     load_joiners,
     load_meanings,
 )
-from wyrd.generators.kenning.runtime.proportions import load_proportions
+from wyrd.generators.kenning.runtime.proportions import (
+    _clear_surface_index_cache,
+    load_proportions,
+)
 from wyrd.generators.kenning.runtime.word import Word
 from wyrd.registry import GenerationResult, register
 
@@ -577,6 +580,12 @@ def _coupled_cache_clear() -> None:
     _load_empirical_priors.cache_clear()
     _load_packs.cache_clear()
     _runtime_db_bundle_dict.cache_clear()
+    # wyrd-eyjk/D40: the module-level bare-surface index is keyed by
+    # id(meaning_db); after a bundle reload the old meaning_db is freed and
+    # CPython can reuse its id() for a NEW (different-bundle) meaning_db, which
+    # would then read the OLD bundle's stale index. Drop it here so it rebuilds
+    # against the fresh bundle in lockstep with _load_meanings.
+    _clear_surface_index_cache()
 
 
 # mypy flags reassigning a bound method on the lru_cache wrapper as
@@ -975,24 +984,6 @@ def _max_form_similarity(matcher: SequenceMatcher, usage_norm: str, m: Meaning) 
             if score > best:
                 best = score
     return best
-
-
-# wyrd-5z5j: tags that mark a PROPER-NOUN sense (personal name / saint).
-# A sibling carrying ONLY these is a pure proper noun and is de-prioritized
-# as a canonical place-name sense; one that ALSO carries a common-noun tag
-# (geology, topography, water, …) is a place element with an incidental
-# name tag and keeps common-noun rank.
-#
-# Two roles are bundled here. The QUALIFYING tags — {male name, female name,
-# family name} (via ``is_name()``) and {saint} (via ``is_saint()``) — are what
-# make ``_is_pure_proper_noun`` even consider a sibling. ``personal-name`` and
-# ``religious`` are COMPANION tags: they never independently qualify (the gate
-# requires a real name/saint tag first), they only keep a row "pure" when they
-# ride alongside one — so a synthesized saint tagged {saint, personal-name,
-# religious} still reads as pure. Keeping them in the set is what makes that work.
-_PROPER_NOUN_TAGS = frozenset(
-    {"male name", "female name", "family name", "saint", "personal-name", "religious"}
-)
 
 
 def _is_pure_proper_noun(m: Meaning) -> bool:

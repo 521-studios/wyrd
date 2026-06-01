@@ -16,7 +16,6 @@ from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.vector_name_select import (
     _cohesion_multiplier,
     _lemma_ref_for,
-    _matches_position,
     _slot_position_label,
     _weighted_choice,
     build_non_position_eligible,
@@ -91,28 +90,9 @@ def test_slot_position_inner_for_both_dashes():
 def test_slot_position_bare_for_bare_element():
     # wyrd-vpri: a no-dash structural element resolves to its own
     # 'bare' label (was 'post' pre-fix), mirroring the updated
-    # Meaning._set_location. A bare slot now matches only bare-location
-    # meanings via _matches_position, so suffix keys ('-shire'=post) no
-    # longer fill single bare-word slots.
+    # Meaning._set_location. wyrd-eyjk/D40: the label feeds position SCORING +
+    # bucket-key lookup, not a match gate (the `_matches_position` gate is gone).
     assert _slot_position_label("Bare") == "bare"
-
-
-# ---- _matches_position ----------------------------------------------------
-
-
-def test_matches_position_strict():
-    """Meaning.location is set from usage's leading/trailing dashes."""
-    m_pre = _meaning("Place-")
-    assert m_pre.location == "pre"
-    assert _matches_position(m_pre, "pre")
-    assert not _matches_position(m_pre, "post")
-
-
-def test_matches_position_post():
-    m_post = _meaning("-shire")
-    assert m_post.location == "post"
-    assert _matches_position(m_post, "post")
-    assert not _matches_position(m_post, "pre")
 
 
 # ---- _lemma_ref_for -------------------------------------------------------
@@ -729,7 +709,7 @@ def test_build_non_position_eligible_filter_admits_only_attested_usages():
     ``usage`` key isn't in the attested set. Only ``-ham`` survives
     when the attested set names just ``{"-ham"}`` — Cardiff (Welsh)
     + Bally- (anglicized Irish) get filtered."""
-    pool = _eligible_meanings(culture_attested=frozenset({"-ham"}))
+    pool = _eligible_meanings(culture_attested=frozenset({"ham"}))
     assert [m.usage for m in pool] == ["-ham"]
 
 
@@ -756,7 +736,7 @@ def test_build_non_position_eligible_filter_composes_with_exclude_tags():
     ``-ham`` excluded by exclude_tags={'settlement'}. Nothing
     survives both."""
     pool = _eligible_meanings(
-        culture_attested=frozenset({"-ham"}),
+        culture_attested=frozenset({"ham"}),
         exclude_tags=frozenset({"settlement"}),
     )
     assert pool == []

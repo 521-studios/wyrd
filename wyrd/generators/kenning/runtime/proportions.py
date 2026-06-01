@@ -284,6 +284,13 @@ def _resolve_surface(meaning_db: dict, usage: str) -> list:
     return _surface_index_for(meaning_db).get(usage.lower().replace("-", ""), [])
 
 
+def _clear_surface_index_cache() -> None:
+    """Drop the bare-surface index cache. Wired into the kenning bundle's
+    coupled cache-clear so a meaning_db reload can't read a stale index via
+    an id() collision (the cache is keyed by ``id(meaning_db)``)."""
+    _SURFACE_INDEX_CACHE.clear()
+
+
 def _location_from_form(usage: str) -> str:
     """The position a position-form usage encodes, from its dashes — mirrors
     ``Meaning._set_location``: ``-x-`` inner, ``x-`` pre, ``-x`` post, bare."""
@@ -2083,7 +2090,16 @@ def load_proportions(data, meaning_db, tag_db):
     # filter rather than silently emptying the entire native pool —
     # an empty frozenset is truthy under the downstream
     # ``is not None`` guard.
-    culture_attested_usages = (frozenset(usages.keys()) | frozenset(single_usages.keys())) or None
+    # wyrd-eyjk/D40: proportions usages are POSITION-FORMS (`-giles`, `Stoke-`,
+    # bare `giles`); the vector path compares this against each meaning_db
+    # entry's STORED dash-variant key (`Giles-`). Collapse to bare SURFACE on
+    # this side so the cross-mode culture filter matches by morpheme identity,
+    # not by which dash-shape happened to be recorded vs stored (build_non_
+    # position_eligible strips the meaning_db side to match).
+    culture_attested_usages = (
+        frozenset(u.lower().replace("-", "") for u in usages)
+        | frozenset(u.lower().replace("-", "") for u in single_usages)
+    ) or None
     # wyrd-pfoo: per-Meaning attestation per culture. Bundle ships
     # this as ``{usage_key: [primary_language, ...]}``; we frozenset
     # the per-usage language sets so the runtime filter does cheap

@@ -73,44 +73,12 @@ def _default_empty_phon_vector() -> PhonologicalVector:
     return PhonologicalVector()
 
 
-def _matches_position(meaning: Meaning, slot_position: str) -> bool:
-    """Position-gate predicate. The slot's position label is one of
-    ``pre`` / ``inner`` / ``post`` / ``bare`` (matches Meaning.location;
-    ``bare`` added in wyrd-vpri for no-dash single-word keys). For the
-    ``pre`` / ``post`` / ``inner`` slots a meaning must match the slot's
-    location by exact equality, so a ``post`` slot accepts only suffix
-    keys (the separation that stops suffix keys filling compound slots).
-    The ``bare`` slot is permissive — see the wyrd-5z5j/D39 note below.
-
-    The legacy path filters at the per-structure / per-bucket level;
-    here we do the same check explicitly on the meaning's location
-    field. Joiners and other non-Meaning structural elements are
-    handled by the caller before reaching this function.
-
-    wyrd-5z5j/D39: a ``bare`` (whole-word) slot accepts a meaning of ANY
-    location. A lone word is structurally bare regardless of the matched
-    form's dashes (``pleasant`` filling a whole word via its only form
-    ``-pleasant``), so gating bare on ``location == "bare"`` would starve
-    the slot. The DATA-driven restriction — which morphemes actually
-    appear standalone — is carried by the ``("bare", …, "single")`` bucket
-    frequency (``_resolve_slot_usage_frequency``): a morpheme never observed
-    bare looks up to 0 there and is filtered. The render lowercases / strips
-    dashes per the slot, so admitting a pre/post form here is safe. pre /
-    post / inner slots stay strict — compounds matched the position-
-    appropriate dash-form, so location is meaningful for them.
-
-    Caveat (interim, retired by wyrd-eyjk): the bucket-frequency backstop
-    only applies when ``build_slot_base_scores`` is given a non-None
-    ``usage_frequency_by_bucket``. The production ``NameGenerator`` always
-    threads it, so a bare slot is never unrestricted in production; a
-    legacy/test caller that omits the frequency map would admit any
-    location unrestricted. The clean fix (string-match → derive position →
-    soft statistical ranking) lands under wyrd-eyjk, which removes this
-    gate entirely.
-    """
-    if slot_position == "bare":
-        return True
-    return meaning.location == slot_position
+# wyrd-eyjk/D40: the `_matches_position` position-gate predicate was removed —
+# position is no longer a match-time constraint. A morpheme may fill any slot;
+# the DATA-driven restriction is the per-(position) bucket frequency
+# (`_resolve_slot_usage_frequency`): a morpheme never observed at a position
+# looks up to 0 there and is filtered. `_slot_position_label` survives below —
+# it still labels the slot's position for the D36 position-axis SCORING.
 
 
 def _matches_era(
@@ -204,9 +172,10 @@ def _cohesion_multiplier(
 def _slot_position_label(structural_element: str) -> str:
     """Resolve the slot position label from a structural element string.
 
-    Matches ``Meaning._set_location`` exactly so a slot-position
-    string returned here can be compared directly to ``meaning.location``
-    by ``_matches_position``. The mapping (from
+    Matches ``Meaning._set_location`` exactly. wyrd-eyjk/D40: this label is
+    no longer used to *gate* eligibility (the ``_matches_position`` gate is
+    gone) — it feeds the D36 position-axis SCORING (``pos_score``) and the
+    per-(position) bucket-key lookup. The mapping (from
     ``runtime/meaning.py:_set_location``):
 
     * ``"-inner-"`` (both dashes) → ``"inner"``
@@ -215,14 +184,9 @@ def _slot_position_label(structural_element: str) -> str:
     * ``"Bare"`` (no dashes) → ``"bare"``
 
     wyrd-vpri: bare (no-dashes) maps to its own ``"bare"`` label, NOT
-    ``"post"``. Pre-fix this returned ``"post"`` for bare elements so
-    they'd match the (then bare==post) Meaning convention — but that's
-    exactly the conflation that let suffix-only keys ('-park' → post)
-    fill single bare-word slots. Now ``_set_location`` gives bare keys
-    location ``"bare"``, so a bare slot must resolve to ``"bare"`` to
-    match them via ``_matches_position`` (exact equality) — and a
-    genuine suffix slot ('post') no longer matches bare keys. Must stay
-    in lockstep with ``Meaning._set_location``.
+    ``"post"`` — the historical conflation that let suffix-only keys
+    ('-park' → post) be treated as bare single-word slots. Must stay in
+    lockstep with ``Meaning._set_location``.
     """
     s = structural_element.strip()
     has_leading = s.startswith("-")
@@ -300,7 +264,14 @@ def build_non_position_eligible(
     """
     non_position_eligible: list[Meaning] = []
     for usage_key, meanings_for_usage in meaning_db.items():
-        if culture_attested_usages is not None and usage_key not in culture_attested_usages:
+        # wyrd-eyjk/D40: culture_attested_usages holds bare SURFACES (the
+        # proportions side records position-forms); compare this meaning_db
+        # entry's stored variant by surface so a morpheme stored as `Giles-`
+        # but recorded as `-giles` isn't silently dropped from the pool.
+        if (
+            culture_attested_usages is not None
+            and usage_key.lower().replace("-", "") not in culture_attested_usages
+        ):
             continue
         # wyrd-pfoo: per-Meaning narrowing. When the per-usage filter
         # admits a usage_key, we further check that each Meaning's

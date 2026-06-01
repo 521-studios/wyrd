@@ -18,8 +18,8 @@ from wyrd.generators.kenning.vectors.schemas import _DIMENSION_NAMES, Phonologic
 # tags — {male/female/family name} (via is_name) and {saint} (via is_saint) —
 # gate is_pure_proper_noun; {personal-name, religious} are COMPANION tags that
 # only keep a row "pure" alongside a qualifying one (so a synthesized saint
-# subject tagged {saint, personal-name, religious} reads as pure). Kept in sync
-# with __init__._PROPER_NOUN_TAGS.
+# subject tagged {saint, personal-name, religious} reads as pure). Single
+# source of truth — __init__._is_pure_proper_noun delegates to the method below.
 _PROPER_NOUN_TAGS = frozenset(
     {"male name", "female name", "family name", "saint", "personal-name", "religious"}
 )
@@ -274,13 +274,13 @@ class Meaning:
         # indistinguishable — the proportions grammaticality guard
         # (_is_ungrammatical_word_template) couldn't tell a legitimate
         # single bare word from a suffix-only morpheme rendered alone
-        # (the '-park' → "Park" standalone), and the vector-mode slot
-        # filter matched suffix keys into single-word slots. A distinct
-        # 'bare' location fixes both: bare is valid at any position
-        # (trie _location_allows falls through to permissive True) and
-        # single-word slots encode ('bare',) so suffix keys no longer
-        # fill them. NOTE: keep in lockstep with
-        # vector_name_select._slot_position_label, which mirrors this map.
+        # (the '-park' → "Park" standalone). A distinct 'bare' location
+        # fixes that: single-word occurrences record + bucket as ('bare', …).
+        # wyrd-eyjk/D40: ``.location`` is now only a render/scoring hint, NOT a
+        # match-time gate — matching is string-only and position is derived
+        # from the span (the trie ``_location_allows`` and vector
+        # ``_matches_position`` gates were removed). NOTE: keep in lockstep
+        # with vector_name_select._slot_position_label, which mirrors this map.
         if self.usage.startswith("-") and self.usage.endswith("-"):
             self.location = "inner"
         elif self.usage.endswith("-"):

@@ -258,7 +258,7 @@ def test_build_eligible_none_per_meaning_means_no_filter():
         exclude_tags=frozenset(),
         pack_meaning_dbs=None,
         packs=(),
-        culture_attested_usages=frozenset({"-ton"}),
+        culture_attested_usages=frozenset({"ton"}),
         culture_attested_meanings=None,
     )
     assert set(pool) == {oe, celtic}
@@ -278,7 +278,7 @@ def test_build_eligible_per_meaning_narrows_to_admitted_languages():
         exclude_tags=frozenset(),
         pack_meaning_dbs=None,
         packs=(),
-        culture_attested_usages=frozenset({"-ton"}),
+        culture_attested_usages=frozenset({"ton"}),
         # Only OE Meanings were the attested sense for this usage.
         culture_attested_meanings={"-ton": frozenset({"old_english"})},
     )
@@ -300,7 +300,7 @@ def test_build_eligible_missing_usage_key_in_per_meaning_defensive_admit():
         exclude_tags=frozenset(),
         pack_meaning_dbs=None,
         packs=(),
-        culture_attested_usages=frozenset({"-ton"}),
+        culture_attested_usages=frozenset({"ton"}),
         # Some OTHER usage attested; -ton missing → defensive admit.
         culture_attested_meanings={"pen-": frozenset({"celtic_mix"})},
     )
@@ -322,7 +322,7 @@ def test_build_eligible_empty_admitted_langs_drops_all_meanings():
         exclude_tags=frozenset(),
         pack_meaning_dbs=None,
         packs=(),
-        culture_attested_usages=frozenset({"-ton"}),
+        culture_attested_usages=frozenset({"ton"}),
         # Empty frozenset → filter active, nothing admits.
         culture_attested_meanings={"-ton": frozenset()},
     )
@@ -341,7 +341,7 @@ def test_build_eligible_per_meaning_skips_meanings_with_no_primary_language():
         exclude_tags=frozenset(),
         pack_meaning_dbs=None,
         packs=(),
-        culture_attested_usages=frozenset({"-orphan"}),
+        culture_attested_usages=frozenset({"orphan"}),
         culture_attested_meanings={"-orphan": frozenset({"celtic_mix"})},
     )
     assert pool == []

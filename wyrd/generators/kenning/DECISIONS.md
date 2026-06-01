@@ -2551,23 +2551,28 @@ credibility score (fewest unaccounted chars, then fewest morphemes, then a soft
 per-morpheme position-plausibility term learned from the known/pre-split
 breakdowns), **never** by a position gate that discards candidates outright.
 
-### Consequences (target state — tracked under wyrd-eyjk, NOT all landed yet)
+### Consequences (LANDED — wyrd-eyjk)
 
-- `_location_allows` and `_matches_position` (the dash-as-constraint gates) **will
-  be removed** (wyrd-ffut); every string-match then stands and position is derived
-  from the span. As of this entry the gates still exist and run: `_location_allows`
-  is untouched and `_matches_position` is only *loosened* so the `bare` slot accepts
-  any location (D39) while pre/post/inner stay strict.
-- Redundant per-position entries (`-andrew` / `Andrew-` / `andrew`) collapse to
-  one morpheme; the derived position flows into structures + proportion buckets,
-  retiring dash-based `Meaning.location` for those purposes and the interim
-  `load_parts` double-register / vector bare-permissive workarounds added under
-  wyrd-5z5j.
+- `_location_allows` and `_matches_position` (the dash-as-constraint gates) **were
+  removed**: `_location_allows` (+ `_position_for_span` / `_location_for`) is gone
+  from `trie_matcher.py`, and the `_matches_position` predicate + its call site are
+  gone from `vector_name_select.py`. Every string-match now stands; position is
+  derived from the span (`Word.get_structure` / `Word.get_samples`, which re-dash
+  the surface to its derived position).
+- The recording is keyed by bare SURFACE (the redundant per-position entries
+  `-andrew` / `Andrew-` / `andrew` resolve to one morpheme via `_surface_index_for`
+  + `_resolve_surface`). The derived position flows into structures + proportion
+  buckets, retiring dash-based `Meaning.location` for matching/bucketing (it
+  survives only as a render/scoring hint) and the interim `load_parts`
+  double-register + vector bare-permissive workarounds added under wyrd-5z5j.
+  Synthesized saint subjects (pure proper nouns that are saint-tagged) are kept out
+  of the base pool in both scoring modes.
 - `wyrd-zewx`'s strict-inner gate (which blocked `-don-` at boundaries to avoid
-  `donhole`) is *not* the right mechanism under this model: credibility scoring,
-  not a position constraint, is what should rank `donhole` below better parses.
+  `donhole`) is removed: credibility scoring + the per-position bucket frequency,
+  not a position constraint, is what ranks `donhole` below better parses.
 
-Tracked under wyrd-eyjk (P0) with steps wyrd-ffut (remove the gates) / wyrd-g6u9
-(soft position-plausibility scoring) / wyrd-fbdb (collapse entries + derived
-position into structures/buckets).
+Landed under wyrd-eyjk (P0), folding in its steps wyrd-ffut (remove the gates) /
+wyrd-g6u9 (position-plausibility via bucket frequency) / wyrd-fbdb (derived position
+into structures/buckets via bare-surface resolution). Residual vector-mode
+realism alignment is tracked in the wyrd-vidi follow-up.
 
