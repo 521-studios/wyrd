@@ -250,6 +250,10 @@ class MeaningGenerator:
         self.meaning_db = meaning_db
         self.tag_db = tag_db
         self.generators: dict[tuple, Generator] = {}
+        # wyrd-cj6f: bucket keys a structure slot referenced but that have
+        # no registered Generator (see `select`). Tracked so the drift
+        # warning fires once per unique key, not once per generation.
+        self._warned_missing_buckets: set[tuple] = set()
         # D5-2 era-filter cache: era_range tuple → frozenset of allowed
         # usages, OR None when the era covers every usage (the
         # bit-stable fast-path signal — see keep_keys_for_era). Keyed by
@@ -441,6 +445,22 @@ class MeaningGenerator:
         # crash policy and `bucket_keys`' existing `.get()`.
         gen = self.generators.get(key)
         if gen is None:
+            # Observability per DECISIONS.md D24: a returned-None here means
+            # a structure slot rendered nothing (degraded / empty element).
+            # Warn ONCE per unique key (bulk generation calls select per
+            # slot per name). This is a DISTINCT drift dimension from
+            # `load_parts`' wyrd-van9 warning — that one catches a
+            # proportions usage with no Meaning; this catches a structure
+            # slot whose bucket was never built — so it needs its own
+            # message, not the constructor's.
+            if key not in self._warned_missing_buckets:
+                self._warned_missing_buckets.add(key)
+                _logger.warning(
+                    "wyrd-cj6f: MeaningGenerator: structure slot references "
+                    "bucket %r with no registered Generator; rendering an "
+                    "empty element. Re-emit the bundle to clear the drift.",
+                    key,
+                )
             return None
         return gen.select(
             rng,

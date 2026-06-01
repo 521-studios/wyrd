@@ -34,25 +34,40 @@ from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 from wyrd.seed import rng_for
 
 
-def test_meaning_generator_select_missing_bucket_returns_none():
+def test_meaning_generator_select_missing_bucket_returns_none(caplog):
     """The fix: a bucket key absent from ``self.generators`` returns None
-    rather than raising KeyError (the seed-806 crash site)."""
+    rather than raising KeyError (the seed-806 crash site), warns exactly
+    once per key (D24 observability), and leaves the present-key path
+    working (the no-regression half of the change)."""
+    import logging
+
     meaning_db, tag_db = _load_meanings()
     known = next(iter(meaning_db))
     mg = MeaningGenerator(meaning_db, tag_db, {known: 100})
+
+    # Present key still routes through and returns a real usage.
+    present_key = next(iter(mg.generators))
+    assert mg.select(rng_for(0), present_key) is not None
+
+    # Missing key returns None (was KeyError) and warns once, not per call.
     bogus_key = ("bare", "__no_such_tag__", "single")
     assert bogus_key not in mg.generators
-    assert mg.select(rng_for(0), bogus_key) is None
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.runtime.proportions"):
+        assert mg.select(rng_for(0), bogus_key) is None
+        assert mg.select(rng_for(1), bogus_key) is None  # repeat → no second warning
+    cj6f_warnings = [r for r in caplog.records if "wyrd-cj6f" in r.getMessage()]
+    assert len(cj6f_warnings) == 1, "missing-bucket drift should warn exactly once per key"
 
 
 def test_welsh_proportions_seed_806_does_not_crash():
     """Original reproducer: welsh proportions at seed 806 KeyError'd.
-    Post-fix it returns a GenerationResult without raising. (The name may
-    be empty for this particular dev-seed orphan structure — see module
-    docstring — but it must not crash.)"""
+    Post-fix it returns a valid GenerationResult without raising. (The
+    rendered name may be empty for this dev-seed orphan structure — see
+    module docstring — but it must not crash and must stay a str.)"""
     k = Kenning()
     result = k.generate({"culture": "welsh", "scoring_mode": "proportions"}, seed=806)
-    assert result is not None
+    assert hasattr(result, "result")
+    assert isinstance(result.result, str)
 
 
 def test_welsh_proportions_no_crash_across_seed_range():
