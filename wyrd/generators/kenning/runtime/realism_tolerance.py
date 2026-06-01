@@ -15,18 +15,18 @@ Two layers of policy:
   un-gated. This is the fallback, not a dict.
 * ``PER_CULTURE_TOLERANCES`` — per-culture overrides with REAL
   bands. Populated 2026-06-01 for english / scottish / irish /
-  breton from empirical drift evidence (see the block above the
-  dict for the numbers + rationale).
+  breton from empirical drift evidence (the in-source comment block
+  immediately above the ``PER_CULTURE_TOLERANCES`` definition carries
+  the per-culture numbers + banding rationale).
 
 Gate status: the regression suite in
 ``tests/test_kenning_realism_regression.py`` parametrizes
-``REGRESSION_CULTURES`` — the 4-tuple english / welsh / irish /
-breton — and is a LIVE gate for those of them that have a populated
-band here AND produce non-zero vector samples — today english /
-irish / breton. It still ``pytest.skip``s a culture that yields 0
-samples on either side (welsh, pending wyrd-cj6f). ``scottish`` has
-a band but is NOT in ``REGRESSION_CULTURES``, so it is only consulted
-by ``tolerance_for`` for manual ``drift-report`` runs, not by CI.
+``REGRESSION_CULTURES`` — the 5-tuple english / scottish / welsh /
+irish / breton — and is a LIVE gate for those of them that have a
+populated band here AND produce non-zero vector samples — today
+english / scottish / irish / breton. It still ``pytest.skip``s a
+culture that yields 0 samples on either side (welsh, pending
+wyrd-cj6f).
 """
 
 from __future__ import annotations
@@ -64,9 +64,12 @@ class ToleranceBand:
 
 
 # Fallback for every culture NOT overridden in PER_CULTURE_TOLERANCES
-# below. Wide-open (all fields at "no constraint"), so a culture with no
-# override is effectively un-gated. The populated per-culture bands —
-# not this default — are what make the regression suite a live gate.
+# below. Its ToleranceBand() defaults are finite but deliberately loose
+# (KL<=10, TV<=1, overlap>=0, decomp<=1, rho>=-1) — they ARE evaluated
+# by check_drift_against_tolerance, but no realistic drift exceeds them,
+# so a culture with no override is effectively un-gated. The populated
+# per-culture bands — not this default — make the regression suite a
+# live gate.
 DEFAULT_TOLERANCE = ToleranceBand()
 
 
@@ -109,14 +112,12 @@ DEFAULT_TOLERANCE = ToleranceBand()
 #
 # Review-then-codify STARTING POINTS, not final policy — but NOW LIVE:
 # populating these bands turns the regression suite into a real gate for
-# the cultures it parametrizes (REGRESSION_CULTURES = english / welsh /
-# irish / breton) that produce non-zero vector samples — today english /
-# irish / breton. welsh stays in the suite but hits the 0-sample skip
-# until wyrd-cj6f (proportions crash) is fixed and a clean welsh drift
-# run exists, so it falls back to the wide-open DEFAULT meanwhile.
-# NOTE: scottish has a band here but is NOT in REGRESSION_CULTURES, so it
-# is consulted only by tolerance_for() for manual `drift-report
-# --culture scottish` runs — it is not CI-gated yet.
+# the cultures it parametrizes (REGRESSION_CULTURES = english / scottish
+# / welsh / irish / breton) that produce non-zero vector samples — today
+# english / scottish / irish / breton. welsh stays in the suite but hits
+# the 0-sample skip until wyrd-cj6f (proportions crash) is fixed and a
+# clean welsh drift run exists, so it falls back to the wide-open
+# DEFAULT meanwhile.
 PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {
     "english": ToleranceBand(
         max_kl_divergence=0.15,

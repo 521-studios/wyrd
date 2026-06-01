@@ -5,12 +5,12 @@ and asserts the drift report falls within the operator-decided
 tolerance bands in :mod:`runtime.realism_tolerance`.
 
 The suite is a LIVE gate for cultures with a populated band in
-:mod:`runtime.realism_tolerance` (english / irish / breton today)
-that produce non-zero vector samples: a drift report exceeding the
-band fails the test. A culture with no per-culture band falls back
-to the wide-open ``DEFAULT_TOLERANCE`` and is effectively un-gated.
-welsh is parametrized but currently hits the 0-sample skip (pending
-wyrd-cj6f).
+:mod:`runtime.realism_tolerance` (english / scottish / irish /
+breton) that produce non-zero vector samples: a drift report
+exceeding the band fails the test. A culture with no per-culture
+band falls back to the wide-open ``DEFAULT_TOLERANCE`` and is
+effectively un-gated. welsh is parametrized but currently hits the
+0-sample skip (pending wyrd-cj6f).
 
 Per-test cost: each regression test generates 100 names per scoring
 mode (200 total per culture). Reduced from the operator-facing
@@ -30,12 +30,12 @@ from wyrd.generators.kenning.runtime.realism_tolerance import (
     format_violations,
 )
 
-# Cultures to regression-test. The kenning ticket covers five cultures
-# (english / scottish / welsh / irish / breton); scottish is omitted here
-# for now — its band in PER_CULTURE_TOLERANCES is consulted only by manual
-# drift-report runs, not CI. The test parametrizes across these; each
-# culture independently checks tolerance compliance.
-REGRESSION_CULTURES = ("english", "welsh", "irish", "breton")
+# Cultures to regression-test — the full kenning set. english / scottish /
+# irish / breton have populated bands in PER_CULTURE_TOLERANCES and are
+# live-gated; welsh is parametrized too but hits the 0-sample skip until
+# wyrd-cj6f (proportions crash) is fixed. The test parametrizes across
+# these; each culture independently checks tolerance compliance.
+REGRESSION_CULTURES = ("english", "scottish", "welsh", "irish", "breton")
 
 # Per-test sample size. Smaller than the operator-facing default
 # (1000) to keep CI fast. Distribution-level metrics stabilize at
@@ -53,19 +53,18 @@ def test_realism_regression_per_culture(culture: str):
     scoring must fall within the tolerance band.
 
     Cultures with a populated band in :data:`PER_CULTURE_TOLERANCES`
-    (english / irish / breton) are gated: a drift report exceeding the
-    band fails this test. A culture with no band falls back to the
-    wide-open :data:`DEFAULT_TOLERANCE` and effectively passes
-    regardless of drift.
+    (english / scottish / irish / breton) are gated: a drift report
+    exceeding the band fails this test. A culture with no band falls
+    back to the wide-open :data:`DEFAULT_TOLERANCE` and effectively
+    passes regardless of drift.
 
     Per-seed isolation: ``run_drift_samples`` skips seeds that raise
     in either mode (proportions shouldn't raise; vector raises
     ValueError on empty pick). A culture whose vector path produces
-    zero samples (no priors_path + bundle without phonological_vector
-    data) has sample_size_b=0 → all metrics degrade to 0 / empty
-    distributions → no tolerance violation under the default wide
-    bands. That's correct: the regression suite shouldn't fail just
-    because the vector path is empty.
+    zero samples on a side is ``pytest.skip``ped below (the drift
+    comparison against an empty distribution is meaningless) — it is
+    NOT silently passed through the bands. welsh is the live example,
+    pending wyrd-cj6f.
     """
     samples_a, samples_b = run_drift_samples(
         culture=culture,
@@ -76,17 +75,15 @@ def test_realism_regression_per_culture(culture: str):
     # When one side has no samples, the drift comparison is
     # meaningless — KL against an empty distribution diverges, but
     # that's a data-presence question, not a drift signal. Skip the
-    # tolerance check in that case. This is the expected state today
-    # for cultures whose vector path can't produce a non-zero score
-    # without operator-supplied priors (--priors-path on the CLI is
-    # the operator's opt-in for the baseline axis).
+    # tolerance check in that case rather than fail. Today this fires
+    # only for welsh, whose proportions path crashes (wyrd-cj6f); the
+    # other parametrized cultures produce samples and are gated.
     if not samples_a or not samples_b:
         pytest.skip(
             f"{culture}: one side produced 0 samples "
             f"(a={len(samples_a)}, b={len(samples_b)}) — "
-            "drift comparison meaningless. Expected today; tighten "
-            "tolerance bands + add operator priors_path setup before "
-            "promoting this to a real regression gate."
+            "drift comparison meaningless (expected for welsh until "
+            "wyrd-cj6f is fixed)."
         )
 
     report = compute_drift_report(culture, samples_a, samples_b)
