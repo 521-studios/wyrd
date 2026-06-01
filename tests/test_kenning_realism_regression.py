@@ -4,11 +4,13 @@ CI-level regression: generates N names per scoring mode per culture
 and asserts the drift report falls within the operator-decided
 tolerance bands in :mod:`runtime.realism_tolerance`.
 
-The suite is INACTIVE AS A GATE TODAY — the tolerance bands default
-to wide-open ranges (KL <= 10, overlap >= 0, etc.) so every culture
-passes regardless of measured drift. The infrastructure is in place
-so the operator can tighten the bands once Phase 6a evidence
-stabilizes (deliberate review-then-codify cycle per the ticket).
+The suite is a LIVE gate for cultures with a populated band in
+:mod:`runtime.realism_tolerance` (english / irish / breton today)
+that produce non-zero vector samples: a drift report exceeding the
+band fails the test. A culture with no per-culture band falls back
+to the wide-open ``DEFAULT_TOLERANCE`` and is effectively un-gated.
+welsh is parametrized but currently hits the 0-sample skip (pending
+wyrd-cj6f).
 
 Per-test cost: each regression test generates 100 names per scoring
 mode (200 total per culture). Reduced from the operator-facing
@@ -28,9 +30,11 @@ from wyrd.generators.kenning.runtime.realism_tolerance import (
     format_violations,
 )
 
-# Cultures to regression-test. Mirrors the ticket's per-culture list
-# (english / scottish / welsh / irish / breton). The test parametrizes
-# across these; each culture independently checks tolerance compliance.
+# Cultures to regression-test. The kenning ticket covers five cultures
+# (english / scottish / welsh / irish / breton); scottish is omitted here
+# for now — its band in PER_CULTURE_TOLERANCES is consulted only by manual
+# drift-report runs, not CI. The test parametrizes across these; each
+# culture independently checks tolerance compliance.
 REGRESSION_CULTURES = ("english", "welsh", "irish", "breton")
 
 # Per-test sample size. Smaller than the operator-facing default
@@ -48,11 +52,11 @@ def test_realism_regression_per_culture(culture: str):
     """Per-culture drift between legacy proportions and vector
     scoring must fall within the tolerance band.
 
-    Default tolerance bands are wide-open today (operator hasn't
-    tightened yet); this test currently PASSES regardless of drift
-    direction. Once the operator tightens
-    :data:`PER_CULTURE_TOLERANCES`, this test becomes the regression
-    gate.
+    Cultures with a populated band in :data:`PER_CULTURE_TOLERANCES`
+    (english / irish / breton) are gated: a drift report exceeding the
+    band fails this test. A culture with no band falls back to the
+    wide-open :data:`DEFAULT_TOLERANCE` and effectively passes
+    regardless of drift.
 
     Per-seed isolation: ``run_drift_samples`` skips seeds that raise
     in either mode (proportions shouldn't raise; vector raises

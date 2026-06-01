@@ -19,13 +19,14 @@ Two layers of policy:
   dict for the numbers + rationale).
 
 Gate status: the regression suite in
-``tests/test_kenning_realism_regression.py`` is a LIVE gate for the
-cultures it parametrizes (``REGRESSION_CULTURES``) that produce
-non-zero vector samples — today english / irish / breton. It still
-``pytest.skip``s a culture that yields 0 samples on either side
-(welsh, pending wyrd-cj6f). ``scottish`` has a band but is NOT in
-``REGRESSION_CULTURES``, so it is only consulted by ``tolerance_for``
-for manual ``drift-report`` runs, not by CI.
+``tests/test_kenning_realism_regression.py`` parametrizes
+``REGRESSION_CULTURES`` — the 4-tuple english / welsh / irish /
+breton — and is a LIVE gate for those of them that have a populated
+band here AND produce non-zero vector samples — today english /
+irish / breton. It still ``pytest.skip``s a culture that yields 0
+samples on either side (welsh, pending wyrd-cj6f). ``scottish`` has
+a band but is NOT in ``REGRESSION_CULTURES``, so it is only consulted
+by ``tolerance_for`` for manual ``drift-report`` runs, not by CI.
 """
 
 from __future__ import annotations
