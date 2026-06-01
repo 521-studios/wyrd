@@ -71,10 +71,76 @@ DEFAULT_TOLERANCE = ToleranceBand()
 
 
 # Per-culture tolerance overrides. Operator policy lives here.
-# Empty today (every culture uses DEFAULT_TOLERANCE); operator adds
-# entries like ``"english": ToleranceBand(max_kl_divergence=0.5,
-# min_top_n_overlap=0.3, ...)`` once the empirical bands are known.
-PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {}
+#
+# DRAFT bands (2026-06-01, kenning/scoring-mode-investigation). Sized
+# against the proportions-vs-vector drift the regression suite ACTUALLY
+# runs — SAMPLES_PER_MODE=100, REGRESSION_BASE_SEED=0, bare request
+# (priors are bundled in L4, so the baseline axis is already live; this
+# is full-fidelity drift). Bands gate that config, so they're set from
+# its (noisy) numbers, NOT the calmer N=1000 report.
+#
+#   culture   KL@100  TV@100  ρ@100    | KL@1000  ρ@1000   decompΔ
+#   english   0.0735  0.0789  0.3455   | 0.0040   0.742    0.0000
+#   scottish  0.0175  0.0627  0.2859   | 0.0034   0.710    0.0000
+#   irish     0.0429  0.0680  0.4774   | 0.0152   0.742    0.0000
+#   breton    0.1600  0.1036  0.4068   | 0.0043   0.872    0.0000
+#   welsh     —  blocked by wyrd-cj6f (proportions crash) —
+#
+# At N=100 KL/ρ are noise-dominated (KL up to 0.16, ρ down to 0.29);
+# the N=1000 columns show the real signal is far tighter. RECOMMENDATION:
+# bump SAMPLES_PER_MODE to 1000 before activating this as a hard gate,
+# then re-tighten toward the N=1000 numbers (e.g. KL<=0.05, ρ>=0.6). The
+# bands below carry ~1.5-2x headroom over the N=100 observations so the
+# gate is green today without being wide-open.
+#
+# Banding rationale:
+#  * max_kl_divergence / max_total_variation — SEMANTIC-character guard:
+#    vector should reshuffle WHICH names surface without shifting the tag
+#    mix. Ceilings ~2x the N=100 value.
+#  * max_decomposition_rate_delta_abs — QUALITY floor: vector must not
+#    erode decomposition coverage. Observed 0.0 (stable across N); tight
+#    at 0.02 — the one band worth keeping strict regardless of N.
+#  * min_morpheme_rank_correlation — catches a frequency-collapse /
+#    near-inversion without flagging the intended reorder. Floor ~=
+#    N=100 observed minus ~0.20.
+#  * min_top_n_overlap — DELIBERATELY None. The top-N name reshuffle is
+#    the *intended* effect of vector scoring; gating on it fights the
+#    feature.
+#
+# Review-then-codify STARTING POINTS, not final policy. NOT yet active as
+# a real gate (the suite still skips a culture that yields 0 vector
+# samples). welsh is intentionally absent (falls back to wide-open
+# DEFAULT) until wyrd-cj6f is fixed and a clean welsh drift run exists.
+PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {
+    "english": ToleranceBand(
+        max_kl_divergence=0.15,
+        max_total_variation=0.16,
+        min_top_n_overlap=None,
+        max_decomposition_rate_delta_abs=0.02,
+        min_morpheme_rank_correlation=0.15,
+    ),
+    "scottish": ToleranceBand(
+        max_kl_divergence=0.06,
+        max_total_variation=0.15,
+        min_top_n_overlap=None,
+        max_decomposition_rate_delta_abs=0.02,
+        min_morpheme_rank_correlation=0.10,
+    ),
+    "irish": ToleranceBand(
+        max_kl_divergence=0.12,
+        max_total_variation=0.16,
+        min_top_n_overlap=None,
+        max_decomposition_rate_delta_abs=0.02,
+        min_morpheme_rank_correlation=0.25,
+    ),
+    "breton": ToleranceBand(
+        max_kl_divergence=0.30,
+        max_total_variation=0.20,
+        min_top_n_overlap=None,
+        max_decomposition_rate_delta_abs=0.02,
+        min_morpheme_rank_correlation=0.20,
+    ),
+}
 
 
 def tolerance_for(culture: str) -> ToleranceBand:
