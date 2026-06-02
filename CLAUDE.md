@@ -102,6 +102,12 @@ entry (no server change).
   always available** and can't be gated off.
 - **Composer** — `WYRD_FF_MOODS` and `WYRD_FF_TAGS` gate the two halves of the
   "Customize moods & tags" composer independently.
+- **Transforms** — `WYRD_FF_REWIND` gates the **Rewind** pipeline transform
+  (wyrd-nwpa). Off by default, so prod hides Rewind while its era-rendering
+  bugs are fixed; the palette won't offer it AND the pipeline skips any
+  saved/shared Rewind step. A transform tags itself with `flag: '<name>'` in
+  `spa-next/src/lib/transforms/*.js`; `TransformPalette` + `pipeline.run`
+  filter on it. Re-enable in prod via `enabled_feature_flags = ["rewind"]`.
 
 Default-value examples: `WYRD_DEFAULT_CULTURE=english`, `WYRD_DEFAULT_COUNT=5`,
 `WYRD_DEFAULT_SCORING_MODE=proportions`.

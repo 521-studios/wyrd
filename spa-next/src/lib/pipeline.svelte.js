@@ -25,6 +25,7 @@
 // last-finished-wins shape v0 had).
 
 import { appState } from './appState.svelte.js';
+import { flagOn } from './featureFlags.js';
 import { getTransform } from './transforms/index.js';
 
 class PipelineState {
@@ -203,6 +204,14 @@ class PipelineState {
       const step = stepsSnapshot[i];
       try {
         const t = getTransform(step.kind);
+        // wyrd-nwpa: a flag-gated transform (e.g. Rewind) whose flag is off is
+        // skipped as a pass-through, so a restored/shared workspace can't run
+        // it in prod (where the palette also hides it).
+        if (t.flag && !flagOn(appState.config, t.flag)) {
+          nextStates.push(state);
+          nextErrors.push(null);
+          continue;
+        }
         state = await t.apply(state, step.params);
         nextStates.push(state);
         nextErrors.push(null);

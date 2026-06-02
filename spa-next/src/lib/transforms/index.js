@@ -19,12 +19,15 @@ export function getTransform(kind) {
 }
 
 /** Catalog for the palette UI (TransformPalette.svelte). Returns an
- *  array of { kind, label, description } in declaration order. */
+ *  array of { kind, label, description, flag } in declaration order.
+ *  `flag` (wyrd-nwpa) is the feature-flag gating the transform, or
+ *  undefined when always available; the palette filters on it. */
 export function listTransforms() {
   return Object.values(TRANSFORMS).map((t) => ({
     kind: t.kind,
     label: t.label,
     description: t.description,
+    flag: t.flag,
   }));
 }
 
