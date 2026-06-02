@@ -164,6 +164,9 @@
     (displayState?.morphemes_by_word || [])
       .flat()
       .some((m) => {
+        // wyrd-8gal: an era render carries its own pronunciation (rendered_pron)
+        // even when the modern surface has none, so the guide must show.
+        if (m.rendered_pron?.reader_pronunciation || m.rendered_pron?.ipa) return true;
         const s = renderingForUsage(m);
         return s?.reader_pronunciation || s?.ipa;
       }),
@@ -202,7 +205,7 @@
       {#if displayState.morphemes_by_word?.length > 0}
         <p class="breakdown">
           {displayState.morphemes_by_word
-            .map((word) => word.map((m) => m.usage).join(' '))
+            .map((word) => word.map((m) => m.rendered || m.usage).join(' '))
             .filter((s) => s.trim())
             .join(' · ')}
         </p>
@@ -213,13 +216,20 @@
             <span class="pron-word">
               {#each word as m}
                 {#if m.usage?.trim()}
-                  {@const slot = renderingForUsage(m)}
+                  <!-- wyrd-8gal: for an era render show the era form (matching
+                       the name) + its OWN pronunciation, with the modern as a
+                       compact annotation — consistent with the cards. -->
+                  {@const era = m.rendered_language && m.rendered}
+                  {@const slot = era ? m.rendered_pron : renderingForUsage(m)}
                   <span class="pron-col">
-                    <span class="pron-surface">{m.usage}</span>
+                    <span class="pron-surface">{era ? m.rendered : m.usage}</span>
                     <span class="pron-reader"
                       >{slot?.reader_pronunciation || '·'}</span>
                     {#if slot?.ipa}
                       <span class="pron-ipa">{slot.ipa}</span>
+                    {/if}
+                    {#if era && m.rendered !== m.usage}
+                      <span class="pron-modern">modern {m.usage}</span>
                     {/if}
                     {#if primaryDef(m)}
                       <span class="pron-def" title={primaryDef(m)}
@@ -358,6 +368,12 @@
     font-family: ui-monospace, 'SF Mono', Consolas, monospace;
     font-size: 10px;
     color: var(--fg-muted);
+  }
+  /* wyrd-8gal: the modern anchor under an era form's pronunciation. */
+  .pron-modern {
+    font-size: 10px;
+    color: var(--fg-muted);
+    font-style: italic;
   }
   /* wyrd-bapd: the morpheme's primary definition under its pronunciation.
      Clamped so a long gloss can't blow out the guide's column width
