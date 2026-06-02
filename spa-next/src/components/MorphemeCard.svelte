@@ -369,7 +369,7 @@
           </tr>
         </thead>
         <tbody>
-          {#if showOriginalRow && lang === originalLang}
+          {#if showOriginalRow && originalLangInEntries && lang === originalLang}
             <!-- wyrd-atc6: the original generated surface, under its source
                  language (tagged 'gen' so it's distinct from curated etymon
                  forms). Clickable to revert; highlighted when it's active. -->

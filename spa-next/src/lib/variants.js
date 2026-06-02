@@ -74,7 +74,10 @@ const _hasPron = (slot) => !!(slot && (slot.ipa || slot.reader_pronunciation));
  * spelling diverges from the etymon form that carries the IPA ("ay" ← Old
  * Norse "ey", "moy" ← Celtic "magh") — falls back to the canonical etymon's
  * pronunciation (first sources language, then any rendering language) so the
- * guide shows the closest available sound instead of a blank '·'.
+ * guide shows the closest available sound instead of a blank '·'. NOTE: the
+ * fallback slot may belong to a different FORM of the etymon than the surface
+ * (e.g. a nominative vs genitive variant) — an accepted approximation, since
+ * the goal is "closest available sound", not an exact per-surface transcription.
  */
 export function pronunciationFor(m) {
   if (!m) return null;
