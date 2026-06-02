@@ -287,7 +287,7 @@
            Same reusable card, two instances. Meaning rides with the modern
            form (shown once in the shared gloss below). -->
       <h5 class="sr-only" id="m-{morpheme.usage}-{morpheme._wordIndex}">
-        {morpheme.rendered} (modern {morpheme.usage})
+        {morpheme.rendered}, {languageLabel(morpheme.rendered_language)} (modern {morpheme.usage})
       </h5>
       <div class="form-pair">
         <MorphemeBreakdown

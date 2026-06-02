@@ -720,7 +720,9 @@ def _era_pronunciation(renderings, era_language, era_form, meaning):
     for form, data in lang_renders.items():
         # tolerant match: same form modulo case, or the form IS this entry's
         # accented original_script (so 'stan' finds the 'stān (/stɑːn/)' row).
-        if form.lower() == bare.lower() or (data.get("original_script", "").lower() == bare.lower()):
+        if form.lower() == bare.lower() or (
+            data.get("original_script", "").lower() == bare.lower()
+        ):
             pron = {
                 k: data[k]
                 for k in ("ipa", "reader_pronunciation", "original_script")
@@ -2260,20 +2262,20 @@ class NewName:
                 primary, derivative = _split_senses_for_display(_all_senses(ranked))
                 renderings = _collect_renderings(ranked)
                 morpheme = {
-                        "usage": usage_str,
-                        "location": first.location,
-                        "meanings": primary,
-                        "derivative_meanings": derivative,
-                        "tags": list(dict.fromkeys(t for m in ranked for t in m.tags)),
-                        # wyrd-o53o round 5 (Gemini MED): union roots
-                        # across ranked siblings to match meanings + tags
-                        # (and the explain endpoint's behavior). Pre-fix
-                        # took first.sources only, so a usage with both
-                        # OE + Celtic etymons surfaced 'EN' but not
-                        # 'CL' in the API summary.
-                        "roots": _all_roots(ranked),
-                        "citations": _collect_citations(ranked),
-                        "renderings": renderings,
+                    "usage": usage_str,
+                    "location": first.location,
+                    "meanings": primary,
+                    "derivative_meanings": derivative,
+                    "tags": list(dict.fromkeys(t for m in ranked for t in m.tags)),
+                    # wyrd-o53o round 5 (Gemini MED): union roots
+                    # across ranked siblings to match meanings + tags
+                    # (and the explain endpoint's behavior). Pre-fix
+                    # took first.sources only, so a usage with both
+                    # OE + Celtic etymons surfaced 'EN' but not
+                    # 'CL' in the API summary.
+                    "roots": _all_roots(ranked),
+                    "citations": _collect_citations(ranked),
+                    "renderings": renderings,
                 }
                 # wyrd-mf2u: carry the era form + its own pronunciation/language
                 # so the API envelope's breakdown matches the era-rendered name
