@@ -13,8 +13,15 @@ import random
 import re
 from functools import lru_cache
 
+from ..era.cells import family_stage_order, language_family
 from .meaning import _mimic_case
 from .word import _position_form
+
+# wyrd-lftl: family display order for the SPA col-3 reflex grid — English
+# first, then Norse (Danelaw), the Celtic families, French, Latin. Mirrors
+# the inspector's etymology-surfacing intent (older/closer strata first).
+# Families present on a morpheme but absent here are appended alphabetically.
+_GRID_FAMILY_ORDER = ("english", "norse", "brythonic", "goidelic", "norman-french", "latin")
 
 # wyrd-van9: runtime warnings (drift, stale bundle, missing keys) flow
 # through the logging module per the project's library-code convention
@@ -732,6 +739,108 @@ def _era_pronunciation(renderings, era_language, era_form, meaning):
                 return pron
     respelled = meaning.respelling_for(bare, era_language) if meaning is not None else None
     return {"reader_pronunciation": respelled} if respelled else None
+
+
+def _era_form_cell(meaning, renderings, lang, form, sources):
+    """wyrd-lftl: one grid cell — a reflex ``form`` + its ``source`` + its own
+    pronunciation (rich IPA where the bundle carries it for the form, rule
+    respelling else; reader present where available, IPA sparse). Pronunciation
+    keys are omitted when absent so the payload stays sparse (no null noise).
+
+    ``form`` is guaranteed a key in ``sources``: both come from the same
+    ``era_reflexes[lang]`` ``(form, source)`` tuples, so the ``.get`` default
+    never fires under a well-formed bundle — it's belt-and-suspenders."""
+    cell = {"form": form, "source": sources.get(form, "cluster")}
+    pron = _era_pronunciation(renderings, lang, form, meaning) or {}
+    if pron.get("reader_pronunciation"):
+        cell["reader_pronunciation"] = pron["reader_pronunciation"]
+    if pron.get("ipa"):
+        cell["ipa"] = pron["ipa"]
+    return cell
+
+
+def _era_stage(meaning, renderings, lang):
+    """wyrd-lftl: one stage column — every reflex form for ``lang`` as cells,
+    or None when the language has no forms (so the caller drops the empty
+    column)."""
+    sources = meaning.era_reflex_sources_for(lang)
+    forms = [
+        _era_form_cell(meaning, renderings, lang, form, sources)
+        for form in meaning.era_reflex_for(lang)
+    ]
+    return {"language": lang, "forms": forms} if forms else None
+
+
+def _ordered_stage_langs(family, present):
+    """wyrd-lftl: the ``present`` reflex languages of ``family`` in canonical
+    stage order (oldest→newest), with any present-but-unmapped tag appended —
+    defensive; era_reflexes tags are canonical so this tail is normally empty."""
+    stage_order = family_stage_order(family)
+    return [lang for lang in stage_order if lang in present] + [
+        lang for lang in present if lang not in stage_order
+    ]
+
+
+def _era_grid(meaning, renderings):
+    """wyrd-lftl: per-morpheme family × era reflex grid for the SPA col-3
+    inspector.
+
+    Returns a list of family sections::
+
+        [{"family": "english",
+          "stages": [{"language": "old-english",
+                      "forms": [{"form": "tūn", "source": "cluster",
+                                 "reader_pronunciation": "TOON", "ipa": "/tuːn/"},
+                                ...]},
+                     {"language": "middle-english", "forms": [...]},
+                     ...]},
+         {"family": "norse", "stages": [...]}, ...]
+
+    The data is the ranked etymon's ``era_reflexes`` (cluster/descent/
+    period-form/phonology-rule cluster mates, computed at bundle build).
+    Stages are the DISTINCT canonical language tags per family in oldest→
+    newest order (``family_stage_order`` — collapsing era cells that share
+    a tag), so the grid never renders duplicate columns. Per-form
+    pronunciation reuses ``_era_pronunciation`` (rich IPA where the bundle
+    carries it for the form, rule respelling else; reader always, IPA
+    sparse). ``source`` is carried through so the SPA can mark/hide the
+    inferred ``phonology-rule:v1`` tier.
+
+    Returns ``[]`` when the morpheme has no era_reflexes (the common case
+    today — coverage is sparse, wyrd-32t1). Per-reflex GLOSS is intentionally
+    absent: the runtime bundle emits ``{form, source}`` only, so drift-gloss
+    needs a bundle re-emit (wyrd-rogd.1)."""
+    if meaning is None:
+        return []
+    # A non-None meaning here is contractually a Meaning, which always defines
+    # era_reflexes + the three accessors — so plain attribute access (fail-loud
+    # on a genuinely malformed object) over a getattr guard that would only
+    # mask the missing-accessors case one loop later.
+    reflexes = meaning.era_reflexes or {}
+    if not reflexes:
+        return []
+    # Bucket the morpheme's reflex languages by family. era_reflexes keys are
+    # canonical language tags (hyphenated: 'old-english'); language_family maps
+    # them to the era family. Skip tags with no family (proto-langs, untracked).
+    by_family: dict[str, list[str]] = {}
+    for lang in reflexes:
+        family = language_family(lang)
+        if family is not None:
+            by_family.setdefault(family, []).append(lang)
+    if not by_family:
+        return []
+    ordered_families = [f for f in _GRID_FAMILY_ORDER if f in by_family] + sorted(
+        f for f in by_family if f not in _GRID_FAMILY_ORDER
+    )
+    sections: list[dict] = []
+    for family in ordered_families:
+        langs = _ordered_stage_langs(family, by_family[family])
+        stages = [
+            stage for lang in langs if (stage := _era_stage(meaning, renderings, lang)) is not None
+        ]
+        if stages:
+            sections.append({"family": family, "stages": stages})
+    return sections
 
 
 class NameGenerator:
@@ -2193,6 +2302,12 @@ class NewName:
                     citations = _collect_citations(ranked)
                     if citations:
                         morpheme["citations"] = citations
+                    # wyrd-lftl: per-morpheme family × era reflex grid for the
+                    # SPA col-3 inspector. Sparse — only when the etymon carries
+                    # era_reflexes (coverage gap tracked in wyrd-32t1).
+                    grid = _era_grid(first, renderings)
+                    if grid:
+                        morpheme["era_grid"] = grid
                 # D18 variant / D8 inflection / era substitute if present
                 if self.rendered is not None and self.rendered[wi][ei] is not None:
                     era_form = self.rendered[wi][ei]
@@ -2277,6 +2392,12 @@ class NewName:
                     "citations": _collect_citations(ranked),
                     "renderings": renderings,
                 }
+                # wyrd-lftl: family × era reflex grid (col-3 inspector) — same
+                # structure to_dict emits, so the API envelope's `components`
+                # and `morphemes_by_word` stay in lockstep. Sparse (wyrd-32t1).
+                grid = _era_grid(first, renderings)
+                if grid:
+                    morpheme["era_grid"] = grid
                 # wyrd-mf2u: carry the era form + its own pronunciation/language
                 # so the API envelope's breakdown matches the era-rendered name
                 # (the SPA shows era + modern). Was missing here — components()
