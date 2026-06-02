@@ -375,6 +375,34 @@ def all_families() -> tuple[str, ...]:
     return tuple(sorted(ERA_CELLS))
 
 
+def family_stage_order(family: str) -> list[str]:
+    """wyrd-lftl: the distinct canonical language tags for ``family``, in
+    era-cell order — the column set the SPA col-3 reflex grid renders.
+
+    Collapses era cells that share a canonical language tag, because the
+    era-reflex picker keys on the language tag, not the cell: english's
+    ``oe-early`` + ``oe-late`` both resolve to ``old-english`` and would
+    otherwise render two identical columns; ``early-modern`` + ``modern``
+    both resolve to ``modern-english``. So english yields three stages
+    (old-english / middle-english / modern-english), norse one
+    (old-norse — its later cells have no canonical tag), brythonic three
+    (old-welsh / middle-welsh / welsh), etc.
+
+    First-appearance order across the family's cells, so the stages read
+    oldest → newest. Returns ``[]`` for an unknown family (no cells) so
+    callers can treat 'no era axis' uniformly rather than catching KeyError.
+    """
+    cells = ERA_CELLS.get(family)
+    if cells is None:
+        return []
+    stages: list[str] = []
+    for label, _start, _end in cells:
+        lang = CANONICAL_LANGUAGE_FOR_CELL.get((family, label))
+        if lang and lang not in stages:
+            stages.append(lang)
+    return stages
+
+
 def resolve_era_input(
     era: str | int | None,
     *,
