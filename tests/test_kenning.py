@@ -977,7 +977,7 @@ def test_split_senses_for_display_falls_back_to_derivative_when_alone():
 
 def test_meaning_groups_dedups_within_and_groups_by_sibling():
     """wyrd-0y3k: per-sibling sense groups, each deduped article/case/punct-
-    insensitively, keeping the shortest representative. So the 'denu-' style
+    insensitively, keeping the shortest representative — so the 'denu-' style
     flat run becomes separated, compact groups."""
     from wyrd.generators.kenning import _meaning_groups
     from wyrd.generators.kenning.runtime.meaning import Meaning
