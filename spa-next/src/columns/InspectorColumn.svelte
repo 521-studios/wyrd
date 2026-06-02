@@ -239,8 +239,11 @@
           title="Report defective"
         ><span aria-hidden="true">⚑</span> Report defective</button>
       </div>
-      <!-- wyrd-2ien: the generated name + its guide, and (for an era render) the
-           modern name + its guide beside it — two instances of one card. -->
+      <!-- wyrd-2ien: the generated name + its guide, and the modern paragon
+           card beside it — two instances of one card. The paragon is ALWAYS
+           shown (whenever there are morphemes), not gated on era, so the layout
+           doesn't flip between one and two cards as you browse results — and a
+           swapped working name still gets the stable root for reference. -->
       <div class="name-cards">
         <NameGuideCard
           headingId="inspect-result-name"
@@ -248,7 +251,7 @@
           label={isEraName ? eraLabel : ''}
           rows={eraRows}
         />
-        {#if isEraName}
+        {#if modernRows.length}
           <NameGuideCard name={modernName} label="modern" dim rows={modernRows} />
         {/if}
       </div>
