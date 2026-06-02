@@ -45,40 +45,16 @@ def test_vector_within_absolute_corpus_bands(culture: str):
     assert not violations, format_violations(violations)
 
 
-@pytest.mark.parametrize("culture", REGRESSION_CULTURES)
-def test_corpus_reference_proportions_cross_check(culture: str):
-    """Correctness proof for the analytical reference (TRANSITION-ONLY —
-    depends on the proportions scoring path; remove in Phase 3 with the
-    relative gate).
-
-    The proportions sampler draws structs by proportion and usages by
-    frequency, under the SAME ``include_unglossed=False`` gloss policy the
-    reference applies — exactly the distribution ``compute_corpus_reference``
-    derives analytically. So proportions samples land at ~0 divergence
-    against the reference for EVERY culture (incl. breton, which has the
-    largest gloss-ineligible share — the gloss filter is what closes that
-    gap). If THIS fails, the reference derivation is wrong (not the
-    generator), which would silently mis-calibrate the absolute bands.
-    """
-    from wyrd.generators.kenning import _load_culture
-    from wyrd.generators.kenning.runtime.drift_runner import run_drift_samples
-    from wyrd.generators.kenning.runtime.realism_reference import compute_corpus_reference
-
-    proportions_samples, _vector = run_drift_samples(culture=culture, count=2000, base_seed=0)
-    name_gen, _ = _load_culture(culture)
-    reference = compute_corpus_reference(culture, name_gen, include_unglossed=False)
-    report = compute_realism_report(culture, proportions_samples, reference)
-
-    # The corpus sampler IS the reference's generative model (post gloss-fix),
-    # so divergence is ~0. The small residuals are N=2000 sampling noise + the
-    # adjacent-dup dedup, NOT reference error. Observed worst across all 5
-    # cultures: tag_kl 0.0012, tag_tv 0.019, pos_tv 0.014, morph_rho 0.895 —
-    # thresholds sit just outside that with non-flaky headroom while still
-    # catching a genuinely wrong derivation (which shows TV >> 0.1).
-    assert report.tag_kl_divergence < 0.01, (culture, report.tag_kl_divergence)
-    assert report.tag_total_variation < 0.04, (culture, report.tag_total_variation)
-    assert report.position_total_variation < 0.05, (culture, report.position_total_variation)
-    assert report.morpheme_rank_correlation > 0.80, (culture, report.morpheme_rank_correlation)
+# wyrd-rt2m: the transition-only proportions cross-check (a correctness proof
+# that the analytical reference matched the proportions sampler's distribution)
+# is removed per its own TRANSITION-ONLY docstring + the wyrd-3dlx cleanup
+# scope, now that proportions is user-unreachable. (It could still run — the
+# realism gate's run_drift_samples passes scoring_mode='proportions' explicitly,
+# which generate() still honors — but it's slated for deletion with the
+# proportions path.) The reference's structural correctness stays pinned by
+# test_compute_corpus_reference_structure below, and the live gate
+# (test_vector_within_absolute_corpus_bands) keeps measuring vector vs the
+# reference.
 
 
 def test_compute_corpus_reference_structure():

@@ -1,16 +1,15 @@
-"""CLI wiring tests for the vector-mode knobs in
-``wyrd kenning generate`` (wyrd-ecjp.9 Phase 8).
+"""CLI wiring tests for the vector scoring knobs in
+``wyrd kenning generate``.
 
-Verifies the new CLI options:
+Verifies the options:
 
-* --scoring-mode {proportions|vector}
 * --priors-path <path>
 * --baseline-weight / --phonological-weight / --semantic-weight /
   --position-weight
 
-The legacy proportions path stays bit-stable; the new flags only
-fire when --scoring-mode=vector is set. Without --priors-path, the
-vector path's baseline axis contributes 0 (operator's choice).
+wyrd-rt2m: vector is the ONLY scoring path (the ``--scoring-mode`` flag was
+removed), so these knobs always apply. Without --priors-path, the vector
+path's baseline axis contributes 0 (operator's choice).
 """
 
 from __future__ import annotations
@@ -22,12 +21,10 @@ from click.testing import CliRunner
 from wyrd.generators.kenning.cli.generate import generate
 
 
-def test_help_lists_new_vector_flags():
+def test_help_lists_vector_flags():
     runner = CliRunner()
     result = runner.invoke(generate, ["--help"])
     assert result.exit_code == 0
-    # Verify the new options are surfaced in --help
-    assert "--scoring-mode" in result.output
     assert "--priors-path" in result.output
     assert "--baseline-weight" in result.output
     assert "--phonological-weight" in result.output
@@ -35,27 +32,21 @@ def test_help_lists_new_vector_flags():
     assert "--position-weight" in result.output
 
 
-def test_default_scoring_mode_is_proportions():
-    """Without --scoring-mode, the legacy proportions path runs.
-    Bit-stable per-seed contract preserved."""
+def test_default_generation_runs():
+    """A bare invocation runs the (vector) generator and prints a name."""
     runner = CliRunner()
     result = runner.invoke(
         generate,
         ["english", "--count", "1", "--seed", "42", "--no-describe"],
     )
     assert result.exit_code == 0, result.output
-    # First non-empty line of stdout is the generated name. Just
-    # verifying it ran without error — exact string is bit-stable
-    # but we don't pin it here (the legacy proportions golden tests
-    # already do that elsewhere).
     assert result.output.strip() != ""
 
 
-def test_scoring_mode_vector_runs_without_priors_path():
-    """--scoring-mode=vector without --priors-path: the vector
-    path's baseline axis contributes 0; the score falls back to
-    phon + sem + pos. Should produce a name (no raise) when the
-    register is non-trivial enough that some lemma scores > 0."""
+def test_vector_runs_without_priors_path():
+    """Without --priors-path the baseline axis contributes 0 and the score
+    falls back to phon + sem + pos. Produces a name (or the friendly
+    'no eligible name' ValueError) — never a bare crash."""
     runner = CliRunner()
     result = runner.invoke(
         generate,
@@ -66,29 +57,12 @@ def test_scoring_mode_vector_runs_without_priors_path():
             "--seed",
             "42",
             "--no-describe",
-            "--scoring-mode",
-            "vector",
             "--mood",
             "harsh",  # provides non-trivial register
         ],
     )
-    # Either succeeds with a name or raises ValueError with the
-    # operator-readable "produced no eligible name" diagnostic. Both
-    # are non-crash exits — bare exception would be a bug.
     if result.exit_code != 0:
-        # ValueError path — verify it's the friendly one, not a
-        # silent failure or KeyError / AttributeError
         assert "Error" in result.output, result.output
-
-
-def test_invalid_scoring_mode_rejected():
-    runner = CliRunner()
-    result = runner.invoke(
-        generate,
-        ["english", "--scoring-mode", "fancy"],
-    )
-    assert result.exit_code != 0
-    assert "Invalid value" in result.output or "fancy" in result.output
 
 
 def test_weight_flags_validate_range():
@@ -114,11 +88,9 @@ def test_priors_path_must_exist():
 
 
 def test_priors_path_passed_through_when_provided(tmp_path):
-    """When --priors-path is given alongside --scoring-mode=vector,
-    the priors JSON is parsed and consumed by the vector dispatch.
-    An empty (but valid) priors JSON is enough to verify the
-    plumbing — the path string makes it into params and the loader
-    runs."""
+    """When --priors-path is given, the priors JSON is parsed and consumed by
+    the vector dispatch. An empty (but valid) priors JSON is enough to verify
+    the plumbing — the path string makes it into params and the loader runs."""
     priors_file = tmp_path / "priors.json"
     priors_file.write_text(json.dumps({"native": {}, "loan_relationship": {}}))
     runner = CliRunner()
@@ -131,77 +103,21 @@ def test_priors_path_passed_through_when_provided(tmp_path):
             "--seed",
             "42",
             "--no-describe",
-            "--scoring-mode",
-            "vector",
             "--priors-path",
             str(priors_file),
             "--mood",
             "harsh",
         ],
     )
-    # Exit code 0 (success) OR ValueError with friendly "no eligible
-    # name" diagnostic. The point is that the priors file LOADED
-    # without a JSON-parse error or schema error — a bad path or
-    # a malformed JSON would raise a different exception before this.
+    # Exit 0 OR the friendly "no eligible name" ValueError. The point is the
+    # priors file LOADED without a JSON-parse / schema error.
     if result.exit_code != 0:
         assert "Error" in result.output, result.output
 
 
-def test_proportions_mode_ignores_vector_only_flags(tmp_path):
-    """Passing vector-only flags (--priors-path, weight flags) in
-    proportions mode is a no-op — they don't affect the legacy
-    sampling path. Bit-stable proportions output preserved.
-
-    This is the operator-friendly contract: 'I tried --priors-path
-    but forgot --scoring-mode=vector' produces a normal proportions-
-    mode name rather than a confusing error."""
-    priors_file = tmp_path / "priors.json"
-    priors_file.write_text(json.dumps({"native": {}, "loan_relationship": {}}))
-
-    runner = CliRunner()
-    # Same seed in both runs — bit-stable proportions contract means
-    # the output should match regardless of vector-only flags.
-    baseline = runner.invoke(
-        generate,
-        ["english", "--count", "1", "--seed", "42", "--no-describe"],
-    )
-    with_vector_flags = runner.invoke(
-        generate,
-        [
-            "english",
-            "--count",
-            "1",
-            "--seed",
-            "42",
-            "--no-describe",
-            "--priors-path",
-            str(priors_file),
-            "--baseline-weight",
-            "5.0",
-            "--phonological-weight",
-            "2.0",
-        ],
-    )
-    assert baseline.exit_code == 0
-    assert with_vector_flags.exit_code == 0
-    # Vector-only flags don't perturb proportions output (the params
-    # dict gets them but Kenning.generate ignores when scoring_mode
-    # != 'vector')
-    assert baseline.output == with_vector_flags.output
-
-
 def test_generate_via_vector_drops_unknown_scoring_weight_keys():
-    """SPA / Lambda forward-compat: unknown keys in scoring_weights
-    are silently dropped rather than raising TypeError. The CLI's
-    own key set is tight, but a forward-compat client could send
-    extra keys (e.g. a hypothetical 'cohesion_w' that ecjp.10 might
-    add)."""
-
-    # Real NameGenerator isn't needed; we just want to verify the
-    # ScoringWeights instantiation step doesn't raise on unknown
-    # keys. Direct unit-test against the same filtering logic
-    # _generate_via_vector uses (single source of truth via
-    # ScoringWeights.__dataclass_fields__).
+    """SPA / Lambda forward-compat: unknown keys in scoring_weights are
+    silently dropped rather than raising TypeError."""
     raw = {
         "phon_w": 1.0,
         "sem_w": 1.0,
@@ -209,7 +125,6 @@ def test_generate_via_vector_drops_unknown_scoring_weight_keys():
         "base_w": 1.0,
         "future_axis_w": 99.0,  # unknown — must be dropped, not raise
     }
-    # Direct unit-test the dict-filtering step
     from wyrd.generators.kenning.vectors.schemas import ScoringWeights
 
     known = set(ScoringWeights.__dataclass_fields__)
@@ -220,13 +135,12 @@ def test_generate_via_vector_drops_unknown_scoring_weight_keys():
 
 
 def test_scoring_weights_flow_through_to_request_vector(monkeypatch):
-    """--baseline-weight=0 + --phonological-weight=2 + --scoring-mode=
-    vector composes a ScoringWeights(base_w=0.0, phon_w=2.0, ...) and
-    feeds it into build_request_vector. Verifies the CLI → params
-    dict → _generate_via_vector → ScoringWeights(**raw) plumbing.
-
-    Uses monkeypatch to capture the weights at the dispatch boundary
-    so we don't need a fully-loaded bundle to assert correctness."""
+    """--baseline-weight=0 + --phonological-weight=2 composes a
+    ScoringWeights(base_w=0.0, phon_w=2.0, ...) and feeds it into the vector
+    dispatch. Verifies the CLI → params dict → _generate_via_vector →
+    ScoringWeights(**raw) plumbing (now unconditional — vector is the only
+    path). Monkeypatches the dispatch to capture the weights without needing a
+    fully-loaded bundle."""
     from wyrd.generators.kenning.generators import kenning as kenning_mod
 
     captured = {}
@@ -248,8 +162,6 @@ def test_scoring_weights_flow_through_to_request_vector(monkeypatch):
             "--seed",
             "42",
             "--no-describe",
-            "--scoring-mode",
-            "vector",
             "--baseline-weight",
             "0.0",
             "--phonological-weight",
@@ -260,15 +172,10 @@ def test_scoring_weights_flow_through_to_request_vector(monkeypatch):
             "0.5",
         ],
     )
-    # Whether the run succeeded or hit the "no eligible name"
-    # ValueError, the dispatch MUST have been called with the
-    # expected scoring_weights dict. The capture happens before any
-    # raise inside the vector path.
     assert "scoring_weights_raw" in captured, (
         f"vector dispatch never reached; result: {result.output}"
     )
-    raw = captured["scoring_weights_raw"]
-    assert raw == {
+    assert captured["scoring_weights_raw"] == {
         "phon_w": 2.0,
         "sem_w": 1.5,
         "pos_w": 0.5,
