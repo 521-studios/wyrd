@@ -23,11 +23,10 @@ from wyrd.generators.kenning.generators.kenning import Kenning
 from wyrd.seed import MAX_SAFE_INTEGER, rng_for
 
 
-def test_kenning_scoring_mode_proportions_is_default():
-    """Default scoring_mode is 'proportions' — bit-stable with the
-    legacy path."""
+def test_kenning_generate_default_runs():
+    """wyrd-rt2m: a bare generate (no scoring_mode — the interface is removed)
+    runs the default vector path and returns a name without raising."""
     k = Kenning()
-    # Generate without specifying scoring_mode — should not raise
     result = k.generate({"culture": "english"}, seed=42)
     assert result.result  # non-empty surface string
 

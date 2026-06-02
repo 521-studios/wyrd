@@ -47,11 +47,14 @@ def test_vector_within_absolute_corpus_bands(culture: str):
 
 # wyrd-rt2m: the transition-only proportions cross-check (a correctness proof
 # that the analytical reference matched the proportions sampler's distribution)
-# is removed with the proportions scoring interface — its "proportions samples"
-# now come from the vector path (generate() is vector-only), so the comparison
-# is no longer meaningful. The reference's structural correctness is still
-# pinned by test_compute_corpus_reference_structure below, and the live gate
-# (test_realism_within_absolute_band) keeps measuring vector vs the reference.
+# is removed per its own TRANSITION-ONLY docstring + the wyrd-3dlx cleanup
+# scope, now that proportions is user-unreachable. (It could still run — the
+# realism gate's run_drift_samples passes scoring_mode='proportions' explicitly,
+# which generate() still honors — but it's slated for deletion with the
+# proportions path.) The reference's structural correctness stays pinned by
+# test_compute_corpus_reference_structure below, and the live gate
+# (test_vector_within_absolute_corpus_bands) keeps measuring vector vs the
+# reference.
 
 
 def test_compute_corpus_reference_structure():
