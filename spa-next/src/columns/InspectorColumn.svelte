@@ -16,7 +16,9 @@
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { renderName } from '../lib/transforms/swap.js';
+  import { languageLabel } from '../lib/languageLabels.js';
   import MorphemeCard from '../components/MorphemeCard.svelte';
+  import NameGuideCard from '../components/NameGuideCard.svelte';
   import TransformStack from '../components/TransformStack.svelte';
   import DefectModal from '../components/DefectModal.svelte';
   import { upgradeAccents } from '../lib/accents.js';
@@ -151,25 +153,56 @@
     return m?.meaning_groups?.[0]?.[0] || m?.meanings?.[0] || '';
   }
 
-  // wyrd-2b50 follow-up: a pronunciation guide at the top, where it
-  // matters — instead of only buried per-form in the cards. Rendered
-  // PER-MORPHEME and aligned (surface over its reader-pronunciation /
-  // IPA) rather than as one joined string, because pronunciation
-  // coverage is sparse: most generated morphemes carry no rendering,
-  // so a joined string would silently show one morpheme's sound as if
-  // it were the whole name. Gaps render as a dim '·' so the guide is
-  // honest about what it knows. Reflects swaps live (displayState is
-  // post-pipeline). Hidden entirely when no morpheme has any data.
-  let hasPronunciation = $derived(
-    (displayState?.morphemes_by_word || [])
-      .flat()
-      .some((m) => {
-        // wyrd-8gal: an era render carries its own pronunciation (rendered_pron)
-        // even when the modern surface has none, so the guide must show.
-        if (m.rendered_pron?.reader_pronunciation || m.rendered_pron?.ipa) return true;
-        const s = renderingForUsage(m);
-        return s?.reader_pronunciation || s?.ipa;
-      }),
+  // wyrd-2ien: the breakdown is two reusable NameGuideCards — the generated
+  // (era) name + its guide, and beside it the MODERN name + its guide (dimmed).
+  // Each guide row is a morpheme's surface over its reader-pronunciation / IPA /
+  // gloss (gaps render as a dim '·' — pronunciation coverage is sparse).
+  // strip leading/trailing position dashes for clean display ("-ton" → "ton").
+  const stripDash = (s) => (s || '').replace(/^-+|-+$/g, '');
+
+  // An era render when any morpheme carries an era language (rendered_language).
+  let isEraName = $derived(
+    (displayState?.morphemes_by_word || []).flat().some((m) => m.rendered_language),
+  );
+  let eraLabel = $derived.by(() => {
+    const m = (displayState?.morphemes_by_word || []).flat().find((m) => m.rendered_language);
+    return m ? languageLabel(m.rendered_language) : '';
+  });
+  // The modern name = the same morphemes composed in their modern (usage) form.
+  let modernName = $derived(renderName(displayState?.morphemes_by_word || []));
+  // Era card rows: the era form + its OWN pronunciation (a no-reflex morpheme
+  // falls back to its modern surface + modern pronunciation).
+  let eraRows = $derived.by(() =>
+    (displayState?.morphemes_by_word || []).flatMap((word) =>
+      word
+        .filter((m) => m.usage?.trim())
+        .map((m) => {
+          const era = m.rendered_language && m.rendered;
+          const slot = era ? m.rendered_pron : renderingForUsage(m);
+          return {
+            surface: stripDash(m.rendered || m.usage),
+            reader: slot?.reader_pronunciation,
+            ipa: slot?.ipa,
+            gloss: primaryDef(m),
+          };
+        }),
+    ),
+  );
+  // Modern card rows: the modern surface + modern pronunciation.
+  let modernRows = $derived.by(() =>
+    (displayState?.morphemes_by_word || []).flatMap((word) =>
+      word
+        .filter((m) => m.usage?.trim())
+        .map((m) => {
+          const slot = renderingForUsage(m);
+          return {
+            surface: stripDash(m.usage),
+            reader: slot?.reader_pronunciation,
+            ipa: slot?.ipa,
+            gloss: primaryDef(m),
+          };
+        }),
+    ),
   );
 </script>
 
@@ -189,12 +222,9 @@
          condition that brought us into this {:else}. -->
     <header class="head">
       <div class="head-top">
-        <h3 class="name">
-          {displayState.name}
-          {#if pipeline.isRunning}
-            <span class="pending-flag" title="pipeline running">…</span>
-          {/if}
-        </h3>
+        {#if pipeline.isRunning}
+          <span class="pending-flag" title="pipeline running">…</span>
+        {/if}
         <button
           type="button"
           class="flag"
@@ -202,46 +232,19 @@
           title="Report defective"
         ><span aria-hidden="true">⚑</span> Report defective</button>
       </div>
-      {#if displayState.morphemes_by_word?.length > 0}
-        <p class="breakdown">
-          {displayState.morphemes_by_word
-            .map((word) => word.map((m) => m.rendered || m.usage).join(' '))
-            .filter((s) => s.trim())
-            .join(' · ')}
-        </p>
-      {/if}
-      {#if hasPronunciation}
-        <div class="pronunciation" aria-label="pronunciation guide">
-          {#each displayState.morphemes_by_word as word}
-            <span class="pron-word">
-              {#each word as m}
-                {#if m.usage?.trim()}
-                  <!-- wyrd-8gal: for an era render show the era form (matching
-                       the name) + its OWN pronunciation, with the modern as a
-                       compact annotation — consistent with the cards. -->
-                  {@const era = m.rendered_language && m.rendered}
-                  {@const slot = era ? m.rendered_pron : renderingForUsage(m)}
-                  <span class="pron-col">
-                    <span class="pron-surface">{era ? m.rendered : m.usage}</span>
-                    <span class="pron-reader"
-                      >{slot?.reader_pronunciation || '·'}</span>
-                    {#if slot?.ipa}
-                      <span class="pron-ipa">{slot.ipa}</span>
-                    {/if}
-                    {#if era && m.rendered !== m.usage}
-                      <span class="pron-modern">modern {m.usage}</span>
-                    {/if}
-                    {#if primaryDef(m)}
-                      <span class="pron-def" title={primaryDef(m)}
-                        >{primaryDef(m)}</span>
-                    {/if}
-                  </span>
-                {/if}
-              {/each}
-            </span>
-          {/each}
-        </div>
-      {/if}
+      <!-- wyrd-2ien: the generated name + its guide, and (for an era render) the
+           modern name + its guide beside it — two instances of one card. -->
+      <div class="name-cards">
+        <NameGuideCard
+          headingId="inspect-result-name"
+          name={displayState.name}
+          label={isEraName ? eraLabel : ''}
+          rows={eraRows}
+        />
+        {#if isEraName}
+          <NameGuideCard name={modernName} label="modern" dim rows={modernRows} />
+        {/if}
+      </div>
       {#if pipeline.steps.length > 0 && displayState.name !== original.name}
         <p class="provenance">
           from <span class="orig">{original.name}</span>
@@ -289,18 +292,21 @@
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border);
   }
-  /* wyrd-z3fl: name on the left, "report defective" action on the right. */
+  /* wyrd-2ien: the name moved into the cards below; this row now holds the
+     pipeline-running indicator + the "report defective" action, kept top-right. */
   .head-top {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 10px;
   }
-  .name {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--fg);
+  .name-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    align-items: flex-start;
+    margin-top: 4px;
   }
   .flag {
     flex-shrink: 0;
@@ -326,65 +332,6 @@
     font-size: 14px;
     color: var(--fg-muted);
     margin-left: 4px;
-  }
-  .breakdown {
-    margin: 6px 0 0;
-    font-size: 12px;
-    color: var(--fg-muted);
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-  }
-  /* wyrd-2b50 follow-up: per-morpheme aligned pronunciation guide —
-     each surface over its reader-pronunciation (accent) + IPA, words
-     spaced apart, gaps shown as a dim '·'. */
-  .pronunciation {
-    margin: 10px 0 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 16px;
-  }
-  .pron-word {
-    display: flex;
-    gap: 10px;
-  }
-  .pron-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
-  }
-  .pron-surface {
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-    font-size: 12px;
-    color: var(--fg);
-  }
-  .pron-reader {
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    color: var(--accent);
-  }
-  .pron-ipa {
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-    font-size: 10px;
-    color: var(--fg-muted);
-  }
-  /* wyrd-8gal: the modern anchor under an era form's pronunciation. */
-  .pron-modern {
-    font-size: 10px;
-    color: var(--fg-muted);
-    font-style: italic;
-  }
-  /* wyrd-bapd: the morpheme's primary definition under its pronunciation.
-     Clamped so a long gloss can't blow out the guide's column width
-     (full text on hover via title). */
-  .pron-def {
-    font-size: 10px;
-    color: var(--fg-muted);
-    max-width: 12ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .provenance {
     margin: 4px 0 0;
