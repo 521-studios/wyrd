@@ -85,21 +85,12 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "spa" {
 # WYRD_RUNTIME_DB_BUCKET; this bucket holds the versioned keys (v/<ts>.db)
 # plus the current.json pointer (see bin/publish-runtime-db.sh).
 #
-# The bucket + its public-access-block were initially provisioned by hand
-# during the d90t cutover so the rodney crash-hunt could publish a runtime
-# DB before terraform was wired up. The ``import`` blocks below adopt those
-# pre-existing resources into terraform state on the next apply, after which
-# this directive can be deleted in a follow-up cleanup PR (terraform supports
-# ``import`` blocks as one-shot adoption sugar in 1.5+).
-import {
-  to = aws_s3_bucket.runtime_db
-  id = local.runtime_db_bucket
-}
-
-import {
-  to = aws_s3_bucket_public_access_block.runtime_db
-  id = local.runtime_db_bucket
-}
+# Staging's bucket + public-access-block were hand-provisioned during the d90t
+# cutover and adopted into terraform state via one-shot ``import`` blocks, now
+# removed (wyrd-lnt6 cleanup — the follow-up the import comment anticipated).
+# Production has no pre-existing bucket, so terraform creates it here; the
+# Lambda falls back to its bundled seed DB when the bucket carries no published
+# key (runtime_db.py), so an empty bucket serves fine until a DB is published.
 
 resource "aws_s3_bucket" "runtime_db" {
   bucket = local.runtime_db_bucket
