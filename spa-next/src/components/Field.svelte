@@ -13,7 +13,7 @@
   // values persist across generator switches (paramsByGenerator stores
   // per-generator).
   import { appState } from '../lib/appState.svelte.js';
-  import { seedDefault, snapEnumValue } from '../lib/featureFlags.js';
+  import { snapEnumValue } from '../lib/featureFlags.js';
 
   let { fieldKey, prop } = $props();
 
@@ -21,41 +21,15 @@
   // humanized label, used by both label branches below.
   let humanLabel = $derived(fieldKey.replace(/_/g, ' '));
 
-  // Initialize the param from schema default / config-default override.
-  // wyrd-etvd: MUST be $effect.PRE — it has to run BEFORE the <select>'s
-  // bind:value mounts. Svelte's bind_select_value, on mount with an undefined
-  // bound value, writes the first <option> back to the variable
-  // (select.js: `if (mounting && value === undefined) ...set(...)`). A plain
-  // $effect (post-render) would lose that race: the bind writes 'proportions'
-  // (first option) first, then this seed's `=== undefined` guard skips, so the
-  // WYRD_DEFAULT_SCORING_MODE=vector override never lands. $effect.pre seeds
-  // the value before the bind mounts, so the undefined-write-back never fires.
-  // ($effect.pre still tracks $props reactively, so the lint rule is satisfied.)
-  $effect.pre(() => {
-    // wyrd-hcmc round 2: guard currentParams=null — that's the
-    // pre-ensureParams race window between selectedGeneratorName
-    // being set and ConfigureColumn's $effect calling ensureParams.
-    // In practice we never render Field before ensureParams (col 1
-    // does both before mounting child components) but the null
-    // check defends against future restructuring.
-    const params = appState.currentParams;
-    if (!params) return;
-    if (params[fieldKey] === undefined) {
-      // wyrd-0gou: an env-set default-override (config.defaults[key]) wins
-      // over the schema default; seedDefault returns undefined when neither
-      // is set, falling through to the type-based empty value below.
-      const seed = seedDefault(appState.config, fieldKey, prop);
-      if (seed !== undefined) {
-        params[fieldKey] = seed;
-      } else if (prop.type === 'array') {
-        params[fieldKey] = [];
-      } else if (prop.type === 'boolean') {
-        params[fieldKey] = false;
-      } else {
-        params[fieldKey] = '';
-      }
-    }
-  });
+  // wyrd-b6hd: NO per-field seeding here. The store owns initialization —
+  // appState.ensureParams() seeds every field's default (config.defaults
+  // override → schema default → type-empty) BEFORE Fields render, so the form
+  // binds already-populated values. This deliberately replaces the old
+  // per-Field seed $effect, which raced Svelte's bind_select_value
+  // undefined-write-back (wyrd-etvd: a <select> mounted with an undefined value
+  // wrote its first <option> back before the seed ran). Centralizing init in
+  // the store removes that race for EVERY field. Fields here just bind; the
+  // snap effects below only correct a value invalid for the current options.
 
   function isDependentSelect(prop) {
     return Boolean(prop['x-options-by-culture']);
@@ -72,9 +46,9 @@
     if (prop.type !== 'string' || !Array.isArray(prop.enum) || prop.enum.length === 0) return;
     const params = appState.currentParams;
     if (!params) return;
-    // wyrd-etvd: snapEnumValue returns undefined for an unseeded (undefined)
-    // value, so this snap NEVER preempts the seed effect's config.defaults
-    // override (e.g. WYRD_DEFAULT_SCORING_MODE=vector). It only corrects a
+    // wyrd-etvd/b6hd: snapEnumValue returns undefined for an unseeded value, so
+    // this snap never preempts the store's seeded config.defaults override
+    // (e.g. WYRD_DEFAULT_SCORING_MODE=vector). It only corrects a
     // DEFINED-but-invalid value (the culture-filtered case).
     const snapped = snapEnumValue(params[fieldKey], prop.enum, prop.default);
     if (snapped !== undefined) params[fieldKey] = snapped;
@@ -95,10 +69,10 @@
   $effect(() => {
     if (!isDependentSelect(prop)) return;
     if (dependentOptions.length === 0) return;
-    // wyrd-etvd: same undefined-guard as the plain-enum snap — an unseeded
-    // value is left for the seed effect (preserving any config.defaults
-    // override); only a defined value invalid for the current culture's
-    // options snaps.
+    // wyrd-etvd/b6hd: same undefined-guard as the plain-enum snap — an unseeded
+    // value is left for the store's seeding (preserving any config.defaults
+    // override); only a defined value invalid for the current culture's options
+    // snaps.
     const snapped = snapEnumValue(
       appState.currentParams[fieldKey],
       dependentOptions,

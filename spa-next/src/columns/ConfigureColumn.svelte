@@ -19,12 +19,17 @@
   // App.svelte (so it loads regardless of which workspace mounts);
   // viewport tracking lifted to appState.isMobileViewport.
 
-  // wyrd-o7lp (PR #314 Gemini HIGH): init the per-generator params
-  // dict via $effect.pre, which runs BEFORE child effects on the
-  // same render pass. That means Field components see currentParams
-  // populated by their own $effect's first read — no render-before-
-  // effect race like the earlier failed attempt with plain $effect.
+  // wyrd-o7lp (PR #314 Gemini HIGH): init the per-generator params dict via
+  // $effect.pre, which runs BEFORE child effects on the same render pass — so
+  // Field components see currentParams already populated before their
+  // <select>s bind (no render-before-init race).
+  // wyrd-b6hd: ensureParams now SEEDS every field's default from the manifest
+  // schema (the store owns initialization), so this must (re-)run once the
+  // manifest loads — not only when selectedGeneratorName changes. Reading
+  // `manifest` registers it as a dependency; ensureParams is a no-op until
+  // both the generator + its schema are present.
   $effect.pre(() => {
+    void appState.manifest;
     if (appState.selectedGeneratorName) {
       appState.ensureParams(appState.selectedGeneratorName);
     }
