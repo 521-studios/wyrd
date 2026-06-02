@@ -741,6 +741,46 @@ def _era_pronunciation(renderings, era_language, era_form, meaning):
     return {"reader_pronunciation": respelled} if respelled else None
 
 
+def _era_form_cell(meaning, renderings, lang, form, sources):
+    """wyrd-lftl: one grid cell — a reflex ``form`` + its ``source`` + its own
+    pronunciation (rich IPA where the bundle carries it for the form, rule
+    respelling else; reader present where available, IPA sparse). Pronunciation
+    keys are omitted when absent so the payload stays sparse (no null noise).
+
+    ``form`` is guaranteed a key in ``sources``: both come from the same
+    ``era_reflexes[lang]`` ``(form, source)`` tuples, so the ``.get`` default
+    never fires under a well-formed bundle — it's belt-and-suspenders."""
+    cell = {"form": form, "source": sources.get(form, "cluster")}
+    pron = _era_pronunciation(renderings, lang, form, meaning) or {}
+    if pron.get("reader_pronunciation"):
+        cell["reader_pronunciation"] = pron["reader_pronunciation"]
+    if pron.get("ipa"):
+        cell["ipa"] = pron["ipa"]
+    return cell
+
+
+def _era_stage(meaning, renderings, lang):
+    """wyrd-lftl: one stage column — every reflex form for ``lang`` as cells,
+    or None when the language has no forms (so the caller drops the empty
+    column)."""
+    sources = meaning.era_reflex_sources_for(lang)
+    forms = [
+        _era_form_cell(meaning, renderings, lang, form, sources)
+        for form in meaning.era_reflex_for(lang)
+    ]
+    return {"language": lang, "forms": forms} if forms else None
+
+
+def _ordered_stage_langs(family, present):
+    """wyrd-lftl: the ``present`` reflex languages of ``family`` in canonical
+    stage order (oldest→newest), with any present-but-unmapped tag appended —
+    defensive; era_reflexes tags are canonical so this tail is normally empty."""
+    stage_order = family_stage_order(family)
+    return [lang for lang in stage_order if lang in present] + [
+        lang for lang in present if lang not in stage_order
+    ]
+
+
 def _era_grid(meaning, renderings):
     """wyrd-lftl: per-morpheme family × era reflex grid for the SPA col-3
     inspector.
@@ -772,7 +812,11 @@ def _era_grid(meaning, renderings):
     needs a bundle re-emit (wyrd-rogd.1)."""
     if meaning is None:
         return []
-    reflexes = getattr(meaning, "era_reflexes", None) or {}
+    # A non-None meaning here is contractually a Meaning, which always defines
+    # era_reflexes + the three accessors — so plain attribute access (fail-loud
+    # on a genuinely malformed object) over a getattr guard that would only
+    # mask the missing-accessors case one loop later.
+    reflexes = meaning.era_reflexes or {}
     if not reflexes:
         return []
     # Bucket the morpheme's reflex languages by family. era_reflexes keys are
@@ -790,27 +834,10 @@ def _era_grid(meaning, renderings):
     )
     sections: list[dict] = []
     for family in ordered_families:
-        present = by_family[family]
-        # Canonical stage order first; defensively append any present tag that
-        # isn't in the family's cell mapping (shouldn't happen, but never drop).
-        stage_order = family_stage_order(family)
-        langs = [lang for lang in stage_order if lang in present] + [
-            lang for lang in present if lang not in stage_order
+        langs = _ordered_stage_langs(family, by_family[family])
+        stages = [
+            stage for lang in langs if (stage := _era_stage(meaning, renderings, lang)) is not None
         ]
-        stages: list[dict] = []
-        for lang in langs:
-            sources = meaning.era_reflex_sources_for(lang)
-            forms: list[dict] = []
-            for form in meaning.era_reflex_for(lang):
-                cell = {"form": form, "source": sources.get(form, "cluster")}
-                pron = _era_pronunciation(renderings, lang, form, meaning) or {}
-                if pron.get("reader_pronunciation"):
-                    cell["reader_pronunciation"] = pron["reader_pronunciation"]
-                if pron.get("ipa"):
-                    cell["ipa"] = pron["ipa"]
-                forms.append(cell)
-            if forms:
-                stages.append({"language": lang, "forms": forms})
         if stages:
             sections.append({"family": family, "stages": stages})
     return sections

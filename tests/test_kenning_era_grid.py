@@ -131,3 +131,14 @@ def test_to_dict_emits_era_grid_on_the_morpheme():
     morpheme = nn.to_dict()["words"][0][0]
     assert "era_grid" in morpheme
     assert morpheme["era_grid"][0]["family"] == "english"
+
+
+def test_components_emits_era_grid_in_lockstep_with_to_dict():
+    # components() selects `first` through a different ranking path than
+    # to_dict(); pin that the era_grid wiring fires there too so the "envelope
+    # stays in lockstep" claim is enforced, not just asserted in a comment.
+    m = _meaning_with_reflexes({"old-english": [("tūn", "cluster")]})
+    nn = NewName(struct=None, meaning_db={"-tun": [m]}, name=[["-tun"]])
+    morpheme = nn.components()[0]
+    assert "era_grid" in morpheme
+    assert morpheme["era_grid"][0]["family"] == "english"
