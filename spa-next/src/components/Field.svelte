@@ -21,13 +21,17 @@
   // humanized label, used by both label branches below.
   let humanLabel = $derived(fieldKey.replace(/_/g, ' '));
 
-  // Initialize the param from schema default if not already set.
-  // Wrapped in $effect because Svelte 5 warns when $props values are
-  // read at the top level of <script> — they're tracked reactively
-  // and the lint rule guards against capturing-the-initial-value
-  // bugs. For us the props never change for a given Field instance,
-  // so the effect runs exactly once at mount.
-  $effect(() => {
+  // Initialize the param from schema default / config-default override.
+  // wyrd-etvd: MUST be $effect.PRE — it has to run BEFORE the <select>'s
+  // bind:value mounts. Svelte's bind_select_value, on mount with an undefined
+  // bound value, writes the first <option> back to the variable
+  // (select.js: `if (mounting && value === undefined) ...set(...)`). A plain
+  // $effect (post-render) would lose that race: the bind writes 'proportions'
+  // (first option) first, then this seed's `=== undefined` guard skips, so the
+  // WYRD_DEFAULT_SCORING_MODE=vector override never lands. $effect.pre seeds
+  // the value before the bind mounts, so the undefined-write-back never fires.
+  // ($effect.pre still tracks $props reactively, so the lint rule is satisfied.)
+  $effect.pre(() => {
     // wyrd-hcmc round 2: guard currentParams=null — that's the
     // pre-ensureParams race window between selectedGeneratorName
     // being set and ConfigureColumn's $effect calling ensureParams.
