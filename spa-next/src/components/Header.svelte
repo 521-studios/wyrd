@@ -20,6 +20,11 @@
 
   let { onMenuToggle = null, isMobileViewport = false } = $props();
 
+  // wyrd-etvd: the build's git revision (stamped by vite.config.js at build
+  // time). Shown as a hover on the wordmark so operators can confirm WHICH
+  // build is deployed at a glance.
+  const buildSha = import.meta.env.VITE_BUILD_SHA || 'dev';
+
   // Save / Share need a current result to operate on. Header
   // buttons disable when there's nothing to save (no roll done
   // yet, or no result selected).
@@ -73,7 +78,7 @@
         onclick={onMenuToggle}
         aria-label="Open configure menu">☰</button>
     {/if}
-    <span class="brand" aria-label="wyrd">
+    <span class="brand" aria-label="wyrd" title="build {buildSha}">
       <span class="rune" aria-hidden="true">ᚹ</span>
       <span class="wordmark">wyrd</span>
     </span>
