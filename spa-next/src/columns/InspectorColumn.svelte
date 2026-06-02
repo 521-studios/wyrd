@@ -160,18 +160,24 @@
   // strip leading/trailing position dashes for clean display ("-ton" → "ton").
   const stripDash = (s) => (s || '').replace(/^-+|-+$/g, '');
 
-  // An era render when any morpheme carries an era language (rendered_language).
+  // wyrd-2ien: the MODERN card is the stable root — the ORIGINAL generated
+  // morphemes' modern forms (the clearest, most common version of the name). It
+  // does NOT follow variant swaps / transforms (those mutate `displayState`);
+  // only the era card is the working/mutable side. So everything modern + the
+  // era-render detection reads `original`; only the era guide reads
+  // `displayState`.
   let isEraName = $derived(
-    (displayState?.morphemes_by_word || []).flat().some((m) => m.rendered_language),
+    (original?.morphemes_by_word || []).flat().some((m) => m.rendered_language),
   );
   let eraLabel = $derived.by(() => {
-    const m = (displayState?.morphemes_by_word || []).flat().find((m) => m.rendered_language);
+    const m = (original?.morphemes_by_word || []).flat().find((m) => m.rendered_language);
     return m ? languageLabel(m.rendered_language) : '';
   });
-  // The modern name = the same morphemes composed in their modern (usage) form.
-  let modernName = $derived(renderName(displayState?.morphemes_by_word || []));
-  // Era card rows: the era form + its OWN pronunciation (a no-reflex morpheme
-  // falls back to its modern surface + modern pronunciation).
+  // Modern name = the original morphemes composed in their modern (usage) form.
+  let modernName = $derived(renderName(original?.morphemes_by_word || []));
+  // Era card rows: the era form + its OWN pronunciation, from the WORKING state
+  // (reflects swaps/transforms). A no-reflex morpheme falls back to its modern
+  // surface + modern pronunciation.
   let eraRows = $derived.by(() =>
     (displayState?.morphemes_by_word || []).flatMap((word) =>
       word
@@ -188,9 +194,10 @@
         }),
     ),
   );
-  // Modern card rows: the modern surface + modern pronunciation.
+  // Modern card rows: the ORIGINAL modern surface + modern pronunciation (stable
+  // root lemma; unaffected by swaps so it stays the clearest reference).
   let modernRows = $derived.by(() =>
-    (displayState?.morphemes_by_word || []).flatMap((word) =>
+    (original?.morphemes_by_word || []).flatMap((word) =>
       word
         .filter((m) => m.usage?.trim())
         .map((m) => {
