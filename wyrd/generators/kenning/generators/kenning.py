@@ -19,6 +19,7 @@ from wyrd.generators.kenning import (
     _load_joiners,
     _load_norman_manorial_families,
     _resolve_era_param,
+    _resolve_era_render_language,
     _resolve_stratum_param,
     _stratum_options_by_culture,
     available_tags,
@@ -215,16 +216,21 @@ class Kenning(Generator):
                     # shapes; this property only constrains the SPA UX.
                     "x-options-by-culture": _era_options_by_culture(),
                     "description": (
-                        "D5-2 era filter (wyrd-lyp). Restricts the morpheme inventory "
-                        "to forms attested in a particular period. The SPA renders this "
-                        "as a dropdown filtered to the chosen culture's era family. "
-                        "CLI/API also accept a bare year (e.g. '1086' → the cell "
-                        "containing 1086 in the culture's era family) or an explicit "
-                        "'family/label' pair (e.g. 'english/oe-late') to disambiguate "
-                        "when a label is shared across families. Morphemes with no "
-                        "attested-year evidence pass through unconditionally — only "
-                        "~32% of bundle morphemes carry year data today, so the filter "
-                        "narrows the pool rather than gutting it."
+                        "Period of the name. Does two things (wyrd-lyp + wyrd-6c8x): "
+                        "(1) restricts the morpheme inventory to forms attested in that "
+                        "period, and (2) for a HISTORICAL period, renders each morpheme "
+                        "in its era-appropriate attested form (e.g. 'oe-early' → Old "
+                        "English 'Tūn', 'Sūþ'; 'me' → Middle English 'Toun') instead of "
+                        "the modern spelling — so the name LOOKS period, not just "
+                        "period-eligible. Present-day cells (modern / early-modern) keep "
+                        "the modern canonical spelling. The SPA renders this as a "
+                        "dropdown filtered to the chosen culture's era family. CLI/API "
+                        "also accept a bare year (e.g. '1086' → the cell containing 1086 "
+                        "in the culture's era family) or an explicit 'family/label' pair "
+                        "(e.g. 'english/oe-late'). Morphemes with no attested-year "
+                        "evidence pass the filter unconditionally; morphemes with no era "
+                        "reflex fall back to the modern spelling (~10% of generated "
+                        "morphemes), so a period name may mix in some modern forms."
                     ),
                 },
                 "cohesion": {
@@ -453,6 +459,11 @@ class Kenning(Generator):
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
         era_range = _resolve_era_param(params.get("era"), culture)
+        # wyrd-6c8x (feature A): the target language to RENDER morphemes in for
+        # the requested era (era_range above only FILTERS the inventory). None =
+        # render the modern canonical form (no era set, or a cell with no
+        # canonical language). Threaded into both scoring paths' render step.
+        era_render_language = _resolve_era_render_language(params.get("era"), culture)
         # wyrd-j3gy: _resolve_stratum_param validates against the
         # per-culture allowed-set (with ALL_STRATA fallback for
         # cultures without classifiers yet). A typo'd --stratum
@@ -499,6 +510,7 @@ class Kenning(Generator):
                 include_unglossed=include_unglossed,
                 spelling_variety=spelling_variety,
                 inflection_density=inflection_density,
+                era_render_language=era_render_language,
             )
             if new_name is None:
                 # Vector path filtered everything (empty register +
@@ -524,6 +536,7 @@ class Kenning(Generator):
                 stratum=stratum,
                 cohesion=cohesion,
                 include_unglossed=include_unglossed,
+                era_render_language=era_render_language,
             )
         t_sample_ms = (time.perf_counter() - t_sample) * 1000
         t_render = time.perf_counter()
@@ -629,6 +642,7 @@ def _generate_via_vector(
     include_unglossed: bool = False,
     spelling_variety: float = 0.0,
     inflection_density: float = 0.0,
+    era_render_language: str | None = None,
 ):
     """Dispatch helper for scoring_mode='vector'.
 
@@ -749,4 +763,5 @@ def _generate_via_vector(
         include_unglossed=include_unglossed,
         spelling_variety=spelling_variety,
         inflection_density=inflection_density,
+        era_render_language=era_render_language,
     )
