@@ -16,8 +16,6 @@ from wyrd.generators.kenning import (
 from wyrd.generators.kenning.registers.effects import available_register_effects
 from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
 
-_VALID_SCORING_MODES = ("proportions", "vector")
-
 
 @click.command()
 @click.argument("culture", type=click.Choice(CULTURES))
@@ -153,23 +151,6 @@ _VALID_SCORING_MODES = ("proportions", "vector")
     ),
 )
 @click.option(
-    "--scoring-mode",
-    type=click.Choice(_VALID_SCORING_MODES),
-    default="proportions",
-    show_default=True,
-    help=(
-        "wyrd-ecjp.5: per-slot sampling pipeline. 'proportions' (default) "
-        "uses the pre-baked per-(culture × tag × position) tables — "
-        "bit-stable with the legacy path. 'vector' uses the D36.2 "
-        "gate→score→sample primitive: each slot's per-lemma weight is "
-        "computed at request time from phon + sem + pos + empirical-"
-        "baseline axes. 'vector' requires per-lemma phonological_vector "
-        "data in the bundle (kq7w.1) and benefits from --priors-path; "
-        "without either, the baseline axis contributes 0 and the score "
-        "falls back to phon + sem + pos."
-    ),
-)
-@click.option(
     "--priors-path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
@@ -274,7 +255,6 @@ def generate(
     era: str | None,
     stratum: str | None,
     cohesion: float,
-    scoring_mode: str,
     priors_path: Path | None,
     baseline_weight: float,
     phonological_weight: float,
@@ -319,23 +299,17 @@ def generate(
         "era": era,
         "stratum": stratum,
         "cohesion": cohesion,
-        "scoring_mode": scoring_mode,
     }
     if priors_path is not None:
         params["priors_path"] = str(priors_path)
-    # ScoringWeights only fire when scoring_mode=vector. In proportions
-    # mode the legacy path doesn't read scoring_weights — adding it
-    # would be inert but cluttering, so we omit. This is the operator-
-    # friendly contract: weight flags in proportions mode become a
-    # silent no-op (also covered by
-    # test_proportions_mode_ignores_vector_only_flags).
-    if scoring_mode == "vector":
-        params["scoring_weights"] = {
-            "phon_w": phonological_weight,
-            "sem_w": semantic_weight,
-            "pos_w": position_weight,
-            "base_w": baseline_weight,
-        }
+    # wyrd-rt2m: vector is the only scoring path, so the per-axis ScoringWeights
+    # always apply (the proportions interface that ignored them is gone).
+    params["scoring_weights"] = {
+        "phon_w": phonological_weight,
+        "sem_w": semantic_weight,
+        "pos_w": position_weight,
+        "base_w": baseline_weight,
+    }
     # wyrd-ecjp.11: pack overlays. Parse + validate at the CLI
     # boundary so invalid input surfaces as a friendly Click error
     # before reaching the generator. Pack-related flags in

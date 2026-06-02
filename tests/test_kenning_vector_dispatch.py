@@ -32,12 +32,13 @@ def test_kenning_scoring_mode_proportions_is_default():
     assert result.result  # non-empty surface string
 
 
-def test_kenning_scoring_mode_proportions_explicit():
-    """Explicit scoring_mode='proportions' produces the same output as
-    the implicit default (bit-stable)."""
+def test_kenning_default_scoring_mode_is_vector():
+    """wyrd-rt2m: with the scoring_mode interface removed, the implicit default
+    is now VECTOR — explicit scoring_mode='vector' produces the same output as
+    the bare default (bit-stable)."""
     k = Kenning()
     a = k.generate({"culture": "english"}, seed=42)
-    b = k.generate({"culture": "english", "scoring_mode": "proportions"}, seed=42)
+    b = k.generate({"culture": "english", "scoring_mode": "vector"}, seed=42)
     assert a.result == b.result
 
 

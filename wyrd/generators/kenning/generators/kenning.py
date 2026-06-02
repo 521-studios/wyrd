@@ -313,33 +313,6 @@ class Kenning(Generator):
                         "data update."
                     ),
                 },
-                "scoring_mode": {
-                    "type": "string",
-                    "enum": ["proportions", "vector"],
-                    "default": "proportions",
-                    "description": (
-                        "wyrd-ecjp.5: select the per-slot sampling "
-                        "pipeline. 'proportions' (default) uses the pre-"
-                        "baked per-(culture × tag × position) tables — "
-                        "bit-stable with the legacy path. 'vector' uses "
-                        "the D36.2 gate→score→sample primitive: each "
-                        "slot's per-lemma weight is computed at request "
-                        "time from phon + sem + pos + empirical-baseline "
-                        "axes. 'vector' requires per-lemma "
-                        "phonological_vector data in the bundle (kq7w.1) "
-                        "and a loaded EmpiricalPriors instance via the "
-                        "priors_path knob; with neither, the score falls "
-                        "back to whatever axes have data. Parity with "
-                        "'proportions' is confirmed (wyrd-ej28 Phase 0: "
-                        "N=1000 realism, all cultures in band); the default "
-                        "is being rolled to 'vector' per environment via "
-                        "WYRD_DEFAULT_SCORING_MODE (staging first, wyrd-lnt6). "
-                        "The schema default stays 'proportions' as the "
-                        "fallback; flipping production is wyrd-lnt6's final "
-                        "step, and Phase 3 (wyrd-rt2m) then deletes the "
-                        "proportions scoring path."
-                    ),
-                },
                 "priors_path": {
                     "type": "string",
                     "description": (
@@ -426,7 +399,12 @@ class Kenning(Generator):
         # (glossed-only, the rando-era behavior). Single-char unglossed
         # fragments are dropped regardless of this flag.
         include_unglossed = _coerce_bool(params.get("include_unglossed", False))
-        scoring_mode = params.get("scoring_mode", "proportions") or "proportions"
+        # wyrd-rt2m: the scoring_mode INTERFACE (schema field + CLI flag) is
+        # removed — vector is now the default + the only USER-selectable path.
+        # The internal param is still honored (default 'vector') so the now
+        # user-unreachable proportions path stays exercised by the realism gate
+        # + transitional tests until the cleanup ticket deletes it.
+        scoring_mode = params.get("scoring_mode", "vector") or "vector"
         priors_path = params.get("priors_path")
         # wyrd-ecjp.9: per-axis ScoringWeights (vector mode only). The
         # CLI flag layer composes a dict {phon_w, sem_w, pos_w, base_w}
@@ -489,14 +467,13 @@ class Kenning(Generator):
                 name_gen,
                 rng,
                 culture=culture,
-                # Pre-_apply_mood tags + original harshness — the adapter
-                # does its own catalog-effect expansion via original_moods.
-                # Passing the mutated post-_apply_mood values would double-
-                # count.
-                # The legacy `tags` variable above is mutated by mood
-                # expansion, so derive vector-side tags from raw_tags
-                # instead. (raw_tags was normalized to list[str] earlier
-                # but not mutated by mood expansion.)
+                # Pre-_apply_mood tags + original harshness — the adapter does
+                # its own catalog-effect expansion via original_moods. Passing
+                # the mutated post-_apply_mood values would double-count. The
+                # legacy `tags` variable above is mutated by mood expansion, so
+                # derive vector-side tags from raw_tags instead (raw_tags was
+                # normalized to list[str] earlier but not mutated by mood
+                # expansion).
                 tags=list(raw_tags),
                 mood=original_moods,
                 harshness=original_harshness,
@@ -513,17 +490,20 @@ class Kenning(Generator):
                 era_render_language=era_render_language,
             )
             if new_name is None:
-                # Vector path filtered everything (empty register +
-                # empty priors, or every meaning gated out). Loud
-                # failure with operator-readable diagnostic.
+                # Vector path filtered everything (empty register + empty
+                # priors, or every meaning gated out). Loud failure with an
+                # operator-readable diagnostic.
                 raise ValueError(
-                    "scoring_mode='vector' produced no eligible name — "
-                    "check that the bundle carries phonological_vector "
-                    "data (kq7w.1), priors_path is set (or the register "
-                    "carries non-trivial weights), and the gate predicates "
-                    "(culture / era / stratum) match available meanings."
+                    "vector scoring produced no eligible name — check that the "
+                    "bundle carries phonological_vector data (kq7w.1), "
+                    "priors_path is set (or the register carries non-trivial "
+                    "weights), and the gate predicates (culture / era / "
+                    "stratum) match available meanings."
                 )
         else:
+            # wyrd-rt2m: user-unreachable (no scoring_mode interface) but kept
+            # for the realism gate + transitional tests; the cleanup ticket
+            # deletes this branch + NameGenerator.select et al.
             new_name = name_gen.select(
                 rng,
                 *tags,
@@ -585,11 +565,10 @@ class Kenning(Generator):
         if _trace:
             t_render_ms = (time.perf_counter() - t_render) * 1000
             _logger.debug(
-                "kenning.generate culture=%s mode=%s "
+                "kenning.generate culture=%s "
                 "load_ms=%.1f sample_ms=%.1f render_ms=%.1f "
                 "result=%r words=%d",
                 culture,
-                scoring_mode,
                 t_load_ms,
                 t_sample_ms,
                 t_render_ms,
