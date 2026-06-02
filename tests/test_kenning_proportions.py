@@ -71,16 +71,31 @@ def test_diversify_repeats_picks_cross_language_synonym():
     assert d["words"][1][0]["sources"] == {"old_scandinavian": ["haeth"]}
 
 
-def test_diversify_repeats_leaves_dupe_when_no_cross_language_synonym():
-    """A repeated surface with NO same-meaning form in another language is
-    left as-is here (the 'pick a different morpheme' fallback lives in the
-    generator's selection, not the render)."""
+def test_diversify_repeats_leaves_dupe_when_nothing_else_available():
+    """wyrd-72q9: a repeat with NO cross-language synonym AND no other
+    same-position morpheme to re-pick is left as-is (last resort)."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
     from wyrd.generators.kenning.runtime.proportions import NewName
 
     park = Meaning("park", tags=[], meanings=["park"], sources={"old_english": ["park"]})
     nn = NewName(struct=None, meaning_db={"park": [park]}, name=[["park"], ["park"]])
-    assert str(nn) == "Park Park"  # unchanged — no cross-language synonym available
+    assert str(nn) == "Park Park"  # only 'park' exists — nothing else to pick
+
+
+def test_diversify_repeats_repicks_different_morpheme_when_no_synonym():
+    """wyrd-72q9: a repeat with NO cross-language synonym is REJECTED and
+    re-picked as a different same-position morpheme ("Park Park" → "Park Dale")
+    rather than left as a duplicate."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    park = Meaning("park", tags=[], meanings=["park"], sources={"old_english": ["park"]})
+    dale = Meaning("dale", tags=[], meanings=["valley"], sources={"old_english": ["dale"]})
+    meaning_db = {"park": [park], "dale": [dale]}
+    nn = NewName(struct=None, meaning_db=meaning_db, name=[["park"], ["park"]])
+    assert str(nn) == "Park Dale"  # second re-picked to the only other bare morpheme
+    d = nn.to_dict()
+    assert d["words"][1][0]["usage"] == "dale"  # breakdown follows
 
 
 # wyrd-5z5j force-structure: structure label <-> key round-trip + listing.
