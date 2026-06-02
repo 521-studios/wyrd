@@ -10,7 +10,13 @@ from functools import lru_cache
 from importlib import resources
 from typing import Any
 
-from wyrd.generators.kenning.era.cells import era_cells_for_family, resolve_era_input
+from wyrd.generators.kenning.era.cells import (
+    canonical_language_for_cell,
+    era_cell_for_input,
+    era_cells_for_family,
+    era_year_range,
+    resolve_era_input,
+)
 
 # Back-compat re-exports for the wyrd-ru5d extractors/ subpackage. Older call
 # sites (especially in cli/lexicon/) import these modules as if they were
@@ -642,6 +648,64 @@ def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] 
             f"1086), a cell label defined in the culture's era family, "
             f"or an explicit 'family/label' pair."
         ) from None
+
+
+def _contemporary_language_for_family(family: str) -> str | None:
+    """The canonical etymon-language of a family's present-day cell — the
+    open-ended (``end is None``) cell, e.g. 'modern-english' for english,
+    'welsh' for brythonic. None when the family has no open-future cell (a dead
+    language like latin, whose cells are all historical).
+
+    Used to suppress era-rendering of the contemporary period (wyrd-6c8x): a
+    morpheme's canonical surface is ALREADY in this language, so re-rendering it
+    via the cognate-based era-reflex picker would distort it rather than
+    period-ize it. Mirrors kenning_rewind's wyrd-8qbi rule ('modern == the
+    original') but derived from the cell structure so it generalizes past
+    english (welsh/irish/french moderns are bare tags, not 'modern-*')."""
+    try:
+        cells = era_cells_for_family(family)
+    except KeyError:
+        return None
+    for cell in cells:
+        _, end = era_year_range(family, cell)
+        if end is None:
+            return canonical_language_for_cell(family, cell)
+    return None
+
+
+def _resolve_era_render_language(era: Any, culture: str) -> str | None:
+    """wyrd-6c8x (feature A): the canonical etymon-language a requested era
+    should RENDER morphemes in, or None for 'render the modern canonical form'.
+
+    Parallel to :func:`_resolve_era_param` — that returns the half-open year
+    range used to FILTER the morpheme inventory; this returns the target
+    language used to render each picked morpheme in its era-appropriate
+    attested form (via ``Meaning.era_reflex_for``), so ``era=oe-early`` yields
+    period-LOOKING names, not just a period-eligible inventory.
+
+    Returns None (no era render — render the modern canonical form) when:
+    * no era is set (None / ``""``) — the bare-modern path,
+    * the era cell has no canonical language (``canonical_language_for_cell``
+      → None — eras with no single anchor language, e.g. Norse post-classical),
+    * the era cell's language IS the family's contemporary language (the
+      present-day / early-modern cells, which map to 'modern-english' etc.) —
+      the canonical surface is already that form, so era-rendering would pull
+      cognate cluster-mates and distort it (mirrors rewind's wyrd-8qbi), or
+    * the era value is malformed — the loud ValueError is left to
+      :func:`_resolve_era_param`, which runs alongside this on the same input;
+      here we degrade to no-render rather than raise twice.
+    """
+    if era is None or era == "":
+        return None
+    era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
+    try:
+        family, cell = era_cell_for_input(era, default_family=era_family)
+    except (KeyError, ValueError):
+        return None
+    lang = canonical_language_for_cell(family, cell)
+    if lang is None or lang == _contemporary_language_for_family(family):
+        return None
+    return lang
 
 
 def _resolve_stratum_param(stratum: Any, culture: str) -> str | None:

@@ -910,6 +910,7 @@ class NameGenerator:
         cohesion: float = 0.0,
         include_unglossed: bool = True,
         force_structure: str | tuple | list | None = None,
+        era_render_language: str | None = None,
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
         each usage as an attested archaic spelling variant (D18) or an
@@ -1044,12 +1045,9 @@ class NameGenerator:
                 keep_keys=keep_keys,
                 cohesion=cohesion,
             )
-        if spelling_variety > 0 or inflection_density > 0:
-            rendered, labels = self._render_substitutions(
-                rng, new_name.name, spelling_variety, inflection_density
-            )
-            new_name.rendered = rendered
-            new_name.inflection_labels = labels
+        self._apply_render(
+            rng, new_name, spelling_variety, inflection_density, era_render_language
+        )
         return new_name
 
     def select_via_vector(
@@ -1065,6 +1063,7 @@ class NameGenerator:
         include_unglossed: bool = True,
         spelling_variety: float = 0.0,
         inflection_density: float = 0.0,
+        era_render_language: str | None = None,
     ):
         """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
 
@@ -1309,18 +1308,14 @@ class NameGenerator:
             words.append(word_keys)
 
         new_name = NewName(struct, self.meaning_db, words)
-        # wyrd-nbpw: D8 inflection + D18 spelling-variant rendering — the SAME
-        # post-pick substitution the legacy proportions select() applies (it
-        # resolves each position-form by bare surface, so it works identically
-        # on the vector path's position-form words, and skips None slots). The
-        # guard keeps default generation (both knobs 0) bit-stable — no extra
-        # rng draws when neither axis is active.
-        if spelling_variety > 0 or inflection_density > 0:
-            rendered, labels = self._render_substitutions(
-                rng, new_name.name, spelling_variety, inflection_density
-            )
-            new_name.rendered = rendered
-            new_name.inflection_labels = labels
+        # wyrd-nbpw/6c8x: post-pick rendering — era-form (feature A) or the D8
+        # inflection / D18 spelling-variant substitution — shared with the
+        # legacy proportions select() via _apply_render so both scoring paths
+        # render identically. Default generation (all knobs 0, no era) stays
+        # bit-stable: _apply_render is a no-op that leaves new_name.rendered None.
+        self._apply_render(
+            rng, new_name, spelling_variety, inflection_density, era_render_language
+        )
         return new_name
 
     def _render_substitutions(self, rng, name, spelling_variety, inflection_density):
@@ -1389,6 +1384,74 @@ class NameGenerator:
             if variant is not None:
                 return _mimic_case(usage, variant), None
         return canonical, None
+
+    def _apply_render(
+        self, rng, new_name, spelling_variety, inflection_density, era_render_language
+    ):
+        """Post-pick render dispatch, shared by select() and select_via_vector().
+
+        Precedence (wyrd-6c8x): when an era render-language is set, render each
+        morpheme in its era-appropriate attested form — the era reflex IS the
+        period spelling, so it supersedes the D18 spelling-variant axis (and D8
+        inflection is not combined with era in v1). Otherwise fall back to the
+        D8/D18 substitution. Either way the result is written to
+        ``new_name.rendered`` (+ ``inflection_labels`` for D8). A no-op — leaving
+        ``new_name.rendered`` as None so __str__ uses the canonical reflex — when
+        no era is set and both substitution knobs are 0, keeping default
+        generation bit-stable (no extra rng draws)."""
+        if era_render_language:
+            new_name.rendered = self._render_era_forms(new_name.name, era_render_language)
+        elif spelling_variety > 0 or inflection_density > 0:
+            rendered, labels = self._render_substitutions(
+                rng, new_name.name, spelling_variety, inflection_density
+            )
+            new_name.rendered = rendered
+            new_name.inflection_labels = labels
+
+    def _render_era_forms(self, name, era_render_language):
+        """wyrd-6c8x (feature A): render each picked morpheme in its era-
+        appropriate attested form for ``era_render_language`` (the canonical
+        etymon-language of the requested era cell) instead of the modern
+        canonical reflex, so ``era=oe-early`` produces period-LOOKING names.
+
+        Returns a ``NewName.rendered``-shaped list (parallel to ``name``): the
+        era form, case-projected onto the slot via ``_mimic_case``, where the
+        bundle carries a reflex for the target language; else None — which
+        ``NewName.__str__`` renders as the canonical usage. Empty-reflex
+        morphemes (the ~10% with no era data) thus fall back to the modern
+        form, matching the rewind 'no era data → canonical' convention.
+
+        Deterministic + bit-stable: resolves each usage to its senses by bare
+        surface (mirroring ``_render_substitutions``, since usages are
+        position-forms like ``-ton``), picks the first sense carrying a reflex
+        and prefers an ATTESTED form from it — no rng draw.
+
+        The reflex list is sorted and the ``*`` reconstruction marker sorts
+        before letters, so the raw first element is biased toward reconstructed
+        (unattested) forms (``*hūn``); we pick the first non-starred form
+        instead, falling back to the marker-stripped first form when every
+        reflex is reconstructed (still a plausible period spelling)."""
+        rendered: list[list[str | None]] = []
+        for word in name:
+            word_rendered: list[str | None] = []
+            for usage in word:
+                if usage is None:
+                    word_rendered.append(None)
+                    continue
+                meanings = (
+                    self.meaning_gen._surface_index().get(usage.lower().replace("-", "")) or []
+                )
+                form: str | None = None
+                for meaning in meanings:
+                    forms = meaning.era_reflex_for(era_render_language)
+                    if not forms:
+                        continue
+                    attested = [f for f in forms if not f.startswith("*")]
+                    form = attested[0] if attested else forms[0].lstrip("*")
+                    break
+                word_rendered.append(_mimic_case(usage, form) if form else None)
+            rendered.append(word_rendered)
+        return rendered
 
     def _select_no_tag(
         self,
