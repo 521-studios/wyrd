@@ -49,10 +49,16 @@ describe('appState.ensureParams (store-owned seeding)', () => {
     expect(appState.paramsByGenerator['gen'].scoring_mode).toBe('vector');
   });
 
-  it('is idempotent — does not clobber an already-initialized bag', () => {
+  it('backfills only MISSING fields — present (restored) values are preserved', () => {
     setManifest();
+    // A restored bag (share-link / saved) missing 'tags' — e.g. a stale
+    // cross-version bookmark from before the store seeded every field.
     appState.paramsByGenerator['gen'] = { scoring_mode: 'vector', count: 9 };
     appState.ensureParams('gen');
-    expect(appState.paramsByGenerator['gen']).toEqual({ scoring_mode: 'vector', count: 9 });
+    const p = appState.paramsByGenerator['gen'];
+    expect(p.scoring_mode).toBe('vector'); // preserved (NOT clobbered to schema default)
+    expect(p.count).toBe(9); // preserved
+    expect(p.tags).toEqual([]); // backfilled — was missing, so no <select> binds undefined
+    expect('seed' in p).toBe(false); // HIDDEN still dropped
   });
 });

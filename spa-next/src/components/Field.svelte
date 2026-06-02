@@ -69,10 +69,10 @@
   $effect(() => {
     if (!isDependentSelect(prop)) return;
     if (dependentOptions.length === 0) return;
-    // wyrd-etvd: same undefined-guard as the plain-enum snap — an unseeded
-    // value is left for the seed effect (preserving any config.defaults
-    // override); only a defined value invalid for the current culture's
-    // options snaps.
+    // wyrd-etvd/b6hd: same undefined-guard as the plain-enum snap — an unseeded
+    // value is left for the store's seeding (preserving any config.defaults
+    // override); only a defined value invalid for the current culture's options
+    // snaps.
     const snapped = snapEnumValue(
       appState.currentParams[fieldKey],
       dependentOptions,

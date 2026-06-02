@@ -124,33 +124,43 @@ class AppState {
     return this.paramsByGenerator[this.selectedGeneratorName] || null;
   }
 
-  /** Explicit init: idempotent. Call from a parent $effect.pre() before any
-   *  child Field reads/binds currentParams.
+  /** Explicit init: idempotent (backfill-only — never clobbers). Call from a
+   *  parent $effect.pre() before any child Field reads/binds currentParams.
    *
    *  wyrd-b6hd: the store OWNS field initialization. It walks the selected
-   *  generator's schema once and seeds every non-hidden field with its
-   *  default (config.defaults override → schema default → type-empty, via
-   *  ``initialFieldValue``). Seeding here — before Fields render — means the
-   *  form binds already-populated values, so there's no per-component lazy
+   *  generator's schema and BACKFILLS every still-missing non-hidden field with
+   *  its default (config.defaults override → schema default → type-empty, via
+   *  ``initialFieldValue``) — present values (a restored share-link / saved
+   *  workspace) are left untouched. Seeding here — before Fields render — means
+   *  the form binds already-populated values, so there's no per-component lazy
    *  seed racing the ``<select>`` bind (the wyrd-etvd class of bug, for EVERY
-   *  field not just scoring_mode).
+   *  field, not just scoring_mode). Backfill (vs no-op-if-exists) also covers a
+   *  stale cross-version bookmark whose dict predates this seeding.
    *
    *  The schema + config come from the loaded manifest; if the manifest isn't
    *  loaded yet (e.g. a share-link set selectedGeneratorName before the fetch
-   *  resolved) we do NOT mark the generator initialized — we return so a later
-   *  call (once the manifest lands) seeds it. The caller's $effect.pre tracks
-   *  ``manifest`` so it re-runs at that point. */
+   *  resolved) we return WITHOUT touching the bag — a later call (once the
+   *  manifest lands) backfills it. The caller's $effect.pre tracks ``manifest``
+   *  so it re-runs at that point. */
   ensureParams(generatorName) {
     if (!generatorName) return;
-    if (this.paramsByGenerator[generatorName]) return;
     const generator = this.manifest?.generators?.find((g) => g.name === generatorName);
-    // Manifest not loaded yet → don't seed-empty + lock it in; retry later.
+    // Manifest not loaded yet → can't seed from the schema; do NOT lock in an
+    // empty bag. Retry when the manifest lands (the caller's $effect.pre tracks
+    // it). A pre-manifest share-link restore leaves its bag in place untouched.
     if (!generator) return;
     const properties = generator.input_schema?.properties || {};
-    const params = {};
+    // BACKFILL, don't replace: seed only fields that are still missing, so a
+    // restored bag (share-link / saved workspace) keeps its values AND any
+    // field it didn't carry (e.g. a stale cross-version bookmark from before
+    // this refactor seeded every field) gets a defined default — so no
+    // <select> ever binds an undefined value (wyrd-etvd write-back).
+    const params = this.paramsByGenerator[generatorName] || {};
     for (const [key, prop] of Object.entries(properties)) {
       if (HIDDEN_FIELDS.has(key)) continue;
-      params[key] = initialFieldValue(this.config, key, prop);
+      if (params[key] === undefined) {
+        params[key] = initialFieldValue(this.config, key, prop);
+      }
     }
     this.paramsByGenerator[generatorName] = params;
   }
