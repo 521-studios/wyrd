@@ -2013,6 +2013,7 @@ class NewName:
         # paid once after Python caches sys.modules.
         from wyrd.generators.kenning import (
             _all_senses,
+            _meaning_groups,
             _rank_siblings,
             _split_senses_for_display,
         )
@@ -2051,6 +2052,12 @@ class NewName:
                     primary, derivative = _split_senses_for_display(_all_senses(ranked))
                     morpheme["meanings"] = primary
                     morpheme["derivative_meanings"] = derivative
+                    # wyrd-0y3k: per-sibling, deduped sense groups so the SPA
+                    # can show the senses visually separated (the flat
+                    # `meanings` above stays for back-compat / other consumers).
+                    groups = _meaning_groups(ranked)
+                    if groups:
+                        morpheme["meaning_groups"] = groups
                     # wyrd-cp2d round 3: pronunciation + cross-script
                     # renderings (wyrd-ha9q's original_script /
                     # transliteration / english_shaped / IPA) so the

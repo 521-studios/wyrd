@@ -233,6 +233,14 @@
   function renderingFor(lang, form) {
     return morpheme.renderings?.[lang]?.[form] || {};
   }
+
+  // wyrd-438r: total clickable variant rows (the synthetic original-surface
+  // row, when shown, + every per-language form) — for the "Variants (N)"
+  // disclosure summary.
+  let variantFormCount = $derived(
+    (!originalInForms && originalUsage ? 1 : 0) +
+      orderedSourceEntries.reduce((n, [, forms]) => n + forms.length, 0),
+  );
 </script>
 
 <article class="morpheme" aria-labelledby="m-{morpheme.usage}-{morpheme._wordIndex}">
@@ -251,7 +259,16 @@
     {/if}
   </header>
 
-  {#if morpheme.meanings?.length}
+  {#if morpheme.meaning_groups?.length}
+    <!-- wyrd-0y3k: each group is one etymon/sense (deduped) — shown as a
+         separate line so distinct senses ('valley/dale' vs 'farm/town' vs
+         'people') read as groups, not one ~50-item run. -->
+    <div class="meaning-groups">
+      {#each morpheme.meaning_groups as group}
+        <p class="meaning-group">{group.join(', ')}</p>
+      {/each}
+    </div>
+  {:else if morpheme.meanings?.length}
     <p class="meanings">{morpheme.meanings.join(', ')}</p>
   {/if}
 
@@ -288,6 +305,18 @@
       </ul>
     </details>
   {/if}
+
+  {#if variantFormCount > 0}
+    <!-- wyrd-438r: fold the per-language variant rows behind a clear
+         "Variants" disclosure. Collapsed by default so the card stays compact
+         (and more of the transform stack shows); the summary signals that the
+         rows inside are click-to-switch. -->
+    <details class="variants">
+      <summary
+        >Variants ({variantFormCount})<span class="variants-hint">
+          — click a form to switch</span
+        ></summary
+      >
 
   {#if !originalInForms && originalUsage}
     <!-- wyrd-7lg1: the original generated surface isn't among the etymon's
@@ -367,6 +396,8 @@
       </table>
     </section>
   {/each}
+    </details>
+  {/if}
 </article>
 
 <style>
@@ -560,5 +591,43 @@
     color: var(--fg-muted);
     font-family: ui-monospace, 'SF Mono', Consolas, monospace;
     line-height: 1.5;
+  }
+  /* wyrd-0y3k: render each sense group on its own line with a light left
+     rule so distinct senses read as separate clusters. */
+  .meaning-groups {
+    margin: 0 0 8px;
+  }
+  .meaning-group {
+    margin: 0;
+    padding-left: 8px;
+    border-left: 2px solid var(--border);
+    font-size: 12px;
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  .meaning-group + .meaning-group {
+    margin-top: 4px;
+  }
+  /* wyrd-438r: variants disclosure (collapsed by default), styled like the
+     citations one; the hint de-emphasizes the click-to-switch affordance. */
+  .variants {
+    margin: 10px 0 0;
+  }
+  .variants > summary {
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .variants > summary:hover {
+    color: var(--accent);
+  }
+  .variants-hint {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    color: var(--muted);
   }
 </style>
