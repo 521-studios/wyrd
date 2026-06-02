@@ -983,11 +983,15 @@ def test_meaning_groups_dedups_within_and_groups_by_sibling():
     from wyrd.generators.kenning.runtime.meaning import Meaning
 
     valley = Meaning(
-        "denu", tags=[], meanings=["valley", "A valley.", "Valley", "Dale"],
+        "denu",
+        tags=[],
+        meanings=["valley", "A valley.", "Valley", "Dale"],
         sources={"old_english": ["denu"]},
     )
     hill = Meaning(
-        "denu", tags=[], meanings=["A hill.", "Hill", "hill", "down"],
+        "denu",
+        tags=[],
+        meanings=["A hill.", "Hill", "hill", "down"],
         sources={"old_english": ["dun"]},
     )
     groups = _meaning_groups([valley, hill])
@@ -1002,7 +1006,9 @@ def test_meaning_groups_drops_pure_derivative_siblings():
 
     real = Meaning("x", tags=[], meanings=["Hill"], sources={"old_english": ["x"]})
     deriv = Meaning(
-        "x", tags=[], meanings=["singular imperative of singan"],
+        "x",
+        tags=[],
+        meanings=["singular imperative of singan"],
         sources={"old_english": ["y"]},
     )
     assert _meaning_groups([real, deriv]) == [["Hill"]]
