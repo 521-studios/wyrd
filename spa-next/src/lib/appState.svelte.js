@@ -10,6 +10,9 @@
 //   - pipeline (transform stack) — PR #4
 //   - saved (localStorage-backed bookmark list) — PR #6
 
+import { initialFieldValue } from './featureFlags.js';
+import { HIDDEN_FIELDS } from './headlineFields.js';
+
 class AppState {
   // Loaded once at app boot from /api/manifest. null while in-flight.
   manifest = $state(null);
@@ -121,13 +124,35 @@ class AppState {
     return this.paramsByGenerator[this.selectedGeneratorName] || null;
   }
 
-  /** Explicit init: idempotent. Call from a parent $effect.pre()
-   *  before any child Field reads currentParams. */
+  /** Explicit init: idempotent. Call from a parent $effect.pre() before any
+   *  child Field reads/binds currentParams.
+   *
+   *  wyrd-b6hd: the store OWNS field initialization. It walks the selected
+   *  generator's schema once and seeds every non-hidden field with its
+   *  default (config.defaults override → schema default → type-empty, via
+   *  ``initialFieldValue``). Seeding here — before Fields render — means the
+   *  form binds already-populated values, so there's no per-component lazy
+   *  seed racing the ``<select>`` bind (the wyrd-etvd class of bug, for EVERY
+   *  field not just scoring_mode).
+   *
+   *  The schema + config come from the loaded manifest; if the manifest isn't
+   *  loaded yet (e.g. a share-link set selectedGeneratorName before the fetch
+   *  resolved) we do NOT mark the generator initialized — we return so a later
+   *  call (once the manifest lands) seeds it. The caller's $effect.pre tracks
+   *  ``manifest`` so it re-runs at that point. */
   ensureParams(generatorName) {
     if (!generatorName) return;
-    if (!this.paramsByGenerator[generatorName]) {
-      this.paramsByGenerator[generatorName] = {};
+    if (this.paramsByGenerator[generatorName]) return;
+    const generator = this.manifest?.generators?.find((g) => g.name === generatorName);
+    // Manifest not loaded yet → don't seed-empty + lock it in; retry later.
+    if (!generator) return;
+    const properties = generator.input_schema?.properties || {};
+    const params = {};
+    for (const [key, prop] of Object.entries(properties)) {
+      if (HIDDEN_FIELDS.has(key)) continue;
+      params[key] = initialFieldValue(this.config, key, prop);
     }
+    this.paramsByGenerator[generatorName] = params;
   }
 }
 

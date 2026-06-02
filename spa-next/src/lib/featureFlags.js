@@ -117,3 +117,18 @@ export function snapEnumValue(value, options, schemaDefault) {
     ? schemaDefault
     : options[0];
 }
+
+/** wyrd-b6hd: the value a field should be INITIALIZED to — the env
+ *  default-override (config.defaults) or schema default, falling back to a
+ *  type-appropriate empty when neither is set. The store seeds every field
+ *  with this up front (appState.ensureParams), so the form binds populated
+ *  values and no per-component lazy seed races the <select> bind (wyrd-etvd).
+ *  Always returns a defined value (never undefined) so the bound state is
+ *  never empty at mount. */
+export function initialFieldValue(config, fieldKey, prop) {
+  const seed = seedDefault(config, fieldKey, prop);
+  if (seed !== undefined) return seed;
+  if (prop?.type === 'array') return [];
+  if (prop?.type === 'boolean') return false;
+  return '';
+}

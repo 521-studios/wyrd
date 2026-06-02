@@ -12,6 +12,7 @@ import {
   coerceToType,
   seedDefault,
   snapEnumValue,
+  initialFieldValue,
 } from './featureFlags.js';
 
 describe('flagOn (fail-closed)', () => {
@@ -164,5 +165,29 @@ describe('snapEnumValue (wyrd-etvd: never preempt the config-default seed)', () 
     // snapped away (e.g. on a culture change). Load-bearing now that era is a
     // headline field.
     expect(snapEnumValue('', ['', 'medieval', 'modern'], '')).toBeUndefined();
+  });
+});
+
+describe('initialFieldValue (wyrd-b6hd: store-seeded init — override > default > empty)', () => {
+  it('uses the config.defaults override (the scoring_mode=vector case)', () => {
+    const prop = { type: 'string', enum: ['proportions', 'vector'], default: 'proportions' };
+    expect(initialFieldValue({ defaults: { scoring_mode: 'vector' } }, 'scoring_mode', prop)).toBe(
+      'vector',
+    );
+  });
+
+  it('falls back to the schema default when no override', () => {
+    expect(initialFieldValue({ defaults: {} }, 'count', { type: 'integer', default: 5 })).toBe(5);
+  });
+
+  it('falls back to a type-appropriate empty when neither is set', () => {
+    expect(initialFieldValue({ defaults: {} }, 'tags', { type: 'array' })).toEqual([]);
+    expect(initialFieldValue({ defaults: {} }, 'x', { type: 'boolean' })).toBe(false);
+    expect(initialFieldValue({ defaults: {} }, 'name', { type: 'string' })).toBe('');
+  });
+
+  it('never returns undefined — bound state is never empty at mount', () => {
+    expect(initialFieldValue(null, 'whatever', { type: 'string' })).not.toBeUndefined();
+    expect(initialFieldValue(null, 'novelty', { type: 'number' })).not.toBeUndefined();
   });
 });
