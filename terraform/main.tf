@@ -30,16 +30,16 @@ locals {
   # per-environment. Vector reached parity with the legacy proportions path
   # (Phase 0: N=1000 realism, all cultures in band) and now has empty-pick
   # parity (wyrd-tbke) + D8/D18 rendering (wyrd-nbpw) + an absolute realism
-  # gate (wyrd-jfaz). Staging defaults to vector NOW so the new default is
-  # validated on the deployed SPA; PRODUCTION stays on the proportions schema
-  # default until the cutover. THE GO: add "production" to this list + run the
-  # production `terraform apply` (deploy.yml workflow_dispatch); the
-  # WYRD_DEFAULT_SCORING_MODE env var then resolves per request — no code/SPA
-  # rebuild, just the apply. Phase 3 (wyrd-rt2m) then deletes the proportions
-  # scoring path.
+  # gate (wyrd-jfaz) + era-driven rendering (wyrd-6c8x). Validated on staging,
+  # so BOTH environments now default to vector (wyrd-lnt6 cutover): the
+  # WYRD_DEFAULT_SCORING_MODE env var resolves per request, so the production
+  # `terraform apply` (deploy.yml workflow_dispatch) takes effect with no
+  # code/SPA rebuild. Proportions stays SELECTABLE (the schema default is still
+  # 'proportions' + the mode is opt-in) for one release as an escape hatch
+  # before Phase 3 (wyrd-rt2m) deletes the proportions scoring path.
   # An explicit var.feature_flag_defaults["scoring_mode"] still wins (merge
   # order in the Lambda environment block below).
-  vector_default_envs = ["staging"]
+  vector_default_envs = ["staging", "production"]
   scoring_mode_default = (
     contains(local.vector_default_envs, var.env)
     ? { WYRD_DEFAULT_SCORING_MODE = "vector" }
