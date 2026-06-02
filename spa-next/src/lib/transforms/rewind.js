@@ -26,6 +26,10 @@ import { rewindWithMorphemes } from '../api.js';
 
 export const rewindTransform = {
   kind: 'rewind',
+  // wyrd-nwpa: gated behind the 'rewind' feature flag (default OFF) so prod
+  // can ship with Rewind hidden while its era-rendering bugs (e.g. runic
+  // 'ᚦᚩᚱᚾ' leaking out) are fixed. Staging (WYRD_FF_ALL) keeps it on.
+  flag: 'rewind',
   label: 'Rewind',
   description: 'Render the name at a historical era stop (OE / ME / modern).',
   defaultParams: { era: 'oe-late' },

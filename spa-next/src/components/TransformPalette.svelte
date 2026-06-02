@@ -10,10 +10,16 @@
   // handlers was worse than no roles per the reviewer.
   import { listTransforms } from '../lib/transforms/index.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
+  import { appState } from '../lib/appState.svelte.js';
+  import { flagOn } from '../lib/featureFlags.js';
 
   let open = $state(false);
   let paletteEl = $state();
-  let catalog = listTransforms();
+  // wyrd-nwpa: hide flag-gated transforms (e.g. Rewind) when their flag is
+  // off — so prod doesn't offer Rewind while its bugs are unresolved.
+  let catalog = $derived(
+    listTransforms().filter((t) => !t.flag || flagOn(appState.config, t.flag)),
+  );
 
   function add(kind) {
     pipeline.addStep(kind);
