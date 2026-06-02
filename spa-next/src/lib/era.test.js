@@ -2,7 +2,7 @@
 // pure functions on the era_grid payload (wyrd-lftl); svelte-check only
 // type-checks, so the fold-match + de-accent behavior is pinned here.
 import { describe, it, expect } from 'vitest';
-import { deAccent, cellForSurface, hasEraGrid } from './era.js';
+import { deAccent, cellForSurface, hasEraGrid, pronForSurface } from './era.js';
 
 // A morpheme shaped like the backend ships (era_grid: families → stages →
 // forms). Keyed by hyphenated canonical language tags.
@@ -63,6 +63,30 @@ describe('cellForSurface', () => {
     expect(cellForSurface(STAN, '')).toBeNull();
     expect(cellForSurface({}, 'stan')).toBeNull();
     expect(cellForSurface(null, 'stan')).toBeNull();
+  });
+});
+
+describe('pronForSurface', () => {
+  it('returns the matching cell when it carries sound', () => {
+    expect(pronForSurface(STAN, 'stān')).toEqual({
+      form: 'stān',
+      source: 'cluster',
+      ipa: '/stɑːn/',
+      reader_pronunciation: 'STAAN',
+    });
+  });
+
+  it('falls THROUGH a pronless matched cell to rendered_pron', () => {
+    // The surface matches the ME cell ('ston'), but that cell has no ipa/reader
+    // — must not blank the guide; fall through to the era render pron.
+    const m = { ...STAN, rendered_pron: { ipa: '/stoːn/' } };
+    expect(pronForSurface(m, 'ston')).toEqual({ ipa: '/stoːn/' });
+  });
+
+  it('returns an empty object (never null) when nothing has pron', () => {
+    // matched cell pronless, no rendered_pron, no renderings to fall back on.
+    expect(pronForSurface(STAN, 'ston')).toEqual({});
+    expect(pronForSurface({ usage: 'x' }, 'x')).toEqual({});
   });
 });
 

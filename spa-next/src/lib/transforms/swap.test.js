@@ -4,7 +4,7 @@
 // read `rendered || usage`) stay pinned to the pre-swap era form on
 // era-rendered (WYRD_FF_ERA) names while the headline follows the swap.
 import { describe, it, expect } from 'vitest';
-import { swapTransform } from './swap.js';
+import { swapTransform, renderName } from './swap.js';
 
 const eraState = () => ({
   name: 'Stāntūn',
@@ -40,6 +40,8 @@ describe('swapTransform.apply', () => {
     expect(swapped.rendered_language).toBeUndefined();
     expect(swapped.rendered_pron).toBeUndefined();
     expect(swapped._lang).toBe('middle-english');
+    // the headline recomposes from the (now-modern) usages of the word
+    expect(out.name).toBe('Stantoun');
   });
 
   it('leaves the non-swapped morpheme (incl. its era fields) untouched', async () => {
@@ -61,5 +63,22 @@ describe('swapTransform.apply', () => {
       to: 'Stone-',
     });
     expect(out.morphemes_by_word[0][0]._lang).toBeUndefined();
+  });
+});
+
+describe('renderName', () => {
+  it('concatenates a compound word and title-cases it, stripping dashes', () => {
+    expect(renderName([[{ usage: 'Stan-' }, { usage: '-tun' }]])).toBe('Stantun');
+  });
+
+  it('renders free particles as their own lowercase tokens', () => {
+    expect(
+      renderName([[{ usage: 'Henley' }], [{ usage: 'on' }], [{ usage: 'Thames' }]]),
+    ).toBe('Henley on Thames');
+  });
+
+  it('capitalizes a leading particle and skips empty words', () => {
+    expect(renderName([[{ usage: 'of' }], [{ usage: 'Avon' }]])).toBe('Of Avon');
+    expect(renderName([[{ usage: '' }], [{ usage: 'Dale' }]])).toBe('Dale');
   });
 });

@@ -12,7 +12,8 @@
 //
 // `activeRendering` resolves the ONE rendering to treat as active, in
 // priority order:
-//   1. an explicit user pin (`m._lang`, set by clicking a language's row),
+//   1. an explicit user pin (`m._lang`, set by clicking an era_grid cell — see
+//      MorphemeGrid.swap → pipeline.setSwap),
 //   2. the canonical etymon — a language present in `m.sources`,
 //   3. fallback — the first rendering match in any language.
 // The InspectorColumn pronunciation fallback uses this (now a last-resort

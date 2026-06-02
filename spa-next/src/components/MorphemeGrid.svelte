@@ -75,14 +75,14 @@
 </script>
 
 <div class="era-grid">
-  {#each morpheme.era_grid as section (section.family)}
+  {#each morpheme.era_grid || [] as section (section.family)}
     <section class="family">
       <h6 class="family-label">{familyLabel(section.family)}</h6>
       <div class="stages">
-        {#each section.stages as stage (stage.language)}
+        {#each section.stages || [] as stage (stage.language)}
           <div class="stage">
             <div class="stage-label">{languageLabel(stage.language)}</div>
-            {#each stage.forms as cell (cell.form)}
+            {#each stage.forms || [] as cell (cell.form)}
               <button
                 type="button"
                 class="cell"

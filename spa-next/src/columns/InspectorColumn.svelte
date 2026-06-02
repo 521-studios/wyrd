@@ -21,8 +21,7 @@
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { languageLabel } from '../lib/languageLabels.js';
-  import { pronunciationFor } from '../lib/variants.js';
-  import { deAccent, cellForSurface, hasEraGrid } from '../lib/era.js';
+  import { deAccent, hasEraGrid, pronForSurface } from '../lib/era.js';
   import NameGuideCard from '../components/NameGuideCard.svelte';
   import MorphemeGrid from '../components/MorphemeGrid.svelte';
   import DefectModal from '../components/DefectModal.svelte';
@@ -71,7 +70,7 @@
   let allMorphemes = $derived.by(() => {
     const out = [];
     (displayState?.morphemes_by_word || []).forEach((word, wi) => {
-      word.forEach((m, mi) => out.push({ ...m, _wordIndex: wi, _morphemeIndex: mi }));
+      (word || []).forEach((m, mi) => out.push({ ...m, _wordIndex: wi, _morphemeIndex: mi }));
     });
     return out;
   });
@@ -80,23 +79,17 @@
   // flat meaning.
   const primaryDef = (m) => m?.meaning_groups?.[0]?.[0] || m?.meanings?.[0] || '';
 
-  // The pronunciation slot for a morpheme's CURRENT surface: the matching
-  // era_grid cell (the right axis) first, then the era render's own pron, then
-  // the legacy per-language fallback (kept until the grid fully owns
-  // pronunciation in wyrd-zw1f). Sparse — coverage grows with mining.
-  function pronFor(m, surface) {
-    return cellForSurface(m, surface)?.cell || m.rendered_pron || pronunciationFor(m) || {};
-  }
-
   // Build the surface / reader / ipa / gloss rows for a morpheme list. Surfaces
-  // keep their placement dashes (tre- / -bȳ / hall) — never stripped.
+  // keep their placement dashes (tre- / -bȳ / hall) — never stripped. The
+  // pronunciation slot comes from pronForSurface (era_grid cell → rendered_pron
+  // → legacy fallback, skipping pronless cells).
   function rowsFor(words, surfaceOf) {
     return (words || []).flatMap((word) =>
-      word
-        .filter((m) => m.usage?.trim())
+      (word || [])
+        .filter((m) => m?.usage?.trim())
         .map((m) => {
           const surface = surfaceOf(m);
-          const slot = pronFor(m, surface);
+          const slot = pronForSurface(m, surface);
           return {
             surface,
             reader: slot.reader_pronunciation,
