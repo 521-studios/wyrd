@@ -32,7 +32,6 @@
 
 <style>
   .name-guide {
-    flex: 1 1 280px;
     min-width: 0;
   }
   .ng-head {
