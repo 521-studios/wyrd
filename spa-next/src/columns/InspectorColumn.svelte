@@ -107,7 +107,7 @@
   // Era badge: the era a render targets, else "as generated". (Mixed-era
   // detection after per-morpheme swaps is a wyrd-yrf9 refinement.)
   let eraLanguage = $derived(
-    (original?.morphemes_by_word || []).flat().find((m) => m.rendered_language)?.rendered_language,
+    (original?.morphemes_by_word || []).flat().find((m) => m?.rendered_language)?.rendered_language,
   );
   let eraLabel = $derived(eraLanguage ? languageLabel(eraLanguage) : 'as generated');
 

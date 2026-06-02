@@ -27,7 +27,7 @@ const hasPron = (slot) => !!(slot && (slot.ipa || slot.reader_pronunciation));
  * Dash markers pass through untouched (only combining marks are dropped).
  */
 export function deAccent(s) {
-  const decomposed = (s || '').normalize('NFD');
+  const decomposed = String(s || '').normalize('NFD');
   let out = '';
   for (const ch of decomposed) {
     const cp = ch.codePointAt(0);
@@ -46,9 +46,9 @@ export function cellForSurface(morpheme, surface) {
   const target = accentFold(surface);
   if (!target) return null;
   for (const section of morpheme?.era_grid || []) {
-    for (const stage of section.stages || []) {
-      for (const cell of stage.forms || []) {
-        if (accentFold(cell.form) === target) {
+    for (const stage of section?.stages || []) {
+      for (const cell of stage?.forms || []) {
+        if (accentFold(cell?.form) === target) {
           return { family: section.family, language: stage.language, cell };
         }
       }
@@ -61,7 +61,7 @@ export function cellForSurface(morpheme, surface) {
  *  tracked in wyrd-32t1). Lets the view skip the grid entirely for bare
  *  morphemes rather than render an empty shell. */
 export function hasEraGrid(morpheme) {
-  return !!morpheme?.era_grid?.some((s) => s.stages?.length);
+  return !!morpheme?.era_grid?.some((s) => s?.stages?.length);
 }
 
 /**
