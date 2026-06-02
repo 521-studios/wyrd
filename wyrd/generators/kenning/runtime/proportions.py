@@ -1064,9 +1064,7 @@ class NameGenerator:
                 keep_keys=keep_keys,
                 cohesion=cohesion,
             )
-        self._apply_render(
-            rng, new_name, spelling_variety, inflection_density, era_render_language
-        )
+        self._apply_render(rng, new_name, spelling_variety, inflection_density, era_render_language)
         return new_name
 
     def select_via_vector(
@@ -1332,9 +1330,7 @@ class NameGenerator:
         # legacy proportions select() via _apply_render so both scoring paths
         # render identically. Default generation (all knobs 0, no era) stays
         # bit-stable: _apply_render is a no-op that leaves new_name.rendered None.
-        self._apply_render(
-            rng, new_name, spelling_variety, inflection_density, era_render_language
-        )
+        self._apply_render(rng, new_name, spelling_variety, inflection_density, era_render_language)
         return new_name
 
     def _render_substitutions(self, rng, name, spelling_variety, inflection_density):
