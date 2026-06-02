@@ -145,6 +145,15 @@ data "aws_iam_policy_document" "runtime_db_read" {
     actions   = ["s3:GetObject", "s3:HeadObject"]
     resources = ["${aws_s3_bucket.runtime_db.arn}/*"]
   }
+  # wyrd-ow4c: ListBucket on the bucket itself. Without it, a GetObject on a
+  # MISSING key returns 403 AccessDenied instead of 404 NoSuchKey — which the
+  # runtime DB loader still catches + falls back on, but logs as a scary
+  # AccessDenied and masks "the key just isn't there yet". With ListBucket the
+  # loader sees a clean miss. (Reading a PRESENT key only needs GetObject.)
+  statement {
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.runtime_db.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "lambda_runtime_db_read" {
