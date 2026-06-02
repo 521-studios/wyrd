@@ -292,12 +292,14 @@
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border);
   }
-  /* wyrd-z3fl: name on the left, "report defective" action on the right. */
+  /* wyrd-2ien: the name moved into the cards below; this row now holds the
+     pipeline-running indicator + the "report defective" action, kept top-right. */
   .head-top {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 10px;
   }
   .name-cards {
     display: flex;
