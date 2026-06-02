@@ -975,6 +975,39 @@ def test_split_senses_for_display_falls_back_to_derivative_when_alone():
     assert deriv == []
 
 
+def test_meaning_groups_dedups_within_and_groups_by_sibling():
+    """wyrd-0y3k: per-sibling sense groups, each deduped article/case/punct-
+    insensitively, keeping the shortest representative. So the 'denu-' style
+    flat run becomes separated, compact groups."""
+    from wyrd.generators.kenning import _meaning_groups
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    valley = Meaning(
+        "denu", tags=[], meanings=["valley", "A valley.", "Valley", "Dale"],
+        sources={"old_english": ["denu"]},
+    )
+    hill = Meaning(
+        "denu", tags=[], meanings=["A hill.", "Hill", "hill", "down"],
+        sources={"old_english": ["dun"]},
+    )
+    groups = _meaning_groups([valley, hill])
+    assert groups == [["valley", "Dale"], ["Hill", "down"]]
+
+
+def test_meaning_groups_drops_pure_derivative_siblings():
+    """wyrd-0y3k: a sibling whose glosses are ALL morphological pointers
+    contributes no sense group."""
+    from wyrd.generators.kenning import _meaning_groups
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    real = Meaning("x", tags=[], meanings=["Hill"], sources={"old_english": ["x"]})
+    deriv = Meaning(
+        "x", tags=[], meanings=["singular imperative of singan"],
+        sources={"old_english": ["y"]},
+    )
+    assert _meaning_groups([real, deriv]) == [["Hill"]]
+
+
 # wyrd-ubbc: surface-form tiebreaker. When stratum-tied siblings
 # are also tied on filter passes, prefer the etymon whose source
 # lemma surface-matches the modern_usage best (difflib ratio). Fixes

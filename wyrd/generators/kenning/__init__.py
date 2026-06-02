@@ -930,6 +930,49 @@ def _split_senses_for_display(senses: list[str]) -> tuple[list[str], list[str]]:
     return derivative, []
 
 
+_GLOSS_ARTICLE_RE = re.compile(r"^(?:an?|the)\s+", re.IGNORECASE)
+
+
+def _gloss_dedup_key(gloss: str) -> str:
+    """wyrd-0y3k: normalize a gloss for dedup — ASCII-fold + lowercase (reuse
+    _normalize_for_similarity), drop a leading article, strip surrounding
+    punctuation/space. So 'A hill.', 'Hill', 'a hill', 'hill' all collapse to
+    'hill'."""
+    k = _normalize_for_similarity(gloss)
+    k = _GLOSS_ARTICLE_RE.sub("", k)
+    return k.strip(" .,;:").strip()
+
+
+def _meaning_groups(meanings: list[Meaning]) -> list[list[str]]:
+    """wyrd-0y3k: per-sibling sense groups for the SPA inspector. Each ranked
+    sibling Meaning is a distinct etymon/sense, so its SEMANTIC glosses form a
+    coherent cluster ('valley/dale/dene' vs 'farm/town/estate' vs 'people').
+    Grouping them — instead of unioning every sibling's glosses into one flat
+    ~50-item list (the 'denu-' mess) — lets the card show the senses visually
+    separated. Within each group, glosses are deduped article/case/punct-
+    insensitively (keeping the shortest representative). Pure-derivative
+    siblings (no semantic gloss) are dropped. Order follows _rank_siblings."""
+    groups: list[list[str]] = []
+    seen_global: set[str] = set()  # a gloss shows once, in its FIRST group
+    for m in meanings:
+        semantic, _ = _partition_senses(m.meanings)
+        rep: dict[str, str] = {}
+        order: list[str] = []
+        for g in semantic:
+            k = _gloss_dedup_key(g)
+            if not k or k in seen_global:
+                continue
+            if k not in rep:
+                rep[k] = g
+                order.append(k)
+            elif len(g) < len(rep[k]):
+                rep[k] = g  # prefer the cleanest (shortest) form, e.g. 'Hill'
+        if order:
+            seen_global.update(order)
+            groups.append([rep[k] for k in order])
+    return groups
+
+
 @lru_cache(maxsize=4096)
 def _normalize_for_similarity(s: str) -> str:
     """Lowercase + strip dashes + strip whitespace + strip ASCII-fold

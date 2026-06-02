@@ -142,6 +142,13 @@
     return activeRendering(m)?.slot || null;
   }
 
+  // wyrd-bapd: a morpheme's primary definition — the first gloss of the first
+  // (deduped) sense group, else the first flat meaning — shown in the guide so
+  // the user sees what each morpheme MEANS, not just how it sounds.
+  function primaryDef(m) {
+    return m?.meaning_groups?.[0]?.[0] || m?.meanings?.[0] || '';
+  }
+
   // wyrd-2b50 follow-up: a pronunciation guide at the top, where it
   // matters — instead of only buried per-form in the cards. Rendered
   // PER-MORPHEME and aligned (surface over its reader-pronunciation /
@@ -211,6 +218,10 @@
                       >{slot?.reader_pronunciation || '·'}</span>
                     {#if slot?.ipa}
                       <span class="pron-ipa">{slot.ipa}</span>
+                    {/if}
+                    {#if primaryDef(m)}
+                      <span class="pron-def" title={primaryDef(m)}
+                        >{primaryDef(m)}</span>
                     {/if}
                   </span>
                 {/if}
@@ -345,6 +356,17 @@
     font-family: ui-monospace, 'SF Mono', Consolas, monospace;
     font-size: 10px;
     color: var(--fg-muted);
+  }
+  /* wyrd-bapd: the morpheme's primary definition under its pronunciation.
+     Clamped so a long gloss can't blow out the guide's column width
+     (full text on hover via title). */
+  .pron-def {
+    font-size: 10px;
+    color: var(--fg-muted);
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .provenance {
     margin: 4px 0 0;
