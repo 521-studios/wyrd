@@ -85,7 +85,7 @@
             <!-- key on form+index: a stage CAN carry duplicate surface forms
                  (homographs / spelling variants), and a bare cell.form key
                  would throw Svelte's duplicate-key error. -->
-            {#each stage?.forms || [] as cell, i (cell?.form + '|' + i)}
+            {#each (stage?.forms || []).filter(Boolean) as cell, i (cell?.form + '|' + i)}
               <button
                 type="button"
                 class="cell"
