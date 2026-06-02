@@ -4,7 +4,17 @@
   // name + a dimmed modern card beside it. Pure presentation: the parent builds
   // the per-morpheme rows (surface / reader / ipa / gloss) for whichever form
   // the card represents, so the same component composes both.
-  let { name, label = '', rows = [], dim = false, headingId = undefined } = $props();
+  // wyrd-qc0g: optional `altName` renders a second line under the name — the
+  // active card uses it for the de-accented "modern form of the exact variant"
+  // (Trebȳ Hall → Treby Hall), always copy-pasteable.
+  let {
+    name,
+    altName = '',
+    label = '',
+    rows = [],
+    dim = false,
+    headingId = undefined,
+  } = $props();
 </script>
 
 <div class="name-guide" class:dim>
@@ -16,6 +26,9 @@
     {/if}
     {#if label}<span class="ng-label">{label}</span>{/if}
   </div>
+  {#if altName && altName !== name}
+    <div class="ng-alt" title="de-accented (modern orthography)">{altName}</div>
+  {/if}
   {#if rows.length}
     <div class="ng-guide" aria-label="pronunciation guide">
       {#each rows as r}
@@ -52,6 +65,13 @@
   .name-guide.dim .ng-name {
     opacity: 0.55;
     font-weight: 600;
+  }
+  /* wyrd-qc0g: de-accented alt-name line under the headline. */
+  .ng-alt {
+    margin: -4px 0 8px;
+    font-size: 14px;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
   }
   .ng-label {
     font-size: 10px;

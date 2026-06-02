@@ -80,7 +80,7 @@ class PipelineState {
    *
    *  wyrd-hpjg: optional `paramOverrides` lets callers pre-populate
    *  step params at create time. Used by the direct-manipulation
-   *  Swap UX (MorphemeCard click bakes in wordIndex / morphemeIndex
+   *  Swap UX (MorphemeGrid cell click bakes in wordIndex / morphemeIndex
    *  / to). The palette path doesn't pass overrides and gets the
    *  transform's defaultParams. */
   addStep(kind, paramOverrides = {}) {
@@ -100,13 +100,13 @@ class PipelineState {
 
   /** Direct-manipulation swap (wyrd-2b50 follow-up): maintain AT MOST
    *  ONE swap step per (wordIndex, morphemeIndex) cell. Clicking a
-   *  variant on a morpheme card updates that cell's swap in place
+   *  variant in the era grid updates that cell's swap in place
    *  instead of stacking a new step (10 clicks → 1 step, not 10).
    *  Clicking the cell's ORIGINAL generated form removes the swap —
    *  i.e. clicking the original is "revert". `original` is the col-2
    *  result's usage for that cell. Dashes + case are normalized away
    *  for the revert comparison ("-wald-" vs "Wald") — matching
-   *  MorphemeCard.swapTo's folding so the two never disagree — but
+   *  MorphemeGrid.swap's folding so the two never disagree — but
    *  accents are kept, so adding an accent to a plain original is a swap. */
   setSwap({ wordIndex, morphemeIndex, to, original, language }) {
     const norm = (s) => (s || '').replace(/^-+|-+$/g, '').toLowerCase();
