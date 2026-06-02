@@ -9,7 +9,7 @@
   // The wynn rune ᚹ (U+16B9, Anglo-Saxon ancestor of W) replaces
   // generic logo-mark chrome; reinforces the OE/etymological story
   // wyrd tells. Everything else stays in the existing monospace-
-  // data idiom (same as MorphemeCard's tables, the existing column
+  // data idiom (same as the MorphemeGrid cells, the existing column
   // section heads) so the header reads as the same surface as the
   // columns below it.
   import { appState } from '../lib/appState.svelte.js';

@@ -1,8 +1,9 @@
 // wyrd-qc0g: helpers for the family × era reflex grid (the `era_grid` field
-// the backend now ships per morpheme, wyrd-lftl). These replace the old
-// per-language `variants.js` resolution as the col-3 axis: the active
-// morpheme's pronunciation, the paragon's modern form, and the grid's
-// current-cell highlight all derive from era_grid here.
+// the backend now ships per morpheme, wyrd-lftl). These supersede the old
+// per-language `variants.js` resolution as the col-3 axis — the active
+// morpheme's pronunciation and the grid's current-cell highlight derive from
+// era_grid here; variants.js stays only as a last-resort pronunciation
+// fallback until the grid fully owns it (wyrd-zw1f).
 //
 // era_grid shape (per morpheme):
 //   [{ family: 'english',
@@ -11,8 +12,6 @@
 //               ...] }, ...]
 
 import { accentFold } from './accents.js';
-
-const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
 
 /**
  * Strip diacritics while PRESERVING case (unlike accentFold, which also
@@ -51,30 +50,9 @@ export function cellForSurface(morpheme, surface) {
   return null;
 }
 
-/**
- * The morpheme's modern-English reflex cell (for the paragon), or null when
- * the grid carries no English/modern stage. Picks the first form — the modern
- * stage can be noisy (cluster mates), so callers fall back to deAccent(usage)
- * when this is null. (A cleaner modern-lemma pick lands with wyrd-rogd.1.)
- * @returns {object | null}
- */
-export function modernReflexCell(morpheme) {
-  for (const section of morpheme?.era_grid || []) {
-    if (section.family !== 'english') continue;
-    for (const stage of section.stages || []) {
-      if (stage.language === 'modern-english' && stage.forms?.length) {
-        return stage.forms[0];
-      }
-    }
-  }
-  return null;
-}
-
 /** True when the morpheme exposes any era_grid stages (sparse — coverage gap
  *  tracked in wyrd-32t1). Lets the view skip the grid entirely for bare
  *  morphemes rather than render an empty shell. */
 export function hasEraGrid(morpheme) {
   return !!morpheme?.era_grid?.some((s) => s.stages?.length);
 }
-
-export { stripDashes };

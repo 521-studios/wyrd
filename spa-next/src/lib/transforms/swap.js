@@ -30,7 +30,7 @@ export const swapTransform = {
     to: '',
   },
   // No paramSchema entries — the params are picked by the click-to-
-  // swap UX (MorphemeCard's form rows) and aren't operator-editable
+  // swap UX (MorphemeGrid's cells) and aren't operator-editable
   // inline on the step card.
   paramSchema: {},
   // summary() lets a no-param-schema transform render a meaningful
@@ -71,6 +71,17 @@ export const swapTransform = {
       w.map((m, mi) => {
         if (wi !== wordIndex || mi !== morphemeIndex) return m;
         const next = { ...m, usage: to };
+        // wyrd-qc0g: the user picked a specific era_grid cell, so `usage` is
+        // now authoritative for this slot — drop the auto-era-render fields
+        // the spread carried over. Otherwise the col-3 grid highlight + the
+        // breakdown surface row (both read `rendered || usage`) stay pinned
+        // to the pre-swap era form while the headline follows the swap — a
+        // visible desync on era-rendered (WYRD_FF_ERA) names. The chosen
+        // cell's pronunciation is resolved fresh from `usage` via
+        // cellForSurface, so no era_pron is lost.
+        delete next.rendered;
+        delete next.rendered_language;
+        delete next.rendered_pron;
         if (language) next._lang = language;
         else delete next._lang;
         return next;

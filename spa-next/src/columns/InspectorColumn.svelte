@@ -10,10 +10,13 @@
   //   3. Per-morpheme blocks — gloss + tags + the family × era variant grid.
   //
   // The pipeline engine (lib/pipeline.svelte.js) is unchanged and still owns
-  // the working state (swap steps + a future rewind step) so save/share keep
-  // working; this view only renders it. Everything reads pipeline.currentState
-  // — no more `original` vs `displayState` dual source of truth. The stable
-  // paragon is the one thing pinned to the pre-pipeline result.
+  // the working state (swap steps + a flag-gated rewind step) so save/share
+  // keep working; this view only renders it. The active card reads the working
+  // pipeline.currentState (`displayState`); the paragon is the one thing
+  // intentionally pinned to the pre-pipeline `original`. That's the only
+  // remaining two-state split — gone is the old column's convoluted
+  // per-derived original-vs-displayState juggling (the lossless-accent gamble,
+  // era-reads-one / modern-reads-the-other) that drove the swap bugs.
   import { untrack } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
