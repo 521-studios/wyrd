@@ -301,11 +301,15 @@
     gap: 8px;
     margin-bottom: 10px;
   }
+  /* wyrd-2ien: the era + modern cards sit side by side — a 2-col grid so the
+     guide content can't wrap them onto separate rows; collapses to one column
+     only when the inspector is genuinely narrow. A single (non-era) card fills
+     the row. */
   .name-cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px 28px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px 24px;
+    align-items: start;
     margin-top: 4px;
   }
   .flag {
