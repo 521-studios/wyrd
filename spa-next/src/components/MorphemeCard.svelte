@@ -241,6 +241,18 @@
     (!originalInForms && originalUsage ? 1 : 0) +
       orderedSourceEntries.reduce((n, [, forms]) => n + forms.length, 0),
   );
+
+  // wyrd-atc6: the original generated surface ("-ton") belongs UNDER its
+  // source language ("Old English") rather than in a separate "original
+  // surface" section. Its language is the morpheme's canonical source (the
+  // etymon it was generated from). Render the row at the top of that
+  // language's panel; only fall back to a standalone section when the surface
+  // has no source-language panel at all (sources empty — rare).
+  let originalLang = $derived(Object.keys(morpheme.sources || {})[0] || null);
+  let originalLangInEntries = $derived(
+    !!originalLang && orderedSourceEntries.some(([lang]) => lang === originalLang),
+  );
+  let showOriginalRow = $derived(!originalInForms && !!originalUsage);
 </script>
 
 <article class="morpheme" aria-labelledby="m-{morpheme.usage}-{morpheme._wordIndex}">
@@ -318,12 +330,9 @@
         ></summary
       >
 
-  {#if !originalInForms && originalUsage}
-    <!-- wyrd-7lg1: the original generated surface isn't among the etymon's
-         own forms (e.g. "-ton"/"-ham"/"-le-"). Show it as a persistent row
-         so it's always listed + clickable to revert, even after the user
-         swaps to a real form. Highlighted only while it's the active
-         surface. -->
+  {#if showOriginalRow && !originalLangInEntries}
+    <!-- wyrd-7lg1/atc6: the original generated surface, shown standalone ONLY
+         when it has no source-language panel to live under (sources empty). -->
     <section class="source-lang">
       <h4>original surface</h4>
       <table class="forms">
@@ -360,6 +369,28 @@
           </tr>
         </thead>
         <tbody>
+          {#if showOriginalRow && lang === originalLang}
+            <!-- wyrd-atc6: the original generated surface, under its source
+                 language (tagged 'gen' so it's distinct from curated etymon
+                 forms). Clickable to revert; highlighted when it's active. -->
+            <tr class="form-row" class:current={originalIsCurrent}>
+              <td class="form">
+                <button
+                  type="button"
+                  class="form-btn"
+                  onclick={() => swapTo(originalUsage, null)}
+                  title={originalIsCurrent
+                    ? 'Original generated surface (current)'
+                    : 'Original generated surface — click to revert'}
+                >
+                  {originalUsage}<span class="gen-tag">gen</span>
+                </button>
+              </td>
+              <td class="ipa"></td>
+              <td class="reader"></td>
+              <td class="dialect"></td>
+            </tr>
+          {/if}
           {#each forms as form (form)}
             {@const r = renderingFor(lang, form)}
             {@const current = currentRef?.lang === lang && currentRef?.form === form}
@@ -549,6 +580,20 @@
     color: var(--fg-muted);
     font-size: 11px;
     margin-left: 4px;
+  }
+  /* wyrd-atc6: 'gen' marker on the original generated-surface row so it reads
+     as distinct from the curated etymon forms it now sits beside. */
+  .gen-tag {
+    margin-left: 5px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0 3px;
+    vertical-align: middle;
   }
   td.ipa {
     color: var(--fg-muted);

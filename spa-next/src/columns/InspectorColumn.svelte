@@ -20,7 +20,7 @@
   import TransformStack from '../components/TransformStack.svelte';
   import DefectModal from '../components/DefectModal.svelte';
   import { upgradeAccents } from '../lib/accents.js';
-  import { activeRendering } from '../lib/variants.js';
+  import { activeRendering, pronunciationFor } from '../lib/variants.js';
   // wyrd-8jjx: SaveWorkspaceButton + ShareWorkspaceButton moved to
   // the Header (universal across workspaces). Components stay in
   // the tree for potential reuse but no longer rendered here.
@@ -133,13 +133,15 @@
     return out;
   });
 
-  // The rendering slot (ipa / reader_pronunciation) for a morpheme's
-  // CURRENT usage. wyrd-thhb: delegate to activeRendering so the guide shows
-  // the CANONICAL language (the etymon in `sources`) by default — or the
-  // user's pinned `_lang` — instead of an arbitrary first dict match. Keeps
-  // the guide in lockstep with the card's highlighted row.
+  // The rendering slot (ipa / reader_pronunciation) for a morpheme's CURRENT
+  // usage. wyrd-thhb: the CANONICAL language (the etymon in `sources`) by
+  // default — or the user's pinned `_lang`. wyrd-cxwl: pronunciationFor adds a
+  // fallback to the etymon's pronunciation when the generated surface's
+  // spelling doesn't match a form that carries IPA ("ay" ← "ey"), so the guide
+  // isn't blank. (currentRef in the card still uses activeRendering directly,
+  // so the highlight only fires on a real form match.)
   function renderingForUsage(m) {
-    return activeRendering(m)?.slot || null;
+    return pronunciationFor(m);
   }
 
   // wyrd-bapd: a morpheme's primary definition — the first gloss of the first

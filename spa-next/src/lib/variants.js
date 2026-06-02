@@ -64,3 +64,30 @@ export function activeRendering(m) {
   }
   return null;
 }
+
+const _hasPron = (slot) => !!(slot && (slot.ipa || slot.reader_pronunciation));
+
+/**
+ * wyrd-cxwl: the pronunciation slot to show for a morpheme in the guide.
+ * Prefers the active rendering (the matched form), but when the GENERATED
+ * surface has no matching form with pronunciation — common for surfaces whose
+ * spelling diverges from the etymon form that carries the IPA ("ay" ← Old
+ * Norse "ey", "moy" ← Celtic "magh") — falls back to the canonical etymon's
+ * pronunciation (first sources language, then any rendering language) so the
+ * guide shows the closest available sound instead of a blank '·'.
+ */
+export function pronunciationFor(m) {
+  if (!m) return null;
+  const active = activeRendering(m);
+  if (_hasPron(active?.slot)) return active.slot;
+  const renderings = m.renderings || {};
+  const langs = [...Object.keys(m.sources || {}), ...Object.keys(renderings)];
+  for (const lang of langs) {
+    const forms = renderings[lang];
+    if (!forms) continue;
+    for (const form of Object.keys(forms)) {
+      if (_hasPron(forms[form])) return forms[form];
+    }
+  }
+  return active?.slot || null;
+}
