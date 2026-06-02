@@ -44,6 +44,14 @@ def test_resolve_era_render_language_contemporary_and_empty_are_none():
     assert _resolve_era_render_language("modern", "english") is None
 
 
+def test_resolve_era_render_language_unanchored_cell_is_none():
+    # A valid historical cell with no canonical anchor language (Norse
+    # post-classical cells are omitted from CANONICAL_LANGUAGE_FOR_CELL) → None
+    # via the lang-is-None arm — distinct from the contemporary-match arm, and
+    # not the malformed-input path (the cell resolves fine).
+    assert _resolve_era_render_language("norse/on-late", "english") is None
+
+
 def test_resolve_era_render_language_malformed_degrades_to_none():
     # The loud ValueError on a bad era is _resolve_era_param's job (it runs on
     # the same input); the render-language resolver degrades to no-render rather
@@ -126,6 +134,52 @@ def test_render_passes_through_none_slots():
     assert _render([["-ton", None]], index) == [["tun", None]]
 
 
+# --- _apply_render dispatch (precedence / fallback / no-op) -----------------
+
+
+def _apply_render_stub(spy):
+    """A stub `self` for NameGenerator._apply_render that records whether the
+    era path or the D8/D18 substitution path ran, without touching the DB."""
+
+    def _era(name, lang):
+        spy.append(("era", lang))
+        return [["ERAFORM"]]
+
+    def _sub(rng, name, sv, idn):
+        spy.append(("sub", sv, idn))
+        return [["SUBSTITUTED"]], [["case"]]
+
+    return SimpleNamespace(_render_era_forms=_era, _render_substitutions=_sub)
+
+
+def test_apply_render_era_supersedes_substitution():
+    # era set AND both substitution knobs hot → era wins, substitution skipped.
+    spy: list = []
+    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
+    NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 1.0, 1.0, "old-english")
+    assert new_name.rendered == [["ERAFORM"]]
+    assert new_name.inflection_labels is None  # era path leaves labels unset
+    assert spy == [("era", "old-english")]  # D8/D18 NOT called
+
+
+def test_apply_render_falls_back_to_substitution_without_era():
+    spy: list = []
+    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
+    NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 1.0, 0.0, None)
+    assert new_name.rendered == [["SUBSTITUTED"]]
+    assert new_name.inflection_labels == [["case"]]
+    assert spy == [("sub", 1.0, 0.0)]  # era path NOT called
+
+
+def test_apply_render_noop_when_no_era_and_no_knobs():
+    # Default generation: nothing renders (bit-stable, no rng draw).
+    spy: list = []
+    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
+    NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 0.0, 0.0, None)
+    assert new_name.rendered is None
+    assert spy == []
+
+
 # --- end-to-end (committed dev bundle) -------------------------------------
 
 # Old-English-distinctive characters: a name carrying any of these is being
@@ -158,6 +212,15 @@ def test_era_render_end_to_end_produces_period_forms():
         assert any(set(name) & _OE_CHARS for name in oe), (
             f"{mode}: no Old-English forms rendered across {oe}"
         )
+        # Bit-stable: same (params, seed) → identical output (the era render
+        # path takes no rng draw), so re-generating reproduces it exactly.
+        again = [
+            gen.generate(
+                {"culture": "english", "era": "oe-early", "scoring_mode": mode}, seed=s
+            ).result
+            for s in range(10)
+        ]
+        assert oe == again, f"{mode}: era render is not reproducible for a fixed seed"
 
 
 def test_era_modern_is_not_distorted_by_reflex_cognates():

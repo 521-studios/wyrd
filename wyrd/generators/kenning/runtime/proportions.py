@@ -683,6 +683,25 @@ def _is_single_morpheme_structure(struct_key: tuple) -> bool:
     return sum(len(word_key) for word_key in struct_key) <= 1
 
 
+def _era_form_for_meanings(meanings, era_render_language: str | None) -> str | None:
+    """wyrd-6c8x: the era-appropriate form for a usage's resolved senses, or
+    None when none of them carries a reflex at ``era_render_language``.
+
+    Picks the first sense that has a reflex, and from it prefers an ATTESTED
+    form: the reflex list is sorted and the ``*`` reconstruction marker sorts
+    before letters, so a naive ``forms[0]`` is biased toward reconstructed
+    (unattested) forms — we take the first non-starred form, falling back to the
+    marker-stripped first form only when every reflex is reconstructed (still a
+    plausible period spelling). Deterministic: no rng draw."""
+    for meaning in meanings:
+        forms = meaning.era_reflex_for(era_render_language)
+        if not forms:
+            continue
+        attested = [f for f in forms if not f.startswith("*")]
+        return attested[0] if attested else forms[0].lstrip("*")
+    return None
+
+
 class NameGenerator:
     def __init__(
         self,
@@ -1423,14 +1442,10 @@ class NameGenerator:
 
         Deterministic + bit-stable: resolves each usage to its senses by bare
         surface (mirroring ``_render_substitutions``, since usages are
-        position-forms like ``-ton``), picks the first sense carrying a reflex
-        and prefers an ATTESTED form from it — no rng draw.
-
-        The reflex list is sorted and the ``*`` reconstruction marker sorts
-        before letters, so the raw first element is biased toward reconstructed
-        (unattested) forms (``*hūn``); we pick the first non-starred form
-        instead, falling back to the marker-stripped first form when every
-        reflex is reconstructed (still a plausible period spelling)."""
+        position-forms like ``-ton``) and delegates form selection to
+        ``_era_form_for_meanings`` (attested-over-reconstructed, no rng draw).
+        A usage with no reflex renders as None — ``NewName.__str__`` then falls
+        back to the canonical usage (the ~10% with no era data)."""
         rendered: list[list[str | None]] = []
         for word in name:
             word_rendered: list[str | None] = []
@@ -1441,14 +1456,7 @@ class NameGenerator:
                 meanings = (
                     self.meaning_gen._surface_index().get(usage.lower().replace("-", "")) or []
                 )
-                form: str | None = None
-                for meaning in meanings:
-                    forms = meaning.era_reflex_for(era_render_language)
-                    if not forms:
-                        continue
-                    attested = [f for f in forms if not f.startswith("*")]
-                    form = attested[0] if attested else forms[0].lstrip("*")
-                    break
+                form = _era_form_for_meanings(meanings, era_render_language)
                 word_rendered.append(_mimic_case(usage, form) if form else None)
             rendered.append(word_rendered)
         return rendered
