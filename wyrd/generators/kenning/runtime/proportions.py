@@ -702,6 +702,36 @@ def _era_form_for_meanings(meanings, era_render_language: str | None) -> str | N
     return None
 
 
+def _era_pronunciation(renderings, era_language, era_form, meaning):
+    """wyrd-mf2u: the breakdown's pronunciation for an ERA form — its OWN
+    pronunciation, not an arbitrary cluster form's.
+
+    Prefers the rich per-form rendering (IPA + reader_pronunciation) the bundle
+    carries for ``era_form`` in ``era_language``; falls back to the rule-based
+    ``respelling`` (always available for OE / ME / Welsh / …). ``era_language``
+    is hyphenated ('old-english'); the renderings map is keyed underscored
+    ('old_english'). Returns a sparse dict ({ipa?, reader_pronunciation?,
+    original_script?}) or None when neither source has anything."""
+    bare = (era_form or "").replace("-", "")
+    if not bare:
+        return None
+    lang_key = era_language.replace("-", "_")
+    lang_renders = (renderings or {}).get(lang_key, {})
+    for form, data in lang_renders.items():
+        # tolerant match: same form modulo case, or the form IS this entry's
+        # accented original_script (so 'stan' finds the 'stān (/stɑːn/)' row).
+        if form.lower() == bare.lower() or (data.get("original_script", "").lower() == bare.lower()):
+            pron = {
+                k: data[k]
+                for k in ("ipa", "reader_pronunciation", "original_script")
+                if data.get(k)
+            }
+            if pron:
+                return pron
+    respelled = meaning.respelling_for(bare, era_language) if meaning is not None else None
+    return {"reader_pronunciation": respelled} if respelled else None
+
+
 class NameGenerator:
     def __init__(
         self,
@@ -1416,6 +1446,10 @@ class NameGenerator:
         generation bit-stable (no extra rng draws)."""
         if era_render_language:
             new_name.rendered = self._render_era_forms(new_name.name, era_render_language)
+            # wyrd-mf2u: record the era language so the breakdown can resolve +
+            # label the era form's own pronunciation (the rendered surfaces are
+            # this language's cluster reflexes, not modern-orthography variants).
+            new_name.era_render_language = era_render_language
         elif spelling_variety > 0 or inflection_density > 0:
             rendered, labels = self._render_substitutions(
                 rng, new_name.name, spelling_variety, inflection_density
@@ -1755,6 +1789,13 @@ class NewName:
         # surface 'cot@dative_or_pl' breakdowns (D8). None on the outer
         # list means no inflection rendering was performed at all.
         self.inflection_labels = inflection_labels
+        # wyrd-mf2u: the canonical etymon-language ``rendered`` was rendered in
+        # when an ERA render is active (e.g. 'old-english'), else None. Lets the
+        # breakdown (components/to_dict) resolve the era form's OWN pronunciation
+        # + label it, instead of mixing the modern surface with an arbitrary
+        # cluster pronunciation. Set by _apply_render's era branch; None for the
+        # D18/D8 variant/inflection renders (which are modern-orthography).
+        self.era_render_language: str | None = None
         # wyrd-vd6y: per-element override Meaning for a slot whose surface
         # repeated earlier in the name and was diversified to a different-
         # language synonym ("Hill Hill" → "Hill Haeth"). Parallel to ``name``;
@@ -2150,9 +2191,21 @@ class NewName:
                     citations = _collect_citations(ranked)
                     if citations:
                         morpheme["citations"] = citations
-                # D18 variant / D8 inflection substitute if present
+                # D18 variant / D8 inflection / era substitute if present
                 if self.rendered is not None and self.rendered[wi][ei] is not None:
-                    morpheme["rendered"] = self.rendered[wi][ei]
+                    era_form = self.rendered[wi][ei]
+                    morpheme["rendered"] = era_form
+                    # wyrd-mf2u: for an ERA render, carry the era language + the
+                    # era form's OWN pronunciation so the breakdown shows the
+                    # period form (matching the name) alongside the modern
+                    # anchor, instead of the modern surface only.
+                    if self.era_render_language:
+                        morpheme["rendered_language"] = self.era_render_language
+                        pron = _era_pronunciation(
+                            morpheme.get("renderings"), self.era_render_language, era_form, first
+                        )
+                        if pron:
+                            morpheme["rendered_pron"] = pron
                 morphemes.append(morpheme)
             if morphemes:
                 words.append(morphemes)
@@ -2205,8 +2258,8 @@ class NewName:
                     continue
                 first = ranked[0]
                 primary, derivative = _split_senses_for_display(_all_senses(ranked))
-                out.append(
-                    {
+                renderings = _collect_renderings(ranked)
+                morpheme = {
                         "usage": usage_str,
                         "location": first.location,
                         "meanings": primary,
@@ -2220,9 +2273,24 @@ class NewName:
                         # 'CL' in the API summary.
                         "roots": _all_roots(ranked),
                         "citations": _collect_citations(ranked),
-                        "renderings": _collect_renderings(ranked),
-                    }
-                )
+                        "renderings": renderings,
+                }
+                # wyrd-mf2u: carry the era form + its own pronunciation/language
+                # so the API envelope's breakdown matches the era-rendered name
+                # (the SPA shows era + modern). Was missing here — components()
+                # dropped `rendered` entirely, so the breakdown showed only the
+                # modern surface despite the name being era-rendered.
+                if self.rendered is not None and self.rendered[wi][ei] is not None:
+                    era_form = self.rendered[wi][ei]
+                    morpheme["rendered"] = era_form
+                    if self.era_render_language:
+                        morpheme["rendered_language"] = self.era_render_language
+                        pron = _era_pronunciation(
+                            renderings, self.era_render_language, era_form, first
+                        )
+                        if pron:
+                            morpheme["rendered_pron"] = pron
+                out.append(morpheme)
         return out
 
     def _find_meaning(self, meaning):

@@ -60,11 +60,15 @@
                     <span class="word-group">
                       {#each word as morph}
                         {@const g = glossFor(morph)}
+                        {@const era = morph.rendered_language && morph.rendered}
                         <span class="morph-col">
                           <!-- wyrd-de5t: show the accented surface (bȳ) when
                                a rendering supplies one, matching the col-3
-                               inspector, instead of the lossy ASCII (by). -->
-                          <span class="surface">{accentedUsage(morph) || morph.usage || ''}</span>
+                               inspector, instead of the lossy ASCII (by).
+                               wyrd-mf2u: for an era render show the era form
+                               (what's in the name) + a compact "(Modern)" tag. -->
+                          <span class="surface">{era ? morph.rendered : accentedUsage(morph) || morph.usage || ''}</span>
+                          {#if era}<span class="modern-tag">(Modern: {morph.usage})</span>{/if}
                           {#if g}<span class="gloss">{g}</span>{/if}
                         </span>
                       {/each}
@@ -157,6 +161,12 @@
     font-size: 11px;
     color: var(--fg-muted);
     line-height: 1.3;
+  }
+  /* wyrd-mf2u: the "(Modern: …)" tag beside an era-rendered surface. */
+  .modern-tag {
+    font-size: 10px;
+    color: var(--fg-muted);
+    font-style: italic;
   }
   .explanation {
     margin-top: 4px;
