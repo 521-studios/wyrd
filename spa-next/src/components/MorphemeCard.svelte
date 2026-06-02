@@ -15,6 +15,7 @@
   import { appState } from '../lib/appState.svelte.js';
   import { accentFold, graftPosition } from '../lib/accents.js';
   import { activeRendering } from '../lib/variants.js';
+  import MorphemeBreakdown from './MorphemeBreakdown.svelte';
 
   let { morpheme, morphemeIndex } = $props();
 
@@ -234,6 +235,26 @@
     return morpheme.renderings?.[lang]?.[form] || {};
   }
 
+  // wyrd-mf2u: era-render display. The card renders the era form (what's in the
+  // name) + its own pronunciation as the primary breakdown, with a second
+  // breakdown for the modern morpheme beside it (the glossed anchor — era
+  // reflexes are cluster-cognates, so meaning rides with the modern form, shown
+  // once below). rendered_pron is resolved server-side for THIS exact form
+  // (rich IPA where the bundle has it, rule respelling else).
+  let isEraRender = $derived(!!(morpheme.rendered_language && morpheme.rendered));
+  // The modern anchor's pronunciation object, restricted to modern_english so
+  // we never mislabel a historical-cluster pronunciation as "modern". Null when
+  // the bundle carries no modern_english rendering for the surface (common —
+  // then the modern breakdown shows just the surface + the shared gloss below).
+  let modernPron = $derived.by(() => {
+    const u = norm(morpheme.usage);
+    const forms = morpheme.renderings?.modern_english || {};
+    for (const [f, data] of Object.entries(forms)) {
+      if (norm(f) === u || norm(data.original_script || '') === u) return data;
+    }
+    return null;
+  });
+
   // wyrd-438r: total clickable variant rows (the synthetic original-surface
   // row, when shown, + every per-language form) — for the "Variants (N)"
   // disclosure summary.
@@ -257,17 +278,35 @@
 
 <article class="morpheme" aria-labelledby="m-{morpheme.usage}-{morpheme._wordIndex}">
   <header>
-    <!-- h5 for AT heading-nav: h3 (result name) → h4 (Morphemes
-         section) → h5 (per-morpheme card). Visual styling stays
-         the same; this just gives screen readers a real heading
-         label for the card. -->
-    <h5 class="usage" id="m-{morpheme.usage}-{morpheme._wordIndex}">
-      {morpheme.usage}
-    </h5>
-    {#if morpheme.rendered && morpheme.rendered !== morpheme.usage}
-      <span class="rendered" title="D18/D8 substituted variant">
-        → {morpheme.rendered}
-      </span>
+    <!-- AT heading-nav: h3 (result name) → h4 (Morphemes section) → h5
+         (per-morpheme card). The h5 carries the card's label + id; the
+         reusable MorphemeBreakdown(s) provide the visible form/pronunciation. -->
+    {#if isEraRender}
+      <!-- wyrd-mf2u: era render — the period form (in the name) + its own
+           pronunciation as the primary breakdown, beside the modern anchor.
+           Same reusable card, two instances. Meaning rides with the modern
+           form (shown once in the shared gloss below). -->
+      <h5 class="sr-only" id="m-{morpheme.usage}-{morpheme._wordIndex}">
+        {morpheme.rendered}, {languageLabel(morpheme.rendered_language)} (modern {morpheme.usage})
+      </h5>
+      <div class="form-pair">
+        <MorphemeBreakdown
+          primary
+          form={morpheme.rendered}
+          pron={morpheme.rendered_pron}
+          label={languageLabel(morpheme.rendered_language)}
+        />
+        <MorphemeBreakdown form={morpheme.usage} pron={modernPron} label="modern" />
+      </div>
+    {:else}
+      <h5 class="usage" id="m-{morpheme.usage}-{morpheme._wordIndex}">
+        {morpheme.usage}
+      </h5>
+      {#if morpheme.rendered && morpheme.rendered !== morpheme.usage}
+        <span class="rendered" title="D18/D8 substituted variant">
+          → {morpheme.rendered}
+        </span>
+      {/if}
     {/if}
   </header>
 
@@ -466,6 +505,17 @@
   .rendered {
     font-size: 12px;
     color: var(--fg-muted);
+  }
+  /* wyrd-mf2u: era render lays the period form + modern anchor side-by-side
+     (two reusable MorphemeBreakdown cards), wrapping on narrow widths. */
+  .form-pair {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: flex-start;
+  }
+  .form-pair :global(.morpheme-breakdown) {
+    flex: 1 1 auto;
   }
   .meanings {
     margin: 0 0 8px;

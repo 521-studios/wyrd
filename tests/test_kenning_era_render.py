@@ -240,3 +240,78 @@ def test_era_modern_is_not_distorted_by_reflex_cognates():
     assert not any(set(name) & _OE_CHARS for name in modern), (
         f"era=modern leaked period forms (should render canonical): {modern}"
     )
+
+
+# --- wyrd-mf2u: era + modern morpheme breakdown -----------------------------
+
+
+def test_era_pronunciation_prefers_rich_rendering():
+    from wyrd.generators.kenning.runtime.proportions import _era_pronunciation
+
+    renderings = {
+        "old_english": {
+            "stān": {"ipa": "/stɑːn/", "reader_pronunciation": "STAAN", "original_script": "stān"}
+        }
+    }
+    # exact form key (case-insensitive)
+    assert _era_pronunciation(renderings, "old-english", "STĀN", None)["ipa"] == "/stɑːn/"
+    # match via original_script when the form key is the de-accented twin
+    rends2 = {"old_english": {"stan": {"ipa": "/stɑːn/", "original_script": "stān"}}}
+    assert _era_pronunciation(rends2, "old-english", "stān", None)["ipa"] == "/stɑːn/"
+
+
+class _FakeRespellMeaning:
+    def respelling_for(self, form, lang):
+        return f"R:{form}:{lang}"
+
+
+def test_era_pronunciation_falls_back_to_respell_then_none():
+    from wyrd.generators.kenning.runtime.proportions import _era_pronunciation
+
+    # no rendering for the form → rule-based respelling via the meaning
+    assert _era_pronunciation({}, "old-english", "þorn", _FakeRespellMeaning()) == {
+        "reader_pronunciation": "R:þorn:old-english"
+    }
+    # nothing available (no rendering, no meaning) → None; empty form → None
+    assert _era_pronunciation({}, "old-english", "x", None) is None
+    assert _era_pronunciation({}, "old-english", "", _FakeRespellMeaning()) is None
+
+
+def test_era_breakdown_carries_era_form_plus_modern_anchor():
+    """The breakdown (to_dict morphemes_by_word + the API components) keeps the
+    modern morpheme as usage/gloss anchor AND carries the era form + its own
+    pronunciation + language, so the SPA can show era + modern."""
+    from wyrd.generators.kenning import Kenning
+
+    gen = Kenning()
+    result = gen.generate({"culture": "english", "era": "oe-early"}, seed=0)
+    flat_td = [m for w in result.morphemes_by_word for m in w]
+    assert flat_td, "expected morphemes"
+    for m in flat_td:
+        # modern anchor is ALWAYS present (usage + gloss)
+        assert m.get("usage"), "modern anchor surface present"
+        assert m.get("meanings"), "modern gloss present"
+        # rendered_language, when set, is the era language
+        if m.get("rendered_language"):
+            assert m["rendered_language"] == "old-english"
+    # era fields are present for morphemes WITH a reflex; ~10% legitimately lack
+    # one and fall back to the modern form (rendered omitted), so assert
+    # at-least-one rather than all — robust to seed/bundle drift.
+    assert any(m.get("rendered") for m in flat_td), "at least one era form"
+    assert any(m.get("rendered_language") == "old-english" for m in flat_td)
+    assert any(m.get("rendered_pron") for m in flat_td), "at least one era pronunciation"
+    # the API envelope mirrors it (components dropped `rendered` before mf2u)
+    assert any(
+        c.get("rendered") and c.get("rendered_language") == "old-english" for c in result.components
+    )
+
+
+def test_no_era_breakdown_omits_era_fields():
+    from wyrd.generators.kenning import Kenning
+
+    gen = Kenning()
+    result = gen.generate({"culture": "english"}, seed=0)  # no era
+    flat = [m for w in result.morphemes_by_word for m in w] + list(result.components)
+    assert flat
+    assert not any(m.get("rendered_language") for m in flat)
+    assert not any(m.get("rendered_pron") for m in flat)
