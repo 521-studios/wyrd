@@ -124,11 +124,11 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import ingest_wiktionary as _ingest_wiktionary_module
 from wyrd.generators.kenning.cli.lexicon import language_report as _language_report_module
 from wyrd.generators.kenning.cli.lexicon import link_lemmas as _link_lemmas_module
+from wyrd.generators.kenning.cli.lexicon import link_reflexes as _link_reflexes_module
 from wyrd.generators.kenning.cli.lexicon import (
     lookup_attested_years as _lookup_attested_years_module,
 )
 from wyrd.generators.kenning.cli.lexicon import merge_collapses as _merge_collapses_module
-from wyrd.generators.kenning.cli.lexicon import link_reflexes as _link_reflexes_module
 from wyrd.generators.kenning.cli.lexicon import migrate as _migrate_module
 from wyrd.generators.kenning.cli.lexicon import mine_attestations as _mine_attestations_module
 from wyrd.generators.kenning.cli.lexicon import (

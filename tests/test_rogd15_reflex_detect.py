@@ -81,7 +81,7 @@ def test_similarity_threshold_filters(fresh_db: Path) -> None:
         assert detect_reflex_link_candidates(db.conn, min_similarity=0.99) == []
 
 
-def _cand() -> "ReflexLinkCandidate":
+def _cand():
     from wyrd.generators.kenning.lexicon.reflex_link_detect import ReflexLinkCandidate
 
     return ReflexLinkCandidate(
