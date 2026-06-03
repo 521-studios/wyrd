@@ -6,16 +6,17 @@
   // morpheme in the active name card (pipeline swap) and its pronunciation
   // comes along; the live variant is highlighted.
   //
-  // wyrd-zw1f delivered: era-column layout, inferred-source marking
-  // (phonology-rule cells render dashed + italic + "~"), and exact-cell
-  // homograph tracking (the highlight prefers the pinned `_lang` stage, via
-  // cellForSurface). wyrd-rogd.1: drift-gloss surfacing now LANDED — a cell
-  // whose gloss differs from the morpheme's own meaning is marked (the cognate
-  // drifted), and the cell's meaning shows on hover.
+  // wyrd-zw1f delivered: era-column layout + inferred-source marking
+  // (phonology-rule cells render dashed + italic + "~"). wyrd-rogd.1: drift-
+  // gloss surfacing — a cell whose gloss differs from the morpheme's own
+  // meaning is marked (the cognate drifted), shown on hover. wyrd-rogd.7: the
+  // highlight tracks the selected cell by stable `cell.id` (cellForSurface
+  // honours `morpheme._cellId`), not surface-fold — so fold-equal forms
+  // (bǣre/bære) light exactly one cell, not two.
   import { languageLabel } from '../lib/languageLabels.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
-  import { graftPosition, accentFold } from '../lib/accents.js';
+  import { graftPosition } from '../lib/accents.js';
   import { cellForSurface, primaryGloss, isGlossDrift } from '../lib/era.js';
 
   let { morpheme } = $props();
@@ -46,15 +47,14 @@
   // The form live in the name right now (era form if rendered, else usage).
   let liveSurface = $derived(morpheme.rendered || morpheme.usage);
 
-  // The single grid cell matching the live surface — exactly one highlights.
-  let currentRef = $derived(cellForSurface(morpheme, liveSurface));
+  // The single selected cell — the swapped cell by id (cellForSurface honours
+  // morpheme._cellId), else the cell matching the live surface. wyrd-rogd.7:
+  // highlight by cell.id, NOT surface-fold, so fold-equal forms (bǣre/bære)
+  // light exactly one cell.
+  let currentId = $derived(cellForSurface(morpheme, liveSurface)?.cell?.id ?? null);
 
-  function isCurrent(stage, cell) {
-    return (
-      !!currentRef &&
-      currentRef.language === stage.language &&
-      accentFold(currentRef.cell.form) === accentFold(cell.form)
-    );
+  function isCurrent(cell) {
+    return !!currentId && cell?.id === currentId;
   }
 
   // Display the cell form WITH the slot's placement dashes (tre- / -bȳ / hall)
@@ -63,7 +63,7 @@
 
   function swap(stage, cell) {
     const to = graftPosition(originalUsage || morpheme.usage, cell.form);
-    if (isCurrent(stage, cell)) {
+    if (isCurrent(cell)) {
       // Clicking the live variant reverts to the generated default.
       pipeline.clearSwap({
         wordIndex: morpheme._wordIndex,
@@ -77,6 +77,7 @@
       to,
       original: originalUsage,
       language: stage.language,
+      cellId: cell.id,
     });
   }
 </script>
@@ -101,6 +102,7 @@
               <!-- wyrd-rogd.1: the cell's own meaning has DRIFTED from the
                    morpheme's (the cognate no longer means the same thing). -->
               {@const drifted = isGlossDrift(baseGloss, cell.gloss)}
+              {@const current = isCurrent(cell)}
               {@const swapTitle = inferred
                 ? `Swap to ${cell.form} — inferred via phonology rule (not attested)`
                 : `Swap this morpheme to ${cell.form}`}
@@ -113,12 +115,12 @@
               <button
                 type="button"
                 class="cell"
-                class:current={isCurrent(stage, cell)}
+                class:current={current}
                 class:inferred
                 class:drift={drifted}
-                aria-pressed={isCurrent(stage, cell)}
+                aria-pressed={current}
                 onclick={() => swap(stage, cell)}
-                title={(isCurrent(stage, cell) ? liveTitle : swapTitle) + glossNote}
+                title={(current ? liveTitle : swapTitle) + glossNote}
               >
                 <span class="cell-form"
                   >{withPlacement(cell.form)}{#if inferred}<span

@@ -41,22 +41,34 @@ export function deAccent(s) {
  * accent + dash + case), or null. One source of truth for "which variant is
  * live": the active-card pronunciation reads it, and the grid highlights it.
  *
- * wyrd-zw1f: when the same surface appears in several stages (a homograph —
- * e.g. "don" in OE / OF / Celtic, "by" in OE + Old Norse), a swap pins the
- * chosen stage on `morpheme._lang`; we prefer the cell in that stage so the
- * highlight + pronunciation track the EXACT variant the user picked, not an
- * arbitrary first match. Falls back to the first match both when nothing is
- * pinned AND when a pin is set but its stage carries no matching cell (the
- * pin is a soft preference, not a hard filter — the surface may have drifted
- * out of the pinned stage).
+ * wyrd-rogd.7: a swap records the EXACT chosen cell on `morpheme._cellId`,
+ * which is authoritative — we return that cell by id so a surface-fold
+ * collision (bǣre/bære, *ur/ur) can't light up two cells at once. Only when
+ * no id is pinned (the initial, un-swapped state) do we fall back to matching
+ * the live surface by accent+dash+case fold, preferring the `_lang` stage for
+ * a homograph and otherwise taking the first match.
  * @returns {{family: string, language: string, cell: object} | null}
  */
 export function cellForSurface(morpheme, surface) {
+  const grid = morpheme?.era_grid || [];
+  const pinnedId = morpheme?._cellId;
+  if (pinnedId) {
+    for (const section of grid) {
+      for (const stage of section?.stages || []) {
+        for (const cell of stage?.forms || []) {
+          if (cell?.id === pinnedId) {
+            return { family: section.family, language: stage.language, cell };
+          }
+        }
+      }
+    }
+    // a pinned id with no matching cell (stale) falls through to surface match.
+  }
   const target = accentFold(surface);
   if (!target) return null;
   const pinned = morpheme?._lang;
   let fallback = null;
-  for (const section of morpheme?.era_grid || []) {
+  for (const section of grid) {
     for (const stage of section?.stages || []) {
       for (const cell of stage?.forms || []) {
         if (accentFold(cell?.form) === target) {

@@ -101,6 +101,38 @@ describe('cellForSurface', () => {
     expect(cellForSurface({}, 'stan')).toBeNull();
     expect(cellForSurface(null, 'stan')).toBeNull();
   });
+
+  it('honours an explicit _cellId pin over a surface-fold collision (rogd.7)', () => {
+    // bǣre and bære fold equal — without an id pin BOTH would match and the
+    // grid lit two cells. The recorded cell id picks exactly one.
+    const collide = {
+      usage: 'bǣre',
+      era_grid: [
+        {
+          family: 'english',
+          stages: [
+            {
+              language: 'old-english',
+              forms: [
+                { id: 'old-english:0', form: 'bǣre' },
+                { id: 'old-english:1', form: 'bære' },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    // the pin returns the EXACT cell regardless of which surface is live.
+    expect(cellForSurface({ ...collide, _cellId: 'old-english:1' }, 'bǣre')?.cell?.id).toBe(
+      'old-english:1',
+    );
+    // no pin → first fold-match wins (the pre-swap initial state).
+    expect(cellForSurface(collide, 'bære')?.cell?.id).toBe('old-english:0');
+    // a stale pin (id not in the grid) falls back to the surface match.
+    expect(cellForSurface({ ...collide, _cellId: 'gone:9' }, 'bære')?.cell?.id).toBe(
+      'old-english:0',
+    );
+  });
 });
 
 describe('pronForSurface', () => {
