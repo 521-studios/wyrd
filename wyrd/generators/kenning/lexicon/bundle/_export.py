@@ -238,9 +238,52 @@ def _build_family_rollup(
     lemma_by_id = {r["id"]: r["lemma_id"] for r in rollup_rows}
     target_by_id = {r["id"]: (r["merged_into_id"] or r["lemma_id"] or r["id"]) for r in rollup_rows}
 
-    def root_of(eid: int) -> int:
+    # wyrd-rogd.9: a later-era reflex and its earlier-era ancestor are ONE
+    # morpheme across eras (OE ``biscop`` → modern ``bishop``), but the
+    # merged_into/lemma rollup keeps them in separate families. Follow the
+    # CURATED reflex-link inheritance edges up to the oldest ancestor so the
+    # reflex joins its ancestor's family and inherits its era_reflexes (the
+    # empty-grid fix).
+    #
+    # ONLY the ``collapse``-sourced edges (the wyrd-rogd.15 reflex-link ledger:
+    # LLM-judged, same-family, adjacent-era, form-similar, one best ancestor per
+    # child). We deliberately do NOT follow the raw Wiktionary ``inheritance``
+    # edges: that graph is a deep, densely-connected etymological tree (PIE root
+    # → … → modern) whose transitive closure collapses ~440K families and pulls
+    # >1000 unrelated forms into single "families" — semantically wrong for
+    # place-name morphemes and destructive to generation. Derivation/compound
+    # edges are derived words, not the morpheme, so they are excluded too
+    # (wyrd-rogd.11). A child with several reflex-link parents keeps the lowest
+    # parent_id for determinism.
+    #
+    # Lazy import: enrichment imports the lexicon package, so a module-level
+    # import here would close a lexicon → bundle → enrichment → lexicon cycle.
+    from wyrd.generators.kenning.enrichment import COLLAPSE_VARIANT_SOURCE_ID
+
+    inheritance_parent: dict[int, int] = {}
+    for r in db.conn.execute(
+        "SELECT parent_id, child_id FROM etymon_descent "
+        "WHERE edge_type = 'inheritance' AND source_id = ?",
+        (COLLAPSE_VARIANT_SOURCE_ID,),
+    ):
+        child, parent = r["child_id"], r["parent_id"]
+        if child not in inheritance_parent or parent < inheritance_parent[child]:
+            inheritance_parent[child] = parent
+
+    def _lemma_root(eid: int) -> int:
         target = target_by_id.get(eid, eid)
         return lemma_by_id.get(target) or target
+
+    def root_of(eid: int) -> int:
+        root = _lemma_root(eid)
+        seen = {root}  # cycle guard (the descent graph can be noisy)
+        while root in inheritance_parent:
+            parent_root = _lemma_root(inheritance_parent[root])
+            if parent_root in seen:
+                break
+            seen.add(parent_root)
+            root = parent_root
+        return root
 
     members_by_root: dict[int, list[int]] = {}
     for eid in target_by_id:
