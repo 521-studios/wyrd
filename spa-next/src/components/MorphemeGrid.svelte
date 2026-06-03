@@ -16,9 +16,7 @@
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
   import { graftPosition, accentFold } from '../lib/accents.js';
-  import { cellForSurface, primaryGloss } from '../lib/era.js';
-
-  const foldGloss = (g) => (g || '').trim().toLowerCase();
+  import { cellForSurface, primaryGloss, isGlossDrift } from '../lib/era.js';
 
   let { morpheme } = $props();
 
@@ -102,7 +100,7 @@
               {@const inferred = !!cell.source?.startsWith('phonology-rule')}
               <!-- wyrd-rogd.1: the cell's own meaning has DRIFTED from the
                    morpheme's (the cognate no longer means the same thing). -->
-              {@const drifted = !!cell.gloss && foldGloss(cell.gloss) !== foldGloss(baseGloss)}
+              {@const drifted = isGlossDrift(baseGloss, cell.gloss)}
               {@const swapTitle = inferred
                 ? `Swap to ${cell.form} — inferred via phonology rule (not attested)`
                 : `Swap this morpheme to ${cell.form}`}

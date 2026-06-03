@@ -28,6 +28,7 @@
     eraBadge,
     primaryGloss,
     glossForSurface,
+    isGlossDrift,
   } from '../lib/era.js';
   import NameGuideCard from '../components/NameGuideCard.svelte';
   import MorphemeGrid from '../components/MorphemeGrid.svelte';
@@ -82,8 +83,6 @@
     return out;
   });
 
-  const foldGloss = (g) => (g || '').trim().toLowerCase();
-
   // Build the surface / reader / ipa / gloss rows for a morpheme list. Surfaces
   // keep their placement dashes (tre- / -bȳ / hall) — never stripped. The
   // pronunciation slot comes from pronForSurface (era_grid cell → rendered_pron
@@ -109,7 +108,7 @@
             reader: slot.reader_pronunciation,
             ipa: slot.ipa,
             gloss,
-            drift: !!variant && foldGloss(variant) !== foldGloss(base),
+            drift: isGlossDrift(base, variant),
           };
         }),
     );

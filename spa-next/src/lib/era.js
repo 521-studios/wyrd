@@ -123,7 +123,8 @@ export function pronForSurface(morpheme, surface) {
 }
 
 /** wyrd-rogd.1: a morpheme's OWN primary gloss — the first sense of the first
- *  (deduped) group, else the first flat meaning. The drift baseline. */
+ *  sense group (the backend dedupes the groups), else the first flat meaning.
+ *  The drift baseline. */
 export function primaryGloss(morpheme) {
   return morpheme?.meaning_groups?.[0]?.[0] || morpheme?.meanings?.[0] || '';
 }
@@ -134,4 +135,16 @@ export function primaryGloss(morpheme) {
  *  active-card gloss tracking the swapped variant. */
 export function glossForSurface(morpheme, surface) {
   return cellForSurface(morpheme, surface)?.cell?.gloss || '';
+}
+
+/** wyrd-rogd.1: a HEURISTIC "this variant's meaning differs from the
+ *  morpheme's" cue, for the ≠ drift marker. BOTH must be non-empty — an empty
+ *  base can't drift (so a glossless morpheme never false-flags every cell) —
+ *  and they're compared on a whitespace+case fold only, so it's a *possible*
+ *  drift: near-synonyms ('farm' vs 'a farm') or multi-sense glosses can still
+ *  read as drift. Single source of truth so the active card + grid can't
+ *  diverge. */
+export function isGlossDrift(base, variant) {
+  const fold = (g) => (g || '').trim().toLowerCase();
+  return !!base && !!variant && fold(base) !== fold(variant);
 }

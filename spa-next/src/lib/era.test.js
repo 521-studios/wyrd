@@ -10,6 +10,7 @@ import {
   eraBadge,
   primaryGloss,
   glossForSurface,
+  isGlossDrift,
 } from './era.js';
 
 // A stand-in label fn matching the production languageLabel for the tags under
@@ -233,5 +234,20 @@ describe('glossForSurface', () => {
     expect(glossForSurface(STAN, 'stān')).toBe(''); // STAN cells carry no gloss
     expect(glossForSurface(WORTH, 'nowhere')).toBe('');
     expect(glossForSurface(null, 'x')).toBe('');
+  });
+});
+
+describe('isGlossDrift', () => {
+  it('is true only when both glosses are non-empty AND differ (fold-compared)', () => {
+    expect(isGlossDrift('enclosure', 'hurdle')).toBe(true); // genuine drift
+    expect(isGlossDrift('enclosure', 'Enclosure ')).toBe(false); // case/space fold = same
+    expect(isGlossDrift('farm', 'farm')).toBe(false);
+  });
+  it('never flags drift when the base (or variant) gloss is empty', () => {
+    // a glossless morpheme must NOT false-flag every variant as drifted.
+    expect(isGlossDrift('', 'anything')).toBe(false);
+    expect(isGlossDrift('something', '')).toBe(false);
+    expect(isGlossDrift(undefined, 'x')).toBe(false);
+    expect(isGlossDrift(null, null)).toBe(false);
   });
 });
