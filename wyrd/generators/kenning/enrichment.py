@@ -899,6 +899,7 @@ def apply_collapses(
         # edge instead of folding, so cross-era reflexes stay distinct era forms
         # of one morpheme (the rollup follows the edge).
         "links_processed": 0,
+        "link_rejections": 0,
         "unresolved_inherits": 0,
         "self_link_skipped": 0,
         "applied": apply,
@@ -927,10 +928,16 @@ def apply_collapses(
         # a later-era reflex of the ``inherits`` ancestor — the same morpheme
         # across eras. Apply by adding an inheritance descent edge (parent =
         # ancestor, child = ref); both etymons stay DISTINCT (vs the ``into``
-        # fold, which tombstones). Idempotent via OR IGNORE. ``inherits: ""``
-        # reverts to a no-op. Mutually exclusive with ``into``.
-        inherits_ref = payload.get("inherits")
-        if inherits_ref:
+        # fold, which tombstones). Idempotent via OR IGNORE. A row that CARRIES
+        # the ``inherits`` key is a link row regardless of value: ``inherits: ""``
+        # (a recorded LLM rejection, or a revert) is a no-op handled HERE — it
+        # must NOT fall through to the ``into`` fold path. Mutually exclusive
+        # with ``into`` (reflex_verdict_to_row never writes both).
+        if "inherits" in payload:
+            inherits_ref = payload.get("inherits")
+            if not inherits_ref:
+                counts["link_rejections"] += 1
+                continue
             child_row = _resolve(from_ref)
             if child_row is None:
                 counts["unresolved_from"] += 1

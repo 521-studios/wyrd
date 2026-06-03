@@ -97,9 +97,12 @@ def lexicon_link_reflexes(
     if collapse_file.exists():
         for line in collapse_file.read_text(encoding="utf-8").splitlines():
             line = line.strip()
-            if not line:
+            if not line.startswith("{"):  # tolerate blank lines / operator comments
                 continue
-            row = json.loads(line)
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
             # Only reflex-link rows count as already-judged here (they carry
             # `inherits`); a fold row sharing a ref must NOT block a reflex
             # candidate for the same child surface.
@@ -119,6 +122,8 @@ def lexicon_link_reflexes(
         return
 
     client = OllamaClient(base_url=base_url, model=model, timeout_s=90.0)
+    if not dry_run:
+        collapse_file.parent.mkdir(parents=True, exist_ok=True)
     fh = None if dry_run else collapse_file.open("a", encoding="utf-8")
     links = rejects = skipped = 0
     start = time.perf_counter()
