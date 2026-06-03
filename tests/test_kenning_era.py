@@ -474,3 +474,13 @@ def test_cross_family_stage_label_gives_helpful_error() -> None:
         era.resolve_era_input("old-welsh", default_family="english")
     with pytest.raises(ValueError, match=r"brythonic/old-welsh"):
         era.era_cell_for_input("old-welsh", default_family="english")
+
+
+def test_invalid_family_label_lists_cells_and_stages_consistently() -> None:
+    # wyrd-rogd.2: both resolvers give the same helpful error (cells + stages)
+    # for a bad label under an explicit family.
+    for fn in (era.resolve_era_input, era.era_cell_for_input):
+        with pytest.raises(
+            ValueError, match=r"unknown era cell/stage 'invalid' for family 'english'"
+        ):
+            fn("english/invalid", default_family="brythonic")

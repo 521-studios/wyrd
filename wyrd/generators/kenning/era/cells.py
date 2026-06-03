@@ -523,7 +523,12 @@ def resolve_era_input(
             stage_range = stage_year_range(family, label)
             if stage_range is not None:
                 return stage_range
-            raise
+            if family not in ERA_CELLS:
+                raise  # unknown family — surface the bare KeyError
+            valid = [*era_cells_for_family(family), *family_stage_order(family)]
+            raise ValueError(
+                f"unknown era cell/stage {label!r} for family {family!r}; valid: {valid}"
+            ) from None
     # Bare label — must exist in default_family. Cross-family fallback
     # would silently route a typo or wrong-culture label into the wrong
     # range; instead, point the user at the families that DO define the
