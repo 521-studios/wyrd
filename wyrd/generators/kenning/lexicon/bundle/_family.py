@@ -23,7 +23,7 @@ from typing import Any
 
 from wyrd.generators.kenning.lexicon.collapse_detect import is_form_of_pointer
 from wyrd.generators.kenning.lexicon.db import LexiconDB
-from wyrd.generators.kenning.lexicon.era_reflex import etymon_era_reflexes
+from wyrd.generators.kenning.lexicon.era_reflex import EraReflex, etymon_era_reflexes
 
 
 def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[str, Any] | None:
@@ -217,11 +217,13 @@ def _fetch_root_era_reflexes(
     era reflexes for bundle export.
 
     Returns a dict mapping target language tag → sorted list of
-    ``{"form": str, "source": str}`` dicts. The SPA-side rewinder
-    consumes this at runtime; ``source`` distinguishes attestation-
+    ``{"form": str, "source": str, "gloss"?: str}`` dicts. The SPA-side
+    rewinder consumes this at runtime; ``source`` distinguishes attestation-
     backed reflexes ('cluster' / 'descent' / 'period-form') from
     phonology-rule-derived ones ('phonology-rule:v1') so consumers
-    can render inferred forms differently if they want to.
+    can render inferred forms differently if they want to. ``gloss``
+    (wyrd-rogd.1, sparse) is the reflex etymon's own representative meaning,
+    for the SPA era-grid's drift display.
 
     For each language tag in ``CANONICAL_LANGUAGE_FOR_CELL`` of the
     root's family, calls ``etymon_era_reflexes`` and collects the
@@ -256,16 +258,55 @@ def _fetch_root_era_reflexes(
         reflexes = etymon_era_reflexes(db, root_id, target_language=target_language)
         if not reflexes:
             continue
-        # Dedupe by form, keeping the highest-quality source on
-        # collision. Same form might surface via cluster (high) and
-        # phonology-rule (low) — prefer the cluster.
-        best: dict[str, str] = {}
+        # Dedupe by form, keeping the highest-quality source's reflex on
+        # collision (same form might surface via cluster (high) and
+        # phonology-rule (low) — prefer the cluster). We keep the whole
+        # EraReflex, not just its source, so we can look up THAT reflex's
+        # gloss (wyrd-rogd.1 — for the SPA era-grid drift display).
+        best: dict[str, EraReflex] = {}
         for r in reflexes:
             existing = best.get(r.form)
-            if existing is None or _better_era_reflex_source(r.source, existing):
-                best[r.form] = r.source
-        out[target_language] = [{"form": form, "source": best[form]} for form in sorted(best)]
+            if existing is None or _better_era_reflex_source(r.source, existing.source):
+                best[r.form] = r
+        glosses = _fetch_reflex_glosses(db, [r.etymon_id for r in best.values()])
+        out[target_language] = [_reflex_entry(best[form], glosses) for form in sorted(best)]
     return out
+
+
+def _reflex_entry(reflex: EraReflex, glosses: dict[int, str]) -> dict[str, str]:
+    """The bundle entry for one reflex: ``{form, source}`` plus a ``gloss``
+    when the reflex etymon has one (sparse — omitted otherwise so glossless
+    bundles don't carry empty strings). wyrd-rogd.1."""
+    entry = {"form": reflex.form, "source": reflex.source}
+    gloss = glosses.get(reflex.etymon_id)
+    if gloss:
+        entry["gloss"] = gloss
+    return entry
+
+
+def _fetch_reflex_glosses(db: LexiconDB, etymon_ids: list[int]) -> dict[int, str]:
+    """A single representative gloss per reflex etymon_id (wyrd-rogd.1).
+
+    Drives the SPA era-grid's drift display: a swapped era variant is a
+    cognate cluster-mate whose meaning can have drifted from the morpheme's
+    own (saint→seinte is the same word; worth→hirdels is a cognate that no
+    longer means 'worth'), so the cell carries its own gloss to surface that
+    shift. Picks the alphabetically-first non-pointer gloss for determinism;
+    absent when the etymon carries only ``is_form_of_pointer`` cross-references
+    or no gloss at all."""
+    if not etymon_ids:
+        return {}
+    placeholders = ",".join("?" * len(etymon_ids))
+    by_id: dict[int, list[str]] = {}
+    for row in db.conn.execute(
+        f"SELECT etymon_id, gloss FROM etymon_gloss "
+        f"WHERE etymon_id IN ({placeholders}) ORDER BY gloss",
+        list(etymon_ids),
+    ):
+        if is_form_of_pointer(row["gloss"]):
+            continue
+        by_id.setdefault(row["etymon_id"], []).append(row["gloss"])
+    return {eid: glosses[0] for eid, glosses in by_id.items() if glosses}
 
 
 # Lower number = higher quality. Used by _fetch_root_era_reflexes when

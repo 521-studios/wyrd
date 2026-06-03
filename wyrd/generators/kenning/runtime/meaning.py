@@ -182,6 +182,7 @@ class Meaning:
         pronunciation=None,
         stratum=None,
         era_reflexes=None,
+        era_reflex_glosses=None,
         phonological_vector=None,
         phonological_vectors=None,
     ):
@@ -264,6 +265,13 @@ class Meaning:
         # dict). Empty for legacy proto-language roots and untracked
         # classical families.
         self.era_reflexes: dict[str, list[tuple[str, str]]] = era_reflexes or {}
+        # wyrd-rogd.1: per-target-language ``{form: gloss}`` — the reflex
+        # etymon's OWN representative meaning, carried alongside era_reflexes
+        # (separately, so era_reflex_for / era_reflex_sources_for stay
+        # back-compatible) so the SPA era-grid can surface semantic DRIFT when
+        # a swapped cognate no longer means what the morpheme does. Sparse:
+        # only forms whose reflex etymon had a non-pointer gloss appear.
+        self.era_reflex_glosses: dict[str, dict[str, str]] = era_reflex_glosses or {}
         # wyrd-ecjp.5 / wyrd-kq7w.1: per-meaning phonological vector
         # consumed by the vector-scoring path's phon_score sub-scorer.
         # None when the bundle doesn't carry the field (legacy bundles
@@ -541,6 +549,14 @@ class Meaning:
         than attested. Source-agnostic consumers can keep using
         ``era_reflex_for`` which returns a forms-only list."""
         return dict(self.era_reflexes.get(target_language, ()))
+
+    def era_reflex_gloss_for(self, target_language: str) -> dict[str, str]:
+        """wyrd-rogd.1: return ``{form: gloss}`` for ``target_language`` — the
+        reflex etymon's own representative meaning per form. Sparse (only forms
+        whose reflex had a non-pointer gloss) and empty for targets with no
+        reflexes / no gloss data. The SPA era-grid compares a cell's gloss to
+        the morpheme's own to flag semantic drift on a cognate swap."""
+        return dict(self.era_reflex_glosses.get(target_language, {}))
 
     def respelling_for(self, form: str, lang_field: str) -> str | None:
         """wyrd-17t: SAMPA-lite respelling of ``form`` in
@@ -834,6 +850,28 @@ def _normalize_era_reflexes(
     return out
 
 
+def _normalize_era_reflex_glosses(raw: dict) -> dict[str, dict[str, str]]:
+    """wyrd-rogd.1: extract the per-form gloss map ``{lang: {form: gloss}}``
+    from the bundle's era_reflexes field — only entries that carry a ``gloss``.
+    Legacy bundles (bare-string or {form, source} entries) yield an empty map.
+    Kept separate from ``_normalize_era_reflexes`` so the (form, source) shape
+    the rewinder consumes stays untouched."""
+    out: dict[str, dict[str, str]] = {}
+    if not isinstance(raw, dict):
+        return out
+    for lang, entries in raw.items():
+        if not isinstance(entries, list):
+            continue
+        glosses = {
+            entry["form"]: entry["gloss"]
+            for entry in entries
+            if isinstance(entry, dict) and entry.get("form") and entry.get("gloss")
+        }
+        if glosses:
+            out[lang] = glosses
+    return out
+
+
 def _bundle_subjects(data) -> list:
     """Extract the subjects list from a meanings.json bundle that may
     be either the legacy list-of-subjects shape or the wyrd-q0g6 dict-
@@ -1053,6 +1091,7 @@ def load_meanings(data):
             # (form, source) tuple shape.
             era_reflexes_field = word.get("era_reflexes") or {}
             era_reflexes = _normalize_era_reflexes(era_reflexes_field)
+            era_reflex_glosses = _normalize_era_reflex_glosses(era_reflexes_field)
             # wyrd-ecjp.5 / wyrd-kq7w.1: per-meaning phonological vector.
             # wyrd-ecjp.10a Phase 7: bundle now emits per-language
             # siblings (<lang>_phonological_vector) per the D26 pattern.
@@ -1119,6 +1158,7 @@ def load_meanings(data):
                 "pronunciation": pronunciation,
                 "stratum": stratum,
                 "era_reflexes": era_reflexes,
+                "era_reflex_glosses": era_reflex_glosses,
                 "phonological_vector": phonological_vector,
                 "phonological_vectors": phonological_vectors,
             }

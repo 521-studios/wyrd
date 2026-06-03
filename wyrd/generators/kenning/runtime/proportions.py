@@ -741,11 +741,15 @@ def _era_pronunciation(renderings, era_language, era_form, meaning):
     return {"reader_pronunciation": respelled} if respelled else None
 
 
-def _era_form_cell(meaning, renderings, lang, form, sources):
+def _era_form_cell(meaning, renderings, lang, form, sources, glosses):
     """wyrd-lftl: one grid cell — a reflex ``form`` + its ``source`` + its own
     pronunciation (rich IPA where the bundle carries it for the form, rule
     respelling else; reader present where available, IPA sparse). Pronunciation
     keys are omitted when absent so the payload stays sparse (no null noise).
+
+    wyrd-rogd.1: also carries the reflex's own ``gloss`` (sparse) so the SPA
+    can flag semantic drift when a swapped cognate no longer means what the
+    morpheme does.
 
     ``form`` is guaranteed a key in ``sources``: both come from the same
     ``era_reflexes[lang]`` ``(form, source)`` tuples, so the ``.get`` default
@@ -756,6 +760,9 @@ def _era_form_cell(meaning, renderings, lang, form, sources):
         cell["reader_pronunciation"] = pron["reader_pronunciation"]
     if pron.get("ipa"):
         cell["ipa"] = pron["ipa"]
+    gloss = glosses.get(form)
+    if gloss:
+        cell["gloss"] = gloss
     return cell
 
 
@@ -764,8 +771,9 @@ def _era_stage(meaning, renderings, lang):
     or None when the language has no forms (so the caller drops the empty
     column)."""
     sources = meaning.era_reflex_sources_for(lang)
+    glosses = meaning.era_reflex_gloss_for(lang)
     forms = [
-        _era_form_cell(meaning, renderings, lang, form, sources)
+        _era_form_cell(meaning, renderings, lang, form, sources, glosses)
         for form in meaning.era_reflex_for(lang)
     ]
     return {"language": lang, "forms": forms} if forms else None
