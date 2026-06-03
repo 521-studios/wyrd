@@ -876,7 +876,14 @@ def _normalize_era_reflex_glosses(raw: dict) -> dict[str, dict[str, str]]:
         glosses = {
             entry["form"]: entry["gloss"]
             for entry in entries
-            if isinstance(entry, dict) and entry.get("form") and entry.get("gloss")
+            # form must be a non-empty STRING (it's a dict key — a non-string
+            # form from a malformed export would be unhashable and crash the
+            # load; fail-soft skips it instead). gloss must be a non-empty str.
+            if isinstance(entry, dict)
+            and isinstance(entry.get("form"), str)
+            and entry["form"]
+            and isinstance(entry.get("gloss"), str)
+            and entry["gloss"]
         }
         if glosses:
             out[lang] = glosses

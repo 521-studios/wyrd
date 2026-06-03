@@ -5939,6 +5939,8 @@ def test_load_meanings_normalize_era_reflex_glosses_extracts_only_gloss_dicts() 
             {"form": "stoon", "source": "cluster", "gloss": "stone"},  # kept
             {"source": "cluster", "gloss": "no form"},  # missing form — skip
             {"form": "blank", "source": "cluster", "gloss": ""},  # empty gloss — skip
+            {"form": ["x"], "source": "cluster", "gloss": "bad"},  # unhashable form — skip
+            {"form": "y", "source": "cluster", "gloss": ["bad"]},  # non-str gloss — skip
         ],
         "old-english": [{"form": "stān", "source": "cluster", "gloss": "rock"}],
         "welsh": "not-a-list",  # whole entry skipped
