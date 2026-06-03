@@ -24,12 +24,14 @@ from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 LLM_REFLEX_LINK_METHOD = "llm-reflex-link-v1"
 LLM_REFLEX_REJECT_METHOD = "llm-reflex-rejected-v1"
 
-# language → (family, era rank), from the cell map: cells are listed
-# older→newer within each family, so the first-seen ordinal gives a per-family
-# era order, and the family scopes a pair to ONE lineage. We only pair languages
-# that are KNOWN era stages here — that keeps orientation reliable (parent =
-# earlier) and excludes cross-family / proto- / non-stage labels (e.g. "celtic",
-# "scottish-gaelic"), whose pairs are cognates or borrowings, not reflexes.
+# language → (family, era rank), from the cell map. The rank is a GLOBAL
+# first-seen enumeration index over the cell items — it only orders eras
+# correctly WITHIN a family (the cell map lists each family's stages
+# contiguously, older→newer), so the detector compares ranks only after
+# confirming both languages are in the SAME family. We also only pair KNOWN era
+# stages here — that excludes cross-family / proto- / non-stage labels (e.g.
+# "celtic", "scottish-gaelic"), whose pairs are cognates or borrowings, not
+# reflexes.
 _LANGUAGE_ERA_RANK: dict[str, int] = {}
 _LANGUAGE_FAMILY: dict[str, str] = {}
 for _i, ((_fam, _cell), _lang) in enumerate(CANONICAL_LANGUAGE_FOR_CELL.items()):
@@ -72,25 +74,24 @@ def detect_reflex_link_candidates(
         "WHERE e.merged_into_id IS NULL"
     ).fetchall()
     by_id: dict[int, dict] = {}
+    norm_glosses: dict[int, set[str]] = defaultdict(set)
     by_gloss: dict[str, set[int]] = defaultdict(set)
     for r in rows:
         rec = by_id.setdefault(
             r["id"], {"lang": r["language"], "form": r["canonical_form"], "glosses": set()}
         )
         rec["glosses"].add(r["gloss"])
-        by_gloss[r["gloss"].strip().lower()].add(r["id"])
+        ng = r["gloss"].strip().lower()
+        norm_glosses[r["id"]].add(ng)
+        by_gloss[ng].add(r["id"])
 
-    def has_edge(a: int, b: int) -> bool:
-        return (
-            conn.execute(
-                "SELECT 1 FROM etymon_descent WHERE (parent_id=? AND child_id=?) "
-                "OR (parent_id=? AND child_id=?) LIMIT 1",
-                (a, b, b, a),
-            ).fetchone()
-            is not None
-        )
+    # Bulk-load descent connectivity once (a per-pair SELECT would be N+1).
+    edges: set[tuple[int, int]] = set()
+    for p, c in conn.execute("SELECT parent_id, child_id FROM etymon_descent"):
+        edges.add((p, c))
 
-    out: list[ReflexLinkCandidate] = []
+    # (child_ref, parent_ref, child_form, parent_form, shared, sim, parent_rank)
+    raw: list[tuple] = []
     seen: set[tuple[int, int]] = set()
     for ids in by_gloss.values():
         if not (2 <= len(ids) <= max_per_gloss):
@@ -99,6 +100,8 @@ def detect_reflex_link_candidates(
         for i in range(len(ordered)):
             for j in range(i + 1, len(ordered)):
                 a, b = ordered[i], ordered[j]
+                if (a, b) in seen:  # the same pair can sit in two gloss groups
+                    continue
                 ea, eb = by_id[a], by_id[b]
                 if ea["lang"] == eb["lang"]:
                     continue  # same-language variant = FOLD (existing detector), not a link
@@ -115,20 +118,51 @@ def detect_reflex_link_candidates(
                 if not fa or not fb:
                     continue
                 sim = difflib.SequenceMatcher(None, fa, fb).ratio()
-                if sim < min_similarity or (a, b) in seen or has_edge(a, b):
+                if sim < min_similarity or (a, b) in edges or (b, a) in edges:
                     continue
                 seen.add((a, b))
-                parent, child = (a, b) if ra < rb else (b, a)  # earlier era = parent
-                out.append(
-                    ReflexLinkCandidate(
-                        child_ref=f"{by_id[child]['lang']}:{by_id[child]['form']}",
-                        parent_ref=f"{by_id[parent]['lang']}:{by_id[parent]['form']}",
-                        child_form=by_id[child]["form"],
-                        parent_form=by_id[parent]["form"],
-                        shared_glosses=tuple(sorted(by_id[a]["glosses"] & by_id[b]["glosses"])),
-                        similarity=round(sim, 3),
+                (parent, prank), child = ((a, ra), b) if ra < rb else ((b, rb), a)
+                # The child's raw glosses the parent also carries (normalized) —
+                # never empty (the pair was grouped on a shared normalized gloss).
+                shared = tuple(
+                    sorted(
+                        g
+                        for g in by_id[child]["glosses"]
+                        if g.strip().lower() in norm_glosses[parent]
                     )
                 )
+                raw.append(
+                    (
+                        f"{by_id[child]['lang']}:{by_id[child]['form']}",
+                        f"{by_id[parent]['lang']}:{by_id[parent]['form']}",
+                        by_id[child]["form"],
+                        by_id[parent]["form"],
+                        shared,
+                        round(sim, 3),
+                        prank,
+                    )
+                )
+
+    # One best ancestor per child: the most IMMEDIATE (highest parent era rank,
+    # i.e. closest to the child), tie-broken by form similarity — so a child
+    # never writes multiple same-``ref`` ledger rows where collect_collapses'
+    # last-write-wins would pick an arbitrary ancestor.
+    best: dict[str, tuple] = {}
+    for t in raw:
+        cur = best.get(t[0])
+        if cur is None or (t[6], t[5]) > (cur[6], cur[5]):
+            best[t[0]] = t
+    out = [
+        ReflexLinkCandidate(
+            child_ref=t[0],
+            parent_ref=t[1],
+            child_form=t[2],
+            parent_form=t[3],
+            shared_glosses=t[4],
+            similarity=t[5],
+        )
+        for t in best.values()
+    ]
     out.sort(key=lambda c: (c.parent_ref, c.child_ref))
     return out
 

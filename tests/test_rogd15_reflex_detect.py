@@ -135,3 +135,76 @@ def test_reflex_verdict_to_row_links_or_rejects() -> None:
     # below min confidence → also a no-op
     low = reflex_verdict_to_row(c, ReflexVerdict(True, "low", "maybe"), "high")
     assert low["inherits"] == ""
+
+
+def test_cross_family_pair_is_not_a_candidate(fresh_db: Path) -> None:
+    # english vs brythonic: different families → never a reflex link (the fix
+    # that dropped the cross-family cognate noise).
+    with LexiconDB(fresh_db) as db:
+        _e(db, "dun", "old-english", "hill")
+        _e(db, "din", "old-welsh", "hill")
+        db.commit()
+        assert detect_reflex_link_candidates(db.conn, min_similarity=0.5) == []
+
+
+def test_unranked_language_pair_is_not_a_candidate(fresh_db: Path) -> None:
+    # "celtic" is a proto/non-stage label absent from the era-rank → excluded.
+    with LexiconDB(fresh_db) as db:
+        _e(db, "broc", "celtic", "badger")
+        _e(db, "broc", "irish", "badger")
+        db.commit()
+        assert detect_reflex_link_candidates(db.conn, min_similarity=0.5) == []
+
+
+def test_dedup_keeps_the_most_immediate_ancestor(fresh_db: Path) -> None:
+    # modern 'hoyle' descends from both OE 'hol' and ME 'hole' (same gloss,
+    # similar form). Only ONE candidate survives — the closest era (ME).
+    with LexiconDB(fresh_db) as db:
+        _e(db, "hol", "old-english", "hollow")
+        _e(db, "hole", "middle-english", "hollow")
+        _e(db, "hoyle", "modern-english", "hollow")
+        db.commit()
+        cands = detect_reflex_link_candidates(db.conn, min_similarity=0.6)
+        hoyle = [c for c in cands if c.child_ref == "modern-english:hoyle"]
+        assert len(hoyle) == 1
+        assert hoyle[0].parent_ref == "middle-english:hole"  # immediate, not OE
+        assert hoyle[0].shared_glosses == ("hollow",)  # never empty
+
+
+def test_cli_link_reflexes_writes_inherits_rows(
+    fresh_db: Path, tmp_path: Path, monkeypatch
+) -> None:
+    # End-to-end CLI loop with a STUB LLM (always "yes, high") — exercises
+    # detect → judge → ledger append + the dedup/dry-run-free path.
+    import json as _json
+
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.link_reflexes import lexicon_link_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        _e(db, "biscop", "old-english", "bishop")
+        _e(db, "bishop", "modern-english", "bishop")
+        db.commit()
+
+    class _StubClient:
+        def __init__(self, *a, **k):
+            pass
+
+        def chat_json(self, system, user, schema):
+            return {"is_reflex": True, "confidence": "high", "reason": "stub"}
+
+    monkeypatch.setattr("wyrd.generators.kenning.extractors.llm.OllamaClient", _StubClient)
+    ledger = tmp_path / "_collapses.jsonl"
+    res = CliRunner().invoke(
+        lexicon_link_reflexes,
+        ["--db", str(fresh_db), "--collapse-file", str(ledger), "--min-similarity", "0.6"],
+    )
+    assert res.exit_code == 0, res.output
+    rows = [
+        _json.loads(line)
+        for line in ledger.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    link = next(r for r in rows if r.get("inherits"))
+    assert link["ref"] == "modern-english:bishop" and link["inherits"] == "old-english:biscop"

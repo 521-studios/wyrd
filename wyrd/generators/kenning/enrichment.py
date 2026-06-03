@@ -953,7 +953,7 @@ def apply_collapses(
                         child_row["id"],
                         COLLAPSE_VARIANT_SOURCE_ID,
                         payload.get("confidence"),
-                        payload.get("notes") or "wyrd-rogd.15 reflex-link",
+                        payload.get("notes") or payload.get("reason") or "wyrd-rogd.15 reflex-link",
                     ),
                 )
             continue

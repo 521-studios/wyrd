@@ -100,7 +100,10 @@ def lexicon_link_reflexes(
             if not line:
                 continue
             row = json.loads(line)
-            if row.get("_type") == "collapse" and row.get("ref"):
+            # Only reflex-link rows count as already-judged here (they carry
+            # `inherits`); a fold row sharing a ref must NOT block a reflex
+            # candidate for the same child surface.
+            if row.get("_type") == "collapse" and row.get("ref") and "inherits" in row:
                 judged.add(row["ref"])
 
     todo = [c for c in candidates if c.child_ref not in judged]
