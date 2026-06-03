@@ -310,6 +310,81 @@ def _clear_surface_index_cache() -> None:
     coupled cache-clear so a meaning_db reload can't read a stale index via
     an id() collision (the cache is keyed by ``id(meaning_db)``)."""
     _SURFACE_INDEX_CACHE.clear()
+    _MORPHEME_INDEX_CACHE.clear()
+
+
+# wyrd-rogd.10 Phase 2: morpheme_id → unified morpheme Meaning. Derived from the
+# already-loaded meaning_db (the L4 morpheme table stores the same regrouping on
+# disk, but deriving here avoids a second blob read). Cached by id(meaning_db)
+# exactly like _SURFACE_INDEX_CACHE, and cleared in lockstep above.
+_MORPHEME_INDEX_CACHE: dict[int, tuple[dict, dict[str, object]]] = {}
+_MORPHEME_INDEX_CACHE_MAX = 32
+
+
+def _merge_morpheme_meanings(meanings: list):
+    """Collapse the Meanings sharing one morpheme_id (the connective-form
+    fragments — ``-ing``/``-ing-``/``Ing-``) into a single Meaning whose
+    ``era_reflexes`` + ``era_reflex_glosses`` are the UNION across the group, so
+    the era-grid reflects the whole morpheme rather than one surface variant.
+    Deterministic: the group is processed in ``usage`` order and forms dedupe
+    first-seen-wins. Returns the unchanged base when the union adds nothing (the
+    common single-family case), else a shallow copy with the era fields swapped
+    (era_reflex_for/sources_for/gloss_for read these live, no stale cache)."""
+    import copy
+
+    ordered = sorted(meanings, key=lambda m: m.usage)
+    reflexes: dict[str, dict[str, tuple]] = {}
+    glosses: dict[str, dict[str, str]] = {}
+    for m in ordered:
+        for lang, entries in (m.era_reflexes or {}).items():
+            bucket = reflexes.setdefault(lang, {})
+            for form, source in entries:
+                bucket.setdefault(form, (form, source))
+        for lang, form_gloss in (m.era_reflex_glosses or {}).items():
+            gbucket = glosses.setdefault(lang, {})
+            for form, gloss in form_gloss.items():
+                gbucket.setdefault(form, gloss)
+    merged_reflexes = {lang: list(b.values()) for lang, b in reflexes.items()}
+    merged_glosses = {lang: dict(g) for lang, g in glosses.items()}
+    # Base = richest member, for the pronunciation/respelling context _era_grid
+    # also reads off the Meaning.
+    base = max(ordered, key=lambda m: sum(len(v) for v in (m.era_reflexes or {}).values()))
+    if merged_reflexes == (base.era_reflexes or {}) and merged_glosses == (
+        base.era_reflex_glosses or {}
+    ):
+        return base
+    merged = copy.copy(base)
+    merged.era_reflexes = merged_reflexes
+    merged.era_reflex_glosses = merged_glosses
+    return merged
+
+
+def _morpheme_index_for(meaning_db: dict) -> dict:
+    """``morpheme_id`` → merged morpheme Meaning, cached by id(meaning_db)."""
+    key = id(meaning_db)
+    entry = _MORPHEME_INDEX_CACHE.get(key)
+    if entry is not None and entry[0] is meaning_db:
+        return entry[1]
+    groups: dict[str, list] = {}
+    for meanings in meaning_db.values():
+        for m in meanings:
+            mid = getattr(m, "morpheme_id", None)
+            if mid is not None:
+                groups.setdefault(mid, []).append(m)
+    idx = {mid: _merge_morpheme_meanings(ms) for mid, ms in groups.items()}
+    if key not in _MORPHEME_INDEX_CACHE and len(_MORPHEME_INDEX_CACHE) >= _MORPHEME_INDEX_CACHE_MAX:
+        del _MORPHEME_INDEX_CACHE[next(iter(_MORPHEME_INDEX_CACHE))]
+    _MORPHEME_INDEX_CACHE[key] = (meaning_db, idx)
+    return idx
+
+
+def _resolve_morpheme(meaning_db: dict, morpheme_id):
+    """The unified morpheme Meaning for ``morpheme_id`` (era-grid resolution),
+    or None when unset / unknown (bundles predating Phase 1 → caller falls back
+    to the per-surface Meaning, so the dash-strip path still works)."""
+    if not morpheme_id:
+        return None
+    return _morpheme_index_for(meaning_db).get(morpheme_id)
 
 
 def _location_from_form(usage: str) -> str:
@@ -2334,7 +2409,14 @@ class NewName:
                     # wyrd-lftl: per-morpheme family × era reflex grid for the
                     # SPA col-3 inspector. Sparse — only when the etymon carries
                     # era_reflexes (coverage gap tracked in wyrd-32t1).
-                    grid = _era_grid(first, renderings)
+                    # wyrd-rogd.10 Phase 2: resolve the grid against the UNIFIED
+                    # morpheme (by id) so it reflects the whole morpheme, not one
+                    # connective-surface variant; fall back to the per-surface
+                    # `first` when no morpheme_id (old bundles → dash-strip path).
+                    morpheme_meaning = _resolve_morpheme(
+                        self.meaning_db, getattr(first, "morpheme_id", None)
+                    )
+                    grid = _era_grid(morpheme_meaning or first, renderings)
                     if grid:
                         morpheme["era_grid"] = grid
                 # D18 variant / D8 inflection / era substitute if present
@@ -2424,7 +2506,11 @@ class NewName:
                 # wyrd-lftl: family × era reflex grid (col-3 inspector) — same
                 # structure to_dict emits, so the API envelope's `components`
                 # and `morphemes_by_word` stay in lockstep. Sparse (wyrd-32t1).
-                grid = _era_grid(first, renderings)
+                # wyrd-rogd.10 Phase 2: resolve against the unified morpheme.
+                morpheme_meaning = _resolve_morpheme(
+                    self.meaning_db, getattr(first, "morpheme_id", None)
+                )
+                grid = _era_grid(morpheme_meaning or first, renderings)
                 if grid:
                     morpheme["era_grid"] = grid
                 # wyrd-mf2u: carry the era form + its own pronunciation/language
