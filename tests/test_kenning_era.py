@@ -458,3 +458,19 @@ def test_latin_stage_span_is_documented_non_contiguous() -> None:
     assert era.cells_for_stage("latin", "latin") == ("classical", "medieval", "renaissance")
     assert era.stage_year_range("latin", "latin") == (None, 1800)
     assert era.stage_year_range("latin", "vulgar-latin") == (200, 700)
+
+
+def test_explicit_family_stage_form() -> None:
+    # wyrd-rogd.2: family/STAGE resolves like family/cell (symmetry).
+    assert era.resolve_era_input("english/old-english", default_family="brythonic") == (None, 1100)
+    fam, cell = era.era_cell_for_input("english/old-english", default_family="brythonic")
+    assert (fam, cell) == ("english", "oe-early")
+
+
+def test_cross_family_stage_label_gives_helpful_error() -> None:
+    # 'old-welsh' is a brythonic stage; passed with default english it points
+    # the user at the right family/stage pair rather than 'unknown era input'.
+    with pytest.raises(ValueError, match=r"brythonic/old-welsh"):
+        era.resolve_era_input("old-welsh", default_family="english")
+    with pytest.raises(ValueError, match=r"brythonic/old-welsh"):
+        era.era_cell_for_input("old-welsh", default_family="english")
