@@ -170,14 +170,27 @@ def test_era_grid_omits_gloss_when_reflex_has_none():
     assert "gloss" not in cell
 
 
-def test_era_grid_strips_reconstructed_star_from_emitted_form():
-    # wyrd-rogd.6: the scholarly '*' reconstructed marker is stripped from the
-    # EMITTED surface (it leaked into the grid + names), but the gloss is still
-    # resolved via the ORIGINAL starred key.
+def test_era_grid_strips_reconstructed_star_but_resolves_via_original_key():
+    # wyrd-rogd.6: the '*' reconstructed marker is stripped from the EMITTED
+    # surface, but source/gloss AND rich pronunciation still resolve via the
+    # ORIGINAL starred key (renderings key the rich IPA under "*ur").
     m = _meaning_with_reflexes(
-        {"middle-english": [("*ur", "cluster")]},
-        era_reflex_glosses={"middle-english": {"*ur": "river"}},
+        {"old-english": [("*ur", "descent")]},
+        era_reflex_glosses={"old-english": {"*ur": "river"}},
     )
-    cell = _era_grid(m, renderings={})[0]["stages"][0]["forms"][0]
+    renderings = {"old_english": {"*ur": {"ipa": "/uːr/", "reader_pronunciation": "OOR"}}}
+    cell = _era_grid(m, renderings)[0]["stages"][0]["forms"][0]
     assert cell["form"] == "ur"  # no leading *
-    assert cell["gloss"] == "river"  # gloss still found via the original "*ur" key
+    assert cell["source"] == "descent"  # non-default, via the original "*ur" key
+    assert cell["gloss"] == "river"  # gloss via the original "*ur" key
+    assert cell["ipa"] == "/uːr/"  # rich IPA resolved via the starred renderings key
+    assert cell["reader_pronunciation"] == "OOR"
+
+
+def test_era_grid_strips_star_from_respelled_reader():
+    # No rich rendering → reader comes from the rule respeller, and
+    # respell("*ur") leaks the '*' — assert it's stripped from the cell.
+    m = _meaning_with_reflexes({"old-english": [("*ur", "cluster")]})
+    cell = _era_grid(m, renderings={})[0]["stages"][0]["forms"][0]
+    assert cell["form"] == "ur"
+    assert "*" not in cell.get("reader_pronunciation", "")

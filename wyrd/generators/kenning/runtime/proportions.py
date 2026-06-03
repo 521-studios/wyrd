@@ -760,13 +760,19 @@ def _era_form_cell(meaning, renderings, lang, form, sources, glosses):
     convention, not part of the surface, and reads as a glitch in the SPA grid
     and (on swap) the name. We keep the ORIGINAL ``form`` for the source/gloss
     lookups (those dicts are keyed by it) but display + respell the clean form."""
-    display = form.replace("*", "")
-    cell = {"form": display, "source": sources.get(form, "cluster")}
-    pron = _era_pronunciation(renderings, lang, display, meaning) or {}
-    if pron.get("reader_pronunciation"):
-        cell["reader_pronunciation"] = pron["reader_pronunciation"]
-    if pron.get("ipa"):
-        cell["ipa"] = pron["ipa"]
+    cell = {"form": form.replace("*", ""), "source": sources.get(form, "cluster")}
+    # Resolve pronunciation against the ORIGINAL starred form — the bundle's
+    # renderings key rich IPA under it (canonical_form carries the *), so a
+    # clean-form lookup would miss and drop to respelling. Then strip the * from
+    # the outputs: the rule respeller has no */-dropping rule, so respell("*ur")
+    # would otherwise leak the marker into reader_pronunciation.
+    pron = _era_pronunciation(renderings, lang, form, meaning) or {}
+    reader = pron.get("reader_pronunciation")
+    if reader:
+        cell["reader_pronunciation"] = reader.replace("*", "")
+    ipa = pron.get("ipa")
+    if ipa:
+        cell["ipa"] = ipa.replace("*", "")
     gloss = glosses.get(form)
     if gloss:
         cell["gloss"] = gloss
