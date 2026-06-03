@@ -215,23 +215,34 @@ class _WordLanguageAccumulators:
     phonological_vector: dict[str, dict[str, dict[str, float]]] = field(default_factory=dict)
 
 
-def _morpheme_id_for_family(fam: dict[str, Any]) -> str:
+def _morpheme_id_for_family(fam: dict[str, Any]) -> str | None:
     """wyrd-rogd.10: the owning-morpheme id = a CONTENT-derived key
     ``"{root_language}:{root_canonical_form}"``. NOT the autoincrement
     ``root_id`` — that shifts across a rebuild and would break the export's
     byte-identity-across-rebuild reconstructibility guarantee (and the export
     already sorts by this tuple precisely because root_id is unstable). The
-    content key is reproduced verbatim by ``rebuild-from-jsonl``."""
-    return f"{fam['root_language']}:{fam['root_canonical_form']}"
+    content key is reproduced verbatim by ``rebuild-from-jsonl``.
+
+    Returns ``None`` (rather than a malformed ``"None:..."`` key) when the
+    family lacks a usable root identity. Real families from ``_gather_family``
+    always carry both fields; this is fail-soft belt-and-suspenders."""
+    language = fam.get("root_language")
+    canonical = fam.get("root_canonical_form")
+    if not language or not canonical:
+        return None
+    return f"{language}:{canonical}"
 
 
 def _word_morpheme_id(fams: list[dict[str, Any]]) -> str | None:
     """The morpheme id for a word. A reflex can link to several families; pick
     the primary deterministically by the same ``(root_canonical_form,
-    root_language)`` key the export sorts on, so the choice is reproducible."""
-    if not fams:
+    root_language)`` key the export sorts on, so the choice is reproducible.
+    Families lacking a usable root identity are skipped (so ``min`` can't raise
+    on a missing key); ``None`` when none qualify."""
+    candidates = [f for f in fams if f.get("root_canonical_form") and f.get("root_language")]
+    if not candidates:
         return None
-    chosen = min(fams, key=lambda f: (f["root_canonical_form"], f["root_language"]))
+    chosen = min(candidates, key=lambda f: (f["root_canonical_form"], f["root_language"]))
     return _morpheme_id_for_family(chosen)
 
 
@@ -315,8 +326,9 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
     matching language.
     """
     word: dict[str, Any] = {"modern_usage": _synthesize_modern_usage(fam)}
-    if fam.get("root_canonical_form") is not None:
-        word["morpheme_id"] = _morpheme_id_for_family(fam)  # wyrd-rogd.10
+    morpheme_id = _morpheme_id_for_family(fam)  # wyrd-rogd.10 (None-safe)
+    if morpheme_id is not None:
+        word["morpheme_id"] = morpheme_id
     accs = _WordLanguageAccumulators(
         forms_by_lang={lang: list(fam["forms_by_lang"][lang]) for lang in fam["forms_by_lang"]},
     )

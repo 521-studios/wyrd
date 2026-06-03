@@ -103,6 +103,14 @@ def test_word_morpheme_id_is_deterministic_content_key():
     assert _word_morpheme_id(fams) == "old-english:ham"
     assert _word_morpheme_id(list(reversed(fams))) == "old-english:ham"
     assert _word_morpheme_id([]) is None
+    # fail-soft: families missing a usable root identity are skipped (no KeyError,
+    # no "None:..." key); only the qualifying family wins.
+    assert _word_morpheme_id([{"root_canonical_form": "ham"}]) is None  # missing language
+    assert _word_morpheme_id([{}]) is None
+    assert (
+        _word_morpheme_id([{"root_canonical_form": None, "root_language": None}, fams[1]])
+        == "old-english:ham"  # fams[1] is the only qualifying family
+    )
 
 
 def _bare_family(canonical_form: str, language: str) -> dict:
