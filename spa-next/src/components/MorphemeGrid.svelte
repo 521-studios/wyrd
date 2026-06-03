@@ -17,7 +17,7 @@
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
   import { graftPosition } from '../lib/accents.js';
-  import { cellForSurface, primaryGloss, isGlossDrift } from '../lib/era.js';
+  import { cellForSurface, primaryGloss, isGlossDrift, eraAxis } from '../lib/era.js';
 
   let { morpheme } = $props();
 
@@ -35,6 +35,12 @@
     latin: 'Latin',
   };
   const familyLabel = (f) => FAMILY_LABELS[f] || languageLabel(f);
+
+  // wyrd-rogd.12: the canonical per-family era axis from the manifest. Keeping
+  // periods in FIXED column positions (empty slots → muted '—') preserves the
+  // spatial mapping across morphemes — a morpheme with only Old English data
+  // still shows OE in the OE column, not a lone unlabelled column.
+  const eraStages = $derived(appState.selectedGenerator?.era_stages || {});
 
   // The slot's ORIGINAL generated surface (col-2 result) — the source of the
   // placement dashes + the revert target for the pipeline swap.
@@ -84,14 +90,20 @@
 
 <div class="era-grid">
   {#each morpheme?.era_grid || [] as section (section?.family)}
+    {@const axis = eraAxis(section, eraStages)}
     <section class="family">
       <h6 class="family-label">{familyLabel(section?.family)}</h6>
       <!-- era-columns: one aligned grid column per stage (oldest→newest),
            the stage label as the column header, form cells stacked beneath. -->
-      <div class="stages" style="--era-cols: {Math.max(1, (section?.stages || []).length)}">
-        {#each section?.stages || [] as stage (stage?.language)}
-          <div class="stage">
-            <div class="stage-label">{languageLabel(stage?.language)}</div>
+      <div class="stages" style="--era-cols: {Math.max(1, axis.length)}">
+        {#each axis as { language, stage }, i ((language ?? '?') + '#' + i)}
+          <div class="stage" class:empty={!stage}>
+            <div class="stage-label">{languageLabel(language)}</div>
+            <!-- wyrd-rogd.12: a stage with no data holds its column with a
+                 muted placeholder so the era axis stays aligned. -->
+            {#if !stage}
+              <div class="cell-empty" aria-hidden="true">—</div>
+            {/if}
             <!-- key on form+index: a stage CAN carry duplicate surface forms
                  (homographs / spelling variants), and a bare cell.form key
                  would throw Svelte's duplicate-key error. -->
@@ -173,6 +185,19 @@
     flex-direction: column;
     gap: 4px;
     min-width: 0;
+  }
+  /* wyrd-rogd.12: an empty era column — label stays, muted placeholder holds
+     the slot so the axis reads at a glance across morphemes. */
+  .stage.empty .stage-label {
+    opacity: 0.55;
+  }
+  .cell-empty {
+    color: var(--fg-muted);
+    opacity: 0.5;
+    font-size: 13px;
+    padding: 4px 2px;
+    text-align: center;
+    user-select: none;
   }
   .stage-label {
     font-size: 9px;

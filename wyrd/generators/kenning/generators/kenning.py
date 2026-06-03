@@ -24,6 +24,7 @@ from wyrd.generators.kenning import (
     _stratum_options_by_culture,
     available_tags,
 )
+from wyrd.generators.kenning.era.cells import ERA_CELLS, family_stage_order
 from wyrd.generators.kenning.lexicon.strata import (
     FRENCH_STRATA,
     OLD_ENGLISH_STRATA,
@@ -36,9 +37,17 @@ from wyrd.seed import rng_for
 
 _logger = logging.getLogger(__name__)
 
+# wyrd-rogd.12 / wyrd-rogd.2: the canonical per-family era-stage axis (oldest →
+# newest), the SINGLE source of truth for both the col-3 reflex grid's fixed
+# columns and the Configure-column generation era control. Exposed on the
+# manifest so the SPA lays populated stages onto a stable axis (empty slots
+# render a muted '—') instead of carrying its own drifting copy.
+_ERA_STAGES: dict[str, list[str]] = {family: family_stage_order(family) for family in ERA_CELLS}
+
 
 class Kenning(Generator):
     name = "kenning"
+    era_stages = _ERA_STAGES  # wyrd-rogd.12: per-family fixed era axis (manifest)
     display_name = "Kenning — Town Names"
     description = (
         "Generates British Isles–style town names by composing Old English, Old Norse, "

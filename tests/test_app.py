@@ -230,3 +230,30 @@ def test_post_vector_with_spa_default_params_returns_a_name(culture):
     assert results[0].get("result"), (
         f"missing 'result' string for culture={culture!r}: {results[0]}"
     )
+
+
+def test_manifest_exposes_kenning_era_stages():
+    # wyrd-rogd.12: the per-family era axis is the single source of truth for the
+    # col-3 grid columns + the Configure era control, exposed on the manifest.
+    from wyrd.generators.kenning.era.cells import family_stage_order
+
+    app = create_app()
+    manifest = app.test_client().get("/api/manifest").get_json()
+    kenning = next(g for g in manifest["generators"] if g["name"] == "kenning")
+    assert kenning["era_stages"]["english"] == family_stage_order("english")
+    assert kenning["era_stages"]["english"] == [
+        "old-english",
+        "middle-english",
+        "modern-english",
+    ]
+
+
+def test_manifest_era_stages_optional_for_other_generators():
+    # Generators without an era axis carry era_stages: null (getattr default).
+    app = create_app()
+    manifest = app.test_client().get("/api/manifest").get_json()
+    for g in manifest["generators"]:
+        assert "era_stages" in g  # field always present
+        if g["name"] != "kenning":
+            # other generators don't define the attribute → None
+            assert g["era_stages"] is None or isinstance(g["era_stages"], dict)
