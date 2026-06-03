@@ -9,6 +9,7 @@ surface string. The runtime does NOT yet follow this table (Phase 2).
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 
 from wyrd.generators.kenning.lexicon.bundle._subject import _word_for_reflex, _word_morpheme_id
 from wyrd.generators.kenning.lexicon.runtime_db_export import _write_morphemes
@@ -67,18 +68,18 @@ def test_write_morphemes_regroups_surface_variants_under_one_id():
             ],
         }
     ]
-    conn = _morpheme_table_conn()
-    n = _write_morphemes(conn, subjects)
-    assert n == 2  # two distinct morpheme_ids, NOT four connective rows
-    ids = {r[0] for r in conn.execute("SELECT morpheme_id FROM morpheme")}
-    assert ids == {"old-english:ing", "old-english:tūn"}
     import json
 
-    blob = conn.execute("SELECT data FROM morpheme WHERE morpheme_id='old-english:ing'").fetchone()[
-        0
-    ]
-    entries = json.loads(blob)["entries"]
-    assert len(entries) == 3  # all three surface variants merged under id 42
+    with closing(_morpheme_table_conn()) as conn:
+        n = _write_morphemes(conn, subjects)
+        assert n == 2  # two distinct morpheme_ids, NOT four connective rows
+        ids = {r[0] for r in conn.execute("SELECT morpheme_id FROM morpheme")}
+        assert ids == {"old-english:ing", "old-english:tūn"}
+        blob = conn.execute(
+            "SELECT data FROM morpheme WHERE morpheme_id='old-english:ing'"
+        ).fetchone()[0]
+        entries = json.loads(blob)["entries"]
+        assert len(entries) == 3  # all three surface variants merged under old-english:ing
 
 
 def test_write_morphemes_skips_words_without_id():
@@ -90,8 +91,8 @@ def test_write_morphemes_skips_words_without_id():
             "words": [{"modern_usage": "-orphan"}],  # no morpheme_id
         }
     ]
-    conn = _morpheme_table_conn()
-    assert _write_morphemes(conn, subjects) == 0
+    with closing(_morpheme_table_conn()) as conn:
+        assert _write_morphemes(conn, subjects) == 0
 
 
 def test_word_morpheme_id_is_deterministic_content_key():
