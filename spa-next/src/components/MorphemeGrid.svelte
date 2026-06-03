@@ -1,14 +1,16 @@
 <script>
-  // wyrd-qc0g: the family × era variant grid for ONE morpheme (Section 3,
-  // basic). Renders the morpheme's `era_grid`: a subsection per language
-  // family, era-stages across the top, clickable form cells. Clicking a cell
-  // swaps this morpheme in the active name card (pipeline swap) and the cell's
-  // pronunciation comes along. The current variant (the form live in the name)
-  // is highlighted.
+  // wyrd-qc0g + wyrd-zw1f: the family × era variant grid for ONE morpheme
+  // (Section 3). Renders the morpheme's `era_grid` as a subsection per language
+  // family, with that family's era stages as aligned COLUMNS (oldest→newest)
+  // and clickable form cells stacked beneath each. Clicking a cell swaps this
+  // morpheme in the active name card (pipeline swap) and its pronunciation
+  // comes along; the live variant is highlighted.
   //
-  // Refinements deferred to wyrd-zw1f: drift-gloss surfacing, exact-cell
-  // (homograph) tracking, inferred-source (phonology-rule) marking, the
-  // no-matching-cell pinned-extra case.
+  // wyrd-zw1f delivered: era-column layout, inferred-source marking
+  // (phonology-rule cells render dashed + italic + "~"), and exact-cell
+  // homograph tracking (the highlight prefers the pinned `_lang` stage, via
+  // cellForSurface). Still deferred: drift-gloss surfacing — it needs the
+  // per-reflex gloss the bundle doesn't ship yet (blocked on wyrd-rogd.1).
   import { languageLabel } from '../lib/languageLabels.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
@@ -78,7 +80,9 @@
   {#each morpheme?.era_grid || [] as section (section.family)}
     <section class="family">
       <h6 class="family-label">{familyLabel(section.family)}</h6>
-      <div class="stages">
+      <!-- era-columns: one aligned grid column per stage (oldest→newest),
+           the stage label as the column header, form cells stacked beneath. -->
+      <div class="stages" style="--era-cols: {(section?.stages || []).length}">
         {#each section?.stages || [] as stage (stage.language)}
           <div class="stage">
             <div class="stage-label">{languageLabel(stage.language)}</div>
@@ -86,17 +90,26 @@
                  (homographs / spelling variants), and a bare cell.form key
                  would throw Svelte's duplicate-key error. -->
             {#each (stage?.forms || []).filter(Boolean) as cell, i (cell?.form + '|' + i)}
+              {@const inferred = cell.source === 'phonology-rule:v1'}
               <button
                 type="button"
                 class="cell"
                 class:current={isCurrent(stage, cell)}
+                class:inferred
                 aria-pressed={isCurrent(stage, cell)}
                 onclick={() => swap(stage, cell)}
                 title={isCurrent(stage, cell)
                   ? 'Live in the name — click to revert'
-                  : `Swap this morpheme to ${cell.form}`}
+                  : inferred
+                    ? `Swap to ${cell.form} — inferred via phonology rule (not attested)`
+                    : `Swap this morpheme to ${cell.form}`}
               >
-                <span class="cell-form">{withPlacement(cell.form)}</span>
+                <span class="cell-form"
+                  >{withPlacement(cell.form)}{#if inferred}<span
+                      class="cell-mark"
+                      aria-hidden="true">~</span
+                    >{/if}</span
+                >
                 {#if cell.reader_pronunciation}
                   <span class="cell-reader">{cell.reader_pronunciation}</span>
                 {/if}
@@ -125,11 +138,12 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
+  /* wyrd-zw1f: era-columns — one equal-width aligned column per stage. */
   .stages {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 14px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: repeat(var(--era-cols, 1), minmax(68px, 1fr));
+    gap: 6px 8px;
+    align-items: start;
   }
   .stage {
     display: flex;
@@ -143,6 +157,10 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--border);
   }
   .cell {
     display: flex;
@@ -177,6 +195,22 @@
   }
   .cell.current .cell-form {
     color: var(--accent);
+  }
+  /* wyrd-zw1f: inferred (phonology-rule) cells read as less-certain — dashed
+     border + italic form + a ~ marker — so users know the form is derived,
+     not attested. */
+  .cell.inferred {
+    border-style: dashed;
+  }
+  .cell.inferred .cell-form {
+    font-style: italic;
+    color: var(--fg-muted);
+  }
+  .cell-mark {
+    margin-left: 2px;
+    font-size: 10px;
+    color: var(--fg-muted);
+    vertical-align: super;
   }
   .cell-reader {
     font-size: 10px;

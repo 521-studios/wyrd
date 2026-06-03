@@ -40,21 +40,31 @@ export function deAccent(s) {
  * The era_grid cell whose form matches a morpheme's current surface (folded on
  * accent + dash + case), or null. One source of truth for "which variant is
  * live": the active-card pronunciation reads it, and the grid highlights it.
+ *
+ * wyrd-zw1f: when the same surface appears in several stages (a homograph —
+ * e.g. "don" in OE / OF / Celtic, "by" in OE + Old Norse), a swap pins the
+ * chosen stage on `morpheme._lang`; we prefer the cell in that stage so the
+ * highlight + pronunciation track the EXACT variant the user picked, not an
+ * arbitrary first match. Falls back to the first match when nothing is pinned.
  * @returns {{family: string, language: string, cell: object} | null}
  */
 export function cellForSurface(morpheme, surface) {
   const target = accentFold(surface);
   if (!target) return null;
+  const pinned = morpheme?._lang;
+  let fallback = null;
   for (const section of morpheme?.era_grid || []) {
     for (const stage of section?.stages || []) {
       for (const cell of stage?.forms || []) {
         if (accentFold(cell?.form) === target) {
-          return { family: section.family, language: stage.language, cell };
+          const hit = { family: section.family, language: stage.language, cell };
+          if (pinned && stage.language === pinned) return hit; // exact pinned match
+          if (!fallback) fallback = hit;
         }
       }
     }
   }
-  return null;
+  return fallback;
 }
 
 /** True when the morpheme exposes any era_grid stages (sparse — coverage gap
