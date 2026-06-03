@@ -40,7 +40,9 @@ def test_reflex_link_adds_inheritance_edge_without_tombstoning(fresh_db: Path) -
         assert edge is not None and edge["edge_type"] == "inheritance"
         # the link keeps both etymons distinct — neither is tombstoned.
         for eid in (tun, ton):
-            mi = db.conn.execute("SELECT merged_into_id FROM etymon WHERE id=?", (eid,)).fetchone()[0]
+            mi = db.conn.execute("SELECT merged_into_id FROM etymon WHERE id=?", (eid,)).fetchone()[
+                0
+            ]
             assert mi is None
 
 
@@ -91,13 +93,18 @@ def test_fold_still_works_alongside_link(fresh_db: Path) -> None:
         assert counts["collapses_processed"] == 1 and counts["links_processed"] == 1
         # fold tombstoned borough; link left tūn/-ton distinct + edged
         assert (
-            db.conn.execute("SELECT merged_into_id FROM etymon WHERE id=?", (borough,)).fetchone()[0]
+            db.conn.execute("SELECT merged_into_id FROM etymon WHERE id=?", (borough,)).fetchone()[
+                0
+            ]
             == burg
         )
         assert (
             db.conn.execute("SELECT merged_into_id FROM etymon WHERE id=?", (ton,)).fetchone()[0]
             is None
         )
-        assert db.conn.execute(
-            "SELECT count(*) FROM etymon_descent WHERE parent_id=? AND child_id=?", (tun, ton)
-        ).fetchone()[0] == 1
+        assert (
+            db.conn.execute(
+                "SELECT count(*) FROM etymon_descent WHERE parent_id=? AND child_id=?", (tun, ton)
+            ).fetchone()[0]
+            == 1
+        )
