@@ -216,7 +216,22 @@
 </section>
 
 <style>
+  /* wyrd-rogd.8: pin the name cards — the h2 + the head (active/paragon cards)
+     stay put; only the morpheme cards scroll. Overrides the app.css whole-
+     column `overflow-y: auto` with a flex column whose .morphemes is the lone
+     scroll region. (Scoped, so only col 3 changes.) */
+  .column {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .morphemes {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
   .head {
+    flex-shrink: 0;
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border);

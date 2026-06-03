@@ -42,7 +42,7 @@ export const swapTransform = {
     return `morph[${wordIndex},${morphemeIndex}] → ${to}${lang}`;
   },
   async apply(state, params) {
-    const { wordIndex, morphemeIndex, to, language } = params;
+    const { wordIndex, morphemeIndex, to, language, cellId } = params;
     if (!to) {
       throw new Error('swap target form is empty');
     }
@@ -84,6 +84,11 @@ export const swapTransform = {
         delete next.rendered_pron;
         if (language) next._lang = language;
         else delete next._lang;
+        // wyrd-rogd.7: record the EXACT chosen cell's id so the grid highlight
+        // tracks it by identity, not by surface-fold (which collides for
+        // fold-equal forms like bǣre/bære and lit up two cells).
+        if (cellId) next._cellId = cellId;
+        else delete next._cellId;
         return next;
       }),
     );

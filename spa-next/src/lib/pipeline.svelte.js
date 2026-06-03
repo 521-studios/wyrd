@@ -108,7 +108,7 @@ class PipelineState {
    *  for the revert comparison ("-wald-" vs "Wald") — matching
    *  MorphemeGrid.swap's folding so the two never disagree — but
    *  accents are kept, so adding an accent to a plain original is a swap. */
-  setSwap({ wordIndex, morphemeIndex, to, original, language }) {
+  setSwap({ wordIndex, morphemeIndex, to, original, language, cellId }) {
     const norm = (s) => (s || '').replace(/^-+|-+$/g, '').toLowerCase();
     const idx = this.steps.findIndex(
       (s) =>
@@ -129,11 +129,11 @@ class PipelineState {
       const next = [...this.steps];
       next[idx] = {
         ...next[idx],
-        params: { ...next[idx].params, to, language },
+        params: { ...next[idx].params, to, language, cellId },
       };
       this.steps = next;
     } else {
-      this.addStep('swap', { wordIndex, morphemeIndex, to, language });
+      this.addStep('swap', { wordIndex, morphemeIndex, to, language, cellId });
     }
   }
 

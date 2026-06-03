@@ -782,13 +782,20 @@ def _era_form_cell(meaning, renderings, lang, form, sources, glosses):
 def _era_stage(meaning, renderings, lang):
     """wyrd-lftl: one stage column — every reflex form for ``lang`` as cells,
     or None when the language has no forms (so the caller drops the empty
-    column)."""
+    column).
+
+    wyrd-rogd.7: each cell carries a stable ``id`` (``lang:index`` — a language
+    is unique per stage within a morpheme's grid, so this uniquely identifies
+    the cell). The SPA tracks the SELECTED variant by this id rather than by
+    surface-fold, which collides for forms that fold equal (bǣre/bære, *ur/ur)
+    and lit up two cells at once."""
     sources = meaning.era_reflex_sources_for(lang)
     glosses = meaning.era_reflex_gloss_for(lang)
-    forms = [
-        _era_form_cell(meaning, renderings, lang, form, sources, glosses)
-        for form in meaning.era_reflex_for(lang)
-    ]
+    forms = []
+    for i, form in enumerate(meaning.era_reflex_for(lang)):
+        cell = _era_form_cell(meaning, renderings, lang, form, sources, glosses)
+        cell["id"] = f"{lang}:{i}"
+        forms.append(cell)
     return {"language": lang, "forms": forms} if forms else None
 
 
