@@ -168,3 +168,16 @@ def test_era_grid_omits_gloss_when_reflex_has_none():
     )
     cell = _era_grid(m, renderings={})[0]["stages"][0]["forms"][0]
     assert "gloss" not in cell
+
+
+def test_era_grid_strips_reconstructed_star_from_emitted_form():
+    # wyrd-rogd.6: the scholarly '*' reconstructed marker is stripped from the
+    # EMITTED surface (it leaked into the grid + names), but the gloss is still
+    # resolved via the ORIGINAL starred key.
+    m = _meaning_with_reflexes(
+        {"middle-english": [("*ur", "cluster")]},
+        era_reflex_glosses={"middle-english": {"*ur": "river"}},
+    )
+    cell = _era_grid(m, renderings={})[0]["stages"][0]["forms"][0]
+    assert cell["form"] == "ur"  # no leading *
+    assert cell["gloss"] == "river"  # gloss still found via the original "*ur" key

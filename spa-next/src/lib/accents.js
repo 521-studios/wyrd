@@ -26,11 +26,15 @@ const isCombiningMark = (cp) => cp >= 0x300 && cp <= 0x36f;
  * ("byht", "byhtas") stay separate. NFD-decompose, drop combining marks,
  * strip dashes, lowercase. The mark range is checked by codepoint (not a
  * raw-combining-char regex literal) so editors/git can't normalize it away.
+ *
+ * Also drops the scholarly '*' reconstructed/unattested-form marker so a
+ * stripped surface ("ur") still matches its starred cell form ("*ur").
  */
 export function accentFold(s) {
   const decomposed = stripDashes(s || '').normalize('NFD');
   let out = '';
   for (const ch of decomposed) {
+    if (ch === '*') continue; // reconstructed-form marker — never part of the key
     if (!isCombiningMark(ch.codePointAt(0))) out += ch;
   }
   return out.toLowerCase();
@@ -74,11 +78,16 @@ export function accentedUsage(morph) {
  * and bare ("X") keep their capitalization. So clicking etymon form "Hamm"
  * for a "-hām" slot yields "-hamm" (dash kept, lowercased), not "Hamm".
  * Diacritics survive toLowerCase (ā/ȳ unaffected).
+ *
+ * The scholarly '*' reconstructed/unattested-form marker is stripped — it's a
+ * citation convention, not part of the surface, and reads as a glitch in a
+ * generated name ("Tray*bearwe"). So a starred cell form ("*bearwe") grafts in
+ * as a clean "bearwe" both in the grid display and when swapped into the name.
  */
 export function graftPosition(positionFrom, surface) {
   const lead = (positionFrom || '').match(/^-+/)?.[0] || '';
   const trail = (positionFrom || '').match(/-+$/)?.[0] || '';
-  let s = stripDashes(surface);
+  let s = stripDashes((surface || '').replace(/\*/g, ''));
   if (!s) return positionFrom || ''; // nothing to graft → keep the original
   if (lead) s = s.toLowerCase(); // leading dash ⇒ inner or post ⇒ lowercase
   return lead + s + trail;

@@ -753,9 +753,16 @@ def _era_form_cell(meaning, renderings, lang, form, sources, glosses):
 
     ``form`` is guaranteed a key in ``sources``: both come from the same
     ``era_reflexes[lang]`` ``(form, source)`` tuples, so the ``.get`` default
-    never fires under a well-formed bundle — it's belt-and-suspenders."""
-    cell = {"form": form, "source": sources.get(form, "cluster")}
-    pron = _era_pronunciation(renderings, lang, form, meaning) or {}
+    never fires under a well-formed bundle — it's belt-and-suspenders.
+
+    wyrd-rogd.6: the scholarly ``*`` reconstructed/unattested-form marker is
+    stripped from the EMITTED surface + respelled away — it's a citation
+    convention, not part of the surface, and reads as a glitch in the SPA grid
+    and (on swap) the name. We keep the ORIGINAL ``form`` for the source/gloss
+    lookups (those dicts are keyed by it) but display + respell the clean form."""
+    display = form.replace("*", "")
+    cell = {"form": display, "source": sources.get(form, "cluster")}
+    pron = _era_pronunciation(renderings, lang, display, meaning) or {}
     if pron.get("reader_pronunciation"):
         cell["reader_pronunciation"] = pron["reader_pronunciation"]
     if pron.get("ipa"):
