@@ -21,7 +21,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from wyrd.generators.kenning.lexicon.bundle._family import _better_era_reflex_source
+from wyrd.generators.kenning.lexicon.bundle._family import (
+    _better_era_reflex_source,
+    _is_derived_name_pollution,
+    _modern_stage_languages,
+)
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.era_reflex import etymon_era_reflexes
 
@@ -117,8 +121,14 @@ def collect_fantasy_morphemes(db: LexiconDB) -> dict[str, dict[str, Any]]:
                     if fam == family
                 }
             )
+            modern_languages = _modern_stage_languages()
             for target_language in target_languages:
                 refs = etymon_era_reflexes(db, etymon_id, target_language=target_language)
+                if target_language in modern_languages:
+                    # wyrd-rogd.11: same derived-proper-noun filter as the
+                    # toponym path so fantasy/creature bundles don't carry
+                    # West Ham / Wesley / Düne in their modern stage either.
+                    refs = [r for r in refs if not _is_derived_name_pollution(r.form)]
                 if not refs:
                     continue
                 # Same dedupe-by-form-keep-best-source pattern as

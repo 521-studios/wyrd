@@ -205,13 +205,14 @@ def _is_derived_name_pollution(form: str) -> bool:
     mistagged foreign cognates (``Düne``, ``Zaun``, ``Ouest``) — none of which
     is the morpheme's modern English reflex (``ton``, ``hill``, ``-bury``).
     ``edge_type`` is unreliable (OE ``tūn`` → ``Pendleton`` is tagged
-    'inheritance'), so we gate on the FORM: a space (multi-word toponym) or an
-    initial uppercase letter (a proper noun, or a German-/French-capitalized
-    common noun whose orthography betrays a non-English cognate). A genuine
+    'inheritance'), so we gate on the FORM: internal whitespace (a multi-word
+    toponym) or an initial uppercase letter (a proper noun — toponym or
+    anthroponym — or a capitalized foreign cognate, e.g. a German common noun
+    like ``Düne`` whose orthography betrays a non-English form). A genuine
     reflex is a lowercase common form. Erring toward an EMPTY modern stage is
     intended per the ticket."""
     f = form.strip()
-    if not f or " " in f:
+    if not f or any(c.isspace() for c in f):  # empty, or multi-word (any whitespace)
         return True
     first_alpha = next((c for c in f if c.isalpha()), "")
     return first_alpha.isupper()
