@@ -111,7 +111,8 @@
                 <span class="cell-form"
                   >{withPlacement(cell.form)}{#if inferred}<span
                       class="cell-mark"
-                      aria-hidden="true">~</span
+                      role="img"
+                      aria-label="inferred (phonology rule)">~</span
                     >{/if}</span
                 >
                 {#if cell.reader_pronunciation}
