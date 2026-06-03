@@ -66,13 +66,15 @@ def test_generation_and_era_grid_parity():
     captured = _capture()
     if os.environ.get("WYRD_REGEN_PARITY") == "1":
         _SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
-        _SNAPSHOT.write_text(json.dumps(captured, indent=2, ensure_ascii=False, sort_keys=True))
+        _SNAPSHOT.write_text(
+            json.dumps(captured, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8"
+        )
         return  # regen run: write + skip the assertion
     assert _SNAPSHOT.exists(), (
         f"parity snapshot missing at {_SNAPSHOT}; regenerate with "
         "WYRD_REGEN_PARITY=1 pytest tests/test_rogd10_parity.py"
     )
-    expected = json.loads(_SNAPSHOT.read_text())
+    expected = json.loads(_SNAPSHOT.read_text(encoding="utf-8"))
 
     # Names are the hard invariant — assert them separately for a clear failure.
     def names_only(snap):
