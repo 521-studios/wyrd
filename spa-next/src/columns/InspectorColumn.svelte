@@ -21,7 +21,7 @@
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { languageLabel } from '../lib/languageLabels.js';
-  import { deAccent, hasEraGrid, pronForSurface } from '../lib/era.js';
+  import { deAccent, hasEraGrid, pronForSurface, eraBadge } from '../lib/era.js';
   import NameGuideCard from '../components/NameGuideCard.svelte';
   import MorphemeGrid from '../components/MorphemeGrid.svelte';
   import DefectModal from '../components/DefectModal.svelte';
@@ -104,12 +104,11 @@
   let activeRows = $derived.by(() =>
     rowsFor(displayState?.morphemes_by_word, (m) => m.rendered || m.usage),
   );
-  // Era badge: the era a render targets, else "as generated". (Mixed-era
-  // detection after per-morpheme swaps is a wyrd-yrf9 refinement.)
-  let eraLanguage = $derived(
-    (original?.morphemes_by_word || []).flat().find((m) => m?.rendered_language)?.rendered_language,
-  );
-  let eraLabel = $derived(eraLanguage ? languageLabel(eraLanguage) : 'as generated');
+  // wyrd-yrf9: the active card's era badge, resolved over the WORKING state
+  // (displayState) so it tracks per-morpheme grid swaps — "Old English" when
+  // every morpheme shares an era, "Mixed (…)" for a blend, "as generated" for
+  // an untouched modern roll. Logic lives in eraBadge (lib/era.js, unit-tested).
+  let eraLabel = $derived(eraBadge(displayState?.morphemes_by_word, languageLabel));
 
   // Paragon: the stable, de-accented version of the ORIGINAL name (pinned —
   // unaffected by swaps). A true modern-reflex paragon awaits cleaner modern
