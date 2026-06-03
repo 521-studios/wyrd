@@ -34,8 +34,10 @@ def _grid_digest(morpheme: dict) -> list:
     stage language, the cell forms (the thing Phase 2 is expected to grow)."""
     out = []
     for sec in morpheme.get("era_grid") or []:
-        stages = [[st.get("language"), [c.get("form") for c in st.get("forms") or []]]
-                  for st in sec.get("stages") or []]
+        stages = [
+            [st.get("language"), [c.get("form") for c in st.get("forms") or []]]
+            for st in sec.get("stages") or []
+        ]
         out.append([sec.get("family"), stages])
     return out
 
@@ -51,8 +53,8 @@ def _capture() -> dict:
             entry = {"seed": seed, "name": res.result}
             # era-grid digest of the first result's morphemes (the Phase-2 delta)
             grid = []
-            for word in (res.morphemes_by_word or []):
-                for m in (word or []):
+            for word in res.morphemes_by_word or []:
+                for m in word or []:
                     grid.append([m.get("usage"), _grid_digest(m)])
             entry["grid"] = grid
             per_culture.append(entry)
