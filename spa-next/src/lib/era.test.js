@@ -58,6 +58,26 @@ describe('cellForSurface', () => {
     expect(norse?.family).toBe('norse');
     expect(norse?.language).toBe('old-norse');
   });
+  it('prefers the pinned _lang stage for a homograph surface', () => {
+    // same surface "don" present in two families/stages; the pin disambiguates.
+    const homograph = {
+      usage: 'don',
+      _lang: 'old-french',
+      era_grid: [
+        { family: 'english', stages: [{ language: 'old-english', forms: [{ form: 'don' }] }] },
+        { family: 'norman-french', stages: [{ language: 'old-french', forms: [{ form: 'don' }] }] },
+      ],
+    };
+    expect(cellForSurface(homograph, 'don')?.language).toBe('old-french');
+    // with no pin, falls back to the first match (English, listed first).
+    expect(cellForSurface({ ...homograph, _lang: undefined }, 'don')?.language).toBe('old-english');
+    // pin is a SOFT preference: a pin whose stage has no matching cell still
+    // falls back to the first match (surface drifted out of the pinned stage).
+    expect(cellForSurface({ ...homograph, _lang: 'old-norse' }, 'don')?.language).toBe(
+      'old-english',
+    );
+  });
+
   it('returns null for a surface in no cell, and for missing grid/surface', () => {
     expect(cellForSurface(STAN, 'nowhere')).toBeNull();
     expect(cellForSurface(STAN, '')).toBeNull();
