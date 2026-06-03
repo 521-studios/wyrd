@@ -96,7 +96,7 @@
       <!-- era-columns: one aligned grid column per stage (oldest→newest),
            the stage label as the column header, form cells stacked beneath. -->
       <div class="stages" style="--era-cols: {Math.max(1, axis.length)}">
-        {#each axis as { language, stage }, i (language ?? i)}
+        {#each axis as { language, stage }, i ((language ?? '?') + '#' + i)}
           <div class="stage" class:empty={!stage}>
             <div class="stage-label">{languageLabel(language)}</div>
             <!-- wyrd-rogd.12: a stage with no data holds its column with a
