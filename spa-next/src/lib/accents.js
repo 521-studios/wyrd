@@ -31,10 +31,10 @@ const isCombiningMark = (cp) => cp >= 0x300 && cp <= 0x36f;
  * stripped surface ("ur") still matches its starred cell form ("*ur").
  */
 export function accentFold(s) {
-  const decomposed = stripDashes(s || '').normalize('NFD');
+  // strip the reconstructed '*' marker upfront (consistent with graftPosition).
+  const decomposed = stripDashes((s || '').replace(/\*/g, '')).normalize('NFD');
   let out = '';
   for (const ch of decomposed) {
-    if (ch === '*') continue; // reconstructed-form marker — never part of the key
     if (!isCombiningMark(ch.codePointAt(0))) out += ch;
   }
   return out.toLowerCase();
