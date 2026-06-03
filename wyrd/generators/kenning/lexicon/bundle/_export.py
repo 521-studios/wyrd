@@ -283,13 +283,14 @@ def _build_family_rollup(
             candidates.setdefault(child_root, set()).add(parent_root)
 
     # Content keys for the deterministic tie-break (rebuild-stable).
-    parent_roots = {p for ps in candidates.values() for p in ps}
+    parent_roots = list({p for ps in candidates.values() for p in ps})
     form_by_id: dict[int, tuple[str, str]] = {}
-    if parent_roots:
-        qmarks = ",".join("?" * len(parent_roots))
+    for i in range(0, len(parent_roots), 900):  # chunk: SQLite caps host params at 999
+        chunk = parent_roots[i : i + 900]
+        qmarks = ",".join("?" * len(chunk))
         for r in db.conn.execute(
             f"SELECT id, language, canonical_form FROM etymon WHERE id IN ({qmarks})",
-            tuple(parent_roots),
+            tuple(chunk),
         ):
             form_by_id[r["id"]] = (r["language"], r["canonical_form"])
 
