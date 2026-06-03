@@ -172,6 +172,51 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
 _ATTESTED_ERA_REFLEX_SOURCES: frozenset[str] = frozenset({"cluster", "descent", "period-form"})
 
 
+_MODERN_STAGE_LANGUAGES: frozenset[str] | None = None
+
+
+def _modern_stage_languages() -> frozenset[str]:
+    """The canonical language tag of every family's MODERN cell
+    (``modern`` / ``early-modern``) — e.g. ``modern-english``, ``welsh``,
+    ``irish``, ``french``. The wyrd-rogd.11 derived-name filter applies only
+    to the modern stage, where the cluster proliferates with derived proper
+    nouns; historical stages carry the period common forms. Built lazily +
+    memoised (matches the lazy CANONICAL_LANGUAGE_FOR_CELL import below)."""
+    global _MODERN_STAGE_LANGUAGES
+    if _MODERN_STAGE_LANGUAGES is None:
+        from wyrd.generators.kenning.era.cells import CANONICAL_LANGUAGE_FOR_CELL
+
+        _MODERN_STAGE_LANGUAGES = frozenset(
+            lang
+            for (_fam, cell), lang in CANONICAL_LANGUAGE_FOR_CELL.items()
+            if cell in ("modern", "early-modern") and lang
+        )
+    return _MODERN_STAGE_LANGUAGES
+
+
+def _is_derived_name_pollution(form: str) -> bool:
+    """wyrd-rogd.11: True when a MODERN-stage reflex is a derived proper noun
+    (place or personal name) or a capitalized cross-orthography foreign
+    cognate, NOT the morpheme's own common-noun continuation.
+
+    The cluster/descent tiers dump an etymon's whole modern-attested cluster
+    into the modern stage — derived toponyms (``West Ham``, ``Coldingham``,
+    ``Westbourne``), anthroponyms (``Wesley``, ``Derek``, ``Hank``), and
+    mistagged foreign cognates (``Düne``, ``Zaun``, ``Ouest``) — none of which
+    is the morpheme's modern English reflex (``ton``, ``hill``, ``-bury``).
+    ``edge_type`` is unreliable (OE ``tūn`` → ``Pendleton`` is tagged
+    'inheritance'), so we gate on the FORM: a space (multi-word toponym) or an
+    initial uppercase letter (a proper noun, or a German-/French-capitalized
+    common noun whose orthography betrays a non-English cognate). A genuine
+    reflex is a lowercase common form. Erring toward an EMPTY modern stage is
+    intended per the ticket."""
+    f = form.strip()
+    if not f or " " in f:
+        return True
+    first_alpha = next((c for c in f if c.isalpha()), "")
+    return first_alpha.isupper()
+
+
 def _merge_era_reflexes_into_forms_by_lang(
     forms_by_lang: dict[str, list[str]],
     era_reflexes: dict[str, list[dict[str, str]]],
@@ -254,8 +299,16 @@ def _fetch_root_era_reflexes(
         lang for (fam, _cell), lang in CANONICAL_LANGUAGE_FOR_CELL.items() if fam == family
     }
     out: dict[str, list[dict[str, str]]] = {}
+    modern_languages = _modern_stage_languages()
     for target_language in sorted(target_languages):
         reflexes = etymon_era_reflexes(db, root_id, target_language=target_language)
+        if target_language in modern_languages:
+            # wyrd-rogd.11: strip derived proper nouns + mistagged foreign
+            # cognates so the modern stage carries only the morpheme's own
+            # common-noun reflex (or is empty). Done here so the cleaned set
+            # feeds BOTH the era-grid display AND the forms_by_lang merge —
+            # the generator must not sample 'West Ham' as a surface either.
+            reflexes = [r for r in reflexes if not _is_derived_name_pollution(r.form)]
         if not reflexes:
             continue
         # Dedupe by form, keeping the highest-quality source's reflex on
