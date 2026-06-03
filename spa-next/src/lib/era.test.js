@@ -71,6 +71,11 @@ describe('cellForSurface', () => {
     expect(cellForSurface(homograph, 'don')?.language).toBe('old-french');
     // with no pin, falls back to the first match (English, listed first).
     expect(cellForSurface({ ...homograph, _lang: undefined }, 'don')?.language).toBe('old-english');
+    // pin is a SOFT preference: a pin whose stage has no matching cell still
+    // falls back to the first match (surface drifted out of the pinned stage).
+    expect(cellForSurface({ ...homograph, _lang: 'old-norse' }, 'don')?.language).toBe(
+      'old-english',
+    );
   });
 
   it('returns null for a surface in no cell, and for missing grid/surface', () => {

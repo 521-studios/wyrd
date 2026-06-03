@@ -45,7 +45,10 @@ export function deAccent(s) {
  * e.g. "don" in OE / OF / Celtic, "by" in OE + Old Norse), a swap pins the
  * chosen stage on `morpheme._lang`; we prefer the cell in that stage so the
  * highlight + pronunciation track the EXACT variant the user picked, not an
- * arbitrary first match. Falls back to the first match when nothing is pinned.
+ * arbitrary first match. Falls back to the first match both when nothing is
+ * pinned AND when a pin is set but its stage carries no matching cell (the
+ * pin is a soft preference, not a hard filter — the surface may have drifted
+ * out of the pinned stage).
  * @returns {{family: string, language: string, cell: object} | null}
  */
 export function cellForSurface(morpheme, surface) {

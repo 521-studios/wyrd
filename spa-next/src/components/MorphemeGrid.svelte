@@ -82,7 +82,7 @@
       <h6 class="family-label">{familyLabel(section.family)}</h6>
       <!-- era-columns: one aligned grid column per stage (oldest→newest),
            the stage label as the column header, form cells stacked beneath. -->
-      <div class="stages" style="--era-cols: {(section?.stages || []).length}">
+      <div class="stages" style="--era-cols: {Math.max(1, (section?.stages || []).length)}">
         {#each section?.stages || [] as stage (stage.language)}
           <div class="stage">
             <div class="stage-label">{languageLabel(stage.language)}</div>
@@ -90,7 +90,9 @@
                  (homographs / spelling variants), and a bare cell.form key
                  would throw Svelte's duplicate-key error. -->
             {#each (stage?.forms || []).filter(Boolean) as cell, i (cell?.form + '|' + i)}
-              {@const inferred = cell.source === 'phonology-rule:v1'}
+              <!-- match the inferred tier by PREFIX so a future phonology-rule:v2
+                   stays marked (not just :v1). -->
+              {@const inferred = !!cell.source?.startsWith('phonology-rule')}
               <button
                 type="button"
                 class="cell"
@@ -99,7 +101,9 @@
                 aria-pressed={isCurrent(stage, cell)}
                 onclick={() => swap(stage, cell)}
                 title={isCurrent(stage, cell)
-                  ? 'Live in the name — click to revert'
+                  ? inferred
+                    ? 'Live in the name (inferred via phonology rule) — click to revert'
+                    : 'Live in the name — click to revert'
                   : inferred
                     ? `Swap to ${cell.form} — inferred via phonology rule (not attested)`
                     : `Swap this morpheme to ${cell.form}`}
@@ -205,6 +209,12 @@
   .cell.inferred .cell-form {
     font-style: italic;
     color: var(--fg-muted);
+  }
+  /* a live (current) cell reads as current even when inferred — current wins
+     the form color over the muted inferred style (equal specificity, so this
+     must come AFTER .cell.inferred .cell-form). */
+  .cell.current.inferred .cell-form {
+    color: var(--accent);
   }
   .cell-mark {
     margin-left: 2px;
