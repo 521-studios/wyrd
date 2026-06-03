@@ -185,8 +185,14 @@ class Meaning:
         era_reflex_glosses=None,
         phonological_vector=None,
         phonological_vectors=None,
+        morpheme_id=None,
     ):
         self.usage = usage
+        # wyrd-rogd.10 Phase 2: the owning morpheme's content id (or None for
+        # bundles predating Phase 1 / un-attributable words). Lets the runtime
+        # resolve the era-grid against the unified morpheme record by id rather
+        # than the per-connective-surface Meaning.
+        self.morpheme_id = morpheme_id
         self.tags = tags
         self.meanings = meanings
         self.sources = sources
@@ -1180,6 +1186,7 @@ def load_meanings(data):
                 "era_reflex_glosses": era_reflex_glosses,
                 "phonological_vector": phonological_vector,
                 "phonological_vectors": phonological_vectors,
+                "morpheme_id": word.get("morpheme_id"),  # wyrd-rogd.10 Phase 2
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:
