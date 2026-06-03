@@ -99,3 +99,65 @@ def test_non_collapse_inheritance_is_not_followed(fresh_db: Path) -> None:
         db.commit()
         _, root_of = _build_family_rollup(db)
         assert root_of(ref) == ref  # NOT rolled into the ancestor
+
+
+def test_consensus_reflex_promotes_ancestor_not_itself(fresh_db: Path) -> None:
+    # The double-emission guard: a reflex that is its OWN consensus lemma must
+    # promote its ancestor's root (so it isn't promoted standalone AND rolled
+    # into the ancestor's family → emitted twice / surface double-counted).
+    from wyrd.generators.kenning.lexicon.bundle._export import (
+        _build_family_rollup,
+        _select_promoted_root_ids,
+    )
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        db.upsert_source(id="src-b", title="B")
+        biscop = db.upsert_etymon("biscop", "old-english")
+        bishop = db.upsert_etymon("bishop", "modern-english")
+        db.add_citation(bishop, "src-a")  # 2 witnesses → consensus lemma
+        db.add_citation(bishop, "src-b")
+        _edge(db, biscop, bishop, "inheritance")
+        db.commit()
+        members_by_root, root_of = _build_family_rollup(db)
+        promoted = _select_promoted_root_ids(
+            db,
+            lang_thresholds={},
+            min_witnesses=1,
+            include_rando=False,
+            include_wiktionary_empirical=False,
+            include_wave2_enriched=False,
+            root_of=root_of,
+            members_by_root=members_by_root,
+        )
+        assert biscop in promoted  # ancestor promoted
+        assert bishop not in promoted  # reflex NOT promoted standalone
+
+
+def test_reflex_with_lemma_id_still_finds_ancestor(fresh_db: Path) -> None:
+    # The edge sits on a reflex child that itself has a lemma_id; root_of lands
+    # on the child's lemma-root first, so the edge must be keyed there too.
+    with LexiconDB(fresh_db) as db:
+        anc = db.upsert_etymon("biscop", "old-english")
+        lemma = db.upsert_etymon("bishop", "modern-english")
+        infl = db.upsert_etymon("bishops", "modern-english")
+        db.conn.execute("UPDATE etymon SET lemma_id=? WHERE id=?", (lemma, infl))
+        _edge(db, anc, infl, "inheritance")  # edge on the inflected reflex
+        db.commit()
+        _, root_of = _build_family_rollup(db)
+        assert root_of(infl) == anc  # rolls through its lemma to the ancestor
+        assert root_of(lemma) == anc
+
+
+def test_multi_parent_picks_lowest_content_key(fresh_db: Path) -> None:
+    # Two candidate ancestors for one child → keep the smallest
+    # (language, canonical_form), a rebuild-stable key, NOT the autoinc id.
+    with LexiconDB(fresh_db) as db:
+        p1 = db.upsert_etymon("aac", "old-english")
+        p2 = db.upsert_etymon("zzz", "old-english")
+        child = db.upsert_etymon("aac", "modern-english")
+        _edge(db, p1, child, "inheritance")
+        _edge(db, p2, child, "inheritance")
+        db.commit()
+        _, root_of = _build_family_rollup(db)
+        assert root_of(child) == p1  # ('old-english','aac') < ('old-english','zzz')

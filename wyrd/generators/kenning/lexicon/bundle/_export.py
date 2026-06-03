@@ -253,32 +253,56 @@ def _build_family_rollup(
     # >1000 unrelated forms into single "families" — semantically wrong for
     # place-name morphemes and destructive to generation. Derivation/compound
     # edges are derived words, not the morpheme, so they are excluded too
-    # (wyrd-rogd.11). A child with several reflex-link parents keeps the lowest
-    # parent_id for determinism.
+    # (wyrd-rogd.11). A child with several reflex-link parents keeps the one
+    # with the smallest ``(language, canonical_form)`` — a rebuild-stable
+    # content key, NOT the autoincrement parent_id (which is unstable across
+    # rebuilds); the detector emits one best ancestor per child so this normally
+    # never arbitrates.
     #
     # Lazy import: enrichment imports the lexicon package, so a module-level
     # import here would close a lexicon → bundle → enrichment → lexicon cycle.
     from wyrd.generators.kenning.enrichment import COLLAPSE_VARIANT_SOURCE_ID
 
-    inheritance_parent: dict[int, int] = {}
-    for r in db.conn.execute(
-        "SELECT parent_id, child_id FROM etymon_descent "
-        "WHERE edge_type = 'inheritance' AND source_id = ?",
-        (COLLAPSE_VARIANT_SOURCE_ID,),
-    ):
-        child, parent = r["child_id"], r["parent_id"]
-        if child not in inheritance_parent or parent < inheritance_parent[child]:
-            inheritance_parent[child] = parent
-
     def _lemma_root(eid: int) -> int:
         target = target_by_id.get(eid, eid)
         return lemma_by_id.get(target) or target
+
+    # Collect the candidate parent-roots per child-ROOT. Both sides are passed
+    # through _lemma_root so the inheritance hop composes with the merged_into/
+    # lemma rollup (a reflex that itself has a lemma_id still finds its edge —
+    # root_of lands on the child's lemma-root first, which is what we key on).
+    edge_rows = db.conn.execute(
+        "SELECT parent_id, child_id FROM etymon_descent "
+        "WHERE edge_type = 'inheritance' AND source_id = ?",
+        (COLLAPSE_VARIANT_SOURCE_ID,),
+    ).fetchall()
+    candidates: dict[int, set[int]] = {}
+    for r in edge_rows:
+        child_root, parent_root = _lemma_root(r["child_id"]), _lemma_root(r["parent_id"])
+        if child_root != parent_root:  # already one family via merge/lemma
+            candidates.setdefault(child_root, set()).add(parent_root)
+
+    # Content keys for the deterministic tie-break (rebuild-stable).
+    parent_roots = {p for ps in candidates.values() for p in ps}
+    form_by_id: dict[int, tuple[str, str]] = {}
+    if parent_roots:
+        qmarks = ",".join("?" * len(parent_roots))
+        for r in db.conn.execute(
+            f"SELECT id, language, canonical_form FROM etymon WHERE id IN ({qmarks})",
+            tuple(parent_roots),
+        ):
+            form_by_id[r["id"]] = (r["language"], r["canonical_form"])
+
+    inheritance_parent: dict[int, int] = {
+        child_root: min(prs, key=lambda p: (form_by_id.get(p, ("", "")), p))
+        for child_root, prs in candidates.items()
+    }
 
     def root_of(eid: int) -> int:
         root = _lemma_root(eid)
         seen = {root}  # cycle guard (the descent graph can be noisy)
         while root in inheritance_parent:
-            parent_root = _lemma_root(inheritance_parent[root])
+            parent_root = inheritance_parent[root]
             if parent_root in seen:
                 break
             seen.add(parent_root)
@@ -306,7 +330,8 @@ def _select_promoted_root_ids(
     """Promoted root_ids come from four sources:
 
     * consensus witness threshold per language (the etymon_consensus view
-      already keys on lemma_id, no rollup needed),
+      keys on lemma_id; rolled up via ``root_of`` so an inheritance reflex
+      promotes its ancestor's root — wyrd-rogd.9),
     * any etymon cited by 'rando-port' (legacy seed),
     * any etymon cited by 'wiktionary-empirical' (wyrd-4hx7),
     * any etymon with non-NULL english_shaped (wyrd-z3cp — wave-2
@@ -322,7 +347,14 @@ def _select_promoted_root_ids(
         f"SELECT lemma_id AS root_id FROM etymon_consensus WHERE {witness_sql}",
         witness_params,
     ):
-        promoted.add(row["root_id"])
+        # wyrd-rogd.9: the consensus view keys on lemma_id, which IS the root
+        # under the merged_into/lemma rollup — but NOT under the inheritance
+        # rollup. A consensus reflex that is its own lemma (e.g. ``bishop``)
+        # must promote its ANCESTOR's root (``biscop``), or it gets promoted
+        # standalone AND rolled into the ancestor's family → emitted twice.
+        # root_of is the identity for any non-reflex lemma, so this is a no-op
+        # until reflex-link edges exist.
+        promoted.add(root_of(row["root_id"]))
     if include_rando:
         rando_root_ids: set[int] = set()
         for row in db.conn.execute(
