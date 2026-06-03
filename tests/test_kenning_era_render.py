@@ -315,3 +315,16 @@ def test_no_era_breakdown_omits_era_fields():
     assert flat
     assert not any(m.get("rendered_language") for m in flat)
     assert not any(m.get("rendered_pron") for m in flat)
+
+
+def test_resolve_era_render_language_accepts_stage_labels():
+    # wyrd-rogd.2: the SPA now sends compressed STAGE labels. A historical stage
+    # renders its period language; the present-day stage keeps modern canonical.
+    assert _resolve_era_render_language("old-english", "english") == "old-english"
+    assert _resolve_era_render_language("middle-english", "english") == "middle-english"
+    assert _resolve_era_render_language("modern-english", "english") is None  # contemporary
+    # non-english cultures: a historical stage renders, the present-day doesn't
+    assert _resolve_era_render_language("old-welsh", "welsh") == "old-welsh"
+    assert _resolve_era_render_language("welsh", "welsh") is None  # contemporary brythonic
+    assert _resolve_era_render_language("old-irish", "irish") == "old-irish"
+    assert _resolve_era_render_language("irish", "irish") is None  # contemporary goidelic

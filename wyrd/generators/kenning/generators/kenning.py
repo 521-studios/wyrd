@@ -216,27 +216,32 @@ class Kenning(Generator):
                 "era": {
                     "type": "string",
                     "default": "",
-                    # wyrd-awo: dependent-select metadata read by the SPA.
-                    # Each culture surfaces only the cell labels defined in
-                    # its era family — picking 'oe-late' while culture is
-                    # 'irish' would 4xx at runtime, so the dropdown
-                    # filters to the family's labels to prevent it.
-                    # CLI/API still accept bare-year and 'family/label'
-                    # shapes; this property only constrains the SPA UX.
+                    # wyrd-awo + wyrd-rogd.2: dependent-select metadata read by
+                    # the SPA. Each culture surfaces its family's compressed era
+                    # STAGES (old-english / middle-english / modern-english) —
+                    # the same axis as the col-3 grid, not the raw cells. A
+                    # picked stage resolves to the UNION year range of its cells.
+                    # CLI/API still accept raw cells, bare years, and
+                    # 'family/label' shapes; this only constrains the SPA UX.
                     "x-options-by-culture": _era_options_by_culture(),
+                    # wyrd-rogd.2: options are language tags, so the SPA labels
+                    # them via languageLabel (old-english → "Old English"),
+                    # matching the col-3 grid's stage headers.
+                    "x-option-language": True,
                     "description": (
                         "Period of the name. Does two things (wyrd-lyp + wyrd-6c8x): "
                         "(1) restricts the morpheme inventory to forms attested in that "
                         "period, and (2) for a HISTORICAL period, renders each morpheme "
-                        "in its era-appropriate attested form (e.g. 'oe-early' → Old "
-                        "English 'Tūn', 'Sūþ'; 'me' → Middle English 'Toun') instead of "
+                        "in its era-appropriate attested form (e.g. 'old-english' → Old "
+                        "English 'Tūn', 'Sūþ'; 'middle-english' → 'Toun') instead of "
                         "the modern spelling — so the name LOOKS period, not just "
-                        "period-eligible. Present-day cells (modern / early-modern) keep "
+                        "period-eligible. The present-day stage (modern-english) keeps "
                         "the modern canonical spelling. The SPA renders this as a "
-                        "dropdown filtered to the chosen culture's era family. CLI/API "
-                        "also accept a bare year (e.g. '1086' → the cell containing 1086 "
-                        "in the culture's era family) or an explicit 'family/label' pair "
-                        "(e.g. 'english/oe-late'). Morphemes with no attested-year "
+                        "dropdown of the chosen culture's compressed era STAGES; a stage "
+                        "resolves to the union year range of its cells. CLI/API also "
+                        "accept a raw cell, a bare year (e.g. '1086' → the cell "
+                        "containing 1086 in the culture's era family), or an explicit "
+                        "'family/label' pair (e.g. 'english/oe-late'). Morphemes with no attested-year "
                         "evidence pass the filter unconditionally; morphemes with no era "
                         "reflex fall back to the modern spelling (~10% of generated "
                         "morphemes), so a period name may mix in some modern forms."

@@ -15,6 +15,7 @@ from wyrd.generators.kenning.era.cells import (
     era_cell_for_input,
     era_cells_for_family,
     era_year_range,
+    family_stage_order,
     resolve_era_input,
 )
 
@@ -125,16 +126,20 @@ _CULTURE_TO_ERA_FAMILY: dict[str, str] = {
 
 
 def _era_options_by_culture() -> dict[str, list[str]]:
-    """Per-culture list of era cell labels for the SPA's dependent select.
+    """Per-culture list of era STAGE labels for the SPA's dependent select.
 
-    Empty string is prepended as the 'no era filter' option. The label
-    set is derived from era_cells_for_family so adding a new cell to
-    era/cells.py automatically surfaces in the dropdown without touching
-    this file. Re-evaluated at schema-render time, so era.cells.ERA_CELLS edits
-    take effect after a manifest refresh.
+    wyrd-rogd.2: the dropdown offers the COMPRESSED per-family stage set
+    (``family_stage_order``: English = old-english / middle-english /
+    modern-english), the same axis the col-3 grid uses — NOT the raw cells
+    (oe-early / oe-late / …). The oe-early-vs-oe-late inventory distinction
+    stays in the backend year ranges but isn't surfaced here; a picked stage
+    resolves to the UNION year range of its cells (``resolve_era_input`` /
+    ``stage_year_range``). Empty string is prepended as the 'no era filter'
+    option. Re-evaluated at schema-render time, so era.cells edits take effect
+    after a manifest refresh. CLI/API still accept raw cells + bare years.
     """
     return {
-        culture: ["", *era_cells_for_family(family)]
+        culture: ["", *family_stage_order(family)]
         for culture, family in _CULTURE_TO_ERA_FAMILY.items()
     }
 

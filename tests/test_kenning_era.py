@@ -390,3 +390,97 @@ def test_resolve_era_input_default_family_picks_correct_range_for_shared_label()
     defined in default_family so resolution is unambiguous."""
     assert era.resolve_era_input("modern", default_family="brythonic") == (1500, None)
     assert era.resolve_era_input("modern", default_family="english") == (1700, None)
+
+
+# --- wyrd-rogd.2: compressed STAGE labels in the era resolvers --------------
+def test_cells_for_stage_collapses_canonical_language() -> None:
+    assert era.cells_for_stage("english", "old-english") == ("oe-early", "oe-late")
+    assert era.cells_for_stage("english", "middle-english") == ("me",)
+    assert era.cells_for_stage("english", "modern-english") == ("early-modern", "modern")
+    assert era.cells_for_stage("english", "not-a-stage") == ()
+
+
+def test_stage_year_range_unions_constituent_cells() -> None:
+    # old-english = oe-early (open-low) + oe-late (..1100) → (None, 1100)
+    assert era.stage_year_range("english", "old-english") == (None, 1100)
+    assert era.stage_year_range("english", "middle-english") == (1100, 1500)
+    # modern-english = early-modern (1500..1700) + modern (1700..open) → (1500, None)
+    assert era.stage_year_range("english", "modern-english") == (1500, None)
+    assert era.stage_year_range("english", "not-a-stage") is None
+
+
+def test_resolve_era_input_accepts_a_stage_label() -> None:
+    assert era.resolve_era_input("old-english", default_family="english") == (None, 1100)
+    assert era.resolve_era_input("modern-english", default_family="english") == (1500, None)
+    # raw cells + years still resolve (backward compatible)
+    assert era.resolve_era_input("oe-late", default_family="english") == (800, 1100)
+    assert era.resolve_era_input(1086, default_family="english") == (800, 1100)
+
+
+def test_era_cell_for_input_maps_stage_to_representative_cell() -> None:
+    # a stage resolves to its first cell, whose canonical language IS the stage
+    family, cell = era.era_cell_for_input("old-english", default_family="english")
+    assert (family, cell) == ("english", "oe-early")
+    assert era.canonical_language_for_cell(family, cell) == "old-english"
+
+
+def test_unknown_era_label_still_raises() -> None:
+    with pytest.raises(ValueError):
+        era.resolve_era_input("victorian", default_family="english")
+
+
+def test_stage_resolution_across_families() -> None:
+    # goidelic 'irish' is the multi-cell non-english stage (early-modern+modern)
+    assert era.cells_for_stage("goidelic", "irish") == ("early-modern", "modern")
+    assert era.resolve_era_input("irish", default_family="goidelic") == (1200, None)
+    # norse single-cell stage
+    assert era.resolve_era_input("old-norse", default_family="norse") == (None, 1100)
+    # brythonic
+    assert era.resolve_era_input("welsh", default_family="brythonic") == (1500, None)
+
+
+def test_cell_label_shadows_a_same_named_stage() -> None:
+    # goidelic 'old-irish' / 'middle-irish' are BOTH cells and stage tags; the
+    # cell path wins (same range), so resolution is identical either way.
+    assert "old-irish" in era.era_cells_for_family("goidelic")
+    assert era.resolve_era_input("old-irish", default_family="goidelic") == era.era_year_range(
+        "goidelic", "old-irish"
+    )
+    assert era.era_cell_for_input("old-irish", default_family="goidelic") == (
+        "goidelic",
+        "old-irish",
+    )
+
+
+def test_latin_stage_span_is_documented_non_contiguous() -> None:
+    # The lone non-contiguous stage: 'latin' (classical+medieval+renaissance)
+    # spans the vulgar-latin 200-700 gap. CLI-only (latin isn't SPA-surfaced).
+    assert era.cells_for_stage("latin", "latin") == ("classical", "medieval", "renaissance")
+    assert era.stage_year_range("latin", "latin") == (None, 1800)
+    assert era.stage_year_range("latin", "vulgar-latin") == (200, 700)
+
+
+def test_explicit_family_stage_form() -> None:
+    # wyrd-rogd.2: family/STAGE resolves like family/cell (symmetry).
+    assert era.resolve_era_input("english/old-english", default_family="brythonic") == (None, 1100)
+    fam, cell = era.era_cell_for_input("english/old-english", default_family="brythonic")
+    assert (fam, cell) == ("english", "oe-early")
+
+
+def test_cross_family_stage_label_gives_helpful_error() -> None:
+    # 'old-welsh' is a brythonic stage; passed with default english it points
+    # the user at the right family/stage pair rather than 'unknown era input'.
+    with pytest.raises(ValueError, match=r"brythonic/old-welsh"):
+        era.resolve_era_input("old-welsh", default_family="english")
+    with pytest.raises(ValueError, match=r"brythonic/old-welsh"):
+        era.era_cell_for_input("old-welsh", default_family="english")
+
+
+def test_invalid_family_label_lists_cells_and_stages_consistently() -> None:
+    # wyrd-rogd.2: both resolvers give the same helpful error (cells + stages)
+    # for a bad label under an explicit family.
+    for fn in (era.resolve_era_input, era.era_cell_for_input):
+        with pytest.raises(
+            ValueError, match=r"unknown era cell/stage 'invalid' for family 'english'"
+        ):
+            fn("english/invalid", default_family="brythonic")
