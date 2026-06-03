@@ -202,6 +202,19 @@
             {:else}
               <p class="no-grid">No era variants yet for this morpheme.</p>
             {/if}
+
+            <!-- wyrd-rogd.14: collapsed-by-default scholarly-source citations,
+                 restored after the col-3 era-axis rebuild (wyrd-qc0g) dropped
+                 the wyrd-bvwu disclosure. Only morphemes with >=1 citation get
+                 the fold (matches the promotion-threshold model). -->
+            {#if m.citations?.length}
+              <details class="citations">
+                <summary>Citations ({m.citations.length})</summary>
+                <ul>
+                  {#each m.citations as src}<li>{src}</li>{/each}
+                </ul>
+              </details>
+            {/if}
           </article>
         {/each}
       {/if}
@@ -317,6 +330,26 @@
     border-radius: 3px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+  /* wyrd-rogd.14: collapsed-by-default scholarly-citation disclosure. */
+  .citations {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--fg-muted);
+  }
+  .citations summary {
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: 0.02em;
+  }
+  .citations ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    list-style: disc;
+  }
+  .citations li {
+    margin: 2px 0;
+    word-break: break-word;
   }
   .meaning-groups {
     margin: 0 0 8px;
