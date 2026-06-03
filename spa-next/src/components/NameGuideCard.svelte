@@ -36,7 +36,14 @@
           <span class="ng-surface">{r.surface}</span>
           <span class="ng-reader">{r.reader || '·'}</span>
           {#if r.ipa}<span class="ng-ipa">{r.ipa}</span>{/if}
-          {#if r.gloss}<span class="ng-gloss" title={r.gloss}>{r.gloss}</span>{/if}
+          {#if r.gloss}<span
+              class="ng-gloss"
+              class:drift={r.drift}
+              title={r.drift ? `drifted meaning of this variant: ${r.gloss}` : r.gloss}
+              >{r.gloss}{#if r.drift}<span class="ng-drift" role="img" aria-label="drifted meaning"
+                  >≠</span
+                >{/if}</span
+            >{/if}
         </span>
       {/each}
     </div>
@@ -115,5 +122,16 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  /* wyrd-rogd.1: a drifted variant gloss (the swapped cognate's meaning differs
+     from the morpheme's) reads in the accent colour with a ≠ marker. */
+  .ng-gloss.drift {
+    color: var(--accent);
+    max-width: none;
+    white-space: normal;
+  }
+  .ng-drift {
+    margin-left: 2px;
+    font-weight: 600;
   }
 </style>

@@ -9,15 +9,20 @@
   // wyrd-zw1f delivered: era-column layout, inferred-source marking
   // (phonology-rule cells render dashed + italic + "~"), and exact-cell
   // homograph tracking (the highlight prefers the pinned `_lang` stage, via
-  // cellForSurface). Still deferred: drift-gloss surfacing — it needs the
-  // per-reflex gloss the bundle doesn't ship yet (blocked on wyrd-rogd.1).
+  // cellForSurface). wyrd-rogd.1: drift-gloss surfacing now LANDED — a cell
+  // whose gloss differs from the morpheme's own meaning is marked (the cognate
+  // drifted), and the cell's meaning shows on hover.
   import { languageLabel } from '../lib/languageLabels.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
   import { graftPosition, accentFold } from '../lib/accents.js';
-  import { cellForSurface } from '../lib/era.js';
+  import { cellForSurface, primaryGloss, isGlossDrift } from '../lib/era.js';
 
   let { morpheme } = $props();
+
+  // wyrd-rogd.1: the morpheme's own meaning — the drift baseline a cell's gloss
+  // is compared against.
+  let baseGloss = $derived(primaryGloss(morpheme));
 
   // Family display labels (the user's "English, Norse, Celtic, …").
   const FAMILY_LABELS = {
@@ -93,26 +98,37 @@
               <!-- match the inferred tier by PREFIX so a future phonology-rule:v2
                    stays marked (not just :v1). -->
               {@const inferred = !!cell.source?.startsWith('phonology-rule')}
+              <!-- wyrd-rogd.1: the cell's own meaning has DRIFTED from the
+                   morpheme's (the cognate no longer means the same thing). -->
+              {@const drifted = isGlossDrift(baseGloss, cell.gloss)}
+              {@const swapTitle = inferred
+                ? `Swap to ${cell.form} — inferred via phonology rule (not attested)`
+                : `Swap this morpheme to ${cell.form}`}
+              {@const liveTitle = inferred
+                ? 'Live in the name (inferred via phonology rule) — click to revert'
+                : 'Live in the name — click to revert'}
+              {@const glossNote = cell.gloss
+                ? ` — ${drifted ? 'drifted meaning: ' : 'means: '}${cell.gloss}`
+                : ''}
               <button
                 type="button"
                 class="cell"
                 class:current={isCurrent(stage, cell)}
                 class:inferred
+                class:drift={drifted}
                 aria-pressed={isCurrent(stage, cell)}
                 onclick={() => swap(stage, cell)}
-                title={isCurrent(stage, cell)
-                  ? inferred
-                    ? 'Live in the name (inferred via phonology rule) — click to revert'
-                    : 'Live in the name — click to revert'
-                  : inferred
-                    ? `Swap to ${cell.form} — inferred via phonology rule (not attested)`
-                    : `Swap this morpheme to ${cell.form}`}
+                title={(isCurrent(stage, cell) ? liveTitle : swapTitle) + glossNote}
               >
                 <span class="cell-form"
                   >{withPlacement(cell.form)}{#if inferred}<span
                       class="cell-mark"
                       role="img"
                       aria-label="inferred (phonology rule)">~</span
+                    >{/if}{#if drifted}<span
+                      class="cell-drift"
+                      role="img"
+                      aria-label="drifted meaning">≠</span
                     >{/if}</span
                 >
                 {#if cell.reader_pronunciation}
@@ -221,6 +237,15 @@
     margin-left: 2px;
     font-size: 10px;
     color: var(--fg-muted);
+    vertical-align: super;
+  }
+  /* wyrd-rogd.1: a ≠ marker on cells whose meaning drifted from the morpheme's
+     — hover the cell for the drifted gloss. */
+  .cell-drift {
+    margin-left: 2px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent);
     vertical-align: super;
   }
   .cell-reader {

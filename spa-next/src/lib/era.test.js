@@ -2,7 +2,16 @@
 // pure functions on the era_grid payload (wyrd-lftl); svelte-check only
 // type-checks, so the fold-match + de-accent behavior is pinned here.
 import { describe, it, expect } from 'vitest';
-import { deAccent, cellForSurface, hasEraGrid, pronForSurface, eraBadge } from './era.js';
+import {
+  deAccent,
+  cellForSurface,
+  hasEraGrid,
+  pronForSurface,
+  eraBadge,
+  primaryGloss,
+  glossForSurface,
+  isGlossDrift,
+} from './era.js';
 
 // A stand-in label fn matching the production languageLabel for the tags under
 // test: 'modern-english' → 'Modern' (so it aliases the default fold-in, as it
@@ -184,5 +193,61 @@ describe('eraBadge', () => {
     expect(
       eraBadge([[{ usage: 'a', _lang: 'old-english' }], [{ usage: 'b', _lang: 'old-english' }]], label),
     ).toBe('Old English');
+  });
+});
+
+describe('primaryGloss', () => {
+  it('takes the first sense of the first group, else the first flat meaning', () => {
+    expect(primaryGloss({ meaning_groups: [['farm', 'enclosure'], ['hill']] })).toBe('farm');
+    expect(primaryGloss({ meanings: ['stone'] })).toBe('stone');
+    expect(primaryGloss({})).toBe('');
+    expect(primaryGloss(null)).toBe('');
+  });
+});
+
+describe('glossForSurface', () => {
+  // a morpheme whose OE cell carries a (drifted) gloss
+  const WORTH = {
+    usage: '-worth',
+    meanings: ['enclosure'],
+    era_grid: [
+      {
+        family: 'english',
+        stages: [
+          {
+            language: 'old-english',
+            forms: [
+              { form: 'worþ', source: 'cluster', gloss: 'enclosure' },
+              { form: 'hirdels', source: 'cluster', gloss: 'hurdle' },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  it('returns the matching cell gloss (the variant meaning)', () => {
+    expect(glossForSurface(WORTH, 'worþ')).toBe('enclosure');
+    expect(glossForSurface(WORTH, 'hirdels')).toBe('hurdle'); // the drifted cognate
+  });
+  it('returns empty string when the cell has no gloss or no cell matches', () => {
+    expect(glossForSurface(STAN, 'stān')).toBe(''); // STAN cells carry no gloss
+    expect(glossForSurface(WORTH, 'nowhere')).toBe('');
+    expect(glossForSurface(null, 'x')).toBe('');
+  });
+});
+
+describe('isGlossDrift', () => {
+  it('is true only when both glosses are non-empty AND differ (fold-compared)', () => {
+    expect(isGlossDrift('enclosure', 'hurdle')).toBe(true); // genuine drift
+    expect(isGlossDrift('enclosure', 'Enclosure ')).toBe(false); // case/space fold = same
+    expect(isGlossDrift('farm', 'farm')).toBe(false);
+  });
+  it('never flags drift when the base (or variant) gloss is empty', () => {
+    // a glossless morpheme must NOT false-flag every variant as drifted.
+    expect(isGlossDrift('', 'anything')).toBe(false);
+    expect(isGlossDrift('something', '')).toBe(false);
+    expect(isGlossDrift(undefined, 'x')).toBe(false);
+    expect(isGlossDrift(null, null)).toBe(false);
   });
 });
