@@ -9215,6 +9215,7 @@ def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
     assert subj["words"] == [
         {
             "modern_usage": "-ock",
+            "morpheme_id": "old-english:aecern",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["aecern"],
             "old_english_pronunciation": [{"form": "aecern", "ipa": "/ɑɛkɛrn/", "dialect": None}],
         }
@@ -9409,6 +9410,7 @@ def test_export_meanings_promotes_at_witness_threshold(fresh_db: Path) -> None:
     assert subj["words"] == [
         {
             "modern_usage": "ham",
+            "morpheme_id": "old-english:ham",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["ham"],
             "old_english_citations": ["a", "b", "c"],
             # wyrd-vm8t Loop 4: G2P surface pronunciation (onset-h → /h/).
@@ -11052,6 +11054,7 @@ def test_export_meanings_synthesizes_word_for_mined_only_family(
     assert subjects[0]["words"] == [
         {
             "modern_usage": "tune",
+            "morpheme_id": "old-english:tune",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["tune"],
             "old_english_citations": ["a", "b", "c"],
             # wyrd-vm8t Loop 4: G2P surface pronunciation.

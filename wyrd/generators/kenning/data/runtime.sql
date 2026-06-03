@@ -31,6 +31,23 @@ CREATE TABLE meaning (
 CREATE INDEX idx_meaning_language ON meaning(primary_language);
 CREATE INDEX idx_meaning_stratum  ON meaning(stratum);
 
+-- wyrd-rogd.10: the morpheme entity. Same {meaning, modifier_*, word} entries
+-- as `meaning`, but regrouped by the family root id (morpheme_id) instead of
+-- the connective surface string, so ONE morpheme owns all its surface variants
+-- (-ing- / -ing / Ing- collapse to one record). Additive + dormant in Phase 1
+-- (the runtime still resolves via the dash-strip surface index); Phase 2
+-- follows this table by id and retires _resolve_surface. The id is a CONTENT
+-- key "{language}:{canonical_form}" (NOT the autoincrement root_id, which
+-- shifts across a rebuild) so the export stays byte-identical across
+-- rebuild-from-jsonl — the reconstructibility guarantee.
+CREATE TABLE morpheme (
+    morpheme_id      TEXT PRIMARY KEY,
+    primary_language TEXT,
+    stratum          TEXT,
+    data             BLOB NOT NULL            -- JSON {"entries":[...]} regrouped by morpheme_id
+);
+CREATE INDEX idx_morpheme_language ON morpheme(primary_language);
+
 CREATE TABLE fantasy_morpheme (
     -- COLLATE NOCASE matches the L3 ``fantasy_morpheme.input_name`` contract.
     -- The emitter lowercases the key, so write-side collisions are already

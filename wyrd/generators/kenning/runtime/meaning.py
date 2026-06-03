@@ -1017,6 +1017,7 @@ def load_meanings(data):
                 for k, v in word.items()
                 if k != "modern_usage"
                 and k != "era_reflexes"  # wyrd-obpw: top-level, not a source
+                and k != "morpheme_id"  # wyrd-rogd.10: the owning-morpheme id, not a language
                 and not k.endswith(_VARIANT_SUFFIX)
                 and not k.endswith(_INFLECTION_SUFFIX)
                 and not k.endswith(_CITATIONS_SUFFIX)

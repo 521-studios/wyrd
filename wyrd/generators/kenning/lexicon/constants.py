@@ -64,7 +64,7 @@ LANGUAGE_FIELDS: dict[str, str] = {
 # used by tests as an exhaustiveness check against the LANGUAGE_FIELDS
 # enumeration; the bundle loader treats anything not in either set as
 # a new language slot and routes it accordingly.
-NON_LANGUAGE_FIELDS: set[str] = {"modern_usage", "source_known"}
+NON_LANGUAGE_FIELDS: set[str] = {"modern_usage", "source_known", "morpheme_id"}
 
 
 # ---------------------------------------------------------------------------

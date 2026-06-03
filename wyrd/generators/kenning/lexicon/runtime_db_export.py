@@ -220,6 +220,7 @@ def write_runtime_db(
             conn.execute("PRAGMA cache_size = 10000")
             _init_runtime_schema(conn)
             n_meanings = _write_meanings(conn, subjects)
+            n_morphemes = _write_morphemes(conn, subjects)  # wyrd-rogd.10 (dormant)
             n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
             n_canonical = _write_canonical_decompositions(conn, canonical_decompositions)
             n_priors = _write_empirical_priors(conn, empirical_priors_payload)
@@ -249,6 +250,7 @@ def write_runtime_db(
 
     return {
         "meanings": n_meanings,
+        "morphemes": n_morphemes,
         "fantasy_morphemes": n_fantasy,
         "canonical_decompositions": n_canonical,
         "empirical_priors_native_cells": n_priors.get("native_cells", 0),
@@ -406,6 +408,46 @@ def _write_meanings(conn: sqlite3.Connection, subjects: list[dict[str, Any]]) ->
 
     conn.executemany(
         "INSERT INTO meaning (usage_key, primary_language, stratum, data) VALUES (?, ?, ?, ?)",
+        rows,
+    )
+    return len(rows)
+
+
+def _write_morphemes(conn: sqlite3.Connection, subjects: list[dict[str, Any]]) -> int:
+    """wyrd-rogd.10: emit the morpheme entity — the SAME per-word
+    ``{meaning, modifier_*, word}`` entries as :func:`_write_meanings`, but
+    regrouped by the family ``morpheme_id`` (root etymon id) instead of the
+    connective ``modern_usage`` string. One morpheme thus owns all its surface
+    variants (``-ing-``/``-ing``/``Ing-`` → one record), which is what lets the
+    Phase-2 runtime follow a stable id instead of dash-stripping a surface.
+
+    Words without a ``morpheme_id`` (un-attributable) are skipped — they stay in
+    the usage-keyed ``meaning`` table. Dormant in Phase 1 (no runtime reader).
+    """
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for subject in subjects:
+        subject_meta = {
+            "meaning": subject.get("meaning") or [],
+            "modifier_tags": subject.get("modifier_tags") or [],
+            "modifier_type": subject.get("modifier_type"),
+        }
+        for word in subject.get("words") or []:
+            morpheme_id = word.get("morpheme_id")
+            if morpheme_id is None:
+                continue
+            entry = dict(subject_meta)
+            entry["word"] = word
+            grouped.setdefault(morpheme_id, []).append(entry)
+
+    rows = []
+    for morpheme_id, entries in grouped.items():
+        primary_language = _pick_primary_language(entries)
+        stratum = _pick_unanimous_stratum(entries)
+        payload = json.dumps({"entries": entries}, ensure_ascii=False)
+        rows.append((morpheme_id, primary_language, stratum, payload.encode("utf-8")))
+
+    conn.executemany(
+        "INSERT INTO morpheme (morpheme_id, primary_language, stratum, data) VALUES (?, ?, ?, ?)",
         rows,
     )
     return len(rows)
