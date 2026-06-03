@@ -98,7 +98,10 @@ export function eraBadge(morphemes, labelFn) {
   const hasDefault = eras.some((e) => !e);
   if (explicit.length === 1 && !hasDefault) return labelFn(explicit[0]);
   const labels = [...new Set([...explicit.map(labelFn), ...(hasDefault ? ['Modern'] : [])])];
-  return `Mixed (${labels.join(', ')})`;
+  // dedup can collapse the labels to one — e.g. an explicit `modern-english`
+  // pin maps to the same 'Modern' label the default fold-in adds. That's not a
+  // blend, just that single era, so don't dress it up as 'Mixed (Modern)'.
+  return labels.length === 1 ? labels[0] : `Mixed (${labels.join(', ')})`;
 }
 
 /**
