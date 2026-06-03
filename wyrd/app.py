@@ -71,7 +71,8 @@ def create_app() -> Flask:
                         "legend": g.legend,
                         "input_schema": g.input_schema(),
                         # wyrd-rogd.12: optional per-family era-stage axis for
-                        # generators that expose one (kenning); absent → omitted.
+                        # generators that expose one (kenning); the key is always
+                        # present, null for generators that don't define it.
                         "era_stages": getattr(g, "era_stages", None),
                     }
                     for g in registry.all_generators()

@@ -17,7 +17,7 @@
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
   import { graftPosition } from '../lib/accents.js';
-  import { cellForSurface, primaryGloss, isGlossDrift } from '../lib/era.js';
+  import { cellForSurface, primaryGloss, isGlossDrift, eraAxis } from '../lib/era.js';
 
   let { morpheme } = $props();
 
@@ -41,17 +41,6 @@
   // spatial mapping across morphemes — a morpheme with only Old English data
   // still shows OE in the OE column, not a lone unlabelled column.
   const eraStages = $derived(appState.selectedGenerator?.era_stages || {});
-
-  // Lay a section's populated stages onto its family's full fixed axis. Falls
-  // back to the populated stages as-is for a family the manifest doesn't know.
-  function axisFor(section) {
-    const order = eraStages[section?.family];
-    const byLang = new Map((section?.stages || []).map((s) => [s?.language, s]));
-    if (!order?.length) {
-      return (section?.stages || []).map((s) => ({ language: s?.language, stage: s }));
-    }
-    return order.map((language) => ({ language, stage: byLang.get(language) || null }));
-  }
 
   // The slot's ORIGINAL generated surface (col-2 result) — the source of the
   // placement dashes + the revert target for the pipeline swap.
@@ -101,13 +90,13 @@
 
 <div class="era-grid">
   {#each morpheme?.era_grid || [] as section (section?.family)}
-    {@const axis = axisFor(section)}
+    {@const axis = eraAxis(section, eraStages)}
     <section class="family">
       <h6 class="family-label">{familyLabel(section?.family)}</h6>
       <!-- era-columns: one aligned grid column per stage (oldest→newest),
            the stage label as the column header, form cells stacked beneath. -->
       <div class="stages" style="--era-cols: {Math.max(1, axis.length)}">
-        {#each axis as { language, stage } (language)}
+        {#each axis as { language, stage }, i (language ?? i)}
           <div class="stage" class:empty={!stage}>
             <div class="stage-label">{languageLabel(language)}</div>
             <!-- wyrd-rogd.12: a stage with no data holds its column with a

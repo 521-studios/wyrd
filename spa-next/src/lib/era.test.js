@@ -11,6 +11,7 @@ import {
   primaryGloss,
   glossForSurface,
   isGlossDrift,
+  eraAxis,
 } from './era.js';
 
 // A stand-in label fn matching the production languageLabel for the tags under
@@ -281,5 +282,59 @@ describe('isGlossDrift', () => {
     expect(isGlossDrift('something', '')).toBe(false);
     expect(isGlossDrift(undefined, 'x')).toBe(false);
     expect(isGlossDrift(null, null)).toBe(false);
+  });
+});
+
+// wyrd-rogd.12: eraAxis lays populated stages onto the family's fixed axis.
+describe('eraAxis', () => {
+  const ERA_STAGES = {
+    english: ['old-english', 'middle-english', 'modern-english'],
+    norse: ['old-norse'],
+  };
+
+  it('places populated stages on the full axis, null for empty slots', () => {
+    const section = {
+      family: 'english',
+      stages: [{ language: 'old-english', forms: [{ form: 'tūn' }] }],
+    };
+    const axis = eraAxis(section, ERA_STAGES);
+    expect(axis.map((c) => c.language)).toEqual([
+      'old-english',
+      'middle-english',
+      'modern-english',
+    ]);
+    expect(axis[0].stage).toBe(section.stages[0]); // populated
+    expect(axis[1].stage).toBeNull(); // empty slot
+    expect(axis[2].stage).toBeNull();
+  });
+
+  it('falls back to populated stages when the family is unknown', () => {
+    const section = { family: 'klingon', stages: [{ language: 'tlhingan', forms: [] }] };
+    const axis = eraAxis(section, ERA_STAGES);
+    expect(axis).toEqual([{ language: 'tlhingan', stage: section.stages[0] }]);
+  });
+
+  it('appends a present-but-unmapped stage after the canonical order', () => {
+    const section = {
+      family: 'english',
+      stages: [{ language: 'late-modern-english', forms: [] }], // not in the axis
+    };
+    const axis = eraAxis(section, ERA_STAGES);
+    expect(axis.map((c) => c.language)).toEqual([
+      'old-english',
+      'middle-english',
+      'modern-english',
+      'late-modern-english', // appended, not dropped
+    ]);
+    expect(axis[3].stage).toBe(section.stages[0]);
+  });
+
+  it('is null-safe for an empty/missing section', () => {
+    expect(eraAxis(undefined, ERA_STAGES)).toEqual([]);
+    expect(eraAxis({ family: 'english', stages: [] }, ERA_STAGES)).toEqual([
+      { language: 'old-english', stage: null },
+      { language: 'middle-english', stage: null },
+      { language: 'modern-english', stage: null },
+    ]);
   });
 });

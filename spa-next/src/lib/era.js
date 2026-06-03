@@ -160,3 +160,30 @@ export function isGlossDrift(base, variant) {
   const fold = (g) => String(g || '').trim().toLowerCase();
   return !!base && !!variant && fold(base) !== fold(variant);
 }
+
+/** wyrd-rogd.12: lay a section's populated stages onto its family's FULL fixed
+ *  era axis (`eraStages[family]`, oldest→newest from the manifest), so periods
+ *  hold the same column positions across morphemes. Returns a list of
+ *  `{language, stage}` where a null `stage` is an empty slot (the grid renders
+ *  a muted '—'). Falls back to the populated stages as-is for a family the
+ *  manifest doesn't know. Any present-but-unmapped stage (defensive — the data
+ *  contract says there are none) is appended after the canonical order so it's
+ *  never silently dropped.
+ *  @param {{family?: string, stages?: Array}} section
+ *  @param {Record<string, string[]>} eraStages  manifest era_stages map
+ *  @returns {Array<{language: string, stage: object|null}>}
+ */
+export function eraAxis(section, eraStages) {
+  const stages = (section?.stages || []).filter(Boolean);
+  const order = eraStages?.[section?.family];
+  const byLang = new Map(stages.map((s) => [s?.language, s]));
+  if (!order?.length) {
+    return stages.map((s) => ({ language: s?.language, stage: s }));
+  }
+  const axis = order.map((language) => ({ language, stage: byLang.get(language) || null }));
+  const known = new Set(order);
+  for (const s of stages) {
+    if (!known.has(s?.language)) axis.push({ language: s?.language, stage: s });
+  }
+  return axis;
+}
