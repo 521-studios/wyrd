@@ -895,6 +895,13 @@ def apply_collapses(
         "unresolved_into": 0,
         "self_collapse_skipped": 0,
         "empty_into_skipped": 0,
+        # wyrd-rogd.15: reflex-LINK rows (inherits) — add an inheritance descent
+        # edge instead of folding, so cross-era reflexes stay distinct era forms
+        # of one morpheme (the rollup follows the edge).
+        "links_processed": 0,
+        "link_rejections": 0,
+        "unresolved_inherits": 0,
+        "self_link_skipped": 0,
         "applied": apply,
         "method_version": COLLAPSE_METHOD_VERSION,
     }
@@ -917,6 +924,47 @@ def apply_collapses(
         )
 
     for from_ref, payload in collapse_state.items():
+        # wyrd-rogd.15: a reflex-LINK row (``inherits``) asserts that ``ref`` is
+        # a later-era reflex of the ``inherits`` ancestor — the same morpheme
+        # across eras. Apply by adding an inheritance descent edge (parent =
+        # ancestor, child = ref); both etymons stay DISTINCT (vs the ``into``
+        # fold, which tombstones). Idempotent via OR IGNORE. A row that CARRIES
+        # the ``inherits`` key is a link row regardless of value: ``inherits: ""``
+        # (a recorded LLM rejection, or a revert) is a no-op handled HERE — it
+        # must NOT fall through to the ``into`` fold path. Mutually exclusive
+        # with ``into`` (reflex_verdict_to_row never writes both).
+        if "inherits" in payload:
+            inherits_ref = payload.get("inherits")
+            if not inherits_ref:
+                counts["link_rejections"] += 1
+                continue
+            child_row = _resolve(from_ref)
+            if child_row is None:
+                counts["unresolved_from"] += 1
+                continue
+            parent_row = _resolve(inherits_ref)
+            if parent_row is None:
+                counts["unresolved_inherits"] += 1
+                continue
+            if child_row["id"] == parent_row["id"]:
+                counts["self_link_skipped"] += 1
+                continue
+            counts["links_processed"] += 1
+            if apply:
+                db.conn.execute(
+                    "INSERT OR IGNORE INTO etymon_descent "
+                    "(parent_id, child_id, edge_type, source_id, confidence, notes) "
+                    "VALUES (?, ?, 'inheritance', ?, ?, ?)",
+                    (
+                        parent_row["id"],
+                        child_row["id"],
+                        COLLAPSE_VARIANT_SOURCE_ID,
+                        payload.get("confidence"),
+                        payload.get("notes") or payload.get("reason") or "wyrd-rogd.15 reflex-link",
+                    ),
+                )
+            continue
+
         into_ref = payload.get("into")
         if not into_ref:
             counts["empty_into_skipped"] += 1
