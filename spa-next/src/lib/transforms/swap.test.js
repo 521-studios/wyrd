@@ -64,6 +64,27 @@ describe('swapTransform.apply', () => {
     });
     expect(out.morphemes_by_word[0][0]._lang).toBeUndefined();
   });
+
+  it('records the chosen cell id on _cellId (wyrd-rogd.7)', async () => {
+    const out = await swapTransform.apply(eraState(), {
+      wordIndex: 0,
+      morphemeIndex: 1,
+      to: '-toun',
+      language: 'middle-english',
+      cellId: 'middle-english:0',
+    });
+    expect(out.morphemes_by_word[0][1]._cellId).toBe('middle-english:0');
+  });
+
+  it('a swap without a cellId clears a prior _cellId (wyrd-rogd.7)', async () => {
+    const state = { morphemes_by_word: [[{ usage: '-tun', _cellId: 'old-english:0' }]] };
+    const out = await swapTransform.apply(state, {
+      wordIndex: 0,
+      morphemeIndex: 0,
+      to: '-toun',
+    });
+    expect(out.morphemes_by_word[0][0]._cellId).toBeUndefined();
+  });
 });
 
 describe('renderName', () => {
