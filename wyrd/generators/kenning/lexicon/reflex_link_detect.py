@@ -24,12 +24,17 @@ from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 LLM_REFLEX_LINK_METHOD = "llm-reflex-link-v1"
 LLM_REFLEX_REJECT_METHOD = "llm-reflex-rejected-v1"
 
-# language → era rank: first-seen ordinal in the cell map, which is ordered
-# older→newer within each family. Orients a candidate pair (earlier = parent /
-# ancestor, later = child / reflex). Unknown languages sort last.
+# language → (family, era rank), from the cell map: cells are listed
+# older→newer within each family, so the first-seen ordinal gives a per-family
+# era order, and the family scopes a pair to ONE lineage. We only pair languages
+# that are KNOWN era stages here — that keeps orientation reliable (parent =
+# earlier) and excludes cross-family / proto- / non-stage labels (e.g. "celtic",
+# "scottish-gaelic"), whose pairs are cognates or borrowings, not reflexes.
 _LANGUAGE_ERA_RANK: dict[str, int] = {}
-for _i, _lang in enumerate(CANONICAL_LANGUAGE_FOR_CELL.values()):
+_LANGUAGE_FAMILY: dict[str, str] = {}
+for _i, ((_fam, _cell), _lang) in enumerate(CANONICAL_LANGUAGE_FOR_CELL.items()):
     _LANGUAGE_ERA_RANK.setdefault(_lang, _i)
+    _LANGUAGE_FAMILY.setdefault(_lang, _fam)
 
 
 @dataclass(frozen=True)
@@ -97,6 +102,15 @@ def detect_reflex_link_candidates(
                 ea, eb = by_id[a], by_id[b]
                 if ea["lang"] == eb["lang"]:
                     continue  # same-language variant = FOLD (existing detector), not a link
+                ra = _LANGUAGE_ERA_RANK.get(ea["lang"])
+                rb = _LANGUAGE_ERA_RANK.get(eb["lang"])
+                # Only KNOWN era stages in the SAME family, ranked apart — so
+                # orientation is reliable (parent = earlier) and we never pair a
+                # cross-family / proto cognate.
+                if ra is None or rb is None or ra == rb:
+                    continue
+                if _LANGUAGE_FAMILY[ea["lang"]] != _LANGUAGE_FAMILY[eb["lang"]]:
+                    continue
                 fa, fb = _bare(ea["form"]), _bare(eb["form"])
                 if not fa or not fb:
                     continue
@@ -104,9 +118,7 @@ def detect_reflex_link_candidates(
                 if sim < min_similarity or (a, b) in seen or has_edge(a, b):
                     continue
                 seen.add((a, b))
-                ra = _LANGUAGE_ERA_RANK.get(ea["lang"], 10**6)
-                rb = _LANGUAGE_ERA_RANK.get(eb["lang"], 10**6)
-                parent, child = (a, b) if ra <= rb else (b, a)
+                parent, child = (a, b) if ra < rb else (b, a)  # earlier era = parent
                 out.append(
                     ReflexLinkCandidate(
                         child_ref=f"{by_id[child]['lang']}:{by_id[child]['form']}",
