@@ -21,7 +21,14 @@
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { languageLabel } from '../lib/languageLabels.js';
-  import { deAccent, hasEraGrid, pronForSurface, eraBadge } from '../lib/era.js';
+  import {
+    deAccent,
+    hasEraGrid,
+    pronForSurface,
+    eraBadge,
+    primaryGloss,
+    glossForSurface,
+  } from '../lib/era.js';
   import NameGuideCard from '../components/NameGuideCard.svelte';
   import MorphemeGrid from '../components/MorphemeGrid.svelte';
   import DefectModal from '../components/DefectModal.svelte';
@@ -75,34 +82,43 @@
     return out;
   });
 
-  // A morpheme's primary gloss — first sense of the first group, else first
-  // flat meaning.
-  const primaryDef = (m) => m?.meaning_groups?.[0]?.[0] || m?.meanings?.[0] || '';
+  const foldGloss = (g) => (g || '').trim().toLowerCase();
 
   // Build the surface / reader / ipa / gloss rows for a morpheme list. Surfaces
   // keep their placement dashes (tre- / -bȳ / hall) — never stripped. The
   // pronunciation slot comes from pronForSurface (era_grid cell → rendered_pron
   // → legacy fallback, skipping pronless cells).
-  function rowsFor(words, surfaceOf) {
+  //
+  // wyrd-rogd.1: when `driftAware`, the gloss TRACKS the live variant — a
+  // swapped era cell carries its OWN meaning (a cognate that may have drifted),
+  // so the active card shows the variant's gloss and flags `drift` when it
+  // differs from the morpheme's base meaning. The paragon stays base (not
+  // drift-aware).
+  function rowsFor(words, surfaceOf, driftAware = false) {
     return (words || []).flatMap((word) =>
       (word || [])
         .filter((m) => m?.usage?.trim())
         .map((m) => {
           const surface = surfaceOf(m);
           const slot = pronForSurface(m, surface);
+          const base = primaryGloss(m);
+          const variant = driftAware ? glossForSurface(m, surface) : '';
+          const gloss = variant || base;
           return {
             surface,
             reader: slot.reader_pronunciation,
             ipa: slot.ipa,
-            gloss: primaryDef(m),
+            gloss,
+            drift: !!variant && foldGloss(variant) !== foldGloss(base),
           };
         }),
     );
   }
 
-  // Active card: the name as generated + each morpheme's live (era) surface.
+  // Active card: the name as generated + each morpheme's live (era) surface,
+  // gloss tracking the swapped variant (drift-aware).
   let activeRows = $derived.by(() =>
-    rowsFor(displayState?.morphemes_by_word, (m) => m.rendered || m.usage),
+    rowsFor(displayState?.morphemes_by_word, (m) => m.rendered || m.usage, true),
   );
   // wyrd-yrf9: the active card's era badge, resolved over the WORKING state
   // (displayState) so it tracks per-morpheme grid swaps — "Old English" when

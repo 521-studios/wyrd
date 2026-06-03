@@ -121,3 +121,17 @@ export function pronForSurface(morpheme, surface) {
   if (hasPron(morpheme?.rendered_pron)) return morpheme.rendered_pron;
   return pronunciationFor(morpheme) || {};
 }
+
+/** wyrd-rogd.1: a morpheme's OWN primary gloss — the first sense of the first
+ *  (deduped) group, else the first flat meaning. The drift baseline. */
+export function primaryGloss(morpheme) {
+  return morpheme?.meaning_groups?.[0]?.[0] || morpheme?.meanings?.[0] || '';
+}
+
+/** wyrd-rogd.1: the gloss of the era_grid cell matching ``surface`` — the
+ *  reflex's OWN meaning (which may have drifted from the morpheme's), or ''
+ *  when the cell carries no gloss (sparse) / no cell matches. Drives the
+ *  active-card gloss tracking the swapped variant. */
+export function glossForSurface(morpheme, surface) {
+  return cellForSurface(morpheme, surface)?.cell?.gloss || '';
+}
