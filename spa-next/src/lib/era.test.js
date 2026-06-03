@@ -2,7 +2,15 @@
 // pure functions on the era_grid payload (wyrd-lftl); svelte-check only
 // type-checks, so the fold-match + de-accent behavior is pinned here.
 import { describe, it, expect } from 'vitest';
-import { deAccent, cellForSurface, hasEraGrid, pronForSurface } from './era.js';
+import { deAccent, cellForSurface, hasEraGrid, pronForSurface, eraBadge } from './era.js';
+
+// A stand-in label fn matching the production languageLabel for the tags under
+// test: 'modern-english' → 'Modern' (so it aliases the default fold-in, as it
+// does live), everything else title-cased ('old-english' → 'Old English').
+const label = (t) =>
+  t === 'modern-english'
+    ? 'Modern'
+    : t.replace(/(^|-)([a-z])/g, (_, sep, c) => (sep ? ' ' : '') + c.toUpperCase());
 
 // A morpheme shaped like the backend ships (era_grid: families → stages →
 // forms). Keyed by hyphenated canonical language tags.
@@ -117,5 +125,64 @@ describe('hasEraGrid', () => {
     expect(hasEraGrid({ usage: 'x', era_grid: [] })).toBe(false);
     expect(hasEraGrid({ usage: 'x', era_grid: [{ family: 'english', stages: [] }] })).toBe(false);
     expect(hasEraGrid(null)).toBe(false);
+  });
+});
+
+describe('eraBadge', () => {
+  const word = (...ms) => [ms]; // one word of morphemes
+
+  it('is "as generated" when no morpheme carries an explicit era', () => {
+    expect(eraBadge(word({ usage: 'Stan-' }, { usage: '-ton' }), label)).toBe('as generated');
+    expect(eraBadge([], label)).toBe('as generated');
+    expect(eraBadge(null, label)).toBe('as generated');
+  });
+
+  it('shows the single era when every morpheme shares one', () => {
+    // an era render: all morphemes rendered_language old-english
+    expect(
+      eraBadge(word({ usage: 'Stan-', rendered_language: 'old-english' }, { usage: '-tun', rendered_language: 'old-english' }), label),
+    ).toBe('Old English');
+    // a swap pins via _lang
+    expect(eraBadge(word({ usage: '-tun', _lang: 'middle-english' }), label)).toBe('Middle English');
+  });
+
+  it('is Mixed when eras differ, and folds in Modern for still-default morphemes', () => {
+    // one morpheme swapped to OE, the other still default (modern)
+    expect(eraBadge(word({ usage: 'Stan-', _lang: 'old-english' }, { usage: '-ton' }), label)).toBe(
+      'Mixed (Old English, Modern)',
+    );
+    // two distinct explicit eras, none default
+    expect(
+      eraBadge(word({ usage: 'a', _lang: 'old-english' }, { usage: 'b', _lang: 'middle-english' }), label),
+    ).toBe('Mixed (Old English, Middle English)');
+  });
+
+  it('ignores blank morphemes when resolving the badge', () => {
+    expect(eraBadge(word({ usage: '  ' }, { usage: '-tun', _lang: 'old-english' }), label)).toBe(
+      'Old English',
+    );
+  });
+
+  it('collapses to the single era when the labels dedup to one', () => {
+    // a modern-english pin maps to 'Modern' — same as the default fold-in, so
+    // it is NOT 'Mixed (Modern)', just 'Modern'.
+    expect(eraBadge(word({ usage: 'a', _lang: 'modern-english' }, { usage: 'b' }), label)).toBe(
+      'Modern',
+    );
+  });
+
+  it('lets _lang (a grid swap) win over rendered_language (an earlier render)', () => {
+    expect(
+      eraBadge(word({ usage: 'x', _lang: 'middle-english', rendered_language: 'old-english' }), label),
+    ).toBe('Middle English');
+  });
+
+  it('resolves across multiple words (flattens morphemes_by_word)', () => {
+    expect(
+      eraBadge([[{ usage: 'Stan-', _lang: 'old-english' }], [{ usage: 'ton' }]], label),
+    ).toBe('Mixed (Old English, Modern)');
+    expect(
+      eraBadge([[{ usage: 'a', _lang: 'old-english' }], [{ usage: 'b', _lang: 'old-english' }]], label),
+    ).toBe('Old English');
   });
 });

@@ -79,6 +79,32 @@ export function hasEraGrid(morpheme) {
 }
 
 /**
+ * wyrd-yrf9: the active card's era badge for a WORKING morpheme list (per-word
+ * arrays). A morpheme's era is the stage it's pinned to (`_lang`, set on a grid
+ * swap), else the era a render targeted (`rendered_language`), else none — a
+ * still-default/modern surface. Returns:
+ *   • 'as generated'      — no morpheme carries an explicit era
+ *   • '<Era>'             — every morpheme shares one era (e.g. 'Old English')
+ *   • 'Mixed (A, B, …)'   — a blend of eras, plus 'Modern' when some morphemes
+ *                           are still at their default (un-swapped) surface
+ * ``labelFn`` maps a stage/language tag to its display label — injected so this
+ * stays a pure helper with no dependency on languageLabels.
+ */
+export function eraBadge(morphemes, labelFn) {
+  const morphs = (morphemes || []).flat().filter((m) => m?.usage?.trim());
+  const eras = morphs.map((m) => m?._lang || m?.rendered_language || null);
+  const explicit = [...new Set(eras.filter(Boolean))];
+  if (explicit.length === 0) return 'as generated';
+  const hasDefault = eras.some((e) => !e);
+  if (explicit.length === 1 && !hasDefault) return labelFn(explicit[0]);
+  const labels = [...new Set([...explicit.map(labelFn), ...(hasDefault ? ['Modern'] : [])])];
+  // dedup can collapse the labels to one — e.g. an explicit `modern-english`
+  // pin maps to the same 'Modern' label the default fold-in adds. That's not a
+  // blend, just that single era, so don't dress it up as 'Mixed (Modern)'.
+  return labels.length === 1 ? labels[0] : `Mixed (${labels.join(', ')})`;
+}
+
+/**
  * The pronunciation slot ({reader_pronunciation?, ipa?}) to show for a
  * morpheme's CURRENT surface, in priority order:
  *   1. the matching era_grid cell (the right axis) — but ONLY if it carries
