@@ -390,3 +390,40 @@ def test_resolve_era_input_default_family_picks_correct_range_for_shared_label()
     defined in default_family so resolution is unambiguous."""
     assert era.resolve_era_input("modern", default_family="brythonic") == (1500, None)
     assert era.resolve_era_input("modern", default_family="english") == (1700, None)
+
+
+# --- wyrd-rogd.2: compressed STAGE labels in the era resolvers --------------
+def test_cells_for_stage_collapses_canonical_language() -> None:
+    assert era.cells_for_stage("english", "old-english") == ("oe-early", "oe-late")
+    assert era.cells_for_stage("english", "middle-english") == ("me",)
+    assert era.cells_for_stage("english", "modern-english") == ("early-modern", "modern")
+    assert era.cells_for_stage("english", "not-a-stage") == ()
+
+
+def test_stage_year_range_unions_constituent_cells() -> None:
+    # old-english = oe-early (open-low) + oe-late (..1100) → (None, 1100)
+    assert era.stage_year_range("english", "old-english") == (None, 1100)
+    assert era.stage_year_range("english", "middle-english") == (1100, 1500)
+    # modern-english = early-modern (1500..1700) + modern (1700..open) → (1500, None)
+    assert era.stage_year_range("english", "modern-english") == (1500, None)
+    assert era.stage_year_range("english", "not-a-stage") is None
+
+
+def test_resolve_era_input_accepts_a_stage_label() -> None:
+    assert era.resolve_era_input("old-english", default_family="english") == (None, 1100)
+    assert era.resolve_era_input("modern-english", default_family="english") == (1500, None)
+    # raw cells + years still resolve (backward compatible)
+    assert era.resolve_era_input("oe-late", default_family="english") == (800, 1100)
+    assert era.resolve_era_input(1086, default_family="english") == (800, 1100)
+
+
+def test_era_cell_for_input_maps_stage_to_representative_cell() -> None:
+    # a stage resolves to its first cell, whose canonical language IS the stage
+    family, cell = era.era_cell_for_input("old-english", default_family="english")
+    assert (family, cell) == ("english", "oe-early")
+    assert era.canonical_language_for_cell(family, cell) == "old-english"
+
+
+def test_unknown_era_label_still_raises() -> None:
+    with pytest.raises(ValueError):
+        era.resolve_era_input("victorian", default_family="english")

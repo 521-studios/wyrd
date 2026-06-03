@@ -1381,20 +1381,23 @@ def test_kenning_input_schema_era_carries_dependent_select_options():
         assert len(labels) > 1, f"{culture}: must have at least one cell label"
 
 
-def test_kenning_input_schema_era_options_match_era_family_per_culture():
-    """The per-culture option set must equal the culture's era family
-    cells (plus the empty 'no filter' option). Drives the source-of-truth
-    invariant: adding a new cell to era.ERA_CELLS automatically surfaces
-    in the SPA dropdown without touching the input_schema."""
+def test_kenning_input_schema_era_options_match_family_stage_order_per_culture():
+    """wyrd-rogd.2: the per-culture option set must equal the culture's family
+    STAGE order (compressed canonical languages) plus the empty 'no filter'
+    option — NOT the raw cells. Drives the source-of-truth invariant: the
+    Configure dropdown offers the same axis as the col-3 grid, and a stage
+    resolves to the union range of its cells in the generate path."""
     from wyrd.generators.kenning import _CULTURE_TO_ERA_FAMILY, Kenning
-    from wyrd.generators.kenning.era.cells import era_cells_for_family
+    from wyrd.generators.kenning.era.cells import family_stage_order
 
     schema = Kenning().input_schema()
-    options = schema["properties"]["era"]["x-options-by-culture"]
+    era_prop = schema["properties"]["era"]
+    options = era_prop["x-options-by-culture"]
+    assert era_prop.get("x-option-language") is True  # SPA labels via languageLabel
     for culture, family in _CULTURE_TO_ERA_FAMILY.items():
-        expected = ("", *era_cells_for_family(family))
+        expected = ("", *family_stage_order(family))
         assert tuple(options[culture]) == expected, (
-            f"{culture} options must equal era_cells_for_family({family!r}) plus empty"
+            f"{culture} options must equal family_stage_order({family!r}) plus empty"
         )
 
 

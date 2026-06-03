@@ -266,6 +266,12 @@ def era_cell_for_input(
         return (family, label)
     if era in era_cells_for_family(default_family):
         return (default_family, era)
+    # wyrd-rogd.2: a compressed STAGE label maps to a representative cell (its
+    # first) so canonical_language_for_cell resolves to the stage's language —
+    # all the stage's cells share it, so any one renders the era correctly.
+    stage_cells = cells_for_stage(default_family, era)
+    if stage_cells:
+        return (default_family, stage_cells[0])
     defined_in = [f for f in sorted(ERA_CELLS) if era in era_cells_for_family(f)]
     if defined_in:
         choices = ", ".join(f"{f}/{era}" for f in defined_in)
@@ -403,6 +409,39 @@ def family_stage_order(family: str) -> list[str]:
     return stages
 
 
+def cells_for_stage(family: str, stage: str) -> tuple[str, ...]:
+    """wyrd-rogd.2: the era cells a compressed STAGE label collapses — every
+    cell in ``family`` whose canonical language is ``stage`` (a
+    ``family_stage_order`` tag like ``old-english``), in cell order. Empty when
+    ``stage`` isn't a stage of ``family``. The inverse of the
+    ``CANONICAL_LANGUAGE_FOR_CELL`` collapse that ``family_stage_order`` exposes,
+    so the Configure-column era control can offer stages instead of raw cells."""
+    cells = ERA_CELLS.get(family)
+    if cells is None:
+        return ()
+    return tuple(
+        label
+        for label, _start, _end in cells
+        if CANONICAL_LANGUAGE_FOR_CELL.get((family, label)) == stage
+    )
+
+
+def stage_year_range(family: str, stage: str) -> tuple[int | None, int | None] | None:
+    """wyrd-rogd.2: the UNION half-open year range of a compressed STAGE label's
+    constituent cells (``old-english`` = oe-early + oe-late → ``(None, 1100)``;
+    ``modern-english`` = early-modern + modern → ``(1500, None)``). None when
+    ``stage`` isn't a stage of ``family``. An open bound on ANY constituent cell
+    (``start``/``end`` is None) makes that side of the union open — the stage
+    inherits its oldest cell's start and its newest cell's end."""
+    cells = cells_for_stage(family, stage)
+    if not cells:
+        return None
+    ranges = [era_year_range(family, c) for c in cells]
+    start = None if any(r[0] is None for r in ranges) else min(r[0] for r in ranges)
+    end = None if any(r[1] is None for r in ranges) else max(r[1] for r in ranges)
+    return (start, end)
+
+
 def resolve_era_input(
     era: str | int | None,
     *,
@@ -465,6 +504,12 @@ def resolve_era_input(
     try:
         return era_year_range(default_family, era)
     except KeyError:
+        # wyrd-rogd.2: a compressed STAGE label (e.g. 'old-english') isn't a
+        # cell but collapses several — resolve to the UNION of their ranges so
+        # the Configure dropdown can offer stages, not raw cells.
+        stage_range = stage_year_range(default_family, era)
+        if stage_range is not None:
+            return stage_range
         defined_in = [f for f in sorted(ERA_CELLS) if era in era_cells_for_family(f)]
         if defined_in:
             choices = ", ".join(f"{f}/{era}" for f in defined_in)

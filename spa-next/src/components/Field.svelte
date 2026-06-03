@@ -14,6 +14,7 @@
   // per-generator).
   import { appState } from '../lib/appState.svelte.js';
   import { snapEnumValue } from '../lib/featureFlags.js';
+  import { languageLabel } from '../lib/languageLabels.js';
 
   let { fieldKey, prop } = $props();
 
@@ -133,9 +134,18 @@
   {/if}
 
   {#if isDependentSelect(prop)}
+    <!-- wyrd-rogd.2: when the options are language tags (x-option-language),
+         label them via languageLabel (old-english → "Old English") so the era
+         dropdown matches the col-3 grid's stage headers. -->
     <select id="field-{fieldKey}" bind:value={appState.currentParams[fieldKey]}>
       {#each dependentOptions as opt}
-        <option value={opt}>{opt === '' ? '(no filter)' : opt}</option>
+        <option value={opt}
+          >{opt === ''
+            ? '(no filter)'
+            : prop['x-option-language']
+              ? languageLabel(opt)
+              : opt}</option
+        >
       {/each}
     </select>
   {:else if prop.type === 'string' && Array.isArray(prop.enum)}
