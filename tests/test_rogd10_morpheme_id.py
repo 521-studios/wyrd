@@ -10,14 +10,15 @@ from __future__ import annotations
 
 import sqlite3
 
-from wyrd.generators.kenning.lexicon.bundle._subject import _word_morpheme_id
+from wyrd.generators.kenning.lexicon.bundle._subject import _word_for_reflex, _word_morpheme_id
 from wyrd.generators.kenning.lexicon.runtime_db_export import _write_morphemes
 from wyrd.generators.kenning.runtime.meaning import load_meanings
 
 
 def test_morpheme_id_excluded_from_sources():
-    # The int morpheme_id must NOT be treated as a language form-array (it
-    # crashed primary_language()'s form loop before the guard).
+    # morpheme_id is a non-language field and must NOT be read as a language
+    # form-array. (An int morpheme_id crashed primary_language()'s form loop;
+    # the string content key must likewise be excluded.)
     data = {
         "subjects": [
             {
@@ -102,3 +103,30 @@ def test_word_morpheme_id_is_deterministic_content_key():
     assert _word_morpheme_id(fams) == "old-english:ham"
     assert _word_morpheme_id(list(reversed(fams))) == "old-english:ham"
     assert _word_morpheme_id([]) is None
+
+
+def _bare_family(canonical_form: str, language: str) -> dict:
+    # Minimal family with no members, so _word_for_reflex absorbs no forms and
+    # we isolate the morpheme_id stamp. linked_ids=[] skips the descendant walk.
+    return {
+        "root_canonical_form": canonical_form,
+        "root_language": language,
+        "member_descendants": {},
+        "member_form_by_id": {},
+        "era_reflexes": {},
+    }
+
+
+def test_word_for_reflex_stamps_morpheme_id():
+    # The reflex word path (the one the synthesize path does NOT cover) stamps
+    # the owning morpheme id from its linked family root.
+    fam_burg = _bare_family("burg", "old-english")
+    word = _word_for_reflex({"surface_form": "-borough"}, [(fam_burg, [])])
+    assert word["modern_usage"] == "-borough"
+    assert word["morpheme_id"] == "old-english:burg"
+
+    # Multi-family reflex: the primary is the (canonical_form, language) min —
+    # "burg" < "ham" — regardless of link order.
+    fam_ham = _bare_family("ham", "old-english")
+    word2 = _word_for_reflex({"surface_form": "-ham"}, [(fam_ham, []), (fam_burg, [])])
+    assert word2["morpheme_id"] == "old-english:burg"

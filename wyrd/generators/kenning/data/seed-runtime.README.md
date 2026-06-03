@@ -1,9 +1,10 @@
 # `seed-runtime.db`
 
-A committed snapshot of the kenning L4 runtime DB at ~6MB, large enough for unit
-tests + local dev to exercise the generator surface against, small enough to ship
-in git. Built from the live L3 lexicon via `lexicon export-runtime-db --dev`
-(see D38 in `DECISIONS.md` for the L4 architecture).
+A committed snapshot of the kenning L4 runtime DB at ~9MB (wyrd-rogd.10 added the
+`morpheme` table), large enough for unit tests + local dev to exercise the
+generator surface against, small enough to ship in git. Built from the live L3
+lexicon via `lexicon export-runtime-db --dev` (see D38 in `DECISIONS.md` for the
+L4 architecture).
 
 ## What's in it
 
