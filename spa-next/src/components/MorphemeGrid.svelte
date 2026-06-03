@@ -102,6 +102,7 @@
               <!-- wyrd-rogd.1: the cell's own meaning has DRIFTED from the
                    morpheme's (the cognate no longer means the same thing). -->
               {@const drifted = isGlossDrift(baseGloss, cell.gloss)}
+              {@const current = isCurrent(cell)}
               {@const swapTitle = inferred
                 ? `Swap to ${cell.form} — inferred via phonology rule (not attested)`
                 : `Swap this morpheme to ${cell.form}`}
@@ -114,12 +115,12 @@
               <button
                 type="button"
                 class="cell"
-                class:current={isCurrent(cell)}
+                class:current={current}
                 class:inferred
                 class:drift={drifted}
-                aria-pressed={isCurrent(cell)}
+                aria-pressed={current}
                 onclick={() => swap(stage, cell)}
-                title={(isCurrent(cell) ? liveTitle : swapTitle) + glossNote}
+                title={(current ? liveTitle : swapTitle) + glossNote}
               >
                 <span class="cell-form"
                   >{withPlacement(cell.form)}{#if inferred}<span
