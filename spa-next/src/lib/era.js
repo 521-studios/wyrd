@@ -61,8 +61,9 @@ export function cellForSurface(morpheme, surface) {
       for (const cell of stage?.forms || []) {
         if (accentFold(cell?.form) === target) {
           const hit = { family: section.family, language: stage.language, cell };
-          if (pinned && stage.language === pinned) return hit; // exact pinned match
-          if (!fallback) fallback = hit;
+          if (!pinned) return hit; // unpinned: first match wins — stop scanning
+          if (stage.language === pinned) return hit; // pinned exact match
+          if (!fallback) fallback = hit; // remember first as the soft fallback
         }
       }
     }

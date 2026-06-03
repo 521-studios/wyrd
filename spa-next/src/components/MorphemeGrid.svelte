@@ -77,15 +77,15 @@
 </script>
 
 <div class="era-grid">
-  {#each morpheme?.era_grid || [] as section (section.family)}
+  {#each morpheme?.era_grid || [] as section (section?.family)}
     <section class="family">
-      <h6 class="family-label">{familyLabel(section.family)}</h6>
+      <h6 class="family-label">{familyLabel(section?.family)}</h6>
       <!-- era-columns: one aligned grid column per stage (oldest→newest),
            the stage label as the column header, form cells stacked beneath. -->
       <div class="stages" style="--era-cols: {Math.max(1, (section?.stages || []).length)}">
-        {#each section?.stages || [] as stage (stage.language)}
+        {#each section?.stages || [] as stage (stage?.language)}
           <div class="stage">
-            <div class="stage-label">{languageLabel(stage.language)}</div>
+            <div class="stage-label">{languageLabel(stage?.language)}</div>
             <!-- key on form+index: a stage CAN carry duplicate surface forms
                  (homographs / spelling variants), and a bare cell.form key
                  would throw Svelte's duplicate-key error. -->
