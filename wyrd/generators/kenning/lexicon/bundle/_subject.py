@@ -259,23 +259,27 @@ def _emit_era_reflexes(
     collisions resolved by source quality (higher-quality source wins).
 
     Bundle field: ``era_reflexes`` is ``{target_language: [{form,
-    source}, ...]}`` per word. Empty / absent for words whose linked
-    families have no era data (proto-languages, untracked classical
-    families, or roots whose cluster has no English-family targets).
+    source, gloss?}, ...]}`` per word (``gloss`` sparse, wyrd-rogd.1).
+    Empty / absent for words whose linked families have no era data
+    (proto-languages, untracked classical families, or roots whose
+    cluster has no English-family targets).
     """
-    merged: dict[str, dict[str, str]] = {}
+    merged: dict[str, dict[str, dict]] = {}
     for fam, _linked_ids in link_pairs:
         for target_language, entries in fam.get("era_reflexes", {}).items():
             bucket = merged.setdefault(target_language, {})
             for entry in entries:
                 form = entry["form"]
-                source = entry["source"]
                 existing = bucket.get(form)
-                if existing is None or _better_era_reflex_source(source, existing):
-                    bucket[form] = source
+                # Keep the whole entry (form + source + optional gloss);
+                # higher-quality source wins on a same-form collision.
+                if existing is None or _better_era_reflex_source(
+                    entry["source"], existing["source"]
+                ):
+                    bucket[form] = entry
     if merged:
         word["era_reflexes"] = {
-            target_language: [{"form": form, "source": forms[form]} for form in sorted(forms)]
+            target_language: [forms[form] for form in sorted(forms)]
             for target_language, forms in sorted(merged.items())
         }
 

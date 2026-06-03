@@ -47,6 +47,7 @@ from wyrd.generators.kenning.lexicon.bundle._family import (  # noqa: E402, F401
     _NON_SCHOLAR_SOURCES,  # used by wikipedia_backfill_report
     _fetch_cluster_mate_tags,  # tested directly by test_kenning_lexicon
     _fetch_member_variants,  # tested directly by test_kenning_wiktextract_forms
+    _fetch_reflex_glosses,  # tested directly by test_kenning_lexicon
     _fetch_root_era_reflexes,  # tested directly by test_kenning_lexicon
     _filter_concatenation_glosses,  # tested directly by test_kenning_lexicon
     _gather_family,  # tested directly by test_kenning_lexicon

@@ -43,16 +43,17 @@ def test_family_stage_order_unknown_family_is_empty_not_error():
 # --- _era_grid: bucketing, ordering, sources ------------------------------
 
 
-def _meaning_with_reflexes(reflexes):
-    """A bare Meaning carrying only era_reflexes (the field _era_grid reads).
-    era_reflexes is stored as-is in the runtime ``{lang: [(form, source)]}``
-    shape."""
+def _meaning_with_reflexes(reflexes, era_reflex_glosses=None):
+    """A bare Meaning carrying era_reflexes (+ optional per-form glosses) — the
+    fields _era_grid reads. era_reflexes is the runtime ``{lang: [(form,
+    source)]}`` shape; era_reflex_glosses is ``{lang: {form: gloss}}``."""
     return Meaning(
         "-tun",
         tags=[],
         meanings=["farm"],
         sources={"old_english": ["tun"]},
         era_reflexes=reflexes,
+        era_reflex_glosses=era_reflex_glosses,
     )
 
 
@@ -142,3 +143,28 @@ def test_components_emits_era_grid_in_lockstep_with_to_dict():
     morpheme = nn.components()[0]
     assert "era_grid" in morpheme
     assert morpheme["era_grid"][0]["family"] == "english"
+
+
+# --- wyrd-rogd.1: per-reflex gloss ----------------------------------------
+
+
+def test_era_grid_carries_per_reflex_gloss_when_present():
+    # The reflex's own meaning rides on its cell, for the SPA drift display.
+    m = _meaning_with_reflexes(
+        {"old-english": [("tūn", "cluster"), ("hirdels", "cluster")]},
+        era_reflex_glosses={"old-english": {"tūn": "farm, enclosure", "hirdels": "hurdle"}},
+    )
+    cells = _era_grid(m, renderings={})[0]["stages"][0]["forms"]
+    by_form = {c["form"]: c for c in cells}
+    assert by_form["tūn"]["gloss"] == "farm, enclosure"
+    assert by_form["hirdels"]["gloss"] == "hurdle"  # the drifted cognate
+
+
+def test_era_grid_omits_gloss_when_reflex_has_none():
+    # Sparse: a form with no gloss data carries no `gloss` key (no null noise).
+    m = _meaning_with_reflexes(
+        {"old-english": [("tūn", "cluster")]},
+        era_reflex_glosses={"old-english": {}},
+    )
+    cell = _era_grid(m, renderings={})[0]["stages"][0]["forms"][0]
+    assert "gloss" not in cell

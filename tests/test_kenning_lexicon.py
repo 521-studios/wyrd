@@ -52,6 +52,7 @@ from wyrd.generators.kenning.lexicon import (
     _emit_variant_list,
     _extract_attestation_pairs,
     _fetch_cluster_mate_tags,
+    _fetch_reflex_glosses,
     _fetch_root_era_reflexes,
     _filter_concatenation_glosses,
     _find_longest_suffix_match,
@@ -101,6 +102,7 @@ from wyrd.generators.kenning.parsers.skeat import ParsedElement, ParsedEntry
 from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 from wyrd.generators.kenning.runtime.meaning import (
     Meaning,
+    _normalize_era_reflex_glosses,
     _normalize_era_reflexes,
     load_meanings,
 )
@@ -5922,6 +5924,73 @@ def test_load_meanings_normalize_era_reflexes_skips_malformed() -> None:
     }
     out = _normalize_era_reflexes(raw)
     assert out == {"middle-english": [("good", "cluster"), ("also-good", "cluster")]}
+
+
+def test_load_meanings_normalize_era_reflex_glosses_extracts_only_gloss_dicts() -> None:
+    """wyrd-rogd.1: the gloss projection keeps ONLY {form, source, gloss}
+    entries with a non-empty gloss — legacy bare-strings and {form, source}-only
+    entries contribute nothing (back-compat), and malformed/empty entries are
+    skipped silently like the source projection."""
+
+    raw = {
+        "middle-english": [
+            "good",  # legacy bare string — no gloss
+            {"form": "ston", "source": "cluster"},  # {form,source} only — no gloss
+            {"form": "stoon", "source": "cluster", "gloss": "stone"},  # kept
+            {"source": "cluster", "gloss": "no form"},  # missing form — skip
+            {"form": "blank", "source": "cluster", "gloss": ""},  # empty gloss — skip
+            {"form": ["x"], "source": "cluster", "gloss": "bad"},  # unhashable form — skip
+            {"form": "y", "source": "cluster", "gloss": ["bad"]},  # non-str gloss — skip
+        ],
+        "old-english": [{"form": "stān", "source": "cluster", "gloss": "rock"}],
+        "welsh": "not-a-list",  # whole entry skipped
+    }
+    out = _normalize_era_reflex_glosses(raw)
+    assert out == {"middle-english": {"stoon": "stone"}, "old-english": {"stān": "rock"}}
+    # a fully glossless (legacy) field yields an empty map.
+    assert _normalize_era_reflex_glosses({"me": [{"form": "x", "source": "cluster"}]}) == {}
+
+
+def test_fetch_reflex_glosses_picks_first_non_pointer_gloss(fresh_db: Path) -> None:
+    """wyrd-rogd.1: a representative gloss per etymon — alphabetically-first
+    NON-pointer gloss (ORDER BY gloss, is_form_of_pointer filtered); etymons
+    with only pointer glosses (or none) get no entry; empty input → {}."""
+
+    with LexiconDB(fresh_db) as db:
+        glossed = db.upsert_etymon("stān", "old-english")
+        db.add_gloss(glossed, "rock")
+        db.add_gloss(glossed, "boundary stone")  # alphabetically first non-pointer
+        db.add_gloss(glossed, "alternative form of stone")  # pointer — filtered
+        pointer_only = db.upsert_etymon("burg", "old-english")
+        db.add_gloss(pointer_only, "alternative form of burh")  # only a pointer
+        bare = db.upsert_etymon("tūn", "old-english")  # no glosses at all
+
+        out = _fetch_reflex_glosses(db, [glossed, pointer_only, bare, glossed])
+
+    assert out == {glossed: "boundary stone"}  # pointer-only + bare omitted; dedup ok
+    with LexiconDB(fresh_db) as db:
+        assert _fetch_reflex_glosses(db, []) == {}
+
+
+def test_fetch_root_era_reflexes_threads_gloss(fresh_db: Path) -> None:
+    """wyrd-rogd.1: a reflex's own gloss rides on its bundle entry, so the SPA
+    era-grid can surface a drifted cognate's meaning."""
+
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            cluster_root_form="*hwītaz",
+            cluster_root_lang="proto-germanic",
+            members=[("hwīt", "old-english"), ("white", "modern-english")],
+        )
+        db.add_gloss(ids["hwīt"], "white (colour)")
+        # modern-english member left glossless → its entry omits gloss (sparse).
+        result = _fetch_root_era_reflexes(db, ids["hwīt"], "old-english")
+
+    assert result["old-english"] == [
+        {"form": "hwīt", "source": "cluster", "gloss": "white (colour)"}
+    ]
+    assert result["modern-english"] == [{"form": "white", "source": "cluster"}]
 
 
 def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
