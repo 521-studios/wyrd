@@ -40,7 +40,7 @@
               class="ng-gloss"
               class:drift={r.drift}
               title={r.drift ? `drifted meaning of this variant: ${r.gloss}` : r.gloss}
-              >{r.gloss}{#if r.drift}<span class="ng-drift" aria-label="drifted meaning"
+              >{r.gloss}{#if r.drift}<span class="ng-drift" role="img" aria-label="drifted meaning"
                   >≠</span
                 >{/if}</span
             >{/if}
@@ -128,6 +128,7 @@
   .ng-gloss.drift {
     color: var(--accent);
     max-width: none;
+    white-space: normal;
   }
   .ng-drift {
     margin-left: 2px;

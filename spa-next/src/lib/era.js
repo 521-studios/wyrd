@@ -145,6 +145,6 @@ export function glossForSurface(morpheme, surface) {
  *  read as drift. Single source of truth so the active card + grid can't
  *  diverge. */
 export function isGlossDrift(base, variant) {
-  const fold = (g) => (g || '').trim().toLowerCase();
+  const fold = (g) => String(g || '').trim().toLowerCase();
   return !!base && !!variant && fold(base) !== fold(variant);
 }
