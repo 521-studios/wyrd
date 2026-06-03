@@ -852,10 +852,21 @@ def _normalize_era_reflexes(
 
 def _normalize_era_reflex_glosses(raw: dict) -> dict[str, dict[str, str]]:
     """wyrd-rogd.1: extract the per-form gloss map ``{lang: {form: gloss}}``
-    from the bundle's era_reflexes field — only entries that carry a ``gloss``.
-    Legacy bundles (bare-string or {form, source} entries) yield an empty map.
-    Kept separate from ``_normalize_era_reflexes`` so the (form, source) shape
-    the rewinder consumes stays untouched."""
+    from the bundle's era_reflexes field — only the {form, source, gloss} dict
+    entries that carry a non-empty ``gloss``. This runs OVER THE SAME raw field
+    as ``_normalize_era_reflexes`` but extracts a DIFFERENT projection (gloss,
+    not source), kept separate so the (form, source) shape the rewinder
+    consumes stays untouched — it is not a structural parallel of that
+    function.
+
+    Like its sibling it is fail-soft: malformed / glossless / bare-string
+    entries are skipped silently (an export bug shouldn't take down the load),
+    here yielding no gloss for that form. Legacy bundles (bare-string or
+    {form, source}-only entries) therefore produce an empty map.
+
+    Assumes one entry per form per lang (upheld upstream by the ``best:
+    dict[str, EraReflex]`` form-dedup in ``_fetch_root_era_reflexes``); on a
+    hypothetical duplicate form the dict-comprehension would last-write-wins."""
     out: dict[str, dict[str, str]] = {}
     if not isinstance(raw, dict):
         return out

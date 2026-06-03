@@ -294,14 +294,18 @@ def _fetch_reflex_glosses(db: LexiconDB, etymon_ids: list[int]) -> dict[int, str
     shift. Picks the alphabetically-first non-pointer gloss for determinism;
     absent when the etymon carries only ``is_form_of_pointer`` cross-references
     or no gloss at all."""
-    if not etymon_ids:
+    # Dedupe ids (distinct forms in `best` can share an etymon_id) so the IN
+    # clause carries no redundant placeholders; dict.fromkeys keeps it
+    # deterministic.
+    ids = list(dict.fromkeys(etymon_ids))
+    if not ids:
         return {}
-    placeholders = ",".join("?" * len(etymon_ids))
+    placeholders = ",".join("?" * len(ids))
     by_id: dict[int, list[str]] = {}
     for row in db.conn.execute(
         f"SELECT etymon_id, gloss FROM etymon_gloss "
         f"WHERE etymon_id IN ({placeholders}) ORDER BY gloss",
-        list(etymon_ids),
+        ids,
     ):
         if is_form_of_pointer(row["gloss"]):
             continue
