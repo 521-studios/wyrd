@@ -53,8 +53,9 @@ def _morpheme_table_conn() -> sqlite3.Connection:
 
 
 def test_write_morphemes_regroups_surface_variants_under_one_id():
-    # Three connective-form words of ONE morpheme (root 42) plus a different
-    # morpheme (root 99). _write_morphemes folds the three into a single row.
+    # Three connective-form words of ONE morpheme (old-english:ing) plus a
+    # different morpheme (old-english:tūn). _write_morphemes folds the three
+    # ing variants into a single row.
     subjects = [
         {
             "meaning": ["m"],

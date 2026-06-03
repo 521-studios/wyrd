@@ -47,6 +47,7 @@ CREATE TABLE morpheme (
     data             BLOB NOT NULL            -- JSON {"entries":[...]} regrouped by morpheme_id
 );
 CREATE INDEX idx_morpheme_language ON morpheme(primary_language);
+CREATE INDEX idx_morpheme_stratum  ON morpheme(stratum);
 
 CREATE TABLE fantasy_morpheme (
     -- COLLATE NOCASE matches the L3 ``fantasy_morpheme.input_name`` contract.

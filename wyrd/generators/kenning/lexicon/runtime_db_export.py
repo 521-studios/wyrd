@@ -440,7 +440,11 @@ def _write_morphemes(conn: sqlite3.Connection, subjects: list[dict[str, Any]]) -
             grouped.setdefault(morpheme_id, []).append(entry)
 
     rows = []
-    for morpheme_id, entries in grouped.items():
+    # Sort by morpheme_id so the L4 row order is byte-stable independent of the
+    # subject/word iteration order — belt-and-suspenders for the discard-and-
+    # rebuild reproducibility guarantee (morpheme_id is a content key).
+    for morpheme_id in sorted(grouped):
+        entries = grouped[morpheme_id]
         primary_language = _pick_primary_language(entries)
         stratum = _pick_unanimous_stratum(entries)
         payload = json.dumps({"entries": entries}, ensure_ascii=False)
