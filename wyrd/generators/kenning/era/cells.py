@@ -432,7 +432,15 @@ def stage_year_range(family: str, stage: str) -> tuple[int | None, int | None] |
     ``modern-english`` = early-modern + modern → ``(1500, None)``). None when
     ``stage`` isn't a stage of ``family``. An open bound on ANY constituent cell
     (``start``/``end`` is None) makes that side of the union open — the stage
-    inherits its oldest cell's start and its newest cell's end."""
+    inherits its oldest cell's start and its newest cell's end.
+
+    Returns a single ``(start, end)`` SPAN, so it is exact only for a
+    CONTIGUOUS stage — every stage of the SPA-surfaced families
+    (``_CULTURE_TO_ERA_FAMILY``: english / brythonic / goidelic) is contiguous.
+    The ``latin`` family's ``latin`` stage is the lone non-contiguous case
+    (classical + medieval + renaissance, with the ``vulgar-latin`` cell's
+    200–700 window between them), so its span ``(None, 1800)`` over-includes that
+    gap — reachable only via the CLI ``latin/<stage>`` path, not the SPA."""
     cells = cells_for_stage(family, stage)
     if not cells:
         return None
@@ -506,7 +514,10 @@ def resolve_era_input(
     except KeyError:
         # wyrd-rogd.2: a compressed STAGE label (e.g. 'old-english') isn't a
         # cell but collapses several — resolve to the UNION of their ranges so
-        # the Configure dropdown can offer stages, not raw cells.
+        # the Configure dropdown can offer stages, not raw cells. A label that is
+        # BOTH a cell and a stage (goidelic 'old-irish' / 'middle-irish') already
+        # resolved via the cell path above — the cell intentionally shadows the
+        # stage (same range there, so identical), and this fallback never sees it.
         stage_range = stage_year_range(default_family, era)
         if stage_range is not None:
             return stage_range

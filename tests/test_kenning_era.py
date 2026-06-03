@@ -427,3 +427,34 @@ def test_era_cell_for_input_maps_stage_to_representative_cell() -> None:
 def test_unknown_era_label_still_raises() -> None:
     with pytest.raises(ValueError):
         era.resolve_era_input("victorian", default_family="english")
+
+
+def test_stage_resolution_across_families() -> None:
+    # goidelic 'irish' is the multi-cell non-english stage (early-modern+modern)
+    assert era.cells_for_stage("goidelic", "irish") == ("early-modern", "modern")
+    assert era.resolve_era_input("irish", default_family="goidelic") == (1200, None)
+    # norse single-cell stage
+    assert era.resolve_era_input("old-norse", default_family="norse") == (None, 1100)
+    # brythonic
+    assert era.resolve_era_input("welsh", default_family="brythonic") == (1500, None)
+
+
+def test_cell_label_shadows_a_same_named_stage() -> None:
+    # goidelic 'old-irish' / 'middle-irish' are BOTH cells and stage tags; the
+    # cell path wins (same range), so resolution is identical either way.
+    assert "old-irish" in era.era_cells_for_family("goidelic")
+    assert era.resolve_era_input("old-irish", default_family="goidelic") == era.era_year_range(
+        "goidelic", "old-irish"
+    )
+    assert era.era_cell_for_input("old-irish", default_family="goidelic") == (
+        "goidelic",
+        "old-irish",
+    )
+
+
+def test_latin_stage_span_is_documented_non_contiguous() -> None:
+    # The lone non-contiguous stage: 'latin' (classical+medieval+renaissance)
+    # spans the vulgar-latin 200-700 gap. CLI-only (latin isn't SPA-surfaced).
+    assert era.cells_for_stage("latin", "latin") == ("classical", "medieval", "renaissance")
+    assert era.stage_year_range("latin", "latin") == (None, 1800)
+    assert era.stage_year_range("latin", "vulgar-latin") == (200, 700)

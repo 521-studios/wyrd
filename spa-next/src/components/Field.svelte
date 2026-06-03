@@ -36,6 +36,12 @@
     return Boolean(prop['x-options-by-culture']);
   }
 
+  // wyrd-rogd.2: option display label — '' is the 'no filter' sentinel; when
+  // the options are language tags (x-option-language, the era stages) label
+  // them via languageLabel so they read 'Old English' not 'old-english'.
+  const optionLabel = (opt) =>
+    opt === '' ? '(no filter)' : prop['x-option-language'] ? languageLabel(opt) : opt;
+
   // wyrd-0gou: snap-to-valid for plain string-enum selects. The culture enum
   // is filtered by feature flags (visibleCultures), so a seeded value — incl.
   // a WYRD_DEFAULT_<OPT> override — that isn't in the (filtered) options must
@@ -139,13 +145,7 @@
          dropdown matches the col-3 grid's stage headers. -->
     <select id="field-{fieldKey}" bind:value={appState.currentParams[fieldKey]}>
       {#each dependentOptions as opt}
-        <option value={opt}
-          >{opt === ''
-            ? '(no filter)'
-            : prop['x-option-language']
-              ? languageLabel(opt)
-              : opt}</option
-        >
+        <option value={opt}>{optionLabel(opt)}</option>
       {/each}
     </select>
   {:else if prop.type === 'string' && Array.isArray(prop.enum)}
