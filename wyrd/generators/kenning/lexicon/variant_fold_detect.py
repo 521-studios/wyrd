@@ -176,6 +176,11 @@ def detect_variant_fold_candidates(
             rec = by_id[eid] = {
                 "lang": r["language"],
                 "form": r["canonical_form"],
+                # Precompute the bare form + consonant skeleton ONCE per etymon —
+                # the nested barren×rich loop would otherwise re-normalise the
+                # same forms (incl. unicodedata work) many times over.
+                "bare": _bare(r["canonical_form"]),
+                "skel": _consonant_skeleton(r["canonical_form"]),
                 "clu": r["cognate_id"],
                 "gl": set(),
                 "tok": set(),
@@ -217,17 +222,17 @@ def detect_variant_fold_candidates(
         if not rich or not barren:
             continue
         for bi, brec in barren:
-            fb = _bare(brec["form"])
+            fb = brec["bare"]
             if not fb:
                 continue
-            skb = _consonant_skeleton(brec["form"])
+            skb = brec["skel"]
             # Reuse one matcher per barren — SequenceMatcher front-loads work on
             # seq ``a`` (fb); set_seq2 only re-analyses the cheap side.
             matcher = difflib.SequenceMatcher(None, fb)
             for ri, rrec in rich:
                 if brec["lang"] != rrec["lang"]:
                     continue  # SAME-language only (cross-language is a LINK, wyrd-rogd.15)
-                fr = _bare(rrec["form"])
+                fr = rrec["bare"]
                 if not fr or fb == fr:
                     continue
                 matcher.set_seq2(fr)
@@ -235,7 +240,7 @@ def detect_variant_fold_candidates(
                 # Accept on form similarity OR a shared consonant skeleton (the
                 # vowel-shift escape hatch — wood↔wudu); the skeleton needs ≥2
                 # consonants so single-consonant skeletons can't over-match.
-                skeleton_match = len(skb) >= 2 and skb == _consonant_skeleton(rrec["form"])
+                skeleton_match = len(skb) >= 2 and skb == rrec["skel"]
                 if sim < min_similarity and not skeleton_match:
                     continue
                 if (bi, ri) in edges or (ri, bi) in edges:
