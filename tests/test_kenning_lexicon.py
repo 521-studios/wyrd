@@ -12637,7 +12637,7 @@ def _seed_descent_chain(db: LexiconDB, *edges: tuple[str, str, str]) -> dict[str
 
 def test_cluster_cognates_assigns_root_id_to_inheritance_chain(fresh_db: Path) -> None:
     """Happy path: a → b → c inheritance chain. All three rows get
-    cognate_id = a.id, cognate_method = 'cluster-cognates-v1'."""
+    cognate_id = a.id, cognate_method = 'cluster-cognates-v2'."""
 
     with LexiconDB(fresh_db) as db:
         forms = _seed_descent_chain(
@@ -12658,7 +12658,39 @@ def test_cluster_cognates_assigns_root_id_to_inheritance_chain(fresh_db: Path) -
     assert result["applied"] is True
     for form in ("a", "b", "c"):
         assert rows[form]["cognate_id"] == forms["a"]
-        assert rows[form]["cognate_method"] == "cluster-cognates-v1"
+        assert rows[form]["cognate_method"] == "cluster-cognates-v2"
+
+
+def test_cluster_cognates_v2_does_not_bridge_through_proto_indo_european(fresh_db: Path) -> None:
+    """v2: a Proto-Indo-European root must NOT bridge a cognate cluster. PIE
+    sits above the family layer, so inheritance from it fans across every branch
+    (Germanic ``down`` AND Greek ``thymia``). Dropping every edge touching a PIE
+    node leaves the two daughters in SEPARATE clusters (and the PIE node itself
+    unclustered) — the fix for the 1000+-member mega-clusters that polluted the
+    era-grid's modern reflexes."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="w", title="W")
+        pie = db.upsert_etymon("*dʰewh₂-", "proto-indo-european")
+        gmc = db.upsert_etymon("dūn", "old-english")
+        grk = db.upsert_etymon("thymia", "ancient-greek")
+        for parent, child in ((pie, gmc), (pie, grk)):
+            db.conn.execute(
+                "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+                "VALUES (?, ?, 'inheritance', 'w')",
+                (parent, child),
+            )
+        db.commit()
+        cluster_cognates(db, apply=True)
+        cid = {
+            r["canonical_form"]: r["cognate_id"]
+            for r in db.conn.execute("SELECT canonical_form, cognate_id FROM etymon")
+        }
+    # PIE never bridges: the Germanic and Greek daughters are NOT co-clustered,
+    # and the PIE node itself is left unclustered (it anchors no edge).
+    assert cid["dūn"] != cid["thymia"] or (cid["dūn"] is None and cid["thymia"] is None)
+    assert cid["dūn"] is None  # no surviving edge → not a candidate
+    assert cid["thymia"] is None
+    assert cid["*dʰewh₂-"] is None
 
 
 def test_cluster_cognates_dry_run_does_not_write(fresh_db: Path) -> None:
