@@ -6117,6 +6117,68 @@ def test_emit_era_reflexes_merges_cross_family_with_quality_preference() -> None
     ]
 
 
+def test_emit_era_reflexes_self_seeds_barren_morpheme() -> None:
+    """A barren morpheme — linked families contribute NO reflexes — must still
+    emit its OWN canonical form in its OWN era column (source='self'), so the
+    col-3 grid never renders empty for a morpheme that plainly exists."""
+    word = {"morpheme_id": "old-english:cul"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"old-english": [{"form": "cul", "source": "self"}]}
+
+
+def test_emit_era_reflexes_self_seed_does_not_override_real_reflex() -> None:
+    """When the morpheme's own form is already a real reflex of its own era, the
+    self-seed must NOT downgrade its source AND must NOT add a duplicate. Uses a
+    DASHED affix ('-tun') — real reflexes store affixes with dashes, so the seed
+    must key verbatim or setdefault wouldn't collide (the duplicate-cell bug)."""
+    word = {"morpheme_id": "old-english:-tun"}
+    fam = {"era_reflexes": {"old-english": [{"form": "-tun", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    # exactly ONE cell, the real cluster one — no bare-'tun' self duplicate
+    assert word["era_reflexes"]["old-english"] == [{"form": "-tun", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_self_seeds_dashed_affix_verbatim() -> None:
+    """A barren dashed affix seeds its own form WITH dashes intact (matching how
+    real reflexes are stored), not a stripped variant."""
+    word = {"morpheme_id": "old-english:-ing"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"old-english": [{"form": "-ing", "source": "self"}]}
+
+
+def test_emit_era_reflexes_dash_only_form_is_not_seeded() -> None:
+    """A morpheme_id whose form is bare dashes has no real content → no seed."""
+    word = {"morpheme_id": "old-english:-"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert "era_reflexes" not in word
+
+
+def test_emit_era_reflexes_morpheme_id_without_colon_is_not_seeded() -> None:
+    """A truthy morpheme_id lacking a ':' can't be split into (lang, form) → the
+    colon guard skips it rather than mis-unpacking."""
+    word = {"morpheme_id": "nocolon"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert "era_reflexes" not in word
+
+
+def test_emit_era_reflexes_self_seed_adds_own_era_alongside_others() -> None:
+    """A morpheme with reflexes only in OTHER eras still gets its own-era cell —
+    the seed adds the own stage without disturbing the existing ones."""
+    word = {"morpheme_id": "old-english:feld"}
+    fam = {"era_reflexes": {"middle-english": [{"form": "feld", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    assert word["era_reflexes"]["old-english"] == [{"form": "feld", "source": "self"}]
+    assert word["era_reflexes"]["middle-english"] == [{"form": "feld", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_no_morpheme_id_is_not_seeded() -> None:
+    """Legacy words with no morpheme_id can't be self-seeded (no own identity) —
+    they stay absent rather than inventing a cell."""
+    word: dict = {}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert "era_reflexes" not in word
+
+
 def test_kenning_rewind_generator_renders_three_era_stops() -> None:
     """End-to-end Generator class smoke: KenningRewind.generate_all
     returns one GenerationResult per English-family era stop
@@ -9218,6 +9280,8 @@ def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
             "morpheme_id": "old-english:aecern",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["aecern"],
             "old_english_pronunciation": [{"form": "aecern", "ipa": "/ɑɛkɛrn/", "dialect": None}],
+            # self-seed: a barren morpheme shows its own form in its own era
+            "era_reflexes": {"old-english": [{"form": "aecern", "source": "self"}]},
         }
     ]
     assert without_rando == []
@@ -9415,6 +9479,8 @@ def test_export_meanings_promotes_at_witness_threshold(fresh_db: Path) -> None:
             "old_english_citations": ["a", "b", "c"],
             # wyrd-vm8t Loop 4: G2P surface pronunciation (onset-h → /h/).
             "old_english_pronunciation": [{"form": "ham", "ipa": "/hɑm/", "dialect": None}],
+            # self-seed: own form in its own era column
+            "era_reflexes": {"old-english": [{"form": "ham", "source": "self"}]},
         }
     ]
 
@@ -11059,6 +11125,8 @@ def test_export_meanings_synthesizes_word_for_mined_only_family(
             "old_english_citations": ["a", "b", "c"],
             # wyrd-vm8t Loop 4: G2P surface pronunciation.
             "old_english_pronunciation": [{"form": "tune", "ipa": "/tʊnɛ/", "dialect": None}],
+            # self-seed: own form in its own era column
+            "era_reflexes": {"old-english": [{"form": "tune", "source": "self"}]},
         }
     ]
 

@@ -294,9 +294,12 @@ def _emit_era_reflexes(
 
     Bundle field: ``era_reflexes`` is ``{target_language: [{form,
     source, gloss?}, ...]}`` per word (``gloss`` sparse, wyrd-rogd.1).
-    Empty / absent for words whose linked families have no era data
-    (proto-languages, untracked classical families, or roots whose
-    cluster has no English-family targets).
+
+    Every well-formed word also SELF-SEEDS its own ``morpheme_id`` form in its
+    own era column (``source="self"``) so a barren morpheme — no cluster, no
+    descent reflexes — still grids (shows at least itself). ``era_reflexes`` is
+    therefore absent only when the word has no / malformed ``morpheme_id``, a
+    dash-only form, or an own-language with no tracked era family.
     """
     merged: dict[str, dict[str, dict]] = {}
     for fam, _linked_ids in link_pairs:
@@ -311,6 +314,24 @@ def _emit_era_reflexes(
                     entry["source"], existing["source"]
                 ):
                     bucket[form] = entry
+    # Self-seed the morpheme's OWN form in its OWN era column. A barren morpheme
+    # (no cognate cluster, no descent reflexes) would otherwise emit no
+    # era_reflexes at all and render a completely empty col-3 grid — showing in
+    # zero columns though it plainly exists and was just used to compose a name.
+    # The morpheme_id is "<language>:<canonical_form>"; ensure that (language,
+    # form) is present, tagged source="self" so a FUTURE coverage pass can
+    # exclude it from real-reflex counts (wyrd-32t1) — no consumer distinguishes
+    # it yet, so the bundle era-reflex coverage metric now counts self-seeds.
+    # NOTE: when own_lang has no era family (proto / untracked classical) the
+    # runtime grid drops the stage, so those stay gridless — acceptable, they're
+    # outside the British-Isles cultures.
+    # Seed the form VERBATIM (dashes intact): real reflexes store affixes with
+    # their dashes ('-tun', '-chester'), so a dash-stripped key would NOT collide
+    # under setdefault and would add a duplicate own-era cell.
+    own_lang, sep, own_form = (word.get("morpheme_id") or "").partition(":")
+    own_form = own_form.strip()
+    if sep and own_lang and own_form.strip("-"):  # well-formed id, content beyond dashes
+        merged.setdefault(own_lang, {}).setdefault(own_form, {"form": own_form, "source": "self"})
     if merged:
         word["era_reflexes"] = {
             target_language: [forms[form] for form in sorted(forms)]
