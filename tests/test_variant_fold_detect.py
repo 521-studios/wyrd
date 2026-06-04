@@ -271,6 +271,9 @@ def test_consonant_skeleton_survives_vowel_shift() -> None:
     assert _consonant_skeleton("dūn") == _consonant_skeleton("doun") == "dn"
     # diacritics stripped, dashes/stars stripped, vowels (incl. y) removed
     assert _consonant_skeleton("-stān*") == "stn"
+    # æ/œ/ø are base vowel letters (OE/ON) — treated as vowels, not consonants
+    assert _consonant_skeleton("stæn") == _consonant_skeleton("stan") == "stn"
+    assert _consonant_skeleton("dæl") == "dl" and _consonant_skeleton("øre") == "r"
 
 
 # ---- verdict round-trip ----------------------------------------------------

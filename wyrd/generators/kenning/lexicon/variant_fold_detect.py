@@ -63,7 +63,10 @@ def _consonant_skeleton(form: str) -> str:
     bare = "".join(
         ch for ch in unicodedata.normalize("NFD", bare) if unicodedata.category(ch) != "Mn"
     )
-    return "".join(ch for ch in bare if ch.isalpha() and ch not in "aeiouy")
+    # æ/œ/ø are base vowel letters (not NFD-decomposable diacritics), common in
+    # Old English / Old Norse — exclude them too or they'd count as consonants
+    # and block valid vowel-shift skeletons.
+    return "".join(ch for ch in bare if ch.isalpha() and ch not in "aeiouyæœø")
 
 
 # Common-gloss stopwords: function words + generic dictionary-definition framing
@@ -164,16 +167,19 @@ def detect_variant_fold_candidates(
     by_id: dict[int, dict] = {}
     by_token: dict[str, set[int]] = defaultdict(set)  # content token -> etymon ids
     for r in rows:
-        rec = by_id.setdefault(
-            r["id"],
-            {
+        eid = r["id"]
+        rec = by_id.get(eid)
+        if rec is None:
+            # Don't use dict.setdefault with a literal default — it would build a
+            # throwaway dict (+ two sets) on every row, including the many
+            # duplicate-id gloss rows.
+            rec = by_id[eid] = {
                 "lang": r["language"],
                 "form": r["canonical_form"],
                 "clu": r["cognate_id"],
                 "gl": set(),
                 "tok": set(),
-            },
-        )
+            }
         rec["gl"].add(r["gloss"])
         toks = _gloss_tokens(r["gloss"])
         rec["tok"].update(toks)
@@ -215,13 +221,17 @@ def detect_variant_fold_candidates(
             if not fb:
                 continue
             skb = _consonant_skeleton(brec["form"])
+            # Reuse one matcher per barren — SequenceMatcher front-loads work on
+            # seq ``a`` (fb); set_seq2 only re-analyses the cheap side.
+            matcher = difflib.SequenceMatcher(None, fb)
             for ri, rrec in rich:
                 if brec["lang"] != rrec["lang"]:
                     continue  # SAME-language only (cross-language is a LINK, wyrd-rogd.15)
                 fr = _bare(rrec["form"])
                 if not fr or fb == fr:
                     continue
-                sim = difflib.SequenceMatcher(None, fb, fr).ratio()
+                matcher.set_seq2(fr)
+                sim = matcher.ratio()
                 # Accept on form similarity OR a shared consonant skeleton (the
                 # vowel-shift escape hatch — wood↔wudu); the skeleton needs ≥2
                 # consonants so single-consonant skeletons can't over-match.
