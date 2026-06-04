@@ -75,7 +75,7 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     `tun` vs the place-name dictionaries' `tūn`.
 
     With apply=False (default) reports candidate counts without writing.
-    With apply=True writes cognate_id + cognate_method='cluster-cognates-v1'
+    With apply=True writes cognate_id + cognate_method='cluster-cognates-v2'
     only on rows whose current (cognate_id, cognate_method) doesn't already
     match the target — re-runs against unchanged data become real no-ops
     instead of redundant UPDATEs. Reverse with

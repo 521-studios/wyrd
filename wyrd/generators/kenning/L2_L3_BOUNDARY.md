@@ -140,7 +140,7 @@ state, project-period-forms needs lemma_id state, etc.).
 | `apply-gloss-additions` | INSERT OR IGNOREs `etymon_gloss` rows per operator decision | `gloss-add-v1` | ✅ wyrd-wz82 |
 | `apply-etymon-splits` | creates `<form>#<suffix>` child etymons + moves glosses / tags / evidence per operator decision | `etymon-split-v1` | ✅ wyrd-kutx |
 | `decompose` | (`toponym_decomposition` table) | matcher rules | ✅ wyrd-hidb |
-| `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v1` | ✅ wyrd-hidb |
+| `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v2` | ✅ wyrd-hidb |
 | `classify-stratum` | `stratum` | hardcoded heuristics | ✅ wyrd-hidb |
 | `derive-english-shaped` | `english_shaped` | hardcoded rules | ✅ wyrd-hidb |
 | `tag-phonological-vectors` | `phonological_vector` (JSON) | `compute-phon-vector-v1` | ✅ wyrd-kq7w.1 |
