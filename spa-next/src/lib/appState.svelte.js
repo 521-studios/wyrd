@@ -13,6 +13,11 @@
 import { initialFieldValue } from './featureFlags.js';
 import { HIDDEN_FIELDS } from './headlineFields.js';
 
+// Fields sent on every Roll even when still at their default — the culture is
+// the primary generation selector, so the SPA's choice must be authoritative
+// rather than relying on the server's default culture matching the form's.
+const ALWAYS_SENT_FIELDS = new Set(['culture']);
+
 class AppState {
   // Loaded once at app boot from /api/manifest. null while in-flight.
   manifest = $state(null);
@@ -163,6 +168,43 @@ class AppState {
       }
     }
     this.paramsByGenerator[generatorName] = params;
+  }
+
+  /** The subset of a generator's params the user actually CHANGED from its
+   *  seeded default (config.defaults override → schema default → type-empty).
+   *  The Roll request sends ONLY these, so an untouched field falls through to
+   *  the SERVER's default rather than the SPA pinning a value the server owns —
+   *  "default should mean don't include". Without this, the form seeds every
+   *  field (incl. config.defaults like scoring_mode=vector) and POSTs them all,
+   *  which both bloats the request and silently overrides server-side defaults.
+   *
+   *  Deep-compares via JSON so empty arrays/strings ([], "") equal their
+   *  defaults by VALUE, not reference. A field with no schema entry is kept
+   *  (we can't know its default); HIDDEN_FIELDS (seed) are dropped.
+   *
+   *  ALWAYS_SENT fields (``culture``) are included even at their default: the
+   *  culture is the primary generation selector, so the SPA's choice must be
+   *  authoritative rather than relying on the server's default culture matching
+   *  the one the form is showing. */
+  changedParams(generatorName) {
+    const params = this.paramsByGenerator[generatorName];
+    if (!params) return {};
+    const generator = this.manifest?.generators?.find((g) => g.name === generatorName);
+    const properties = generator?.input_schema?.properties || {};
+    const changed = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (HIDDEN_FIELDS.has(key)) continue;
+      const prop = properties[key];
+      if (
+        !ALWAYS_SENT_FIELDS.has(key) &&
+        prop &&
+        JSON.stringify(value) === JSON.stringify(initialFieldValue(this.config, key, prop))
+      ) {
+        continue; // unchanged from its seeded default → let the server own it
+      }
+      changed[key] = value;
+    }
+    return changed;
   }
 }
 
