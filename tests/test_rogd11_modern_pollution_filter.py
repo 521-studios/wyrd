@@ -141,8 +141,6 @@ def test_family_era_reflexes_union_across_members(fresh_db: Path) -> None:
     # wyrd-rogd.16: the era-grid must UNION every family member's cluster, not
     # just the root's. A rich-cluster member (modern 'green', 3 OE-stage forms)
     # folded into a poor root (OE 'green', 1 form) must keep all of them.
-    from wyrd.generators.kenning.lexicon.bundle._family import _fetch_family_era_reflexes
-
     with LexiconDB(fresh_db) as db:
         root = db.upsert_etymon("grene", "old-english")  # ancestor / family root
         rich = db.upsert_etymon("green", "modern-english")  # folded-in reflex
@@ -152,10 +150,8 @@ def test_family_era_reflexes_union_across_members(fresh_db: Path) -> None:
         # OE-stage cluster mates: root has 1, the reflex's cluster has 3 more
         _mate(db, root, "groeni", "old-english")  # root's own OE mate
         for f in ("graeni", "grene2", "groene"):
-            db.conn.execute(
-                "UPDATE etymon SET cognate_id=? WHERE id=?",
-                (rich, db.upsert_etymon(f, "old-english")),
-            )
+            mate_id = db.upsert_etymon(f, "old-english")
+            db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (rich, mate_id))
         db.commit()
         # root-only would see just groeni; the family union sees all 4
         root_only = _fetch_family_era_reflexes(db, [root], "old-english")

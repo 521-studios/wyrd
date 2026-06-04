@@ -304,6 +304,13 @@ def _fetch_family_era_reflexes(
     modern_languages = _modern_stage_languages()
     sorted_members = sorted(member_ids)
     for target_language in sorted(target_languages):
+        # wyrd-rogd.11: the modern stage strips derived proper nouns + mistagged
+        # foreign cognates so it carries only the morpheme's own common-noun
+        # reflex (or is empty). Done here so the cleaned set feeds BOTH the
+        # era-grid display AND the forms_by_lang merge — the generator must not
+        # sample 'West Ham' as a surface either. (Invariant per target, hoisted
+        # out of the member loop.)
+        is_modern = target_language in modern_languages
         # Dedupe by form across ALL members, keeping the highest-quality
         # source's reflex on collision (same form might surface via cluster
         # (high) and phonology-rule (low), or via two members — prefer the
@@ -313,12 +320,7 @@ def _fetch_family_era_reflexes(
         best: dict[str, EraReflex] = {}
         for member_id in sorted_members:
             reflexes = etymon_era_reflexes(db, member_id, target_language=target_language)
-            if target_language in modern_languages:
-                # wyrd-rogd.11: strip derived proper nouns + mistagged foreign
-                # cognates so the modern stage carries only the morpheme's own
-                # common-noun reflex (or is empty). Done here so the cleaned set
-                # feeds BOTH the era-grid display AND the forms_by_lang merge —
-                # the generator must not sample 'West Ham' as a surface either.
+            if is_modern:
                 reflexes = [r for r in reflexes if not _is_derived_name_pollution(r.form)]
             for r in reflexes:
                 existing = best.get(r.form)
