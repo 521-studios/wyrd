@@ -192,6 +192,7 @@ class AppState {
     if (!params) return {};
     const generator = this.manifest?.generators?.find((g) => g.name === generatorName);
     const properties = generator?.input_schema?.properties || {};
+    const config = this.config; // hoist the getter out of the loop
     const changed = {};
     for (const [key, value] of Object.entries(params)) {
       if (HIDDEN_FIELDS.has(key)) continue;
@@ -199,7 +200,7 @@ class AppState {
       if (
         !ALWAYS_SENT_FIELDS.has(key) &&
         prop &&
-        JSON.stringify(value) === JSON.stringify(initialFieldValue(this.config, key, prop))
+        JSON.stringify(value) === JSON.stringify(initialFieldValue(config, key, prop))
       ) {
         continue; // unchanged from its seeded default → let the server own it
       }
