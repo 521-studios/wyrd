@@ -109,7 +109,7 @@ def collect_fantasy_morphemes(db: LexiconDB) -> dict[str, dict[str, Any]]:
             )
         ]
         # Per-target-language era reflexes: same precision as the
-        # toponym path's _fetch_root_era_reflexes (cluster + descent +
+        # toponym path's _fetch_family_era_reflexes (cluster + descent +
         # period-form + phonology-rule via etymon_era_reflexes).
         family = language_family(row["language"])
         era_reflexes: dict[str, list[dict[str, str]]] = {}
@@ -132,7 +132,7 @@ def collect_fantasy_morphemes(db: LexiconDB) -> dict[str, dict[str, Any]]:
                 if not refs:
                     continue
                 # Same dedupe-by-form-keep-best-source pattern as
-                # _fetch_root_era_reflexes (wyrd-jbcu).
+                # _fetch_family_era_reflexes (wyrd-jbcu).
                 best: dict[str, str] = {}
                 for r in refs:
                     existing = best.get(r.form)

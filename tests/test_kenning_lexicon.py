@@ -52,8 +52,8 @@ from wyrd.generators.kenning.lexicon import (
     _emit_variant_list,
     _extract_attestation_pairs,
     _fetch_cluster_mate_tags,
+    _fetch_family_era_reflexes,
     _fetch_reflex_glosses,
-    _fetch_root_era_reflexes,
     _filter_concatenation_glosses,
     _find_longest_suffix_match,
     _gather_family,
@@ -5972,7 +5972,7 @@ def test_fetch_reflex_glosses_picks_first_non_pointer_gloss(fresh_db: Path) -> N
         assert _fetch_reflex_glosses(db, []) == {}
 
 
-def test_fetch_root_era_reflexes_threads_gloss(fresh_db: Path) -> None:
+def test_fetch_family_era_reflexes_threads_gloss(fresh_db: Path) -> None:
     """wyrd-rogd.1: a reflex's own gloss rides on its bundle entry, so the SPA
     era-grid can surface a drifted cognate's meaning."""
 
@@ -5985,7 +5985,7 @@ def test_fetch_root_era_reflexes_threads_gloss(fresh_db: Path) -> None:
         )
         db.add_gloss(ids["hwīt"], "white (colour)")
         # modern-english member left glossless → its entry omits gloss (sparse).
-        result = _fetch_root_era_reflexes(db, ids["hwīt"], "old-english")
+        result = _fetch_family_era_reflexes(db, [ids["hwīt"]], "old-english")
 
     assert result["old-english"] == [
         {"form": "hwīt", "source": "cluster", "gloss": "white (colour)"}
@@ -5993,8 +5993,8 @@ def test_fetch_root_era_reflexes_threads_gloss(fresh_db: Path) -> None:
     assert result["modern-english"] == [{"form": "white", "source": "cluster"}]
 
 
-def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
-    """Bundle-side integration: _fetch_root_era_reflexes returns the
+def test_fetch_family_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
+    """Bundle-side integration: _fetch_family_era_reflexes returns the
     cluster mates for each canonical-language target. Verifies the
     bundle-build helper plumbs through etymon_era_reflexes correctly."""
 
@@ -6010,7 +6010,7 @@ def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
             ],
         )
         # OE root since proto-* has no era cells defined.
-        result = _fetch_root_era_reflexes(db, ids["hwīt"], "old-english")
+        result = _fetch_family_era_reflexes(db, [ids["hwīt"]], "old-english")
 
     # wyrd-jbcu schema: each entry is {"form", "source"}.
     assert result["old-english"] == [{"form": "hwīt", "source": "cluster"}]
@@ -6018,7 +6018,7 @@ def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
     assert result["modern-english"] == [{"form": "white", "source": "cluster"}]
 
 
-def test_fetch_root_era_reflexes_returns_empty_for_unfamilied_root(
+def test_fetch_family_era_reflexes_returns_empty_for_unfamilied_root(
     fresh_db: Path,
 ) -> None:
     """Roots whose language has no era family (proto-languages,
@@ -6027,12 +6027,12 @@ def test_fetch_root_era_reflexes_returns_empty_for_unfamilied_root(
 
     with LexiconDB(fresh_db) as db:
         eid = db.upsert_etymon("*tūnaz", "proto-germanic")
-        result = _fetch_root_era_reflexes(db, eid, "proto-germanic")
+        result = _fetch_family_era_reflexes(db, [eid], "proto-germanic")
 
     assert result == {}
 
 
-def test_fetch_root_era_reflexes_carries_phonology_rule_source_tag(
+def test_fetch_family_era_reflexes_carries_phonology_rule_source_tag(
     fresh_db: Path,
 ) -> None:
     """wyrd-jbcu: bundle export carries Tier 4 (phonology-rule)
@@ -6048,7 +6048,7 @@ def test_fetch_root_era_reflexes_carries_phonology_rule_source_tag(
         eid = db.upsert_etymon("dǣg", "old-english")
         db.commit()
 
-        bundle_data = _fetch_root_era_reflexes(db, eid, "old-english")
+        bundle_data = _fetch_family_era_reflexes(db, [eid], "old-english")
 
     # Tier 4 reflex IS in the bundle, tagged 'phonology-rule:v1' so
     # consumers can render it differently.
@@ -6057,7 +6057,7 @@ def test_fetch_root_era_reflexes_carries_phonology_rule_source_tag(
     assert me_entries == [{"form": "deg", "source": "phonology-rule:v1"}]
 
 
-def test_fetch_root_era_reflexes_prefers_higher_quality_source(
+def test_fetch_family_era_reflexes_prefers_higher_quality_source(
     fresh_db: Path,
 ) -> None:
     """When the same form surfaces via cluster (high quality) AND
@@ -6074,7 +6074,7 @@ def test_fetch_root_era_reflexes_prefers_higher_quality_source(
             db,
             members=[("dǣg", "old-english"), ("deg", "middle-english")],
         )
-        bundle_data = _fetch_root_era_reflexes(db, ids["dǣg"], "old-english")
+        bundle_data = _fetch_family_era_reflexes(db, [ids["dǣg"]], "old-english")
 
     me = bundle_data["middle-english"]
     # 'deg' present once with source='cluster' (NOT 'phonology-rule:v1').
@@ -6086,7 +6086,7 @@ def test_emit_era_reflexes_merges_cross_family_with_quality_preference() -> None
     contribute the same form for a target language, the higher-
     quality source wins. Pin the cross-family priority resolution in
     _emit_era_reflexes (the same logic as the per-tier path in
-    _fetch_root_era_reflexes — both share _better_era_reflex_source)."""
+    _fetch_family_era_reflexes — both share _better_era_reflex_source)."""
 
     fam_a = {
         "era_reflexes": {
@@ -9538,7 +9538,7 @@ def test_export_meanings_surfaces_descent_edge_modern_forms(fresh_db: Path) -> N
     """wyrd-nxhh round 1 (test-coverage P2): the Tier-2 descent path
     (no cognate_id, but an etymon_descent edge to a modern-english
     child) must also surface in forms_by_lang. Without this pin a
-    refactor that drops Tier 2 from _fetch_root_era_reflexes would
+    refactor that drops Tier 2 from _fetch_family_era_reflexes would
     pass the cluster test but break descent-only families."""
     with LexiconDB(fresh_db) as db:
         for src in ("a", "b"):

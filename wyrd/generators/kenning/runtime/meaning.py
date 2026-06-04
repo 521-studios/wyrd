@@ -871,7 +871,7 @@ def _normalize_era_reflex_glosses(raw: dict) -> dict[str, dict[str, str]]:
     {form, source}-only entries) therefore produce an empty map.
 
     Assumes one entry per form per lang (upheld upstream by the ``best:
-    dict[str, EraReflex]`` form-dedup in ``_fetch_root_era_reflexes``); on a
+    dict[str, EraReflex]`` form-dedup in ``_fetch_family_era_reflexes``); on a
     hypothetical duplicate form the dict-comprehension would last-write-wins."""
     out: dict[str, dict[str, str]] = {}
     if not isinstance(raw, dict):

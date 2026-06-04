@@ -1612,7 +1612,7 @@ The Lambda runs on bundled data (the lexicon DB is 673MB —
 too big to ship). To enable a SPA `KenningRewind`, era-reflex
 data is precomputed at bundle-build time:
 
-- `lexicon._fetch_root_era_reflexes(db, root_id, root_language)`
+- `lexicon._fetch_family_era_reflexes(db, root_id, root_language)`
   computes `{target_language: [forms]}` for the family root via
   the same three-tier picker. Wired into `_gather_family` so each
   family carries `era_reflexes` data.

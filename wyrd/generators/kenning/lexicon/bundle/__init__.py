@@ -11,7 +11,7 @@ The pipeline splits across four internal modules:
   filtering, progress reporting, the ``export_meanings`` driver
   itself, and ``RECOMMENDED_LANG_THRESHOLDS``.
 * ``_family`` — SQL-heavy data loaders: ``_gather_family`` +
-  ``_fetch_member_*`` + ``_fetch_root_era_reflexes``. Leaf module;
+  ``_fetch_member_*`` + ``_fetch_family_era_reflexes``. Leaf module;
   no internal deps.
 * ``_subject`` — subject + word assembly: groups families into
   subjects, builds the per-word language buckets, and runs the
