@@ -212,11 +212,26 @@ def test_cli_skips_on_llm_failure_without_crashing(
 
 
 def test_cli_fold_is_terminal(fresh_db: Path, tmp_path: Path, monkeypatch) -> None:
-    # A barren that already folded must NOT be re-judged — otherwise a later
-    # reject against a different lemma would cancel the fold at replay.
+    # A barren that already folded must NOT be re-judged against a DIFFERENT
+    # lemma — otherwise a later reject would cancel the fold at replay. The
+    # ledger pre-records a fold stone→stān, but the detector's best candidate is
+    # the RICHER stǣn (so the pair (stone, stǣn) is NOT in the pair-dedup set):
+    # only the terminal-fold guard keeps it out of `todo`. With the guard
+    # removed this test fails (the reject stub would append a cancelling row).
     import json as _json
 
-    _seed_stone(fresh_db)
+    with LexiconDB(fresh_db) as db:
+        _e(db, "stone", "old-english", "stone")
+        _rich(db, "stān", "old-english", "A stone, stone, rock.", cluster=6)
+        _rich(db, "stǣn", "old-english", "stone, rock", cluster=30)  # richer → the candidate
+        db.commit()
+        cand = [
+            c
+            for c in detect_variant_fold_candidates(db.conn, min_similarity=0.6)
+            if c.barren_ref == "old-english:stone"
+        ]
+        assert cand and cand[0].lemma_ref == "old-english:stǣn"  # not the seeded fold lemma
+
     ledger = tmp_path / "_collapses.jsonl"
     ledger.write_text(
         _json.dumps(
@@ -232,7 +247,7 @@ def test_cli_fold_is_terminal(fresh_db: Path, tmp_path: Path, monkeypatch) -> No
         encoding="utf-8",
     )
     before = ledger.read_text(encoding="utf-8")
-    # a stub that would REJECT if ever consulted — it must NOT be consulted
+    # a stub that would REJECT if ever consulted — the guard must keep it unconsulted
     stub = _Stub(lambda: {"same_morpheme": False, "confidence": "high", "reason": "no"})
     res = _invoke(monkeypatch, stub, fresh_db, ledger)
     assert res.exit_code == 0, res.output
