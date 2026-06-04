@@ -70,14 +70,14 @@ describe('appState.changedParams (send only non-default params)', () => {
     appState.paramsByGenerator = {};
   });
 
-  it('omits every default field but ALWAYS sends culture (the primary selector)', () => {
+  it('omits default fields but ALWAYS sends culture + count (authoritative selectors)', () => {
     setManifest({ defaults: { scoring_mode: 'vector' } });
     appState.ensureParams('gen');
-    // user touched nothing → only culture goes out; the server owns the rest
-    expect(appState.changedParams('gen')).toEqual({ culture: 'english' });
+    // user touched nothing → culture + count still go out; server owns the rest
+    expect(appState.changedParams('gen')).toEqual({ culture: 'english', count: 5 });
   });
 
-  it('includes only the fields the user changed (plus culture)', () => {
+  it('includes the changed fields plus the always-sent culture + count', () => {
     setManifest({ defaults: { scoring_mode: 'vector' } });
     appState.ensureParams('gen');
     appState.paramsByGenerator['gen'].count = 9; // changed from default 5
@@ -96,14 +96,17 @@ describe('appState.changedParams (send only non-default params)', () => {
     appState.paramsByGenerator['gen'].scoring_mode = 'proportions';
     expect(appState.changedParams('gen')).toEqual({
       culture: 'english',
+      count: 5,
       scoring_mode: 'proportions',
     });
   });
 
-  it('sends culture even when it equals its default', () => {
+  it('sends culture + count even when they equal their defaults', () => {
     setManifest();
     appState.ensureParams('gen');
-    expect(appState.changedParams('gen').culture).toBe('english');
+    const out = appState.changedParams('gen');
+    expect(out.culture).toBe('english');
+    expect(out.count).toBe(5);
   });
 
   it('never emits HIDDEN_FIELDS (seed)', () => {

@@ -13,10 +13,11 @@
 import { initialFieldValue } from './featureFlags.js';
 import { HIDDEN_FIELDS } from './headlineFields.js';
 
-// Fields sent on every Roll even when still at their default — the culture is
-// the primary generation selector, so the SPA's choice must be authoritative
-// rather than relying on the server's default culture matching the form's.
-const ALWAYS_SENT_FIELDS = new Set(['culture']);
+// Fields sent on every Roll even when still at their default — the SPA's value
+// must be authoritative rather than relying on the server's default matching the
+// form: ``culture`` is the primary generation selector, and ``count`` must equal
+// what the form displays (the user expects exactly that many results).
+const ALWAYS_SENT_FIELDS = new Set(['culture', 'count']);
 
 class AppState {
   // Loaded once at app boot from /api/manifest. null while in-flight.
@@ -182,10 +183,10 @@ class AppState {
    *  defaults by VALUE, not reference. A field with no schema entry is kept
    *  (we can't know its default); HIDDEN_FIELDS (seed) are dropped.
    *
-   *  ALWAYS_SENT fields (``culture``) are included even at their default: the
-   *  culture is the primary generation selector, so the SPA's choice must be
-   *  authoritative rather than relying on the server's default culture matching
-   *  the one the form is showing. */
+   *  ALWAYS_SENT fields (``culture``, ``count``) are included even at their
+   *  default: culture is the primary generation selector and count must equal
+   *  what the form displays, so the SPA's value must be authoritative rather
+   *  than relying on the server's default matching the form. */
   changedParams(generatorName) {
     const params = this.paramsByGenerator[generatorName];
     if (!params) return {};
