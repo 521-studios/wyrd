@@ -146,20 +146,15 @@ def test_tie_break_picks_lowest_id_major(fresh_db: Path) -> None:
         _cluster(db, "fild", "old-english", "field", size=60)
         _cluster(db, "field", "old-english", "field", size=6)
         db.commit()
-        picks = {
-            detect_meaning_merge_candidates(db.conn, min_similarity=0.6)[0].major_ref
-            for _ in range(5)
-            if any(
-                c.minor_ref == "old-english:field"
-                for c in detect_meaning_merge_candidates(db.conn, min_similarity=0.6)
-            )
-        }
-        field = [
-            c
-            for c in detect_meaning_merge_candidates(db.conn, min_similarity=0.6)
-            if c.minor_ref == "old-english:field"
-        ]
-        assert field[0].major_ref == "old-english:feld"  # lowest-id major, stable
+        picks = set()
+        field_major = None
+        for _ in range(5):
+            cands = detect_meaning_merge_candidates(db.conn, min_similarity=0.6)
+            field = [c for c in cands if c.minor_ref == "old-english:field"]
+            assert len(field) == 1  # one best major per minor
+            field_major = field[0].major_ref
+            picks.add(field_major)
+        assert picks == {"old-english:feld"}  # lowest-id major, stable across runs
 
 
 # ---- CLI: dry-run, failure-skip, terminal-merge ----------------------------

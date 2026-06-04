@@ -97,25 +97,26 @@ def lexicon_merge_lemmas(
     judged: set[tuple[str, str]] = set()
     merged_refs: set[str] = set()
     if collapse_file.exists():
-        for line in collapse_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line.startswith("{"):
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            # Only meaning-merge rows count as already-judged (method tag), at the
-            # (minor, major) PAIR level; a merge is TERMINAL (a merged minor is
-            # never re-judged, so no later reject can cancel it at replay).
-            if (
-                row.get("_type") == "collapse"
-                and row.get("ref")
-                and str(row.get("method", "")).startswith("llm-meaning-")
-            ):
-                judged.add((row["ref"], row.get("candidate_lemma") or row.get("into") or ""))
-                if row.get("into"):
-                    merged_refs.add(row["ref"])
+        with collapse_file.open(encoding="utf-8") as fled:  # stream — the ledger grows
+            for line in fled:
+                line = line.strip()
+                if not line.startswith("{"):
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                # Only meaning-merge rows count as already-judged (method tag), at
+                # the (minor, major) PAIR level; a merge is TERMINAL (a merged
+                # minor is never re-judged, so no later reject cancels it at replay).
+                if (
+                    row.get("_type") == "collapse"
+                    and row.get("ref")
+                    and str(row.get("method", "")).startswith("llm-meaning-")
+                ):
+                    judged.add((row["ref"], row.get("candidate_lemma") or row.get("into") or ""))
+                    if row.get("into"):
+                        merged_refs.add(row["ref"])
 
     todo = [
         c
@@ -136,15 +137,19 @@ def lexicon_merge_lemmas(
     client = OllamaClient(base_url=base_url, model=model, timeout_s=90.0)
     if not dry_run:
         collapse_file.parent.mkdir(parents=True, exist_ok=True)
-    fh = None if dry_run else collapse_file.open("a", encoding="utf-8")
     merges = rejects = skipped = 0
     start = time.perf_counter()
+    fh = None
     try:
+        if not dry_run:
+            fh = collapse_file.open("a", encoding="utf-8")
         for i, c in enumerate(todo, 1):
             system, user = build_merge_judge_prompt(c)
             verdict = None
             last_err: Exception | None = None
-            for _attempt in range(2):
+            for attempt in range(2):
+                if attempt:  # brief backoff before the single retry
+                    time.sleep(1.0)
                 try:
                     verdict = parse_merge_verdict(client.chat_json(system, user, {}))
                 except Exception as e:

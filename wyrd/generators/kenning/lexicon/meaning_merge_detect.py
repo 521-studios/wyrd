@@ -137,8 +137,15 @@ def detect_meaning_merge_candidates(
                 if rma < ratio * rmi:
                     continue  # major must clearly dominate
                 fr = arec["bare"]
-                if not fr or fb == fr:
+                if not fr:
                     continue
+                # NOTE: identical bare forms (fb == fr) are NOT excluded here —
+                # two non-barren clusters that simplify to the same form (an
+                # accent/diacritic split, e.g. 'feld' vs 'fēld', or a homograph
+                # split into two clusters) are PRIME merge candidates; let the
+                # LLM judge decide. (The barren fold excludes fb == fr because
+                # there one side is barren and identical-form means the same
+                # etymon; here both are real clusters.)
                 matcher.set_seq2(fr)
                 sim = matcher.ratio()
                 skeleton_match = len(skb) >= 2 and skb == arec["skel"]
