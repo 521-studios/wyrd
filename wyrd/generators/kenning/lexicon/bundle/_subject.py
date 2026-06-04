@@ -311,6 +311,21 @@ def _emit_era_reflexes(
                     entry["source"], existing["source"]
                 ):
                     bucket[form] = entry
+    # Self-seed the morpheme's OWN form in its OWN era column. A barren morpheme
+    # (no cognate cluster, no descent reflexes) would otherwise emit no
+    # era_reflexes at all and render a completely empty col-3 grid — showing in
+    # zero columns though it plainly exists and was just used to compose a name.
+    # The morpheme_id is "<language>:<canonical_form>"; ensure that (language,
+    # form) is present, tagged source="self" so the empty-coverage tracking
+    # (wyrd-32t1) can still exclude it from "real reflex" counts.
+    morpheme_id = word.get("morpheme_id")
+    if morpheme_id and ":" in morpheme_id:
+        own_lang, own_form = morpheme_id.split(":", 1)
+        own_form = own_form.strip("-").strip()
+        if own_form:
+            merged.setdefault(own_lang, {}).setdefault(
+                own_form, {"form": own_form, "source": "self"}
+            )
     if merged:
         word["era_reflexes"] = {
             target_language: [forms[form] for form in sorted(forms)]

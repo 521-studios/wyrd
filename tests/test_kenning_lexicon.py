@@ -6117,6 +6117,42 @@ def test_emit_era_reflexes_merges_cross_family_with_quality_preference() -> None
     ]
 
 
+def test_emit_era_reflexes_self_seeds_barren_morpheme() -> None:
+    """A barren morpheme — linked families contribute NO reflexes — must still
+    emit its OWN canonical form in its OWN era column (source='self'), so the
+    col-3 grid never renders empty for a morpheme that plainly exists."""
+    word = {"morpheme_id": "old-english:cul"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"old-english": [{"form": "cul", "source": "self"}]}
+
+
+def test_emit_era_reflexes_self_seed_does_not_override_real_reflex() -> None:
+    """When the morpheme's own form is already a real reflex of its own era, the
+    self-seed must NOT downgrade its source — setdefault keeps the real entry."""
+    word = {"morpheme_id": "old-english:tun"}
+    fam = {"era_reflexes": {"old-english": [{"form": "tun", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    assert word["era_reflexes"]["old-english"] == [{"form": "tun", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_self_seed_adds_own_era_alongside_others() -> None:
+    """A morpheme with reflexes only in OTHER eras still gets its own-era cell —
+    the seed adds the own stage without disturbing the existing ones."""
+    word = {"morpheme_id": "old-english:feld"}
+    fam = {"era_reflexes": {"middle-english": [{"form": "feld", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    assert word["era_reflexes"]["old-english"] == [{"form": "feld", "source": "self"}]
+    assert word["era_reflexes"]["middle-english"] == [{"form": "feld", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_no_morpheme_id_is_not_seeded() -> None:
+    """Legacy words with no morpheme_id can't be self-seeded (no own identity) —
+    they stay absent rather than inventing a cell."""
+    word: dict = {}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert "era_reflexes" not in word
+
+
 def test_kenning_rewind_generator_renders_three_era_stops() -> None:
     """End-to-end Generator class smoke: KenningRewind.generate_all
     returns one GenerationResult per English-family era stop
