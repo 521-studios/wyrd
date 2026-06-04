@@ -115,6 +115,153 @@ def test_cross_language_is_not_a_same_language_merge(fresh_db: Path) -> None:
         assert detect_meaning_merge_candidates(db.conn, min_similarity=0.6) == []
 
 
+def test_skeleton_admits_sub_similarity_vowel_shift(fresh_db: Path) -> None:
+    # wode↔wudu: difflib ~0.5 (below the floor) but a shared 'wd' skeleton
+    # rescues the pair — exercises the skeleton-only admission branch.
+    with LexiconDB(fresh_db) as db:
+        _cluster(db, "wode", "old-english", "wood, forest", size=6)
+        _cluster(db, "wudu", "old-english", "wood, a forest", size=60)
+        db.commit()
+        cands = detect_meaning_merge_candidates(db.conn, min_similarity=0.7)
+        wode = [c for c in cands if c.minor_ref == "old-english:wode"]
+        assert len(wode) == 1 and wode[0].major_ref == "old-english:wudu"
+        assert wode[0].similarity < 0.7  # admitted purely on the skeleton path
+
+
+def test_neither_similar_nor_skeleton_is_excluded(fresh_db: Path) -> None:
+    # same gloss token + ratio, but form-dissimilar AND different skeleton → out.
+    with LexiconDB(fresh_db) as db:
+        _cluster(db, "leah", "old-english", "clearing, meadow", size=6)
+        _cluster(db, "feld", "old-english", "clearing, meadow", size=60)
+        db.commit()
+        assert detect_meaning_merge_candidates(db.conn, min_similarity=0.7) == []
+
+
+def test_tie_break_picks_lowest_id_major(fresh_db: Path) -> None:
+    # two equally-rich, equally-similar majors for one minor → the total
+    # (richness, sim, -id) tie-break picks the lowest-id one (feld, inserted
+    # first), reproducibly across runs.
+    with LexiconDB(fresh_db) as db:
+        _cluster(db, "feld", "old-english", "field", size=60)  # lower id
+        _cluster(db, "fild", "old-english", "field", size=60)
+        _cluster(db, "field", "old-english", "field", size=6)
+        db.commit()
+        picks = {
+            detect_meaning_merge_candidates(db.conn, min_similarity=0.6)[0].major_ref
+            for _ in range(5)
+            if any(
+                c.minor_ref == "old-english:field"
+                for c in detect_meaning_merge_candidates(db.conn, min_similarity=0.6)
+            )
+        }
+        field = [
+            c
+            for c in detect_meaning_merge_candidates(db.conn, min_similarity=0.6)
+            if c.minor_ref == "old-english:field"
+        ]
+        assert field[0].major_ref == "old-english:feld"  # lowest-id major, stable
+
+
+# ---- CLI: dry-run, failure-skip, terminal-merge ----------------------------
+
+
+class _Stub:
+    """An OllamaClient stand-in with a scripted ``chat_json``."""
+
+    def __init__(self, fn):
+        self._fn = fn
+
+    def __call__(self, *a, **k):  # OllamaClient(...) constructor
+        return self
+
+    def chat_json(self, system, user, schema):
+        return self._fn()
+
+
+def _seed_field(db_path: Path) -> None:
+    with LexiconDB(db_path) as db:
+        _cluster(db, "field", "old-english", "open land, field", size=6)
+        _cluster(db, "feld", "old-english", "open country, field", size=60)
+        db.commit()
+
+
+def _run(monkeypatch, stub, db_path, ledger, *extra):
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.merge_lemmas import lexicon_merge_lemmas
+
+    monkeypatch.setattr("wyrd.generators.kenning.extractors.llm.OllamaClient", stub)
+    return CliRunner().invoke(
+        lexicon_merge_lemmas,
+        ["--db", str(db_path), "--collapse-file", str(ledger), "--min-similarity", "0.6", *extra],
+    )
+
+
+def test_cli_merge_writes_into_row(fresh_db: Path, tmp_path: Path, monkeypatch) -> None:
+    import json as _json
+
+    _seed_field(fresh_db)
+    ledger = tmp_path / "_collapses.jsonl"
+    stub = _Stub(lambda: {"same_morpheme": True, "confidence": "high", "reason": "stub"})
+    res = _run(monkeypatch, stub, fresh_db, ledger)
+    assert res.exit_code == 0, res.output
+    rows = [_json.loads(x) for x in ledger.read_text().splitlines() if x.strip()]
+    merge = next(r for r in rows if r.get("into"))
+    assert merge["ref"] == "old-english:field" and merge["into"] == "old-english:feld"
+    assert merge["method"] == "llm-meaning-merge-v1"
+
+
+def test_cli_dry_run_writes_nothing(fresh_db: Path, tmp_path: Path, monkeypatch) -> None:
+    _seed_field(fresh_db)
+    ledger = tmp_path / "_collapses.jsonl"
+    stub = _Stub(lambda: {"same_morpheme": True, "confidence": "high", "reason": "stub"})
+    res = _run(monkeypatch, stub, fresh_db, ledger, "--dry-run")
+    assert res.exit_code == 0, res.output
+    assert "(dry-run)" in res.output
+    assert not ledger.exists()
+
+
+def test_cli_skips_on_llm_failure_without_crashing(
+    fresh_db: Path, tmp_path: Path, monkeypatch
+) -> None:
+    _seed_field(fresh_db)
+    ledger = tmp_path / "_collapses.jsonl"
+
+    def _boom():
+        raise RuntimeError("transport down")
+
+    res = _run(monkeypatch, _Stub(_boom), fresh_db, ledger)
+    assert res.exit_code == 0, res.output
+    assert "1 skipped" in res.output and "[skip]" in res.output
+    assert not ledger.exists() or "into" not in ledger.read_text()
+
+
+def test_cli_merge_is_terminal(fresh_db: Path, tmp_path: Path, monkeypatch) -> None:
+    # A minor already merged must NOT be re-judged — no later reject can cancel
+    # it at replay. Pre-seed a merge row; a reject stub must not be consulted.
+    import json as _json
+
+    _seed_field(fresh_db)
+    ledger = tmp_path / "_collapses.jsonl"
+    ledger.write_text(
+        _json.dumps(
+            {
+                "_type": "collapse",
+                "ref": "old-english:field",
+                "into": "old-english:feld",
+                "candidate_lemma": "old-english:feld",
+                "method": "llm-meaning-merge-v1",
+            }
+        )
+        + "\n"
+    )
+    before = ledger.read_text()
+    stub = _Stub(lambda: {"same_morpheme": False, "confidence": "high", "reason": "no"})
+    res = _run(monkeypatch, stub, fresh_db, ledger)
+    assert res.exit_code == 0, res.output
+    assert ledger.read_text() == before  # untouched — terminal merge held
+
+
 # ---- verdict round-trip ----------------------------------------------------
 
 
