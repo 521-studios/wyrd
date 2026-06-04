@@ -14,7 +14,9 @@ export async function rollCurrent() {
   appState.isRolling = true;
   appState.rollError = null;
   try {
-    const rolledParams = appState.currentParams;
+    // Send ONLY the params the user changed from their default — an untouched
+    // field falls through to the SERVER's default ("default = don't include").
+    const rolledParams = appState.changedParams(appState.selectedGeneratorName);
     const envelope = await rollGenerator(
       appState.selectedGeneratorName,
       rolledParams,
@@ -24,9 +26,14 @@ export async function rollCurrent() {
     // wyrd-dsl5: stash roll metadata for defect reports (not for replay).
     appState.resultsSeed = envelope.seed ?? null;
     appState.resultsBundleVersion = envelope.bundle_version ?? null;
-    // Freeze a copy of the params used, so a later form edit doesn't corrupt
-    // a defect report's reproduction context.
-    appState.resultsParams = rolledParams ? { ...rolledParams } : {};
+    // Freeze the FULL seeded params (everything the form showed) for a defect
+    // report's reproduction context. We must NOT use the request body or the
+    // server echo: the request now omits defaults, and the server echoes only
+    // the sent params minus count/seed (it doesn't write resolved defaults
+    // back), so neither is a complete record. currentParams IS the complete
+    // local snapshot. Fall back to what we sent if it's somehow null.
+    const fullParams = appState.currentParams;
+    appState.resultsParams = fullParams ? { ...fullParams } : { ...rolledParams };
     appState.currentResultIndex = null;
   } catch (err) {
     appState.rollError = err.message;

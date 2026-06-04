@@ -7,6 +7,7 @@ import { appState } from './appState.svelte.js';
 
 const SCHEMA = {
   properties: {
+    culture: { type: 'string', default: 'english' }, // ALWAYS_SENT — even at default
     scoring_mode: { type: 'string', enum: ['proportions', 'vector'], default: 'proportions' },
     count: { type: 'integer', default: 5 },
     tags: { type: 'array' },
@@ -60,5 +61,71 @@ describe('appState.ensureParams (store-owned seeding)', () => {
     expect(p.count).toBe(9); // preserved
     expect(p.tags).toEqual([]); // backfilled — was missing, so no <select> binds undefined
     expect('seed' in p).toBe(false); // HIDDEN still dropped
+  });
+});
+
+describe('appState.changedParams (send only non-default params)', () => {
+  beforeEach(() => {
+    appState.manifest = null;
+    appState.paramsByGenerator = {};
+  });
+
+  it('omits default fields but ALWAYS sends culture + count (authoritative selectors)', () => {
+    setManifest({ defaults: { scoring_mode: 'vector' } });
+    appState.ensureParams('gen');
+    // user touched nothing → culture + count still go out; server owns the rest
+    expect(appState.changedParams('gen')).toEqual({ culture: 'english', count: 5 });
+  });
+
+  it('includes the changed fields plus the always-sent culture + count', () => {
+    setManifest({ defaults: { scoring_mode: 'vector' } });
+    appState.ensureParams('gen');
+    appState.paramsByGenerator['gen'].count = 9; // changed from default 5
+    appState.paramsByGenerator['gen'].tags = ['water']; // changed from []
+    const out = appState.changedParams('gen');
+    expect(out).toEqual({ culture: 'english', count: 9, tags: ['water'] });
+    expect('scoring_mode' in out).toBe(false); // still == config default 'vector'
+  });
+
+  it('treats a value equal to the config.defaults override as unchanged', () => {
+    setManifest({ defaults: { scoring_mode: 'vector' } });
+    appState.ensureParams('gen');
+    appState.paramsByGenerator['gen'].scoring_mode = 'vector'; // explicitly = override
+    expect('scoring_mode' in appState.changedParams('gen')).toBe(false);
+    // but flipping to the OTHER value is a real change
+    appState.paramsByGenerator['gen'].scoring_mode = 'proportions';
+    expect(appState.changedParams('gen')).toEqual({
+      culture: 'english',
+      count: 5,
+      scoring_mode: 'proportions',
+    });
+  });
+
+  it('sends culture + count even when they equal their defaults', () => {
+    setManifest();
+    appState.ensureParams('gen');
+    const out = appState.changedParams('gen');
+    expect(out.culture).toBe('english');
+    expect(out.count).toBe(5);
+  });
+
+  it('never emits HIDDEN_FIELDS (seed)', () => {
+    setManifest();
+    appState.ensureParams('gen');
+    appState.paramsByGenerator['gen'].seed = 42;
+    expect('seed' in appState.changedParams('gen')).toBe(false);
+  });
+
+  it('returns {} when the generator has no seeded params bag', () => {
+    setManifest();
+    // no ensureParams → paramsByGenerator['gen'] is undefined
+    expect(appState.changedParams('gen')).toEqual({});
+  });
+
+  it('keeps a param that has no schema entry (unknown default → forward it)', () => {
+    setManifest();
+    appState.ensureParams('gen');
+    appState.paramsByGenerator['gen'].mystery = 'x'; // not in SCHEMA.properties
+    expect(appState.changedParams('gen').mystery).toBe('x');
   });
 });

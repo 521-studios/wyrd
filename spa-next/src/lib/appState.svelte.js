@@ -13,6 +13,12 @@
 import { initialFieldValue } from './featureFlags.js';
 import { HIDDEN_FIELDS } from './headlineFields.js';
 
+// Fields sent on every Roll even when still at their default — the SPA's value
+// must be authoritative rather than relying on the server's default matching the
+// form: ``culture`` is the primary generation selector, and ``count`` must equal
+// what the form displays (the user expects exactly that many results).
+const ALWAYS_SENT_FIELDS = new Set(['culture', 'count']);
+
 class AppState {
   // Loaded once at app boot from /api/manifest. null while in-flight.
   manifest = $state(null);
@@ -163,6 +169,48 @@ class AppState {
       }
     }
     this.paramsByGenerator[generatorName] = params;
+  }
+
+  /** The subset of a generator's params the user actually CHANGED from its
+   *  seeded default (config.defaults override → schema default → type-empty).
+   *  The Roll request sends ONLY these, so an untouched field falls through to
+   *  the SERVER's default rather than the SPA pinning a value the server owns —
+   *  "default should mean don't include". Without this, the form seeds every
+   *  field (incl. config.defaults like scoring_mode=vector) and POSTs them all,
+   *  which both bloats the request and silently overrides server-side defaults.
+   *
+   *  Deep-compares via JSON so empty arrays/strings ([], "") equal their
+   *  defaults by VALUE, not reference. A field with no schema entry is kept
+   *  (we can't know its default); HIDDEN_FIELDS (seed) are dropped.
+   *
+   *  ALWAYS_SENT fields (``culture``, ``count``) are included even at their
+   *  default: culture is the primary generation selector and count must equal
+   *  what the form displays, so the SPA's value must be authoritative rather
+   *  than relying on the server's default matching the form. */
+  changedParams(generatorName) {
+    const params = this.paramsByGenerator[generatorName];
+    if (!params) return {};
+    const generator = this.manifest?.generators?.find((g) => g.name === generatorName);
+    const properties = generator?.input_schema?.properties || {};
+    const config = this.config; // hoist the getter out of the loop
+    const changed = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (HIDDEN_FIELDS.has(key)) continue;
+      const prop = properties[key];
+      if (
+        !ALWAYS_SENT_FIELDS.has(key) &&
+        prop &&
+        // JSON-stringify equality is safe only while every param is a scalar or
+        // array of scalars (order-stable). If an OBJECT-valued param is ever
+        // added, key-order differences would compare unequal and over-send —
+        // switch to a structural deep-equal then.
+        JSON.stringify(value) === JSON.stringify(initialFieldValue(config, key, prop))
+      ) {
+        continue; // unchanged from its seeded default → let the server own it
+      }
+      changed[key] = value;
+    }
+    return changed;
   }
 }
 
