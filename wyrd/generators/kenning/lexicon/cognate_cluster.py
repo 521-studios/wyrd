@@ -22,7 +22,19 @@ from __future__ import annotations
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
 _COGNATE_BRIDGING_EDGES = ("inheritance", "borrowing")
-_CLUSTER_COGNATES_METHOD = "cluster-cognates-v1"
+
+# v2: languages whose etymons must NOT bridge a cognate cluster. Proto-Indo-
+# European reconstructions sit above the family layer, so inheritance FROM a PIE
+# root fans out across every IE branch — Germanic ``down`` AND Greek ``-thymia``
+# AND Sanskrit ``dhūmra`` all "inherit" from PIE ``*dʰewh₂-``. Rooting a cluster
+# there produced 1000+-member mega-clusters of unrelated words (143 of 155
+# clusters >200 members were PIE-rooted), so the era-grid rendered garbage modern
+# reflexes. Dropping every edge that TOUCHES a PIE node removes PIE from the
+# cluster graph, so each IE family (Proto-Germanic and below) clusters on its own
+# — exactly the scope British-toponym cognates need. Family-level protos
+# (Proto-Germanic etc.) still bridge, so OE/ON/etc. cognates stay together.
+_NON_BRIDGING_LANGUAGES = ("proto-indo-european",)
+_CLUSTER_COGNATES_METHOD = "cluster-cognates-v2"
 
 
 def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
@@ -87,6 +99,7 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     # strings, never user input, so no SQL injection risk. Edge values
     # themselves are bound via parameters.
     placeholders = ", ".join(["?"] * len(_COGNATE_BRIDGING_EDGES))
+    nb_placeholders = ", ".join(["?"] * len(_NON_BRIDGING_LANGUAGES))
 
     # Build the canonical edge set: every descent edge with both
     # endpoints resolved through merged_into_id. Returns
@@ -94,6 +107,11 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     # by the resolution (parent and child both merge into the same
     # canonical) are filtered out — they'd waste a BFS node and offer
     # zero clustering signal.
+    #
+    # v2: drop every edge that TOUCHES a non-bridging-language etymon (PIE) so a
+    # cluster can never root at / traverse through the cross-family PIE layer.
+    # The language is checked on the ORIGINAL endpoints — a PIE reconstruction is
+    # never itself an OCR-merge target, so it equals the canonical's language.
     canonical_edges = [
         (row["parent_canon"], row["child_canon"])
         for row in db.conn.execute(
@@ -105,8 +123,10 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
             JOIN etymon p ON p.id = d.parent_id
             JOIN etymon c ON c.id = d.child_id
             WHERE d.edge_type IN ({placeholders})
+              AND p.language NOT IN ({nb_placeholders})
+              AND c.language NOT IN ({nb_placeholders})
             """,
-            _COGNATE_BRIDGING_EDGES,
+            (*_COGNATE_BRIDGING_EDGES, *_NON_BRIDGING_LANGUAGES, *_NON_BRIDGING_LANGUAGES),
         ).fetchall()
         if row["parent_canon"] != row["child_canon"]
     ]
