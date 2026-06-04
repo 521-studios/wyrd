@@ -11,7 +11,7 @@ import pytest
 
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.bundle._family import (
-    _fetch_root_era_reflexes,
+    _fetch_family_era_reflexes,
     _is_derived_name_pollution,
 )
 
@@ -54,7 +54,7 @@ def test_modern_stage_drops_derived_names_keeps_reflex(fresh_db: Path) -> None:
         _mate(db, root, "Wesley", "modern-english")  # anthroponym
         _mate(db, root, "Düne", "modern-english")  # capitalized foreign cognate
         db.commit()
-        out = _fetch_root_era_reflexes(db, root, "old-english")
+        out = _fetch_family_era_reflexes(db, [root], "old-english")
         assert [e["form"] for e in out.get("modern-english", [])] == ["ton"]
 
 
@@ -66,7 +66,7 @@ def test_historical_stage_is_not_filtered(fresh_db: Path) -> None:
         db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (root, root))
         _mate(db, root, "Tuun", "old-english")  # capitalized, but historical → kept
         db.commit()
-        out = _fetch_root_era_reflexes(db, root, "old-english")
+        out = _fetch_family_era_reflexes(db, [root], "old-english")
         oe = {e["form"] for e in out.get("old-english", [])}
         assert "Tuun" in oe and "tūn" in oe
 
@@ -80,7 +80,7 @@ def test_all_modern_pollution_empties_the_stage(fresh_db: Path) -> None:
         _mate(db, root, "Notting Hill", "modern-english")
         _mate(db, root, "Hillary", "modern-english")
         db.commit()
-        out = _fetch_root_era_reflexes(db, root, "old-english")
+        out = _fetch_family_era_reflexes(db, [root], "old-english")
         assert "modern-english" not in out
 
 
@@ -111,7 +111,7 @@ def test_filtered_forms_do_not_reach_forms_by_lang(fresh_db: Path) -> None:
         _mate(db, root, "ton", "modern-english")
         _mate(db, root, "West Ham", "modern-english")
         db.commit()
-        era_reflexes = _fetch_root_era_reflexes(db, root, "old-english")
+        era_reflexes = _fetch_family_era_reflexes(db, [root], "old-english")
         forms_by_lang: dict[str, list[str]] = {}
         _merge_era_reflexes_into_forms_by_lang(forms_by_lang, era_reflexes)
         assert forms_by_lang.get("modern-english") == ["ton"]
@@ -135,3 +135,29 @@ def test_fantasy_export_also_filters_modern_pollution(fresh_db: Path) -> None:
         out = collect_fantasy_morphemes(db)
         modern = [e["form"] for e in out["Tunhold"]["era_reflexes"].get("modern-english", [])]
         assert modern == ["ton"]
+
+
+def test_family_era_reflexes_union_across_members(fresh_db: Path) -> None:
+    # wyrd-rogd.16: the era-grid must UNION every family member's cluster, not
+    # just the root's. A rich-cluster member (modern 'green', 3 OE-stage forms)
+    # folded into a poor root (OE 'green', 1 form) must keep all of them.
+    with LexiconDB(fresh_db) as db:
+        root = db.upsert_etymon("grene", "old-english")  # ancestor / family root
+        rich = db.upsert_etymon("green", "modern-english")  # folded-in reflex
+        # two separate cognate clusters
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (root, root))
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (rich, rich))
+        # OE-stage cluster mates: root has 1, the reflex's cluster has 3 more
+        _mate(db, root, "groeni", "old-english")  # root's own OE mate
+        for f in ("graeni", "grene2", "groene"):
+            mate_id = db.upsert_etymon(f, "old-english")
+            db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (rich, mate_id))
+        db.commit()
+        # root-only would see just groeni; the family union sees all 4
+        root_only = _fetch_family_era_reflexes(db, [root], "old-english")
+        union = _fetch_family_era_reflexes(db, [root, rich], "old-english")
+        oe_root_only = {e["form"] for e in root_only.get("old-english", [])}
+        oe_union = {e["form"] for e in union.get("old-english", [])}
+        assert "groeni" in oe_root_only and "graeni" not in oe_root_only  # root cluster only
+        assert {"groeni", "graeni", "grene2", "groene"} <= oe_union  # unioned
+        assert len(oe_union) > len(oe_root_only)

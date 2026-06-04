@@ -1612,10 +1612,11 @@ The Lambda runs on bundled data (the lexicon DB is 673MB —
 too big to ship). To enable a SPA `KenningRewind`, era-reflex
 data is precomputed at bundle-build time:
 
-- `lexicon._fetch_root_era_reflexes(db, root_id, root_language)`
-  computes `{target_language: [forms]}` for the family root via
-  the same three-tier picker. Wired into `_gather_family` so each
-  family carries `era_reflexes` data.
+- `lexicon._fetch_family_era_reflexes(db, member_ids, root_language)`
+  computes `{target_language: [forms]}` for the whole family by
+  UNIONing the same picker across every member (wyrd-rogd.16) — not
+  just the root, so a folded reflex's cluster isn't orphaned. Wired
+  into `_gather_family` so each family carries `era_reflexes` data.
 - `_emit_era_reflexes(word, link_pairs)` stamps the family root's
   reflexes onto the word entry's top-level `era_reflexes` field.
   Multiple linked families merge by set-union per target language.

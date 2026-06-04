@@ -5,7 +5,7 @@ etymon id + the list of member ids in its cognate cluster, run every
 ``_fetch_member_*`` SQL loader once, hydrate a single per-family
 context dict, and return it for downstream subject/word assembly.
 
-The era-reflex picker (``_fetch_root_era_reflexes``) uses the same
+The era-reflex picker (``_fetch_family_era_reflexes``) uses the same
 4-tier ladder that ``era_reflex.etymon_era_reflexes`` exposes for
 runtime callers — the bundle pre-computes the picks at build time so
 the runtime doesn't need to walk the descent graph.
@@ -107,7 +107,7 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
 
     reflex_links = _fetch_member_reflex_links(db, member_ids)
 
-    era_reflexes = _fetch_root_era_reflexes(db, root_id, root_row["language"])
+    era_reflexes = _fetch_family_era_reflexes(db, member_ids, root_row["language"])
     forms_by_lang = _build_forms_by_lang(root_row, member_rows)
     # wyrd-nxhh: pre-fix the modern surfaces only landed in
     # ``era_reflexes`` (consumed by KenningRewind for era progression).
@@ -228,7 +228,7 @@ def _merge_era_reflexes_into_forms_by_lang(
     reads.
 
     Each ``era_reflexes`` entry is a target-language → list of
-    ``{form, source}`` dicts from ``_fetch_root_era_reflexes``. We
+    ``{form, source}`` dicts from ``_fetch_family_era_reflexes``. We
     filter to ``source in _ATTESTED_ERA_REFLEX_SOURCES`` (Tiers 1-3 —
     excluding Tier-4 phonology-rule forms), then union the surviving
     forms into ``forms_by_lang[target_language]`` preserving insertion
@@ -256,10 +256,10 @@ def _merge_era_reflexes_into_forms_by_lang(
                 existing.add(form)
 
 
-def _fetch_root_era_reflexes(
-    db: LexiconDB, root_id: int, root_language: str
+def _fetch_family_era_reflexes(
+    db: LexiconDB, member_ids: list[int], root_language: str
 ) -> dict[str, list[dict[str, str]]]:
-    """wyrd-obpw Phase 3.3 + wyrd-jbcu source-aware schema: per-root
+    """wyrd-obpw Phase 3.3 + wyrd-jbcu source-aware schema: per-FAMILY
     era reflexes for bundle export.
 
     Returns a dict mapping target language tag → sorted list of
@@ -272,21 +272,22 @@ def _fetch_root_era_reflexes(
     for the SPA era-grid's drift display.
 
     For each language tag in ``CANONICAL_LANGUAGE_FOR_CELL`` of the
-    root's family, calls ``etymon_era_reflexes`` and collects the
-    forms. When the same form arrives via multiple tiers (cluster
-    mate AND a phonology rule that landed on the same surface), the
-    higher-quality source wins per ``_ERA_REFLEX_SOURCE_PRIORITY``.
+    family, calls ``etymon_era_reflexes`` for EVERY family member and
+    UNIONS the results (wyrd-rogd.16). The family is the unified morpheme,
+    so its grid must aggregate every member's cluster — not just the root's.
+    rogd.9 folds a later-era reflex into its earlier-era ancestor's family;
+    computing the grid from the ancestor-root's cluster ALONE orphaned the
+    reflex's own (often richer) cluster — e.g. modern 'green' (39 cluster
+    reflexes) folded into OE 'green' (1) collapsed the grid 39→1. Unioning
+    keeps the morpheme's full cross-era reflex set. When the same form
+    arrives via multiple members / tiers, the higher-quality source wins
+    (``_ERA_REFLEX_SOURCE_PRIORITY``); ties keep the lowest-id member's
+    (``member_ids`` is iterated sorted) for deterministic glosses.
 
     Empty languages are omitted (no entry in the returned dict).
-    Returns ``{}`` when:
-
-    * the root's language has no era family (proto-languages,
-      untracked classical languages),
-    * no cluster mates / descent edges / period-form rows / phonology
-      rule walks match any target language.
-
-    Computed at bundle-build time only — the runtime caller doesn't
-    have DB access and reads from the bundle's ``era_reflexes`` field.
+    Returns ``{}`` when the family's language has no era family
+    (proto-languages, untracked classical languages) or no member yields a
+    reflex for any target. Computed at bundle-build time only.
     """
     from wyrd.generators.kenning.era.cells import (
         CANONICAL_LANGUAGE_FOR_CELL,
@@ -301,27 +302,32 @@ def _fetch_root_era_reflexes(
     }
     out: dict[str, list[dict[str, str]]] = {}
     modern_languages = _modern_stage_languages()
+    sorted_members = sorted(member_ids)
     for target_language in sorted(target_languages):
-        reflexes = etymon_era_reflexes(db, root_id, target_language=target_language)
-        if target_language in modern_languages:
-            # wyrd-rogd.11: strip derived proper nouns + mistagged foreign
-            # cognates so the modern stage carries only the morpheme's own
-            # common-noun reflex (or is empty). Done here so the cleaned set
-            # feeds BOTH the era-grid display AND the forms_by_lang merge —
-            # the generator must not sample 'West Ham' as a surface either.
-            reflexes = [r for r in reflexes if not _is_derived_name_pollution(r.form)]
-        if not reflexes:
-            continue
-        # Dedupe by form, keeping the highest-quality source's reflex on
-        # collision (same form might surface via cluster (high) and
-        # phonology-rule (low) — prefer the cluster). We keep the whole
+        # wyrd-rogd.11: the modern stage strips derived proper nouns + mistagged
+        # foreign cognates so it carries only the morpheme's own common-noun
+        # reflex (or is empty). Done here so the cleaned set feeds BOTH the
+        # era-grid display AND the forms_by_lang merge — the generator must not
+        # sample 'West Ham' as a surface either. (Invariant per target, hoisted
+        # out of the member loop.)
+        is_modern = target_language in modern_languages
+        # Dedupe by form across ALL members, keeping the highest-quality
+        # source's reflex on collision (same form might surface via cluster
+        # (high) and phonology-rule (low), or via two members — prefer the
+        # better source, then the lower-id member). We keep the whole
         # EraReflex, not just its source, so we can look up THAT reflex's
         # gloss (wyrd-rogd.1 — for the SPA era-grid drift display).
         best: dict[str, EraReflex] = {}
-        for r in reflexes:
-            existing = best.get(r.form)
-            if existing is None or _better_era_reflex_source(r.source, existing.source):
-                best[r.form] = r
+        for member_id in sorted_members:
+            reflexes = etymon_era_reflexes(db, member_id, target_language=target_language)
+            if is_modern:
+                reflexes = [r for r in reflexes if not _is_derived_name_pollution(r.form)]
+            for r in reflexes:
+                existing = best.get(r.form)
+                if existing is None or _better_era_reflex_source(r.source, existing.source):
+                    best[r.form] = r
+        if not best:
+            continue
         glosses = _fetch_reflex_glosses(db, [r.etymon_id for r in best.values()])
         out[target_language] = [_reflex_entry(best[form], glosses) for form in sorted(best)]
     return out
@@ -367,7 +373,7 @@ def _fetch_reflex_glosses(db: LexiconDB, etymon_ids: list[int]) -> dict[int, str
     return {eid: glosses[0] for eid, glosses in by_id.items() if glosses}
 
 
-# Lower number = higher quality. Used by _fetch_root_era_reflexes when
+# Lower number = higher quality. Used by _fetch_family_era_reflexes when
 # the same form surfaces via multiple tiers, and by _emit_era_reflexes
 # when multiple linked families contribute the same form. Unknown
 # sources fall through to default priority so a future tier doesn't
@@ -384,7 +390,7 @@ _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY: int = 2
 def _better_era_reflex_source(candidate: str, current: str) -> bool:
     """True iff ``candidate`` outranks ``current`` per the era-reflex
     source priority. Used to resolve same-form collisions in both
-    ``_fetch_root_era_reflexes`` (per-tier dedupe) and
+    ``_fetch_family_era_reflexes`` (per-tier dedupe) and
     ``_emit_era_reflexes`` (cross-family merge). Unknown sources fall
     through to default priority on both sides — the comparison stays
     well-defined and a new tier doesn't silently win or lose against
