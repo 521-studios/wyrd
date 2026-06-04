@@ -43,10 +43,14 @@ def test_family_stage_order_unknown_family_is_empty_not_error():
 # --- _era_grid: bucketing, ordering, sources ------------------------------
 
 
-def _meaning_with_reflexes(reflexes, era_reflex_glosses=None):
+def _meaning_with_reflexes(reflexes, era_reflex_glosses=None, morpheme_id="m:test-tun"):
     """A bare Meaning carrying era_reflexes (+ optional per-form glosses) — the
     fields _era_grid reads. era_reflexes is the runtime ``{lang: [(form,
-    source)]}`` shape; era_reflex_glosses is ``{lang: {form: gloss}}``."""
+    source)]}`` shape; era_reflex_glosses is ``{lang: {form: gloss}}``.
+
+    Carries a ``morpheme_id`` (wyrd-rogd.10 Phase 3): the era-grid is resolved
+    by morpheme id (no string-derivation fallback), so a grid-bearing meaning
+    must declare one — the real bundle does (Phase 2 emission)."""
     return Meaning(
         "-tun",
         tags=[],
@@ -54,6 +58,7 @@ def _meaning_with_reflexes(reflexes, era_reflex_glosses=None):
         sources={"old_english": ["tun"]},
         era_reflexes=reflexes,
         era_reflex_glosses=era_reflex_glosses,
+        morpheme_id=morpheme_id,
     )
 
 
@@ -206,3 +211,14 @@ def test_era_grid_cells_carry_stable_distinct_ids():
     ids = [c["id"] for c in cells]
     assert ids == ["old-english:0", "old-english:1"]
     assert len(set(ids)) == 2  # distinct despite folding equal
+
+
+def test_no_era_grid_without_morpheme_id_phase3():
+    # wyrd-rogd.10 Phase 3: the era-grid is morpheme_id-authoritative — a
+    # meaning carrying era_reflexes but NO morpheme_id (un-attributable surface,
+    # not a real morpheme) gets NO grid. The pre-Phase-3 `or first` string-
+    # derivation fallback that would have surfaced one is retired.
+    m = _meaning_with_reflexes({"old-english": [("tūn", "cluster")]}, morpheme_id=None)
+    nn = NewName(struct=None, meaning_db={"-tun": [m]}, name=[["-tun"]])
+    assert "era_grid" not in nn.to_dict()["words"][0][0]
+    assert "era_grid" not in nn.components()[0]
