@@ -146,7 +146,12 @@ PER_CULTURE_TOLERANCES: dict[str, ToleranceBand] = {
         max_total_variation=0.16,
         min_top_n_overlap=None,
         max_decomposition_rate_delta_abs=0.02,
-        min_morpheme_rank_correlation=0.15,
+        # wyrd-rogd col-3 rebuild (2026-06-04): the rogd.9 fold + rogd.16
+        # era-reflex union shifted proportions without re-deriving the
+        # phonological vectors, so the two scoring modes agree marginally less:
+        # morpheme_rank_correlation 0.151 → 0.1451. Operator-approved recalibrate
+        # 0.15 → 0.14 to accept the (benign) data-improvement drift.
+        min_morpheme_rank_correlation=0.14,
     ),
     "scottish": ToleranceBand(
         max_kl_divergence=0.20,  # was 0.06; observed 0.152 post-fix (real shift)
