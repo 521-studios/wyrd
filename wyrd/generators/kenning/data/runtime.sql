@@ -36,7 +36,11 @@ CREATE INDEX idx_meaning_stratum  ON meaning(stratum);
 -- the connective surface string, so ONE morpheme owns all its surface variants
 -- (-ing- / -ing / Ing- collapse to one record). Additive + dormant in Phase 1
 -- (the runtime still resolves via the dash-strip surface index); Phase 2
--- follows this table by id and retires _resolve_surface. The id is a CONTENT
+-- follows this table by id for the era-grid, and Phase 3 makes the era-grid
+-- morpheme_id-authoritative (drops the string-derivation fallback).
+-- _resolve_surface is NOT retired — it stays the generation matcher
+-- (usage → meaning/tags/siblings); only the era-grid stopped using it. The id
+-- is a CONTENT
 -- key "{language}:{canonical_form}" (NOT the autoincrement root_id, which
 -- shifts across a rebuild) so the export stays byte-identical across
 -- rebuild-from-jsonl — the reconstructibility guarantee.

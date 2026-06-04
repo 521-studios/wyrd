@@ -2409,14 +2409,20 @@ class NewName:
                     # wyrd-lftl: per-morpheme family × era reflex grid for the
                     # SPA col-3 inspector. Sparse — only when the etymon carries
                     # era_reflexes (coverage gap tracked in wyrd-32t1).
-                    # wyrd-rogd.10 Phase 2: resolve the grid against the UNIFIED
-                    # morpheme (by id) so it reflects the whole morpheme, not one
-                    # connective-surface variant; fall back to the per-surface
-                    # `first` when no morpheme_id (old bundles → dash-strip path).
+                    # wyrd-rogd.10 Phase 3: resolve the grid against the UNIFIED
+                    # morpheme by its stable id — morpheme_id is now authoritative
+                    # (Phase 2's keying is live in the bundle), so the dash-strip
+                    # string-derivation FALLBACK is retired here. A surface with
+                    # no/unresolvable morpheme_id (un-attributable, e.g. -'s) isn't
+                    # a morpheme and gets no grid (_era_grid(None) → []). NOTE:
+                    # _resolve_surface stays the generation MATCHER (tags /
+                    # siblings / location); only the era-grid stops using string-
+                    # derivation. (The design's 'delete _resolve_surface' was
+                    # over-stated — the matcher is load-bearing and must stay.)
                     morpheme_meaning = _resolve_morpheme(
                         self.meaning_db, getattr(first, "morpheme_id", None)
                     )
-                    grid = _era_grid(morpheme_meaning or first, renderings)
+                    grid = _era_grid(morpheme_meaning, renderings)
                     if grid:
                         morpheme["era_grid"] = grid
                 # D18 variant / D8 inflection / era substitute if present
@@ -2506,11 +2512,12 @@ class NewName:
                 # wyrd-lftl: family × era reflex grid (col-3 inspector) — same
                 # structure to_dict emits, so the API envelope's `components`
                 # and `morphemes_by_word` stay in lockstep. Sparse (wyrd-32t1).
-                # wyrd-rogd.10 Phase 2: resolve against the unified morpheme.
+                # wyrd-rogd.10 Phase 3: morpheme_id is authoritative for the grid
+                # — no string-derivation fallback (see the to_dict site above).
                 morpheme_meaning = _resolve_morpheme(
                     self.meaning_db, getattr(first, "morpheme_id", None)
                 )
-                grid = _era_grid(morpheme_meaning or first, renderings)
+                grid = _era_grid(morpheme_meaning, renderings)
                 if grid:
                     morpheme["era_grid"] = grid
                 # wyrd-mf2u: carry the era form + its own pronunciation/language
