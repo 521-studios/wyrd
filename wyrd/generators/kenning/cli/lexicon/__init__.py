@@ -102,6 +102,7 @@ from wyrd.generators.kenning.cli.lexicon import (
     extract_pfsrd2_monsters as _extract_pfsrd2_monsters_module,
 )
 from wyrd.generators.kenning.cli.lexicon import fetch_bulk_sources as _fetch_bulk_sources_module
+from wyrd.generators.kenning.cli.lexicon import fold_variants as _fold_variants_module
 from wyrd.generators.kenning.cli.lexicon import fuzzy_search as _fuzzy_search_module
 from wyrd.generators.kenning.cli.lexicon import import_mining_log as _import_mining_log_module
 from wyrd.generators.kenning.cli.lexicon import (
@@ -272,6 +273,7 @@ _import_mining_log_module.add_to(lexicon)
 _language_report_module.add_to(lexicon)
 _link_lemmas_module.add_to(lexicon)
 _lookup_attested_years_module.add_to(lexicon)
+_fold_variants_module.add_to(lexicon)
 _merge_collapses_module.add_to(lexicon)
 _link_reflexes_module.add_to(lexicon)
 _migrate_module.add_to(lexicon)
