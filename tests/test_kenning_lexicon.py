@@ -6128,11 +6128,37 @@ def test_emit_era_reflexes_self_seeds_barren_morpheme() -> None:
 
 def test_emit_era_reflexes_self_seed_does_not_override_real_reflex() -> None:
     """When the morpheme's own form is already a real reflex of its own era, the
-    self-seed must NOT downgrade its source — setdefault keeps the real entry."""
-    word = {"morpheme_id": "old-english:tun"}
-    fam = {"era_reflexes": {"old-english": [{"form": "tun", "source": "cluster"}]}}
+    self-seed must NOT downgrade its source AND must NOT add a duplicate. Uses a
+    DASHED affix ('-tun') — real reflexes store affixes with dashes, so the seed
+    must key verbatim or setdefault wouldn't collide (the duplicate-cell bug)."""
+    word = {"morpheme_id": "old-english:-tun"}
+    fam = {"era_reflexes": {"old-english": [{"form": "-tun", "source": "cluster"}]}}
     _emit_era_reflexes(word, [(fam, [])])
-    assert word["era_reflexes"]["old-english"] == [{"form": "tun", "source": "cluster"}]
+    # exactly ONE cell, the real cluster one — no bare-'tun' self duplicate
+    assert word["era_reflexes"]["old-english"] == [{"form": "-tun", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_self_seeds_dashed_affix_verbatim() -> None:
+    """A barren dashed affix seeds its own form WITH dashes intact (matching how
+    real reflexes are stored), not a stripped variant."""
+    word = {"morpheme_id": "old-english:-ing"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"old-english": [{"form": "-ing", "source": "self"}]}
+
+
+def test_emit_era_reflexes_dash_only_form_is_not_seeded() -> None:
+    """A morpheme_id whose form is bare dashes has no real content → no seed."""
+    word = {"morpheme_id": "old-english:-"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert "era_reflexes" not in word
+
+
+def test_emit_era_reflexes_morpheme_id_without_colon_is_not_seeded() -> None:
+    """A truthy morpheme_id lacking a ':' can't be split into (lang, form) → the
+    colon guard skips it rather than mis-unpacking."""
+    word = {"morpheme_id": "nocolon"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert "era_reflexes" not in word
 
 
 def test_emit_era_reflexes_self_seed_adds_own_era_alongside_others() -> None:
