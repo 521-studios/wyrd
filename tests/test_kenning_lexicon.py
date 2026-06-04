@@ -9280,6 +9280,8 @@ def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
             "morpheme_id": "old-english:aecern",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["aecern"],
             "old_english_pronunciation": [{"form": "aecern", "ipa": "/ɑɛkɛrn/", "dialect": None}],
+            # self-seed: a barren morpheme shows its own form in its own era
+            "era_reflexes": {"old-english": [{"form": "aecern", "source": "self"}]},
         }
     ]
     assert without_rando == []
@@ -9477,6 +9479,8 @@ def test_export_meanings_promotes_at_witness_threshold(fresh_db: Path) -> None:
             "old_english_citations": ["a", "b", "c"],
             # wyrd-vm8t Loop 4: G2P surface pronunciation (onset-h → /h/).
             "old_english_pronunciation": [{"form": "ham", "ipa": "/hɑm/", "dialect": None}],
+            # self-seed: own form in its own era column
+            "era_reflexes": {"old-english": [{"form": "ham", "source": "self"}]},
         }
     ]
 
@@ -11121,6 +11125,8 @@ def test_export_meanings_synthesizes_word_for_mined_only_family(
             "old_english_citations": ["a", "b", "c"],
             # wyrd-vm8t Loop 4: G2P surface pronunciation.
             "old_english_pronunciation": [{"form": "tune", "ipa": "/tʊnɛ/", "dialect": None}],
+            # self-seed: own form in its own era column
+            "era_reflexes": {"old-english": [{"form": "tune", "source": "self"}]},
         }
     ]
 

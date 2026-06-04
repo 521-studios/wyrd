@@ -323,14 +323,10 @@ def _emit_era_reflexes(
     # Seed the form VERBATIM (dashes intact): real reflexes store affixes with
     # their dashes ('-tun', '-chester'), so a dash-stripped key would NOT collide
     # under setdefault and would add a duplicate own-era cell.
-    morpheme_id = word.get("morpheme_id")
-    if morpheme_id and ":" in morpheme_id:
-        own_lang, own_form = morpheme_id.split(":", 1)
-        own_form = own_form.strip()
-        if own_form.strip("-"):  # has content beyond bare dashes
-            merged.setdefault(own_lang, {}).setdefault(
-                own_form, {"form": own_form, "source": "self"}
-            )
+    own_lang, sep, own_form = (word.get("morpheme_id") or "").partition(":")
+    own_form = own_form.strip()
+    if sep and own_lang and own_form.strip("-"):  # well-formed id, content beyond dashes
+        merged.setdefault(own_lang, {}).setdefault(own_form, {"form": own_form, "source": "self"})
     if merged:
         word["era_reflexes"] = {
             target_language: [forms[form] for form in sorted(forms)]
