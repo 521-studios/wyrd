@@ -91,7 +91,8 @@ def lexicon_fold_variants(
             conn, min_similarity=min_similarity, max_per_gloss=max_per_gloss
         )
 
-    judged: set[str] = set()
+    judged: set[tuple[str, str]] = set()
+    folded: set[str] = set()
     if collapse_file.exists():
         for line in collapse_file.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -114,8 +115,19 @@ def lexicon_fold_variants(
             ):
                 lemma = row.get("candidate_lemma") or row.get("into") or ""
                 judged.add((row["ref"], lemma))
+                # A FOLD is TERMINAL: once a barren folds into some lemma, never
+                # judge it again. Otherwise a later reject against a DIFFERENT
+                # lemma would land in the ledger and — since the collapse replay
+                # keys by ``ref`` (last-write-wins) — silently cancel the fold at
+                # rebuild. Keep the ledger one-fold-per-barren so replay is sound.
+                if row.get("into"):
+                    folded.add(row["ref"])
 
-    todo = [c for c in candidates if (c.barren_ref, c.lemma_ref) not in judged]
+    todo = [
+        c
+        for c in candidates
+        if c.barren_ref not in folded and (c.barren_ref, c.lemma_ref) not in judged
+    ]
     if limit is not None:
         todo = todo[:limit]
     click.echo(
@@ -137,15 +149,23 @@ def lexicon_fold_variants(
         for i, c in enumerate(todo, 1):
             system, user = build_fold_judge_prompt(c)
             verdict = None
+            last_err: Exception | None = None
             for _attempt in range(2):  # one retry on transport/parse failure
                 try:
                     verdict = parse_fold_verdict(client.chat_json(system, user, {}))
-                except Exception:
+                except Exception as e:  # transient LLM transport/parse flakiness
+                    last_err = e
                     verdict = None
                 if verdict is not None:
                     break
             if verdict is None:
                 skipped += 1
+                # Don't skip silently — a wrong model/URL or a systematically
+                # unparseable response would otherwise skip every pair and the
+                # run would "succeed" with 0 folds, indistinguishable from
+                # nothing-to-do (CLAUDE.md debuggability convention).
+                why = last_err if last_err is not None else "unparseable verdict"
+                click.echo(f"  [skip] {c.barren_form}->{c.lemma_form}: {why}", err=True)
                 continue
             row = fold_verdict_to_row(c, verdict, min_confidence)
             is_fold = row["into"] != ""

@@ -9,7 +9,8 @@ gloss) — that are NOT connected by any descent edge. Generation resolves the
 morpheme to the barren duplicate, so its era-grid comes up empty even though the
 reflexes sit on the unlinked lemma.
 
-Signal: SAME language + a shared gloss + form similarity + one side barren
+Signal: SAME language + a shared gloss CONTENT TOKEN + (form similarity OR a
+shared consonant skeleton, the vowel-shift escape hatch) + one side barren
 (cluster ≤ ``barren_max``) and the other rich (cluster ≥ ``lemma_min``) + no
 existing descent edge. The FOLD op (``enrichment.apply_collapses`` ``into``)
 tombstones the barren into the lemma (``merged_into_id``), so the family rollup
@@ -23,6 +24,8 @@ import sqlite3
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
+
+from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 
 LLM_VARIANT_FOLD_METHOD = "llm-variant-fold-v1"
 LLM_VARIANT_REJECT_METHOD = "llm-variant-rejected-v1"
@@ -146,14 +149,17 @@ def detect_variant_fold_candidates(
     max_per_gloss: int = 600,
 ) -> list[VariantFoldCandidate]:
     """Same-language barren↔rich variant-fold candidates: SAME-language etymon
-    pairs sharing a gloss, form-similar (difflib ≥ ``min_similarity`` on the
-    dash/star-stripped forms), one barren (cognate cluster ≤ ``barren_max``) and
-    one rich (cluster ≥ ``lemma_min``), not already connected by a descent edge.
-    One best lemma per barren (richest cluster, then highest similarity)."""
+    pairs sharing a gloss CONTENT TOKEN, admitted on form similarity (difflib ≥
+    ``min_similarity`` on the dash/star-stripped forms) OR a shared ≥2-consonant
+    skeleton (the vowel-shift escape hatch — wood↔wudu), one barren (cognate
+    cluster ≤ ``barren_max``) and one rich (cluster ≥ ``lemma_min``), not already
+    connected by a descent edge. One best lemma per barren (richest cluster, then
+    highest similarity, then lowest etymon id) — a TOTAL order, so the chosen
+    fold target is reproducible across runs/operators."""
     rows = conn.execute(
         "SELECT e.id, e.language, e.canonical_form, e.cognate_id, g.gloss "
         "FROM etymon e JOIN etymon_gloss g ON g.etymon_id = e.id "
-        "WHERE e.merged_into_id IS NULL"
+        "WHERE e.merged_into_id IS NULL ORDER BY e.id"
     ).fetchall()
     by_id: dict[int, dict] = {}
     by_token: dict[str, set[int]] = defaultdict(set)  # content token -> etymon ids
@@ -225,7 +231,16 @@ def detect_variant_fold_candidates(
                 if (bi, ri) in edges or (ri, bi) in edges:
                     continue
                 cur = best.get(bi)
-                if cur is None or (richness(rrec), sim) > (richness(by_id[cur[0]]), cur[1]):
+                # Tie-break is TOTAL: richest cluster, then highest similarity,
+                # then LOWEST etymon id. Etymon ids are content-keyed on
+                # (canonical_form, language), so the final discriminator is
+                # stable across runs even when richness + similarity tie — no
+                # set/SQL-iteration-order dependence in the chosen fold target.
+                if cur is None or (richness(rrec), sim, -ri) > (
+                    richness(by_id[cur[0]]),
+                    cur[1],
+                    -cur[0],
+                ):
                     best[bi] = (ri, sim)
 
     out: list[VariantFoldCandidate] = []
@@ -250,12 +265,7 @@ def detect_variant_fold_candidates(
     return out
 
 
-from dataclasses import dataclass as _dataclass  # noqa: E402
-
-from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK  # noqa: E402
-
-
-@_dataclass(frozen=True)
+@dataclass(frozen=True)
 class VariantFoldVerdict:
     same_morpheme: bool  # barren is the SAME morpheme as lemma (spelling/accent variant)
     confidence: str  # "high" | "medium" | "low"

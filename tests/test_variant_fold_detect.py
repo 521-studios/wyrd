@@ -121,6 +121,124 @@ def test_one_best_lemma_per_barren_richest_wins(fresh_db: Path) -> None:
         assert hill[0].lemma_ref == "old-english:hil"  # the richer cluster wins
 
 
+def test_max_per_gloss_skips_oversized_token_group(fresh_db: Path) -> None:
+    # The pathologic-generic-token guard: a token group larger than the cap is
+    # dropped wholesale. Same data, two caps → found vs skipped.
+    with LexiconDB(fresh_db) as db:
+        _e(db, "hill", "old-english", "hill")
+        _rich(db, "hyll", "old-english", "hill")
+        db.commit()
+        assert detect_variant_fold_candidates(db.conn, min_similarity=0.6, max_per_gloss=600)
+        # the 'hill' token group has >1 member → dropped at cap 1
+        assert detect_variant_fold_candidates(db.conn, min_similarity=0.6, max_per_gloss=1) == []
+
+
+def test_detection_is_deterministic_on_richness_similarity_tie(fresh_db: Path) -> None:
+    # A genuine tie: barren 'cot' is equidistant from 'cat' and 'cut' (difflib
+    # ratio 0.667 each, identical 'ct' skeleton) and both clusters are size 8.
+    # The total tie-break (lowest etymon id) must pick the SAME lemma every run —
+    # here 'cat', inserted first, so its id is lower.
+    with LexiconDB(fresh_db) as db:
+        _e(db, "cot", "old-english", "shelter")
+        _rich(db, "cat", "old-english", "shelter", cluster=8)  # lower id
+        _rich(db, "cut", "old-english", "shelter", cluster=8)
+        db.commit()
+        picks = {
+            detect_variant_fold_candidates(db.conn, min_similarity=0.6)[0].lemma_ref
+            for _ in range(5)
+        }
+        assert picks == {"old-english:cat"}  # stable AND the lowest-id lemma
+
+
+# ---- CLI: dry-run, failure-skip, fold-is-terminal --------------------------
+
+
+class _Stub:
+    """An OllamaClient stand-in with a scripted ``chat_json``."""
+
+    def __init__(self, fn):
+        self._fn = fn
+
+    def __call__(self, *a, **k):  # OllamaClient(...) constructor
+        return self
+
+    def chat_json(self, system, user, schema):
+        return self._fn()
+
+
+def _seed_stone(db_path: Path) -> None:
+    with LexiconDB(db_path) as db:
+        _e(db, "stone", "old-english", "stone")
+        _rich(db, "stān", "old-english", "A stone, stone, rock.")
+        db.commit()
+
+
+def _invoke(monkeypatch, stub, db_path, ledger, *extra):
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.fold_variants import lexicon_fold_variants
+
+    monkeypatch.setattr("wyrd.generators.kenning.extractors.llm.OllamaClient", stub)
+    return CliRunner().invoke(
+        lexicon_fold_variants,
+        ["--db", str(db_path), "--collapse-file", str(ledger), "--min-similarity", "0.6", *extra],
+    )
+
+
+def test_cli_dry_run_writes_nothing(fresh_db: Path, tmp_path: Path, monkeypatch) -> None:
+    _seed_stone(fresh_db)
+    ledger = tmp_path / "_collapses.jsonl"
+    stub = _Stub(lambda: {"same_morpheme": True, "confidence": "high", "reason": "stub"})
+    res = _invoke(monkeypatch, stub, fresh_db, ledger, "--dry-run")
+    assert res.exit_code == 0, res.output
+    assert "(dry-run)" in res.output
+    assert not ledger.exists()  # nothing persisted
+
+
+def test_cli_skips_on_llm_failure_without_crashing(
+    fresh_db: Path, tmp_path: Path, monkeypatch
+) -> None:
+    _seed_stone(fresh_db)
+    ledger = tmp_path / "_collapses.jsonl"
+
+    def _boom():
+        raise RuntimeError("transport down")
+
+    res = _invoke(monkeypatch, _Stub(_boom), fresh_db, ledger)
+    assert res.exit_code == 0, res.output
+    assert "1 skipped" in res.output and "[skip]" in res.output
+    # no verdict written for the skipped pair
+    assert not ledger.exists() or "into" not in ledger.read_text(encoding="utf-8")
+
+
+def test_cli_fold_is_terminal(fresh_db: Path, tmp_path: Path, monkeypatch) -> None:
+    # A barren that already folded must NOT be re-judged — otherwise a later
+    # reject against a different lemma would cancel the fold at replay.
+    import json as _json
+
+    _seed_stone(fresh_db)
+    ledger = tmp_path / "_collapses.jsonl"
+    ledger.write_text(
+        _json.dumps(
+            {
+                "_type": "collapse",
+                "ref": "old-english:stone",
+                "into": "old-english:stān",
+                "candidate_lemma": "old-english:stān",
+                "method": "llm-variant-fold-v1",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    before = ledger.read_text(encoding="utf-8")
+    # a stub that would REJECT if ever consulted — it must NOT be consulted
+    stub = _Stub(lambda: {"same_morpheme": False, "confidence": "high", "reason": "no"})
+    res = _invoke(monkeypatch, stub, fresh_db, ledger)
+    assert res.exit_code == 0, res.output
+    assert ledger.read_text(encoding="utf-8") == before  # untouched — no new reject row
+
+
 # ---- helpers ---------------------------------------------------------------
 
 
