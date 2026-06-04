@@ -115,4 +115,17 @@ describe('appState.changedParams (send only non-default params)', () => {
     appState.paramsByGenerator['gen'].seed = 42;
     expect('seed' in appState.changedParams('gen')).toBe(false);
   });
+
+  it('returns {} when the generator has no seeded params bag', () => {
+    setManifest();
+    // no ensureParams → paramsByGenerator['gen'] is undefined
+    expect(appState.changedParams('gen')).toEqual({});
+  });
+
+  it('keeps a param that has no schema entry (unknown default → forward it)', () => {
+    setManifest();
+    appState.ensureParams('gen');
+    appState.paramsByGenerator['gen'].mystery = 'x'; // not in SCHEMA.properties
+    expect(appState.changedParams('gen').mystery).toBe('x');
+  });
 });

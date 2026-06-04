@@ -200,6 +200,10 @@ class AppState {
       if (
         !ALWAYS_SENT_FIELDS.has(key) &&
         prop &&
+        // JSON-stringify equality is safe only while every param is a scalar or
+        // array of scalars (order-stable). If an OBJECT-valued param is ever
+        // added, key-order differences would compare unequal and over-send —
+        // switch to a structural deep-equal then.
         JSON.stringify(value) === JSON.stringify(initialFieldValue(config, key, prop))
       ) {
         continue; // unchanged from its seeded default → let the server own it
