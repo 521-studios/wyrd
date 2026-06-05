@@ -981,8 +981,12 @@ def apply_collapses(
         # for the named pair is dropped: the operator is asserting the two
         # etymons are unrelated. Pairs with ``into`` (detach the verb lineage,
         # THEN fold the clean toponym into its lemma) but also stands alone.
-        detach_parents = payload.get("detach_parents") or []
-        detach_children = payload.get("detach_children") or []
+        # dict.fromkeys dedups while preserving order: an accidental duplicate
+        # ref would otherwise double-count under dry-run (apply=False, COUNT
+        # returns 1 per occurrence) vs real-run (the second DELETE hits 0 rows),
+        # making the dry-run telemetry diverge from the applied result.
+        detach_parents = list(dict.fromkeys(payload.get("detach_parents") or []))
+        detach_children = list(dict.fromkeys(payload.get("detach_children") or []))
         if detach_parents or detach_children:
             # Resolve detach refs TOMBSTONE-AGNOSTICALLY (via _resolve_etymon_id,
             # which has no `merged_into_id IS NULL` filter). etymon_descent edges

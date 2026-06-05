@@ -38,6 +38,11 @@ from pathlib import Path
 
 import click
 
+# Single source of truth for the allowed etymon_variant classes — imported from
+# the applier (a non-cli package, mirroring curate_gloss.py's SUFFIX_PATTERN
+# import) so the CLI Choice can't drift from the table's CHECK constraint.
+from wyrd.generators.kenning.enrichment import _VARIANT_CLASSES
+
 _COLLAPSE_SOURCE_ROW = {
     "_type": "source",
     "ref": "collapse",
@@ -99,6 +104,7 @@ def _append_event(collapse_file: Path, payload: dict) -> None:
 )
 @click.option(
     "--variant-class",
+    type=click.Choice(sorted(_VARIANT_CLASSES)),
     default="alternative",
     show_default=True,
     help="etymon_variant class recorded for the folded form.",
