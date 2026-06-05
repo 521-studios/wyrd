@@ -215,6 +215,12 @@ def test_verdict_from_log_rejects_legacy_row_without_raw_verdict():
     assert verdict_from_log({"member_ref": "m:x", "confidence": "high"}) is None
 
 
+def test_verdict_from_log_defaults_bad_confidence_low():
+    """A raw bool with a junk/absent confidence (schema drift) defaults to low."""
+    assert verdict_from_log({"same_morpheme": False, "confidence": "bogus"}).confidence == "low"
+    assert verdict_from_log({"same_morpheme": True}).confidence == "low"
+
+
 def test_revert_rows_re_derive_at_lower_threshold():
     """The recorded raw verdict yields NO revert at high but a curation revert at
     medium — the 'emit medium later' path, no LLM re-run."""
@@ -391,3 +397,70 @@ def test_cli_emit_reverts_from_log_dedups_and_thresholds():
         log, "medium", {}, {"m:-ton": {"merged_into_ref": None}}, io.StringIO(), cur, dry_run=False
     )
     assert counts["reverts"] == 0 and counts["already"] == 1 and not cur.getvalue()
+
+
+def test_cli_emit_reverts_collapse_fold_and_dry_run():
+    """A collapse-fold revert writes the COLLAPSE ledger (into:''); dry-run counts
+    but writes nothing."""
+    import io
+
+    from wyrd.generators.kenning.cli.lexicon.audit_merges import _emit_reverts
+
+    log = {
+        "m:fold": {
+            "member_ref": "m:fold",
+            "anchor_ref": "m:keep",
+            "provenance": PROV_COLLAPSE,
+            "same_morpheme": False,
+            "confidence": "high",
+            "reason": "distinct",
+        },
+    }
+    # the fold is still live (net into set) → revert emitted to the collapse ledger
+    coll = io.StringIO()
+    counts = _emit_reverts(
+        log, "high", {"m:fold": {"into": "m:keep"}}, {}, coll, io.StringIO(), dry_run=False
+    )
+    assert counts["reverts"] == 1 and counts["collapse-fold"] == 1
+    assert json.loads(coll.getvalue()) == {
+        "_type": "collapse",
+        "ref": "m:fold",
+        "into": "",
+        "method": LLM_MERGE_AUDIT_REVERT_METHOD,
+        "confidence": "high",
+        "reason": "distinct",
+    }
+    # dry-run: counts the revert but writes nothing
+    coll = io.StringIO()
+    counts = _emit_reverts(
+        log, "high", {"m:fold": {"into": "m:keep"}}, {}, coll, io.StringIO(), dry_run=True
+    )
+    assert counts["reverts"] == 1 and not coll.getvalue()
+
+
+def test_judge_fresh_aborts_after_consecutive_failures(monkeypatch):
+    """PASS 1 aborts after 5 consecutive judge failures (Ollama down) instead of
+    burning every candidate; records nothing for the failures."""
+    from wyrd.generators.kenning.cli.lexicon import audit_merges
+
+    monkeypatch.setattr(audit_merges, "_judge_with_retry", lambda client, c: None)
+    cands = [_cand(f"m:c{i}", "m:a", PROV_OCR) for i in range(10)]
+    log: dict = {}
+    judged, skipped = audit_merges._judge_fresh(None, cands, log, None, "url", "model")
+    assert judged == 0 and skipped == 5 and log == {}  # broke after the 5th failure
+
+
+def test_judge_fresh_resets_counter_and_records(monkeypatch):
+    """A success resets the consecutive-failure counter (so scattered failures
+    don't trip the abort) and records the raw verdict into the log."""
+    from wyrd.generators.kenning.cli.lexicon import audit_merges
+
+    ok = MergeAuditVerdict(correct=False, confidence="high", reason="distinct")
+    # fail, fail, SUCCESS, fail, fail, fail, fail → max-consecutive 4, no abort
+    seq = iter([None, None, ok, None, None, None, None])
+    monkeypatch.setattr(audit_merges, "_judge_with_retry", lambda client, c: next(seq))
+    cands = [_cand(f"m:c{i}", "m:a", PROV_OCR) for i in range(7)]
+    log: dict = {}
+    judged, skipped = audit_merges._judge_fresh(None, cands, log, None, "url", "model")
+    assert judged == 1 and skipped == 6
+    assert log["m:c2"]["same_morpheme"] is False  # the success was recorded raw
