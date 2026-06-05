@@ -20,6 +20,7 @@ absorb + a single ``_emit_*_list`` formatter addition.
 
 from __future__ import annotations
 
+import functools
 import json
 import unicodedata
 from dataclasses import dataclass, field
@@ -296,6 +297,11 @@ def _surface_fold(s: str) -> str:
     return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
 
 
+# Cached: pure function of static era.cells data over the closed, finite set of
+# language tags (not an external/unbounded key space), called once per well-formed
+# word during the bundle build — caching collapses the repeated family_stage_order
+# scan to one per distinct language. Unbounded cache is safe given the bounded domain.
+@functools.cache
 def _own_family_modern_stage(language: str) -> str | None:
     """The canonical language tag of ``language``'s era family's MODERN (newest)
     stage — e.g. ``old-english`` → ``modern-english``, ``old-french`` →
