@@ -161,6 +161,303 @@ def test_bad_variant_class_coerced_to_other(tmp_path: Path) -> None:
     assert vc == "other"
 
 
+def _seed_homograph(db_path: Path) -> dict[str, int]:
+    """A homograph-conflated row (wyrd-qp9c): OE ``don`` is BOTH the toponym
+    "hill" (a reduced form of the lemma ``dūn``) AND carries the verb "to do"
+    lineage — a parent edge from PGmc ``*dōn`` and a child edge to ModE ``do``.
+    The detach op must delete those two verb edges before the fold so
+    cluster_cognates never redirects the verb lineage onto ``dūn``."""
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.execute("INSERT INTO source (id, title) VALUES ('wikt', 'Wiktionary')")
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'don', 'old-english')"
+    )
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (2, 'dūn', 'old-english')"
+    )
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (3, '*dōn', 'proto-germanic')"
+    )
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (4, 'do', 'modern-english')"
+    )
+    # the two contaminating verb edges: *dōn -> don, don -> do
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (3, 1, 'inheritance', 'wikt')"
+    )
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (1, 4, 'inheritance', 'wikt')"
+    )
+    conn.commit()
+    conn.close()
+    return {"don": 1, "dūn": 2, "verb_parent": 3, "verb_child": 4}
+
+
+_DETACH_FOLD = {
+    "old-english:don": {
+        "into": "old-english:dūn",
+        "variant_class": "alternative",
+        "method": "manual-homograph-detach",
+        "detach_parents": ["proto-germanic:*dōn"],
+        "detach_children": ["modern-english:do"],
+    }
+}
+
+
+def test_apply_collapses_detach_removes_edges_before_fold(tmp_path: Path) -> None:
+    ids = _seed_homograph(tmp_path / "lex.db")
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, _DETACH_FOLD, apply=True)
+        conn = db.conn
+        # both verb edges deleted
+        assert conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0] == 0
+        # no edge references the folded toponym → nothing for cluster_cognates
+        # to redirect onto the lemma via merged_into_id
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM etymon_descent WHERE parent_id = ? OR child_id = ?",
+                (ids["don"], ids["don"]),
+            ).fetchone()[0]
+            == 0
+        )
+        # and the toponym is folded into the clean lemma
+        merged = conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (ids["don"],)
+        ).fetchone()[0]
+        assert merged == ids["dūn"]
+    assert counts["detach_edges_removed"] == 2
+    assert counts["collapses_processed"] == 1
+    assert counts["detach_unresolved_endpoint"] == 0
+
+
+def test_apply_collapses_detach_only_row_no_fold(tmp_path: Path) -> None:
+    """A row with detach but no ``into`` removes the edges without tombstoning
+    the from etymon (and is NOT counted as an empty-into skip)."""
+    ids = _seed_homograph(tmp_path / "lex.db")
+    state = {
+        "old-english:don": {
+            "detach_parents": ["proto-germanic:*dōn"],
+            "detach_children": ["modern-english:do"],
+        }
+    }
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, state, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (ids["don"],)
+        ).fetchone()[0]
+        edges = db.conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0]
+    assert counts["detach_edges_removed"] == 2
+    assert counts["collapses_processed"] == 0
+    assert counts["empty_into_skipped"] == 0  # detach-only is not an empty skip
+    assert merged is None  # no fold
+    assert edges == 0
+
+
+def test_apply_collapses_detach_dry_run_counts_without_deleting(tmp_path: Path) -> None:
+    _seed_homograph(tmp_path / "lex.db")
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, _DETACH_FOLD, apply=False)
+        edges = db.conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0]
+    assert counts["detach_edges_removed"] == 2  # counted
+    assert edges == 2  # but nothing deleted
+
+
+def test_apply_collapses_detach_unresolved_endpoint_counted(tmp_path: Path) -> None:
+    """A detach endpoint that doesn't resolve is counted, not fatal; the
+    resolvable edge is still removed."""
+    _seed_homograph(tmp_path / "lex.db")
+    state = {
+        "old-english:don": {
+            "into": "old-english:dūn",
+            "detach_children": ["modern-english:do", "modern-english:ghost"],
+        }
+    }
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, state, apply=True)
+    assert counts["detach_edges_removed"] == 1
+    assert counts["detach_unresolved_endpoint"] == 1
+    assert counts["collapses_processed"] == 1
+
+
+def test_apply_collapses_detach_resolves_tombstoned_endpoint(tmp_path: Path) -> None:
+    """A detach endpoint that is itself tombstoned (folded by an earlier row)
+    still resolves — etymon_descent edges reference ids regardless of
+    merged_into_id, so the wrong-sense edge must still be deleted, not silently
+    counted unresolved (the _resolve `merged_into_id IS NULL` filter would miss
+    it)."""
+    ids = _seed_homograph(tmp_path / "lex.db")
+    conn = sqlite3.connect(tmp_path / "lex.db")
+    # tombstone the verb child `do` (4) into `dūn` (2) — simulating a prior fold
+    conn.execute(
+        "UPDATE etymon SET merged_into_id = ? WHERE id = ?", (ids["dūn"], ids["verb_child"])
+    )
+    conn.commit()
+    conn.close()
+    state = {"old-english:don": {"detach_children": ["modern-english:do"]}}
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, state, apply=True)
+        # the don -> do edge is gone despite `do` being tombstoned
+        remaining = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon_descent WHERE parent_id = ? AND child_id = ?",
+            (ids["don"], ids["verb_child"]),
+        ).fetchone()[0]
+    assert remaining == 0
+    assert counts["detach_edges_removed"] == 1
+    assert counts["detach_unresolved_endpoint"] == 0
+
+
+def test_apply_collapses_detach_resolves_tombstoned_from(tmp_path: Path) -> None:
+    """A tombstoned `from` (already folded) still has its wrong-sense edges
+    detached, and is NOT miscounted as detach_unresolved_from — that counter is
+    reserved for genuine typos (ref matches no etymon)."""
+    ids = _seed_homograph(tmp_path / "lex.db")
+    conn = sqlite3.connect(tmp_path / "lex.db")
+    conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (ids["dūn"], ids["don"]))
+    conn.commit()
+    conn.close()
+    state = {
+        "old-english:don": {
+            "detach_parents": ["proto-germanic:*dōn"],
+            "detach_children": ["modern-english:do"],
+        }
+    }
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, state, apply=True)
+        edges = db.conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0]
+    assert edges == 0  # both edges removed even though `don` is a tombstone
+    assert counts["detach_edges_removed"] == 2
+    assert counts["detach_unresolved_from"] == 0
+
+
+def test_apply_collapses_detach_unresolved_from_is_genuine_typo(tmp_path: Path) -> None:
+    """detach_unresolved_from fires only when the ref matches no etymon at all."""
+    _seed_homograph(tmp_path / "lex.db")
+    state = {"old-english:nope": {"detach_children": ["modern-english:do"]}}
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, state, apply=True)
+        edges = db.conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0]
+    assert counts["detach_unresolved_from"] == 1
+    assert counts["detach_edges_removed"] == 0
+    assert edges == 2  # nothing touched
+
+
+def test_collect_collapses_preserves_detach_fields(tmp_path: Path) -> None:
+    """detach_parents / detach_children survive replay + cycle resolution."""
+    p = tmp_path / "_collapses.jsonl"
+    rows = [
+        {
+            "_type": "collapse",
+            "ref": "old-english:don",
+            "into": "old-english:dūn",
+            "detach_parents": ["gmw-pro:*dōn"],
+            "detach_children": ["modern-english:do", "middle-english:don"],
+            "method": "manual-homograph-detach",
+        },
+        # the wrong-direction prior fold, reverted to a no-op
+        {"_type": "collapse", "ref": "old-english:dūn", "into": ""},
+    ]
+    p.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n")
+    state = collect_collapses([p])
+    don = state["old-english:don"]
+    assert don["into"] == "old-english:dūn"  # survives (dūn -> '' is a no-op, no cycle)
+    assert don["detach_parents"] == ["gmw-pro:*dōn"]
+    assert don["detach_children"] == ["modern-english:do", "middle-english:don"]
+    assert state["old-english:dūn"]["into"] == ""
+
+
+def test_curate_collapse_etymon_cli_emits_row(tmp_path: Path) -> None:
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.curate_collapse import (
+        lexicon_curate_collapse_etymon,
+    )
+
+    ledger = tmp_path / "_collapses.jsonl"
+    runner = CliRunner()
+    res = runner.invoke(
+        lexicon_curate_collapse_etymon,
+        [
+            "old-english:don",
+            "--into",
+            "old-english:dūn",
+            "--detach-parent",
+            "gmw-pro:*dōn",
+            "--detach-child",
+            "modern-english:do",
+            "--collapse-file",
+            str(ledger),
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    lines = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+    # first line is the synthetic source row; second is our event
+    assert lines[0]["_type"] == "source" and lines[0]["ref"] == "collapse"
+    row = lines[1]
+    assert row["_type"] == "collapse"
+    assert row["ref"] == "old-english:don"
+    assert row["into"] == "old-english:dūn"
+    assert row["detach_parents"] == ["gmw-pro:*dōn"]
+    assert row["detach_children"] == ["modern-english:do"]
+    # round-trips through the collector the applier consumes
+    assert collect_collapses([ledger])["old-english:don"]["detach_parents"] == ["gmw-pro:*dōn"]
+
+
+def test_curate_collapse_etymon_cli_detach_only_omits_into(tmp_path: Path) -> None:
+    """A detach-only event (no --into) OMITS the `into` key — it must not write
+    the `into: ''` revert sentinel and masquerade as a fold-revert."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.curate_collapse import (
+        lexicon_curate_collapse_etymon,
+    )
+
+    ledger = tmp_path / "_collapses.jsonl"
+    res = CliRunner().invoke(
+        lexicon_curate_collapse_etymon,
+        ["old-english:don", "--detach-child", "modern-english:do", "--collapse-file", str(ledger)],
+    )
+    assert res.exit_code == 0, res.output
+    row = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()][1]
+    assert "into" not in row
+    assert row["detach_children"] == ["modern-english:do"]
+
+
+def test_curate_collapse_etymon_cli_requires_an_action(tmp_path: Path) -> None:
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.curate_collapse import (
+        lexicon_curate_collapse_etymon,
+    )
+
+    res = CliRunner().invoke(
+        lexicon_curate_collapse_etymon,
+        ["old-english:don", "--collapse-file", str(tmp_path / "_collapses.jsonl")],
+    )
+    assert res.exit_code != 0
+    assert "at least one of" in res.output.lower()
+
+
+def test_curate_collapse_etymon_cli_allows_empty_into_revert(tmp_path: Path) -> None:
+    """`--into ''` is a valid revert event (must not trip the usage guard)."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.curate_collapse import (
+        lexicon_curate_collapse_etymon,
+    )
+
+    ledger = tmp_path / "_collapses.jsonl"
+    res = CliRunner().invoke(
+        lexicon_curate_collapse_etymon,
+        ["old-english:dūn", "--into", "", "--collapse-file", str(ledger)],
+    )
+    assert res.exit_code == 0, res.output
+    row = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()][1]
+    assert row["ref"] == "old-english:dūn" and row["into"] == ""
+
+
 def test_collect_collapses_round_trip(tmp_path: Path) -> None:
     """A _collapses.jsonl row replays into {from_ref: payload}; last-write
     wins, and into:'' reverts."""

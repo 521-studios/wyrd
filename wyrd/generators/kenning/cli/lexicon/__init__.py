@@ -70,6 +70,7 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import compact_jsonl as _compact_jsonl_module
 from wyrd.generators.kenning.cli.lexicon import convert_place_names as _convert_place_names_module
+from wyrd.generators.kenning.cli.lexicon import curate_collapse as _curate_collapse_module
 from wyrd.generators.kenning.cli.lexicon import curate_etymon as _curate_etymon_module
 from wyrd.generators.kenning.cli.lexicon import curate_gloss as _curate_gloss_module
 from wyrd.generators.kenning.cli.lexicon import decompose as _decompose_module
@@ -235,6 +236,7 @@ _clear_enrichment_module.add_to(lexicon)
 _cluster_cognates_module.add_to(lexicon)
 _commit_toponym_candidates_module.add_to(lexicon)
 _compact_jsonl_module.add_to(lexicon)
+_curate_collapse_module.add_to(lexicon)
 _curate_etymon_module.add_to(lexicon)
 _curate_gloss_module.add_to(lexicon)
 _decompose_module.add_to(lexicon)

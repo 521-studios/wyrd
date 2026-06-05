@@ -220,6 +220,27 @@ deterministic detector and the LLM merge pass append here, differing
 only in `method`; the LLM verdicts persisting to L2 is what keeps the
 rebuild free (no re-mining). Last-write-wins per ref; `into: ''` reverts.
 
+### Descent-edge detach (wyrd-qp9c)
+
+A `collapse` row may also carry `detach_parents` / `detach_children`
+(arrays of `"<language>:<canonical_form>"` refs). `apply_collapses`
+DELETEs the named `<parent> -> ref` / `ref -> <child>` descent edges
+**before** the fold. This is the **homograph-conflation** fix: when one
+`(canonical_form, language)` row serves two morphemes (e.g. OE `don` =
+the toponym "hill" AND the verb "to do"), the wrong-sense lineage must be
+cut, NOT just folded — folding alone redirects a tombstone's edges onto
+`into` via `merged_into_id`, so cluster-cognates would drag the wrong
+cluster onto the surviving lemma. Detach runs in the same L2-replayed
+pass, so a from-scratch rebuild reproduces it (the descent edges
+regenerate from the L1 wiktextract bulk on every rebuild, then the
+detach removes the named ones). `detach_*` may stand alone (no `into`)
+for a pure edge cut, or pair with `into` (cut the wrong lineage, then
+fold the clean sense into its lemma). Emit via `lexicon
+curate-collapse-etymon <ref> --into <lemma> --detach-parent <ref>
+--detach-child <ref> …`. The companion gloss cleanup (dropping the
+wrong-sense gloss off the conflated row) is a separate
+`etymon_gloss_suppression` curation event.
+
 ## Prune commands — toponym + etymon row removal
 
 `lexicon prune-toponym` (wyrd-lene) and `lexicon prune-etymon`
