@@ -405,6 +405,26 @@ def test_curate_collapse_etymon_cli_emits_row(tmp_path: Path) -> None:
     assert collect_collapses([ledger])["old-english:don"]["detach_parents"] == ["gmw-pro:*dōn"]
 
 
+def test_curate_collapse_etymon_cli_detach_only_omits_into(tmp_path: Path) -> None:
+    """A detach-only event (no --into) OMITS the `into` key — it must not write
+    the `into: ''` revert sentinel and masquerade as a fold-revert."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.curate_collapse import (
+        lexicon_curate_collapse_etymon,
+    )
+
+    ledger = tmp_path / "_collapses.jsonl"
+    res = CliRunner().invoke(
+        lexicon_curate_collapse_etymon,
+        ["old-english:don", "--detach-child", "modern-english:do", "--collapse-file", str(ledger)],
+    )
+    assert res.exit_code == 0, res.output
+    row = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()][1]
+    assert "into" not in row
+    assert row["detach_children"] == ["modern-english:do"]
+
+
 def test_curate_collapse_etymon_cli_requires_an_action(tmp_path: Path) -> None:
     from click.testing import CliRunner
 

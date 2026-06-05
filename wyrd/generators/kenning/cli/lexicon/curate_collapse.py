@@ -152,9 +152,14 @@ def lexicon_curate_collapse_etymon(
     payload: dict = {
         "_type": "collapse",
         "ref": etymon_ref,
-        "into": into_ref or "",
         "method": "manual-homograph-detach",
     }
+    # Only emit `into` when the option was given: `--into X` folds, `--into ''`
+    # is the explicit revert sentinel. A detach-only event (option omitted →
+    # into_ref is None) OMITS the key entirely, so it can't be misread as a
+    # revert of a prior fold for the same ref.
+    if into_ref is not None:
+        payload["into"] = into_ref
     if into_ref:
         payload["variant_class"] = variant_class
     if detach_parents:
