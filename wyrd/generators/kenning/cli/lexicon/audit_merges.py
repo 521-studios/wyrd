@@ -221,6 +221,7 @@ def lexicon_audit_merges(
     reverts = kept = skipped = 0
     by_prov: dict[str, int] = {"collapse-fold": 0, "ocr-cluster": 0, "lemma-link": 0}
     start = time.perf_counter()
+    consecutive_failures = 0
     audit_fh = collapse_fh = curation_fh = None
     try:
         if not dry_run:
@@ -231,7 +232,19 @@ def lexicon_audit_merges(
             verdict = _judge_with_retry(client, c)
             if verdict is None:
                 skipped += 1  # transient/unparseable — don't record, so a re-run retries
+                consecutive_failures += 1
+                if consecutive_failures >= 5:
+                    # A run of failures means Ollama is down / the model is
+                    # missing — abort so we don't burn through every candidate as
+                    # a no-op skip (re-running resumes; nothing was recorded).
+                    click.echo(
+                        "Aborting: 5 consecutive judge failures — is Ollama up "
+                        f"at {base_url} with model {model}? (curl .../api/tags)",
+                        err=True,
+                    )
+                    break
                 continue
+            consecutive_failures = 0
             rows = audit_verdict_to_rows(c, verdict, min_confidence)
             is_revert = rows.collapse is not None or rows.curation is not None
             if is_revert:
