@@ -188,14 +188,8 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     # folded into dūn). A tombstone rolls up via merged_into_id at query time,
     # so its own cognate_id is dead weight; NULL it so reads can't resurrect the
     # pre-fold cluster.
-    tombstone_rows = db.conn.execute(
-        "SELECT COUNT(*) AS n FROM etymon "
-        "WHERE merged_into_id IS NOT NULL "
-        "  AND (cognate_id IS NOT NULL OR cognate_method IS NOT NULL)"
-    ).fetchone()["n"]
-
     rows_written = 0
-    tombstones_cleared = tombstone_rows  # dry-run reports the would-clear count
+    tombstones_cleared = 0
     if apply:
         for etymon_id, cognate_id in assignments.items():
             cur = db.conn.execute(
@@ -221,6 +215,15 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
         # but be defensive.
         tombstones_cleared = max(0, cur.rowcount)
         db.commit()
+    else:
+        # dry-run reports the would-clear count (apply gets it from rowcount,
+        # so the COUNT(*) — a scan over the etymon table — is dodged on the
+        # hot path).
+        tombstones_cleared = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon "
+            "WHERE merged_into_id IS NOT NULL "
+            "  AND (cognate_id IS NOT NULL OR cognate_method IS NOT NULL)"
+        ).fetchone()["n"]
 
     return {
         "roots": len(roots),
