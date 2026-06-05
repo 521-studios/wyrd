@@ -902,6 +902,11 @@ def apply_collapses(
         "link_rejections": 0,
         "unresolved_inherits": 0,
         "self_link_skipped": 0,
+        # wyrd-qp9c: descent-edge DETACH — wrong-sense edges removed from a
+        # homograph-conflated row before the fold (see the detach block below).
+        "detach_edges_removed": 0,
+        "detach_unresolved_from": 0,
+        "detach_unresolved_endpoint": 0,
         "applied": apply,
         "method_version": COLLAPSE_METHOD_VERSION,
     }
@@ -965,9 +970,57 @@ def apply_collapses(
                 )
             continue
 
+        # wyrd-qp9c: descent-edge DETACH. A homograph-conflated row (e.g. OE
+        # ``don`` = the toponym "hill" AND the verb "to do") carries descent
+        # edges that belong to only ONE of its senses. ``detach_parents`` /
+        # ``detach_children`` name the wrong-sense edge endpoints to DELETE
+        # BEFORE the fold, so cluster_cognates — which resolves a tombstone's
+        # edges through ``merged_into_id`` — never redirects the verb lineage
+        # onto ``into``. ``detach_parents`` removes ``<parent> -> from`` edges;
+        # ``detach_children`` removes ``from -> <child>`` edges. Any edge_type
+        # for the named pair is dropped: the operator is asserting the two
+        # etymons are unrelated. Pairs with ``into`` (detach the verb lineage,
+        # THEN fold the clean toponym into its lemma) but also stands alone.
+        detach_parents = payload.get("detach_parents") or []
+        detach_children = payload.get("detach_children") or []
+        if detach_parents or detach_children:
+            detach_from = _resolve(from_ref)
+            if detach_from is None:
+                counts["detach_unresolved_from"] += 1
+            else:
+                for endpoint_ref, is_parent in (
+                    *((p, True) for p in detach_parents),
+                    *((c, False) for c in detach_children),
+                ):
+                    endpoint_row = _resolve(endpoint_ref)
+                    if endpoint_row is None:
+                        counts["detach_unresolved_endpoint"] += 1
+                        continue
+                    # detach_parents: <endpoint> is the PARENT; detach_children:
+                    # <endpoint> is the CHILD. detach_from is the other end.
+                    if is_parent:
+                        parent_id, child_id = endpoint_row["id"], detach_from["id"]
+                    else:
+                        parent_id, child_id = detach_from["id"], endpoint_row["id"]
+                    if apply:
+                        cur = db.conn.execute(
+                            "DELETE FROM etymon_descent WHERE parent_id = ? AND child_id = ?",
+                            (parent_id, child_id),
+                        )
+                        counts["detach_edges_removed"] += cur.rowcount or 0
+                    else:
+                        counts["detach_edges_removed"] += db.conn.execute(
+                            "SELECT COUNT(*) AS n FROM etymon_descent "
+                            "WHERE parent_id = ? AND child_id = ?",
+                            (parent_id, child_id),
+                        ).fetchone()["n"]
+
         into_ref = payload.get("into")
         if not into_ref:
-            counts["empty_into_skipped"] += 1
+            # A detach-only row (no ``into``) is a legitimate no-fold event;
+            # only a row with neither detach nor into is an empty skip.
+            if not (detach_parents or detach_children):
+                counts["empty_into_skipped"] += 1
             continue
         from_row = _resolve(from_ref)
         if from_row is None:
@@ -1056,6 +1109,16 @@ def format_collapse_run(counts: dict[str, Any]) -> str:
         f"- Citations migrated: {counts['citations_moved']} "
         f"(left on tombstone, conflict: {counts['citations_skipped_conflict']})",
     ]
+    if counts.get("detach_edges_removed") or counts.get("detach_unresolved_endpoint"):
+        verb = "removed" if counts["applied"] else "would remove"
+        lines.append(
+            f"- Descent edges detached: {verb} {counts.get('detach_edges_removed', 0)}"
+            + (
+                f" (unresolved endpoints: {counts['detach_unresolved_endpoint']})"
+                if counts.get("detach_unresolved_endpoint")
+                else ""
+            )
+        )
     skipped = (
         counts["unresolved_from"]
         + counts["unresolved_into"]

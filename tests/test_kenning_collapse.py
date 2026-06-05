@@ -161,6 +161,117 @@ def test_bad_variant_class_coerced_to_other(tmp_path: Path) -> None:
     assert vc == "other"
 
 
+def _seed_homograph(db_path: Path) -> dict[str, int]:
+    """A homograph-conflated row (wyrd-qp9c): OE ``don`` is BOTH the toponym
+    "hill" (a reduced form of the lemma ``dūn``) AND carries the verb "to do"
+    lineage — a parent edge from PGmc ``*dōn`` and a child edge to ModE ``do``.
+    The detach op must delete those two verb edges before the fold so
+    cluster_cognates never redirects the verb lineage onto ``dūn``."""
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.execute("INSERT INTO source (id, title) VALUES ('wikt', 'Wiktionary')")
+    conn.execute("INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'don', 'old-english')")
+    conn.execute("INSERT INTO etymon (id, canonical_form, language) VALUES (2, 'dūn', 'old-english')")
+    conn.execute("INSERT INTO etymon (id, canonical_form, language) VALUES (3, '*dōn', 'proto-germanic')")
+    conn.execute("INSERT INTO etymon (id, canonical_form, language) VALUES (4, 'do', 'modern-english')")
+    # the two contaminating verb edges: *dōn -> don, don -> do
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (3, 1, 'inheritance', 'wikt')"
+    )
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (1, 4, 'inheritance', 'wikt')"
+    )
+    conn.commit()
+    conn.close()
+    return {"don": 1, "dūn": 2, "verb_parent": 3, "verb_child": 4}
+
+
+_DETACH_FOLD = {
+    "old-english:don": {
+        "into": "old-english:dūn",
+        "variant_class": "alternative",
+        "method": "manual-homograph-detach",
+        "detach_parents": ["proto-germanic:*dōn"],
+        "detach_children": ["modern-english:do"],
+    }
+}
+
+
+def test_apply_collapses_detach_removes_edges_before_fold(tmp_path: Path) -> None:
+    ids = _seed_homograph(tmp_path / "lex.db")
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, _DETACH_FOLD, apply=True)
+        conn = db.conn
+        # both verb edges deleted
+        assert (
+            conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0] == 0
+        )
+        # no edge references the folded toponym → nothing for cluster_cognates
+        # to redirect onto the lemma via merged_into_id
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM etymon_descent WHERE parent_id = ? OR child_id = ?",
+                (ids["don"], ids["don"]),
+            ).fetchone()[0]
+            == 0
+        )
+        # and the toponym is folded into the clean lemma
+        merged = conn.execute("SELECT merged_into_id FROM etymon WHERE id = ?", (ids["don"],)).fetchone()[0]
+        assert merged == ids["dūn"]
+    assert counts["detach_edges_removed"] == 2
+    assert counts["collapses_processed"] == 1
+    assert counts["detach_unresolved_endpoint"] == 0
+
+
+def test_apply_collapses_detach_only_row_no_fold(tmp_path: Path) -> None:
+    """A row with detach but no ``into`` removes the edges without tombstoning
+    the from etymon (and is NOT counted as an empty-into skip)."""
+    ids = _seed_homograph(tmp_path / "lex.db")
+    state = {
+        "old-english:don": {
+            "detach_parents": ["proto-germanic:*dōn"],
+            "detach_children": ["modern-english:do"],
+        }
+    }
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, state, apply=True)
+        merged = db.conn.execute("SELECT merged_into_id FROM etymon WHERE id = ?", (ids["don"],)).fetchone()[0]
+        edges = db.conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0]
+    assert counts["detach_edges_removed"] == 2
+    assert counts["collapses_processed"] == 0
+    assert counts["empty_into_skipped"] == 0  # detach-only is not an empty skip
+    assert merged is None  # no fold
+    assert edges == 0
+
+
+def test_apply_collapses_detach_dry_run_counts_without_deleting(tmp_path: Path) -> None:
+    _seed_homograph(tmp_path / "lex.db")
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, _DETACH_FOLD, apply=False)
+        edges = db.conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0]
+    assert counts["detach_edges_removed"] == 2  # counted
+    assert edges == 2  # but nothing deleted
+
+
+def test_apply_collapses_detach_unresolved_endpoint_counted(tmp_path: Path) -> None:
+    """A detach endpoint that doesn't resolve is counted, not fatal; the
+    resolvable edge is still removed."""
+    _seed_homograph(tmp_path / "lex.db")
+    state = {
+        "old-english:don": {
+            "into": "old-english:dūn",
+            "detach_children": ["modern-english:do", "modern-english:ghost"],
+        }
+    }
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, state, apply=True)
+    assert counts["detach_edges_removed"] == 1
+    assert counts["detach_unresolved_endpoint"] == 1
+    assert counts["collapses_processed"] == 1
+
+
 def test_collect_collapses_round_trip(tmp_path: Path) -> None:
     """A _collapses.jsonl row replays into {from_ref: payload}; last-write
     wins, and into:'' reverts."""
