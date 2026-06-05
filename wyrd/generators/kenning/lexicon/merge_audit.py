@@ -54,11 +54,6 @@ PROV_COLLAPSE = "collapse-fold"
 PROV_OCR = "ocr-cluster"
 PROV_LEMMA = "lemma-link"
 
-# merge_audit log verdict tags.
-AUDIT_KEEP = "keep"
-AUDIT_REVERT = "revert"
-
-
 @dataclass(frozen=True)
 class MergeAuditCandidate:
     """One merge decision for the LLM to judge: was ``member`` correctly merged
@@ -355,39 +350,68 @@ class MergeAuditRows:
     curation: dict | None = None
 
 
-def audit_verdict_to_rows(
-    c: MergeAuditCandidate, v: MergeAuditVerdict, min_confidence: str
-) -> MergeAuditRows:
-    """Build the ledger rows for a verdict. A confident wrong-merge verdict emits
-    a REVERT to the provenance-appropriate ledger; a kept (or low-confidence)
-    verdict emits only the audit-log marker so re-runs skip it."""
-    revert = (not v.correct) and CONFIDENCE_RANK[v.confidence] >= CONFIDENCE_RANK[min_confidence]
-    audit_log = {
+def audit_log_row(c: MergeAuditCandidate, v: MergeAuditVerdict) -> dict:
+    """The ``_merge_audit.jsonl`` row — the RAW LLM judgment for one candidate,
+    recorded once and threshold-INDEPENDENT. Stores ``same_morpheme`` (the raw
+    bool) + ``confidence`` + ``reason`` so reverts can be derived/re-derived at
+    any ``min_confidence`` later (emit high now, review/emit medium later) without
+    re-running the LLM. ``verdict_from_log`` reconstructs the verdict from it."""
+    return {
         "_type": "merge_audit",
         "member_ref": c.member_ref,
         "anchor_ref": c.anchor_ref,
         "provenance": c.provenance,
-        "verdict": AUDIT_REVERT if revert else AUDIT_KEEP,
+        "same_morpheme": v.correct,
         "confidence": v.confidence,
         "reason": v.reason,
     }
-    if not revert:
-        return MergeAuditRows(audit_log=audit_log)
-    if c.provenance == PROV_COLLAPSE:
-        return MergeAuditRows(
-            audit_log=audit_log,
-            collapse={
-                "_type": "collapse",
-                "ref": c.member_ref,
-                "into": "",
-                "method": LLM_MERGE_AUDIT_REVERT_METHOD,
-                "confidence": v.confidence,
-                "reason": v.reason,
-            },
-        )
-    curation = {"_type": "etymon_curation", "ref": c.member_ref, "reason": v.reason}
-    if c.provenance == PROV_OCR:
-        curation["merged_into_ref"] = None
-    else:  # PROV_LEMMA
-        curation["lemma_ref"] = None
-    return MergeAuditRows(audit_log=audit_log, curation=curation)
+
+
+def verdict_from_log(row: dict) -> MergeAuditVerdict | None:
+    """Reconstruct a :class:`MergeAuditVerdict` from a recorded ``audit_log_row``,
+    or None if the row predates the raw-verdict schema (no ``same_morpheme``) —
+    such a row must be re-judged to recover the raw decision."""
+    if not isinstance(row.get("same_morpheme"), bool):
+        return None
+    conf = row.get("confidence")
+    if conf not in CONFIDENCE_RANK:
+        conf = "low"
+    return MergeAuditVerdict(
+        correct=row["same_morpheme"], confidence=conf, reason=str(row.get("reason", ""))
+    )
+
+
+def audit_verdict_to_rows(
+    c: MergeAuditCandidate, v: MergeAuditVerdict, min_confidence: str
+) -> MergeAuditRows:
+    """Build the ledger rows for a verdict. ``audit_log`` is the raw, threshold-
+    independent record (``audit_log_row``). A wrong-merge verdict at/above
+    ``min_confidence`` also emits a REVERT to the provenance-appropriate ledger;
+    a kept (or below-threshold) verdict emits only the audit-log row."""
+    collapse, curation = revert_rows(c.member_ref, c.provenance, v, min_confidence)
+    return MergeAuditRows(audit_log=audit_log_row(c, v), collapse=collapse, curation=curation)
+
+
+def revert_rows(
+    member_ref: str, provenance: str, v: MergeAuditVerdict, min_confidence: str
+) -> tuple[dict | None, dict | None]:
+    """The provenance-routed ``(collapse_row, curation_row)`` revert for a verdict,
+    or ``(None, None)`` when the verdict is keep or below ``min_confidence``.
+    Threshold-gated and derivable from a logged verdict alone (member_ref +
+    provenance), so a later run can re-emit at a lower threshold without re-judging
+    — this is the "emit high now, emit medium later" seam."""
+    if v.correct or CONFIDENCE_RANK[v.confidence] < CONFIDENCE_RANK[min_confidence]:
+        return None, None
+    if provenance == PROV_COLLAPSE:
+        collapse = {
+            "_type": "collapse",
+            "ref": member_ref,
+            "into": "",
+            "method": LLM_MERGE_AUDIT_REVERT_METHOD,
+            "confidence": v.confidence,
+            "reason": v.reason,
+        }
+        return collapse, None
+    curation = {"_type": "etymon_curation", "ref": member_ref, "reason": v.reason}
+    curation["merged_into_ref" if provenance == PROV_OCR else "lemma_ref"] = None
+    return None, curation
