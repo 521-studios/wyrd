@@ -6179,6 +6179,85 @@ def test_emit_era_reflexes_no_morpheme_id_is_not_seeded() -> None:
     assert "era_reflexes" not in word
 
 
+def test_emit_era_reflexes_self_seeds_generated_surface_into_modern_stage() -> None:
+    """wyrd-mook: when the generated surface (modern_usage) differs from the
+    canonical own form, it must echo in the family's MODERN stage so the SPA's
+    cellForSurface highlights the as-generated form. 'Cras-' (vs canonical
+    old-english:cærse) lands in modern-english; the canonical still seeds OE."""
+    word = {"morpheme_id": "old-english:cærse", "modern_usage": "Cras-"}
+    fam = {"era_reflexes": {"old-english": [{"form": "cærse", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    assert word["era_reflexes"]["old-english"] == [{"form": "cærse", "source": "cluster"}]
+    assert word["era_reflexes"]["modern-english"] == [{"form": "Cras-", "source": "self"}]
+
+
+def test_emit_era_reflexes_surface_seed_affix_into_modern_stage() -> None:
+    """A connective surface like '-ning-' (morpheme old-english:-ing) seeds the
+    modern stage VERBATIM (dashes intact) — the case the staging QA flagged
+    (-ning- / -en- / -ling- 'not in own reflexes')."""
+    word = {"morpheme_id": "old-english:-ing", "modern_usage": "-ning-"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"]["old-english"] == [{"form": "-ing", "source": "self"}]
+    assert word["era_reflexes"]["modern-english"] == [{"form": "-ning-", "source": "self"}]
+
+
+def test_emit_era_reflexes_surface_seed_deduped_by_fold() -> None:
+    """When ANY era cell already FOLDS to the surface (accent/case/dash-
+    insensitive), the surface seed is skipped — no duplicate fold-collision cell.
+    '-ton-' folds to 'ton', already a real modern reflex."""
+    word = {"morpheme_id": "old-english:-tun", "modern_usage": "-ton-"}
+    fam = {
+        "era_reflexes": {
+            "old-english": [{"form": "-tun", "source": "cluster"}],
+            "modern-english": [{"form": "ton", "source": "cluster"}],
+        }
+    }
+    _emit_era_reflexes(word, [(fam, [])])
+    # exactly the real cluster cell — no '-ton-' self duplicate alongside it
+    assert word["era_reflexes"]["modern-english"] == [{"form": "ton", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_surface_equal_to_canonical_adds_no_modern_cell() -> None:
+    """When the generated surface folds to the morpheme's OWN canonical form, the
+    canonical self-seed already grids it — so NO redundant modern-stage cell is
+    added for an unchanged form. 'tune' (morpheme old-english:tune) stays a
+    single OE cell, no modern-english duplicate."""
+    word = {"morpheme_id": "old-english:tune", "modern_usage": "tune"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"old-english": [{"form": "tune", "source": "self"}]}
+
+
+def test_emit_era_reflexes_surface_matching_other_era_cell_adds_no_modern_cell() -> None:
+    """The dedup spans ALL eras, not just the modern stage: a surface that folds
+    to a Middle-English cluster cell is already gridded, so no modern self cell is
+    added on top of it."""
+    word = {"morpheme_id": "old-english:feld", "modern_usage": "Feld"}
+    fam = {"era_reflexes": {"middle-english": [{"form": "feld", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    assert "modern-english" not in word["era_reflexes"]
+    assert word["era_reflexes"]["old-english"] == [{"form": "feld", "source": "self"}]
+    assert word["era_reflexes"]["middle-english"] == [{"form": "feld", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_surface_seed_skipped_when_no_era_family() -> None:
+    """A morpheme whose own language has no era family (proto / untracked
+    classical) gets its canonical own-lang seed but NO modern-stage surface seed
+    — the runtime grid drops familyless tags anyway, so there's no stage to
+    target."""
+    word = {"morpheme_id": "proto-germanic:*tūną", "modern_usage": "Tun-"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"proto-germanic": [{"form": "*tūną", "source": "self"}]}
+
+
+def test_emit_era_reflexes_surface_seed_other_families() -> None:
+    """The modern stage is resolved from the morpheme's OWN family, not assumed
+    English: old-french → french, irish → irish."""
+    word_fr = {"morpheme_id": "old-french:rose", "modern_usage": "Rosen-"}
+    _emit_era_reflexes(word_fr, [({"era_reflexes": {}}, [])])
+    assert word_fr["era_reflexes"]["old-french"] == [{"form": "rose", "source": "self"}]
+    assert word_fr["era_reflexes"]["french"] == [{"form": "Rosen-", "source": "self"}]
+
+
 def test_kenning_rewind_generator_renders_three_era_stops() -> None:
     """End-to-end Generator class smoke: KenningRewind.generate_all
     returns one GenerationResult per English-family era stop
@@ -9280,8 +9359,14 @@ def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
             "morpheme_id": "old-english:aecern",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["aecern"],
             "old_english_pronunciation": [{"form": "aecern", "ipa": "/ɑɛkɛrn/", "dialect": None}],
-            # self-seed: a barren morpheme shows its own form in its own era
-            "era_reflexes": {"old-english": [{"form": "aecern", "source": "self"}]},
+            # self-seed: the morpheme's own canonical form in its own era column,
+            # PLUS (wyrd-mook) the generated surface '-ock' echoed into the modern
+            # stage — surface '-ock' ≠ canonical 'aecern', so without it the SPA
+            # grid would show 'aecern' but never match the '-ock' the user sees.
+            "era_reflexes": {
+                "modern-english": [{"form": "-ock", "source": "self"}],
+                "old-english": [{"form": "aecern", "source": "self"}],
+            },
         }
     ]
     assert without_rando == []
