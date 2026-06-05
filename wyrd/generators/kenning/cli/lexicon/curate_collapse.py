@@ -23,6 +23,9 @@ edges, then folds the clean toponym into ``dūn``::
         --detach-child middle-english:don \\
         --reason "wyrd-qp9c: OE toponym don (hill, =dūn) conflated with verb dōn"
 
+(``--detach-child`` abbreviated above — the live wyrd-qp9c row in
+``_collapses.jsonl`` detaches all six ME/ModE verb reflexes.)
+
 Replayed by ``enrichment.apply_collapses`` in ``run_full_enrichment``'s
 curation slot, BEFORE cluster-cognates — so a from-scratch rebuild
 reproduces the detach + fold with no re-mining.
@@ -127,7 +130,9 @@ def lexicon_curate_collapse_etymon(
     ETYMON_REF is ``<language>:<canonical_form>`` (e.g. ``old-english:don``).
 
     At least one of ``--into`` or ``--detach-parent`` / ``--detach-child``
-    must be given. With neither, the event is a no-op.
+    must be given (omitting all three is a usage error). ``--into ''``
+    (explicit empty) is allowed and emits a REVERT of a prior fold of
+    ETYMON_REF (last-write-wins per ref), the documented un-collapse path.
 
     The detach endpoints are deleted from ``etymon_descent`` BEFORE the
     fold, so cluster-cognates (which resolves a tombstone's edges through
@@ -137,7 +142,9 @@ def lexicon_curate_collapse_etymon(
     collapse telemetry; re-emit the row to correct a typo (last-write-wins
     per ref).
     """
-    if not into_ref and not detach_parents and not detach_children:
+    # `into_ref is None` (option omitted), NOT `not into_ref`: an explicit
+    # `--into ''` is a legitimate revert event and must pass the guard.
+    if into_ref is None and not detach_parents and not detach_children:
         raise click.UsageError(
             "Provide at least one of --into, --detach-parent, or --detach-child."
         )
@@ -159,9 +166,15 @@ def lexicon_curate_collapse_etymon(
 
     _append_event(collapse_file, payload)
     detached = len(detach_parents) + len(detach_children)
+    if into_ref:
+        fold_desc = f" → `{into_ref}`"
+    elif into_ref == "":
+        fold_desc = " (revert)"
+    else:
+        fold_desc = " (detach-only)"
     click.echo(
         f"Appended collapse event for `{etymon_ref}`"
-        + (f" → `{into_ref}`" if into_ref else " (detach-only)")
+        + fold_desc
         + (f" detaching {detached} edge(s)" if detached else "")
         + f" → {collapse_file}",
         err=True,
