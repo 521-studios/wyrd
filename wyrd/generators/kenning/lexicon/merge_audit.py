@@ -54,6 +54,7 @@ PROV_COLLAPSE = "collapse-fold"
 PROV_OCR = "ocr-cluster"
 PROV_LEMMA = "lemma-link"
 
+
 @dataclass(frozen=True)
 class MergeAuditCandidate:
     """One merge decision for the LLM to judge: was ``member`` correctly merged
