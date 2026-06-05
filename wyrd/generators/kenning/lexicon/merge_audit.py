@@ -23,8 +23,8 @@ Two candidate sources (union, deduped by member ref):
 2. **Collapse folds** — every fold currently live in ``_collapses.jsonl`` (full
    ledger re-audit / hygiene).
 
-**Provenance-routed reverts** (the enrichment order is
-``cluster_ocr → link_lemmas → apply_curation → … → apply_collapses``):
+**Provenance-routed reverts** (the enrichment phase order is
+``cluster-ocr → link-lemmas → apply-curation → … → apply-collapses``):
 
 * ``collapse-fold`` → revert in ``_collapses.jsonl`` (``into: ""`` last-write-
   wins). A curation clear would be re-overwritten by ``apply_collapses``.

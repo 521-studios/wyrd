@@ -71,20 +71,24 @@ def _load_judged(audit_file: Path) -> set[str]:
 
 def _judge_with_retry(client, c):
     """Judge one candidate, one retry on transport/parse failure; None if
-    unusable (caller skips WITHOUT recording, so a re-run retries)."""
+    unusable (caller skips WITHOUT recording, so a re-run retries). Echoes the
+    last failure to stderr so a persistent Ollama outage is diagnosable rather
+    than presenting as a silently-climbing skip count."""
     from wyrd.generators.kenning.lexicon.merge_audit import (
         build_audit_judge_prompt,
         parse_audit_verdict,
     )
 
     system, user = build_audit_judge_prompt(c)
+    last_err = "unparseable verdict"
     for _attempt in range(2):
         try:
             verdict = parse_audit_verdict(client.chat_json(system, user, {}))
-        except Exception:
-            verdict = None
-        if verdict is not None:
-            return verdict
+            if verdict is not None:
+                return verdict
+        except Exception as exc:  # transient LLM/transport noise: skip, don't crash the batch
+            last_err = str(exc) or exc.__class__.__name__
+    click.echo(f"  skip (judge failed for {c.member_ref}): {last_err}", err=True)
     return None
 
 
