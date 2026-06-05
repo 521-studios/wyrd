@@ -51,6 +51,13 @@ def lexicon_cluster_cognates(db_path: Path, apply_changes: bool) -> None:
     )
     if apply_changes:
         click.echo(f"  rows_written = {result['rows_written']}", err=True)
+    if result.get("tombstones_cleared"):
+        verb_t = "cleared" if apply_changes else "would clear"
+        click.echo(
+            f"  {verb_t} stale cognate_id on {result['tombstones_cleared']} "
+            f"tombstone(s) (wyrd-hn03 invariant)",
+            err=True,
+        )
     if result["cycle_orphans"]:
         click.echo(
             f"  warn: {result['cycle_orphans']} etymon(s) sit in a bridging-edge "

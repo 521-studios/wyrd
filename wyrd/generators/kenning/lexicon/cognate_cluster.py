@@ -88,6 +88,10 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
       - applied: whether writes happened
       - rows_written: count of UPDATE statements that actually changed
         a row (always 0 in dry-run; ≤ candidates when applied)
+      - tombstones_cleared: count of tombstoned etymons (merged_into_id
+        set) whose stale cognate_id/cognate_method was NULLed to enforce
+        the tombstones-stay-NULL invariant (wyrd-hn03). In dry-run this is
+        the would-clear count.
       - cycle_orphans: count of canonical etymons that participate in
         bridging edges but couldn't be assigned because they sit in a
         cycle with no external root. Healthy data should report 0 here;
@@ -167,7 +171,28 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     # edges but never reached a root. A pure cycle has no anchor.
     cycle_orphans = bridging_participants - set(assignments.keys())
 
+    # wyrd-hn03: enforce the documented "tombstones stay NULL" invariant. The
+    # BFS only ever assigns CANONICAL ids (every edge endpoint is resolved
+    # through merged_into_id first), so a tombstone is never (re)assigned here —
+    # but it can still carry a STALE cognate_id from a PRIOR run, when it was
+    # canonical and in a different cluster, before a later fold tombstoned it.
+    # clear-enrichment --stage=cognates clears canonical rows only, so those
+    # stale tombstone pointers survive. They are NOT cosmetic: the bundle
+    # export's per-family era-reflex union (_fetch_family_era_reflexes) calls
+    # etymon_era_reflexes for every family member, and a folded member's stale
+    # cognate_id makes it return its OLD cluster's reflexes — leaking the wrong
+    # forms onto the surviving lemma's grid (the verb do/done leaking onto the
+    # toponym -don after old-english:don folded into dūn). A tombstone rolls up
+    # via merged_into_id at query time, so its own cognate_id is dead weight;
+    # NULL it so reads can't resurrect the pre-fold cluster.
+    tombstone_rows = db.conn.execute(
+        "SELECT COUNT(*) AS n FROM etymon "
+        "WHERE merged_into_id IS NOT NULL "
+        "  AND (cognate_id IS NOT NULL OR cognate_method IS NOT NULL)"
+    ).fetchone()["n"]
+
     rows_written = 0
+    tombstones_cleared = tombstone_rows  # dry-run reports the would-clear count
     if apply:
         for etymon_id, cognate_id in assignments.items():
             cur = db.conn.execute(
@@ -183,6 +208,12 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
                 ),
             )
             rows_written += cur.rowcount
+        cur = db.conn.execute(
+            "UPDATE etymon SET cognate_id = NULL, cognate_method = NULL "
+            "WHERE merged_into_id IS NOT NULL "
+            "  AND (cognate_id IS NOT NULL OR cognate_method IS NOT NULL)"
+        )
+        tombstones_cleared = cur.rowcount or 0
         db.commit()
 
     return {
@@ -190,5 +221,6 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
         "candidates": len(assignments),
         "applied": apply,
         "rows_written": rows_written,
+        "tombstones_cleared": tombstones_cleared,
         "cycle_orphans": len(cycle_orphans),
     }
