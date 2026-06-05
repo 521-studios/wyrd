@@ -170,10 +170,18 @@ def _seed_homograph(db_path: Path) -> dict[str, int]:
     init_schema(db_path)
     conn = sqlite3.connect(db_path)
     conn.execute("INSERT INTO source (id, title) VALUES ('wikt', 'Wiktionary')")
-    conn.execute("INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'don', 'old-english')")
-    conn.execute("INSERT INTO etymon (id, canonical_form, language) VALUES (2, 'dūn', 'old-english')")
-    conn.execute("INSERT INTO etymon (id, canonical_form, language) VALUES (3, '*dōn', 'proto-germanic')")
-    conn.execute("INSERT INTO etymon (id, canonical_form, language) VALUES (4, 'do', 'modern-english')")
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'don', 'old-english')"
+    )
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (2, 'dūn', 'old-english')"
+    )
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (3, '*dōn', 'proto-germanic')"
+    )
+    conn.execute(
+        "INSERT INTO etymon (id, canonical_form, language) VALUES (4, 'do', 'modern-english')"
+    )
     # the two contaminating verb edges: *dōn -> don, don -> do
     conn.execute(
         "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
@@ -205,9 +213,7 @@ def test_apply_collapses_detach_removes_edges_before_fold(tmp_path: Path) -> Non
         counts = apply_collapses(db, _DETACH_FOLD, apply=True)
         conn = db.conn
         # both verb edges deleted
-        assert (
-            conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0] == 0
-        )
+        assert conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0] == 0
         # no edge references the folded toponym → nothing for cluster_cognates
         # to redirect onto the lemma via merged_into_id
         assert (
@@ -218,7 +224,9 @@ def test_apply_collapses_detach_removes_edges_before_fold(tmp_path: Path) -> Non
             == 0
         )
         # and the toponym is folded into the clean lemma
-        merged = conn.execute("SELECT merged_into_id FROM etymon WHERE id = ?", (ids["don"],)).fetchone()[0]
+        merged = conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (ids["don"],)
+        ).fetchone()[0]
         assert merged == ids["dūn"]
     assert counts["detach_edges_removed"] == 2
     assert counts["collapses_processed"] == 1
@@ -237,7 +245,9 @@ def test_apply_collapses_detach_only_row_no_fold(tmp_path: Path) -> None:
     }
     with LexiconDB(tmp_path / "lex.db") as db:
         counts = apply_collapses(db, state, apply=True)
-        merged = db.conn.execute("SELECT merged_into_id FROM etymon WHERE id = ?", (ids["don"],)).fetchone()[0]
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (ids["don"],)
+        ).fetchone()[0]
         edges = db.conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0]
     assert counts["detach_edges_removed"] == 2
     assert counts["collapses_processed"] == 0
@@ -281,7 +291,9 @@ def test_apply_collapses_detach_resolves_tombstoned_endpoint(tmp_path: Path) -> 
     ids = _seed_homograph(tmp_path / "lex.db")
     conn = sqlite3.connect(tmp_path / "lex.db")
     # tombstone the verb child `do` (4) into `dūn` (2) — simulating a prior fold
-    conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (ids["dūn"], ids["verb_child"]))
+    conn.execute(
+        "UPDATE etymon SET merged_into_id = ? WHERE id = ?", (ids["dūn"], ids["verb_child"])
+    )
     conn.commit()
     conn.close()
     state = {"old-english:don": {"detach_children": ["modern-english:do"]}}
