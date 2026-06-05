@@ -12702,10 +12702,62 @@ def test_cluster_cognates_nulls_stale_tombstone_cognate_id(fresh_db: Path) -> No
         don_row = db.conn.execute(
             "SELECT cognate_id, cognate_method FROM etymon WHERE id = ?", (don,)
         ).fetchone()
+        # the canonical members keep their freshly-assigned cluster (the NULL
+        # step is gated on merged_into_id IS NOT NULL, so it never touches them)
+        canon = {
+            r["id"]: r["cognate_id"]
+            for r in db.conn.execute(
+                "SELECT id, cognate_id FROM etymon WHERE merged_into_id IS NULL"
+            )
+        }
+        # second run: nothing left to clear (idempotent)
+        second = cluster_cognates(db, apply=True)
 
     assert don_row["cognate_id"] is None  # stale verb pointer cleared
     assert don_row["cognate_method"] is None
     assert result["tombstones_cleared"] >= 1
+    assert canon[verb_child] == verb_root  # canonical assignment intact
+    assert canon[hill] == hill_root  # the other cluster untouched
+    assert second["tombstones_cleared"] == 0  # idempotent — nothing stale remains
+
+
+def test_cluster_cognates_tombstone_clear_stops_era_reflex_leak(fresh_db: Path) -> None:
+    """End-to-end (the actual wyrd-hn03 symptom): a tombstone with a stale
+    cognate_id makes etymon_era_reflexes return the OLD cluster's reflexes;
+    after cluster_cognates NULLs the tombstone, the leak stops."""
+    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="w", title="W")
+        # A verb cluster carrying a modern-english reflex 'do'.
+        verb_root = db.upsert_etymon("*verb", "proto-germanic")
+        verb_modern = db.upsert_etymon("do", "modern-english")
+        hill = db.upsert_etymon("dūn", "old-english")
+        don = db.upsert_etymon("don", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+            "VALUES (?, ?, 'inheritance', 'w')",
+            (verb_root, verb_modern),
+        )
+        db.commit()
+        # populate the verb cluster's cognate_id (so it has mates to leak)
+        cluster_cognates(db, apply=True)
+        # NOW inject the stale state: 'don' is tombstoned into the hill lemma but
+        # still points at the verb cluster (it has no descent edges of its own).
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ?, cognate_method = 'cluster-cognates-v2', "
+            "merged_into_id = ? WHERE id = ?",
+            (verb_root, hill, don),
+        )
+        db.commit()
+        before = etymon_era_reflexes(db, don, target_language="modern-english")
+        cluster_cognates(db, apply=True)  # the fix: NULLs the stale tombstone
+        after = etymon_era_reflexes(db, don, target_language="modern-english")
+
+    # before the fix the tombstone leaks the verb's modern reflex...
+    assert any(r.form == "do" for r in before)
+    # ...and after, with its stale cognate_id cleared, it leaks nothing
+    assert after == []
 
 
 def test_cluster_cognates_dry_run_reports_tombstone_clear_without_writing(fresh_db: Path) -> None:

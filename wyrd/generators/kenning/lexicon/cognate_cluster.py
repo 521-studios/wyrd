@@ -173,18 +173,21 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
 
     # wyrd-hn03: enforce the documented "tombstones stay NULL" invariant. The
     # BFS only ever assigns CANONICAL ids (every edge endpoint is resolved
-    # through merged_into_id first), so a tombstone is never (re)assigned here —
-    # but it can still carry a STALE cognate_id from a PRIOR run, when it was
-    # canonical and in a different cluster, before a later fold tombstoned it.
-    # clear-enrichment --stage=cognates clears canonical rows only, so those
-    # stale tombstone pointers survive. They are NOT cosmetic: the bundle
-    # export's per-family era-reflex union (_fetch_family_era_reflexes) calls
-    # etymon_era_reflexes for every family member, and a folded member's stale
-    # cognate_id makes it return its OLD cluster's reflexes — leaking the wrong
-    # forms onto the surviving lemma's grid (the verb do/done leaking onto the
-    # toponym -don after old-english:don folded into dūn). A tombstone rolls up
-    # via merged_into_id at query time, so its own cognate_id is dead weight;
-    # NULL it so reads can't resurrect the pre-fold cluster.
+    # through merged_into_id first), so a tombstone is never (re)assigned here.
+    # The stale state arises from INCREMENTAL re-enrichment: an etymon clustered
+    # while it was canonical on one run, then folded (tombstoned) by a later
+    # collapse — and because this pass writes canonical rows only and never
+    # cleared a now-tombstone's old pointer, the pre-fold cognate_id persisted
+    # across runs (a `clear-enrichment --stage=cognates` between runs WOULD wipe
+    # it, but the incremental path doesn't clear). Those stale pointers are NOT
+    # cosmetic: the bundle export's per-family era-reflex union
+    # (_fetch_family_era_reflexes) calls etymon_era_reflexes for every family
+    # member, and a folded member's stale cognate_id makes it return its OLD
+    # cluster's reflexes — leaking the wrong forms onto the surviving lemma's
+    # grid (the verb do/done leaking onto the toponym -don after old-english:don
+    # folded into dūn). A tombstone rolls up via merged_into_id at query time,
+    # so its own cognate_id is dead weight; NULL it so reads can't resurrect the
+    # pre-fold cluster.
     tombstone_rows = db.conn.execute(
         "SELECT COUNT(*) AS n FROM etymon "
         "WHERE merged_into_id IS NOT NULL "
@@ -213,7 +216,10 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
             "WHERE merged_into_id IS NOT NULL "
             "  AND (cognate_id IS NOT NULL OR cognate_method IS NOT NULL)"
         )
-        tombstones_cleared = cur.rowcount or 0
+        # max(0, ...) not `or 0`: a DB-API rowcount of -1 (undetermined) is
+        # truthy and would otherwise survive. UPDATE rowcount is reliable here,
+        # but be defensive.
+        tombstones_cleared = max(0, cur.rowcount)
         db.commit()
 
     return {
