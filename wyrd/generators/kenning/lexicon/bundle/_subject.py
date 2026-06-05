@@ -25,6 +25,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
+from wyrd.generators.kenning.era.cells import family_stage_order, language_family
 from wyrd.generators.kenning.lexicon.bundle._emit import (
     _LANG_CODE_TO_JSON_FIELD,
     _BucketAccumulator,
@@ -284,11 +285,13 @@ def _word_for_reflex(
 
 
 def _surface_fold(s: str) -> str:
-    """Fold a surface the way the SPA's ``accentFold`` does (era.js): strip the
-    reconstructed-form ``*`` marker + leading/trailing dashes, drop combining
+    """Fold a surface the way the SPA's ``accentFold`` does (defined in
+    ``spa-next/src/lib/accents.js``, used by era.js's ``cellForSurface``): strip
+    the reconstructed-form ``*`` marker + leading/trailing dashes, drop combining
     diacritics, lowercase. Used to dedupe a self-seeded generated surface against
     an era cell that already echoes it (``-bȳ`` / ``-by`` / ``By`` all fold to
-    ``by``), so we don't emit two fold-equal cells that light up at once."""
+    ``by``; ``*mos`` / ``Mos-`` both fold to ``mos``), so we don't emit two
+    fold-equal cells that would light up at once."""
     decomposed = unicodedata.normalize("NFD", (s or "").replace("*", "").strip("-"))
     return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
 
@@ -297,15 +300,46 @@ def _own_family_modern_stage(language: str) -> str | None:
     """The canonical language tag of ``language``'s era family's MODERN (newest)
     stage — e.g. ``old-english`` → ``modern-english``, ``old-french`` →
     ``french``, ``irish`` → ``irish``. ``None`` when the language has no era
-    family (proto / untracked classical), which the runtime grid drops anyway.
-    Lazy import mirrors ``_family.py``'s era.cells access pattern."""
-    from wyrd.generators.kenning.era.cells import family_stage_order, language_family
-
+    family (proto / untracked classical), which the runtime grid drops anyway."""
     family = language_family(language)
     if family is None:
         return None
     stages = family_stage_order(family)
     return stages[-1] if stages else None
+
+
+def _seed_generated_surface(
+    merged: dict[str, dict[str, dict]], own_lang: str, modern_usage: str
+) -> None:
+    """wyrd-mook: echo the word's GENERATED SURFACE (``modern_usage``) into its
+    family's MODERN stage of ``merged`` (in place), source ``"self"``.
+
+    The canonical self-seed in :func:`_emit_era_reflexes` echoes the etymon's own
+    form, but the connective surface the generator actually emits often differs
+    from it (``-ning-`` / ``Cras-`` vs canonical ``old-english:-ing`` /
+    ``old-english:cærse``); without this the grid shows the morpheme's reflexes
+    but nothing folds to the surface the user sees, which the SPA reads as "X not
+    in its own reflexes". The modern stage is the right home — ``modern_usage``
+    IS the modern surface — and lands the initial highlight in the Modern column
+    ("as generated").
+
+    No-ops (early return) when: the surface is empty / dash-only; ANY era cell
+    already folds to it (so ``surface == canonical``, the common case, adds no
+    redundant cell); or the own-language has no era family (proto / untracked
+    classical — gridless anyway). Seeded VERBATIM (dashes intact, like the
+    canonical seed)."""
+    surface = modern_usage.strip()
+    if not surface.strip("-"):
+        return
+    surface_fold = _surface_fold(surface)
+    if any(
+        _surface_fold(cell_form) == surface_fold for stage in merged.values() for cell_form in stage
+    ):
+        return
+    modern_lang = _own_family_modern_stage(own_lang)
+    if modern_lang is None:
+        return
+    merged.setdefault(modern_lang, {})[surface] = {"form": surface, "source": "self"}
 
 
 def _emit_era_reflexes(
@@ -328,15 +362,10 @@ def _emit_era_reflexes(
     dash-only form, or an own-language with no tracked era family.
 
     wyrd-mook: it ALSO self-seeds the word's GENERATED SURFACE (``modern_usage``)
-    into its family's MODERN stage. The canonical self-seed echoes the etymon's
-    own form, but the connective surface the generator actually emits often
-    differs from it (``-ning-`` / ``Cras-`` vs canonical ``old-english:-ing`` /
-    ``old-english:cærse``); without this the grid shows the morpheme's reflexes
-    but nothing folds to the surface the user sees, which the SPA reads as "X not
-    in its own reflexes". The modern stage is the right home — ``modern_usage``
-    IS the modern surface — and lands the initial highlight in the Modern column
-    ("as generated"). Skipped when a stage cell already folds to the surface (no
-    duplicate fold-collision cell) or the own-language has no era family.
+    into its family's MODERN stage via :func:`_seed_generated_surface`, so the
+    connective surface the user sees (``-ning-`` / ``Cras-``, often ≠ the etymon
+    canonical) is echoed somewhere the SPA's surface-fold can match — see that
+    helper for the placement + skip rules.
     """
     merged: dict[str, dict[str, dict]] = {}
     for fam, _linked_ids in link_pairs:
@@ -369,29 +398,7 @@ def _emit_era_reflexes(
     own_form = own_form.strip()
     if sep and own_lang and own_form.strip("-"):  # well-formed id, content beyond dashes
         merged.setdefault(own_lang, {}).setdefault(own_form, {"form": own_form, "source": "self"})
-        # wyrd-mook: also echo the generated surface into the family's MODERN
-        # stage so the SPA highlights the as-generated form (see docstring).
-        # Seeded VERBATIM (dashes intact, like the canonical seed). Only when NO
-        # existing cell in ANY era already folds to the surface — when the
-        # surface == canonical (the common case) the canonical seed above already
-        # grids it, so adding a second modern cell would just duplicate an
-        # unchanged form. This narrows the seed to the genuine surface≠canonical
-        # gap the staging QA flagged.
-        surface = (word.get("modern_usage") or "").strip()
-        if surface.strip("-"):
-            surface_fold = _surface_fold(surface)
-            already_gridded = any(
-                _surface_fold(cell_form) == surface_fold
-                for stage in merged.values()
-                for cell_form in stage
-            )
-            if not already_gridded:
-                modern_lang = _own_family_modern_stage(own_lang)
-                if modern_lang is not None:
-                    merged.setdefault(modern_lang, {})[surface] = {
-                        "form": surface,
-                        "source": "self",
-                    }
+        _seed_generated_surface(merged, own_lang, word.get("modern_usage") or "")
     if merged:
         word["era_reflexes"] = {
             target_language: [forms[form] for form in sorted(forms)]

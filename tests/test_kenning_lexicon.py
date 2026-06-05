@@ -6239,6 +6239,28 @@ def test_emit_era_reflexes_surface_matching_other_era_cell_adds_no_modern_cell()
     assert word["era_reflexes"]["middle-english"] == [{"form": "feld", "source": "cluster"}]
 
 
+def test_emit_era_reflexes_surface_seed_deduped_against_reconstructed_form() -> None:
+    """The fold matches the SPA's accentFold, which strips the reconstructed-form
+    '*' marker AND diacritics: a surface 'Mos-' folds to 'mos', already echoed by
+    a '*mos' cluster cell, so no duplicate is seeded. Pins the real old-norse
+    case found auditing the staging bundle (mosi cluster carries '*mos')."""
+    word = {"morpheme_id": "old-norse:mosi", "modern_usage": "Mos-"}
+    fam = {
+        "era_reflexes": {
+            "old-norse": [
+                {"form": "*mos", "source": "cluster"},
+                {"form": "mosi", "source": "cluster"},
+            ]
+        }
+    }
+    _emit_era_reflexes(word, [(fam, [])])
+    # '*mos' already folds to 'mos' == fold('Mos-') → no extra self cell anywhere
+    assert word["era_reflexes"]["old-norse"] == [
+        {"form": "*mos", "source": "cluster"},
+        {"form": "mosi", "source": "cluster"},
+    ]
+
+
 def test_emit_era_reflexes_surface_seed_skipped_when_no_era_family() -> None:
     """A morpheme whose own language has no era family (proto / untracked
     classical) gets its canonical own-lang seed but NO modern-stage surface seed
