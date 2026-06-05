@@ -159,6 +159,12 @@ LIST_TYPES: frozenset[str] = frozenset(
         # a full rebuild-from-jsonl — they're created only by
         # seed_from_meanings and are NOT otherwise re-derivable from L2.
         "reflex",
+        # wyrd-6hbv: merge-audit verdict log (``data/mining/_merge_audit.jsonl``).
+        # Idempotency + audit trail only — the applied reverts live in the
+        # collapse / curation ledgers; no build helper consumes this list, so it
+        # replays inert. Registered here so rebuild-from-jsonl's glob over every
+        # *.jsonl in data/mining/ accepts the file instead of raising ReplayError.
+        "merge_audit",
     }
 )
 
