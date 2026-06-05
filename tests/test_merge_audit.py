@@ -22,6 +22,8 @@ from wyrd.generators.kenning.lexicon.merge_audit import (
     build_audit_judge_prompt,
     detect_merge_audit_candidates,
     parse_audit_verdict,
+    revert_rows,
+    verdict_from_log,
 )
 
 
@@ -153,7 +155,7 @@ def test_revert_collapse_fold_goes_to_collapse_ledger():
         "confidence": "high",
         "reason": "distinct",
     }
-    assert rows.audit_log["verdict"] == "revert"
+    assert rows.audit_log["same_morpheme"] is False  # raw verdict recorded
 
 
 def test_revert_ocr_goes_to_curation_merged_into():
@@ -183,16 +185,49 @@ def test_keep_verdict_emits_only_audit_log():
     v = MergeAuditVerdict(correct=True, confidence="high", reason="same morpheme")
     rows = audit_verdict_to_rows(c, v, "medium")
     assert rows.collapse is None and rows.curation is None
-    assert rows.audit_log["verdict"] == "keep"
+    assert rows.audit_log["same_morpheme"] is True
 
 
-def test_low_confidence_revert_is_held_as_keep():
-    """A wrong-merge verdict below --min-confidence does NOT emit a revert."""
+def test_below_threshold_records_raw_wrongmerge_but_emits_no_revert():
+    """A wrong-merge verdict below --min-confidence emits no revert, but the audit
+    log STILL records the raw same_morpheme=False so a later lower-threshold run
+    can re-derive the revert without re-judging (emit high now, emit medium later)."""
     c = _cand("modern-english:-ton", "modern-english:ton", PROV_OCR)
-    v = MergeAuditVerdict(correct=False, confidence="low", reason="maybe")
+    v = MergeAuditVerdict(correct=False, confidence="medium", reason="suffix not weight")
     rows = audit_verdict_to_rows(c, v, "high")
-    assert rows.collapse is None and rows.curation is None
-    assert rows.audit_log["verdict"] == "keep"
+    assert rows.collapse is None and rows.curation is None  # below 'high' → no revert
+    assert rows.audit_log["same_morpheme"] is False  # raw verdict still recorded
+    assert rows.audit_log["confidence"] == "medium"
+
+
+# --- raw-verdict round-trip: emit high now, re-derive medium later -----------
+
+
+def test_verdict_from_log_round_trips():
+    c = _cand("m:-ton", "m:ton", PROV_OCR)
+    v = MergeAuditVerdict(correct=False, confidence="medium", reason="distinct")
+    row = audit_verdict_to_rows(c, v, "high").audit_log
+    back = verdict_from_log(row)
+    assert back.correct is False and back.confidence == "medium" and back.reason == "distinct"
+
+
+def test_verdict_from_log_rejects_legacy_row_without_raw_verdict():
+    assert verdict_from_log({"member_ref": "m:x", "confidence": "high"}) is None
+
+
+def test_verdict_from_log_defaults_bad_confidence_low():
+    """A raw bool with a junk/absent confidence (schema drift) defaults to low."""
+    assert verdict_from_log({"same_morpheme": False, "confidence": "bogus"}).confidence == "low"
+    assert verdict_from_log({"same_morpheme": True}).confidence == "low"
+
+
+def test_revert_rows_re_derive_at_lower_threshold():
+    """The recorded raw verdict yields NO revert at high but a curation revert at
+    medium — the 'emit medium later' path, no LLM re-run."""
+    v = MergeAuditVerdict(correct=False, confidence="medium", reason="distinct")
+    assert revert_rows("m:-ton", PROV_OCR, v, "high") == (None, None)
+    collapse, curation = revert_rows("m:-ton", PROV_OCR, v, "medium")
+    assert collapse is None and curation["merged_into_ref"] is None
 
 
 # --- LLM-output parsing (deterministic coercion boundary) -------------------
@@ -269,7 +304,7 @@ def test_merge_audit_jsonl_replays_inert(tmp_path):
             "member_ref": "modern-english:-ton",
             "anchor_ref": "modern-english:ton",
             "provenance": PROV_OCR,
-            "verdict": "revert",
+            "same_morpheme": False,
             "confidence": "high",
             "reason": "suffix not weight",
         },
@@ -282,8 +317,8 @@ def test_merge_audit_jsonl_replays_inert(tmp_path):
 # --- CLI helpers (idempotency gate + revert-write contract) -------------------
 
 
-def test_cli_load_judged_filters(tmp_path):
-    from wyrd.generators.kenning.cli.lexicon.audit_merges import _load_judged
+def test_cli_load_log_returns_rows_by_ref(tmp_path):
+    from wyrd.generators.kenning.cli.lexicon.audit_merges import _load_log
 
     path = tmp_path / "_merge_audit.jsonl"
     path.write_text(
@@ -291,8 +326,11 @@ def test_cli_load_judged_filters(tmp_path):
             json.dumps(r)
             for r in [
                 {"_type": "source", "ref": "merge-audit"},
-                {"_type": "merge_audit", "member_ref": "a:x", "verdict": "keep"},
-                {"_type": "merge_audit", "member_ref": "a:y", "verdict": "revert"},
+                {"_type": "merge_audit", "member_ref": "a:x", "same_morpheme": True},
+                {"_type": "merge_audit", "member_ref": "a:y", "same_morpheme": False},
+                # legacy threshold-gated row (no same_morpheme) → excluded so it
+                # gets re-judged rather than silently lost.
+                {"_type": "merge_audit", "member_ref": "a:legacy", "verdict": "revert"},
                 {"_type": "merge_audit"},  # missing member_ref → ignored
                 {"_type": "other", "member_ref": "a:z"},  # wrong type → ignored
             ]
@@ -300,29 +338,132 @@ def test_cli_load_judged_filters(tmp_path):
         + "\n",
         encoding="utf-8",
     )
-    assert _load_judged(path) == {"a:x", "a:y"}
-    assert _load_judged(tmp_path / "absent.jsonl") == set()  # no file → empty
+    log = _load_log(path)
+    assert set(log) == {"a:x", "a:y"}  # a:legacy excluded → will be re-judged
+    assert log["a:y"]["same_morpheme"] is False
+    assert _load_log(tmp_path / "absent.jsonl") == {}  # no file → empty
 
 
-def test_cli_write_rows_routes_to_handles():
+def test_cli_already_reverted_dedup():
+    """A re-run must not re-append a revert already recorded in the net ledger
+    state (collapse into:'' for collapse-fold; cleared ref for ocr/lemma)."""
+    from wyrd.generators.kenning.cli.lexicon.audit_merges import _already_reverted
+
+    # collapse-fold: net into already empty → already reverted
+    assert _already_reverted("m:x", PROV_COLLAPSE, {"m:x": {"into": ""}}, {})
+    assert not _already_reverted("m:x", PROV_COLLAPSE, {"m:x": {"into": "m:y"}}, {})
+    # ocr: curation already clears merged_into_ref
+    assert _already_reverted("m:-ton", PROV_OCR, {}, {"m:-ton": {"merged_into_ref": None}})
+    assert not _already_reverted("m:-ton", PROV_OCR, {}, {})
+    # lemma: curation already clears lemma_ref
+    assert _already_reverted("m:s", PROV_LEMMA, {}, {"m:s": {"lemma_ref": None}})
+
+
+def test_cli_emit_reverts_from_log_dedups_and_thresholds():
+    """_emit_reverts derives reverts from recorded raw verdicts at a threshold,
+    skips below-threshold (kept) + already-reverted, and re-derives at a lower
+    threshold — the emit-high-now/emit-medium-later contract, no LLM."""
     import io
 
-    from wyrd.generators.kenning.cli.lexicon.audit_merges import _write_rows
+    from wyrd.generators.kenning.cli.lexicon.audit_merges import _emit_reverts
 
-    audit_fh, collapse_fh, curation_fh = io.StringIO(), io.StringIO(), io.StringIO()
-    # a keep verdict writes only the audit log
-    keep = audit_verdict_to_rows(
-        _cand("m:-land", "m:land", PROV_OCR),
-        MergeAuditVerdict(correct=True, confidence="high", reason="same"),
-        "medium",
+    log = {
+        "m:-ton": {
+            "member_ref": "m:-ton",
+            "anchor_ref": "m:ton",
+            "provenance": PROV_OCR,
+            "same_morpheme": False,
+            "confidence": "medium",
+            "reason": "distinct",
+        },
+        "m:-land": {
+            "member_ref": "m:-land",
+            "anchor_ref": "m:land",
+            "provenance": PROV_OCR,
+            "same_morpheme": True,
+            "confidence": "high",
+            "reason": "same",
+        },
+    }
+    # at HIGH: -ton (medium) is below threshold → kept, nothing emitted
+    cur = io.StringIO()
+    counts = _emit_reverts(log, "high", {}, {}, io.StringIO(), cur, dry_run=False)
+    assert counts["reverts"] == 0 and counts["kept"] == 2 and not cur.getvalue()
+    # at MEDIUM: -ton now emits a curation revert (re-derived from the SAME log)
+    cur = io.StringIO()
+    counts = _emit_reverts(log, "medium", {}, {}, io.StringIO(), cur, dry_run=False)
+    assert counts["reverts"] == 1 and counts["ocr-cluster"] == 1
+    assert json.loads(cur.getvalue())["ref"] == "m:-ton"
+    # already-reverted in the net curation state → skipped, not re-appended
+    cur = io.StringIO()
+    counts = _emit_reverts(
+        log, "medium", {}, {"m:-ton": {"merged_into_ref": None}}, io.StringIO(), cur, dry_run=False
     )
-    _write_rows(keep, audit_fh, collapse_fh, curation_fh)
-    assert audit_fh.getvalue() and not collapse_fh.getvalue() and not curation_fh.getvalue()
-    # an ocr revert also writes the curation ledger, not the collapse ledger
-    revert = audit_verdict_to_rows(
-        _cand("m:-ton", "m:ton", PROV_OCR),
-        MergeAuditVerdict(correct=False, confidence="high", reason="distinct"),
-        "medium",
+    assert counts["reverts"] == 0 and counts["already"] == 1 and not cur.getvalue()
+
+
+def test_cli_emit_reverts_collapse_fold_and_dry_run():
+    """A collapse-fold revert writes the COLLAPSE ledger (into:''); dry-run counts
+    but writes nothing."""
+    import io
+
+    from wyrd.generators.kenning.cli.lexicon.audit_merges import _emit_reverts
+
+    log = {
+        "m:fold": {
+            "member_ref": "m:fold",
+            "anchor_ref": "m:keep",
+            "provenance": PROV_COLLAPSE,
+            "same_morpheme": False,
+            "confidence": "high",
+            "reason": "distinct",
+        },
+    }
+    # the fold is still live (net into set) → revert emitted to the collapse ledger
+    coll = io.StringIO()
+    counts = _emit_reverts(
+        log, "high", {"m:fold": {"into": "m:keep"}}, {}, coll, io.StringIO(), dry_run=False
     )
-    _write_rows(revert, audit_fh, collapse_fh, curation_fh)
-    assert curation_fh.getvalue() and not collapse_fh.getvalue()
+    assert counts["reverts"] == 1 and counts["collapse-fold"] == 1
+    assert json.loads(coll.getvalue()) == {
+        "_type": "collapse",
+        "ref": "m:fold",
+        "into": "",
+        "method": LLM_MERGE_AUDIT_REVERT_METHOD,
+        "confidence": "high",
+        "reason": "distinct",
+    }
+    # dry-run: counts the revert but writes nothing
+    coll = io.StringIO()
+    counts = _emit_reverts(
+        log, "high", {"m:fold": {"into": "m:keep"}}, {}, coll, io.StringIO(), dry_run=True
+    )
+    assert counts["reverts"] == 1 and not coll.getvalue()
+
+
+def test_judge_fresh_aborts_after_consecutive_failures(monkeypatch):
+    """PASS 1 aborts after 5 consecutive judge failures (Ollama down) instead of
+    burning every candidate; records nothing for the failures."""
+    from wyrd.generators.kenning.cli.lexicon import audit_merges
+
+    monkeypatch.setattr(audit_merges, "_judge_with_retry", lambda client, c: None)
+    cands = [_cand(f"m:c{i}", "m:a", PROV_OCR) for i in range(10)]
+    log: dict = {}
+    judged, skipped = audit_merges._judge_fresh(None, cands, log, None, "url", "model")
+    assert judged == 0 and skipped == 5 and log == {}  # broke after the 5th failure
+
+
+def test_judge_fresh_resets_counter_and_records(monkeypatch):
+    """A success resets the consecutive-failure counter (so scattered failures
+    don't trip the abort) and records the raw verdict into the log."""
+    from wyrd.generators.kenning.cli.lexicon import audit_merges
+
+    ok = MergeAuditVerdict(correct=False, confidence="high", reason="distinct")
+    # fail, fail, SUCCESS, fail, fail, fail, fail → max-consecutive 4, no abort
+    seq = iter([None, None, ok, None, None, None, None])
+    monkeypatch.setattr(audit_merges, "_judge_with_retry", lambda client, c: next(seq))
+    cands = [_cand(f"m:c{i}", "m:a", PROV_OCR) for i in range(7)]
+    log: dict = {}
+    judged, skipped = audit_merges._judge_fresh(None, cands, log, None, "url", "model")
+    assert judged == 1 and skipped == 6
+    assert log["m:c2"]["same_morpheme"] is False  # the success was recorded raw

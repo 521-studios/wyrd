@@ -54,19 +54,43 @@ def _ensure_source(path: Path, source_row: dict) -> None:
         fh.write(json.dumps(source_row, ensure_ascii=False) + "\n")
 
 
-def _load_judged(audit_file: Path) -> set[str]:
-    """member_refs already carrying a verdict in the audit log (idempotency)."""
-    judged: set[str] = set()
+def _load_log(audit_file: Path) -> dict[str, dict]:
+    """The recorded raw verdicts, ``member_ref → audit_log row`` (last wins).
+    Lets a re-run reuse prior LLM judgments (no re-judging) and re-derive reverts
+    at a new ``--min-confidence`` — the "emit high now, emit medium later" path."""
+    log: dict[str, dict] = {}
     if not audit_file.exists():
-        return judged
+        return log
     for line in audit_file.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
             continue
         row = json.loads(line)
-        if row.get("_type") == "merge_audit" and row.get("member_ref"):
-            judged.add(row["member_ref"])
-    return judged
+        # Require a raw verdict (same_morpheme bool): a legacy row from the
+        # threshold-gated schema carries no raw verdict, so keeping it would
+        # exclude the member from re-judging (in `log`) yet skip it in emission
+        # (verdict_from_log → None) — losing it. Omitting it re-judges + recovers.
+        if (
+            row.get("_type") == "merge_audit"
+            and row.get("member_ref")
+            and isinstance(row.get("same_morpheme"), bool)
+        ):
+            log[row["member_ref"]] = row
+    return log
+
+
+def _already_reverted(member_ref, provenance, collapse_state, curation_state) -> bool:
+    """True when ``member_ref``'s revert is already recorded in the apply-ledgers
+    (so a re-run at a lower threshold doesn't append a duplicate). Checked against
+    the NET ledger state, not by method attribution."""
+    from wyrd.generators.kenning.lexicon.merge_audit import PROV_COLLAPSE, PROV_OCR
+
+    if provenance == PROV_COLLAPSE:
+        # a collapse candidate was folding; an empty net `into` means reverted.
+        return not (collapse_state.get(member_ref, {}).get("into") or "").strip()
+    field = "merged_into_ref" if provenance == PROV_OCR else "lemma_ref"
+    cur = curation_state.get(member_ref, {})
+    return field in cur and cur[field] is None
 
 
 def _judge_with_retry(client, c):
@@ -92,17 +116,90 @@ def _judge_with_retry(client, c):
     return None
 
 
-def _write_rows(rows, audit_fh, collapse_fh, curation_fh) -> None:
-    """Append a verdict's rows: the audit-log marker always; the revert (if any)
-    to its provenance-routed ledger. Flush per row for crash-safety."""
-    for fh, row in (
-        (audit_fh, rows.audit_log),
-        (collapse_fh, rows.collapse),
-        (curation_fh, rows.curation),
-    ):
-        if row is not None:
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-            fh.flush()
+def _append(fh, row: dict) -> None:
+    """Append one JSONL row and flush (crash-safe as we go). No-op when fh is
+    None (dry-run)."""
+    if fh is not None:
+        fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        fh.flush()
+
+
+def _judge_fresh(client, to_judge, log, audit_fh, base_url, model) -> tuple[int, int]:
+    """PASS 1 — LLM-judge candidates NOT already in the log; append each raw
+    verdict to ``log`` (in-memory) and to ``audit_fh``. Aborts after 5 consecutive
+    failures (Ollama down). Returns (judged_new, skipped)."""
+    from wyrd.generators.kenning.lexicon.merge_audit import audit_log_row
+
+    judged_new = skipped = consecutive = 0
+    start = time.perf_counter()
+    for i, c in enumerate(to_judge, 1):
+        verdict = _judge_with_retry(client, c)
+        if verdict is None:
+            skipped += 1
+            consecutive += 1
+            if consecutive >= 5:
+                click.echo(
+                    f"Aborting: 5 consecutive judge failures — is Ollama up at {base_url} "
+                    f"with model {model}? (curl .../api/tags)",
+                    err=True,
+                )
+                break
+            continue
+        consecutive = 0
+        judged_new += 1
+        row = audit_log_row(c, verdict)
+        log[c.member_ref] = row
+        _append(audit_fh, row)
+        if i % 10 == 0 or i == len(to_judge):
+            rate = (time.perf_counter() - start) / i
+            click.echo(
+                f"  judged [{i}/{len(to_judge)}] new={judged_new} skipped={skipped} "
+                f"({rate:.1f}s/entry)",
+                err=True,
+            )
+    return judged_new, skipped
+
+
+def _emit_reverts(
+    log, min_confidence, collapse_state, curation_state, collapse_fh, curation_fh, dry_run
+) -> dict[str, int]:
+    """PASS 2 — derive reverts from the recorded raw verdicts at ``min_confidence``
+    (no LLM), provenance-routed, deduped against the net ledger state so a re-run
+    at a lower threshold only tops up. Iterates the LOG, so verdicts recorded by a
+    prior run are re-emittable here."""
+    from wyrd.generators.kenning.lexicon.merge_audit import revert_rows, verdict_from_log
+
+    counts = {
+        "reverts": 0,
+        "kept": 0,
+        "already": 0,
+        "collapse-fold": 0,
+        "ocr-cluster": 0,
+        "lemma-link": 0,
+    }
+    for member_ref, row in sorted(log.items()):
+        v = verdict_from_log(row)
+        if v is None:
+            continue  # legacy row without a raw verdict — re-judge to recover
+        provenance = row.get("provenance", "")
+        collapse, curation = revert_rows(member_ref, provenance, v, min_confidence)
+        if collapse is None and curation is None:
+            counts["kept"] += 1
+            continue
+        if _already_reverted(member_ref, provenance, collapse_state, curation_state):
+            counts["already"] += 1
+            continue
+        counts["reverts"] += 1
+        counts[provenance] = counts.get(provenance, 0) + 1
+        if dry_run:
+            click.echo(
+                f"  [REVERT/{provenance}] {member_ref} -> {row.get('anchor_ref')} "
+                f"{v.confidence} ({v.reason})",
+                err=True,
+            )
+        else:
+            _append(collapse_fh, collapse) if collapse else _append(curation_fh, curation)
+    return counts
 
 
 @click.command("audit-merges")
@@ -184,11 +281,8 @@ def lexicon_audit_merges(
     """
     from wyrd.generators.kenning.cli.utils import _readonly_lexicon
     from wyrd.generators.kenning.extractors.llm import OllamaClient
-    from wyrd.generators.kenning.jsonl.build import collect_collapses
-    from wyrd.generators.kenning.lexicon.merge_audit import (
-        audit_verdict_to_rows,
-        detect_merge_audit_candidates,
-    )
+    from wyrd.generators.kenning.jsonl.build import collect_collapses, collect_curation_overrides
+    from wyrd.generators.kenning.lexicon.merge_audit import detect_merge_audit_candidates
 
     if db_path is None:
         env_path = os.environ.get("WYRD_LEXICON_DB")
@@ -198,76 +292,38 @@ def lexicon_audit_merges(
     base_url = ollama_url or os.environ.get("WYRD_OLLAMA_URL", "http://localhost:11434")
 
     collapse_state = collect_collapses([collapse_file]) if collapse_file.exists() else {}
+    curation_state = collect_curation_overrides([curation_file]) if curation_file.exists() else {}
     click.echo(f"Detecting merge-audit candidates in {db_path}...", err=True)
     with _readonly_lexicon(db_path) as conn:
         candidates = detect_merge_audit_candidates(conn, collapse_state, scope=scope)
 
-    judged = _load_judged(audit_file)
-    fresh = [c for c in candidates if c.member_ref not in judged]
-    todo = fresh[:limit] if limit is not None else fresh
+    log = _load_log(audit_file)  # member_ref → recorded raw verdict (reused, no re-judge)
+    to_judge = [c for c in candidates if c.member_ref not in log]
+    if limit is not None:
+        to_judge = to_judge[:limit]
     click.echo(
-        f"  candidates={len(candidates)} already-judged={len(candidates) - len(fresh)} "
-        f"to-judge={len(todo)} (scope={scope}, model={model}, min-confidence={min_confidence})",
+        f"  candidates={len(candidates)} recorded={len(log)} to-judge={len(to_judge)} "
+        f"(scope={scope}, model={model}, min-confidence={min_confidence})",
         err=True,
     )
-    if not todo:
-        click.echo("Nothing to judge.", err=True)
-        return
 
     client = OllamaClient(base_url=base_url, model=model, timeout_s=90.0)
     if not dry_run:
         _ensure_source(audit_file, _MERGE_AUDIT_SOURCE_ROW)
         _ensure_source(curation_file, _CURATION_SOURCE_ROW)
-    reverts = kept = skipped = 0
-    by_prov: dict[str, int] = {"collapse-fold": 0, "ocr-cluster": 0, "lemma-link": 0}
-    start = time.perf_counter()
-    consecutive_failures = 0
     audit_fh = collapse_fh = curation_fh = None
     try:
         if not dry_run:
             audit_fh = audit_file.open("a", encoding="utf-8")
             collapse_fh = collapse_file.open("a", encoding="utf-8")
             curation_fh = curation_file.open("a", encoding="utf-8")
-        for i, c in enumerate(todo, 1):
-            verdict = _judge_with_retry(client, c)
-            if verdict is None:
-                skipped += 1  # transient/unparseable — don't record, so a re-run retries
-                consecutive_failures += 1
-                if consecutive_failures >= 5:
-                    # A run of failures means Ollama is down / the model is
-                    # missing — abort so we don't burn through every candidate as
-                    # a no-op skip (re-running resumes; nothing was recorded).
-                    click.echo(
-                        "Aborting: 5 consecutive judge failures — is Ollama up "
-                        f"at {base_url} with model {model}? (curl .../api/tags)",
-                        err=True,
-                    )
-                    break
-                continue
-            consecutive_failures = 0
-            rows = audit_verdict_to_rows(c, verdict, min_confidence)
-            is_revert = rows.collapse is not None or rows.curation is not None
-            if is_revert:
-                reverts += 1
-                by_prov[c.provenance] = by_prov.get(c.provenance, 0) + 1
-            else:
-                kept += 1
-            if dry_run:
-                tag = "REVERT" if is_revert else "keep"
-                click.echo(
-                    f"  [{tag}/{c.provenance}] {c.member_ref} -> {c.anchor_ref} "
-                    f"{verdict.confidence} ({verdict.reason})",
-                    err=True,
-                )
-            else:
-                _write_rows(rows, audit_fh, collapse_fh, curation_fh)
-            if i % 10 == 0 or i == len(todo):
-                rate = (time.perf_counter() - start) / i
-                click.echo(
-                    f"  [{i}/{len(todo)}]  reverts={reverts} keep={kept} "
-                    f"skipped={skipped} ({rate:.1f}s/entry)",
-                    err=True,
-                )
+        # PASS 1 — judge fresh candidates (LLM), recording raw verdicts.
+        judged_new, skipped = _judge_fresh(client, to_judge, log, audit_fh, base_url, model)
+        # PASS 2 — derive + emit reverts at the chosen threshold from ALL recorded
+        # verdicts (logged or fresh), so a later lower-threshold run tops up.
+        counts = _emit_reverts(
+            log, min_confidence, collapse_state, curation_state, collapse_fh, curation_fh, dry_run
+        )
     finally:
         for fh in (audit_fh, collapse_fh, curation_fh):
             if fh is not None:
@@ -275,9 +331,10 @@ def lexicon_audit_merges(
 
     verb = "would revert" if dry_run else "reverted"
     click.echo(
-        f"{verb}: {reverts} merges "
-        f"(collapse={by_prov['collapse-fold']} ocr={by_prov['ocr-cluster']} "
-        f"lemma={by_prov['lemma-link']}), kept {kept} ({skipped} skipped)",
+        f"judged {judged_new} new ({skipped} skipped); {verb}: {counts['reverts']} merges "
+        f"(collapse={counts['collapse-fold']} ocr={counts['ocr-cluster']} "
+        f"lemma={counts['lemma-link']}), kept {counts['kept']}, "
+        f"already-reverted {counts['already']}",
         err=True,
     )
 
