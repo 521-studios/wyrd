@@ -328,6 +328,9 @@ def test_cli_load_log_returns_rows_by_ref(tmp_path):
                 {"_type": "source", "ref": "merge-audit"},
                 {"_type": "merge_audit", "member_ref": "a:x", "same_morpheme": True},
                 {"_type": "merge_audit", "member_ref": "a:y", "same_morpheme": False},
+                # legacy threshold-gated row (no same_morpheme) → excluded so it
+                # gets re-judged rather than silently lost.
+                {"_type": "merge_audit", "member_ref": "a:legacy", "verdict": "revert"},
                 {"_type": "merge_audit"},  # missing member_ref → ignored
                 {"_type": "other", "member_ref": "a:z"},  # wrong type → ignored
             ]
@@ -336,7 +339,7 @@ def test_cli_load_log_returns_rows_by_ref(tmp_path):
         encoding="utf-8",
     )
     log = _load_log(path)
-    assert set(log) == {"a:x", "a:y"}
+    assert set(log) == {"a:x", "a:y"}  # a:legacy excluded → will be re-judged
     assert log["a:y"]["same_morpheme"] is False
     assert _load_log(tmp_path / "absent.jsonl") == {}  # no file → empty
 

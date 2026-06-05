@@ -66,7 +66,15 @@ def _load_log(audit_file: Path) -> dict[str, dict]:
         if not line:
             continue
         row = json.loads(line)
-        if row.get("_type") == "merge_audit" and row.get("member_ref"):
+        # Require a raw verdict (same_morpheme bool): a legacy row from the
+        # threshold-gated schema carries no raw verdict, so keeping it would
+        # exclude the member from re-judging (in `log`) yet skip it in emission
+        # (verdict_from_log → None) — losing it. Omitting it re-judges + recovers.
+        if (
+            row.get("_type") == "merge_audit"
+            and row.get("member_ref")
+            and isinstance(row.get("same_morpheme"), bool)
+        ):
             log[row["member_ref"]] = row
     return log
 
