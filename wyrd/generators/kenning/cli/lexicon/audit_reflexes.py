@@ -42,11 +42,16 @@ def _load_done(ledger: Path) -> dict[tuple, dict]:
         for line in fh:
             if not line.strip():
                 continue
-            r = json.loads(line)
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                # A partial/truncated final line (interrupted write) shouldn't
+                # crash resume/apply — skip it; its key re-judges next run.
+                continue
             if r.get("valid") is None:  # error rows re-judge on the next run
                 continue
-            # .get()-style guard so a malformed/incomplete row (manual edit,
-            # interrupted write) is skipped rather than crashing the run.
+            # Skip a malformed/incomplete row (manual edit, interrupted write)
+            # rather than KeyError-ing on a missing key.
             if not all(k in r for k in ("surface_strip", "canon", "gloss")):
                 continue
             done[(r["surface_strip"], r["canon"], r["gloss"])] = r
