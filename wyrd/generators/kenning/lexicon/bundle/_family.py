@@ -277,6 +277,7 @@ _FEEDER_LANGUAGES: frozenset[str] = frozenset(
         # Germanic
         "proto-germanic",
         "gem-pro",
+        "gem-frk",
         "gmw-pro",
         "gmq-pro",
         "gmw-jdt",
@@ -342,6 +343,8 @@ _FEEDER_LANGUAGES: frozenset[str] = frozenset(
         "la-ecc",
         "lat",
         "vulgar-latin",
+        "itc-pro",
+        "osp",
         "french",
         "fr",
         "old-french",
