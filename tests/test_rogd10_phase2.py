@@ -78,7 +78,9 @@ def test_merge_genuine_reflexes_win_over_constructed_self_seeds():
     must show the morpheme's ATTESTED spellings, not the constructed towns —
     so when a language has any genuine (non-self) reflex, the self-seeds for
     that language are dropped."""
-    core = _m("-ton", "old-english:tūn", {"modern-english": [("-ton", "descent"), ("town", "cluster")]})
+    core = _m(
+        "-ton", "old-english:tūn", {"modern-english": [("-ton", "descent"), ("town", "cluster")]}
+    )
     bolton = _m(
         "-bolton",
         "old-english:tūn",
