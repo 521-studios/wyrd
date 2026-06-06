@@ -1,0 +1,90 @@
+"""wyrd-862b — reflex-link audit: deterministic pre-screen + prune.
+
+The LLM judgment isn't tested (it's the arbiter, mocked nowhere — D10 real-DB
+style covers the deterministic halves). These pin the two code paths the apply
+relies on: which links the pre-screen treats as suspicious (LLM candidates) vs
+known-forms (kept outright), and that prune deletes only the verdicted links
+while leaving reflex ROWS intact.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+
+from wyrd.generators.kenning.lexicon.reflex_audit import (
+    find_candidates,
+    prune_links,
+    strip_surface,
+)
+
+
+def _fixture() -> sqlite3.Connection:
+    db = sqlite3.connect(":memory:")
+    db.executescript(
+        """
+        CREATE TABLE etymon (id INTEGER PRIMARY KEY, canonical_form TEXT, language TEXT,
+                             cognate_id INTEGER, merged_into_id INTEGER);
+        CREATE TABLE etymon_gloss (etymon_id INTEGER, gloss TEXT);
+        CREATE TABLE etymon_descent (parent_id INTEGER, child_id INTEGER, edge_type TEXT);
+        CREATE TABLE etymon_variant (etymon_id INTEGER, form TEXT);
+        CREATE TABLE reflex (id INTEGER PRIMARY KEY, surface_form TEXT, position TEXT, productivity INTEGER);
+        CREATE TABLE reflex_etymon (reflex_id INTEGER, etymon_id INTEGER);
+        """
+    )
+    # hām (id1), cognate cluster 100 with a modern member 'home' (id2).
+    db.execute("INSERT INTO etymon VALUES (1,'hām','old-english',100,NULL)")
+    db.execute("INSERT INTO etymon VALUES (2,'home','modern-english',100,NULL)")
+    db.execute("INSERT INTO etymon_gloss VALUES (1,'dwelling')")
+    # reflexes: '-ham' (known form), '-burnham' (compound), 'Belch-' (neighbor).
+    db.execute("INSERT INTO reflex VALUES (10,'-ham','post',0)")
+    db.execute("INSERT INTO reflex VALUES (11,'-burnham','post',0)")
+    db.execute("INSERT INTO reflex VALUES (12,'Belch-','pre',0)")
+    db.executemany(
+        "INSERT INTO reflex_etymon VALUES (?,?)",
+        [(10, 1), (11, 1), (12, 1)],
+    )
+    db.commit()
+    return db
+
+
+def test_pre_screen_keeps_known_forms_flags_the_rest():
+    db = _fixture()
+    cands = find_candidates(db)
+    surfaces = {c.surface for c in cands}
+    # '-ham' is a known form (== canonical 'ham') -> NOT a candidate.
+    assert "-ham" not in surfaces
+    # the compound + neighbor are not known forms -> candidates for the LLM.
+    assert surfaces == {"-burnham", "Belch-"}
+
+
+def test_known_form_via_cluster_mate_is_kept():
+    """A surface matching a cognate-cluster mate (not the canonical) is a known
+    form — 'home' is hām's modern cluster reflex, so a '-home' reflex is kept."""
+    db = _fixture()
+    db.execute("INSERT INTO reflex VALUES (13,'-home','post',0)")
+    db.execute("INSERT INTO reflex_etymon VALUES (13,1)")
+    db.commit()
+    assert "-home" not in {c.surface for c in find_candidates(db)}
+
+
+def test_prune_deletes_verdicted_links_keeps_reflex_rows():
+    db = _fixture()
+    # PRUNE the two suspicious surfaces; the verdict key is (strip, canon, gloss).
+    prune_keys = {
+        (strip_surface("-burnham"), strip_surface("hām"), "dwelling"),
+        (strip_surface("Belch-"), strip_surface("hām"), "dwelling"),
+    }
+    n = prune_links(db, prune_keys)
+    assert n == 2
+    # the bad links are gone; the good '-ham' link survives.
+    remaining = {
+        r[0]
+        for r in db.execute(
+            "SELECT rf.surface_form FROM reflex_etymon re JOIN reflex rf ON rf.id=re.reflex_id"
+        )
+    }
+    assert remaining == {"-ham"}
+    # reflex ROWS are untouched — '-burnham' survives as a standalone (orphan)
+    # subject, never re-polluting hām's grid.
+    all_rows = {r[0] for r in db.execute("SELECT surface_form FROM reflex")}
+    assert all_rows == {"-ham", "-burnham", "Belch-"}
