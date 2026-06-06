@@ -17,7 +17,7 @@
   // remaining two-state split — gone is the old column's convoluted
   // per-derived original-vs-displayState juggling (the lossless-accent gamble,
   // era-reads-one / modern-reads-the-other) that drove the swap bugs.
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { languageLabel } from '../lib/languageLabels.js';
@@ -35,6 +35,20 @@
   import DefectModal from '../components/DefectModal.svelte';
 
   let result = $derived(appState.currentResult);
+
+  // Reset the inspector's scroll region to the top whenever a different result
+  // is selected — otherwise clicking a new name lands you mid-list at the old
+  // scroll offset. Only ``.morphemes`` scrolls (the name cards are pinned), so
+  // we reset that element. ``tick()`` waits for the new morphemes to render so
+  // scrollTop=0 applies to the new content's layout.
+  let morphemesEl = $state(null);
+  $effect(() => {
+    const idx = appState.currentResultIndex; // track: re-run on selection change
+    void idx;
+    tick().then(() => {
+      if (morphemesEl) morphemesEl.scrollTop = 0;
+    });
+  });
 
   // "Report defective" flags the reproducible generator output (currentResult),
   // not the post-swap state. Track the specific result so the modal closes
@@ -170,7 +184,7 @@
       </div>
     </header>
 
-    <section class="morphemes">
+    <section class="morphemes" bind:this={morphemesEl}>
       <h4 class="section-head">Morphemes ({allMorphemes.length})</h4>
 
       {#if allMorphemes.length === 0}
