@@ -99,8 +99,9 @@ class ReflexCandidate:
 
 
 def _known_forms(db: sqlite3.Connection) -> tuple[dict, dict, dict, dict, dict]:
-    """Per-etymon valid-surface evidence used by the deterministic pre-screen."""
-    db.row_factory = sqlite3.Row
+    """Per-etymon valid-surface evidence used by the deterministic pre-screen.
+    Assumes the caller has set ``db.row_factory = sqlite3.Row`` (find_candidates
+    does, with save/restore — so a shared connection isn't mutated)."""
     et = {}
     for r in db.execute("SELECT id,canonical_form,language,cognate_id FROM etymon"):
         et[r["id"]] = (
@@ -136,28 +137,36 @@ def _known_forms(db: sqlite3.Connection) -> tuple[dict, dict, dict, dict, dict]:
 def find_candidates(db: sqlite3.Connection) -> list[ReflexCandidate]:
     """Every reflex_etymon link whose surface is NOT a known form of the etymon
     (canonical / spelling-variant / cognate-cluster mate / descent reflex). The
-    known-form links are kept outright; only these reach the LLM."""
-    et, cluster, var, desc, gloss = _known_forms(db)
+    known-form links are kept outright; only these reach the LLM.
+
+    Saves/restores ``db.row_factory`` so a caller-shared connection isn't left
+    mutated (Gemini review — sqlite3's row_factory is connection-level, not
+    per-cursor, so a save/restore is the correct way to scope it)."""
+    saved_factory = db.row_factory
     db.row_factory = sqlite3.Row
-    out: list[ReflexCandidate] = []
-    for r in db.execute(
-        "SELECT re.reflex_id, re.etymon_id, rf.surface_form "
-        "FROM reflex_etymon re JOIN reflex rf ON rf.id=re.reflex_id"
-    ):
-        eid = r["etymon_id"]
-        canon_raw, canon, lang, cog = et.get(eid, ("", "", "", None))
-        valid = {canon} | var.get(eid, set()) | desc.get(eid, set())
-        if cog is not None:
-            valid |= cluster.get(cog, set())
-        valid.discard("")
-        if strip_surface(r["surface_form"]) in valid:
-            continue
-        out.append(
-            ReflexCandidate(
-                r["reflex_id"], eid, r["surface_form"], canon_raw, lang, gloss.get(eid, "")
+    try:
+        et, cluster, var, desc, gloss = _known_forms(db)
+        out: list[ReflexCandidate] = []
+        for r in db.execute(
+            "SELECT re.reflex_id, re.etymon_id, rf.surface_form "
+            "FROM reflex_etymon re JOIN reflex rf ON rf.id=re.reflex_id"
+        ):
+            eid = r["etymon_id"]
+            canon_raw, canon, lang, cog = et.get(eid, ("", "", "", None))
+            valid = {canon} | var.get(eid, set()) | desc.get(eid, set())
+            if cog is not None:
+                valid |= cluster.get(cog, set())
+            valid.discard("")
+            if strip_surface(r["surface_form"]) in valid:
+                continue
+            out.append(
+                ReflexCandidate(
+                    r["reflex_id"], eid, r["surface_form"], canon_raw, lang, gloss.get(eid, "")
+                )
             )
-        )
-    return out
+        return out
+    finally:
+        db.row_factory = saved_factory
 
 
 def load_candidates(db_path) -> list[ReflexCandidate]:

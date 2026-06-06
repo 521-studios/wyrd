@@ -141,17 +141,24 @@ def lexicon_audit_reflexes(db_path, jsonl_dir, limit, concurrency, do_apply):
             out.write(json.dumps(row, ensure_ascii=False) + "\n")
             out.flush()
             counter["n"] += 1
-            if counter["n"] % 10 == 0:
-                rate = (time.time() - start) / counter["n"]
-                click.echo(
-                    f"  [{counter['n']}/{len(pending)}] {c.surface!r}->{c.canonical!r} valid={valid} "
-                    f"({rate:.2f}s/judgment)",
-                    err=True,
-                )
+            n = counter["n"]
+        # Progress echo OUTSIDE the lock — terminal I/O shouldn't serialize the
+        # worker threads (Gemini review).
+        if n % 10 == 0:
+            rate = (time.time() - start) / n
+            click.echo(
+                f"  [{n}/{len(pending)}] {c.surface!r}->{c.canonical!r} valid={valid} "
+                f"({rate:.2f}s/judgment)",
+                err=True,
+            )
 
-    with ThreadPoolExecutor(max_workers=concurrency) as ex:
-        list(ex.map(judge, pending))
-    out.close()
+    # try/finally so the ledger handle is flushed/closed even if the pool
+    # raises or the run is interrupted (Gemini's leak-on-exception finding).
+    try:
+        with ThreadPoolExecutor(max_workers=concurrency) as ex:
+            list(ex.map(judge, pending))
+    finally:
+        out.close()
     click.echo(
         f"done: {counter['n']} judgments in {time.time() - start:.0f}s -> {ledger}", err=True
     )
