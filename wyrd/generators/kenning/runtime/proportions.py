@@ -324,28 +324,71 @@ _MORPHEME_INDEX_CACHE_MAX = 32
 def _merge_morpheme_meanings(meanings: list):
     """Collapse the Meanings sharing one morpheme_id (the connective-form
     fragments — ``-ing``/``-ing-``/``Ing-``) into a single Meaning whose
-    ``era_reflexes`` + ``era_reflex_glosses`` are the UNION across the group, so
+    ``era_reflexes`` + ``era_reflex_glosses`` are the union across the group, so
     the era-grid reflects the whole morpheme rather than one surface variant.
-    Deterministic: the group is processed in ``usage`` order and forms dedupe
-    first-seen-wins. Returns the unchanged base when the union adds nothing (the
-    common single-family case), else a shallow copy with the era fields swapped
-    (era_reflex_for/sources_for/gloss_for read these live, no stale cache)."""
+
+    **Genuine reflexes win; self-seeds are a fallback (wyrd-5olv).** A
+    ``morpheme_id`` groups not only spelling/position variants of the morpheme
+    (``-ing``/``Ing-``) but every usage CONSTRUCTED with it as a head: every
+    ``-ton`` town (``-bolton``/``-newton``/...) carries
+    ``morpheme_id=old-english:tūn`` because Wiktionary records the town's
+    etymology as an inheritance edge FROM ``tūn`` — a word built *with* the
+    etymon, recorded as a reflex *of* it (bad upstream data). Each such usage
+    self-seeds its OWN surface (``source='self'``, the mook self-seed) into
+    ``era_reflexes``, so a naive union floods tūn's modern era-grid with ~120
+    town surfaces instead of its ~10 attested spellings.
+
+    So per language: when the group carries ANY genuine — non-``self``:
+    cluster / descent / period-form / phonology-rule — reflex, keep ONLY those
+    (the attested spellings of the morpheme); fall back to the self-seeds for a
+    language only when it has no attestation at all. The fallback is what keeps
+    an all-self connective morpheme intact — ``-ing`` has no cluster/descent
+    reflexes, so its self-seeded variants (including the legitimate ``-ling``)
+    are retained rather than stranded. This deliberately avoids a
+    compound-detector heuristic, which can't tell a real derivational suffix
+    (``-ling``) from a constructed compound (``-bolton``) and would eat both.
+
+    Deterministic: the group is processed in ``usage`` order, forms dedupe
+    first-seen-wins, and languages are visited in sorted order. Returns the
+    unchanged base when the result equals it (the common single-family case),
+    else a shallow copy with the era fields swapped (era_reflex_for/
+    sources_for/gloss_for read these live, no stale cache)."""
     import copy
 
     ordered = sorted(meanings, key=lambda m: m.usage)
-    reflexes: dict[str, dict[str, tuple]] = {}
+    # A lone meaning is its own merge — keep its reflexes verbatim (self-seeds
+    # included). The genuine-wins filter below only fires across a real
+    # multi-usage merge, where a usage's self-seed of its own surface is a
+    # constructed-compound artifact, not the morpheme's attested spelling.
+    if len(ordered) == 1:
+        return ordered[0]
+    # Collect non-``self`` ("genuine", attestation-backed) reflexes separately
+    # from self-seeds per language, so genuine can win over self-seeds below.
+    nonself: dict[str, dict[str, tuple]] = {}
+    selfseed: dict[str, dict[str, tuple]] = {}
     glosses: dict[str, dict[str, str]] = {}
     for m in ordered:
         for lang, entries in (m.era_reflexes or {}).items():
-            bucket = reflexes.setdefault(lang, {})
             for form, source in entries:
+                bucket = (selfseed if source == "self" else nonself).setdefault(lang, {})
                 bucket.setdefault(form, (form, source))
         for lang, form_gloss in (m.era_reflex_glosses or {}).items():
             gbucket = glosses.setdefault(lang, {})
             for form, gloss in form_gloss.items():
                 gbucket.setdefault(form, gloss)
-    merged_reflexes = {lang: list(b.values()) for lang, b in reflexes.items()}
-    merged_glosses = {lang: dict(g) for lang, g in glosses.items()}
+    # Genuine reflexes win per language; self-seeds only when a language has no
+    # genuine reflex at all (don't strand an all-self connective morpheme).
+    merged_reflexes = {
+        lang: list((nonself.get(lang) or selfseed.get(lang)).values())
+        for lang in sorted(nonself.keys() | selfseed.keys())
+    }
+    # Keep glosses only for forms that survived the genuine-wins filter.
+    kept = {lang: {form for form, _src in entries} for lang, entries in merged_reflexes.items()}
+    merged_glosses = {
+        lang: surviving
+        for lang, gloss in glosses.items()
+        if (surviving := {f: g for f, g in gloss.items() if f in kept.get(lang, ())})
+    }
     # Base = richest member, for the pronunciation/respelling context _era_grid
     # also reads off the Meaning.
     base = max(ordered, key=lambda m: sum(len(v) for v in (m.era_reflexes or {}).values()))

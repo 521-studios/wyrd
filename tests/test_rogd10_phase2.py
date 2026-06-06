@@ -71,6 +71,74 @@ def test_merge_returns_base_unchanged_when_no_gain():
     assert merged.era_reflex_for("old-english") == ["ing"]
 
 
+def test_merge_genuine_reflexes_win_over_constructed_self_seeds():
+    """wyrd-5olv: a morpheme_id groups every usage CONSTRUCTED with the
+    morpheme as a head (every -ton town carries morpheme_id=old-english:tūn),
+    and each self-seeds its OWN surface (source='self'). The merged morpheme
+    must show the morpheme's ATTESTED spellings, not the constructed towns —
+    so when a language has any genuine (non-self) reflex, the self-seeds for
+    that language are dropped."""
+    core = _m("-ton", "old-english:tūn", {"modern-english": [("-ton", "descent"), ("town", "cluster")]})
+    bolton = _m(
+        "-bolton",
+        "old-english:tūn",
+        {"modern-english": [("-bolton", "self"), ("-ton", "descent"), ("town", "cluster")]},
+    )
+    newton = _m(
+        "-newton",
+        "old-english:tūn",
+        {"modern-english": [("-newton", "self"), ("-ton", "descent"), ("town", "cluster")]},
+    )
+    merged = _merge_morpheme_meanings([core, bolton, newton])
+    modern = merged.era_reflex_for("modern-english")
+    assert set(modern) == {"-ton", "town"}  # attested spellings only
+    assert "-bolton" not in modern and "-newton" not in modern  # constructed towns dropped
+
+
+def test_merge_keeps_self_seeds_when_no_genuine_reflex_preserves_ling():
+    """wyrd-5olv guardrail: an all-self connective morpheme (no cluster/descent
+    attestation, e.g. -ing) must NOT be stripped — its self-seeded variants are
+    the morpheme's only surfaces. In particular -ling must survive. This is why
+    the fix is genuine-wins-with-fallback, NOT a compound-detector (which can't
+    tell the real suffix -ling from the constructed town -bolton)."""
+    ing = _m("-ing", "old-english:ing", {"modern-english": [("-ing", "self"), ("-inge", "self")]})
+    ling = _m("-ling", "old-english:ing", {"modern-english": [("-ling", "self")]})
+    merged = _merge_morpheme_meanings([ing, ling])
+    modern = merged.era_reflex_for("modern-english")
+    assert "-ling" in modern  # the guardrail
+    assert set(modern) == {"-ing", "-inge", "-ling"}
+
+
+def test_merge_genuine_wins_is_per_language():
+    """wyrd-5olv: the genuine-wins choice is independent per language. A
+    language with only self-seeds keeps them even when a sibling language has
+    genuine reflexes (so a morpheme isn't blanked in an era it's only
+    self-attested in)."""
+    a = _m(
+        "-ton",
+        "old-english:tūn",
+        {"modern-english": [("town", "cluster")], "old-english": [("-ton", "self")]},
+    )
+    b = _m(
+        "-bolton",
+        "old-english:tūn",
+        {"modern-english": [("-bolton", "self"), ("town", "cluster")]},
+    )
+    merged = _merge_morpheme_meanings([a, b])
+    assert set(merged.era_reflex_for("modern-english")) == {"town"}  # genuine wins
+    assert merged.era_reflex_for("old-english") == ["-ton"]  # self kept (no genuine there)
+
+
+def test_merge_lone_meaning_keeps_its_self_seed():
+    """wyrd-5olv: a single-usage morpheme is its own merge — its self-seed is
+    its own surface, never a constructed-compound artifact, so it's kept
+    verbatim (the genuine-wins filter only fires across a real merge)."""
+    only = _m("-holme", "old-norse:holmr", {"old-norse": [("-holme", "self"), ("helm", "self")]})
+    merged = _merge_morpheme_meanings([only])
+    assert merged is only
+    assert merged.era_reflex_for("old-norse") == ["-holme", "helm"]
+
+
 def test_resolve_morpheme_lookup_and_fallback():
     a = _m("-ing", "old-english:ing", {"old-english": [("ing", "cluster")]})
     meaning_db = {"-ing": [a]}
