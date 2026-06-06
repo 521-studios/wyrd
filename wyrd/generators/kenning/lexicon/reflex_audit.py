@@ -145,7 +145,8 @@ def _known_forms(db: sqlite3.Connection) -> tuple[dict, dict, dict, dict, dict]:
         desc[r["parent_id"]].add(strip_surface(r["cf"]))
     gloss = {}
     for r in db.execute(
-        f"SELECT etymon_id,gloss FROM etymon_gloss WHERE etymon_id IN {_LINKED} ORDER BY gloss"
+        f"SELECT etymon_id,gloss FROM etymon_gloss WHERE etymon_id IN {_LINKED} "
+        f"AND gloss IS NOT NULL AND gloss != '' ORDER BY gloss"
     ):
         gloss.setdefault(r["etymon_id"], r["gloss"])
     return et, cluster, var, desc, gloss

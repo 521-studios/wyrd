@@ -38,17 +38,18 @@ def _load_done(ledger: Path) -> dict[tuple, dict]:
     done: dict[tuple, dict] = {}
     if not ledger.exists():
         return done
-    for line in ledger.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        r = json.loads(line)
-        if r.get("valid") is None:  # error rows re-judge on the next run
-            continue
-        # .get() so a malformed/incomplete row (manual edit, interrupted write)
-        # is skipped rather than crashing the whole run.
-        if not all(k in r for k in ("surface_strip", "canon", "gloss")):
-            continue
-        done[(r["surface_strip"], r["canon"], r["gloss"])] = r
+    with ledger.open(encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            if r.get("valid") is None:  # error rows re-judge on the next run
+                continue
+            # .get()-style guard so a malformed/incomplete row (manual edit,
+            # interrupted write) is skipped rather than crashing the run.
+            if not all(k in r for k in ("surface_strip", "canon", "gloss")):
+                continue
+            done[(r["surface_strip"], r["canon"], r["gloss"])] = r
     return done
 
 
@@ -120,11 +121,11 @@ def lexicon_audit_reflexes(db_path, jsonl_dir, limit, concurrency, do_apply):
                 reflex_audit_user_prompt(c.canonical, c.language, c.gloss, c.surface),
                 VERDICT_SCHEMA,
             )
-            if "valid" not in v:
-                # Schema-violating response (responseSchema marks `valid`
-                # required, so this is rare) — record as an error row, NOT a
-                # silent prune. valid=None re-judges on the next run.
-                raise ValueError(f"response missing 'valid': {v!r}"[:200])
+            if not isinstance(v, dict) or "valid" not in v:
+                # Non-dict or schema-violating response (responseSchema marks
+                # `valid` required, so this is rare) — record as an error row,
+                # NOT a silent prune. valid=None re-judges on the next run.
+                raise ValueError(f"bad response: {v!r}"[:200])
             valid, reason, err = bool(v["valid"]), str(v.get("reason", ""))[:300], None
         except Exception as e:  # noqa: BLE001 — record + continue, never abort the batch
             valid, reason, err = None, "", str(e)[:200]
