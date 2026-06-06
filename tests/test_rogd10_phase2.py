@@ -129,6 +129,53 @@ def test_merge_genuine_wins_is_per_language():
     assert merged.era_reflex_for("old-english") == ["-ton"]  # self kept (no genuine there)
 
 
+def test_merge_drops_glosses_for_filtered_self_seed_forms():
+    """wyrd-5olv: when genuine-wins drops a constructed self-seed, its gloss is
+    dropped too — the era-grid's gloss map stays in lockstep with the surviving
+    reflexes (only the kept forms' glosses remain)."""
+    core = _m(
+        "-ton",
+        "old-english:tūn",
+        {"modern-english": [("town", "cluster")]},
+        {"modern-english": {"town": "settlement"}},
+    )
+    bolton = _m(
+        "-bolton",
+        "old-english:tūn",
+        {"modern-english": [("-bolton", "self"), ("town", "cluster")]},
+        {"modern-english": {"-bolton": "Bolton (a place)"}},
+    )
+    merged = _merge_morpheme_meanings([core, bolton])
+    assert merged.era_reflex_for("modern-english") == ["town"]
+    assert merged.era_reflex_gloss_for("modern-english") == {"town": "settlement"}
+
+
+def test_merge_omits_language_whose_only_glossed_form_was_dropped():
+    """wyrd-5olv: a language whose every glossed form was a dropped self-seed is
+    omitted from era_reflex_glosses (not left present-but-empty)."""
+    core = _m("-ton", "old-english:tūn", {"modern-english": [("town", "cluster")]})
+    bolton = _m(
+        "-bolton",
+        "old-english:tūn",
+        {"modern-english": [("-bolton", "self"), ("town", "cluster")]},
+        {"modern-english": {"-bolton": "Bolton (a place)"}},
+    )
+    merged = _merge_morpheme_meanings([core, bolton])
+    assert merged.era_reflex_for("modern-english") == ["town"]
+    assert merged.era_reflex_gloss_for("modern-english") == {}  # nothing survived → lang omitted
+
+
+def test_merge_genuine_source_wins_for_duplicate_form():
+    """wyrd-5olv: when a form appears as a self-seed in one usage and a genuine
+    reflex in another, the genuine entry wins — the surviving form keeps its
+    attested source, not 'self'."""
+    a = _m("-ton", "old-english:tūn", {"modern-english": [("-ton", "self")]})
+    b = _m("-newton", "old-english:tūn", {"modern-english": [("-ton", "descent")]})
+    merged = _merge_morpheme_meanings([a, b])
+    assert merged.era_reflex_for("modern-english") == ["-ton"]
+    assert merged.era_reflex_sources_for("modern-english") == {"-ton": "descent"}
+
+
 def test_merge_lone_meaning_keeps_its_self_seed():
     """wyrd-5olv: a single-usage morpheme is its own merge — its self-seed is
     its own surface, never a constructed-compound artifact, so it's kept

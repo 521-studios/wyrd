@@ -382,13 +382,15 @@ def _merge_morpheme_meanings(meanings: list):
         lang: list((nonself.get(lang) or selfseed.get(lang)).values())
         for lang in sorted(nonself.keys() | selfseed.keys())
     }
-    # Keep glosses only for forms that survived the genuine-wins filter.
+    # Keep glosses only for forms that survived the genuine-wins filter; drop a
+    # language whose every glossed form was a filtered-out self-seed (omit it
+    # rather than leave an empty map).
     kept = {lang: {form for form, _src in entries} for lang, entries in merged_reflexes.items()}
-    merged_glosses = {
-        lang: surviving
-        for lang, gloss in glosses.items()
-        if (surviving := {f: g for f, g in gloss.items() if f in kept.get(lang, ())})
-    }
+    merged_glosses: dict[str, dict[str, str]] = {}
+    for lang, gloss in glosses.items():
+        surviving = {f: g for f, g in gloss.items() if f in kept.get(lang, ())}
+        if surviving:
+            merged_glosses[lang] = surviving
     # Base = richest member, for the pronunciation/respelling context _era_grid
     # also reads off the Meaning.
     base = max(ordered, key=lambda m: sum(len(v) for v in (m.era_reflexes or {}).values()))
