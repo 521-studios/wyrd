@@ -98,22 +98,21 @@ class ReflexCandidate:
         return (strip_surface(self.surface), strip_surface(self.canonical), self.gloss)
 
 
-_LINKED = "_audit_linked"  # TEMP table: etymon ids that appear in reflex_etymon
+# Scope every known-form load to the etymons that actually appear in a reflex
+# link — only those can be candidates. Without it the loads full-scan etymon
+# (~2.4M) / etymon_variant (~5.8M) into memory (Gemini ![high]). A direct
+# subquery (vs a temp table) keeps it simple; reflex_etymon is small so SQLite
+# re-evaluating it per query is cheap.
+_LINKED = "(SELECT etymon_id FROM reflex_etymon)"
 
 
 def _known_forms(db: sqlite3.Connection) -> tuple[dict, dict, dict, dict, dict]:
-    """Per-etymon valid-surface evidence used by the deterministic pre-screen.
-
-    Scoped to the etymons that actually appear in ``reflex_etymon`` (the
-    ``_audit_linked`` TEMP table find_candidates populates) — only those can be
-    candidates, so the full-table scans of ``etymon`` (~2.4M) / ``etymon_variant``
-    (~5.8M) / ``etymon_descent`` / ``etymon_gloss`` are pointless and load
-    millions of rows into memory (Gemini ![high]). Assumes the caller set
-    ``db.row_factory = sqlite3.Row`` + created ``_audit_linked``."""
+    """Per-etymon valid-surface evidence for the deterministic pre-screen, scoped
+    to the etymons present in ``reflex_etymon`` (the only ones that can be
+    candidates). Assumes the caller set ``db.row_factory = sqlite3.Row``."""
     et = {}
     for r in db.execute(
-        f"SELECT id,canonical_form,language,cognate_id FROM etymon "
-        f"WHERE id IN (SELECT id FROM {_LINKED})"
+        f"SELECT id,canonical_form,language,cognate_id FROM etymon WHERE id IN {_LINKED}"
     ):
         et[r["id"]] = (
             r["canonical_form"],
@@ -126,14 +125,13 @@ def _known_forms(db: sqlite3.Connection) -> tuple[dict, dict, dict, dict, dict]:
     for r in db.execute(
         f"SELECT cognate_id,canonical_form FROM etymon WHERE merged_into_id IS NULL "
         f"AND cognate_id IN (SELECT DISTINCT cognate_id FROM etymon "
-        f"WHERE id IN (SELECT id FROM {_LINKED}) AND cognate_id IS NOT NULL)"
+        f"WHERE id IN {_LINKED} AND cognate_id IS NOT NULL)"
     ):
         cluster[r["cognate_id"]].add(strip_surface(r["canonical_form"]))
     var: dict[int, set[str]] = defaultdict(set)
     try:
         for r in db.execute(
-            f"SELECT etymon_id,form FROM etymon_variant "
-            f"WHERE etymon_id IN (SELECT id FROM {_LINKED})"
+            f"SELECT etymon_id,form FROM etymon_variant WHERE etymon_id IN {_LINKED}"
         ):
             var[r["etymon_id"]].add(strip_surface(r["form"]))
     except sqlite3.OperationalError:
@@ -142,14 +140,12 @@ def _known_forms(db: sqlite3.Connection) -> tuple[dict, dict, dict, dict, dict]:
     for r in db.execute(
         f"SELECT parent_id,child.canonical_form cf FROM etymon_descent ed "
         f"JOIN etymon child ON ed.child_id=child.id "
-        f"WHERE ed.parent_id IN (SELECT id FROM {_LINKED}) "
-        f"AND ed.edge_type IN ('inheritance','borrowing')"
+        f"WHERE ed.parent_id IN {_LINKED} AND ed.edge_type IN ('inheritance','borrowing')"
     ):
         desc[r["parent_id"]].add(strip_surface(r["cf"]))
     gloss = {}
     for r in db.execute(
-        f"SELECT etymon_id,gloss FROM etymon_gloss "
-        f"WHERE etymon_id IN (SELECT id FROM {_LINKED}) ORDER BY gloss"
+        f"SELECT etymon_id,gloss FROM etymon_gloss WHERE etymon_id IN {_LINKED} ORDER BY gloss"
     ):
         gloss.setdefault(r["etymon_id"], r["gloss"])
     return et, cluster, var, desc, gloss
@@ -166,13 +162,6 @@ def find_candidates(db: sqlite3.Connection) -> list[ReflexCandidate]:
     saved_factory = db.row_factory
     db.row_factory = sqlite3.Row
     try:
-        # Scope the known-form loads to etymons actually linked from a reflex
-        # (avoids full-table scans of etymon/etymon_variant — Gemini ![high]).
-        db.execute(f"CREATE TEMP TABLE IF NOT EXISTS {_LINKED} (id INTEGER PRIMARY KEY)")
-        db.execute(f"DELETE FROM {_LINKED}")
-        db.execute(
-            f"INSERT OR IGNORE INTO {_LINKED} (id) SELECT DISTINCT etymon_id FROM reflex_etymon"
-        )
         et, cluster, var, desc, gloss = _known_forms(db)
         out: list[ReflexCandidate] = []
         for r in db.execute(
@@ -194,7 +183,6 @@ def find_candidates(db: sqlite3.Connection) -> list[ReflexCandidate]:
             )
         return out
     finally:
-        db.execute(f"DROP TABLE IF EXISTS {_LINKED}")
         db.row_factory = saved_factory
 
 
@@ -217,9 +205,12 @@ def apply_prune(db_path, prune_keys: set[tuple[str, str, str]], out_dir) -> tupl
 
     conn = sqlite3.connect(db_path)
     try:
-        n = prune_links(conn, prune_keys)
-        conn.row_factory = sqlite3.Row
-        _, rows = dump_reflexes_to_file(conn, out_dir)
+        # One transaction: if the re-dump fails, the prune rolls back so the DB
+        # never gets out of sync with the L2 _reflexes.jsonl (Gemini review).
+        with conn:
+            n = prune_links(conn, prune_keys)
+            conn.row_factory = sqlite3.Row
+            _, rows = dump_reflexes_to_file(conn, out_dir)
         return n, rows
     finally:
         conn.close()
@@ -230,9 +221,9 @@ def prune_links(db: sqlite3.Connection, prune_keys: set[tuple[str, str, str]]) -
     ROWS are left intact — a now-link-less reflex (e.g. '-burnham') is emitted by
     the bundle as a standalone single-word subject (_orphan_reflex_subjects), a
     real toponym with NO morpheme_id that cannot re-pollute any morpheme's
-    era-grid. Returns the number of links deleted. Caller re-dumps
-    _reflexes.jsonl afterward so the L2 source stays consistent."""
+    era-grid. Returns the number of links deleted. Does NOT commit — the caller
+    owns the transaction (apply_prune wraps prune + re-dump in one ``with conn:``
+    so they're atomic); a direct caller should commit itself."""
     del_links = [(c.reflex_id, c.etymon_id) for c in find_candidates(db) if c.key in prune_keys]
     db.executemany("DELETE FROM reflex_etymon WHERE reflex_id=? AND etymon_id=?", del_links)
-    db.commit()
     return len(del_links)

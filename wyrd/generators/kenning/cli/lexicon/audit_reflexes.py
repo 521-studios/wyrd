@@ -44,6 +44,10 @@ def _load_done(ledger: Path) -> dict[tuple, dict]:
         r = json.loads(line)
         if r.get("valid") is None:  # error rows re-judge on the next run
             continue
+        # .get() so a malformed/incomplete row (manual edit, interrupted write)
+        # is skipped rather than crashing the whole run.
+        if not all(k in r for k in ("surface_strip", "canon", "gloss")):
+            continue
         done[(r["surface_strip"], r["canon"], r["gloss"])] = r
     return done
 
