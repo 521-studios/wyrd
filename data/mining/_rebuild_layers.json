@@ -1,8 +1,6 @@
 {
   "_doc": "Source of truth for the from-scratch lexicon rebuild. Paired with wyrd/generators/kenning/REBUILD.md (the prose runbook) and tests/test_kenning_rebuild_runbook.py (the CI gate that ties the two together). When you add a data-population CLI (mine-*/ingest-*/backfill-*/cleanup-*), the test fails until you categorize it here AND, if it is a rebuild step, document it in REBUILD.md. See the 'Keeping this runbook honest' section of REBUILD.md.",
-
   "_principle": "A full wipe (rebuild-from-jsonl) restores only what L2 JSONL carries plus the enrichment-derived columns. FREE re-runnable mining against the local bulk slices is an acceptable manual rebuild step PROVIDED it is listed in rebuild_step_commands and documented in REBUILD.md. PAID mining (LLM/Gemini/Ollama API cost) must NOT be a rebuild step -- its output must round-trip through L2 so rebuild-from-jsonl replays it for free (enforced separately by .reviewers/db-reconstructibility-reviewer.md).",
-
   "rebuild_step_commands": [
     "backfill-toponym-country",
     "ingest-toponym-mentions",
@@ -11,7 +9,6 @@
     "cleanup-wiktionary-empirical",
     "mine-empirical-baselines"
   ],
-
   "non_rebuild_commands": {
     "backfill-fantasy-tags": "Backfills tags on fantasy_morpheme rows; the fantasy layer round-trips via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores it. Not a wipe-restore step.",
     "audit-merges": "LLM (Ollama) audit of merge decisions (folds / OCR-cluster tombstones / lemma links) that reverts wrongly-merged homographs (wyrd-6hbv). NON-DETERMINISTIC, so per the reconstructibility rule its reverts persist to the L2 ledgers — collapse-fold reverts to data/mining/_collapses.jsonl (into: ''), OCR/lemma reverts to data/mining/_curation.jsonl (merged_into_ref/lemma_ref cleared) — and are replayed deterministically by run_full_enrichment's collapse + curation passes; the verdict log data/mining/_merge_audit.jsonl is idempotency/audit only. The auditor itself is never re-run on rebuild.",
@@ -40,9 +37,9 @@
     "mine-toponym-mentions-tiered": "Tiered variant of mine-toponym-mentions (source capture). Not a wipe-restore step.",
     "build": "Legacy seed-from-meanings.json path; superseded by rebuild-from-jsonl for the rebuild (etymons + reflexes now arrive via L2 replay incl. _reflexes.jsonl). Not a wipe-restore step.",
     "synsets seed": "Seeds meaning_synset FREE from the committed data/meaning_synsets.json. Currently deferred/unused (0 rows); rebuild-from-jsonl does not run it. If meaning_synset is ever populated, promote to a rebuild step and document in REBUILD.md.",
-    "synsets assign": "Writes etymon_meaning_synset (D28 Phase-2 semantic classification). Deferred/unused (0 rows); if activated via LLM it is paid and must round-trip through L2, not become a re-mine step."
+    "synsets assign": "Writes etymon_meaning_synset (D28 Phase-2 semantic classification). Deferred/unused (0 rows); if activated via LLM it is paid and must round-trip through L2, not become a re-mine step.",
+    "audit-reflexes": "LLM (Gemini Flash) audit of reflex_etymon links that prunes bad town-name / neighbor-fragment links wrongly recorded as spellings of a suffix morpheme (-burnham/Belch- -> ham; -bolton -> tun) — the era-grid town-pollution root (wyrd-862b). A deterministic pre-screen keeps links whose surface IS a known form of the etymon (canonical / spelling-variant / cognate-cluster mate / descent reflex); only the residual is judged. NON-DETERMINISTIC, so per the reconstructibility rule the prune persists to L2: --apply deletes the PRUNE-verdict links and re-dumps data/mining/_reflexes.jsonl (the reflex L2 source, wyrd-ned5), which replays for free on rebuild via the seed reflex layer. The verdict log data/mining/_reflex_audit.jsonl is idempotency/audit only. The auditor itself is never re-run on rebuild."
   },
-
   "layers": [
     {
       "layer": "l2-corpus",
