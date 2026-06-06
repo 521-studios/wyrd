@@ -137,13 +137,14 @@ def test_fantasy_export_also_filters_modern_pollution(fresh_db: Path) -> None:
         assert modern == ["ton"]
 
 
-def _descent_parent(db, child_id: int, parent_form: str, parent_lang: str) -> int:
-    """Give ``child_id`` a descent parent in ``parent_lang`` (inheritance edge)."""
+def _descent_parent(
+    db, child_id: int, parent_form: str, parent_lang: str, edge: str = "inheritance"
+) -> int:
+    """Give ``child_id`` a descent parent in ``parent_lang`` via an ``edge``-type edge."""
     pid = db.upsert_etymon(parent_form, parent_lang)
     db.conn.execute(
-        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
-        "VALUES (?, ?, 'inheritance', 'wikt')",
-        (pid, child_id),
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) VALUES (?, ?, ?, 'wikt')",
+        (pid, child_id, edge),
     )
     return pid
 
@@ -180,6 +181,24 @@ def test_foreign_reentry_ids_flags_any_nonfeeder_parent(fresh_db: Path) -> None:
         orphan = db.upsert_etymon("orphan", "modern-english")  # no parents → kept
         db.commit()
         assert _foreign_reentry_ids(db, {bungoo, town, orphan}) == {bungoo}
+        assert _foreign_reentry_ids(db, set()) == set()  # empty-input guard
+
+
+def test_foreign_reentry_ids_edge_type_gate(fresh_db: Path) -> None:
+    # The descent gate is inheritance/borrowing/derivation — a non-feeder parent
+    # via any of those flags the reflex; a peer 'cognate' edge does NOT.
+    from wyrd.generators.kenning.lexicon.bundle._family import _foreign_reentry_ids
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wikt", title="Wiktionary")
+        borrowed = db.upsert_etymon("haikal", "modern-english")
+        _descent_parent(db, borrowed, "haykal-ar", "ar", edge="borrowing")  # flagged
+        derived = db.upsert_etymon("argaman", "modern-english")
+        _descent_parent(db, derived, "argamannu", "akk", edge="derivation")  # flagged
+        peer = db.upsert_etymon("peerword", "modern-english")
+        _descent_parent(db, peer, "rus-cognate", "ru", edge="cognate")  # cognate → NOT flagged
+        db.commit()
+        assert _foreign_reentry_ids(db, {borrowed, derived, peer}) == {borrowed, derived}
 
 
 def test_family_era_reflexes_union_across_members(fresh_db: Path) -> None:

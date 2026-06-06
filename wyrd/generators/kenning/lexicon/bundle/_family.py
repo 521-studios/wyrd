@@ -427,6 +427,35 @@ _FEEDER_LANGUAGES: frozenset[str] = frozenset(
 )
 
 
+def _collect_best_by_target(
+    db: LexiconDB, target_languages: set[str], sorted_members: list[int]
+) -> dict[str, dict[str, EraReflex]]:
+    """Per target-language, the best reflex per surface form unioned across all
+    family members (before the foreign-reentry filter). For each target, dedupe
+    by form across members keeping the highest-quality source on collision
+    (``_better_era_reflex_source``; ties keep the lowest-id member since
+    ``sorted_members`` is sorted). The modern stage additionally strips derived
+    proper nouns / mistagged foreign cognates (wyrd-rogd.11
+    ``_is_derived_name_pollution``) so the cleaned set feeds BOTH the era-grid
+    and the forms_by_lang merge. Targets with no reflex are omitted."""
+    modern_languages = _modern_stage_languages()
+    best_by_target: dict[str, dict[str, EraReflex]] = {}
+    for target_language in sorted(target_languages):
+        is_modern = target_language in modern_languages
+        best: dict[str, EraReflex] = {}
+        for member_id in sorted_members:
+            reflexes = etymon_era_reflexes(db, member_id, target_language=target_language)
+            if is_modern:
+                reflexes = [r for r in reflexes if not _is_derived_name_pollution(r.form)]
+            for r in reflexes:
+                existing = best.get(r.form)
+                if existing is None or _better_era_reflex_source(r.source, existing.source):
+                    best[r.form] = r
+        if best:
+            best_by_target[target_language] = best
+    return best_by_target
+
+
 def _foreign_reentry_ids(db: LexiconDB, etymon_ids: set[int]) -> set[int]:
     """The subset of ``etymon_ids`` that are FOREIGN RE-ENTRIES: an era-reflex
     etymon that descends (inheritance / borrowing / derivation edge) from at
@@ -500,34 +529,7 @@ def _fetch_family_era_reflexes(
     target_languages: set[str] = {
         lang for (fam, _cell), lang in CANONICAL_LANGUAGE_FOR_CELL.items() if fam == family
     }
-    modern_languages = _modern_stage_languages()
-    sorted_members = sorted(member_ids)
-    best_by_target: dict[str, dict[str, EraReflex]] = {}
-    for target_language in sorted(target_languages):
-        # wyrd-rogd.11: the modern stage strips derived proper nouns + mistagged
-        # foreign cognates so it carries only the morpheme's own common-noun
-        # reflex (or is empty). Done here so the cleaned set feeds BOTH the
-        # era-grid display AND the forms_by_lang merge — the generator must not
-        # sample 'West Ham' as a surface either. (Invariant per target, hoisted
-        # out of the member loop.)
-        is_modern = target_language in modern_languages
-        # Dedupe by form across ALL members, keeping the highest-quality
-        # source's reflex on collision (same form might surface via cluster
-        # (high) and phonology-rule (low), or via two members — prefer the
-        # better source, then the lower-id member). We keep the whole
-        # EraReflex, not just its source, so we can look up THAT reflex's
-        # gloss (wyrd-rogd.1 — for the SPA era-grid drift display).
-        best: dict[str, EraReflex] = {}
-        for member_id in sorted_members:
-            reflexes = etymon_era_reflexes(db, member_id, target_language=target_language)
-            if is_modern:
-                reflexes = [r for r in reflexes if not _is_derived_name_pollution(r.form)]
-            for r in reflexes:
-                existing = best.get(r.form)
-                if existing is None or _better_era_reflex_source(r.source, existing.source):
-                    best[r.form] = r
-        if best:
-            best_by_target[target_language] = best
+    best_by_target = _collect_best_by_target(db, target_languages, sorted(member_ids))
     # wyrd-6hbv Phase 2: drop foreign re-entries (cross-language Descendants-section
     # noise — kaona/argaman/bungoo) from EVERY stage, in one batched descent query
     # over all collected reflexes, so the era-grid's modern cell carries only
