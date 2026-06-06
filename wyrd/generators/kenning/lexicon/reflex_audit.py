@@ -98,38 +98,59 @@ class ReflexCandidate:
         return (strip_surface(self.surface), strip_surface(self.canonical), self.gloss)
 
 
+_LINKED = "_audit_linked"  # TEMP table: etymon ids that appear in reflex_etymon
+
+
 def _known_forms(db: sqlite3.Connection) -> tuple[dict, dict, dict, dict, dict]:
     """Per-etymon valid-surface evidence used by the deterministic pre-screen.
-    Assumes the caller has set ``db.row_factory = sqlite3.Row`` (find_candidates
-    does, with save/restore — so a shared connection isn't mutated)."""
+
+    Scoped to the etymons that actually appear in ``reflex_etymon`` (the
+    ``_audit_linked`` TEMP table find_candidates populates) — only those can be
+    candidates, so the full-table scans of ``etymon`` (~2.4M) / ``etymon_variant``
+    (~5.8M) / ``etymon_descent`` / ``etymon_gloss`` are pointless and load
+    millions of rows into memory (Gemini ![high]). Assumes the caller set
+    ``db.row_factory = sqlite3.Row`` + created ``_audit_linked``."""
     et = {}
-    for r in db.execute("SELECT id,canonical_form,language,cognate_id FROM etymon"):
+    for r in db.execute(
+        f"SELECT id,canonical_form,language,cognate_id FROM etymon "
+        f"WHERE id IN (SELECT id FROM {_LINKED})"
+    ):
         et[r["id"]] = (
             r["canonical_form"],
             strip_surface(r["canonical_form"]),
             r["language"],
             r["cognate_id"],
         )
+    # Cluster mates: members of the cognate clusters the linked etymons belong to.
     cluster: dict[int, set[str]] = defaultdict(set)
     for r in db.execute(
-        "SELECT cognate_id,canonical_form FROM etymon "
-        "WHERE cognate_id IS NOT NULL AND merged_into_id IS NULL"
+        f"SELECT cognate_id,canonical_form FROM etymon WHERE merged_into_id IS NULL "
+        f"AND cognate_id IN (SELECT DISTINCT cognate_id FROM etymon "
+        f"WHERE id IN (SELECT id FROM {_LINKED}) AND cognate_id IS NOT NULL)"
     ):
         cluster[r["cognate_id"]].add(strip_surface(r["canonical_form"]))
     var: dict[int, set[str]] = defaultdict(set)
     try:
-        for r in db.execute("SELECT etymon_id,form FROM etymon_variant"):
+        for r in db.execute(
+            f"SELECT etymon_id,form FROM etymon_variant "
+            f"WHERE etymon_id IN (SELECT id FROM {_LINKED})"
+        ):
             var[r["etymon_id"]].add(strip_surface(r["form"]))
     except sqlite3.OperationalError:
         pass
     desc: dict[int, set[str]] = defaultdict(set)
     for r in db.execute(
-        "SELECT parent_id,child.canonical_form cf FROM etymon_descent ed "
-        "JOIN etymon child ON ed.child_id=child.id WHERE ed.edge_type IN ('inheritance','borrowing')"
+        f"SELECT parent_id,child.canonical_form cf FROM etymon_descent ed "
+        f"JOIN etymon child ON ed.child_id=child.id "
+        f"WHERE ed.parent_id IN (SELECT id FROM {_LINKED}) "
+        f"AND ed.edge_type IN ('inheritance','borrowing')"
     ):
         desc[r["parent_id"]].add(strip_surface(r["cf"]))
     gloss = {}
-    for r in db.execute("SELECT etymon_id,gloss FROM etymon_gloss ORDER BY gloss"):
+    for r in db.execute(
+        f"SELECT etymon_id,gloss FROM etymon_gloss "
+        f"WHERE etymon_id IN (SELECT id FROM {_LINKED}) ORDER BY gloss"
+    ):
         gloss.setdefault(r["etymon_id"], r["gloss"])
     return et, cluster, var, desc, gloss
 
@@ -145,6 +166,13 @@ def find_candidates(db: sqlite3.Connection) -> list[ReflexCandidate]:
     saved_factory = db.row_factory
     db.row_factory = sqlite3.Row
     try:
+        # Scope the known-form loads to etymons actually linked from a reflex
+        # (avoids full-table scans of etymon/etymon_variant — Gemini ![high]).
+        db.execute(f"CREATE TEMP TABLE IF NOT EXISTS {_LINKED} (id INTEGER PRIMARY KEY)")
+        db.execute(f"DELETE FROM {_LINKED}")
+        db.execute(
+            f"INSERT OR IGNORE INTO {_LINKED} (id) SELECT DISTINCT etymon_id FROM reflex_etymon"
+        )
         et, cluster, var, desc, gloss = _known_forms(db)
         out: list[ReflexCandidate] = []
         for r in db.execute(
@@ -166,6 +194,7 @@ def find_candidates(db: sqlite3.Connection) -> list[ReflexCandidate]:
             )
         return out
     finally:
+        db.execute(f"DROP TABLE IF EXISTS {_LINKED}")
         db.row_factory = saved_factory
 
 
