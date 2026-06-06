@@ -137,6 +137,70 @@ def test_fantasy_export_also_filters_modern_pollution(fresh_db: Path) -> None:
         assert modern == ["ton"]
 
 
+def _descent_parent(
+    db, child_id: int, parent_form: str, parent_lang: str, edge: str = "inheritance"
+) -> int:
+    """Give ``child_id`` a descent parent in ``parent_lang`` via an ``edge``-type edge."""
+    pid = db.upsert_etymon(parent_form, parent_lang)
+    db.conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) VALUES (?, ?, ?, 'wikt')",
+        (pid, child_id, edge),
+    )
+    return pid
+
+
+def test_foreign_reentry_dropped_from_modern_stage(fresh_db: Path) -> None:
+    # wyrd-6hbv Phase 2: a modern reflex descending from a NON-feeder language
+    # (a cross-language Descendants re-entry) is dropped; a feeder-descended one
+    # (and an orphan with no descent) is kept.
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wikt", title="Wiktionary")
+        root = db.upsert_etymon("tūn", "old-english")
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (root, root))
+        town = _mate(db, root, "town", "modern-english")
+        _descent_parent(db, town, "toun", "middle-english")  # feeder → kept
+        kaona = _mate(db, root, "kaona", "modern-english")
+        _descent_parent(db, kaona, "kaona", "haw")  # Hawaiian → dropped
+        db.commit()
+        out = _fetch_family_era_reflexes(db, [root], "old-english")
+        assert [e["form"] for e in out.get("modern-english", [])] == ["town"]
+
+
+def test_foreign_reentry_ids_flags_any_nonfeeder_parent(fresh_db: Path) -> None:
+    from wyrd.generators.kenning.lexicon.bundle._family import _foreign_reentry_ids
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wikt", title="Wiktionary")
+        # 'bungoo' has a junk feeder parent (bank) AND a distant one (Dyirbal) →
+        # flagged on the distant parent (ANY non-feeder parent flags it).
+        bungoo = db.upsert_etymon("bungoo", "modern-english")
+        _descent_parent(db, bungoo, "bank", "modern-english")
+        _descent_parent(db, bungoo, "banggu", "bdy")
+        town = db.upsert_etymon("town", "modern-english")  # only a feeder parent
+        _descent_parent(db, town, "toun", "middle-english")
+        orphan = db.upsert_etymon("orphan", "modern-english")  # no parents → kept
+        db.commit()
+        assert _foreign_reentry_ids(db, {bungoo, town, orphan}) == {bungoo}
+        assert _foreign_reentry_ids(db, set()) == set()  # empty-input guard
+
+
+def test_foreign_reentry_ids_edge_type_gate(fresh_db: Path) -> None:
+    # The descent gate is inheritance/borrowing/derivation — a non-feeder parent
+    # via any of those flags the reflex; a peer 'cognate' edge does NOT.
+    from wyrd.generators.kenning.lexicon.bundle._family import _foreign_reentry_ids
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wikt", title="Wiktionary")
+        borrowed = db.upsert_etymon("haikal", "modern-english")
+        _descent_parent(db, borrowed, "haykal-ar", "ar", edge="borrowing")  # flagged
+        derived = db.upsert_etymon("argaman", "modern-english")
+        _descent_parent(db, derived, "argamannu", "akk", edge="derivation")  # flagged
+        peer = db.upsert_etymon("peerword", "modern-english")
+        _descent_parent(db, peer, "rus-cognate", "ru", edge="cognate")  # cognate → NOT flagged
+        db.commit()
+        assert _foreign_reentry_ids(db, {borrowed, derived, peer}) == {borrowed, derived}
+
+
 def test_family_era_reflexes_union_across_members(fresh_db: Path) -> None:
     # wyrd-rogd.16: the era-grid must UNION every family member's cluster, not
     # just the root's. A rich-cluster member (modern 'green', 3 OE-stage forms)
