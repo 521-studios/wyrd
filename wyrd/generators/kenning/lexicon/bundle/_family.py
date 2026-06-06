@@ -256,6 +256,206 @@ def _merge_era_reflexes_into_forms_by_lang(
                 existing.add(form)
 
 
+# European-feeder languages of British/European place-names: English + Germanic +
+# Romance (incl. every Latin period/variety + Anglo-Norman) + Celtic + Hellenic +
+# PIE, with their proto/old/middle/dialect codes. A cognate-cluster reflex whose
+# descent parent is OUTSIDE this set is a cross-language Descendants-section
+# re-entry (wiktextract noise), not a genuine reflex of a British place-name
+# morpheme — see _foreign_reentry_ids. Generous on purpose: a MISSING feeder code
+# would wrongly drop a legit reflex, so err toward inclusion.
+_FEEDER_LANGUAGES: frozenset[str] = frozenset(
+    {
+        # English
+        "old-english",
+        "middle-english",
+        "modern-english",
+        "english",
+        "enm",
+        "ang",
+        "scots",
+        "sco",
+        # Germanic
+        "proto-germanic",
+        "gem-pro",
+        "gmw-pro",
+        "gmq-pro",
+        "gmw-jdt",
+        "gmq-osw",
+        "gmq-oda",
+        "old-norse",
+        "non",
+        "icelandic",
+        "is",
+        "faroese",
+        "fo",
+        "danish",
+        "da",
+        "swedish",
+        "sv",
+        "norwegian",
+        "norwegian-bokmal",
+        "norwegian-nynorsk",
+        "no",
+        "nb",
+        "nn",
+        "gothic",
+        "got",
+        "dutch",
+        "nl",
+        "dum",
+        "middle-dutch",
+        "odt",
+        "old-dutch",
+        "german",
+        "de",
+        "old-high-german",
+        "goh",
+        "middle-high-german",
+        "gmh",
+        "old-saxon",
+        "osx",
+        "old-frisian",
+        "ofs",
+        "frisian",
+        "west-frisian",
+        "fy",
+        "saterland-frisian",
+        "stq",
+        "low-german",
+        "nds",
+        "middle-low-german",
+        "gml",
+        "luxembourgish",
+        "lb",
+        "limburgish",
+        "li",
+        "afrikaans",
+        "af",
+        "gsw",
+        "bar",
+        # Romance + Latin
+        "latin",
+        "la",
+        "la-lat",
+        "la-med",
+        "la-vul",
+        "la-ecc",
+        "lat",
+        "vulgar-latin",
+        "french",
+        "fr",
+        "old-french",
+        "fro",
+        "middle-french",
+        "frm",
+        "norman",
+        "nrf",
+        "xno",
+        "italian",
+        "it",
+        "spanish",
+        "es",
+        "portuguese",
+        "pt",
+        "galician",
+        "gl",
+        "occitan",
+        "oc",
+        "pro",
+        "catalan",
+        "ca",
+        "romanian",
+        "ro",
+        "sardinian",
+        "sc",
+        "roa-pro",
+        "roa-oil",
+        "roa-opt",
+        "fur",
+        "lld",
+        # Celtic
+        "proto-celtic",
+        "cel-pro",
+        "cel-bry-pro",
+        "cel-gae-pro",
+        "cel",
+        "welsh",
+        "cy",
+        "old-welsh",
+        "owl",
+        "middle-welsh",
+        "wlm",
+        "cornish",
+        "kw",
+        "cnx",
+        "breton",
+        "br",
+        "xbm",
+        "obt",
+        "irish",
+        "ga",
+        "old-irish",
+        "sga",
+        "middle-irish",
+        "mga",
+        "primitive-irish",
+        "pgl",
+        "scottish-gaelic",
+        "gd",
+        "manx",
+        "gv",
+        "gaulish",
+        "xtg",
+        "cel-gau",
+        "pictish",
+        "xpi",
+        "brythonic",
+        "goidelic",
+        # Hellenic
+        "ancient-greek",
+        "grc",
+        "greek",
+        "el",
+        "modern-greek",
+        "gkm",
+        "grc-koi",
+        "koine",
+        # Proto-Indo-European (the shared feeder root)
+        "proto-indo-european",
+        "ine-pro",
+    }
+)
+
+
+def _foreign_reentry_ids(db: LexiconDB, etymon_ids: set[int]) -> set[int]:
+    """The subset of ``etymon_ids`` that are FOREIGN RE-ENTRIES: an era-reflex
+    etymon that descends (inheritance / borrowing / derivation edge) from at
+    least one language OUTSIDE ``_FEEDER_LANGUAGES``. These are cross-language
+    descendants wiktextract's Descendants section pulled into the cognate cluster
+    — modern-english ``kaona`` (← Hawaiian), ``argaman`` (← Hebrew), ``bungoo``
+    (← Dyirbal) — not genuine modern reflexes of a British place-name morpheme,
+    so they pollute the era-grid's modern cell (wyrd-6hbv Phase 2).
+
+    Flagged when ANY parent is non-feeder (so a junk edge that also attaches a
+    spurious feeder parent — e.g. ``bank`` → ``bungoo`` alongside Dyirbal — is
+    still caught). A reflex with no descent parents, or whose every parent is a
+    feeder language, is kept. One batched query over the family's reflex ids."""
+    if not etymon_ids:
+        return set()
+    placeholders = ",".join("?" * len(etymon_ids))
+    foreign: set[int] = set()
+    for row in db.conn.execute(
+        f"SELECT ed.child_id AS cid, p.language AS plang "
+        f"FROM etymon_descent ed JOIN etymon p ON p.id = ed.parent_id "
+        f"WHERE ed.child_id IN ({placeholders}) "
+        f"  AND ed.edge_type IN ('inheritance', 'borrowing', 'derivation')",
+        list(etymon_ids),
+    ):
+        if (row["plang"] or "").lower() not in _FEEDER_LANGUAGES:
+            foreign.add(row["cid"])
+    return foreign
+
+
 def _fetch_family_era_reflexes(
     db: LexiconDB, member_ids: list[int], root_language: str
 ) -> dict[str, list[dict[str, str]]]:
@@ -300,9 +500,9 @@ def _fetch_family_era_reflexes(
     target_languages: set[str] = {
         lang for (fam, _cell), lang in CANONICAL_LANGUAGE_FOR_CELL.items() if fam == family
     }
-    out: dict[str, list[dict[str, str]]] = {}
     modern_languages = _modern_stage_languages()
     sorted_members = sorted(member_ids)
+    best_by_target: dict[str, dict[str, EraReflex]] = {}
     for target_language in sorted(target_languages):
         # wyrd-rogd.11: the modern stage strips derived proper nouns + mistagged
         # foreign cognates so it carries only the morpheme's own common-noun
@@ -326,10 +526,23 @@ def _fetch_family_era_reflexes(
                 existing = best.get(r.form)
                 if existing is None or _better_era_reflex_source(r.source, existing.source):
                     best[r.form] = r
-        if not best:
+        if best:
+            best_by_target[target_language] = best
+    # wyrd-6hbv Phase 2: drop foreign re-entries (cross-language Descendants-section
+    # noise — kaona/argaman/bungoo) from EVERY stage, in one batched descent query
+    # over all collected reflexes, so the era-grid's modern cell carries only
+    # genuine feeder-descended reflexes (and they don't leak into forms_by_lang
+    # via _merge_era_reflexes_into_forms_by_lang either).
+    foreign = _foreign_reentry_ids(
+        db, {r.etymon_id for best in best_by_target.values() for r in best.values()}
+    )
+    out: dict[str, list[dict[str, str]]] = {}
+    for target_language, best in best_by_target.items():
+        kept = {form: r for form, r in best.items() if r.etymon_id not in foreign}
+        if not kept:
             continue
-        glosses = _fetch_reflex_glosses(db, [r.etymon_id for r in best.values()])
-        out[target_language] = [_reflex_entry(best[form], glosses) for form in sorted(best)]
+        glosses = _fetch_reflex_glosses(db, [r.etymon_id for r in kept.values()])
+        out[target_language] = [_reflex_entry(kept[form], glosses) for form in sorted(kept)]
     return out
 
 

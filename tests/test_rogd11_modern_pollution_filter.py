@@ -137,6 +137,51 @@ def test_fantasy_export_also_filters_modern_pollution(fresh_db: Path) -> None:
         assert modern == ["ton"]
 
 
+def _descent_parent(db, child_id: int, parent_form: str, parent_lang: str) -> int:
+    """Give ``child_id`` a descent parent in ``parent_lang`` (inheritance edge)."""
+    pid = db.upsert_etymon(parent_form, parent_lang)
+    db.conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (?, ?, 'inheritance', 'wikt')",
+        (pid, child_id),
+    )
+    return pid
+
+
+def test_foreign_reentry_dropped_from_modern_stage(fresh_db: Path) -> None:
+    # wyrd-6hbv Phase 2: a modern reflex descending from a NON-feeder language
+    # (a cross-language Descendants re-entry) is dropped; a feeder-descended one
+    # (and an orphan with no descent) is kept.
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wikt", title="Wiktionary")
+        root = db.upsert_etymon("tūn", "old-english")
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (root, root))
+        town = _mate(db, root, "town", "modern-english")
+        _descent_parent(db, town, "toun", "middle-english")  # feeder → kept
+        kaona = _mate(db, root, "kaona", "modern-english")
+        _descent_parent(db, kaona, "kaona", "haw")  # Hawaiian → dropped
+        db.commit()
+        out = _fetch_family_era_reflexes(db, [root], "old-english")
+        assert [e["form"] for e in out.get("modern-english", [])] == ["town"]
+
+
+def test_foreign_reentry_ids_flags_any_nonfeeder_parent(fresh_db: Path) -> None:
+    from wyrd.generators.kenning.lexicon.bundle._family import _foreign_reentry_ids
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wikt", title="Wiktionary")
+        # 'bungoo' has a junk feeder parent (bank) AND a distant one (Dyirbal) →
+        # flagged on the distant parent (ANY non-feeder parent flags it).
+        bungoo = db.upsert_etymon("bungoo", "modern-english")
+        _descent_parent(db, bungoo, "bank", "modern-english")
+        _descent_parent(db, bungoo, "banggu", "bdy")
+        town = db.upsert_etymon("town", "modern-english")  # only a feeder parent
+        _descent_parent(db, town, "toun", "middle-english")
+        orphan = db.upsert_etymon("orphan", "modern-english")  # no parents → kept
+        db.commit()
+        assert _foreign_reentry_ids(db, {bungoo, town, orphan}) == {bungoo}
+
+
 def test_family_era_reflexes_union_across_members(fresh_db: Path) -> None:
     # wyrd-rogd.16: the era-grid must UNION every family member's cluster, not
     # just the root's. A rich-cluster member (modern 'green', 3 OE-stage forms)
