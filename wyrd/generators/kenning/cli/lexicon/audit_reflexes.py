@@ -116,7 +116,12 @@ def lexicon_audit_reflexes(db_path, jsonl_dir, limit, concurrency, do_apply):
                 reflex_audit_user_prompt(c.canonical, c.language, c.gloss, c.surface),
                 VERDICT_SCHEMA,
             )
-            valid, reason, err = bool(v.get("valid")), str(v.get("reason", ""))[:300], None
+            if "valid" not in v:
+                # Schema-violating response (responseSchema marks `valid`
+                # required, so this is rare) — record as an error row, NOT a
+                # silent prune. valid=None re-judges on the next run.
+                raise ValueError(f"response missing 'valid': {v!r}"[:200])
+            valid, reason, err = bool(v["valid"]), str(v.get("reason", ""))[:300], None
         except Exception as e:  # noqa: BLE001 — record + continue, never abort the batch
             valid, reason, err = None, "", str(e)[:200]
         row = {
@@ -136,7 +141,7 @@ def lexicon_audit_reflexes(db_path, jsonl_dir, limit, concurrency, do_apply):
             out.write(json.dumps(row, ensure_ascii=False) + "\n")
             out.flush()
             counter["n"] += 1
-            if counter["n"] % 25 == 0:
+            if counter["n"] % 10 == 0:
                 rate = (time.time() - start) / counter["n"]
                 click.echo(
                     f"  [{counter['n']}/{len(pending)}] {c.surface!r}->{c.canonical!r} valid={valid} "

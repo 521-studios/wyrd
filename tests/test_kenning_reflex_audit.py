@@ -67,6 +67,51 @@ def test_known_form_via_cluster_mate_is_kept():
     assert "-home" not in {c.surface for c in find_candidates(db)}
 
 
+def test_dedup_key_collapses_ocr_case_variants_and_prunes_all_links():
+    """The verdict key folds accent + case, so one judgment on 'tūn' covers its
+    OCR/case-variant etymon rows (Tun/tun); a single PRUNE key must delete the
+    bad reflex link to EVERY variant."""
+    db = _fixture()
+    # two variant etymons of the same morpheme, both linked from one bad surface.
+    db.execute("INSERT INTO etymon VALUES (3,'tūn','old-english',NULL,NULL)")
+    db.execute("INSERT INTO etymon VALUES (4,'Tun','old-english',NULL,NULL)")
+    db.execute("INSERT INTO etymon_gloss VALUES (3,'enclosure')")
+    db.execute("INSERT INTO etymon_gloss VALUES (4,'enclosure')")
+    db.execute("INSERT INTO reflex VALUES (20,'-bolton','post',0)")
+    db.executemany("INSERT INTO reflex_etymon VALUES (?,?)", [(20, 3), (20, 4)])
+    db.commit()
+    cands = {c.etymon_id: c for c in find_candidates(db) if c.surface == "-bolton"}
+    # both variant links are candidates AND share ONE key (accent/case folded).
+    assert cands[3].key == cands[4].key == (strip_surface("-bolton"), "tun", "enclosure")
+    n = prune_links(db, {cands[3].key})
+    assert n == 2  # one verdict deleted BOTH variant links
+    assert not [c for c in find_candidates(db) if c.surface == "-bolton"]
+
+
+def test_pre_screen_keeps_variant_and_inheritance_forms_not_cognate():
+    """A surface matching an etymon_variant form or an inheritance/borrowing
+    descent child is a known form (kept); a 'cognate' descent edge is too loose
+    and does NOT count, so a surface only reachable via cognate stays suspicious."""
+    db = _fixture()
+    db.execute("INSERT INTO etymon_variant VALUES (1,'hamm')")  # spelling variant of hām
+    db.execute(
+        "INSERT INTO etymon VALUES (5,'heem','modern-english',NULL,NULL)"
+    )  # inheritance child
+    db.execute("INSERT INTO etymon VALUES (6,'hejm','old-norse',NULL,NULL)")  # cognate peer
+    db.execute("INSERT INTO etymon_descent VALUES (1,5,'inheritance')")
+    db.execute("INSERT INTO etymon_descent VALUES (1,6,'cognate')")
+    db.executemany(
+        "INSERT INTO reflex VALUES (?,?,?,0)",
+        [(30, "-hamm", "post"), (31, "-heem", "post"), (32, "-hejm", "post")],
+    )
+    db.executemany("INSERT INTO reflex_etymon VALUES (?,?)", [(30, 1), (31, 1), (32, 1)])
+    db.commit()
+    suspicious = {c.surface for c in find_candidates(db)}
+    assert "-hamm" not in suspicious  # etymon_variant form -> known
+    assert "-heem" not in suspicious  # inheritance descent child -> known
+    assert "-hejm" in suspicious  # cognate edge does NOT count -> still suspicious
+
+
 def test_prune_deletes_verdicted_links_keeps_reflex_rows():
     db = _fixture()
     # PRUNE the two suspicious surfaces; the verdict key is (strip, canon, gloss).
