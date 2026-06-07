@@ -57,20 +57,22 @@ def _load_log(audit_file: Path) -> dict[str, dict]:
     log: dict[str, dict] = {}
     if not audit_file.exists():
         return log
-    for line in audit_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue  # skip a half-written/corrupt ledger line (e.g. crash mid-append)
-        if (
-            row.get("_type") == "descent_audit"
-            and row.get("edge_key")
-            and isinstance(row.get("same_family"), bool)
-        ):
-            log[row["edge_key"]] = row
+    with audit_file.open("r", encoding="utf-8") as fh:  # stream — the log can grow large
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # skip a half-written/corrupt ledger line (e.g. crash mid-append)
+            if (
+                isinstance(row, dict)
+                and row.get("_type") == "descent_audit"
+                and row.get("edge_key")
+                and isinstance(row.get("same_family"), bool)
+            ):
+                log[row["edge_key"]] = row
     return log
 
 
@@ -80,17 +82,20 @@ def _existing_detaches(collapse_file: Path) -> set[tuple[str, str]]:
     pairs: set[tuple[str, str]] = set()
     if not collapse_file.exists():
         return pairs
-    for line in collapse_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue  # skip a half-written/corrupt ledger line (e.g. crash mid-append)
-        ref = row.get("ref")
-        for parent in row.get("detach_parents") or []:
-            pairs.add((ref, parent))
+    with collapse_file.open("r", encoding="utf-8") as fh:  # stream — the ledger can grow large
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # skip a half-written/corrupt ledger line (e.g. crash mid-append)
+            if not isinstance(row, dict):
+                continue
+            ref = row.get("ref")
+            for parent in row.get("detach_parents") or []:
+                pairs.add((ref, parent))
     return pairs
 
 
@@ -138,12 +143,13 @@ def _judge_fresh(client, to_judge, log, audit_fh, base_url, model) -> tuple[int,
             skipped += 1
             consecutive += 1
             if consecutive >= 5:
-                click.echo(
+                # Fail loud + non-zero (Ollama down) — judged verdicts so far are
+                # flushed to the log, so a re-run resumes; don't exit 0 on a
+                # half-done batch (silent failure in automation).
+                raise click.ClickException(
                     f"Aborting: 5 consecutive judge failures — is Ollama up at {base_url} "
-                    f"with model {model}? (curl .../api/tags)",
-                    err=True,
+                    f"with model {model}? (curl .../api/tags)"
                 )
-                break
             continue
         consecutive = 0
         judged_new += 1

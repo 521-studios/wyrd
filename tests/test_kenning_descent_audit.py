@@ -336,6 +336,8 @@ def test_existing_detaches_collects_child_parent_pairs(tmp_path):
 
 
 def test_judge_fresh_aborts_after_five_consecutive_failures(monkeypatch):
+    import click
+
     monkeypatch.setattr(cli, "_judge_with_retry", lambda client, c: None)
     cands = [
         DescentAuditCandidate(
@@ -353,8 +355,10 @@ def test_judge_fresh_aborts_after_five_consecutive_failures(monkeypatch):
         for i in range(10)
     ]
     log: dict = {}
-    judged, skipped = cli._judge_fresh(None, cands, log, None, "url", "model")
-    assert judged == 0 and skipped == 5 and log == {}  # aborted at 5, not all 10
+    # 5 consecutive failures (Ollama down) raises non-zero, not a silent exit-0.
+    with pytest.raises(click.ClickException):
+        cli._judge_fresh(None, cands, log, None, "url", "model")
+    assert log == {}
 
 
 def test_judge_fresh_resets_counter_on_success(monkeypatch):

@@ -93,7 +93,12 @@ def _load_clustered_corpus(conn: sqlite3.Connection) -> dict[int, dict]:
             "glosses": set(),
             "tokens": set(),
         }
-    for r in conn.execute("SELECT etymon_id, gloss FROM etymon_gloss"):
+    # JOIN-filter to clustered etymons only — avoids scanning the whole
+    # etymon_gloss table (which dwarfs the clustered subset).
+    for r in conn.execute(
+        "SELECT eg.etymon_id AS etymon_id, eg.gloss AS gloss FROM etymon_gloss eg "
+        "JOIN etymon e ON e.id = eg.etymon_id WHERE e.cognate_id IS NOT NULL"
+    ):
         rec = by_id.get(r["etymon_id"])
         if rec is None or not r["gloss"] or is_form_of_pointer(r["gloss"]):
             continue
@@ -102,25 +107,21 @@ def _load_clustered_corpus(conn: sqlite3.Connection) -> dict[int, dict]:
     return by_id
 
 
-def _cluster_edges(conn: sqlite3.Connection, ids: list[int]) -> list[tuple[int, int, str]]:
+def _cluster_edges(conn: sqlite3.Connection, cognate_id: int) -> list[tuple[int, int, str]]:
     """``(parent_id, child_id, edge_type)`` descent edges with BOTH endpoints in
-    ``ids`` (the within-cluster subgraph). Chunked so the IN-list stays bounded."""
-    idset = set(ids)
-    edges: list[tuple[int, int, str]] = []
-    seen: set[tuple[int, int]] = set()
-    for start in range(0, len(ids), 400):
-        chunk = ids[start : start + 400]
-        ph = ",".join("?" * len(chunk))
+    the ``cognate_id`` cluster. A single query keyed on the cluster (no chunking
+    / no dedup set) — every within-cluster edge has both ends with this
+    cognate_id, so the membership subquery on both sides returns each exactly
+    once."""
+    members = "(SELECT id FROM etymon WHERE cognate_id = ?)"
+    return [
+        (r["parent_id"], r["child_id"], r["edge_type"])
         for r in conn.execute(
             f"SELECT parent_id, child_id, edge_type FROM etymon_descent "
-            f"WHERE parent_id IN ({ph}) OR child_id IN ({ph})",
-            (*chunk, *chunk),
-        ):
-            p, c = r["parent_id"], r["child_id"]
-            if p in idset and c in idset and (p, c) not in seen:
-                seen.add((p, c))
-                edges.append((p, c, r["edge_type"]))
-    return edges
+            f"WHERE parent_id IN {members} AND child_id IN {members}",
+            (cognate_id, cognate_id),
+        )
+    ]
 
 
 def _candidate(parent: dict, child: dict, edge_type: str, dominant_glosses: tuple[str, ...]):
@@ -156,7 +157,7 @@ def detect_descent_audit_candidates(
 
     out: dict[str, DescentAuditCandidate] = {}
     processed = 0
-    for _cog, ids in sorted(clusters.items()):
+    for cog, ids in sorted(clusters.items()):
         if len(ids) < _MIN_CLUSTER_SIZE:
             continue
         glossed = [(i, by_id[i]["tokens"]) for i in ids if by_id[i]["tokens"]]
@@ -189,7 +190,7 @@ def detect_descent_audit_candidates(
                 }
             )
         )[:4]
-        for p, c, etype in _cluster_edges(conn, ids):
+        for p, c, etype in _cluster_edges(conn, cog):
             gp, gc = gidx.get(p), gidx.get(c)
             bridge = (
                 # two glossed members in different sense-groups
