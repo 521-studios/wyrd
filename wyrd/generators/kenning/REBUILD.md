@@ -225,6 +225,14 @@ wyrd kenning lexicon mine-empirical-baselines --apply
 D=data/mining/reports/after-rebuild-$(date +%Y%m%d); mkdir -p "$D"
 wyrd kenning lexicon dump-empirical-priors \
   --output "$D/empirical_priors.json" --version after-rebuild-$(date +%Y%m%d)
+
+# 8. Modern-reflex curation (wyrd-vewk) — land the curated modern-English
+#    reflexes so OE/ON/OF/ME morphemes' era-grid modern stage populates
+#    (-ham -> home, holmr -> holm/holme, ...). Free + deterministic; replays
+#    data/mining/_modern_reflexes.jsonl. Run AFTER enrich/cluster-cognates so
+#    each new reflex inherits its morpheme's cognate cluster (the importer sets
+#    the reflex's cognate_id from the already-clustered morpheme).
+wyrd kenning lexicon import-modern-reflexes --apply
 ```
 
 ---

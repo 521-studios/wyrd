@@ -33,6 +33,7 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import audit_merges as _audit_merges_module
 from wyrd.generators.kenning.cli.lexicon import audit_reflexes as _audit_reflexes_module
+from wyrd.generators.kenning.cli.lexicon import import_modern_reflexes as _import_modern_reflexes_module
 from wyrd.generators.kenning.cli.lexicon import (
     audit_semantic_coherence as _audit_semantic_coherence_module,
 )
@@ -222,6 +223,7 @@ def lexicon() -> None:
 _audit_etymology_alignment_module.add_to(lexicon)
 _audit_merges_module.add_to(lexicon)
 _audit_reflexes_module.add_to(lexicon)
+_import_modern_reflexes_module.add_to(lexicon)
 _audit_semantic_coherence_module.add_to(lexicon)
 _audit_short_quotes_module.add_to(lexicon)
 _cleanup_wiktionary_empirical_module.add_to(lexicon)

@@ -7,7 +7,8 @@
     "mine-wiktextract-forms",
     "mine-wiktextract-corpus",
     "cleanup-wiktionary-empirical",
-    "mine-empirical-baselines"
+    "mine-empirical-baselines",
+    "import-modern-reflexes"
   ],
   "non_rebuild_commands": {
     "backfill-fantasy-tags": "Backfills tags on fantasy_morpheme rows; the fantasy layer round-trips via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores it. Not a wipe-restore step.",
@@ -151,6 +152,13 @@
       "restored_by": "paid-deferred",
       "cost": "paid",
       "runbook_token": "etymon_meaning_synset"
+    },
+    {
+      "layer": "modern-reflexes",
+      "summary": "curated modern-English reflex etymons + inheritance descent edges so OE/ON/OF/ME morphemes' era-grid modern stage populates",
+      "restored_by": "import-modern-reflexes (replays data/mining/_modern_reflexes.jsonl; run AFTER enrich so each reflex inherits its morpheme's cognate cluster)",
+      "cost": "free",
+      "runbook_token": "import-modern-reflexes"
     }
   ]
 }
