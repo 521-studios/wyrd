@@ -109,6 +109,9 @@ from wyrd.generators.kenning.cli.lexicon import fold_variants as _fold_variants_
 from wyrd.generators.kenning.cli.lexicon import fuzzy_search as _fuzzy_search_module
 from wyrd.generators.kenning.cli.lexicon import import_mining_log as _import_mining_log_module
 from wyrd.generators.kenning.cli.lexicon import (
+    import_modern_reflexes as _import_modern_reflexes_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
     ingest_briggs_personal_names as _ingest_briggs_personal_names_module,
 )
 from wyrd.generators.kenning.cli.lexicon import ingest_domesday as _ingest_domesday_module
@@ -277,6 +280,7 @@ _ingest_speed_1611_module.add_to(lexicon)
 _ingest_toponym_mentions_module.add_to(lexicon)
 _ingest_wiktionary_module.add_to(lexicon)
 _import_mining_log_module.add_to(lexicon)
+_import_modern_reflexes_module.add_to(lexicon)
 _language_report_module.add_to(lexicon)
 _link_lemmas_module.add_to(lexicon)
 _lookup_attested_years_module.add_to(lexicon)

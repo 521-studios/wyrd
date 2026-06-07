@@ -652,6 +652,14 @@ DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
         # per-source reflex-seed.jsonl — the reflex layer is dumped via
         # the dedicated dump_reflexes_to_file path instead.
         "reflex-seed",
+        # wyrd-vewk: synthetic source owning the curated modern-reflex layer
+        # at data/mining/_modern_reflexes.jsonl. Re-inserted into `source` by
+        # `import-modern-reflexes` on rebuild; excluded so dump_all_sources
+        # doesn't emit a competing per-source modern-reflex-curation.jsonl
+        # (which would carry the etymons/edges WITHOUT the enrichment-derived
+        # cognate_id and drift from the hand-curated file). Same
+        # importer-owns-the-artifact rule as reflex-seed / fantasy-mining.
+        "modern-reflex-curation",
     }
 )
 
