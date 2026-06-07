@@ -387,3 +387,59 @@ def test_judge_fresh_resets_counter_on_success(monkeypatch):
     judged, skipped = cli._judge_fresh(None, cands, log, None, "url", "model")
     assert judged == 1  # the one success recorded; counter reset prevented early abort
     assert len(log) == 1
+
+
+# --- Phase 2b: glossless-proto-conductor fan-out (wyrd-2wml) ---
+
+
+def test_phase2b_flags_glossless_offsense_child_of_proto_conductor(lex):
+    """A coherent-looking cluster (one glossed 'valley' sense) whose proto
+    conductor also fans out to a GLOSSLESS off-sense child (vulva): 2b flags the
+    conductor->vulva edge; 2a (gloss screen) does not see it."""
+    proto = _mk(lex, "*wolwumen", "itc-pro")  # glossless conductor
+    vallis = _mk(lex, "vallis", "latin", gloss="valley")
+    val = _mk(lex, "val", "old-french", gloss="valley")
+    vale = _mk(lex, "vale", "middle-english", gloss="valley")
+    vulva = _mk(lex, "vulva", "latin")  # GLOSSLESS off-sense pollutant
+    _cluster(lex, proto, vallis, val, vale, vulva)
+    _edge(lex, proto, vallis)
+    _edge(lex, proto, vale)
+    _edge(lex, proto, vulva)  # conductor out-degree 3
+    lex.commit()
+
+    keys_2b = {c.edge_key for c in detect_descent_audit_candidates(lex.conn, scope="2b")}
+    assert "itc-pro:*wolwumen->latin:vulva" in keys_2b
+    assert "itc-pro:*wolwumen->latin:vallis" not in keys_2b  # into the dominant sense
+    # 2a alone can't see it — the cluster is gloss-coherent (one sense-group).
+    assert detect_descent_audit_candidates(lex.conn, scope="2a") == []
+    # the candidate carries the dominant sense for the judge.
+    cand = next(
+        c
+        for c in detect_descent_audit_candidates(lex.conn, scope="2b")
+        if c.child_ref == "latin:vulva"
+    )
+    assert "valley" in " ".join(cand.cluster_dominant_glosses)
+
+
+def test_phase2b_requires_proto_conductor_and_fanout(lex):
+    """A non-proto parent, or a proto with out-degree < 3, is not a conductor."""
+    # non-proto parent with a glossless off-sense child -> NOT flagged by 2b
+    head = _mk(lex, "headword", "latin", gloss="valley")
+    h2 = _mk(lex, "headtwo", "latin", gloss="valley")
+    glossless = _mk(lex, "zzz", "latin")
+    _cluster(lex, head, h2, glossless)
+    _edge(lex, head, h2)
+    _edge(lex, head, glossless)
+    lex.commit()
+    assert detect_descent_audit_candidates(lex.conn, scope="2b") == []
+
+    # a proto conductor with only 2 children is below _MIN_PROTO_FANOUT
+    proto = _mk(lex, "*x", "ine-pro")
+    a = _mk(lex, "aaa", "latin", gloss="valley")
+    b = _mk(lex, "bbb", "latin", gloss="valley")
+    off = _mk(lex, "off", "latin")  # glossless off-sense
+    _cluster(lex, proto, a, b, off)
+    _edge(lex, proto, a)
+    _edge(lex, proto, off)  # out-degree 2 only
+    lex.commit()
+    assert detect_descent_audit_candidates(lex.conn, scope="2b") == []

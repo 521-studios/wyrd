@@ -107,21 +107,48 @@ def _load_clustered_corpus(conn: sqlite3.Connection) -> dict[int, dict]:
     return by_id
 
 
-def _cluster_edges(conn: sqlite3.Connection, cognate_id: int) -> list[tuple[int, int, str]]:
-    """``(parent_id, child_id, edge_type)`` descent edges with BOTH endpoints in
-    the ``cognate_id`` cluster. A single query keyed on the cluster (no chunking
-    / no dedup set) — every within-cluster edge has both ends with this
-    cognate_id, so the membership subquery on both sides returns each exactly
-    once."""
-    members = "(SELECT id FROM etymon WHERE cognate_id = ?)"
-    return [
-        (r["parent_id"], r["child_id"], r["edge_type"])
-        for r in conn.execute(
-            f"SELECT parent_id, child_id, edge_type FROM etymon_descent "
-            f"WHERE parent_id IN {members} AND child_id IN {members}",
-            (cognate_id, cognate_id),
-        )
-    ]
+def _load_cluster_edges(conn: sqlite3.Connection) -> dict[int, list[tuple[int, int, str]]]:
+    """All within-cluster descent edges (both endpoints share a ``cognate_id``),
+    grouped by cluster, in ONE query — Phase 2b screens nearly every cluster, so
+    a per-cluster query would be N roundtrips."""
+    by_cluster: dict[int, list[tuple[int, int, str]]] = defaultdict(list)
+    for r in conn.execute(
+        "SELECT d.parent_id AS p, d.child_id AS c, d.edge_type AS et, e1.cognate_id AS cog "
+        "FROM etymon_descent d "
+        "JOIN etymon e1 ON e1.id = d.parent_id "
+        "JOIN etymon e2 ON e2.id = d.child_id "
+        "WHERE e1.cognate_id IS NOT NULL AND e1.cognate_id = e2.cognate_id"
+    ):
+        by_cluster[r["cog"]].append((r["p"], r["c"], r["et"]))
+    return by_cluster
+
+
+# Proto-form / reconstruction conductors are the over-merge hubs. A reconstructed
+# form (``*``-prefixed) or a proto-language code names a node whose descendant
+# fan-out can wrongly unify distinct words.
+_PROTO_LANG_SUFFIX = "-pro"
+_PROTO_LANGS = frozenset(
+    {
+        "ine-pro",
+        "itc-pro",
+        "gem-pro",
+        "gmw-pro",
+        "gmq-pro",
+        "cel-pro",
+        "sla-pro",
+        "bat-pro",
+        "cel-bry-pro",
+        "proto-germanic",
+        "proto-celtic",
+        "proto-italic",
+    }
+)
+# Min within-cluster out-degree for a proto node to count as a fan-out conductor.
+_MIN_PROTO_FANOUT = 3
+
+
+def _is_proto(lang: str, form: str) -> bool:
+    return form.startswith("*") or lang.endswith(_PROTO_LANG_SUFFIX) or lang in _PROTO_LANGS
 
 
 def _candidate(parent: dict, child: dict, edge_type: str, dominant_glosses: tuple[str, ...]):
@@ -139,21 +166,66 @@ def _candidate(parent: dict, child: dict, edge_type: str, dominant_glosses: tupl
     )
 
 
-def detect_descent_audit_candidates(
-    conn: sqlite3.Connection, *, limit_clusters: int | None = None
-) -> list[DescentAuditCandidate]:
-    """Bridge-edge candidates from every INCOHERENT cluster (glossed members
-    split into >=2 gloss-token sense-groups), deduped by directed edge.
+def _emit_phase2a(out, edges, gidx, unique_dom, by_id, dom_glosses) -> None:
+    """Phase 2a — bridge edges in an INCOHERENT cluster (>=2 sense-groups): two
+    glossed members in different groups, or an un-glossed conductor -> a glossed
+    member not in the dominant group (``unique_dom`` is None on a tie => every
+    conductor->glossed edge is screened)."""
+    for p, c, etype in edges:
+        gp, gc = gidx.get(p), gidx.get(c)
+        bridge = (
+            (gp is not None and gc is not None and gp != gc)
+            or (gp is None and gc is not None and gc != unique_dom)
+            or (gc is None and gp is not None and gp != unique_dom)
+        )
+        if bridge:
+            cand = _candidate(by_id[p], by_id[c], etype, dom_glosses)
+            out.setdefault(cand.edge_key, cand)
 
-    Per incoherent cluster: the dominant sense-group is the largest; a descent
-    edge is a candidate when it links two glossed members in DIFFERENT groups,
-    or links an un-glossed conductor to a glossed member of a non-dominant group
-    (an edge into the dominant group, or between two un-glossed nodes, is left
-    for the LLM to never see — it isn't a screened bridge)."""
+
+def _emit_phase2b(out, edges, gidx, unique_dom, by_id, dom_glosses) -> None:
+    """Phase 2b — glossless-proto-conductor fan-out (wyrd-2wml). In a cluster with
+    a clear dominant glossed sense, a proto/reconstruction conductor (out-degree
+    >= _MIN_PROTO_FANOUT) often fans out to GLOSSLESS off-sense descendants the
+    gloss-token screen can't see (``itc-pro:*wolwumen`` -> glossless ``vulva`` in
+    the ``val`` 'valley' cluster). Screen each conductor edge whose child is NOT
+    in the dominant sense (glossless, or glossed but sense-disjoint); the LLM
+    judges the child form against the dominant sense."""
+    domset = {i for i, gi in gidx.items() if gi == unique_dom}
+    domtok = {t for i in domset for t in by_id[i]["tokens"]}
+    outdeg: dict[int, int] = defaultdict(int)
+    for p, _c, _et in edges:
+        outdeg[p] += 1
+    for p, c, etype in edges:
+        pr, cr = by_id[p], by_id[c]
+        if not _is_proto(pr["lang"], pr["form"]) or outdeg[p] < _MIN_PROTO_FANOUT:
+            continue
+        if c in domset:
+            continue  # edge into the dominant sense — presumed correct
+        if cr["tokens"] and (cr["tokens"] & domtok):
+            continue  # child is glossed AND shares the dominant sense — keep
+        cand = _candidate(pr, cr, etype, dom_glosses)
+        out.setdefault(cand.edge_key, cand)
+
+
+def detect_descent_audit_candidates(
+    conn: sqlite3.Connection, *, scope: str = "both", limit_clusters: int | None = None
+) -> list[DescentAuditCandidate]:
+    """Descent-edge candidates over the cognate clusters, deduped by directed edge.
+
+    ``scope``:
+      * ``2a`` — bridge edges in INCOHERENT clusters (glossed members split into
+        >=2 gloss-token sense-groups). High precision; both endpoints' senses known.
+      * ``2b`` — glossless-proto-conductor fan-out: in a cluster with a clear
+        dominant glossed sense, a proto conductor's edges to off-dominant /
+        glossless children (the ``val`` -> ``vulva`` class the gloss screen misses).
+      * ``both`` (default) — the union.
+    """
     by_id = _load_clustered_corpus(conn)
     clusters: dict[int, list[int]] = defaultdict(list)
     for eid, rec in by_id.items():
         clusters[rec["cognate_id"]].append(eid)
+    edges_by_cluster = _load_cluster_edges(conn)
 
     out: dict[str, DescentAuditCandidate] = {}
     processed = 0
@@ -161,49 +233,40 @@ def detect_descent_audit_candidates(
         if len(ids) < _MIN_CLUSTER_SIZE:
             continue
         glossed = [(i, by_id[i]["tokens"]) for i in ids if by_id[i]["tokens"]]
-        if len(glossed) < 2:
+        if not glossed:
             continue
         groups = _sense_groups(glossed)
-        if len(groups) < 2:
-            continue  # coherent — not over-merged
-        if limit_clusters is not None and processed >= limit_clusters:
-            break
-        processed += 1
         gidx: dict[int, int] = {}
         for gi, g in enumerate(groups):
             for i in g:
                 gidx[i] = gi
         max_size = max(len(g) for g in groups)
         top = [gi for gi in range(len(groups)) if len(groups[gi]) == max_size]
-        # A UNIQUE largest group is "dominant" — a conductor's edge into it is
-        # presumed correct (not screened). On a TIE for largest (e.g. an even
-        # 1-1 split) there is no clear dominant, so EVERY conductor->glossed edge
-        # is screened — otherwise one real sense would be silently never judged.
-        dominant = top[0] if len(top) == 1 else None
+        # A UNIQUE largest group is the dominant sense; a tie => no clear dominant.
+        unique_dom = top[0] if len(top) == 1 else None
         dom_glosses: tuple[str, ...] = tuple(
             sorted(
                 {
                     gl
-                    for gi in (top if dominant is None else [dominant])
+                    for gi in (top if unique_dom is None else [unique_dom])
                     for i in groups[gi]
                     for gl in by_id[i]["glosses"]
                 }
             )
         )[:4]
-        for p, c, etype in _cluster_edges(conn, cog):
-            gp, gc = gidx.get(p), gidx.get(c)
-            bridge = (
-                # two glossed members in different sense-groups
-                (gp is not None and gc is not None and gp != gc)
-                # un-glossed conductor -> a glossed member not in the dominant group
-                # (dominant is None on a tie => every conductor edge is screened)
-                or (gp is None and gc is not None and gc != dominant)
-                or (gc is None and gp is not None and gp != dominant)
-            )
-            if not bridge:
-                continue
-            cand = _candidate(by_id[p], by_id[c], etype, dom_glosses)
-            out.setdefault(cand.edge_key, cand)
+        edges = edges_by_cluster.get(cog, [])
+        run_2a = scope in ("2a", "both") and len(groups) >= 2
+        # 2b needs a clear dominant glossed sense (unique largest, >=2 members).
+        run_2b = scope in ("2b", "both") and unique_dom is not None and max_size >= 2
+        if not (run_2a or run_2b):
+            continue
+        if limit_clusters is not None and processed >= limit_clusters:
+            break
+        processed += 1
+        if run_2a:
+            _emit_phase2a(out, edges, gidx, unique_dom, by_id, dom_glosses)
+        if run_2b:
+            _emit_phase2b(out, edges, gidx, unique_dom, by_id, dom_glosses)
     return sorted(out.values(), key=lambda c: (c.parent_ref, c.child_ref))
 
 
