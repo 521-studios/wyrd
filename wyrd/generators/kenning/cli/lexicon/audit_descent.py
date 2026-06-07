@@ -64,7 +64,7 @@ def _load_log(audit_file: Path) -> dict[str, dict]:
         try:
             row = json.loads(line)
         except json.JSONDecodeError:
-            continue
+            continue  # skip a half-written/corrupt ledger line (e.g. crash mid-append)
         if (
             row.get("_type") == "descent_audit"
             and row.get("edge_key")
@@ -87,7 +87,7 @@ def _existing_detaches(collapse_file: Path) -> set[tuple[str, str]]:
         try:
             row = json.loads(line)
         except json.JSONDecodeError:
-            continue
+            continue  # skip a half-written/corrupt ledger line (e.g. crash mid-append)
         ref = row.get("ref")
         for parent in row.get("detach_parents") or []:
             pairs.add((ref, parent))
@@ -96,7 +96,9 @@ def _existing_detaches(collapse_file: Path) -> set[tuple[str, str]]:
 
 def _judge_with_retry(client, c):
     """Judge one candidate, one retry on transport/parse failure; None if
-    unusable (caller skips WITHOUT recording, so a re-run retries)."""
+    unusable (caller skips WITHOUT recording, so a re-run retries). Echoes the
+    last failure to stderr so a persistent Ollama outage is diagnosable rather
+    than presenting as a silently-climbing skip count."""
     from wyrd.generators.kenning.lexicon.descent_audit import (
         build_descent_judge_prompt,
         parse_descent_verdict,
@@ -116,6 +118,8 @@ def _judge_with_retry(client, c):
 
 
 def _append(fh, row: dict) -> None:
+    """Append one JSONL row and flush (crash-safe as we go). No-op when fh is
+    None (dry-run)."""
     if fh is not None:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
         fh.flush()
@@ -156,32 +160,61 @@ def _judge_fresh(client, to_judge, log, audit_fh, base_url, model) -> tuple[int,
     return judged_new, skipped
 
 
-def _emit_detaches(log, min_confidence, existing, collapse_fh, dry_run) -> dict[str, int]:
+def _merged_detach_row(child_ref: str, parents: set[str], collapse_state: dict[str, dict]) -> dict:
+    """ONE ``_collapses.jsonl`` collapse row detaching ALL ``parents`` from
+    ``child_ref``. ``collapse`` rows are last-write-wins per ``ref``, so every
+    detach for a child MUST live in a single row, and that row must PRESERVE any
+    existing fold (``into`` / ``detach_children``) for the child — else the
+    replayed net state would drop the earlier detaches or clobber the fold
+    (wyrd-rd69 reconstructibility). Unions the new parents into the child's
+    existing net collapse payload (from ``collect_collapses``) if present."""
+    from wyrd.generators.kenning.lexicon.descent_audit import LLM_DESCENT_AUDIT_DETACH_METHOD
+
+    existing = collapse_state.get(child_ref)
+    if existing:
+        row = dict(existing)
+        row["_type"] = "collapse"
+        row["ref"] = child_ref
+        row["detach_parents"] = sorted(set(row.get("detach_parents") or []) | parents)
+        return row
+    return {
+        "_type": "collapse",
+        "ref": child_ref,
+        "detach_parents": sorted(parents),
+        "method": LLM_DESCENT_AUDIT_DETACH_METHOD,
+        "reason": "descent-audit over-merge detach (wyrd-rd69); per-edge reasons in _descent_audit.jsonl",
+    }
+
+
+def _emit_detaches(
+    log, min_confidence, collapse_state, existing_pairs, collapse_fh, dry_run
+) -> dict[str, int]:
     """PASS 2 — derive edge-detaches from recorded verdicts at ``min_confidence``
-    (no LLM), deduped against detaches already in ``_collapses.jsonl``."""
+    (no LLM), GROUPED into one collapse row per child (last-write-wins safe) and
+    deduped against ``(child, parent)`` detaches already in ``_collapses.jsonl``."""
     from wyrd.generators.kenning.lexicon.descent_audit import detach_row, verdict_from_log
 
     counts = {"detaches": 0, "kept": 0, "already": 0}
+    new_parents: dict[str, set[str]] = {}
     for _edge_key, row in sorted(log.items()):
         v = verdict_from_log(row)
         if v is None:
             continue
         parent_ref, child_ref = row.get("parent_ref"), row.get("child_ref")
-        detach = detach_row(parent_ref, child_ref, v, min_confidence)
-        if detach is None:
+        # detach_row encodes the keep / below-threshold gate (returns None to skip).
+        if detach_row(parent_ref, child_ref, v, min_confidence) is None:
             counts["kept"] += 1
             continue
-        if (child_ref, parent_ref) in existing:
+        if (child_ref, parent_ref) in existing_pairs:
             counts["already"] += 1
             continue
-        counts["detaches"] += 1
-        existing.add((child_ref, parent_ref))
+        new_parents.setdefault(child_ref, set()).add(parent_ref)
+    for child_ref, parents in sorted(new_parents.items()):
+        counts["detaches"] += len(parents)
         if dry_run:
-            click.echo(
-                f"  [DETACH] {parent_ref} -> {child_ref} {v.confidence} ({v.reason})", err=True
-            )
+            click.echo(f"  [DETACH] {child_ref}  detach_parents={sorted(parents)}", err=True)
         else:
-            _append(collapse_fh, detach)
+            _append(collapse_fh, _merged_detach_row(child_ref, parents, collapse_state))
     return counts
 
 
@@ -207,7 +240,12 @@ def _emit_detaches(log, min_confidence, existing, collapse_fh, dry_run) -> dict[
     show_default=True,
     help="Verdict log (idempotency + audit trail).",
 )
-@click.option("--model", default="gemma4:26b", show_default=True, help="Ollama judge model.")
+@click.option(
+    "--model",
+    default="gemma4:26b",
+    show_default=True,
+    help="Ollama model. gemma4:26b judges this task best; qwen2.5:7b is a JSON fallback.",
+)
 @click.option(
     "--ollama-url",
     default=None,
@@ -240,6 +278,7 @@ def lexicon_audit_descent(
     — never re-run at rebuild."""
     from wyrd.generators.kenning.cli.utils import _readonly_lexicon
     from wyrd.generators.kenning.extractors.llm import OllamaClient
+    from wyrd.generators.kenning.jsonl.build import collect_collapses
     from wyrd.generators.kenning.lexicon.descent_audit import detect_descent_audit_candidates
 
     if db_path is None:
@@ -255,6 +294,7 @@ def lexicon_audit_descent(
 
     log = _load_log(audit_file)
     existing = _existing_detaches(collapse_file)
+    collapse_state = collect_collapses([collapse_file]) if collapse_file.exists() else {}
     to_judge = [c for c in candidates if c.edge_key not in log]
     if limit is not None:
         to_judge = to_judge[:limit]
@@ -274,7 +314,7 @@ def lexicon_audit_descent(
             audit_fh = audit_file.open("a", encoding="utf-8")
             collapse_fh = collapse_file.open("a", encoding="utf-8")
         judged_new, skipped = _judge_fresh(client, to_judge, log, audit_fh, base_url, model)
-        counts = _emit_detaches(log, min_confidence, existing, collapse_fh, dry_run)
+        counts = _emit_detaches(log, min_confidence, collapse_state, existing, collapse_fh, dry_run)
     finally:
         for fh in (audit_fh, collapse_fh):
             if fh is not None:

@@ -172,14 +172,30 @@ def detect_descent_audit_candidates(
         for gi, g in enumerate(groups):
             for i in g:
                 gidx[i] = gi
-        dominant = max(range(len(groups)), key=lambda gi: len(groups[gi]))
+        max_size = max(len(g) for g in groups)
+        top = [gi for gi in range(len(groups)) if len(groups[gi]) == max_size]
+        # A UNIQUE largest group is "dominant" — a conductor's edge into it is
+        # presumed correct (not screened). On a TIE for largest (e.g. an even
+        # 1-1 split) there is no clear dominant, so EVERY conductor->glossed edge
+        # is screened — otherwise one real sense would be silently never judged.
+        dominant = top[0] if len(top) == 1 else None
         dom_glosses: tuple[str, ...] = tuple(
-            sorted({gl for i in groups[dominant] for gl in by_id[i]["glosses"]})
+            sorted(
+                {
+                    gl
+                    for gi in (top if dominant is None else [dominant])
+                    for i in groups[gi]
+                    for gl in by_id[i]["glosses"]
+                }
+            )
         )[:4]
         for p, c, etype in _cluster_edges(conn, ids):
             gp, gc = gidx.get(p), gidx.get(c)
             bridge = (
+                # two glossed members in different sense-groups
                 (gp is not None and gc is not None and gp != gc)
+                # un-glossed conductor -> a glossed member not in the dominant group
+                # (dominant is None on a tie => every conductor edge is screened)
                 or (gp is None and gc is not None and gc != dominant)
                 or (gc is None and gp is not None and gp != dominant)
             )
