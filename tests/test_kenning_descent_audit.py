@@ -319,20 +319,14 @@ def test_load_log_filters_and_skips_malformed(tmp_path):
     assert cli._load_log(tmp_path / "absent.jsonl") == {}
 
 
-def test_existing_detaches_collects_child_parent_pairs(tmp_path):
-    f = tmp_path / "_collapses.jsonl"
-    f.write_text(
-        "\n".join(
-            [
-                json.dumps({"_type": "collapse", "ref": "a:c", "detach_parents": ["a:p1", "a:p2"]}),
-                json.dumps({"_type": "collapse", "ref": "a:d", "into": "a:e"}),  # no detach
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    pairs = cli._existing_detaches(f)
-    assert pairs == {("a:c", "a:p1"), ("a:c", "a:p2")}
+def test_existing_detach_pairs_from_lww_state():
+    """Pairs come from the LWW net collapse state (not a raw file scan), so a
+    detach a later row dropped is correctly absent."""
+    collapse_state = {
+        "a:c": {"_type": "collapse", "ref": "a:c", "detach_parents": ["a:p1", "a:p2"]},
+        "a:d": {"_type": "collapse", "ref": "a:d", "into": "a:e"},  # fold, no detach
+    }
+    assert cli._existing_detach_pairs(collapse_state) == {("a:c", "a:p1"), ("a:c", "a:p2")}
 
 
 def test_judge_fresh_aborts_after_five_consecutive_failures(monkeypatch):

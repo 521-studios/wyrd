@@ -76,27 +76,16 @@ def _load_log(audit_file: Path) -> dict[str, dict]:
     return log
 
 
-def _existing_detaches(collapse_file: Path) -> set[tuple[str, str]]:
-    """``(child_ref, parent_ref)`` pairs already detached in ``_collapses.jsonl``,
-    so a re-run at a lower threshold doesn't append a duplicate detach."""
-    pairs: set[tuple[str, str]] = set()
-    if not collapse_file.exists():
-        return pairs
-    with collapse_file.open("r", encoding="utf-8") as fh:  # stream — the ledger can grow large
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue  # skip a half-written/corrupt ledger line (e.g. crash mid-append)
-            if not isinstance(row, dict):
-                continue
-            ref = row.get("ref")
-            for parent in row.get("detach_parents") or []:
-                pairs.add((ref, parent))
-    return pairs
+def _existing_detach_pairs(collapse_state: dict[str, dict]) -> set[tuple[str, str]]:
+    """``(child_ref, parent_ref)`` pairs already detached in the NET collapse
+    state, so a re-run at a lower threshold doesn't re-append. Derived from the
+    last-write-wins ``collect_collapses`` state (NOT a raw file scan), so a detach
+    that a later row dropped is correctly NOT counted as still-present."""
+    return {
+        (ref, parent)
+        for ref, row in collapse_state.items()
+        for parent in row.get("detach_parents") or []
+    }
 
 
 def _judge_with_retry(client, c):
@@ -299,8 +288,8 @@ def lexicon_audit_descent(
         candidates = detect_descent_audit_candidates(conn, limit_clusters=limit_clusters)
 
     log = _load_log(audit_file)
-    existing = _existing_detaches(collapse_file)
     collapse_state = collect_collapses([collapse_file]) if collapse_file.exists() else {}
+    existing = _existing_detach_pairs(collapse_state)
     to_judge = [c for c in candidates if c.edge_key not in log]
     if limit is not None:
         to_judge = to_judge[:limit]
