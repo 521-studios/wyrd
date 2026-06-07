@@ -28,6 +28,7 @@ import click
 from wyrd.generators.kenning.cli.lexicon import (
     adjudicate_element_glosses as _adjudicate_element_glosses_module,
 )
+from wyrd.generators.kenning.cli.lexicon import audit_descent as _audit_descent_module
 from wyrd.generators.kenning.cli.lexicon import (
     audit_etymology_alignment as _audit_etymology_alignment_module,
 )
@@ -222,6 +223,7 @@ def lexicon() -> None:
 # (exposing add_to(parent)) and adding a one-line module import + a
 # `<name>_module.add_to(lexicon)` call below. The browse sub-group
 # follows the same pattern at the package level (cli/lexicon/browse/).
+_audit_descent_module.add_to(lexicon)
 _audit_etymology_alignment_module.add_to(lexicon)
 _audit_merges_module.add_to(lexicon)
 _audit_reflexes_module.add_to(lexicon)
