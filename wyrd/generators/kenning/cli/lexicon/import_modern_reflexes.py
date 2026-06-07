@@ -42,10 +42,10 @@ def lexicon_import_modern_reflexes(db_path, jsonl, do_apply):
     else:
         env_path = os.environ.get("WYRD_LEXICON_DB")
         db_file = Path(env_path) if env_path else Path.home() / ".wyrd" / "lexicon.db"
-    if not db_file.exists():
+    if not db_file.is_file():
         raise click.ClickException(f"Lexicon DB not found: {db_file}")
     jsonl_file = Path(jsonl)
-    if not jsonl_file.exists():
+    if not jsonl_file.is_file():
         raise click.ClickException(f"Curated reflex file not found: {jsonl_file}")
 
     with LexiconDB(db_file) as db:

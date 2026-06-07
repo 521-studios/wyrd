@@ -41,7 +41,7 @@ def import_modern_reflexes(db, jsonl_path: str | Path, *, apply: bool = True) ->
     counts dict. ``apply=False`` reports what WOULD change without writing."""
     path = Path(jsonl_path)
     counts: Counter = Counter()
-    if not path.exists():
+    if not path.is_file():
         return {"file_missing": 1}
 
     conn = db.conn
@@ -52,7 +52,7 @@ def import_modern_reflexes(db, jsonl_path: str | Path, *, apply: bool = True) ->
             notes="Curated OE/ON/OF/ME morpheme -> modern-English reflex links (wyrd-vewk).",
         )
 
-    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    for lineno, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
         if not line.strip():
             continue
         try:
