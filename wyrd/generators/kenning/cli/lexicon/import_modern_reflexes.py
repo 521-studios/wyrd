@@ -45,8 +45,8 @@ def lexicon_import_modern_reflexes(db_path, jsonl, do_apply):
     if not db_file.exists():
         raise click.ClickException(f"Lexicon DB not found: {db_file}")
 
-    db = LexiconDB(db_file)
-    counts = import_modern_reflexes(db, jsonl, apply=do_apply)
+    with LexiconDB(db_file) as db:
+        counts = import_modern_reflexes(db, jsonl, apply=do_apply)
     mode = "APPLIED" if do_apply else "DRY-RUN (pass --apply to write)"
     click.echo(f"import-modern-reflexes [{mode}] {db_file}", err=True)
     for k in sorted(counts):

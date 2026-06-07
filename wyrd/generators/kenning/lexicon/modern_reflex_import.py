@@ -6,14 +6,14 @@ their cognate cluster/descent, so their era-grid modern cell renders empty
 _modern_reflexes.jsonl`` is a hand-curated, referenced L2 source mapping each
 such morpheme to its modern-English reflex form(s). This importer lands it.
 
-For every entry with ``modern_forms`` it, per form:
+For every entry with ``modern_forms``, per form it:
   * upserts a modern-english etymon (``canonical_form=form``), attaching the
     curated gloss + a citation to the synthetic ``modern-reflex-curation``
     source;
-  * adds an ``inheritance`` ``etymon_descent`` edge morpheme -> reflex (the
-    provenance + the source ``cluster_cognates`` re-derives the cluster from on
-    a from-scratch rebuild, and the ``etymon_era_reflexes`` Tier-2 path uses for
-    un-clustered morphemes);
+  * adds an ``inheritance`` ``etymon_descent`` edge morpheme -> reflex. This
+    edge is the durable provenance: ``cluster_cognates`` re-derives the cluster
+    from it on a from-scratch rebuild, and the ``etymon_era_reflexes`` Tier-2
+    path uses it to surface the reflex for un-clustered morphemes;
   * when the morpheme is in a cognate cluster and the (new) reflex isn't,
     sets ``reflex.cognate_id = morpheme.cognate_id`` so the era-grid Tier-1
     (cluster) lookup surfaces it immediately — this is exactly what
@@ -52,10 +52,13 @@ def import_modern_reflexes(db, jsonl_path: str | Path, *, apply: bool = True) ->
             notes="Curated OE/ON/OF/ME morpheme -> modern-English reflex links (wyrd-vewk).",
         )
 
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip():
             continue
-        row = json.loads(line)
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{path}:{lineno}: malformed JSONL: {exc}") from exc
         if row.get("_type") != "modern_reflex":
             continue
         forms = row.get("modern_forms") or []
@@ -81,14 +84,16 @@ def import_modern_reflexes(db, jsonl_path: str | Path, *, apply: bool = True) ->
             if existing is not None:
                 reflex_id, reflex_cog = existing[0], existing[1]
                 counts["reflex_existing"] += 1
-            elif apply:
-                reflex_id = db.upsert_etymon(form, "modern-english")
-                reflex_cog = None
-                counts["reflex_created"] += 1
             else:
-                counts["reflex_would_create"] += 1
-                continue
+                reflex_cog = None
+                if apply:
+                    reflex_id = db.upsert_etymon(form, "modern-english")
+                    counts["reflex_created"] += 1
+                else:
+                    counts["reflex_would_create"] += 1
             if not apply:
+                # total links this run WOULD make (both existing + to-create
+                # reflexes); reflex_existing/reflex_would_create give the split.
                 counts["would_link"] += 1
                 continue
             if row.get("gloss"):

@@ -33,7 +33,6 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import audit_merges as _audit_merges_module
 from wyrd.generators.kenning.cli.lexicon import audit_reflexes as _audit_reflexes_module
-from wyrd.generators.kenning.cli.lexicon import import_modern_reflexes as _import_modern_reflexes_module
 from wyrd.generators.kenning.cli.lexicon import (
     audit_semantic_coherence as _audit_semantic_coherence_module,
 )
@@ -109,6 +108,9 @@ from wyrd.generators.kenning.cli.lexicon import fetch_bulk_sources as _fetch_bul
 from wyrd.generators.kenning.cli.lexicon import fold_variants as _fold_variants_module
 from wyrd.generators.kenning.cli.lexicon import fuzzy_search as _fuzzy_search_module
 from wyrd.generators.kenning.cli.lexicon import import_mining_log as _import_mining_log_module
+from wyrd.generators.kenning.cli.lexicon import (
+    import_modern_reflexes as _import_modern_reflexes_module,
+)
 from wyrd.generators.kenning.cli.lexicon import (
     ingest_briggs_personal_names as _ingest_briggs_personal_names_module,
 )
@@ -223,7 +225,6 @@ def lexicon() -> None:
 _audit_etymology_alignment_module.add_to(lexicon)
 _audit_merges_module.add_to(lexicon)
 _audit_reflexes_module.add_to(lexicon)
-_import_modern_reflexes_module.add_to(lexicon)
 _audit_semantic_coherence_module.add_to(lexicon)
 _audit_short_quotes_module.add_to(lexicon)
 _cleanup_wiktionary_empirical_module.add_to(lexicon)
@@ -279,6 +280,7 @@ _ingest_speed_1611_module.add_to(lexicon)
 _ingest_toponym_mentions_module.add_to(lexicon)
 _ingest_wiktionary_module.add_to(lexicon)
 _import_mining_log_module.add_to(lexicon)
+_import_modern_reflexes_module.add_to(lexicon)
 _language_report_module.add_to(lexicon)
 _link_lemmas_module.add_to(lexicon)
 _lookup_attested_years_module.add_to(lexicon)

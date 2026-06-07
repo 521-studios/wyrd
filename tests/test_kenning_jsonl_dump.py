@@ -1188,6 +1188,25 @@ def test_default_bulk_excluded_sources_excludes_fantasy_mining_from_dump_all():
     assert "skeat" in sids
 
 
+def test_default_bulk_excluded_sources_excludes_modern_reflex_curation():
+    """A rebuilt DB carries a ``modern-reflex-curation`` row in ``source``
+    (inserted by ``import-modern-reflexes`` from ``_modern_reflexes.jsonl``).
+    Without the exclusion, dump_all_sources would emit a competing per-source
+    ``modern-reflex-curation.jsonl`` (lacking the enrichment-derived cognate_id)
+    alongside the curated file — pins the wyrd-vewk exclusion."""
+    from wyrd.generators.kenning.jsonl.dump import DEFAULT_BULK_EXCLUDED_SOURCES
+
+    assert "modern-reflex-curation" in DEFAULT_BULK_EXCLUDED_SOURCES
+
+    conn = _build_fixture_db()
+    _add_source(conn, id="modern-reflex-curation", title="Curated modern-English reflexes")
+    _add_source(conn, id="skeat", title="Skeat")
+
+    sids = list_source_ids(conn, exclude=DEFAULT_BULK_EXCLUDED_SOURCES)
+    assert "modern-reflex-curation" not in sids
+    assert "skeat" in sids
+
+
 # ---------------------------------------------------------------------
 # wyrd-2t28: orphan-attestation telemetry
 # ---------------------------------------------------------------------
