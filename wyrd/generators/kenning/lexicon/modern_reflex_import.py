@@ -98,7 +98,8 @@ def import_modern_reflexes(db, jsonl_path: str | Path, *, apply: bool = True) ->
                 continue
             if row.get("gloss"):
                 db.add_gloss(reflex_id, row["gloss"])
-            db.add_citation(reflex_id, MODERN_REFLEX_SOURCE)
+            # preserve the curated scholarly reference as the citation provenance.
+            db.add_citation(reflex_id, MODERN_REFLEX_SOURCE, short_quote=row.get("reference"))
             conn.execute(
                 "INSERT OR IGNORE INTO etymon_descent"
                 "(parent_id, child_id, edge_type, source_id, confidence, notes) "

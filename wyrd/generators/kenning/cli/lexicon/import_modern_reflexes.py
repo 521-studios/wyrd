@@ -44,9 +44,12 @@ def lexicon_import_modern_reflexes(db_path, jsonl, do_apply):
         db_file = Path(env_path) if env_path else Path.home() / ".wyrd" / "lexicon.db"
     if not db_file.exists():
         raise click.ClickException(f"Lexicon DB not found: {db_file}")
+    jsonl_file = Path(jsonl)
+    if not jsonl_file.exists():
+        raise click.ClickException(f"Curated reflex file not found: {jsonl_file}")
 
     with LexiconDB(db_file) as db:
-        counts = import_modern_reflexes(db, jsonl, apply=do_apply)
+        counts = import_modern_reflexes(db, jsonl_file, apply=do_apply)
     mode = "APPLIED" if do_apply else "DRY-RUN (pass --apply to write)"
     click.echo(f"import-modern-reflexes [{mode}] {db_file}", err=True)
     for k in sorted(counts):
