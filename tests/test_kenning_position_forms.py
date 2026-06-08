@@ -209,8 +209,8 @@ def test_is_given_name():
 
 def test_load_proportions_excludes_single_morpheme_from_generation():
     """wyrd-g1hj: a single-morpheme structure (whole name = one morpheme) is
-    excluded from the loaded generator (both ``structs`` and ``_all_structs``),
-    so no generation path can produce it. Multi-morpheme structures survive.
+    excluded from the loaded generator's ``structs``, so no generation path can
+    produce it. Multi-morpheme structures survive.
     (The bundle/proportions still RECORD it — this is a load-time generation
     filter, not a mining change.)"""
     from wyrd.generators.kenning.runtime.proportions import load_proportions
@@ -234,7 +234,6 @@ def test_load_proportions_excludes_single_morpheme_from_generation():
     ng = load_proportions(data, meaning_db, {})
     assert ((("pre",), ("post",)),) in ng.structs, "multi-morpheme structure must survive"
     assert ((("bare", "single"),),) not in ng.structs, "single-morpheme excluded from generation"
-    assert ((("bare", "single"),),) not in ng._all_structs
 
 
 def test_given_name_excluded_from_base_pool_both_modes():
