@@ -828,10 +828,9 @@ def vector_to_json(v: PhonologicalVector) -> str:
         "stop_vs_continuant": round(v.stop_vs_continuant, 4),
         "aspirated_voiceless": round(v.aspirated_voiceless, 4),
         # wyrd-119p + wyrd-mkry new dimensions. Older stored blobs
-        # missing these will round-trip through vector_from_json with
-        # 0.0 defaults — that path's tolerance is the back-compat
-        # seam until the enrichment pass is re-run against the
-        # corpus.
+        # missing these deserialize with 0.0 defaults — that
+        # tolerance is the back-compat seam until the enrichment pass
+        # is re-run against the corpus.
         "liquid_l_m_n": round(v.liquid_l_m_n, 4),
         "rhotic_r": round(v.rhotic_r, 4),
         "vowel_tenseness": round(v.vowel_tenseness, 4),
@@ -839,15 +838,3 @@ def vector_to_json(v: PhonologicalVector) -> str:
     if v.extras:
         payload["extras"] = {k: round(val, 4) for k, val in v.extras.items()}
     return json.dumps(payload, sort_keys=True)
-
-
-def vector_from_json(blob: str) -> PhonologicalVector:
-    """Deserialize a JSON blob produced by :func:`vector_to_json`.
-
-    Tolerant of older blobs that omit dimensions added since the JSON
-    was written — missing dimensions default to 0.0 (the corpus mean).
-    """
-    data = json.loads(blob)
-    extras = data.pop("extras", None) or {}
-    kwargs: dict[str, float | dict[str, float]] = {k: float(v) for k, v in data.items()}
-    return PhonologicalVector(extras=dict(extras), **kwargs)  # type: ignore[arg-type]

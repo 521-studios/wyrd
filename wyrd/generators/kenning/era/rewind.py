@@ -741,7 +741,7 @@ def _pick_form(morpheme: MorphemeRewind) -> str:
     return raw.strip("-")
 
 
-def supported_eras_for_family(family: str) -> tuple[str, ...]:
+def supported_eras_for_family(family: str) -> tuple[str, ...]:  # noqa: V103 — public era-stop accessor pinned by tests
     """Return the cell labels available for ``family`` per ERA_CELLS.
     Lets callers (CLI, future SPA) enumerate valid era stops without
     duplicating the era_cells_for_family lookup."""

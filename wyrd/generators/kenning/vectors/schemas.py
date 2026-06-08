@@ -300,30 +300,6 @@ class RegisterEffect:
             position_bias_tiers=dict(self.position_bias_tiers),
         )
 
-    def tier_for(self, axis: str, dim: str) -> str:
-        """wyrd-we1u: look up the tier for a single (axis, dim) pair.
-
-        ``axis`` is one of ``"phonological"`` / ``"semantic_tags"`` /
-        ``"position_bias"``. ``dim`` is the per-axis key (e.g.
-        ``"cluster_density"``, ``"death"``). Returns the catalog-
-        assigned tier string or ``"untagged"`` when no metadata
-        exists for that key. Stable consumer API — tier-filtered
-        generation + audit-trail exporters call through this rather
-        than reaching into the parallel dicts directly so a future
-        schema change to a wrapped per-weight shape won't break
-        their call sites.
-        """
-        if axis == "phonological":
-            return self.phonological_tiers.get(dim, UNTAGGED_TIER)
-        if axis == "semantic_tags":
-            return self.semantic_tag_tiers.get(dim, UNTAGGED_TIER)
-        if axis == "position_bias":
-            return self.position_bias_tiers.get(dim, UNTAGGED_TIER)
-        raise ValueError(
-            f"unknown axis {axis!r}; expected 'phonological' / 'semantic_tags' / 'position_bias'"
-        )
-
-
 def compose_register_effects(effects: list[RegisterEffect]) -> RegisterEffect:
     """Sum a list of register effects component-wise, clamping the
     result to [-1, +1] per dimension. Returns a synthetic 'composed'
@@ -678,51 +654,3 @@ class EmpiricalPriors:
     native: dict[NativePriorsKey, dict[str, float]] = field(default_factory=dict)
     loan_relationship: dict[LoanPriorsKey, dict[str, float]] = field(default_factory=dict)
     version: str = "unversioned"
-
-
-# ---- cohesion adapter (D17 integration) ---------------------------------
-
-
-@dataclass(frozen=True)
-class CohesionContext:
-    """Slot-by-slot D17 cohesion context, threaded through generation
-    (ecjp.1 adapter design).
-
-    The vector-driven generator preserves D17's tag-class-prior
-    mechanism via a wrapper around per-slot scoring. For each slot
-    after the first, the cohesion adapter computes a per-lemma
-    multiplier (the ``key_boost`` of the existing Generator.select API)
-    from the tag co-occurrence model conditioned on previously-picked
-    lemmas, then applies it to the per-lemma vector score BEFORE the
-    novelty blend.
-
-    ``picked_tags`` is the accumulated tag set from earlier slots in
-    the current name being assembled. ``novelty`` is the D17 novelty
-    knob — at 0.0 the result is pure cohesion-boosted empirical; at 1.0
-    the result is uniform-over-eligible (full marginal). The blend
-    semantics match the existing Generator.select implementation; see
-    DECISIONS.md D17 for the realized-vs-textbook math.
-
-    The cohesion adapter sits between Phase 4 (vector scoring) and
-    Phase 5 (NameGenerator rewrite): Phase 4 produces per-lemma vector
-    scores, the cohesion adapter wraps them with the context-conditional
-    boost, Phase 5 calls the wrapped scorer in its slot walk.
-
-    No new D-entry for cohesion — D17 stays the canonical decision;
-    this struct is the API hook that lets the vector-driven generator
-    plug into it without re-implementing the mixture math.
-    """
-
-    picked_tags: frozenset[str] = frozenset()
-    novelty: float = 0.0
-
-    def __post_init__(self) -> None:
-        # Validate the documented [0, 1] novelty range — out-of-bounds
-        # values produce silently-degraded sampling downstream (the
-        # mixture math at novelty<0 amplifies empirical weights into
-        # near-determinism; at novelty>1 the sampling math goes
-        # negative-uniform and turns into noise). Raise loudly here
-        # so the CLI / API layer surfaces operator mistakes (e.g. a
-        # `--novelty 1.5` typo) at request construction time.
-        if not 0.0 <= self.novelty <= 1.0:
-            raise ValueError(f"novelty must be in [0.0, 1.0]; got {self.novelty!r}")

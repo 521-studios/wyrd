@@ -510,7 +510,7 @@ def _prefer_culture_aligned(
     return [d for s, d in scores if s == best]
 
 
-def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:
+def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:  # noqa: V103 — public single-answer decomposition API; tests pin tiebreakers (PR #498 triage)
     """Return ONE 'best' decomposition for ``word`` against the trie —
     the deterministic single-answer variant of
     ``canonical_decompositions``. Use this when the caller wants one
@@ -567,7 +567,7 @@ def _decomposition_score(decomposition: list[Any]) -> tuple[int, int, int, int]:
     return (unaccounted_chars, morpheme_count, first_meaning_pos, first_meaning_len)
 
 
-def iter_morphemes(decomposition: Iterable[Any]) -> Iterable[Any]:
+def iter_morphemes(decomposition: Iterable[Any]) -> Iterable[Any]:  # noqa: V103 — public morpheme iterator; tests pin behavior (PR #498 triage)
     """Yield only the Meaning elements of a decomposition, dropping
     unaccounted fragments. Convenience for callers that want the
     matched morpheme sequence (e.g. proportions training)."""

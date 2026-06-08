@@ -348,5 +348,5 @@ def test_load_meanings_round_trips_pr290_new_dimensions():
     assert vec.rhotic_r == 0.25
     assert vec.vowel_tenseness == 1.0
     assert vec.cluster_density == 0.2
-    # Unspecified dims default to 0.0 (vector_from_json tolerance).
+    # Unspecified dims default to 0.0 (deserialize tolerance).
     assert vec.soft_consonants == 0.0

@@ -1170,24 +1170,6 @@ class NameGenerator:
             out[bucket_key] = dict(gen.elements)
         return out
 
-    def list_structures(self) -> list[dict]:
-        """All structure templates (INCLUDING the wyrd-zzli-filtered ones),
-        each as a readable label passable to ``force_structure``, sorted by
-        weight. Intended to feed a future SPA Advanced 'force structure'
-        dropdown (the CLI/API/SPA wiring is not landed yet — wyrd-5z5j
-        force-structure backend; the consumer is a follow-up)."""
-        total = sum(self._all_structs.values()) or 1
-        return [
-            {
-                "label": structure_key_to_label(key),
-                "weight": weight,
-                "proportion": weight / total,
-                "words": len(key),
-                "grammatical": is_structurally_grammatical(key),
-            }
-            for key, weight in sorted(self._all_structs.items(), key=lambda kv: -kv[1])
-        ]
-
     @staticmethod
     def _resolve_forced_structure(force_structure: str | tuple | list) -> tuple:
         """A force_structure arg (label string or key tuple) → a struct key.
@@ -1328,7 +1310,7 @@ class NameGenerator:
             if struct not in self._all_structs:
                 raise ValueError(
                     f"force_structure {force_structure!r} is not a known "
-                    "template; call list_structures() for valid labels"
+                    "template"
                 )
         else:
             items = list(self.structs.items())
@@ -2741,7 +2723,7 @@ _LOC_TO_DASHES = {"pre": ("", "-"), "post": ("-", ""), "inner": ("-", "-"), "bar
 _DASHES_TO_LOC = {(lead != "", trail != ""): loc for loc, (lead, trail) in _LOC_TO_DASHES.items()}
 
 
-def structure_key_to_label(key: tuple) -> str:
+def structure_key_to_label(key: tuple) -> str:  # noqa: V103 — test-pinned inverse of the live structure_label_to_key (PR #498 triage)
     """Render a structure key as a readable template string."""
     words_out: list[str] = []
     n = 0

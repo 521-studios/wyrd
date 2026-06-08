@@ -377,7 +377,7 @@ class RealismReport:
     decomposition_rate: float = 0.0
 
 
-def compute_realism_report(
+def compute_realism_report(  # noqa: V103 — feeds the absolute corpus-realism CI gate
     culture: str,
     samples: Iterable[NameSample],
     reference,

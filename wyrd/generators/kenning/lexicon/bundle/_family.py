@@ -694,45 +694,6 @@ def _fetch_member_tags(db: LexiconDB, member_ids: list[int]) -> list[str]:
     ]
 
 
-def _fetch_cluster_mate_tags(db: LexiconDB, root_id: int) -> list[str]:
-    """wyrd-i1s1: tags from cognate-cluster mates of ``root_id``.
-
-    The family rollup (``_build_family_rollup``) traverses
-    ``merged_into_id`` and ``lemma_id`` chains only — cluster mates
-    sharing a ``cognate_id`` are SEPARATE family roots. Their tags
-    don't surface in the rolled-up family's tag list.
-
-    But cluster mates of a promoted OE root (typically ME / ModE
-    cognates that didn't pass the per-language witness threshold on
-    their own) carry valuable semantic-tag signal that the bundle
-    consumer ought to see attached to the bundle subject the OE root
-    grounds. This helper pulls those tags so they can be merged into
-    ``family["tags"]`` alongside ``_fetch_member_tags``'s output.
-
-    Excludes the root itself (its tags ride in via ``_fetch_member_tags``)
-    and OCR-merge tombstones. Returns an empty list when the root has
-    no ``cognate_id`` (no cluster) — most non-promoted etymons.
-    """
-    return [
-        row["tag"]
-        for row in db.conn.execute(
-            """
-            SELECT DISTINCT t.tag
-            FROM etymon mate
-            JOIN etymon_tag t ON t.etymon_id = mate.id
-            WHERE mate.cognate_id = (
-                SELECT cognate_id FROM etymon WHERE id = ?
-              )
-              AND mate.cognate_id IS NOT NULL
-              AND mate.id != ?
-              AND mate.merged_into_id IS NULL
-            ORDER BY t.tag
-            """,
-            (root_id, root_id),
-        )
-    ]
-
-
 def _fetch_member_reflex_links(db: LexiconDB, member_ids: list[int]) -> dict[int, list[int]]:
     """Per-reflex linked etymon ids (within this family).
 

@@ -122,3 +122,9 @@ ignore_decorators = [
 # Deliberate single-symbol keeps are suppressed inline at the definition with
 # `# noqa: V103` (vulture respects # noqa; V103 = unused function/method),
 # not listed here — keeps the suppression next to the code it protects.
+# EXCEPTION: vulture's # noqa is NOT honored on DECORATED methods (it reports
+# the decorator line and ignores a noqa on either the decorator or the def), so
+# decorated keeps must be listed here by name instead.
+ignore_names = [
+    "from_in_memory",  # @classmethod in-memory test constructor (SnippetExpander)
+]

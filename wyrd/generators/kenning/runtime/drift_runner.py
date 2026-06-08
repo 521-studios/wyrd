@@ -160,7 +160,7 @@ def run_drift_samples(
     return samples_proportions, samples_vector
 
 
-def run_realism_samples(
+def run_realism_samples(  # noqa: V103 — engine of the absolute corpus-realism CI gate (test is the consumer)
     *,
     culture: str,
     count: int,
