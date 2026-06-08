@@ -40,7 +40,7 @@ _COLLAPSE_SOURCE_ROW = {
 
 
 def _ensure_source(path: Path, source_row: dict) -> None:
-    if path.exists():
+    if path.exists() and path.stat().st_size > 0:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:

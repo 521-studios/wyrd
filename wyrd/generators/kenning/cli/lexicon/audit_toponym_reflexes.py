@@ -36,7 +36,7 @@ _COLLAPSE_SOURCE_ROW = {
 
 
 def _ensure_source(path: Path, source_row: dict) -> None:
-    if path.exists():
+    if path.exists() and path.stat().st_size > 0:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
@@ -205,7 +205,15 @@ def _emit_detaches(log, min_confidence, collapse_state, existing_pairs, collapse
 @click.option("--limit", type=int, default=None, help="Cap forms judged this run.")
 @click.option("--dry-run", is_flag=True, default=False, help="Judge + print; write nothing.")
 def lexicon_audit_toponym_reflexes(
-    db_path, collapse_file, audit_file, model, ollama_url, min_confidence, over_merged, limit, dry_run
+    db_path,
+    collapse_file,
+    audit_file,
+    model,
+    ollama_url,
+    min_confidence,
+    over_merged,
+    limit,
+    dry_run,
 ):
     """LLM-audit modern era-grid reflexes for toponym-plausibility and detach the
     unrelated cluster-merged ones (wyrd-1wv2)."""

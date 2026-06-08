@@ -76,7 +76,7 @@ def _bridging_parents(conn: sqlite3.Connection, child_id: int, by_id: dict[int, 
         f"SELECT parent_id FROM etymon_descent WHERE child_id=? AND edge_type IN ({ph})",
         (child_id, *_BRIDGING_EDGES),
     ):
-        pr = by_id.get(r["parent_id"])
+        pr = by_id.get(r[0])  # positional: parent_id is the only column (row_factory-agnostic)
         if pr is None or pr["cognate_id"] != cog or pr["lang"] in _NON_BRIDGING_LANGUAGES:
             continue
         parents.append(pr["ref"])
