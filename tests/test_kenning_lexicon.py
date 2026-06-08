@@ -10433,7 +10433,7 @@ def test_export_meanings_partial_english_shaped_emits_only_populated(fresh_db: P
     populated forms. The unmapped form survives in the language form
     array but doesn't pollute the english_shaped sibling. Pinning the
     rule so the runtime can detect 'this form has no shaping' via
-    Meaning.english_shaped_for(...) returning None."""
+    an absent Meaning.english_shaped[lang] entry."""
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="rando-port", title="rando")
         _seed_subject(

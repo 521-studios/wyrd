@@ -213,7 +213,7 @@ class ReplayState:
 
         Order: every keyed type in ``KEYED_TYPES`` declaration order,
         sorted by ref; then every list type in ``LIST_TYPES`` order,
-        preserving insertion order. This is the shape :func:`compact`
+        preserving insertion order. This is the shape :func:`compact_file`
         writes back to disk.
         """
         out: list[dict[str, Any]] = []

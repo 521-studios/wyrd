@@ -274,9 +274,8 @@ def _copy_effect(effect: RegisterEffect) -> RegisterEffect:
 
     ``RegisterEffect`` is frozen but holds mutable ``dict[str, float]``
     fields; this rebuild gives each caller fresh dicts to mutate
-    without affecting the source instance. Used by ``_copy_catalog``
-    and ``get_register_effect`` to enforce mutation isolation against
-    the cached canonical form.
+    without affecting the source instance. Used by ``get_register_effect``
+    to enforce mutation isolation against the cached canonical form.
     """
     return RegisterEffect(
         name=effect.name,

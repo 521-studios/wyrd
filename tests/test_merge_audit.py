@@ -141,6 +141,18 @@ def test_detect_dedup_across_sources(tmp_path):
 # --- verdict routing -------------------------------------------------------
 
 
+def test_revert_rows_lemma_provenance_keys_lemma_ref():
+    """PROV_LEMMA wrong-merge revert routes to a curation row keyed
+    ``lemma_ref`` (not ``merged_into_ref``), with no collapse row. Re-pins the
+    provenance ternary in the live ``revert_rows`` after ``audit_verdict_to_rows``
+    — its former sole test caller — was removed in the PR #498 dead-code audit."""
+    v = MergeAuditVerdict(correct=False, confidence="high", reason="distinct")
+    collapse, curation = revert_rows("oe:streamX", PROV_LEMMA, v, "medium")
+    assert collapse is None
+    assert curation["lemma_ref"] is None
+    assert "merged_into_ref" not in curation
+
+
 # --- raw-verdict round-trip: emit high now, re-derive medium later -----------
 
 

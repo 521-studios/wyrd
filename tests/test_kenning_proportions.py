@@ -116,6 +116,23 @@ def test_structure_label_round_trips():
         assert structure_label_to_key(structure_key_to_label(key)) == key
 
 
+def test_name_generator_init_filters_structs_but_retains_all_structs():
+    """wyrd-zzli/wyrd-5z5j: NameGenerator.__init__ drops ungrammatical shapes
+    from the sampling pool (``self.structs``) but retains them in
+    ``self._all_structs`` so ``force_structure`` (validated in ``select``)
+    can still surface them. Re-pins this live __init__ split after
+    ``list_structures()`` — its former sole test vehicle — was removed in
+    the PR #498 dead-code audit."""
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
+
+    mg = MeaningGenerator({}, {}, {})
+    # one grammatical (bare standalone word) + one wyrd-zzli-filtered (single
+    # standalone pre attachment).
+    structs = {((("bare", "single"),),): 7, ((("pre", "single"),),): 3}
+    ng = NameGenerator({}, mg, structs)
+    assert len(ng.structs) == 1 and len(ng._all_structs) == 2
+
+
 def test_resolve_forced_structure_label_and_nested_list():
     """wyrd-5z5j: _resolve_forced_structure accepts a label string (delegating
     to structure_label_to_key) and a nested-list key (JSON-shaped), recursively

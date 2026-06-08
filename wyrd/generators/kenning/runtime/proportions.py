@@ -1077,8 +1077,8 @@ class NameGenerator:
         # (re-exported as ``_encode_structs`` from ``cli.rebuild_proportions``)
         # prevents future rebuilds from emitting them; this runtime gate
         # defends against bundles built before that data fix lands.
-        # wyrd-5z5j: retain the UNFILTERED structures so list_structures() /
-        # force_structure can surface + use shapes the wyrd-zzli filter drops.
+        # wyrd-5z5j: retain the UNFILTERED structures so force_structure
+        # can surface + use shapes the wyrd-zzli filter drops.
         self._all_structs = dict(structs)
         self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
         # Loud-failure guard (generator-contract-reviewer P2, round 1):

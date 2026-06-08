@@ -514,7 +514,7 @@ def _pick_unanimous_stratum(entries: list[dict[str, Any]]) -> str | None:
     """Populate the stratum column only when every entry's per-form
     stratum dict surfaces the same single value. Mixed-stratum usages
     (common for cross-cultural morphemes like Latin loans) get NULL and
-    rely on the runtime's per-form ``Meaning.stratum_for`` for actual
+    rely on the runtime's per-form ``Meaning.stratum`` dict for actual
     filtering. The column is purely an index hint for bulk queries.
     """
     seen: set[str] = set()
