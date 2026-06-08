@@ -300,6 +300,7 @@ class RegisterEffect:
             position_bias_tiers=dict(self.position_bias_tiers),
         )
 
+
 def compose_register_effects(effects: list[RegisterEffect]) -> RegisterEffect:
     """Sum a list of register effects component-wise, clamping the
     result to [-1, +1] per dimension. Returns a synthetic 'composed'

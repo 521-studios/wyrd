@@ -421,9 +421,7 @@ def test_multi_effect_compose_preserves_distinct_contributions(tmp_path):
     """The headline `--register grim,harsh` use case: composing two
     bundled effects sums their non-overlapping contributions
     (grim is tag-only; harsh is phonology-only) without clamp."""
-    composed = compose_register_effects(
-        [get_register_effect("grim"), get_register_effect("harsh")]
-    )
+    composed = compose_register_effects([get_register_effect("grim"), get_register_effect("harsh")])
     # grim's semantic tags survive.
     assert composed.semantic_tags.get("death", 0) > 0
     # harsh's phonological weights survive.

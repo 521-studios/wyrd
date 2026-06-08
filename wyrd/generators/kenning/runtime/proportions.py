@@ -1308,10 +1308,7 @@ class NameGenerator:
             # name (error-handling / type-design review). Validate against the
             # UNFILTERED set so filter-dropped shapes are still forceable.
             if struct not in self._all_structs:
-                raise ValueError(
-                    f"force_structure {force_structure!r} is not a known "
-                    "template"
-                )
+                raise ValueError(f"force_structure {force_structure!r} is not a known template")
         else:
             items = list(self.structs.items())
             struct = weighted_choice(rng, items)
