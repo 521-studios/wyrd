@@ -155,7 +155,14 @@ def _candidate(parent: dict, child: dict, edge_type: str, dominant_glosses: tupl
     )
 
 
-def _emit_phase2a(out, edges, gidx, unique_dom, by_id, dom_glosses) -> None:
+def _emit_phase2a(
+    out: dict[str, DescentAuditCandidate],
+    edges: list[tuple[int, int, str]],
+    gidx: dict[int, int],
+    unique_dom: int | None,
+    by_id: dict[int, dict],
+    dom_glosses: tuple[str, ...],
+) -> None:
     """Phase 2a — bridge edges in an INCOHERENT cluster (>=2 sense-groups): two
     glossed members in different groups, or an un-glossed conductor -> a glossed
     member not in the dominant group (``unique_dom`` is None on a tie => every
@@ -172,7 +179,14 @@ def _emit_phase2a(out, edges, gidx, unique_dom, by_id, dom_glosses) -> None:
             out.setdefault(cand.edge_key, cand)
 
 
-def _emit_phase2b(out, edges, gidx, unique_dom, by_id, dom_glosses) -> None:
+def _emit_phase2b(
+    out: dict[str, DescentAuditCandidate],
+    edges: list[tuple[int, int, str]],
+    gidx: dict[int, int],
+    unique_dom: int | None,
+    by_id: dict[int, dict],
+    dom_glosses: tuple[str, ...],
+) -> None:
     """Phase 2b — glossless-proto-conductor fan-out (wyrd-2wml). In a cluster with
     a clear dominant glossed sense, a proto/reconstruction conductor (out-degree
     >= _MIN_PROTO_FANOUT) often fans out to GLOSSLESS off-sense descendants the
