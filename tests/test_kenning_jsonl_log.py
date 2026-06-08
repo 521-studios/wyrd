@@ -26,7 +26,6 @@ from wyrd.generators.kenning.jsonl.log import (
     KEYED_TYPES,
     LIST_TYPES,
     ReplayError,
-    compact,
     compact_file,
     read_jsonl,
     replay,
@@ -323,29 +322,6 @@ def _state_dict(state):
         "keyed": {t: dict(d) for t, d in state.keyed.items()},
         "lists": {t: list(v) for t, v in state.lists.items()},
     }
-
-
-def test_compact_preserves_state():
-    rows = [
-        {"_op": "add", "_type": "etymon", "ref": "oe:cot", "glosses": ["a"]},
-        {"_op": "patch", "_type": "etymon", "ref": "oe:cot", "glosses_add": ["b"]},
-        {"_op": "patch", "_type": "etymon", "ref": "oe:cot", "stratum": "rare"},
-        {"_type": "citation", "etymon_ref": "oe:cot", "page": 5},
-    ]
-    state_a = replay(rows)
-    compacted = compact(rows)
-    state_b = replay(compacted)
-    assert _state_dict(state_a) == _state_dict(state_b)
-
-
-def test_compact_is_idempotent():
-    rows = [
-        {"_op": "add", "_type": "etymon", "ref": "oe:cot", "glosses": ["a"]},
-        {"_op": "patch", "_type": "etymon", "ref": "oe:cot", "glosses_add": ["b"]},
-    ]
-    once = compact(rows)
-    twice = compact(once)
-    assert once == twice
 
 
 def test_replay_event_then_compact_equivalent_to_single_set():

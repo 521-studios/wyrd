@@ -116,7 +116,13 @@ def test_structure_label_round_trips():
         assert structure_label_to_key(structure_key_to_label(key)) == key
 
 
-def test_list_structures_includes_filter_dropped_shapes():
+def test_name_generator_init_filters_structs_but_retains_all_structs():
+    """wyrd-zzli/wyrd-5z5j: NameGenerator.__init__ drops ungrammatical shapes
+    from the sampling pool (``self.structs``) but retains them in
+    ``self._all_structs`` so ``force_structure`` (validated in ``select``)
+    can still surface them. Re-pins this live __init__ split after
+    ``list_structures()`` — its former sole test vehicle — was removed in
+    the PR #498 dead-code audit."""
     from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
 
     mg = MeaningGenerator({}, {}, {})
@@ -124,11 +130,6 @@ def test_list_structures_includes_filter_dropped_shapes():
     # standalone pre attachment).
     structs = {((("bare", "single"),),): 7, ((("pre", "single"),),): 3}
     ng = NameGenerator({}, mg, structs)
-    listed = ng.list_structures()
-    # the filter-dropped shape is still listed (so the dropdown can offer it)
-    assert len(listed) == 2
-    assert sum(s["grammatical"] for s in listed) == 1  # only the bare one is grammatical
-    # but normal sampling only sees the grammatical one
     assert len(ng.structs) == 1 and len(ng._all_structs) == 2
 
 

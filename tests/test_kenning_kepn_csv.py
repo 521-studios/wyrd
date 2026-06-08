@@ -11,7 +11,6 @@ from wyrd.generators.kenning.kepn_csv_ingester import (
     KepnStats,
     county_from_filename,
     emit_kepn_jsonl,
-    extract_personal_name,
     extract_personal_names,
     fold_name,
     load_name_index,
@@ -115,11 +114,6 @@ def test_match_tiers(tmp_path):
     assert match_name("Aethelstan", idx)[1] == "t1"  # fold-exact
     assert match_name("Eorda", idx)[1] == "t2"  # edit<=1 of earda
     assert match_name("Zzzqq", idx)[1] == "miss"
-
-
-def test_extract_personal_name():
-    assert extract_personal_name("'Earda's wood/clearing'.") == "Earda"
-    assert extract_personal_name("A spring with no owner.") is None
 
 
 def test_county_from_filename():

@@ -402,9 +402,3 @@ def respell(form: str, language: str) -> str | None:
     if respeller is None:
         return None
     return respeller(form)
-
-
-def has_respeller(language: str) -> bool:
-    """True if ``language`` has a registered respeller. Lets the SPA
-    decide whether to render a respelling slot at all."""
-    return language in _LANGUAGE_TO_RESPELLER

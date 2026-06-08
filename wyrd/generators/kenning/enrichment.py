@@ -1111,49 +1111,6 @@ def apply_collapses(
     return counts
 
 
-def format_collapse_run(counts: dict[str, Any]) -> str:
-    """Render :func:`apply_collapses` output as a short markdown block."""
-    mode = "APPLIED" if counts["applied"] else "DRY-RUN"
-    lines = [
-        f"## Etymon collapses ({mode}, {counts['method_version']})",
-        f"- Collapses processed: {counts['collapses_processed']}",
-        f"- Variants registered: {counts['variants_created']}",
-        f"- Reflexes migrated: {counts['reflexes_moved']} "
-        f"(left on tombstone, conflict: {counts['reflexes_skipped_conflict']})",
-        f"- Citations migrated: {counts['citations_moved']} "
-        f"(left on tombstone, conflict: {counts['citations_skipped_conflict']})",
-    ]
-    if (
-        counts.get("detach_edges_removed")
-        or counts.get("detach_unresolved_endpoint")
-        or counts.get("detach_unresolved_from")
-    ):
-        verb = "removed" if counts["applied"] else "would remove"
-        unresolved = []
-        if counts.get("detach_unresolved_from"):
-            unresolved.append(f"from: {counts['detach_unresolved_from']}")
-        if counts.get("detach_unresolved_endpoint"):
-            unresolved.append(f"endpoints: {counts['detach_unresolved_endpoint']}")
-        lines.append(
-            f"- Descent edges detached: {verb} {counts.get('detach_edges_removed', 0)}"
-            + (f" (unresolved {'; '.join(unresolved)})" if unresolved else "")
-        )
-    skipped = (
-        counts["unresolved_from"]
-        + counts["unresolved_into"]
-        + counts["self_collapse_skipped"]
-        + counts["empty_into_skipped"]
-    )
-    if skipped:
-        lines.append(
-            f"- Skipped: unresolved_from={counts['unresolved_from']} "
-            f"unresolved_into={counts['unresolved_into']} "
-            f"self={counts['self_collapse_skipped']} "
-            f"empty_into={counts['empty_into_skipped']}"
-        )
-    return "\n".join(lines)
-
-
 def run_full_enrichment(
     db: LexiconDB,
     *,

@@ -138,7 +138,7 @@ def _session(profile: str | None, region: str) -> Any:
     return cached
 
 
-def reset_session_cache() -> None:
+def reset_session_cache() -> None:  # noqa: V103 — test/ops cache-reset helper
     """Drop the cached boto3 sessions. For tests and operator-driven reload."""
     _session_cache.clear()
 

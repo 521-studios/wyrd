@@ -10,7 +10,6 @@ Covers:
 - Sporadic-rule branching (weight < 1.0): two candidates per branch,
   probabilities sum to the input probability times the rule weight.
 - Unknown cells (no rules registered) are no-op.
-- ``has_rules`` discriminates 'cell registered' from 'cell empty'.
 - Mode validation: invalid mode raises ``ValueError``.
 
 Phase 1 ships only the (english, old-english, middle-english) cell;
@@ -36,7 +35,6 @@ from wyrd.generators.kenning.registers.phonology_rules import (
     _dedupe_candidates,
     apply_rules,
     chain_for,
-    has_rules,
     resolve_language,
     rule_form,
 )
@@ -102,8 +100,7 @@ def test_oe_to_me_rule_exemplar_forward(rule: SoundChangeRule) -> None:
 
 def test_apply_rules_unknown_cell_returns_input_unchanged() -> None:
     """A cell with no rules registered is a no-op: the input form is
-    returned with probability 1.0. Distinguishable from 'rules ran,
-    no changes' via ``has_rules``."""
+    returned with probability 1.0."""
     candidates = apply_rules("anything", "klingon", "old-empire", "modern-empire")
     assert candidates == [("anything", 1.0)]
 
@@ -181,27 +178,6 @@ def test_apply_rules_returns_probabilities_summing_to_one() -> None:
     candidates = apply_rules("fisċ", "english", "old-english", "middle-english")
     total = sum(p for _, p in candidates)
     assert abs(total - 1.0) < 1e-9
-
-
-# --- has_rules -----------------------------------------------------------
-
-
-def test_has_rules_returns_true_for_registered_cell() -> None:
-    assert has_rules("english", "old-english", "middle-english") is True
-
-
-def test_has_rules_returns_false_for_unknown_cell() -> None:
-    assert has_rules("klingon", "old-empire", "modern-empire") is False
-
-
-def test_has_rules_distinguishes_directions() -> None:
-    """``has_rules`` checks the FORWARD direction. The inverse cell
-    is implied by the forward registration, so callers needing
-    inverse should pass eras swapped."""
-    assert has_rules("english", "old-english", "middle-english") is True
-    # The reverse direction is NOT separately registered; callers
-    # ask for inverse via mode='inverse', not via swapped has_rules.
-    assert has_rules("english", "middle-english", "old-english") is False
 
 
 # --- _apply_one_rule (sporadic-rule branching) ---------------------------
@@ -409,12 +385,6 @@ def test_apply_rules_inverse_candidate_count_stays_bounded() -> None:
 # --- Middle English → Early Modern English (wyrd-n9x5) ------------------
 
 
-def test_has_rules_returns_true_for_me_to_emode_cell() -> None:
-    """The new ME→EModE cell is registered and discoverable via
-    ``has_rules``."""
-    assert has_rules("english", "middle-english", "early-modern-english") is True
-
-
 @pytest.mark.parametrize("rule", ME_TO_EMODE_RULES, ids=lambda r: r.pattern)
 def test_me_to_emode_rule_exemplar_forward(rule: SoundChangeRule) -> None:
     """Each ME→EModE rule's exemplar input run through the rule's
@@ -533,12 +503,6 @@ def test_registered_cell_count_matches_expected() -> None:
 
 
 # --- Early Modern English → Modern English (wyrd-n9x5 Phase 2.2) --------
-
-
-def test_has_rules_returns_true_for_emode_to_mode_cell() -> None:
-    """The new EModE→ModE cell is registered and discoverable via
-    ``has_rules``."""
-    assert has_rules("english", "early-modern-english", "modern-english") is True
 
 
 @pytest.mark.parametrize("rule", EMODE_TO_MODE_RULES, ids=lambda r: r.pattern)
@@ -696,11 +660,6 @@ def test_emode_to_mode_full_chain_oe_to_mode_via_intermediates() -> None:
 
 
 # --- Old Welsh → Modern Welsh (wyrd-n9x5 Phase 2.3) --------------------
-
-
-def test_has_rules_returns_true_for_ow_to_mw_cell() -> None:
-    """The OW→ModW cell is registered and discoverable via ``has_rules``."""
-    assert has_rules("welsh", "old-welsh", "modern-welsh") is True
 
 
 @pytest.mark.parametrize("rule", OW_TO_MW_RULES, ids=lambda r: r.pattern)

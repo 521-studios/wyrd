@@ -26,7 +26,6 @@ from wyrd.generators.kenning.bulk_sources import (
     open_jsonl,
     upload_slices,
     verify_local_cache,
-    write_default_config,
 )
 
 # ---------------------------------------------------------------------------
@@ -131,12 +130,6 @@ def test_load_manifest_missing_slice_field_raises(tmp_path: Path):
         load_manifest(p)
 
 
-def test_manifest_slice_by_name_lookup(manifest_path: Path):
-    m = load_manifest(manifest_path)
-    assert m.slice_by_name("wiktextract_xx") is not None
-    assert m.slice_by_name("nope") is None
-
-
 def test_manifest_to_json_round_trips(manifest_path: Path, tmp_path: Path):
     """Read → reserialize → re-read gives the same Manifest. Stable
     so commit diffs only show real changes."""
@@ -215,17 +208,6 @@ def test_load_config_malformed_toml_raises(tmp_path: Path):
     p.write_text("not = toml = [")
     with pytest.raises(ManifestError, match="not valid TOML"):
         load_config(_basic_manifest(), config_path=p, env={})
-
-
-def test_write_default_config_uses_manifest_defaults(tmp_path: Path):
-    """First-run bootstrap should drop a config that matches the
-    manifest — operator can edit later."""
-    out = tmp_path / "config.toml"
-    write_default_config(_basic_manifest(), config_path=out)
-    text = out.read_text()
-    assert 'bucket = "default-bucket"' in text
-    assert 'region = "us-east-2"' in text
-    assert 'profile = "521-Staging-Admin"' in text
 
 
 # ---------------------------------------------------------------------------

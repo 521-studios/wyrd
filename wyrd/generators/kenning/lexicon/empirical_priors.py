@@ -44,12 +44,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from wyrd.generators.kenning.era.cells import (
-    ERA_CELLS,
-    LANGUAGE_TO_FAMILY,
-    era_cell,
-    era_year_range,
-)
+from wyrd.generators.kenning.era.cells import ERA_CELLS
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
 
@@ -113,28 +108,6 @@ def _era_midpoint(start: int | None, end: int | None) -> int:
     # least one bound, so this case shouldn't trigger; raise loudly
     # rather than silently return 0.
     raise ValueError("era cell has both start and end as None")
-
-
-def _era_midpoint_for_language(language: str, year: int) -> int | None:
-    """Resolve (language, attested_year) -> integer-year midpoint of
-    the era cell that year falls into, in the LANGUAGE's family.
-
-    Private — the priors extractor uses ``era_midpoint_for_culture``
-    so elements of a single toponym share an era bucket regardless of
-    their donor language. This helper is retained for callers that
-    genuinely need per-language era resolution (e.g. ad-hoc tooling).
-
-    Returns None when no era cell matches (proto-languages, untracked
-    language codes, year outside every cell's range).
-    """
-    cell_label = era_cell(language, year)
-    if cell_label is None:
-        return None
-    family = LANGUAGE_TO_FAMILY.get(language)
-    if family is None:
-        return None
-    start, end = era_year_range(family, cell_label)
-    return _era_midpoint(start, end)
 
 
 def era_midpoint_for_culture(culture: str, year: int) -> int | None:
@@ -728,7 +701,7 @@ def dump_empirical_priors_to_json(
 
 # Convenience for tests + external callers that want to confirm the
 # era-midpoint convention is the one this module advertises.
-def known_era_midpoints() -> dict[tuple[str, str], int]:
+def known_era_midpoints() -> dict[tuple[str, str], int]:  # noqa: V103 — public era-midpoint accessor pinned by tests
     """Return ``{(family, cell_label): midpoint_year}`` for every era
     cell defined in ``era.ERA_CELLS``. Useful for tests + tooling that
     needs to project rows into priors-space.

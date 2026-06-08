@@ -14,9 +14,6 @@ from typing import Any
 from wyrd.generators.kenning.extractors.pfsrd2_monsters import (
     _collect_section_texts,
     extract_corpus,
-    extract_description,
-    extract_input_name,
-    extract_monster,
     extract_records,
     iter_monster_files,
 )
@@ -59,57 +56,6 @@ def _section(
     return s
 
 
-# --- extract_input_name ----------------------------------------------
-
-
-def test_extract_input_name_uses_family_root_for_variant():
-    """Bugbear Thug variant: family.name='Bugbear' is the morpheme."""
-    monster = _monster(name="Bugbear Thug", family_name="Bugbear")
-    assert extract_input_name(monster) == "Bugbear"
-
-
-def test_extract_input_name_strips_compound_subtype_from_family():
-    """Dragon, Red → Dragon (split on comma, take base)."""
-    monster = _monster(name="Young Red Dragon", family_name="Dragon, Red")
-    assert extract_input_name(monster) == "Dragon"
-
-
-def test_extract_input_name_rejects_multi_word_family_name():
-    """Hell Hound family.name is multi-word; per the single-word rule
-    we skip it rather than emit a multi-token morpheme."""
-    monster = _monster(name="Hell Hound Pack", family_name="Hell Hound")
-    assert extract_input_name(monster) is None
-
-
-def test_extract_input_name_falls_back_to_top_name_when_no_family():
-    """Harpy has no family; the top-level single-word name IS the morpheme."""
-    monster = _monster(name="Harpy", family_name=None)
-    assert extract_input_name(monster) == "Harpy"
-
-
-def test_extract_input_name_skips_multi_word_name_with_no_family():
-    """'Ancient Black Dragon' with no family is the user's flagged
-    problem case — bail rather than guess."""
-    monster = _monster(name="Ancient Black Dragon", family_name=None)
-    assert extract_input_name(monster) is None
-
-
-def test_extract_input_name_handles_empty_or_missing_name():
-    assert extract_input_name(_monster(name="")) is None
-    assert extract_input_name({"sections": []}) is None
-
-
-def test_extract_input_name_handles_family_dict_without_name_key():
-    """Defensive — a malformed family that lacks .name falls through
-    to the top-level name path."""
-    monster = {
-        "name": "Goblin",
-        "sections": [],
-        "stat_block": {"creature_type": {"family": {}}},
-    }
-    assert extract_input_name(monster) == "Goblin"
-
-
 # --- _collect_section_texts (recursive) -------------------------------
 
 
@@ -146,89 +92,6 @@ def test_collect_section_texts_skips_empty_text():
 def test_collect_section_texts_handles_none_and_empty():
     assert _collect_section_texts(None) == []
     assert _collect_section_texts([]) == []
-
-
-# --- extract_description ----------------------------------------------
-
-
-def test_extract_description_returns_family_only_for_single_word_family_root():
-    """When a single-word family root is the primary morpheme,
-    extract_description returns family-only content (no per-variant
-    monster.sections). This mirrors what extract_corpus emits for the
-    family-root record via extract_records."""
-    monster = _monster(
-        name="Bugbear Thug",
-        family_name="Bugbear",
-        family_text="These stealthy goblinoid creatures delight in spreading fear.",
-        family_sections=[_section("Bugbear Lairs", "Bugbears live in small gangs.")],
-        sections=[_section("Bugbear Thug", "The more common bugbear thug specializes...")],
-    )
-    desc = extract_description(monster)
-    assert "stealthy goblinoid creatures" in desc
-    assert "Bugbears live in small gangs" in desc
-    # Per-variant monster.sections content is excluded — would arbitrarily
-    # come from whichever variant the dedupe encountered first.
-    assert "more common bugbear thug" not in desc
-
-
-def test_extract_description_returns_variant_style_for_multi_word_family():
-    """When the family root is multi-word (unusable), the primary
-    morpheme is the variant name. extract_description includes
-    family.text as context plus monster.sections (variant flavor)."""
-    monster = _monster(
-        name="Ararda",
-        family_name="Blightburn Genies",
-        family_text="Blightburn genies are warped by radioactive blight.",
-        sections=[_section("Ararda", "Ararda are scouts.")],
-    )
-    desc = extract_description(monster)
-    assert "Blightburn genies are warped" in desc
-    assert "Ararda are scouts" in desc
-
-
-def test_extract_description_falls_back_to_monster_sections_when_no_family():
-    """Harpy has no family; description comes from monster sections only."""
-    monster = _monster(
-        name="Harpy",
-        sections=[_section("Harpy", "Harpies are filthy amalgamations.")],
-    )
-    assert extract_description(monster) == "Harpies are filthy amalgamations."
-
-
-def test_extract_description_uses_family_text_when_monster_sections_empty():
-    """The Troll fixture pattern: monster sections is [], family.text
-    has the full lore."""
-    monster = _monster(
-        name="Troll",
-        family_name="Troll",
-        family_text="Slavering, cruel, practically invincible brutes.",
-        sections=[],
-    )
-    assert extract_description(monster) == "Slavering, cruel, practically invincible brutes."
-
-
-def test_extract_description_returns_empty_when_nothing_found():
-    monster = _monster(name="Mystery", family_name=None, sections=[])
-    assert extract_description(monster) == ""
-
-
-# --- extract_monster --------------------------------------------------
-
-
-def test_extract_monster_returns_record_for_valid_monster():
-    monster = _monster(
-        name="Bugbear Thug",
-        family_name="Bugbear",
-        family_text="These stealthy goblinoid creatures.",
-    )
-    rec = extract_monster(monster)
-    assert rec == {"name": "Bugbear", "description": "These stealthy goblinoid creatures."}
-
-
-def test_extract_monster_returns_none_for_unusable():
-    """No family + multi-word name → None (skip)."""
-    monster = _monster(name="Ancient Black Dragon", family_name=None)
-    assert extract_monster(monster) is None
 
 
 # --- iter_monster_files + extract_corpus ------------------------------

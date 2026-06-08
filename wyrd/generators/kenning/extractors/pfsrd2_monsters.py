@@ -109,25 +109,6 @@ def _monster_single_word_name(monster: dict[str, Any]) -> str | None:
     return name
 
 
-def extract_input_name(monster: dict[str, Any]) -> str | None:
-    """Pick the primary morpheme-of-interest for the wyrd-ami pipeline.
-
-    Returns None when the monster yields no clean single-word morpheme
-    via the primary axis (family root preferred; monster name fallback
-    when there's no family). Callers wanting BOTH family + variant
-    should use `extract_records()` instead.
-
-    Cases handled:
-    - family root is single-word → use it.
-    - family is None and top-level name is single-word → use the name.
-    - everything else → None (skip).
-    """
-    family_root = _family_root(_get_family(monster))
-    if family_root is not None:
-        return family_root
-    return _monster_single_word_name(monster)
-
-
 def _family_only_description(family: dict[str, Any]) -> str:
     """Description for a family-root record: family.text + recursive
     family.sections. No monster-specific content (would be arbitrary
@@ -155,45 +136,6 @@ def _variant_description(family: dict[str, Any] | None, monster: dict[str, Any])
         parts.extend(_collect_section_texts(family.get("sections")))
     parts.extend(_collect_section_texts(monster.get("sections")))
     return "\n\n".join(p for p in parts if p)
-
-
-def extract_description(monster: dict[str, Any]) -> str:
-    """Build the LLM-input description for the *primary* morpheme of a
-    monster — mirrors what `extract_corpus` (via `extract_records`)
-    emits for the primary axis, so this single-monster view matches
-    the corpus view.
-
-    Three cases, parallel to `extract_records`:
-    - Single-word family root → `_family_only_description` (no per-
-      variant content; the family record represents the whole family).
-    - Family present but multi-word root → `_variant_description`
-      (the variant carries family.text as context plus its own
-      sections, since the family root itself isn't usable).
-    - No family → `_variant_description` with `family=None`, which
-      degrades to monster.sections only.
-    """
-    family = _get_family(monster)
-    family_root = _family_root(family)
-    if family_root is not None:
-        return _family_only_description(family)
-    # All other paths (multi-word family root, missing family) collapse
-    # to the variant-style description; _variant_description handles
-    # family=None gracefully by returning monster.sections only.
-    return _variant_description(family, monster)
-
-
-def extract_monster(
-    monster: dict[str, Any],
-) -> dict[str, str] | None:
-    """Extract the *primary* record for a monster (family root or
-    no-family single-word name). Returns None when neither yields a
-    clean morpheme. For full multi-record extraction (family + variant)
-    use `extract_records()`.
-
-    `extract_records` already encapsulates the primary-axis dispatch
-    and yields the primary record first, so this is the canonical
-    'first record only' view."""
-    return next(extract_records(monster), None)
 
 
 def extract_records(monster: dict[str, Any]) -> Iterator[dict[str, str]]:

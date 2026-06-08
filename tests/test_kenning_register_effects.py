@@ -13,7 +13,6 @@ from wyrd.generators.kenning.registers.effects import (
     _load_bundled_cached,
     available_register_effects,
     get_register_effect,
-    load_register_effects,
     load_register_effects_from_text,
     mood_spec_to_legacy_form,
     parse_mood_spec,
@@ -403,90 +402,7 @@ def test_load_rejects_empty_string_key():
         load_register_effects_from_text(yaml_text)
 
 
-# ---------- path-based loading ------------------------------------------
-
-
-def test_load_from_path(tmp_path):
-    """File-system load round-trip."""
-    yaml_text = (
-        "fromfile:\n"
-        "  phonological:\n"
-        "    cluster_density: 0.5\n"
-        "  semantic_tags:\n"
-        "    plant: 0.3\n"
-        "  position_bias: {}\n"
-    )
-    catalog_path = tmp_path / "test_catalog.yaml"
-    catalog_path.write_text(yaml_text)
-
-    catalog = load_register_effects(catalog_path)
-
-    assert "fromfile" in catalog
-    assert catalog["fromfile"].phonological == {"cluster_density": 0.5}
-    assert catalog["fromfile"].semantic_tags == {"plant": 0.3}
-
-
-def test_load_from_nonexistent_path_raises_file_not_found(tmp_path):
-    """Pin the exception surface for nonexistent paths so a future
-    wrapper-change is visible."""
-    bogus = tmp_path / "does_not_exist.yaml"
-    with pytest.raises(FileNotFoundError):
-        load_register_effects(bogus)
-
-
-def test_load_from_malformed_yaml_raises_yaml_error(tmp_path):
-    """Pin the exception surface for malformed YAML."""
-    import yaml
-
-    catalog_path = tmp_path / "broken.yaml"
-    catalog_path.write_text("not: valid: yaml: at: all:\n")
-    with pytest.raises(yaml.YAMLError):
-        load_register_effects(catalog_path)
-
-
-def test_load_explicit_path_bypasses_cache(tmp_path):
-    """``load_register_effects(path)`` always reads from disk — no
-    caching layer that would serve stale content if the same path is
-    rewritten between calls. Pins the docstring's cache-bypass claim."""
-    catalog_path = tmp_path / "iter.yaml"
-    catalog_path.write_text(
-        "iter:\n  phonological:\n    cluster_density: 0.3\n"
-        "  semantic_tags: {}\n  position_bias: {}\n"
-    )
-    first = load_register_effects(catalog_path)
-    assert first["iter"].phonological == {"cluster_density": 0.3}
-
-    catalog_path.write_text(
-        "iter:\n  phonological:\n    cluster_density: 0.7\n"
-        "  semantic_tags: {}\n  position_bias: {}\n"
-    )
-    second = load_register_effects(catalog_path)
-    assert second["iter"].phonological == {"cluster_density": 0.7}
-
-
 # ---------- no-arg / mutation-isolation contracts -----------------------
-
-
-def test_load_register_effects_no_arg_returns_bundled():
-    """The production call (no arg) returns the bundled catalog —
-    must contain the migrated MOODS entries."""
-    catalog = load_register_effects()
-    assert "grim" in catalog
-    assert "harsh" in catalog
-
-
-def test_load_register_effects_returns_fresh_copy_per_call():
-    """Defensive copy: callers can mutate one returned catalog
-    without polluting the next call's result. Pins the mutation-
-    isolation contract that protects the @lru_cache from caller-side
-    mutation hazards."""
-    first = load_register_effects()
-    first["grim"].semantic_tags["bogus_inserted_tag"] = 0.9
-    first["polluted_top_level"] = first["grim"]
-
-    second = load_register_effects()
-    assert "bogus_inserted_tag" not in second["grim"].semantic_tags
-    assert "polluted_top_level" not in second
 
 
 def test_get_register_effect_returns_fresh_copy_per_call():
@@ -505,8 +421,7 @@ def test_multi_effect_compose_preserves_distinct_contributions(tmp_path):
     """The headline `--register grim,harsh` use case: composing two
     bundled effects sums their non-overlapping contributions
     (grim is tag-only; harsh is phonology-only) without clamp."""
-    catalog = load_register_effects()
-    composed = compose_register_effects([catalog["grim"], catalog["harsh"]])
+    composed = compose_register_effects([get_register_effect("grim"), get_register_effect("harsh")])
     # grim's semantic tags survive.
     assert composed.semantic_tags.get("death", 0) > 0
     # harsh's phonological weights survive.
@@ -524,9 +439,7 @@ def test_multi_effect_compose_clamps_overlapping_contributions(tmp_path):
         "b:\n  phonological:\n    cluster_density: 0.9\n"
         "  semantic_tags: {}\n  position_bias: {}\n"
     )
-    path = tmp_path / "clamp.yaml"
-    path.write_text(yaml_text)
-    catalog = load_register_effects(path)
+    catalog = load_register_effects_from_text(yaml_text)
     composed = compose_register_effects([catalog["a"], catalog["b"]])
     # 0.8 + 0.9 = 1.7, clamped to 1.0.
     assert composed.phonological["cluster_density"] == pytest.approx(1.0)
@@ -696,7 +609,7 @@ def test_bare_float_weight_loads_with_empty_tier_dict() -> None:
     """Back-compat: bare-float weights (the pre-we1u shape) carry no
     tier metadata. The parallel tier dicts stay empty rather than
     being populated with every-key-mapped-to-untagged bookkeeping —
-    consumers default missing keys to 'untagged' via tier_for."""
+    consumers default missing keys to 'untagged'."""
     catalog = load_register_effects_from_text(
         """
 plain:
@@ -755,44 +668,6 @@ mixed:
     assert effect.phonological == {"cluster_density": 0.6, "palatalization": 0.2}
     # Only the tagged one appears in the tier dict.
     assert effect.phonological_tiers == {"cluster_density": "universal"}
-    # tier_for returns the explicit value for the tagged key and the
-    # default 'untagged' for the bare-float key.
-    assert effect.tier_for("phonological", "cluster_density") == "universal"
-    assert effect.tier_for("phonological", "palatalization") == "untagged"
-
-
-def test_tier_for_returns_untagged_for_missing_key() -> None:
-    """tier_for defaults missing keys to 'untagged' across all three
-    axes. Consumers querying a register that doesn't carry a given
-    dim get the safe default instead of KeyError."""
-    catalog = load_register_effects_from_text(
-        """
-sparse:
-  phonological: {}
-  semantic_tags: {}
-  position_bias: {}
-"""
-    )
-    effect = catalog["sparse"]
-    assert effect.tier_for("phonological", "cluster_density") == "untagged"
-    assert effect.tier_for("semantic_tags", "death") == "untagged"
-    assert effect.tier_for("position_bias", "pre") == "untagged"
-
-
-def test_tier_for_unknown_axis_raises_value_error() -> None:
-    """tier_for rejects axis-name typos at the boundary so callers
-    don't silently lose tier filtering on a misspelled axis."""
-    catalog = load_register_effects_from_text(
-        """
-e:
-  phonological: {}
-  semantic_tags: {}
-  position_bias: {}
-"""
-    )
-    effect = catalog["e"]
-    with pytest.raises(ValueError, match="unknown axis"):
-        effect.tier_for("semantics", "death")  # typo: should be 'semantic_tags'
 
 
 def test_unknown_tier_value_raises_at_parse() -> None:
@@ -887,7 +762,6 @@ b:
     assert composed.phonological["cluster_density"] == 0.7
     # Composed effect deliberately carries no tier metadata.
     assert composed.phonological_tiers == {}
-    assert composed.tier_for("phonological", "cluster_density") == "untagged"
 
 
 def test_bundled_catalog_every_weight_carries_tier_post_g2kh() -> None:
@@ -929,19 +803,19 @@ def test_bundled_catalog_tier_distribution_matches_registers_md_grounding() -> N
     catalog = _load_bundled_cached.__wrapped__()
     # harsh: cluster_density is the textbook IE-conventional weight
     # (REGISTERS.md §5: "Cluster-as-harsh is operator-side perception").
-    assert catalog["harsh"].tier_for("phonological", "cluster_density") == "ie-conventional"
+    assert catalog["harsh"].phonological_tiers["cluster_density"] == "ie-conventional"
     # harsh: stop_vs_continuant is the textbook universal
     # (REGISTERS.md §5: "UNIVERSAL ... Fort 2015 confirm manner is
     # the strongest single bouba-kiki predictor").
-    assert catalog["harsh"].tier_for("phonological", "stop_vs_continuant") == "universal"
+    assert catalog["harsh"].phonological_tiers["stop_vs_continuant"] == "universal"
     # exotic: pharyngeal is the textbook identity-marking
     # (REGISTERS.md §5: "IDENTITY-MARKING — functional design, not
     # sound-symbolic").
-    assert catalog["exotic"].tier_for("phonological", "pharyngeal") == "identity-marking"
+    assert catalog["exotic"].phonological_tiers["pharyngeal"] == "identity-marking"
     # grim: every semantic_tag is ie-conventional (cultural overlay
     # from legacy MOODS).
     for tag in ("death", "military", "monster", "undead", "magic"):
-        assert catalog["grim"].tier_for("semantic_tags", tag) == "ie-conventional"
+        assert catalog["grim"].semantic_tag_tiers[tag] == "ie-conventional"
 
 
 def test_position_bias_axis_loads_tier_tagged_weights() -> None:
@@ -963,8 +837,6 @@ posbias:
     effect = catalog["posbias"]
     assert effect.position_bias == {"pre": 0.5, "post": 0.2}
     assert effect.position_bias_tiers == {"pre": "ie-conventional"}
-    assert effect.tier_for("position_bias", "pre") == "ie-conventional"
-    assert effect.tier_for("position_bias", "post") == "untagged"
 
 
 def test_get_register_effect_preserves_nonempty_tier_dicts() -> None:

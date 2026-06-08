@@ -240,13 +240,6 @@ def extract_personal_names(etymology: str) -> list[str]:
     return list(_POSSESSIVE_RE.findall(etymology or ""))
 
 
-def extract_personal_name(etymology: str) -> str | None:
-    """First possessive personal name in the prose (``'Earda's wood'`` →
-    ``Earda``); None if absent."""
-    names = extract_personal_names(etymology)
-    return names[0] if names else None
-
-
 def load_name_index(briggs_jsonl: Path) -> dict[str, tuple[str, str]]:
     """Build the folded → (canonical_form, language) personal-name index
     from the Briggs L2 JSONL (etymon rows tagged male/female name)."""

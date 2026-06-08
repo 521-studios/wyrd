@@ -387,7 +387,7 @@ def era_cells_for_family(family: str) -> tuple[str, ...]:
     return tuple(label for label, _, _ in cells)
 
 
-def all_families() -> tuple[str, ...]:
+def all_families() -> tuple[str, ...]:  # noqa: V103 — public re-export (era/__init__.py) accessor pinned by tests
     """Return the tuple of all defined era families. Stable order
     (sorted alphabetically) so CLI output is deterministic."""
     return tuple(sorted(ERA_CELLS))

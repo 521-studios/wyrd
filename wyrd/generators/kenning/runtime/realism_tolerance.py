@@ -201,7 +201,7 @@ class ToleranceViolation:
         )
 
 
-def check_drift_against_tolerance(
+def check_drift_against_tolerance(  # noqa: V103 — relative-drift checker for the regression CI gate
     report,  # DriftReport — type-hint avoided to dodge a load-time cycle
     tolerance: ToleranceBand | None = None,
 ) -> list[ToleranceViolation]:
@@ -287,7 +287,7 @@ def check_drift_against_tolerance(
     return violations
 
 
-def format_violations(violations: list[ToleranceViolation]) -> str:
+def format_violations(violations: list[ToleranceViolation]) -> str:  # noqa: V103 — violation renderer used by both realism gates
     """Render a list of violations as a multi-line operator message.
     Empty list → ``"all metrics within tolerance"``.
     """
@@ -361,7 +361,7 @@ def absolute_tolerance_for(culture: str) -> AbsoluteToleranceBand:
     return ABSOLUTE_PER_CULTURE.get(culture, ABSOLUTE_DEFAULT)
 
 
-def check_realism_against_tolerance(
+def check_realism_against_tolerance(  # noqa: V103 — absolute-band checker for the realism CI gate
     report,  # RealismReport — type-hint avoided to dodge a load-time cycle
     tolerance: AbsoluteToleranceBand | None = None,
 ) -> list[ToleranceViolation]:

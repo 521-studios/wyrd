@@ -66,11 +66,10 @@ What's NOT here:
   reverse index gives O(1) for the exact-match path and a small
   bounded walk for fallback levels; deferred to a follow-up perf
   ticket. The reference shape here is correctness-first.
-* The D17 cohesion adapter (CohesionContext from vectors.schemas)
-  isn't called here — that's the wrapper layer between Phase 4 and
-  Phase 5 (NameGenerator slot-walk), per D36.5. The cohesion
-  multiplier applies to the composed score returned by this
-  module, not inside it.
+* The D17 cohesion adapter isn't called here — that's the wrapper
+  layer between Phase 4 and Phase 5 (NameGenerator slot-walk), per
+  D36.5. The cohesion multiplier applies to the composed score
+  returned by this module, not inside it.
 * Slot-walk integration — Phase 5 (wyrd-ecjp.5) consumes this
   module's ``score`` function in its per-slot loop.
 """
@@ -263,7 +262,7 @@ def _native_lookup_tag_independent(
     return best_l4
 
 
-def _native_lookup_with_fallback(
+def _native_lookup_with_fallback(  # noqa: V103 — public single-tag entry point; tests pin the level-priority contract (PR #498 triage)
     priors: EmpiricalPriors,
     lemma_ref: str,
     culture: str,
@@ -355,7 +354,7 @@ def _loan_lookup_tag_independent(
     return best_l4
 
 
-def _loan_lookup_with_fallback(
+def _loan_lookup_with_fallback(  # noqa: V103 — public single-tag entry point; tests pin the level-priority contract (PR #498 triage)
     priors: EmpiricalPriors,
     lemma_ref: str,
     donor: str,

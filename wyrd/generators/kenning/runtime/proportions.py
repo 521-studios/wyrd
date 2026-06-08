@@ -1077,8 +1077,8 @@ class NameGenerator:
         # (re-exported as ``_encode_structs`` from ``cli.rebuild_proportions``)
         # prevents future rebuilds from emitting them; this runtime gate
         # defends against bundles built before that data fix lands.
-        # wyrd-5z5j: retain the UNFILTERED structures so list_structures() /
-        # force_structure can surface + use shapes the wyrd-zzli filter drops.
+        # wyrd-5z5j: retain the UNFILTERED structures so force_structure
+        # can surface + use shapes the wyrd-zzli filter drops.
         self._all_structs = dict(structs)
         self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
         # Loud-failure guard (generator-contract-reviewer P2, round 1):
@@ -1169,24 +1169,6 @@ class NameGenerator:
         for bucket_key, gen in self.meaning_gen.generators.items():
             out[bucket_key] = dict(gen.elements)
         return out
-
-    def list_structures(self) -> list[dict]:
-        """All structure templates (INCLUDING the wyrd-zzli-filtered ones),
-        each as a readable label passable to ``force_structure``, sorted by
-        weight. Intended to feed a future SPA Advanced 'force structure'
-        dropdown (the CLI/API/SPA wiring is not landed yet — wyrd-5z5j
-        force-structure backend; the consumer is a follow-up)."""
-        total = sum(self._all_structs.values()) or 1
-        return [
-            {
-                "label": structure_key_to_label(key),
-                "weight": weight,
-                "proportion": weight / total,
-                "words": len(key),
-                "grammatical": is_structurally_grammatical(key),
-            }
-            for key, weight in sorted(self._all_structs.items(), key=lambda kv: -kv[1])
-        ]
 
     @staticmethod
     def _resolve_forced_structure(force_structure: str | tuple | list) -> tuple:
@@ -1326,10 +1308,7 @@ class NameGenerator:
             # name (error-handling / type-design review). Validate against the
             # UNFILTERED set so filter-dropped shapes are still forceable.
             if struct not in self._all_structs:
-                raise ValueError(
-                    f"force_structure {force_structure!r} is not a known "
-                    "template; call list_structures() for valid labels"
-                )
+                raise ValueError(f"force_structure {force_structure!r} is not a known template")
         else:
             items = list(self.structs.items())
             struct = weighted_choice(rng, items)
@@ -2583,10 +2562,6 @@ class NewName:
                 out.append(morpheme)
         return out
 
-    def _find_meaning(self, meaning):
-        roots = self._roots_str(meaning)
-        return f"{roots} {', '.join(meaning.meanings)}"
-
     def _roots(self, meaning) -> list[str]:
         keys = [
             ("old_english", "EN"),
@@ -2717,25 +2692,6 @@ def _fill_reader_pronunciations(
                 slot["reader_pronunciation"] = rendered
 
 
-# Compact display max for description()'s citation block. Above this, the
-# explainer renders 'first, second, third (+N more)' rather than a wall of
-# 18 source_ids. components() keeps the full list so the SPA can render
-# its own disclosure UI.
-_DESCRIPTION_CITATION_LIMIT = 3
-
-
-def _format_citations_for_description(citations: list[str]) -> str:
-    """Render a short scholar-ID list for the explainer breakdown line.
-    Long lists collapse to 'first, second, third (+N more)'; lists at or
-    under the limit display in full. source_ids stay as-is — the SPA
-    layer (wyrd-9kh.6) substitutes prettier titles via the source table."""
-    if len(citations) <= _DESCRIPTION_CITATION_LIMIT:
-        return ", ".join(citations)
-    head = ", ".join(citations[:_DESCRIPTION_CITATION_LIMIT])
-    extra = len(citations) - _DESCRIPTION_CITATION_LIMIT
-    return f"{head} (+{extra} more)"
-
-
 def word_to_key(word):
     elements = []
     for element in word:
@@ -2764,7 +2720,7 @@ _LOC_TO_DASHES = {"pre": ("", "-"), "post": ("-", ""), "inner": ("-", "-"), "bar
 _DASHES_TO_LOC = {(lead != "", trail != ""): loc for loc, (lead, trail) in _LOC_TO_DASHES.items()}
 
 
-def structure_key_to_label(key: tuple) -> str:
+def structure_key_to_label(key: tuple) -> str:  # noqa: V103 — test-pinned inverse of the live structure_label_to_key (PR #498 triage)
     """Render a structure key as a readable template string."""
     words_out: list[str] = []
     n = 0

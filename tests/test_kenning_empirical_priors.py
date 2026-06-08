@@ -22,7 +22,6 @@ from wyrd.generators.kenning.lexicon.empirical_priors import (
     _OPEN_BOUND_OFFSET,
     ExtractionResult,
     _era_midpoint,
-    _era_midpoint_for_language,
     _LoanKey,
     _NativeKey,
     _position_label,
@@ -156,17 +155,6 @@ def test_era_midpoint_open_high_uses_offset_above_start():
 def test_era_midpoint_rejects_double_unbounded():
     with pytest.raises(ValueError, match="both start and end as None"):
         _era_midpoint(None, None)
-
-
-def test_era_midpoint_for_language_resolves_old_english_year():
-    assert _era_midpoint_for_language("old-english", 950) == 950
-    # Year falls into oe-early (None, 800) — uses offset below end.
-    assert _era_midpoint_for_language("old-english", 700) == 800 - _OPEN_BOUND_OFFSET
-
-
-def test_era_midpoint_for_language_returns_none_on_untracked_language():
-    # Greek isn't in LANGUAGE_TO_FAMILY (per era/cells.py).
-    assert _era_midpoint_for_language("ancient-greek", 500) is None
 
 
 def test_era_midpoint_for_culture_resolves_english():

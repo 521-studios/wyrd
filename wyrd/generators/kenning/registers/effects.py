@@ -29,11 +29,10 @@ refactor wyrd-kq7w). At catalog load time the loader validates:
 
 The runtime path is read-once / cache-forever: the catalog file is
 small (~12 entries on v1) and immutable across a single process
-lifetime. The first ``load_register_effects()`` call parses and
-validates; subsequent calls return a fresh deep-copy of the cached
-canonical form so callers can mutate without polluting the cache
-(mutation isolation pinned by
-``test_load_register_effects_returns_fresh_copy_per_call``).
+lifetime. The first ``_load_bundled_cached()`` call parses and
+validates; subsequent calls return the cached canonical form, and
+``get_register_effect`` deep-copies on the way out so callers can
+mutate without polluting the cache.
 
 Per the wyrd-kq7w epic, the runtime CLI's ``--register`` flag will
 parse colon-suffix graduation (``harsh:0.5``) at the request-vector
@@ -48,7 +47,6 @@ from __future__ import annotations
 import math
 from functools import lru_cache
 from importlib import resources
-from pathlib import Path
 from typing import Any
 
 import yaml
@@ -128,8 +126,8 @@ def _validate_weight_entry(value: Any, label: str) -> tuple[float, str | None]:
     only explicitly-tagged keys land in the tier dict, so a
     ``RegisterEffect`` with no migrated weights at all carries
     empty tier dicts rather than every-key-mapped-to-untagged
-    bookkeeping. Consumers query through ``tier_for`` which
-    defaults missing keys to ``UNTAGGED_TIER`` anyway.
+    bookkeeping. Consumers default missing keys to ``UNTAGGED_TIER``
+    anyway.
     """
     if isinstance(value, dict):
         # Tier-tagged shape: must have 'value', optional 'tier'.
@@ -162,7 +160,7 @@ def _validate_weight_dict(
     Returns ``(weights, tiers)`` — two parallel dicts. Tier dict
     contains only entries whose YAML carried an explicit tier;
     bare-float entries are absent from the tier dict (consumers
-    default-on-missing via ``tier_for``).
+    default-on-missing).
     """
     if value is None:
         return {}, {}
@@ -276,9 +274,8 @@ def _copy_effect(effect: RegisterEffect) -> RegisterEffect:
 
     ``RegisterEffect`` is frozen but holds mutable ``dict[str, float]``
     fields; this rebuild gives each caller fresh dicts to mutate
-    without affecting the source instance. Used by ``_copy_catalog``
-    and ``get_register_effect`` to enforce mutation isolation against
-    the cached canonical form.
+    without affecting the source instance. Used by ``get_register_effect``
+    to enforce mutation isolation against the cached canonical form.
     """
     return RegisterEffect(
         name=effect.name,
@@ -291,39 +288,15 @@ def _copy_effect(effect: RegisterEffect) -> RegisterEffect:
     )
 
 
-def _copy_catalog(catalog: dict[str, RegisterEffect]) -> dict[str, RegisterEffect]:
-    """Return a fresh copy of a catalog so callers can mutate the
-    result without polluting the cached canonical form."""
-    return {name: _copy_effect(effect) for name, effect in catalog.items()}
-
-
-def load_register_effects(path: Path | None = None) -> dict[str, RegisterEffect]:
-    """Return the register-effect catalog as a mutable dict.
-
-    When called with no arguments (the production path), returns a
-    fresh copy of the bundled
-    ``wyrd/generators/kenning/data/register_effects.yaml`` catalog
-    (parsed once via ``@lru_cache`` and deep-copied per call so
-    callers can mutate the result without polluting the cache).
-
-    Pass ``path`` to load from an alternate YAML file (tests use this
-    to exercise specific shapes). Explicit-path loads bypass the
-    cache.
-    """
-    if path is None:
-        return _copy_catalog(_load_bundled_cached())
-    return load_register_effects_from_text(path.read_text(encoding="utf-8"))
-
-
 @lru_cache(maxsize=1)
 def _load_bundled_cached() -> dict[str, RegisterEffect]:
     """Read + parse + validate the bundled catalog. Cached because the
     parse cost is real and the catalog file is immutable per process.
 
     Returns the canonical parsed form; callers should NOT mutate the
-    returned dict or its nested ``RegisterEffect`` fields. ``load_
-    register_effects`` and ``get_register_effect`` use ``_copy_catalog``
-    to hand out fresh, mutation-safe copies.
+    returned dict or its nested ``RegisterEffect`` fields.
+    ``get_register_effect`` deep-copies on the way out to hand out
+    fresh, mutation-safe copies.
     """
     catalog_text = (
         resources.files("wyrd.generators.kenning.data")

@@ -213,7 +213,7 @@ class ReplayState:
 
         Order: every keyed type in ``KEYED_TYPES`` declaration order,
         sorted by ref; then every list type in ``LIST_TYPES`` order,
-        preserving insertion order. This is the shape :func:`compact`
+        preserving insertion order. This is the shape :func:`compact_file`
         writes back to disk.
         """
         out: list[dict[str, Any]] = []
@@ -360,7 +360,7 @@ def _apply_row(state: ReplayState, row: dict[str, Any], *, line_no: int | None =
     raise AssertionError(f"unreachable _op={op!r}")  # _validate_row guards this
 
 
-def replay(rows: Iterable[dict[str, Any]]) -> ReplayState:
+def replay(rows: Iterable[dict[str, Any]]) -> ReplayState:  # noqa: V103 — public kernel primitive; tests pin replay semantics (PR #498 triage)
     """Fold ``rows`` (in order) into a :class:`ReplayState`.
 
     Pure function. Raises :class:`ReplayError` on the first bad row,
@@ -400,17 +400,6 @@ def replay_file(path: str | Path) -> ReplayState:
     for line_no, row in read_jsonl(path):
         _apply_row(state, row, line_no=line_no)
     return state
-
-
-def compact(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Fold ``rows`` then re-emit as canonical-state rows (no ``_op``).
-
-    Round-trip invariants enforced by tests:
-
-    - ``replay(rows) == replay(compact(rows))``
-    - ``compact(compact(rows)) == compact(rows)``
-    """
-    return replay(rows).to_canonical_rows()
 
 
 def write_jsonl(path: str | Path, rows: Iterable[dict[str, Any]]) -> int:

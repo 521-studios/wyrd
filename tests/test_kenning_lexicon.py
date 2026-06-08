@@ -51,7 +51,6 @@ from wyrd.generators.kenning.lexicon import (
     _emit_inflection_list,
     _emit_variant_list,
     _extract_attestation_pairs,
-    _fetch_cluster_mate_tags,
     _fetch_family_era_reflexes,
     _fetch_reflex_glosses,
     _filter_concatenation_glosses,
@@ -106,7 +105,7 @@ from wyrd.generators.kenning.runtime.meaning import (
     _normalize_era_reflexes,
     load_meanings,
 )
-from wyrd.generators.kenning.runtime.respelling import has_respeller, respell
+from wyrd.generators.kenning.runtime.respelling import respell
 from wyrd.generators.kenning.runtime.scripts import transliterate
 
 
@@ -6692,8 +6691,6 @@ def test_respell_returns_none_for_modern_english_and_unknown() -> None:
     assert respell("town", "english") is None
     assert respell("village", "modern-english") is None
     assert respell("village", "totally-fake-language") is None
-    assert not has_respeller("english")
-    assert has_respeller("old-english")
 
 
 def test_respell_handles_empty_form() -> None:
@@ -10436,7 +10433,7 @@ def test_export_meanings_partial_english_shaped_emits_only_populated(fresh_db: P
     populated forms. The unmapped form survives in the language form
     array but doesn't pollute the english_shaped sibling. Pinning the
     rule so the runtime can detect 'this form has no shaping' via
-    Meaning.english_shaped_for(...) returning None."""
+    an absent Meaning.english_shaped[lang] entry."""
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="rando-port", title="rando")
         _seed_subject(
@@ -15978,87 +15975,6 @@ def test_init_schema_uses_cognate_id_not_synset_id(fresh_db: Path) -> None:
     assert "idx_etymon_synset" not in indexes
 
 
-# --- wyrd-i1s1: cognate-cluster-mate tag rollup --------------------------
-
-
-def test_fetch_cluster_mate_tags_returns_other_languages_tags(fresh_db: Path) -> None:
-    """wyrd-i1s1: tags from cognate-cluster mates of root_id surface in
-    the family's tag list. Pinned scenario: OE 'ceaster' has cluster
-    mate ME 'chestre' tagged 'topography'; that tag lands in the OE
-    root's _fetch_cluster_mate_tags output. Without this, the ME
-    semantic signal would never reach the bundle subject the OE root
-    grounds."""
-
-    with LexiconDB(fresh_db) as db:
-        oe_id = db.upsert_etymon("ceaster", "old-english")
-        me_id = db.upsert_etymon("chestre", "middle-english")
-        # Wire them into a cognate cluster (cognate_id points at OE root).
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, me_id))
-        db.conn.execute(
-            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
-            (me_id, "topography"),
-        )
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, oe_id)
-    assert result == ["topography"]
-
-
-def test_fetch_cluster_mate_tags_excludes_root_itself(fresh_db: Path) -> None:
-    """The root's own tags ride in via _fetch_member_tags — the cluster-
-    mate helper must skip the root to avoid double-counting."""
-
-    with LexiconDB(fresh_db) as db:
-        oe_id = db.upsert_etymon("ceaster", "old-english")
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
-        # OE's OWN tag — must NOT appear in cluster_mate_tags.
-        db.conn.execute(
-            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
-            (oe_id, "architecture"),
-        )
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, oe_id)
-    assert result == []
-
-
-def test_fetch_cluster_mate_tags_skips_merged_into_losers(fresh_db: Path) -> None:
-    """OCR-cluster losers (merged_into_id IS NOT NULL) are tombstones —
-    their tags belong to the merge winner via the existing rollup, not
-    to the cluster mate's tag pool."""
-
-    with LexiconDB(fresh_db) as db:
-        oe_id = db.upsert_etymon("ceaster", "old-english")
-        me_winner = db.upsert_etymon("chestre", "middle-english")
-        me_loser = db.upsert_etymon("chastre", "middle-english")
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, me_winner))
-        db.conn.execute(
-            "UPDATE etymon SET cognate_id = ?, merged_into_id = ? WHERE id = ?",
-            (oe_id, me_winner, me_loser),
-        )
-        db.conn.execute(
-            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (me_winner, "topography")
-        )
-        db.conn.execute(
-            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (me_loser, "should-skip")
-        )
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, oe_id)
-    assert result == ["topography"]
-    assert "should-skip" not in result
-
-
-def test_fetch_cluster_mate_tags_returns_empty_for_no_cognate(fresh_db: Path) -> None:
-    """An etymon without a cognate_id has no cluster — empty list."""
-
-    with LexiconDB(fresh_db) as db:
-        oe_id = db.upsert_etymon("orphan", "old-english")
-        # No cognate_id assignment; defaults to NULL.
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, oe_id)
-    assert result == []
-
-
 def test_gather_family_uses_member_tags_only(fresh_db: Path) -> None:
     """wyrd-c4wd: _gather_family's "tags" field is now the MEMBER
     tags only — the cluster-mate union was producing visible noise
@@ -16068,9 +15984,8 @@ def test_gather_family_uses_member_tags_only(fresh_db: Path) -> None:
     Pre-fix this test asserted the union (member + cluster mate);
     post-fix it asserts member-only. The cluster mate's 'topography'
     no longer rides along when only the OE root is the family member.
-    Cluster-mate-tag fetching is still tested separately by
-    test_fetch_cluster_mate_tags_* — the helper is intact, just not
-    consulted by the bundle exporter anymore."""
+    The cluster-mate-tag helper itself was removed once the bundle
+    exporter stopped consulting it (dead-code-audit)."""
 
     with LexiconDB(fresh_db) as db:
         oe_id = db.upsert_etymon("ceaster", "old-english")
@@ -16089,24 +16004,6 @@ def test_gather_family_uses_member_tags_only(fresh_db: Path) -> None:
         family = _gather_family(db, oe_id, [oe_id])
     assert family is not None
     assert family["tags"] == ["architecture"]
-
-
-def test_fetch_cluster_mate_tags_includes_same_language_mates(fresh_db: Path) -> None:
-    """Cluster mates in the SAME language as the root are still mates —
-    the helper doesn't filter by language. Pin so a future regression
-    that adds a language-mismatch filter wouldn't silently exclude
-    same-language siblings (e.g. two OE etymons in the same cognate
-    cluster, like a doublet pair)."""
-
-    with LexiconDB(fresh_db) as db:
-        a = db.upsert_etymon("ceaster", "old-english")
-        b = db.upsert_etymon("cæster", "old-english")  # same-language doublet
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (a, a))
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (a, b))
-        db.conn.execute("INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (b, "topography"))
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, a)
-    assert result == ["topography"]
 
 
 # ---------------------------------------------------------------------

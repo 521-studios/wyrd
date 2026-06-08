@@ -340,17 +340,6 @@ def parse_audit_verdict(raw: dict) -> MergeAuditVerdict | None:
     return MergeAuditVerdict(correct=val, confidence=conf, reason=reason)
 
 
-@dataclass(frozen=True)
-class MergeAuditRows:
-    """The ledger writes a verdict produces. ``audit_log`` always set (the
-    idempotency + audit trail row for ``_merge_audit.jsonl``); ``collapse`` /
-    ``curation`` set only for an applied REVERT, routed by provenance."""
-
-    audit_log: dict
-    collapse: dict | None = None
-    curation: dict | None = None
-
-
 def audit_log_row(c: MergeAuditCandidate, v: MergeAuditVerdict) -> dict:
     """The ``_merge_audit.jsonl`` row — the RAW LLM judgment for one candidate,
     recorded once and threshold-INDEPENDENT. Stores ``same_morpheme`` (the raw
@@ -380,17 +369,6 @@ def verdict_from_log(row: dict) -> MergeAuditVerdict | None:
     return MergeAuditVerdict(
         correct=row["same_morpheme"], confidence=conf, reason=str(row.get("reason", ""))
     )
-
-
-def audit_verdict_to_rows(
-    c: MergeAuditCandidate, v: MergeAuditVerdict, min_confidence: str
-) -> MergeAuditRows:
-    """Build the ledger rows for a verdict. ``audit_log`` is the raw, threshold-
-    independent record (``audit_log_row``). A wrong-merge verdict at/above
-    ``min_confidence`` also emits a REVERT to the provenance-appropriate ledger;
-    a kept (or below-threshold) verdict emits only the audit-log row."""
-    collapse, curation = revert_rows(c.member_ref, c.provenance, v, min_confidence)
-    return MergeAuditRows(audit_log=audit_log_row(c, v), collapse=collapse, curation=curation)
 
 
 def revert_rows(
