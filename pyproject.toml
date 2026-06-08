@@ -54,6 +54,9 @@ dev = [
     # wyrd-dsl5: moto[dynamodb] for the defects-table tests (defects + CLI).
     "moto[s3,dynamodb]>=5.0",
     "black>=24.0",
+    # wyrd-bxum: dead-code gate. >=2.16 for the `# noqa: V1xx` code semantics
+    # the [tool.vulture] suppressions below rely on.
+    "vulture>=2.16",
 ]
 
 [project.scripts]
