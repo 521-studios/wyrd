@@ -23,6 +23,7 @@ import difflib
 import sqlite3
 import unicodedata
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
@@ -143,6 +144,169 @@ def _gloss_tokens(gloss: str) -> set[str]:
     return out
 
 
+def _index_gloss_rows(rows) -> tuple[dict[int, dict], dict[str, set[int]]]:
+    """Index the etymon×gloss rows into per-etymon records keyed by etymon id
+    (language, form, bare form, consonant skeleton, cluster id, glosses, gloss
+    content tokens) plus an inverted content-token -> etymon-ids map. Bare form
+    and skeleton are precomputed once per etymon so the later barren×rich loop
+    doesn't re-normalise (incl. unicodedata work) the same forms many times."""
+    by_id: dict[int, dict] = {}
+    by_token: dict[str, set[int]] = defaultdict(set)  # content token -> etymon ids
+    for r in rows:
+        eid = r["id"]
+        rec = by_id.get(eid)
+        if rec is None:
+            # Don't use dict.setdefault with a literal default — it would build a
+            # throwaway dict (+ two sets) on every row, including the many
+            # duplicate-id gloss rows.
+            rec = by_id[eid] = {
+                "lang": r["language"],
+                "form": r["canonical_form"],
+                "bare": _bare(r["canonical_form"]),
+                "skel": _consonant_skeleton(r["canonical_form"]),
+                "clu": r["cognate_id"],
+                "gl": set(),
+                "tok": set(),
+            }
+        rec["gl"].add(r["gloss"])
+        toks = _gloss_tokens(r["gloss"])
+        rec["tok"].update(toks)
+        for t in toks:
+            by_token[t].add(r["id"])
+    return by_id, by_token
+
+
+def _cluster_sizes(conn: sqlite3.Connection) -> dict[int, int]:
+    """Live (non-tombstoned) cognate-cluster size per cognate_id — the richness
+    signal a rich lemma has cluster mates a barren duplicate lacks."""
+    return {
+        r["cognate_id"]: r["n"]
+        for r in conn.execute(
+            "SELECT cognate_id, count(*) n FROM etymon "
+            "WHERE cognate_id IS NOT NULL AND merged_into_id IS NULL GROUP BY cognate_id"
+        )
+    }
+
+
+def _descent_edge_set(conn: sqlite3.Connection) -> set[tuple[int, int]]:
+    """All (parent_id, child_id) descent edges — a candidate pair already joined
+    by an edge is a known relationship, not a path-dependent duplicate."""
+    return {(p, c) for p, c in conn.execute("SELECT parent_id, child_id FROM etymon_descent")}
+
+
+def _admit_fold_pair(
+    brec: dict,
+    rrec: dict,
+    matcher: difflib.SequenceMatcher,
+    skb: str,
+    min_similarity: float,
+    edges: set[tuple[int, int]],
+    bi: int,
+    ri: int,
+) -> float | None:
+    """Return the difflib similarity if (barren ``bi``, rich ``ri``) is an
+    admissible same-language fold pair, else None. Admit on form similarity ≥
+    ``min_similarity`` OR a shared ≥2-consonant skeleton (the vowel-shift escape
+    hatch — wood↔wudu); reject cross-language pairs (cross-language is a LINK,
+    wyrd-rogd.15), identical/empty forms, and pairs already joined by a descent
+    edge."""
+    if brec["lang"] != rrec["lang"]:
+        return None
+    fr = rrec["bare"]
+    if not fr or brec["bare"] == fr:
+        return None
+    # SequenceMatcher front-loads work on seq a (set once per barren by the
+    # caller); set_seq2 only re-analyses the cheap side.
+    matcher.set_seq2(fr)
+    sim = matcher.ratio()
+    skeleton_match = len(skb) >= 2 and skb == rrec["skel"]
+    if sim < min_similarity and not skeleton_match:
+        return None
+    if (bi, ri) in edges or (ri, bi) in edges:
+        return None
+    return sim
+
+
+def _better_fold_target(
+    cur: tuple[int, float] | None,
+    richness: Callable[[dict], int],
+    by_id: dict[int, dict],
+    ri: int,
+    rrec: dict,
+    sim: float,
+) -> bool:
+    """Total-order tie-break: a new (rich ``ri``, ``sim``) beats the current best
+    for a barren when (richest cluster, highest similarity, LOWEST etymon id)
+    ranks higher. Lowest-id is the final discriminator so the chosen fold target
+    is reproducible across runs/operators — etymon ids are content-keyed on
+    (canonical_form, language), so there's no set/SQL-iteration-order dependence."""
+    if cur is None:
+        return True
+    return (richness(rrec), sim, -ri) > (richness(by_id[cur[0]]), cur[1], -cur[0])
+
+
+def _fold_targets_for_token(
+    ids: set[int],
+    by_id: dict[int, dict],
+    richness: Callable[[dict], int],
+    edges: set[tuple[int, int]],
+    best: dict[int, tuple[int, float]],
+    *,
+    min_similarity: float,
+    lemma_min: int,
+    barren_max: int,
+) -> None:
+    """Pair the barren×rich etymons sharing one gloss content token, updating
+    ``best`` (barren id -> best (lemma id, sim)) in place. The rich lemma set per
+    token is tiny (a few well-attested forms), so even the huge common-token
+    groups (hill / stone / house — the very cases that matter) are covered
+    without an O(n²) blow-up."""
+    rich = [(i, by_id[i]) for i in ids if richness(by_id[i]) >= lemma_min]
+    barren = [(i, by_id[i]) for i in ids if richness(by_id[i]) <= barren_max]
+    if not rich or not barren:
+        return
+    for bi, brec in barren:
+        fb = brec["bare"]
+        if not fb:
+            continue
+        skb = brec["skel"]
+        matcher = difflib.SequenceMatcher(None, fb)
+        for ri, rrec in rich:
+            sim = _admit_fold_pair(brec, rrec, matcher, skb, min_similarity, edges, bi, ri)
+            if sim is None:
+                continue
+            if _better_fold_target(best.get(bi), richness, by_id, ri, rrec, sim):
+                best[bi] = (ri, sim)
+
+
+def _build_fold_candidates(
+    best: dict[int, tuple[int, float]],
+    by_id: dict[int, dict],
+    cluster_size: dict[int, int],
+) -> list[VariantFoldCandidate]:
+    """Assemble the sorted candidate list from the best barren->lemma picks. The
+    shared glosses (barren glosses sharing ≥1 content token with the lemma) are
+    the meaning evidence behind the grouping, shown to the judge."""
+    out: list[VariantFoldCandidate] = []
+    for barren, (lemma, sim) in best.items():
+        eb, el = by_id[barren], by_id[lemma]
+        shared = tuple(sorted(g for g in eb["gl"] if _gloss_tokens(g) & el["tok"]))
+        out.append(
+            VariantFoldCandidate(
+                barren_ref=f"{eb['lang']}:{eb['form']}",
+                lemma_ref=f"{el['lang']}:{el['form']}",
+                barren_form=eb["form"],
+                lemma_form=el["form"],
+                shared_glosses=shared or tuple(sorted(eb["gl"])),
+                similarity=round(sim, 3),
+                lemma_cluster_size=cluster_size.get(el["clu"], 0),
+                lemma_glosses=tuple(sorted(el["gl"]))[:4],
+            )
+        )
+    out.sort(key=lambda c: (c.lemma_ref, c.barren_ref))
+    return out
+
+
 def detect_variant_fold_candidates(
     conn: sqlite3.Connection,
     *,
@@ -164,120 +328,33 @@ def detect_variant_fold_candidates(
         "FROM etymon e JOIN etymon_gloss g ON g.etymon_id = e.id "
         "WHERE e.merged_into_id IS NULL ORDER BY e.id"
     ).fetchall()
-    by_id: dict[int, dict] = {}
-    by_token: dict[str, set[int]] = defaultdict(set)  # content token -> etymon ids
-    for r in rows:
-        eid = r["id"]
-        rec = by_id.get(eid)
-        if rec is None:
-            # Don't use dict.setdefault with a literal default — it would build a
-            # throwaway dict (+ two sets) on every row, including the many
-            # duplicate-id gloss rows.
-            rec = by_id[eid] = {
-                "lang": r["language"],
-                "form": r["canonical_form"],
-                # Precompute the bare form + consonant skeleton ONCE per etymon —
-                # the nested barren×rich loop would otherwise re-normalise the
-                # same forms (incl. unicodedata work) many times over.
-                "bare": _bare(r["canonical_form"]),
-                "skel": _consonant_skeleton(r["canonical_form"]),
-                "clu": r["cognate_id"],
-                "gl": set(),
-                "tok": set(),
-            }
-        rec["gl"].add(r["gloss"])
-        toks = _gloss_tokens(r["gloss"])
-        rec["tok"].update(toks)
-        for t in toks:
-            by_token[t].add(r["id"])
-
-    # Cluster size per cognate_id = richness signal (a rich lemma has cluster mates).
-    cluster_size: dict[int, int] = {}
-    for r in conn.execute(
-        "SELECT cognate_id, count(*) n FROM etymon "
-        "WHERE cognate_id IS NOT NULL AND merged_into_id IS NULL GROUP BY cognate_id"
-    ):
-        cluster_size[r["cognate_id"]] = r["n"]
-
-    edges: set[tuple[int, int]] = set()
-    for p, c in conn.execute("SELECT parent_id, child_id FROM etymon_descent"):
-        edges.add((p, c))
+    by_id, by_token = _index_gloss_rows(rows)
+    cluster_size = _cluster_sizes(conn)
+    edges = _descent_edge_set(conn)
 
     def richness(rec: dict) -> int:
         return cluster_size.get(rec["clu"], 0) if rec["clu"] is not None else 0
 
     # candidates per barren id -> best (lemma id, sim). Group by a shared gloss
-    # CONTENT TOKEN (not the whole gloss string), then pair BARREN×RICH: the rich
-    # lemma set per token is tiny (a few well-attested forms), so even the huge
-    # common-token groups (hill / stone / house — the very cases that matter) are
-    # covered without an O(n²) blow-up. Token grouping is what lets a bare barren
+    # CONTENT TOKEN (not the whole gloss string), then pair BARREN×RICH per token
+    # (see _fold_targets_for_token). Token grouping is what lets a bare barren
     # gloss ('stone') reach a descriptive lemma gloss ('A stone, stone, rock.');
     # ``max_per_gloss`` only guards a pathologic generic-token group.
     best: dict[int, tuple[int, float]] = {}
     for ids in by_token.values():
         if len(ids) < 2 or len(ids) > max_per_gloss:
             continue
-        rich = [(i, by_id[i]) for i in ids if richness(by_id[i]) >= lemma_min]
-        barren = [(i, by_id[i]) for i in ids if richness(by_id[i]) <= barren_max]
-        if not rich or not barren:
-            continue
-        for bi, brec in barren:
-            fb = brec["bare"]
-            if not fb:
-                continue
-            skb = brec["skel"]
-            # Reuse one matcher per barren — SequenceMatcher front-loads work on
-            # seq ``a`` (fb); set_seq2 only re-analyses the cheap side.
-            matcher = difflib.SequenceMatcher(None, fb)
-            for ri, rrec in rich:
-                if brec["lang"] != rrec["lang"]:
-                    continue  # SAME-language only (cross-language is a LINK, wyrd-rogd.15)
-                fr = rrec["bare"]
-                if not fr or fb == fr:
-                    continue
-                matcher.set_seq2(fr)
-                sim = matcher.ratio()
-                # Accept on form similarity OR a shared consonant skeleton (the
-                # vowel-shift escape hatch — wood↔wudu); the skeleton needs ≥2
-                # consonants so single-consonant skeletons can't over-match.
-                skeleton_match = len(skb) >= 2 and skb == rrec["skel"]
-                if sim < min_similarity and not skeleton_match:
-                    continue
-                if (bi, ri) in edges or (ri, bi) in edges:
-                    continue
-                cur = best.get(bi)
-                # Tie-break is TOTAL: richest cluster, then highest similarity,
-                # then LOWEST etymon id. Etymon ids are content-keyed on
-                # (canonical_form, language), so the final discriminator is
-                # stable across runs even when richness + similarity tie — no
-                # set/SQL-iteration-order dependence in the chosen fold target.
-                if cur is None or (richness(rrec), sim, -ri) > (
-                    richness(by_id[cur[0]]),
-                    cur[1],
-                    -cur[0],
-                ):
-                    best[bi] = (ri, sim)
-
-    out: list[VariantFoldCandidate] = []
-    for barren, (lemma, sim) in best.items():
-        eb, el = by_id[barren], by_id[lemma]
-        # The barren glosses that share ≥1 content token with the lemma — the
-        # meaning evidence behind the grouping (shown to the judge).
-        shared = tuple(sorted(g for g in eb["gl"] if _gloss_tokens(g) & el["tok"]))
-        out.append(
-            VariantFoldCandidate(
-                barren_ref=f"{eb['lang']}:{eb['form']}",
-                lemma_ref=f"{el['lang']}:{el['form']}",
-                barren_form=eb["form"],
-                lemma_form=el["form"],
-                shared_glosses=shared or tuple(sorted(eb["gl"])),
-                similarity=round(sim, 3),
-                lemma_cluster_size=cluster_size.get(el["clu"], 0),
-                lemma_glosses=tuple(sorted(el["gl"]))[:4],
-            )
+        _fold_targets_for_token(
+            ids,
+            by_id,
+            richness,
+            edges,
+            best,
+            min_similarity=min_similarity,
+            lemma_min=lemma_min,
+            barren_max=barren_max,
         )
-    out.sort(key=lambda c: (c.lemma_ref, c.barren_ref))
-    return out
+    return _build_fold_candidates(best, by_id, cluster_size)
 
 
 @dataclass(frozen=True)
