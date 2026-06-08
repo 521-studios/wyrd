@@ -28,6 +28,9 @@ import click
 from wyrd.generators.kenning.cli.lexicon import (
     adjudicate_element_glosses as _adjudicate_element_glosses_module,
 )
+from wyrd.generators.kenning.cli.lexicon import (
+    audit_cluster_reflexes as _audit_cluster_reflexes_module,
+)
 from wyrd.generators.kenning.cli.lexicon import audit_descent as _audit_descent_module
 from wyrd.generators.kenning.cli.lexicon import (
     audit_etymology_alignment as _audit_etymology_alignment_module,
@@ -39,6 +42,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import (
     audit_short_quotes as _audit_short_quotes_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
+    audit_toponym_reflexes as _audit_toponym_reflexes_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
     backfill_fantasy_tags as _backfill_fantasy_tags_module,
@@ -223,12 +229,14 @@ def lexicon() -> None:
 # (exposing add_to(parent)) and adding a one-line module import + a
 # `<name>_module.add_to(lexicon)` call below. The browse sub-group
 # follows the same pattern at the package level (cli/lexicon/browse/).
+_audit_cluster_reflexes_module.add_to(lexicon)
 _audit_descent_module.add_to(lexicon)
 _audit_etymology_alignment_module.add_to(lexicon)
 _audit_merges_module.add_to(lexicon)
 _audit_reflexes_module.add_to(lexicon)
 _audit_semantic_coherence_module.add_to(lexicon)
 _audit_short_quotes_module.add_to(lexicon)
+_audit_toponym_reflexes_module.add_to(lexicon)
 _cleanup_wiktionary_empirical_module.add_to(lexicon)
 _backfill_fantasy_tags_module.add_to(lexicon)
 _backfill_pages_module.add_to(lexicon)
