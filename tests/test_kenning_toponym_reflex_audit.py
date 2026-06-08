@@ -128,3 +128,96 @@ def test_protected_element_never_detached():
     assert detach_row(row, "medium") is None  # protected
     row2 = {**row, "reflex_ref": "modern-english:vulva"}
     assert detach_row(row2, "medium") is not None  # not protected -> detached
+
+
+def test_over_merged_judges_surface_similar_default_autokeeps(lex):
+    """Default prescreen auto-keeps a surface-similar modern form; over-merged
+    mode (prescreen=False, >=2 modern members) judges it."""
+    val = _mk(lex, "val", "old-french")
+    vale = _mk(lex, "vale", "modern-english")  # surface-similar to val
+    valgus = _mk(lex, "valgus", "modern-english")  # surface-similar ('val' prefix) but noise
+    lat = _mk(lex, "valgus", "latin")
+    _cluster(lex, val, vale, valgus, lat)
+    _edge(lex, lat, valgus)
+    _edge(lex, val, vale)
+    lex.commit()
+    default = {c.reflex_ref for c in detect_toponym_reflex_candidates(lex.conn)}
+    assert "modern-english:valgus" not in default  # surface-similar -> auto-kept by default
+    broad = {
+        c.reflex_ref
+        for c in detect_toponym_reflex_candidates(lex.conn, prescreen=False, min_modern_members=2)
+    }
+    assert "modern-english:valgus" in broad  # over-merged mode judges it
+
+
+def test_min_modern_members_excludes_single_modern_cluster(lex):
+    val = _mk(lex, "val", "old-french")
+    valgus = _mk(lex, "valgus", "modern-english")  # only ONE modern member
+    lat = _mk(lex, "valgus", "latin")
+    _cluster(lex, val, valgus, lat)
+    _edge(lex, lat, valgus)
+    lex.commit()
+    assert detect_toponym_reflex_candidates(lex.conn, prescreen=False, min_modern_members=2) == []
+
+
+def test_cli_emit_detaches_and_load_log(tmp_path):
+    import io
+    import json as _json
+
+    from wyrd.generators.kenning.cli.lexicon import audit_toponym_reflexes as cli
+
+    log = {
+        "modern-english:vulva": {
+            "_type": "toponym_reflex_audit",
+            "reflex_ref": "modern-english:vulva",
+            "bridging_parents": ["latin:vulva"],
+            "toponymic": False,
+            "confidence": "high",
+            "reason": "anatomical",
+        },
+        "modern-english:vale": {
+            "_type": "toponym_reflex_audit",
+            "reflex_ref": "modern-english:vale",
+            "bridging_parents": ["old-french:val"],
+            "toponymic": True,
+            "confidence": "high",
+            "reason": "valley",
+        },
+    }
+    fh = io.StringIO()
+    counts = cli._emit_detaches(log, "medium", {}, set(), fh, dry_run=False)
+    assert counts == {"detaches": 1, "kept": 1, "already": 0}
+    assert _json.loads(fh.getvalue())["ref"] == "modern-english:vulva"
+    # _load_log filters _type + missing-bool + malformed
+    f = tmp_path / "a.jsonl"
+    f.write_text(
+        _json.dumps(log["modern-english:vulva"])
+        + "\n"
+        + _json.dumps({"_type": "other"})
+        + "\n{bad\n",
+        encoding="utf-8",
+    )
+    assert set(cli._load_log(f)) == {"modern-english:vulva"}
+
+
+def test_cli_judge_fresh_aborts(monkeypatch):
+    import click
+
+    from wyrd.generators.kenning.cli.lexicon import audit_toponym_reflexes as cli
+    from wyrd.generators.kenning.lexicon.toponym_reflex_audit import ToponymReflexCandidate
+
+    monkeypatch.setattr(cli, "_judge_with_retry", lambda client, c: None)
+    cands = [ToponymReflexCandidate(f"modern-english:w{i}", f"w{i}", ("p:q",)) for i in range(8)]
+    with pytest.raises(click.ClickException):
+        cli._judge_fresh(None, cands, {}, None, "url", "model")
+
+
+def test_protected_match_normalizes_case():
+    row = {
+        "reflex_ref": "modern-english:New",
+        "bridging_parents": ["old-english:nīwe"],
+        "toponymic": False,
+        "confidence": "high",
+        "reason": "adjective",
+    }
+    assert detach_row(row, "medium") is None  # 'New' normalizes to protected 'new'

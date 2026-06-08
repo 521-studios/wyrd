@@ -210,8 +210,9 @@ def detach_row(row: dict, min_confidence: str) -> dict | None:
     v = verdict_from_log(row)
     if v is None or v.toponymic or CONFIDENCE_RANK[v.confidence] < CONFIDENCE_RANK[min_confidence]:
         return None
-    # never detach a known place-name element, even if the judge said non-toponymic.
-    if row.get("reflex_ref", "").split(":", 1)[-1] in PROTECTED_ELEMENTS:
+    # never detach a known place-name element, even if the judge said non-toponymic
+    # (normalize so a non-lowercase/accented form still matches the whitelist).
+    if _norm(row.get("reflex_ref", "").split(":", 1)[-1]) in PROTECTED_ELEMENTS:
         return None
     parents = row.get("bridging_parents") or []
     if not parents:
