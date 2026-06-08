@@ -194,10 +194,80 @@ def _modern_stage_languages() -> frozenset[str]:
     return _MODERN_STAGE_LANGUAGES
 
 
+# wyrd-pzg5: closed-class function words (articles, determiners, demonstratives,
+# pronouns, conjunctions, interjections). These ride into the modern stage via
+# deep cluster over-merge (a morpheme's grid showing 'the' / 'they' / 'thy') but
+# are NEVER a place-name element's modern reflex. Matched on the EXACT lowercased
+# form only (no substring), so a legit element that merely contains these letters
+# is untouched. Deliberately omits anything that is also a place-name element —
+# notably 'by' (the Norse -by settlement element) and bare prepositions
+# (in/on/at/up) whose element-hood is ambiguous — erring toward keeping.
+_MODERN_REFLEX_STOPWORDS: frozenset[str] = frozenset(
+    {
+        # articles / determiners / demonstratives
+        "the",
+        "a",
+        "an",
+        "this",
+        "that",
+        "these",
+        "those",
+        # pronouns (personal / possessive / interrogative / relative)
+        "i",
+        "me",
+        "my",
+        "mine",
+        "we",
+        "us",
+        "our",
+        "ours",
+        "you",
+        "your",
+        "yours",
+        "thy",
+        "thee",
+        "thou",
+        "thine",
+        "he",
+        "him",
+        "his",
+        "she",
+        "her",
+        "hers",
+        "it",
+        "its",
+        "they",
+        "them",
+        "their",
+        "theirs",
+        "who",
+        "whom",
+        "whose",
+        "which",
+        "what",
+        # conjunctions
+        "and",
+        "or",
+        "but",
+        "nor",
+        "not",
+        "than",
+        "then",
+        # interjections / fillers
+        "um",
+        "uh",
+        "oh",
+        "ah",
+        "eh",
+    }
+)
+
+
 def _is_derived_name_pollution(form: str) -> bool:
-    """wyrd-rogd.11: True when a MODERN-stage reflex is a derived proper noun
-    (place or personal name) or a capitalized cross-orthography foreign
-    cognate, NOT the morpheme's own common-noun continuation.
+    """wyrd-rogd.11 + wyrd-pzg5: True when a MODERN-stage reflex is NOT the
+    morpheme's own common-noun continuation — a derived proper noun (place or
+    personal name), a capitalized cross-orthography foreign cognate, a
+    segmentation fragment, or a closed-class function word.
 
     The cluster/descent tiers dump an etymon's whole modern-attested cluster
     into the modern stage — derived toponyms (``West Ham``, ``Coldingham``,
@@ -205,14 +275,26 @@ def _is_derived_name_pollution(form: str) -> bool:
     mistagged foreign cognates (``Düne``, ``Zaun``, ``Ouest``) — none of which
     is the morpheme's modern English reflex (``ton``, ``hill``, ``-bury``).
     ``edge_type`` is unreliable (OE ``tūn`` → ``Pendleton`` is tagged
-    'inheritance'), so we gate on the FORM: internal whitespace (a multi-word
-    toponym) or an initial uppercase letter (a proper noun — toponym or
-    anthroponym — or a capitalized foreign cognate, e.g. a German common noun
-    like ``Düne`` whose orthography betrays a non-English form). A genuine
-    reflex is a lowercase common form. Erring toward an EMPTY modern stage is
-    intended per the ticket."""
+    'inheritance'), so we gate on the FORM:
+
+    - internal whitespace (a multi-word toponym, e.g. ``mons pubis``);
+    - an initial uppercase letter (a proper noun or a capitalized foreign
+      cognate like ``Düne`` whose orthography betrays a non-English form);
+    - a single-character form (``s``, ``k``) — a segmentation/OCR fragment;
+      the shortest genuine elements (``ea``, ``ey``) are two characters, and
+      the generator already always drops single-character fragments;
+    - a closed-class function word (``the``, ``they``, ``thy`` — see
+      ``_MODERN_REFLEX_STOPWORDS``).
+
+    A genuine reflex is a lowercase common form. Erring toward an EMPTY modern
+    stage is intended per the ticket."""
     f = form.strip()
     if not f or any(c.isspace() for c in f):  # empty, or multi-word (any whitespace)
+        return True
+    bare = f.strip("-")  # ignore affix hyphens for the length / stopword checks
+    if len(bare) <= 1:  # single-char segmentation/OCR fragment
+        return True
+    if bare.lower() in _MODERN_REFLEX_STOPWORDS:
         return True
     first_alpha = next((c for c in f if c.isalpha()), "")
     return first_alpha.isupper()

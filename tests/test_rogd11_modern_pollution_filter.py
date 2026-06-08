@@ -98,6 +98,24 @@ def test_pollution_predicate_edge_cases() -> None:
     assert not _is_derived_name_pollution("-ton")
 
 
+def test_pollution_predicate_drops_single_char_and_function_words() -> None:
+    # wyrd-pzg5: single-character segmentation fragments → pollution
+    for frag in ("s", "k", "e", "a", "-s", "x-"):
+        assert _is_derived_name_pollution(frag), frag
+    # closed-class function words / pronouns ride in via deep cluster over-merge
+    for fw in ("the", "they", "them", "thy", "thee", "their", "and", "or", "what", "um", "oh"):
+        assert _is_derived_name_pollution(fw), fw
+        assert _is_derived_name_pollution(fw.upper()) or fw[0].isupper(), fw  # caps caught anyway
+
+
+def test_pollution_predicate_keeps_legit_short_elements() -> None:
+    # wyrd-pzg5 guard: genuine 2-char place-name elements must NOT be dropped —
+    # the stopword set deliberately excludes 'by' (-by), and short elements are
+    # never single-char. A regression here would silently empty real grids.
+    for good in ("ea", "by", "ey", "ash", "low", "ley", "ham", "ing", "ait", "nab"):
+        assert not _is_derived_name_pollution(good), good
+
+
 def test_filtered_forms_do_not_reach_forms_by_lang(fresh_db: Path) -> None:
     # The seam guarantee: a dropped modern proper noun must not survive into
     # forms_by_lang (what the generator samples), not just the era-grid view.
