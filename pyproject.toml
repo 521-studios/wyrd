@@ -119,3 +119,8 @@ ignore_decorators = [
     "@*.group",
     "@*.fixture",
 ]
+# Triaged keeps — flagged (no product caller) but deliberately retained:
+#   known_regions — public test-helper; kept over a private _REGION_TO_COUNTRY
+#     import to preserve encapsulation (PR #498 Gemini review). It is also the
+#     more future-proof predicate if the map ever gains None-valued entries.
+ignore_names = ["known_regions"]
