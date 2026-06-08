@@ -122,7 +122,7 @@ The time axis of the register model — the historical period a form is
 attested in: `oe-early`, `oe-late`, `me` (Middle English), `early-modern`,
 `modern`, plus Celtic equivalents (`middle-irish`, …). The `--era` knob
 filters the morpheme inventory to forms attested in a period; combined
-with [language](#culture--register), any (language × era) cell produces
+with [language](#--culture--register), any (language × era) cell produces
 a different surface form (D5, D5-3).
 
 ### Stratum (register)
@@ -132,7 +132,7 @@ borrowing history. Welsh splits into `native-welsh` / `latin-loan` /
 into `native-old-english` / `latin-loan` / `norse-loan` /
 `celtic-substrate`; etc. The `--stratum` knob restricts to one bucket;
 validation is per-culture (D32). Don't confuse with [era](#era) (time)
-or [culture](#culture--register) (language).
+or [culture](#--culture--register) (language).
 
 ### Attestation
 A dated historical record that a form existed — a `(form, year)` pair
@@ -263,7 +263,7 @@ every character maps to a known morpheme (the rate tracked in
 
 ### Proportions
 Per-culture pre-baked statistics (`<culture>_proportions.json`) the
-runtime samples from in the default `proportions` scoring mode — joint
+runtime samples in the default `proportions` scoring mode — joint
 frequencies at the **tag** level (semantic classes), not the morpheme
 level, because a K×K tag matrix is learnable where a morpheme matrix
 would be hopelessly sparse (D16). Rebuilt by `rebuild-proportions`.
