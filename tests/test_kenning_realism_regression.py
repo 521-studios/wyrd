@@ -264,14 +264,8 @@ def test_register_composition_combines_phonological_and_semantic():
     assert abs(sem_score(["rock"], register) - 0.0) < 1e-9
 
 
-# ---- pack overlay smoke (currently degenerate — packs not wired) ---------
-
-
-def test_pack_overlay_smoke_currently_skipped():
-    """Pack overlays (PackOverlay class) exist as schema today but
-    aren't wired into vector_name_select's gate or scoring (deferred
-    to wyrd-ecjp.8 / Phase 7 / Phase 7's bundle changes). This test
-    is the placeholder so the regression suite has a row for pack
-    behavior; it skip-passes today and turns into a real assertion
-    once packs ship."""
-    pytest.skip("packs not yet wired into vector_name_select (wyrd-ecjp.8)")
+# Pack-overlay behavior shipped in wyrd-ecjp.8 (PR #272): scenario packs are
+# admitted + tag-filtered + scored in select_via_vector_scoring. The former
+# skip-placeholder here is retired — the runtime pack-admission contract is
+# covered by the dedicated tests/test_kenning_vector_pack_overlay.py (plus
+# test_kenning_vector_name_select / _pack_loader / _generate_pack_cli).
