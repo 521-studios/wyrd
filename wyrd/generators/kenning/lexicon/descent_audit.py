@@ -112,6 +112,7 @@ def _load_cluster_edges(conn: sqlite3.Connection) -> dict[int, list[tuple[int, i
     grouped by cluster, in ONE query — Phase 2b screens nearly every cluster, so
     a per-cluster query would be N roundtrips."""
     by_cluster: dict[int, list[tuple[int, int, str]]] = defaultdict(list)
+    seen: set[tuple[int, int]] = set()  # dedup (parent,child): a pair can have >1 edge_type
     for r in conn.execute(
         "SELECT d.parent_id AS p, d.child_id AS c, d.edge_type AS et, e1.cognate_id AS cog "
         "FROM etymon_descent d "
@@ -119,36 +120,24 @@ def _load_cluster_edges(conn: sqlite3.Connection) -> dict[int, list[tuple[int, i
         "JOIN etymon e2 ON e2.id = d.child_id "
         "WHERE e1.cognate_id IS NOT NULL AND e1.cognate_id = e2.cognate_id"
     ):
+        key = (r["p"], r["c"])
+        if key in seen:  # one tuple per directed pair — keeps out-degree honest
+            continue
+        seen.add(key)
         by_cluster[r["cog"]].append((r["p"], r["c"], r["et"]))
     return by_cluster
 
 
-# Proto-form / reconstruction conductors are the over-merge hubs. A reconstructed
-# form (``*``-prefixed) or a proto-language code names a node whose descendant
-# fan-out can wrongly unify distinct words.
-_PROTO_LANG_SUFFIX = "-pro"
-_PROTO_LANGS = frozenset(
-    {
-        "ine-pro",
-        "itc-pro",
-        "gem-pro",
-        "gmw-pro",
-        "gmq-pro",
-        "cel-pro",
-        "sla-pro",
-        "bat-pro",
-        "cel-bry-pro",
-        "proto-germanic",
-        "proto-celtic",
-        "proto-italic",
-    }
-)
 # Min within-cluster out-degree for a proto node to count as a fan-out conductor.
 _MIN_PROTO_FANOUT = 3
 
 
 def _is_proto(lang: str, form: str) -> bool:
-    return form.startswith("*") or lang.endswith(_PROTO_LANG_SUFFIX) or lang in _PROTO_LANGS
+    """A reconstructed form (``*``-prefixed) or a proto-language — the over-merge
+    hub nodes. Wiktextract names proto languages two ways, both covered:
+    ``proto-germanic``/``proto-celtic`` (``proto-`` prefix) and ``itc-pro``/
+    ``gmw-pro``/``ine-pro`` (``-pro`` suffix)."""
+    return form.startswith("*") or lang.startswith("proto-") or lang.endswith("-pro")
 
 
 def _candidate(parent: dict, child: dict, edge_type: str, dominant_glosses: tuple[str, ...]):
@@ -190,21 +179,23 @@ def _emit_phase2b(out, edges, gidx, unique_dom, by_id, dom_glosses) -> None:
     gloss-token screen can't see (``itc-pro:*wolwumen`` -> glossless ``vulva`` in
     the ``val`` 'valley' cluster). Screen each conductor edge whose child is NOT
     in the dominant sense (glossless, or glossed but sense-disjoint); the LLM
-    judges the child form against the dominant sense."""
-    domset = {i for i, gi in gidx.items() if gi == unique_dom}
-    domtok = {t for i in domset for t in by_id[i]["tokens"]}
+    judges the child form against the dominant sense.
+
+    "Not in the dominant sense" is tested via sense-group membership
+    (``gidx.get(c) != unique_dom``), consistent with 2a's union-find: a glossless
+    child has no group (eligible); a glossed child sharing the dominant sense was
+    already union-found INTO the dominant group (so it's skipped) — no looser
+    token-overlap test needed."""
     outdeg: dict[int, int] = defaultdict(int)
     for p, _c, _et in edges:
         outdeg[p] += 1
     for p, c, etype in edges:
-        pr, cr = by_id[p], by_id[c]
+        pr = by_id[p]
         if not _is_proto(pr["lang"], pr["form"]) or outdeg[p] < _MIN_PROTO_FANOUT:
             continue
-        if c in domset:
-            continue  # edge into the dominant sense — presumed correct
-        if cr["tokens"] and (cr["tokens"] & domtok):
-            continue  # child is glossed AND shares the dominant sense — keep
-        cand = _candidate(pr, cr, etype, dom_glosses)
+        if gidx.get(c) == unique_dom:
+            continue  # edge into the dominant sense-group — presumed correct
+        cand = _candidate(pr, by_id[c], etype, dom_glosses)
         out.setdefault(cand.edge_key, cand)
 
 

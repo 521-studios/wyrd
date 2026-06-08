@@ -443,3 +443,68 @@ def test_phase2b_requires_proto_conductor_and_fanout(lex):
     _edge(lex, proto, off)  # out-degree 2 only
     lex.commit()
     assert detect_descent_audit_candidates(lex.conn, scope="2b") == []
+
+
+def test_is_proto_branches():
+    from wyrd.generators.kenning.lexicon.descent_audit import _is_proto
+
+    assert _is_proto("proto-germanic", "haimaz") is True  # _PROTO_LANGS set (no -pro suffix)
+    assert _is_proto("xyz-pro", "f") is True  # -pro suffix
+    assert _is_proto("latin", "*recon") is True  # *-prefixed reconstruction
+    assert _is_proto("latin", "vallis") is False  # plain attested word
+
+
+def test_scope_both_dedups_2a_and_2b_on_same_edge(lex):
+    """An incoherent cluster (2a fires) with a glossless-proto conductor to a
+    glossless child (2b fires): scope=both yields the conductor edge exactly once;
+    2a alone misses the glossless child, 2b alone catches it."""
+    proto = _mk(lex, "*p", "itc-pro")
+    v1 = _mk(lex, "vallis", "latin", gloss="valley")
+    v2 = _mk(lex, "val", "old-french", gloss="valley")
+    other = _mk(lex, "vulgus", "latin", gloss="crowd")  # 2nd glossed sense -> incoherent (2a runs)
+    glossless = _mk(lex, "vulva", "latin")  # glossless off-sense (only 2b sees it)
+    _cluster(lex, proto, v1, v2, other, glossless)
+    _edge(lex, proto, v1)
+    _edge(lex, proto, v2)
+    _edge(lex, proto, glossless)  # conductor out-degree 3
+    _edge(lex, proto, other)
+    lex.commit()
+    both = detect_descent_audit_candidates(lex.conn, scope="both")
+    key = "itc-pro:*p->latin:vulva"
+    assert sum(1 for c in both if c.edge_key == key) == 1  # union deduped
+    keys_2a = {c.edge_key for c in detect_descent_audit_candidates(lex.conn, scope="2a")}
+    keys_2b = {c.edge_key for c in detect_descent_audit_candidates(lex.conn, scope="2b")}
+    assert key not in keys_2a and key in keys_2b  # 2b added recall
+
+
+def test_phase2b_skipped_on_dominant_tie(lex):
+    """A 1-1 sense tie has no clear dominant, so 2b screens nothing."""
+    proto = _mk(lex, "*x", "ine-pro")
+    a = _mk(lex, "alpha", "latin", gloss="fire")
+    b = _mk(lex, "beta", "latin", gloss="water")
+    glossless = _mk(lex, "gl", "latin")
+    _cluster(lex, proto, a, b, glossless)
+    _edge(lex, proto, a)
+    _edge(lex, proto, b)
+    _edge(lex, proto, glossless)
+    lex.commit()
+    assert detect_descent_audit_candidates(lex.conn, scope="2b") == []
+
+
+def test_load_cluster_edges_groups_and_excludes_cross_cluster(lex):
+    from wyrd.generators.kenning.lexicon.descent_audit import _load_cluster_edges
+
+    a1 = _mk(lex, "a1", "latin")
+    a2 = _mk(lex, "a2", "latin")
+    b1 = _mk(lex, "b1", "latin")
+    b2 = _mk(lex, "b2", "latin")
+    _cluster(lex, a1, a2)  # cluster A (cognate_id = a1)
+    _cluster(lex, b1, b2)  # cluster B (cognate_id = b1)
+    _edge(lex, a1, a2)  # intra-A
+    _edge(lex, b1, b2)  # intra-B
+    _edge(lex, a1, b1)  # cross-cluster — must be excluded
+    lex.commit()
+    ebc = _load_cluster_edges(lex.conn)
+    assert ebc[a1] == [(a1, a2, "inheritance")]
+    assert ebc[b1] == [(b1, b2, "inheritance")]
+    assert all((a1, b1) != (p, c) for edges in ebc.values() for p, c, _ in edges)
