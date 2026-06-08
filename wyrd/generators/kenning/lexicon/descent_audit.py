@@ -140,7 +140,9 @@ def _is_proto(lang: str, form: str) -> bool:
     return form.startswith("*") or lang.startswith("proto-") or lang.endswith("-pro")
 
 
-def _candidate(parent: dict, child: dict, edge_type: str, dominant_glosses: tuple[str, ...]):
+def _candidate(
+    parent: dict, child: dict, edge_type: str, dominant_glosses: tuple[str, ...]
+) -> DescentAuditCandidate:
     return DescentAuditCandidate(
         parent_ref=parent["ref"],
         child_ref=child["ref"],
@@ -204,11 +206,13 @@ def _emit_phase2b(
     for p, _c, _et in edges:
         outdeg[p] += 1
     for p, c, etype in edges:
-        pr = by_id[p]
-        if not _is_proto(pr["lang"], pr["form"]) or outdeg[p] < _MIN_PROTO_FANOUT:
+        # cheapest filters first: out-degree (dict) + dominant-group membership,
+        # so non-conductor edges skip the by_id lookup + _is_proto string checks.
+        if outdeg[p] < _MIN_PROTO_FANOUT or gidx.get(c) == unique_dom:
             continue
-        if gidx.get(c) == unique_dom:
-            continue  # edge into the dominant sense-group — presumed correct
+        pr = by_id[p]
+        if not _is_proto(pr["lang"], pr["form"]):
+            continue
         cand = _candidate(pr, by_id[c], etype, dom_glosses)
         out.setdefault(cand.edge_key, cand)
 
