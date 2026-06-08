@@ -204,16 +204,16 @@ def _modern_stage_languages() -> frozenset[str]:
 # (in/on/at/up) whose element-hood is ambiguous — erring toward keeping.
 _MODERN_REFLEX_STOPWORDS: frozenset[str] = frozenset(
     {
-        # articles / determiners / demonstratives
+        # articles / determiners / demonstratives ('a'/'an' note: 'a' is already
+        # dropped by the single-char rule, so only multi-char entries are listed)
         "the",
-        "a",
         "an",
         "this",
         "that",
         "these",
         "those",
-        # pronouns (personal / possessive / interrogative / relative)
-        "i",
+        # pronouns (personal / possessive / interrogative / relative);
+        # single-char 'i' is covered by the single-char rule, so it's omitted here
         "me",
         "my",
         "mine",
@@ -283,6 +283,8 @@ def _is_derived_name_pollution(form: str) -> bool:
     - a single-character form (``s``, ``k``) — a segmentation/OCR fragment;
       the shortest genuine elements (``ea``, ``ey``) are two characters, and
       the generator already always drops single-character fragments;
+    - a form with NO alphabetic character (``123``, ``??``) — a numeric/
+      punctuation artifact, never a reflex;
     - a closed-class function word (``the``, ``they``, ``thy`` — see
       ``_MODERN_REFLEX_STOPWORDS``).
 
@@ -297,6 +299,8 @@ def _is_derived_name_pollution(form: str) -> bool:
     if bare.lower() in _MODERN_REFLEX_STOPWORDS:
         return True
     first_alpha = next((c for c in f if c.isalpha()), "")
+    if not first_alpha:  # digits / punctuation only — not a real reflex
+        return True
     return first_alpha.isupper()
 
 

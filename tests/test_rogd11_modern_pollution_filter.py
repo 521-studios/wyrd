@@ -102,6 +102,9 @@ def test_pollution_predicate_drops_single_char_and_function_words() -> None:
     # wyrd-pzg5: single-character segmentation fragments → pollution
     for frag in ("s", "k", "e", "a", "-s", "x-"):
         assert _is_derived_name_pollution(frag), frag
+    # forms with no alphabetic character (numeric / punctuation artifacts) → pollution
+    for nonalpha in ("123", "??", "—", "12-3", "."):
+        assert _is_derived_name_pollution(nonalpha), nonalpha
     # closed-class function words / pronouns ride in via deep cluster over-merge
     for fw in ("the", "they", "them", "thy", "thee", "their", "and", "or", "what", "um", "oh"):
         assert _is_derived_name_pollution(fw), fw  # lowercase → stopword branch
