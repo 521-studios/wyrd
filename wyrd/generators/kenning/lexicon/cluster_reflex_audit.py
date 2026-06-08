@@ -28,11 +28,9 @@ import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
 
+from wyrd.generators.kenning.lexicon.cognate_cluster import _NON_BRIDGING_LANGUAGES
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
-from wyrd.generators.kenning.lexicon.descent_audit import (
-    _is_proto,
-    _load_clustered_corpus,
-)
+from wyrd.generators.kenning.lexicon.descent_audit import _load_clustered_corpus
 from wyrd.generators.kenning.lexicon.merge_audit import _sense_groups
 
 LLM_CLUSTER_REFLEX_DETACH_METHOD = "llm-cluster-reflex-detach-v1"
@@ -66,9 +64,11 @@ class ClusterReflexVerdict:
 
 
 def _bridging_parents(conn: sqlite3.Connection, child_id: int, by_id: dict[int, dict]) -> list[str]:
-    """Refs of ``child_id``'s in-cluster bridging parents (inheritance/borrowing,
-    non-PIE, same cognate cluster) — the edges that hold the reflex in the
-    cluster and must be detached to orphan it."""
+    """Refs of ``child_id``'s in-cluster bridging parents — the edges that hold
+    the reflex in the cluster and must be detached to orphan it. Must match
+    ``cluster_cognates`` exactly: bridging edge types, same cognate cluster, and
+    parent NOT in ``_NON_BRIDGING_LANGUAGES`` (only PIE — family-level protos
+    like proto-germanic / itc-pro DO bridge, so their edges must be cut too)."""
     cog = by_id[child_id]["cognate_id"]
     ph = ", ".join("?" * len(_BRIDGING_EDGES))
     parents: list[str] = []
@@ -77,7 +77,7 @@ def _bridging_parents(conn: sqlite3.Connection, child_id: int, by_id: dict[int, 
         (child_id, *_BRIDGING_EDGES),
     ):
         pr = by_id.get(r["parent_id"])
-        if pr is None or pr["cognate_id"] != cog or _is_proto(pr["lang"], pr["form"]):
+        if pr is None or pr["cognate_id"] != cog or pr["lang"] in _NON_BRIDGING_LANGUAGES:
             continue
         parents.append(pr["ref"])
     return parents

@@ -170,3 +170,131 @@ def test_judge_prompt_has_form_and_sense(lex):
     system, user = build_judge_prompt(c)
     assert "reflex_of_sense" in system
     assert "vulva" in user and "valley" in user
+
+
+# --- P1 fix: family-proto parents bridge (only PIE is non-bridging) ---
+
+
+def test_bridging_parents_includes_family_proto_excludes_pie_and_cross_cluster(lex):
+    """A leaf's in-cluster family-proto parent (proto-germanic) MUST be a detach
+    target (it bridges the cluster, like cluster_cognates); a PIE parent and a
+    different-cluster parent must NOT be."""
+    vallis = _mk(lex, "vallis", "latin", gloss="valley")
+    val = _mk(lex, "val", "old-french", gloss="valley")
+    leaf = _mk(lex, "leafword", "modern-english")  # glossless suspect
+    sibling = _mk(lex, "vale", "modern-english", gloss="valley")  # 2nd modern member
+    fam_proto = _mk(lex, "*famproto", "proto-germanic")  # family proto — BRIDGES
+    pie = _mk(lex, "*pieroot", "proto-indo-european")  # PIE — non-bridging
+    _cluster(lex, vallis, val, leaf, sibling, fam_proto)  # leaf in this cluster
+    other = _mk(lex, "otherword", "latin", gloss="unrelated")
+    other2 = _mk(lex, "otherword2", "latin", gloss="unrelated")
+    _cluster(lex, other, other2)  # a different cluster
+    _edge(lex, fam_proto, leaf, "inheritance")  # family-proto -> leaf (bridges)
+    _edge(lex, pie, leaf, "inheritance")  # PIE -> leaf (non-bridging)
+    _edge(lex, other, leaf, "borrowing")  # cross-cluster parent
+    lex.commit()
+    cands = detect_cluster_reflex_candidates(lex.conn)
+    leaf_c = next(c for c in cands if c.reflex_ref == "modern-english:leafword")
+    assert leaf_c.bridging_parents == ("proto-germanic:*famproto",)
+
+
+# --- CLI helpers (mirror the audit_descent coverage) ---
+
+
+def _logrow(ref, parents, *, plausible, conf="high"):
+    return {
+        "_type": "cluster_reflex_audit",
+        "reflex_ref": ref,
+        "bridging_parents": parents,
+        "reflex_of_sense": plausible,
+        "confidence": conf,
+        "reason": "r",
+    }
+
+
+def test_cli_emit_detaches_groups_merges_and_dedups():
+    import io
+
+    from wyrd.generators.kenning.cli.lexicon import audit_cluster_reflexes as cli
+
+    log = {
+        "modern-english:vulva": _logrow("modern-english:vulva", ["latin:vulva"], plausible=False),
+        "modern-english:vale": _logrow("modern-english:vale", ["old-french:val"], plausible=True),
+    }
+    # vale kept; vulva detached -> one row
+    fh = io.StringIO()
+    counts = cli._emit_detaches(log, "medium", {}, set(), fh, dry_run=False)
+    import json as _json
+
+    rows = [_json.loads(x) for x in fh.getvalue().splitlines()]
+    assert counts == {"detaches": 1, "kept": 1, "already": 0}
+    assert rows == [
+        {
+            "_type": "collapse",
+            "ref": "modern-english:vulva",
+            "detach_parents": ["latin:vulva"],
+            "method": "llm-cluster-reflex-detach-v1",
+            "confidence": "high",
+            "reason": "r",
+        }
+    ]
+    # merge-with-existing-fold preserves into/detach_children
+    state = {
+        "modern-english:vulva": {
+            "_type": "collapse",
+            "ref": "modern-english:vulva",
+            "into": "x:y",
+            "detach_children": ["z:w"],
+        }
+    }
+    fh2 = io.StringIO()
+    cli._emit_detaches(log, "medium", state, set(), fh2, dry_run=False)
+    merged = _json.loads(fh2.getvalue())
+    assert merged["into"] == "x:y" and merged["detach_children"] == ["z:w"]
+    assert merged["detach_parents"] == ["latin:vulva"]
+    # dedup against existing pairs
+    fh3 = io.StringIO()
+    c3 = cli._emit_detaches(
+        log, "medium", {}, {("modern-english:vulva", "latin:vulva")}, fh3, dry_run=False
+    )
+    assert c3["already"] == 1 and fh3.getvalue() == ""
+
+
+def test_cli_load_log_filters_malformed(tmp_path):
+    import json as _json
+
+    from wyrd.generators.kenning.cli.lexicon import audit_cluster_reflexes as cli
+
+    f = tmp_path / "_cluster_reflex_audit.jsonl"
+    f.write_text(
+        "\n".join(
+            [
+                _json.dumps(_logrow("a:b", ["c:d"], plausible=False)),
+                _json.dumps({"_type": "other", "reflex_ref": "x"}),
+                _json.dumps(
+                    {"_type": "cluster_reflex_audit", "reflex_ref": "y"}
+                ),  # no bool verdict
+                "{bad json",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert set(cli._load_log(f)) == {"a:b"}
+    assert cli._load_log(tmp_path / "absent.jsonl") == {}
+
+
+def test_cli_judge_fresh_aborts_after_five_failures(monkeypatch):
+    import click
+
+    from wyrd.generators.kenning.cli.lexicon import audit_cluster_reflexes as cli
+    from wyrd.generators.kenning.lexicon.cluster_reflex_audit import ClusterReflexCandidate
+
+    monkeypatch.setattr(cli, "_judge_with_retry", lambda client, c: None)
+    cands = [
+        ClusterReflexCandidate(f"modern-english:w{i}", f"w{i}", ("s",), ("p:q",)) for i in range(8)
+    ]
+    log: dict = {}
+    with pytest.raises(click.ClickException):
+        cli._judge_fresh(None, cands, log, None, "url", "model")
+    assert log == {}
