@@ -84,12 +84,19 @@ def _bridging_parents(conn: sqlite3.Connection, child_id: int, by_id: dict[int, 
 
 
 def detect_cluster_reflex_candidates(
-    conn: sqlite3.Connection, *, limit_clusters: int | None = None
+    conn: sqlite3.Connection, *, limit_clusters: int | None = None, prescreen: bool = True
 ) -> list[ClusterReflexCandidate]:
-    """Suspect modern reflexes across clusters with a clear dominant glossed
-    sense + >=2 modern members. A modern member is suspect when it is NOT in the
-    dominant sense-group and shares none of its gloss tokens (glossless members
-    are always suspect). Auto-kept members never reach the LLM."""
+    """Modern reflexes to audit across clusters with a clear dominant glossed
+    sense + >=2 modern members.
+
+    With ``prescreen=True`` (default, cheap) a modern member is suspect only when
+    it is NOT in the dominant sense-group and shares none of its gloss tokens —
+    on-sense members are auto-kept and never reach the LLM. With
+    ``prescreen=False`` (broad) EVERY modern member is judged: the gloss-token
+    pre-screen wrongly auto-keeps noise that ``_sense_groups`` over-grouped into
+    the dominant via one incidental shared token (``mons pubis`` ~ 'mount'), so
+    broad mode catches it at the cost of (cheaply) re-judging the on-sense members
+    too (the judge keeps them)."""
     by_id = _load_clustered_corpus(conn)
     clusters: dict[int, list[int]] = defaultdict(list)
     for eid, rec in by_id.items():
@@ -117,10 +124,11 @@ def detect_cluster_reflex_candidates(
         domtok = {t for i in domset for t in by_id[i]["tokens"]}
         dom_glosses = tuple(sorted({gl for i in domset for gl in by_id[i]["glosses"]}))[:4]
         for m in moderns:
-            if m in domset:
-                continue  # a glossed modern member OF the dominant sense
-            if by_id[m]["tokens"] and (by_id[m]["tokens"] & domtok):
-                continue  # shares the dominant sense — auto-keep
+            if prescreen:
+                if m in domset:
+                    continue  # a glossed modern member OF the dominant sense
+                if by_id[m]["tokens"] and (by_id[m]["tokens"] & domtok):
+                    continue  # shares the dominant sense — auto-keep
             parents = _bridging_parents(conn, m, by_id)
             if not parents:
                 continue  # already orphaned / no in-cluster bridging edge to cut

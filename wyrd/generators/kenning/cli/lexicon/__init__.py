@@ -44,6 +44,9 @@ from wyrd.generators.kenning.cli.lexicon import (
     audit_short_quotes as _audit_short_quotes_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
+    audit_toponym_reflexes as _audit_toponym_reflexes_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
     backfill_fantasy_tags as _backfill_fantasy_tags_module,
 )
 from wyrd.generators.kenning.cli.lexicon import backfill_pages as _backfill_pages_module
@@ -233,6 +236,7 @@ _audit_merges_module.add_to(lexicon)
 _audit_reflexes_module.add_to(lexicon)
 _audit_semantic_coherence_module.add_to(lexicon)
 _audit_short_quotes_module.add_to(lexicon)
+_audit_toponym_reflexes_module.add_to(lexicon)
 _cleanup_wiktionary_empirical_module.add_to(lexicon)
 _backfill_fantasy_tags_module.add_to(lexicon)
 _backfill_pages_module.add_to(lexicon)
