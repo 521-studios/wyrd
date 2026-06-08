@@ -106,9 +106,3 @@ def country_for_region(region: str | None) -> str | None:
     if region is None:
         return None
     return _REGION_TO_COUNTRY.get(region)
-
-
-def known_regions() -> frozenset[str]:
-    """Return the set of region strings the map covers. Useful for tests
-    pinning the map against the live ``_KNOWN_SKEAT_BOOKS`` registry."""
-    return frozenset(_REGION_TO_COUNTRY)

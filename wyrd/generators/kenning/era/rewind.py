@@ -169,8 +169,7 @@ def render_form_particle_pairs(pairs: list[tuple[str, bool]], *, smart_join: boo
 
 def _concat_form_pairs_simple(pairs: list[tuple[str, bool]]) -> str:
     """wyrd-t2bh / wyrd-2pio: simple concatenation of form-particle
-    pairs, title-case first letter. The pair-shaped twin of
-    _concat_morphemes_simple. Used at the modern-english era stop
+    pairs, title-case first letter. Used at the modern-english era stop
     where canonical short-circuit (wyrd-8qbi) already produces the
     operator's input shape."""
     if not pairs:
@@ -179,13 +178,6 @@ def _concat_form_pairs_simple(pairs: list[tuple[str, bool]]) -> str:
     if joined:
         joined = joined[0].upper() + joined[1:]
     return joined
-
-
-def _concat_morphemes_simple(morphemes: list[MorphemeRewind]) -> str:
-    """wyrd-t2bh: simple concatenation of MorphemeRewind forms. Thin
-    adapter over ``_concat_form_pairs_simple`` that pulls each
-    morpheme's picked form."""
-    return _concat_form_pairs_simple([(_pick_form(m), False) for m in morphemes])
 
 
 def _render_morphemes_as_name(morphemes: list[MorphemeRewind], *, smart_join: bool = True) -> str:

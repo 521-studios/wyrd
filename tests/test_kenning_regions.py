@@ -11,7 +11,7 @@ from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.backfill_country import backfill_toponym_country
 from wyrd.generators.kenning.lexicon.ingest import _upsert_toponym
-from wyrd.generators.kenning.lexicon.regions import country_for_region, known_regions
+from wyrd.generators.kenning.lexicon.regions import _REGION_TO_COUNTRY, country_for_region
 
 # --- region → country map ----------------------------------------------------
 
@@ -81,7 +81,7 @@ def test_known_regions_covers_all_skeat_book_regions():
     from wyrd.generators.kenning.cli.lexicon.build import _KNOWN_SKEAT_BOOKS
 
     multi_country = {"British Isles", "Europe", "England and Wales"}
-    covered = known_regions()
+    covered = frozenset(_REGION_TO_COUNTRY)
     book_regions = {meta["region"] for meta in _KNOWN_SKEAT_BOOKS.values() if meta.get("region")}
     uncovered = book_regions - covered - multi_country
     assert not uncovered, (

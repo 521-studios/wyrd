@@ -2583,10 +2583,6 @@ class NewName:
                 out.append(morpheme)
         return out
 
-    def _find_meaning(self, meaning):
-        roots = self._roots_str(meaning)
-        return f"{roots} {', '.join(meaning.meanings)}"
-
     def _roots(self, meaning) -> list[str]:
         keys = [
             ("old_english", "EN"),
@@ -2715,25 +2711,6 @@ def _fill_reader_pronunciations(
             rendered = anglicize_ipa(ipa)
             if rendered:
                 slot["reader_pronunciation"] = rendered
-
-
-# Compact display max for description()'s citation block. Above this, the
-# explainer renders 'first, second, third (+N more)' rather than a wall of
-# 18 source_ids. components() keeps the full list so the SPA can render
-# its own disclosure UI.
-_DESCRIPTION_CITATION_LIMIT = 3
-
-
-def _format_citations_for_description(citations: list[str]) -> str:
-    """Render a short scholar-ID list for the explainer breakdown line.
-    Long lists collapse to 'first, second, third (+N more)'; lists at or
-    under the limit display in full. source_ids stay as-is — the SPA
-    layer (wyrd-9kh.6) substitutes prettier titles via the source table."""
-    if len(citations) <= _DESCRIPTION_CITATION_LIMIT:
-        return ", ".join(citations)
-    head = ", ".join(citations[:_DESCRIPTION_CITATION_LIMIT])
-    extra = len(citations) - _DESCRIPTION_CITATION_LIMIT
-    return f"{head} (+{extra} more)"
 
 
 def word_to_key(word):
