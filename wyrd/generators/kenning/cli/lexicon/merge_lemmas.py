@@ -12,9 +12,113 @@ from __future__ import annotations
 import json
 import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import click
+
+
+@dataclass
+class _MergeLemmaRun:
+    """Shared state for the per-candidate merge-judge loop: the LLM client, the
+    output handle (``None`` in ``--dry-run``), the dry-run flag, the merge
+    confidence threshold, and the mutable merges/rejects/skipped counters."""
+
+    client: Any
+    fh: Any
+    dry_run: bool
+    min_confidence: str
+    counts: dict[str, int]
+
+
+def _load_judged(collapse_file: Path) -> tuple[set[tuple[str, str]], set[str]]:
+    """Parse the ledger for already-judged meaning-merge state. Returns
+    ``(judged, merged_refs)``: ``judged`` is the set of (minor, major) PAIRS
+    judged (method-tagged ``llm-meaning-``); ``merged_refs`` is the set of
+    minor refs that were actually merged (a merge is TERMINAL — a merged minor
+    is never re-judged, so no later reject cancels it at replay)."""
+    judged: set[tuple[str, str]] = set()
+    merged_refs: set[str] = set()
+    if collapse_file.exists():
+        with collapse_file.open(encoding="utf-8") as fled:  # stream — the ledger grows
+            for line in fled:
+                line = line.strip()
+                if not line.startswith("{"):
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    row.get("_type") == "collapse"
+                    and row.get("ref")
+                    and str(row.get("method", "")).startswith("llm-meaning-")
+                ):
+                    judged.add((row["ref"], row.get("candidate_lemma") or row.get("into") or ""))
+                    if row.get("into"):
+                        merged_refs.add(row["ref"])
+    return judged, merged_refs
+
+
+def _select_todo(
+    candidates: list, merged_refs: set[str], judged: set[tuple[str, str]], limit: int | None
+) -> list:
+    """Candidates whose minor isn't already merged and whose (minor, major)
+    pair isn't already judged, capped at ``limit`` when set."""
+    todo = [
+        c
+        for c in candidates
+        if c.minor_ref not in merged_refs and (c.minor_ref, c.major_ref) not in judged
+    ]
+    if limit is not None:
+        todo = todo[:limit]
+    return todo
+
+
+def _judge_and_record(ctx: _MergeLemmaRun, c: Any) -> None:
+    """Judge one merge candidate with the LLM (one retry with a brief backoff on
+    transport/parse failure) and either print (``--dry-run``) or append its
+    verdict row to the ledger. A transient failure is skipped WITHOUT recording
+    (logging why), so a later run retries rather than burning the pair."""
+    from wyrd.generators.kenning.lexicon.meaning_merge_detect import (
+        build_merge_judge_prompt,
+        merge_verdict_to_row,
+        parse_merge_verdict,
+    )
+
+    system, user = build_merge_judge_prompt(c)
+    verdict = None
+    last_err: Exception | None = None
+    for attempt in range(2):
+        if attempt:  # brief backoff before the single retry
+            time.sleep(1.0)
+        try:
+            verdict = parse_merge_verdict(ctx.client.chat_json(system, user, {}))
+        except Exception as e:
+            last_err = e
+            verdict = None
+        if verdict is not None:
+            break
+    if verdict is None:
+        ctx.counts["skipped"] += 1
+        why = last_err if last_err is not None else "unparseable verdict"
+        click.echo(f"  [skip] {c.minor_form}->{c.major_form}: {why}", err=True)
+        return
+    row = merge_verdict_to_row(c, verdict, ctx.min_confidence)
+    is_merge = row["into"] != ""
+    ctx.counts["merges"] += is_merge
+    ctx.counts["rejects"] += not is_merge
+    if ctx.dry_run:
+        tag = "MERGE" if is_merge else "skip"
+        click.echo(
+            f"  [{tag}] {c.minor_form}({c.minor_cluster_size})->{c.major_form}"
+            f"({c.major_cluster_size}) {verdict.confidence} ({verdict.reason})",
+            err=True,
+        )
+    else:
+        ctx.fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        ctx.fh.flush()
 
 
 @click.command("merge-lemmas")
@@ -70,10 +174,7 @@ def lexicon_merge_lemmas(
     from wyrd.generators.kenning.cli.utils import _readonly_lexicon
     from wyrd.generators.kenning.extractors.llm import OllamaClient
     from wyrd.generators.kenning.lexicon.meaning_merge_detect import (
-        build_merge_judge_prompt,
         detect_meaning_merge_candidates,
-        merge_verdict_to_row,
-        parse_merge_verdict,
     )
 
     if db_path is None:
@@ -94,37 +195,8 @@ def lexicon_merge_lemmas(
             max_per_gloss=max_per_gloss,
         )
 
-    judged: set[tuple[str, str]] = set()
-    merged_refs: set[str] = set()
-    if collapse_file.exists():
-        with collapse_file.open(encoding="utf-8") as fled:  # stream — the ledger grows
-            for line in fled:
-                line = line.strip()
-                if not line.startswith("{"):
-                    continue
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                # Only meaning-merge rows count as already-judged (method tag), at
-                # the (minor, major) PAIR level; a merge is TERMINAL (a merged
-                # minor is never re-judged, so no later reject cancels it at replay).
-                if (
-                    row.get("_type") == "collapse"
-                    and row.get("ref")
-                    and str(row.get("method", "")).startswith("llm-meaning-")
-                ):
-                    judged.add((row["ref"], row.get("candidate_lemma") or row.get("into") or ""))
-                    if row.get("into"):
-                        merged_refs.add(row["ref"])
-
-    todo = [
-        c
-        for c in candidates
-        if c.minor_ref not in merged_refs and (c.minor_ref, c.major_ref) not in judged
-    ]
-    if limit is not None:
-        todo = todo[:limit]
+    judged, merged_refs = _load_judged(collapse_file)
+    todo = _select_todo(candidates, merged_refs, judged, limit)
     click.echo(
         f"  candidates={len(candidates)} already-judged={len(candidates) - len(todo)} "
         f"to-judge={len(todo)} (model={model}, min-confidence={min_confidence})",
@@ -134,61 +206,32 @@ def lexicon_merge_lemmas(
         click.echo("Nothing to judge.", err=True)
         return
 
-    client = OllamaClient(base_url=base_url, model=model, timeout_s=90.0)
     if not dry_run:
         collapse_file.parent.mkdir(parents=True, exist_ok=True)
-    merges = rejects = skipped = 0
+    ctx = _MergeLemmaRun(
+        client=OllamaClient(base_url=base_url, model=model, timeout_s=90.0),
+        fh=None if dry_run else collapse_file.open("a", encoding="utf-8"),
+        dry_run=dry_run,
+        min_confidence=min_confidence,
+        counts={"merges": 0, "rejects": 0, "skipped": 0},
+    )
     start = time.perf_counter()
-    fh = None
     try:
-        if not dry_run:
-            fh = collapse_file.open("a", encoding="utf-8")
         for i, c in enumerate(todo, 1):
-            system, user = build_merge_judge_prompt(c)
-            verdict = None
-            last_err: Exception | None = None
-            for attempt in range(2):
-                if attempt:  # brief backoff before the single retry
-                    time.sleep(1.0)
-                try:
-                    verdict = parse_merge_verdict(client.chat_json(system, user, {}))
-                except Exception as e:
-                    last_err = e
-                    verdict = None
-                if verdict is not None:
-                    break
-            if verdict is None:
-                skipped += 1
-                why = last_err if last_err is not None else "unparseable verdict"
-                click.echo(f"  [skip] {c.minor_form}->{c.major_form}: {why}", err=True)
-                continue
-            row = merge_verdict_to_row(c, verdict, min_confidence)
-            is_merge = row["into"] != ""
-            merges += is_merge
-            rejects += not is_merge
-            if dry_run:
-                tag = "MERGE" if is_merge else "skip"
-                click.echo(
-                    f"  [{tag}] {c.minor_form}({c.minor_cluster_size})->{c.major_form}"
-                    f"({c.major_cluster_size}) {verdict.confidence} ({verdict.reason})",
-                    err=True,
-                )
-            else:
-                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-                fh.flush()
+            _judge_and_record(ctx, c)
             if i % 10 == 0 or i == len(todo):
                 rate = (time.perf_counter() - start) / i
                 click.echo(
-                    f"  [{i}/{len(todo)}]  merges={merges} rejects={rejects} "
-                    f"skipped={skipped} ({rate:.1f}s/entry)",
+                    f"  [{i}/{len(todo)}]  merges={ctx.counts['merges']} rejects={ctx.counts['rejects']} "
+                    f"skipped={ctx.counts['skipped']} ({rate:.1f}s/entry)",
                     err=True,
                 )
     finally:
-        if fh is not None:
-            fh.close()
+        if ctx.fh is not None:
+            ctx.fh.close()
     click.echo(
-        f"{'(dry-run) ' if dry_run else ''}recorded: {merges} merges + {rejects} rejections "
-        f"({skipped} skipped) → {collapse_file}",
+        f"{'(dry-run) ' if dry_run else ''}recorded: {ctx.counts['merges']} merges + "
+        f"{ctx.counts['rejects']} rejections ({ctx.counts['skipped']} skipped) → {collapse_file}",
         err=True,
     )
 
