@@ -45,6 +45,7 @@ Out of scope for v1:
 
 from __future__ import annotations
 
+import math
 import random
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
@@ -113,45 +114,25 @@ def _matches_stratum(meaning: Meaning, stratum: str | None) -> bool:
     return meaning.in_stratum(stratum)
 
 
-def _cohesion_multiplier(
+def _cohesion_raw(
     meaning_tags: frozenset[str],
     prior_tags: frozenset[str],
-    cohesion: float,
     tag_cooccurrence: dict[str, dict[str, float]] | None,
 ) -> float:
-    """D17 cohesion adapter: returns a multiplicative score bias
-    based on tag co-occurrence overlap with previously-picked slots'
-    tags.
+    """Per-candidate D17 *raw* coherence: the mean co-occurrence probability
+    ``P(candidate_tag | prior_tag)`` over every (candidate_tag, prior_tag)
+    pair that has data in ``tag_cooccurrence``.
 
-    Formula: ``1.0 + cohesion * avg_p`` where ``avg_p`` is the mean
-    co-occurrence probability across all (lemma_tag, prior_tag)
-    pairs that have data in ``tag_cooccurrence``.
+    Returns 0.0 when there's no prior (first slot), no table, or no
+    overlapping pair — such a candidate sits at the bottom of the
+    slot-relative ranking :func:`_cohesion_multipliers` builds.
 
-    Edge values:
-      * ``cohesion == 0`` (default) — returns 1.0 (no bias, every
-        slot scores independently)
-      * empty ``prior_tags`` (first slot in a name) — returns 1.0
-      * ``tag_cooccurrence is None`` (legacy / empty bundle) — returns
-        1.0 (same bit-stable degradation pattern as the legacy cohesion
-        path)
-      * ``cohesion == 1`` + ``avg_p == 1.0`` — returns 2.0 (the
-        maximum bias under the formula; ``avg_p`` is bounded in
-        [0, 1] since it's an average of co-occurrence probabilities).
-      * Intermediate values linearly blend.
-
-    The bias is per-slot multiplicative on top of the base score, so
-    the composition stays consistent with the canonical formula:
-    ``score'(lemma) = score(lemma) * cohesion_mult(lemma_tags, prior_tags)``.
+    Tags are iterated in sorted order so the float sum is byte-identical
+    across processes (the PYTHONHASHSEED / D17-refinement bit-stability
+    concern, now load-bearing).
     """
-    if cohesion <= 0 or not prior_tags or not tag_cooccurrence:
-        return 1.0
-    # For each (lemma_tag, prior_tag) pair, look up the empirical
-    # co-occurrence probability + sum. Higher overlap → higher bias.
-    # Iterate the tag sets in sorted order: float summation isn't
-    # associative, so set-iteration order (which varies across processes
-    # under PYTHONHASHSEED) could otherwise accumulate ULP-level different
-    # avg_p values and flip a weighted_choice outcome at a boundary
-    # (the D17-refinement bit-stability concern, now load-bearing).
+    if not prior_tags or not tag_cooccurrence:
+        return 0.0
     overlap_sum = 0.0
     pair_count = 0
     for ltag in sorted(meaning_tags):
@@ -165,14 +146,41 @@ def _cohesion_multiplier(
             overlap_sum += p
             pair_count += 1
     if pair_count == 0:
-        return 1.0
-    # Average co-occurrence probability over the pairs we found.
-    avg_p = overlap_sum / pair_count
-    # Multiplicative bias: at avg_p=0 → 1.0; at avg_p=1 → 1.0 + cohesion.
-    # cohesion=1 doubles the bias for perfectly-cooccurring tags; cohesion=0
-    # is the no-bias identity. Linear in cohesion to keep the knob
-    # legible to operators.
-    return 1.0 + cohesion * avg_p
+        return 0.0
+    return overlap_sum / pair_count
+
+
+def _cohesion_multipliers(raws: list[float], cohesion: float) -> list[float]:
+    """D17 *slot-relative* cohesion bias. Given the per-candidate raw
+    coherence scores (:func:`_cohesion_raw`) for one slot's pool, return each
+    candidate's multiplicative weight bias::
+
+        multiplier_i = (1 - cohesion) + cohesion * (raw_i / mean_raw)
+
+    so above-pool-average coherence gets >1x, below-average <1x, and the
+    multipliers sum to ``len(raws)`` — mean-normalized, so cohesion
+    *redistributes* a slot's weight toward attested-pair candidates rather
+    than inflating it. At cohesion=1 a candidate with no co-occurrence to the
+    priors (raw=0) is fully suppressed; the pool can't collapse because a
+    positive ``mean_raw`` guarantees at least one candidate with raw>0.
+
+    Returns all-1.0 — the bit-stable no-op — when cohesion<=0 or the pool has
+    no coherence signal at all (every raw is 0 → mean_raw=0). At cohesion=0
+    each multiplier is exactly 1.0, so default output is unchanged.
+
+    This replaces the pre-fix per-candidate ``1 + cohesion*avg_p`` form, whose
+    absolute probabilities (~0.07 mean) gave a near-uniform <=1.07x nudge that
+    perturbed picks without concentrating mass on attested pairs (wyrd-e2b4).
+    ``math.fsum`` keeps the pool mean order-independent and exact.
+    """
+    n = len(raws)
+    if cohesion <= 0 or n == 0:
+        return [1.0] * n
+    total = math.fsum(raws)
+    if total <= 0.0:
+        return [1.0] * n
+    mean = total / n
+    return [(1.0 - cohesion) + cohesion * (r / mean) for r in raws]
 
 
 def _slot_position_label(structural_element: str) -> str:
@@ -752,13 +760,16 @@ def _slot_weighted_pool(
         return []
 
     # Cohesion depends on prior_tags, which evolves across slots within a single
-    # name, so it's per-sample and NOT cacheable.
+    # name, so it's per-sample and NOT cacheable. Score each candidate's raw
+    # tag-coherence against the already-picked slots, then reweight
+    # slot-relative (mean-normalized) so above-average-coherence candidates
+    # gain weight and below-average lose it, with the slot's total weight
+    # preserved (D17).
+    raws = [_cohesion_raw(frozenset(m.tags), prior_tags, tag_cooccurrence) for m, _ in base_scored]
+    multipliers = _cohesion_multipliers(raws, cohesion)
     weighted: list[tuple[Meaning, float]] = []
-    for m, bs in base_scored:
-        cohesion_mult = _cohesion_multiplier(
-            frozenset(m.tags), prior_tags, cohesion, tag_cooccurrence
-        )
-        final_score = bs * cohesion_mult
+    for (m, bs), mult in zip(base_scored, multipliers, strict=True):
+        final_score = bs * mult
         if final_score > 0:
             weighted.append((m, final_score))
     if not weighted:

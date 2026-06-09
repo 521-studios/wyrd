@@ -1005,9 +1005,13 @@ def test_kenning_input_schema_exposes_cohesion():
     assert "cohesion" in schema["properties"]
     prop = schema["properties"]["cohesion"]
     assert prop["type"] == "number"
-    assert prop["default"] == 0.0
+    assert (
+        prop["default"] == 0.0
+    )  # schema default stays 0 (bit-stable); env override sets prod/staging
     assert prop["minimum"] == 0.0
     assert prop["maximum"] == 1.0
+    # wyrd-e2b4: must render as a slider in the SPA (Field.svelte gates on this).
+    assert prop["x-ui-widget"] == "slider"
 
 
 def test_kenning_generate_cohesion_zero_bit_stable_against_default():
