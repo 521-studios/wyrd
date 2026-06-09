@@ -557,77 +557,94 @@ def _parse_attestations(
         group = group.strip()
         if not group:
             continue
-        # Pull the trailing county code; if absent, this group is
-        # malformed for our purposes and we skip it.
-        m = RE_TRAILING_COUNTY.search(group)
-        if not m:
-            # Some groups end with citation refs only (no toponym),
-            # e.g. "Acca PASE10 DLV; ASCh7–8.72; Accott, Acland (D);"
-            # The middle "ASCh7–8.72" group is a citation; not an
-            # attestation. Drop.
-            if stats is not None:
-                stats.attestation_groups_skipped_no_county += 1
+        head_info = _attestation_group_head(group, stats)
+        if head_info is None:
             continue
-        county_code = m.group(1)
-        if county_code in LANGUAGE_HINTS:
-            # False positive: this paren group is a language-hint tail.
-            if stats is not None:
-                stats.attestation_groups_skipped_lang_only += 1
-            continue
-        # Don't filter unknown county codes here — let the ingester
-        # see them, increment its unknown-county counter, and drop the
-        # row at insert time. Single seam for the visibility signal.
-        head = group[: m.start()].strip().rstrip(",")
-        if not head:
-            continue
+        county_code, head = head_info
         for raw_item in head.split(","):
             item = raw_item.strip()
             if not item:
                 continue
-            cleaned, is_unc, is_doubt = _strip_uncertainty(item)
-            # Pull a date qualifier embedded in the item. The
-            # surrounding shape can be:
-            #   "Abington×2"                  — no date, no "in Y"
-            #   "Adelwesdenn in Rolvenden"    — no date, "X in Y"
-            #   "Abington 1257"               — date, no "in Y"
-            #   "Abban wylle 996 in Benson"   — date AND "X date in Y"
-            # In all forms with " in ", X is the attested orthographic
-            # variant of the PN in that toponym and Y is the modern
-            # toponym. The date (if any) sits between X and "in Y".
-            date_qualifier: str | None = None
-            attested_variant: str | None = None
-            date_match = RE_DATE_PREFIX.search(cleaned)
-            if date_match:
-                date_qualifier = date_match.group(1)
-                pre_date = cleaned[: date_match.start()].strip()
-                post_date = cleaned[date_match.end() :].strip()
-                if post_date.startswith("in "):
-                    # "X <date> in Y": X is attested variant, Y is the
-                    # modern toponym. Without this branch we'd silently
-                    # drop "in Benson" and treat "Abban wylle" as the
-                    # toponym.
-                    attested_variant = pre_date.rstrip(",")
-                    toponym_form = post_date[3:].strip()
-                else:
-                    toponym_form = pre_date
-            else:
-                toponym_form = cleaned.strip()
-                if " in " in toponym_form:
-                    left, right = toponym_form.split(" in ", 1)
-                    attested_variant = left.strip().rstrip(",")
-                    toponym_form = right.strip()
-            toponym_form = toponym_form.rstrip(",;")
-            if not toponym_form:
-                continue
-            yield AttestationRecord(
-                toponym_form=toponym_form,
-                attested_variant=attested_variant,
-                county_code=county_code,
-                date_qualifier=date_qualifier,
-                is_uncertain=is_unc,
-                is_serious_doubt=is_doubt,
-                raw_text=raw_item.strip(),
-            )
+            rec = _parse_attestation_item(item, county_code)
+            if rec is not None:
+                yield rec
+
+
+def _attestation_group_head(group: str, stats: IngestStats | None) -> tuple[str, str] | None:
+    """For one ``;``-separated group, return ``(county_code, head_text)`` or
+    ``None`` (incrementing the matching skip counter) when the group lacks a
+    usable trailing county code or is a language-hint tail. Unknown county codes
+    are NOT filtered here — the ingester sees them, counts them, and drops the
+    row at insert time (single seam for the visibility signal)."""
+    m = RE_TRAILING_COUNTY.search(group)
+    if not m:
+        # Some groups end with citation refs only (no toponym), e.g.
+        # "Acca PASE10 DLV; ASCh7–8.72; Accott, Acland (D);" — the middle
+        # "ASCh7–8.72" group is a citation, not an attestation. Drop.
+        if stats is not None:
+            stats.attestation_groups_skipped_no_county += 1
+        return None
+    county_code = m.group(1)
+    if county_code in LANGUAGE_HINTS:
+        # False positive: this paren group is a language-hint tail.
+        if stats is not None:
+            stats.attestation_groups_skipped_lang_only += 1
+        return None
+    head = group[: m.start()].strip().rstrip(",")
+    if not head:
+        return None
+    return county_code, head
+
+
+def _parse_attestation_item(item: str, county_code: str) -> AttestationRecord | None:
+    """Parse one comma-separated attestation item (already stripped) into an
+    AttestationRecord, or ``None`` when it carries no toponym form.
+
+    Handles uncertainty markers and an embedded date qualifier. The item shape
+    can be::
+
+        "Abington×2"                  — no date, no "in Y"
+        "Adelwesdenn in Rolvenden"    — no date, "X in Y"
+        "Abington 1257"               — date, no "in Y"
+        "Abban wylle 996 in Benson"   — date AND "X date in Y"
+
+    In all forms with " in ", X is the attested orthographic variant of the PN
+    in that toponym and Y is the modern toponym; the date (if any) sits between
+    X and "in Y"."""
+    cleaned, is_unc, is_doubt = _strip_uncertainty(item)
+    date_qualifier: str | None = None
+    attested_variant: str | None = None
+    date_match = RE_DATE_PREFIX.search(cleaned)
+    if date_match:
+        date_qualifier = date_match.group(1)
+        pre_date = cleaned[: date_match.start()].strip()
+        post_date = cleaned[date_match.end() :].strip()
+        if post_date.startswith("in "):
+            # "X <date> in Y": X is attested variant, Y is the modern toponym.
+            # Without this branch we'd silently drop "in Benson" and treat
+            # "Abban wylle" as the toponym.
+            attested_variant = pre_date.rstrip(",")
+            toponym_form = post_date[3:].strip()
+        else:
+            toponym_form = pre_date
+    else:
+        toponym_form = cleaned.strip()
+        if " in " in toponym_form:
+            left, right = toponym_form.split(" in ", 1)
+            attested_variant = left.strip().rstrip(",")
+            toponym_form = right.strip()
+    toponym_form = toponym_form.rstrip(",;")
+    if not toponym_form:
+        return None
+    return AttestationRecord(
+        toponym_form=toponym_form,
+        attested_variant=attested_variant,
+        county_code=county_code,
+        date_qualifier=date_qualifier,
+        is_uncertain=is_unc,
+        is_serious_doubt=is_doubt,
+        raw_text=item,
+    )
 
 
 # ---------------------------------------------------------------- top-level
