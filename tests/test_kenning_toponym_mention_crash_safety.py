@@ -416,6 +416,53 @@ def test_chunk_mentions_writer_flushes_and_fsyncs_per_chunk(tmp_path: Path, monk
     assert '"form":"Baz"' in rows[2]
 
 
+def test_chunk_mentions_writer_replaces_surrogate_instead_of_crashing(tmp_path: Path):
+    """wyrd-klod fault-injection: the staged miner's file sinks open with
+    ``errors="replace"`` as a defense-in-depth backstop. The in-band
+    sanitizer (wyrd-8wa4 / PR #309) normally maps surrogate code points to
+    U+FFFD before they reach a sink, but if a future path constructs a
+    ToponymMention that bypasses that guard, a lone surrogate would reach
+    the sink and crash the mine with UnicodeEncodeError. The backstop must
+    substitute ASCII "?" and keep going instead.
+
+    Drives the production in-progress sink consumer
+    (``_make_chunk_mentions_writer``) with a serializer that emits a lone
+    surrogate, mirroring a bypassed guard.
+    """
+    import pytest
+
+    from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_staged import (
+        _make_chunk_mentions_writer,
+    )
+    from wyrd.generators.kenning.extractors.toponym_mentions import ToponymMention
+
+    mention = ToponymMention(form="Edlin", date_year=None, region_hint=None, context="Edlin")
+
+    def _surrogate_serializer(sid: str, m: ToponymMention) -> str:
+        # A lone surrogate (\udce9) — illegal in UTF-8 — standing in for a
+        # mention field that escaped the in-band sanitizer.
+        return f'{{"source_id":"{sid}","form":"{m.form}\udce9"}}'
+
+    # Negative control: a strict UTF-8 sink genuinely cannot encode the
+    # surrogate — so errors="replace" is load-bearing, not cosmetic.
+    with (
+        pytest.raises(UnicodeEncodeError),
+        (tmp_path / "strict.jsonl").open("w", encoding="utf-8") as strict,
+    ):
+        strict.write("Edlin\udce9")
+
+    # Production config: errors="replace" turns the surrogate into "?" and
+    # the chunk write succeeds (matches the inprogress / tmp_path sinks in
+    # mine_toponym_mentions_staged.py).
+    safe_path = tmp_path / "src.chunks.jsonl"
+    with safe_path.open("w", encoding="utf-8", errors="replace") as sink:
+        writer = _make_chunk_mentions_writer(sink, "src", _surrogate_serializer)
+        writer(0, [mention])  # must not raise UnicodeEncodeError
+
+    content = safe_path.read_text(encoding="utf-8")
+    assert "Edlin?" in content, f"surrogate should be replaced with '?', got: {content!r}"
+
+
 # ---------- staged-CLI integration: fresh + resume × happy + crash ------
 
 
