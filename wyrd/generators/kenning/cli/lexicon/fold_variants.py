@@ -15,8 +15,16 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, TextIO
 
 import click
+
+if TYPE_CHECKING:
+    from wyrd.generators.kenning.extractors.llm import OllamaClient
+    from wyrd.generators.kenning.lexicon.variant_fold_detect import (
+        VariantFoldCandidate,
+        VariantFoldVerdict,
+    )
 
 
 def _resolve_db_path(db_path: Path | None) -> Path:
@@ -70,7 +78,9 @@ def _load_prior_judgments(collapse_file: Path) -> tuple[set[tuple[str, str]], se
     return judged, folded
 
 
-def _judge_with_retry(client, c) -> tuple[object | None, Exception | None]:
+def _judge_with_retry(
+    client: OllamaClient, c: VariantFoldCandidate
+) -> tuple[VariantFoldVerdict | None, Exception | None]:
     """Judge one candidate with the LLM, retrying once on transport/parse
     flakiness. Returns (verdict, None) on success or (None, last_error) when both
     attempts fail. Imports are deferred to keep CLI registration cheap, mirroring
@@ -93,7 +103,13 @@ def _judge_with_retry(client, c) -> tuple[object | None, Exception | None]:
     return None, last_err
 
 
-def _run_judgments(todo, client, min_confidence: str, fh, dry_run: bool) -> tuple[int, int, int]:
+def _run_judgments(
+    todo: list[VariantFoldCandidate],
+    client: OllamaClient,
+    min_confidence: str,
+    fh: TextIO | None,
+    dry_run: bool,
+) -> tuple[int, int, int]:
     """Judge each candidate and either print (dry-run) or append its verdict row
     to the open ledger handle ``fh``. Returns (folds, rejects, skipped)."""
     from wyrd.generators.kenning.lexicon.variant_fold_detect import fold_verdict_to_row
@@ -134,7 +150,11 @@ def _run_judgments(todo, client, min_confidence: str, fh, dry_run: bool) -> tupl
 
 
 def _judge_and_record(
-    todo, client, collapse_file: Path, min_confidence: str, dry_run: bool
+    todo: list[VariantFoldCandidate],
+    client: OllamaClient,
+    collapse_file: Path,
+    min_confidence: str,
+    dry_run: bool,
 ) -> tuple[int, int, int]:
     """Open the ledger for append (unless dry-run), run the judgments, and close
     it. Returns (folds, rejects, skipped)."""

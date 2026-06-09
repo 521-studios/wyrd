@@ -23,7 +23,6 @@ import difflib
 import sqlite3
 import unicodedata
 from collections import defaultdict
-from collections.abc import Callable
 from dataclasses import dataclass
 
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
@@ -172,7 +171,7 @@ def _index_gloss_rows(rows) -> tuple[dict[int, dict], dict[str, set[int]]]:
         toks = _gloss_tokens(r["gloss"])
         rec["tok"].update(toks)
         for t in toks:
-            by_token[t].add(r["id"])
+            by_token[t].add(eid)
     return by_id, by_token
 
 
@@ -229,7 +228,6 @@ def _admit_fold_pair(
 
 def _better_fold_target(
     cur: tuple[int, float] | None,
-    richness: Callable[[dict], int],
     by_id: dict[int, dict],
     ri: int,
     rrec: dict,
@@ -239,16 +237,16 @@ def _better_fold_target(
     for a barren when (richest cluster, highest similarity, LOWEST etymon id)
     ranks higher. Lowest-id is the final discriminator so the chosen fold target
     is reproducible across runs/operators — etymon ids are content-keyed on
-    (canonical_form, language), so there's no set/SQL-iteration-order dependence."""
+    (canonical_form, language), so there's no set/SQL-iteration-order dependence.
+    Reads the per-record ``richness`` precomputed by the caller."""
     if cur is None:
         return True
-    return (richness(rrec), sim, -ri) > (richness(by_id[cur[0]]), cur[1], -cur[0])
+    return (rrec["richness"], sim, -ri) > (by_id[cur[0]]["richness"], cur[1], -cur[0])
 
 
 def _fold_targets_for_token(
     ids: set[int],
     by_id: dict[int, dict],
-    richness: Callable[[dict], int],
     edges: set[tuple[int, int]],
     best: dict[int, tuple[int, float]],
     *,
@@ -257,12 +255,13 @@ def _fold_targets_for_token(
     barren_max: int,
 ) -> None:
     """Pair the barren×rich etymons sharing one gloss content token, updating
-    ``best`` (barren id -> best (lemma id, sim)) in place. The rich lemma set per
-    token is tiny (a few well-attested forms), so even the huge common-token
-    groups (hill / stone / house — the very cases that matter) are covered
-    without an O(n²) blow-up."""
-    rich = [(i, by_id[i]) for i in ids if richness(by_id[i]) >= lemma_min]
-    barren = [(i, by_id[i]) for i in ids if richness(by_id[i]) <= barren_max]
+    ``best`` (barren id -> best (lemma id, sim)) in place. Reads the per-record
+    ``richness`` precomputed by the caller. The rich lemma set per token is tiny
+    (a few well-attested forms), so even the huge common-token groups (hill /
+    stone / house — the very cases that matter) are covered without an O(n²)
+    blow-up."""
+    rich = [(i, by_id[i]) for i in ids if by_id[i]["richness"] >= lemma_min]
+    barren = [(i, by_id[i]) for i in ids if by_id[i]["richness"] <= barren_max]
     if not rich or not barren:
         return
     for bi, brec in barren:
@@ -275,7 +274,7 @@ def _fold_targets_for_token(
             sim = _admit_fold_pair(brec, rrec, matcher, skb, min_similarity, edges, bi, ri)
             if sim is None:
                 continue
-            if _better_fold_target(best.get(bi), richness, by_id, ri, rrec, sim):
+            if _better_fold_target(best.get(bi), by_id, ri, rrec, sim):
                 best[bi] = (ri, sim)
 
 
@@ -332,8 +331,11 @@ def detect_variant_fold_candidates(
     cluster_size = _cluster_sizes(conn)
     edges = _descent_edge_set(conn)
 
-    def richness(rec: dict) -> int:
-        return cluster_size.get(rec["clu"], 0) if rec["clu"] is not None else 0
+    # Precompute each etymon's richness (live cluster size — the rich-vs-barren
+    # signal) once, so the nested barren×rich loop reads a record field instead
+    # of recomputing the lookup on every pair comparison.
+    for rec in by_id.values():
+        rec["richness"] = cluster_size.get(rec["clu"], 0) if rec["clu"] is not None else 0
 
     # candidates per barren id -> best (lemma id, sim). Group by a shared gloss
     # CONTENT TOKEN (not the whole gloss string), then pair BARREN×RICH per token
@@ -347,7 +349,6 @@ def detect_variant_fold_candidates(
         _fold_targets_for_token(
             ids,
             by_id,
-            richness,
             edges,
             best,
             min_similarity=min_similarity,
