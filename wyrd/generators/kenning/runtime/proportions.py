@@ -1305,7 +1305,7 @@ class NewName:
                 siblings = _rank_siblings(_resolve_surface(self.meaning_db, usage))
                 canon = siblings[0] if siblings else None
                 if fold not in seen:
-                    seen[fold] = set(self._meaning_langs([canon]) if canon else set())
+                    seen[fold] = self._meaning_langs([canon]) if canon else set()
                     continue
                 # Repeat: resolve it (cross-language synonym → re-pick → leave).
                 self._resolve_repeat(wi, ei, usage, fold, canon, siblings, seen, name_sig)
@@ -1421,13 +1421,18 @@ class NewName:
         subset additionally sharing a thematic tag with the original."""
         same_lang: list[str] = []
         tag_sharing: list[str] = []
+        # Localize the staticmethod lookups — this loop scans the whole
+        # meaning_db (thousands of buckets), so per-iteration self. attribute
+        # resolution is measurable overhead.
+        pos_markers = self._position_markers
+        meaning_langs = self._meaning_langs
         for k, ms in self.meaning_db.items():
-            if not isinstance(k, str) or self._position_markers(k) != want:
+            if not isinstance(k, str) or pos_markers(k) != want:
                 continue
             kf = k.strip("-").lower()
             if not kf or kf in seen_folds:
                 continue
-            if canon_langs and not (self._meaning_langs(ms) & canon_langs):
+            if canon_langs and not (meaning_langs(ms) & canon_langs):
                 continue
             same_lang.append(k)
             if canon_tags and (
