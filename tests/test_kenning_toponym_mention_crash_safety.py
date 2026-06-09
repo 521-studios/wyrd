@@ -455,12 +455,9 @@ def test_chunk_mentions_writer_replaces_surrogate_instead_of_crashing(tmp_path: 
     # the chunk write succeeds (matches the inprogress / tmp_path sinks in
     # mine_toponym_mentions_staged.py).
     safe_path = tmp_path / "src.chunks.jsonl"
-    sink = safe_path.open("w", encoding="utf-8", errors="replace")
-    try:
+    with safe_path.open("w", encoding="utf-8", errors="replace") as sink:
         writer = _make_chunk_mentions_writer(sink, "src", _surrogate_serializer)
         writer(0, [mention])  # must not raise UnicodeEncodeError
-    finally:
-        sink.close()
 
     content = safe_path.read_text(encoding="utf-8")
     assert "Edlin?" in content, f"surrogate should be replaced with '?', got: {content!r}"
