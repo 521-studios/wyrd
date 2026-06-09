@@ -1,16 +1,15 @@
 """Knob → RequestVector translator for the Kenning vector-scoring
 dispatch (wyrd-ecjp.5 PR C).
 
-The legacy ``Kenning.generate`` path consumes per-call knobs
-(``culture``, ``tags``, ``harshness``, ``mood``, ``cohesion``,
-``era``, ``stratum``, ``include_fiction``) that translate into the
-proportion-table sampler's call signature. The vector-scoring path
-needs the same knobs translated into a :class:`RequestVector` so
+``Kenning.generate`` consumes per-call knobs (``culture``, ``tags``,
+``harshness``, ``mood``, ``cohesion``, ``era``, ``stratum``,
+``include_fiction``). The vector-scoring path (now the only scoring
+path) needs them translated into a :class:`RequestVector` so
 :func:`select_via_vector_scoring` can drive the D36.2 composition
 rule.
 
-This adapter is the bridge. It accepts the same knob set the legacy
-path uses and emits a fully-built RequestVector. The translation is
+This adapter is the bridge. It accepts that knob set and emits a
+fully-built RequestVector. The translation is
 deliberately conservative for v1:
 
 * ``culture`` + ``era`` + ``stratum`` + ``tags`` + a mood's SEMANTIC
@@ -23,8 +22,8 @@ deliberately conservative for v1:
   gate restricts the pool; the soft axis discriminates within it.
 * ``harshness`` (D6) becomes ``register.phonological`` weights —
   positive on cluster_density / final_fortition, negative on
-  vowel_final_bias / soft_consonants. This mirrors the legacy
-  proportion-table sampler's harshness bias direction.
+  vowel_final_bias / soft_consonants. This mirrors the harshness bias
+  direction the retired proportion-table sampler used.
 * ``mood`` (D6) expands through ``MOODS`` into tag + harshness
   contributions, summed alongside any explicit ``tags`` /
   ``harshness`` knobs.
@@ -64,10 +63,9 @@ def _uniform_tag_weights() -> dict[str, float]:
     """Return a ``{tag: 1.0}`` dict covering every tag the bundled
     meaning_db carries. Used by :func:`build_request_vector` as the
     "no-opinion default" register when the operator doesn't supply
-    explicit tags, a mood, or harshness — without it, vector mode
+    explicit tags, a mood, or harshness — without it, vector scoring
     would only produce output when the request expressed semantic
-    interest, which collapses the "vector as default scoring mode"
-    use case.
+    interest, which collapses the plain unfiltered-generation use case.
 
     Lazy + cached: the tag universe is bundle-stable for the
     container's lifetime, so we compute it once and reuse. Pulled via
@@ -89,8 +87,8 @@ def _harshness_to_phonological(harshness: float) -> dict[str, float]:
     """Translate the D6 harshness scalar (0..1) into a register's
     phonological-weight dict.
 
-    The legacy proportion-table sampler's harshness bias prefers
-    stop-final / cluster-heavy morphemes and de-prefers vowel-final /
+    The retired proportion-table sampler's harshness bias preferred
+    stop-final / cluster-heavy morphemes and de-preferred vowel-final /
     soft ones. The vector-side equivalent dials the relevant
     PhonologicalVector dimensions:
 

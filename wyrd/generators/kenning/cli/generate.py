@@ -56,17 +56,6 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
     ),
 )
 @click.option(
-    "--novelty",
-    type=click.FloatRange(0.0, 1.0),
-    default=0.0,
-    show_default=True,
-    help=(
-        "D17 mixture knob (0..1). 0 = pure empirical-frequency sampling (today's "
-        "behavior); 1 = uniform marginal over in-bucket morphemes; intermediate "
-        "values blend, allowing plausible-but-unattested combinations."
-    ),
-)
-@click.option(
     "--inflection-density",
     type=click.FloatRange(0.0, 1.0),
     default=0.0,
@@ -147,7 +136,7 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
         "wyrd-mj2 tag co-occurrence bias (0..1). 0 keeps independent slot "
         "sampling (today's behavior); higher values bias each slot toward "
         "usages whose tags co-occur with previously-picked slots in the "
-        "empirical corpus. Composes orthogonally with --novelty."
+        "empirical corpus."
     ),
 )
 @click.option(
@@ -157,8 +146,8 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
     help=(
         "wyrd-ecjp.5 PR C: filesystem path to a JSON empirical-priors "
         "sidecar (emitted by 'wyrd kenning lexicon dump-empirical-"
-        "priors'). Only consulted when --scoring-mode=vector. When "
-        "absent, the vector path's baseline axis contributes 0."
+        "priors'). Supplies the vector scoring path's baseline axis. "
+        "When absent, the baseline axis contributes 0."
     ),
 )
 @click.option(
@@ -171,7 +160,7 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
         "(D36.2). 0 disables the baseline contribution entirely (like "
         "running without --priors-path). 1.0 is the canonical "
         "weighting; >1 over-weights baseline at the expense of phon / "
-        "sem / pos. Only meaningful with --scoring-mode=vector."
+        "sem / pos."
     ),
 )
 @click.option(
@@ -182,8 +171,7 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
     help=(
         "wyrd-ecjp.9: weight scalar on the phonological axis (D36.2). "
         "1.0 is canonical; >1 over-weights phonological character "
-        "(harshness / softness etc.) relative to other axes. Only "
-        "meaningful with --scoring-mode=vector."
+        "(harshness / softness etc.) relative to other axes."
     ),
 )
 @click.option(
@@ -194,7 +182,7 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
     help=(
         "wyrd-ecjp.9: weight scalar on the semantic-tag axis (D36.2). "
         "1.0 is canonical; >1 over-weights tag matching relative to "
-        "other axes. Only meaningful with --scoring-mode=vector."
+        "other axes."
     ),
 )
 @click.option(
@@ -202,10 +190,7 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
     type=click.FloatRange(0.0, 10.0),
     default=1.0,
     show_default=True,
-    help=(
-        "wyrd-ecjp.9: weight scalar on the position axis (D36.2). "
-        "1.0 is canonical. Only meaningful with --scoring-mode=vector."
-    ),
+    help=("wyrd-ecjp.9: weight scalar on the position axis (D36.2). 1.0 is canonical."),
 )
 @click.option(
     "--pack",
@@ -217,8 +202,8 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
         "must match a bundled pack (see 'wyrd kenning generate --help' "
         "for the available list once packs are bundled). Optional "
         ":WEIGHT (float in [0, 10]) overrides the pack manifest's "
-        "default_weight. Repeatable for multi-pack composition. Only "
-        "meaningful with --scoring-mode=vector. Pack lemmas enter the "
+        "default_weight. Repeatable for multi-pack composition. "
+        "Pack lemmas enter the "
         "eligible pool alongside native lemmas and inherit their "
         "manifest's template (donor → recipient) for baseline scoring."
     ),
@@ -247,7 +232,6 @@ def generate(
     describe: bool,
     json_output: bool,
     spelling_variety: float,
-    novelty: float,
     inflection_density: float,
     moods: tuple[str, ...],
     include_fiction: bool,
@@ -291,7 +275,6 @@ def generate(
         "culture": culture,
         "tags": list(tags),
         "spelling_variety": spelling_variety,
-        "novelty": novelty,
         "inflection_density": inflection_density,
         "mood": list(moods),
         "include_fiction": include_fiction,
@@ -312,11 +295,7 @@ def generate(
     }
     # wyrd-ecjp.11: pack overlays. Parse + validate at the CLI
     # boundary so invalid input surfaces as a friendly Click error
-    # before reaching the generator. Pack-related flags in
-    # proportions mode are deliberate silent no-ops (same contract
-    # as the weight flags); the parsed packs land in params anyway
-    # so the schema stays uniform, but Kenning.generate only
-    # consumes them in vector mode.
+    # before reaching the generator.
     if pack_specs or pack_tag_filter_specs:
         from wyrd.generators.kenning import _load_packs
         from wyrd.generators.kenning.cli._pack_args import (

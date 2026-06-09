@@ -1,10 +1,10 @@
 """Gate→score→sample primitive for vector-driven name generation
 (wyrd-ecjp.5).
 
-The legacy ``Generator.select`` pipeline does proportion-table
-sampling: pre-baked per-(culture × tag × position) weight tables
-drive ``weighted_choice`` at each slot. This module is the
-vector-driven alternative — every slot's per-lemma weight is
+The retired proportions pipeline did proportion-table sampling:
+pre-baked per-(culture × tag × position) weight tables drove
+``weighted_choice`` at each slot. This module — now the sole scoring
+path — is the vector-driven approach: every slot's per-lemma weight is
 computed at request time by the D36.2 composition rule
 (:func:`wyrd.generators.kenning.vectors.scoring.score`):
 
@@ -30,16 +30,17 @@ Per-slot pipeline:
      sampling (``weighted_choice`` skips them anyway, but the
      explicit filter keeps the diagnostic cleaner).
 
-This is the runtime side of ecjp.5. The Kenning generator dispatches
-into here via the ``--scoring-mode vector`` opt-in; bit-stable legacy
-behavior stays on the proportion-table path. ecjp.6/7 (realism-
-retention drift measurement) empirically compares the two.
+This is the runtime side of ecjp.5, and the only scoring path: the
+Kenning generator always dispatches into here. (The proportion-table
+path it once coexisted with — opt-in via the old ``--scoring-mode``
+flag — is retired; ecjp.6/7 drift measurement empirically validated
+vector before the proportions path was removed.)
 
 Out of scope for v1:
   * Multi-pack composition (wyrd-ecjp.8 / Phase 7).
   * Tolerance bands on the composed register (D8, deferred).
-  * Per-slot inflection / variant resolution (handled the same way
-    as the legacy path; this module just picks the lemma).
+  * Per-slot inflection / variant resolution (handled downstream by
+    the shared rendering path; this module just picks the lemma).
 """
 
 from __future__ import annotations
@@ -252,9 +253,9 @@ def build_non_position_eligible(
     (``-X`` → ``-Xs`` for is_name() lemmas) and inflection shadows
     (``meaning.py:_register_inflection_shadows``) are added to
     ``meaning_db`` at non-canonical keys that don't appear in the
-    proportions tables. They get filtered out here — same behavior
-    as proportions mode (which only samples from its weight tables,
-    so plurals + shadows are never sampled directly there either).
+    proportions tables. They get filtered out here — matching the
+    retired proportions path, which only sampled from its weight tables,
+    so plurals + shadows were never sampled directly there either.
     The shadows still surface in the trie matcher for explainer
     requests; only the GENERATOR pool excludes them.
 
@@ -315,14 +316,14 @@ def build_non_position_eligible(
             # proportions' filter_for_tag. Empty required_tags = no-op.
             if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
                 continue
-            # wyrd-glos: gloss policy — same predicate the proportions
-            # keep_keys_for_gloss applies, so both modes share the rule.
+            # wyrd-glos: gloss policy — same predicate keep_keys_for_gloss
+            # applies, so this filter and the keep-set share the rule.
             if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
                 continue
             # wyrd-eyjk/D40 + wyrd-g1hj: exclude pure-proper-noun saint subjects
             # AND personal given names (male/female) from the base pool — same
-            # rule MeaningGenerator.load_parts applies, so the two scoring modes
-            # stay aligned. Saints reach names only via the param-gated
+            # rule MeaningGenerator.load_parts applies, so this filter and the
+            # proportions-data pool stay aligned. Saints reach names only via the param-gated
             # St-dedication synthesis; given names dangle as bare personal names.
             # Family-name etymons are NOT excluded (legitimate manorial places).
             if m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()):
@@ -451,13 +452,14 @@ def build_slot_base_scores(
 
     ``slot_usage_frequency`` (wyrd-bol9) is the per-usage empirical
     frequency lookup for this slot's bucket — the same per-culture
-    proportions data the legacy path samples from. When present,
+    proportions data the retired proportions path once sampled from.
+    When present,
     the final per-Meaning weight is composed via
     :func:`_apply_per_usage_frequency` (per-usage normalization, not
     a flat ``base_score * frequency`` multiplication — see that
     helper's docstring for the exact formula). Meanings whose usage
     is missing or carries frequency 0 in this bucket are filtered
-    (they wouldn't have been sampled in proportions mode either).
+    (they wouldn't have been sampled by the old proportions path either).
     ``None`` (legacy / non-NameGenerator callers) keeps the
     unweighted-pool behavior bit-stable.
 
@@ -671,9 +673,9 @@ def select_via_vector_scoring(
             (default), a slot whose gated pool is empty aborts the whole
             struct (returns ``[]``) so the caller can retry a different
             struct. When True, such a slot instead contributes ``None`` and
-            scoring continues — mirroring the legacy proportions
-            ``_select_no_tag`` contract (an empty bucket → a ``None`` slot
-            the NewName drops), so the vector path degrades to a shorter
+            scoring continues — matching the retired proportions path's
+            empty-bucket contract (an empty bucket → a ``None`` slot the
+            NewName drops), so the vector path degrades to a shorter
             name instead of failing. The caller uses this as a last-resort
             fallback once no struct is fully satisfiable.
 

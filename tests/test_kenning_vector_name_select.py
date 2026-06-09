@@ -1286,7 +1286,7 @@ def test_build_request_vector_tags_and_mood_tags_become_hard_gate():
     assert rv.gate.required_tags == frozenset({"water", "death"})
 
     # Gap 2: a mood's semantic tags → hard gate too. grim expands to
-    # {death, military, monster, undead, magic} (mood_spec_to_legacy_form).
+    # {death, military, monster, undead, magic} (the catalog effect's tags).
     rv_mood = build_request_vector(culture="english", mood=["grim"])
     assert rv_mood.gate.required_tags == frozenset(
         {"death", "military", "monster", "undead", "magic"}
@@ -1374,3 +1374,139 @@ def test_select_via_vector_scoring_permissive_returns_none_for_empty_slot():
     assert permissive[1] is None, "unsatisfiable saint slot → None, not aborted"
     # Non-permissive (default) aborts the whole struct on the empty slot.
     assert select_via_vector_scoring(random.Random(0), db, **kwargs) == []
+
+
+# ---------------------------------------------------------------------------
+# Register-bias smoke tests (relocated from test_kenning_realism_regression.py)
+# ---------------------------------------------------------------------------
+
+
+def test_register_phonological_bias_scores_lemmas_consistently():
+    """Smoke: a RequestVector with a harsh-leaning register produces
+    consistent score-direction across multiple invocations. Verifies
+    the score → register-effect wiring doesn't silently no-op.
+
+    Uses the vector_name_select primitive directly (not Kenning.generate)
+    so the test isolates the register-bias contract from the dispatch
+    layer + bundle dependencies."""
+    # 3 post-position meanings with varying cluster_density. A
+    # harsh-leaning register weights cluster_density positively, so
+    # the highest-cluster_density meaning should score highest.
+    harsh = Meaning(
+        usage="-strikt",
+        tags=["x"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(cluster_density=0.9),
+    )
+    medium = Meaning(
+        usage="-mid",
+        tags=["x"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(cluster_density=0.5),
+    )
+    soft = Meaning(
+        usage="-aloha",
+        tags=["x"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(cluster_density=0.1),
+    )
+    db = {"-strikt": [harsh], "-mid": [medium], "-aloha": [soft]}
+
+    request = RequestVector(
+        gate=EligibilityGate(culture="english"),
+        register=RegisterEffect(
+            name="harsh-test",
+            phonological={"cluster_density": 1.0},
+            semantic_tags={"x": 0.1},
+        ),
+        weights=ScoringWeights(phon_w=10.0, sem_w=1.0, pos_w=0.0, base_w=0.0),
+    )
+
+    # Run many seeds; harsh should be picked more often than soft
+    # under the cluster_density-biased register.
+    harsh_wins = 0
+    soft_wins = 0
+    for seed in range(100):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["post"],
+            request=request,
+            priors=EmpiricalPriors(),
+        )
+        if not picks:
+            continue
+        if picks[0] is harsh:
+            harsh_wins += 1
+        elif picks[0] is soft:
+            soft_wins += 1
+    # Strong bias direction — harsh should win materially more often
+    assert harsh_wins > soft_wins, (
+        f"register phonological bias not observable: harsh={harsh_wins}, soft={soft_wins}"
+    )
+
+
+def test_register_semantic_bias_scores_matching_tags_higher():
+    """Smoke: a RequestVector with a tag-weighted register prefers
+    meanings carrying matching tags. Independent of the phon axis."""
+    matching = Meaning(
+        usage="-keep",
+        tags=["fortified"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(),
+    )
+    mismatching = Meaning(
+        usage="-glen",
+        tags=["pastoral"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(),
+    )
+    db = {"-keep": [matching], "-glen": [mismatching]}
+
+    request = RequestVector(
+        gate=EligibilityGate(culture="english"),
+        register=RegisterEffect(
+            name="war",
+            semantic_tags={"fortified": 1.0, "pastoral": 0.0},
+        ),
+        weights=ScoringWeights(phon_w=0.0, sem_w=1.0, pos_w=0.0, base_w=0.0),
+    )
+
+    matching_wins = 0
+    for seed in range(100):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["post"],
+            request=request,
+            priors=EmpiricalPriors(),
+        )
+        if picks and picks[0] is matching:
+            matching_wins += 1
+    # With pastoral weight 0, mismatching should NEVER win.
+    assert matching_wins == 100, f"sem axis miswired: matching_wins={matching_wins}/100"
+
+
+def test_register_composition_combines_phonological_and_semantic():
+    """Smoke: register-effect composition (phon + sem) produces the
+    expected combined bias — the score function sums per-axis
+    contributions per the D36.2 canonical formula."""
+    from wyrd.generators.kenning.vectors.scoring import phon_score, sem_score
+
+    register = RegisterEffect(
+        name="composed",
+        phonological={"cluster_density": 1.0},
+        semantic_tags={"animal": 0.5, "water": 0.5},
+    )
+    vector = PhonologicalVector(cluster_density=0.7)
+    # phon_score = dot(vector, register.phonological) = 0.7
+    assert abs(phon_score(vector, register) - 0.7) < 1e-9
+    # sem_score = sum of weights for lemma tags in request
+    assert abs(sem_score(["animal", "water"], register) - 1.0) < 1e-9
+    # Tags the request doesn't weight contribute 0
+    assert abs(sem_score(["rock"], register) - 0.0) < 1e-9

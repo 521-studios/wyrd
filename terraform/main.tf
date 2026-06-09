@@ -25,26 +25,6 @@ locals {
     Environment = var.env
     ManagedBy   = "terraform"
   }
-
-  # wyrd-ej28 Phase 2 (wyrd-lnt6): roll the DEFAULT scoring mode to vector
-  # per-environment. Vector reached parity with the legacy proportions path
-  # (Phase 0: N=1000 realism, all cultures in band) and now has empty-pick
-  # parity (wyrd-tbke) + D8/D18 rendering (wyrd-nbpw) + an absolute realism
-  # gate (wyrd-jfaz) + era-driven rendering (wyrd-6c8x). Validated on staging,
-  # so BOTH environments now default to vector (wyrd-lnt6 cutover): the
-  # WYRD_DEFAULT_SCORING_MODE env var resolves per request, so the production
-  # `terraform apply` (deploy.yml workflow_dispatch) takes effect with no
-  # code/SPA rebuild. Proportions stays SELECTABLE (the schema default is still
-  # 'proportions' + the mode is opt-in) for one release as an escape hatch
-  # before Phase 3 (wyrd-rt2m) deletes the proportions scoring path.
-  # An explicit var.feature_flag_defaults["scoring_mode"] still wins (merge
-  # order in the Lambda environment block below).
-  vector_default_envs = ["staging", "production"]
-  scoring_mode_default = (
-    contains(local.vector_default_envs, var.env)
-    ? { WYRD_DEFAULT_SCORING_MODE = "vector" }
-    : {}
-  )
 }
 
 # ─── SPA S3 bucket — static site assets, keyed by git sha ───────────────────
@@ -253,10 +233,6 @@ resource "aws_lambda_function" "api" {
         LOG_LEVEL              = var.log_level
         WYRD_FF_ALL            = var.env == "staging" ? "true" : "false"
       },
-      # wyrd-ej28 Phase 2: per-env default scoring-mode rollout (see locals).
-      # Placed BEFORE var.feature_flag_defaults so an explicit operator override
-      # in that map still wins (merge() is last-wins).
-      local.scoring_mode_default,
       {
         # Skip "all" so a stray entry can't shadow the env-based WYRD_FF_ALL
         # conditional above (merge() is last-wins).
@@ -265,9 +241,9 @@ resource "aws_lambda_function" "api" {
         if lower(name) != "all"
       },
       {
-        # Normalize keys the same way as flag names so 'scoring-mode' /
-        # 'scoring.mode' → WYRD_DEFAULT_SCORING_MODE (the server lowercases the
-        # suffix → 'scoring_mode', matching the SPA's snake_case field key).
+        # Normalize keys the same way as flag names so 'priors-path' /
+        # 'priors.path' → WYRD_DEFAULT_PRIORS_PATH (the server lowercases the
+        # suffix → 'priors_path', matching the SPA's snake_case field key).
         for opt, value in var.feature_flag_defaults :
         "WYRD_DEFAULT_${upper(replace(replace(opt, ".", "_"), "-", "_"))}" => value
       },

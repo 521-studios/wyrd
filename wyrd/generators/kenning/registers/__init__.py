@@ -9,8 +9,8 @@ Modules:
   catalog loader (D36.5 / wyrd-kq7w.2 Phase B). Reads
   the bundled ``wyrd/generators/kenning/data/register_effects.yaml`` and returns
   ``dict[str, RegisterEffect]``. Owns the catalog-driven mood
-  resolution (``parse_mood_spec``, ``mood_spec_to_legacy_form``,
-  ``available_register_effects``) since wyrd-kq7w.3.
+  resolution (``parse_mood_spec``, ``available_register_effects``)
+  since wyrd-kq7w.3.
 * ``phonology.py`` — per-language IPA tables and phoneme-class
   membership lookups used by the harshness skew + cluster-density
   scoring.
@@ -25,6 +25,5 @@ Historical: ``moods.py`` (extracted in wyrd-a83i, ripped in
 wyrd-kq7w.3) once held a code-defined MOODS dict mirroring D6 mood
 presets. The catalog at the bundled ``wyrd/generators/kenning/data/register_effects.yaml`` is now the
 single source of truth for mood resolution; ``effects.parse_mood_spec``
-+ ``effects.mood_spec_to_legacy_form`` cover the lookup + legacy-
-shape translation.
+covers the catalog lookup + graduation.
 """
