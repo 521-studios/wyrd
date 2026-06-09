@@ -50,6 +50,37 @@ CULTURE_LANGUAGES: dict[str, frozenset[str]] = {
 }
 
 
+def _accumulate_attested_languages(name, attested_languages: dict[str, set[str]]) -> None:
+    """wyrd-pfoo: walk the picked Meanings for one name and record which
+    (usage, primary_language) pairs appeared. The downstream filter is
+    per-(usage, primary language), so collisions where two Meanings share
+    both admit both — over-admitting one extra Meaning per collision is a
+    deliberate tradeoff against shipping per-Meaning UIDs."""
+    for word_list in name.words.values():
+        for word in word_list:
+            for elem in word.word:
+                if not isinstance(elem, Meaning):
+                    continue
+                primary = elem.primary_language()
+                if primary is None:
+                    continue
+                attested_languages.setdefault(elem.usage, set()).add(primary)
+
+
+def _accumulate_tag_cooccurrence(name, tag_marginal: Counter, tag_cooccurrence: Counter) -> None:
+    """Tag co-occurrence: ordered consecutive Meaning pairs across the full
+    name (within-word AND between-word). Each pair contributes the cartesian
+    product of (left.tags × right.tags) — an etymon often has several tags
+    (plant, food, tree), and any of them can legitimately drive co-occurrence."""
+    for left_tags, right_tags in ordered_tag_pairs(name):
+        for tl in left_tags:
+            tag_marginal[tl] += 1
+            for tr in right_tags:
+                tag_cooccurrence[(tl, tr)] += 1
+        for tr in right_tags:
+            tag_marginal[tr] += 1
+
+
 def proportions_from(names) -> dict[str, Any]:
     """Build the per-culture proportions dict from a list of
     perfectly-decomposed Names.
@@ -88,33 +119,8 @@ def proportions_from(names) -> dict[str, Any]:
             lone_proportions[u] += 1
         for structure in name.get_structure():
             struct_proportions[structure] += 1
-        # wyrd-pfoo: per-Meaning attestation. Walk the picked Meanings
-        # for this name and record which (usage, primary_language)
-        # pairs appeared. The downstream filter is per-(usage, primary
-        # language), so collisions where two Meanings share both
-        # admit both — over-admitting one extra Meaning per collision
-        # is a deliberate tradeoff against shipping per-Meaning UIDs.
-        for word_list in name.words.values():
-            for word in word_list:
-                for elem in word.word:
-                    if not isinstance(elem, Meaning):
-                        continue
-                    primary = elem.primary_language()
-                    if primary is None:
-                        continue
-                    attested_languages.setdefault(elem.usage, set()).add(primary)
-        # Tag co-occurrence: ordered consecutive Meaning pairs across the
-        # full name (within-word AND between-word). Each pair contributes
-        # the cartesian product of (left.tags × right.tags) — an etymon
-        # often has several tags (plant, food, tree), and any of them can
-        # legitimately drive co-occurrence.
-        for left_tags, right_tags in ordered_tag_pairs(name):
-            for tl in left_tags:
-                tag_marginal[tl] += 1
-                for tr in right_tags:
-                    tag_cooccurrence[(tl, tr)] += 1
-            for tr in right_tags:
-                tag_marginal[tr] += 1
+        _accumulate_attested_languages(name, attested_languages)
+        _accumulate_tag_cooccurrence(name, tag_marginal, tag_cooccurrence)
     return {
         "usages": dict(part_proportions),
         "single_usages": dict(lone_proportions),
