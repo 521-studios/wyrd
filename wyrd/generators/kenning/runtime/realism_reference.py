@@ -38,6 +38,7 @@ distributions the drift metrics build from generated names.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 
@@ -61,6 +62,49 @@ class CorpusReference:
     tag_distribution: dict[str, float] = field(default_factory=dict)
     position_distribution: dict[str, float] = field(default_factory=dict)
     morpheme_counts: dict[str, float] = field(default_factory=dict)
+
+
+def _normalize_weights(weights: dict[str, float]) -> dict[str, float]:
+    """Normalize a weight dict to shares summing to 1.0; empty when the
+    total is non-positive."""
+    total = sum(weights.values())
+    if total <= 0:
+        return {}
+    return {k: v / total for k, v in weights.items()}
+
+
+def _accumulate_slot_weights(
+    bucket: dict[str, float],
+    p_struct: float,
+    gloss_keep: frozenset[str] | None,
+    features_fn: Callable[[str], tuple[str | None, list[str], str | None]],
+    acc: dict[str, dict[str, float]],
+) -> None:
+    """Fold one slot's usage-frequency ``bucket`` into the ``acc`` weight
+    dicts (keys ``"tag"`` / ``"position"`` / ``"morpheme"``).
+
+    Applies the gloss keep-set BEFORE normalizing, so ``P(usage|slot)`` is
+    over the eligible pool the generator actually samples (matches
+    select's keep_keys filter + re-normalization). Each usage's weight is
+    ``p_struct * (f / total_f)``, distributed to its morpheme, position
+    (when present), and every tag — resolved via ``features_fn``. A
+    usage whose features resolve to ``morpheme is None`` is skipped.
+    """
+    if gloss_keep is not None:
+        bucket = {e: f for e, f in bucket.items() if e.lower().replace("-", "") in gloss_keep}
+    total_f = sum(bucket.values())
+    if total_f <= 0:
+        return
+    for usage, f in bucket.items():
+        weight = p_struct * (f / total_f)
+        morpheme, tags, location = features_fn(usage)
+        if morpheme is None:
+            continue
+        acc["morpheme"][morpheme] = acc["morpheme"].get(morpheme, 0.0) + weight
+        if location:
+            acc["position"][location] = acc["position"].get(location, 0.0) + weight
+        for tag in tags:
+            acc["tag"][tag] = acc["tag"].get(tag, 0.0) + weight
 
 
 def compute_corpus_reference(
@@ -110,9 +154,9 @@ def compute_corpus_reference(
     # filter (``k.lower().replace("-","") in keep_keys``).
     gloss_keep = name_gen.meaning_gen.keep_keys_for_gloss(include_unglossed)
 
-    tag_weight: dict[str, float] = {}
-    position_weight: dict[str, float] = {}
-    morpheme_weight: dict[str, float] = {}
+    # Accumulator: three weight dicts bundled so the per-slot helper takes
+    # one accumulator rather than three out-params.
+    acc: dict[str, dict[str, float]] = {"tag": {}, "position": {}, "morpheme": {}}
 
     # Resolve each usage's (morpheme, tags, location) once — the same
     # _resolve_surface + _rank_siblings work NewName.components does.
@@ -139,36 +183,11 @@ def compute_corpus_reference(
                 # keyed by (select_via_vector threads the slot key straight
                 # into _resolve_slot_usage_frequency).
                 bucket = freq_by_bucket.get(slot, {})
-                # Apply the gloss keep-set BEFORE normalizing, so P(usage|slot)
-                # is over the eligible pool the generator actually samples
-                # (matches select's keep_keys filter + re-normalization).
-                if gloss_keep is not None:
-                    bucket = {
-                        e: f for e, f in bucket.items() if e.lower().replace("-", "") in gloss_keep
-                    }
-                total_f = sum(bucket.values())
-                if total_f <= 0:
-                    continue
-                for usage, f in bucket.items():
-                    weight = p_struct * (f / total_f)
-                    morpheme, tags, location = _usage_features(usage)
-                    if morpheme is None:
-                        continue
-                    morpheme_weight[morpheme] = morpheme_weight.get(morpheme, 0.0) + weight
-                    if location:
-                        position_weight[location] = position_weight.get(location, 0.0) + weight
-                    for tag in tags:
-                        tag_weight[tag] = tag_weight.get(tag, 0.0) + weight
-
-    def _normalize(weights: dict[str, float]) -> dict[str, float]:
-        total = sum(weights.values())
-        if total <= 0:
-            return {}
-        return {k: v / total for k, v in weights.items()}
+                _accumulate_slot_weights(bucket, p_struct, gloss_keep, _usage_features, acc)
 
     return CorpusReference(
         culture=culture,
-        tag_distribution=_normalize(tag_weight),
-        position_distribution=_normalize(position_weight),
-        morpheme_counts=morpheme_weight,
+        tag_distribution=_normalize_weights(acc["tag"]),
+        position_distribution=_normalize_weights(acc["position"]),
+        morpheme_counts=acc["morpheme"],
     )
