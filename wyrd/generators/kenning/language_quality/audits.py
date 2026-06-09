@@ -191,45 +191,67 @@ def _bundle_attestation_breakdown(
     if sibling is None:
         return counts
     citation_key = f"{sibling}_citations"
-    subjects = _bundle_subjects(bundle)
-    for subj in subjects:
-        # Classify per-subject (not per-word): if any word in the
-        # subject has a scholar citation, the subject counts as
-        # scholar-attested. Treats subject-level admission as the
-        # natural unit since one subject = one (meaning, tags) family.
-        has_lang = False
-        scholar = False
-        empirical = False
-        rando = False
-        for word in subj.get("words") or []:
-            if not word.get(sibling):
-                continue
-            has_lang = True
-            for c in word.get(citation_key) or []:
-                if c in _GRANDFATHER_CITATION_SOURCES:
-                    rando = True
-                elif c in _EMPIRICAL_CITATION_SOURCES:
-                    empirical = True
-                else:
-                    scholar = True
-                    break  # inner break — scholar locks classification
-            if scholar:
-                # Outer break too — has_lang is already True (set above
-                # for the current word) and scholar wins all ties, so
-                # examining additional words can't change the bin.
-                break
-        if not has_lang:
-            continue
+    for subj in _bundle_subjects(bundle):
+        bin_name = _classify_subject_attestation(subj, sibling, citation_key)
+        if bin_name is None:
+            continue  # subject has no word carrying this language sibling
         counts["total"] += 1
-        if scholar:
-            counts["scholar_attested"] += 1
-        elif empirical:
-            counts["empirical_only"] += 1
-        elif rando:
-            counts["rando_only"] += 1
-        else:
-            counts["uncited"] += 1
+        counts[bin_name] += 1
     return counts
+
+
+def _subject_citation_flags(
+    subj: dict[str, Any], sibling: str, citation_key: str
+) -> tuple[bool, bool, bool, bool]:
+    """Scan a subject's words for the language ``sibling`` and return
+    ``(has_lang, scholar, empirical, rando)`` citation-presence flags.
+
+    ``has_lang`` is True once any word carries the ``sibling`` form.
+    Among that word's ``citation_key`` sources: a grandfather source
+    sets ``rando``, an empirical source sets ``empirical``, anything
+    else sets ``scholar`` and short-circuits (scholar wins all ties, so
+    no later citation or word can change the outcome).
+    """
+    has_lang = False
+    scholar = False
+    empirical = False
+    rando = False
+    for word in subj.get("words") or []:
+        if not word.get(sibling):
+            continue
+        has_lang = True
+        for c in word.get(citation_key) or []:
+            if c in _GRANDFATHER_CITATION_SOURCES:
+                rando = True
+            elif c in _EMPIRICAL_CITATION_SOURCES:
+                empirical = True
+            else:
+                scholar = True
+                break  # inner break — scholar locks classification
+        if scholar:
+            break  # scholar wins all ties; no later word can change the bin
+    return has_lang, scholar, empirical, rando
+
+
+def _classify_subject_attestation(
+    subj: dict[str, Any], sibling: str, citation_key: str
+) -> str | None:
+    """Classify one bundle subject by its strongest citation admission
+    path for the language ``sibling``: ``scholar_attested`` (any citation
+    that's neither grandfather nor empirical) > ``empirical_only`` >
+    ``rando_only`` > ``uncited`` (sibling present but no citations).
+    Returns ``None`` when no word carries the ``sibling`` form (subject
+    not in this language)."""
+    has_lang, scholar, empirical, rando = _subject_citation_flags(subj, sibling, citation_key)
+    if not has_lang:
+        return None
+    if scholar:
+        return "scholar_attested"
+    if empirical:
+        return "empirical_only"
+    if rando:
+        return "rando_only"
+    return "uncited"
 
 
 def _bundle_tag_coverage_for_sibling(
