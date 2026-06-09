@@ -1334,3 +1334,162 @@ def test_cli_commit_invalid_json_errors_with_line(tmp_path):
     assert result.exit_code != 0
     assert "invalid JSON" in result.output
     assert ":2:" in result.output
+
+
+def test_cli_commit_warns_when_mostly_deferred(tmp_path):
+    """A triage file that's still mostly action=defer (>=80% with
+    >=5 processed) emits a warning — catches running commit on an
+    unedited file. This branch lives in the ``_echo_commit_report``
+    helper (C901 extraction, wyrd-8uvi)."""
+    db = tmp_path / "lex.db"
+    _make_db(db, [])
+    triage = tmp_path / "triage.jsonl"
+    _write_jsonl(
+        triage,
+        [{"source_id": "x", "form": f"F{i}", "action": "defer"} for i in range(5)],
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "commit-toponym-candidates",
+            "--jsonl",
+            str(triage),
+            "--db",
+            str(db),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "warning:" in result.output
+    assert "action=defer" in result.output
+    assert "deferred=5" in result.output
+
+
+def test_cli_commit_verbose_surfaces_create_to_map_demotion(tmp_path):
+    """With --verbose, a CREATE row that collides with an existing
+    toponym surfaces a CREATE→MAP demotion line per row. This branch
+    lives in the ``_echo_commit_report`` helper (C901 extraction,
+    wyrd-8uvi)."""
+    db = tmp_path / "lex.db"
+    _make_db(
+        db,
+        [{"modern_name": "Edlingham", "country": "England", "region": "Northumberland"}],
+    )
+    triage = tmp_path / "triage.jsonl"
+    _write_jsonl(
+        triage,
+        [
+            {
+                "source_id": "mawer_1920",
+                "form": "Eadlingham",
+                "action": "create",
+                "create_modern_name": "Edlingham",
+                "create_country": "England",
+                "create_region": "Northumberland",
+            }
+        ],
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "commit-toponym-candidates",
+            "--jsonl",
+            str(triage),
+            "--db",
+            str(db),
+            "--apply",
+            "--verbose",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "CREATE→MAP" in result.output
+    assert "Edlingham" in result.output
+    assert "demoted=1" in result.output
+
+
+def test_cli_commit_no_defer_warning_below_count_threshold(tmp_path):
+    """The defer-warning is gated on processed >= 5 so a tiny
+    intentional-defer invocation isn't nagged. With 3 defers
+    (< 5 processed), no warning fires even at 100% defer ratio.
+    Pins the count guard the C901 extraction now owns (wyrd-8uvi)."""
+    db = tmp_path / "lex.db"
+    _make_db(db, [])
+    triage = tmp_path / "triage.jsonl"
+    _write_jsonl(
+        triage,
+        [{"source_id": "x", "form": f"F{i}", "action": "defer"} for i in range(3)],
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "commit-toponym-candidates", "--jsonl", str(triage), "--db", str(db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "warning:" not in result.output
+    assert "deferred=3" in result.output
+
+
+def test_cli_commit_no_defer_warning_below_ratio_threshold(tmp_path):
+    """The defer-warning is gated on a >= 0.8 defer ratio. With 5
+    processed rows but only 3 deferred (60%), no warning fires.
+    Pins the ratio guard the C901 extraction now owns (wyrd-8uvi)."""
+    db = tmp_path / "lex.db"
+    _make_db(db, [])
+    triage = tmp_path / "triage.jsonl"
+    rows = [{"source_id": "x", "form": f"D{i}", "action": "defer"} for i in range(3)]
+    rows += [{"source_id": "x", "form": f"S{i}", "action": "skip"} for i in range(2)]
+    _write_jsonl(triage, rows)
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "commit-toponym-candidates", "--jsonl", str(triage), "--db", str(db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "warning:" not in result.output
+    assert "deferred=3" in result.output
+    assert "skipped=2" in result.output
+
+
+def test_cli_commit_demotion_summary_without_verbose_omits_per_row_line(tmp_path):
+    """Without --verbose, a CREATE→MAP demotion still counts in the
+    summary (demoted=1) but emits no per-row CREATE→MAP line — the
+    verbose-gating symmetric to the errors-hint-without-verbose case.
+    Pins the verbose gate the C901 extraction now owns (wyrd-8uvi)."""
+    db = tmp_path / "lex.db"
+    _make_db(
+        db,
+        [{"modern_name": "Edlingham", "country": "England", "region": "Northumberland"}],
+    )
+    triage = tmp_path / "triage.jsonl"
+    _write_jsonl(
+        triage,
+        [
+            {
+                "source_id": "mawer_1920",
+                "form": "Eadlingham",
+                "action": "create",
+                "create_modern_name": "Edlingham",
+                "create_country": "England",
+                "create_region": "Northumberland",
+            }
+        ],
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "commit-toponym-candidates",
+            "--jsonl",
+            str(triage),
+            "--db",
+            str(db),
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "demoted=1" in result.output
+    assert "CREATE→MAP" not in result.output
