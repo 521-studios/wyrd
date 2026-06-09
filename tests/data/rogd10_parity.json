@@ -277,39 +277,30 @@
           "Bre-",
           [
             [
-              "goidelic",
+              "brythonic",
               [
                 [
-                  "old-irish",
+                  "old-welsh",
                   [
-                    "Brigit",
-                    "Brénainn",
-                    "brí",
-                    "bríg"
+                    "bryeint"
                   ]
                 ],
                 [
-                  "middle-irish",
+                  "middle-welsh",
                   [
-                    "Brían"
+                    "bre",
+                    "breeint"
                   ]
                 ],
                 [
-                  "irish",
+                  "welsh",
                   [
-                    "borgaire",
-                    "buirgléir",
-                    "buirgéiseach",
-                    "compord",
-                    "fórsa",
-                    "fórsáil",
-                    "rugbaí"
-                  ]
-                ],
-                [
-                  "scottish-gaelic",
-                  [
-                    "bre"
+                    "braint",
+                    "bre",
+                    "brenin",
+                    "brith",
+                    "bwrw",
+                    "rygbi"
                   ]
                 ]
               ]

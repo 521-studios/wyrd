@@ -1166,9 +1166,40 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
         # but BEFORE meaning/tag counts (so 'hyll' beats 'holt'
         # inside OE for the -hill bucket).
         surface_similarity = _max_form_similarity(matcher, usage_norm, m) if matcher else 0.0
-        return (-stratum_rank, is_common_sense, surface_similarity, len(m.meanings), len(m.tags))
+        # wyrd-24s6 (D38): a stable, content-derived final tiebreaker. Without it,
+        # siblings tying on every signal above retain meaning_db LOAD order, which
+        # varies across SQLite / Python builds — so `siblings[0]` (the canonical
+        # etymon) could differ between environments. That non-determinism was
+        # latent until D38's native render started routing diversification
+        # re-picks through the canonical's tags/languages, surfacing as a
+        # cross-environment generation drift (the parity test caught it). Keying
+        # on the morpheme identity makes the ranking independent of load order.
+        return (
+            -stratum_rank,
+            is_common_sense,
+            surface_similarity,
+            len(m.meanings),
+            len(m.tags),
+            _sibling_identity(m),
+        )
 
     return sorted(filtered, key=_signal, reverse=True)
+
+
+def _sibling_identity(m: Meaning) -> str:
+    """wyrd-24s6: a stable, content-derived identity string for deterministic
+    sibling tie-breaking in :func:`_rank_siblings`. Prefers the ``morpheme_id``
+    (the source-language canonical, e.g. ``old-english:hyll``); falls back to a
+    sorted ``(lang, forms)`` signature of the etymon's sources, then to the
+    repr of a non-dict ``sources`` (synthetic test Meanings). Never depends on
+    meaning_db load order, so the ranking is reproducible across environments."""
+    mid = getattr(m, "morpheme_id", None)
+    if mid:
+        return str(mid)
+    sources = getattr(m, "sources", None)
+    if isinstance(sources, dict):
+        return repr(sorted((lang, tuple(forms)) for lang, forms in sources.items()))
+    return repr(sources)
 
 
 # --- compose-time joiner insertion (wyrd-q0g6 Phase 1.5) -----------------
