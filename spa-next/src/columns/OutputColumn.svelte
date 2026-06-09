@@ -138,13 +138,13 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 1px var(--accent);
   }
-  /* wyrd-24s6 (D38): native name + modern companion on one baseline-aligned
-     row; the modern reflex sits to the right in darker, lighter-weight type. */
+  /* wyrd-24s6 (D38): native name primary, with the modern reflex companion
+     stacked directly beneath it (wyrd-swh2) in darker, lighter-weight type. */
   .name-line {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
   }
   .name {
     font-size: 15px;
