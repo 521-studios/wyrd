@@ -28,7 +28,9 @@ wyrd serve --debug
 wyrd kenning generate english
 wyrd kenning generate english --tag tree --tag water --seed 42
 
-# Rebuild proportions for a culture (after editing meanings or place names)
+# Rebuild a culture's "proportions" — the vector generator's empirical corpus
+# data (structures + tag co-occurrence), not a scoring mode — after editing
+# meanings or place names
 wyrd kenning rebuild-proportions english \
     wyrd/generators/kenning/data/english_place_names.json \
     > wyrd/generators/kenning/data/english_proportions.json

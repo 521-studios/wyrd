@@ -110,7 +110,8 @@ entry (no server change).
   filter on it. Re-enable in prod via `enabled_feature_flags = ["rewind"]`.
 
 Default-value examples: `WYRD_DEFAULT_CULTURE=english`, `WYRD_DEFAULT_COUNT=5`,
-`WYRD_DEFAULT_SCORING_MODE=proportions`.
+`WYRD_DEFAULT_SCORING_MODE=vector` (`vector` is the only live scorer — the
+`proportions` mode is retired, D36).
 
 ### Terraform (`terraform/`)
 
