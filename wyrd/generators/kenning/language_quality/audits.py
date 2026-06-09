@@ -1126,6 +1126,24 @@ def compute_rando_port_grandfather_audit(
     for r in conn.execute("SELECT etymon_id, source_id FROM etymon_citation"):
         cites_by_etymon.setdefault(r[0], set()).add(r[1])
 
+    return _classify_grandfather_families(family_members, cites_by_etymon, lang_by_id)
+
+
+def _classify_grandfather_families(
+    family_members: dict[int, list[int]],
+    cites_by_etymon: dict[int, set[str]],
+    lang_by_id: dict[int, str],
+) -> dict[str, dict[str, int]]:
+    """Bucket each citation-bearing family by rando-port-grandfather class,
+    keyed by the root's language.
+
+    Per family: union its members' citation sources; skip uncited families
+    (reported elsewhere) and families whose root has no language. A family
+    whose sources are EXACTLY ``_GRANDFATHER_CITATION_SOURCES`` is
+    ``pure_grandfather``; one that merely INTERSECTS it (some sibling has a
+    scholar/empirical citation too) is ``mixed_grandfather``. Returns
+    ``{language: {pure_grandfather, mixed_grandfather, total_families}}``.
+    """
     audit: dict[str, dict[str, int]] = {}
     for root_id, members in family_members.items():
         family_sources: set[str] = set()
