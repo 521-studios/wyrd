@@ -63,6 +63,42 @@ def test_ordered_tag_pairs_within_compound(bundle_swapper, explain_test_bundle):
     assert any(t in right_tags for t in ("architecture", "habitative", "social"))
 
 
+def test_proportions_tag_marginal_counts_each_side_once_per_pair(
+    bundle_swapper, explain_test_bundle
+):
+    """tag_marginal bumps each LEFT tag once per pair and each RIGHT tag once
+    per pair — the right-side bump lives in a SEPARATE loop, NOT nested inside
+    the left×right cartesian, so a right tag paired with a multi-tag left side
+    is counted once (not once-per-left-tag). Pins the non-double-count
+    arithmetic the wyrd-8uvi C901 extraction isolated into
+    _accumulate_tag_cooccurrence: a regression moving the right bump inside the
+    inner loop would multiply right marginals by len(left_tags)."""
+    with bundle_swapper(explain_test_bundle):
+        word_db, _ = load_meanings(explain_test_bundle)
+        name = Name("Ashton")  # Ash- (2+ tags) + -ton (2+ tags)
+        name.find_meaning(word_db)
+        pairs = _ordered_tag_pairs(name)
+        out = _proportions_from([name])
+
+    # Independently recompute the CORRECT marginals (each side once per pair)
+    # and the BUGGY variant (right bumped once per left tag); assert the
+    # producer matches correct and that the two differ here (so the test is
+    # meaningful — i.e. some pair has a multi-tag left side).
+    correct: dict[str, int] = {}
+    buggy: dict[str, int] = {}
+    for left_tags, right_tags in pairs:
+        for tl in left_tags:
+            correct[tl] = correct.get(tl, 0) + 1
+            buggy[tl] = buggy.get(tl, 0) + 1
+            for tr in right_tags:
+                buggy[tr] = buggy.get(tr, 0) + 1  # WRONG: per-left-tag bump
+        for tr in right_tags:
+            correct[tr] = correct.get(tr, 0) + 1
+    assert out["tag_marginal"] == correct
+    assert any(len(lt) >= 2 for lt, _ in pairs), "fixture must exercise a multi-tag left side"
+    assert buggy != correct, "the double-count bug would be observably different here"
+
+
 def test_tag_cooccurrence_serializes_round_trip():
     """tag_cooccurrence keys are 'left|right' strings — round-trip through
     JSON without losing structure."""
