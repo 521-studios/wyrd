@@ -248,26 +248,28 @@ def build_request_vector(
 
     register = compose_register_effects([adapter_effect, *mood_effects])
 
-    # wyrd-wv85 Gap 1+2: --tag AND a mood's SEMANTIC tags both become the
-    # HARD eligibility gate (D36.6), matching proportions exactly — its
-    # ``_apply_mood`` appends the mood's tags into the same ``tags`` list
-    # that ``filter_for_tag`` hard-filters on, so ``--mood grim`` filters
-    # to {death, military, monster, undead, magic} there. We mirror that:
-    # explicit --tag + every positive-weighted mood semantic tag union
-    # into required_tags. (Only positive weights — a mood that PENALIZES a
-    # tag must not REQUIRE it; the real catalog's semantic_tags are all
-    # positive, so this is parity with proportions in practice.) A mood's
-    # PHONOLOGICAL component stays in the register's phon axis (e.g. harsh
-    # contributes no required tags, only harshness).
-    mood_required_tags = frozenset(
-        tag for effect in mood_effects for tag, weight in effect.semantic_tags.items() if weight > 0
-    )
+    # wyrd-4rp8: a thematic mood's tags are a SOFT preference, NOT a hard gate.
+    # The pre-4rp8 design (wyrd-wv85) unioned the mood's positive semantic tags
+    # into gate.required_tags to mirror proportions' _apply_mood → filter_for_tag.
+    # In the vector path that gate is too aggressive: it shrinks the pool to
+    # mood-only morphemes, which can't fill most structures, so generation
+    # silently FELL BACK to the ungated pool — making moods a no-op. Per D36.6 a
+    # mood's semantic component is the SOFT preference; only --tag is the hard
+    # gate. So required_tags carries ONLY the explicit --tag values; the mood's
+    # per-tag weights ride on RequestVector.mood_tags, which drives the
+    # "one mood morpheme per name" overlay in select_via_vector_scoring. A mood's
+    # PHONOLOGICAL component (harsh) stays on the register's phon axis as before.
+    mood_tags: dict[str, float] = {}
+    for effect in mood_effects:
+        for tag, weight in effect.semantic_tags.items():
+            if weight > 0:
+                mood_tags[tag] = mood_tags.get(tag, 0.0) + weight
     gate = EligibilityGate(
         culture=culture,
         era_min=era_min,
         era_max=era_max,
         stratum=stratum,
-        required_tags=frozenset(tags) | mood_required_tags,
+        required_tags=frozenset(tags),
     )
 
     return RequestVector(
@@ -275,6 +277,7 @@ def build_request_vector(
         register=register,
         weights=weights or ScoringWeights(),
         packs=tuple(packs),
+        mood_tags=mood_tags,
     )
 
 
