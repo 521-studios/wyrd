@@ -19,7 +19,9 @@ import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -58,6 +60,101 @@ def _load_done(ledger: Path) -> dict[tuple, dict]:
     return done
 
 
+def _run_apply_prune(db_file: Path, ledger: Path, jsonl_dir: str) -> None:
+    """``--apply`` path: prune the reflex_etymon links whose ledger verdict is
+    PRUNE (``valid is False``) and re-dump _reflexes.jsonl. Error rows
+    (``valid is None``) re-judge on a future run, so they aren't pruned."""
+    done = _load_done(ledger)
+    prune_keys = {k for k, r in done.items() if r.get("valid") is False}
+    click.echo(f"PRUNE verdicts: {len(prune_keys)}", err=True)
+    n, rows = apply_prune(db_file, prune_keys, jsonl_dir)
+    click.echo(
+        f"deleted {n} reflex_etymon links; re-dumped _reflexes.jsonl ({rows} rows)", err=True
+    )
+
+
+def _select_pending(
+    db_file: Path, ledger: Path, limit: int | None
+) -> tuple[list, dict, dict, list]:
+    """Load suspicious reflex candidates, dedup to one judgment per key, and
+    drop the already-judged (from the ledger). Returns ``(cands, by_key, done,
+    pending)`` — pending capped to ``limit`` when set."""
+    cands = load_candidates(db_file)
+    by_key: dict[tuple, list] = {}
+    for c in cands:
+        by_key.setdefault(c.key, []).append(c)
+    done = _load_done(ledger)
+    pending = [(k, cs[0]) for k, cs in by_key.items() if k not in done]
+    if limit is not None:
+        pending = pending[:limit]
+    return cands, by_key, done, pending
+
+
+@dataclass
+class _AuditJudgeContext:
+    """Shared state threaded into the per-candidate judge worker: the LLM
+    client, the by-key candidate index (for n_links), the open ledger handle +
+    its lock, a mutable ``{"n": int}`` counter, the start time, and the total
+    pending count (for the progress denominator)."""
+
+    client: Any
+    by_key: dict[tuple, list]
+    out: Any
+    lock: threading.Lock
+    counter: dict[str, int]
+    start: float
+    total: int
+
+
+def _judge_one(ctx: _AuditJudgeContext, item: tuple) -> None:
+    """Judge one suspicious reflex link via the LLM and append a verdict row to
+    the ledger. A non-dict / schema-violating response (or any exception) is
+    recorded as an error row (``valid=None``, re-judged next run), never a
+    silent prune. Ledger write is locked; the every-10 progress echo is outside
+    the lock so terminal I/O doesn't serialize the workers."""
+    key, c = item
+    try:
+        v = ctx.client.chat_json(
+            SYSTEM_PROMPT,
+            reflex_audit_user_prompt(c.canonical, c.language, c.gloss, c.surface),
+            VERDICT_SCHEMA,
+        )
+        if not isinstance(v, dict) or "valid" not in v:
+            # responseSchema marks `valid` required, so this is rare — record
+            # as an error row, NOT a silent prune. valid=None re-judges next run.
+            raise ValueError(f"bad response: {v!r}"[:200])
+        valid, reason, err = bool(v["valid"]), str(v.get("reason", ""))[:300], None
+    except Exception as e:  # noqa: BLE001 — record + continue, never abort the batch
+        valid, reason, err = None, "", str(e)[:200]
+    row = {
+        "surface": c.surface,
+        "surface_strip": key[0],
+        "canon": key[1],
+        "canon_raw": c.canonical,
+        "lang": c.language,
+        "gloss": c.gloss,
+        "n_links": len(ctx.by_key[key]),
+        "valid": valid,
+        "reason": reason,
+    }
+    if err:
+        row["error"] = err
+    with ctx.lock:
+        ctx.out.write(json.dumps(row, ensure_ascii=False) + "\n")
+        ctx.out.flush()
+        ctx.counter["n"] += 1
+        n = ctx.counter["n"]
+    # Progress echo OUTSIDE the lock — terminal I/O shouldn't serialize the
+    # worker threads (Gemini review).
+    if n % 10 == 0:
+        rate = (time.time() - ctx.start) / n
+        click.echo(
+            f"  [{n}/{ctx.total}] {c.surface!r}->{c.canonical!r} valid={valid} "
+            f"({rate:.2f}s/judgment)",
+            err=True,
+        )
+
+
 @click.command("audit-reflexes")
 @click.option("--db", "db_path", type=click.Path(), default=None, help="Lexicon DB path.")
 @click.option(
@@ -86,24 +183,10 @@ def lexicon_audit_reflexes(db_path, jsonl_dir, limit, concurrency, do_apply):
     ledger = Path(jsonl_dir) / _AUDIT_FILENAME
 
     if do_apply:
-        done = _load_done(ledger)
-        prune_keys = {k for k, r in done.items() if r.get("valid") is False}
-        click.echo(f"PRUNE verdicts: {len(prune_keys)}", err=True)
-        n, rows = apply_prune(db_file, prune_keys, jsonl_dir)
-        click.echo(
-            f"deleted {n} reflex_etymon links; re-dumped _reflexes.jsonl ({rows} rows)", err=True
-        )
+        _run_apply_prune(db_file, ledger, jsonl_dir)
         return
 
-    # Run: dedup candidates -> one judgment per key, skip already-judged.
-    cands = load_candidates(db_file)
-    by_key: dict[tuple, list] = {}
-    for c in cands:
-        by_key.setdefault(c.key, []).append(c)
-    done = _load_done(ledger)
-    pending = [(k, cs[0]) for k, cs in by_key.items() if k not in done]
-    if limit is not None:
-        pending = pending[:limit]
+    cands, by_key, done, pending = _select_pending(db_file, ledger, limit)
     click.echo(
         f"suspicious links: {len(cands)}  unique judgments: {len(by_key)}  "
         f"done: {len(done)}  pending: {len(pending)}",
@@ -112,65 +195,26 @@ def lexicon_audit_reflexes(db_path, jsonl_dir, limit, concurrency, do_apply):
     if not pending:
         return
 
-    client = GeminiClient()
-    lock = threading.Lock()
     out = ledger.open("a", encoding="utf-8")
     start = time.time()
-    counter = {"n": 0}
-
-    def judge(item):
-        key, c = item
-        try:
-            v = client.chat_json(
-                SYSTEM_PROMPT,
-                reflex_audit_user_prompt(c.canonical, c.language, c.gloss, c.surface),
-                VERDICT_SCHEMA,
-            )
-            if not isinstance(v, dict) or "valid" not in v:
-                # Non-dict or schema-violating response (responseSchema marks
-                # `valid` required, so this is rare) — record as an error row,
-                # NOT a silent prune. valid=None re-judges on the next run.
-                raise ValueError(f"bad response: {v!r}"[:200])
-            valid, reason, err = bool(v["valid"]), str(v.get("reason", ""))[:300], None
-        except Exception as e:  # noqa: BLE001 — record + continue, never abort the batch
-            valid, reason, err = None, "", str(e)[:200]
-        row = {
-            "surface": c.surface,
-            "surface_strip": key[0],
-            "canon": key[1],
-            "canon_raw": c.canonical,
-            "lang": c.language,
-            "gloss": c.gloss,
-            "n_links": len(by_key[key]),
-            "valid": valid,
-            "reason": reason,
-        }
-        if err:
-            row["error"] = err
-        with lock:
-            out.write(json.dumps(row, ensure_ascii=False) + "\n")
-            out.flush()
-            counter["n"] += 1
-            n = counter["n"]
-        # Progress echo OUTSIDE the lock — terminal I/O shouldn't serialize the
-        # worker threads (Gemini review).
-        if n % 10 == 0:
-            rate = (time.time() - start) / n
-            click.echo(
-                f"  [{n}/{len(pending)}] {c.surface!r}->{c.canonical!r} valid={valid} "
-                f"({rate:.2f}s/judgment)",
-                err=True,
-            )
-
+    ctx = _AuditJudgeContext(
+        client=GeminiClient(),
+        by_key=by_key,
+        out=out,
+        lock=threading.Lock(),
+        counter={"n": 0},
+        start=start,
+        total=len(pending),
+    )
     # try/finally so the ledger handle is flushed/closed even if the pool
     # raises or the run is interrupted (Gemini's leak-on-exception finding).
     try:
         with ThreadPoolExecutor(max_workers=concurrency) as ex:
-            list(ex.map(judge, pending))
+            list(ex.map(lambda it: _judge_one(ctx, it), pending))
     finally:
         out.close()
     click.echo(
-        f"done: {counter['n']} judgments in {time.time() - start:.0f}s -> {ledger}", err=True
+        f"done: {ctx.counter['n']} judgments in {time.time() - start:.0f}s -> {ledger}", err=True
     )
 
 
