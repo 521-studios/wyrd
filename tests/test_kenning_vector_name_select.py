@@ -14,6 +14,7 @@ import pytest
 
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.vector_name_select import (
+    _blend_uniform_by_novelty,
     _cohesion_multiplier,
     _lemma_ref_for,
     _slot_position_label,
@@ -70,6 +71,37 @@ def _request(culture: str = "english", era_min=None, era_max=None) -> RequestVec
         ),
         weights=ScoringWeights(),
     )
+
+
+# ---- _blend_uniform_by_novelty (wyrd-fcub) --------------------------------
+
+
+def test_blend_uniform_by_novelty_boundaries():
+    """novelty=1 → pure uniform (1/n each); novelty=0 → the score-normalized
+    distribution; intermediate interpolates between them."""
+    weighted = [(_meaning("a"), 3.0), (_meaning("b"), 1.0)]  # total 4
+    full = _blend_uniform_by_novelty(weighted, 1.0)
+    assert [round(w, 6) for _, w in full] == [0.5, 0.5]
+    none = _blend_uniform_by_novelty(weighted, 0.0)
+    assert [round(w, 6) for _, w in none] == [0.75, 0.25]  # 3/4, 1/4
+    half = _blend_uniform_by_novelty(weighted, 0.5)
+    assert [round(w, 6) for _, w in half] == [0.625, 0.375]  # 0.5*frac + 0.5*0.5
+
+
+def test_blend_uniform_by_novelty_single_meaning_always_weight_one():
+    """n==1: a lone eligible meaning gets weight 1.0 at any novelty (the
+    score-normalized and uniform marginals both collapse to it)."""
+    single = [(_meaning("a"), 2.5)]
+    for nov in (0.0, 0.5, 1.0):
+        out = _blend_uniform_by_novelty(single, nov)
+        assert [round(w, 6) for _, w in out] == [1.0], nov
+
+
+def test_blend_uniform_by_novelty_zero_total_returns_uniform():
+    """All-zero scores → no axis to blend against → pure uniform."""
+    weighted = [(_meaning("a"), 0.0), (_meaning("b"), 0.0)]
+    out = _blend_uniform_by_novelty(weighted, 0.5)
+    assert [round(w, 6) for _, w in out] == [0.5, 0.5]
 
 
 # ---- _slot_position_label -------------------------------------------------
@@ -1286,7 +1318,7 @@ def test_build_request_vector_tags_and_mood_tags_become_hard_gate():
     assert rv.gate.required_tags == frozenset({"water", "death"})
 
     # Gap 2: a mood's semantic tags → hard gate too. grim expands to
-    # {death, military, monster, undead, magic} (mood_spec_to_legacy_form).
+    # {death, military, monster, undead, magic} (the catalog effect's tags).
     rv_mood = build_request_vector(culture="english", mood=["grim"])
     assert rv_mood.gate.required_tags == frozenset(
         {"death", "military", "monster", "undead", "magic"}
@@ -1374,3 +1406,185 @@ def test_select_via_vector_scoring_permissive_returns_none_for_empty_slot():
     assert permissive[1] is None, "unsatisfiable saint slot → None, not aborted"
     # Non-permissive (default) aborts the whole struct on the empty slot.
     assert select_via_vector_scoring(random.Random(0), db, **kwargs) == []
+
+
+def test_select_via_vector_scoring_permissive_handles_zeroed_weights(monkeypatch):
+    """wyrd-2idg: the 'not weighted' permissive branch. base_scored is non-empty
+    but every final score collapses to <= 0 after the cohesion multiplier, so
+    nothing is weight-eligible. This is defensive — build_slot_base_scores only
+    emits base scores > 0 — so force the collapse by zeroing the cohesion
+    multiplier. permissive=True → None for the slot (full-length result);
+    non-permissive → [] (abort)."""
+    db = {"Port-": [_meaning("Port-", tags=["urban"])]}
+    kwargs = {"structure": ["pre"], "request": _request(), "priors": EmpiricalPriors()}
+    # Sanity (no monkeypatch yet): the slot fills normally, so base_scored is
+    # non-empty — the collapse below is specifically the 'not weighted' branch,
+    # not the already-covered empty-pool ('not base_scored') branch.
+    baseline = select_via_vector_scoring(random.Random(0), db, **kwargs)
+    assert baseline and baseline[0] is not None
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.runtime.vector_name_select._cohesion_multiplier",
+        lambda *a, **k: 0.0,
+    )
+    permissive = select_via_vector_scoring(random.Random(0), db, permissive=True, **kwargs)
+    assert permissive == [None], "zeroed weights under permissive → None slot, full-length"
+    # Non-permissive aborts the whole struct when a slot has no weighted pool.
+    assert select_via_vector_scoring(random.Random(0), db, **kwargs) == []
+
+
+def test_select_via_vector_scoring_permissive_handles_weighted_choice_none(monkeypatch):
+    """wyrd-2idg: the '_weighted_choice returns None' permissive branch.
+    base_scored AND weighted are both non-empty, but the weighted draw returns
+    None. This is defensive — a positive-weight list won't normally yield None —
+    so force it. permissive=True → None for the slot; non-permissive → []."""
+    db = {"Port-": [_meaning("Port-", tags=["urban"])]}
+    kwargs = {"structure": ["pre"], "request": _request(), "priors": EmpiricalPriors()}
+    # Sanity (no monkeypatch yet): the slot fills normally, so base_scored and
+    # weighted are non-empty — the [None] below is specifically the
+    # '_weighted_choice returns None' branch, reached only after both pass.
+    baseline = select_via_vector_scoring(random.Random(0), db, **kwargs)
+    assert baseline and baseline[0] is not None
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.runtime.vector_name_select._weighted_choice",
+        lambda *a, **k: None,
+    )
+    permissive = select_via_vector_scoring(random.Random(0), db, permissive=True, **kwargs)
+    assert permissive == [None], "weighted_choice None under permissive → None slot"
+    # Non-permissive aborts the whole struct when the weighted draw returns None.
+    assert select_via_vector_scoring(random.Random(0), db, **kwargs) == []
+
+
+# ---------------------------------------------------------------------------
+# Register-bias smoke tests (relocated from test_kenning_realism_regression.py)
+# ---------------------------------------------------------------------------
+
+
+def test_register_phonological_bias_scores_lemmas_consistently():
+    """Smoke: a RequestVector with a harsh-leaning register produces
+    consistent score-direction across multiple invocations. Verifies
+    the score → register-effect wiring doesn't silently no-op.
+
+    Uses the vector_name_select primitive directly (not Kenning.generate)
+    so the test isolates the register-bias contract from the dispatch
+    layer + bundle dependencies."""
+    # 3 post-position meanings with varying cluster_density. A
+    # harsh-leaning register weights cluster_density positively, so
+    # the highest-cluster_density meaning should score highest.
+    harsh = Meaning(
+        usage="-strikt",
+        tags=["x"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(cluster_density=0.9),
+    )
+    medium = Meaning(
+        usage="-mid",
+        tags=["x"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(cluster_density=0.5),
+    )
+    soft = Meaning(
+        usage="-aloha",
+        tags=["x"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(cluster_density=0.1),
+    )
+    db = {"-strikt": [harsh], "-mid": [medium], "-aloha": [soft]}
+
+    request = RequestVector(
+        gate=EligibilityGate(culture="english"),
+        register=RegisterEffect(
+            name="harsh-test",
+            phonological={"cluster_density": 1.0},
+            semantic_tags={"x": 0.1},
+        ),
+        weights=ScoringWeights(phon_w=10.0, sem_w=1.0, pos_w=0.0, base_w=0.0),
+    )
+
+    # Run many seeds; harsh should be picked more often than soft
+    # under the cluster_density-biased register.
+    harsh_wins = 0
+    soft_wins = 0
+    for seed in range(100):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["post"],
+            request=request,
+            priors=EmpiricalPriors(),
+        )
+        if not picks:
+            continue
+        if picks[0] is harsh:
+            harsh_wins += 1
+        elif picks[0] is soft:
+            soft_wins += 1
+    # Strong bias direction — harsh should win materially more often
+    assert harsh_wins > soft_wins, (
+        f"register phonological bias not observable: harsh={harsh_wins}, soft={soft_wins}"
+    )
+
+
+def test_register_semantic_bias_scores_matching_tags_higher():
+    """Smoke: a RequestVector with a tag-weighted register prefers
+    meanings carrying matching tags. Independent of the phon axis."""
+    matching = Meaning(
+        usage="-keep",
+        tags=["fortified"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(),
+    )
+    mismatching = Meaning(
+        usage="-glen",
+        tags=["pastoral"],
+        meanings=[],
+        sources=[],
+        phonological_vector=PhonologicalVector(),
+    )
+    db = {"-keep": [matching], "-glen": [mismatching]}
+
+    request = RequestVector(
+        gate=EligibilityGate(culture="english"),
+        register=RegisterEffect(
+            name="war",
+            semantic_tags={"fortified": 1.0, "pastoral": 0.0},
+        ),
+        weights=ScoringWeights(phon_w=0.0, sem_w=1.0, pos_w=0.0, base_w=0.0),
+    )
+
+    matching_wins = 0
+    for seed in range(100):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["post"],
+            request=request,
+            priors=EmpiricalPriors(),
+        )
+        if picks and picks[0] is matching:
+            matching_wins += 1
+    # With pastoral weight 0, mismatching should NEVER win.
+    assert matching_wins == 100, f"sem axis miswired: matching_wins={matching_wins}/100"
+
+
+def test_register_composition_combines_phonological_and_semantic():
+    """Smoke: register-effect composition (phon + sem) produces the
+    expected combined bias — the score function sums per-axis
+    contributions per the D36.2 canonical formula."""
+    from wyrd.generators.kenning.vectors.scoring import phon_score, sem_score
+
+    register = RegisterEffect(
+        name="composed",
+        phonological={"cluster_density": 1.0},
+        semantic_tags={"animal": 0.5, "water": 0.5},
+    )
+    vector = PhonologicalVector(cluster_density=0.7)
+    # phon_score = dot(vector, register.phonological) = 0.7
+    assert abs(phon_score(vector, register) - 0.7) < 1e-9
+    # sem_score = sum of weights for lemma tags in request
+    assert abs(sem_score(["animal", "water"], register) - 1.0) < 1e-9
+    # Tags the request doesn't weight contribute 0
+    assert abs(sem_score(["rock"], register) - 0.0) < 1e-9

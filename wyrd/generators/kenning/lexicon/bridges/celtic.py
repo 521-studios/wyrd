@@ -99,6 +99,69 @@ _CELTIC_FORM_BRIDGES: dict[str, str] = {
 }
 
 
+def _build_candidate_index(
+    db: LexiconDB, candidate_langs: tuple[str, ...]
+) -> dict[tuple[str, str], tuple[int, int | None]]:
+    """Build ``(lower(canonical_form), language) → (live_id, cognate_id)``
+    over canonical candidate-language etymons.
+
+    Resolves through any ``merged_into_id`` redirect (one hop — OCR-cluster
+    passes don't make multi-step chains within a language) so a table
+    target that's itself been OCR-merged still routes to its live
+    canonical. First-seen wins per ``(form, lang)``; ``ORDER BY id`` keeps
+    that deterministic (older entry wins).
+    """
+    placeholders = ", ".join(["?"] * len(candidate_langs))
+    candidate_index: dict[tuple[str, str], tuple[int, int | None]] = {}
+    for row in db.conn.execute(
+        f"""
+        SELECT id, canonical_form, language, merged_into_id, cognate_id
+        FROM etymon
+        WHERE language IN ({placeholders})
+        ORDER BY id
+        """,
+        candidate_langs,
+    ).fetchall():
+        live_id = row["id"]
+        live_synset = row["cognate_id"]
+        if row["merged_into_id"] is not None:
+            live = db.conn.execute(
+                "SELECT id, cognate_id FROM etymon WHERE id = ?",
+                (row["merged_into_id"],),
+            ).fetchone()
+            if live is not None:
+                live_id = live["id"]
+                live_synset = live["cognate_id"]
+        key = (row["canonical_form"].lower(), row["language"])
+        if key not in candidate_index:
+            candidate_index[key] = (live_id, live_synset)
+    return candidate_index
+
+
+def _pick_best_target(
+    lemma: str,
+    candidate_index: dict[tuple[str, str], tuple[int, int | None]],
+    candidate_langs: tuple[str, ...],
+) -> int | None:
+    """Pick the target etymon id for ``lemma`` across the candidate
+    languages: prefer the first clustered target (``cognate_id IS NOT
+    NULL``) in priority order, else the first-found unclustered target.
+    Returns ``None`` when no candidate language has the lemma."""
+    best_clustered: int | None = None
+    best_unclustered: int | None = None
+    for cand_lang in candidate_langs:
+        entry = candidate_index.get((lemma.lower(), cand_lang))
+        if entry is None:
+            continue
+        tid, syn = entry
+        if syn is not None and best_clustered is None:
+            best_clustered = tid
+            break  # first clustered wins
+        if best_unclustered is None:
+            best_unclustered = tid
+    return best_clustered if best_clustered is not None else best_unclustered
+
+
 def bridge_celtic_forms(
     db: LexiconDB,
     *,
@@ -150,39 +213,8 @@ def bridge_celtic_forms(
     """
     table = _CELTIC_FORM_BRIDGES if table is None else table
 
-    # Build (lower(canonical_form), language) → (live_canonical_id, cognate_id)
-    # over canonical candidate-language etymons. We resolve through any
-    # merged_into_id chain so a target form named in the table that has
-    # itself been OCR-merged into a canonical still routes correctly.
-    placeholders = ", ".join(["?"] * len(candidate_langs))
-    candidate_index: dict[tuple[str, str], tuple[int, int | None]] = {}
-    for row in db.conn.execute(
-        f"""
-        SELECT id, canonical_form, language, merged_into_id, cognate_id
-        FROM etymon
-        WHERE language IN ({placeholders})
-        ORDER BY id
-        """,
-        candidate_langs,
-    ).fetchall():
-        # Resolve through redirect (one hop is enough for our data shape;
-        # OCR-cluster passes don't produce multi-step chains within a
-        # single language).
-        live_id = row["id"]
-        live_synset = row["cognate_id"]
-        if row["merged_into_id"] is not None:
-            live = db.conn.execute(
-                "SELECT id, cognate_id FROM etymon WHERE id = ?",
-                (row["merged_into_id"],),
-            ).fetchone()
-            if live is not None:
-                live_id = live["id"]
-                live_synset = live["cognate_id"]
-        key = (row["canonical_form"].lower(), row["language"])
-        # First-seen wins per (form, lang). The ORDER BY id keeps it
-        # deterministic (older entry wins).
-        if key not in candidate_index:
-            candidate_index[key] = (live_id, live_synset)
+    # (lower(canonical_form), language) → (live_id, cognate_id), redirect-resolved.
+    candidate_index = _build_candidate_index(db, candidate_langs)
 
     # Walk ALL celtic rows (canonical + tombstones). Tombstones whose
     # current target is unclustered get re-routed by the chain-flatten
@@ -201,23 +233,7 @@ def bridge_celtic_forms(
         if lemma is None:
             unmatched += 1
             continue
-
-        # Find the best candidate: prefer clustered targets (cognate_id IS
-        # NOT NULL) in priority order, fall back to first-found unclustered.
-        best_clustered: int | None = None
-        best_unclustered: int | None = None
-        for cand_lang in candidate_langs:
-            entry = candidate_index.get((lemma.lower(), cand_lang))
-            if entry is None:
-                continue
-            tid, syn = entry
-            if syn is not None and best_clustered is None:
-                best_clustered = tid
-                break  # first clustered wins
-            if best_unclustered is None:
-                best_unclustered = tid
-        target_id = best_clustered if best_clustered is not None else best_unclustered
-
+        target_id = _pick_best_target(lemma, candidate_index, candidate_langs)
         if target_id is None:
             missing_target += 1
             continue

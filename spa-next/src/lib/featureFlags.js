@@ -16,15 +16,20 @@
 // culture, and english is the guaranteed baseline.
 const ALWAYS_ON_CULTURES = new Set(['english']);
 
+// Advanced fields that are unconditionally available regardless of any flag.
+// The vector axis-weight knobs are always on now that vector is the only
+// scoring path (the scoring_mode selector was retired): there's no mode to
+// gate them under, so they ride alongside their always-present sliders.
+const ALWAYS_ON_FIELDS = new Set([
+  'phonological_weight',
+  'semantic_weight',
+  'position_weight',
+  'baseline_weight',
+]);
+
 // Advanced fields that ride under another field's flag rather than their own.
-// The vector axis-weight knobs are meaningless without the scoring-mode
-// selector, so the `scoring_mode` flag gates them as a unit.
-const FIELD_FLAG_OVERRIDES = {
-  phonological_weight: 'scoring_mode',
-  semantic_weight: 'scoring_mode',
-  position_weight: 'scoring_mode',
-  baseline_weight: 'scoring_mode',
-};
+// (None currently — kept as the extension point for grouped gating.)
+const FIELD_FLAG_OVERRIDES = {};
 
 /** The flag name controlling an advanced field. Defaults to the field key
  *  itself (1:1); a few fields map to a grouping flag. */
@@ -47,8 +52,11 @@ export function flagOn(config, name) {
   return config.flags?.[envify(name)] === true;
 }
 
-/** Is an advanced field enabled (its controlling flag on)? */
+/** Is an advanced field enabled? Some fields are unconditionally available
+ *  (always-on); the rest gate on their controlling flag. */
 export function fieldEnabled(config, fieldKey) {
+  if (ALWAYS_ON_FIELDS.has(fieldKey)) return true;
+  if (!config) return false;
   return flagOn(config, fieldFlag(fieldKey));
 }
 
@@ -100,8 +108,8 @@ export function seedDefault(config, fieldKey, prop) {
  *  field SHOULD be set to, or `undefined` to mean "leave it alone".
  *
  *  Critically, an `undefined` (not-yet-seeded) value returns `undefined` — the
- *  seed pass (``seedDefault``) owns initial seeding, including the env
- *  ``config.defaults`` override (e.g. WYRD_DEFAULT_SCORING_MODE=vector).
+ *  seed pass (``seedDefault``) owns initial seeding, including any env
+ *  ``config.defaults`` override (e.g. WYRD_DEFAULT_COUNT=5).
  *  Snapping an unseeded field to ``schemaDefault`` here would clobber that
  *  override and the seed pass would then skip (value no longer undefined).
  *  Only a DEFINED-but-invalid value (e.g. a culture-filtered option) snaps —

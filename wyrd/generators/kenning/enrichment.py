@@ -767,6 +767,35 @@ def apply_etymon_splits(
     return counts
 
 
+# Optional summary lines for format_etymon_split_run, in render order.
+# Each (key, label) emits "- {label}: {counts[key]}" only when the count
+# is truthy — every line follows that uniform shape, so a data table +
+# loop replaces a dozen near-identical guards.
+_SPLIT_OPTIONAL_LINES: list[tuple[str, str]] = [
+    ("no_primary_defaulted", "Splits with no `primary` flag (defaulted to first child)"),
+    ("children_already_existed", "Children that already existed (reused)"),
+    ("unresolved_etymon", "Unresolved parent refs"),
+    ("glosses_missing", "Glosses not on parent"),
+    ("tags_missing", "Tags not on parent"),
+    ("empty_into_skipped", "Empty splits skipped"),
+    ("children_skipped_invalid_suffix", "Children skipped (suffix outside [a-z0-9_-]+ charset)"),
+    ("children_skipped_no_suffix", "Children skipped (missing/empty `suffix` in JSONL event)"),
+    (
+        "multiple_primary_collapsed",
+        "Splits with >1 primary flag (collapsed to first; CLI normally rejects this)",
+    ),
+    ("citations_skipped_conflict", "Citations left on parent due to UNIQUE conflict on primary"),
+    (
+        "descent_edges_skipped_conflict",
+        "Descent edges left on parent due to UNIQUE conflict on primary",
+    ),
+    (
+        "etymology_elements_skipped_conflict",
+        "Etymology elements left on parent due to UNIQUE conflict on primary",
+    ),
+]
+
+
 def format_etymon_split_run(counts: dict[str, Any]) -> str:
     """Render :func:`apply_etymon_splits` output as markdown."""
     applied = counts.get("applied", True)
@@ -784,53 +813,11 @@ def format_etymon_split_run(counts: dict[str, Any]) -> str:
         f"- Descent edges {verb_move} to primary: {counts.get('descent_edges_moved', 0)}",
         f"- Etymology elements {verb_move} to primary: {counts.get('etymology_elements_moved', 0)}",
     ]
-    if counts.get("no_primary_defaulted"):
-        lines.append(
-            f"- Splits with no `primary` flag (defaulted to first child): "
-            f"{counts['no_primary_defaulted']}"
-        )
-    if counts.get("children_already_existed"):
-        lines.append(
-            f"- Children that already existed (reused): {counts['children_already_existed']}"
-        )
-    if counts.get("unresolved_etymon"):
-        lines.append(f"- Unresolved parent refs: {counts['unresolved_etymon']}")
-    if counts.get("glosses_missing"):
-        lines.append(f"- Glosses not on parent: {counts['glosses_missing']}")
-    if counts.get("tags_missing"):
-        lines.append(f"- Tags not on parent: {counts['tags_missing']}")
-    if counts.get("empty_into_skipped"):
-        lines.append(f"- Empty splits skipped: {counts['empty_into_skipped']}")
-    if counts.get("children_skipped_invalid_suffix"):
-        lines.append(
-            "- Children skipped (suffix outside [a-z0-9_-]+ charset): "
-            f"{counts['children_skipped_invalid_suffix']}"
-        )
-    if counts.get("children_skipped_no_suffix"):
-        lines.append(
-            "- Children skipped (missing/empty `suffix` in JSONL event): "
-            f"{counts['children_skipped_no_suffix']}"
-        )
-    if counts.get("multiple_primary_collapsed"):
-        lines.append(
-            "- Splits with >1 primary flag (collapsed to first; CLI normally "
-            f"rejects this): {counts['multiple_primary_collapsed']}"
-        )
-    if counts.get("citations_skipped_conflict"):
-        lines.append(
-            "- Citations left on parent due to UNIQUE conflict on primary: "
-            f"{counts['citations_skipped_conflict']}"
-        )
-    if counts.get("descent_edges_skipped_conflict"):
-        lines.append(
-            "- Descent edges left on parent due to UNIQUE conflict on primary: "
-            f"{counts['descent_edges_skipped_conflict']}"
-        )
-    if counts.get("etymology_elements_skipped_conflict"):
-        lines.append(
-            "- Etymology elements left on parent due to UNIQUE conflict on primary: "
-            f"{counts['etymology_elements_skipped_conflict']}"
-        )
+    # Optional lines: emit only when the count is truthy (the table fixes
+    # render order). Each follows the uniform "- {label}: {value}" shape.
+    for key, label in _SPLIT_OPTIONAL_LINES:
+        if counts.get(key):
+            lines.append(f"- {label}: {counts[key]}")
     return "\n".join(lines)
 
 
@@ -1109,49 +1096,6 @@ def apply_collapses(
         )
 
     return counts
-
-
-def format_collapse_run(counts: dict[str, Any]) -> str:
-    """Render :func:`apply_collapses` output as a short markdown block."""
-    mode = "APPLIED" if counts["applied"] else "DRY-RUN"
-    lines = [
-        f"## Etymon collapses ({mode}, {counts['method_version']})",
-        f"- Collapses processed: {counts['collapses_processed']}",
-        f"- Variants registered: {counts['variants_created']}",
-        f"- Reflexes migrated: {counts['reflexes_moved']} "
-        f"(left on tombstone, conflict: {counts['reflexes_skipped_conflict']})",
-        f"- Citations migrated: {counts['citations_moved']} "
-        f"(left on tombstone, conflict: {counts['citations_skipped_conflict']})",
-    ]
-    if (
-        counts.get("detach_edges_removed")
-        or counts.get("detach_unresolved_endpoint")
-        or counts.get("detach_unresolved_from")
-    ):
-        verb = "removed" if counts["applied"] else "would remove"
-        unresolved = []
-        if counts.get("detach_unresolved_from"):
-            unresolved.append(f"from: {counts['detach_unresolved_from']}")
-        if counts.get("detach_unresolved_endpoint"):
-            unresolved.append(f"endpoints: {counts['detach_unresolved_endpoint']}")
-        lines.append(
-            f"- Descent edges detached: {verb} {counts.get('detach_edges_removed', 0)}"
-            + (f" (unresolved {'; '.join(unresolved)})" if unresolved else "")
-        )
-    skipped = (
-        counts["unresolved_from"]
-        + counts["unresolved_into"]
-        + counts["self_collapse_skipped"]
-        + counts["empty_into_skipped"]
-    )
-    if skipped:
-        lines.append(
-            f"- Skipped: unresolved_from={counts['unresolved_from']} "
-            f"unresolved_into={counts['unresolved_into']} "
-            f"self={counts['self_collapse_skipped']} "
-            f"empty_into={counts['empty_into_skipped']}"
-        )
-    return "\n".join(lines)
 
 
 def run_full_enrichment(

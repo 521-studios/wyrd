@@ -311,7 +311,10 @@ def lexicon_mine_toponym_mentions_staged(
         # Append-mode: re-running the same stage doesn't blow away the
         # tail of the prior run. The operator can clear the file
         # manually if a fresh slate is wanted (see warning above).
-        failure_sink = capture_failures.open("a", encoding="utf-8")
+        # errors="replace": surrogate-escape backstop (wyrd-klod; see the
+        # rationale on the mentions sink). A "?" in the captured-failures
+        # output means a surrogate slipped past the in-band sanitizer.
+        failure_sink = capture_failures.open("a", encoding="utf-8", errors="replace")
 
     def _emit_failure(source_id, fc):
         if failure_sink is None:
@@ -496,7 +499,9 @@ def _run_resume_from_failures(
         inprogress = _inprogress_path(output_dir, source_id)
         _check_inprogress_clear(inprogress, output_dir)
         inprogress.parent.mkdir(parents=True, exist_ok=True)
-        inprogress_sink = inprogress.open("w", encoding="utf-8")
+        inprogress_sink = inprogress.open(
+            "w", encoding="utf-8", errors="replace"
+        )  # wyrd-klod surrogate backstop
         new_count = 0
         dup_count = 0
         purged_count = 0
@@ -570,7 +575,9 @@ def _run_resume_from_failures(
                 # that downstream commands would silently drop or stumble on.
                 # wyrd-srd2 R1 silent-failure-hunter HIGH.
                 tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-                with tmp_path.open("w", encoding="utf-8") as sink:
+                with tmp_path.open(
+                    "w", encoding="utf-8", errors="replace"
+                ) as sink:  # wyrd-klod surrogate backstop
                     if out_path.exists():
                         # Preserve well-formed existing rows verbatim (don't
                         # re-serialize: stage-specific fields like ``extractor``
@@ -716,7 +723,9 @@ def _run_fresh_mining(
         inprogress = _inprogress_path(output_dir, source_id)
         _check_inprogress_clear(inprogress, output_dir)
         inprogress.parent.mkdir(parents=True, exist_ok=True)
-        inprogress_sink = inprogress.open("w", encoding="utf-8")
+        inprogress_sink = inprogress.open(
+            "w", encoding="utf-8", errors="replace"
+        )  # wyrd-klod surrogate backstop
         canonical_completed = False
         try:
             chunk_writer = _make_chunk_mentions_writer(inprogress_sink, source_id, line_fn)
@@ -752,7 +761,9 @@ def _run_fresh_mining(
             else:
                 # Atomic write: fresh per-source files use full rewrite.
                 tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-                with tmp_path.open("w", encoding="utf-8") as sink:
+                with tmp_path.open(
+                    "w", encoding="utf-8", errors="replace"
+                ) as sink:  # wyrd-klod surrogate backstop
                     for m in report.mentions:
                         sink.write(line_fn(source_id, m) + "\n")
                 tmp_path.replace(out_path)

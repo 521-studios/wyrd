@@ -259,7 +259,7 @@ class _ToponymPlan:
     all_empty_elements: bool
 
 
-def compute_canonical_decisions(
+def compute_canonical_decisions(  # noqa: V103 — audit-shape API; tests pin canonicalization (PR #498 triage)
     db: LexiconDB,
     *,
     source_id: str | None = None,

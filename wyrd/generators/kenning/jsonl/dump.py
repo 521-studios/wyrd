@@ -394,7 +394,7 @@ _ATTESTATION_DOC_PREFIX_TO_SOURCE: tuple[tuple[str, str], ...] = (
 )
 
 
-def _source_for_attestation_doc(source_doc: str | None, known_source_ids: set[str]) -> str | None:
+def _source_for_attestation_doc(source_doc: str | None, known_source_ids: set[str]) -> str | None:  # noqa: V103 — test parity oracle, do not delete
     """Resolve a ``toponym_attestation.source_doc`` value to the
     ``source.id`` that should own its dump entry.
 

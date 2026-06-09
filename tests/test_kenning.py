@@ -24,17 +24,17 @@ def test_seed_is_reproducible():
     assert a.explanation == b.explanation
 
 
-@pytest.mark.parametrize("knob", ["novelty", "spelling_variety", "inflection_density"])
+@pytest.mark.parametrize("knob", ["spelling_variety", "inflection_density"])
 def test_default_knob_zero_matches_unspecified(knob):
     """A fresh Kenning() at default params and at explicit ``knob=0.0`` produce
-    the same output. Guards the 'knob=0 is identity' contract for D17/D18/D8."""
+    the same output. Guards the 'knob=0 is identity' contract for D18/D8."""
     k = Kenning()
     a = k.generate({"culture": "english"}, seed=42).result
     b = k.generate({"culture": "english", knob: 0.0}, seed=42).result
     assert a == b
 
 
-@pytest.mark.parametrize("knob", ["novelty", "spelling_variety", "inflection_density"])
+@pytest.mark.parametrize("knob", ["spelling_variety", "inflection_density"])
 def test_knob_is_seed_stable(knob):
     """Same (params, seed) tuple yields the same name even with knob>0 —
     the reproducibility contract holds across both new knobs."""
@@ -42,23 +42,6 @@ def test_knob_is_seed_stable(knob):
     a = k.generate({"culture": "english", knob: 0.7}, seed=42).result
     b = k.generate({"culture": "english", knob: 0.7}, seed=42).result
     assert a == b
-
-
-@pytest.mark.skip(
-    reason="wyrd-3dlx: asserts proportions-path distribution semantics. Under "
-    "vector-only generation (scoring_mode interface removed) novelty is inert "
-    "and mood/harshness compose differently (by design, not a regression — see "
-    "test_harshness_shifts_vector_distribution_end_to_end). Re-baseline for "
-    "vector or delete with the proportions path."
-)
-def test_high_novelty_shifts_distribution():
-    """At novelty=1, the same seed produces a different name than novelty=0.
-    Verifies the knob actually changes the distribution rather than being a
-    no-op. Seed-stable so the assertion isn't flaky."""
-    k = Kenning()
-    canonical = k.generate({"culture": "english"}, seed=42).result
-    novel = k.generate({"culture": "english", "novelty": 1.0}, seed=42).result
-    assert canonical != novel
 
 
 def test_high_spelling_variety_changes_output_when_pool_present():
@@ -118,50 +101,6 @@ def test_mood_is_seed_stable():
     assert a == b
 
 
-@pytest.mark.skip(
-    reason="wyrd-3dlx: asserts proportions-path distribution semantics. Under "
-    "vector-only generation (scoring_mode interface removed) novelty is inert "
-    "and mood/harshness compose differently (by design, not a regression — see "
-    "test_harshness_shifts_vector_distribution_end_to_end). Re-baseline for "
-    "vector or delete with the proportions path."
-)
-def test_mood_grim_shifts_distribution_across_seeds():
-    """`mood: ['grim']` biases morpheme selection toward menacing tags.
-    Across many seeds at least one name diverges from the no-mood
-    baseline. Single seeds can match by chance (when no slot's tag-pool
-    actually contains a grim candidate), so sweep — same shape as the
-    variant / inflection knob tests."""
-    k = Kenning()
-    plain = set()
-    grim = set()
-    for seed in range(30):
-        plain.add(k.generate({"culture": "english"}, seed=seed).result)
-        grim.add(k.generate({"culture": "english", "mood": ["grim"]}, seed=seed).result)
-    assert grim != plain
-
-
-@pytest.mark.skip(
-    reason="wyrd-3dlx: asserts proportions-path distribution semantics. Under "
-    "vector-only generation (scoring_mode interface removed) novelty is inert "
-    "and mood/harshness compose differently (by design, not a regression — see "
-    "test_harshness_shifts_vector_distribution_end_to_end). Re-baseline for "
-    "vector or delete with the proportions path."
-)
-@pytest.mark.parametrize("mood_name", ["pastoral", "devotional", "mortuary"])
-def test_mood_tag_presets_shift_distribution_across_seeds(mood_name):
-    """Each tag-only mood preset (pastoral, devotional, mortuary) biases
-    morpheme selection toward its tag union. Sweep many seeds — at least
-    one name should diverge from the no-mood baseline. Same shape as the
-    grim distribution test."""
-    k = Kenning()
-    plain = set()
-    moody = set()
-    for seed in range(30):
-        plain.add(k.generate({"culture": "english"}, seed=seed).result)
-        moody.add(k.generate({"culture": "english", "mood": [mood_name]}, seed=seed).result)
-    assert moody != plain, f"--mood {mood_name} produced no divergence across 30 seeds"
-
-
 @pytest.mark.parametrize("mood_name", ["pastoral", "devotional", "mortuary"])
 def test_mood_tag_presets_are_seed_stable(mood_name):
     """Each new tag-only mood is reproducible: same (params, seed) tuple
@@ -170,42 +109,6 @@ def test_mood_tag_presets_are_seed_stable(mood_name):
     a = k.generate({"culture": "english", "mood": [mood_name]}, seed=42).result
     b = k.generate({"culture": "english", "mood": [mood_name]}, seed=42).result
     assert a == b
-
-
-@pytest.mark.skip(
-    reason="wyrd-3dlx: asserts proportions-path distribution semantics. Under "
-    "vector-only generation (scoring_mode interface removed) novelty is inert "
-    "and mood/harshness compose differently (by design, not a regression — see "
-    "test_harshness_shifts_vector_distribution_end_to_end). Re-baseline for "
-    "vector or delete with the proportions path."
-)
-def test_mood_tag_presets_are_distinct_from_grim():
-    """The three new tag-only moods (pastoral, devotional, mortuary) each
-    shape the distribution differently from grim. Sweep enough seeds that
-    at least one name diverges between mood pairs — the moods would be
-    pointless if they collapsed onto grim's bucket selection."""
-    k = Kenning()
-    grim_outputs = set()
-    pastoral_outputs = set()
-    devotional_outputs = set()
-    mortuary_outputs = set()
-    for seed in range(30):
-        grim_outputs.add(k.generate({"culture": "english", "mood": ["grim"]}, seed=seed).result)
-        pastoral_outputs.add(
-            k.generate({"culture": "english", "mood": ["pastoral"]}, seed=seed).result
-        )
-        devotional_outputs.add(
-            k.generate({"culture": "english", "mood": ["devotional"]}, seed=seed).result
-        )
-        mortuary_outputs.add(
-            k.generate({"culture": "english", "mood": ["mortuary"]}, seed=seed).result
-        )
-    assert pastoral_outputs != grim_outputs
-    assert devotional_outputs != grim_outputs
-    # Mortuary is a strict subset of grim's tags, so MOST outputs may match
-    # grim — but the smaller pool should still produce at least one
-    # different pick across 30 seeds.
-    assert mortuary_outputs != grim_outputs
 
 
 def test_mood_pastoral_composes_with_harsh():
@@ -258,25 +161,6 @@ def test_input_schema_mood_description_surfaces_catalog_dynamically():
             "the description should consume available_register_effects() at "
             "call time so YAML edits propagate without a code change"
         )
-
-
-@pytest.mark.skip(
-    reason="wyrd-3dlx: asserts proportions-path distribution semantics. Under "
-    "vector-only generation (scoring_mode interface removed) novelty is inert "
-    "and mood/harshness compose differently (by design, not a regression — see "
-    "test_harshness_shifts_vector_distribution_end_to_end). Re-baseline for "
-    "vector or delete with the proportions path."
-)
-def test_mood_harsh_graduated_differs_from_full():
-    """'harsh:0.5' produces a different distribution than full 'harsh'
-    (which defaults to 1.0). Sweep seeds — at least one should diverge."""
-    k = Kenning()
-    full = set()
-    half = set()
-    for seed in range(20):
-        full.add(k.generate({"culture": "english", "mood": ["harsh"]}, seed=seed).result)
-        half.add(k.generate({"culture": "english", "mood": ["harsh:0.5"]}, seed=seed).result)
-    assert full != half
 
 
 def test_mood_grim_and_harsh_compose():
@@ -336,25 +220,6 @@ def test_harshness_default_zero_matches_unspecified():
     k = Kenning()
     a = k.generate({"culture": "english"}, seed=42).result
     b = k.generate({"culture": "english", "harshness": 0.0}, seed=42).result
-    assert a == b
-
-
-@pytest.mark.skip(
-    reason="wyrd-3dlx: asserts proportions-path distribution semantics. Under "
-    "vector-only generation (scoring_mode interface removed) novelty is inert "
-    "and mood/harshness compose differently (by design, not a regression — see "
-    "test_harshness_shifts_vector_distribution_end_to_end). Re-baseline for "
-    "vector or delete with the proportions path."
-)
-def test_explicit_harshness_overrides_lower_mood_value():
-    """If the user passes both mood:['harsh:0.3'] and harshness:0.8,
-    max-wins resolution should keep 0.8 — the higher floor takes effect."""
-    k = Kenning()
-    a = k.generate(
-        {"culture": "english", "mood": ["harsh:0.3"], "harshness": 0.8},
-        seed=42,
-    ).result
-    b = k.generate({"culture": "english", "harshness": 0.8}, seed=42).result
     assert a == b
 
 
@@ -1141,8 +1006,8 @@ def test_rank_siblings_returns_new_list():
 def test_harshness_shifts_vector_distribution_end_to_end():
     """wyrd-rt2m: harshness IS wired into the (now default) vector path — it
     biases the phonological register — so it shifts the generated distribution
-    end-to-end. Replaces the end-to-end harshness/mood coverage the skipped
-    proportions-path tests above provided (those pinned proportions-specific
+    end-to-end. Replaces the end-to-end harshness/mood coverage the deleted
+    proportions-path tests provided (those pinned proportions-specific
     semantics that vector composes differently)."""
     k = Kenning()
     plain: set[str] = set()
@@ -1151,3 +1016,39 @@ def test_harshness_shifts_vector_distribution_end_to_end():
         plain.add(k.generate({"culture": "english"}, seed=seed).result)
         harsh.add(k.generate({"culture": "english", "harshness": 1.0}, seed=seed).result)
     assert plain != harsh
+
+
+def test_novelty_shifts_vector_distribution_end_to_end():
+    """wyrd-fcub: novelty blends the per-slot score distribution toward uniform
+    over the eligible pool, so novelty=1 (every eligible morpheme equally
+    likely) produces a different distribution than novelty=0 (score-weighted)."""
+    k = Kenning()
+    plain: set[str] = set()
+    novel: set[str] = set()
+    for seed in range(30):
+        plain.add(k.generate({"culture": "english"}, seed=seed).result)
+        novel.add(k.generate({"culture": "english", "novelty": 1.0}, seed=seed).result)
+    assert plain != novel
+    # novelty=1 must still produce VALID names, not empty/None — the uniform
+    # blend reweights the pool, it must not empty it.
+    assert all(novel), f"novelty=1 produced empty results: {novel}"
+
+
+def test_novelty_zero_is_noop_byte_identical():
+    """novelty=0 must be byte-identical to no-novelty for every seed — the blend
+    is score-normalize-only at 0 and weighted_choice is scaling-invariant, so the
+    fast-path skip must not be the only thing preserving bit-stability."""
+    k = Kenning()
+    for seed in range(30):
+        base = k.generate({"culture": "english"}, seed=seed).result
+        zero = k.generate({"culture": "english", "novelty": 0.0}, seed=seed).result
+        assert base == zero, f"seed={seed}: novelty=0 ({zero!r}) != no-novelty ({base!r})"
+
+
+def test_novelty_is_seed_stable():
+    """Same seed + same novelty → identical result (the seed-stability contract
+    novelty must preserve)."""
+    k = Kenning()
+    a = k.generate({"culture": "english", "novelty": 0.7}, seed=42).result
+    b = k.generate({"culture": "english", "novelty": 0.7}, seed=42).result
+    assert a == b

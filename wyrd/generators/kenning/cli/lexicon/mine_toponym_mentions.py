@@ -196,7 +196,13 @@ def lexicon_mine_toponym_mentions(
         )
 
     if output is not None:
-        with output.open("w", encoding="utf-8") as sink:
+        # errors="replace" is a defense-in-depth backstop (wyrd-klod): the
+        # in-band sanitizer (wyrd-8wa4 / PR #309) already maps surrogate
+        # code points to U+FFFD before they reach here, so this only fires
+        # if a future path bypasses that guard. It substitutes ASCII "?"
+        # rather than crashing — so a "?" in the output is the operator-
+        # visible signal that the in-band guard was bypassed somewhere.
+        with output.open("w", encoding="utf-8", errors="replace") as sink:
             for m in report.mentions:
                 sink.write(_line(m) + "\n")
         click.echo(f"Wrote {len(report.mentions)} mentions → {output}", err=True)

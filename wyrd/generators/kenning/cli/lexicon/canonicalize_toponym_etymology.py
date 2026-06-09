@@ -12,6 +12,82 @@ from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
+def _echo_plan_preview(plans: list, source_id: str | None) -> None:
+    """Print the dry-run outcome preview (counts computed before any write)."""
+    promoted = sum(1 for p in plans if p.decision.promoted_etymology_id is not None)
+    no_consensus = sum(
+        1 for p in plans if p.decision.promoted_etymology_id is None and not p.all_empty_elements
+    )
+    no_elements = sum(1 for p in plans if p.all_empty_elements)
+    click.echo(
+        f"Examining {len(plans)} toponym(s)"
+        + (f" (filtered to source_id={source_id!r})" if source_id else "")
+        + f": promote={promoted} no_consensus={no_consensus} no_elements={no_elements}",
+        err=True,
+    )
+
+
+def _echo_verbose_decisions(plans: list) -> None:
+    """Print one per-toponym decision line to stderr (``--verbose``)."""
+    for plan in plans:
+        d = plan.decision
+        if d.promoted_etymology_id is not None:
+            click.echo(
+                f"  toponym#{d.toponym_id}: promote ety#{d.promoted_etymology_id} "
+                f"(consensus={d.consensus_size}, clusters={d.total_clusters}, "
+                f"runner_up={d.runner_up_witness_count}) "
+                f"key={d.cluster_key!r}",
+                err=True,
+            )
+        else:
+            click.echo(
+                f"  toponym#{d.toponym_id}: no consensus "
+                f"(clusters={d.total_clusters}, "
+                f"max_witnesses={d.runner_up_witness_count})",
+                err=True,
+            )
+
+
+def _apply_with_audit(db, plans: list, audit_path: Path | None, apply_fn):
+    """Apply canonical decisions, optionally streaming one JSONL audit
+    row per decision to ``audit_path``. Returns the apply summary.
+
+    The audit sink (when requested) is opened before the apply and
+    closed in a ``finally`` so a mid-apply error still flushes the rows
+    written so far. ``apply_fn`` is the lazily-imported
+    ``apply_canonical_decisions`` (passed in to keep the CLI's
+    import-time cost off the hot path).
+    """
+    audit_sink = None
+    if audit_path is not None:
+        audit_path.parent.mkdir(parents=True, exist_ok=True)
+        audit_sink = audit_path.open("w", encoding="utf-8")
+
+    def _audit(decision) -> None:
+        if audit_sink is None:
+            return
+        audit_sink.write(
+            json.dumps(
+                {
+                    "toponym_id": decision.toponym_id,
+                    "promoted_etymology_id": decision.promoted_etymology_id,
+                    "consensus_size": decision.consensus_size,
+                    "cluster_key": decision.cluster_key,
+                    "runner_up_witness_count": decision.runner_up_witness_count,
+                    "total_clusters": decision.total_clusters,
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+
+    try:
+        return apply_fn(db, plans, on_decision=_audit)
+    finally:
+        if audit_sink is not None:
+            audit_sink.close()
+
+
 @click.command("canonicalize-toponym-etymology")
 @click.option(
     "--db",
@@ -90,7 +166,6 @@ def lexicon_canonicalize_toponym_etymology(
     settled answers.
     """
     from wyrd.generators.kenning.toponym_etymology_canonical import (
-        CanonicalDecision,
         apply_canonical_decisions,
         compute_canonical_plans,
     )
@@ -109,70 +184,15 @@ def lexicon_canonicalize_toponym_etymology(
         click.echo("No toponym_etymology rows to canonicalize.", err=True)
         return
 
-    # Dry-run preview: count outcomes BEFORE writing.
-    promoted = sum(1 for p in plans if p.decision.promoted_etymology_id is not None)
-    no_consensus = sum(
-        1 for p in plans if p.decision.promoted_etymology_id is None and not p.all_empty_elements
-    )
-    no_elements = sum(1 for p in plans if p.all_empty_elements)
-    click.echo(
-        f"Examining {len(plans)} toponym(s)"
-        + (f" (filtered to source_id={source_id!r})" if source_id else "")
-        + f": promote={promoted} no_consensus={no_consensus} no_elements={no_elements}",
-        err=True,
-    )
-
+    _echo_plan_preview(plans, source_id)
     if verbose:
-        for plan in plans:
-            d = plan.decision
-            if d.promoted_etymology_id is not None:
-                click.echo(
-                    f"  toponym#{d.toponym_id}: promote ety#{d.promoted_etymology_id} "
-                    f"(consensus={d.consensus_size}, clusters={d.total_clusters}, "
-                    f"runner_up={d.runner_up_witness_count}) "
-                    f"key={d.cluster_key!r}",
-                    err=True,
-                )
-            else:
-                click.echo(
-                    f"  toponym#{d.toponym_id}: no consensus "
-                    f"(clusters={d.total_clusters}, "
-                    f"max_witnesses={d.runner_up_witness_count})",
-                    err=True,
-                )
+        _echo_verbose_decisions(plans)
 
     if not apply:
         click.echo("(dry-run — pass --apply to write)", err=True)
         return
 
-    audit_sink = None
-    if audit_path is not None:
-        audit_path.parent.mkdir(parents=True, exist_ok=True)
-        audit_sink = audit_path.open("w", encoding="utf-8")
-
-    def _audit(decision: CanonicalDecision) -> None:
-        if audit_sink is None:
-            return
-        audit_sink.write(
-            json.dumps(
-                {
-                    "toponym_id": decision.toponym_id,
-                    "promoted_etymology_id": decision.promoted_etymology_id,
-                    "consensus_size": decision.consensus_size,
-                    "cluster_key": decision.cluster_key,
-                    "runner_up_witness_count": decision.runner_up_witness_count,
-                    "total_clusters": decision.total_clusters,
-                },
-                ensure_ascii=False,
-            )
-            + "\n"
-        )
-
-    try:
-        summary = apply_canonical_decisions(db, plans, on_decision=_audit)
-    finally:
-        if audit_sink is not None:
-            audit_sink.close()
+    summary = _apply_with_audit(db, plans, audit_path, apply_canonical_decisions)
 
     click.echo(
         f"TOTAL toponyms={summary.toponyms_examined} "

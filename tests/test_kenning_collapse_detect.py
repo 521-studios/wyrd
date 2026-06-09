@@ -143,3 +143,53 @@ def test_is_form_of_pointer():
     # a real definition that merely contains the phrase mid-sentence is NOT
     assert not is_form_of_pointer("A man holding land by a particular form of free tenure.")
     assert not is_form_of_pointer("fort")
+
+
+def test_cli_detect_collapses_appends_and_is_idempotent(tmp_path):
+    """The detect-collapses CLI scans the DB, writes new collapse rows (plus the
+    one synthetic 'source' row) to the ledger, and a re-run adds nothing —
+    covers _resolve_lexicon_db / _load_recorded_collapse_refs / _append_collapse_rows."""
+    import json
+
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.detect_collapses import lexicon_detect_collapses
+
+    db = tmp_path / "lex.db"
+    conn = _conn(db)
+    _ety(conn, 1, "burh", ["fort", "a stronghold"])  # variant-doubling
+    _ety(conn, 2, "burg", ["fort", "borough"])  # the lemma
+    _variant(conn, 2, "burh")
+    conn.commit()
+    conn.close()
+
+    ledger = tmp_path / "_collapses.jsonl"
+    runner = CliRunner()
+    r = runner.invoke(lexicon_detect_collapses, ["--db", str(db), "--collapse-file", str(ledger)])
+    assert r.exit_code == 0, r.output
+
+    rows = [json.loads(ln) for ln in ledger.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert [row for row in rows if row.get("_type") == "source"][0]["ref"] == "collapse"
+    collapses = [row for row in rows if row.get("_type") == "collapse"]
+    assert {c["ref"]: c["into"] for c in collapses} == {"old-english:burh": "old-english:burg"}
+
+    # Idempotent: a second run records nothing new and leaves the ledger unchanged.
+    r2 = runner.invoke(lexicon_detect_collapses, ["--db", str(db), "--collapse-file", str(ledger)])
+    assert r2.exit_code == 0
+    assert "Nothing new to emit" in r2.output
+    rows2 = [json.loads(ln) for ln in ledger.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert len([row for row in rows2 if row.get("_type") == "collapse"]) == 1
+
+
+def test_cli_detect_collapses_missing_db_errors(tmp_path):
+    """A non-existent DB raises a ClickException (exit 1) — _resolve_lexicon_db."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.detect_collapses import lexicon_detect_collapses
+
+    r = CliRunner().invoke(
+        lexicon_detect_collapses,
+        ["--db", str(tmp_path / "nope.db"), "--collapse-file", str(tmp_path / "x.jsonl")],
+    )
+    assert r.exit_code != 0
+    assert "Lexicon DB not found" in r.output

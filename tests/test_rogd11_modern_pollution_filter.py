@@ -98,6 +98,39 @@ def test_pollution_predicate_edge_cases() -> None:
     assert not _is_derived_name_pollution("-ton")
 
 
+def test_pollution_predicate_drops_single_char_and_function_words() -> None:
+    # wyrd-pzg5: single-character segmentation fragments → pollution
+    for frag in ("s", "k", "e", "a", "-s", "x-"):
+        assert _is_derived_name_pollution(frag), frag
+    # forms with no alphabetic character (numeric / punctuation artifacts) → pollution
+    for nonalpha in ("123", "??", "—", "12-3", "."):
+        assert _is_derived_name_pollution(nonalpha), nonalpha
+    # closed-class function words / pronouns ride in via deep cluster over-merge
+    for fw in ("the", "they", "them", "thy", "thee", "their", "and", "or", "what", "um", "oh"):
+        assert _is_derived_name_pollution(fw), fw  # lowercase → stopword branch
+        assert _is_derived_name_pollution(fw.upper()), fw  # caps form caught too
+
+
+def test_pollution_predicate_keeps_legit_short_elements() -> None:
+    # wyrd-pzg5 guard: genuine 2-char place-name elements must NOT be dropped —
+    # the stopword set deliberately excludes 'by' (-by), and short elements are
+    # never single-char. A regression here would silently empty real grids.
+    for good in ("ea", "by", "ey", "ash", "low", "ley", "ham", "ing", "ait", "nab"):
+        assert not _is_derived_name_pollution(good), good
+
+
+def test_stopwords_disjoint_from_known_place_name_elements() -> None:
+    # wyrd-pzg5 invariant (enforced, not just commented): the stopword set must
+    # never contain a real place-name element, or it would silently empty that
+    # morpheme's modern grid + drop its sampleable surface. Guard against a
+    # future stopword addition colliding with the curated EPNS element inventory.
+    from wyrd.generators.kenning.lexicon.bundle._family import _MODERN_REFLEX_STOPWORDS
+    from wyrd.generators.kenning.lexicon.toponym_reflex_audit import PROTECTED_ELEMENTS
+
+    collision = _MODERN_REFLEX_STOPWORDS & PROTECTED_ELEMENTS
+    assert not collision, f"stopwords collide with place-name elements: {sorted(collision)}"
+
+
 def test_filtered_forms_do_not_reach_forms_by_lang(fresh_db: Path) -> None:
     # The seam guarantee: a dropped modern proper noun must not survive into
     # forms_by_lang (what the generator samples), not just the era-grid view.

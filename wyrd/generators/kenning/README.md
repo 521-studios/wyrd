@@ -128,14 +128,13 @@ seed-stable behavior preserved bit-for-bit.
 
 | knob | spec | description |
 |---|---|---|
-| `--novelty` | D17 | Per-bucket mixture between empirical-frequency sampling and a uniform marginal. At 1.0, every in-bucket morpheme is equally likely — plausible-but-unattested combinations become possible without abandoning the corpus. The D17 β-term (tag-class-prior) shipped as `--cohesion` (see below); composed with novelty, the runtime supports both refining novel combinations toward attested patterns AND blending toward the uniform marginal. |
-| `--cohesion` | D17 β | Bias each slot's pick toward usages whose tags co-occur with previously-picked slots' tags in the empirical corpus. At 0 (default) every slot samples independently from its marginal — bit-stable. At 1, slot-N's empirical weights are scaled by the normalized class-conditional likelihood given the union of prior slots' tags. Implements D17's tag-class-prior term in multiplicative-then-blend form (`weights = empirical * boost; result = (1-novelty)·weights + novelty·uniform`). Composes orthogonally with `--novelty` so a GM can dial 'attested-pair fidelity' and 'novelty' independently. No-op when the bundle carries no tag-cooccurrence data. |
+| `--cohesion` | D17 β | Bias each slot's pick toward usages whose tags co-occur with previously-picked slots' tags in the empirical corpus. At 0 (default) every slot samples independently from its marginal — bit-stable. At 1, slot-N's empirical weights are scaled by the normalized class-conditional likelihood given the union of prior slots' tags. Implements D17's tag-class-prior term as a multiplicative boost on the per-slot weights. No-op when the bundle carries no tag-cooccurrence data. |
+| `--novelty` | wyrd-fcub | Lexical-surprise dial (0..1). Blends each slot's score distribution toward a uniform marginal over the eligible pool: 0 (default) samples by score so common morphemes (`-ton`, `-ham`) dominate; 1 samples every eligible morpheme equally, surfacing rare ones as often as common for deliberately unusual names. Applied after tag/mood/harshness scoring, just before the weighted draw — seed-stable. |
 | `--spelling-variety` | D18 | Per-morpheme probability of substituting an attested archaic spelling variant for the canonical reflex. Pool comes from `etymon_text_match.matched_form` rows surviving the post-mining chain + LLM disambiguator. 416 morphemes have non-empty pools today. |
 | `--inflection-density` | D8 | Per-morpheme probability of substituting an inflected form (genitive/dative/plural) for the lemma. Bundle has 168 inflected etymons across 9 grammatical-case labels. When both this and `--spelling-variety` would fire on the same morpheme, inflection wins. |
-| `--mood` | D6 | Stylistic-mood preset (repeatable). Twelve catalog entries today — five legacy (`grim`, `harsh`, `pastoral`, `devotional`, `mortuary`) plus seven from the 2026-05-16 design pass (`noble`, `mystical`, `melodic`, `sinister`, `ancient`, `exotic`, `martial`). `harsh:0.5` graduates the catalog effect uniformly via colon-suffix. Multiple `--mood` flags compose: vector path sums component-wise + clamps; legacy proportion-table path takes tag-union + max-harshness. Vocabulary lives in `wyrd/generators/kenning/data/register_effects.yaml` (since wyrd-kq7w.3 ripped the MOODS dict — `parse_mood_spec` + `mood_spec_to_legacy_form` in `registers/effects.py` handle the lookup). See `DECISIONS.md` D6 + D36 for the rip-and-replace backstory. |
-| `--scoring-mode` | D36.2 / ecjp | Per-slot sampling pipeline. `proportions` (default) uses the pre-baked per-(culture × tag × position) tables — bit-stable with the legacy path. `vector` uses the D36.2 canonical composition rule: each lemma's score = `phon_w·phon + sem_w·sem + pos_w·pos + base_w·baseline`. Vector mode requires per-lemma `phonological_vector` data (kq7w.1) and benefits from `--priors-path`; without either, the baseline axis contributes 0 and scoring falls back to phon + sem + pos. Default `proportions` until ecjp.7 tolerance bands lock in. |
-| `--priors-path` | D36.3 / ecjp.5 PR A | Filesystem path to a JSON empirical-priors sidecar (emitted by `wyrd kenning lexicon dump-empirical-priors`). Only consulted when `--scoring-mode=vector`. The sidecar carries per-(culture × position × tag × era) + per-(donor × recipient × position × tag × era) empirical frequency tables; the vector path's baseline axis reads from this. |
-| `--baseline-weight` / `--phonological-weight` / `--semantic-weight` / `--position-weight` | D36.2 / ecjp.9 | Per-axis weight scalars on the canonical composition. Each defaults to 1.0 (balanced). 0 disables the axis; >1 over-weights it relative to others. Only meaningful with `--scoring-mode=vector`; ignored in proportions mode (so weight flags without `--scoring-mode=vector` are a silent no-op rather than an error). |
+| `--mood` | D6 | Stylistic-mood preset (repeatable). Twelve catalog entries today — five legacy (`grim`, `harsh`, `pastoral`, `devotional`, `mortuary`) plus seven from the 2026-05-16 design pass (`noble`, `mystical`, `melodic`, `sinister`, `ancient`, `exotic`, `martial`). `harsh:0.5` graduates the catalog effect uniformly via colon-suffix. Multiple `--mood` flags compose: the vector path sums component-wise + clamps. Vocabulary lives in `wyrd/generators/kenning/data/register_effects.yaml` (since wyrd-kq7w.3 ripped the MOODS dict — `parse_mood_spec` in `registers/effects.py` handles the lookup). See `DECISIONS.md` D6 + D36 for the rip-and-replace backstory. |
+| `--priors-path` | D36.3 / ecjp.5 PR A | Filesystem path to a JSON empirical-priors sidecar (emitted by `wyrd kenning lexicon dump-empirical-priors`). The sidecar carries per-(culture × position × tag × era) + per-(donor × recipient × position × tag × era) empirical frequency tables; the vector path's baseline axis reads from this. |
+| `--baseline-weight` / `--phonological-weight` / `--semantic-weight` / `--position-weight` | D36.2 / ecjp.9 | Per-axis weight scalars on the canonical vector composition (`score = phon_w·phon + sem_w·sem + pos_w·pos + base_w·baseline`). Each defaults to 1.0 (balanced). 0 disables the axis; >1 over-weights it relative to others. |
 
 ## Bundle schema (meanings.json)
 
@@ -184,23 +183,18 @@ wyrd kenning lexicon export-meanings --output wyrd/generators/kenning/data/meani
 # Read-only summary of what's in the lexicon.
 wyrd kenning lexicon report
 
-# Generate names with the new knobs.
-wyrd kenning generate english --novelty 0.5 --spelling-variety 0.3 --inflection-density 0.2
+# Generate names with the rendering knobs.
+wyrd kenning generate english --spelling-variety 0.3 --inflection-density 0.2
 wyrd kenning generate english --mood grim --mood harsh --seed 42  # menacing English-Saxon
 wyrd kenning generate breton --seed 42
 
-# Vector-driven scoring (wyrd-ecjp). Default 'proportions' mode is
-# bit-stable with the legacy path; --scoring-mode=vector engages the
-# D36.2 canonical composition.
+# Vector scoring (wyrd-ecjp) is the only scoring path: each lemma's
+# score = phon_w·phon + sem_w·sem + pos_w·pos + base_w·baseline. The
+# baseline axis reads from an empirical-priors sidecar.
 wyrd kenning lexicon dump-empirical-priors --output /tmp/priors.json
-wyrd kenning generate english --scoring-mode vector --priors-path /tmp/priors.json \
+wyrd kenning generate english --priors-path /tmp/priors.json \
     --mood harsh --baseline-weight 1.0 --phonological-weight 2.0  # over-weight phon axis
-wyrd kenning generate english --scoring-mode vector --baseline-weight 0  # no-priors fallback
-
-# Drift measurement (wyrd-ecjp.6 Phase 6a) — compare proportions vs
-# vector per-culture and emit a markdown / json drift report.
-wyrd kenning lexicon drift-report --culture english --count 500 --format markdown
-wyrd kenning lexicon drift-report --culture welsh --priors-path /tmp/priors.json --format json
+wyrd kenning generate english --baseline-weight 0  # no-priors fallback (baseline axis off)
 
 # wyrd-ami fantasy-name research (creature etymologies; Pathfinder bestiary).
 wyrd kenning lexicon extract-pfsrd2-monsters ~/521Studios/pfsrd2-data \

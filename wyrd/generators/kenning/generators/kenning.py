@@ -12,7 +12,6 @@ from wyrd.generators.kenning import (
     _LEGEND,
     CULTURES,
     _apply_joiner_insertion,
-    _apply_mood,
     _coerce_bool,
     _era_options_by_culture,
     _load_culture,
@@ -118,19 +117,6 @@ class Kenning(Generator):
                         "knob has limited reach until more mining lands."
                     ),
                 },
-                "novelty": {
-                    "type": "number",
-                    "default": 0.0,
-                    "minimum": 0.0,
-                    "maximum": 1.0,
-                    "description": (
-                        "Mixture between empirical-frequency sampling and a uniform "
-                        "marginal (D17). 0 keeps today's bit-stable behavior, 1 makes "
-                        "every in-bucket morpheme equally likely — plausible-but-"
-                        "unattested combinations become possible without abandoning "
-                        "the corpus. Intermediate values softly blend."
-                    ),
-                },
                 "inflection_density": {
                     "type": "number",
                     "default": 0.0,
@@ -143,6 +129,24 @@ class Kenning(Generator):
                         "variety like 'Cotum-' instead of 'Cot-'. Inflection wins over "
                         "spelling_variety when both knobs would fire on the same "
                         "morpheme."
+                    ),
+                },
+                "novelty": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    # wyrd-0k9o: SPA renders this as a slider (a [0,1] proportion).
+                    # `x-ui-*` matches the repo's x-prefixed SPA-extension convention
+                    # (x-options-by-culture / x-pick-from); Field.svelte reads it.
+                    "x-ui-widget": "slider",
+                    # wyrd-tngt: 0 weights by attested frequency (typical); 1 is
+                    # uniform over the ELIGIBLE pool (hard filters still apply), not
+                    # "random" — the description must not overclaim.
+                    "description": (
+                        "How adventurous the name is (0–1): 0 favors historically "
+                        "common morphemes; 1 makes every eligible morpheme equally "
+                        "likely."
                     ),
                 },
                 "mood": {
@@ -166,8 +170,7 @@ class Kenning(Generator):
                         "strength). 'grim' applies a menacing semantic-tag union; "
                         "'harsh' biases sampling toward stop-final / cluster-heavy "
                         "morphemes. Multiple moods compose: register effects sum "
-                        "component-wise (vector path) or tag-union + max-harshness "
-                        "(legacy proportion-table path)."
+                        "component-wise."
                     ),
                 },
                 "include_fiction": {
@@ -258,9 +261,7 @@ class Kenning(Generator):
                         "Higher values bias each slot's pick toward usages whose tags "
                         "co-occur with previously-picked slots' tags in the empirical "
                         "corpus — so 'topography + plant' and 'water + plant' (both "
-                        "common) are preferred over 'religion + plant' (rare). Composes "
-                        "orthogonally with novelty: cohesion pulls toward attested "
-                        "tag-class pairings, novelty blends toward the uniform marginal."
+                        "common) are preferred over 'religion + plant' (rare)."
                     ),
                 },
                 "stratum": {
@@ -332,10 +333,10 @@ class Kenning(Generator):
                     "description": (
                         "wyrd-ecjp.5 PR C: filesystem path to a JSON "
                         "empirical-priors sidecar (emitted by 'lexicon "
-                        "dump-empirical-priors'). Only consulted when "
-                        "scoring_mode='vector'. When absent, the vector "
-                        "path's baseline axis contributes 0 and the "
-                        "score falls back to phon + sem + pos."
+                        "dump-empirical-priors'). Supplies the vector "
+                        "scoring path's baseline axis. When absent, the "
+                        "baseline axis contributes 0 and the score falls "
+                        "back to phon + sem + pos."
                     ),
                 },
                 "scoring_weights": {
@@ -346,9 +347,7 @@ class Kenning(Generator):
                         "'base_w', each a float scalar on its axis. "
                         "Defaults to 1.0 across all four axes "
                         "(ScoringWeights()) — the canonical balanced "
-                        "composition. Only consulted when "
-                        "scoring_mode='vector'; ignored in 'proportions' "
-                        "mode. Used by the operator-facing CLI flags "
+                        "composition. Used by the operator-facing CLI flags "
                         "--baseline-weight / --phonological-weight / "
                         "--semantic-weight / --position-weight."
                     ),
@@ -370,8 +369,7 @@ class Kenning(Generator):
                         "default_weight when null/absent), and optional "
                         "'allowed_pack_tags' (list of tags narrowing the "
                         "pack's lemma subset per PackOverlay."
-                        "allowed_pack_tags). Only consulted when "
-                        "scoring_mode='vector'. Used by the operator-"
+                        "allowed_pack_tags). Used by the operator-"
                         "facing CLI flags --pack / --pack-tag-filter; "
                         "unknown pack_name surfaces as ValueError at "
                         "dispatch time."
@@ -398,10 +396,9 @@ class Kenning(Generator):
         raw_tags = params.get("tags", []) or []
         if isinstance(raw_tags, str):
             raw_tags = [raw_tags]
-        tags = list(raw_tags)
         spelling_variety = float(params.get("spelling_variety", 0.0) or 0.0)
-        novelty = float(params.get("novelty", 0.0) or 0.0)
         inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
+        novelty = float(params.get("novelty", 0.0) or 0.0)
         harshness = float(params.get("harshness", 0.0) or 0.0)
         cohesion = float(params.get("cohesion", 0.0) or 0.0)
         manorial_affix = float(params.get("manorial_affix", 0.0) or 0.0)
@@ -413,12 +410,6 @@ class Kenning(Generator):
         # (glossed-only, the rando-era behavior). Single-char unglossed
         # fragments are dropped regardless of this flag.
         include_unglossed = _coerce_bool(params.get("include_unglossed", False))
-        # wyrd-rt2m: the scoring_mode INTERFACE (schema field + CLI flag) is
-        # removed — vector is now the default + the only USER-selectable path.
-        # The internal param is still honored (default 'vector') so the now
-        # user-unreachable proportions path stays exercised by the realism gate
-        # + transitional tests until the cleanup ticket deletes it.
-        scoring_mode = params.get("scoring_mode", "vector") or "vector"
         priors_path = params.get("priors_path")
         # wyrd-ecjp.9: per-axis ScoringWeights (vector mode only). The
         # CLI flag layer composes a dict {phon_w, sem_w, pos_w, base_w}
@@ -436,18 +427,11 @@ class Kenning(Generator):
         moods = params.get("mood", []) or []
         if isinstance(moods, str):
             moods = [moods]
-        # Capture original mood + harshness BEFORE _apply_mood mutates
-        # the tags+harshness state; the vector adapter consumes mood
-        # specs + base harshness directly for symmetric expansion
-        # semantics. Without capturing these, the adapter would
-        # double-apply catalog effects (once via the mutated tags /
-        # harshness and again via the mood specs the adapter expands
-        # itself through the register-effect catalog).
+        # The vector adapter expands mood specs + base harshness through the
+        # register-effect catalog itself, so pass the raw specs + base values
+        # straight through (no tag/harshness pre-mutation here).
         original_moods = tuple(moods)
         original_harshness = harshness
-        for spec in moods:
-            tags, harshness = _apply_mood(spec, tags, harshness)
-        tags = tuple(tags)
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
         era_range = _resolve_era_param(params.get("era"), culture)
@@ -476,61 +460,38 @@ class Kenning(Generator):
 
         rng = rng_for(seed)
         t_sample = time.perf_counter()
-        if scoring_mode == "vector":
-            new_name = _generate_via_vector(
-                name_gen,
-                rng,
-                culture=culture,
-                # Pre-_apply_mood tags + original harshness — the adapter does
-                # its own catalog-effect expansion via original_moods. Passing
-                # the mutated post-_apply_mood values would double-count. The
-                # legacy `tags` variable above is mutated by mood expansion, so
-                # derive vector-side tags from raw_tags instead (raw_tags was
-                # normalized to list[str] earlier but not mutated by mood
-                # expansion).
-                tags=list(raw_tags),
-                mood=original_moods,
-                harshness=original_harshness,
-                era_range=era_range,
-                stratum=stratum,
-                cohesion=cohesion,
-                exclude_tags=exclude_tags,
-                priors_path=priors_path,
-                scoring_weights_raw=scoring_weights_raw,
-                packs_raw=packs_raw,
-                include_unglossed=include_unglossed,
-                spelling_variety=spelling_variety,
-                inflection_density=inflection_density,
-                era_render_language=era_render_language,
-            )
-            if new_name is None:
-                # Vector path filtered everything (empty register + empty
-                # priors, or every meaning gated out). Loud failure with an
-                # operator-readable diagnostic.
-                raise ValueError(
-                    "vector scoring produced no eligible name — check that the "
-                    "bundle carries phonological_vector data (kq7w.1), "
-                    "priors_path is set (or the register carries non-trivial "
-                    "weights), and the gate predicates (culture / era / "
-                    "stratum) match available meanings."
-                )
-        else:
-            # wyrd-rt2m: user-unreachable (no scoring_mode interface) but kept
-            # for the realism gate + transitional tests; the cleanup ticket
-            # deletes this branch + NameGenerator.select et al.
-            new_name = name_gen.select(
-                rng,
-                *tags,
-                spelling_variety=spelling_variety,
-                novelty=novelty,
-                inflection_density=inflection_density,
-                harshness=harshness,
-                exclude_tags=exclude_tags,
-                era_range=era_range,
-                stratum=stratum,
-                cohesion=cohesion,
-                include_unglossed=include_unglossed,
-                era_render_language=era_render_language,
+        new_name = _generate_via_vector(
+            name_gen,
+            rng,
+            culture=culture,
+            # The requested tags; the adapter expands mood specs (original_moods)
+            # + harshness through the register-effect catalog on its own.
+            tags=list(raw_tags),
+            mood=original_moods,
+            harshness=original_harshness,
+            era_range=era_range,
+            stratum=stratum,
+            cohesion=cohesion,
+            exclude_tags=exclude_tags,
+            priors_path=priors_path,
+            scoring_weights_raw=scoring_weights_raw,
+            packs_raw=packs_raw,
+            include_unglossed=include_unglossed,
+            spelling_variety=spelling_variety,
+            inflection_density=inflection_density,
+            novelty=novelty,
+            era_render_language=era_render_language,
+        )
+        if new_name is None:
+            # Vector path filtered everything (empty register + empty
+            # priors, or every meaning gated out). Loud failure with an
+            # operator-readable diagnostic.
+            raise ValueError(
+                "vector scoring produced no eligible name — check that the "
+                "bundle carries phonological_vector data (kq7w.1), "
+                "priors_path is set (or the register carries non-trivial "
+                "weights), and the gate predicates (culture / era / "
+                "stratum) match available meanings."
             )
         t_sample_ms = (time.perf_counter() - t_sample) * 1000
         t_render = time.perf_counter()
@@ -635,9 +596,10 @@ def _generate_via_vector(
     include_unglossed: bool = False,
     spelling_variety: float = 0.0,
     inflection_density: float = 0.0,
+    novelty: float = 0.0,
     era_render_language: str | None = None,
 ):
-    """Dispatch helper for scoring_mode='vector'.
+    """Dispatch helper for vector scoring (the only scoring path).
 
     Translates the per-call knobs into a RequestVector via the
     adapter, loads priors from disk if provided, and calls
@@ -756,5 +718,6 @@ def _generate_via_vector(
         include_unglossed=include_unglossed,
         spelling_variety=spelling_variety,
         inflection_density=inflection_density,
+        novelty=novelty,
         era_render_language=era_render_language,
     )

@@ -150,16 +150,25 @@ def lexicon_language_report(
         report_to_markdown,
     )
 
+    # wyrd-62cc: the L4 runtime DB is needed by EITHER the bundle rehydrate
+    # (--bundle omitted) OR the English-proportions fetch (--proportions
+    # omitted). Resolve it lazily and at most once, independent of which
+    # flags were passed — binding it only inside the `bundle_path is None`
+    # branch made `--bundle` without `--proportions` crash with
+    # UnboundLocalError on runtime_db / proportions_dict_for_culture.
+    # Imports stay function-local (not module-level) to keep CLI
+    # registration cheap, per this module's convention.
+    from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        bundle_dict_from_runtime_db,
+        proportions_dict_for_culture,
+    )
+
+    runtime_db = None
     if bundle_path is None:
         # d90t cutover: the bundle ships as L4 SQLite, not JSON.
         # Rehydrate to the bundle-dict shape the rest of the report
         # consumes (subjects[], joiners, canonical_decompositions).
-        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
-        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
-            bundle_dict_from_runtime_db,
-            proportions_dict_for_culture,
-        )
-
         runtime_db = get_runtime_db()
         bundle = bundle_dict_from_runtime_db(runtime_db)
     else:
@@ -167,7 +176,11 @@ def lexicon_language_report(
 
     if proportions_path is None:
         # Fetch English proportions straight from the L4 and hand the
-        # dict to load_reference_tags (no JSON round-trip).
+        # dict to load_reference_tags (no JSON round-trip). runtime_db is
+        # already resolved above when --bundle was omitted; resolve it here
+        # when --bundle was passed (so the bundle branch was skipped).
+        if runtime_db is None:
+            runtime_db = get_runtime_db()
         proportions_source: dict | Path = proportions_dict_for_culture(runtime_db, "english")
     else:
         proportions_source = proportions_path

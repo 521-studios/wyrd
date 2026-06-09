@@ -225,7 +225,7 @@ def admits(
     return passes_pack_gate(meaning, gate, packs)
 
 
-def filter_meanings(
+def filter_meanings(  # noqa: V103 — public batch gate; tests pin admits() behavior (PR #498 triage)
     meanings: Iterable[Meaning],
     gate: EligibilityGate,
     *,

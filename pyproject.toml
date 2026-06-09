@@ -54,6 +54,9 @@ dev = [
     # wyrd-dsl5: moto[dynamodb] for the defects-table tests (defects + CLI).
     "moto[s3,dynamodb]>=5.0",
     "black>=24.0",
+    # wyrd-bxum: dead-code gate. >=2.16 for the `# noqa: V1xx` code semantics
+    # the [tool.vulture] suppressions below rely on.
+    "vulture>=2.16",
 ]
 
 [project.scripts]
@@ -85,3 +88,46 @@ ignore = ["E501", "SIM108"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# Dead-code audit: `uvx vulture` (reads this section automatically).
+# Scans the product package only — functions whose sole caller is a test
+# are reported on purpose (they flag "is this test pinning code nothing
+# ships uses?"), so triage hits against `tests/` before deleting.
+[tool.vulture]
+paths = ["wyrd"]
+min_confidence = 60
+# Skip alembic migrations: their `upgrade`/`downgrade` are framework
+# entry points, never called by name.
+exclude = ["*/sql/migrations/*"]
+# Callables registered via decorator are invoked by a framework, not by
+# name, so vulture can't see the call site. Each entry is a real false
+# positive observed in the wild:
+#   @event.listens_for — SQLAlchemy connection hooks (e.g. db.py _set_pragmas,
+#     which sets foreign_keys / WAL synchronous / row_factory on every connect)
+#   @*.route / @*.errorhandler — Flask view + error handlers (wyrd/app.py)
+#   @click.* / @*.command / @*.group — Click CLI commands (cli.py, cli_defects.py)
+#   @*.fixture — pytest fixtures, if tests/ is ever added to paths
+ignore_decorators = [
+    "@event.listens_for",
+    "@*.route",
+    "@*.errorhandler",
+    # Flask 2.x method shorthands (@app.get/@app.post/...) — app.py uses these
+    "@*.get",
+    "@*.post",
+    "@*.put",
+    "@*.patch",
+    "@*.delete",
+    "@click.*",
+    "@*.command",
+    "@*.group",
+    "@*.fixture",
+]
+# Deliberate single-symbol keeps are suppressed inline at the definition with
+# `# noqa: V103` (vulture respects # noqa; V103 = unused function/method),
+# not listed here — keeps the suppression next to the code it protects.
+# EXCEPTION: vulture's # noqa is NOT honored on DECORATED methods (it reports
+# the decorator line and ignores a noqa on either the decorator or the def), so
+# decorated keeps must be listed here by name instead.
+ignore_names = [
+    "from_in_memory",  # @classmethod in-memory test constructor (SnippetExpander)
+]

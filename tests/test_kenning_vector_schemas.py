@@ -13,7 +13,6 @@ import math
 import pytest
 
 from wyrd.generators.kenning.vectors.schemas import (
-    CohesionContext,
     EligibilityGate,
     EmpiricalPriors,
     PackOverlay,
@@ -308,51 +307,6 @@ def test_empirical_priors_version_carries():
     carry a version identifier that downstream caches key on."""
     p = EmpiricalPriors(version="2026-05-18-corpus-snapshot-v1")
     assert p.version == "2026-05-18-corpus-snapshot-v1"
-
-
-# ---- CohesionContext (D17 adapter) --------------------------------------
-
-
-def test_cohesion_context_defaults():
-    """Default context: no picked tags, no novelty. Used for the
-    first slot of generation (no neighbors to cohere with yet)."""
-    ctx = CohesionContext()
-    assert ctx.picked_tags == frozenset()
-    assert ctx.novelty == 0.0
-
-
-def test_cohesion_context_threading():
-    """Slots 2+ carry the accumulated tag set from earlier slots,
-    plus the user's --novelty knob. This is the D17 integration
-    point (D36.5)."""
-    ctx = CohesionContext(picked_tags=frozenset({"military", "death"}), novelty=0.3)
-    assert "military" in ctx.picked_tags
-    assert ctx.novelty == 0.3
-
-
-def test_cohesion_context_novelty_above_one_raises():
-    """The CohesionContext docstring documents novelty as a [0, 1]
-    blend knob. Out-of-bounds values silently degrade sampling
-    downstream (novelty<0 amplifies empirical to near-determinism;
-    novelty>1 turns sampling negative-uniform). __post_init__
-    raises at construction so the CLI/API layer can surface the
-    mistake before scoring runs."""
-
-    with pytest.raises(ValueError, match=r"novelty must be in \[0\.0, 1\.0\]"):
-        CohesionContext(novelty=1.5)
-
-
-def test_cohesion_context_novelty_below_zero_raises():
-
-    with pytest.raises(ValueError, match=r"novelty must be in \[0\.0, 1\.0\]"):
-        CohesionContext(novelty=-0.1)
-
-
-def test_cohesion_context_novelty_at_bounds_accepted():
-    """The endpoints (0.0 and 1.0) are inclusive — the documented
-    range is [0, 1], not (0, 1). Pin them as valid."""
-    assert CohesionContext(novelty=0.0).novelty == 0.0
-    assert CohesionContext(novelty=1.0).novelty == 1.0
 
 
 # ---- EligibilityGate era-ordering validation ----------------------------

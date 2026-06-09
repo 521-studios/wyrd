@@ -13,7 +13,7 @@ from wyrd.generators.kenning.lexicon.pronunciation_backfill import (
     derive_pronunciation_ipa,
     surface_ipa,
 )
-from wyrd.generators.kenning.registers.phonology import to_ipa, to_respelling
+from wyrd.generators.kenning.registers.phonology import to_ipa
 
 
 def _fake_db(conn):
@@ -38,14 +38,6 @@ def test_oe_h_is_positional():
 def test_on_h_stays_plain():
     # Old Norse has no coda-h rule — h is always /h/
     assert to_ipa("hof", "old-norse") == "/hɔf/"
-
-
-def test_oe_h_respelling_is_positional():
-    # The reader respelling tracks the same positional rule: onset "h", coda "kh".
-    assert to_respelling("hām", "old-english").startswith("h")  # onset h
-    assert to_respelling("burh", "old-english").endswith("kh")  # coda h → kh
-    assert "kh" in to_respelling("niht", "old-english")  # coda h before t
-    assert to_respelling("hof", "old-norse").startswith("h")  # ON has no coda rule
 
 
 # --- backfill helpers ------------------------------------------------------

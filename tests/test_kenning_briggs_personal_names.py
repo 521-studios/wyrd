@@ -925,6 +925,12 @@ def test_parse_attestations_skips_group_with_empty_head() -> None:
     is skipped via the empty-head guard — no county-only attestation."""
     atts = list(_parse_attestations("(Bk); Acton (D)"))
     assert [a.toponym_form for a in atts] == ["Acton"]
+    # Empty-head skip is stat-SILENT — distinct from the no-county and
+    # language-hint skips, which each bump a counter.
+    stats = IngestStats()
+    list(_parse_attestations("(Bk); Acton (D)", stats=stats))
+    assert stats.attestation_groups_skipped_no_county == 0
+    assert stats.attestation_groups_skipped_lang_only == 0
 
 
 def test_entry_blocks_skips_sub_two_char_fragment() -> None:

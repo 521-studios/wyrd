@@ -186,6 +186,29 @@ def test_saint_subject_excluded_from_vector_base_pool():
     assert "Mary-" not in usages, "saint subject must be excluded from the vector base pool"
 
 
+def test_manorial_subject_excluded_from_vector_base_pool():
+    # wyrd-57d8: synthesized Norman manorial subjects (tagged 'manorial') must
+    # not enter the scored vector base pool — this is the exact path wyrd-fcub
+    # re-wired novelty onto and where 'Corner Malet' surfaced at novelty=1.
+    from wyrd.generators.kenning.runtime.vector_name_select import build_non_position_eligible
+    from wyrd.generators.kenning.vectors.schemas import EligibilityGate
+
+    db = {
+        "Malet": [Meaning("Malet", ["manorial", "norman"], ["Norman manorial family: Malet"], {})],
+        "-ton": [Meaning("-ton", ["settlement"], ["town"], {})],
+    }
+    pool = build_non_position_eligible(
+        db,
+        gate=EligibilityGate(culture="english"),
+        exclude_tags=frozenset(),
+        pack_meaning_dbs=None,
+        packs=(),
+    )
+    usages = {m.usage for m in pool}
+    assert "-ton" in usages
+    assert "Malet" not in usages, "manorial subject must be excluded from the vector base pool"
+
+
 # ---- wyrd-g1hj: single-morpheme structure exclusion + given-name base-pool --
 
 
@@ -209,8 +232,8 @@ def test_is_given_name():
 
 def test_load_proportions_excludes_single_morpheme_from_generation():
     """wyrd-g1hj: a single-morpheme structure (whole name = one morpheme) is
-    excluded from the loaded generator (both ``structs`` and ``_all_structs``),
-    so no generation path can produce it. Multi-morpheme structures survive.
+    excluded from the loaded generator's ``structs``, so no generation path can
+    produce it. Multi-morpheme structures survive.
     (The bundle/proportions still RECORD it — this is a load-time generation
     filter, not a mining change.)"""
     from wyrd.generators.kenning.runtime.proportions import load_proportions
@@ -234,7 +257,6 @@ def test_load_proportions_excludes_single_morpheme_from_generation():
     ng = load_proportions(data, meaning_db, {})
     assert ((("pre",), ("post",)),) in ng.structs, "multi-morpheme structure must survive"
     assert ((("bare", "single"),),) not in ng.structs, "single-morpheme excluded from generation"
-    assert ((("bare", "single"),),) not in ng._all_structs
 
 
 def test_given_name_excluded_from_base_pool_both_modes():

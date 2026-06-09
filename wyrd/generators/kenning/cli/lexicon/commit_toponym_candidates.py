@@ -4,12 +4,84 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
+
+if TYPE_CHECKING:
+    from wyrd.generators.kenning.toponym_candidate_review import CommitReport
+
+
+def _load_triage_rows(triage_path: Path) -> list[dict]:
+    """Read the triage JSONL into a list of decoded row dicts.
+
+    Pilot scale is hundreds to thousands of rows; streaming isn't worth
+    the complexity here. Blank lines are skipped; a malformed line
+    raises ``ClickException`` naming the file and 1-based line number.
+    """
+    rows: list[dict] = []
+    with triage_path.open("r", encoding="utf-8") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError as e:
+                raise click.ClickException(f"{triage_path}:{line_no}: invalid JSON: {e}") from e
+    return rows
+
+
+def _echo_commit_report(report: CommitReport, *, apply: bool, verbose: bool) -> None:
+    """Print the per-row detail (verbose), defer-warning, and summary to stderr."""
+    if verbose:
+        for idx, msg in report.error_records:
+            click.echo(f"  row {idx}: ERROR — {msg}", err=True)
+        # Surface CREATE → MAP demotions per row so the operator
+        # sees which of their CREATEs collided with an existing
+        # toponym (silently demoting was a load-bearing UX gap
+        # otherwise).
+        for idx, tid, name in report.demoted_records:
+            click.echo(
+                f"  row {idx}: CREATE→MAP — {name!r} collides with existing toponym {tid}",
+                err=True,
+            )
+
+    # Warn when most rows are still at the default-defer placeholder:
+    # operator may have run commit on an unedited triage file. Gated
+    # on processed >= 5 so a single-row "I deferred this on purpose"
+    # invocation doesn't get a noisy 100% warning.
+    if report.deferred > 0 and report.processed >= 5:
+        defer_ratio = report.deferred / report.processed
+        if defer_ratio >= 0.8:
+            click.echo(
+                f"warning: {report.deferred}/{report.processed} "
+                f"({defer_ratio:.0%}) rows are still at action=defer — "
+                f"if this is unintended, the triage file may not have been edited yet",
+                err=True,
+            )
+
+    click.echo("", err=True)
+    click.echo(
+        f"TOTAL processed={report.processed} "
+        f"mapped={report.mapped} "
+        f"created={report.created} "
+        f"demoted={report.demoted_count} "
+        f"skipped={report.skipped} "
+        f"deferred={report.deferred} "
+        f"errors={report.errors} "
+        f"({'APPLIED' if apply else 'dry-run'})",
+        err=True,
+    )
+    if report.errors and not verbose:
+        click.echo(
+            "  (re-run with --verbose to see per-row error messages)",
+            err=True,
+        )
 
 
 @click.command("commit-toponym-candidates")
@@ -70,18 +142,7 @@ def lexicon_commit_toponym_candidates(
     )
 
     click.echo(f"Using DB {db_path}", err=True)
-    # Read the whole JSONL into memory — pilot scale is hundreds to
-    # thousands of rows; streaming isn't worth the complexity here.
-    rows: list[dict] = []
-    with triage_path.open("r", encoding="utf-8") as f:
-        for line_no, line in enumerate(f, start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rows.append(json.loads(line))
-            except json.JSONDecodeError as e:
-                raise click.ClickException(f"{triage_path}:{line_no}: invalid JSON: {e}") from e
+    rows = _load_triage_rows(triage_path)
     click.echo(f"Loaded {len(rows):,} triage rows", err=True)
 
     with LexiconDB(db_path) as db:
@@ -89,50 +150,7 @@ def lexicon_commit_toponym_candidates(
         if apply:
             db.conn.commit()
 
-    if verbose:
-        for idx, msg in report.error_records:
-            click.echo(f"  row {idx}: ERROR — {msg}", err=True)
-        # Surface CREATE → MAP demotions per row so the operator
-        # sees which of their CREATEs collided with an existing
-        # toponym (silently demoting was a load-bearing UX gap
-        # otherwise).
-        for idx, tid, name in report.demoted_records:
-            click.echo(
-                f"  row {idx}: CREATE→MAP — {name!r} collides with existing toponym {tid}",
-                err=True,
-            )
-
-    # Warn when most rows are still at the default-defer placeholder:
-    # operator may have run commit on an unedited triage file. Gated
-    # on processed >= 5 so a single-row "I deferred this on purpose"
-    # invocation doesn't get a noisy 100% warning.
-    if report.deferred > 0 and report.processed >= 5:
-        defer_ratio = report.deferred / report.processed
-        if defer_ratio >= 0.8:
-            click.echo(
-                f"warning: {report.deferred}/{report.processed} "
-                f"({defer_ratio:.0%}) rows are still at action=defer — "
-                f"if this is unintended, the triage file may not have been edited yet",
-                err=True,
-            )
-
-    click.echo("", err=True)
-    click.echo(
-        f"TOTAL processed={report.processed} "
-        f"mapped={report.mapped} "
-        f"created={report.created} "
-        f"demoted={report.demoted_count} "
-        f"skipped={report.skipped} "
-        f"deferred={report.deferred} "
-        f"errors={report.errors} "
-        f"({'APPLIED' if apply else 'dry-run'})",
-        err=True,
-    )
-    if report.errors and not verbose:
-        click.echo(
-            "  (re-run with --verbose to see per-row error messages)",
-            err=True,
-        )
+    _echo_commit_report(report, apply=apply, verbose=verbose)
 
 
 def add_to(parent: click.Group) -> None:

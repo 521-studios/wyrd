@@ -514,7 +514,7 @@ def _pick_unanimous_stratum(entries: list[dict[str, Any]]) -> str | None:
     """Populate the stratum column only when every entry's per-form
     stratum dict surfaces the same single value. Mixed-stratum usages
     (common for cross-cultural morphemes like Latin loans) get NULL and
-    rely on the runtime's per-form ``Meaning.stratum_for`` for actual
+    rely on the runtime's per-form ``Meaning.stratum`` dict for actual
     filtering. The column is purely an index hint for bulk queries.
     """
     seen: set[str] = set()
@@ -887,8 +887,9 @@ def select_dev_subset(
     # no fillable slot; partially-fillable structures stay (they render a
     # shorter, non-empty name). Dev-export-only — the full production export
     # trims nothing, so it never orphans and this is a no-op there. The
-    # runtime MeaningGenerator.select->None (wyrd-cj6f) is the complementary
-    # crash guard; this keeps the dev seed itself empty-name-free.
+    # runtime's empty-pool degradation (an unfillable slot yields a None slot
+    # the NewName drops, wyrd-cj6f) is the complementary crash guard; this
+    # keeps the dev seed itself empty-name-free.
     _prune_unrenderable_dev_structures(trimmed_proportions, trimmed_subjects)
 
     # Fantasy + canonical: sort by key so re-runs against the same

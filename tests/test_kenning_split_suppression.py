@@ -659,6 +659,60 @@ def test_format_etymon_split_run_markdown(tmp_path: Path):
     assert "Glosses moved: 6" in rendered
 
 
+def test_format_etymon_split_run_optional_lines_render_and_omit():
+    """The optional-line loop (_SPLIT_OPTIONAL_LINES) renders a line per
+    truthy count in table order with its exact label, and OMITS lines
+    whose count is zero/absent. Pins both branches of the loop the C901
+    refactor introduced (wyrd-8uvi) — the baseline test only set every
+    optional to 0 and asserted the header lines."""
+    counts = {
+        "splits_processed": 1,
+        "children_created": 1,
+        "glosses_moved": 0,
+        "tags_moved": 0,
+        # Truthy optionals → must render with exact labels.
+        "no_primary_defaulted": 2,
+        "children_skipped_invalid_suffix": 5,
+        "multiple_primary_collapsed": 3,
+        # Zero / absent optionals → must be omitted.
+        "glosses_missing": 0,
+        # (unresolved_etymon, tags_missing, etc. absent entirely)
+        "applied": True,
+    }
+    rendered = format_etymon_split_run(counts)
+    assert "- Splits with no `primary` flag (defaulted to first child): 2" in rendered
+    assert "- Children skipped (suffix outside [a-z0-9_-]+ charset): 5" in rendered
+    assert (
+        "- Splits with >1 primary flag (collapsed to first; CLI normally rejects this): 3"
+        in rendered
+    )
+    # Zero-valued / absent optionals omitted (truthy guard preserved).
+    assert "Glosses not on parent" not in rendered
+    assert "Unresolved parent refs" not in rendered
+    # Render order: no_primary_defaulted precedes invalid-suffix precedes multiple-primary.
+    assert rendered.index("no `primary` flag") < rendered.index("suffix outside")
+    assert rendered.index("suffix outside") < rendered.index(">1 primary flag")
+
+
+def test_format_etymon_split_run_dry_run_verbs():
+    """``applied: False`` swaps the action verbs to the conditional
+    'would create' / 'would move' forms across the header lines."""
+    counts = {
+        "splits_processed": 1,
+        "children_created": 2,
+        "glosses_moved": 3,
+        "tags_moved": 4,
+        "applied": False,
+    }
+    rendered = format_etymon_split_run(counts)
+    assert "- Children would create: 2" in rendered
+    assert "- Glosses would move: 3" in rendered
+    assert "- Tags would move: 4" in rendered
+    # The applied-mode verbs must NOT appear.
+    assert "Children created" not in rendered
+    assert "Glosses moved" not in rendered
+
+
 def test_format_gloss_suppression_run_markdown(tmp_path: Path):
     counts = {
         "etymons_touched": 3,
@@ -892,6 +946,57 @@ def test_cli_curate_split_etymon_rejects_multiple_primary(tmp_path: Path):
     )
     assert result.exit_code != 0
     assert "primary" in result.output.lower()
+
+
+def test_cli_curate_split_etymon_rejects_unrecognized_token(tmp_path: Path):
+    """A bare --into token that is neither key=value nor 'primary'
+    (e.g. a stray word from a typo'd pipe) is rejected. Pins the
+    else-branch of the spec parser the C901 extraction now owns in
+    _parse_one_spec (wyrd-8uvi)."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            "suffix=weir|gibberish",
+            "--curation-file",
+            str(tmp_path / "_curation.jsonl"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "unrecognized token" in result.output.lower()
+    assert "gibberish" in result.output
+    # Nothing should have been written to the curation file.
+    assert not (tmp_path / "_curation.jsonl").exists()
+
+
+def test_cli_curate_split_etymon_parses_tags_and_skips_blank_segments(tmp_path: Path):
+    """A --into spec with a ``tags=`` field is ``;``-split into a list
+    (the same code path as glosses, but only glosses was CLI-tested),
+    and empty pipe segments (a ``||`` from a stray pipe) are skipped.
+    Pins the tags-list branch + the blank-part ``continue`` branch the
+    C901 extraction now owns in _parse_one_spec (wyrd-8uvi)."""
+    curation = tmp_path / "_curation.jsonl"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            # double-pipe → blank segment; tags → ;-split list.
+            "suffix=weir|tags=topography;water||primary",
+            "--curation-file",
+            str(curation),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    event = json.loads(curation.read_text().strip().splitlines()[-1])
+    assert event["into"] == [{"suffix": "weir", "tags": ["topography", "water"], "primary": True}]
 
 
 # ---------------------------------------------------------------------------
