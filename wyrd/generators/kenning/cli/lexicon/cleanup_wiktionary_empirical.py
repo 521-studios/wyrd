@@ -96,6 +96,80 @@ import click
 _MODERN_LANGUAGES = frozenset({"modern-english"})
 
 
+def _collect_wikt_only_cleanup(db):
+    """Find every etymon cited ONLY by wiktionary-empirical and classify the
+    cleanup candidates. Returns ``(wikt_only_ids, derivative_only,
+    modern_only)`` where the latter two are lists of ``(id, canonical_form,
+    language, glosses)``: ``derivative_only`` = every gloss matches
+    ``_is_derivative_gloss`` (or the etymon is glossless — also garbage);
+    ``modern_only`` = a modern-language etymon that isn't derivative-only.
+    An etymon with a semantic gloss AND a historical language is in neither
+    bucket — it stays. Etymons with any non-wiktionary citation are excluded
+    up front (the GROUP BY ... HAVING)."""
+    from wyrd.generators.kenning import _is_derivative_gloss
+
+    wikt_only_ids = [
+        row[0]
+        for row in db.conn.execute(
+            """
+            SELECT etymon_id
+            FROM etymon_citation
+            GROUP BY etymon_id
+            HAVING MIN(source_id) = 'wiktionary-empirical'
+               AND MAX(source_id) = 'wiktionary-empirical'
+            """
+        ).fetchall()
+    ]
+    derivative_only: list[tuple[int, str, str, list[str]]] = []
+    modern_only: list[tuple[int, str, str, list[str]]] = []
+    for eid in wikt_only_ids:
+        row = db.conn.execute(
+            "SELECT canonical_form, language FROM etymon WHERE id = ?",
+            (eid,),
+        ).fetchone()
+        if not row:
+            continue
+        canonical_form, language = row
+        glosses = [
+            g[0]
+            for g in db.conn.execute(
+                "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?",
+                (eid,),
+            ).fetchall()
+        ]
+        if not glosses:
+            # Etymon with no glosses at all is also garbage; treat as
+            # derivative-only for cleanup purposes.
+            derivative_only.append((eid, canonical_form, language, glosses))
+            continue
+        if all(_is_derivative_gloss(g) for g in glosses):
+            derivative_only.append((eid, canonical_form, language, glosses))
+        elif language in _MODERN_LANGUAGES:
+            modern_only.append((eid, canonical_form, language, glosses))
+    return wikt_only_ids, derivative_only, modern_only
+
+
+def _delete_cleanup_etymons(db, ids: list[int]) -> None:
+    """Delete the given etymons in chunks. Most FKs to etymon are ON DELETE
+    CASCADE; the two NO-ACTION ones are pre-handled: NULL out children's
+    ``lemma_id`` (they survive as unattached until a future clustering pass),
+    and DELETE ``toponym_etymology_element`` rows (bad decompositions citing a
+    garbage etymon). Caller commits."""
+    chunk_size = 500
+    for i in range(0, len(ids), chunk_size):
+        chunk = ids[i : i + chunk_size]
+        placeholders = ",".join("?" for _ in chunk)
+        db.conn.execute(
+            f"UPDATE etymon SET lemma_id = NULL WHERE lemma_id IN ({placeholders})",
+            chunk,
+        )
+        db.conn.execute(
+            f"DELETE FROM toponym_etymology_element WHERE etymon_id IN ({placeholders})",
+            chunk,
+        )
+        db.conn.execute(f"DELETE FROM etymon WHERE id IN ({placeholders})", chunk)
+
+
 @click.command("cleanup-wiktionary-empirical")
 @click.option(
     "--db",
@@ -130,7 +204,6 @@ def lexicon_cleanup_wiktionary_empirical(
     """
     import os
 
-    from wyrd.generators.kenning import _is_derivative_gloss
     from wyrd.generators.kenning.lexicon.db import LexiconDB
 
     if db_path is None:
@@ -143,57 +216,14 @@ def lexicon_cleanup_wiktionary_empirical(
             raise click.ClickException(f"Lexicon DB not found at {db_path}. Pass --db to override.")
 
     with LexiconDB(db_path) as db:
-        # Find every etymon whose ONLY citation source is
-        # wiktionary-empirical. Etymons with additional sources
-        # (scholarly works) stay regardless of language/gloss shape.
-        wikt_only_ids = [
-            row[0]
-            for row in db.conn.execute(
-                """
-                SELECT etymon_id
-                FROM etymon_citation
-                GROUP BY etymon_id
-                HAVING MIN(source_id) = 'wiktionary-empirical'
-                   AND MAX(source_id) = 'wiktionary-empirical'
-                """
-            ).fetchall()
-        ]
+        # Etymons cited ONLY by wiktionary-empirical, classified into the
+        # delete buckets (those with additional scholarly sources, or a
+        # semantic gloss + historical language, stay — see the helper).
+        wikt_only_ids, derivative_only, modern_only = _collect_wikt_only_cleanup(db)
         click.echo(
             f"Found {len(wikt_only_ids)} etymons cited ONLY by wiktionary-empirical",
             err=True,
         )
-
-        # Classify each into one of three buckets:
-        #   - derivative_only (all glosses match _is_derivative_gloss)
-        #   - modern_only (language is modern/middle English)
-        #   - keep (has at least one semantic gloss + historical language)
-        derivative_only: list[tuple[int, str, str, list[str]]] = []
-        modern_only: list[tuple[int, str, str, list[str]]] = []
-        # (id, canonical_form, language, glosses)
-        for eid in wikt_only_ids:
-            row = db.conn.execute(
-                "SELECT canonical_form, language FROM etymon WHERE id = ?",
-                (eid,),
-            ).fetchone()
-            if not row:
-                continue
-            canonical_form, language = row
-            glosses = [
-                g[0]
-                for g in db.conn.execute(
-                    "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?",
-                    (eid,),
-                ).fetchall()
-            ]
-            if not glosses:
-                # Etymon with no glosses at all is also garbage; treat
-                # as derivative-only for cleanup purposes.
-                derivative_only.append((eid, canonical_form, language, glosses))
-                continue
-            if all(_is_derivative_gloss(g) for g in glosses):
-                derivative_only.append((eid, canonical_form, language, glosses))
-            elif language in _MODERN_LANGUAGES:
-                modern_only.append((eid, canonical_form, language, glosses))
 
         to_delete_ids = {row[0] for row in derivative_only} | {row[0] for row in modern_only}
         click.echo(
@@ -238,21 +268,7 @@ def lexicon_cleanup_wiktionary_empirical(
         #     element rows; they're bad toponym decompositions
         #     citing a garbage etymon, no value in keeping.
         click.echo(f"\nDeleting {len(to_delete_ids)} etymons...", err=True)
-        ids_list = list(to_delete_ids)
-        CHUNK = 500
-        for i in range(0, len(ids_list), CHUNK):
-            chunk = ids_list[i : i + CHUNK]
-            placeholders = ",".join("?" for _ in chunk)
-            # Pre-handle the two NO ACTION FKs.
-            db.conn.execute(
-                f"UPDATE etymon SET lemma_id = NULL WHERE lemma_id IN ({placeholders})",
-                chunk,
-            )
-            db.conn.execute(
-                f"DELETE FROM toponym_etymology_element WHERE etymon_id IN ({placeholders})",
-                chunk,
-            )
-            db.conn.execute(f"DELETE FROM etymon WHERE id IN ({placeholders})", chunk)
+        _delete_cleanup_etymons(db, list(to_delete_ids))
         db.commit()
         click.echo(
             "Done. Re-export the bundle with: wyrd kenning lexicon export-meanings", err=True
