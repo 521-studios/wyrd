@@ -671,6 +671,42 @@ def test_cli_derive_english_shaped_reshape_redoes_non_null_rows(fresh_db: Path) 
         assert _english_shaped(db, eid) == "jinn"
 
 
+def test_cli_derive_english_shaped_limit_caps_candidate_rows(fresh_db: Path) -> None:
+    """--limit caps the candidate SELECT. With two eligible non-Latin
+    rows and --limit 1, only one row is scanned + written, and the
+    per-language summary reflects the single write. Pins the
+    ``LIMIT`` clause and the per-language summary block the C901
+    extraction now owns (wyrd-8uvi)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon_with_translit(
+            db, canonical_form="جن", language="ar", transliteration="ǧinn"
+        )
+        _seed_etymon_with_translit(
+            db, canonical_form="عفريت", language="ar", transliteration="ʿifrīt"
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "derive-english-shaped", "--db", str(fresh_db), "--apply", "--limit", "1"],
+    )
+    out = result.output + (result.stderr or "")
+    assert result.exit_code == 0, out
+    # Candidate count and write totals both reflect the cap.
+    assert "1 candidate row(s)" in out
+    assert "1 written" in out
+    # Per-language summary block surfaced for the single ar write.
+    assert "per-language:" in out
+    assert "ar: 1" in out
+    # Exactly one row got english_shaped in the DB.
+    with LexiconDB(fresh_db) as db:
+        n = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon WHERE english_shaped IS NOT NULL"
+        ).fetchone()[0]
+    assert n == 1
+
+
 # ---------------------------------------------------------------------
 # derive_english_shaped_all (L3 wrapper)
 # ---------------------------------------------------------------------
