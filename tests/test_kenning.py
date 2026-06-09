@@ -1029,6 +1029,20 @@ def test_novelty_shifts_vector_distribution_end_to_end():
         plain.add(k.generate({"culture": "english"}, seed=seed).result)
         novel.add(k.generate({"culture": "english", "novelty": 1.0}, seed=seed).result)
     assert plain != novel
+    # novelty=1 must still produce VALID names, not empty/None — the uniform
+    # blend reweights the pool, it must not empty it.
+    assert all(novel), f"novelty=1 produced empty results: {novel}"
+
+
+def test_novelty_zero_is_noop_byte_identical():
+    """novelty=0 must be byte-identical to no-novelty for every seed — the blend
+    is score-normalize-only at 0 and weighted_choice is scaling-invariant, so the
+    fast-path skip must not be the only thing preserving bit-stability."""
+    k = Kenning()
+    for seed in range(30):
+        base = k.generate({"culture": "english"}, seed=seed).result
+        zero = k.generate({"culture": "english", "novelty": 0.0}, seed=seed).result
+        assert base == zero, f"seed={seed}: novelty=0 ({zero!r}) != no-novelty ({base!r})"
 
 
 def test_novelty_is_seed_stable():

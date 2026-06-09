@@ -88,6 +88,15 @@ def test_blend_uniform_by_novelty_boundaries():
     assert [round(w, 6) for _, w in half] == [0.625, 0.375]  # 0.5*frac + 0.5*0.5
 
 
+def test_blend_uniform_by_novelty_single_meaning_always_weight_one():
+    """n==1: a lone eligible meaning gets weight 1.0 at any novelty (the
+    score-normalized and uniform marginals both collapse to it)."""
+    single = [(_meaning("a"), 2.5)]
+    for nov in (0.0, 0.5, 1.0):
+        out = _blend_uniform_by_novelty(single, nov)
+        assert [round(w, 6) for _, w in out] == [1.0], nov
+
+
 def test_blend_uniform_by_novelty_zero_total_returns_uniform():
     """All-zero scores → no axis to blend against → pure uniform."""
     weighted = [(_meaning("a"), 0.0), (_meaning("b"), 0.0)]

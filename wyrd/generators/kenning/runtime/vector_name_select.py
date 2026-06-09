@@ -900,7 +900,11 @@ def _blend_uniform_by_novelty(
     if total <= 0:
         # No score signal to blend against — uniform is the only meaningful axis.
         return [(m, 1.0 / n) for m, _ in weighted]
-    return [(m, (1 - novelty) * (score / total) + novelty / n) for m, score in weighted]
+    # Hoist the per-element constants out of the comprehension: blended weight
+    # is score * factor + term == (1-novelty)*(score/total) + novelty/n.
+    factor = (1.0 - novelty) / total
+    term = novelty / n
+    return [(m, score * factor + term) for m, score in weighted]
 
 
 def _weighted_choice(
