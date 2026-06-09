@@ -3115,6 +3115,18 @@ def test_extract_attestation_pairs_rejects_page_marker_year() -> None:
     assert pairs == []
 
 
+def test_extract_attestation_pairs_rejects_out_of_range_years() -> None:
+    """Years outside [_ATTESTED_YEAR_MIN_LOOKUP, _ATTESTED_YEAR_MAX_LOOKUP]
+    are rejected even with a valid form+connector — they're typos, page
+    refs, or modern dates, not in-period attestations. Pins both sides of
+    the year-range bound in _admit_year_match (wyrd-8uvi: the one branch
+    of the hoisted helper not otherwise driven through extract())."""
+    extract, _ = _import_attestation_helpers()
+    # 300 is below the min; 2000 is above the max — neither is admitted.
+    pairs = extract("Olde, 300. Tune in 2000.")
+    assert pairs == []
+
+
 def test_extract_attestation_pairs_requires_connector_between_form_and_year() -> None:
     """'After 1066' / 'Before 1066' / 'Source 1234' have a capitalised
     word followed by a year-shaped digit run with only whitespace
