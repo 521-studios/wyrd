@@ -77,6 +77,10 @@ def test_disambiguate_fuzzy_dry_run_does_not_write(tmp_path: Path, _stub_pick_he
     assert result.exit_code == 0
     # Dry-run: the row is untouched — still linked to herath, still fuzzy-search.
     assert _row(db_path, row_id) == (herath_id, "fuzzy-search-v1", None)
+    # ...but the loop DID run: the summary reports the classified-not-written
+    # count (the stub picks heath != current herath → 'reassigned'). This
+    # distinguishes a real dry-run pass from a no-op that never processed.
+    assert "'reassigned': 1" in result.output
 
 
 def test_disambiguate_fuzzy_apply_reassigns(tmp_path: Path, _stub_pick_heath) -> None:
