@@ -1415,7 +1415,7 @@ def test_select_via_vector_scoring_permissive_handles_zeroed_weights(monkeypatch
     emits base scores > 0 — so force the collapse by zeroing the cohesion
     multiplier. permissive=True → None for the slot (full-length result);
     non-permissive → [] (abort)."""
-    db = {"Port-": [Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])]}
+    db = {"Port-": [_meaning("Port-", tags=["urban"])]}
     kwargs = {"structure": ["pre"], "request": _request(), "priors": EmpiricalPriors()}
     # Sanity (no monkeypatch yet): the slot fills normally, so base_scored is
     # non-empty — the collapse below is specifically the 'not weighted' branch,
@@ -1437,7 +1437,7 @@ def test_select_via_vector_scoring_permissive_handles_weighted_choice_none(monke
     base_scored AND weighted are both non-empty, but the weighted draw returns
     None. This is defensive — a positive-weight list won't normally yield None —
     so force it. permissive=True → None for the slot; non-permissive → []."""
-    db = {"Port-": [Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])]}
+    db = {"Port-": [_meaning("Port-", tags=["urban"])]}
     kwargs = {"structure": ["pre"], "request": _request(), "priors": EmpiricalPriors()}
     # Sanity (no monkeypatch yet): the slot fills normally, so base_scored and
     # weighted are non-empty — the [None] below is specifically the
