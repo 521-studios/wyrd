@@ -538,6 +538,25 @@ def test_resolve_collapse_cycles_passthrough_and_multicluster() -> None:
     assert out["x:p"]["into"] == "x:q"
 
 
+def test_resolve_collapse_cycles_path_compression_multi_hop() -> None:
+    """A late edge attaching above an already-built chain forces the
+    union-find path-compression inner loop in _uf_find to fire (the one
+    non-trivial branch the helper owns). With a -> b -> c already unioned,
+    `d -> a` makes find(a) walk a->b->c and rewire the intermediates to
+    the root; all four refs must resolve to the terminal survivor c.
+    Sorted-ref processing order (a, b, d) builds the chain before d
+    arrives, so find(d->a) traverses multiple hops (wyrd-8uvi)."""
+    state = {
+        "x:a": {"into": "x:b"},
+        "x:b": {"into": "x:c"},
+        "x:d": {"into": "x:a"},
+    }
+    out = _resolve_collapse_cycles(state)
+    assert out["x:a"]["into"] == "x:c"
+    assert out["x:b"]["into"] == "x:c"
+    assert out["x:d"]["into"] == "x:c"
+
+
 def test_folded_form_exports_with_lemma_gloss_not_pointer(tmp_path: Path) -> None:
     """wyrd-6r09 (P4): after a collapse folds a form-of etymon into its
     lemma, the exported family shows the LEMMA's real meaning — the folded
