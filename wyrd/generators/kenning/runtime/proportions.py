@@ -239,10 +239,26 @@ def _merge_morpheme_meanings(meanings: list):
             gbucket = glosses.setdefault(lang, {})
             for form, gloss in form_gloss.items():
                 gbucket.setdefault(form, gloss)
-    # Genuine reflexes win per language; self-seeds only when a language has no
-    # genuine reflex at all (don't strand an all-self connective morpheme).
+
+    # wyrd-phww: UNION self-seeds with genuine reflexes per language — genuine
+    # listed first, source preserved; a self-seed is added only for a form no
+    # genuine reflex already covers. The pre-fix genuine-WINS rule discarded ALL
+    # self-seeds whenever any genuine reflex existed, which dropped the GENERATED
+    # SURFACE (the attested modern toponym form — 'Park-'/'Paddock-' for pearroc)
+    # from the grid -> "X not in its own reflexes". The flood risk the old rule
+    # guarded against (every constructed -ton town self-seeds its whole surface,
+    # ~120 for tūn) is handled downstream: _era_grid narrows the PRESENT-DAY
+    # stage to the word's OWN surface (generate = the generated surface,
+    # explain = the decomposed input surface), so only the one relevant
+    # self-seed survives next to the genuine reflexes — never the ~120.
+    def _union_lang(genuine: dict, selfs: dict) -> list:
+        out = dict(genuine)  # genuine first, source preserved
+        for form, entry in selfs.items():
+            out.setdefault(form, entry)  # self-seed only if no genuine form collides
+        return list(out.values())
+
     merged_reflexes = {
-        lang: list((nonself.get(lang) or selfseed.get(lang)).values())
+        lang: _union_lang(nonself.get(lang, {}), selfseed.get(lang, {}))
         for lang in sorted(nonself.keys() | selfseed.keys())
     }
     # Keep glosses only for forms that survived the genuine-wins filter; drop a
@@ -627,9 +643,27 @@ def _ordered_stage_langs(family, present):
     ]
 
 
-def _era_grid(meaning, renderings):
+def _grid_surface_key(form: str) -> str:
+    """Normalized key for matching a word's own surface to a present-day era
+    cell form: case-insensitive, affix dashes + whitespace ignored ('Park-' ==
+    'park', '-ton' == 'ton')."""
+    return form.strip().strip("-").strip().casefold()
+
+
+def _era_grid(meaning, renderings, own_surface=None):
     """wyrd-lftl: per-morpheme family × era reflex grid for the SPA col-3
     inspector.
+
+    wyrd-phww: ``own_surface`` is the word's OWN surface for this instance —
+    the generated surface (generate) or the decomposed input surface (explain).
+    When given, the PRESENT-DAY stage of each family keeps its genuine reflexes
+    plus ONLY the self-seed matching ``own_surface`` — so the surface the name
+    actually used appears ('Park' next to etymological 'parrock') without the
+    flood of every sibling self-seed (~120 constructed -ton towns) the merge now
+    unions in. Genuine reflexes and all non-present-day stages are untouched (the
+    morpheme's own-form self-seed in its OWN era stage, e.g. OE 'pearroc', is
+    NOT a present-day cell and survives). ``None`` keeps every self-seed (the
+    full union — no caller relies on this today but it's the safe default).
 
     Returns a list of family sections::
 
@@ -687,7 +721,37 @@ def _era_grid(meaning, renderings):
         ]
         if stages:
             sections.append({"family": family, "stages": stages})
+    if own_surface is not None:
+        sections = _narrow_present_day_self_seeds(sections, own_surface)
     return sections
+
+
+def _narrow_present_day_self_seeds(sections: list[dict], own_surface: str) -> list[dict]:
+    """wyrd-phww: in each family's PRESENT-DAY stage, drop ``source='self'`` cells
+    that don't match ``own_surface`` (keep every genuine cell + the matching
+    self-seed). Non-present-day stages are untouched, so an own-form self-seed in
+    its own era (OE ``pearroc``) survives. Stages/sections emptied by the filter
+    are dropped."""
+    key = _grid_surface_key(own_surface)
+    out: list[dict] = []
+    for section in sections:
+        stage_order = family_stage_order(section["family"])
+        present_day_lang = stage_order[-1] if stage_order else None
+        stages = []
+        for stage in section["stages"]:
+            if stage["language"] == present_day_lang:
+                forms = [
+                    c
+                    for c in stage["forms"]
+                    if c.get("source") != "self" or _grid_surface_key(c["form"]) == key
+                ]
+                if not forms:
+                    continue  # present-day stage emptied (only unmatched self-seeds)
+                stage = {**stage, "forms": forms}
+            stages.append(stage)
+        if stages:
+            out.append({"family": section["family"], "stages": stages})
+    return out
 
 
 class NameGenerator:
@@ -1677,7 +1741,11 @@ class NewName:
         # dash-strip string fallback; an un-attributable surface → _era_grid(None)
         # → [] → no grid).
         morpheme_meaning = _resolve_morpheme(self.meaning_db, getattr(first, "morpheme_id", None))
-        grid = _era_grid(morpheme_meaning, renderings)
+        # wyrd-phww: narrow the present-day stage to the surface this instance
+        # used (morpheme['usage'] — the generated surface for generate, the
+        # decomposed input surface for explain) so the era-grid shows what the
+        # name actually used, not the genuine cluster reflex alone.
+        grid = _era_grid(morpheme_meaning, renderings, own_surface=morpheme.get("usage"))
         if grid:
             morpheme["era_grid"] = grid
 
@@ -1770,7 +1838,7 @@ class NewName:
                 morpheme_meaning = _resolve_morpheme(
                     self.meaning_db, getattr(first, "morpheme_id", None)
                 )
-                grid = _era_grid(morpheme_meaning, renderings)
+                grid = _era_grid(morpheme_meaning, renderings, own_surface=usage_str)
                 if grid:
                     morpheme["era_grid"] = grid
                 # wyrd-mf2u: carry the era form + its own pronunciation/language
