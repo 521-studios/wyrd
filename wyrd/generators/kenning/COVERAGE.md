@@ -10,7 +10,7 @@ This is a coarse "surface morphemes recognized" gauge — it does NOT
 measure citation attribution (rando-port vs ≥3-witness scholar
 consensus, D4), inflection metadata (D8), spelling-variant pools (D18),
 attested_years (D5-1), tag co-occurrence (D16/D17), or the runtime
-knobs (`--mood`, `--era`, `--cohesion`, `--novelty`, etc.). Those
+knobs (`--mood`, `--era`, `--cohesion`, etc.). Those
 quality dimensions improve independently. Use perfect-rate as a
 regression tripwire, not the north star.
 

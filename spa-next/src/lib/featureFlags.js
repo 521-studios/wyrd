@@ -56,6 +56,7 @@ export function flagOn(config, name) {
  *  (always-on); the rest gate on their controlling flag. */
 export function fieldEnabled(config, fieldKey) {
   if (ALWAYS_ON_FIELDS.has(fieldKey)) return true;
+  if (!config) return false;
   return flagOn(config, fieldFlag(fieldKey));
 }
 

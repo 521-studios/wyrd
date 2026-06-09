@@ -67,10 +67,10 @@ def _collapse_triple_letters(text: str) -> str:
 
 
 def _gloss_eligible(usage: str, has_gloss: bool, include_unglossed: bool) -> bool:
-    """Gloss-policy predicate shared by the proportions keep-key filter
+    """Gloss-policy predicate shared by the keep-key filter
     (:meth:`MeaningGenerator.keep_keys_for_gloss`) and the vector pool
     filter (:func:`vector_name_select.build_non_position_eligible`) so
-    both scoring modes apply identical generation-pool rules (wyrd-glos).
+    both consumers apply identical generation-pool rules (wyrd-glos).
 
     * has_gloss → eligible (any length; a glossed single-char like Norse
       ``á`` = river is a real morpheme).
@@ -771,22 +771,22 @@ class NameGenerator:
         # path regardless).
         self.tag_cooccurrence = tag_cooccurrence or {}
         # wyrd-bol9: per-bucket empirical-frequency lookup for the
-        # vector path. Pre-fix, vector mode sampled each Meaning by
+        # vector path. Pre-fix, vector scoring sampled each Meaning by
         # D36.2 score(lemma) regardless of how often the underlying
         # USAGE actually appeared in this culture's corpus. The pool
         # was uniformly distributed across culture-attested usages —
-        # losing the empirical-frequency signal proportions mode
-        # carries via its per-bucket weight tables. Welsh / Irish /
-        # Breton names came out 25-35pp more OE-dominated than
-        # proportions because the OE-heavy attested pool dominated
+        # losing the empirical-frequency signal the per-bucket weight
+        # tables carry. Welsh / Irish /
+        # Breton names came out 25-35pp more OE-dominated than the
+        # corpus proportions because the OE-heavy attested pool dominated
         # under uniform sampling.
         #
         # Frequency-weighted pool restoration: each Meaning's vector
         # score is composed with its USAGE's per-bucket frequency
-        # from the same proportions tables proportions mode samples
-        # from. Within a usage's Meanings, D36.2 score discriminates;
-        # across usages, frequency drives pick-share — matching
-        # proportions' per-usage weighted sampling while preserving
+        # from those same proportions tables. Within a usage's Meanings,
+        # D36.2 score discriminates;
+        # across usages, frequency drives pick-share — restoring the
+        # corpus's per-usage weighting while preserving
         # vector's per-Meaning composition. Bucket-key shape and the
         # lookup contract live on ``_build_usage_frequency_by_bucket``.
         self.usage_frequency_by_bucket: dict[tuple, dict[str, float]] = (
@@ -862,14 +862,14 @@ class NameGenerator:
                 no pack lemmas (pure native generation).
             spelling_variety: D18 per-morpheme probability of emitting an
                 attested archaic spelling variant instead of the modern
-                reflex. wyrd-nbpw: threaded through the SAME
-                ``_render_substitutions`` the legacy path uses, so both
-                scoring modes produce identical D8/D18 rendering for a
-                given pick. 0 (default) = no variant substitution.
+                reflex. wyrd-nbpw: threaded through the shared
+                ``_render_substitutions`` render path, so D8/D18 rendering
+                is consistent for a given pick. 0 (default) = no variant
+                substitution.
             inflection_density: D8 per-morpheme probability of emitting an
                 inflected morphological form (with a grammatical-case
                 label). 0 (default) = no inflection. Inflection wins ties
-                over the variant axis (same rule as the legacy path).
+                over the variant axis.
 
         Returns:
             A :class:`NewName` or None when the vector path's gate or
@@ -881,9 +881,9 @@ class NameGenerator:
         tag-cooccurrence data is threaded through to it.
         """
         # Lazy import: no actual cycle (vector_name_select imports
-        # only from vectors.{schemas,scoring}, not runtime), but the
-        # lazy form keeps the legacy proportions path's cold-start
-        # cost flat for callers that never reach scoring_mode='vector'.
+        # only from vectors.{schemas,scoring}, not runtime); the lazy
+        # form also keeps module-load cost off callers that never
+        # generate.
         from wyrd.generators.kenning.runtime.vector_name_select import (
             build_non_position_eligible,
             request_signature,
@@ -1063,8 +1063,7 @@ class NameGenerator:
             for slot in word:
                 # wyrd-tbke: a permissive-fallback pick may be None (slot whose
                 # gated pool was empty) — pass it straight through as a dropped
-                # slot, matching the proportions path's None slots; NewName
-                # skips None elements when rendering.
+                # slot; NewName skips None elements when rendering.
                 pick = picked[idx]
                 word_keys.append(_position_form(pick, slot[0]) if pick is not None else None)
                 idx += 1
@@ -1072,9 +1071,8 @@ class NameGenerator:
 
         new_name = NewName(struct, self.meaning_db, words)
         # wyrd-nbpw/6c8x: post-pick rendering — era-form (feature A) or the D8
-        # inflection / D18 spelling-variant substitution — shared with the
-        # legacy proportions select() via _apply_render so both scoring paths
-        # render identically. Default generation (all knobs 0, no era) stays
+        # inflection / D18 spelling-variant substitution — applied via
+        # _apply_render. Default generation (all knobs 0, no era) stays
         # bit-stable: _apply_render is a no-op that leaves new_name.rendered None.
         self._apply_render(rng, new_name, spelling_variety, inflection_density, era_render_language)
         return new_name
@@ -1149,7 +1147,7 @@ class NameGenerator:
     def _apply_render(
         self, rng, new_name, spelling_variety, inflection_density, era_render_language
     ):
-        """Post-pick render dispatch, shared by select() and select_via_vector().
+        """Post-pick render dispatch, used by select_via_vector().
 
         Precedence (wyrd-6c8x): when an era render-language is set, render each
         morpheme in its era-appropriate attested form — the era reflex IS the

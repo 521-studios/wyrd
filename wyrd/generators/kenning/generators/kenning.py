@@ -12,7 +12,6 @@ from wyrd.generators.kenning import (
     _LEGEND,
     CULTURES,
     _apply_joiner_insertion,
-    _apply_mood,
     _coerce_bool,
     _era_options_by_culture,
     _load_culture,
@@ -379,7 +378,6 @@ class Kenning(Generator):
         raw_tags = params.get("tags", []) or []
         if isinstance(raw_tags, str):
             raw_tags = [raw_tags]
-        tags = list(raw_tags)
         spelling_variety = float(params.get("spelling_variety", 0.0) or 0.0)
         inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
         harshness = float(params.get("harshness", 0.0) or 0.0)
@@ -410,18 +408,11 @@ class Kenning(Generator):
         moods = params.get("mood", []) or []
         if isinstance(moods, str):
             moods = [moods]
-        # Capture original mood + harshness BEFORE _apply_mood mutates
-        # the tags+harshness state; the vector adapter consumes mood
-        # specs + base harshness directly for symmetric expansion
-        # semantics. Without capturing these, the adapter would
-        # double-apply catalog effects (once via the mutated tags /
-        # harshness and again via the mood specs the adapter expands
-        # itself through the register-effect catalog).
+        # The vector adapter expands mood specs + base harshness through the
+        # register-effect catalog itself, so pass the raw specs + base values
+        # straight through (no tag/harshness pre-mutation here).
         original_moods = tuple(moods)
         original_harshness = harshness
-        for spec in moods:
-            tags, harshness = _apply_mood(spec, tags, harshness)
-        tags = tuple(tags)
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
         era_range = _resolve_era_param(params.get("era"), culture)
@@ -454,13 +445,8 @@ class Kenning(Generator):
             name_gen,
             rng,
             culture=culture,
-            # Pre-_apply_mood tags + original harshness — the adapter does
-            # its own catalog-effect expansion via original_moods. Passing
-            # the mutated post-_apply_mood values would double-count. The
-            # legacy `tags` variable above is mutated by mood expansion, so
-            # derive vector-side tags from raw_tags instead (raw_tags was
-            # normalized to list[str] earlier but not mutated by mood
-            # expansion).
+            # The requested tags; the adapter expands mood specs (original_moods)
+            # + harshness through the register-effect catalog on its own.
             tags=list(raw_tags),
             mood=original_moods,
             harshness=original_harshness,

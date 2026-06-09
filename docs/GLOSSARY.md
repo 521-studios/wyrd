@@ -262,11 +262,13 @@ every character maps to a known morpheme (the rate tracked in
 [`COVERAGE.md`](../wyrd/generators/kenning/COVERAGE.md)).
 
 ### Proportions
-Per-culture pre-baked statistics (`<culture>_proportions.json`) the
-runtime samples in the default `proportions` scoring mode — joint
+Per-culture pre-baked statistics (`<culture>_proportions.json`) — joint
 frequencies at the **tag** level (semantic classes), not the morpheme
 level, because a K×K tag matrix is learnable where a morpheme matrix
-would be hopelessly sparse (D16). Rebuilt by `rebuild-proportions`.
+would be hopelessly sparse (D16). Rebuilt by `rebuild-proportions`. The
+per-usage frequencies feed the vector path's frequency-weighting and the
+corpus-realism reference (the old `proportions` scoring mode that sampled
+these tables directly is retired).
 
 ### mining_run / audit
 Every mining and review run writes one `mining_run` row capturing
@@ -325,15 +327,12 @@ Morally neutral — no language is pre-coded "good" or "evil"; the
 dark/menacing feel comes from [mood](#--mood) filters that apply to any
 language (D6).
 
-### --novelty
-Blends each bucket's empirical-frequency distribution toward a uniform
-marginal. At 1.0 every in-bucket morpheme is equally likely — plausible
--but-unattested combinations become possible (D17).
-
 ### --cohesion
-The opposite of novelty: biases each slot toward usages whose tags
-co-occur with already-picked slots' tags in the corpus — "attested-pair
-fidelity". Composes orthogonally with novelty (D17 / wyrd-mj2).
+Biases each slot toward usages whose tags co-occur with already-picked
+slots' tags in the corpus — "attested-pair fidelity" (D17 / wyrd-mj2).
+(The companion `--novelty` knob — blend toward a uniform marginal — was
+removed with the proportions scoring path; pending re-wire onto the
+vector path, wyrd-fcub.)
 
 ### --mood
 A stylistic-register preset (repeatable; e.g. `grim`, `harsh`, `noble`,
@@ -353,21 +352,21 @@ Per-morpheme probability of substituting an archaic
 [inflected](#inflection) form (D8) for the canonical reflex. Inflection
 wins when both fire on the same morpheme.
 
-### --scoring-mode {proportions, vector}
-The per-slot sampling pipeline. `proportions` (default) samples the
-pre-baked [proportions](#proportions) tables — bit-stable with the legacy
-path. `vector` computes each lemma's score at request time from four
-weighted axes — phonological, semantic, position, and empirical-baseline
-— via the D36.2 canonical composition
-`score = phon_w·phon + sem_w·sem + pos_w·pos + base_w·baseline`. (D36 /
-the ecjp epic)
+### Vector scoring
+The per-slot sampling pipeline, and the only scoring path: each lemma's
+score is computed at request time from four weighted axes —
+phonological, semantic, position, and empirical-baseline — via the D36.2
+canonical composition
+`score = phon_w·phon + sem_w·sem + pos_w·pos + base_w·baseline`. (The
+earlier opt-in `--scoring-mode` flag, which once toggled this against a
+proportion-table sampler, is retired now that proportions scoring is
+gone.) (D36 / the ecjp epic)
 
 ### --priors-path / --*-weight
 `--priors-path` points at the empirical-priors sidecar JSON (from
-`dump-empirical-priors`) that feeds vector mode's baseline axis.
+`dump-empirical-priors`) that feeds the vector baseline axis.
 `--baseline-weight` / `--phonological-weight` / `--semantic-weight` /
-`--position-weight` scale each axis (default 1.0; 0 disables). Only
-meaningful with `--scoring-mode=vector`.
+`--position-weight` scale each axis (default 1.0; 0 disables).
 
 ---
 

@@ -17,7 +17,6 @@ from wyrd.generators.kenning.runtime.drift_measurement import (
     _tag_distribution,
     decomposition_rate,
     kl_divergence,
-    morpheme_rank_correlation,
     position_distribution,
     total_variation_distance,
 )
@@ -187,34 +186,3 @@ def test_spearman_constant_other_side_returns_zero():
     ranks_a = {"x": 1, "y": 2}
     ranks_b = {"x": 5, "y": 5}
     assert _spearman_correlation(ranks_a, ranks_b) == 0.0
-
-
-# ---- morpheme_rank_correlation -------------------------------------------
-
-
-def test_morpheme_rank_correlation_identical_samples():
-    samples = [
-        _ns("n1", morphemes=("a", "b")),
-        _ns("n2", morphemes=("a", "c")),
-    ]
-    corr, n_shared = morpheme_rank_correlation(samples, samples, top_k=100)
-    assert corr == 1.0
-    assert n_shared == 3  # a, b, c all in both
-
-
-def test_morpheme_rank_correlation_disjoint_morphemes():
-    a = [_ns("n1", morphemes=("a", "b"))]
-    b = [_ns("n2", morphemes=("c", "d"))]
-    corr, n_shared = morpheme_rank_correlation(a, b, top_k=100)
-    assert corr == 0.0
-    assert n_shared == 0
-
-
-def test_morpheme_rank_correlation_partial_overlap():
-    # Both share 'shared1' + 'shared2', but ranks differ
-    a = [_ns("n1", morphemes=("shared1",))] * 3 + [_ns("n2", morphemes=("shared2",))]
-    b = [_ns("n1", morphemes=("shared2",))] * 3 + [_ns("n2", morphemes=("shared1",))]
-    corr, n_shared = morpheme_rank_correlation(a, b, top_k=100)
-    assert n_shared == 2
-    # Inverse ranking on the two shared morphemes
-    assert corr == -1.0

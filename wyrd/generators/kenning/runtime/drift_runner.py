@@ -68,9 +68,9 @@ def _sample_from_generation_result(result: Any) -> NameSample:
     return NameSample(
         # TODO(wyrd-ecjp.6 follow-up): the current Kenning generator
         # always returns fully-decomposed names by construction, so
-        # decomposes=True is constant across both scoring modes and
-        # the decomposition_rate metric is currently degenerate (both
-        # sides 1.0, delta=0). The metric is in place for a future
+        # decomposes=True is constant and the decomposition_rate metric
+        # is currently degenerate (both sides 1.0, delta=0). The metric
+        # is in place for a future
         # path that could produce unaccounted-bearing names (e.g. a
         # vector scoring that picks lemmas whose surface doesn't
         # trie-decompose). Until then, treat decomposition_rate as
@@ -122,7 +122,6 @@ def run_realism_samples(  # noqa: V103 — engine of the absolute corpus-realism
         "tags": tags or [],
         "harshness": harshness,
         "cohesion": cohesion,
-        "scoring_mode": "vector",
         "include_unglossed": include_unglossed,
     }
     if priors_path:

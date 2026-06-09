@@ -1,8 +1,9 @@
 """Realism-retention measurement (wyrd-jfaz).
 
-ABSOLUTE corpus-realism measurement: generates N names from the vector
-scoring path and measures them against a corpus reference derived from
-bundle data. Per-metric:
+ABSOLUTE corpus-realism measurement: the per-metric primitives + the
+``RealismReport`` that score a set of generated name samples against a
+corpus reference derived from bundle data (the samples themselves come from
+``drift_runner.run_realism_samples``). Per-metric:
 
 * **Per-tag distribution shift** — KL divergence + total-variation
   distance between the sample bag-of-tags distribution and the corpus
@@ -196,37 +197,6 @@ def _spearman_correlation(
         # Return 0 (no information about correlation direction).
         return 0.0
     return cov / denom
-
-
-def morpheme_rank_correlation(
-    samples_a: Iterable[NameSample],
-    samples_b: Iterable[NameSample],
-    top_k: int = 100,
-) -> tuple[float, int]:
-    """Spearman rank correlation of morpheme frequencies between two
-    sample sets, computed over the top-K morphemes from each.
-
-    Returns ``(correlation, n_shared)`` where n_shared is the count
-    of morphemes that appear in BOTH top-K sets (the correlation's
-    effective sample size). Sparse intersection (n_shared < 2)
-    returns correlation=0.0.
-    """
-    counts_a: Counter[str] = Counter()
-    counts_b: Counter[str] = Counter()
-    for s in samples_a:
-        counts_a.update(s.morphemes)
-    for s in samples_b:
-        counts_b.update(s.morphemes)
-
-    # Build rank dicts over the top-K most-frequent morphemes
-    top_a = counts_a.most_common(top_k)
-    top_b = counts_b.most_common(top_k)
-    # Rank 1 = most frequent; ties broken by insertion order (stable
-    # given Counter.most_common's sort-then-iter semantics).
-    ranks_a = {morpheme: rank for rank, (morpheme, _) in enumerate(top_a, start=1)}
-    ranks_b = {morpheme: rank for rank, (morpheme, _) in enumerate(top_b, start=1)}
-    n_shared = len(set(ranks_a) & set(ranks_b))
-    return _spearman_correlation(ranks_a, ranks_b), n_shared
 
 
 # ---- absolute corpus-realism report (wyrd-jfaz) -------------------------

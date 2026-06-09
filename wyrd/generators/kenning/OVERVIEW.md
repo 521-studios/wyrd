@@ -361,18 +361,15 @@ metadata (wyrd-9kh.1)**, and **1215 morphemes (31.9%) carrying
 attested_year data (D5-1)** that activates the runtime `--era`
 filter (D5-3).
 
-The runtime exposes six GM-facing generation knobs, all defaulting
+The runtime exposes five GM-facing generation knobs, all defaulting
 to off / 0 (bit-stable historical behavior):
 
-- `--novelty` (D17): blend empirical-frequency sampling with a uniform
-  marginal — high values let plausible-but-unattested combinations
-  through.
-- `--cohesion` (D17 refinement, wyrd-mj2): the OPPOSITE direction
-  from novelty — bias each slot toward usages whose tags co-occur
-  with previously-picked slots' tags in the empirical corpus. Composes
-  orthogonally with novelty so a GM can dial 'attested-pair fidelity'
-  and 'novelty' independently. No-op when the bundle carries no
-  tag_cooccurrence data.
+- `--cohesion` (D17 refinement, wyrd-mj2): bias each slot toward usages
+  whose tags co-occur with previously-picked slots' tags in the
+  empirical corpus — "attested-pair fidelity". No-op when the bundle
+  carries no tag_cooccurrence data. (The companion `--novelty` knob —
+  blend toward a uniform marginal — was removed with the proportions
+  scoring path; pending re-wire onto the vector path, wyrd-fcub.)
 - `--era` (D5-3, wyrd-lyp): restrict morpheme inventory to forms
   attested in a particular period. Accepts year (`1086`), cell label
   (`oe-late`), or `family/label` (`english/oe-late`). Active in
@@ -414,9 +411,8 @@ to off / 0 (bit-stable historical behavior):
   triple (`phonological` + `semantic_tags` + `position_bias`).
   `harsh:0.5` graduates a single effect uniformly via colon-
   suffix (`RegisterEffect.scaled`). Multiple flags compose:
-  vector path sums component-wise + clamps via
-  `compose_register_effects`; legacy proportion-table path takes
-  tag-union + max-harshness via `mood_spec_to_legacy_form`. The
+  the vector path sums component-wise + clamps via
+  `compose_register_effects`. The
   catalog lives in
   `wyrd/generators/kenning/data/register_effects.yaml` —
   catalog-driven since wyrd-kq7w.3 ripped the legacy MOODS dict,
@@ -427,10 +423,11 @@ to off / 0 (bit-stable historical behavior):
   citations against each catalog dim). The full architectural
   narrative is D37 in DECISIONS.md; the catalog format spec is
   D37.2.
-- `--scoring-mode {proportions,vector}` (D36 / ecjp epic, 2026-05-19):
-  switches the per-slot sampling pipeline. `proportions` (default)
-  uses the pre-baked per-(culture × tag × position) tables — bit-stable
-  with the legacy path. `vector` uses the D36.2 canonical composition
+- **Vector scoring** (D36 / ecjp epic, 2026-05-19): the per-slot
+  sampling pipeline, and the only scoring path. (An opt-in
+  `--scoring-mode` flag once toggled it against a proportion-table
+  sampler; that flag and the proportions scoring path are retired.)
+  It uses the D36.2 canonical composition
   rule, computing each lemma's score at request time from four
   axes: phonological (D36.1, kq7w.1 per-lemma feature vectors),
   semantic (D36.1, tag matching against the register's tag weights),
@@ -453,8 +450,8 @@ to off / 0 (bit-stable historical behavior):
   donor/recipient.
 - `--priors-path` (D36.3, ecjp.5 PR A): filesystem path to a JSON
   empirical-priors sidecar (emitted by `wyrd kenning lexicon
-  dump-empirical-priors`). Only consulted when
-  `--scoring-mode=vector`. The sidecar carries per-(culture ×
+  dump-empirical-priors`) feeding the vector baseline axis.
+  The sidecar carries per-(culture ×
   position × tag × era) native priors and per-(donor × recipient ×
   position × tag × era) loan-relationship priors; the vector path's
   baseline axis indexes into both. Sidecars are versioned by
@@ -548,17 +545,21 @@ priors). Phase 5 — ecjp.5 PRs A/B/C: priors loader +
 `vector_name_select` primitive + `Kenning.generate` dispatch +
 adapter (`vector_kenning_adapter.py`). Phase 6 — ecjp.6/.7: drift
 measurement infrastructure (`drift_measurement.py` pure-Python
-metrics: KL divergence, total variation, top-N name overlap,
-decomposition-rate delta, Spearman rank correlation) + tolerance-
-band scaffolding (`realism_tolerance.py`, regression test suite).
+metrics: KL divergence, total variation, decomposition-rate delta,
+Spearman rank correlation) + tolerance-band scaffolding
+(`realism_tolerance.py`, regression test suite). (The original
+relative vector-vs-proportions drift comparison — and its top-N
+name-overlap metric — was retired with the proportions scoring path;
+the surviving gate measures vector against an absolute corpus
+reference.)
 Phase 7 — ecjp.8: runtime scenario-pack overlay
 (`select_via_vector_scoring` admits pack lemmas via `pack_meaning_dbs`
 + per-pack `allowed_pack_tags` / `excluded_pack_tags` filters).
-Phase 8 — ecjp.9: CLI vector-knob wiring (`--scoring-mode`,
-`--priors-path`, `--baseline-weight` / `--phonological-weight` /
-`--semantic-weight` / `--position-weight`). Default `--scoring-mode`
-stays `proportions` until tolerance bands are tightened from the
-review-then-codify cycle; the legacy path remains bit-stable.
+Phase 8 — ecjp.9: CLI vector-knob wiring (`--priors-path`,
+`--baseline-weight` / `--phonological-weight` /
+`--semantic-weight` / `--position-weight`). (Phase 8 also wired a
+`--scoring-mode` selector; vector has since become the only scoring
+path and that flag plus the proportions path are retired.)
 Follow-ups: ecjp.10 (bundle export changes for per-lemma
 phonological_vector + empirical_baselines + pack manifest), ecjp.11
 (`--pack` / `--pack-tag-filter` CLI), ecjp.12 (SPA / Lambda
