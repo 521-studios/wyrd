@@ -9,9 +9,12 @@ that becomes visible once rogd.9 enriches a morpheme's lineage span.
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.proportions import (
     _era_grid,
+    _grid_surface_key,
     _merge_morpheme_meanings,
     _resolve_morpheme,
 )
@@ -66,6 +69,63 @@ def test_era_grid_own_surface_matches_case_and_dashes_insensitively():
     )
     cell = _modern_cell(_era_grid(m, {}, own_surface="park"))
     assert set(cell) == {"parrock", "Park-"}  # 'park' folds to 'Park-'; 'Paddock-' dropped
+
+
+def test_era_grid_keeps_own_form_when_newest_stage_is_own_language():
+    """wyrd-phww (Gemini HIGH): a family with NO present-day cell (norse → only
+    old-norse) has its newest stage == the morpheme's own-language stage, which
+    also holds the own-form self-seed. Narrowing to a generated surface must NOT
+    drop the morpheme's own canonical form — keep both own-form + generated."""
+    m = _m(
+        "Rigg-",
+        "old-norse:hryggr",
+        {"old-norse": [("hryggr", "self"), ("Rigg-", "self")]},
+    )
+    cell = _modern_cell(_era_grid(m, {}, own_surface="rigg"), "old-norse")
+    assert "hryggr" in cell  # own canonical form preserved (matches own_form)
+    assert "Rigg-" in cell  # generated surface kept (matches own_surface)
+
+
+def test_era_grid_drops_present_day_stage_when_only_unmatched_self_seeds():
+    """wyrd-phww: a present-day stage left with only NON-matching self-seeds (no
+    genuine reflex) is dropped — and if that was the only stage, the grid
+    collapses to []. This is the intended flood suppression."""
+    m = _m(
+        "-ton",
+        "old-english:tūn",
+        {"modern-english": [("-bolton", "self"), ("-newton", "self")]},
+    )
+    assert _era_grid(m, {}, own_surface="-ton") == []
+
+
+def test_era_grid_keeps_older_stage_when_present_day_emptied():
+    """wyrd-phww: when the present-day stage empties (no match) but an older
+    stage survives, the section is kept with just the older stage."""
+    m = _m(
+        "-ton",
+        "old-english:tūn",
+        {"modern-english": [("-bolton", "self")], "old-english": [("tūn", "self")]},
+    )
+    grid = _era_grid(m, {}, own_surface="-ton")
+    assert _modern_cell(grid, "modern-english") == []  # present-day dropped
+    assert _modern_cell(grid, "old-english") == ["tūn"]  # older stage retained
+
+
+@pytest.mark.parametrize(
+    "form,expected",
+    [
+        ("Park-", "park"),
+        ("-ton", "ton"),
+        ("Minster-", "minster"),
+        ("---", ""),
+        ("", ""),
+        ("  -  ", ""),
+    ],
+)
+def test_grid_surface_key_normalizes(form, expected):
+    """wyrd-phww: the own-surface match key folds case + strips affix dashes /
+    whitespace; all-dash / empty forms fold to '' (no live caller passes empty)."""
+    assert _grid_surface_key(form) == expected
 
 
 def _m(usage: str, morpheme_id, era_reflexes=None, glosses=None) -> Meaning:

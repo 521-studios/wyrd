@@ -722,17 +722,26 @@ def _era_grid(meaning, renderings, own_surface=None):
         if stages:
             sections.append({"family": family, "stages": stages})
     if own_surface is not None:
-        sections = _narrow_present_day_self_seeds(sections, own_surface)
+        own_form = (getattr(meaning, "morpheme_id", None) or "").partition(":")[2]
+        sections = _narrow_present_day_self_seeds(sections, own_surface, own_form)
     return sections
 
 
-def _narrow_present_day_self_seeds(sections: list[dict], own_surface: str) -> list[dict]:
+def _narrow_present_day_self_seeds(
+    sections: list[dict], own_surface: str, own_form: str
+) -> list[dict]:
     """wyrd-phww: in each family's PRESENT-DAY stage, drop ``source='self'`` cells
-    that don't match ``own_surface`` (keep every genuine cell + the matching
-    self-seed). Non-present-day stages are untouched, so an own-form self-seed in
-    its own era (OE ``pearroc``) survives. Stages/sections emptied by the filter
-    are dropped."""
-    key = _grid_surface_key(own_surface)
+    EXCEPT the one(s) matching ``own_surface`` (the name's generated/input
+    surface) or ``own_form`` (the morpheme's OWN canonical form). Every genuine
+    cell is kept. Non-present-day stages are untouched, so the own-form self-seed
+    in a separate older stage (OE ``pearroc``) survives.
+
+    Keeping ``own_form`` matters when a family's newest stage IS the morpheme's
+    own-language stage — e.g. ``norse``/``latin`` have no present-day cell, so
+    ``family_stage_order(family)[-1]`` is the historical stage that ALSO holds
+    the own-form self-seed (ON ``hryggr``); without this it would be dropped.
+    Stages/sections emptied by the filter are dropped."""
+    keep_keys = {_grid_surface_key(own_surface), _grid_surface_key(own_form)}
     out: list[dict] = []
     for section in sections:
         stage_order = family_stage_order(section["family"])
@@ -743,7 +752,7 @@ def _narrow_present_day_self_seeds(sections: list[dict], own_surface: str) -> li
                 forms = [
                     c
                     for c in stage["forms"]
-                    if c.get("source") != "self" or _grid_surface_key(c["form"]) == key
+                    if c.get("source") != "self" or _grid_surface_key(c["form"]) in keep_keys
                 ]
                 if not forms:
                     continue  # present-day stage emptied (only unmatched self-seeds)
