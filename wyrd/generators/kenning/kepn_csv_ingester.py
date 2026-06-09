@@ -371,7 +371,7 @@ def _note_etymon(
 
 
 def _collect_lexical_elements(
-    elements,
+    elements: list[_Element],
     *,
     stats: KepnStats,
     element_whitelist: frozenset[str] | None,
@@ -468,7 +468,7 @@ def _build_place_notes(etym: str, unresolved_names: list[str]) -> str | None:
 
 
 def _process_kepn_row(
-    row: dict,
+    row: dict[str, str],
     *,
     stats: KepnStats,
     name_index: dict[str, tuple[str, str]],
