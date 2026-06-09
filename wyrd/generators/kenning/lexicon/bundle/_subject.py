@@ -623,15 +623,16 @@ def _absorb_member_citations(
 
 
 def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) -> None:
-    """Stamp per-language form arrays + the nine sibling metadata
+    """Stamp per-language form arrays + the ten sibling metadata
     families onto the word dict: ``<lang>_variants``,
     ``<lang>_inflections``, ``<lang>_citations``,
     ``<lang>_attested_years``, ``<lang>_english_shaped``,
     ``<lang>_original_script``, ``<lang>_transliteration``,
-    ``<lang>_pronunciation`` (wyrd-qhs0 Phase 2d), and
-    ``<lang>_stratum`` (wyrd-lr4 Phase 2). Per D26, the metadata
-    fields are sibling keys so legacy loaders that ignore unknown
-    fields keep working.
+    ``<lang>_pronunciation`` (wyrd-qhs0 Phase 2d),
+    ``<lang>_stratum`` (wyrd-lr4 Phase 2), and
+    ``<lang>_phonological_vector`` (wyrd-ecjp.10a). Per D26, the
+    metadata fields are sibling keys so legacy loaders that ignore
+    unknown fields keep working.
 
     Multiple lexicon codes can route to the SAME bundle bucket via
     `_LANG_CODE_TO_JSON_FIELD` — e.g. welsh + old-welsh + middle-welsh
@@ -642,7 +643,7 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
     code's forms would survive.
 
     Aggregation is done per bucket via `_BucketAccumulator` so all
-    nine sibling families plus the forms array union under the same
+    ten sibling families plus the forms array union under the same
     bucket key in one pass; the final emit walks buckets in stable
     order so output is deterministic regardless of source-lang sort
     order.
