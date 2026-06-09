@@ -256,14 +256,13 @@ def _native_meaning_eligible(
         m, gate=gate, exclude_tags=exclude_tags, include_unglossed=include_unglossed
     ):
         return False
-    # wyrd-eyjk/D40 + wyrd-g1hj: exclude pure-proper-noun saint subjects AND
-    # personal given names from the base pool — saints reach names only via the
-    # param-gated St-dedication synthesis; given names would dangle as bare
-    # personal names. Family-name etymons are NOT excluded (manorial places).
-    if m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()):
-        return False
-    # wyrd-gwj3: connector morphemes (cum / le / juxta …) require a complement.
-    return not m.is_connector_particle()
+    # wyrd-57d8: the request-independent base-pool class exclusions (D40
+    # pure-proper-noun saints / given names, wyrd-gwj3 connector particles, AND
+    # synthesized Norman manorial subjects) live on Meaning so the scored pool
+    # and the diversification re-pick (proportions._collect_repick_pools) apply
+    # them identically. Family-name etymons with a real place sense stay in
+    # (manorial places); only the synthesized proper-noun subjects are excluded.
+    return not m.is_base_pool_excluded()
 
 
 def _pack_meaning_eligible(

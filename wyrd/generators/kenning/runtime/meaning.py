@@ -414,6 +414,45 @@ class Meaning:
             return False
         return all(tag in _PROPER_NOUN_TAGS for tag in self.tags)
 
+    def is_manorial_subject(self):
+        """wyrd-57d8: True for a synthesized Norman manorial-family subject
+        (``Malet``, ``Beauchamp``, ``Mandeville`` …), tagged ``manorial`` at
+        load by ``__init__._norman_manorial_subjects``. These exist only so
+        ``KenningExplain`` can decompose the manorial-affix names Kenning emits
+        with ``manorial_affix > 0``; they are NEVER a base-generation morpheme.
+        Their sole legitimate entry into output is the dedicated
+        ``manorial_affix`` knob, so — like synthesized saint subjects (D40) —
+        they're excluded from the base pool (see ``is_base_pool_excluded``)."""
+        return "manorial" in self.tags
+
+    def is_base_pool_excluded(self):
+        """wyrd-57d8: the request-INDEPENDENT class exclusions from base
+        generation, in one place so every base pool applies them identically —
+        the scored native pool (``vector_name_select._native_meaning_eligible``)
+        AND the repeat-diversification re-pick
+        (``proportions.NewName._collect_repick_pools``), which previously read
+        ``meaning_db`` raw and so re-introduced an excluded morpheme to break a
+        ``corner corner`` repeat (the manorial ``Malet`` leak).
+
+        Excluded classes (each belongs only in its dedicated slot, never the
+        generic base pool):
+
+        - pure-proper-noun saints / personal given names — reach output only via
+          the param-gated St-dedication synthesis (wyrd-eyjk/D40 + wyrd-g1hj);
+        - synthesized Norman manorial subjects — reach output only via the
+          ``manorial_affix`` knob (wyrd-57d8);
+        - connector particles (``cum`` / ``le`` / ``juxta`` …) — require a
+          complement; their home is joiner insertion (wyrd-gwj3).
+
+        Family-name etymons that carry a real place sense are NOT excluded here
+        (they form legitimate manorial places) — only the synthesized
+        proper-noun subjects above are."""
+        if self.is_pure_proper_noun() and (self.is_saint() or self.is_given_name()):
+            return True
+        if self.is_manorial_subject():
+            return True
+        return self.is_connector_particle()
+
     def era_reflex_for(self, target_language: str) -> list[str]:
         """wyrd-obpw Phase 3.3: return the cluster-mate forms attested
         for ``target_language`` (e.g. 'middle-english') as a sorted

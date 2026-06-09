@@ -208,12 +208,19 @@ def test_synthesized_manorial_meaning_does_not_break_kenning_generate() -> None:
     - default knobs (the steady state most users hit)
     - cohesion=1.0 (tag-class-prior bias, the other path where a
       tag-tagged subject could leak in)
+    - novelty=1.0 (uniform-marginal blend — the canary, restored by
+      wyrd-57d8)
 
-    NOTE: the novelty=1.0 canary is temporarily omitted. wyrd-fcub re-wired
-    novelty onto the vector path, and it surfaced a PRE-EXISTING leak — the
-    per-slot scorer (build_slot_base_scores) does not apply exclude_tags, so
-    manorial subjects sit in slot pools and novelty=1's uniform blend picks
-    them. Tracked + to be fixed in wyrd-57d8, which will restore this config.
+    The novelty=1.0 config is the deterministic canary. wyrd-fcub re-wired
+    novelty onto the vector path and surfaced this PRE-EXISTING leak: at
+    novelty=1 the uniform blend makes degenerate repeats (``corner corner``)
+    likely, and the repeat-diversification re-pick
+    (NewName._collect_repick_pools) read meaning_db raw — with no base-pool
+    class exclusion — and grafted in a synthesized manorial subject (``Malet``)
+    to vary the repeat. wyrd-57d8 fixed it by (a) keeping synthesized manorial
+    subjects out of the base pool (Meaning.is_base_pool_excluded, mirroring D40
+    saint subjects) and (b) making the diversification re-pick apply that same
+    exclusion. seed=13 was the original repro.
     """
     gen = Kenning()
     families = set(_load_norman_manorial_families())
@@ -221,6 +228,7 @@ def test_synthesized_manorial_meaning_does_not_break_kenning_generate() -> None:
     knob_configs = [
         {"culture": "english"},
         {"culture": "english", "cohesion": 1.0},
+        {"culture": "english", "novelty": 1.0},
     ]
     for config in knob_configs:
         for s in range(20):
