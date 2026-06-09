@@ -245,24 +245,7 @@ def detect_descent_audit_candidates(
         if not glossed:
             continue
         groups = _sense_groups(glossed)
-        gidx: dict[int, int] = {}
-        for gi, g in enumerate(groups):
-            for i in g:
-                gidx[i] = gi
-        max_size = max(len(g) for g in groups)
-        top = [gi for gi in range(len(groups)) if len(groups[gi]) == max_size]
-        # A UNIQUE largest group is the dominant sense; a tie => no clear dominant.
-        unique_dom = top[0] if len(top) == 1 else None
-        dom_glosses: tuple[str, ...] = tuple(
-            sorted(
-                {
-                    gl
-                    for gi in (top if unique_dom is None else [unique_dom])
-                    for i in groups[gi]
-                    for gl in by_id[i]["glosses"]
-                }
-            )
-        )[:4]
+        gidx, unique_dom, max_size, dom_glosses = _dominant_sense(groups, by_id)
         edges = edges_by_cluster.get(cog, [])
         run_2a = scope in ("2a", "both") and len(groups) >= 2
         # 2b needs a clear dominant glossed sense (unique largest, >=2 members).
@@ -277,6 +260,34 @@ def detect_descent_audit_candidates(
         if run_2b:
             _emit_phase2b(out, edges, gidx, unique_dom, by_id, dom_glosses)
     return sorted(out.values(), key=lambda c: (c.parent_ref, c.child_ref))
+
+
+def _dominant_sense(
+    groups: list[list[int]], by_id: dict[int, dict]
+) -> tuple[dict[int, int], int | None, int, tuple[str, ...]]:
+    """For one cluster's sense-groups: map each member to its group index, and
+    identify the dominant sense — the UNIQUE largest group (``None`` on a tie).
+    Returns ``(group_index, unique_dom, max_size, dom_glosses)`` where
+    dom_glosses is the sorted gloss set of the dominant group(s), capped at 4."""
+    gidx: dict[int, int] = {}
+    for gi, g in enumerate(groups):
+        for i in g:
+            gidx[i] = gi
+    max_size = max(len(g) for g in groups)
+    top = [gi for gi in range(len(groups)) if len(groups[gi]) == max_size]
+    # A UNIQUE largest group is the dominant sense; a tie => no clear dominant.
+    unique_dom = top[0] if len(top) == 1 else None
+    dom_glosses: tuple[str, ...] = tuple(
+        sorted(
+            {
+                gl
+                for gi in (top if unique_dom is None else [unique_dom])
+                for i in groups[gi]
+                for gl in by_id[i]["glosses"]
+            }
+        )
+    )[:4]
+    return gidx, unique_dom, max_size, dom_glosses
 
 
 _DESCENT_JUDGE_SYSTEM = (
