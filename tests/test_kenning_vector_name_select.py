@@ -1286,7 +1286,7 @@ def test_build_request_vector_tags_and_mood_tags_become_hard_gate():
     assert rv.gate.required_tags == frozenset({"water", "death"})
 
     # Gap 2: a mood's semantic tags → hard gate too. grim expands to
-    # {death, military, monster, undead, magic} (mood_spec_to_legacy_form).
+    # {death, military, monster, undead, magic} (the catalog effect's tags).
     rv_mood = build_request_vector(culture="english", mood=["grim"])
     assert rv_mood.gate.required_tags == frozenset(
         {"death", "military", "monster", "undead", "magic"}

@@ -172,10 +172,8 @@ audit (≥5 subjects per candidate tag, distinct semantic identity, minimal
 overlap with existing moods); `noble` was considered in wyrd-aky and
 deferred until mining surfaced a `royalty` tag — landed in the kq7w.2
 catalog migration. Lookup goes through `registers/effects.parse_mood_spec`
-(the live vector path); `registers/effects.mood_spec_to_legacy_form`
-still returns the older `(tags, harshness)` tuple shape (the contract
-the retired proportion-table sampler consumed). Both consult the same
-catalog, so a mood added to YAML is immediately operator-visible without
+(the live vector path). The catalog is the single source of truth, so a
+mood added to YAML is immediately operator-visible without
 code changes.
 
 Power-user JSON API still exposes `harshness` (number, 0..1) for
@@ -2248,17 +2246,6 @@ Mood-spec resolution flows through two helpers in
   `compose_register_effects` into the request's register, and the
   per-lemma scoring loop dot-products this register against each
   lemma's stored `PhonologicalVector`.
-* **Legacy `(tags, harshness)` form** (the contract the retired
-  proportion-table sampler consumed):
-  `mood_spec_to_legacy_form(spec)` returns the
-  `(tags_list, harshness_scalar)` tuple by extracting
-  `effect.semantic_tags.keys()` for tags + the catalog's
-  `cluster_density` dim for the harshness scalar. Drift from the
-  old MOODS dict is bounded — the catalog's `harsh:
-  cluster_density=0.6` reads slightly softer than the legacy
-  `MOODS["harsh"]=1.0` (acceptable per the kq7w.3 "distribution
-  match within tolerance" gate; not byte-identical).
-
 ### D37.4. Sourcing.
 
 Per-effect weight directions are documented against the
