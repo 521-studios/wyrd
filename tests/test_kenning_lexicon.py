@@ -15045,6 +15045,29 @@ def test_bridge_celtic_forms_prefers_clustered_target(fresh_db: Path) -> None:
     assert merged == old_irish_clustered
 
 
+def test_bridge_celtic_forms_candidate_index_first_seen_wins(fresh_db: Path) -> None:
+    """_build_candidate_index keys on lower(canonical_form), so two
+    case-variant rows in the same candidate language collapse to one key;
+    ORDER BY id makes the LOWER-id (first-seen) row win. Pin it: a
+    lower-id UNCLUSTERED 'Mac' must beat a higher-id CLUSTERED 'mac' —
+    proving the later duplicate is dropped at index-build BEFORE the
+    prefer-clustered selection runs (wyrd-8uvi). A last-seen-wins or
+    dropped ORDER BY regression would instead surface the clustered
+    higher-id row and fail this."""
+    with LexiconDB(fresh_db) as db:
+        first_seen = db.upsert_etymon("Mac", "irish")  # lower id, unclustered
+        later_clustered = db.upsert_etymon("mac", "irish")  # higher id, clustered
+        db.conn.execute("UPDATE etymon SET cognate_id = id WHERE id = ?", (later_clustered,))
+        celtic_x = db.upsert_etymon("x", "celtic")
+        db.commit()
+        bridge_celtic_forms(db, apply=True, table={"x": "mac"})
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (celtic_x,)
+        ).fetchone()["merged_into_id"]
+    # First-seen (lower-id 'Mac') wins despite the higher-id 'mac' being clustered.
+    assert merged == first_seen
+
+
 def test_bridge_celtic_forms_falls_back_to_unclustered(
     fresh_db: Path,
 ) -> None:
