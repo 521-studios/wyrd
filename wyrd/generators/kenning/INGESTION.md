@@ -675,7 +675,11 @@ Regenerate `data/meanings.json` from the lexicon:
 (Confirm the command flags from `--help` — there may be filter options
 like `--min-witnesses 3` to limit the export to promotion-eligible rows.)
 
-Then regenerate the per-culture proportions:
+Then regenerate the per-culture **proportions** — the empirical corpus
+distribution (slot structures + tag co-occurrence) that the **vector**
+generator samples its skeleton from and draws its cohesion signal from. This
+is a *data feed* for vector scoring, NOT a scoring mode of its own: vector is
+the only scorer (D36); "proportions" here just names the bundled corpus stats.
 
 ```bash
 for culture in english scottish welsh irish; do

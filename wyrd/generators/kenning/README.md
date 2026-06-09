@@ -106,7 +106,11 @@ Generator runtime (`__init__.py`, `runtime/name.py`, `runtime/word.py`, `runtime
 `runtime/proportions.py`) reads the bundled `meanings.json`, which is now exported
 from the lexicon DB by `wyrd kenning lexicon export-meanings` (closes
 the D1 loop). The runtime keeps the historical "load JSON, sample" shape
-— the lexicon DB is invisible to the runtime.
+— the lexicon DB is invisible to the runtime. (`runtime/proportions.py` is a
+historically-named module: it now houses the **vector** `NameGenerator`. The
+"proportions" data it loads — slot structures + tag co-occurrence — is the
+vector scorer's empirical input, not a separate scoring mode; vector is the
+only scorer, D36.)
 
 ## Cultures
 
@@ -212,7 +216,9 @@ wyrd kenning lexicon mine-fantasy-name --batch /tmp/pfsrd2-monsters.jsonl \
   enum in both `RESPONSE_SCHEMA` and `GEMINI_RESPONSE_SCHEMA`.
 - **New culture register**: add the string to `CULTURES` in `__init__.py`,
   bundle a `<culture>_place_names.json` (real names list) and a
-  `<culture>_proportions.json` built via `wyrd kenning rebuild-proportions`.
+  `<culture>_proportions.json` — the vector generator's empirical corpus data
+  (slot structures + tag co-occurrence), not a scoring mode — built via
+  `wyrd kenning rebuild-proportions`.
 - **New per-language bundle metadata** (e.g. for D6 `--mood harsh` phonological
   scoring): follow the D26 sibling-field pattern (`<lang>_<feature>`)
   and route through `load_meanings` into a dedicated `Meaning` attribute.
