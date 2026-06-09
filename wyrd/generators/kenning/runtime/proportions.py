@@ -364,26 +364,21 @@ class MeaningGenerator:
                 continue
             position = _location_from_form(usage)
             # Flags (name/saint) come from the morpheme; position from the form.
-            # wyrd-eyjk/D40 + wyrd-g1hj: a pure proper noun that is a SAINT
-            # subject (`Mary`/`John`/`Giles` from the St-dedication list) or a
-            # personal GIVEN name (`John`/`Edmund` male/female-name etymons)
-            # must NOT enter the empirical base pool — both dangle as bare
-            # personal names in plain generation (`Mary Margaret`, `By St Mary`,
-            # `Leigh Alton Chapel John`). Saint subjects reach names only via the
-            # param-gated St-dedication affix; given names need composition
-            # (`Edmund`+`-ton`) which the matcher still mines. NOT excluded: a
-            # place element merely co-tagged with a name (`stān`+`Stan` — not
-            # pure), or a FAMILY-name etymon (`Smith`/Norman manorial families —
-            # those form legitimate toponyms + are what the synthetic test
+            # wyrd-57d8: this per-bucket frequency-weight pool (snapshotted into
+            # `usage_frequency_by_bucket` and threaded into the live vector
+            # scorer) must apply the SAME base-pool class exclusions as the
+            # scored eligibility pool — so route through `is_base_pool_excluded`
+            # rather than re-spelling the predicate inline. It drops pure-proper-
+            # noun SAINT subjects (`Mary`/`Giles` from the St-dedication list)
+            # and personal GIVEN names (`John`/`Edmund`) — both dangle as bare
+            # personal names in plain generation — synthesized Norman manorial
+            # subjects (`Malet`; they reach output only via `manorial_affix`),
+            # and connector morphemes (`cum`/`le`/`juxta`, which need a
+            # complement). NOT excluded: a place element merely co-tagged with a
+            # name (`stān`+`Stan` — not pure) or a real FAMILY-name etymon
+            # (`Smith`; forms legitimate toponyms + is what the synthetic test
             # fixtures use), so neither realism nor the fixtures are disturbed.
-            # wyrd-gwj3: also drop connector morphemes (cum / le / juxta …) —
-            # they require a complement and must not dangle as a lone word.
-            keys = {
-                (position, *m.key()[1:])
-                for m in meanings
-                if not (m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()))
-                and not m.is_connector_particle()
-            }
+            keys = {(position, *m.key()[1:]) for m in meanings if not m.is_base_pool_excluded()}
             for key in keys:
                 if addkeys:
                     key = (*key, *addkeys)

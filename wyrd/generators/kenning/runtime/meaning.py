@@ -428,11 +428,13 @@ class Meaning:
     def is_base_pool_excluded(self):
         """wyrd-57d8: the request-INDEPENDENT class exclusions from base
         generation, in one place so every base pool applies them identically —
-        the scored native pool (``vector_name_select._native_meaning_eligible``)
-        AND the repeat-diversification re-pick
-        (``proportions.NewName._collect_repick_pools``), which previously read
-        ``meaning_db`` raw and so re-introduced an excluded morpheme to break a
-        ``corner corner`` repeat (the manorial ``Malet`` leak).
+        the scored native pool (``vector_name_select._native_meaning_eligible``),
+        the proportions frequency-weight pool
+        (``proportions.MeaningGenerator.load_parts``), AND the
+        repeat-diversification re-pick
+        (``proportions.NewName._collect_repick_pools``). The re-pick previously
+        read ``meaning_db`` raw and so re-introduced an excluded morpheme to
+        break a ``corner corner`` repeat (the manorial ``Malet`` leak).
 
         Excluded classes (each belongs only in its dedicated slot, never the
         generic base pool):
@@ -445,8 +447,9 @@ class Meaning:
           complement; their home is joiner insertion (wyrd-gwj3).
 
         Family-name etymons that carry a real place sense are NOT excluded here
-        (they form legitimate manorial places) — only the synthesized
-        proper-noun subjects above are."""
+        (they form legitimate manorial places); nor is a place element merely
+        co-tagged with a name (`stān`+`Stan` — not a pure proper noun). Only the
+        three classes enumerated above are excluded."""
         if self.is_pure_proper_noun() and (self.is_saint() or self.is_given_name()):
             return True
         if self.is_manorial_subject():

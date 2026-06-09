@@ -258,10 +258,11 @@ def _native_meaning_eligible(
         return False
     # wyrd-57d8: the request-independent base-pool class exclusions (D40
     # pure-proper-noun saints / given names, wyrd-gwj3 connector particles, AND
-    # synthesized Norman manorial subjects) live on Meaning so the scored pool
-    # and the diversification re-pick (proportions._collect_repick_pools) apply
-    # them identically. Family-name etymons with a real place sense stay in
-    # (manorial places); only the synthesized proper-noun subjects are excluded.
+    # synthesized Norman manorial subjects) live on Meaning so every base pool —
+    # this scored pool, the proportions frequency-weight pool
+    # (MeaningGenerator.load_parts), and the diversification re-pick
+    # (proportions.NewName._collect_repick_pools) — applies them identically.
+    # Family-name etymons with a real place sense stay in (manorial places).
     return not m.is_base_pool_excluded()
 
 
