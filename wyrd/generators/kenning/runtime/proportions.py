@@ -37,6 +37,48 @@ _logger = logging.getLogger(__name__)
 _VECTOR_STRUCT_RETRY_LIMIT = 5
 
 
+def _flatten_struct_slots(candidate_struct):
+    """Flatten a struct (tuple-of-words, each word a tuple-of-keys) into parallel
+    position / qualifier / bucket-key lists for the vector primitive. Each key's
+    element 0 is the position label (per ``word_to_key``); a ``name`` / ``saint``
+    flag becomes the qualifier; the FULL key is the bucket key — preserving the
+    ``single`` flag ``word_to_key`` adds so the per-slot frequency lookup hits the
+    exact bucket the proportions sample from."""
+    positions: list[str] = []
+    qualifiers: list[str | None] = []
+    bucket_keys: list[tuple] = []
+    for word in candidate_struct:
+        for key in word:
+            positions.append(key[0])
+            if "name" in key:
+                qualifiers.append("name")
+            elif "saint" in key:
+                qualifiers.append("saint")
+            else:
+                qualifiers.append(None)
+            bucket_keys.append(key)
+    return positions, qualifiers, bucket_keys
+
+
+def _reconstruct_words(struct, picked):
+    """Reconstruct the words list-of-lists from the flat ``picked`` list, matching
+    the struct's word-grouping so NewName surfaces the same word boundaries as the
+    legacy path. wyrd-g1hj: render each pick at its SLOT-derived position
+    (``slot[0]``, the eyjk position-form), NOT the stored dash-variant — NewName
+    still strips dashes + applies word-initial case. wyrd-tbke: a permissive-
+    fallback None pick passes through as a dropped slot (NewName skips None)."""
+    words: list[list[str | None]] = []
+    idx = 0
+    for word in struct:
+        word_keys: list[str | None] = []
+        for slot in word:
+            pick = picked[idx]
+            word_keys.append(_position_form(pick, slot[0]) if pick is not None else None)
+            idx += 1
+        words.append(word_keys)
+    return words
+
+
 class Generator:
     def __init__(self, tag_db, elements):
         self.tag_db = tag_db
@@ -887,66 +929,22 @@ class NameGenerator:
         # form also keeps module-load cost off callers that never
         # generate.
         from wyrd.generators.kenning.runtime.vector_name_select import (
-            build_non_position_eligible,
-            request_signature,
             select_via_vector_scoring,
         )
 
         items = list(self.structs.items())
-
-        # Build (or reuse) the non-position eligibility pool. The
-        # cache key folds every filter that affects pool membership.
-        # Pack-overlay signature uses the ``request.packs`` tuple +
-        # id(pack_meaning_dbs) so the cache invalidates when overlays
-        # change (operator passes a different pack set on a later
-        # request); ``request.packs`` is itself a tuple of frozen
-        # :class:`PackOverlay` dataclasses, hashable + comparable.
-        gate = request.gate
+        # The eligibility pool + per-slot base-score map are cached (folding every
+        # pool-membership filter into the key); see _vector_caches. exclude_tags_fz
+        # is also threaded into the per-slot _score below.
         exclude_tags_fz = frozenset(exclude_tags)
-        cache_key = (
-            gate.era_min,
-            gate.era_max,
-            gate.stratum,
+        non_position_eligible, slot_base_scores = self._vector_caches(
+            request,
             exclude_tags_fz,
-            request.packs,
-            id(pack_meaning_dbs),
+            pack_meaning_dbs,
             include_unglossed,
-        )
-        non_position_eligible = self._vector_eligible_cache.get(cache_key)
-        if non_position_eligible is None:
-            non_position_eligible = build_non_position_eligible(
-                self.meaning_db,
-                gate=gate,
-                exclude_tags=exclude_tags_fz,
-                pack_meaning_dbs=pack_meaning_dbs,
-                packs=request.packs,
-                culture_attested_usages=self.culture_attested_usages,
-                culture_attested_meanings=self.culture_attested_meanings,
-                include_unglossed=include_unglossed,
-            )
-            self._vector_eligible_cache[cache_key] = non_position_eligible
-
-        # Per-slot base-score cache: (eligible_cache_key, request,
-        # era_midpoint, priors_id) — sub-seeds within one dispatch
-        # all share the same key + lazy-fill the slot_position →
-        # base_scored map. Bounded FIFO eviction prevents unbounded
-        # growth across warm-Lambda lifetime.
-        slot_cache_key = (
-            cache_key,
-            request_signature(request),
             era_midpoint,
-            id(priors),
+            priors,
         )
-        slot_base_scores = self._vector_slot_score_cache.get(slot_cache_key)
-        if slot_base_scores is None:
-            slot_base_scores = {}
-            if len(self._vector_slot_score_cache) >= self._VECTOR_SLOT_CACHE_MAX:
-                # FIFO eviction: drop the oldest entry. dict
-                # iteration order is insertion order in Python 3.7+,
-                # so next(iter(...)) is the oldest key.
-                oldest = next(iter(self._vector_slot_score_cache))
-                del self._vector_slot_score_cache[oldest]
-            self._vector_slot_score_cache[slot_cache_key] = slot_base_scores
 
         # wyrd-izcr: pick a struct, flatten to positions + qualifier
         # flags, attempt the per-slot score+sample. On failure (empty
@@ -970,23 +968,11 @@ class NameGenerator:
         # samples from. ``permissive`` is threaded through for the wyrd-tbke
         # graceful-degradation fallback below.
         def _score(candidate_struct, *, permissive):
-            candidate_positions: list[str] = []
-            candidate_qualifiers: list[str | None] = []
-            candidate_bucket_keys: list[tuple] = []
-            for word in candidate_struct:
-                for key in word:
-                    candidate_positions.append(key[0])
-                    if "name" in key:
-                        candidate_qualifiers.append("name")
-                    elif "saint" in key:
-                        candidate_qualifiers.append("saint")
-                    else:
-                        candidate_qualifiers.append(None)
-                    candidate_bucket_keys.append(key)
+            positions, qualifiers, bucket_keys = _flatten_struct_slots(candidate_struct)
             return select_via_vector_scoring(
                 rng,
                 self.meaning_db,
-                structure=candidate_positions,
+                structure=positions,
                 request=request,
                 priors=priors,
                 era_midpoint=era_midpoint,
@@ -996,81 +982,22 @@ class NameGenerator:
                 pack_meaning_dbs=pack_meaning_dbs,
                 non_position_eligible=non_position_eligible,
                 slot_base_scores=slot_base_scores,
-                slot_qualifiers=candidate_qualifiers,
-                slot_bucket_keys=candidate_bucket_keys,
+                slot_qualifiers=qualifiers,
+                slot_bucket_keys=bucket_keys,
                 usage_frequency_by_bucket=self.usage_frequency_by_bucket,
                 novelty=novelty,
                 permissive=permissive,
             )
 
-        struct = None
-        picked: list = []
-        tried: set = set()
-        for _attempt in range(_VECTOR_STRUCT_RETRY_LIMIT):
-            remaining = [it for it in items if it[0] not in tried]
-            if not remaining:
-                # Exhausted the distinct structure pool — fall through to the
-                # graceful-degradation fallback (don't raise).
-                break
-            candidate_struct = weighted_choice(rng, remaining)
-            if candidate_struct is None:
-                break
-            tried.add(candidate_struct)
-            picked = _score(candidate_struct, permissive=False)
-            if picked:
-                struct = candidate_struct
-                break
-
+        struct, picked = self._pick_struct_via_vector(rng, items, _score)
         if struct is None:
-            # wyrd-tbke empty-pick degradation: no struct is FULLY satisfiable
-            # under the gates (era / stratum / tag / qualifier). Rather than
-            # return None (→ the caller's loud "no eligible name" raise), degrade
-            # gracefully — pick a struct (weighted) and fill what we can,
-            # emitting ``None`` for slots whose gated pool is empty (NewName
-            # drops them → a shorter name). Only a genuinely structure-less
-            # bundle (nothing to draw) still returns None, which preserves the
-            # legitimate bundle-broken raise.
-            candidate_struct = weighted_choice(rng, items)
-            if candidate_struct is None:
-                return None
-            picked = _score(candidate_struct, permissive=True)
-            if not any(p is not None for p in picked):
-                # Even permissive filled NOTHING — the gate excludes every
-                # morpheme at every slot. Genuinely no eligible name: return
-                # None so the caller raises its operator-visible diagnostic (an
-                # all-empty name is useless, and proportions only ever emits an
-                # empty name in this same degenerate case). The PARTIAL case —
-                # some slots fillable, some empty — falls through to the
-                # degraded NewName below, matching the proportions contract.
-                return None
-            struct = candidate_struct
-
-        # Reconstruct the words list-of-lists from the flat picks,
-        # matching the original struct's word-grouping shape so the
-        # NewName surfaces with the same word-boundary semantics as
-        # the legacy path.
-        #
-        # wyrd-g1hj: render each pick at its SLOT-derived position (the eyjk
-        # position-form), NOT the stored dash-variant. Pre-fix the vector path
-        # emitted ``picked.usage`` (e.g. ``gōs-`` / ``tōn-`` / ``Grange-`` /
-        # ``-tre-``), so the morpheme breakdown showed nonsensical positions
-        # (two ``pre`` in ``Gōstōn``, a lone ``pre`` ``Grange-``, ``-tre-``
-        # inner-at-word-start) while the rendered NAME was fine. The proportions
-        # path already feeds position-forms to NewName; this brings the vector
-        # path into line — slot position is ``slot[0]``; NewName still strips
-        # dashes + applies word-initial case for the rendered name.
-        words: list[list[str | None]] = []
-        idx = 0
-        for word in struct:
-            word_keys: list[str | None] = []
-            for slot in word:
-                # wyrd-tbke: a permissive-fallback pick may be None (slot whose
-                # gated pool was empty) — pass it straight through as a dropped
-                # slot; NewName skips None elements when rendering.
-                pick = picked[idx]
-                word_keys.append(_position_form(pick, slot[0]) if pick is not None else None)
-                idx += 1
-            words.append(word_keys)
+            # No struct is fully satisfiable AND even the permissive fallback
+            # filled nothing (or the bundle is structure-less): genuinely no
+            # eligible name. Return None so the caller raises its operator-visible
+            # diagnostic — an all-empty name is useless, and proportions only ever
+            # emits an empty name in this same degenerate case.
+            return None
+        words = _reconstruct_words(struct, picked)
 
         new_name = NewName(struct, self.meaning_db, words)
         # wyrd-nbpw/6c8x: post-pick rendering — era-form (feature A) or the D8
@@ -1079,6 +1006,102 @@ class NameGenerator:
         # bit-stable: _apply_render is a no-op that leaves new_name.rendered None.
         self._apply_render(rng, new_name, spelling_variety, inflection_density, era_render_language)
         return new_name
+
+    def _vector_caches(
+        self,
+        request,
+        exclude_tags_fz: frozenset[str],
+        pack_meaning_dbs: dict | None,
+        include_unglossed: bool,
+        era_midpoint: int,
+        priors,
+    ) -> tuple[list, dict]:
+        """Get-or-build the cached non-position eligibility pool + per-slot
+        base-score map for one vector dispatch.
+
+        The eligibility cache key folds every filter that affects pool
+        membership (era / stratum / exclude-tags / pack overlays via the
+        ``request.packs`` tuple + ``id(pack_meaning_dbs)`` / include_unglossed).
+        The slot-base-score cache adds the request signature, era_midpoint, and
+        ``id(priors)`` — sub-seeds within one dispatch share it and lazy-fill the
+        slot_position → base_scored map. Bounded FIFO eviction keeps the slot
+        cache from growing unbounded over a warm-Lambda lifetime."""
+        from wyrd.generators.kenning.runtime.vector_name_select import (
+            build_non_position_eligible,
+            request_signature,
+        )
+
+        gate = request.gate
+        cache_key = (
+            gate.era_min,
+            gate.era_max,
+            gate.stratum,
+            exclude_tags_fz,
+            request.packs,
+            id(pack_meaning_dbs),
+            include_unglossed,
+        )
+        non_position_eligible = self._vector_eligible_cache.get(cache_key)
+        if non_position_eligible is None:
+            non_position_eligible = build_non_position_eligible(
+                self.meaning_db,
+                gate=gate,
+                exclude_tags=exclude_tags_fz,
+                pack_meaning_dbs=pack_meaning_dbs,
+                packs=request.packs,
+                culture_attested_usages=self.culture_attested_usages,
+                culture_attested_meanings=self.culture_attested_meanings,
+                include_unglossed=include_unglossed,
+            )
+            self._vector_eligible_cache[cache_key] = non_position_eligible
+
+        slot_cache_key = (cache_key, request_signature(request), era_midpoint, id(priors))
+        slot_base_scores = self._vector_slot_score_cache.get(slot_cache_key)
+        if slot_base_scores is None:
+            slot_base_scores = {}
+            if len(self._vector_slot_score_cache) >= self._VECTOR_SLOT_CACHE_MAX:
+                # FIFO eviction: dict iteration order is insertion order in
+                # Python 3.7+, so next(iter(...)) is the oldest key.
+                oldest = next(iter(self._vector_slot_score_cache))
+                del self._vector_slot_score_cache[oldest]
+            self._vector_slot_score_cache[slot_cache_key] = slot_base_scores
+        return non_position_eligible, slot_base_scores
+
+    def _pick_struct_via_vector(self, rng, items, score_fn):
+        """wyrd-izcr: pick a satisfiable struct + its per-slot picks. Draw a
+        struct (weighted) and score it; on failure (empty qualifier-restricted
+        pool, or all-zero scores in a qualifier slot) retry with a DIFFERENT
+        struct — failed candidates are excluded from the next draw so retries
+        can't converge on the same unsatisfiable struct, bounded so a
+        pathologically restrictive gate doesn't burn time.
+
+        Returns ``(struct, picked)`` on a full pick. If no struct is fully
+        satisfiable, falls back to wyrd-tbke graceful degradation: pick a struct
+        (weighted) and fill what it can, emitting ``None`` for slots whose gated
+        pool is empty (NewName drops them → a shorter name). Returns
+        ``(None, [])`` only when there is genuinely nothing to emit — a
+        structure-less bundle, or a gate that excludes every morpheme at every
+        slot — so the caller raises its operator-visible diagnostic."""
+        tried: set = set()
+        for _attempt in range(_VECTOR_STRUCT_RETRY_LIMIT):
+            remaining = [it for it in items if it[0] not in tried]
+            if not remaining:
+                break  # exhausted the distinct structure pool → degrade below
+            candidate_struct = weighted_choice(rng, remaining)
+            if candidate_struct is None:
+                break
+            tried.add(candidate_struct)
+            picked = score_fn(candidate_struct, permissive=False)
+            if picked:
+                return candidate_struct, picked
+
+        candidate_struct = weighted_choice(rng, items)
+        if candidate_struct is None:
+            return None, []
+        picked = score_fn(candidate_struct, permissive=True)
+        if not any(p is not None for p in picked):
+            return None, []
+        return candidate_struct, picked
 
     def _render_substitutions(self, rng, name, spelling_variety, inflection_density):
         """Walk the picked usages and produce two parallel lists: surface
