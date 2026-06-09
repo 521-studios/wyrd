@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import random
 import re
+from collections.abc import Callable
 
 from ..era.cells import family_stage_order, language_family
 from .meaning import _mimic_case
@@ -1829,36 +1830,57 @@ def _collect_renderings(meanings):
     def _ensure(lang_field: str, form: str) -> dict[str, str]:
         return by_lang_form.setdefault(lang_field, {}).setdefault(form, {})
 
-    def _set(slot: dict[str, str], key: str, value: str | None) -> None:
-        # Don't overwrite a previously-stored non-None value with None
-        # (matters when the same usage spans multiple Meanings and one
-        # carries richer data than another for the same canonical form).
-        if value is None:
-            return
-        slot[key] = value
-
+    # wyrd-nrxr: each rendering column is walked by its own per-attribute
+    # helper so this function stays under the C901 ceiling and mirrors the
+    # per-attribute structure of the schema. The three flat columns
+    # (original_script / transliteration / english_shaped) share one helper;
+    # pronunciation carries an ipa/dialect pair so it has its own.
     for m in meanings:
-        for lang_field, forms in m.original_script.items():
-            for form, value in forms.items():
-                _set(_ensure(lang_field, form), "original_script", value)
-        for lang_field, forms in m.transliteration.items():
-            for form, value in forms.items():
-                _set(_ensure(lang_field, form), "transliteration", value)
-        for lang_field, forms in m.english_shaped.items():
-            for form, value in forms.items():
-                _set(_ensure(lang_field, form), "english_shaped", value)
-        for lang_field, forms in m.pronunciation.items():
-            for form, pron in forms.items():
-                slot = _ensure(lang_field, form)
-                _set(slot, "ipa", pron.get("ipa"))
-                _set(slot, "dialect", pron.get("dialect"))
+        _ingest_flat_rendering(m, "original_script", _ensure)
+        _ingest_flat_rendering(m, "transliteration", _ensure)
+        _ingest_flat_rendering(m, "english_shaped", _ensure)
+        _ingest_pronunciation_rendering(m, _ensure)
     # wyrd-03cx: derive reader_pronunciation from ipa when no hand-
-    # curated english_shaped value already filled the slot. Extracted
-    # to a helper to keep _collect_renderings under the C901 ceiling
-    # (the per-Meaning loop above already pushed cyclomatic close to
-    # threshold pre-PR; the fallback walk adds a nested loop + branch).
+    # curated english_shaped value already filled the slot.
     _fill_reader_pronunciations(by_lang_form)
     return by_lang_form
+
+
+def _set_rendering_slot(slot: dict[str, str], key: str, value: str | None) -> None:
+    """Store a rendering value into ``slot[key]``, but never overwrite a
+    previously-stored non-None value with None — matters when the same usage
+    spans multiple Meanings and one carries richer data than another for the
+    same canonical form (most importantly the ipa/dialect pair)."""
+    if value is None:
+        return
+    slot[key] = value
+
+
+def _ingest_flat_rendering(
+    meaning,
+    attr: str,
+    ensure: Callable[[str, str], dict[str, str]],
+) -> None:
+    """Copy one flat ``dict[lang_field][form] = value`` rendering column
+    (original_script / transliteration / english_shaped) into the slots.
+    The attribute name doubles as the slot key."""
+    for lang_field, forms in getattr(meaning, attr).items():
+        for form, value in forms.items():
+            _set_rendering_slot(ensure(lang_field, form), attr, value)
+
+
+def _ingest_pronunciation_rendering(
+    meaning,
+    ensure: Callable[[str, str], dict[str, str]],
+) -> None:
+    """Copy the pronunciation column into the slots. Unlike the flat columns
+    each entry is a dict carrying both ipa and dialect, written into two
+    separate slot keys."""
+    for lang_field, forms in meaning.pronunciation.items():
+        for form, pron in forms.items():
+            slot = ensure(lang_field, form)
+            _set_rendering_slot(slot, "ipa", pron.get("ipa"))
+            _set_rendering_slot(slot, "dialect", pron.get("dialect"))
 
 
 def _fill_reader_pronunciations(
