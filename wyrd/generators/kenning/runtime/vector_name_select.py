@@ -216,12 +216,14 @@ def _passes_base_gates(
         return False
     if not _matches_stratum(m, gate.stratum):
         return False
-    if exclude_tags and any(t in exclude_tags for t in m.tags):
+    # frozenset.isdisjoint runs in C and skips the per-tag generator overhead
+    # in this O(64k) hot path; equivalent to any(t in <fs> for t in m.tags).
+    if exclude_tags and not exclude_tags.isdisjoint(m.tags):
         return False
     # wyrd-wv85: --tag HARD gate (D36.6). Drop lemmas carrying none of the
     # requested tags — OR semantics, matching proportions' filter_for_tag.
     # Empty required_tags = no-op.
-    if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
+    if gate.required_tags and gate.required_tags.isdisjoint(m.tags):
         return False
     # wyrd-glos: gloss policy — same predicate keep_keys_for_gloss applies, so
     # this filter and the keep-set share the rule.
@@ -279,9 +281,12 @@ def _pack_meaning_eligible(
         m, gate=gate, exclude_tags=exclude_tags, include_unglossed=include_unglossed
     ):
         return False
-    if pack.allowed_pack_tags and not any(t in pack.allowed_pack_tags for t in m.tags):
+    # isdisjoint (C-level) avoids the per-tag generator overhead.
+    if pack.allowed_pack_tags and pack.allowed_pack_tags.isdisjoint(m.tags):
         return False
-    return not (pack.excluded_pack_tags and any(t in pack.excluded_pack_tags for t in m.tags))
+    # Eligible unless the morpheme carries an excluded tag (De Morgan of
+    # `excluded and not isdisjoint`): no excluded set, or disjoint from it.
+    return not pack.excluded_pack_tags or pack.excluded_pack_tags.isdisjoint(m.tags)
 
 
 def _native_pool(
