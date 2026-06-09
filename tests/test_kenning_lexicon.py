@@ -8622,6 +8622,48 @@ def test_fuzzy_search_skips_match_when_token_is_canonical_etymon(
     assert result["written"] == 0
 
 
+def test_fuzzy_search_records_gloss_anchored_match(fresh_db: Path, tmp_path: Path) -> None:
+    """Positive path through _fuzzy_match_in_source + _write_fuzzy_matches
+    (wyrd-8uvi extraction): a rando-only candidate whose canonical form has a
+    distance-1, non-canonical, gloss-anchored neighbour in a source body is
+    written to etymon_text_match with edit_distance=1 and method
+    fuzzy-search-v1. Also pins the no-anchor skip (gloss absent from window)."""
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "bk.txt").write_text(
+        "The beare field grew barleycorn in summer. Near the blythe brook the water ran clear.\n"
+    )
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="Rando port (seed)")
+        db.upsert_source(id="bk", title="Book")
+        # beore ~ beare (distance 1); gloss 'barleycorn' anchors within window;
+        # 'beare' is not a canonical etymon -> a real fuzzy match.
+        beore = db.upsert_etymon("beore", "old-norse")
+        db.add_gloss(beore, "barleycorn")
+        db.add_citation(beore, "rando-port", short_quote="seed")
+        # blithe ~ blythe (distance 1) but its gloss never appears near the
+        # token -> the gloss-anchor guard suppresses it.
+        blithe = db.upsert_etymon("blithe", "old-norse")
+        db.add_gloss(blithe, "zzglossnotpresent")
+        db.add_citation(blithe, "rando-port", short_quote="seed")
+        db.commit()
+
+        result = fuzzy_search_attestations(db, sources_dir, apply=True)
+
+        rows = db.conn.execute(
+            "SELECT matched_form, edit_distance, method FROM etymon_text_match WHERE etymon_id = ?",
+            (beore,),
+        ).fetchall()
+        blithe_rows = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon_text_match WHERE etymon_id = ?", (blithe,)
+        ).fetchone()[0]
+
+    assert [tuple(r) for r in rows] == [("beare", 1, "fuzzy-search-v1")]
+    assert blithe_rows == 0  # no gloss anchor -> not written
+    assert result["written"] == 1
+    assert result["etymons_with_fuzzy_match"] == 1
+
+
 def test_lexicon_review_low_conf_counts_as_declined_not_written(
     fresh_db: Path, tmp_path: Path, monkeypatch
 ) -> None:
