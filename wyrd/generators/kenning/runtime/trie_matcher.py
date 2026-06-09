@@ -333,6 +333,13 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
         for end, meaning in _find_matches_at(trie, word, pos):
             if _append_capped(results, meaning, walk(end), truncated):
                 break
+            # State-check break, faithful to the original: stop scanning
+            # further matches once results is full even if this match's
+            # _append_capped didn't itself trip the cap (e.g. empty tails
+            # at an exactly-full results). Does NOT set truncated[0] —
+            # matches the pre-refactor flag semantics exactly.
+            if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
+                break
         # Branch 2: skip one character into the unaccounted bucket and
         # recurse. The skip lets the matcher partially-decompose names
         # that have unrecognized fragments. Adjacent skip characters
