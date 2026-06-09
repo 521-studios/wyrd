@@ -1183,7 +1183,11 @@ def test_name_generator_no_adjacent_duplicate_words_under_tag_filter() -> None:
     # Run a smaller sweep — tag-filtered generation is slower per
     # call and the bucket vocabularies are smaller, so 25 seeds is
     # enough to catch the regression if it returns.
-    for tag in ("water", "religion", "topography"):
+    # wyrd-i7uy: these MUST be real corpus tags — a tag with no eligible
+    # morphemes (e.g. the old "religion", which doesn't exist; it's "religious")
+    # filters the pool empty and raises. Until the per-request cache fix, the
+    # first valid tag's pool was wrongly reused for the rest, masking that.
+    for tag in ("water", "religious", "topography"):
         for seed in range(1, 26):
             result = k.generate({"culture": "english", "tags": [tag], "count": 10}, seed=seed)
             for line in result.result.splitlines():
@@ -1279,7 +1283,11 @@ def test_name_generator_no_triple_letter_runs_under_tag_filter() -> None:
     triple = _re.compile(r"(.)\1\1")
     k = Kenning()
     violations: list[str] = []
-    for tag in ("water", "religion", "topography"):
+    # wyrd-i7uy: these MUST be real corpus tags — a tag with no eligible
+    # morphemes (e.g. the old "religion", which doesn't exist; it's "religious")
+    # filters the pool empty and raises. Until the per-request cache fix, the
+    # first valid tag's pool was wrongly reused for the rest, masking that.
+    for tag in ("water", "religious", "topography"):
         for seed in range(1, 26):
             result = k.generate({"culture": "english", "tags": [tag], "count": 10}, seed=seed)
             for line in result.result.splitlines():

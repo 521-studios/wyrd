@@ -721,8 +721,9 @@ def _slot_weighted_pool(
     cohesion.
 
     Base scores are request-deterministic (no cohesion / no sampling), so they're
-    cached per ``(slot_position, slot_qualifier, slot_bucket_key)`` on the
-    caller-supplied dict; sub-seeds in a count>1 dispatch reuse the cached list.
+    memoized per ``(slot_position, slot_qualifier, slot_bucket_key)`` on the
+    caller-supplied dict — reused across THIS call's struct retries (the dict is
+    per-call and discarded on return; wyrd-i7uy: never across requests).
     The full bucket key keeps single- vs multi-element bucket variants of the same
     (position, qualifier) distinct — they multiply by different per-bucket
     frequencies, so sharing a cache entry would mis-score (wyrd-bol9)."""
@@ -905,9 +906,9 @@ def select_via_vector_scoring(
     prior_tags: set[str] = set()
     gate = request.gate
 
-    # Build the non-position eligibility pool — caller can supply a
-    # pre-built one (cached across sub-seeds) to skip the O(N=64k)
-    # scan on count>1 dispatches.
+    # Build the non-position eligibility pool — the caller (select_via_vector)
+    # passes a per-call pool so the struct-retry loop reuses one build within
+    # this dispatch. wyrd-i7uy: per-call only, never cached across requests.
     if non_position_eligible is None:
         non_position_eligible = build_non_position_eligible(
             meaning_db,
