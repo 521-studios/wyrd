@@ -29,13 +29,22 @@ from wyrd.generators.kenning.cli.lexicon import (
     adjudicate_element_glosses as _adjudicate_element_glosses_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
+    audit_cluster_reflexes as _audit_cluster_reflexes_module,
+)
+from wyrd.generators.kenning.cli.lexicon import audit_descent as _audit_descent_module
+from wyrd.generators.kenning.cli.lexicon import (
     audit_etymology_alignment as _audit_etymology_alignment_module,
 )
+from wyrd.generators.kenning.cli.lexicon import audit_merges as _audit_merges_module
+from wyrd.generators.kenning.cli.lexicon import audit_reflexes as _audit_reflexes_module
 from wyrd.generators.kenning.cli.lexicon import (
     audit_semantic_coherence as _audit_semantic_coherence_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
     audit_short_quotes as _audit_short_quotes_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
+    audit_toponym_reflexes as _audit_toponym_reflexes_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
     backfill_fantasy_tags as _backfill_fantasy_tags_module,
@@ -70,6 +79,7 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import compact_jsonl as _compact_jsonl_module
 from wyrd.generators.kenning.cli.lexicon import convert_place_names as _convert_place_names_module
+from wyrd.generators.kenning.cli.lexicon import curate_collapse as _curate_collapse_module
 from wyrd.generators.kenning.cli.lexicon import curate_etymon as _curate_etymon_module
 from wyrd.generators.kenning.cli.lexicon import curate_gloss as _curate_gloss_module
 from wyrd.generators.kenning.cli.lexicon import decompose as _decompose_module
@@ -83,7 +93,6 @@ from wyrd.generators.kenning.cli.lexicon import detect_collapses as _detect_coll
 from wyrd.generators.kenning.cli.lexicon import diff_bundle as _diff_bundle_module
 from wyrd.generators.kenning.cli.lexicon import diff_rebuild as _diff_rebuild_module
 from wyrd.generators.kenning.cli.lexicon import disambiguate_fuzzy as _disambiguate_fuzzy_module
-from wyrd.generators.kenning.cli.lexicon import drift_report as _drift_report_module
 from wyrd.generators.kenning.cli.lexicon import (
     dump_empirical_priors as _dump_empirical_priors_module,
 )
@@ -102,8 +111,12 @@ from wyrd.generators.kenning.cli.lexicon import (
     extract_pfsrd2_monsters as _extract_pfsrd2_monsters_module,
 )
 from wyrd.generators.kenning.cli.lexicon import fetch_bulk_sources as _fetch_bulk_sources_module
+from wyrd.generators.kenning.cli.lexicon import fold_variants as _fold_variants_module
 from wyrd.generators.kenning.cli.lexicon import fuzzy_search as _fuzzy_search_module
 from wyrd.generators.kenning.cli.lexicon import import_mining_log as _import_mining_log_module
+from wyrd.generators.kenning.cli.lexicon import (
+    import_modern_reflexes as _import_modern_reflexes_module,
+)
 from wyrd.generators.kenning.cli.lexicon import (
     ingest_briggs_personal_names as _ingest_briggs_personal_names_module,
 )
@@ -124,10 +137,12 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import ingest_wiktionary as _ingest_wiktionary_module
 from wyrd.generators.kenning.cli.lexicon import language_report as _language_report_module
 from wyrd.generators.kenning.cli.lexicon import link_lemmas as _link_lemmas_module
+from wyrd.generators.kenning.cli.lexicon import link_reflexes as _link_reflexes_module
 from wyrd.generators.kenning.cli.lexicon import (
     lookup_attested_years as _lookup_attested_years_module,
 )
 from wyrd.generators.kenning.cli.lexicon import merge_collapses as _merge_collapses_module
+from wyrd.generators.kenning.cli.lexicon import merge_lemmas as _merge_lemmas_module
 from wyrd.generators.kenning.cli.lexicon import migrate as _migrate_module
 from wyrd.generators.kenning.cli.lexicon import mine_attestations as _mine_attestations_module
 from wyrd.generators.kenning.cli.lexicon import (
@@ -213,9 +228,14 @@ def lexicon() -> None:
 # (exposing add_to(parent)) and adding a one-line module import + a
 # `<name>_module.add_to(lexicon)` call below. The browse sub-group
 # follows the same pattern at the package level (cli/lexicon/browse/).
+_audit_cluster_reflexes_module.add_to(lexicon)
+_audit_descent_module.add_to(lexicon)
 _audit_etymology_alignment_module.add_to(lexicon)
+_audit_merges_module.add_to(lexicon)
+_audit_reflexes_module.add_to(lexicon)
 _audit_semantic_coherence_module.add_to(lexicon)
 _audit_short_quotes_module.add_to(lexicon)
+_audit_toponym_reflexes_module.add_to(lexicon)
 _cleanup_wiktionary_empirical_module.add_to(lexicon)
 _backfill_fantasy_tags_module.add_to(lexicon)
 _backfill_pages_module.add_to(lexicon)
@@ -232,6 +252,7 @@ _clear_enrichment_module.add_to(lexicon)
 _cluster_cognates_module.add_to(lexicon)
 _commit_toponym_candidates_module.add_to(lexicon)
 _compact_jsonl_module.add_to(lexicon)
+_curate_collapse_module.add_to(lexicon)
 _curate_etymon_module.add_to(lexicon)
 _curate_gloss_module.add_to(lexicon)
 _decompose_module.add_to(lexicon)
@@ -244,7 +265,6 @@ _mine_pronunciation_llm_module.add_to(lexicon)
 _diff_bundle_module.add_to(lexicon)
 _diff_rebuild_module.add_to(lexicon)
 _disambiguate_fuzzy_module.add_to(lexicon)
-_drift_report_module.add_to(lexicon)
 _dump_jsonl_module.add_to(lexicon)
 _enrich_module.add_to(lexicon)
 _enrichment_status_module.add_to(lexicon)
@@ -268,10 +288,14 @@ _ingest_speed_1611_module.add_to(lexicon)
 _ingest_toponym_mentions_module.add_to(lexicon)
 _ingest_wiktionary_module.add_to(lexicon)
 _import_mining_log_module.add_to(lexicon)
+_import_modern_reflexes_module.add_to(lexicon)
 _language_report_module.add_to(lexicon)
 _link_lemmas_module.add_to(lexicon)
 _lookup_attested_years_module.add_to(lexicon)
+_fold_variants_module.add_to(lexicon)
 _merge_collapses_module.add_to(lexicon)
+_merge_lemmas_module.add_to(lexicon)
+_link_reflexes_module.add_to(lexicon)
 _migrate_module.add_to(lexicon)
 _mine_attestations_module.add_to(lexicon)
 _mine_empirical_baselines_module.add_to(lexicon)

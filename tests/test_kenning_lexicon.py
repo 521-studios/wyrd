@@ -51,8 +51,8 @@ from wyrd.generators.kenning.lexicon import (
     _emit_inflection_list,
     _emit_variant_list,
     _extract_attestation_pairs,
-    _fetch_cluster_mate_tags,
-    _fetch_root_era_reflexes,
+    _fetch_family_era_reflexes,
+    _fetch_reflex_glosses,
     _filter_concatenation_glosses,
     _find_longest_suffix_match,
     _gather_family,
@@ -101,10 +101,11 @@ from wyrd.generators.kenning.parsers.skeat import ParsedElement, ParsedEntry
 from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 from wyrd.generators.kenning.runtime.meaning import (
     Meaning,
+    _normalize_era_reflex_glosses,
     _normalize_era_reflexes,
     load_meanings,
 )
-from wyrd.generators.kenning.runtime.respelling import has_respeller, respell
+from wyrd.generators.kenning.runtime.respelling import respell
 from wyrd.generators.kenning.runtime.scripts import transliterate
 
 
@@ -984,6 +985,136 @@ def test_alembic_head_views_match_expected_set(fresh_db: Path) -> None:
     )
 
 
+def _normalize_ddl(sql: str) -> str:
+    """Collapse all whitespace runs to single spaces (and strip) so the
+    snapshot pins the DDL SEMANTICS, not the migration's incidental
+    indentation / line-wrapping."""
+    return " ".join(sql.split())
+
+
+# wyrd-0nrg: snapshot the BODIES of the COALESCE-padded expression-unique
+# indexes. The name-set / table-DDL parity tests above would NOT catch a
+# migration that changes a sentinel (e.g. COALESCE(page, '') → COALESCE(page,
+# ' ')), which silently changes uniqueness semantics — the same class of
+# silent bug as wyrd-rrse (collation). Pin the normalized DDL so such a change
+# fails loudly. Intentional brittleness: an intended index-body change is the
+# signal to update this dict. (idx_pn_toponym_dedup was dropped with the
+# personal_name tables in migration 0014, so only three remain.)
+_EXPECTED_EXPRESSION_INDEX_BODIES = {
+    "idx_etymon_citation_unique": (
+        "CREATE UNIQUE INDEX idx_etymon_citation_unique "
+        "ON etymon_citation(etymon_id, source_id, COALESCE(page, ''))"
+    ),
+    "idx_toponym_unique": (
+        "CREATE UNIQUE INDEX idx_toponym_unique "
+        "ON toponym(modern_name, COALESCE(country, ''), COALESCE(region, ''))"
+    ),
+    "idx_attestation_unique": (
+        "CREATE UNIQUE INDEX idx_attestation_unique ON toponym_attestation( "
+        "toponym_id, form, COALESCE(date_year, 0), COALESCE(source_doc, '') )"
+    ),
+}
+
+
+def test_alembic_head_expression_index_bodies_pin_to_snapshot(fresh_db: Path) -> None:
+    """wyrd-0nrg: the COALESCE-padded unique indexes carry uniqueness
+    semantics in their expression bodies (the sentinel padding), which the
+    name-set parity test can't see. Pin each body to a normalized snapshot so
+    a sentinel change (e.g. '' → ' ') fails loudly. When this fails on an
+    intended change, update ``_EXPECTED_EXPRESSION_INDEX_BODIES``."""
+    with sqlite3.connect(fresh_db) as conn:
+        for name, expected in _EXPECTED_EXPRESSION_INDEX_BODIES.items():
+            row = conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' AND name=?", (name,)
+            ).fetchone()
+            assert row is not None, f"expression-unique index {name!r} missing from alembic head"
+            assert _normalize_ddl(row[0]) == expected, (
+                f"index-body drift for {name!r}:\n  expected: {expected}\n"
+                f"  actual:   {_normalize_ddl(row[0])}"
+            )
+
+
+# wyrd-0nrg: snapshot the BODIES of the canonical-projection views. _EXPECTED_VIEWS
+# pins NAMES only — a migration that rewrites a view's SELECT (projected columns
+# or WHERE filter) would silently ship, and downstream code reads these
+# projections. Pin the normalized body; an intended rewrite is the signal to
+# update this dict.
+_EXPECTED_VIEW_BODIES = {
+    "etymon_canonical": "CREATE VIEW etymon_canonical AS SELECT * FROM etymon WHERE merged_into_id IS NULL",
+    "etymon_consensus": (
+        "CREATE VIEW etymon_consensus AS SELECT lemma_id, canonical_form, language, "
+        "COUNT(DISTINCT source_id) AS witnesses FROM ( SELECT "
+        "COALESCE(le.id, target.id, e.id) AS lemma_id, "
+        "COALESCE(le.canonical_form, target.canonical_form, e.canonical_form) AS canonical_form, "
+        "e.language, c.source_id FROM etymon e LEFT JOIN etymon target "
+        "ON target.id = COALESCE(e.merged_into_id, e.lemma_id) "
+        "LEFT JOIN etymon le ON le.id = target.lemma_id "
+        "LEFT JOIN etymon_citation c ON c.etymon_id = e.id ) "
+        "GROUP BY lemma_id, canonical_form, language"
+    ),
+    "etymon_gloss_canonical": (
+        "CREATE VIEW etymon_gloss_canonical AS SELECT DISTINCT "
+        "COALESCE(le.id, target.id, e.id) AS canonical_etymon_id, g.gloss "
+        "FROM etymon e JOIN etymon_gloss g ON g.etymon_id = e.id "
+        "LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id) "
+        "LEFT JOIN etymon le ON le.id = target.lemma_id"
+    ),
+    "etymon_tag_canonical": (
+        "CREATE VIEW etymon_tag_canonical AS SELECT DISTINCT "
+        "COALESCE(le.id, target.id, e.id) AS canonical_etymon_id, t.tag "
+        "FROM etymon e JOIN etymon_tag t ON t.etymon_id = e.id "
+        "LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id) "
+        "LEFT JOIN etymon le ON le.id = target.lemma_id"
+    ),
+    "etymon_text_match_canonical": (
+        "CREATE VIEW etymon_text_match_canonical AS SELECT "
+        "COALESCE(le.id, target.id, e.id) AS canonical_etymon_id, m.source_id, m.matched_form, "
+        "SUM(m.match_count) AS total_match_count, MIN(m.edit_distance) AS edit_distance, "
+        "MIN(m.attested_year) AS attested_year FROM etymon e "
+        "JOIN etymon_text_match m ON m.etymon_id = e.id "
+        "LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id) "
+        "LEFT JOIN etymon le ON le.id = target.lemma_id "
+        "GROUP BY canonical_etymon_id, m.source_id, m.matched_form"
+    ),
+    "toponym_breakdown_signature": (
+        "CREATE VIEW toponym_breakdown_signature AS SELECT toponym_id, toponym_etymology_id, "
+        "source_id, GROUP_CONCAT(etymon_id, ',') AS signature FROM ( SELECT te.toponym_id, "
+        "te.id AS toponym_etymology_id, te.source_id, tee.etymon_id, tee.ordinal "
+        "FROM toponym_etymology te LEFT JOIN toponym_etymology_element tee "
+        "ON tee.toponym_etymology_id = te.id ORDER BY te.id, tee.ordinal ) "
+        "GROUP BY toponym_etymology_id, toponym_id, source_id"
+    ),
+    "toponym_etymology_canonical": (
+        "CREATE VIEW toponym_etymology_canonical AS "
+        "SELECT * FROM toponym_etymology WHERE is_canonical = 1"
+    ),
+}
+
+
+def test_alembic_head_view_bodies_match_snapshot(fresh_db: Path) -> None:
+    """wyrd-0nrg: pin each view's SELECT body (normalized) so a migration that
+    rewrites a projection or WHERE filter fails loudly — _EXPECTED_VIEWS only
+    pins names. When this fails on an intended rewrite, update
+    ``_EXPECTED_VIEW_BODIES`` (and any downstream consumers of the projection)."""
+    with sqlite3.connect(fresh_db) as conn:
+        actual = {
+            name: _normalize_ddl(sql)
+            for name, sql in conn.execute(
+                "SELECT name, sql FROM sqlite_master WHERE type='view'"
+            ).fetchall()
+        }
+    # Body snapshot is keyed by the same set the name parity test pins; if the
+    # two drift apart that's a bug in this test, not the schema.
+    assert set(actual) == set(_EXPECTED_VIEW_BODIES), (
+        "view set changed — reconcile _EXPECTED_VIEW_BODIES (and _EXPECTED_VIEWS) "
+        f"with alembic head: {sorted(set(actual) ^ set(_EXPECTED_VIEW_BODIES))}"
+    )
+    for name, expected in _EXPECTED_VIEW_BODIES.items():
+        assert actual[name] == expected, (
+            f"view-body drift for {name!r}:\n  expected: {expected}\n  actual:   {actual[name]}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # wyrd-jaur item 6: direct branch tests for _filter_sqlite_reflection_artifacts.
 # Each filter branch (FK pairs, PK nullable, modify_type collation) was
@@ -1248,6 +1379,47 @@ def test_seed_from_minimal_meanings(fresh_db: Path) -> None:
         # Tags from the first subject only — second has none.
         tag_rows = db.conn.execute("SELECT tag FROM etymon_tag").fetchall()
         assert {row["tag"] for row in tag_rows} == {"plant", "food"}
+
+
+def test_seed_word_without_modern_usage_seeds_etymon_but_no_reflex(fresh_db: Path) -> None:
+    """A word with no ``modern_usage`` still contributes its etymon (first
+    pass) but produces no reflex (second pass skips it). Pins the
+    empty/missing-modern_usage guard in _link_subject_reflexes — the
+    C901 extraction owns it but no prior test exercised the skip
+    (wyrd-8uvi)."""
+    data = [
+        {
+            "meaning": ["Hill"],
+            "modifier_tags": [],
+            "modifier_type": "Topographical",
+            "words": [
+                {"modern_usage": "-don", "old_english": ["dun"]},
+                # No modern_usage key → etymon seeded, but no reflex.
+                {"old_english": ["beorg"]},
+            ],
+        },
+    ]
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="test-src", title="Test")
+        db.commit()
+        seed_from_meanings(db, data, "test-src")
+        stats = db.stats()
+        # Both etymons seeded (dun, beorg) ...
+        assert stats["etymon"] == 2
+        # ... but only the word with modern_usage made a reflex.
+        assert stats["reflex"] == 1
+        assert stats["reflex_etymon"] == 1
+        # The beorg etymon exists with no reflex pointing at it.
+        forms = {
+            row["canonical_form"]
+            for row in db.conn.execute("SELECT canonical_form FROM etymon").fetchall()
+        }
+        assert forms == {"dun", "beorg"}
+        surfaces = [
+            row["surface_form"]
+            for row in db.conn.execute("SELECT surface_form FROM reflex").fetchall()
+        ]
+        assert surfaces == ["-don"]
 
 
 def test_seed_from_meanings_accepts_dict_shape_bundle(fresh_db: Path) -> None:
@@ -4862,6 +5034,23 @@ def test_rewind_from_morphemes_uses_supplied_usages_no_trie(fresh_db: Path) -> N
     assert by_cell["modern"] == "Whit"
 
 
+def test_rewind_component_morpheme_carries_canonical_original_usage() -> None:
+    """wyrd-7cvv: each rewound morpheme component carries `canonical` = the
+    morpheme's ORIGINAL modern usage, so the SPA rewind transform can align
+    each rewound form back to the input morpheme it came from (and omit input
+    morphemes the rewind dropped) instead of mismatching the rewound name
+    against the full original morpheme set."""
+    from wyrd.generators.kenning.generators.kenning_rewind import _apply_meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    meaning = Meaning("-ton", tags=[], meanings=["enclosure"], sources={"old_english": ["tūn"]})
+    comps: list[dict] = []
+    _apply_meaning(meaning, None, comps)
+    assert len(comps) == 1
+    assert comps[0]["canonical"] == "-ton"  # the original usage, dashes intact
+    assert "form" in comps[0]
+
+
 def test_rewind_from_morphemes_preserves_multi_word_grouping(fresh_db: Path) -> None:
     """wyrd-cp2d: multi-word inputs keep their word boundaries. The
     JSON's outer list is per-word; rewind_from_morphemes renders
@@ -4919,6 +5108,54 @@ def test_rewind_from_morphemes_missing_usage_lands_in_unaccounted(fresh_db: Path
     assert by_cell["oe-late"] == "Hwīt"
 
 
+def test_rewind_supplied_words_resolves_positional_usage_dash_insensitively() -> None:
+    """wyrd-7cvv: the generator/API rewind path (what the SPA uses) resolves a
+    morpheme whose usage is the POSITIONAL surface ('by' at a word end) to the
+    canonical meaning_db key ('-by') via the dash/case-insensitive fallback,
+    instead of dropping it as missing — so rewind keeps real morphemes instead
+    of rendering a fragment. A usage with no dash/case variant in the bundle
+    still lands in `missing`."""
+    from wyrd.generators.kenning.generators.kenning_rewind import (
+        _meanings_from_supplied_words,
+    )
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    by = Meaning("-by", tags=[], meanings=["farmstead"], sources={"old_scandinavian": ["bȳ"]})
+    meaning_db = {"-by": [by]}
+
+    per_word, missing = _meanings_from_supplied_words([[{"usage": "by"}]], meaning_db)
+    assert per_word == [[by]]  # "by" → "-by" via fallback
+    assert missing == []
+
+    # A genuinely-absent usage (no dash/case variant) still reports missing.
+    per_word2, missing2 = _meanings_from_supplied_words([[{"usage": "zzz"}]], meaning_db)
+    assert per_word2 == [[]]
+    assert missing2 == ["zzz"]
+
+
+def test_rewind_supplied_words_anchors_on_ranked_canonical_sibling() -> None:
+    """wyrd-om67: when a usage maps to several sibling Meanings (a homograph),
+    the from-morphemes rewind anchors on the _rank_siblings canonical — the
+    etymon NewName.to_dict displays for the morpheme — not meaning_db's raw
+    first sibling. Otherwise a Celtic homograph dragged the rewind onto the
+    wrong etymon (OE "Wertūn" came out as "Werettan")."""
+    from wyrd.generators.kenning import _rank_siblings
+    from wyrd.generators.kenning.generators.kenning_rewind import (
+        _meanings_from_supplied_words,
+    )
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    celtic = Meaning("-ton", tags=[], meanings=["wave"], sources={"celtic_mix": ["ton"]})
+    old_eng = Meaning("-ton", tags=[], meanings=["enclosure"], sources={"old_english": ["tūn"]})
+    # raw meaning_db order puts the non-canonical sibling first
+    meaning_db = {"-ton": [celtic, old_eng]}
+
+    per_word, missing = _meanings_from_supplied_words([[{"usage": "-ton"}]], meaning_db)
+    # the function must return the SAME canonical _rank_siblings picks
+    assert per_word == [[_rank_siblings([celtic, old_eng])[0]]]
+    assert missing == []
+
+
 def test_rewind_from_morphemes_raises_on_empty_name(fresh_db: Path) -> None:
     """wyrd-cp2d: empty / whitespace-only name input raises
     ValueError, matching rewind_name's contract."""
@@ -4967,6 +5204,61 @@ def test_new_name_to_dict_emits_per_word_morpheme_metadata() -> None:
     # Sparse rendering: Latin-script-only sources omit the renderings
     # key entirely (no noisy '{}' clutter).
     assert "renderings" not in first
+    # wyrd-bvwu: citations are sparse too — a Meaning with no scholarly
+    # witnesses (citations default {}) omits the key entirely.
+    assert "citations" not in first
+
+
+def test_new_name_to_dict_includes_citations_when_meaning_has_them() -> None:
+    """wyrd-bvwu: to_dict (morphemes_by_word) carries the morpheme's
+    scholarly source_ids when present, so the SPA inspector can surface
+    them in an expandable view. Mirrors components()'s citations field;
+    sparse (only emitted when non-empty)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m = Meaning(
+        "Whit-",
+        tags=[],
+        meanings=["white"],
+        sources={"old_english": ["hwīt"]},
+        citations={"old_english": ["skeat_1901_cambridgeshire", "mawer_1920_nd"]},
+    )
+    meaning_db = {"Whit-": [m]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Whit-"]])
+    out = new_name.to_dict()
+    # Distinct + sorted source_ids.
+    assert out["words"][0][0]["citations"] == [
+        "mawer_1920_nd",
+        "skeat_1901_cambridgeshire",
+    ]
+
+
+def test_new_name_to_dict_citations_union_across_ranked_siblings() -> None:
+    """_collect_citations unions + dedupes citations across ALL ranked
+    siblings sharing a usage, not just the first-ranked Meaning."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m1 = Meaning(
+        "Whit-",
+        tags=[],
+        meanings=["white"],
+        sources={"old_english": ["hwīt"]},
+        citations={"old_english": ["skeat_1901"]},
+    )
+    m2 = Meaning(
+        "Whit-",
+        tags=[],
+        meanings=["bright"],
+        sources={"old_english": ["hwīt"]},
+        citations={"old_english": ["mawer_1920", "skeat_1901"]},  # skeat dup
+    )
+    meaning_db = {"Whit-": [m1, m2]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Whit-"]])
+    out = new_name.to_dict()
+    # Union across siblings, deduped + sorted.
+    assert out["words"][0][0]["citations"] == ["mawer_1920", "skeat_1901"]
 
 
 def test_new_name_to_dict_includes_renderings_when_meaning_has_pronunciation() -> None:
@@ -5804,8 +6096,75 @@ def test_load_meanings_normalize_era_reflexes_skips_malformed() -> None:
     assert out == {"middle-english": [("good", "cluster"), ("also-good", "cluster")]}
 
 
-def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
-    """Bundle-side integration: _fetch_root_era_reflexes returns the
+def test_load_meanings_normalize_era_reflex_glosses_extracts_only_gloss_dicts() -> None:
+    """wyrd-rogd.1: the gloss projection keeps ONLY {form, source, gloss}
+    entries with a non-empty gloss — legacy bare-strings and {form, source}-only
+    entries contribute nothing (back-compat), and malformed/empty entries are
+    skipped silently like the source projection."""
+
+    raw = {
+        "middle-english": [
+            "good",  # legacy bare string — no gloss
+            {"form": "ston", "source": "cluster"},  # {form,source} only — no gloss
+            {"form": "stoon", "source": "cluster", "gloss": "stone"},  # kept
+            {"source": "cluster", "gloss": "no form"},  # missing form — skip
+            {"form": "blank", "source": "cluster", "gloss": ""},  # empty gloss — skip
+            {"form": ["x"], "source": "cluster", "gloss": "bad"},  # unhashable form — skip
+            {"form": "y", "source": "cluster", "gloss": ["bad"]},  # non-str gloss — skip
+        ],
+        "old-english": [{"form": "stān", "source": "cluster", "gloss": "rock"}],
+        "welsh": "not-a-list",  # whole entry skipped
+    }
+    out = _normalize_era_reflex_glosses(raw)
+    assert out == {"middle-english": {"stoon": "stone"}, "old-english": {"stān": "rock"}}
+    # a fully glossless (legacy) field yields an empty map.
+    assert _normalize_era_reflex_glosses({"me": [{"form": "x", "source": "cluster"}]}) == {}
+
+
+def test_fetch_reflex_glosses_picks_first_non_pointer_gloss(fresh_db: Path) -> None:
+    """wyrd-rogd.1: a representative gloss per etymon — alphabetically-first
+    NON-pointer gloss (ORDER BY gloss, is_form_of_pointer filtered); etymons
+    with only pointer glosses (or none) get no entry; empty input → {}."""
+
+    with LexiconDB(fresh_db) as db:
+        glossed = db.upsert_etymon("stān", "old-english")
+        db.add_gloss(glossed, "rock")
+        db.add_gloss(glossed, "boundary stone")  # alphabetically first non-pointer
+        db.add_gloss(glossed, "alternative form of stone")  # pointer — filtered
+        pointer_only = db.upsert_etymon("burg", "old-english")
+        db.add_gloss(pointer_only, "alternative form of burh")  # only a pointer
+        bare = db.upsert_etymon("tūn", "old-english")  # no glosses at all
+
+        out = _fetch_reflex_glosses(db, [glossed, pointer_only, bare, glossed])
+
+    assert out == {glossed: "boundary stone"}  # pointer-only + bare omitted; dedup ok
+    with LexiconDB(fresh_db) as db:
+        assert _fetch_reflex_glosses(db, []) == {}
+
+
+def test_fetch_family_era_reflexes_threads_gloss(fresh_db: Path) -> None:
+    """wyrd-rogd.1: a reflex's own gloss rides on its bundle entry, so the SPA
+    era-grid can surface a drifted cognate's meaning."""
+
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            cluster_root_form="*hwītaz",
+            cluster_root_lang="proto-germanic",
+            members=[("hwīt", "old-english"), ("white", "modern-english")],
+        )
+        db.add_gloss(ids["hwīt"], "white (colour)")
+        # modern-english member left glossless → its entry omits gloss (sparse).
+        result = _fetch_family_era_reflexes(db, [ids["hwīt"]], "old-english")
+
+    assert result["old-english"] == [
+        {"form": "hwīt", "source": "cluster", "gloss": "white (colour)"}
+    ]
+    assert result["modern-english"] == [{"form": "white", "source": "cluster"}]
+
+
+def test_fetch_family_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
+    """Bundle-side integration: _fetch_family_era_reflexes returns the
     cluster mates for each canonical-language target. Verifies the
     bundle-build helper plumbs through etymon_era_reflexes correctly."""
 
@@ -5821,7 +6180,7 @@ def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
             ],
         )
         # OE root since proto-* has no era cells defined.
-        result = _fetch_root_era_reflexes(db, ids["hwīt"], "old-english")
+        result = _fetch_family_era_reflexes(db, [ids["hwīt"]], "old-english")
 
     # wyrd-jbcu schema: each entry is {"form", "source"}.
     assert result["old-english"] == [{"form": "hwīt", "source": "cluster"}]
@@ -5829,7 +6188,7 @@ def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
     assert result["modern-english"] == [{"form": "white", "source": "cluster"}]
 
 
-def test_fetch_root_era_reflexes_returns_empty_for_unfamilied_root(
+def test_fetch_family_era_reflexes_returns_empty_for_unfamilied_root(
     fresh_db: Path,
 ) -> None:
     """Roots whose language has no era family (proto-languages,
@@ -5838,12 +6197,12 @@ def test_fetch_root_era_reflexes_returns_empty_for_unfamilied_root(
 
     with LexiconDB(fresh_db) as db:
         eid = db.upsert_etymon("*tūnaz", "proto-germanic")
-        result = _fetch_root_era_reflexes(db, eid, "proto-germanic")
+        result = _fetch_family_era_reflexes(db, [eid], "proto-germanic")
 
     assert result == {}
 
 
-def test_fetch_root_era_reflexes_carries_phonology_rule_source_tag(
+def test_fetch_family_era_reflexes_carries_phonology_rule_source_tag(
     fresh_db: Path,
 ) -> None:
     """wyrd-jbcu: bundle export carries Tier 4 (phonology-rule)
@@ -5859,7 +6218,7 @@ def test_fetch_root_era_reflexes_carries_phonology_rule_source_tag(
         eid = db.upsert_etymon("dǣg", "old-english")
         db.commit()
 
-        bundle_data = _fetch_root_era_reflexes(db, eid, "old-english")
+        bundle_data = _fetch_family_era_reflexes(db, [eid], "old-english")
 
     # Tier 4 reflex IS in the bundle, tagged 'phonology-rule:v1' so
     # consumers can render it differently.
@@ -5868,7 +6227,7 @@ def test_fetch_root_era_reflexes_carries_phonology_rule_source_tag(
     assert me_entries == [{"form": "deg", "source": "phonology-rule:v1"}]
 
 
-def test_fetch_root_era_reflexes_prefers_higher_quality_source(
+def test_fetch_family_era_reflexes_prefers_higher_quality_source(
     fresh_db: Path,
 ) -> None:
     """When the same form surfaces via cluster (high quality) AND
@@ -5885,7 +6244,7 @@ def test_fetch_root_era_reflexes_prefers_higher_quality_source(
             db,
             members=[("dǣg", "old-english"), ("deg", "middle-english")],
         )
-        bundle_data = _fetch_root_era_reflexes(db, ids["dǣg"], "old-english")
+        bundle_data = _fetch_family_era_reflexes(db, [ids["dǣg"]], "old-english")
 
     me = bundle_data["middle-english"]
     # 'deg' present once with source='cluster' (NOT 'phonology-rule:v1').
@@ -5897,7 +6256,7 @@ def test_emit_era_reflexes_merges_cross_family_with_quality_preference() -> None
     contribute the same form for a target language, the higher-
     quality source wins. Pin the cross-family priority resolution in
     _emit_era_reflexes (the same logic as the per-tier path in
-    _fetch_root_era_reflexes — both share _better_era_reflex_source)."""
+    _fetch_family_era_reflexes — both share _better_era_reflex_source)."""
 
     fam_a = {
         "era_reflexes": {
@@ -5926,6 +6285,169 @@ def test_emit_era_reflexes_merges_cross_family_with_quality_preference() -> None
         # 'home' carries fam_b's descent.
         {"form": "home", "source": "descent"},
     ]
+
+
+def test_emit_era_reflexes_self_seeds_barren_morpheme() -> None:
+    """A barren morpheme — linked families contribute NO reflexes — must still
+    emit its OWN canonical form in its OWN era column (source='self'), so the
+    col-3 grid never renders empty for a morpheme that plainly exists."""
+    word = {"morpheme_id": "old-english:cul"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"old-english": [{"form": "cul", "source": "self"}]}
+
+
+def test_emit_era_reflexes_self_seed_does_not_override_real_reflex() -> None:
+    """When the morpheme's own form is already a real reflex of its own era, the
+    self-seed must NOT downgrade its source AND must NOT add a duplicate. Uses a
+    DASHED affix ('-tun') — real reflexes store affixes with dashes, so the seed
+    must key verbatim or setdefault wouldn't collide (the duplicate-cell bug)."""
+    word = {"morpheme_id": "old-english:-tun"}
+    fam = {"era_reflexes": {"old-english": [{"form": "-tun", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    # exactly ONE cell, the real cluster one — no bare-'tun' self duplicate
+    assert word["era_reflexes"]["old-english"] == [{"form": "-tun", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_self_seeds_dashed_affix_verbatim() -> None:
+    """A barren dashed affix seeds its own form WITH dashes intact (matching how
+    real reflexes are stored), not a stripped variant."""
+    word = {"morpheme_id": "old-english:-ing"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"old-english": [{"form": "-ing", "source": "self"}]}
+
+
+def test_emit_era_reflexes_dash_only_form_is_not_seeded() -> None:
+    """A morpheme_id whose form is bare dashes has no real content → no seed."""
+    word = {"morpheme_id": "old-english:-"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert "era_reflexes" not in word
+
+
+def test_emit_era_reflexes_morpheme_id_without_colon_is_not_seeded() -> None:
+    """A truthy morpheme_id lacking a ':' can't be split into (lang, form) → the
+    colon guard skips it rather than mis-unpacking."""
+    word = {"morpheme_id": "nocolon"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert "era_reflexes" not in word
+
+
+def test_emit_era_reflexes_self_seed_adds_own_era_alongside_others() -> None:
+    """A morpheme with reflexes only in OTHER eras still gets its own-era cell —
+    the seed adds the own stage without disturbing the existing ones."""
+    word = {"morpheme_id": "old-english:feld"}
+    fam = {"era_reflexes": {"middle-english": [{"form": "feld", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    assert word["era_reflexes"]["old-english"] == [{"form": "feld", "source": "self"}]
+    assert word["era_reflexes"]["middle-english"] == [{"form": "feld", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_no_morpheme_id_is_not_seeded() -> None:
+    """Legacy words with no morpheme_id can't be self-seeded (no own identity) —
+    they stay absent rather than inventing a cell."""
+    word: dict = {}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert "era_reflexes" not in word
+
+
+def test_emit_era_reflexes_self_seeds_generated_surface_into_modern_stage() -> None:
+    """wyrd-mook: when the generated surface (modern_usage) differs from the
+    canonical own form, it must echo in the family's MODERN stage so the SPA's
+    cellForSurface highlights the as-generated form. 'Cras-' (vs canonical
+    old-english:cærse) lands in modern-english; the canonical still seeds OE."""
+    word = {"morpheme_id": "old-english:cærse", "modern_usage": "Cras-"}
+    fam = {"era_reflexes": {"old-english": [{"form": "cærse", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    assert word["era_reflexes"]["old-english"] == [{"form": "cærse", "source": "cluster"}]
+    assert word["era_reflexes"]["modern-english"] == [{"form": "Cras-", "source": "self"}]
+
+
+def test_emit_era_reflexes_surface_seed_affix_into_modern_stage() -> None:
+    """A connective surface like '-ning-' (morpheme old-english:-ing) seeds the
+    modern stage VERBATIM (dashes intact) — the case the staging QA flagged
+    (-ning- / -en- / -ling- 'not in own reflexes')."""
+    word = {"morpheme_id": "old-english:-ing", "modern_usage": "-ning-"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"]["old-english"] == [{"form": "-ing", "source": "self"}]
+    assert word["era_reflexes"]["modern-english"] == [{"form": "-ning-", "source": "self"}]
+
+
+def test_emit_era_reflexes_surface_seed_deduped_by_fold() -> None:
+    """When ANY era cell already FOLDS to the surface (accent/case/dash-
+    insensitive), the surface seed is skipped — no duplicate fold-collision cell.
+    '-ton-' folds to 'ton', already a real modern reflex."""
+    word = {"morpheme_id": "old-english:-tun", "modern_usage": "-ton-"}
+    fam = {
+        "era_reflexes": {
+            "old-english": [{"form": "-tun", "source": "cluster"}],
+            "modern-english": [{"form": "ton", "source": "cluster"}],
+        }
+    }
+    _emit_era_reflexes(word, [(fam, [])])
+    # exactly the real cluster cell — no '-ton-' self duplicate alongside it
+    assert word["era_reflexes"]["modern-english"] == [{"form": "ton", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_surface_equal_to_canonical_adds_no_modern_cell() -> None:
+    """When the generated surface folds to the morpheme's OWN canonical form, the
+    canonical self-seed already grids it — so NO redundant modern-stage cell is
+    added for an unchanged form. 'tune' (morpheme old-english:tune) stays a
+    single OE cell, no modern-english duplicate."""
+    word = {"morpheme_id": "old-english:tune", "modern_usage": "tune"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"old-english": [{"form": "tune", "source": "self"}]}
+
+
+def test_emit_era_reflexes_surface_matching_other_era_cell_adds_no_modern_cell() -> None:
+    """The dedup spans ALL eras, not just the modern stage: a surface that folds
+    to a Middle-English cluster cell is already gridded, so no modern self cell is
+    added on top of it."""
+    word = {"morpheme_id": "old-english:feld", "modern_usage": "Feld"}
+    fam = {"era_reflexes": {"middle-english": [{"form": "feld", "source": "cluster"}]}}
+    _emit_era_reflexes(word, [(fam, [])])
+    assert "modern-english" not in word["era_reflexes"]
+    assert word["era_reflexes"]["old-english"] == [{"form": "feld", "source": "self"}]
+    assert word["era_reflexes"]["middle-english"] == [{"form": "feld", "source": "cluster"}]
+
+
+def test_emit_era_reflexes_surface_seed_deduped_against_reconstructed_form() -> None:
+    """The fold matches the SPA's accentFold, which strips the reconstructed-form
+    '*' marker AND diacritics: a surface 'Mos-' folds to 'mos', already echoed by
+    a '*mos' cluster cell, so no duplicate is seeded. Pins the real old-norse
+    case found auditing the staging bundle (mosi cluster carries '*mos')."""
+    word = {"morpheme_id": "old-norse:mosi", "modern_usage": "Mos-"}
+    fam = {
+        "era_reflexes": {
+            "old-norse": [
+                {"form": "*mos", "source": "cluster"},
+                {"form": "mosi", "source": "cluster"},
+            ]
+        }
+    }
+    _emit_era_reflexes(word, [(fam, [])])
+    # '*mos' already folds to 'mos' == fold('Mos-') → no extra self cell anywhere
+    assert word["era_reflexes"]["old-norse"] == [
+        {"form": "*mos", "source": "cluster"},
+        {"form": "mosi", "source": "cluster"},
+    ]
+
+
+def test_emit_era_reflexes_surface_seed_skipped_when_no_era_family() -> None:
+    """A morpheme whose own language has no era family (proto / untracked
+    classical) gets its canonical own-lang seed but NO modern-stage surface seed
+    — the runtime grid drops familyless tags anyway, so there's no stage to
+    target."""
+    word = {"morpheme_id": "proto-germanic:*tūną", "modern_usage": "Tun-"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"] == {"proto-germanic": [{"form": "*tūną", "source": "self"}]}
+
+
+def test_emit_era_reflexes_surface_seed_other_families() -> None:
+    """The modern stage is resolved from the morpheme's OWN family, not assumed
+    English: old-french → french, irish → irish."""
+    word_fr = {"morpheme_id": "old-french:rose", "modern_usage": "Rosen-"}
+    _emit_era_reflexes(word_fr, [({"era_reflexes": {}}, [])])
+    assert word_fr["era_reflexes"]["old-french"] == [{"form": "rose", "source": "self"}]
+    assert word_fr["era_reflexes"]["french"] == [{"form": "Rosen-", "source": "self"}]
 
 
 def test_kenning_rewind_generator_renders_three_era_stops() -> None:
@@ -6340,8 +6862,6 @@ def test_respell_returns_none_for_modern_english_and_unknown() -> None:
     assert respell("town", "english") is None
     assert respell("village", "modern-english") is None
     assert respell("village", "totally-fake-language") is None
-    assert not has_respeller("english")
-    assert has_respeller("old-english")
 
 
 def test_respell_handles_empty_form() -> None:
@@ -9026,8 +9546,17 @@ def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
     assert subj["words"] == [
         {
             "modern_usage": "-ock",
+            "morpheme_id": "old-english:aecern",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["aecern"],
             "old_english_pronunciation": [{"form": "aecern", "ipa": "/ɑɛkɛrn/", "dialect": None}],
+            # self-seed: the morpheme's own canonical form in its own era column,
+            # PLUS (wyrd-mook) the generated surface '-ock' echoed into the modern
+            # stage — surface '-ock' ≠ canonical 'aecern', so without it the SPA
+            # grid would show 'aecern' but never match the '-ock' the user sees.
+            "era_reflexes": {
+                "modern-english": [{"form": "-ock", "source": "self"}],
+                "old-english": [{"form": "aecern", "source": "self"}],
+            },
         }
     ]
     assert without_rando == []
@@ -9220,10 +9749,13 @@ def test_export_meanings_promotes_at_witness_threshold(fresh_db: Path) -> None:
     assert subj["words"] == [
         {
             "modern_usage": "ham",
+            "morpheme_id": "old-english:ham",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["ham"],
             "old_english_citations": ["a", "b", "c"],
             # wyrd-vm8t Loop 4: G2P surface pronunciation (onset-h → /h/).
             "old_english_pronunciation": [{"form": "ham", "ipa": "/hɑm/", "dialect": None}],
+            # self-seed: own form in its own era column
+            "era_reflexes": {"old-english": [{"form": "ham", "source": "self"}]},
         }
     ]
 
@@ -9347,7 +9879,7 @@ def test_export_meanings_surfaces_descent_edge_modern_forms(fresh_db: Path) -> N
     """wyrd-nxhh round 1 (test-coverage P2): the Tier-2 descent path
     (no cognate_id, but an etymon_descent edge to a modern-english
     child) must also surface in forms_by_lang. Without this pin a
-    refactor that drops Tier 2 from _fetch_root_era_reflexes would
+    refactor that drops Tier 2 from _fetch_family_era_reflexes would
     pass the cluster test but break descent-only families."""
     with LexiconDB(fresh_db) as db:
         for src in ("a", "b"):
@@ -10072,7 +10604,7 @@ def test_export_meanings_partial_english_shaped_emits_only_populated(fresh_db: P
     populated forms. The unmapped form survives in the language form
     array but doesn't pollute the english_shaped sibling. Pinning the
     rule so the runtime can detect 'this form has no shaping' via
-    Meaning.english_shaped_for(...) returning None."""
+    an absent Meaning.english_shaped[lang] entry."""
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="rando-port", title="rando")
         _seed_subject(
@@ -10863,10 +11395,13 @@ def test_export_meanings_synthesizes_word_for_mined_only_family(
     assert subjects[0]["words"] == [
         {
             "modern_usage": "tune",
+            "morpheme_id": "old-english:tune",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["tune"],
             "old_english_citations": ["a", "b", "c"],
             # wyrd-vm8t Loop 4: G2P surface pronunciation.
             "old_english_pronunciation": [{"form": "tune", "ipa": "/tʊnɛ/", "dialect": None}],
+            # self-seed: own form in its own era column
+            "era_reflexes": {"old-english": [{"form": "tune", "source": "self"}]},
         }
     ]
 
@@ -12377,7 +12912,7 @@ def _seed_descent_chain(db: LexiconDB, *edges: tuple[str, str, str]) -> dict[str
 
 def test_cluster_cognates_assigns_root_id_to_inheritance_chain(fresh_db: Path) -> None:
     """Happy path: a → b → c inheritance chain. All three rows get
-    cognate_id = a.id, cognate_method = 'cluster-cognates-v1'."""
+    cognate_id = a.id, cognate_method = 'cluster-cognates-v2'."""
 
     with LexiconDB(fresh_db) as db:
         forms = _seed_descent_chain(
@@ -12398,7 +12933,157 @@ def test_cluster_cognates_assigns_root_id_to_inheritance_chain(fresh_db: Path) -
     assert result["applied"] is True
     for form in ("a", "b", "c"):
         assert rows[form]["cognate_id"] == forms["a"]
-        assert rows[form]["cognate_method"] == "cluster-cognates-v1"
+        assert rows[form]["cognate_method"] == "cluster-cognates-v2"
+
+
+def test_cluster_cognates_nulls_stale_tombstone_cognate_id(fresh_db: Path) -> None:
+    """wyrd-hn03: a tombstone (merged_into_id set) that retains a STALE
+    cognate_id from a prior run — when it was canonical and in a different
+    cluster, before a later fold tombstoned it — gets NULLed. The bundle
+    export's per-member era-reflex union (_fetch_family_era_reflexes) would
+    otherwise read the stale cluster and leak its reflexes onto the surviving
+    lemma's grid (the verb do/done leaking onto the toponym -don)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="w", title="W")
+        # Two separate clusters: a 'verb' chain and a 'hill' chain.
+        verb_root = db.upsert_etymon("*verb", "proto-germanic")
+        verb_child = db.upsert_etymon("do", "modern-english")
+        hill_root = db.upsert_etymon("*hill", "proto-germanic")
+        hill = db.upsert_etymon("dūn", "old-english")
+        # The homograph: 'don' — gets folded (tombstoned) into the hill lemma,
+        # but first-run state left it stamped with the VERB cluster.
+        don = db.upsert_etymon("don", "old-english")
+        for parent, child in ((verb_root, verb_child), (hill_root, hill)):
+            db.conn.execute(
+                "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+                "VALUES (?, ?, 'inheritance', 'w')",
+                (parent, child),
+            )
+        # Simulate the stale state: don was canonical + in the verb cluster on a
+        # prior run, then got folded into the hill lemma (tombstoned).
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ?, cognate_method = 'cluster-cognates-v2' WHERE id = ?",
+            (verb_root, don),
+        )
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (hill, don))
+        db.commit()
+        # precondition: the tombstone carries the stale verb cognate_id
+        assert (
+            db.conn.execute("SELECT cognate_id FROM etymon WHERE id = ?", (don,)).fetchone()[0]
+            == verb_root
+        )
+
+        result = cluster_cognates(db, apply=True)
+        don_row = db.conn.execute(
+            "SELECT cognate_id, cognate_method FROM etymon WHERE id = ?", (don,)
+        ).fetchone()
+        # the canonical members keep their freshly-assigned cluster (the NULL
+        # step is gated on merged_into_id IS NOT NULL, so it never touches them)
+        canon = {
+            r["id"]: r["cognate_id"]
+            for r in db.conn.execute(
+                "SELECT id, cognate_id FROM etymon WHERE merged_into_id IS NULL"
+            )
+        }
+        # second run: nothing left to clear (idempotent)
+        second = cluster_cognates(db, apply=True)
+
+    assert don_row["cognate_id"] is None  # stale verb pointer cleared
+    assert don_row["cognate_method"] is None
+    assert result["tombstones_cleared"] >= 1
+    assert canon[verb_child] == verb_root  # canonical assignment intact
+    assert canon[hill] == hill_root  # the other cluster untouched
+    assert second["tombstones_cleared"] == 0  # idempotent — nothing stale remains
+
+
+def test_cluster_cognates_tombstone_clear_stops_era_reflex_leak(fresh_db: Path) -> None:
+    """End-to-end (the actual wyrd-hn03 symptom): a tombstone with a stale
+    cognate_id makes etymon_era_reflexes return the OLD cluster's reflexes;
+    after cluster_cognates NULLs the tombstone, the leak stops."""
+    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="w", title="W")
+        # A verb cluster carrying a modern-english reflex 'do'.
+        verb_root = db.upsert_etymon("*verb", "proto-germanic")
+        verb_modern = db.upsert_etymon("do", "modern-english")
+        hill = db.upsert_etymon("dūn", "old-english")
+        don = db.upsert_etymon("don", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+            "VALUES (?, ?, 'inheritance', 'w')",
+            (verb_root, verb_modern),
+        )
+        db.commit()
+        # populate the verb cluster's cognate_id (so it has mates to leak)
+        cluster_cognates(db, apply=True)
+        # NOW inject the stale state: 'don' is tombstoned into the hill lemma but
+        # still points at the verb cluster (it has no descent edges of its own).
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ?, cognate_method = 'cluster-cognates-v2', "
+            "merged_into_id = ? WHERE id = ?",
+            (verb_root, hill, don),
+        )
+        db.commit()
+        before = etymon_era_reflexes(db, don, target_language="modern-english")
+        cluster_cognates(db, apply=True)  # the fix: NULLs the stale tombstone
+        after = etymon_era_reflexes(db, don, target_language="modern-english")
+
+    # before the fix the tombstone leaks the verb's modern reflex...
+    assert any(r.form == "do" for r in before)
+    # ...and after, with its stale cognate_id cleared, it leaks nothing
+    assert after == []
+
+
+def test_cluster_cognates_dry_run_reports_tombstone_clear_without_writing(fresh_db: Path) -> None:
+    """Dry-run reports the would-clear count but leaves the stale tombstone
+    cognate_id in place."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="w", title="W")
+        a = db.upsert_etymon("a", "old-english")
+        b = db.upsert_etymon("b", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ?, cognate_method = 'cluster-cognates-v2', "
+            "merged_into_id = ? WHERE id = ?",
+            (a, a, b),
+        )
+        db.commit()
+        result = cluster_cognates(db, apply=False)
+        still = db.conn.execute("SELECT cognate_id FROM etymon WHERE id = ?", (b,)).fetchone()[0]
+    assert result["tombstones_cleared"] == 1
+    assert still == a  # not written in dry-run
+
+
+def test_cluster_cognates_v2_does_not_bridge_through_proto_indo_european(fresh_db: Path) -> None:
+    """v2: a Proto-Indo-European root must NOT bridge a cognate cluster. PIE
+    sits above the family layer, so inheritance from it fans across every branch
+    (Germanic ``down`` AND Greek ``thymia``). Dropping every edge touching a PIE
+    node leaves the two daughters in SEPARATE clusters (and the PIE node itself
+    unclustered) — the fix for the 1000+-member mega-clusters that polluted the
+    era-grid's modern reflexes."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="w", title="W")
+        pie = db.upsert_etymon("*dʰewh₂-", "proto-indo-european")
+        gmc = db.upsert_etymon("dūn", "old-english")
+        grk = db.upsert_etymon("thymia", "ancient-greek")
+        for parent, child in ((pie, gmc), (pie, grk)):
+            db.conn.execute(
+                "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+                "VALUES (?, ?, 'inheritance', 'w')",
+                (parent, child),
+            )
+        db.commit()
+        cluster_cognates(db, apply=True)
+        cid = {
+            r["canonical_form"]: r["cognate_id"]
+            for r in db.conn.execute("SELECT canonical_form, cognate_id FROM etymon")
+        }
+    # PIE never bridges: the Germanic and Greek daughters are NOT co-clustered,
+    # and the PIE node itself is left unclustered (it anchors no edge).
+    assert cid["dūn"] != cid["thymia"] or (cid["dūn"] is None and cid["thymia"] is None)
+    assert cid["dūn"] is None  # no surviving edge → not a candidate
+    assert cid["thymia"] is None
+    assert cid["*dʰewh₂-"] is None
 
 
 def test_cluster_cognates_dry_run_does_not_write(fresh_db: Path) -> None:
@@ -14360,6 +15045,29 @@ def test_bridge_celtic_forms_prefers_clustered_target(fresh_db: Path) -> None:
     assert merged == old_irish_clustered
 
 
+def test_bridge_celtic_forms_candidate_index_first_seen_wins(fresh_db: Path) -> None:
+    """_build_candidate_index keys on lower(canonical_form), so two
+    case-variant rows in the same candidate language collapse to one key;
+    ORDER BY id makes the LOWER-id (first-seen) row win. Pin it: a
+    lower-id UNCLUSTERED 'Mac' must beat a higher-id CLUSTERED 'mac' —
+    proving the later duplicate is dropped at index-build BEFORE the
+    prefer-clustered selection runs (wyrd-8uvi). A last-seen-wins or
+    dropped ORDER BY regression would instead surface the clustered
+    higher-id row and fail this."""
+    with LexiconDB(fresh_db) as db:
+        first_seen = db.upsert_etymon("Mac", "irish")  # lower id, unclustered
+        later_clustered = db.upsert_etymon("mac", "irish")  # higher id, clustered
+        db.conn.execute("UPDATE etymon SET cognate_id = id WHERE id = ?", (later_clustered,))
+        celtic_x = db.upsert_etymon("x", "celtic")
+        db.commit()
+        bridge_celtic_forms(db, apply=True, table={"x": "mac"})
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (celtic_x,)
+        ).fetchone()["merged_into_id"]
+    # First-seen (lower-id 'Mac') wins despite the higher-id 'mac' being clustered.
+    assert merged == first_seen
+
+
 def test_bridge_celtic_forms_falls_back_to_unclustered(
     fresh_db: Path,
 ) -> None:
@@ -15461,87 +16169,6 @@ def test_init_schema_uses_cognate_id_not_synset_id(fresh_db: Path) -> None:
     assert "idx_etymon_synset" not in indexes
 
 
-# --- wyrd-i1s1: cognate-cluster-mate tag rollup --------------------------
-
-
-def test_fetch_cluster_mate_tags_returns_other_languages_tags(fresh_db: Path) -> None:
-    """wyrd-i1s1: tags from cognate-cluster mates of root_id surface in
-    the family's tag list. Pinned scenario: OE 'ceaster' has cluster
-    mate ME 'chestre' tagged 'topography'; that tag lands in the OE
-    root's _fetch_cluster_mate_tags output. Without this, the ME
-    semantic signal would never reach the bundle subject the OE root
-    grounds."""
-
-    with LexiconDB(fresh_db) as db:
-        oe_id = db.upsert_etymon("ceaster", "old-english")
-        me_id = db.upsert_etymon("chestre", "middle-english")
-        # Wire them into a cognate cluster (cognate_id points at OE root).
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, me_id))
-        db.conn.execute(
-            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
-            (me_id, "topography"),
-        )
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, oe_id)
-    assert result == ["topography"]
-
-
-def test_fetch_cluster_mate_tags_excludes_root_itself(fresh_db: Path) -> None:
-    """The root's own tags ride in via _fetch_member_tags — the cluster-
-    mate helper must skip the root to avoid double-counting."""
-
-    with LexiconDB(fresh_db) as db:
-        oe_id = db.upsert_etymon("ceaster", "old-english")
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
-        # OE's OWN tag — must NOT appear in cluster_mate_tags.
-        db.conn.execute(
-            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
-            (oe_id, "architecture"),
-        )
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, oe_id)
-    assert result == []
-
-
-def test_fetch_cluster_mate_tags_skips_merged_into_losers(fresh_db: Path) -> None:
-    """OCR-cluster losers (merged_into_id IS NOT NULL) are tombstones —
-    their tags belong to the merge winner via the existing rollup, not
-    to the cluster mate's tag pool."""
-
-    with LexiconDB(fresh_db) as db:
-        oe_id = db.upsert_etymon("ceaster", "old-english")
-        me_winner = db.upsert_etymon("chestre", "middle-english")
-        me_loser = db.upsert_etymon("chastre", "middle-english")
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, me_winner))
-        db.conn.execute(
-            "UPDATE etymon SET cognate_id = ?, merged_into_id = ? WHERE id = ?",
-            (oe_id, me_winner, me_loser),
-        )
-        db.conn.execute(
-            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (me_winner, "topography")
-        )
-        db.conn.execute(
-            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (me_loser, "should-skip")
-        )
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, oe_id)
-    assert result == ["topography"]
-    assert "should-skip" not in result
-
-
-def test_fetch_cluster_mate_tags_returns_empty_for_no_cognate(fresh_db: Path) -> None:
-    """An etymon without a cognate_id has no cluster — empty list."""
-
-    with LexiconDB(fresh_db) as db:
-        oe_id = db.upsert_etymon("orphan", "old-english")
-        # No cognate_id assignment; defaults to NULL.
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, oe_id)
-    assert result == []
-
-
 def test_gather_family_uses_member_tags_only(fresh_db: Path) -> None:
     """wyrd-c4wd: _gather_family's "tags" field is now the MEMBER
     tags only — the cluster-mate union was producing visible noise
@@ -15551,9 +16178,8 @@ def test_gather_family_uses_member_tags_only(fresh_db: Path) -> None:
     Pre-fix this test asserted the union (member + cluster mate);
     post-fix it asserts member-only. The cluster mate's 'topography'
     no longer rides along when only the OE root is the family member.
-    Cluster-mate-tag fetching is still tested separately by
-    test_fetch_cluster_mate_tags_* — the helper is intact, just not
-    consulted by the bundle exporter anymore."""
+    The cluster-mate-tag helper itself was removed once the bundle
+    exporter stopped consulting it (dead-code-audit)."""
 
     with LexiconDB(fresh_db) as db:
         oe_id = db.upsert_etymon("ceaster", "old-english")
@@ -15572,24 +16198,6 @@ def test_gather_family_uses_member_tags_only(fresh_db: Path) -> None:
         family = _gather_family(db, oe_id, [oe_id])
     assert family is not None
     assert family["tags"] == ["architecture"]
-
-
-def test_fetch_cluster_mate_tags_includes_same_language_mates(fresh_db: Path) -> None:
-    """Cluster mates in the SAME language as the root are still mates —
-    the helper doesn't filter by language. Pin so a future regression
-    that adds a language-mismatch filter wouldn't silently exclude
-    same-language siblings (e.g. two OE etymons in the same cognate
-    cluster, like a doublet pair)."""
-
-    with LexiconDB(fresh_db) as db:
-        a = db.upsert_etymon("ceaster", "old-english")
-        b = db.upsert_etymon("cæster", "old-english")  # same-language doublet
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (a, a))
-        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (a, b))
-        db.conn.execute("INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (b, "topography"))
-        db.commit()
-        result = _fetch_cluster_mate_tags(db, a)
-    assert result == ["topography"]
 
 
 # ---------------------------------------------------------------------

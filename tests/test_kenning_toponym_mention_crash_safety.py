@@ -416,6 +416,53 @@ def test_chunk_mentions_writer_flushes_and_fsyncs_per_chunk(tmp_path: Path, monk
     assert '"form":"Baz"' in rows[2]
 
 
+def test_chunk_mentions_writer_replaces_surrogate_instead_of_crashing(tmp_path: Path):
+    """wyrd-klod fault-injection: the staged miner's file sinks open with
+    ``errors="replace"`` as a defense-in-depth backstop. The in-band
+    sanitizer (wyrd-8wa4 / PR #309) normally maps surrogate code points to
+    U+FFFD before they reach a sink, but if a future path constructs a
+    ToponymMention that bypasses that guard, a lone surrogate would reach
+    the sink and crash the mine with UnicodeEncodeError. The backstop must
+    substitute ASCII "?" and keep going instead.
+
+    Drives the production in-progress sink consumer
+    (``_make_chunk_mentions_writer``) with a serializer that emits a lone
+    surrogate, mirroring a bypassed guard.
+    """
+    import pytest
+
+    from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_staged import (
+        _make_chunk_mentions_writer,
+    )
+    from wyrd.generators.kenning.extractors.toponym_mentions import ToponymMention
+
+    mention = ToponymMention(form="Edlin", date_year=None, region_hint=None, context="Edlin")
+
+    def _surrogate_serializer(sid: str, m: ToponymMention) -> str:
+        # A lone surrogate (\udce9) — illegal in UTF-8 — standing in for a
+        # mention field that escaped the in-band sanitizer.
+        return f'{{"source_id":"{sid}","form":"{m.form}\udce9"}}'
+
+    # Negative control: a strict UTF-8 sink genuinely cannot encode the
+    # surrogate — so errors="replace" is load-bearing, not cosmetic.
+    with (
+        pytest.raises(UnicodeEncodeError),
+        (tmp_path / "strict.jsonl").open("w", encoding="utf-8") as strict,
+    ):
+        strict.write("Edlin\udce9")
+
+    # Production config: errors="replace" turns the surrogate into "?" and
+    # the chunk write succeeds (matches the inprogress / tmp_path sinks in
+    # mine_toponym_mentions_staged.py).
+    safe_path = tmp_path / "src.chunks.jsonl"
+    with safe_path.open("w", encoding="utf-8", errors="replace") as sink:
+        writer = _make_chunk_mentions_writer(sink, "src", _surrogate_serializer)
+        writer(0, [mention])  # must not raise UnicodeEncodeError
+
+    content = safe_path.read_text(encoding="utf-8")
+    assert "Edlin?" in content, f"surrogate should be replaced with '?', got: {content!r}"
+
+
 # ---------- staged-CLI integration: fresh + resume × happy + crash ------
 
 
@@ -565,3 +612,64 @@ def test_cli_pre_existing_inprogress_log_blocks_mining(tmp_path: Path, monkeypat
     # Guard didn't touch the existing log; canonical was never written.
     assert inprogress.exists()
     assert not (output_dir / "src_c.jsonl").exists()
+
+
+def test_cli_staged_sanitizes_surrogate_to_ufffd_in_persisted_output(tmp_path: Path, monkeypatch):
+    """wyrd-4ywt: end-to-end through the staged CLI's REAL file writer (the
+    in-progress sink + atomic merge to the per-source JSONL), driven by a mocked
+    client that emits a mention whose CONTEXT carries a lone surrogate — the
+    wyrd-8wa4 scenario (a provider SDK / surrogatepass JSON decode can yield
+    these). The in-band sanitizer maps it to U+FFFD BEFORE the sink, so:
+
+    - the persisted per-source JSONL is valid UTF-8 (a strict re-decode raises
+      if any lone surrogate leaked through the writer),
+    - the surrogate is U+FFFD in the persisted record (not the errors='replace'
+      backstop's ASCII '?', which would mean the in-band guard was bypassed),
+    - the run summary surfaces ``surrogates_sanitized``.
+
+    The surrogate rides in ``context`` (not ``form``) so the form-in-chunk
+    validation — which runs on the SANITIZED form — still admits the mention
+    against the clean ASCII body.
+    """
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_s.txt").write_text("Edlingham in Northumberland.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    client = FakeClient(
+        [{"mentions": [{"form": "Edlingham", "context": "Edlingham\udce9 in Northumberland."}]}]
+    )
+    _stub_ollama_for_cli(monkeypatch, client)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "ollama",
+            "--model",
+            "fake-test-model",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    canonical = output_dir / "src_s.jsonl"
+    assert canonical.exists()
+    # Strict re-decode — raises if a lone surrogate leaked into the persisted file.
+    text = canonical.read_bytes().decode("utf-8")
+    rows = [json.loads(ln) for ln in text.splitlines() if ln.strip()]
+    assert rows, "expected one persisted mention"
+    ctx = rows[0]["context"]
+    assert "�" in ctx, f"surrogate should be sanitized in-band to U+FFFD; got {ctx!r}"
+    assert "\udce9" not in ctx, "no lone surrogate may survive to the persisted file"
+    assert "?" not in ctx, "U+FFFD (in-band), not the errors='replace' backstop '?'"
+    assert rows[0]["form"] == "Edlingham"
+    # surrogates_sanitized is surfaced in the run summary (stderr).
+    combined = (result.stderr or "") + (result.output or "")
+    assert "surrogates=1" in combined, f"summary should report surrogates=1; got: {combined}"

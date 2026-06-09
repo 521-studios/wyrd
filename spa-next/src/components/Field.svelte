@@ -13,6 +13,8 @@
   // values persist across generator switches (paramsByGenerator stores
   // per-generator).
   import { appState } from '../lib/appState.svelte.js';
+  import { snapEnumValue } from '../lib/featureFlags.js';
+  import { languageLabel } from '../lib/languageLabels.js';
 
   let { fieldKey, prop } = $props();
 
@@ -20,37 +22,44 @@
   // humanized label, used by both label branches below.
   let humanLabel = $derived(fieldKey.replace(/_/g, ' '));
 
-  // Initialize the param from schema default if not already set.
-  // Wrapped in $effect because Svelte 5 warns when $props values are
-  // read at the top level of <script> — they're tracked reactively
-  // and the lint rule guards against capturing-the-initial-value
-  // bugs. For us the props never change for a given Field instance,
-  // so the effect runs exactly once at mount.
-  $effect(() => {
-    // wyrd-hcmc round 2: guard currentParams=null — that's the
-    // pre-ensureParams race window between selectedGeneratorName
-    // being set and ConfigureColumn's $effect calling ensureParams.
-    // In practice we never render Field before ensureParams (col 1
-    // does both before mounting child components) but the null
-    // check defends against future restructuring.
-    const params = appState.currentParams;
-    if (!params) return;
-    if (params[fieldKey] === undefined) {
-      if (prop.default !== undefined) {
-        params[fieldKey] = prop.default;
-      } else if (prop.type === 'array') {
-        params[fieldKey] = [];
-      } else if (prop.type === 'boolean') {
-        params[fieldKey] = false;
-      } else {
-        params[fieldKey] = '';
-      }
-    }
-  });
+  // wyrd-b6hd: NO per-field seeding here. The store owns initialization —
+  // appState.ensureParams() seeds every field's default (config.defaults
+  // override → schema default → type-empty) BEFORE Fields render, so the form
+  // binds already-populated values. This deliberately replaces the old
+  // per-Field seed $effect, which raced Svelte's bind_select_value
+  // undefined-write-back (wyrd-etvd: a <select> mounted with an undefined value
+  // wrote its first <option> back before the seed ran). Centralizing init in
+  // the store removes that race for EVERY field. Fields here just bind; the
+  // snap effects below only correct a value invalid for the current options.
 
   function isDependentSelect(prop) {
     return Boolean(prop['x-options-by-culture']);
   }
+
+  // wyrd-rogd.2: option display label — '' is the 'no filter' sentinel; when
+  // the options are language tags (x-option-language, the era stages) label
+  // them via languageLabel so they read 'Old English' not 'old-english'.
+  const optionLabel = (opt) =>
+    opt === '' ? '(no filter)' : prop['x-option-language'] ? languageLabel(opt) : opt;
+
+  // wyrd-0gou: snap-to-valid for plain string-enum selects. The culture enum
+  // is filtered by feature flags (visibleCultures), so a seeded value — incl.
+  // a WYRD_DEFAULT_<OPT> override — that isn't in the (filtered) options must
+  // snap to a valid one. Otherwise the <select> shows a blank/stale selection
+  // and an invisible value gets submitted. Mirrors the dependent-select snap
+  // below; skips dependent selects (they have their own) and non-enum fields.
+  $effect(() => {
+    if (isDependentSelect(prop)) return;
+    if (prop.type !== 'string' || !Array.isArray(prop.enum) || prop.enum.length === 0) return;
+    const params = appState.currentParams;
+    if (!params) return;
+    // wyrd-etvd/b6hd: snapEnumValue returns undefined for an unseeded value, so
+    // this snap never preempts the store's seeded config.defaults override
+    // (e.g. WYRD_DEFAULT_SCORING_MODE=vector). It only corrects a
+    // DEFINED-but-invalid value (the culture-filtered case).
+    const snapped = snapEnumValue(params[fieldKey], prop.enum, prop.default);
+    if (snapped !== undefined) params[fieldKey] = snapped;
+  });
 
   // Dependent select: options depend on currently-selected culture.
   // The derivation + snap-to-valid live in a single effect so we
@@ -67,13 +76,16 @@
   $effect(() => {
     if (!isDependentSelect(prop)) return;
     if (dependentOptions.length === 0) return;
-    const value = appState.currentParams[fieldKey];
-    if (dependentOptions.includes(value)) return;
-    if (prop.default !== undefined && dependentOptions.includes(prop.default)) {
-      appState.currentParams[fieldKey] = prop.default;
-    } else {
-      appState.currentParams[fieldKey] = dependentOptions[0];
-    }
+    // wyrd-etvd/b6hd: same undefined-guard as the plain-enum snap — an unseeded
+    // value is left for the store's seeding (preserving any config.defaults
+    // override); only a defined value invalid for the current culture's options
+    // snaps.
+    const snapped = snapEnumValue(
+      appState.currentParams[fieldKey],
+      dependentOptions,
+      prop.default,
+    );
+    if (snapped !== undefined) appState.currentParams[fieldKey] = snapped;
   });
 
   // Tag-grid checkbox toggle: array-of-strings field value.
@@ -128,9 +140,12 @@
   {/if}
 
   {#if isDependentSelect(prop)}
+    <!-- wyrd-rogd.2: when the options are language tags (x-option-language),
+         label them via languageLabel (old-english → "Old English") so the era
+         dropdown matches the col-3 grid's stage headers. -->
     <select id="field-{fieldKey}" bind:value={appState.currentParams[fieldKey]}>
       {#each dependentOptions as opt}
-        <option value={opt}>{opt === '' ? '(no filter)' : opt}</option>
+        <option value={opt}>{optionLabel(opt)}</option>
       {/each}
     </select>
   {:else if prop.type === 'string' && Array.isArray(prop.enum)}
@@ -172,6 +187,26 @@
         bind:value={chipInput}
         onkeydown={onChipKeydown}
       />
+    </div>
+  {:else if (prop.type === 'number' || prop.type === 'integer') && prop['x-ui-widget'] === 'slider'}
+    <!-- wyrd-0k9o: bounded proportions (novelty, …) render as a slider with a
+         live value readout. Opt-in via the schema's `x-ui-widget: 'slider'`
+         hint (x-prefixed, matching the repo's SPA-extension keys) so other
+         numeric knobs keep the plain box. -->
+    <div class="slider-row">
+      <input
+        id="field-{fieldKey}"
+        type="range"
+        min={prop.minimum ?? 0}
+        max={prop.maximum ?? 1}
+        step={prop.type === 'integer' ? 1 : (prop['x-ui-step'] ?? 0.05)}
+        bind:value={appState.currentParams[fieldKey]}
+      />
+      <!-- Round for display only: a restored/shared value can carry IEEE-754
+           noise (0.05 steps → 0.30000000000000004); the bound param is untouched. -->
+      <output class="slider-value" for="field-{fieldKey}">
+        {Math.round((appState.currentParams[fieldKey] ?? 0) * 1000) / 1000}
+      </output>
     </div>
   {:else if prop.type === 'integer' || prop.type === 'number'}
     <input
@@ -248,6 +283,23 @@
   input:focus {
     outline: 1px solid var(--accent);
     outline-offset: -1px;
+  }
+  /* wyrd-0k9o: slider row — range input + live value readout. */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .slider-row input[type='range'] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+  .slider-value {
+    min-width: 2.5em;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--fg-muted);
   }
   .tag-grid {
     display: flex;

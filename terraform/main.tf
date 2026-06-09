@@ -65,21 +65,12 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "spa" {
 # WYRD_RUNTIME_DB_BUCKET; this bucket holds the versioned keys (v/<ts>.db)
 # plus the current.json pointer (see bin/publish-runtime-db.sh).
 #
-# The bucket + its public-access-block were initially provisioned by hand
-# during the d90t cutover so the rodney crash-hunt could publish a runtime
-# DB before terraform was wired up. The ``import`` blocks below adopt those
-# pre-existing resources into terraform state on the next apply, after which
-# this directive can be deleted in a follow-up cleanup PR (terraform supports
-# ``import`` blocks as one-shot adoption sugar in 1.5+).
-import {
-  to = aws_s3_bucket.runtime_db
-  id = local.runtime_db_bucket
-}
-
-import {
-  to = aws_s3_bucket_public_access_block.runtime_db
-  id = local.runtime_db_bucket
-}
+# Staging's bucket + public-access-block were hand-provisioned during the d90t
+# cutover and adopted into terraform state via one-shot ``import`` blocks, now
+# removed (wyrd-lnt6 cleanup — the follow-up the import comment anticipated).
+# Production has no pre-existing bucket, so terraform creates it here; the
+# Lambda falls back to its bundled seed DB when the bucket carries no published
+# key (runtime_db.py), so an empty bucket serves fine until a DB is published.
 
 resource "aws_s3_bucket" "runtime_db" {
   bucket = local.runtime_db_bucket
@@ -133,6 +124,15 @@ data "aws_iam_policy_document" "runtime_db_read" {
   statement {
     actions   = ["s3:GetObject", "s3:HeadObject"]
     resources = ["${aws_s3_bucket.runtime_db.arn}/*"]
+  }
+  # wyrd-ow4c: ListBucket on the bucket itself. Without it, a GetObject on a
+  # MISSING key returns 403 AccessDenied instead of 404 NoSuchKey — which the
+  # runtime DB loader still catches + falls back on, but logs as a scary
+  # AccessDenied and masks "the key just isn't there yet". With ListBucket the
+  # loader sees a clean miss. (Reading a PRESENT key only needs GetObject.)
+  statement {
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.runtime_db.arn]
   }
 }
 
@@ -219,12 +219,35 @@ resource "aws_lambda_function" "api" {
   timeout          = 15
 
   environment {
-    variables = {
-      ENV                    = var.env
-      WYRD_RUNTIME_DB_BUCKET = aws_s3_bucket.runtime_db.bucket
-      WYRD_DEFECTS_TABLE     = aws_dynamodb_table.defects.name
-      LOG_LEVEL              = var.log_level
-    }
+    # wyrd-0gou: SPA feature flags. Staging flips WYRD_FF_ALL=true so every
+    # gated config option shows for validation; production defaults all off
+    # and enables validated flags one-by-one via var.enabled_feature_flags
+    # (each → WYRD_FF_<NAME>=true) and option default-value overrides via
+    # var.feature_flag_defaults (each → WYRD_DEFAULT_<OPTION>). The Flask app
+    # resolves these onto /api/manifest; see wyrd/feature_flags.py.
+    variables = merge(
+      {
+        ENV                    = var.env
+        WYRD_RUNTIME_DB_BUCKET = aws_s3_bucket.runtime_db.bucket
+        WYRD_DEFECTS_TABLE     = aws_dynamodb_table.defects.name
+        LOG_LEVEL              = var.log_level
+        WYRD_FF_ALL            = var.env == "staging" ? "true" : "false"
+      },
+      {
+        # Skip "all" so a stray entry can't shadow the env-based WYRD_FF_ALL
+        # conditional above (merge() is last-wins).
+        for name in var.enabled_feature_flags :
+        "WYRD_FF_${upper(replace(replace(name, ".", "_"), "-", "_"))}" => "true"
+        if lower(name) != "all"
+      },
+      {
+        # Normalize keys the same way as flag names so 'priors-path' /
+        # 'priors.path' → WYRD_DEFAULT_PRIORS_PATH (the server lowercases the
+        # suffix → 'priors_path', matching the SPA's snake_case field key).
+        for opt, value in var.feature_flag_defaults :
+        "WYRD_DEFAULT_${upper(replace(replace(opt, ".", "_"), "-", "_"))}" => value
+      },
+    )
   }
 
   tags = local.tags

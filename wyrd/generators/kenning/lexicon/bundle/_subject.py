@@ -20,10 +20,13 @@ absorb + a single ``_emit_*_list`` formatter addition.
 
 from __future__ import annotations
 
+import functools
 import json
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
+from wyrd.generators.kenning.era.cells import family_stage_order, language_family
 from wyrd.generators.kenning.lexicon.bundle._emit import (
     _LANG_CODE_TO_JSON_FIELD,
     _BucketAccumulator,
@@ -215,6 +218,37 @@ class _WordLanguageAccumulators:
     phonological_vector: dict[str, dict[str, dict[str, float]]] = field(default_factory=dict)
 
 
+def _morpheme_id_for_family(fam: dict[str, Any]) -> str | None:
+    """wyrd-rogd.10: the owning-morpheme id = a CONTENT-derived key
+    ``"{root_language}:{root_canonical_form}"``. NOT the autoincrement
+    ``root_id`` — that shifts across a rebuild and would break the export's
+    byte-identity-across-rebuild reconstructibility guarantee (and the export
+    already sorts by this tuple precisely because root_id is unstable). The
+    content key is reproduced verbatim by ``rebuild-from-jsonl``.
+
+    Returns ``None`` (rather than a malformed ``"None:..."`` key) when the
+    family lacks a usable root identity. Real families from ``_gather_family``
+    always carry both fields; this is fail-soft belt-and-suspenders."""
+    language = fam.get("root_language")
+    canonical = fam.get("root_canonical_form")
+    if not language or not canonical:
+        return None
+    return f"{language}:{canonical}"
+
+
+def _word_morpheme_id(fams: list[dict[str, Any]]) -> str | None:
+    """The morpheme id for a word. A reflex can link to several families; pick
+    the primary deterministically by the same ``(root_canonical_form,
+    root_language)`` key the export sorts on, so the choice is reproducible.
+    Families lacking a usable root identity are skipped (so ``min`` can't raise
+    on a missing key); ``None`` when none qualify."""
+    candidates = [f for f in fams if f.get("root_canonical_form") and f.get("root_language")]
+    if not candidates:
+        return None
+    chosen = min(candidates, key=lambda f: (f["root_canonical_form"], f["root_language"]))
+    return _morpheme_id_for_family(chosen)
+
+
 def _word_for_reflex(
     meta: dict[str, Any], link_pairs: list[tuple[dict[str, Any], list[int]]]
 ) -> dict[str, Any]:
@@ -243,9 +277,75 @@ def _word_for_reflex(
                 _absorb_member_stratum(accs, fam, descendant_id, lang, form)
                 _absorb_member_phonological_vector(accs, fam, descendant_id, lang, form)
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
+    morpheme_id = _word_morpheme_id([fam for fam, _ in link_pairs])
+    if morpheme_id is not None:
+        word["morpheme_id"] = morpheme_id
     _emit_word_languages(word, accs)
     _emit_era_reflexes(word, link_pairs)
     return word
+
+
+def _surface_fold(s: str) -> str:
+    """Fold a surface the way the SPA's ``accentFold`` does (defined in
+    ``spa-next/src/lib/accents.js``, used by era.js's ``cellForSurface``): strip
+    the reconstructed-form ``*`` marker + leading/trailing dashes, drop combining
+    diacritics, lowercase. Used to dedupe a self-seeded generated surface against
+    an era cell that already echoes it (``-bȳ`` / ``-by`` / ``By`` all fold to
+    ``by``; ``*mos`` / ``Mos-`` both fold to ``mos``), so we don't emit two
+    fold-equal cells that would light up at once."""
+    decomposed = unicodedata.normalize("NFD", (s or "").replace("*", "").strip("-"))
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
+
+
+# Cached: pure function of static era.cells data over the closed, finite set of
+# language tags (not an external/unbounded key space), called once per well-formed
+# word during the bundle build — caching collapses the repeated family_stage_order
+# scan to one per distinct language. Unbounded cache is safe given the bounded domain.
+@functools.cache
+def _own_family_modern_stage(language: str) -> str | None:
+    """The canonical language tag of ``language``'s era family's MODERN (newest)
+    stage — e.g. ``old-english`` → ``modern-english``, ``old-french`` →
+    ``french``, ``irish`` → ``irish``. ``None`` when the language has no era
+    family (proto / untracked classical), which the runtime grid drops anyway."""
+    family = language_family(language)
+    if family is None:
+        return None
+    stages = family_stage_order(family)
+    return stages[-1] if stages else None
+
+
+def _seed_generated_surface(
+    merged: dict[str, dict[str, dict]], own_lang: str, modern_usage: str
+) -> None:
+    """wyrd-mook: echo the word's GENERATED SURFACE (``modern_usage``) into its
+    family's MODERN stage of ``merged`` (in place), source ``"self"``.
+
+    The canonical self-seed in :func:`_emit_era_reflexes` echoes the etymon's own
+    form, but the connective surface the generator actually emits often differs
+    from it (``-ning-`` / ``Cras-`` vs canonical ``old-english:-ing`` /
+    ``old-english:cærse``); without this the grid shows the morpheme's reflexes
+    but nothing folds to the surface the user sees, which the SPA reads as "X not
+    in its own reflexes". The modern stage is the right home — ``modern_usage``
+    IS the modern surface — and lands the initial highlight in the Modern column
+    ("as generated").
+
+    No-ops (early return) when: the surface is empty / dash-only; ANY era cell
+    already folds to it (so ``surface == canonical``, the common case, adds no
+    redundant cell); or the own-language has no era family (proto / untracked
+    classical — gridless anyway). Seeded VERBATIM (dashes intact, like the
+    canonical seed)."""
+    surface = modern_usage.strip()
+    if not surface.strip("-"):
+        return
+    surface_fold = _surface_fold(surface)
+    if any(
+        _surface_fold(cell_form) == surface_fold for stage in merged.values() for cell_form in stage
+    ):
+        return
+    modern_lang = _own_family_modern_stage(own_lang)
+    if modern_lang is None:
+        return
+    merged.setdefault(modern_lang, {})[surface] = {"form": surface, "source": "self"}
 
 
 def _emit_era_reflexes(
@@ -259,23 +359,55 @@ def _emit_era_reflexes(
     collisions resolved by source quality (higher-quality source wins).
 
     Bundle field: ``era_reflexes`` is ``{target_language: [{form,
-    source}, ...]}`` per word. Empty / absent for words whose linked
-    families have no era data (proto-languages, untracked classical
-    families, or roots whose cluster has no English-family targets).
+    source, gloss?}, ...]}`` per word (``gloss`` sparse, wyrd-rogd.1).
+
+    Every well-formed word also SELF-SEEDS its own ``morpheme_id`` form in its
+    own era column (``source="self"``) so a barren morpheme — no cluster, no
+    descent reflexes — still grids (shows at least itself). ``era_reflexes`` is
+    therefore absent only when the word has no / malformed ``morpheme_id``, a
+    dash-only form, or an own-language with no tracked era family.
+
+    wyrd-mook: it ALSO self-seeds the word's GENERATED SURFACE (``modern_usage``)
+    into its family's MODERN stage via :func:`_seed_generated_surface`, so the
+    connective surface the user sees (``-ning-`` / ``Cras-``, often ≠ the etymon
+    canonical) is echoed somewhere the SPA's surface-fold can match — see that
+    helper for the placement + skip rules.
     """
-    merged: dict[str, dict[str, str]] = {}
+    merged: dict[str, dict[str, dict]] = {}
     for fam, _linked_ids in link_pairs:
         for target_language, entries in fam.get("era_reflexes", {}).items():
             bucket = merged.setdefault(target_language, {})
             for entry in entries:
                 form = entry["form"]
-                source = entry["source"]
                 existing = bucket.get(form)
-                if existing is None or _better_era_reflex_source(source, existing):
-                    bucket[form] = source
+                # Keep the whole entry (form + source + optional gloss);
+                # higher-quality source wins on a same-form collision.
+                if existing is None or _better_era_reflex_source(
+                    entry["source"], existing["source"]
+                ):
+                    bucket[form] = entry
+    # Self-seed the morpheme's OWN form in its OWN era column. A barren morpheme
+    # (no cognate cluster, no descent reflexes) would otherwise emit no
+    # era_reflexes at all and render a completely empty col-3 grid — showing in
+    # zero columns though it plainly exists and was just used to compose a name.
+    # The morpheme_id is "<language>:<canonical_form>"; ensure that (language,
+    # form) is present, tagged source="self" so a FUTURE coverage pass can
+    # exclude it from real-reflex counts (wyrd-32t1) — no consumer distinguishes
+    # it yet, so the bundle era-reflex coverage metric now counts self-seeds.
+    # NOTE: when own_lang has no era family (proto / untracked classical) the
+    # runtime grid drops the stage, so those stay gridless — acceptable, they're
+    # outside the British-Isles cultures.
+    # Seed the form VERBATIM (dashes intact): real reflexes store affixes with
+    # their dashes ('-tun', '-chester'), so a dash-stripped key would NOT collide
+    # under setdefault and would add a duplicate own-era cell.
+    own_lang, sep, own_form = (word.get("morpheme_id") or "").partition(":")
+    own_form = own_form.strip()
+    if sep and own_lang and own_form.strip("-"):  # well-formed id, content beyond dashes
+        merged.setdefault(own_lang, {}).setdefault(own_form, {"form": own_form, "source": "self"})
+        _seed_generated_surface(merged, own_lang, word.get("modern_usage") or "")
     if merged:
         word["era_reflexes"] = {
-            target_language: [{"form": form, "source": forms[form]} for form in sorted(forms)]
+            target_language: [forms[form] for form in sorted(forms)]
             for target_language, forms in sorted(merged.items())
         }
 
@@ -288,6 +420,9 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
     matching language.
     """
     word: dict[str, Any] = {"modern_usage": _synthesize_modern_usage(fam)}
+    morpheme_id = _morpheme_id_for_family(fam)  # wyrd-rogd.10 (None-safe)
+    if morpheme_id is not None:
+        word["morpheme_id"] = morpheme_id
     accs = _WordLanguageAccumulators(
         forms_by_lang={lang: list(fam["forms_by_lang"][lang]) for lang in fam["forms_by_lang"]},
     )

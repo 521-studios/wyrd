@@ -64,6 +64,68 @@ _Add your build and test commands here_
 
 _Add a brief overview of your project architecture_
 
+## SPA Feature Flags
+
+The `spa-next/` config UI gates each advanced option behind a feature flag so
+untested options stay hidden in production and can be turned on one-by-one as
+validated (wyrd-0gou). This is **UI-only** — the API stays permissive; flags
+only decide what the SPA renders. Resolution is env-driven and resolved
+**per request** onto `/api/manifest` (`config` block), so flipping a Lambda env
+var takes effect with **no rebuild/redeploy**. Server logic:
+`wyrd/feature_flags.py`; SPA mapping: `spa-next/src/lib/featureFlags.js`.
+
+### Env vars
+
+| Var | Effect |
+|-----|--------|
+| `WYRD_FF_ALL=true` | Master override — every flag on. **Staging sets this** so a forgotten flag can't hide an option. |
+| `WYRD_FF_<NAME>=true\|false` | Per-flag toggle. **Default off.** `NAME` = the flag name upper-cased with `.`/`-` → `_`. |
+| `WYRD_DEFAULT_<OPTION>=<value>` | Override an option's **default value** (not just visibility). `OPTION` = the option name upper-cased with `.`/`-` → `_`; the server lower-cases it back to the snake_case field key. |
+
+Resolution is fail-closed: `flagOn = WYRD_FF_ALL OR WYRD_FF_<name>`; an absent or
+unknown flag is **off**. The canonical flag-name list lives on the SPA side
+(`featureFlags.js`); the server just resolves whatever `WYRD_FF_*` /
+`WYRD_DEFAULT_*` it sees, so adding a flag = a new env var + a new SPA mapping
+entry (no server change).
+
+### Flag names
+
+- **Advanced knobs** — 1:1 with the schema field key: `WYRD_FF_NOVELTY`,
+  `WYRD_FF_ERA`, `WYRD_FF_STRATUM`, `WYRD_FF_PACKS`, `WYRD_FF_PRIORS_PATH`,
+  `WYRD_FF_COHESION`, … When all advanced flags are off the SPA's Advanced
+  panel doesn't render at all.
+- **`WYRD_FF_SCORING_MODE`** — gates the scoring-mode selector **and** its
+  vector axis-weight fields (`phonological_weight`, `semantic_weight`,
+  `position_weight`, `baseline_weight`) as a unit.
+- **Cultures** — `WYRD_FF_CULTURE_<NAME>` for non-english cultures
+  (`WYRD_FF_CULTURE_WELSH`, `…_SCOTTISH`, `…_IRISH`, `…_BRETON`). **English is
+  always available** and can't be gated off.
+- **Composer** — `WYRD_FF_MOODS` and `WYRD_FF_TAGS` gate the two halves of the
+  "Customize moods & tags" composer independently.
+- **Transforms** — `WYRD_FF_REWIND` gates the **Rewind** pipeline transform
+  (wyrd-nwpa). Off by default, so prod hides Rewind while its era-rendering
+  bugs are fixed; the palette won't offer it AND the pipeline skips any
+  saved/shared Rewind step. A transform tags itself with `flag: '<name>'` in
+  `spa-next/src/lib/transforms/*.js`; `TransformPalette` + `pipeline.run`
+  filter on it. Re-enable in prod via `enabled_feature_flags = ["rewind"]`.
+
+Default-value examples: `WYRD_DEFAULT_CULTURE=english`, `WYRD_DEFAULT_COUNT=5`,
+`WYRD_DEFAULT_SCORING_MODE=proportions`.
+
+### Terraform (`terraform/`)
+
+Staging gets `WYRD_FF_ALL=true` automatically via `var.env == "staging"`;
+production defaults all-off. To enable validated options + override defaults
+per environment:
+
+```hcl
+enabled_feature_flags = ["novelty", "culture.welsh", "moods"]  # → WYRD_FF_<NAME>=true
+feature_flag_defaults = { culture = "english", count = "5" }   # → WYRD_DEFAULT_<OPTION>
+```
+
+`var.env` is validated to `staging` | `production` (a typo would otherwise
+silently deploy all-flags-off).
+
 ## Conventions & Patterns
 
 ### Mining progress reporting

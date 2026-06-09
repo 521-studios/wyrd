@@ -30,23 +30,44 @@
   box-sizing: border-box;
 }
 
+html {
+  /* wyrd-vith: lock the document to the viewport. This is a fixed-viewport
+     3-column app (each .column scrolls internally); without locking html,
+     a tall column's content extends the document and the PAGE shows a second
+     scrollbar alongside the column's. KenningWorkspace also sets
+     body.overflow=hidden at runtime — this is the CSS belt to its braces. */
+  height: 100dvh;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   /* wyrd-o7lp (PR #310 Gemini MED): dvh ('dynamic viewport height')
      accounts for mobile browser address bars overlaying content;
      vh measures the maximum viewport height which clips on mobile. */
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .layout {
   display: grid;
   grid-template-columns: var(--col-1-width) var(--col-2-width) 1fr;
   height: 100dvh;
+  /* wyrd-vith: pin the row to the grid height (not a content-sized `auto`
+     row) and contain overflow, so a tall column scrolls internally instead
+     of growing the grid past the viewport and adding a page scrollbar. */
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .column {
   border-right: 1px solid var(--border);
   overflow-y: auto;
+  /* wyrd-vith: grid items default to min-height:auto (won't shrink below
+     content), so a tall column overflows the fixed-height grid and scrolls
+     the page too. min-height:0 lets the item shrink to its cell so its own
+     overflow-y:auto is the ONLY scrollbar. */
+  min-height: 0;
   padding: 16px 20px;
 }
 

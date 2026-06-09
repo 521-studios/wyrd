@@ -9,6 +9,7 @@
     representativeMeanings,
     isNameMorpheme,
   } from '../lib/morphemeGloss.js';
+  import { accentedUsage, accentedName } from '../lib/accents.js';
 
   function selectResult(i) {
     appState.currentResultIndex =
@@ -52,7 +53,7 @@
               class:selected={appState.currentResultIndex === i}
               onclick={() => selectResult(i)}
             >
-              <span class="name">{r.result}</span>
+              <span class="name">{accentedName(r)}</span>
               {#if r.morphemes_by_word?.length}
                 <span class="etymology">
                   {#each r.morphemes_by_word as word}
@@ -60,7 +61,12 @@
                       {#each word as morph}
                         {@const g = glossFor(morph)}
                         <span class="morph-col">
-                          <span class="surface">{morph.usage || ''}</span>
+                          <!-- wyrd-de5t: show the accented surface (bȳ) when a
+                               rendering supplies one. wyrd-2ien: for an era
+                               render show the era form (matching the name); the
+                               modern breakdown lives in the inspector's two-card
+                               view, not here. -->
+                          <span class="surface">{morph.rendered || accentedUsage(morph) || morph.usage || ''}</span>
                           {#if g}<span class="gloss">{g}</span>{/if}
                         </span>
                       {/each}

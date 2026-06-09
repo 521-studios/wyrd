@@ -1,141 +1,77 @@
 <script>
-  // wyrd-yxf6 + wyrd-kppy: col 3 — morpheme detail inspector +
-  // transform pipeline.
+  // wyrd-rogd / wyrd-qc0g: col 3 — Inspect & Transform, rebuilt on the
+  // family × era axis the backend models (era_grid, wyrd-lftl) instead of the
+  // old per-language renderings axis.
   //
-  // Reads appState.currentResult (set by OutputColumn when the user
-  // clicks a result card). Renders the CURRENT name (post-pipeline
-  // if steps exist, else the original) + per-morpheme cards carrying
-  // sources/IPA/reader_pronunciation/original_script.
+  // Structure (skeleton; sections refined in wyrd-yrf9 / wyrd-zw1f / wyrd-410t):
+  //   1. Name cards — the active (as-generated) name + a de-accented line +
+  //      placement-consistent breakdown, beside a modern paragon.
+  //   2. (time-warp button bar — wyrd-410t, not yet built)
+  //   3. Per-morpheme blocks — gloss + tags + the family × era variant grid.
   //
-  // wyrd-kppy: the pipeline engine (lib/pipeline.svelte.js) tracks
-  // a user-editable stack of transform steps. An \$effect below
-  // re-runs the pipeline whenever the original (col-2 selection)
-  // or the step list changes — the "editable recipe" model from
-  // the design session (vs an undo/redo snapshot history).
-  import { untrack } from 'svelte';
+  // The pipeline engine (lib/pipeline.svelte.js) is unchanged and still owns
+  // the working state (swap steps + a flag-gated rewind step) so save/share
+  // keep working; this view only renders it. The active card reads the working
+  // pipeline.currentState (`displayState`); the paragon is the one thing
+  // intentionally pinned to the pre-pipeline `original`. That's the only
+  // remaining two-state split — gone is the old column's convoluted
+  // per-derived original-vs-displayState juggling (the lossless-accent gamble,
+  // era-reads-one / modern-reads-the-other) that drove the swap bugs.
+  import { tick, untrack } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
-  import { renderName } from '../lib/transforms/swap.js';
-  import MorphemeCard from '../components/MorphemeCard.svelte';
-  import TransformStack from '../components/TransformStack.svelte';
+  import { languageLabel } from '../lib/languageLabels.js';
+  import {
+    deAccent,
+    hasEraGrid,
+    pronForSurface,
+    eraBadge,
+    primaryGloss,
+    glossForSurface,
+    isGlossDrift,
+  } from '../lib/era.js';
+  import NameGuideCard from '../components/NameGuideCard.svelte';
+  import MorphemeGrid from '../components/MorphemeGrid.svelte';
   import DefectModal from '../components/DefectModal.svelte';
-  // wyrd-8jjx: SaveWorkspaceButton + ShareWorkspaceButton moved to
-  // the Header (universal across workspaces). Components stay in
-  // the tree for potential reuse but no longer rendered here.
 
   let result = $derived(appState.currentResult);
 
-  // wyrd-z3fl: "report defective" lives here (moved from the Output
-  // column) so the user flags the result they're inspecting. We flag the
-  // original generated result (appState.currentResult) — the reproducible
-  // generator output — not the post-transform displayState.
-  //
-  // Track the SPECIFIC result being flagged rather than a boolean: the
-  // modal's open state is then `flaggedResult === result`, derived
-  // synchronously. When the inspected result changes the modal closes in
-  // the same render (the derived comparison goes false) — no effect drives
-  // `open`, so no one-frame flash / double-render.
-  let flaggedResult = $state(null);
-
-  // Housekeeping only: null out a stale flaggedResult once the inspected
-  // result has moved off it. Without this, navigating BACK to a result the
-  // user had previously flagged would re-satisfy `flaggedResult === result`
-  // and reopen the modal unexpectedly. This effect never drives `open`
-  // (that stays derived + already false here), so it adds no flash; untrack
-  // keeps the flaggedResult write from re-triggering the effect.
+  // Reset the inspector's scroll region to the top whenever a different result
+  // is selected — otherwise clicking a new name lands you mid-list at the old
+  // scroll offset. Only ``.morphemes`` scrolls (the name cards are pinned), so
+  // we reset that element. ``tick()`` waits for the new morphemes to render so
+  // scrollTop=0 applies to the new content's layout.
+  let morphemesEl = $state(null);
   $effect(() => {
-    const current = result;
-    untrack(() => {
-      if (flaggedResult !== null && flaggedResult !== current) {
-        flaggedResult = null;
-      }
+    const idx = appState.currentResultIndex; // track: re-run on selection change
+    void idx;
+    tick().then(() => {
+      if (morphemesEl) morphemesEl.scrollTop = 0;
     });
   });
 
-  const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
-  const norm = (s) => stripDashes(s).toLowerCase();
-  // A string carries a diacritic if NFD-decomposing it yields combining
-  // marks (i.e. it changes under decomposition).
-  const hasAccent = (s) => !!s && s.normalize('NFD') !== s;
-
-  // wyrd-2b50 follow-up: the bundle's generated `usage` is often the
-  // lossy ASCII surface ("hy"), while the etymon's renderings carry the
-  // accented original_script ("hȳ"). Return the accented surface —
-  // grafted onto the usage's dash markers — when a rendering for this
-  // morpheme's own surface supplies one. Null otherwise.
-  function accentedUsage(m) {
-    const u = norm(m.usage);
-    if (!u) return null;
-    const R = m.renderings || {};
-    for (const lang of Object.keys(R)) {
-      for (const form of Object.keys(R[lang])) {
-        const os = R[lang][form].original_script;
-        if (os && norm(form) === u && hasAccent(os)) {
-          const lead = m.usage.match(/^-+/)?.[0] || '';
-          const trail = m.usage.match(/-+$/)?.[0] || '';
-          return lead + stripDashes(os) + trail;
-        }
-      }
-    }
-    return null;
-  }
-
-  function upgradeAccents(mbw) {
-    let changed = false;
-    const words = mbw.map((word) =>
-      word.map((m) => {
-        const acc = accentedUsage(m);
-        if (acc && acc !== m.usage) {
-          changed = true;
-          return { ...m, usage: acc };
-        }
-        return m;
-      }),
-    );
-    return { words, changed };
-  }
-
-  // The "original" state the pipeline feeds — the col-2 selection, with
-  // accents applied by default (the user's "show hȳ, not hy" ask). The
-  // accented head name is only re-rendered when renderName is PROVEN
-  // lossless for this name (reproduces the plain bundle name) — the
-  // renderer reproduces ~9/10 names, so an unsafe one keeps the bundle
-  // name + plain morphemes (1-click accent via the cards) rather than
-  // risk corrupting casing (e.g. "HamySide" -> "Hamyside").
-  let original = $derived.by(() => {
-    if (!result) return null;
-    const plain = result.morphemes_by_word || [];
-    const up = upgradeAccents(plain);
-    if (!up.changed) {
-      return { name: result.result, morphemes_by_word: plain };
-    }
-    const lossless = renderName(plain) === result.result;
-    return lossless
-      ? { name: renderName(up.words), morphemes_by_word: up.words }
-      : { name: result.result, morphemes_by_word: plain };
+  // "Report defective" flags the reproducible generator output (currentResult),
+  // not the post-swap state. Track the specific result so the modal closes
+  // synchronously when the inspected result changes (derived, no flash).
+  let flaggedResult = $state(null);
+  $effect(() => {
+    const current = result;
+    untrack(() => {
+      if (flaggedResult !== null && flaggedResult !== current) flaggedResult = null;
+    });
   });
 
-  // wyrd-kppy round 2: unified subject-change + pipeline-run
-  // effect so the clear-then-run ordering is atomic (pre-fix two
-  // sibling effects depended on currentResultIndex; declaration
-  // order made it work but it was fragile to file reorganization).
-  // When the user clicks a different result we clear the pipeline
-  // synchronously THEN kick off a fresh run; child reads see the
-  // post-clear state immediately. wyrd-34tn (PR #6 save/load) is
-  // where users will get explicit "keep this pipeline" preservation.
+  // The pre-pipeline result the pipeline runs against + the paragon pins to.
+  let original = $derived(
+    result ? { name: result.result, morphemes_by_word: result.morphemes_by_word || [] } : null,
+  );
+
+  // Subject-change + pipeline-run effect (engine; carried over from wyrd-kppy):
+  // clearing the pipeline on a new result is atomic with kicking off the run.
   let lastResultIndex = $state(null);
   $effect(() => {
     const stepsSnapshot = $state.snapshot(pipeline.steps);
     const idx = appState.currentResultIndex;
-    // wyrd-34tn round 2 (Gemini HIGH): always consume + clear the
-    // loading flag, regardless of whether idx actually changed. If
-    // a user loads a saved workspace for the result they're already
-    // inspecting, idx won't change — but the flag still needs to be
-    // cleared so the NEXT subject change behaves normally.
-    // wyrd-34tn round 3 (Gemini MED): untrack() the read+write so
-    // clearing the flag doesn't re-trigger this effect (which would
-    // double-run pipeline.run; the runToken protects state but the
-    // wasted run is inefficient).
     const isLoad = untrack(() => {
       const val = appState.isLoadingSavedWorkspace;
       if (val) appState.isLoadingSavedWorkspace = false;
@@ -150,57 +86,65 @@
     void stepsSnapshot;
   });
 
-  // The currently-displayed state — post-pipeline if any, else the
-  // original. Drives the head + morpheme cards.
+  // The working state — post-pipeline if any step ran, else the original.
   let displayState = $derived(pipeline.currentState);
 
   let allMorphemes = $derived.by(() => {
-    if (!displayState?.morphemes_by_word) return [];
     const out = [];
-    displayState.morphemes_by_word.forEach((word, wi) => {
-      // wyrd-hpjg: thread the in-word morpheme index too so
-      // MorphemeCard's click-to-swap UX can target the right
-      // (wordIndex, morphemeIndex) cell on the pipeline state.
-      word.forEach((m, mi) =>
-        out.push({ ...m, _wordIndex: wi, _morphemeIndex: mi }),
-      );
+    (displayState?.morphemes_by_word || []).forEach((word, wi) => {
+      (word || []).forEach((m, mi) => out.push({ ...m, _wordIndex: wi, _morphemeIndex: mi }));
     });
     return out;
   });
 
-  // The rendering slot (ipa / reader_pronunciation) for a morpheme's
-  // CURRENT usage — matched against either the plain form key or its
-  // accented original_script, since a swapped usage carries the accent.
-  function renderingForUsage(m) {
-    const u = stripDashes(m.usage);
-    const renderings = m.renderings || {};
-    for (const lang of Object.keys(renderings)) {
-      for (const form of Object.keys(renderings[lang])) {
-        const slot = renderings[lang][form];
-        if (u === stripDashes(form) || u === stripDashes(slot.original_script)) {
-          return slot;
-        }
-      }
-    }
-    return null;
+  // Build the surface / reader / ipa / gloss rows for a morpheme list. Surfaces
+  // keep their placement dashes (tre- / -bȳ / hall) — never stripped. The
+  // pronunciation slot comes from pronForSurface (era_grid cell → rendered_pron
+  // → legacy fallback, skipping pronless cells).
+  //
+  // wyrd-rogd.1: when `driftAware`, the gloss TRACKS the live variant — a
+  // swapped era cell carries its OWN meaning (a cognate that may have drifted),
+  // so the active card shows the variant's gloss and flags `drift` when it
+  // differs from the morpheme's base meaning. The paragon stays base (not
+  // drift-aware).
+  function rowsFor(words, surfaceOf, driftAware = false) {
+    return (words || []).flatMap((word) =>
+      (word || [])
+        .filter((m) => m?.usage?.trim())
+        .map((m) => {
+          const surface = surfaceOf(m);
+          const slot = pronForSurface(m, surface);
+          const base = primaryGloss(m);
+          const variant = driftAware ? glossForSurface(m, surface) : '';
+          const gloss = variant || base;
+          return {
+            surface,
+            reader: slot.reader_pronunciation,
+            ipa: slot.ipa,
+            gloss,
+            drift: isGlossDrift(base, variant),
+          };
+        }),
+    );
   }
 
-  // wyrd-2b50 follow-up: a pronunciation guide at the top, where it
-  // matters — instead of only buried per-form in the cards. Rendered
-  // PER-MORPHEME and aligned (surface over its reader-pronunciation /
-  // IPA) rather than as one joined string, because pronunciation
-  // coverage is sparse: most generated morphemes carry no rendering,
-  // so a joined string would silently show one morpheme's sound as if
-  // it were the whole name. Gaps render as a dim '·' so the guide is
-  // honest about what it knows. Reflects swaps live (displayState is
-  // post-pipeline). Hidden entirely when no morpheme has any data.
-  let hasPronunciation = $derived(
-    (displayState?.morphemes_by_word || [])
-      .flat()
-      .some((m) => {
-        const s = renderingForUsage(m);
-        return s?.reader_pronunciation || s?.ipa;
-      }),
+  // Active card: the name as generated + each morpheme's live (era) surface,
+  // gloss tracking the swapped variant (drift-aware).
+  let activeRows = $derived.by(() =>
+    rowsFor(displayState?.morphemes_by_word, (m) => m.rendered || m.usage, true),
+  );
+  // wyrd-yrf9: the active card's era badge, resolved over the WORKING state
+  // (displayState) so it tracks per-morpheme grid swaps — "Old English" when
+  // every morpheme shares an era, "Mixed (…)" for a blend, "as generated" for
+  // an untouched modern roll. Logic lives in eraBadge (lib/era.js, unit-tested).
+  let eraLabel = $derived(eraBadge(displayState?.morphemes_by_word, languageLabel));
+
+  // Paragon: the stable, de-accented version of the ORIGINAL name (pinned —
+  // unaffected by swaps). A true modern-reflex paragon awaits cleaner modern
+  // data (wyrd-rogd.1 / wyrd-yrf9); de-accent is the reliable skeleton form.
+  let paragonName = $derived(deAccent(original?.name || ''));
+  let paragonRows = $derived.by(() =>
+    rowsFor(original?.morphemes_by_word, (m) => deAccent(m.usage)),
   );
 </script>
 
@@ -213,19 +157,11 @@
       etymology, and pronunciation.
     </p>
   {:else}
-    <!-- wyrd-o7lp (PR #316 Gemini MED): dropped the {:else if
-         !displayState} branch — it was unreachable since
-         pipeline.currentState falls back to the original whenever
-         appState.currentResult is non-null, which is the very
-         condition that brought us into this {:else}. -->
     <header class="head">
       <div class="head-top">
-        <h3 class="name">
-          {displayState.name}
-          {#if pipeline.isRunning}
-            <span class="pending-flag" title="pipeline running">…</span>
-          {/if}
-        </h3>
+        {#if pipeline.isRunning}
+          <span class="pending-flag" title="pipeline running">…</span>
+        {/if}
         <button
           type="button"
           class="flag"
@@ -233,66 +169,69 @@
           title="Report defective"
         ><span aria-hidden="true">⚑</span> Report defective</button>
       </div>
-      {#if displayState.morphemes_by_word?.length > 0}
-        <p class="breakdown">
-          {displayState.morphemes_by_word
-            .map((word) => word.map((m) => m.usage).join(' '))
-            .filter((s) => s.trim())
-            .join(' · ')}
-        </p>
-      {/if}
-      {#if hasPronunciation}
-        <div class="pronunciation" aria-label="pronunciation guide">
-          {#each displayState.morphemes_by_word as word}
-            <span class="pron-word">
-              {#each word as m}
-                {#if m.usage?.trim()}
-                  {@const slot = renderingForUsage(m)}
-                  <span class="pron-col">
-                    <span class="pron-surface">{m.usage}</span>
-                    <span class="pron-reader"
-                      >{slot?.reader_pronunciation || '·'}</span>
-                    {#if slot?.ipa}
-                      <span class="pron-ipa">{slot.ipa}</span>
-                    {/if}
-                  </span>
-                {/if}
-              {/each}
-            </span>
-          {/each}
-        </div>
-      {/if}
-      {#if pipeline.steps.length > 0 && displayState.name !== original.name}
-        <p class="provenance">
-          from <span class="orig">{original.name}</span>
-        </p>
-      {/if}
+
+      <div class="name-cards">
+        <NameGuideCard
+          headingId="inspect-result-name"
+          name={displayState.name}
+          altName={deAccent(displayState.name)}
+          label={eraLabel}
+          rows={activeRows}
+        />
+        {#if paragonRows.length}
+          <NameGuideCard name={paragonName} label="modern" dim rows={paragonRows} />
+        {/if}
+      </div>
     </header>
 
-    <section class="morphemes">
-      <h4 class="section-head">
-        Morphemes ({allMorphemes.length})
-      </h4>
+    <section class="morphemes" bind:this={morphemesEl}>
+      <h4 class="section-head">Morphemes ({allMorphemes.length})</h4>
 
       {#if allMorphemes.length === 0}
-        <p class="placeholder">
-          This generator doesn't expose per-morpheme metadata.
-        </p>
+        <p class="placeholder">This generator doesn't expose per-morpheme metadata.</p>
       {:else}
-        <!-- wyrd-hpjg round 2 (Gemini MED): key by position, not
-             usage. Pre-fix, swapping a morpheme's usage changed
-             the key, causing MorphemeCard destroy/recreate (lose
-             focus + scroll state on the card). Position-based key
-             is stable across swaps. -->
-        {#each allMorphemes as morpheme (morpheme._wordIndex + ':' + morpheme._morphemeIndex)}
-          <MorphemeCard {morpheme} morphemeIndex={morpheme._morphemeIndex} />
+        {#each allMorphemes as m (m._wordIndex + ':' + m._morphemeIndex)}
+          <article class="morpheme">
+            <div class="m-head">
+              <span class="m-usage">{m.rendered || m.usage}</span>
+              {#if m.tags?.length}
+                <span class="m-tags">
+                  {#each m.tags as tag}<span class="tag">{tag}</span>{/each}
+                </span>
+              {/if}
+            </div>
+
+            {#if m.meaning_groups?.length}
+              <div class="meaning-groups">
+                {#each m.meaning_groups as group}
+                  <p class="meaning-group">{group.join(', ')}</p>
+                {/each}
+              </div>
+            {:else if m.meanings?.length}
+              <p class="meanings">{m.meanings.join(', ')}</p>
+            {/if}
+
+            {#if hasEraGrid(m)}
+              <MorphemeGrid morpheme={m} />
+            {:else}
+              <p class="no-grid">No era variants yet for this morpheme.</p>
+            {/if}
+
+            <!-- wyrd-rogd.14: collapsed-by-default scholarly-source citations,
+                 restored after the col-3 era-axis rebuild (wyrd-qc0g) dropped
+                 the wyrd-bvwu disclosure. Only morphemes with >=1 citation get
+                 the fold (matches the promotion-threshold model). -->
+            {#if m.citations?.length}
+              <details class="citations">
+                <summary>Citations ({m.citations.length})</summary>
+                <ul>
+                  {#each m.citations as src}<li>{src}</li>{/each}
+                </ul>
+              </details>
+            {/if}
+          </article>
         {/each}
       {/if}
-    </section>
-
-    <section class="transforms">
-      <h4 class="section-head">Transforms</h4>
-      <TransformStack />
     </section>
 
     <DefectModal
@@ -304,23 +243,39 @@
 </section>
 
 <style>
+  /* wyrd-rogd.8: pin the name cards — the h2 + the head (active/paragon cards)
+     stay put; only the morpheme cards scroll. Overrides the app.css whole-
+     column `overflow-y: auto` with a flex column whose .morphemes is the lone
+     scroll region. (Scoped, so only col 3 changes.) */
+  .column {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .morphemes {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
   .head {
+    flex-shrink: 0;
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border);
   }
-  /* wyrd-z3fl: name on the left, "report defective" action on the right. */
   .head-top {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 10px;
   }
-  .name {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--fg);
+  .name-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px 24px;
+    align-items: start;
+    margin-top: 4px;
   }
   .flag {
     flex-shrink: 0;
@@ -347,58 +302,6 @@
     color: var(--fg-muted);
     margin-left: 4px;
   }
-  .breakdown {
-    margin: 6px 0 0;
-    font-size: 12px;
-    color: var(--fg-muted);
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-  }
-  /* wyrd-2b50 follow-up: per-morpheme aligned pronunciation guide —
-     each surface over its reader-pronunciation (accent) + IPA, words
-     spaced apart, gaps shown as a dim '·'. */
-  .pronunciation {
-    margin: 10px 0 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 16px;
-  }
-  .pron-word {
-    display: flex;
-    gap: 10px;
-  }
-  .pron-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
-  }
-  .pron-surface {
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-    font-size: 12px;
-    color: var(--fg);
-  }
-  .pron-reader {
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    color: var(--accent);
-  }
-  .pron-ipa {
-    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-    font-size: 10px;
-    color: var(--fg-muted);
-  }
-  .provenance {
-    margin: 4px 0 0;
-    font-size: 11px;
-    color: var(--fg-muted);
-    font-style: italic;
-  }
-  .provenance .orig {
-    color: var(--fg);
-    font-style: normal;
-  }
   .section-head {
     font-size: 11px;
     font-weight: 600;
@@ -407,8 +310,86 @@
     letter-spacing: 0.08em;
     margin: 0 0 12px;
   }
-  .transforms {
-    margin-top: 24px;
+  .morpheme {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .m-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .m-usage {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .m-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 6px;
+    background: var(--border);
+    color: var(--fg-muted);
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  /* wyrd-rogd.14: collapsed-by-default scholarly-citation disclosure. */
+  .citations {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--fg-muted);
+  }
+  .citations summary {
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: 0.02em;
+  }
+  .citations ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    list-style: disc;
+  }
+  .citations li {
+    margin: 2px 0;
+    word-break: break-word;
+  }
+  .meaning-groups {
+    margin: 0 0 8px;
+  }
+  .meaning-group {
+    margin: 0;
+    padding-left: 8px;
+    border-left: 2px solid var(--border);
+    font-size: 12px;
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  .meaning-group + .meaning-group {
+    margin-top: 4px;
+  }
+  .meanings {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  .no-grid {
+    margin: 6px 0 0;
+    font-size: 11px;
+    color: var(--fg-muted);
+    font-style: italic;
   }
   .placeholder {
     color: var(--fg-muted);

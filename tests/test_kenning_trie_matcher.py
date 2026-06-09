@@ -321,67 +321,26 @@ def test_multi_decomposition_multiple_morphemes_same_start_different_lengths():
 # --- position constraints --------------------------------------------------
 
 
-def test_pre_morpheme_only_matches_at_position_zero():
-    """Bridg- is location='pre' (trailing dash). It must only match at
-    the start of the word; if it appears mid-word, the matcher must
-    NOT emit it."""
-    bridg = _meaning("Bridg-")
-    inner = _meaning("-bridg-")  # 'inner' for contrast
-    db = {"Bridg-": [bridg], "-bridg-": [inner]}
-    trie = build_morpheme_trie(db)
-    # 'XbridgX' — bridg sits at pos 1..6 of len=7: strictly inner
-    # (start>0 AND end<len). The 'pre' Meaning must NOT match (start
-    # != 0); the 'inner' Meaning IS allowed.
-    decomps = all_decompositions("XbridgX", trie)
-    matched_meanings = [m for d in decomps for m in iter_morphemes(d) if not isinstance(m, str)]
-    # 'pre' Bridg- should never appear in any decomposition.
-    assert bridg not in matched_meanings
-    # 'inner' -bridg- can appear (strictly inner).
-    assert inner in matched_meanings
-
-
-def test_post_morpheme_only_matches_at_word_end():
-    """-water is location='post' (leading dash). It must only match
-    when the match ends at len(word). If 'water' appears mid-word, the
-    matcher must NOT emit it."""
-    water_post = _meaning("-water")
-    db = {"-water": [water_post]}
-    trie = build_morpheme_trie(db)
-    # 'waterX' — 'water' starts at 0, ends at 5, but len=6 → NOT
-    # at word-end → must be excluded.
-    decomps = all_decompositions("waterX", trie)
-    matched = [m for d in decomps for m in iter_morphemes(d)]
-    assert water_post not in matched
-    # 'water' at the actual end IS allowed.
-    decomps_end = all_decompositions("Bridgwater", trie)
-    matched_end = [m for d in decomps_end for m in iter_morphemes(d)]
-    assert water_post in matched_end
-
-
-def test_inner_morpheme_only_matches_strictly_inside():
-    """wyrd-zewx: an 'inner' Meaning (dashes both sides) must match
-    STRICTLY inside the word — start > 0 AND end < word_length.
-    Allowing inner morphemes at boundaries produced 'donhole' /
-    'nwydmillate' style outputs from the post-wyrd-eni4 bundle's
-    expanded inner-morpheme inventory.
-
-    'by' as inner: matches in 'XbyX' (start=1, end=3, strictly
-    interior of len=4) but NOT in 'by' (start=0, end=len), 'Xby'
-    (end=len), or 'byX' (start=0)."""
-    by = _meaning("-by-")
-    db = {"-by-": [by]}
+def test_matching_is_string_only_no_position_gate():
+    """wyrd-eyjk/D40: position is NEVER a match constraint. A morpheme matches
+    by its dash-stripped surface at ANY span — the stored dash-shape
+    (pre/post/inner) does not gate or select where it may match; position is
+    derived from the span/index afterward. (Replaces the old _location_allows
+    gate tests that asserted pre-only-at-0 / post-only-at-end /
+    inner-only-strictly-inside — the donhole guard now lives in the credible-
+    split scorer, not a match gate.)"""
+    bridg = _meaning("Bridg-")  # stored 'pre'
+    water = _meaning("-water")  # stored 'post'
+    by = _meaning("-by-")  # stored 'inner'
+    db = {"Bridg-": [bridg], "-water": [water], "-by-": [by]}
     trie = build_morpheme_trie(db)
 
-    # Strictly-interior position — should match.
-    decomps = all_decompositions("XbyX", trie)
-    matched = [m for d in decomps for m in iter_morphemes(d)]
-    assert by in matched, "'-by-' should match strictly inside 'XbyX'"
-
-    # Boundary positions — should NOT match.
-    for word in ("by", "Xby", "byX"):
-        decomps = all_decompositions(word, trie)
-        matched = [m for d in decomps for m in iter_morphemes(d)]
-        assert by not in matched, f"'-by-' should NOT match at boundary in {word!r}"
+    # 'pre' Bridg- matches MID-word (no longer gated to start).
+    assert bridg in [m for d in all_decompositions("XbridgX", trie) for m in iter_morphemes(d)]
+    # 'post' -water matches NOT-at-end (no longer gated to word-end).
+    assert water in [m for d in all_decompositions("waterX", trie) for m in iter_morphemes(d)]
+    # 'inner' -by- matches at a BOUNDARY (no longer gated to strictly-inside).
+    assert by in [m for d in all_decompositions("byX", trie) for m in iter_morphemes(d)]
 
 
 # --- canonical_decomposition (single answer) -------------------------------

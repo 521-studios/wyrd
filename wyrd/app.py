@@ -11,6 +11,7 @@ from flask import Flask, jsonify, request
 
 from wyrd import registry
 from wyrd.envelope import envelope
+from wyrd.feature_flags import apply_env_defaults, resolve_feature_config
 from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
 
 MAX_COUNT = 10
@@ -69,9 +70,19 @@ def create_app() -> Flask:
                         "details": g.details,
                         "legend": g.legend,
                         "input_schema": g.input_schema(),
+                        # wyrd-rogd.12: optional per-family era-stage axis for
+                        # generators that expose one (kenning); the key is always
+                        # present, null for generators that don't define it.
+                        "era_stages": getattr(g, "era_stages", None),
                     }
                     for g in registry.all_generators()
-                ]
+                ],
+                # wyrd-0gou: env-resolved SPA feature flags + default-value
+                # overrides. The SPA reads this to decide which advanced
+                # config options to render (default off; staging sets
+                # WYRD_FF_ALL=true). Resolved per-request so flipping a
+                # Lambda env var takes effect without a redeploy.
+                "config": resolve_feature_config(),
             }
         )
 
@@ -114,6 +125,13 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
     if generator is None:
         _logger.info("dispatch unknown_generator name=%s", generator_name)
         return jsonify({"error": "unknown_generator", "name": generator_name}), 404
+
+    # wyrd-7f22: apply WYRD_DEFAULT_<OPTION> env overrides for options the
+    # request omits, BEFORE generation. The SPA omits any field still at its
+    # seeded default (wyrd-14hn), so a value-changing env default (e.g.
+    # WYRD_DEFAULT_NOVELTY=0.1) would otherwise never reach the generator. No-op
+    # when no WYRD_DEFAULT_* is set, so local / CLI / tests stay bit-stable.
+    apply_env_defaults(params, generator.input_schema().get("properties", {}))
 
     seed = resolve_seed(params.pop("seed", None))
     # Snapshot params before count is popped so the log line carries

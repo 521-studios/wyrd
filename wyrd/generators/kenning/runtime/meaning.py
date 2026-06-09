@@ -14,6 +14,33 @@ import random
 
 from wyrd.generators.kenning.vectors.schemas import _DIMENSION_NAMES, PhonologicalVector
 
+# wyrd-eyjk/D40: tags that mark a morpheme as a proper noun. The QUALIFYING
+# tags — {male/female/family name} (via is_name) and {saint} (via is_saint) —
+# gate is_pure_proper_noun; {personal-name, religious} are COMPANION tags that
+# only keep a row "pure" alongside a qualifying one (so a synthesized saint
+# subject tagged {saint, personal-name, religious} reads as pure). Single
+# source of truth — __init__._is_pure_proper_noun delegates to the method below.
+_PROPER_NOUN_TAGS = frozenset(
+    {"male name", "female name", "family name", "saint", "personal-name", "religious"}
+)
+
+# wyrd-gwj3: connector SURFACES that require a complement and are never a valid
+# standalone English place-name word — the Latin/French toponym connectors
+# (`X cum Y`, `Chester-le-Street`, `Stoke sur Y`, `Stoke juxta Y`). They leaked
+# into the morpheme pool as untagged etymons (decomposed from real `X cum Y`
+# toponyms), so they can't be filtered by tag — matched by bare surface instead.
+# Excluded from the base generation pool so they don't dangle as a lone word
+# (`Newton Cum`). Their legitimate home is joiner-insertion
+# (`_apply_joiner_insertion`), which draws from a separate joiner pool — not the
+# base pool — and these connector surfaces are not yet wired into that pool.
+# Conservative set: only unambiguous connectors. NOT included: `magna` /
+# `parva` (real standalone qualifiers — `Wigston Magna`), and `saint` / `st`
+# (the dedication particle has a legitimate saint-SLOT mechanism — `Saint
+# <name>` — so excluding it would break valid dedications; the rarer trailing-
+# `St` dangle + `Saint <common-noun>` oddities are a separate saint-slot-quality
+# concern).
+_CONNECTOR_PARTICLE_SURFACES = frozenset({"cum", "le", "la", "sur", "sous", "juxta"})
+
 # Suffix used in meanings.json to mark per-language variant pools, e.g.
 # "old_english" canonical forms have their variants in "old_english_variants".
 # Matches the export-meanings emit shape in lexicon.py:_emit_variant_list.
@@ -155,10 +182,17 @@ class Meaning:
         pronunciation=None,
         stratum=None,
         era_reflexes=None,
+        era_reflex_glosses=None,
         phonological_vector=None,
         phonological_vectors=None,
+        morpheme_id=None,
     ):
         self.usage = usage
+        # wyrd-rogd.10 Phase 2: the owning morpheme's content id (or None for
+        # bundles predating Phase 1 / un-attributable words). Lets the runtime
+        # resolve the era-grid against the unified morpheme record by id rather
+        # than the per-connective-surface Meaning.
+        self.morpheme_id = morpheme_id
         self.tags = tags
         self.meanings = meanings
         self.sources = sources
@@ -189,7 +223,6 @@ class Meaning:
         # families (Hebrew, Arabic, Persian, Sanskrit, Akkadian, Egyptian,
         # Aramaic + their precursors). Empty for Latin-script langs and
         # for older bundles that pre-date the wyrd-ha9q export.
-        # `english_shaped_for(lang_field, form)` is the runtime accessor.
         self.english_shaped = english_shaped or {}
         # wyrd-qhs0 Phase 2d: the OTHER three wyrd-ha9q rendering
         # columns surfaced for the SPA panel.
@@ -206,12 +239,9 @@ class Meaning:
         #   the dialect tag that was on the same `sounds[*]` entry,
         #   and wyrd-ha9q Phase 2a's upsert_etymon CASE expression
         #   updates the two columns atomically so the dialect tag
-        #   never describes an IPA we don't store. The runtime
-        #   accessor pronunciation_for(...) returns a copy of the
-        #   inner dict so the pair stays intact for the caller.
+        #   never describes an IPA we don't store.
         # All three are empty for Latin-script source langs and older
-        # bundles. Accessors: original_script_for / transliteration_for
-        # / pronunciation_for.
+        # bundles.
         self.original_script = original_script or {}
         self.transliteration = transliteration or {}
         self.pronunciation = pronunciation or {}
@@ -237,6 +267,13 @@ class Meaning:
         # dict). Empty for legacy proto-language roots and untracked
         # classical families.
         self.era_reflexes: dict[str, list[tuple[str, str]]] = era_reflexes or {}
+        # wyrd-rogd.1: per-target-language ``{form: gloss}`` — the reflex
+        # etymon's OWN representative meaning, carried alongside era_reflexes
+        # (separately, so era_reflex_for / era_reflex_sources_for stay
+        # back-compatible) so the SPA era-grid can surface semantic DRIFT when
+        # a swapped cognate no longer means what the morpheme does. Sparse:
+        # only forms whose reflex etymon had a non-pointer gloss appear.
+        self.era_reflex_glosses: dict[str, dict[str, str]] = era_reflex_glosses or {}
         # wyrd-ecjp.5 / wyrd-kq7w.1: per-meaning phonological vector
         # consumed by the vector-scoring path's phon_score sub-scorer.
         # None when the bundle doesn't carry the field (legacy bundles
@@ -264,13 +301,13 @@ class Meaning:
         # indistinguishable — the proportions grammaticality guard
         # (_is_ungrammatical_word_template) couldn't tell a legitimate
         # single bare word from a suffix-only morpheme rendered alone
-        # (the '-park' → "Park" standalone), and the vector-mode slot
-        # filter matched suffix keys into single-word slots. A distinct
-        # 'bare' location fixes both: bare is valid at any position
-        # (trie _location_allows falls through to permissive True) and
-        # single-word slots encode ('bare',) so suffix keys no longer
-        # fill them. NOTE: keep in lockstep with
-        # vector_name_select._slot_position_label, which mirrors this map.
+        # (the '-park' → "Park" standalone). A distinct 'bare' location
+        # fixes that: single-word occurrences record + bucket as ('bare', …).
+        # wyrd-eyjk/D40: ``.location`` is now only a render/scoring hint, NOT a
+        # match-time gate — matching is string-only and position is derived
+        # from the span (the trie ``_location_allows`` and vector
+        # ``_matches_position`` gates were removed). NOTE: keep in lockstep
+        # with vector_name_select._slot_position_label, which mirrors this map.
         if self.usage.startswith("-") and self.usage.endswith("-"):
             self.location = "inner"
         elif self.usage.endswith("-"):
@@ -288,27 +325,6 @@ class Meaning:
             f"{{usage: {self.usage}, tags: {self.tags}, meanings: {self.meanings}, "
             f"sources: {self.sources}, location: {self.location}}}"
         )
-
-    def test(self, word):
-        # str(self) lowercases the usage, so all matching is case-insensitive.
-        # Slice (not str.replace) to strip the matched span without depending on
-        # the original word's casing — fixes a bug from the original Rando port
-        # where "Hill" matched post-Meaning("-hill") but left "Hill" as residue
-        # because lowercase replace() couldn't find uppercase "H".
-        token = str(self)
-        lower = word.lower()
-        n = len(token)
-        if self.location == "pre":
-            if lower.startswith(token):
-                return [self, word[n:]]
-        elif self.location == "post":
-            if lower.endswith(token):
-                return [word[: len(word) - n], self]
-        else:
-            idx = lower.find(token)
-            if idx > -1:
-                return [word[:idx], self, word[idx + n :]]
-        return None
 
     def is_name(self):
         return any(tag in ("female name", "male name", "family name") for tag in self.tags)
@@ -365,85 +381,80 @@ class Meaning:
     def is_saint(self):
         return "saint" in self.tags
 
-    def english_shaped_for(self, lang_field: str, form: str) -> str | None:
-        """wyrd-ha9q Phase 2c: return the English-friendly rendering of
-        ``form`` in the language indexed by ``lang_field`` (e.g. "hebrew",
-        "arabic", "sanskrit"), or None when:
+    def is_given_name(self):
+        """True when tagged as a personal GIVEN name (male/female). Given names
+        (`John`, `Mary`, `Edmund`) dangle awkwardly as a bare place-name element
+        — a real toponym either composes them (`Edmund`+`-ton`) or marks a
+        dedication (`St John`). FAMILY names (`Smith`, Norman manorial families)
+        are NOT given names: they form legitimate manorial/toponymic places, so
+        they're excluded here. Used (alongside is_saint) by the base-pool
+        exclusion (wyrd-g1hj) to keep pure given-name etymons out of plain
+        generation."""
+        return any(tag in ("male name", "female name") for tag in self.tags)
 
-        - the language doesn't carry english_shaped data (Latin-script
-          source langs OR older bundles),
-        - the form has no entry in the english_shaped map (the canonical
-          form lacked sufficient transliteration / IPA input for
-          derive_english_shaped to produce a value).
+    def is_connector_particle(self):
+        """wyrd-gwj3: True when this morpheme's bare surface is a connector that
+        requires a complement (`cum`, `le`, `la`, `sur`, `sous`, `juxta`). These
+        are never a valid standalone English place-name word; excluded from the
+        base generation pool so they don't dangle as a lone word (`Newton Cum`).
+        Matched by SURFACE because they leaked in as untagged etymons (no
+        connector tag). The saint particle is deliberately NOT here — see
+        ``_CONNECTOR_PARTICLE_SURFACES``."""
+        return self.usage.replace("-", "").lower() in _CONNECTOR_PARTICLE_SURFACES
 
-        Callers MUST handle None explicitly — generally by falling back
-        to ``form`` itself for display when ``form`` is already
-        Latin-script (Old English, Latin, Welsh, ...), and by skipping
-        the morpheme for non-Latin display when None is returned and the
-        form contains non-Latin characters.
+    def is_pure_proper_noun(self):
+        """True when this is name/saint-tagged and carries NO common-noun tag
+        — a personal name / saint / synthesized saint-subject with no
+        place-element sense (``Bourne``, ``Andrew``, the ``Mary``/``John``
+        dedication subjects), as opposed to a place element merely co-tagged
+        with a name (``stān`` 'stone' + 'Stan'). Such morphemes belong only in
+        name/saint slots, never the generic base-generation pool (wyrd-eyjk/D40
+        — keeps synthesized saint subjects from leaking into plain names)."""
+        if not (self.is_name() or self.is_saint()):
+            return False
+        return all(tag in _PROPER_NOUN_TAGS for tag in self.tags)
 
-        Use this when rendering surface forms that came from a non-Latin
-        source language — town-name generation in non-Latin register
-        (wyrd-rni / wyrd-381 era-rewind demos) and the SPA's
-        etymological-provenance panel are the primary consumers.
-        """
-        forms = self.english_shaped.get(lang_field)
-        if not forms:
-            return None
-        return forms.get(form)
+    def is_manorial_subject(self):
+        """wyrd-57d8: True for a synthesized Norman manorial-family subject
+        (``Malet``, ``Beauchamp``, ``Mandeville`` …), tagged ``manorial`` at
+        load by ``__init__._norman_manorial_subjects``. These exist only so
+        ``KenningExplain`` can decompose the manorial-affix names Kenning emits
+        with ``manorial_affix > 0``; they are NEVER a base-generation morpheme.
+        Their sole legitimate entry into output is the dedicated
+        ``manorial_affix`` knob, so — like synthesized saint subjects (D40) —
+        they're excluded from the base pool (see ``is_base_pool_excluded``)."""
+        return "manorial" in self.tags
 
-    def original_script_for(self, lang_field: str, form: str) -> str | None:
-        """wyrd-qhs0 Phase 2d: return the vocalized native-script
-        rendering of ``form`` in ``lang_field``, or None when no
-        original_script data is available (Latin-script source lang
-        OR the row's wiktextract entry didn't supply head_templates'
-        `wv` / `head` arg)."""
-        forms = self.original_script.get(lang_field)
-        if not forms:
-            return None
-        return forms.get(form)
+    def is_base_pool_excluded(self):
+        """wyrd-57d8: the request-INDEPENDENT class exclusions from base
+        generation, in one place so every base pool applies them identically —
+        the scored native pool (``vector_name_select._native_meaning_eligible``),
+        the proportions frequency-weight pool
+        (``proportions.MeaningGenerator.load_parts``), AND the
+        repeat-diversification re-pick
+        (``proportions.NewName._collect_repick_pools``). The re-pick previously
+        read ``meaning_db`` raw and so re-introduced an excluded morpheme to
+        break a ``corner corner`` repeat (the manorial ``Malet`` leak).
 
-    def transliteration_for(self, lang_field: str, form: str) -> str | None:
-        """wyrd-qhs0 Phase 2d: return the academic Latin-script
-        transliteration (with diacritics) of ``form`` in
-        ``lang_field``, or None when no transliteration data is
-        available."""
-        forms = self.transliteration.get(lang_field)
-        if not forms:
-            return None
-        return forms.get(form)
+        Excluded classes (each belongs only in its dedicated slot, never the
+        generic base pool):
 
-    def pronunciation_for(self, lang_field: str, form: str) -> dict[str, str | None] | None:
-        """wyrd-qhs0 Phase 2d: return the {ipa, dialect} pronunciation
-        dict for ``form`` in ``lang_field``, or None when no IPA data
-        is available. The dialect value may itself be None (the IPA
-        was untagged-canonical in wiktextract) — that's a separate
-        case from the whole pair being missing.
+        - pure-proper-noun saints / personal given names — reach output only via
+          the param-gated St-dedication synthesis (wyrd-eyjk/D40 + wyrd-g1hj);
+        - synthesized Norman manorial subjects — reach output only via the
+          ``manorial_affix`` knob (wyrd-57d8);
+        - connector particles (``cum`` / ``le`` / ``juxta`` …) — require a
+          complement; their home is joiner insertion (wyrd-gwj3).
 
-        Returns a fresh shallow copy of the stored dict so caller
-        mutation can't corrupt Meaning state. The other three
-        accessors return strings (immutable), so they're safe to
-        return directly; only this pair-shape value needs the copy."""
-        forms = self.pronunciation.get(lang_field)
-        if not forms:
-            return None
-        hit = forms.get(form)
-        if hit is None:
-            return None
-        return dict(hit)
-
-    def stratum_for(self, lang_field: str, form: str) -> str | None:
-        """wyrd-lr4 Phase 2: return the within-language stratum tag
-        for ``form`` in ``lang_field`` (e.g. 'native-welsh',
-        'brittonic-substrate', 'latin-loan'), or None when no stratum
-        data is available — the language has no Phase 1 classifier,
-        the form fell into the unclassified default before Phase 1
-        ran, or the bundle pre-dates the wyrd-lr4 export. Phase 3's
-        --stratum filter is the primary consumer."""
-        forms = self.stratum.get(lang_field)
-        if not forms:
-            return None
-        return forms.get(form)
+        Family-name etymons that carry a real place sense are NOT excluded here
+        (they form legitimate manorial places); nor is a place element merely
+        co-tagged with a name (`stān`+`Stan` — not a pure proper noun). Only the
+        three classes enumerated above are excluded."""
+        if self.is_pure_proper_noun() and (self.is_saint() or self.is_given_name()):
+            return True
+        if self.is_manorial_subject():
+            return True
+        return self.is_connector_particle()
 
     def era_reflex_for(self, target_language: str) -> list[str]:
         """wyrd-obpw Phase 3.3: return the cluster-mate forms attested
@@ -482,6 +493,14 @@ class Meaning:
         ``era_reflex_for`` which returns a forms-only list."""
         return dict(self.era_reflexes.get(target_language, ()))
 
+    def era_reflex_gloss_for(self, target_language: str) -> dict[str, str]:
+        """wyrd-rogd.1: return ``{form: gloss}`` for ``target_language`` — the
+        reflex etymon's own representative meaning per form. Sparse (only forms
+        whose reflex had a non-pointer gloss) and empty for targets with no
+        reflexes / no gloss data. The SPA era-grid compares a cell's gloss to
+        the morpheme's own to flag semantic drift on a cognate swap."""
+        return dict(self.era_reflex_glosses.get(target_language, {}))
+
     def respelling_for(self, form: str, lang_field: str) -> str | None:
         """wyrd-17t: SAMPA-lite respelling of ``form`` in
         ``lang_field`` for non-modern-English readers.
@@ -491,7 +510,7 @@ class Meaning:
         None when:
 
         * the language has no respeller (modern English, untracked
-          languages — see ``has_respeller`` for the dispatch list),
+          languages — see the ``respelling`` dispatch list),
         * ``form`` is empty.
 
         Caller pattern: render the respelling next to the canonical
@@ -774,6 +793,46 @@ def _normalize_era_reflexes(
     return out
 
 
+def _normalize_era_reflex_glosses(raw: dict) -> dict[str, dict[str, str]]:
+    """wyrd-rogd.1: extract the per-form gloss map ``{lang: {form: gloss}}``
+    from the bundle's era_reflexes field — only the {form, source, gloss} dict
+    entries that carry a non-empty ``gloss``. This runs OVER THE SAME raw field
+    as ``_normalize_era_reflexes`` but extracts a DIFFERENT projection (gloss,
+    not source), kept separate so the (form, source) shape the rewinder
+    consumes stays untouched — it is not a structural parallel of that
+    function.
+
+    Like its sibling it is fail-soft: malformed / glossless / bare-string
+    entries are skipped silently (an export bug shouldn't take down the load),
+    here yielding no gloss for that form. Legacy bundles (bare-string or
+    {form, source}-only entries) therefore produce an empty map.
+
+    Assumes one entry per form per lang (upheld upstream by the ``best:
+    dict[str, EraReflex]`` form-dedup in ``_fetch_family_era_reflexes``); on a
+    hypothetical duplicate form the dict-comprehension would last-write-wins."""
+    out: dict[str, dict[str, str]] = {}
+    if not isinstance(raw, dict):
+        return out
+    for lang, entries in raw.items():
+        if not isinstance(entries, list):
+            continue
+        glosses = {
+            entry["form"]: entry["gloss"]
+            for entry in entries
+            # form must be a non-empty STRING (it's a dict key — a non-string
+            # form from a malformed export would be unhashable and crash the
+            # load; fail-soft skips it instead). gloss must be a non-empty str.
+            if isinstance(entry, dict)
+            and isinstance(entry.get("form"), str)
+            and entry["form"]
+            and isinstance(entry.get("gloss"), str)
+            and entry["gloss"]
+        }
+        if glosses:
+            out[lang] = glosses
+    return out
+
+
 def _bundle_subjects(data) -> list:
     """Extract the subjects list from a meanings.json bundle that may
     be either the legacy list-of-subjects shape or the wyrd-q0g6 dict-
@@ -885,6 +944,58 @@ def load_joiners(data) -> dict[str, list[tuple[str, int]]]:
     }
 
 
+def _extract_phonological_vectors(
+    word: dict,
+) -> tuple[PhonologicalVector | None, dict[str, dict[str, PhonologicalVector]]]:
+    """Parse a word's phonological-vector data (wyrd-ecjp.5 / kq7w.1 / 10a).
+
+    Reads the per-language ``<lang>_phonological_vector`` siblings (D26)
+    into the plural ``phonological_vectors`` dict keyed by
+    ``(lang, canonical_form)``, skipping malformed entries (best-effort
+    parse, degrade silently). For the back-compat singular
+    ``phonological_vector`` it reads a legacy top-level
+    ``phonological_vector`` key first, falling back to the first
+    non-empty vector across the deterministic lang × form walk.
+
+    Returns ``(phonological_vector, phonological_vectors)``.
+    """
+    phonological_vectors: dict[str, dict[str, PhonologicalVector]] = {}
+    for k, v in word.items():
+        if not k.endswith(_PHONOLOGICAL_VECTOR_SUFFIX):
+            continue
+        lang_key = k[: -len(_PHONOLOGICAL_VECTOR_SUFFIX)]
+        per_form: dict[str, PhonologicalVector] = {}
+        for entry in v:
+            # Skip malformed entries: a non-dict entry or a dict missing
+            # the "form" key would crash the parse loop. Bundles can in
+            # principle ship arbitrary JSON, and the "best-effort parse;
+            # degrade silently" contract that _parse_phon_vector
+            # documents extends to the surrounding entry shape.
+            if not isinstance(entry, dict) or "form" not in entry:
+                continue
+            parsed = _parse_phon_vector(entry.get("phonological_vector"))
+            if parsed is not None:
+                per_form[entry["form"]] = parsed
+        if per_form:
+            phonological_vectors[lang_key] = per_form
+    legacy_top_level = word.get("phonological_vector")
+    if legacy_top_level is not None:
+        phonological_vector = _parse_phon_vector(legacy_top_level)
+    else:
+        # Deterministic lang × form walk: pick the first non-empty
+        # vector. next(gen, None) is the Pythonic "first match or None"
+        # — avoids the nested-break pattern.
+        phonological_vector = next(
+            (
+                phonological_vectors[lang_key][form]
+                for lang_key in sorted(phonological_vectors)
+                for form in sorted(phonological_vectors[lang_key])
+            ),
+            None,
+        )
+    return phonological_vector, phonological_vectors
+
+
 def load_meanings(data):
     meaning_db: dict[str, list[Meaning]] = {}
     tags_db: dict[str, list[str]] = {}
@@ -901,6 +1012,7 @@ def load_meanings(data):
                 for k, v in word.items()
                 if k != "modern_usage"
                 and k != "era_reflexes"  # wyrd-obpw: top-level, not a source
+                and k != "morpheme_id"  # wyrd-rogd.10: the owning-morpheme id, not a language
                 and not k.endswith(_VARIANT_SUFFIX)
                 and not k.endswith(_INFLECTION_SUFFIX)
                 and not k.endswith(_CITATIONS_SUFFIX)
@@ -993,6 +1105,7 @@ def load_meanings(data):
             # (form, source) tuple shape.
             era_reflexes_field = word.get("era_reflexes") or {}
             era_reflexes = _normalize_era_reflexes(era_reflexes_field)
+            era_reflex_glosses = _normalize_era_reflex_glosses(era_reflexes_field)
             # wyrd-ecjp.5 / wyrd-kq7w.1: per-meaning phonological vector.
             # wyrd-ecjp.10a Phase 7: bundle now emits per-language
             # siblings (<lang>_phonological_vector) per the D26 pattern.
@@ -1006,42 +1119,7 @@ def load_meanings(data):
             # a top-level "phonological_vector" key (pre-10a) still
             # work — we read it first and only fall back to the
             # per-language walk when absent.
-            phonological_vectors: dict[str, dict[str, PhonologicalVector]] = {}
-            for k, v in word.items():
-                if not k.endswith(_PHONOLOGICAL_VECTOR_SUFFIX):
-                    continue
-                lang_key = k[: -len(_PHONOLOGICAL_VECTOR_SUFFIX)]
-                per_form: dict[str, PhonologicalVector] = {}
-                for entry in v:
-                    # Skip malformed entries: a non-dict entry or a
-                    # dict missing the "form" key would crash the
-                    # parse loop. Bundles can in principle ship
-                    # arbitrary JSON, and the "best-effort parse;
-                    # degrade silently" contract that _parse_phon_vector
-                    # documents extends to the surrounding entry shape.
-                    if not isinstance(entry, dict) or "form" not in entry:
-                        continue
-                    parsed = _parse_phon_vector(entry.get("phonological_vector"))
-                    if parsed is not None:
-                        per_form[entry["form"]] = parsed
-                if per_form:
-                    phonological_vectors[lang_key] = per_form
-            legacy_top_level = word.get("phonological_vector")
-            if legacy_top_level is not None:
-                phonological_vector = _parse_phon_vector(legacy_top_level)
-            else:
-                # Deterministic lang × form walk: pick the first
-                # non-empty vector. next(gen, None) is the Pythonic
-                # form of "first match or None" — avoids the
-                # nested-break pattern.
-                phonological_vector = next(
-                    (
-                        phonological_vectors[lang_key][form]
-                        for lang_key in sorted(phonological_vectors)
-                        for form in sorted(phonological_vectors[lang_key])
-                    ),
-                    None,
-                )
+            phonological_vector, phonological_vectors = _extract_phonological_vectors(word)
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
@@ -1059,8 +1137,10 @@ def load_meanings(data):
                 "pronunciation": pronunciation,
                 "stratum": stratum,
                 "era_reflexes": era_reflexes,
+                "era_reflex_glosses": era_reflex_glosses,
                 "phonological_vector": phonological_vector,
                 "phonological_vectors": phonological_vectors,
+                "morpheme_id": word.get("morpheme_id"),  # wyrd-rogd.10 Phase 2
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:

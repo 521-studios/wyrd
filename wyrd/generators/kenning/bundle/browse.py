@@ -492,42 +492,65 @@ def format_etymon(data: dict[str, Any]) -> str:
         lines.append(f"### Tags ({len(data['tags'])})")
         lines += [f"- {t}" for t in data["tags"]]
 
-    # Lemma family
-    if data["lemma_ref"] or data["inflection"] or data["inflections"]:
-        lines.append("")
-        lines.append("### Lemma family")
-        if data["lemma_ref"]:
-            infl = f" ({data['inflection']})" if data["inflection"] else ""
-            lines.append(f"- This row is an inflection of `{data['lemma_ref']}`{infl}")
-            if data["lemma_method"]:
-                lines.append(f"- Linked by method: `{data['lemma_method']}`")
-        if data["inflections"]:
-            lines.append(f"- Inflected variants ({len(data['inflections'])}):")
-            for inf in data["inflections"]:
-                tag = f" ({inf['inflection']})" if inf["inflection"] else ""
-                lines.append(f"  - `{inf['ref']}`{tag}")
+    lines += _etymon_lemma_family_lines(data)
+    lines += _etymon_ocr_cluster_lines(data)
+    lines += _etymon_citation_lines(data)
+    lines += _etymon_descent_lines(data)
+    return "\n".join(lines)
 
-    # OCR cluster
-    if data["merged_into_ref"] or data["merged_in"]:
-        lines.append("")
-        lines.append("### OCR cluster")
-        if data["merged_into_ref"]:
-            lines.append(
-                f"- This row is merged INTO `{data['merged_into_ref']}` (citations roll up)"
-            )
-        if data["merged_in"]:
-            lines.append(f"- Other rows merged into this one ({len(data['merged_in'])}):")
-            for ref in data["merged_in"]:
-                lines.append(f"  - `{ref}`")
 
-    if data["citations"]:
-        lines.append("")
-        lines.append(f"### Citations ({len(data['citations'])})")
-        for c in data["citations"]:
-            page = f" p.{c['page']}" if c["page"] else ""
-            quote = f' — "{c["short_quote"]}"' if c["short_quote"] else ""
-            lines.append(f"- `{c['source_id']}`{page}{quote}")
+def _etymon_lemma_family_lines(data: dict[str, Any]) -> list[str]:
+    """### Lemma family — inflection-of link + inflected variants.
 
+    ``inflection`` is deliberately NOT a guard: it only ever renders as a suffix
+    to the ``lemma_ref`` line, so an inflection-only row (no lemma_ref, no
+    inflections) has nothing to show — gating on it would emit an empty header.
+    """
+    if not (data["lemma_ref"] or data["inflections"]):
+        return []
+    lines: list[str] = ["", "### Lemma family"]
+    if data["lemma_ref"]:
+        infl = f" ({data['inflection']})" if data["inflection"] else ""
+        lines.append(f"- This row is an inflection of `{data['lemma_ref']}`{infl}")
+        if data["lemma_method"]:
+            lines.append(f"- Linked by method: `{data['lemma_method']}`")
+    if data["inflections"]:
+        lines.append(f"- Inflected variants ({len(data['inflections'])}):")
+        for inf in data["inflections"]:
+            tag = f" ({inf['inflection']})" if inf["inflection"] else ""
+            lines.append(f"  - `{inf['ref']}`{tag}")
+    return lines
+
+
+def _etymon_ocr_cluster_lines(data: dict[str, Any]) -> list[str]:
+    """### OCR cluster — merge-into target + rows merged in."""
+    if not (data["merged_into_ref"] or data["merged_in"]):
+        return []
+    lines: list[str] = ["", "### OCR cluster"]
+    if data["merged_into_ref"]:
+        lines.append(f"- This row is merged INTO `{data['merged_into_ref']}` (citations roll up)")
+    if data["merged_in"]:
+        lines.append(f"- Other rows merged into this one ({len(data['merged_in'])}):")
+        for ref in data["merged_in"]:
+            lines.append(f"  - `{ref}`")
+    return lines
+
+
+def _etymon_citation_lines(data: dict[str, Any]) -> list[str]:
+    """### Citations — one line per source citation."""
+    if not data["citations"]:
+        return []
+    lines: list[str] = ["", f"### Citations ({len(data['citations'])})"]
+    for c in data["citations"]:
+        page = f" p.{c['page']}" if c["page"] else ""
+        quote = f' — "{c["short_quote"]}"' if c["short_quote"] else ""
+        lines.append(f"- `{c['source_id']}`{page}{quote}")
+    return lines
+
+
+def _etymon_descent_lines(data: dict[str, Any]) -> list[str]:
+    """### Descent — ancestor + descendant edges."""
+    lines: list[str] = []
     if data["descent_in"]:
         lines.append("")
         lines.append(f"### Descent: ancestors ({len(data['descent_in'])})")
@@ -536,7 +559,6 @@ def format_etymon(data: dict[str, Any]) -> str:
             lines.append(
                 f"- `{d['parent_ref']}` → this ({d['edge_type']}{conf}, source=`{d['source_id']}`)"
             )
-
     if data["descent_out"]:
         lines.append("")
         lines.append(f"### Descent: descendants ({len(data['descent_out'])})")
@@ -545,8 +567,7 @@ def format_etymon(data: dict[str, Any]) -> str:
             lines.append(
                 f"- this → `{d['child_ref']}` ({d['edge_type']}{conf}, source=`{d['source_id']}`)"
             )
-
-    return "\n".join(lines)
+    return lines
 
 
 def format_toponym(data: dict[str, Any]) -> str:
@@ -561,36 +582,8 @@ def format_toponym(data: dict[str, Any]) -> str:
         ]
     )
 
-    if data["attestations"]:
-        lines.append("")
-        lines.append(f"### Attestations ({len(data['attestations'])})")
-        for a in data["attestations"]:
-            year = f"{a['date_year']}: " if a["date_year"] else ""
-            doc = f" ({a['source_doc']})" if a["source_doc"] else ""
-            lines.append(f"- {year}{a['form']}{doc}")
-
-    if data["etymologies"]:
-        lines.append("")
-        lines.append(f"### Scholar etymologies ({len(data['etymologies'])})")
-        for te in data["etymologies"]:
-            conf = f", {te['confidence']}" if te["confidence"] else ""
-            page = f", p.{te['page']}" if te["page"] else ""
-            year = f", {te['attested_year']}" if te["attested_year"] else ""
-            lines.append(f"- `{te['source_id']}`{conf}{page}{year}")
-            if te["historical_form"]:
-                lines.append(f"  Historical form: `{te['historical_form']}`")
-            if te["notes"]:
-                lines.append(f"  Notes: {_truncate_for_grep(te['notes'])}")
-            if te["elements"]:
-                lines.append("  Elements:")
-                for el in te["elements"]:
-                    extras: list[str] = []
-                    if el["inflection"]:
-                        extras.append(f"inflection={el['inflection']}")
-                    if el["surface_in_modern"]:
-                        extras.append(f"surface={el['surface_in_modern']}")
-                    extra = f" ({', '.join(extras)})" if extras else ""
-                    lines.append(f"    {el['ordinal']}. `{el['etymon_ref']}`{extra}")
+    lines += _toponym_attestation_lines(data)
+    lines += _toponym_etymology_lines(data)
 
     if data["decompositions"]:
         lines.append("")
@@ -598,6 +591,52 @@ def format_toponym(data: dict[str, Any]) -> str:
         lines += _format_decomposition_lines(data["decompositions"])
 
     return "\n".join(lines)
+
+
+def _toponym_attestation_lines(data: dict[str, Any]) -> list[str]:
+    """### Attestations — dated historical forms."""
+    if not data["attestations"]:
+        return []
+    lines: list[str] = ["", f"### Attestations ({len(data['attestations'])})"]
+    for a in data["attestations"]:
+        year = f"{a['date_year']}: " if a["date_year"] else ""
+        doc = f" ({a['source_doc']})" if a["source_doc"] else ""
+        lines.append(f"- {year}{a['form']}{doc}")
+    return lines
+
+
+def _toponym_etymology_lines(data: dict[str, Any]) -> list[str]:
+    """### Scholar etymologies — per-source etymology with elements."""
+    if not data["etymologies"]:
+        return []
+    lines: list[str] = ["", f"### Scholar etymologies ({len(data['etymologies'])})"]
+    for te in data["etymologies"]:
+        conf = f", {te['confidence']}" if te["confidence"] else ""
+        page = f", p.{te['page']}" if te["page"] else ""
+        year = f", {te['attested_year']}" if te["attested_year"] else ""
+        lines.append(f"- `{te['source_id']}`{conf}{page}{year}")
+        if te["historical_form"]:
+            lines.append(f"  Historical form: `{te['historical_form']}`")
+        if te["notes"]:
+            lines.append(f"  Notes: {_truncate_for_grep(te['notes'])}")
+        if te["elements"]:
+            lines.append("  Elements:")
+            lines += _etymology_element_lines(te["elements"])
+    return lines
+
+
+def _etymology_element_lines(elements: list[dict[str, Any]]) -> list[str]:
+    """Per-element ``ordinal. `etymon_ref` (extras)`` lines for an etymology."""
+    out: list[str] = []
+    for el in elements:
+        extras: list[str] = []
+        if el["inflection"]:
+            extras.append(f"inflection={el['inflection']}")
+        if el["surface_in_modern"]:
+            extras.append(f"surface={el['surface_in_modern']}")
+        extra = f" ({', '.join(extras)})" if extras else ""
+        out.append(f"    {el['ordinal']}. `{el['etymon_ref']}`{extra}")
+    return out
 
 
 def _format_decomposition_lines(decompositions: list[dict[str, Any]]) -> list[str]:

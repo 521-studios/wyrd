@@ -14,6 +14,108 @@ from wyrd.generators.kenning.lexicon.english_shaping import (
 from wyrd.generators.kenning.lexicon.english_shaping import derive_english_shaped
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
+_PROGRESS_EVERY = 1000
+
+
+def _select_candidate_rows(
+    db_path: Path,
+    *,
+    language_filter: str | None,
+    reshape: bool,
+    limit: int | None,
+) -> list:
+    """Fetch the etymon rows eligible for english_shaped derivation.
+
+    Builds the WHERE predicate via parameterized SQL — never f-string
+    interpolate user-supplied values (``--language``) into the query.
+    ``--limit`` is f-string-formatted but only after ``int(limit)``
+    (Click already cast it; an int isn't interpolatable to anything
+    dangerous). ``limit is not None`` rather than truthiness so an
+    explicit ``--limit 0`` means "process zero rows" rather than
+    silently falling through to no limit. When ``reshape`` is false the
+    predicate narrows to ``english_shaped IS NULL``.
+    """
+    if language_filter:
+        lang_pred = "language = ?"
+        lang_params: tuple[str, ...] = (language_filter,)
+    else:
+        placeholders = ",".join("?" * len(_PHASE2A_NON_LATIN_LANGS))
+        lang_pred = f"language IN ({placeholders})"
+        lang_params = _PHASE2A_NON_LATIN_LANGS
+    where_pred = lang_pred + ("" if reshape else " AND english_shaped IS NULL")
+    limit_clause = f" LIMIT {int(limit)}" if limit is not None else ""
+
+    with LexiconDB(db_path) as db:
+        return db.conn.execute(
+            f"""SELECT id, canonical_form, language,
+                       transliteration, pronunciation_ipa
+                FROM etymon
+                WHERE {where_pred}
+                ORDER BY language, id
+                {limit_clause}""",
+            lang_params,
+        ).fetchall()
+
+
+def _process_rows(
+    rows: list, db_writer: LexiconDB | None, total: int
+) -> tuple[int, int, dict[str, int]]:
+    """Derive english_shaped for each row, optionally writing it.
+
+    Echoes a ``[N/total]`` progress line every ``_PROGRESS_EVERY`` rows
+    plus a final line, per the CLAUDE.md "Mining progress reporting"
+    convention. Returns ``(written, skipped_no_input, by_language)``.
+    When ``db_writer`` is None this is a dry-run (counts only, no UPDATE).
+    """
+    written = 0
+    skipped_no_input = 0
+    by_language: dict[str, int] = {}
+    for completed, row in enumerate(rows, start=1):
+        shaped = derive_english_shaped(
+            canonical_form=row["canonical_form"],
+            language=row["language"],
+            transliteration=row["transliteration"],
+            pronunciation_ipa=row["pronunciation_ipa"],
+        )
+        if shaped is None:
+            skipped_no_input += 1
+        else:
+            written += 1
+            by_language[row["language"]] = by_language.get(row["language"], 0) + 1
+            if db_writer is not None:
+                db_writer.conn.execute(
+                    "UPDATE etymon SET english_shaped = ? WHERE id = ?",
+                    (shaped, row["id"]),
+                )
+                if completed % _PROGRESS_EVERY == 0:
+                    db_writer.commit()
+        if completed % _PROGRESS_EVERY == 0 or completed == total:
+            click.echo(
+                f"  [{completed}/{total}]  written={written} skipped_no_input={skipped_no_input}",
+                err=True,
+            )
+    return written, skipped_no_input, by_language
+
+
+def _echo_summary(
+    written: int,
+    skipped_no_input: int,
+    by_language: dict[str, int],
+    *,
+    apply_changes: bool,
+) -> None:
+    """Print the final written/skipped totals, per-language breakdown, and dry-run hint."""
+    click.echo(
+        f"derive-english-shaped: {written} written, {skipped_no_input} skipped (no usable input).",
+        err=True,
+    )
+    if by_language:
+        click.echo("  per-language:", err=True)
+        for lang, n in sorted(by_language.items(), key=lambda kv: -kv[1]):
+            click.echo(f"    {lang}: {n}", err=True)
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to write english_shaped)", err=True)
+
 
 @click.command("derive-english-shaped")
 @click.option(
@@ -88,31 +190,9 @@ def lexicon_derive_english_shaped(
     final summary, matching the convention in CLAUDE.md "Mining
     progress reporting".
     """
-    # Build the WHERE predicate via parameterized SQL — never f-string
-    # interpolate user-supplied values (--language) into the query.
-    if language_filter:
-        lang_pred = "language = ?"
-        lang_params: tuple[str, ...] = (language_filter,)
-    else:
-        placeholders = ",".join("?" * len(_PHASE2A_NON_LATIN_LANGS))
-        lang_pred = f"language IN ({placeholders})"
-        lang_params = _PHASE2A_NON_LATIN_LANGS
-    where_pred = lang_pred + ("" if reshape else " AND english_shaped IS NULL")
-    # --limit: int(limit) is safe (Click already cast) and an int is
-    # not interpolatable to anything dangerous.
-    limit_clause = f" LIMIT {int(limit)}" if limit else ""
-
-    with LexiconDB(db_path) as db:
-        rows = db.conn.execute(
-            f"""SELECT id, canonical_form, language,
-                       transliteration, pronunciation_ipa
-                FROM etymon
-                WHERE {where_pred}
-                ORDER BY language, id
-                {limit_clause}""",
-            lang_params,
-        ).fetchall()
-
+    rows = _select_candidate_rows(
+        db_path, language_filter=language_filter, reshape=reshape, limit=limit
+    )
     total = len(rows)
     click.echo(
         f"derive-english-shaped: {total} candidate row(s) "
@@ -121,54 +201,16 @@ def lexicon_derive_english_shaped(
         err=True,
     )
 
-    written = 0
-    skipped_no_input = 0
-    by_language: dict[str, int] = {}
-    progress_every = 1000
-
     db_writer = LexiconDB(db_path) if apply_changes else None
     try:
-        for completed, row in enumerate(rows, start=1):
-            shaped = derive_english_shaped(
-                canonical_form=row["canonical_form"],
-                language=row["language"],
-                transliteration=row["transliteration"],
-                pronunciation_ipa=row["pronunciation_ipa"],
-            )
-            if shaped is None:
-                skipped_no_input += 1
-            else:
-                written += 1
-                by_language[row["language"]] = by_language.get(row["language"], 0) + 1
-                if db_writer is not None:
-                    db_writer.conn.execute(
-                        "UPDATE etymon SET english_shaped = ? WHERE id = ?",
-                        (shaped, row["id"]),
-                    )
-                    if completed % progress_every == 0:
-                        db_writer.commit()
-            if completed % progress_every == 0 or completed == total:
-                click.echo(
-                    f"  [{completed}/{total}]  written={written} "
-                    f"skipped_no_input={skipped_no_input}",
-                    err=True,
-                )
+        written, skipped_no_input, by_language = _process_rows(rows, db_writer, total)
         if db_writer is not None:
             db_writer.commit()
     finally:
         if db_writer is not None:
             db_writer.close()
 
-    click.echo(
-        f"derive-english-shaped: {written} written, {skipped_no_input} skipped (no usable input).",
-        err=True,
-    )
-    if by_language:
-        click.echo("  per-language:", err=True)
-        for lang, n in sorted(by_language.items(), key=lambda kv: -kv[1]):
-            click.echo(f"    {lang}: {n}", err=True)
-    if not apply_changes:
-        click.echo("(dry-run; pass --apply to write english_shaped)", err=True)
+    _echo_summary(written, skipped_no_input, by_language, apply_changes=apply_changes)
 
 
 def add_to(parent: click.Group) -> None:

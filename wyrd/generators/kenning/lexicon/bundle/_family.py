@@ -5,7 +5,7 @@ etymon id + the list of member ids in its cognate cluster, run every
 ``_fetch_member_*`` SQL loader once, hydrate a single per-family
 context dict, and return it for downstream subject/word assembly.
 
-The era-reflex picker (``_fetch_root_era_reflexes``) uses the same
+The era-reflex picker (``_fetch_family_era_reflexes``) uses the same
 4-tier ladder that ``era_reflex.etymon_era_reflexes`` exposes for
 runtime callers — the bundle pre-computes the picks at build time so
 the runtime doesn't need to walk the descent graph.
@@ -23,7 +23,7 @@ from typing import Any
 
 from wyrd.generators.kenning.lexicon.collapse_detect import is_form_of_pointer
 from wyrd.generators.kenning.lexicon.db import LexiconDB
-from wyrd.generators.kenning.lexicon.era_reflex import etymon_era_reflexes
+from wyrd.generators.kenning.lexicon.era_reflex import EraReflex, etymon_era_reflexes
 
 
 def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[str, Any] | None:
@@ -107,7 +107,7 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
 
     reflex_links = _fetch_member_reflex_links(db, member_ids)
 
-    era_reflexes = _fetch_root_era_reflexes(db, root_id, root_row["language"])
+    era_reflexes = _fetch_family_era_reflexes(db, member_ids, root_row["language"])
     forms_by_lang = _build_forms_by_lang(root_row, member_rows)
     # wyrd-nxhh: pre-fix the modern surfaces only landed in
     # ``era_reflexes`` (consumed by KenningRewind for era progression).
@@ -172,6 +172,138 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
 _ATTESTED_ERA_REFLEX_SOURCES: frozenset[str] = frozenset({"cluster", "descent", "period-form"})
 
 
+_MODERN_STAGE_LANGUAGES: frozenset[str] | None = None
+
+
+def _modern_stage_languages() -> frozenset[str]:
+    """The canonical language tag of every family's MODERN cell
+    (``modern`` / ``early-modern``) — e.g. ``modern-english``, ``welsh``,
+    ``irish``, ``french``. The wyrd-rogd.11 derived-name filter applies only
+    to the modern stage, where the cluster proliferates with derived proper
+    nouns; historical stages carry the period common forms. Built lazily +
+    memoised (matches the lazy CANONICAL_LANGUAGE_FOR_CELL import below)."""
+    global _MODERN_STAGE_LANGUAGES
+    if _MODERN_STAGE_LANGUAGES is None:
+        from wyrd.generators.kenning.era.cells import CANONICAL_LANGUAGE_FOR_CELL
+
+        _MODERN_STAGE_LANGUAGES = frozenset(
+            lang
+            for (_fam, cell), lang in CANONICAL_LANGUAGE_FOR_CELL.items()
+            if cell in ("modern", "early-modern") and lang
+        )
+    return _MODERN_STAGE_LANGUAGES
+
+
+# wyrd-pzg5: closed-class function words (articles, determiners, demonstratives,
+# pronouns, conjunctions, interjections). These ride into the modern stage via
+# deep cluster over-merge (a morpheme's grid showing 'the' / 'they' / 'thy') but
+# are NEVER a place-name element's modern reflex. Matched on the EXACT lowercased
+# form only (no substring), so a legit element that merely contains these letters
+# is untouched. Deliberately omits anything that is also a place-name element —
+# notably 'by' (the Norse -by settlement element) and bare prepositions
+# (in/on/at/up) whose element-hood is ambiguous — erring toward keeping.
+_MODERN_REFLEX_STOPWORDS: frozenset[str] = frozenset(
+    {
+        # articles / determiners / demonstratives ('a'/'an' note: 'a' is already
+        # dropped by the single-char rule, so only multi-char entries are listed)
+        "the",
+        "an",
+        "this",
+        "that",
+        "these",
+        "those",
+        # pronouns (personal / possessive / interrogative / relative);
+        # single-char 'i' is covered by the single-char rule, so it's omitted here
+        "me",
+        "my",
+        "mine",
+        "we",
+        "us",
+        "our",
+        "ours",
+        "you",
+        "your",
+        "yours",
+        "thy",
+        "thee",
+        "thou",
+        "thine",
+        "he",
+        "him",
+        "his",
+        "she",
+        "her",
+        "hers",
+        "it",
+        "its",
+        "they",
+        "them",
+        "their",
+        "theirs",
+        "who",
+        "whom",
+        "whose",
+        "which",
+        "what",
+        # conjunctions
+        "and",
+        "or",
+        "but",
+        "nor",
+        "not",
+        "than",
+        "then",
+        # interjections / fillers
+        "um",
+        "uh",
+        "oh",
+        "ah",
+        "eh",
+    }
+)
+
+
+def _is_derived_name_pollution(form: str) -> bool:
+    """wyrd-rogd.11 + wyrd-pzg5: True when a MODERN-stage reflex is NOT the
+    morpheme's own common-noun continuation — a derived proper noun (place or
+    personal name), a capitalized cross-orthography foreign cognate, a
+    segmentation fragment, or a closed-class function word.
+
+    The cluster/descent tiers dump an etymon's whole modern-attested cluster
+    into the modern stage — derived toponyms (``West Ham``, ``Coldingham``,
+    ``Westbourne``), anthroponyms (``Wesley``, ``Derek``, ``Hank``), and
+    mistagged foreign cognates (``Düne``, ``Zaun``, ``Ouest``) — none of which
+    is the morpheme's modern English reflex (``ton``, ``hill``, ``-bury``).
+    ``edge_type`` is unreliable (OE ``tūn`` → ``Pendleton`` is tagged
+    'inheritance'), so we gate on the FORM:
+
+    - internal whitespace (a multi-word toponym, e.g. ``mons pubis``);
+    - an initial uppercase letter (a proper noun or a capitalized foreign
+      cognate like ``Düne`` whose orthography betrays a non-English form);
+    - a single-character form (``s``, ``k``) — a segmentation/OCR fragment;
+      the shortest genuine elements (``ea``, ``ey``) are two characters, and
+      the generator already always drops single-character fragments;
+    - a form with NO alphabetic character (``123``, ``??``) — a numeric/
+      punctuation artifact, never a reflex;
+    - a closed-class function word (``the``, ``they``, ``thy`` — see
+      ``_MODERN_REFLEX_STOPWORDS``).
+
+    A genuine reflex is a lowercase common form. Erring toward an EMPTY modern
+    stage is intended per the ticket."""
+    f = form.strip()
+    if not f or any(c.isspace() for c in f):  # empty, or multi-word (any whitespace)
+        return True
+    bare = f.strip("-")  # ignore affix hyphens for the length / stopword checks
+    if len(bare) <= 1:  # single-char segmentation/OCR fragment
+        return True
+    if bare.lower() in _MODERN_REFLEX_STOPWORDS:
+        return True
+    first_alpha = next((c for c in f if c.isalpha()), "")
+    if not first_alpha:  # digits / punctuation only — not a real reflex
+        return True
+    return first_alpha.isupper()
+
+
 def _merge_era_reflexes_into_forms_by_lang(
     forms_by_lang: dict[str, list[str]],
     era_reflexes: dict[str, list[dict[str, str]]],
@@ -182,7 +314,7 @@ def _merge_era_reflexes_into_forms_by_lang(
     reads.
 
     Each ``era_reflexes`` entry is a target-language → list of
-    ``{form, source}`` dicts from ``_fetch_root_era_reflexes``. We
+    ``{form, source}`` dicts from ``_fetch_family_era_reflexes``. We
     filter to ``source in _ATTESTED_ERA_REFLEX_SOURCES`` (Tiers 1-3 —
     excluding Tier-4 phonology-rule forms), then union the surviving
     forms into ``forms_by_lang[target_language]`` preserving insertion
@@ -210,35 +342,270 @@ def _merge_era_reflexes_into_forms_by_lang(
                 existing.add(form)
 
 
-def _fetch_root_era_reflexes(
-    db: LexiconDB, root_id: int, root_language: str
+# European-feeder languages of British/European place-names: English + Germanic +
+# Romance (incl. every Latin period/variety + Anglo-Norman) + Celtic + Hellenic +
+# PIE, with their proto/old/middle/dialect codes. A cognate-cluster reflex whose
+# descent parent is OUTSIDE this set is a cross-language Descendants-section
+# re-entry (wiktextract noise), not a genuine reflex of a British place-name
+# morpheme — see _foreign_reentry_ids. Generous on purpose: a MISSING feeder code
+# would wrongly drop a legit reflex, so err toward inclusion.
+_FEEDER_LANGUAGES: frozenset[str] = frozenset(
+    {
+        # English
+        "old-english",
+        "middle-english",
+        "modern-english",
+        "english",
+        "enm",
+        "ang",
+        "scots",
+        "sco",
+        # Germanic
+        "proto-germanic",
+        "gem-pro",
+        "gem-frk",
+        "gmw-pro",
+        "gmq-pro",
+        "gmw-jdt",
+        "gmq-osw",
+        "gmq-oda",
+        "old-norse",
+        "non",
+        "icelandic",
+        "is",
+        "faroese",
+        "fo",
+        "danish",
+        "da",
+        "swedish",
+        "sv",
+        "norwegian",
+        "norwegian-bokmal",
+        "norwegian-nynorsk",
+        "no",
+        "nb",
+        "nn",
+        "gothic",
+        "got",
+        "dutch",
+        "nl",
+        "dum",
+        "middle-dutch",
+        "odt",
+        "old-dutch",
+        "german",
+        "de",
+        "old-high-german",
+        "goh",
+        "middle-high-german",
+        "gmh",
+        "old-saxon",
+        "osx",
+        "old-frisian",
+        "ofs",
+        "frisian",
+        "west-frisian",
+        "fy",
+        "saterland-frisian",
+        "stq",
+        "low-german",
+        "nds",
+        "middle-low-german",
+        "gml",
+        "luxembourgish",
+        "lb",
+        "limburgish",
+        "li",
+        "afrikaans",
+        "af",
+        "gsw",
+        "bar",
+        # Romance + Latin
+        "latin",
+        "la",
+        "la-lat",
+        "la-med",
+        "la-vul",
+        "la-ecc",
+        "lat",
+        "vulgar-latin",
+        "itc-pro",
+        "osp",
+        "french",
+        "fr",
+        "old-french",
+        "fro",
+        "middle-french",
+        "frm",
+        "norman",
+        "nrf",
+        "xno",
+        "italian",
+        "it",
+        "spanish",
+        "es",
+        "portuguese",
+        "pt",
+        "galician",
+        "gl",
+        "occitan",
+        "oc",
+        "pro",
+        "catalan",
+        "ca",
+        "romanian",
+        "ro",
+        "sardinian",
+        "sc",
+        "roa-pro",
+        "roa-oil",
+        "roa-opt",
+        "fur",
+        "lld",
+        # Celtic
+        "proto-celtic",
+        "cel-pro",
+        "cel-bry-pro",
+        "cel-gae-pro",
+        "cel",
+        "welsh",
+        "cy",
+        "old-welsh",
+        "owl",
+        "middle-welsh",
+        "wlm",
+        "cornish",
+        "kw",
+        "cnx",
+        "breton",
+        "br",
+        "xbm",
+        "obt",
+        "irish",
+        "ga",
+        "old-irish",
+        "sga",
+        "middle-irish",
+        "mga",
+        "primitive-irish",
+        "pgl",
+        "scottish-gaelic",
+        "gd",
+        "manx",
+        "gv",
+        "gaulish",
+        "xtg",
+        "cel-gau",
+        "pictish",
+        "xpi",
+        "brythonic",
+        "goidelic",
+        # Hellenic
+        "ancient-greek",
+        "grc",
+        "greek",
+        "el",
+        "modern-greek",
+        "gkm",
+        "grc-koi",
+        "koine",
+        # Proto-Indo-European (the shared feeder root)
+        "proto-indo-european",
+        "ine-pro",
+    }
+)
+
+
+def _collect_best_by_target(
+    db: LexiconDB, target_languages: set[str], sorted_members: list[int]
+) -> dict[str, dict[str, EraReflex]]:
+    """Per target-language, the best reflex per surface form unioned across all
+    family members (before the foreign-reentry filter). For each target, dedupe
+    by form across members keeping the highest-quality source on collision
+    (``_better_era_reflex_source``; ties keep the lowest-id member since
+    ``sorted_members`` is sorted). The modern stage additionally strips derived
+    proper nouns / mistagged foreign cognates (wyrd-rogd.11
+    ``_is_derived_name_pollution``) so the cleaned set feeds BOTH the era-grid
+    and the forms_by_lang merge. Targets with no reflex are omitted."""
+    modern_languages = _modern_stage_languages()
+    best_by_target: dict[str, dict[str, EraReflex]] = {}
+    for target_language in sorted(target_languages):
+        is_modern = target_language in modern_languages
+        best: dict[str, EraReflex] = {}
+        for member_id in sorted_members:
+            reflexes = etymon_era_reflexes(db, member_id, target_language=target_language)
+            if is_modern:
+                reflexes = [r for r in reflexes if not _is_derived_name_pollution(r.form)]
+            for r in reflexes:
+                existing = best.get(r.form)
+                if existing is None or _better_era_reflex_source(r.source, existing.source):
+                    best[r.form] = r
+        if best:
+            best_by_target[target_language] = best
+    return best_by_target
+
+
+def _foreign_reentry_ids(db: LexiconDB, etymon_ids: set[int]) -> set[int]:
+    """The subset of ``etymon_ids`` that are FOREIGN RE-ENTRIES: an era-reflex
+    etymon that descends (inheritance / borrowing / derivation edge) from at
+    least one language OUTSIDE ``_FEEDER_LANGUAGES``. These are cross-language
+    descendants wiktextract's Descendants section pulled into the cognate cluster
+    — modern-english ``kaona`` (← Hawaiian), ``argaman`` (← Hebrew), ``bungoo``
+    (← Dyirbal) — not genuine modern reflexes of a British place-name morpheme,
+    so they pollute the era-grid's modern cell (wyrd-6hbv Phase 2).
+
+    Flagged when ANY parent is non-feeder (so a junk edge that also attaches a
+    spurious feeder parent — e.g. ``bank`` → ``bungoo`` alongside Dyirbal — is
+    still caught). A reflex with no descent parents, or whose every parent is a
+    feeder language, is kept. One batched query over the family's reflex ids."""
+    if not etymon_ids:
+        return set()
+    placeholders = ",".join("?" * len(etymon_ids))
+    foreign: set[int] = set()
+    for row in db.conn.execute(
+        f"SELECT ed.child_id AS cid, p.language AS plang "
+        f"FROM etymon_descent ed JOIN etymon p ON p.id = ed.parent_id "
+        f"WHERE ed.child_id IN ({placeholders}) "
+        f"  AND ed.edge_type IN ('inheritance', 'borrowing', 'derivation')",
+        list(etymon_ids),
+    ):
+        if (row["plang"] or "").lower() not in _FEEDER_LANGUAGES:
+            foreign.add(row["cid"])
+    return foreign
+
+
+def _fetch_family_era_reflexes(
+    db: LexiconDB, member_ids: list[int], root_language: str
 ) -> dict[str, list[dict[str, str]]]:
-    """wyrd-obpw Phase 3.3 + wyrd-jbcu source-aware schema: per-root
+    """wyrd-obpw Phase 3.3 + wyrd-jbcu source-aware schema: per-FAMILY
     era reflexes for bundle export.
 
     Returns a dict mapping target language tag → sorted list of
-    ``{"form": str, "source": str}`` dicts. The SPA-side rewinder
-    consumes this at runtime; ``source`` distinguishes attestation-
+    ``{"form": str, "source": str, "gloss"?: str}`` dicts. The SPA-side
+    rewinder consumes this at runtime; ``source`` distinguishes attestation-
     backed reflexes ('cluster' / 'descent' / 'period-form') from
     phonology-rule-derived ones ('phonology-rule:v1') so consumers
-    can render inferred forms differently if they want to.
+    can render inferred forms differently if they want to. ``gloss``
+    (wyrd-rogd.1, sparse) is the reflex etymon's own representative meaning,
+    for the SPA era-grid's drift display.
 
     For each language tag in ``CANONICAL_LANGUAGE_FOR_CELL`` of the
-    root's family, calls ``etymon_era_reflexes`` and collects the
-    forms. When the same form arrives via multiple tiers (cluster
-    mate AND a phonology rule that landed on the same surface), the
-    higher-quality source wins per ``_ERA_REFLEX_SOURCE_PRIORITY``.
+    family, calls ``etymon_era_reflexes`` for EVERY family member and
+    UNIONS the results (wyrd-rogd.16). The family is the unified morpheme,
+    so its grid must aggregate every member's cluster — not just the root's.
+    rogd.9 folds a later-era reflex into its earlier-era ancestor's family;
+    computing the grid from the ancestor-root's cluster ALONE orphaned the
+    reflex's own (often richer) cluster — e.g. modern 'green' (39 cluster
+    reflexes) folded into OE 'green' (1) collapsed the grid 39→1. Unioning
+    keeps the morpheme's full cross-era reflex set. When the same form
+    arrives via multiple members / tiers, the higher-quality source wins
+    (``_ERA_REFLEX_SOURCE_PRIORITY``); ties keep the lowest-id member's
+    (``member_ids`` is iterated sorted) for deterministic glosses.
 
     Empty languages are omitted (no entry in the returned dict).
-    Returns ``{}`` when:
-
-    * the root's language has no era family (proto-languages,
-      untracked classical languages),
-    * no cluster mates / descent edges / period-form rows / phonology
-      rule walks match any target language.
-
-    Computed at bundle-build time only — the runtime caller doesn't
-    have DB access and reads from the bundle's ``era_reflexes`` field.
+    Returns ``{}`` when the family's language has no era family
+    (proto-languages, untracked classical languages) or no member yields a
+    reflex for any target. Computed at bundle-build time only.
     """
     from wyrd.generators.kenning.era.cells import (
         CANONICAL_LANGUAGE_FOR_CELL,
@@ -251,24 +618,66 @@ def _fetch_root_era_reflexes(
     target_languages: set[str] = {
         lang for (fam, _cell), lang in CANONICAL_LANGUAGE_FOR_CELL.items() if fam == family
     }
+    best_by_target = _collect_best_by_target(db, target_languages, sorted(member_ids))
+    # wyrd-6hbv Phase 2: drop foreign re-entries (cross-language Descendants-section
+    # noise — kaona/argaman/bungoo) from EVERY stage, in one batched descent query
+    # over all collected reflexes, so the era-grid's modern cell carries only
+    # genuine feeder-descended reflexes (and they don't leak into forms_by_lang
+    # via _merge_era_reflexes_into_forms_by_lang either).
+    foreign = _foreign_reentry_ids(
+        db, {r.etymon_id for best in best_by_target.values() for r in best.values()}
+    )
     out: dict[str, list[dict[str, str]]] = {}
-    for target_language in sorted(target_languages):
-        reflexes = etymon_era_reflexes(db, root_id, target_language=target_language)
-        if not reflexes:
+    for target_language, best in best_by_target.items():
+        kept = {form: r for form, r in best.items() if r.etymon_id not in foreign}
+        if not kept:
             continue
-        # Dedupe by form, keeping the highest-quality source on
-        # collision. Same form might surface via cluster (high) and
-        # phonology-rule (low) — prefer the cluster.
-        best: dict[str, str] = {}
-        for r in reflexes:
-            existing = best.get(r.form)
-            if existing is None or _better_era_reflex_source(r.source, existing):
-                best[r.form] = r.source
-        out[target_language] = [{"form": form, "source": best[form]} for form in sorted(best)]
+        glosses = _fetch_reflex_glosses(db, [r.etymon_id for r in kept.values()])
+        out[target_language] = [_reflex_entry(kept[form], glosses) for form in sorted(kept)]
     return out
 
 
-# Lower number = higher quality. Used by _fetch_root_era_reflexes when
+def _reflex_entry(reflex: EraReflex, glosses: dict[int, str]) -> dict[str, str]:
+    """The bundle entry for one reflex: ``{form, source}`` plus a ``gloss``
+    when the reflex etymon has one (sparse — omitted otherwise so glossless
+    bundles don't carry empty strings). wyrd-rogd.1."""
+    entry = {"form": reflex.form, "source": reflex.source}
+    gloss = glosses.get(reflex.etymon_id)
+    if gloss:
+        entry["gloss"] = gloss
+    return entry
+
+
+def _fetch_reflex_glosses(db: LexiconDB, etymon_ids: list[int]) -> dict[int, str]:
+    """A single representative gloss per reflex etymon_id (wyrd-rogd.1).
+
+    Drives the SPA era-grid's drift display: a swapped era variant is a
+    cognate cluster-mate whose meaning can have drifted from the morpheme's
+    own (saint→seinte is the same word; worth→hirdels is a cognate that no
+    longer means 'worth'), so the cell carries its own gloss to surface that
+    shift. Picks the alphabetically-first non-pointer gloss for determinism;
+    absent when the etymon carries only ``is_form_of_pointer`` cross-references
+    or no gloss at all."""
+    # Dedupe ids (distinct forms in `best` can share an etymon_id) so the IN
+    # clause carries no redundant placeholders; dict.fromkeys keeps it
+    # deterministic.
+    ids = list(dict.fromkeys(etymon_ids))
+    if not ids:
+        return {}
+    placeholders = ",".join("?" * len(ids))
+    by_id: dict[int, list[str]] = {}
+    for row in db.conn.execute(
+        f"SELECT etymon_id, gloss FROM etymon_gloss "
+        f"WHERE etymon_id IN ({placeholders}) ORDER BY gloss",
+        ids,
+    ):
+        if is_form_of_pointer(row["gloss"]):
+            continue
+        by_id.setdefault(row["etymon_id"], []).append(row["gloss"])
+    return {eid: glosses[0] for eid, glosses in by_id.items() if glosses}
+
+
+# Lower number = higher quality. Used by _fetch_family_era_reflexes when
 # the same form surfaces via multiple tiers, and by _emit_era_reflexes
 # when multiple linked families contribute the same form. Unknown
 # sources fall through to default priority so a future tier doesn't
@@ -285,7 +694,7 @@ _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY: int = 2
 def _better_era_reflex_source(candidate: str, current: str) -> bool:
     """True iff ``candidate`` outranks ``current`` per the era-reflex
     source priority. Used to resolve same-form collisions in both
-    ``_fetch_root_era_reflexes`` (per-tier dedupe) and
+    ``_fetch_family_era_reflexes`` (per-tier dedupe) and
     ``_emit_era_reflexes`` (cross-family merge). Unknown sources fall
     through to default priority on both sides — the comparison stays
     well-defined and a new tier doesn't silently win or lose against
@@ -367,45 +776,6 @@ def _fetch_member_tags(db: LexiconDB, member_ids: list[int]) -> list[str]:
         for row in db.conn.execute(
             f"SELECT DISTINCT tag FROM etymon_tag WHERE etymon_id IN ({placeholders}) ORDER BY tag",
             member_ids,
-        )
-    ]
-
-
-def _fetch_cluster_mate_tags(db: LexiconDB, root_id: int) -> list[str]:
-    """wyrd-i1s1: tags from cognate-cluster mates of ``root_id``.
-
-    The family rollup (``_build_family_rollup``) traverses
-    ``merged_into_id`` and ``lemma_id`` chains only — cluster mates
-    sharing a ``cognate_id`` are SEPARATE family roots. Their tags
-    don't surface in the rolled-up family's tag list.
-
-    But cluster mates of a promoted OE root (typically ME / ModE
-    cognates that didn't pass the per-language witness threshold on
-    their own) carry valuable semantic-tag signal that the bundle
-    consumer ought to see attached to the bundle subject the OE root
-    grounds. This helper pulls those tags so they can be merged into
-    ``family["tags"]`` alongside ``_fetch_member_tags``'s output.
-
-    Excludes the root itself (its tags ride in via ``_fetch_member_tags``)
-    and OCR-merge tombstones. Returns an empty list when the root has
-    no ``cognate_id`` (no cluster) — most non-promoted etymons.
-    """
-    return [
-        row["tag"]
-        for row in db.conn.execute(
-            """
-            SELECT DISTINCT t.tag
-            FROM etymon mate
-            JOIN etymon_tag t ON t.etymon_id = mate.id
-            WHERE mate.cognate_id = (
-                SELECT cognate_id FROM etymon WHERE id = ?
-              )
-              AND mate.cognate_id IS NOT NULL
-              AND mate.id != ?
-              AND mate.merged_into_id IS NULL
-            ORDER BY t.tag
-            """,
-            (root_id, root_id),
         )
     ]
 

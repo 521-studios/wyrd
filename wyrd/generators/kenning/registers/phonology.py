@@ -253,40 +253,6 @@ PHONOLOGY: dict[str, list[Phoneme]] = {
 # --- application engine --------------------------------------------------
 
 
-def to_respelling(form: str, language: str) -> str:
-    """Convert an etymon spelling to an English-friendly respelling.
-
-    Greedy left-to-right longest-match against the language's phoneme list.
-    Returns the respelled form with a hyphen between detected syllables
-    when we can identify them (currently only via vowel-consonant
-    transitions; not perfect).
-
-    For now, doesn't handle stress — that's a separate pass once we have
-    syllabification working.
-    """
-    rules = PHONOLOGY.get(language)
-    if rules is None:
-        return form  # no rules — pass through unchanged
-    out: list[str] = []
-    i = 0
-    s = form.lower()
-    while i < len(s):
-        match = None
-        for p in rules:
-            if s.startswith(p.grapheme, i):
-                match = p
-                break
-        if match is None:
-            out.append(s[i])
-            i += 1
-        else:
-            nxt = i + len(match.grapheme)
-            coda = match.coda_respelling is not None and (nxt >= len(s) or s[nxt] not in _VOWELS)
-            out.append(match.coda_respelling if coda else match.respelling)
-            i = nxt
-    return "".join(out)
-
-
 def to_ipa(form: str, language: str) -> str:
     """Convert an etymon spelling to a (rough) IPA representation."""
     rules = PHONOLOGY.get(language)

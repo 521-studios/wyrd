@@ -1,15 +1,13 @@
-"""Realism-retention drift measurement (wyrd-ecjp.6 Phase 6a).
+"""Realism-retention measurement (wyrd-jfaz).
 
-EMPIRICAL drift measurement before committing to tolerance bands
-(per Q7 design decision: measure first, then operator-decides). The
-machinery here generates N names from each of two distributions —
-typically (legacy proportions, vector-scoring) — and computes
-per-metric drift:
+ABSOLUTE corpus-realism measurement: the per-metric primitives + the
+``RealismReport`` that score a set of generated name samples against a
+corpus reference derived from bundle data (the samples themselves come from
+``drift_runner.run_realism_samples``). Per-metric:
 
 * **Per-tag distribution shift** — KL divergence + total-variation
-  distance between the two paths' bag-of-tags distributions.
-* **Top-100-name overlap rate** — Jaccard intersection of the most-
-  frequent generated names across the two paths.
+  distance between the sample bag-of-tags distribution and the corpus
+  reference distribution.
 * **Decomposition rate** — fraction of generated names that
   fully-decompose (zero unaccounted chars) under the matcher.
   Real-corpus-like distributions decompose at higher rates;
@@ -17,11 +15,12 @@ per-metric drift:
 * **Position distribution** — fraction of slots filled by pre /
   inner / post meanings, per culture.
 * **Per-morpheme frequency rank correlation** — Spearman ρ between
-  the two paths' top-K morpheme rankings. High ρ = same morphemes
-  emphasized in the same order; low ρ = re-ranked distribution.
+  the sample top-K morpheme ranking and the corpus's expected ranking.
+  High ρ = same morphemes emphasized in the same order; low ρ =
+  re-ranked distribution.
 
-The output is a drift report dict that downstream callers (CLI,
-ecjp.7's test suite) consume directly + format as markdown / JSON.
+The output is a :class:`RealismReport` that downstream callers (the
+absolute-realism test suite) consume directly.
 
 Pure-Python: no scipy / numpy dependency to keep the Lambda
 cold-start budget intact. The metrics here are small enough that
@@ -33,8 +32,7 @@ from __future__ import annotations
 import math
 from collections import Counter
 from collections.abc import Iterable
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -62,32 +60,6 @@ class NameSample:
     positions: tuple[str, ...] = ()
     decomposes: bool = True
     morphemes: tuple[str, ...] = ()
-
-
-@dataclass
-class DriftReport:
-    """Per-culture drift report across all metrics. Returned by
-    :func:`compute_drift_report`.
-
-    Each metric is independently informative; the operator reviews
-    the report holistically to decide where tolerance bands should
-    land in Phase 6b.
-    """
-
-    culture: str
-    sample_size_a: int
-    sample_size_b: int
-    tag_kl_divergence: float = 0.0
-    tag_total_variation: float = 0.0
-    top_n_name_overlap: float = 0.0
-    top_n_overlap_n: int = 0
-    decomposition_rate_a: float = 0.0
-    decomposition_rate_b: float = 0.0
-    decomposition_rate_delta: float = 0.0
-    position_distribution_a: dict[str, float] = field(default_factory=dict)
-    position_distribution_b: dict[str, float] = field(default_factory=dict)
-    morpheme_rank_correlation: float = 0.0
-    morpheme_rank_top_k: int = 0
 
 
 # ---- per-tag distribution shift -----------------------------------------
@@ -151,34 +123,6 @@ def total_variation_distance(p: dict[str, float], q: dict[str, float]) -> float:
     if not keys:
         return 0.0
     return 0.5 * sum(abs(p.get(k, 0.0) - q.get(k, 0.0)) for k in keys)
-
-
-# ---- top-N name overlap -------------------------------------------------
-
-
-def top_n_name_overlap(
-    samples_a: Iterable[NameSample],
-    samples_b: Iterable[NameSample],
-    n: int = 100,
-) -> float:
-    """Jaccard overlap of the top-N most-frequent surface forms.
-
-    ``|A ∩ B| / |A ∪ B|`` over the top-N sets. Range [0, 1]. 1 =
-    same top-N names emitted by both paths; 0 = entirely disjoint.
-
-    Smaller-than-N actual sets are handled by using ``min(n,
-    len(distinct))``. Empty input on either side → 0.
-    """
-    counts_a: Counter[str] = Counter(s.surface for s in samples_a)
-    counts_b: Counter[str] = Counter(s.surface for s in samples_b)
-    if not counts_a or not counts_b:
-        return 0.0
-    top_a = {name for name, _ in counts_a.most_common(n)}
-    top_b = {name for name, _ in counts_b.most_common(n)}
-    union = top_a | top_b
-    if not union:
-        return 0.0
-    return len(top_a & top_b) / len(union)
 
 
 # ---- decomposition rate -------------------------------------------------
@@ -255,165 +199,89 @@ def _spearman_correlation(
     return cov / denom
 
 
-def morpheme_rank_correlation(
-    samples_a: Iterable[NameSample],
-    samples_b: Iterable[NameSample],
-    top_k: int = 100,
-) -> tuple[float, int]:
-    """Spearman rank correlation of morpheme frequencies between two
-    sample sets, computed over the top-K morphemes from each.
+# ---- absolute corpus-realism report (wyrd-jfaz) -------------------------
 
-    Returns ``(correlation, n_shared)`` where n_shared is the count
-    of morphemes that appear in BOTH top-K sets (the correlation's
-    effective sample size). Sparse intersection (n_shared < 2)
-    returns correlation=0.0.
+
+@dataclass
+class RealismReport:
+    """ABSOLUTE realism report: one sample set (typically vector-mode)
+    measured against a :class:`realism_reference.CorpusReference`. The
+    reference is derived from bundle data, so the gate is independent of
+    any scoring baseline and tracks corpus growth (epic wyrd-ej28).
+
+    Metric semantics, with ``q`` = the reference:
+    ``tag_kl_divergence``/``tag_total_variation`` (tag-occurrence shift
+    vs corpus), ``position_total_variation`` (slot-position shift vs
+    corpus), ``morpheme_rank_correlation`` (Spearman vs the corpus's
+    expected morpheme ranks). ``decomposition_rate`` is an absolute
+    quality FLOOR.
     """
-    counts_a: Counter[str] = Counter()
-    counts_b: Counter[str] = Counter()
-    for s in samples_a:
-        counts_a.update(s.morphemes)
-    for s in samples_b:
-        counts_b.update(s.morphemes)
 
-    # Build rank dicts over the top-K most-frequent morphemes
-    top_a = counts_a.most_common(top_k)
-    top_b = counts_b.most_common(top_k)
-    # Rank 1 = most frequent; ties broken by insertion order (stable
-    # given Counter.most_common's sort-then-iter semantics).
-    ranks_a = {morpheme: rank for rank, (morpheme, _) in enumerate(top_a, start=1)}
-    ranks_b = {morpheme: rank for rank, (morpheme, _) in enumerate(top_b, start=1)}
-    n_shared = len(set(ranks_a) & set(ranks_b))
-    return _spearman_correlation(ranks_a, ranks_b), n_shared
+    culture: str
+    sample_size: int
+    tag_kl_divergence: float = 0.0
+    tag_total_variation: float = 0.0
+    position_total_variation: float = 0.0
+    morpheme_rank_correlation: float = 0.0
+    morpheme_rank_top_k: int = 0
+    decomposition_rate: float = 0.0
 
 
-# ---- aggregator ---------------------------------------------------------
-
-
-def compute_drift_report(
+def compute_realism_report(  # noqa: V103 — feeds the absolute corpus-realism CI gate
     culture: str,
-    samples_a: Iterable[NameSample],
-    samples_b: Iterable[NameSample],
+    samples: Iterable[NameSample],
+    reference,
     *,
-    top_n_overlap: int = 100,
     top_k_correlation: int = 100,
-) -> DriftReport:
-    """Compute the full drift report between two sample sets for one
-    culture.
+) -> RealismReport:
+    """Measure ``samples`` against an absolute ``CorpusReference`` for one
+    culture (wyrd-jfaz).
 
-    Materializes the iterables ONCE (each metric needs a full pass);
-    callers that pass generators don't pay the iterator-exhaustion
-    risk.
+    ``reference`` is a :class:`realism_reference.CorpusReference`. Each
+    sample distribution is compared against the reference's analytical
+    distribution:
 
-    Args:
-        culture: identifier surfaced in the report header.
-        samples_a: typically the legacy / baseline distribution.
-        samples_b: typically the new / vector distribution.
-        top_n_overlap: how many top-frequency surface forms to
-            compare for the overlap metric.
-        top_k_correlation: how many top-frequency morphemes to
-            compare for the rank-correlation metric.
-
-    Returns:
-        A :class:`DriftReport` dataclass containing every metric.
+    * tag-KL / tag-TV: KL/TV of the sample tag distribution vs the
+      reference tag distribution.
+    * position-TV: TV of the sample position distribution vs the
+      reference position distribution.
+    * morpheme-rank ρ: Spearman of the sample's top-K morpheme ranks
+      against the reference's top-K morpheme ranks (the reference's
+      ranks come from its expected per-morpheme pick weights).
+    * decomposition-rate: absolute (the corpus reference has no
+      decomposition rate of its own; the band treats this as a floor).
     """
-    samples_a_list = list(samples_a)
-    samples_b_list = list(samples_b)
+    samples_list = list(samples)
 
-    tag_dist_a = _tag_distribution(samples_a_list)
-    tag_dist_b = _tag_distribution(samples_b_list)
+    sample_tag = _tag_distribution(samples_list)
+    sample_position = position_distribution(samples_list)
 
-    decomp_a = decomposition_rate(samples_a_list)
-    decomp_b = decomposition_rate(samples_b_list)
-
-    correlation, _n_shared = morpheme_rank_correlation(
-        samples_a_list, samples_b_list, top_k=top_k_correlation
-    )
-
-    return DriftReport(
-        culture=culture,
-        sample_size_a=len(samples_a_list),
-        sample_size_b=len(samples_b_list),
-        tag_kl_divergence=kl_divergence(tag_dist_a, tag_dist_b),
-        tag_total_variation=total_variation_distance(tag_dist_a, tag_dist_b),
-        top_n_name_overlap=top_n_name_overlap(samples_a_list, samples_b_list, n=top_n_overlap),
-        top_n_overlap_n=top_n_overlap,
-        decomposition_rate_a=decomp_a,
-        decomposition_rate_b=decomp_b,
-        decomposition_rate_delta=decomp_b - decomp_a,
-        position_distribution_a=position_distribution(samples_a_list),
-        position_distribution_b=position_distribution(samples_b_list),
-        morpheme_rank_correlation=correlation,
-        morpheme_rank_top_k=top_k_correlation,
-    )
-
-
-def format_drift_report_markdown(report: DriftReport) -> str:
-    """Render a DriftReport as operator-friendly markdown.
-
-    One section per metric with the numeric value + a one-line
-    interpretation hint. Designed for piping into review docs or
-    CLI display.
-    """
-    lines: list[str] = [
-        f"# Drift Report — {report.culture}",
-        "",
-        f"- Sample size A: {report.sample_size_a:,}",
-        f"- Sample size B: {report.sample_size_b:,}",
-        "",
-        "## Per-tag distribution shift",
-        f"- KL(A || B): **{report.tag_kl_divergence:.4f}** "
-        "(lower = closer; 0 = identical; >1 = material drift)",
-        f"- Total variation: **{report.tag_total_variation:.4f}** "
-        "(0..1; 0 = identical; 1 = disjoint supports)",
-        "",
-        "## Top-N name overlap",
-        f"- Jaccard(top-{report.top_n_overlap_n}): **{report.top_n_name_overlap:.4f}** "
-        "(0..1; 1 = same top names; 0 = disjoint)",
-        "",
-        "## Decomposition rate",
-        f"- A: **{report.decomposition_rate_a:.4f}**",
-        f"- B: **{report.decomposition_rate_b:.4f}**",
-        f"- Delta (B - A): **{report.decomposition_rate_delta:+.4f}**",
-        "",
-        "## Position distribution",
-        f"- A: {_format_pos_dist(report.position_distribution_a)}",
-        f"- B: {_format_pos_dist(report.position_distribution_b)}",
-        "",
-        "## Morpheme rank correlation",
-        f"- Spearman ρ (top-{report.morpheme_rank_top_k}): "
-        f"**{report.morpheme_rank_correlation:+.4f}** "
-        "(-1..+1; +1 = identical ranking; 0 = unrelated; -1 = inverse)",
-    ]
-    return "\n".join(lines)
-
-
-def _format_pos_dist(dist: dict[str, float]) -> str:
-    if not dist:
-        return "(empty)"
-    return ", ".join(f"{pos}={share:.3f}" for pos, share in sorted(dist.items()))
-
-
-def format_drift_report_json(report: DriftReport) -> dict[str, Any]:
-    """Render a DriftReport as a JSON-serializable dict. Used by the
-    ecjp.7 test suite + by operator workflow that wants machine-
-    readable output for trend tracking.
-
-    Sort-keys-friendly: every value is JSON-native (no dataclass /
-    Counter instances leak through).
-    """
-    return {
-        "culture": report.culture,
-        "sample_size_a": report.sample_size_a,
-        "sample_size_b": report.sample_size_b,
-        "tag_kl_divergence": report.tag_kl_divergence,
-        "tag_total_variation": report.tag_total_variation,
-        "top_n_name_overlap": report.top_n_name_overlap,
-        "top_n_overlap_n": report.top_n_overlap_n,
-        "decomposition_rate_a": report.decomposition_rate_a,
-        "decomposition_rate_b": report.decomposition_rate_b,
-        "decomposition_rate_delta": report.decomposition_rate_delta,
-        "position_distribution_a": dict(report.position_distribution_a),
-        "position_distribution_b": dict(report.position_distribution_b),
-        "morpheme_rank_correlation": report.morpheme_rank_correlation,
-        "morpheme_rank_top_k": report.morpheme_rank_top_k,
+    sample_counts: Counter[str] = Counter()
+    for s in samples_list:
+        sample_counts.update(s.morphemes)
+    sample_ranks = {
+        morpheme: rank
+        for rank, (morpheme, _) in enumerate(sample_counts.most_common(top_k_correlation), start=1)
     }
+    reference_ranks = {
+        morpheme: rank
+        for rank, (morpheme, _) in enumerate(
+            sorted(reference.morpheme_counts.items(), key=lambda kv: -kv[1])[:top_k_correlation],
+            start=1,
+        )
+    }
+    correlation = _spearman_correlation(sample_ranks, reference_ranks)
+    n_shared = len(set(sample_ranks) & set(reference_ranks))
+
+    return RealismReport(
+        culture=culture,
+        sample_size=len(samples_list),
+        tag_kl_divergence=kl_divergence(sample_tag, reference.tag_distribution),
+        tag_total_variation=total_variation_distance(sample_tag, reference.tag_distribution),
+        position_total_variation=total_variation_distance(
+            sample_position, reference.position_distribution
+        ),
+        morpheme_rank_correlation=correlation,
+        morpheme_rank_top_k=n_shared,
+        decomposition_rate=decomposition_rate(samples_list),
+    )

@@ -15,12 +15,13 @@
 export const HIDDEN_FIELDS = new Set(['seed']);
 
 export const HEADLINE_FIELDS = {
-  // Kenning's headline knobs: pick a culture, decide how many names,
-  // optionally fix the seed, optionally tune the mood. Everything
-  // else (novelty, spelling_variety, inflection_density, era,
-  // stratum, scoring_mode + weights, packs, cohesion, priors_path,
-  // include_fiction) hides until the operator wants depth.
-  kenning: ['culture', 'count', 'mood'],
+  // Kenning's headline knobs: pick a culture, the era to draw from, decide
+  // how many names, optionally tune the mood. Everything else (novelty,
+  // spelling_variety, inflection_density, stratum, scoring_mode + weights,
+  // packs, cohesion, priors_path, include_fiction) hides until the operator
+  // wants depth. The array order is the render order (see partitionFields),
+  // so 'era' sits directly under 'culture'.
+  kenning: ['culture', 'era', 'count', 'mood'],
 
   // kenning-rewind: name is the only headline; words is the
   // continuity-flow input handled by col 3, not the params form.
@@ -35,7 +36,10 @@ export const HEADLINE_FIELDS = {
  * partitioned per the HEADLINE_FIELDS map. Falls back to "all headline"
  * when the generator isn't in the map.
  *
- * Preserves the schema's property order within each list.
+ * The headline list follows the curated HEADLINE_FIELDS ORDER (so the col-1
+ * layout is controlled there — e.g. 'era' directly under 'culture'); the
+ * advanced list preserves the schema's property order. A headline key absent
+ * from the schema is silently skipped.
  */
 export function partitionFields(generatorName, schema) {
   // wyrd-ppk6: HIDDEN_FIELDS drop out entirely before partitioning —
@@ -48,7 +52,12 @@ export function partitionFields(generatorName, schema) {
     return { headline: props, advanced: [] };
   }
   const headlineSet = new Set(headlineKeys);
-  const headline = props.filter(([k]) => headlineSet.has(k));
+  // Headline in curated order (not schema order): map each headline key to its
+  // [key, prop] entry, dropping keys the schema doesn't define.
+  const byKey = new Map(props);
+  const headline = headlineKeys
+    .filter((k) => byKey.has(k))
+    .map((k) => [k, byKey.get(k)]);
   const advanced = props.filter(([k]) => !headlineSet.has(k));
   return { headline, advanced };
 }

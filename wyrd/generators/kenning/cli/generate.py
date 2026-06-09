@@ -16,8 +16,6 @@ from wyrd.generators.kenning import (
 from wyrd.generators.kenning.registers.effects import available_register_effects
 from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
 
-_VALID_SCORING_MODES = ("proportions", "vector")
-
 
 @click.command()
 @click.argument("culture", type=click.Choice(CULTURES))
@@ -58,17 +56,6 @@ _VALID_SCORING_MODES = ("proportions", "vector")
     ),
 )
 @click.option(
-    "--novelty",
-    type=click.FloatRange(0.0, 1.0),
-    default=0.0,
-    show_default=True,
-    help=(
-        "D17 mixture knob (0..1). 0 = pure empirical-frequency sampling (today's "
-        "behavior); 1 = uniform marginal over in-bucket morphemes; intermediate "
-        "values blend, allowing plausible-but-unattested combinations."
-    ),
-)
-@click.option(
     "--inflection-density",
     type=click.FloatRange(0.0, 1.0),
     default=0.0,
@@ -76,6 +63,17 @@ _VALID_SCORING_MODES = ("proportions", "vector")
     help=(
         "D8 inflection knob (0..1). Per-morpheme probability of substituting an "
         "inflected form (cotum/cotan/cotes) for the lemma (cot)."
+    ),
+)
+@click.option(
+    "--novelty",
+    type=click.FloatRange(0.0, 1.0),
+    default=0.0,
+    show_default=True,
+    help=(
+        "Lexical-surprise dial (0..1). Blends the score distribution toward "
+        "uniform: 0 favors common morphemes, 1 samples every eligible morpheme "
+        "equally for deliberately unusual names."
     ),
 )
 @click.option(
@@ -149,24 +147,7 @@ _VALID_SCORING_MODES = ("proportions", "vector")
         "wyrd-mj2 tag co-occurrence bias (0..1). 0 keeps independent slot "
         "sampling (today's behavior); higher values bias each slot toward "
         "usages whose tags co-occur with previously-picked slots in the "
-        "empirical corpus. Composes orthogonally with --novelty."
-    ),
-)
-@click.option(
-    "--scoring-mode",
-    type=click.Choice(_VALID_SCORING_MODES),
-    default="proportions",
-    show_default=True,
-    help=(
-        "wyrd-ecjp.5: per-slot sampling pipeline. 'proportions' (default) "
-        "uses the pre-baked per-(culture × tag × position) tables — "
-        "bit-stable with the legacy path. 'vector' uses the D36.2 "
-        "gate→score→sample primitive: each slot's per-lemma weight is "
-        "computed at request time from phon + sem + pos + empirical-"
-        "baseline axes. 'vector' requires per-lemma phonological_vector "
-        "data in the bundle (kq7w.1) and benefits from --priors-path; "
-        "without either, the baseline axis contributes 0 and the score "
-        "falls back to phon + sem + pos."
+        "empirical corpus."
     ),
 )
 @click.option(
@@ -176,8 +157,8 @@ _VALID_SCORING_MODES = ("proportions", "vector")
     help=(
         "wyrd-ecjp.5 PR C: filesystem path to a JSON empirical-priors "
         "sidecar (emitted by 'wyrd kenning lexicon dump-empirical-"
-        "priors'). Only consulted when --scoring-mode=vector. When "
-        "absent, the vector path's baseline axis contributes 0."
+        "priors'). Supplies the vector scoring path's baseline axis. "
+        "When absent, the baseline axis contributes 0."
     ),
 )
 @click.option(
@@ -190,7 +171,7 @@ _VALID_SCORING_MODES = ("proportions", "vector")
         "(D36.2). 0 disables the baseline contribution entirely (like "
         "running without --priors-path). 1.0 is the canonical "
         "weighting; >1 over-weights baseline at the expense of phon / "
-        "sem / pos. Only meaningful with --scoring-mode=vector."
+        "sem / pos."
     ),
 )
 @click.option(
@@ -201,8 +182,7 @@ _VALID_SCORING_MODES = ("proportions", "vector")
     help=(
         "wyrd-ecjp.9: weight scalar on the phonological axis (D36.2). "
         "1.0 is canonical; >1 over-weights phonological character "
-        "(harshness / softness etc.) relative to other axes. Only "
-        "meaningful with --scoring-mode=vector."
+        "(harshness / softness etc.) relative to other axes."
     ),
 )
 @click.option(
@@ -213,7 +193,7 @@ _VALID_SCORING_MODES = ("proportions", "vector")
     help=(
         "wyrd-ecjp.9: weight scalar on the semantic-tag axis (D36.2). "
         "1.0 is canonical; >1 over-weights tag matching relative to "
-        "other axes. Only meaningful with --scoring-mode=vector."
+        "other axes."
     ),
 )
 @click.option(
@@ -221,10 +201,7 @@ _VALID_SCORING_MODES = ("proportions", "vector")
     type=click.FloatRange(0.0, 10.0),
     default=1.0,
     show_default=True,
-    help=(
-        "wyrd-ecjp.9: weight scalar on the position axis (D36.2). "
-        "1.0 is canonical. Only meaningful with --scoring-mode=vector."
-    ),
+    help=("wyrd-ecjp.9: weight scalar on the position axis (D36.2). 1.0 is canonical."),
 )
 @click.option(
     "--pack",
@@ -236,8 +213,8 @@ _VALID_SCORING_MODES = ("proportions", "vector")
         "must match a bundled pack (see 'wyrd kenning generate --help' "
         "for the available list once packs are bundled). Optional "
         ":WEIGHT (float in [0, 10]) overrides the pack manifest's "
-        "default_weight. Repeatable for multi-pack composition. Only "
-        "meaningful with --scoring-mode=vector. Pack lemmas enter the "
+        "default_weight. Repeatable for multi-pack composition. "
+        "Pack lemmas enter the "
         "eligible pool alongside native lemmas and inherit their "
         "manifest's template (donor → recipient) for baseline scoring."
     ),
@@ -266,15 +243,14 @@ def generate(
     describe: bool,
     json_output: bool,
     spelling_variety: float,
-    novelty: float,
     inflection_density: float,
+    novelty: float,
     moods: tuple[str, ...],
     include_fiction: bool,
     include_unglossed: bool,
     era: str | None,
     stratum: str | None,
     cohesion: float,
-    scoring_mode: str,
     priors_path: Path | None,
     baseline_weight: float,
     phonological_weight: float,
@@ -311,38 +287,28 @@ def generate(
         "culture": culture,
         "tags": list(tags),
         "spelling_variety": spelling_variety,
-        "novelty": novelty,
         "inflection_density": inflection_density,
+        "novelty": novelty,
         "mood": list(moods),
         "include_fiction": include_fiction,
         "include_unglossed": include_unglossed,
         "era": era,
         "stratum": stratum,
         "cohesion": cohesion,
-        "scoring_mode": scoring_mode,
     }
     if priors_path is not None:
         params["priors_path"] = str(priors_path)
-    # ScoringWeights only fire when scoring_mode=vector. In proportions
-    # mode the legacy path doesn't read scoring_weights — adding it
-    # would be inert but cluttering, so we omit. This is the operator-
-    # friendly contract: weight flags in proportions mode become a
-    # silent no-op (also covered by
-    # test_proportions_mode_ignores_vector_only_flags).
-    if scoring_mode == "vector":
-        params["scoring_weights"] = {
-            "phon_w": phonological_weight,
-            "sem_w": semantic_weight,
-            "pos_w": position_weight,
-            "base_w": baseline_weight,
-        }
+    # wyrd-rt2m: vector is the only scoring path, so the per-axis ScoringWeights
+    # always apply (the proportions interface that ignored them is gone).
+    params["scoring_weights"] = {
+        "phon_w": phonological_weight,
+        "sem_w": semantic_weight,
+        "pos_w": position_weight,
+        "base_w": baseline_weight,
+    }
     # wyrd-ecjp.11: pack overlays. Parse + validate at the CLI
     # boundary so invalid input surfaces as a friendly Click error
-    # before reaching the generator. Pack-related flags in
-    # proportions mode are deliberate silent no-ops (same contract
-    # as the weight flags); the parsed packs land in params anyway
-    # so the schema stays uniform, but Kenning.generate only
-    # consumes them in vector mode.
+    # before reaching the generator.
     if pack_specs or pack_tag_filter_specs:
         from wyrd.generators.kenning import _load_packs
         from wyrd.generators.kenning.cli._pack_args import (

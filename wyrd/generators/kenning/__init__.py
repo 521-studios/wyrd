@@ -10,7 +10,14 @@ from functools import lru_cache
 from importlib import resources
 from typing import Any
 
-from wyrd.generators.kenning.era.cells import era_cells_for_family, resolve_era_input
+from wyrd.generators.kenning.era.cells import (
+    canonical_language_for_cell,
+    era_cell_for_input,
+    era_cells_for_family,
+    era_year_range,
+    family_stage_order,
+    resolve_era_input,
+)
 
 # Back-compat re-exports for the wyrd-ru5d extractors/ subpackage. Older call
 # sites (especially in cli/lexicon/) import these modules as if they were
@@ -38,7 +45,6 @@ from wyrd.generators.kenning.lexicon.strata import (  # noqa: F401  (STRATA cons
     WELSH_STRATA,
     valid_strata_for_culture,
 )
-from wyrd.generators.kenning.registers.effects import mood_spec_to_legacy_form
 from wyrd.generators.kenning.runtime.decomposition import (
     _decomposition_payload,
     _signature_for_payload,
@@ -50,7 +56,10 @@ from wyrd.generators.kenning.runtime.meaning import (
     load_joiners,
     load_meanings,
 )
-from wyrd.generators.kenning.runtime.proportions import load_proportions
+from wyrd.generators.kenning.runtime.proportions import (
+    _clear_surface_index_cache,
+    load_proportions,
+)
 from wyrd.generators.kenning.runtime.word import Word
 from wyrd.registry import GenerationResult, register
 
@@ -116,16 +125,20 @@ _CULTURE_TO_ERA_FAMILY: dict[str, str] = {
 
 
 def _era_options_by_culture() -> dict[str, list[str]]:
-    """Per-culture list of era cell labels for the SPA's dependent select.
+    """Per-culture list of era STAGE labels for the SPA's dependent select.
 
-    Empty string is prepended as the 'no era filter' option. The label
-    set is derived from era_cells_for_family so adding a new cell to
-    era/cells.py automatically surfaces in the dropdown without touching
-    this file. Re-evaluated at schema-render time, so era.cells.ERA_CELLS edits
-    take effect after a manifest refresh.
+    wyrd-rogd.2: the dropdown offers the COMPRESSED per-family stage set
+    (``family_stage_order``: English = old-english / middle-english /
+    modern-english), the same axis the col-3 grid uses — NOT the raw cells
+    (oe-early / oe-late / …). The oe-early-vs-oe-late inventory distinction
+    stays in the backend year ranges but isn't surfaced here; a picked stage
+    resolves to the UNION year range of its cells (``resolve_era_input`` /
+    ``stage_year_range``). Empty string is prepended as the 'no era filter'
+    option. Re-evaluated at schema-render time, so era.cells edits take effect
+    after a manifest refresh. CLI/API still accept raw cells + bare years.
     """
     return {
-        culture: ["", *era_cells_for_family(family)]
+        culture: ["", *family_stage_order(family)]
         for culture, family in _CULTURE_TO_ERA_FAMILY.items()
     }
 
@@ -176,12 +189,9 @@ _INTERNAL_TAGS = {
 
 # wyrd-kq7w.3: the legacy MOODS dict (formerly registers/moods.py) was
 # replaced by the catalog at wyrd/generators/kenning/data/register_effects.yaml.
-# Mood specs resolve through ``parse_mood_spec`` / ``mood_spec_to_legacy_form``
-# in ``registers.effects``. The catalog is the single source of truth
-# for mood-name resolution + graduation; the proportion-table sampler's
-# legacy (tags, harshness) tuple is derived from catalog entries via
-# the translation helper, so this rip-and-replace doesn't break the
-# scoring_mode != 'vector' path.
+# Mood specs resolve through ``parse_mood_spec`` in ``registers.effects``;
+# the catalog is the single source of truth for mood-name resolution +
+# graduation, consumed directly by the vector adapter.
 
 
 def _data_path(filename: str):
@@ -577,6 +587,12 @@ def _coupled_cache_clear() -> None:
     _load_empirical_priors.cache_clear()
     _load_packs.cache_clear()
     _runtime_db_bundle_dict.cache_clear()
+    # wyrd-eyjk/D40: the module-level bare-surface index is keyed by
+    # id(meaning_db); after a bundle reload the old meaning_db is freed and
+    # CPython can reuse its id() for a NEW (different-bundle) meaning_db, which
+    # would then read the OLD bundle's stale index. Drop it here so it rebuilds
+    # against the fresh bundle in lockstep with _load_meanings.
+    _clear_surface_index_cache()
 
 
 # mypy flags reassigning a bound method on the lru_cache wrapper as
@@ -635,6 +651,64 @@ def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] 
         ) from None
 
 
+def _contemporary_language_for_family(family: str) -> str | None:
+    """The canonical etymon-language of a family's present-day cell — the
+    open-ended (``end is None``) cell, e.g. 'modern-english' for english,
+    'welsh' for brythonic. None when the family has no open-future cell (a dead
+    language like latin, whose cells are all historical).
+
+    Used to suppress era-rendering of the contemporary period (wyrd-6c8x): a
+    morpheme's canonical surface is ALREADY in this language, so re-rendering it
+    via the cognate-based era-reflex picker would distort it rather than
+    period-ize it. Mirrors kenning_rewind's wyrd-8qbi rule ('modern == the
+    original') but derived from the cell structure so it generalizes past
+    english (welsh/irish/french moderns are bare tags, not 'modern-*')."""
+    try:
+        cells = era_cells_for_family(family)
+    except KeyError:
+        return None
+    for cell in cells:
+        _, end = era_year_range(family, cell)
+        if end is None:
+            return canonical_language_for_cell(family, cell)
+    return None
+
+
+def _resolve_era_render_language(era: Any, culture: str) -> str | None:
+    """wyrd-6c8x (feature A): the canonical etymon-language a requested era
+    should RENDER morphemes in, or None for 'render the modern canonical form'.
+
+    Parallel to :func:`_resolve_era_param` — that returns the half-open year
+    range used to FILTER the morpheme inventory; this returns the target
+    language used to render each picked morpheme in its era-appropriate
+    attested form (via ``Meaning.era_reflex_for``), so ``era=oe-early`` yields
+    period-LOOKING names, not just a period-eligible inventory.
+
+    Returns None (no era render — render the modern canonical form) when:
+    * no era is set (None / ``""``) — the bare-modern path,
+    * the era cell has no canonical language (``canonical_language_for_cell``
+      → None — eras with no single anchor language, e.g. Norse post-classical),
+    * the era cell's language IS the family's contemporary language (the
+      present-day / early-modern cells, which map to 'modern-english' etc.) —
+      the canonical surface is already that form, so era-rendering would pull
+      cognate cluster-mates and distort it (mirrors rewind's wyrd-8qbi), or
+    * the era value is malformed — the loud ValueError is left to
+      :func:`_resolve_era_param`, which runs alongside this on the same input;
+      here we degrade to no-render rather than raise twice.
+    """
+    if era is None or era == "":
+        return None
+    era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
+    try:
+        family, cell = era_cell_for_input(era, default_family=era_family)
+    except (KeyError, ValueError):
+        return None
+    lang = canonical_language_for_cell(family, cell)
+    if lang is None or lang == _contemporary_language_for_family(family):
+        return None
+    return lang
+
+
 def _resolve_stratum_param(stratum: Any, culture: str) -> str | None:
     """Resolve the request-side ``stratum`` value to a stratum tag,
     or None when no stratum filter applies (wyrd-j3gy).
@@ -680,34 +754,6 @@ def _resolve_stratum_param(stratum: Any, culture: str) -> str | None:
             f"{sorted(ALL_STRATA)}."
         )
     return stratum
-
-
-def _apply_mood(spec: str, tags: list[str], harshness: float) -> tuple[list[str], float]:
-    """Resolve one mood spec ('grim' or 'harsh:0.5') into tag and harshness
-    contributions for the legacy proportion-table sampler.
-
-    wyrd-kq7w.3: routes through the register-effect catalog
-    (``parse_mood_spec`` / ``mood_spec_to_legacy_form``) now that the
-    MOODS dict is gone. Multiple moods compose by tag-union + max-
-    harshness exactly as before — repeated mood specs are idempotent
-    on tags and only ratchet harshness up. The vector path
-    (scoring_mode='vector') composes catalog effects directly via
-    :func:`vector_kenning_adapter.build_request_vector`; this helper
-    exists for the proportion-table fallback.
-
-    Raises:
-        ValueError: if ``name`` is not in the catalog —
-            ``mood_spec_to_legacy_form`` translates the catalog's
-            ``KeyError`` into ``ValueError`` so the legacy error
-            shape (callers grep for ``"unknown mood"``) is
-            preserved bit-compatibly.
-    """
-    mood_tags, mood_harshness = mood_spec_to_legacy_form(spec)
-    new_tags = list(tags)
-    for t in mood_tags:
-        if t not in new_tags:
-            new_tags.append(t)
-    return new_tags, max(harshness, mood_harshness)
 
 
 def _roots(meaning: Meaning) -> list[str]:
@@ -921,6 +967,49 @@ def _split_senses_for_display(senses: list[str]) -> tuple[list[str], list[str]]:
     return derivative, []
 
 
+_GLOSS_ARTICLE_RE = re.compile(r"^(?:an?|the)\s+", re.IGNORECASE)
+
+
+def _gloss_dedup_key(gloss: str) -> str:
+    """wyrd-0y3k: normalize a gloss for dedup — ASCII-fold + lowercase (reuse
+    _normalize_for_similarity), drop a leading article, strip surrounding
+    punctuation/space. So 'A hill.', 'Hill', 'a hill', 'hill' all collapse to
+    'hill'."""
+    k = _normalize_for_similarity(gloss)
+    k = _GLOSS_ARTICLE_RE.sub("", k)
+    return k.strip(" .,;:").strip()
+
+
+def _meaning_groups(meanings: list[Meaning]) -> list[list[str]]:
+    """wyrd-0y3k: per-sibling sense groups for the SPA inspector. Each ranked
+    sibling Meaning is a distinct etymon/sense, so its SEMANTIC glosses form a
+    coherent cluster ('valley/dale/dene' vs 'farm/town/estate' vs 'people').
+    Grouping them — instead of unioning every sibling's glosses into one flat
+    ~50-item list (the 'denu-' mess) — lets the card show the senses visually
+    separated. Within each group, glosses are deduped article/case/punct-
+    insensitively (keeping the shortest representative). Pure-derivative
+    siblings (no semantic gloss) are dropped. Order follows _rank_siblings."""
+    groups: list[list[str]] = []
+    seen_global: set[str] = set()  # a gloss shows once, in its FIRST group
+    for m in meanings:
+        semantic, _ = _partition_senses(m.meanings)
+        rep: dict[str, str] = {}
+        order: list[str] = []
+        for g in semantic:
+            k = _gloss_dedup_key(g)
+            if not k or k in seen_global:
+                continue
+            if k not in rep:
+                rep[k] = g
+                order.append(k)
+            elif len(g) < len(rep[k]):
+                rep[k] = g  # prefer the cleanest (shortest) form, e.g. 'Hill'
+        if order:
+            seen_global.update(order)
+            groups.append([rep[k] for k in order])
+    return groups
+
+
 @lru_cache(maxsize=4096)
 def _normalize_for_similarity(s: str) -> str:
     """Lowercase + strip dashes + strip whitespace + strip ASCII-fold
@@ -977,32 +1066,13 @@ def _max_form_similarity(matcher: SequenceMatcher, usage_norm: str, m: Meaning) 
     return best
 
 
-# wyrd-5z5j: tags that mark a PROPER-NOUN sense (personal name / saint).
-# A sibling carrying ONLY these is a pure proper noun and is de-prioritized
-# as a canonical place-name sense; one that ALSO carries a common-noun tag
-# (geology, topography, water, …) is a place element with an incidental
-# name tag and keeps common-noun rank.
-#
-# Two roles are bundled here. The QUALIFYING tags — {male name, female name,
-# family name} (via ``is_name()``) and {saint} (via ``is_saint()``) — are what
-# make ``_is_pure_proper_noun`` even consider a sibling. ``personal-name`` and
-# ``religious`` are COMPANION tags: they never independently qualify (the gate
-# requires a real name/saint tag first), they only keep a row "pure" when they
-# ride alongside one — so a synthesized saint tagged {saint, personal-name,
-# religious} still reads as pure. Keeping them in the set is what makes that work.
-_PROPER_NOUN_TAGS = frozenset(
-    {"male name", "female name", "family name", "saint", "personal-name", "religious"}
-)
-
-
 def _is_pure_proper_noun(m: Meaning) -> bool:
     """True when ``m`` is name/saint-tagged and carries NO common-noun tag —
     i.e. a personal name / saint with no place-element sense (``Bourne``,
     ``Andrew``), as opposed to a place element merely co-tagged with a name
-    (``stān`` 'stone' + 'Stan')."""
-    if not (m.is_name() or m.is_saint()):
-        return False
-    return all(tag in _PROPER_NOUN_TAGS for tag in m.tags)
+    (``stān`` 'stone' + 'Stan'). Delegates to ``Meaning.is_pure_proper_noun``
+    (wyrd-eyjk/D40) so the predicate has a single definition."""
+    return m.is_pure_proper_noun()
 
 
 def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:

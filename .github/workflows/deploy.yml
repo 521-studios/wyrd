@@ -11,6 +11,18 @@ on:
         type: choice
         options: [staging, production]
 
+# wyrd-8f1p: serialize deploys per environment so two near-simultaneous
+# pushes to main (or a push racing a dispatch) don't run overlapping
+# `terraform apply` + Lambda `UpdateFunctionCode` against the same function —
+# which fails the second with a 409 ResourceConflictException. The group key
+# resolves to the target env: push → 'staging', dispatch → the chosen input.
+# cancel-in-progress: false lets an in-flight apply/update finish (never
+# cancelled mid-deploy); a newer run queues and supersedes any other pending
+# one, so the latest code still deploys.
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write  # OIDC
@@ -45,7 +57,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: wyrd-deploy-staging
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -87,7 +99,7 @@ jobs:
 
       # wyrd-20pz: Vite SPA build needs Node. Sourced from spa-next/
       # via deploy-spa.sh (npm ci + npm run build + aws s3 sync).
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -128,7 +140,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: wyrd-deploy-production
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -164,7 +176,7 @@ jobs:
             --architectures arm64
           aws lambda wait function-updated --function-name "$FUNCTION"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm

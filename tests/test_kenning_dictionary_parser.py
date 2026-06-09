@@ -102,6 +102,32 @@ def test_entry_body_includes_attestations_and_etymology() -> None:
     # Body should contain both the dated attestation chain and the etymology.
     assert "1169 Pipe Alburwic" in abberwick.body_text
     assert "Alubeorht" in abberwick.body_text
+    # The two source lines are space-JOINED into one body (Abberwick's first
+    # line ends "...Alberwick." and the second starts "O.E. ..."). Pins the
+    # paragraph-joining (a glued "Alberwick.O.E." would be a regression).
+    assert "Alberwick. O.E." in abberwick.body_text
+
+
+def test_max_entries_caps_alphabetical_results() -> None:
+    """``max_entries`` is an inclusive cap: the result never exceeds it (the
+    just-started, still-incomplete entry at the cutoff is NOT emitted)."""
+    capped = parse_alphabetical_text(SYNTHETIC, max_entries=2)
+    assert len(capped) == 2
+    assert [e.toponym for e in capped] == ["Abberwick", "Acomb"]
+
+
+def test_real_headword_with_no_etymology_signal_is_dropped() -> None:
+    """A genuine (non-false) headword whose body carries no etymology signal
+    (year / O.E. / A.S. / Phonology / Domesday) is rejected — pins the
+    _entry_body_is_real wiring inside the emit path."""
+    text = (
+        "PART I. PLACE-NAMES IN ALPHABETICAL ORDER\n\n"
+        "Acomb [ækəm] (Bywell). 1268 Ipm. Akum.\n\n"
+        "Foobar (Place). Just some discursive prose with no dated marker.\n"
+    )
+    names = [e.toponym for e in parse_alphabetical_text(text)]
+    assert "Acomb" in names  # has a 1268 attestation → real
+    assert "Foobar" not in names  # no etymology signal → dropped
 
 
 def test_filters_sentence_fragments_via_body_signal() -> None:

@@ -32,44 +32,6 @@ def test_location_bare_when_no_dash():
     assert make_meaning("ham").location == "bare"
 
 
-def test_test_pre_returns_meaning_then_remainder():
-    m = make_meaning("Bre-")
-    assert m.test("Brecombe") == [m, "combe"]
-
-
-def test_test_pre_no_match_returns_none():
-    assert make_meaning("Bre-").test("Westcombe") is None
-
-
-def test_test_post_returns_remainder_then_meaning():
-    m = make_meaning("-ton")
-    assert m.test("Easton") == ["Eas", m]
-
-
-def test_test_inner_returns_left_meaning_right():
-    m = make_meaning("-by-")
-    assert m.test("Westbycombe") == ["West", m, "combe"]
-
-
-def test_test_post_strips_match_case_insensitively():
-    # Regression: case-sensitive str.replace used to leave 'Hill' as residue
-    # when matching post-Meaning('-hill'), inflating unaccounted counts.
-    m = make_meaning("-hill")
-    assert m.test("Hill") == ["", m]
-    assert m.test("Bushhill") == ["Bush", m]
-
-
-def test_test_pre_preserves_remainder_casing():
-    m = make_meaning("Bre-")
-    # Token comparison is lowercase, but the residue keeps the original case.
-    assert m.test("BreCombe") == [m, "Combe"]
-
-
-def test_test_inner_preserves_residue_casing():
-    m = make_meaning("-by-")
-    assert m.test("WestByCombe") == ["West", m, "Combe"]
-
-
 def test_is_name_true_for_male_female_or_family():
     assert make_meaning("Alf-", tags=["male name"]).is_name()
     assert make_meaning("Alf-", tags=["female name"]).is_name()
@@ -97,6 +59,42 @@ def test_key_with_saint_usage():
     # Saint key path triggers when usage text matches "saint" exactly
     # (with dashes stripped, lowercase) — separate from is_name().
     assert make_meaning("saint", tags=[]).key() == ("bare", "saint")
+
+
+# wyrd-57d8: base-pool class exclusions. is_manorial_subject identifies the
+# synthesized Norman manorial subjects (tagged 'manorial'); is_base_pool_excluded
+# is the single predicate every base pool consults so manorial / saint / given-
+# name / connector morphemes never enter plain generation.
+
+
+def test_is_manorial_subject_true_only_for_manorial_tag():
+    assert make_meaning("Malet", tags=["manorial", "norman"]).is_manorial_subject()
+    assert not make_meaning("ham", tags=["water"]).is_manorial_subject()
+    assert not make_meaning("Smith-", tags=["family name"]).is_manorial_subject()
+
+
+def test_is_base_pool_excluded_true_for_each_excluded_class():
+    # Synthesized manorial subject (the wyrd-57d8 leak class).
+    assert make_meaning("Malet", tags=["manorial", "norman"]).is_base_pool_excluded()
+    # Pure-proper-noun saint subject (reaches output only via St-dedication).
+    assert make_meaning(
+        "Mary", tags=["saint", "personal-name", "religious"]
+    ).is_base_pool_excluded()
+    # Pure-proper-noun personal given name.
+    assert make_meaning("Edmund", tags=["male name"]).is_base_pool_excluded()
+    # Connector particle (needs a complement; would dangle as a lone word).
+    assert make_meaning("cum", tags=[]).is_base_pool_excluded()
+
+
+def test_is_base_pool_excluded_false_for_legitimate_base_morphemes():
+    # Plain place element.
+    assert not make_meaning("ham", tags=["water"]).is_base_pool_excluded()
+    # Place element merely CO-TAGGED with a name (not a pure proper noun).
+    assert not make_meaning("Stan-", tags=["male name", "stone"]).is_base_pool_excluded()
+    # A real FAMILY-name etymon forms legitimate manorial toponyms — stays in
+    # (it is a pure proper noun but neither saint nor given name nor a
+    # synthesized 'manorial'-tagged subject).
+    assert not make_meaning("Smith-", tags=["family name"]).is_base_pool_excluded()
 
 
 def test_load_meanings_indexes_by_usage_and_tag():
@@ -654,49 +652,11 @@ def test_in_stratum_returns_true_when_any_form_matches_in_mixed_data():
 # ---------------------------------------------------------------------
 
 
-def _meaning_with_english_shaped(english_shaped: dict[str, dict[str, str]]) -> Meaning:
-    return Meaning(
-        usage="Test-",
-        tags=[],
-        meanings=[],
-        sources={},
-        english_shaped=english_shaped,
-    )
-
-
-def test_english_shaped_for_returns_value_when_present():
-    m = _meaning_with_english_shaped(
-        {
-            "hebrew": {"גולם": "golem", "גלם": "gelem"},
-            "arabic": {"جن": "jinn"},
-        }
-    )
-    assert m.english_shaped_for("hebrew", "גולם") == "golem"
-    assert m.english_shaped_for("hebrew", "גלם") == "gelem"
-    assert m.english_shaped_for("arabic", "جن") == "jinn"
-
-
-def test_english_shaped_for_returns_none_for_missing_lang():
-    m = _meaning_with_english_shaped({"hebrew": {"גולם": "golem"}})
-    assert m.english_shaped_for("old_english", "tūn") is None
-    assert m.english_shaped_for("sanskrit", "रक्षस") is None
-
-
-def test_english_shaped_for_returns_none_for_missing_form_in_lang():
-    """Form not in the lang map → None. Matches the rule that
-    derive_english_shaped returns None for rows that lacked
-    transliteration / IPA at ingest time; those rows survive in the
-    language form array but don't carry a shaping entry."""
-    m = _meaning_with_english_shaped({"arabic": {"جن": "jinn"}})
-    assert m.english_shaped_for("arabic", "عفريت") is None
-
-
 def test_english_shaped_defaults_to_empty_dict_for_legacy_meaning():
     """Meaning constructed without english_shaped kwarg (legacy
-    bundle pre-Phase 2c) gets an empty dict and graceful None lookup."""
+    bundle pre-Phase 2c) gets an empty dict."""
     m = Meaning(usage="Test-", tags=[], meanings=[], sources={})
     assert m.english_shaped == {}
-    assert m.english_shaped_for("hebrew", "גולם") is None
 
 
 def test_load_meanings_strips_english_shaped_suffix_into_dedicated_dict():
@@ -725,7 +685,6 @@ def test_load_meanings_strips_english_shaped_suffix_into_dedicated_dict():
     m = meaning_db["Golem"][0]
     assert m.sources == {"hebrew": ["גולם", "גלם"]}
     assert m.english_shaped == {"hebrew": {"גולם": "golem", "גלם": "gelem"}}
-    assert m.english_shaped_for("hebrew", "גולם") == "golem"
 
 
 def test_load_meanings_round_trips_with_no_english_shaped_field():
@@ -747,64 +706,15 @@ def test_load_meanings_round_trips_with_no_english_shaped_field():
     meaning_db, _ = load_meanings(data)
     m = meaning_db["Bridg-"][0]
     assert m.english_shaped == {}
-    assert m.english_shaped_for("old_english", "brycg") is None
-
-
-def test_original_script_for_returns_value_and_none_correctly():
-    """wyrd-qhs0 Phase 2d: original_script_for accessor mirrors
-    english_shaped_for — returns the vocalized native form when
-    present, None when the lang or form lacks data."""
-    m = Meaning(
-        usage="Test-",
-        tags=[],
-        meanings=[],
-        sources={},
-        original_script={"hebrew": {"כלב": "כֶּלֶב"}},
-    )
-    assert m.original_script_for("hebrew", "כלב") == "כֶּלֶב"
-    assert m.original_script_for("hebrew", "אחר") is None
-    assert m.original_script_for("arabic", "كلب") is None
-
-
-def test_transliteration_for_returns_value_and_none_correctly():
-    m = Meaning(
-        usage="Test-",
-        tags=[],
-        meanings=[],
-        sources={},
-        transliteration={"hebrew": {"כלב": "kɛ́lɛḇ"}},
-    )
-    assert m.transliteration_for("hebrew", "כלב") == "kɛ́lɛḇ"
-    assert m.transliteration_for("hebrew", "אחר") is None
-    assert m.transliteration_for("arabic", "anything") is None
-
-
-def test_pronunciation_for_returns_pair_dict_and_none():
-    """pronunciation_for returns the {ipa, dialect} dict; missing
-    lang or form returns None. Pinned because the pair shape is
-    different from the other 3 single-string accessors."""
-    m = Meaning(
-        usage="Test-",
-        tags=[],
-        meanings=[],
-        sources={},
-        pronunciation={"hebrew": {"כלב": {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}}},
-    )
-    pair = m.pronunciation_for("hebrew", "כלב")
-    assert pair == {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}
-    assert m.pronunciation_for("hebrew", "missing") is None
 
 
 def test_phase2d_renderings_default_to_empty_dict_for_legacy_meaning():
     """Meaning constructed without the Phase 2d kwargs (older bundles)
-    gets empty dicts on all four; every accessor returns None."""
+    gets empty dicts on all four."""
     m = Meaning(usage="Test-", tags=[], meanings=[], sources={})
     assert m.original_script == {}
     assert m.transliteration == {}
     assert m.pronunciation == {}
-    assert m.original_script_for("hebrew", "any") is None
-    assert m.transliteration_for("hebrew", "any") is None
-    assert m.pronunciation_for("hebrew", "any") is None
 
 
 def test_load_meanings_strips_phase2d_suffixes_into_dedicated_dicts():
@@ -857,7 +767,7 @@ def test_load_meanings_handles_pronunciation_with_null_dialect():
     ]
     meaning_db, _ = load_meanings(data)
     m = meaning_db["Jinn"][0]
-    assert m.pronunciation_for("arabic", "جن") == {
+    assert m.pronunciation["arabic"]["جن"] == {
         "ipa": "/d͡ʒɪnː/",
         "dialect": None,
     }
@@ -866,7 +776,7 @@ def test_load_meanings_handles_pronunciation_with_null_dialect():
 def test_db_to_export_to_load_round_trip_preserves_english_shaped(tmp_path):
     """End-to-end: seed a fresh DB with a wave-2 etymon carrying
     english_shaped, run `export_meanings`, then `load_meanings` on the
-    output — the rendering survives all the way to `Meaning.english_shaped_for`.
+    output — the rendering survives all the way to `Meaning.english_shaped`.
 
     Pinned because the exporter and loader were tested independently;
     a field-name mismatch between `_emit_english_shaped_list`'s output
@@ -913,7 +823,7 @@ def test_db_to_export_to_load_round_trip_preserves_english_shaped(tmp_path):
     # Form arrived in the right bundle bucket AND english_shaped came
     # through to the runtime accessor.
     assert m.sources.get("hebrew") == ["גולם"]
-    assert m.english_shaped_for("hebrew", "גולם") == "golem"
+    assert m.english_shaped.get("hebrew", {}).get("גולם") == "golem"
 
 
 def test_db_to_export_to_load_round_trip_preserves_phase2d_renderings(tmp_path):
@@ -969,35 +879,13 @@ def test_db_to_export_to_load_round_trip_preserves_phase2d_renderings(tmp_path):
 
     meaning_db, _ = load_meanings(subjects)
     m = meaning_db["Kelev"][0]
-    assert m.original_script_for("hebrew", "כלב") == "כֶּלֶב"
-    assert m.transliteration_for("hebrew", "כלב") == "kɛ́lɛḇ"
-    assert m.english_shaped_for("hebrew", "כלב") == "kelev"
-    assert m.pronunciation_for("hebrew", "כלב") == {
+    assert m.original_script["hebrew"]["כלב"] == "כֶּלֶב"
+    assert m.transliteration["hebrew"]["כלב"] == "kɛ́lɛḇ"
+    assert m.english_shaped["hebrew"]["כלב"] == "kelev"
+    assert m.pronunciation["hebrew"]["כלב"] == {
         "ipa": "/kalb/",
         "dialect": "Biblical-Hebrew",
     }
-
-
-def test_pronunciation_for_returns_copy_not_reference():
-    """pronunciation_for returns a fresh shallow copy of the inner
-    dict so caller mutation doesn't corrupt Meaning state. Other
-    accessors return strings (immutable) so they don't need this
-    safeguard, but the pair-shape value would let a mutating caller
-    contaminate every later read."""
-    m = Meaning(
-        usage="Test-",
-        tags=[],
-        meanings=[],
-        sources={},
-        pronunciation={"hebrew": {"כלב": {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}}},
-    )
-    pair = m.pronunciation_for("hebrew", "כלב")
-    pair["ipa"] = "MUTATED"
-    pair["new_key"] = "extra"
-    # Original storage stays intact across a re-read.
-    second = m.pronunciation_for("hebrew", "כלב")
-    assert second == {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}
-    assert "new_key" not in second
 
 
 # ---------------------------------------------------------------------
@@ -1005,47 +893,11 @@ def test_pronunciation_for_returns_copy_not_reference():
 # ---------------------------------------------------------------------
 
 
-def _meaning_with_stratum(stratum: dict[str, dict[str, str]]) -> Meaning:
-    return Meaning(
-        usage="Caer-",
-        tags=[],
-        meanings=[],
-        sources={},
-        stratum=stratum,
-    )
-
-
-def test_stratum_for_returns_value_when_present():
-    m = _meaning_with_stratum(
-        {
-            "celtic_mix": {"caer": "latin-loan", "din": "native-welsh"},
-        }
-    )
-    assert m.stratum_for("celtic_mix", "caer") == "latin-loan"
-    assert m.stratum_for("celtic_mix", "din") == "native-welsh"
-
-
-def test_stratum_for_returns_none_for_missing_lang():
-    m = _meaning_with_stratum({"celtic_mix": {"caer": "latin-loan"}})
-    assert m.stratum_for("old_english", "tūn") is None
-    assert m.stratum_for("hebrew", "גולם") is None
-
-
-def test_stratum_for_returns_none_for_missing_form_in_lang():
-    """Form not in the lang map → None. Matches the rule that
-    unclassified rows in classified languages stay NULL on the etymon
-    column; those forms survive in the language form array but don't
-    carry a stratum entry."""
-    m = _meaning_with_stratum({"celtic_mix": {"caer": "latin-loan"}})
-    assert m.stratum_for("celtic_mix", "din") is None
-
-
 def test_stratum_defaults_to_empty_dict_for_legacy_meaning():
     """Meaning constructed without stratum kwarg (legacy bundle pre-
-    Phase 2) gets an empty dict and graceful None lookup."""
+    Phase 2) gets an empty dict."""
     m = Meaning(usage="Caer-", tags=[], meanings=[], sources={})
     assert m.stratum == {}
-    assert m.stratum_for("celtic_mix", "caer") is None
 
 
 def test_load_meanings_strips_stratum_suffix_into_dedicated_dict():
@@ -1074,8 +926,6 @@ def test_load_meanings_strips_stratum_suffix_into_dedicated_dict():
     m = meaning_db["Caer-"][0]
     assert m.sources == {"celtic_mix": ["caer", "din"]}
     assert m.stratum == {"celtic_mix": {"caer": "latin-loan", "din": "native-welsh"}}
-    assert m.stratum_for("celtic_mix", "caer") == "latin-loan"
-    assert m.stratum_for("celtic_mix", "din") == "native-welsh"
 
 
 def test_load_meanings_round_trips_with_no_stratum_field():
@@ -1097,7 +947,6 @@ def test_load_meanings_round_trips_with_no_stratum_field():
     meaning_db, _ = load_meanings(data)
     m = meaning_db["Bridg-"][0]
     assert m.stratum == {}
-    assert m.stratum_for("old_english", "brycg") is None
 
 
 def test_load_meanings_handles_mixed_bundle_some_words_with_stratum():
@@ -1127,16 +976,14 @@ def test_load_meanings_handles_mixed_bundle_some_words_with_stratum():
     meaning_db, _ = load_meanings(data)
     classified = meaning_db["Caer-"][0]
     assert classified.stratum == {"celtic_mix": {"caer": "latin-loan"}}
-    assert classified.stratum_for("celtic_mix", "caer") == "latin-loan"
     unclassified = meaning_db["Bridg-"][0]
     assert unclassified.stratum == {}
-    assert unclassified.stratum_for("old_english", "brycg") is None
 
 
 def test_db_to_export_to_load_round_trip_preserves_stratum(tmp_path):
     """End-to-end: seed a fresh DB with a welsh family carrying
     stratum, run ``export_meanings``, then ``load_meanings`` on the
-    output — the tag survives all the way to ``Meaning.stratum_for``.
+    output — the tag survives all the way to ``Meaning.stratum``.
 
     Pinned because the exporter and loader were tested independently;
     a field-name mismatch between ``_emit_stratum_list``'s output keys
@@ -1179,4 +1026,4 @@ def test_db_to_export_to_load_round_trip_preserves_stratum(tmp_path):
     meaning_db, _ = load_meanings(subjects)
     assert "Caer-" in meaning_db
     m = meaning_db["Caer-"][0]
-    assert m.stratum_for("celtic_mix", "caer") == "latin-loan"
+    assert m.stratum["celtic_mix"]["caer"] == "latin-loan"

@@ -140,7 +140,7 @@ state, project-period-forms needs lemma_id state, etc.).
 | `apply-gloss-additions` | INSERT OR IGNOREs `etymon_gloss` rows per operator decision | `gloss-add-v1` | ✅ wyrd-wz82 |
 | `apply-etymon-splits` | creates `<form>#<suffix>` child etymons + moves glosses / tags / evidence per operator decision | `etymon-split-v1` | ✅ wyrd-kutx |
 | `decompose` | (`toponym_decomposition` table) | matcher rules | ✅ wyrd-hidb |
-| `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v1` | ✅ wyrd-hidb |
+| `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v2` | ✅ wyrd-hidb |
 | `classify-stratum` | `stratum` | hardcoded heuristics | ✅ wyrd-hidb |
 | `derive-english-shaped` | `english_shaped` | hardcoded rules | ✅ wyrd-hidb |
 | `tag-phonological-vectors` | `phonological_vector` (JSON) | `compute-phon-vector-v1` | ✅ wyrd-kq7w.1 |
@@ -219,6 +219,27 @@ as an `etymon_variant` of the lemma, and migrates reflexes + citations
 deterministic detector and the LLM merge pass append here, differing
 only in `method`; the LLM verdicts persisting to L2 is what keeps the
 rebuild free (no re-mining). Last-write-wins per ref; `into: ''` reverts.
+
+### Descent-edge detach (wyrd-qp9c)
+
+A `collapse` row may also carry `detach_parents` / `detach_children`
+(arrays of `"<language>:<canonical_form>"` refs). `apply_collapses`
+DELETEs the named `<parent> -> ref` / `ref -> <child>` descent edges
+**before** the fold. This is the **homograph-conflation** fix: when one
+`(canonical_form, language)` row serves two morphemes (e.g. OE `don` =
+the toponym "hill" AND the verb "to do"), the wrong-sense lineage must be
+cut, NOT just folded — folding alone redirects a tombstone's edges onto
+`into` via `merged_into_id`, so cluster-cognates would drag the wrong
+cluster onto the surviving lemma. Detach runs in the same L2-replayed
+pass, so a from-scratch rebuild reproduces it (the descent edges
+regenerate from the L1 wiktextract bulk on every rebuild, then the
+detach removes the named ones). `detach_*` may stand alone (no `into`)
+for a pure edge cut, or pair with `into` (cut the wrong lineage, then
+fold the clean sense into its lemma). Emit via `lexicon
+curate-collapse-etymon <ref> --into <lemma> --detach-parent <ref>
+--detach-child <ref> …`. The companion gloss cleanup (dropping the
+wrong-sense gloss off the conflated row) is a separate
+`etymon_gloss_suppression` curation event.
 
 ## Prune commands — toponym + etymon row removal
 

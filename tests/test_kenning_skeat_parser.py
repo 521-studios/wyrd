@@ -118,6 +118,46 @@ def test_parse_entry_low_confidence_when_no_etymology() -> None:
     assert entry.section_suffix == "-ton"
 
 
+def test_lit_gloss_attaches_to_first_element_only() -> None:
+    """Pattern D: a 'lit. ...' overall gloss with no 'from X ... and Y' clause
+    lands on the FIRST recovered element and no other."""
+    entry = parse_entry("Acton", "Acton. A.S. Ac-tun; lit. 'oak town'.", suffix_hint="-ton")
+    assert [el.form for el in entry.elements] == ["ac", "tun"]
+    assert entry.elements[0].gloss == "oak town"
+    assert entry.elements[1].gloss is None
+
+
+def test_personal_name_does_not_clobber_recovered_elements() -> None:
+    """Pattern C only fires when nothing was recovered yet. A hyphenated A.S.
+    form (Pattern A) already filled the elements, so the trailing 'gen. of X,
+    a personal name' must NOT overwrite them (guards the `not entry.elements`)."""
+    entry = parse_entry(
+        "Acton", "Acton. A.S. Ac-tun, gen. of Acca, a personal name.", suffix_hint="-ton"
+    )
+    assert [el.form for el in entry.elements] == ["ac", "tun"]
+    assert entry.confidence == "high"  # from Pattern A, not Pattern C's "medium"
+    assert all(el.form != "acca" for el in entry.elements)
+
+
+def test_oe_and_on_forms_set_their_language() -> None:
+    """The O.E. and O.N. detection branches set the element language (the
+    fixtures elsewhere only exercise A.S.)."""
+    oe = parse_entry("Brackley", "Brackley. O.E. Bracca-leah.", suffix_hint="-ley")
+    assert [el.form for el in oe.elements] == ["bracca", "leah"]
+    assert {el.language for el in oe.elements} == {"old-english"}
+
+    on = parse_entry("Kirkby", "Kirkby. O.N. Kirkju-byr.", suffix_hint="-by")
+    assert [el.form for el in on.elements] == ["kirkju", "byr"]
+    assert {el.language for el in on.elements} == {"old-norse"}
+
+
+def test_historical_form_priority_as_beats_on() -> None:
+    """A.S. is tried before O.N.; when both appear, the A.S. form wins."""
+    entry = parse_entry("Mixed", "Mixed. A.S. Aac-tun and O.N. Foo-bar.", suffix_hint="-ton")
+    assert [el.form for el in entry.elements] == ["aac", "tun"]
+    assert {el.language for el in entry.elements} == {"old-english"}
+
+
 def test_skeat_parser_source_quote_budget_matches_llm_extractor() -> None:
     """wyrd-9v1: the regex parser and the LLM extractor must share one
     source_quote budget so the SPA citation view sees consistent snippet

@@ -654,6 +654,53 @@ def test_format_etymon_shows_descent_arrows():
     assert "inheritance" in md and "high" in md
 
 
+def test_format_etymon_shows_descent_descendants():
+    """The descent_out branch (this → child) of _etymon_descent_lines."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO source (id, title) VALUES ('wiki', 'W')")
+    proto = _add_etymon(conn, "proto-germanic", "*tunaz")
+    oe = _add_etymon(conn, "old-english", "tun")
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id, confidence) "
+        "VALUES (?, ?, 'inheritance', 'wiki', 'high')",
+        (proto, oe),
+    )
+    md = format_etymon(fetch_etymon(conn, "proto-germanic:*tunaz"))
+    assert "Descent: descendants (1)" in md
+    assert "this → `old-english:tun`" in md
+
+
+def test_format_etymon_shows_ocr_cluster():
+    """_etymon_ocr_cluster_lines: canonical lists its merged-in losers; a
+    loser names its merged-into target."""
+    conn = _build_fixture_db()
+    canon = _add_etymon(conn, "old-english", "tun")
+    _add_etymon(conn, "old-english", "tuu", merged_into_id=canon)
+
+    canon_md = format_etymon(fetch_etymon(conn, "old-english:tun"))
+    assert "### OCR cluster" in canon_md
+    assert "Other rows merged into this one (1)" in canon_md
+    assert "`old-english:tuu`" in canon_md
+
+    loser_md = format_etymon(fetch_etymon(conn, "old-english:tuu"))
+    assert "### OCR cluster" in loser_md
+    assert "merged INTO `old-english:tun`" in loser_md
+
+
+def test_format_etymon_omits_lemma_family_for_inflection_only():
+    """An inflection value with no lemma_ref and no inflected children has
+    nothing to render — the section header must NOT appear (it would be empty).
+    Guards against re-adding ``inflection`` to the section gate."""
+    conn = _build_fixture_db()
+    _add_etymon(conn, "old-english", "cotan", inflection="genitive")
+    data = fetch_etymon(conn, "old-english:cotan")
+    assert data["inflection"] == "genitive"
+    assert data["lemma_ref"] is None
+    assert data["inflections"] == []
+    md = format_etymon(data)
+    assert "### Lemma family" not in md
+
+
 def test_format_toponym_includes_attestations_and_etymologies():
     conn = _build_fixture_db()
     conn.execute("INSERT INTO source (id, title) VALUES ('mawer', 'N&D')")

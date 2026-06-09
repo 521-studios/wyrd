@@ -30,7 +30,6 @@ from wyrd.generators.kenning.registers.phonological_vector_compute import (
     _orthographic_vector,
     compute_phonological_vector,
     parse_ipa,
-    vector_from_json,
     vector_to_json,
 )
 from wyrd.generators.kenning.vectors.schemas import PhonologicalVector
@@ -620,33 +619,7 @@ def test_vector_to_json_rounds_to_4_decimals():
     assert parsed["final_fortition"] == 0.5
 
 
-def test_vector_json_round_trip():
-    v = compute_phonological_vector("strict", "strɪkt")
-    blob = vector_to_json(v)
-    v2 = vector_from_json(blob)
-    # round-trip equality (within float tolerance from rounding)
-    for dim in (
-        "cluster_density",
-        "final_fortition",
-        "final_cluster_rate",
-        "vowel_final_bias",
-        "soft_consonants",
-        "polysyllabic_bias",
-        "palatalization",
-        "sibilance",
-        "retroflexion",
-        "pharyngeal",
-        "vowel_height",
-        "vowel_backness",
-        "stop_vs_continuant",
-        "aspirated_voiceless",
-    ):
-        assert _approx(getattr(v, dim), getattr(v2, dim), tol=0.001), (
-            f"round-trip mismatch on dim {dim}"
-        )
-
-
-def test_vector_json_with_extras_round_trip():
+def test_vector_json_with_extras_serializes():
     v = PhonologicalVector(
         cluster_density=0.5,
         extras={"new_feature_v2": 0.7, "experimental": -0.3},
@@ -655,19 +628,6 @@ def test_vector_json_with_extras_round_trip():
     parsed = json.loads(blob)
     assert "extras" in parsed
     assert parsed["extras"]["new_feature_v2"] == 0.7
-    v2 = vector_from_json(blob)
-    assert v2.extras["new_feature_v2"] == 0.7
-    assert v2.extras["experimental"] == -0.3
-
-
-def test_vector_from_json_tolerates_missing_dimensions():
-    # Older blobs from before a new dimension was added — missing
-    # dimensions should default to 0.0 (the corpus mean).
-    blob = json.dumps({"cluster_density": 0.4, "final_fortition": 1.0})
-    v = vector_from_json(blob)
-    assert v.cluster_density == 0.4
-    assert v.final_fortition == 1.0
-    assert v.palatalization == 0.0  # missing → default 0.0
 
 
 # ---- determinism + idempotence -------------------------------------------
@@ -683,15 +643,6 @@ def test_compute_is_deterministic():
     v1 = compute_phonological_vector("strict", "strɪkt")
     v2 = compute_phonological_vector("strict", "strɪkt")
     assert v1 == v2
-    assert vector_to_json(v1) == vector_to_json(v2)
-
-
-def test_compute_is_idempotent_through_json():
-    """Round-trip through JSON yields the same vector that goes back
-    in. The enrichment pass writes JSON to the DB; downstream reads
-    decode it back — that loop must preserve the vector exactly."""
-    v1 = compute_phonological_vector("aloha", "aloha")
-    v2 = vector_from_json(vector_to_json(v1))
     assert vector_to_json(v1) == vector_to_json(v2)
 
 
@@ -801,42 +752,11 @@ def test_vowel_tenseness_no_vowels_returns_zero() -> None:
 # ---- wyrd-119p + wyrd-mkry: schema round-trip -----------------------------
 
 
-def test_new_dims_round_trip_through_json() -> None:
-    """The 3 wyrd-119p + wyrd-mkry dimensions serialize / deserialize
-    without precision loss beyond the 4-decimal rounding."""
+def test_new_dims_serialize_through_json() -> None:
+    """The 3 wyrd-119p + wyrd-mkry dimensions serialize without
+    precision loss beyond the 4-decimal rounding."""
     v1 = compute_phonological_vector("rara", "rara")  # rhotic + tense vowel
-    v2 = vector_from_json(vector_to_json(v1))
-    assert vector_to_json(v1) == vector_to_json(v2)
-    assert isclose(v1.rhotic_r, v2.rhotic_r)
-    assert isclose(v1.vowel_tenseness, v2.vowel_tenseness)
-    assert isclose(v1.liquid_l_m_n, v2.liquid_l_m_n)
-
-
-def test_legacy_json_blob_without_new_dims_loads_with_zero_defaults() -> None:
-    """A blob written before wyrd-119p / wyrd-mkry landed should still
-    parse cleanly — the new dimensions default to 0.0. Pins the
-    back-compat contract until the enrichment pass is re-run."""
-    legacy_blob = json.dumps(
-        {
-            "cluster_density": 0.4,
-            "final_fortition": 1.0,
-            "soft_consonants": 0.5,
-            "polysyllabic_bias": 0.5,
-            "palatalization": 0.0,
-            "sibilance": 0.0,
-            "retroflexion": 0.0,
-            "pharyngeal": 0.0,
-            "vowel_height": 0.0,
-            "vowel_backness": 0.0,
-            "stop_vs_continuant": 0.0,
-            "aspirated_voiceless": 0.0,
-            "vowel_final_bias": 0.0,
-            "final_cluster_rate": 0.0,
-        }
-    )
-    v = vector_from_json(legacy_blob)
-    assert v.liquid_l_m_n == 0.0
-    assert v.rhotic_r == 0.0
-    assert v.vowel_tenseness == 0.0
-    # Pre-existing dimensions read through unchanged.
-    assert v.soft_consonants == 0.5
+    parsed = json.loads(vector_to_json(v1))
+    assert isclose(parsed["rhotic_r"], round(v1.rhotic_r, 4))
+    assert isclose(parsed["vowel_tenseness"], round(v1.vowel_tenseness, 4))
+    assert isclose(parsed["liquid_l_m_n"], round(v1.liquid_l_m_n, 4))

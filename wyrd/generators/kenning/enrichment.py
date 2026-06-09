@@ -767,6 +767,35 @@ def apply_etymon_splits(
     return counts
 
 
+# Optional summary lines for format_etymon_split_run, in render order.
+# Each (key, label) emits "- {label}: {counts[key]}" only when the count
+# is truthy — every line follows that uniform shape, so a data table +
+# loop replaces a dozen near-identical guards.
+_SPLIT_OPTIONAL_LINES: list[tuple[str, str]] = [
+    ("no_primary_defaulted", "Splits with no `primary` flag (defaulted to first child)"),
+    ("children_already_existed", "Children that already existed (reused)"),
+    ("unresolved_etymon", "Unresolved parent refs"),
+    ("glosses_missing", "Glosses not on parent"),
+    ("tags_missing", "Tags not on parent"),
+    ("empty_into_skipped", "Empty splits skipped"),
+    ("children_skipped_invalid_suffix", "Children skipped (suffix outside [a-z0-9_-]+ charset)"),
+    ("children_skipped_no_suffix", "Children skipped (missing/empty `suffix` in JSONL event)"),
+    (
+        "multiple_primary_collapsed",
+        "Splits with >1 primary flag (collapsed to first; CLI normally rejects this)",
+    ),
+    ("citations_skipped_conflict", "Citations left on parent due to UNIQUE conflict on primary"),
+    (
+        "descent_edges_skipped_conflict",
+        "Descent edges left on parent due to UNIQUE conflict on primary",
+    ),
+    (
+        "etymology_elements_skipped_conflict",
+        "Etymology elements left on parent due to UNIQUE conflict on primary",
+    ),
+]
+
+
 def format_etymon_split_run(counts: dict[str, Any]) -> str:
     """Render :func:`apply_etymon_splits` output as markdown."""
     applied = counts.get("applied", True)
@@ -784,53 +813,11 @@ def format_etymon_split_run(counts: dict[str, Any]) -> str:
         f"- Descent edges {verb_move} to primary: {counts.get('descent_edges_moved', 0)}",
         f"- Etymology elements {verb_move} to primary: {counts.get('etymology_elements_moved', 0)}",
     ]
-    if counts.get("no_primary_defaulted"):
-        lines.append(
-            f"- Splits with no `primary` flag (defaulted to first child): "
-            f"{counts['no_primary_defaulted']}"
-        )
-    if counts.get("children_already_existed"):
-        lines.append(
-            f"- Children that already existed (reused): {counts['children_already_existed']}"
-        )
-    if counts.get("unresolved_etymon"):
-        lines.append(f"- Unresolved parent refs: {counts['unresolved_etymon']}")
-    if counts.get("glosses_missing"):
-        lines.append(f"- Glosses not on parent: {counts['glosses_missing']}")
-    if counts.get("tags_missing"):
-        lines.append(f"- Tags not on parent: {counts['tags_missing']}")
-    if counts.get("empty_into_skipped"):
-        lines.append(f"- Empty splits skipped: {counts['empty_into_skipped']}")
-    if counts.get("children_skipped_invalid_suffix"):
-        lines.append(
-            "- Children skipped (suffix outside [a-z0-9_-]+ charset): "
-            f"{counts['children_skipped_invalid_suffix']}"
-        )
-    if counts.get("children_skipped_no_suffix"):
-        lines.append(
-            "- Children skipped (missing/empty `suffix` in JSONL event): "
-            f"{counts['children_skipped_no_suffix']}"
-        )
-    if counts.get("multiple_primary_collapsed"):
-        lines.append(
-            "- Splits with >1 primary flag (collapsed to first; CLI normally "
-            f"rejects this): {counts['multiple_primary_collapsed']}"
-        )
-    if counts.get("citations_skipped_conflict"):
-        lines.append(
-            "- Citations left on parent due to UNIQUE conflict on primary: "
-            f"{counts['citations_skipped_conflict']}"
-        )
-    if counts.get("descent_edges_skipped_conflict"):
-        lines.append(
-            "- Descent edges left on parent due to UNIQUE conflict on primary: "
-            f"{counts['descent_edges_skipped_conflict']}"
-        )
-    if counts.get("etymology_elements_skipped_conflict"):
-        lines.append(
-            "- Etymology elements left on parent due to UNIQUE conflict on primary: "
-            f"{counts['etymology_elements_skipped_conflict']}"
-        )
+    # Optional lines: emit only when the count is truthy (the table fixes
+    # render order). Each follows the uniform "- {label}: {value}" shape.
+    for key, label in _SPLIT_OPTIONAL_LINES:
+        if counts.get(key):
+            lines.append(f"- {label}: {counts[key]}")
     return "\n".join(lines)
 
 
@@ -895,6 +882,18 @@ def apply_collapses(
         "unresolved_into": 0,
         "self_collapse_skipped": 0,
         "empty_into_skipped": 0,
+        # wyrd-rogd.15: reflex-LINK rows (inherits) — add an inheritance descent
+        # edge instead of folding, so cross-era reflexes stay distinct era forms
+        # of one morpheme (the rollup follows the edge).
+        "links_processed": 0,
+        "link_rejections": 0,
+        "unresolved_inherits": 0,
+        "self_link_skipped": 0,
+        # wyrd-qp9c: descent-edge DETACH — wrong-sense edges removed from a
+        # homograph-conflated row before the fold (see the detach block below).
+        "detach_edges_removed": 0,
+        "detach_unresolved_from": 0,
+        "detach_unresolved_endpoint": 0,
         "applied": apply,
         "method_version": COLLAPSE_METHOD_VERSION,
     }
@@ -917,9 +916,112 @@ def apply_collapses(
         )
 
     for from_ref, payload in collapse_state.items():
+        # wyrd-rogd.15: a reflex-LINK row (``inherits``) asserts that ``ref`` is
+        # a later-era reflex of the ``inherits`` ancestor — the same morpheme
+        # across eras. Apply by adding an inheritance descent edge (parent =
+        # ancestor, child = ref); both etymons stay DISTINCT (vs the ``into``
+        # fold, which tombstones). Idempotent via OR IGNORE. A row that CARRIES
+        # the ``inherits`` key is a link row regardless of value: ``inherits: ""``
+        # (a recorded LLM rejection, or a revert) is a no-op handled HERE — it
+        # must NOT fall through to the ``into`` fold path. Mutually exclusive
+        # with ``into`` (reflex_verdict_to_row never writes both).
+        if "inherits" in payload:
+            inherits_ref = payload.get("inherits")
+            if not inherits_ref:
+                counts["link_rejections"] += 1
+                continue
+            child_row = _resolve(from_ref)
+            if child_row is None:
+                counts["unresolved_from"] += 1
+                continue
+            parent_row = _resolve(inherits_ref)
+            if parent_row is None:
+                counts["unresolved_inherits"] += 1
+                continue
+            if child_row["id"] == parent_row["id"]:
+                counts["self_link_skipped"] += 1
+                continue
+            counts["links_processed"] += 1
+            if apply:
+                db.conn.execute(
+                    "INSERT OR IGNORE INTO etymon_descent "
+                    "(parent_id, child_id, edge_type, source_id, confidence, notes) "
+                    "VALUES (?, ?, 'inheritance', ?, ?, ?)",
+                    (
+                        parent_row["id"],
+                        child_row["id"],
+                        COLLAPSE_VARIANT_SOURCE_ID,
+                        payload.get("confidence"),
+                        payload.get("notes") or payload.get("reason") or "wyrd-rogd.15 reflex-link",
+                    ),
+                )
+            continue
+
+        # wyrd-qp9c: descent-edge DETACH. A homograph-conflated row (e.g. OE
+        # ``don`` = the toponym "hill" AND the verb "to do") carries descent
+        # edges that belong to only ONE of its senses. ``detach_parents`` /
+        # ``detach_children`` name the wrong-sense edge endpoints to DELETE
+        # BEFORE the fold, so cluster_cognates — which resolves a tombstone's
+        # edges through ``merged_into_id`` — never redirects the verb lineage
+        # onto ``into``. ``detach_parents`` removes ``<parent> -> from`` edges;
+        # ``detach_children`` removes ``from -> <child>`` edges. Any edge_type
+        # for the named pair is dropped: the operator is asserting the two
+        # etymons are unrelated. Pairs with ``into`` (detach the verb lineage,
+        # THEN fold the clean toponym into its lemma) but also stands alone.
+        # dict.fromkeys dedups while preserving order: an accidental duplicate
+        # ref would otherwise double-count under dry-run (apply=False, COUNT
+        # returns 1 per occurrence) vs real-run (the second DELETE hits 0 rows),
+        # making the dry-run telemetry diverge from the applied result.
+        detach_parents = list(dict.fromkeys(payload.get("detach_parents") or []))
+        detach_children = list(dict.fromkeys(payload.get("detach_children") or []))
+        if detach_parents or detach_children:
+            # Resolve detach refs TOMBSTONE-AGNOSTICALLY (via _resolve_etymon_id,
+            # which has no `merged_into_id IS NULL` filter). etymon_descent edges
+            # reference etymon ids regardless of tombstone state, and detach is
+            # pure id-keyed edge removal — so an endpoint (or `from`) that was
+            # already folded by an earlier ledger row must still resolve, else
+            # its wrong-sense edge would silently survive. The `_resolve`
+            # (canonical-only) call below is for the FOLD, which correctly
+            # no-ops on an already-tombstoned `from`. `detach_unresolved_*` thus
+            # counts only genuine typos (ref matches no etymon at all), and a
+            # re-run is a clean no-op (DELETE of an absent row → rowcount 0).
+            detach_from_id = _resolve_etymon_id(db.conn, from_ref)
+            if detach_from_id is None:
+                counts["detach_unresolved_from"] += 1
+            else:
+                for endpoint_ref, is_parent in (
+                    *((p, True) for p in detach_parents),
+                    *((c, False) for c in detach_children),
+                ):
+                    endpoint_id = _resolve_etymon_id(db.conn, endpoint_ref)
+                    if endpoint_id is None:
+                        counts["detach_unresolved_endpoint"] += 1
+                        continue
+                    # detach_parents: <endpoint> is the PARENT; detach_children:
+                    # <endpoint> is the CHILD. detach_from is the other end.
+                    if is_parent:
+                        parent_id, child_id = endpoint_id, detach_from_id
+                    else:
+                        parent_id, child_id = detach_from_id, endpoint_id
+                    if apply:
+                        cur = db.conn.execute(
+                            "DELETE FROM etymon_descent WHERE parent_id = ? AND child_id = ?",
+                            (parent_id, child_id),
+                        )
+                        counts["detach_edges_removed"] += cur.rowcount or 0
+                    else:
+                        counts["detach_edges_removed"] += db.conn.execute(
+                            "SELECT COUNT(*) AS n FROM etymon_descent "
+                            "WHERE parent_id = ? AND child_id = ?",
+                            (parent_id, child_id),
+                        ).fetchone()["n"]
+
         into_ref = payload.get("into")
         if not into_ref:
-            counts["empty_into_skipped"] += 1
+            # A detach-only row (no ``into``) is a legitimate no-fold event;
+            # only a row with neither detach nor into is an empty skip.
+            if not (detach_parents or detach_children):
+                counts["empty_into_skipped"] += 1
             continue
         from_row = _resolve(from_ref)
         if from_row is None:
@@ -994,34 +1096,6 @@ def apply_collapses(
         )
 
     return counts
-
-
-def format_collapse_run(counts: dict[str, Any]) -> str:
-    """Render :func:`apply_collapses` output as a short markdown block."""
-    mode = "APPLIED" if counts["applied"] else "DRY-RUN"
-    lines = [
-        f"## Etymon collapses ({mode}, {counts['method_version']})",
-        f"- Collapses processed: {counts['collapses_processed']}",
-        f"- Variants registered: {counts['variants_created']}",
-        f"- Reflexes migrated: {counts['reflexes_moved']} "
-        f"(left on tombstone, conflict: {counts['reflexes_skipped_conflict']})",
-        f"- Citations migrated: {counts['citations_moved']} "
-        f"(left on tombstone, conflict: {counts['citations_skipped_conflict']})",
-    ]
-    skipped = (
-        counts["unresolved_from"]
-        + counts["unresolved_into"]
-        + counts["self_collapse_skipped"]
-        + counts["empty_into_skipped"]
-    )
-    if skipped:
-        lines.append(
-            f"- Skipped: unresolved_from={counts['unresolved_from']} "
-            f"unresolved_into={counts['unresolved_into']} "
-            f"self={counts['self_collapse_skipped']} "
-            f"empty_into={counts['empty_into_skipped']}"
-        )
-    return "\n".join(lines)
 
 
 def run_full_enrichment(

@@ -1,11 +1,11 @@
-"""Drift-measurement sample runner (wyrd-ecjp.6).
+"""Realism-sample runner for the absolute corpus-realism gate (wyrd-jfaz).
 
-Generates N names from the Kenning generator under both scoring modes
-(legacy `proportions` and the new `vector` path), captures the
-:class:`NameSample` features the drift metrics consume, and returns
-the populated sample lists ready to feed :func:`compute_drift_report`.
+Generates N names from the Kenning generator under the vector scoring
+path, captures the :class:`NameSample` features the realism metrics
+consume, and pairs them with a corpus reference derived from the same
+bundle — ready to feed :func:`compute_realism_report`.
 
-This module is the bridge between the high-level drift-measurement
+This module is the bridge between the high-level realism-measurement
 primitives (in `drift_measurement.py`) and the actual Kenning
 generator. Splitting keeps the metric code pure-functional and
 testable in isolation; the runner here is the side-effecting wrapper
@@ -13,17 +13,16 @@ that actually drives generation.
 
 Operator workflow:
     >>> from wyrd.generators.kenning.runtime.drift_runner import (
-    ...     run_drift_samples,
+    ...     run_realism_samples,
     ... )
     >>> from wyrd.generators.kenning.runtime.drift_measurement import (
-    ...     compute_drift_report, format_drift_report_markdown,
+    ...     compute_realism_report,
     ... )
-    >>> samples_a, samples_b = run_drift_samples(
+    >>> samples, reference = run_realism_samples(
     ...     culture='english', count=1000, base_seed=42,
     ...     priors_path='priors.json',  # optional; enables baseline axis
     ... )
-    >>> report = compute_drift_report('english', samples_a, samples_b)
-    >>> print(format_drift_report_markdown(report))
+    >>> report = compute_realism_report('english', samples, reference)
 """
 
 from __future__ import annotations
@@ -69,9 +68,9 @@ def _sample_from_generation_result(result: Any) -> NameSample:
     return NameSample(
         # TODO(wyrd-ecjp.6 follow-up): the current Kenning generator
         # always returns fully-decomposed names by construction, so
-        # decomposes=True is constant across both scoring modes and
-        # the decomposition_rate metric is currently degenerate (both
-        # sides 1.0, delta=0). The metric is in place for a future
+        # decomposes=True is constant and the decomposition_rate metric
+        # is currently degenerate (both sides 1.0, delta=0). The metric
+        # is in place for a future
         # path that could produce unaccounted-bearing names (e.g. a
         # vector scoring that picks lemmas whose surface doesn't
         # trie-decompose). Until then, treat decomposition_rate as
@@ -84,7 +83,7 @@ def _sample_from_generation_result(result: Any) -> NameSample:
     )
 
 
-def run_drift_samples(
+def run_realism_samples(  # noqa: V103 — engine of the absolute corpus-realism CI gate (test is the consumer)
     *,
     culture: str,
     count: int,
@@ -93,68 +92,50 @@ def run_drift_samples(
     tags: list[str] | None = None,
     harshness: float = 0.0,
     cohesion: float = 0.0,
-) -> tuple[list[NameSample], list[NameSample]]:
-    """Generate ``count`` names per scoring mode for ``culture`` and
-    return the two sample lists ready for drift measurement.
+    include_unglossed: bool = False,
+):
+    """Generate ``count`` VECTOR-mode samples for ``culture`` + compute the
+    absolute corpus reference from the same bundle (wyrd-jfaz).
 
-    Args:
-        culture: target culture (english / scottish / welsh / irish / breton).
-        count: number of names to generate per side. The drift metrics
-            stabilize around N=1000+; smaller samples produce noisier
-            reports.
-        base_seed: starting seed; each generated name uses ``base_seed + i``.
-            Same base_seed → same sample sets (bit-stable for re-runs).
-        priors_path: optional JSON sidecar path for the vector path's
-            baseline axis. When absent, vector scoring falls back to
-            phon + sem + pos axes (and may produce empty results,
-            which surface as a smaller sample_size_b in the report).
-        tags / harshness / cohesion: per-call knobs threaded through
-            to both modes for fair comparison (the request shape is
-            identical; only scoring_mode changes).
+    Drives only the vector path (no proportions baseline) and pairs the samples
+    with a :class:`realism_reference.CorpusReference` derived from the same
+    ``NameGenerator`` data — so the gate has no dependency on the
+    proportions scoring path and survives its deletion (epic wyrd-ej28).
 
-    Returns:
-        ``(samples_proportions, samples_vector)`` — two lists ready
-        to feed ``compute_drift_report``. Either list may be shorter
-        than ``count`` if the corresponding mode raised on individual
-        seeds (vector path raises ValueError on empty pick; the runner
-        swallows + skips so the drift measurement can proceed).
+    Returns ``(samples_vector, reference)`` ready to feed
+    :func:`drift_measurement.compute_realism_report`. The reference is
+    computed from the same ``_load_culture`` instance ``Kenning`` generates
+    from (both cached), so reference + samples reflect the same bundle.
     """
-    # Lazy import to keep this module's cold-start cost from leaking
-    # into callers that only import the drift-measurement primitives.
+    from wyrd.generators.kenning import _load_culture
     from wyrd.generators.kenning.generators.kenning import Kenning
+    from wyrd.generators.kenning.runtime.realism_reference import compute_corpus_reference
 
     k = Kenning()
+    name_gen, _ = _load_culture(culture)
+    # The reference's gloss policy MUST match the generation request below
+    # (same include_unglossed), so it's the exact convergence target.
+    reference = compute_corpus_reference(culture, name_gen, include_unglossed=include_unglossed)
+
     base_params: dict[str, Any] = {
         "culture": culture,
         "tags": tags or [],
         "harshness": harshness,
         "cohesion": cohesion,
+        "include_unglossed": include_unglossed,
     }
+    if priors_path:
+        base_params["priors_path"] = priors_path
 
-    samples_proportions: list[NameSample] = []
     samples_vector: list[NameSample] = []
-
     for i in range(count):
-        seed = base_seed + i
-        # Proportions path — bit-stable legacy; no expected raise path
-        # so we run it without try/except (any exception is a real bug
-        # the operator should see, not a per-seed skip).
-        r_prop = k.generate({**base_params, "scoring_mode": "proportions"}, seed=seed)
-        samples_proportions.append(_sample_from_generation_result(r_prop))
-
-        # Vector path — opt-in, may raise ValueError on empty pick.
-        # Narrow the except to (ValueError,) so programming errors
-        # (AttributeError, TypeError, etc.) still surface loudly.
-        vector_params: dict[str, Any] = {**base_params, "scoring_mode": "vector"}
-        if priors_path:
-            vector_params["priors_path"] = priors_path
         try:
-            r_vec = k.generate(vector_params, seed=seed)
+            r_vec = k.generate(base_params, seed=base_seed + i)
             samples_vector.append(_sample_from_generation_result(r_vec))
         except ValueError:
-            # Vector raises ValueError on empty pick — expected when
-            # the bundle / priors / register combo can't produce a
-            # non-zero score for any slot. Skip this seed.
+            # Post-wyrd-tbke the vector path degrades rather than raising,
+            # so this is now only a defensive skip for a genuinely empty
+            # (gate-excludes-everything) request.
             pass
 
-    return samples_proportions, samples_vector
+    return samples_vector, reference

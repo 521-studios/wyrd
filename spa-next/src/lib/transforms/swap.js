@@ -11,11 +11,14 @@
 // endpoint and land in a follow-up PR.
 //
 // Pipeline composition with Rewind: when the user has Rewind→OE
-// before Swap, the rewind output's morphemes_by_word is preserved
-// (rewind doesn't mutate it — only the rendered name); Swap then
-// operates on the post-rewind state. If Swap is BEFORE Rewind, the
-// downstream Rewind sees the swapped morphemes via the supplied-
-// morphemes path (wyrd-y9aa).
+// before Swap, Swap operates on the post-rewind state. NOTE (wyrd-7cvv):
+// rewind now REBUILDS morphemes_by_word at the rewound era (rewound
+// surfaces; input morphemes the rewind couldn't resolve are dropped), so a
+// Swap created against the post-rewind cards indexes into that rebuilt
+// structure. Swap's bounds check below fails loudly if a later reorder
+// leaves a (wordIndex, morphemeIndex) pointing past the current structure.
+// If Swap is BEFORE Rewind, the downstream Rewind sees the swapped
+// morphemes via the supplied-morphemes path (wyrd-y9aa).
 
 export const swapTransform = {
   kind: 'swap',
@@ -27,18 +30,19 @@ export const swapTransform = {
     to: '',
   },
   // No paramSchema entries — the params are picked by the click-to-
-  // swap UX (MorphemeCard's form rows) and aren't operator-editable
+  // swap UX (MorphemeGrid's cells) and aren't operator-editable
   // inline on the step card.
   paramSchema: {},
   // summary() lets a no-param-schema transform render a meaningful
   // descriptor on the step card. Generic step UI fallback for
   // transforms with paramSchema is the bind:value controls; for
   // swap we just describe the targeted cell + the new form.
-  summary({ wordIndex, morphemeIndex, to }) {
-    return `morph[${wordIndex},${morphemeIndex}] → ${to}`;
+  summary({ wordIndex, morphemeIndex, to, language }) {
+    const lang = language ? ` (${language})` : '';
+    return `morph[${wordIndex},${morphemeIndex}] → ${to}${lang}`;
   },
   async apply(state, params) {
-    const { wordIndex, morphemeIndex, to } = params;
+    const { wordIndex, morphemeIndex, to, language, cellId } = params;
     if (!to) {
       throw new Error('swap target form is empty');
     }
@@ -58,12 +62,35 @@ export const swapTransform = {
     // morpheme is REPLACED with a new object (rest are reused).
     // Nothing downstream mutates morphemes_by_word so the shared
     // references are safe.
+    // wyrd-thhb: when the swap pins a LANGUAGE (selecting a cross-language
+    // homograph variant — e.g. Old Norse "by" /biː/ vs Old English bȳ /byː/),
+    // tag the morpheme with `_lang` so activeRendering() resolves the pinned
+    // language's pronunciation. A plain form/inflection swap (no language)
+    // clears any prior pin so it falls back to the canonical sources lang.
     const nextWords = state.morphemes_by_word.map((w, wi) =>
-      w.map((m, mi) =>
-        wi === wordIndex && mi === morphemeIndex
-          ? { ...m, usage: to }
-          : m,
-      ),
+      w.map((m, mi) => {
+        if (wi !== wordIndex || mi !== morphemeIndex) return m;
+        const next = { ...m, usage: to };
+        // wyrd-qc0g: the user picked a specific era_grid cell, so `usage` is
+        // now authoritative for this slot — drop the auto-era-render fields
+        // the spread carried over. Otherwise the col-3 grid highlight + the
+        // breakdown surface row (both read `rendered || usage`) stay pinned
+        // to the pre-swap era form while the headline follows the swap — a
+        // visible desync on era-rendered (WYRD_FF_ERA) names. The chosen
+        // cell's pronunciation is resolved fresh from `usage` via
+        // cellForSurface, so no era_pron is lost.
+        delete next.rendered;
+        delete next.rendered_language;
+        delete next.rendered_pron;
+        if (language) next._lang = language;
+        else delete next._lang;
+        // wyrd-rogd.7: record the EXACT chosen cell's id so the grid highlight
+        // tracks it by identity, not by surface-fold (which collides for
+        // fold-equal forms like bǣre/bære and lit up two cells).
+        if (cellId) next._cellId = cellId;
+        else delete next._cellId;
+        return next;
+      }),
     );
     const name = renderName(nextWords);
     return { name, morphemes_by_word: nextWords };

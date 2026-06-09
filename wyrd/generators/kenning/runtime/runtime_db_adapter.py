@@ -143,10 +143,9 @@ def proportions_dict_for_culture(conn: sqlite3.Connection, culture: str) -> dict
 
     Why dict-shaped, not SQL-sampled: PR 6's contract is bit-identical
     generator output for a given seed across both backends. The
-    sampling logic in ``runtime/proportions.py:Generator.select`` runs
-    on these dicts and applies harshness / novelty / keep_keys / etc.
-    in Python; pushing the sampling into SQL would diverge bit-equal
-    output for the same seed. A future PR could introduce a fast-path
+    generator's sampling logic runs on these dicts in Python; pushing
+    the sampling into SQL would diverge bit-equal output for the same
+    seed. A future PR could introduce a fast-path
     SQL sampler for the no-filter case (D38.3 sampling pattern) when
     the bit-equivalence contract relaxes.
 

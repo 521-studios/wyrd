@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -31,5 +31,46 @@ jobs:
       - name: Ruff lint
         run: ruff check .
 
+      # wyrd-bxum: dead-code gate. Scoped to function/method/class only — the
+      # categories ruff can't see and that the wyrd-r87f audit drove to zero.
+      # Unused imports/local vars are already gated by ruff (F401/F841);
+      # vulture's noisier variable/property/attribute findings are out of scope.
+      # Suppress a legitimate keep with `# noqa: V103` (function/method) /
+      # `# noqa: V102` (class) at the definition, or via [tool.vulture] in
+      # pyproject.toml (paths/min_confidence/ignores all live there).
+      - name: Vulture dead-code gate
+        run: |
+          findings="$(vulture | grep -E 'unused (function|method|class)' || true)"
+          if [ -n "$findings" ]; then
+            echo "::error title=Dead code::New unused function/method/class — remove it, or suppress a deliberate keep with # noqa: V103 (see pyproject [tool.vulture])."
+            echo "$findings"
+            exit 1
+          fi
+          echo "No dead functions/methods/classes."
+
       - name: Run tests
         run: pytest
+
+  spa:
+    name: SPA — check & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: spa-next
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: spa-next/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Svelte check
+        run: npm run check
+
+      - name: Run tests
+        run: npm test

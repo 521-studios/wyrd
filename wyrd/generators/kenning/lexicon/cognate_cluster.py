@@ -22,7 +22,19 @@ from __future__ import annotations
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
 _COGNATE_BRIDGING_EDGES = ("inheritance", "borrowing")
-_CLUSTER_COGNATES_METHOD = "cluster-cognates-v1"
+
+# v2: languages whose etymons must NOT bridge a cognate cluster. Proto-Indo-
+# European reconstructions sit above the family layer, so inheritance FROM a PIE
+# root fans out across every IE branch — Germanic ``down`` AND Greek ``-thymia``
+# AND Sanskrit ``dhūmra`` all "inherit" from PIE ``*dʰewh₂-``. Rooting a cluster
+# there produced 1000+-member mega-clusters of unrelated words (143 of 155
+# clusters >200 members were PIE-rooted), so the era-grid rendered garbage modern
+# reflexes. Dropping every edge that TOUCHES a PIE node removes PIE from the
+# cluster graph, so each IE family (Proto-Germanic and below) clusters on its own
+# — exactly the scope British-toponym cognates need. Family-level protos
+# (Proto-Germanic etc.) still bridge, so OE/ON/etc. cognates stay together.
+_NON_BRIDGING_LANGUAGES = ("proto-indo-european",)
+_CLUSTER_COGNATES_METHOD = "cluster-cognates-v2"
 
 
 def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
@@ -63,7 +75,7 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     `tun` vs the place-name dictionaries' `tūn`.
 
     With apply=False (default) reports candidate counts without writing.
-    With apply=True writes cognate_id + cognate_method='cluster-cognates-v1'
+    With apply=True writes cognate_id + cognate_method='cluster-cognates-v2'
     only on rows whose current (cognate_id, cognate_method) doesn't already
     match the target — re-runs against unchanged data become real no-ops
     instead of redundant UPDATEs. Reverse with
@@ -76,6 +88,10 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
       - applied: whether writes happened
       - rows_written: count of UPDATE statements that actually changed
         a row (always 0 in dry-run; ≤ candidates when applied)
+      - tombstones_cleared: count of tombstoned etymons (merged_into_id
+        set) whose stale cognate_id/cognate_method was NULLed to enforce
+        the tombstones-stay-NULL invariant (wyrd-hn03). In dry-run this is
+        the would-clear count.
       - cycle_orphans: count of canonical etymons that participate in
         bridging edges but couldn't be assigned because they sit in a
         cycle with no external root. Healthy data should report 0 here;
@@ -87,6 +103,7 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     # strings, never user input, so no SQL injection risk. Edge values
     # themselves are bound via parameters.
     placeholders = ", ".join(["?"] * len(_COGNATE_BRIDGING_EDGES))
+    nb_placeholders = ", ".join(["?"] * len(_NON_BRIDGING_LANGUAGES))
 
     # Build the canonical edge set: every descent edge with both
     # endpoints resolved through merged_into_id. Returns
@@ -94,6 +111,11 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     # by the resolution (parent and child both merge into the same
     # canonical) are filtered out — they'd waste a BFS node and offer
     # zero clustering signal.
+    #
+    # v2: drop every edge that TOUCHES a non-bridging-language etymon (PIE) so a
+    # cluster can never root at / traverse through the cross-family PIE layer.
+    # The language is checked on the ORIGINAL endpoints — a PIE reconstruction is
+    # never itself an OCR-merge target, so it equals the canonical's language.
     canonical_edges = [
         (row["parent_canon"], row["child_canon"])
         for row in db.conn.execute(
@@ -105,8 +127,10 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
             JOIN etymon p ON p.id = d.parent_id
             JOIN etymon c ON c.id = d.child_id
             WHERE d.edge_type IN ({placeholders})
+              AND p.language NOT IN ({nb_placeholders})
+              AND c.language NOT IN ({nb_placeholders})
             """,
-            _COGNATE_BRIDGING_EDGES,
+            (*_COGNATE_BRIDGING_EDGES, *_NON_BRIDGING_LANGUAGES, *_NON_BRIDGING_LANGUAGES),
         ).fetchall()
         if row["parent_canon"] != row["child_canon"]
     ]
@@ -147,7 +171,25 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     # edges but never reached a root. A pure cycle has no anchor.
     cycle_orphans = bridging_participants - set(assignments.keys())
 
+    # wyrd-hn03: enforce the documented "tombstones stay NULL" invariant. The
+    # BFS only ever assigns CANONICAL ids (every edge endpoint is resolved
+    # through merged_into_id first), so a tombstone is never (re)assigned here.
+    # The stale state arises from INCREMENTAL re-enrichment: an etymon clustered
+    # while it was canonical on one run, then folded (tombstoned) by a later
+    # collapse — and because this pass writes canonical rows only and never
+    # cleared a now-tombstone's old pointer, the pre-fold cognate_id persisted
+    # across runs (a `clear-enrichment --stage=cognates` between runs WOULD wipe
+    # it, but the incremental path doesn't clear). Those stale pointers are NOT
+    # cosmetic: the bundle export's per-family era-reflex union
+    # (_fetch_family_era_reflexes) calls etymon_era_reflexes for every family
+    # member, and a folded member's stale cognate_id makes it return its OLD
+    # cluster's reflexes — leaking the wrong forms onto the surviving lemma's
+    # grid (the verb do/done leaking onto the toponym -don after old-english:don
+    # folded into dūn). A tombstone rolls up via merged_into_id at query time,
+    # so its own cognate_id is dead weight; NULL it so reads can't resurrect the
+    # pre-fold cluster.
     rows_written = 0
+    tombstones_cleared = 0
     if apply:
         for etymon_id, cognate_id in assignments.items():
             cur = db.conn.execute(
@@ -163,12 +205,31 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
                 ),
             )
             rows_written += cur.rowcount
+        cur = db.conn.execute(
+            "UPDATE etymon SET cognate_id = NULL, cognate_method = NULL "
+            "WHERE merged_into_id IS NOT NULL "
+            "  AND (cognate_id IS NOT NULL OR cognate_method IS NOT NULL)"
+        )
+        # max(0, ...) not `or 0`: a DB-API rowcount of -1 (undetermined) is
+        # truthy and would otherwise survive. UPDATE rowcount is reliable here,
+        # but be defensive.
+        tombstones_cleared = max(0, cur.rowcount)
         db.commit()
+    else:
+        # dry-run reports the would-clear count (apply gets it from rowcount,
+        # so the COUNT(*) — a scan over the etymon table — is dodged on the
+        # hot path).
+        tombstones_cleared = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon "
+            "WHERE merged_into_id IS NOT NULL "
+            "  AND (cognate_id IS NOT NULL OR cognate_method IS NOT NULL)"
+        ).fetchone()["n"]
 
     return {
         "roots": len(roots),
         "candidates": len(assignments),
         "applied": apply,
         "rows_written": rows_written,
+        "tombstones_cleared": tombstones_cleared,
         "cycle_orphans": len(cycle_orphans),
     }

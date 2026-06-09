@@ -201,7 +201,7 @@ def bundle_version() -> dict[str, str]:
     return _bundle_version_cache
 
 
-def reset_runtime_db_cache() -> None:
+def reset_runtime_db_cache() -> None:  # noqa: V103 — test/ops cache-reset helper
     """Drop the cached connection so the next ``get_runtime_db`` call
     re-resolves the path + reopens. For tests and operator-driven
     reload (a stat-the-pointer hook in a future PR could rotate

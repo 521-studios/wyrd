@@ -17,6 +17,7 @@
   //  - export/import recipes as JSON
 
   import { appState } from '../lib/appState.svelte.js';
+  import { flagOn } from '../lib/featureFlags.js';
 
   let { open = $bindable(false) } = $props();
 
@@ -29,6 +30,12 @@
   const tagSchema = $derived(schemaProps.tags);
   const moodOptions = $derived(moodSchema?.['x-pick-from'] || []);
   const tagOptions = $derived(tagSchema?.items?.enum || []);
+
+  // wyrd-0gou: the moods + tags halves are independently feature-flagged.
+  // A section shows only when the schema declares it AND its flag is on
+  // (the composer trigger already requires at least one to be on).
+  const showMoods = $derived(!!moodSchema && flagOn(appState.config, 'moods'));
+  const showTags = $derived(!!tagSchema && flagOn(appState.config, 'tags'));
 
   // Working copy — local to the modal until Apply. Cancel / Esc /
   // backdrop click discards. Initialized on open from currentParams.
@@ -130,8 +137,8 @@
       open = false;
       return;
     }
-    if (moodSchema) params.mood = [...workingMoods];
-    if (tagSchema) params.tags = [...workingTags];
+    if (showMoods) params.mood = [...workingMoods];
+    if (showTags) params.tags = [...workingTags];
     open = false;
   }
   function cancel() {
@@ -164,7 +171,7 @@
 
     <div class="panes">
       <section class="catalog" aria-label="Catalog">
-        {#if moodOptions.length > 0}
+        {#if showMoods && moodOptions.length > 0}
           <details open>
             <summary>Moods <span class="count">({moodOptions.length})</span></summary>
             <div class="options">
@@ -179,7 +186,7 @@
             </div>
           </details>
         {/if}
-        {#if tagOptions.length > 0}
+        {#if showTags && tagOptions.length > 0}
           <details open>
             <summary>Tags <span class="count">({tagOptions.length})</span></summary>
             <div class="options">
@@ -197,7 +204,7 @@
       </section>
 
       <section class="active" aria-label="Active stack">
-        {#if moodSchema}
+        {#if showMoods}
           <h3>Moods <span class="count">({workingMoods.length})</span></h3>
           {#if workingMoods.length === 0}
             <p class="empty">No moods selected. Click a mood at left to add.</p>
@@ -217,7 +224,7 @@
             </div>
           {/if}
         {/if}
-        {#if tagSchema}
+        {#if showTags}
           <h3>Tags <span class="count">({workingTags.length})</span></h3>
           {#if workingTags.length === 0}
             <p class="empty">No tags selected. Click a tag at left to add.</p>

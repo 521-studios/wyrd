@@ -110,6 +110,12 @@
     /* wyrd-14hn: subtract the 52px Header height so the columns
        fit the remaining viewport without scrolling the page. */
     height: calc(100dvh - 52px);
+    /* wyrd-vith: pin the single row to the grid height (minmax(0,1fr), NOT
+       the default content-sized `auto` row) so a tall column can't stretch
+       the grid past the viewport; the column's own overflow-y:auto then
+       scrolls internally and no second page scrollbar appears. */
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
   }
   .col {
     position: relative;

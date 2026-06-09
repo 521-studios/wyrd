@@ -80,12 +80,6 @@ class Manifest:
     compression: str
     slices: tuple[Slice, ...]
 
-    def slice_by_name(self, name: str) -> Slice | None:
-        for s in self.slices:
-            if s.name == name:
-                return s
-        return None
-
 
 @dataclass(frozen=True)
 class Config:
@@ -233,24 +227,6 @@ def load_config(
         profile=profile,
         local_cache_dir=local_cache_dir,
     )
-
-
-def write_default_config(manifest: Manifest, config_path: Path = DEFAULT_CONFIG_PATH) -> None:
-    """Write a default ``config.toml`` derived from the manifest.
-    Called on first bulk-command run when no config file exists."""
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    contents = (
-        f"# wyrd-0vj3 bulk-source storage config.\n"
-        f"# Auto-generated from data/mining/_bulk_manifest.json defaults.\n"
-        f"# Override via env vars: {ENV_BUCKET}, {ENV_REGION}, "
-        f"{ENV_PROFILE}, {ENV_SOURCES_DIR}.\n\n"
-        f"[bulk_storage]\n"
-        f'bucket = "{manifest.bucket}"\n'
-        f'region = "{manifest.region}"\n'
-        f'profile = "521-Staging-Admin"\n'
-        f'local_cache_dir = "{DEFAULT_LOCAL_CACHE_DIR}"\n'
-    )
-    config_path.write_text(contents, encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------

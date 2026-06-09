@@ -74,6 +74,14 @@ def lexicon_import_mining_log(path: Path, db_path: Path, apply_changes: bool) ->
                 elif outcome is not None:
                     errors.append(outcome)
 
+    _echo_mining_log_summary(inserted, skipped, errors, apply_changes)
+
+
+def _echo_mining_log_summary(
+    inserted: int, skipped: int, errors: list[str], apply_changes: bool
+) -> None:
+    """Print the import counts to stderr: inserted/would-insert, skipped
+    duplicates (apply only), and up to 20 errors; plus the dry-run hint."""
     verb = "inserted" if apply_changes else "would insert"
     click.echo(f"{verb}: {inserted}", err=True)
     if apply_changes:

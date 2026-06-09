@@ -25,15 +25,27 @@ const LANGUAGE_LABELS = {
   germanic: 'Germanic',
   proto_germanic: 'Proto-Germanic',
   greek: 'Greek',
+  // wyrd-qc0g: the era_grid keys its stages by the HYPHENATED canonical
+  // language tags from era/cells.py (era_reflexes), not the underscored
+  // `sources`/`renderings` keys above. Same human labels.
+  'old-english': 'Old English',
+  'middle-english': 'Middle English',
+  'modern-english': 'Modern',
+  'old-norse': 'Old Norse',
+  'old-welsh': 'Old Welsh',
+  'middle-welsh': 'Middle Welsh',
+  'old-irish': 'Old Irish',
+  'middle-irish': 'Middle Irish',
+  'old-french': 'Old French',
 };
 
 export function languageLabel(key) {
   if (!key) return '';
   if (LANGUAGE_LABELS[key]) return LANGUAGE_LABELS[key];
-  // Fallback: title-case the snake_case key so an unknown language
-  // shows as "Some Language" not "some_language". Better than a
-  // hardcoded "Unknown" — the bundle's language space grows.
+  // Fallback: title-case the key (snake_case OR hyphenated) so an unknown
+  // language shows as "Some Language" not "some_language" / "some-language".
+  // Better than a hardcoded "Unknown" — the bundle's language space grows.
   return key
-    .replace(/_/g, ' ')
+    .replace(/[_-]/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }

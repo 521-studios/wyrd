@@ -26,6 +26,10 @@ import { rewindWithMorphemes } from '../api.js';
 
 export const rewindTransform = {
   kind: 'rewind',
+  // wyrd-nwpa: gated behind the 'rewind' feature flag (default OFF) so prod
+  // can ship with Rewind hidden while its era-rendering bugs (e.g. runic
+  // 'ᚦᚩᚱᚾ' leaking out) are fixed. Staging (WYRD_FF_ALL) keeps it on.
+  flag: 'rewind',
   label: 'Rewind',
   description: 'Render the name at a historical era stop (OE / ME / modern).',
   defaultParams: { era: 'oe-late' },
@@ -55,14 +59,89 @@ export const rewindTransform = {
           ')',
       );
     }
-    return {
-      name: picked.result,
-      // wyrd-kppy: morpheme picks are preserved across rewind —
-      // rewind doesn't change which morphemes a name is composed
-      // of, it changes which era's reflexes they're rendered as.
-      // Downstream transforms (Swap in PR #5) operate on the same
-      // morpheme stack the user originally generated.
-      morphemes_by_word: state.morphemes_by_word,
+    // wyrd-7cvv: rebuild morphemes_by_word from the REWOUND morphemes so the
+    // inspector (cards + breakdown + pronunciation guide) matches the rewound
+    // NAME — not the original morphemes.
+    //
+    // The rewind OMITS any input morpheme whose usage is no longer resolvable
+    // in the bundle (a meaning_db lookup miss — era-less morphemes still
+    // appear, via their canonical form). So its `morphemes` list is a
+    // subsequence (in order) of the input, each tagged with `canonical`
+    // = the original modern usage. Align by canonical with a two-pointer
+    // walk: a matched input morpheme keeps its meanings/sources/tags but
+    // takes the rewound surface + respelling; an input morpheme the rewind
+    // dropped is OMITTED (so the cards can't disagree with the name — the
+    // earlier "Hyrst Enlihtan" head over "hōl- -hurst low" cards bug).
+    const rewound = picked.components?.[0]?.morphemes || [];
+    const normKey = (s) => (s || '').replace(/^-+|-+$/g, '').toLowerCase();
+    // wyrd-q1np: strip the '*' reconstructed-form marker from rewound surfaces
+    // and the rendered name. The asterisk is a scholarly "unattested form"
+    // convention — fine in an etymon list, but it reads as a glitch in a
+    // generated place-name ("Sūþ *fǣre", two '*' in one word). Surfaces are
+    // cleaned everywhere the rewind feeds the inspector (name + breakdown +
+    // cards + pronunciation-key) so they stay consistent.
+    const deStar = (s) => (s || '').replace(/\*/g, '');
+
+    // Inject the rewound respelling so the pronunciation guide (which matches
+    // on usage) surfaces it; merge into any existing entry case-insensitively
+    // so we don't split data across a casing-variant duplicate.
+    const withRespelling = (m, rw) => {
+      const langField = (rw.language || '').replace(/-/g, '_');
+      if (!langField || !rw.respelling) return m.renderings;
+      const renderings = { ...(m.renderings || {}) };
+      const langGroup = { ...(renderings[langField] || {}) };
+      const cleanForm = deStar(rw.form);
+      // Match an existing rendering key dash-INSENSITIVELY too: the original
+      // morpheme's keys may carry position dashes ("-fǣre") that the bare era
+      // form ("fǣre") wouldn't otherwise match, which would split the data
+      // into a duplicate slot and hide the injected respelling.
+      const key =
+        Object.keys(langGroup).find((k) => normKey(k) === normKey(cleanForm)) || cleanForm;
+      langGroup[key] = { ...(langGroup[key] || {}), reader_pronunciation: rw.respelling };
+      renderings[langField] = langGroup;
+      return renderings;
     };
+
+    let ri = 0;
+    const aligned = state.morphemes_by_word
+      .map((word) => {
+        const kept = [];
+        for (const m of word) {
+          const rw = rewound[ri];
+          if (rw && rw.form && normKey(rw.canonical) === normKey(m.usage)) {
+            ri += 1;
+            kept.push({ ...m, usage: deStar(rw.form), renderings: withRespelling(m, rw) });
+          }
+          // else: this input morpheme had no rewound counterpart → drop it.
+        }
+        return kept;
+      })
+      .filter((word) => word.length > 0);
+
+    let morphemes_by_word;
+    if (rewound.length > 0 && ri === rewound.length) {
+      // Clean alignment — every rewound form mapped back to an input morpheme
+      // (so `aligned` has at least one kept morpheme).
+      morphemes_by_word = aligned;
+    } else {
+      // Alignment didn't fully consume the rewound list (canonical didn't
+      // line up — unexpected). Fall back to the rewound morphemes as a single
+      // word so the cards still AGREE with the rewound name (degraded: no
+      // meanings/sources, but never disjoint). If even that's empty, keep the
+      // original morphemes.
+      const flat = rewound
+        .filter((rw) => rw.form)
+        .map((rw) => {
+          const surface = deStar(rw.form);
+          const m = { usage: surface };
+          const langField = (rw.language || '').replace(/-/g, '_');
+          if (langField && rw.respelling) {
+            m.renderings = { [langField]: { [surface]: { reader_pronunciation: rw.respelling } } };
+          }
+          return m;
+        });
+      morphemes_by_word = flat.length ? [flat] : state.morphemes_by_word;
+    }
+    return { name: deStar(picked.result), morphemes_by_word };
   },
 };

@@ -11,6 +11,7 @@
   import { appState } from '../lib/appState.svelte.js';
   import { rollCurrent } from '../lib/roll.js';
   import { partitionFields } from '../lib/headlineFields.js';
+  import { fieldEnabled, flagOn, visibleCultures } from '../lib/featureFlags.js';
   import Field from '../components/Field.svelte';
   import MoodTagComposer from '../components/MoodTagComposer.svelte';
 
@@ -18,12 +19,17 @@
   // App.svelte (so it loads regardless of which workspace mounts);
   // viewport tracking lifted to appState.isMobileViewport.
 
-  // wyrd-o7lp (PR #314 Gemini HIGH): init the per-generator params
-  // dict via $effect.pre, which runs BEFORE child effects on the
-  // same render pass. That means Field components see currentParams
-  // populated by their own $effect's first read — no render-before-
-  // effect race like the earlier failed attempt with plain $effect.
+  // wyrd-o7lp (PR #314 Gemini HIGH): init the per-generator params dict via
+  // $effect.pre, which runs BEFORE child effects on the same render pass — so
+  // Field components see currentParams already populated before their
+  // <select>s bind (no render-before-init race).
+  // wyrd-b6hd: ensureParams now SEEDS every field's default from the manifest
+  // schema (the store owns initialization), so this must (re-)run once the
+  // manifest loads — not only when selectedGeneratorName changes. Reading
+  // `manifest` registers it as a dependency; ensureParams is a no-op until
+  // both the generator + its schema are present.
   $effect.pre(() => {
+    void appState.manifest;
     if (appState.selectedGeneratorName) {
       appState.ensureParams(appState.selectedGeneratorName);
     }
@@ -31,7 +37,8 @@
 
   let fieldPartition = $derived.by(() => {
     const gen = appState.selectedGenerator;
-    if (!gen) return { headline: [], advanced: [] };
+    if (!gen) return { headline: [], advanced: [], composerVisible: false };
+    const cfg = appState.config;
     const part = partitionFields(gen.name, gen.input_schema);
     // wyrd-vslw: when the schema has a mood field with x-pick-from
     // OR a tags field with items.enum, the MoodTagComposer handles
@@ -43,10 +50,27 @@
     const drop = new Set();
     if (moodComposable) drop.add('mood');
     if (tagsComposable) drop.add('tags');
+    // wyrd-0gou: headline fields always show, but the culture select is
+    // filtered to english (guaranteed) + flagged-on cultures.
+    const headline = part.headline
+      .filter(([k]) => !drop.has(k))
+      .map(([k, p]) =>
+        k === 'culture' && Array.isArray(p.enum)
+          ? [k, { ...p, enum: visibleCultures(cfg, p.enum) }]
+          : [k, p],
+      );
+    // wyrd-0gou: each advanced option is gated by its feature flag (default
+    // off). When none are on the list is empty and the Advanced panel below
+    // doesn't render at all.
+    const advanced = part.advanced.filter(([k]) => !drop.has(k) && fieldEnabled(cfg, k));
+    // wyrd-0gou: the moods/tags composer trigger shows only when the schema
+    // declares the control AND its feature flag is on.
+    const composerVisible =
+      (moodComposable && flagOn(cfg, 'moods')) || (tagsComposable && flagOn(cfg, 'tags'));
     return {
-      headline: part.headline.filter(([k]) => !drop.has(k)),
-      advanced: part.advanced.filter(([k]) => !drop.has(k)),
-      composerVisible: moodComposable || tagsComposable,
+      headline,
+      advanced,
+      composerVisible,
       composerSummary: summarizeComposer(),
     };
   });

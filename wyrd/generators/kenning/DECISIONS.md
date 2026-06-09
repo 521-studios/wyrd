@@ -16,8 +16,12 @@ Why: keeps the runtime path stable while we churn on the data layer.
 
 Three roles, three providers:
 
-- **Bulk mining**: Ollama on Hades (Qwen 3.5 9B). Free, fast enough, no rate
-  limits. Used for first-pass extraction across thousands of entries.
+- **Bulk mining**: Ollama on the operator's MacBook (Qwen 3.5 9B) at
+  `http://10.5.2.31:11434` (set `WYRD_OLLAMA_URL`). Free, fast enough, no
+  rate limits. Used for first-pass extraction across thousands of entries.
+  (Hades is *not* used for mining — its GPU is too weak, capped at
+  ~qwen2.5:7b — per the parent-workspace `521Studios/CLAUDE.md`, one level
+  above this repo.)
 - **Quality review**: Gemini 2.5 Flash. Cheap per-call, native JSON-schema
   enforcement, stronger on hedge-recognition and OE-form OCR. Used for the
   `lexicon review` second-pass on questionable Ollama rows.
@@ -147,9 +151,11 @@ single `--mood` flag.** Two axes ride under one GM-facing surface:
   score: stop-final / cluster-heavy keys get up to 2× their empirical
   weight at full harshness, soft keys go to 0. The score combines coda
   harshness (45%), cluster density (35%), and consonant density (20%) on
-  the dash-stripped lowercased usage. Composes orthogonally with
-  `--novelty` (D17): harsh skew applies to empirical first, then novelty
-  blends with uniform.
+  the dash-stripped lowercased usage. (This describes the retired
+  proportion-table sampler's per-bucket re-weighting; under the vector
+  path harshness enters as a phonological register dimension. The
+  `--novelty` knob it once composed with was removed with proportions
+  scoring — re-wired onto vector, wyrd-fcub.)
 - `--mood harsh:0.5` graduates the harshness skew via colon-suffix.
 - `--mood pastoral` (plant / animal / water / agriculture / tree / bird
   tag union) for rural / agricultural feel.
@@ -166,9 +172,8 @@ audit (≥5 subjects per candidate tag, distinct semantic identity, minimal
 overlap with existing moods); `noble` was considered in wyrd-aky and
 deferred until mining surfaced a `royalty` tag — landed in the kq7w.2
 catalog migration. Lookup goes through `registers/effects.parse_mood_spec`
-(vector path) or `registers/effects.mood_spec_to_legacy_form`
-(proportion-table path); both consult the same catalog so a mood added
-to YAML is immediately operator-visible on both scoring modes without
+(the live vector path). The catalog is the single source of truth, so a
+mood added to YAML is immediately operator-visible without
 code changes.
 
 Power-user JSON API still exposes `harshness` (number, 0..1) for
@@ -267,7 +272,7 @@ shows up as 3-5 separate etymon rows and consensus undercounts. With it,
 emits per-language `<lang>_inflections` arrays carrying `(form, label)`
 tuples. `Meaning.pick_inflection(rng, density)` does a uniform draw
 (mining tracks labels not counts; inflections aren't weighted) with
-lazy-cached pool flatten. `NameGenerator.select(inflection_density=…)`
+lazy-cached pool flatten. `NameGenerator.select_via_vector(inflection_density=…)`
 threads through and pre-renders surface substitutions; `NewName` grows
 an `inflection_labels` parallel list for the explainer. CLI:
 `--inflection-density` (0..1). When both `--inflection-density` and
@@ -332,8 +337,9 @@ column" path and rejected it as architectural debt.
 
 ## D13. Haiku 4.5 is Tier 1 for Celtic content; Qwen stays Tier 1 for English.
 
-Empirically, Qwen 3.5 9B on Hades produces good extraction yields on
-English-etymology books (Skeat, Mawer, Ekwall) but underperforms on
+Empirically, Qwen 3.5 9B on the operator's MacBook (the Ollama mining
+host — D2) produces good extraction yields on English-etymology books
+(Skeat, Mawer, Ekwall) but underperforms on
 Celtic and Welsh sources where headword recognition gets confused by
 mutations and digraphs. Haiku 4.5 (~$0.60/book on the Anthropic API)
 roughly doubles the yield on those books with the same SYSTEM_PROMPT.
@@ -414,24 +420,21 @@ gives the GM a continuum, with "do not regress on Braitham Gate" as the
 fixed point on the novel side.
 
 **Runtime status (wyrd-gfa, 2026-05-02; β-term wyrd-mj2, 2026-05-04):
-shipped.** `Generator.select(novelty)` blends each bucket's empirical-
-frequency distribution with a uniform marginal:
-`(1-novelty)·empirical + novelty·uniform`. New `_blend_uniform` helper
-handles the all-zero-empirical-weights edge case (returns 1/n so the
-result is a normalized probability distribution per the contract). CLI:
-`--novelty` (0..1). The `β·tag-class-prior` term landed via the
-`--cohesion` knob (wyrd-mj2): `NameGenerator` threads `prior_tags`
-through the structure walk, `_cohesion_boost` computes the per-key
-class-conditional likelihood from the tag co-occurrence model, and the
-result is passed to `Generator.select` as a `key_boost` multiplier
-applied to empirical weights before the novelty blend. The realized
-math is multiplicative-then-blend (`weights = empirical * boost; result
-= (1-novelty)·weights + novelty·uniform`) rather than the strict
-additive `α·empirical + β·tag-class-prior + γ·marginal` of the textbook
-formulation, but the operational effect is the same — novel
-combinations refine toward attested *patterns* (descriptive+topography)
-when cohesion>0, and the GM tunes the strength independently of
-novelty. wyrd-9gt closed as superseded by this realized form.
+shipped on the proportions sampler, then partly retired.** The original
+implementation blended each bucket's empirical-frequency distribution
+with a uniform marginal (`(1-novelty)·empirical + novelty·uniform`),
+exposed as the `--novelty` CLI knob (0..1). The `β·tag-class-prior` term
+landed via the `--cohesion` knob (wyrd-mj2): the structure walk threaded
+`prior_tags`, computed a per-key class-conditional likelihood from the
+tag co-occurrence model, and applied it as a multiplicative boost to the
+empirical weights before the novelty blend (`weights = empirical *
+boost; result = (1-novelty)·weights + novelty·uniform`) rather than the
+strict additive `α·empirical + β·tag-class-prior + γ·marginal` of the
+textbook formulation. wyrd-9gt closed as superseded by this realized
+form. When proportions scoring was retired, the **`--novelty`** half was
+removed with it (re-wired onto the vector path, wyrd-fcub); the
+**`--cohesion`** half survives, now applied as a multiplicative boost
+inside the vector scorer, so a GM can still dial attested-pair fidelity.
 
 ## D18. Spelling variants are generative.
 
@@ -451,8 +454,8 @@ emits per-language `<lang>_variants` arrays carrying `(form, weight)`
 tuples; weights are the per-attestation `match_count` totals from the
 lexicon, summed across the family during the descendant walk.
 `Meaning.pick_variant(rng, variety)` does a probability-gated weighted
-draw across all language pools. `NameGenerator.select(spelling_variety=…)`
-pre-renders surface substitutions at select time so `__str__` stays pure.
+draw across all language pools. `NameGenerator.select_via_vector(spelling_variety=…)`
+pre-renders surface substitutions at pick time so `__str__` stays pure.
 Module helper `_mimic_case` projects the canonical's casing onto the
 picked variant (title-case template → first-letter cap with internal
 capitals preserved; lowercase template → forced lowercase). CLI:
@@ -696,7 +699,7 @@ Why this shape over alternatives:
   `load_meanings` still loads the bundle.
 - **Avoids replacing the language array** with a richer structured type.
   The base shape `"old_english": ["aecern"]` stays a flat list of strings
-  the legacy proportions code understands.
+  that existing bundle-loading code understands.
 - **Easy to extend.** A new feature (e.g. `<lang>_phonology` for D6
   `--harsh`) drops in alongside without disturbing existing fields.
 
@@ -912,12 +915,15 @@ Implementation:
 
 - `Meaning.attested_in_era_range(era_range)` — predicate on the
   per-language `attested_years` data (D5-1 mining output).
-- `MeaningGenerator.keep_keys_for_era(era_range)` — precomputes the
-  allowed-usage frozenset; cached per range; collapses to None on
-  full-coverage so the no-filter fast path stays bit-stable.
-- `Generator.select(keep_keys=...)` — bucket-level intersection.
-- `NameGenerator.select(era_range=...)` — threads through every
-  per-bucket pick.
+- The vector path's eligibility gate applies this per-lemma
+  (`eligibility.passes_era_gate` / `vector_name_select._matches_era`,
+  both delegating to `attested_in_era_range`), shrinking the eligible
+  pool BEFORE scoring. `era=None` is a no-op gate.
+
+  (The original proportions implementation precomputed an allowed-usage
+  frozenset via `MeaningGenerator.keep_keys_for_era` and intersected it
+  at the bucket level inside the proportions sampler; that path was
+  retired with proportions scoring.)
 
 `era=None` is bit-stable with the pre-PR sampler. The 2026-05-04
 bundle re-emit (PR #58 / wyrd-j5v) populated `_attested_years` on
@@ -932,6 +938,13 @@ cross-family fallback — it's too easy to accidentally route an
 'english' culture's `--era middle-irish` to the goidelic range.
 
 ## D17 refinement: cohesion knob (wyrd-mj2, PR #59).
+
+> **Status:** the implementation below targeted the proportions
+> sampler. Proportions scoring is now retired: `--novelty` was removed
+> (re-wired onto the vector path, wyrd-fcub) and `--cohesion` was
+> re-wired as a multiplicative boost inside the vector scorer. The math
+> and rationale carry over; the named proportions-era helpers
+> (`Generator.select`, `_cohesion_boost`, `_raw_class_score`) are gone.
 
 D17 originally specified the novelty knob: blend each morpheme
 bucket's empirical-frequency distribution with a uniform marginal,
@@ -952,18 +965,18 @@ multiplier(usage) = (1 - cohesion) + cohesion * (raw_score / mean_raw_in_bucket)
 Mean-normalization preserves total mass — at cohesion=1 average-
 likelihood candidates get ~1×, above-average >1×, below-average <1×.
 
-Composes orthogonally with novelty (uniform-marginal blend, applied
-LAST in `Generator.select`) and harshness (D6 phonological re-weight).
-GMs can dial 'attested-pair fidelity' (cohesion) and 'novelty'
-independently. No-op when the bundle carries no `tag_cooccurrence`
-data (legacy bundles ride the bit-stable path even at cohesion=1).
+In the proportions sampler it composed orthogonally with novelty
+(uniform-marginal blend, applied LAST) and harshness (D6 phonological
+re-weight). GMs could dial 'attested-pair fidelity' (cohesion) and
+'novelty' independently. No-op when the bundle carries no
+`tag_cooccurrence` data (such bundles rode the bit-stable path even at
+cohesion=1).
 
-Bit-stable at cohesion=0 — `_cohesion_boost` short-circuits to None
-and `Generator.select` takes its harshness=0/novelty=0/key_boost=None
-fast path.
+Bit-stable at cohesion=0 — the boost short-circuited to None and the
+sampler took its harshness=0/novelty=0/key_boost=None fast path.
 
-Bit-stability across PYTHONHASHSEED: `_raw_class_score` sorts
-`prior_tags` and `candidate_tags` before iteration. Without the
+Bit-stability across PYTHONHASHSEED: the raw-class-score computation
+sorted `prior_tags` and `candidate_tags` before iteration. Without the
 sort, set-iteration order varies across processes and float-
 summation accumulates ULP-level different scores that could flip
 weighted_choice outcomes at boundaries.
@@ -1612,10 +1625,11 @@ The Lambda runs on bundled data (the lexicon DB is 673MB —
 too big to ship). To enable a SPA `KenningRewind`, era-reflex
 data is precomputed at bundle-build time:
 
-- `lexicon._fetch_root_era_reflexes(db, root_id, root_language)`
-  computes `{target_language: [forms]}` for the family root via
-  the same three-tier picker. Wired into `_gather_family` so each
-  family carries `era_reflexes` data.
+- `lexicon._fetch_family_era_reflexes(db, member_ids, root_language)`
+  computes `{target_language: [forms]}` for the whole family by
+  UNIONing the same picker across every member (wyrd-rogd.16) — not
+  just the root, so a folded reflex's cluster isn't orphaned. Wired
+  into `_gather_family` so each family carries `era_reflexes` data.
 - `_emit_era_reflexes(word, link_pairs)` stamps the family root's
   reflexes onto the word entry's top-level `era_reflexes` field.
   Multiple linked families merge by set-union per target language.
@@ -1855,8 +1869,10 @@ knobs map onto these:
   axis contributes half as much; non-baseline-favoured
   lemmas score relatively higher. Per D36.3 below, this is
   the ONE realism knob — there's no separate concept.
-* `--novelty 0.5` is handled by the D17 cohesion-adapter
-  layer, not the per-axis weights. See D36.5.
+* `--novelty` was the D17 uniform-marginal blend (not a per-axis
+  weight; see D36.5). It was removed with proportions scoring and is
+  re-wired onto the vector path (wyrd-fcub); the `--cohesion`
+  half of D17 survives as a multiplicative boost in the vector scorer.
 
 `baseline_score(lemma, source, request)` reads from the
 empirical-priors artifact: `source=native` looks up
@@ -1913,11 +1929,18 @@ against empirical data).
 
 ### D36.5. D17 cohesion preserved via adapter, not re-derived.
 
+> **Outcome note:** as specified, D36.5 kept the D17 novelty + cohesion
+> blend on the proportions sampling layer behind an adapter. When
+> proportions scoring was retired, the **`--novelty`** blend was removed
+> (re-wired onto the vector path, wyrd-fcub) while **`--cohesion`**
+> was carried over as a multiplicative boost inside the vector scorer.
+> The original design below is kept for rationale.
+
 The existing D17 Bayesian-mixture novelty + cohesion model
 stays the runtime sampling layer. The vector-driven
 generator produces per-lemma vector scores; a
 `CohesionContext`-wrapped scorer applies the existing
-tag-class-prior multiplier (`key_boost` in the current
+tag-class-prior multiplier (`key_boost` in the then-current
 `Generator.select` API) BEFORE the novelty blend
 (`(1-novelty)·boosted + novelty·uniform`).
 
@@ -2081,41 +2104,38 @@ Module locations as built:
   (culture / tags / mood / harshness / era / stratum /
   weights) into a `RequestVector`.
 * **Dispatch** — `runtime/proportions.py:
-  NameGenerator.select_via_vector` is the vector-mode entry
+  NameGenerator.select_via_vector` is the vector-scoring entry
   point; `generators/kenning.py:_generate_via_vector` is the
-  Kenning-level dispatcher. `Kenning.generate` reads
-  `scoring_mode` from params and routes accordingly.
+  Kenning-level dispatcher. `Kenning.generate` always routes
+  through vector scoring (the original `scoring_mode` param /
+  proportions branch is retired).
 * **Drift measurement** — `runtime/drift_measurement.py` ships
   pure-Python metric primitives (KL divergence,
-  total-variation distance, top-N name overlap,
-  decomposition-rate delta, position-distribution delta,
-  Spearman rank correlation). `runtime/drift_runner.py`
-  bridges metrics to the live `Kenning.generate` for per-seed
-  isolation. CLI: `wyrd kenning lexicon drift-report`.
+  total-variation distance, decomposition-rate delta,
+  position-distribution delta, Spearman rank correlation).
+  `runtime/drift_runner.py` bridges metrics to the live
+  `Kenning.generate` for per-seed isolation. (The original
+  relative vector-vs-proportions comparison — its top-N
+  name-overlap metric and the `drift-report` CLI — was retired
+  with the proportions scoring path; what survives is the
+  absolute corpus-realism gate.)
 * **Tolerance bands** — `runtime/realism_tolerance.py` ships
-  the `ToleranceBand` dataclass + `check_drift_against_tolerance`
-  primitive. `PER_CULTURE_TOLERANCES` now carries real
-  empirical-evidence bands for english / scottish / irish /
-  breton (PR #413), so the regression suite is a LIVE drift gate
-  for those cultures. `DEFAULT_TOLERANCE` stays wide-open as the
-  fallback for any culture without an override.
+  the `AbsoluteToleranceBand` dataclass +
+  `check_realism_against_tolerance` primitive, with per-culture
+  bands resolved via `absolute_tolerance_for` (`ABSOLUTE_DEFAULT`
+  is the wide-open fallback). (This replaced the earlier relative
+  `ToleranceBand` / `check_drift_against_tolerance` /
+  `PER_CULTURE_TOLERANCES` API, removed with proportions scoring.)
 * **Regression suite** —
-  `tests/test_kenning_realism_regression.py` parametrizes
-  per-culture (english / scottish / welsh / irish / breton) +
-  register-composition smoke tests. english / scottish / irish /
-  breton are gated against their bands; welsh runs un-gated
-  against the wide-open default (no band yet — its full drift
-  can't be measured until wyrd-cj6f's proportions crash is
-  fixed). A 0-sample result on either side FAILs as a regression
-  guard unless the culture is explicitly expected-empty
-  (`_EXPECTED_EMPTY_SAMPLE_CULTURES`, empty today).
-* **CLI surface** — `cli/generate.py` adds `--scoring-mode`,
+  `tests/test_kenning_realism_absolute.py` parametrizes
+  per-culture (english / scottish / welsh / irish / breton) name
+  generation against the absolute corpus-realism bands. A 0-sample
+  result FAILs as a regression guard.
+* **CLI surface** — `cli/generate.py` carries
   `--priors-path`, `--baseline-weight`,
   `--phonological-weight`, `--semantic-weight`,
-  `--position-weight`. Vector-only flags in proportions mode
-  are a silent no-op (deliberate operator-friendly contract:
-  'I forgot --scoring-mode=vector' produces a normal
-  proportions name).
+  `--position-weight`. (The original `--scoring-mode` selector
+  was removed once vector became the only scoring path.)
 
 Deferred work (filed as follow-up tickets in the ecjp epic):
 
@@ -2133,13 +2153,13 @@ Deferred work (filed as follow-up tickets in the ecjp epic):
   bundle-shape propagation, SPA generator class updates).
   Blocked on ecjp.10.
 
-Default `--scoring-mode` stays `proportions` until tolerance
-bands are tightened from the review-then-codify cycle. The
-legacy proportions path remains bit-stable throughout the
-ecjp epic; no `<culture>_proportions.json` deprecation has
-been triggered yet (planned as part of the ecjp.10 bundle
-work — one release period of warning-not-error during
-transition).
+UPDATE (proportions-scoring retirement): vector is now the only
+scoring path — the `--scoring-mode` flag and the proportions
+*scoring* path were retired once the absolute corpus-realism gate
+superseded the relative drift comparison. The
+`<culture>_proportions.json` DATA tables survive (they feed the
+vector path's frequency weighting and the corpus-realism
+reference); only the sampler that scored directly off them is gone.
 
 ## D37. Phonaesthetic-vector framework supersedes the legacy MOODS dict (wyrd-kq7w, 2026-05-21).
 
@@ -2150,7 +2170,7 @@ replaced it with a catalog-driven composition framework where each
 named effect is a per-dimension vector triple. The MOODS dict is
 gone (deleted in wyrd-kq7w.3); the catalog at
 `wyrd/generators/kenning/data/register_effects.yaml` is the single
-source of truth for mood-name resolution on both scoring modes.
+source of truth for mood-name resolution.
 
 Why the rip:
 
@@ -2220,22 +2240,12 @@ keys are free-form strings matching D36.1's position vocabulary.
 Mood-spec resolution flows through two helpers in
 `registers/effects.py`:
 
-* **Vector path** (`scoring_mode='vector'`): `parse_mood_spec(spec)`
+* **Vector path** (the live scoring path): `parse_mood_spec(spec)`
   returns a graduated `RegisterEffect`. The dispatch composes
   `[adapter_effect, *catalog_effects]` via
   `compose_register_effects` into the request's register, and the
   per-lemma scoring loop dot-products this register against each
   lemma's stored `PhonologicalVector`.
-* **Legacy proportion-table path** (`scoring_mode='proportions'`,
-  default): `mood_spec_to_legacy_form(spec)` returns the legacy
-  `(tags_list, harshness_scalar)` tuple by extracting
-  `effect.semantic_tags.keys()` for tags + the catalog's
-  `cluster_density` dim for the harshness scalar. Bit-stability
-  drift is bounded — the catalog's `harsh: cluster_density=0.6`
-  reads slightly softer than the legacy `MOODS["harsh"]=1.0`
-  (acceptable per the kq7w.3 "distribution match within tolerance"
-  gate; not byte-identical).
-
 ### D37.4. Sourcing.
 
 Per-effect weight directions are documented against the
@@ -2287,10 +2297,12 @@ detail. The eligibility-gate predicates (culture / era / stratum
 OUTSIDE vector composition. The `harshness` scalar knob on
 `Kenning.generate` still works (power-user back door); it's
 translated to `_harshness_to_phonological` weights via the same
-catalog-composition seam. The legacy proportion-table sampler
-still runs (default `scoring_mode='proportions'`); the rip
-swapped its mood-resolution source from MOODS to catalog, not
-the sampler itself.
+catalog-composition seam. (At the time D37 shipped the
+proportion-table sampler still ran behind the default
+`scoring_mode='proportions'`; the rip swapped its mood-resolution
+source from MOODS to catalog, not the sampler itself. That sampler
+and `scoring_mode` have since been retired — vector is the only
+scoring path.)
 
 ### D37.7. Calibration owed.
 
@@ -2489,6 +2501,29 @@ you MUST keep variants + inflections flowing through that same single owner.
 
 ## D40. Position is a DERIVED label and a SOFT statistic — never a match-time enforcer (wyrd-eyjk, 2026-06-01).
 
+> **READ THIS FIRST — the recurring confusion (corrected 5+ times across sessions).**
+> Position (`bare` / `pre-` / `-inner-` / `-post`) is an **OUTPUT of decomposition,
+> not an input to it.** A morpheme's identity is its **bare surface** (`giles`);
+> `Giles-` / `-giles` / `giles` are the *same morpheme rendered at a derived
+> position*, never separate things to match against or select between. Do NOT make
+> `Meaning.location` (the stored dash-shape) gate or filter what *can* match. If you
+> find yourself forcing location into the town-name deconstruction, STOP — that is
+> the exact, repeated error.
+>
+> **The three-layer pipeline:**
+> 1. **Scholarly prior** — the thousands of `is_canonical` / scholar-attributed
+>    splits give the per-(morpheme, position) frequency distribution. This is the
+>    ONLY role position statistics play: a credibility prior.
+> 2. **Decompose the real-town corpus** — puzzle-piece each town into morphemes by
+>    **string match only**; when several breakdowns are viable, a **heuristic
+>    grounded in the Layer-1 prior picks the most credible**; then **record that
+>    breakdown as `(morpheme, derived-position)` increments**. `Stokegiles` →
+>    `Stoke-` (pre) +1, `-giles` (post) +1; `Gileston` → `Giles-` (pre) +1, `-ton`
+>    (post) +1. A word-final morpheme records as `-post` regardless of which
+>    dash-variant is stored. Those increments ARE the proportions.
+> 3. **Generation** — samples per-morpheme position likelihoods from those
+>    proportions; structure slots are keyed by position.
+
 D39 described the four slots and (correctly) made the render derive surface from
 the slot. But the surrounding machinery had the dependency **backwards**: it used
 a morpheme's stored dash-position (`Meaning.location`, decoded from `-x` / `x-` /
@@ -2531,23 +2566,28 @@ credibility score (fewest unaccounted chars, then fewest morphemes, then a soft
 per-morpheme position-plausibility term learned from the known/pre-split
 breakdowns), **never** by a position gate that discards candidates outright.
 
-### Consequences (target state — tracked under wyrd-eyjk, NOT all landed yet)
+### Consequences (LANDED — wyrd-eyjk)
 
-- `_location_allows` and `_matches_position` (the dash-as-constraint gates) **will
-  be removed** (wyrd-ffut); every string-match then stands and position is derived
-  from the span. As of this entry the gates still exist and run: `_location_allows`
-  is untouched and `_matches_position` is only *loosened* so the `bare` slot accepts
-  any location (D39) while pre/post/inner stay strict.
-- Redundant per-position entries (`-andrew` / `Andrew-` / `andrew`) collapse to
-  one morpheme; the derived position flows into structures + proportion buckets,
-  retiring dash-based `Meaning.location` for those purposes and the interim
-  `load_parts` double-register / vector bare-permissive workarounds added under
-  wyrd-5z5j.
+- `_location_allows` and `_matches_position` (the dash-as-constraint gates) **were
+  removed**: `_location_allows` (+ `_position_for_span` / `_location_for`) is gone
+  from `trie_matcher.py`, and the `_matches_position` predicate + its call site are
+  gone from `vector_name_select.py`. Every string-match now stands; position is
+  derived from the span (`Word.get_structure` / `Word.get_samples`, which re-dash
+  the surface to its derived position).
+- The recording is keyed by bare SURFACE (the redundant per-position entries
+  `-andrew` / `Andrew-` / `andrew` resolve to one morpheme via `_surface_index_for`
+  + `_resolve_surface`). The derived position flows into structures + proportion
+  buckets, retiring dash-based `Meaning.location` for matching/bucketing (it
+  survives only as a render/scoring hint) and the interim `load_parts`
+  double-register + vector bare-permissive workarounds added under wyrd-5z5j.
+  Synthesized saint subjects (pure proper nouns that are saint-tagged) are kept out
+  of the base pool.
 - `wyrd-zewx`'s strict-inner gate (which blocked `-don-` at boundaries to avoid
-  `donhole`) is *not* the right mechanism under this model: credibility scoring,
-  not a position constraint, is what should rank `donhole` below better parses.
+  `donhole`) is removed: credibility scoring + the per-position bucket frequency,
+  not a position constraint, is what ranks `donhole` below better parses.
 
-Tracked under wyrd-eyjk (P0) with steps wyrd-ffut (remove the gates) / wyrd-g6u9
-(soft position-plausibility scoring) / wyrd-fbdb (collapse entries + derived
-position into structures/buckets).
+Landed under wyrd-eyjk (P0), folding in its steps wyrd-ffut (remove the gates) /
+wyrd-g6u9 (position-plausibility via bucket frequency) / wyrd-fbdb (derived position
+into structures/buckets via bare-surface resolution). Residual vector-mode
+realism alignment is tracked in the wyrd-vidi follow-up.
 

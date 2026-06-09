@@ -500,17 +500,6 @@ def _normalize_for_match(s: str) -> str:
     return s
 
 
-def _form_in_body(form: str, body: str) -> bool:
-    """Did the model's claimed form actually appear in the source paragraph?
-
-    We do a soft substring match against a normalized version of both — so
-    "hædan" matches "Hcsdan" (OCR variant) and "Hædan" (clean).
-    """
-    if len(form) < 2:
-        return False
-    return _normalize_for_match(form) in _normalize_for_match(body)
-
-
 def _validate_attested_forms(response: dict, norm_body: str) -> list[ValidationFailure]:
     """Validate the D5-1 attested_forms field. Empty / missing → no failures.
 

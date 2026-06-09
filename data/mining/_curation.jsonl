@@ -36,3 +36,439 @@
 {"_type": "etymon_gloss_add", "ref": "old-english:corn", "additions": [{"gloss": "personal name", "reason": "wyrd-wz82: Mawer 1920 Northumberland-Durham cites Corn as a personal name (genitive of strong form) for Cornsay. Surfaces the personal-name sense alongside the canonical grain gloss kept in wyrd-kutx batch 2C."}]}
 {"_type": "etymon_curation", "ref": "old-english:mine", "lemma_ref": null, "reason": "wyrd-v4rc: 'mine' (a slope; Roberts 1914 Sussex) is a distinct toponym etymon, NOT an inflection of the possessive pronoun 'mīn'/'min' (my). Wiktionary lumped the dative/plural pronoun form (also spelled 'mine') with the unrelated slope sense, so the bundle rollup dragged 'my' + 'inflection of mīn:' onto the slope subject. Unlink so the slope sense gets its own clean bundle subject."}
 {"_type": "etymon_gloss_suppression", "ref": "old-english:mine", "suppressions": [{"gloss": "inflection of mīn:", "reason": "wyrd-v4rc: derivative-pointer gloss from wiktionary-empirical. Once the wrong lemma link to the 'my' pronoun is broken, this morphological pointer is noise — the slope sense should carry only 'a slope'."}]}
+{"_type": "etymon_gloss_suppression", "ref": "old-english:don", "suppressions": [{"gloss": "to do", "reason": "wyrd-qp9c: verb 'to do' sense conflated onto OE toponym don (hill, =dūn); keep hill/farm/dwellings"}]}
+{"_type": "etymon_curation", "ref": "celtic:ti", "reason": "distinct etymologies: verbal root for flowing vs. noun for dwelling", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "irish:-ann", "reason": "'-ann' is a third-person singular present tense verb suffix, whereas 'ann' is the adverb 'there'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "irish:-gram", "reason": "the suffix '-gram' (from Greek 'gramma') is etymologically distinct from the unit 'gram' (from 'gramme')", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "irish:-san", "reason": "'-san' is a second-person singular pronoun/suffix, whereas 'san' is a prepositional contraction", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "irish:bar-", "reason": "the anchor is a unit of pressure (Latin 'bar') while the member is an Irish prefix/morpheme", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-able", "reason": "the suffix '-able' is a distinct grammatical morpheme from the adjective 'able'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-age", "reason": "'-age' is a suffix of Latin origin, whereas 'age' is a noun derived from Old French 'age'.", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-ale", "reason": "'-ale' is a suffix, whereas 'ale' is a substantive noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-all", "reason": "'-all' is a suffix/fragment, whereas 'all' is a standalone adjective/adverb", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-bere", "reason": "'-bere' is a suffix, whereas 'bere' (bear) is a noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-don", "reason": "the verb 'don' and the toponymic suffix '-don' (from OE 'dun', hill) are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-erd", "reason": "'-erd' is a suffix (likely agentive or related to 'earth') while 'erd' is a root noun for homeland", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-ere", "reason": "the suffix '-ere' (agent/location) is distinct from the noun 'ere' (ear)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-ern", "reason": "the noun 'ern' (eagle) is a distinct word from the suffix '-ern' (diminutive or related to origin/place)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-erne", "reason": "'-erne' is a suffixal variant or part of a word, whereas 'erne' is an independent adjective", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-est", "reason": "the suffix '-est' (superlative) is distinct from the adjective 'est' (east)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-fole", "reason": "'-fole' is a suffix/component, whereas 'fole' is a standalone noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-hamme", "reason": "the suffix '-hamme' (denoting a bend or hollow) is a distinct morphological unit from the noun 'hamme' (the knee itself)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-hod", "reason": "'-hod' is a suffix of status/office, whereas 'hod' is a noun meaning rank/position", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-hood", "reason": "the suffix '-hood' (state/condition) is etymologically distinct from the noun 'hood' (garment)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-les", "reason": "'-les' is a privative suffix (meaning 'without'), whereas 'les' is an adjective meaning 'deceptive'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-lich", "reason": "the noun 'lich' (body) is distinct from the suffix '-lich' (meaning 'sightly' or 'like')", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-ore", "reason": "the suffix '-ore' is a distinct morphological element from the noun 'ore'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-rent", "reason": "'-rent' is a suffix (likely from Latin '-rentem') whereas 'rent' is a noun meaning income", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-rye", "reason": "'-rye' is a suffix/fragment, whereas 'rye' is a noun; no etymological identity exists between the grain and an undefined suffix.", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-ten", "reason": "'-ten' is a suffix, whereas 'ten' is a numeral", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:-yle", "reason": "the anchor is a noun meaning matter, while the member is a suffix", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Ame", "reason": "distinct etymologies: Middle English 'ame' (opinion/plan) vs. proper name 'Ame' (variant of Amy/Amia)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Blake", "reason": "the adjective 'blake' (pale) and the surname 'Blake' (derived from 'black') are distinct etymological roots", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Bode", "reason": "distinct etymologies: messenger vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Bugge", "reason": "the bogeyman/goblin is a common noun, whereas Bugge is a proper name/anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Bunting", "reason": "the bird name and the surname have distinct etymological origins", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Chese", "reason": "distinct etymologies: dairy product vs. proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Cole", "reason": "distinct etymologies: adjective 'cold' vs patronymic name 'Cole'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Cuccu", "reason": "the bird name and the personal name are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Gold", "reason": "the metal 'gold' and the personal name 'Gold' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Ham", "reason": "toponymic enclosure vs. anthroponymic name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Helen", "reason": "Helen is a proper name, whereas hel is a distinct root/morpheme", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Jay", "reason": "the bird name and the personal name are distinct etymological roots", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Jordan", "reason": "distinct etymologies: Hebrew river/name vs. Arabic/Middle English vessel", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:May", "reason": "the noun 'may' (woman) and the proper name 'May' (derived from Mary or the month) are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Page", "reason": "distinct etymologies: 'page' (boy) from Latin 'pagina/paginus' vs 'Page' (name) from 'paganus' or patronymic usage", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Per", "reason": "the preposition/noun 'per' and the proper name 'Per' are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Peres", "reason": "Peres is a proper name, whereas per is a common noun/adjective", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Pers", "reason": "the color 'pers' (from Persian/blue) and the proper name 'Pers' are etymologically unrelated", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Ragge", "reason": "distinct etymologies: common noun vs proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Scot", "reason": "the tax 'scot' (from Old English 'scot') is etymologically distinct from the proper name 'Scot' (from 'Scottus')", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Steven", "reason": "distinct etymologies: 'steven' (voice) from OE 'stefn' vs 'Steven' (name) from Greek 'Stephanos'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:Wat", "reason": "the anchor is a common noun meaning 'person' while the member is a proper name (diminutive of Walter)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:bluber", "reason": "personal name vs. descriptive noun for bubble/spring", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:dodde", "reason": "distinct etymologies: personal name vs. topographic feature", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:erden", "reason": "erd (homeland) and erden (clay/earth) derive from different roots: 'erd' from OE 'eard' and 'erden' from OE 'eorde'", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:green", "reason": "distinct etymologies: 'gre' (step) vs 'green' (agreement/consent)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:hoden", "reason": "distinct etymologies: 'hod' (rank/office) vs 'hoden' (to hallow/sanctify)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:holden", "reason": "different etymological roots: 'hold' (gracious) from OE 'hold', 'holden' (to hold) from OE 'healdan'", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:lepen", "reason": "distinct etymologies: 'lep' (basket) from Old English 'leppe' vs 'lepen' (leap) from Old English 'hleapan'", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:pro-", "reason": "the anchor is a preposition/adjective and the member is a prefix", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "middle-english:staken", "reason": "stak is a noun (pile) while staken is a verb derived from stake (picket/post)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "modern-english:-ton", "reason": "the suffix '-ton' (from OE tūn, 'enclosure') is etymologically distinct from the unit of mass 'ton' (from OE tunne, 'large cask)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "modern-english:hyl-", "reason": "the anchor 'hyl' refers to a unit of mass (likely a typo for 'kg' or a specific physics term) and 'hill', while 'hyl-' is a prefix/fragment unrelated to the core identity of the anchor's glosses.", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-an", "reason": "the numeral 'an' is distinct from the grammatical inflectional suffix '-an'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-d", "reason": "the letter/name 'D' is not etymologically the same morpheme as the suffix '-d'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-dene", "reason": "'-dene' is a topographic suffix meaning 'valley' (from OE 'denu'), whereas 'Dene' is an ethnonym/name.", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-ege", "reason": "the suffix '-ege' (from OE 'eg') refers to an island/water, whereas 'ege' refers to fear", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-etan", "reason": "the anchor is 'etan' (stone) and the member is the suffix '-etan' (likely a variant of '-etan' or '-etan' as a verbal/nominal suffix, but not the same morpheme as the noun 'etan')", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-ful", "reason": "'-ful' is a derivational suffix, whereas 'fūl' is an adjective", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-ing-", "reason": "the suffix '-ing' is a derivational/relational morpheme, whereas '-ing-' is a morphological linker/interfix", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-lic", "reason": "the noun 'lic' (body) and the suffix '-lic' (like/similar) are distinct etymological morphemes", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-licum", "reason": "'-licum' is the dative plural form of the adjective '-lic' (meaning 'like'), not the noun 'lic' (corpse)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-ne", "reason": "the negative particle 'ne' is distinct from the adjectival suffix '-ne'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-on", "reason": "the preposition 'on' and the suffix '-on' are distinct grammatical entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-ost", "reason": "the suffix '-ost' is a remnant of the superlative degree, not the noun 'ost' (knot)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-ostum", "reason": "'-ostum' is a dative singular inflectional form of a different noun, not a variant of the noun 'ost'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-ran", "reason": "the anchor is a noun meaning robbery, while the member is a suffix", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-scipe", "reason": "'-scipe' is an abstracting suffix derived from 'scip' (ship), not the noun itself", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-sum", "reason": "'-sum' is a dative plural inflectional suffix, whereas 'sum' is a distinct adjective/noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-sume", "reason": "'-sume' is a dative singular inflection of 'sum' (some), not the same morpheme as the noun 'sum' (houses)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-sumes", "reason": "'-sumes' is a grammatical inflection (dative plural) of the noun 'sumu', not the adjective 'sum' (some)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:-tan", "reason": "'-tan' is a grammatical inflection/suffix, whereas 'tān' is a substantive noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ala", "reason": "distinct etymologies: genitive plural of 'all' vs. a proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ale", "reason": "distinct etymologies: verb/noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:An", "reason": "the numeral 'an' and the proper name 'An' are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Apa", "reason": "distinct etymologies: animal name vs. proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Assa", "reason": "distinct etymologies: animal noun vs. anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bana", "reason": "the common noun 'bana' (slayer) and the proper name 'Bana' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bar", "reason": "distinct etymologies: Old English 'bār' (boar) vs. Germanic personal name 'Bar'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bat", "reason": "distinct etymologies: Old English 'bāt' (boat) vs. personal name 'Bat'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Belt", "reason": "the noun 'belt' and the proper name 'Belt' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Beofor", "reason": "the animal name and the personal name are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Beorge", "reason": "distinct etymologies: topographic noun vs feminine personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bi", "reason": "the preposition 'bī' and the personal name 'Bi' are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bil", "reason": "distinct etymologies: weapon vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bile", "reason": "distinct etymologies: weapon vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Biscop", "reason": "distinct etymologies: ecclesiastical title vs. personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bita", "reason": "distinct etymologies: common noun 'morsel' vs proper name 'Bita'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Blind", "reason": "the adjective 'blind' and the proper name 'Blind' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Blæc", "reason": "the adjective 'black' and the personal name 'Blæc' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Boga", "reason": "the common noun 'boga' (bow) and the proper name 'Boga' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Boia", "reason": "distinct etymologies: common noun vs proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bola", "reason": "distinct etymologies: common noun 'bola' (log/brother) vs proper name 'Bola'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bolla", "reason": "distinct etymologies: common noun 'bolla' (hollow/bowl) vs. anthroponym 'Bolla' (diminutive of names like Bōl/Bōla)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Brandan", "reason": "Brandan is a proper name derived from Brendan, not a derivative of the noun 'brand'", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Brant", "reason": "adjective 'brant' (steep) and proper name 'Brant' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Brece", "reason": "distinct etymologies: common noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Brom", "reason": "distinct etymologies: plant name vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bru", "reason": "eyelash vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Brun", "reason": "the adjective 'brūn' and the personal name 'Brun' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bu", "reason": "the lowercase 'bu' is a non-lexical or fragmentary entry, while 'Bu' is a distinct proper noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bucc", "reason": "the animal name and the personal name are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bucca", "reason": "distinct etymologies: common noun 'he-goat' vs proper name 'Bucca'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Budda", "reason": "distinct etymologies: common noun vs proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bula", "reason": "distinct etymologies: common noun vs proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Bun", "reason": "distinct etymological origins: one is a generic term/root, the other is a proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:By", "reason": "toponymic suffix '-by' (village) vs personal name 'By'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ca", "reason": "the suffix '-ca' is a distinct grammatical element from the proper name 'Ca'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Camban", "reason": "Camban is a proper anthroponym, whereas camb is a common noun for a comb or ridge", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cann", "reason": "the verb 'cann' (to know) and the proper name 'Cann' are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Carl", "reason": "distinct etymologies: common noun 'carl' (freeman) vs. proper name 'Carl' (derived from Germanic 'karal' or 'Karl')", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cartan", "reason": "Cartan is a proper name, likely derived from a different root than the noun 'cart'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Catt", "reason": "distinct etymologies: animal name vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ceafl", "reason": "topographic noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ceafor", "reason": "distinct etymologies: common noun for insect vs. proper anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ceorl", "reason": "the common noun 'ceorl' and the proper name 'Ceorl' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cerne", "reason": "Cerne is a hydronym/personal name, not a variant of ærn (building)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cetel", "reason": "topographic feature vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Clott", "reason": "topographic noun vs. anthroponymic proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cniht", "reason": "the member is a proper noun (anthroponym) while the anchor is a common noun (status/role)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cnotta", "reason": "the personal name is a proper noun derived from a different etymological root than the common noun for knot", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cocc", "reason": "topographic noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Coccel", "reason": "distinct etymologies: botanical term vs. anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Col", "reason": "personal name 'Col' (diminutive of Nicholas) is etymologically distinct from OE 'cōl' (cold)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Colt", "reason": "personal name is a distinct anthroponym from the animal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Copp", "reason": "topographic noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Corf", "reason": "topographic noun vs. anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cran", "reason": "the bird name and the personal name are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Crawe", "reason": "the bird 'crāwe' and the personal name 'Crawe' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Crocc", "reason": "the noun 'crocc' (pot) and the personal name 'Crocc' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cropp", "reason": "the personal name is a proper noun derived from a different etymological root than the common noun for a sprout", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Crucan", "reason": "Crucan is a proper name (anthroponym), whereas cruc is a common noun (cross)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cu", "reason": "distinct etymologies: Old English 'cū' (cow) vs. personal name 'Cu'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cwic", "reason": "the adjective 'cwic' (alive/quick) and the proper name 'Cwic' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cyne", "reason": "the prefix 'cyne-' (royal) and the personal name 'Cyne' (likely from 'cyne' meaning kin/family) are distinct etymological roots", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cyre", "reason": "the noun 'cyre' (choice) and the proper name 'Cyre' are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Cyte", "reason": "the OE word 'cȳte' (a hut/cottage) is etymologically distinct from the proper name 'Cyte'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Deor", "reason": "distinct etymologies: animal vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Deorc", "reason": "the adjective 'dark' and the personal name 'Deorc' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Dunn", "reason": "the adjective 'dunn' (brown) and the proper name 'Dunn' (derived from the adjective or a patronymic) are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ea", "reason": "the river name 'ēa' and the personal name 'Ea' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Eald", "reason": "the adjective 'old' and the proper name 'Eald' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Eard", "reason": "Eard is a proper name (anthroponym) distinct from the common noun eard (dwelling/land)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Earn", "reason": "the bird 'earn' (eagle) and the personal name 'Earn' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ed", "reason": "the prefix 'ed-' (meaning 'out/away') is etymologically distinct from the proper name 'Ed'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:El", "reason": "the lowercase 'el' is a particle/preposition or part of a name, while 'El' is a proper noun/personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Elm", "reason": "the tree name and the personal name are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Flint", "reason": "the personal name is a proper noun derived from the stone, not the stone itself", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Fola", "reason": "distinct etymologies: common noun 'fola' (foal) vs proper name 'Fola'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Folc", "reason": "distinct etymologies: common noun vs. anthroponym derived from it", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Folce", "reason": "Folce is a proper name, whereas folc is a common noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Fugol", "reason": "the personal name is a proper noun derived from the common noun, not a morphological variant", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Fær", "reason": "distinct etymologies: OE 'fær' (danger/passage) vs. Germanic personal name 'Fær/Far'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Geoc", "reason": "the personal name is a proper noun derived from a different etymological root than the common noun for yoke", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Geon", "reason": "demonstrative pronoun vs proper noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Geone", "reason": "demonstrative pronoun vs proper noun", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Gille", "reason": "topographic feature vs personal name", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Gnætt", "reason": "distinct etymologies: common noun vs proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:God", "reason": "distinct etymologies: OE 'gōd' (good) vs OE 'God' (deity/name)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Golde", "reason": "Golde is a proper name, likely derived from a different root or a specific person, whereas gold is the metal/color.", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Haca", "reason": "distinct etymologies: common noun 'hook' vs. anthroponym 'Haca'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hal", "reason": "Hal is a proper name (likely a diminutive of Henry or Harold), whereas hāl means whole/healthy", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Han", "reason": "distinct etymologies: OE 'hān' (stone/rock) vs. Germanic personal name 'Han'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Har", "reason": "the adjective 'hār' (gray/boundary) and the personal name 'Har' are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Has", "reason": "hās is a verb form or particle, while Has is a proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hat", "reason": "hāt is an adjective meaning 'hot' or 'named', whereas Hat is a proper name derived from different roots", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Heah", "reason": "adjective 'high' vs proper name 'Heah'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Heard", "reason": "the adjective 'heard' (hard) and the personal name 'Heard' (from 'heard/heard' meaning brave/hard) are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Helm", "reason": "personal name derived from different etymological root than the object 'helm'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Heort", "reason": "theponymic personal name vs. the anatomical noun 'heart'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Here", "reason": "the military 'here' (Old English 'here') and the personal name 'Here' (from 'hir' or 'hira') are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ho", "reason": "the OE word 'hō' (meaning 'hoof') is etymologically distinct from the proper name 'Ho'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hon", "reason": "personal name 'Hon' is a proper noun, whereas 'hōn' is a distinct Old English word (likely related to 'hen' or a specific lexical item)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Horn", "reason": "the personal name 'Horn' is a proper noun derived from the common noun, not a morphological variant of it", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Horne", "reason": "Horne is a proper name (likely derived from the surname/nickname) whereas horn is a common noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hrype", "reason": "distinct etymologies: personal name vs. tribal name", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hræfn", "reason": "the common noun 'raven' and the personal name 'Hræfn' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hund", "reason": "the personal name Hund is a proper noun derived from different roots than the common noun hund", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hunta", "reason": "distinct etymologies: common noun vs. proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hwelp", "reason": "the common noun 'hwelp' (whelp) and the proper name 'Hwelp' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hwæl", "reason": "distinct etymologies: 'hwæl' (whale/topographic) vs 'Hwæl' (anthroponym)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hy", "reason": "distinct etymologies: Old English 'hīe' (landing place) vs. personal name 'Hy'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Hæfer", "reason": "distinct etymologies: animal name vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Lang", "reason": "Lang is a proper name derived from the adjective, not the adjective itself", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Lece", "reason": "lēce (physician/leech) is a common noun, whereas Lece is a proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Lida", "reason": "distinct etymologies: common noun 'sailor' vs proper name 'Lida'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Lufu", "reason": "the personal name is a proper noun derived from the common noun, not a variant of the same morpheme", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Lust", "reason": "the personal name is a proper noun derived from different etymological roots than the common noun for desire", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Mann", "reason": "distinct etymologies: common noun vs. proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Manne", "reason": "Manne is a proper name, whereas mann is the common noun for person", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Mearc", "reason": "distinct etymologies: common noun 'boundary' vs proper name 'Marc/Mearc'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Mere", "reason": "topographic feature vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Micel", "reason": "the adjective 'micel' (great) and the proper name 'Micel' are etymologically distinct entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Mona", "reason": "mōna is 'moon', while Mona is a proper name derived from different roots", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Mor", "reason": "topographic noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:More", "reason": "the carrot/moor 'more' (mōr) is a distinct etymological root from the personal name 'More' (likely derived from a different Germanic root or patronymic)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Mul", "reason": "the animal 'mule' and the personal name 'Mul' are etymologically unrelated", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Not", "reason": "the sign/mark 'not' and the personal name 'Not' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Orc", "reason": "distinct etymologies: noun 'orc' (cup) vs proper name 'Orc", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ord", "reason": "the topographic term 'ord' and the personal name 'Ord' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Oter", "reason": "the animal 'oter' and the personal name 'Oter' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Pampe", "reason": "topographic feature vs personal name", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Pening", "reason": "the currency 'pening' and the personal name 'Pening' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Pic", "reason": "the noun 'pīc' (point/pike) and the personal name 'Pic' are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Pin", "reason": "the tree name 'pin' (OE pin/pīne) and the personal name 'Pin' are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Pinca", "reason": "distinct etymologies: common noun for bird vs. proper anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Pocca", "reason": "distinct etymologies: common noun for frog vs. anthroponymic personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Pohha", "reason": "distinct etymologies: common noun vs. proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Pol", "reason": "distinct etymologies: OE 'pōl' (pool) vs. Greek-derived 'Pol' (Paul)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Port", "reason": "topographic noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Pott", "reason": "the personal name is a proper noun derived from a surname/patronymic, not the common noun for a vessel", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Rad", "reason": "the noun 'rād' (riding/road) and the proper name 'Rad' are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ramm", "reason": "the animal 'ram' and the personal name 'Ramm' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ric", "reason": "the adjective 'rīc' (rich/powerful) is etymologically distinct from the proper name 'Ric' (short for Richard/Ricard)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sande", "reason": "Sande is a proper name, likely derived from different roots, not a variant of the substance sand", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sceaft", "reason": "the common noun 'sceaft' (shaft/pole) and the personal name 'Sceaft' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sceald", "reason": "distinct etymologies: adjective 'shallow' vs proper name 'Sceald'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sceolh", "reason": "adjective meaning 'sloping' vs proper noun name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sceot", "reason": "distinct etymologies: common noun vs proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sceota", "reason": "distinct etymologies: common noun 'trout' vs proper name 'Sceota'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Scilling", "reason": "the currency 'scilling' and the personal name 'Scilling' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Scofl", "reason": "the noun 'scofl' (shovel) and the personal name 'Scofl' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Scort", "reason": "adjective 'short' vs proper noun 'Scort'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Scylf", "reason": "topographic noun vs. anthroponymic proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Secg", "reason": "the plant name and the personal name are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sol", "reason": "distinct etymologies: Old English 'sol' (mud/sun) vs. personal name 'Sol' (Latin/Hebrew origin)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sot", "reason": "distinct etymologies: soot (carbon) vs. personal name (proper noun)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Staca", "reason": "the common noun 'staca' (stake) and the anthroponym 'Staca' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Stan", "reason": "personal name derived from different etymological root or distinct semantic entity", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Stoppa", "reason": "distinct etymologies: common noun vs. anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Storm", "reason": "distinct etymologies: common noun vs. proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Stott", "reason": "the horse name is from OE 'stott' (stallion/colt) while the surname is a patronymic from 'Stot' (nickname/personal name)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Strang", "reason": "the adjective 'strong' and the proper name 'Strang' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Stric", "reason": "distinct etymologies: common noun/adjective vs. proper anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Styrcar", "reason": "Styrcar is a personal name (anthroponym) likely derived from a different root or a combination of elements, whereas styrc refers to cattle.", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sutere", "reason": "distinct etymologies: occupational noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Swan", "reason": "the bird and the personal name are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Swane", "reason": "Swane is a proper name (anthroponym), whereas swan is a common noun (zoonym)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Sweard", "reason": "the common noun 'sweard' (skin) and the proper name 'Sweard' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Ta", "reason": "distinct etymologies: anatomical body part vs. proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Tat", "reason": "adjective 'tat' (glad) and proper name 'Tat' are etymologically unrelated", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Tate", "reason": "distinct etymologies: adjective 'tat' vs patronymic name 'Tate'", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Thorn", "reason": "the plant name and the personal name are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Thyrne", "reason": "distinct etymologies: common noun 'thorn' vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Tile", "reason": "the adjective 'til' (useful) and the personal name 'Tile' are etymologically unrelated", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Tot", "reason": "the noun 'tot' (pomp) and the proper name 'Tot' are etymologically unrelated", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Totes", "reason": "distinct etymologies: 'tot' (pomp) vs 'Totes' (proper name)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Tun", "reason": "the place-name suffix 'tūn' is distinct from the personal name 'Tun'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Tur", "reason": "distinct etymologies: Old English 'tūr' (tower) vs. Germanic personal name 'Tur'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Twi", "reason": "the prefix 'twi-' (two) is etymologically distinct from the proper name 'Twi'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Uf", "reason": "the owl 'ūf' and the personal name 'Uf' are etymologically unrelated homographs", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Up", "reason": "the prepositional prefix 'up-' is etymologically distinct from the personal name 'Up'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Waca", "reason": "the personal name is a proper noun derived from the common noun, not a variant of the same morpheme", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wacol", "reason": "the adjective 'wacol' (watchful) and the personal name 'Wacol' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wada", "reason": "distinct etymologies: common noun 'wada' (enclosure/fence) vs proper name 'Wada'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wale", "reason": "topographic noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wand", "reason": "the animal 'wand' (mole) and the personal name 'Wand' are etymologically unrelated", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wande", "reason": "distinct etymologies: animal name vs. personal name", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:War", "reason": "the OE adjective 'wār' (safe/aware) is etymologically distinct from the proper name 'War'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wel", "reason": "topographic noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wer", "reason": "the river-dam 'wer' (OE wer) is distinct from the personal name 'Wer' (likely a variant of Wær or a Germanic name element)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wes", "reason": "the verb 'wesan' and the proper name 'Wes' are etymologically unrelated", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Weðer", "reason": "distinct etymologies: animal noun vs. anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wil", "reason": "personal name vs. noun meaning trick/trap", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Willa", "reason": "distinct etymologies: noun 'will' vs proper name 'Willa'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wincel", "reason": "toponymic noun meaning 'corner' vs personal name derived from different root", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Winn", "reason": "topographic noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wita", "reason": "distinct etymologies: common noun 'wita' (counselor) vs proper name 'Wita'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Wynn", "reason": "distinct etymologies: common noun 'wynn' (joy) vs personal name 'Wynn' (derived from the same root but a distinct proper noun entity)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:aca", "reason": "distinct etymologies: personal name vs. oak tree", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:aeppel", "reason": "aeppel is a diminutive of a proper name, whereas æppel is the word for apple", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:angar", "reason": "ang is a root/prefix related to 'hook' or 'narrow', while angar refers to a specific topographic term for meadow/grassland", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:asc", "reason": "distinct etymologies: personal name vs. ash tree", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:baec", "reason": "distinct etymologies: 'bæc' (ridge) vs 'baec' (valley/bank)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:bearde", "reason": "distinct etymologies: 'beard' (hair/edge) vs 'bearde' (battle-axe/weapon)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:bedan", "reason": "bedan is a proper name (Beda's) derived from a personal name, whereas bed is a common noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:bica", "reason": "distinct etymologies: personal name vs. common noun for beak/woodpecker", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:billing", "reason": "distinct etymologies: patronymic '-ing' suffix vs topographic 'bill' (promontory)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:binnan", "reason": "distinct etymologies: 'binn' (manger) from Proto-Germanic *binno vs 'binnan' (within) from *bi-innan", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:bosan", "reason": "bosan is a patronymic/possessive name, not a plural or derivative of the noun bos", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:brakes", "reason": "distinct etymologies: 'brak' (strip of land) vs 'brooks' (streams)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:brannoc", "reason": "distinct etymologies: personal name vs. cereal crop", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:bregn", "reason": "distinct etymologies: personal name vs. cereal crop", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:bregwine", "reason": "Bregwine is a proper name derived from 'breg' (barley) and 'wine' (friend), whereas 'barley-wine' is a common noun phrase describing a beverage.", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:brokes", "reason": "distinct etymologies: 'brok' (brook) from OE brōc vs 'brokes' (badger) from OE brocc", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:brȳde", "reason": "distinct etymologies: 'brȳd' (bride) vs 'brȳde' (from 'brūgan', to flow/gush)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:bēce", "reason": "distinct etymologies: 'bec' (stream/book) vs 'bēce' (beech tree)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:canne", "reason": "distinct etymologies: 'cann' (to know) vs 'canne' (vessel/hollow)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:card", "reason": "personal name vs. topographic suffix/word", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:catta", "reason": "distinct etymologies: personal name vs. animal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:cecer", "reason": "distinct etymologies: 'æcer' (field) vs 'cecer' (weed/chaff)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:celf", "reason": "celf (calf) and ælf (elf) are etymologically distinct roots", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:cenas", "reason": "cenas is a proper name/noun, not a grammatical inflection of the OE word for torch", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:cilla", "reason": "distinct etymologies: personal name vs. spring/well", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:copmanes", "reason": "copmanes is the genitive form of the common noun 'copman' (merchant), whereas Copman is a proper name", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:corte", "reason": "distinct etymologies: personal name vs. topographic 'court/enclosure'", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:craca", "reason": "distinct etymologies: personal name vs. common noun for bird", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:croch", "reason": "distinct etymologies: personal name vs. topographic feature", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:crum", "reason": "personal name vs adjective meaning crooked", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:cwice", "reason": "cwic means 'alive/living' while cwice refers to a specific plant species", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:dene", "reason": "distinct etymologies: Old Norse/Old English 'Dan' (Dane) vs Old English 'denu' (valley)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:dod", "reason": "personal name vs topographic feature", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:eare", "reason": "distinct etymologies: OE 'ēar' (gravel/earth) vs OE 'ēare' (ear)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:eppa", "reason": "distinct etymologies: personal name vs. cereal crop", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:esc", "reason": "distinct etymologies: personal name vs. ash tree", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:faer", "reason": "fær (passage) and fær (danger) are distinct Old English roots, despite phonetic similarity", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:fcer", "reason": "fær (passage) and fcer (personal name) are etymologically unrelated", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:felte", "reason": "distinct etymologies: 'felt' (textile) vs 'felte' (botanical/plant-related)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:feoleca", "reason": "distinct etymologies: personal name vs. cereal crop", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:fine", "reason": "distinct etymologies: OE 'finn' (heap/mound) vs OE 'fina' (woodpecker)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:fm", "reason": "distinct meanings (personal name vs. heap)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:forne", "reason": "distinct etymologies: 'forn' (old) vs 'forne' (trout)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:gip", "reason": "distinct etymologies: personal name vs. adjective 'wide'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:graeg", "reason": "græg is 'grey' while graeg is a distinct word for 'wolf'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hafoces", "reason": "hafoces is a genitive form of a proper name, not a morphological variant of the common noun hawk", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hala", "reason": "distinct etymologies: personal name vs. Old English 'hal' (enclosure)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:head", "reason": "distinct etymologies: personal name vs. topographic feature", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hearpa", "reason": "the personal name is a proper noun, whereas 'hearpa' is a common noun derived from 'hearpe' (harp)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:horsan", "reason": "'horsan' is a possessive form (Horsa + genitive suffix) of a proper name, not a variant of the noun 'hors'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hose", "reason": "distinct etymologies: 'hos' from 'hosa' (escort) vs 'hose' from 'hosa' (leg covering/stocking) are distinct roots", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hunt", "reason": "distinct etymologies: personal name vs. agent noun from verb", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hunte", "reason": "distinct etymologies: personal name vs. agent noun/noun from 'huntian'", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hwaete", "reason": "hwæt is the interrogative pronoun 'what', whereas hwaete is the noun 'wheat'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hymele", "reason": "distinct etymologies: personal name vs. botanical term", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hāth", "reason": "distinct etymologies: personal name vs. adjective 'healthy'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hāw", "reason": "personal name vs. verbal derivative", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:hōfe", "reason": "hōf is a verb/noun meaning 'hoof' or 'raised', while hōfe refers to a specific botanical name (Ale-hoof/Hypericum) derived from a different root or distinct noun form", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:kirk", "reason": "distinct etymologies: personal name vs. church", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:leage", "reason": "distinct etymologies: OE lēac (lye) vs OE lēah (clearing)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:lecan", "reason": "distinct verbs with different etymological roots", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:line", "reason": "distinct etymologies: OE līn (flax) vs. OE līn (line/thread/string)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:lud", "reason": "Lud is a proper name (likely from Old English 'hlūd' or a Germanic root), whereas 'lud' as a river name refers to the adjective 'loud' (Old English 'hlūd')", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:lēas", "reason": "distinct morphemes: suffix '-lēas' (without) vs noun 'lēas' (meadow)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:mare", "reason": "distinct etymologies: 'mar' (great/large) vs 'mare' (nightmare/spirit/boundary)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:mearð", "reason": "distinct etymologies: personal name vs. animal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:molde", "reason": "distinct etymologies: personal name vs. earth/soil", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:moll", "reason": "distinct etymologies: personal name vs. plant name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:mægðe", "reason": "distinct words: 'mægð' (maiden/kin) vs 'mægðe' (may-weed/plant)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:mǣle", "reason": "mǣl (cross/speech) and mǣle (dyed) derive from different Proto-Germanic roots", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:netel", "reason": "distinct etymologies: personal name vs. botanical noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:netele", "reason": "distinct etymologies: personal name vs. botanical noun", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:nore", "reason": "distinct etymologies: 'nor' from 'north' vs 'nore' from 'nora/nore' (bank/edge)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:padde", "reason": "distinct etymologies: personal name vs. animal name", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:peren", "reason": "personal name vs. botanical/topographic term", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:pica", "reason": "distinct etymologies: personal name vs. tool", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:plaga", "reason": "distinct etymologies: personal name vs. Old English 'plega' (play)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:poll", "reason": "personal name vs. topographic feature (stream)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:popel", "reason": "distinct etymologies: personal name vs. pebble", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:pul", "reason": "distinct etymologies: personal name vs. pool/puddle", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:pīcel", "reason": "distinct etymologies: personal name vs. topographic descriptor", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:pūl", "reason": "distinct etymologies: personal name vs. topographic noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:sc", "reason": "distinct etymologies: personal name vs. ash tree", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:sceote", "reason": "distinct nouns with different etymologies", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:scraef", "reason": "scraef refers to a valley/hollow, while scræf refers to a cave/hole", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:seles", "reason": "'seles' refers to 'shielings' (from 'sciel' or 'sceal'), whereas 'sel' is a distinct root (often related to 'selig' or 'seld')", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:sole", "reason": "distinct etymologies: OE 'sol' (mud/sun) vs OE 'sola' (single/alone)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:spot", "reason": "the personal name 'Spot' is a modern/derivative formation, while the noun 'spot' derives from Middle English/Old French, making them etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:succa", "reason": "distinct etymologies: personal name vs. bird name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:sure", "reason": "sūr (sour) and sure (sorrel) are distinct etymological roots", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:tada", "reason": "distinct etymologies: personal name vs. animal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:thēod", "reason": "distinct etymologies: 'þēod' (people/nation) vs 'thēod' (likely related to 'theow' meaning slave/servant)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:tige", "reason": "distinct etymologies: 'tig' from 'tīe/tīeg' (assembly) vs 'tige' from 'tīge' (goat)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:tilan", "reason": "til is an adjective meaning 'good', while tilan is a proper name/diminutive", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:totian", "reason": "Toti is a proper name, whereas totian is a verb meaning to project", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:tīwe", "reason": "Tīw is a proper noun (deity), while tīwe is a common noun (court/assembly) derived from a different root", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:unthanc", "reason": "distinct etymologies: 'unþanc' (un- + þanc 'thanks') vs 'unthanc' (un- + þanc 'thought/land' error or distinct root)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:walc", "reason": "distinct etymologies: personal name vs. occupational term from 'wealcian'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:wale", "reason": "distinct etymologies: OE 'weall' (wall/cliff) vs OE 'wealh' (foreigner/Welsh)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:wales", "reason": "distinct etymologies: 'wal' (wall/cliff) vs 'Wales' (Welshman/foreign/stranger)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:wcel", "reason": "distinct etymologies: 'wæl' (slaughter/corpse) vs 'wcel' (pool/well)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:whit", "reason": "distinct etymologies: personal name vs. color adjective", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:willian", "reason": "personal name vs. verb 'to will'", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:wor", "reason": "distinct etymologies: personal name vs. topographic 'swamp/fen'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:worde", "reason": "distinct etymologies: 'word' (speech) vs 'worde' (likely a variant of 'worth' or a typo for 'wirt/worth' meaning enclosure/homestead)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:wōr", "reason": "personal name vs. ornithological term", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:Þyrne", "reason": "distinct etymologies: common noun 'thorn' vs. proper anthroponym", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:ærne", "reason": "distinct etymologies: 'ærn' (building) vs 'ærne' (riding/running)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:īg", "reason": "the suffix '-ig' (adjectival) is distinct from the noun 'īg' (yew tree)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-french:-aire", "reason": "the suffix '-aire' is a distinct morphological element from the noun 'aire'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-french:Gai", "reason": "adjective vs proper noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-french:Hames", "reason": "Hames is a proper name for the city of Homs, not a plural or variant of the Old French 'ham' (village).", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:-angr", "reason": "-angr is a noun suffix/ending, whereas ang is a root meaning fragrance", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:-ari", "reason": "the suffix '-ari' is an agentive marker, whereas 'Ari' is a proper noun", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Bekki", "reason": "bekk (stream/brook) and Bekki (personal name) are etymologically distinct", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Boli", "reason": "Boli is a proper name, whereas bol is a common noun for a farm/dwelling", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Elli", "reason": "distinct etymologies: noun meaning 'old age' vs proper name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Fugl", "reason": "the personal name is a proper noun derived from the common noun, not a morphological variant", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Hundi", "reason": "Hundi is a proper name (anthroponym) while hund is the common noun for dog", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Lauss", "reason": "the adjective 'lauss' (lacking) and the proper name 'Lauss' (derived from the adjective) are distinct lexical entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Mundi", "reason": "Mundi is a proper name (genitive of Mundi/Mundus) whereas mund is a common noun", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Salt", "reason": "the adjective 'salt' and the proper name 'Salt' are distinct etymological entities", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Salti", "reason": "Salti is a proper anthroponym, not a morphological variant of the adjective salt", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Stafn", "reason": "distinct etymologies: common noun vs personal name", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Stofn", "reason": "the personal name is a proper noun derived from the common noun, not a morphological variant", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:Vindr", "reason": "Vindr is a proper name derived from the adjective 'windy' or 'wind', whereas 'vind' is a distinct noun/root", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:angr", "reason": "distinct etymologies: 'ang' (fragrance) vs 'angr' (bay/distress)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:berr", "reason": "distinct etymologies: Old Norse 'ber' (berry) vs 'berr' (bare)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:boli", "reason": "distinct etymologies: 'bol' (farm/dwelling) vs 'boli' (bull/cattle)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:bolr", "reason": "distinct etymologies: 'bol' (farm/dwelling) vs 'bolr' (tree trunk/log)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:enni", "reason": "distinct etymologies: 'enn' (adverb) vs 'enni' (noun 'forehead')", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:eymundr", "reason": "Eymundr is a proper name, while eymundr (or similar forms) refers to a farm/estate; distinct etymologies.", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:forni", "reason": "forni is a proper name, whereas forn is an adjective", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:geiri", "reason": "geir (spear) and geiri (triangular plot) are distinct etymological roots", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:hafri", "reason": "distinct words: 'hafr' is goat, 'hafri' is oats", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:herr", "reason": "distinct nouns: 'her' (pronoun/adverb) vs 'herr' (army/host)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:hvit", "reason": "the personal name Hvit is derived from the adjective hvit (white), not the concept of holiness", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:klakk", "reason": "distinct semantic origins: personal name vs. topographic feature", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:kollr", "reason": "distinct etymologies: personal name vs. topographic noun", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:malar", "reason": "distinct etymologies: 'mala' (to grind) vs 'malarr' (pebble/stone)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:marr", "reason": "distinct etymologies: 'marr' (sea/lake) from Proto-Germanic *mari vs 'marr' (marsh) from *marisk or *marr", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:ullr", "reason": "distinct etymologies: 'ull' (wool) vs 'Ullr' (god)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:vellir", "reason": "distinct roots: 'vell' (gold) vs 'vellir' (fields/plains)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:vidhr", "reason": "distinct etymologies: preposition 'við' (against) vs adjective 'viðr' (wood/wide)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "old-norse:viðr", "reason": "distinct etymologies: preposition 'við' vs noun 'viðr'", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "welsh:-ach", "reason": "the noun 'ach' (kinship) and the feminine suffix '-ach' are distinct morphemes", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "welsh:-aeth", "reason": "the anchor is a noun meaning 'pain' while the member is a verbal suffix for the third-person singular past tense", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "welsh:-aid", "reason": "the anchor is an acronym/initialism, while the member is a suffix", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "welsh:-ith", "reason": "the suffix '-ith' is a diminutive/nominalizing suffix, whereas 'ith' is a noun meaning grain/atom", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "welsh:-myn", "reason": "the noun 'myn' (kid) is etymologically distinct from the suffix '-myn' (a variant of '-myn' or related to 'mwyn'/diminutive/other roots)", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "welsh:-sen", "reason": "'-sen' is a feminine suffix, whereas 'sen' is a distinct noun/verb meaning reproach", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "welsh:Clydach", "reason": "Clydach is a proper noun/toponym, likely derived from 'clyd' (sheltered) + a suffix, making it a distinct lexical entity from the adjective 'clyd'.", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "welsh:dis-", "reason": "the anchor is a noun meaning 'die' while the member is a prefix meaning 'apart/away'", "merged_into_ref": null}
+{"_type": "etymon_curation", "ref": "welsh:mynach", "reason": "distinct etymologies: 'myn' (kid) vs 'mynach' (monk, from Latin monachus)", "lemma_ref": null}
+{"_type": "etymon_curation", "ref": "old-english:ing", "merged_into_ref": null, "reason": "wyrd-pilc/-ing: topographic/proper-name homograph wrongly OCR-merged into patronymic -ing; un-merge so -ing/-ling stop showing hill/water-meadow/personal-name senses"}
+{"_type": "etymon_curation", "ref": "old-english:inge", "merged_into_ref": null, "reason": "wyrd-pilc/-ing: topographic/proper-name homograph wrongly OCR-merged into patronymic -ing; un-merge so -ing/-ling stop showing hill/water-meadow/personal-name senses"}
+{"_type": "etymon_curation", "ref": "old-english:Ing", "merged_into_ref": null, "reason": "wyrd-pilc/-ing: topographic/proper-name homograph wrongly OCR-merged into patronymic -ing; un-merge so -ing/-ling stop showing hill/water-meadow/personal-name senses"}
+{"_type": "etymon_gloss_suppression", "ref": "old-english:ingas", "suppressions": [{"gloss": "Dairy farm", "reason": "wyrd-pilc/-ing: topographic noise on the patronymic plural -ingas; not a farm/meadow morpheme"}, {"gloss": "Herd farm", "reason": "wyrd-pilc/-ing: topographic noise on the patronymic plural -ingas; not a farm/meadow morpheme"}, {"gloss": "meadow", "reason": "wyrd-pilc/-ing: topographic noise on the patronymic plural -ingas; not a farm/meadow morpheme"}]}
+{"_type": "etymon_gloss_suppression", "ref": "old-english:inga", "suppressions": [{"gloss": "inflection of ingān:", "reason": "wyrd-pilc/-ing: verb-inflection noise (ingān 'to go in') on the patronymic inga"}]}

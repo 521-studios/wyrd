@@ -671,6 +671,117 @@ def test_cli_derive_english_shaped_reshape_redoes_non_null_rows(fresh_db: Path) 
         assert _english_shaped(db, eid) == "jinn"
 
 
+def test_cli_derive_english_shaped_limit_caps_candidate_rows(fresh_db: Path) -> None:
+    """--limit caps the candidate SELECT. With two eligible non-Latin
+    rows and --limit 1, only one row is scanned + written, and the
+    per-language summary reflects the single write. Pins the
+    ``LIMIT`` clause and the per-language summary block the C901
+    extraction now owns (wyrd-8uvi)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon_with_translit(db, canonical_form="جن", language="ar", transliteration="ǧinn")
+        _seed_etymon_with_translit(
+            db, canonical_form="عفريت", language="ar", transliteration="ʿifrīt"
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "derive-english-shaped", "--db", str(fresh_db), "--apply", "--limit", "1"],
+    )
+    out = result.output + (result.stderr or "")
+    assert result.exit_code == 0, out
+    # Candidate count and write totals both reflect the cap.
+    assert "1 candidate row(s)" in out
+    assert "1 written" in out
+    # Per-language summary block surfaced for the single ar write.
+    assert "per-language:" in out
+    assert "ar: 1" in out
+    # Exactly one row got english_shaped in the DB.
+    with LexiconDB(fresh_db) as db:
+        n = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon WHERE english_shaped IS NOT NULL"
+        ).fetchone()[0]
+    assert n == 1
+
+
+def test_cli_derive_english_shaped_summary_output_shapes(fresh_db: Path) -> None:
+    """The summary block the C901 extraction owns: (1) the per-language
+    breakdown lists languages descending by write count, and (2) the
+    "(dry-run; ...)" hint appears only on dry-run, not on --apply.
+    Pins both branches of _echo_summary (wyrd-8uvi)."""
+    _hint = "(dry-run; pass --apply to write english_shaped)"
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon_with_translit(db, canonical_form="جن", language="ar", transliteration="ǧinn")
+        _seed_etymon_with_translit(
+            db, canonical_form="عفريت", language="ar", transliteration="ʿifrīt"
+        )
+        _seed_etymon_with_translit(
+            db, canonical_form="גולם", language="he", transliteration="gōlem"
+        )
+        db.commit()
+
+    runner = CliRunner()
+    # Dry-run: hint present, per-language ordering ar (2) before he (1).
+    dry = runner.invoke(kenning_cli, ["lexicon", "derive-english-shaped", "--db", str(fresh_db)])
+    dry_out = dry.output + (dry.stderr or "")
+    assert dry.exit_code == 0, dry_out
+    assert _hint in dry_out
+    assert "per-language:" in dry_out
+    assert dry_out.index("ar: 2") < dry_out.index("he: 1")
+
+    # --apply: hint absent.
+    applied = runner.invoke(
+        kenning_cli, ["lexicon", "derive-english-shaped", "--db", str(fresh_db), "--apply"]
+    )
+    applied_out = applied.output + (applied.stderr or "")
+    assert applied.exit_code == 0, applied_out
+    assert _hint not in applied_out
+
+
+def test_cli_derive_english_shaped_no_per_language_block_when_nothing_written(
+    fresh_db: Path,
+) -> None:
+    """When every candidate row yields no usable input (derive returns
+    None), nothing is written and the per-language block is omitted.
+    Pins the empty-by_language branch of _echo_summary (wyrd-8uvi)."""
+    with LexiconDB(fresh_db) as db:
+        # Non-Latin language but no transliteration/IPA → derive returns None.
+        _seed_etymon_with_translit(db, canonical_form="جن", language="ar")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(kenning_cli, ["lexicon", "derive-english-shaped", "--db", str(fresh_db)])
+    out = result.output + (result.stderr or "")
+    assert result.exit_code == 0, out
+    assert "0 written" in out
+    assert "skipped_no_input=1" in out
+    assert "per-language:" not in out
+
+
+def test_cli_derive_english_shaped_limit_zero_processes_no_rows(fresh_db: Path) -> None:
+    """--limit 0 means "process zero rows", not "no limit". Guards the
+    falsy-zero edge: the candidate SELECT must use `limit is not None`
+    so an explicit 0 caps to zero candidates rather than sweeping all
+    rows (wyrd-8uvi; Gemini PR #535)."""
+    with LexiconDB(fresh_db) as db:
+        eid = _seed_etymon_with_translit(
+            db, canonical_form="جن", language="ar", transliteration="ǧinn"
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "derive-english-shaped", "--db", str(fresh_db), "--apply", "--limit", "0"],
+    )
+    out = result.output + (result.stderr or "")
+    assert result.exit_code == 0, out
+    assert "0 candidate row(s)" in out
+    with LexiconDB(fresh_db) as db:
+        assert _english_shaped(db, eid) is None
+
+
 # ---------------------------------------------------------------------
 # derive_english_shaped_all (L3 wrapper)
 # ---------------------------------------------------------------------

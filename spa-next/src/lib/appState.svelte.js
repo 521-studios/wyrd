@@ -10,6 +10,15 @@
 //   - pipeline (transform stack) — PR #4
 //   - saved (localStorage-backed bookmark list) — PR #6
 
+import { initialFieldValue } from './featureFlags.js';
+import { HIDDEN_FIELDS } from './headlineFields.js';
+
+// Fields sent on every Roll even when still at their default — the SPA's value
+// must be authoritative rather than relying on the server's default matching the
+// form: ``culture`` is the primary generation selector, and ``count`` must equal
+// what the form displays (the user expects exactly that many results).
+const ALWAYS_SENT_FIELDS = new Set(['culture', 'count']);
+
 class AppState {
   // Loaded once at app boot from /api/manifest. null while in-flight.
   manifest = $state(null);
@@ -88,6 +97,13 @@ class AppState {
     return this.results[this.currentResultIndex] || null;
   }
 
+  /** wyrd-0gou: env-resolved SPA feature-flag config from the manifest
+   *  ({all, flags, defaults}), or null on a legacy manifest with no config
+   *  block. Consumers pass this to lib/featureFlags helpers. */
+  get config() {
+    return this.manifest?.config || null;
+  }
+
   /** Look up the currently-selected generator's manifest entry. */
   get selectedGenerator() {
     if (!this.manifest || !this.selectedGeneratorName) return null;
@@ -114,13 +130,87 @@ class AppState {
     return this.paramsByGenerator[this.selectedGeneratorName] || null;
   }
 
-  /** Explicit init: idempotent. Call from a parent $effect.pre()
-   *  before any child Field reads currentParams. */
+  /** Explicit init: idempotent (backfill-only — never clobbers). Call from a
+   *  parent $effect.pre() before any child Field reads/binds currentParams.
+   *
+   *  wyrd-b6hd: the store OWNS field initialization. It walks the selected
+   *  generator's schema and BACKFILLS every still-missing non-hidden field with
+   *  its default (config.defaults override → schema default → type-empty, via
+   *  ``initialFieldValue``) — present values (a restored share-link / saved
+   *  workspace) are left untouched. Seeding here — before Fields render — means
+   *  the form binds already-populated values, so there's no per-component lazy
+   *  seed racing the ``<select>`` bind (the wyrd-etvd class of bug, for EVERY
+   *  field, not just scoring_mode). Backfill (vs no-op-if-exists) also covers a
+   *  stale cross-version bookmark whose dict predates this seeding.
+   *
+   *  The schema + config come from the loaded manifest; if the manifest isn't
+   *  loaded yet (e.g. a share-link set selectedGeneratorName before the fetch
+   *  resolved) we return WITHOUT touching the bag — a later call (once the
+   *  manifest lands) backfills it. The caller's $effect.pre tracks ``manifest``
+   *  so it re-runs at that point. */
   ensureParams(generatorName) {
     if (!generatorName) return;
-    if (!this.paramsByGenerator[generatorName]) {
-      this.paramsByGenerator[generatorName] = {};
+    const generator = this.manifest?.generators?.find((g) => g.name === generatorName);
+    // Manifest not loaded yet → can't seed from the schema; do NOT lock in an
+    // empty bag. Retry when the manifest lands (the caller's $effect.pre tracks
+    // it). A pre-manifest share-link restore leaves its bag in place untouched.
+    if (!generator) return;
+    const properties = generator.input_schema?.properties || {};
+    // BACKFILL, don't replace: seed only fields that are still missing, so a
+    // restored bag (share-link / saved workspace) keeps its values AND any
+    // field it didn't carry (e.g. a stale cross-version bookmark from before
+    // this refactor seeded every field) gets a defined default — so no
+    // <select> ever binds an undefined value (wyrd-etvd write-back).
+    const params = this.paramsByGenerator[generatorName] || {};
+    for (const [key, prop] of Object.entries(properties)) {
+      if (HIDDEN_FIELDS.has(key)) continue;
+      if (params[key] === undefined) {
+        params[key] = initialFieldValue(this.config, key, prop);
+      }
     }
+    this.paramsByGenerator[generatorName] = params;
+  }
+
+  /** The subset of a generator's params the user actually CHANGED from its
+   *  seeded default (config.defaults override → schema default → type-empty).
+   *  The Roll request sends ONLY these, so an untouched field falls through to
+   *  the SERVER's default rather than the SPA pinning a value the server owns —
+   *  "default should mean don't include". Without this, the form seeds every
+   *  field (incl. config.defaults like scoring_mode=vector) and POSTs them all,
+   *  which both bloats the request and silently overrides server-side defaults.
+   *
+   *  Deep-compares via JSON so empty arrays/strings ([], "") equal their
+   *  defaults by VALUE, not reference. A field with no schema entry is kept
+   *  (we can't know its default); HIDDEN_FIELDS (seed) are dropped.
+   *
+   *  ALWAYS_SENT fields (``culture``, ``count``) are included even at their
+   *  default: culture is the primary generation selector and count must equal
+   *  what the form displays, so the SPA's value must be authoritative rather
+   *  than relying on the server's default matching the form. */
+  changedParams(generatorName) {
+    const params = this.paramsByGenerator[generatorName];
+    if (!params) return {};
+    const generator = this.manifest?.generators?.find((g) => g.name === generatorName);
+    const properties = generator?.input_schema?.properties || {};
+    const config = this.config; // hoist the getter out of the loop
+    const changed = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (HIDDEN_FIELDS.has(key)) continue;
+      const prop = properties[key];
+      if (
+        !ALWAYS_SENT_FIELDS.has(key) &&
+        prop &&
+        // JSON-stringify equality is safe only while every param is a scalar or
+        // array of scalars (order-stable). If an OBJECT-valued param is ever
+        // added, key-order differences would compare unequal and over-send —
+        // switch to a structural deep-equal then.
+        JSON.stringify(value) === JSON.stringify(initialFieldValue(config, key, prop))
+      ) {
+        continue; // unchanged from its seeded default → let the server own it
+      }
+      changed[key] = value;
+    }
+    return changed;
   }
 }
 

@@ -23,21 +23,21 @@ from wyrd.generators.kenning.generators.kenning import Kenning
 from wyrd.seed import MAX_SAFE_INTEGER, rng_for
 
 
-def test_kenning_scoring_mode_proportions_is_default():
-    """Default scoring_mode is 'proportions' — bit-stable with the
-    legacy path."""
+def test_kenning_generate_default_runs():
+    """wyrd-rt2m: a bare generate (no scoring_mode — the interface is removed)
+    runs the default vector path and returns a name without raising."""
     k = Kenning()
-    # Generate without specifying scoring_mode — should not raise
     result = k.generate({"culture": "english"}, seed=42)
     assert result.result  # non-empty surface string
 
 
-def test_kenning_scoring_mode_proportions_explicit():
-    """Explicit scoring_mode='proportions' produces the same output as
-    the implicit default (bit-stable)."""
+def test_kenning_default_scoring_mode_is_vector():
+    """wyrd-rt2m: with the scoring_mode interface removed, the implicit default
+    is now VECTOR — explicit scoring_mode='vector' produces the same output as
+    the bare default (bit-stable)."""
     k = Kenning()
     a = k.generate({"culture": "english"}, seed=42)
-    b = k.generate({"culture": "english", "scoring_mode": "proportions"}, seed=42)
+    b = k.generate({"culture": "english", "scoring_mode": "vector"}, seed=42)
     assert a.result == b.result
 
 
@@ -346,9 +346,14 @@ def _build_synthetic_vector_name_gen(structs: dict, meaning_db: dict):
         NameGenerator,
     )
 
+    # wyrd-eyjk/D40: the part pool keeps the dash-variant forms (pre/post
+    # buckets); the single pool records the BARE surface (lone words are
+    # structurally bare), so it lands at the ("bare", …, "single") buckets a
+    # single-word struct references.
     proportions = dict.fromkeys(meaning_db, 1)
+    single_proportions = {k.replace("-", ""): 1 for k in meaning_db}
     mg = MeaningGenerator(meaning_db, {}, proportions)
-    mg.load_parts(proportions, "single")
+    mg.load_parts(single_proportions, "single")
     return NameGenerator(meaning_db, mg, structs)
 
 
@@ -371,11 +376,15 @@ def _vector_request(culture: str = "english"):
 
 
 def test_select_via_vector_retry_exhausts_when_no_qualifier_pool():
-    """wyrd-izcr: when every struct in the pool requires a qualifier
-    slot but the meaning_db has zero qualifier-flagged morphemes,
-    NameGenerator.select_via_vector exhausts the retry budget and
-    returns None — caller (Kenning.generate) then raises the
-    operator-visible ValueError."""
+    """wyrd-izcr + wyrd-tbke: when every struct in the pool requires a
+    qualifier slot but the meaning_db has zero qualifier-flagged morphemes,
+    NameGenerator.select_via_vector exhausts the retry budget AND the
+    permissive fallback fills nothing (every slot is an unsatisfiable
+    qualifier slot → all-None). That degenerate all-empty result returns
+    None — caller (Kenning.generate) then raises the operator-visible
+    ValueError. (The PARTIAL case — some slots fillable — degrades to a
+    shorter name instead of None; see
+    test_select_via_vector_degrades_instead_of_raising_on_partial_empty.)"""
     import random
 
     from wyrd.generators.kenning.runtime.meaning import Meaning
@@ -401,6 +410,62 @@ def test_select_via_vector_retry_exhausts_when_no_qualifier_pool():
         priors=EmpiricalPriors(),
     )
     assert result is None
+
+
+def test_select_via_vector_degrades_instead_of_raising_on_partial_empty():
+    """wyrd-tbke empty-pick PARITY: when no struct is FULLY satisfiable under
+    the gates but SOME slots can fill, select_via_vector degrades to a shorter
+    name (dropping the unsatisfiable slot) instead of returning None — matching
+    the proportions ``_select_no_tag`` contract, so the dispatch never raises
+    'no eligible name'."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    # A fillable bare/single slot (urban-tagged morpheme, lands in the
+    # ("bare","single") bucket via the synthetic single pool) + an
+    # UNsatisfiable saint slot (no saint-usage morpheme in db). Both words are
+    # grammatical (bare word + saint qualifier word) so the struct survives the
+    # wyrd-zzli filter. Non-permissive can't complete the struct; the
+    # permissive fallback fills the bare slot and drops the saint slot → a
+    # non-empty degraded name rather than None.
+    db = {"Port-": [Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])]}
+    structs = {((("bare", "single"),), (("post", "saint", "single"),)): 1}
+    name_gen = _build_synthetic_vector_name_gen(structs, db)
+    result = name_gen.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert result is not None, "should degrade gracefully, not return None (→ raise)"
+    assert str(result), "degraded name must be non-empty (the pre slot filled)"
+    assert "port" in str(result).lower()
+    # The unsatisfiable saint slot was dropped → one rendered word, not two.
+    assert len(str(result).split()) == 1
+
+
+def test_select_via_vector_degrades_with_empty_slot_first():
+    """wyrd-tbke: a dropped (None) slot at a NON-final reconstruction index —
+    the unsatisfiable saint slot FIRST, the fillable bare slot second — still
+    degrades to the 1-word name. Pins the reconstruction idx-walk against a
+    mid-sequence None (an off-by-one would mis-map the trailing pick)."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    db = {"Port-": [Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])]}
+    structs = {((("post", "saint", "single"),), (("bare", "single"),)): 1}
+    name_gen = _build_synthetic_vector_name_gen(structs, db)
+    result = name_gen.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert result is not None
+    assert "port" in str(result).lower()
+    assert len(str(result).split()) == 1
 
 
 def test_select_via_vector_retry_excludes_tried_structs():
@@ -516,10 +581,13 @@ def test_select_via_vector_saint_filter_matches_legacy_literal_usage_only():
     # the Saint- prefix form), so the slot key is ("bare", "saint", "single").
     structs = {((("bare", "saint", "single"),),): 1}
     name_gen = _build_synthetic_vector_name_gen(structs, db)
-    # Over many seeds, only Saint- should ever fill the saint slot
-    # — never Andrew-. NewName.name is list-of-words; the slot
-    # struct is a 1-word 1-element compound so name[0][0] is the
-    # picked morpheme's usage.
+    # Over many seeds, only the saint morpheme should ever fill the saint slot
+    # — never Andrew-. NewName.name is list-of-words; the slot struct is a
+    # 1-word 1-element compound so name[0][0] is the picked morpheme rendered
+    # at its slot-derived position. wyrd-g1hj: the vector path now emits the
+    # POSITION-FORM (not the stored ``Saint-`` variant), and a ("bare", …) slot
+    # renders bare → ``Saint`` (Andrew would render ``Andrew``); we assert the
+    # saint morpheme is the only one admitted.
     picked: set[str] = set()
     for seed in range(20):
         result = name_gen.select_via_vector(
@@ -530,7 +598,7 @@ def test_select_via_vector_saint_filter_matches_legacy_literal_usage_only():
         if result is None:
             continue
         picked.add(result.name[0][0])
-    assert picked == {"Saint-"}, f"saint slot admitted non-literal usage: {picked}"
+    assert picked == {"Saint"}, f"saint slot admitted non-literal usage: {picked}"
 
 
 # ---- wyrd-bol9: NameGenerator usage_frequency_by_bucket build -------------
@@ -556,7 +624,10 @@ def test_name_generator_usage_frequency_by_bucket_snapshots_generators():
     meaning_db = {"Common-": [common], "Rare-": [rare]}
 
     multi_word_proportions = {"Common-": 6, "Rare-": 2}
-    single_word_proportions = {"Common-": 3, "Rare-": 1}
+    # wyrd-eyjk/D40: lone-word occurrences record the BARE surface form, so the
+    # single pool's usages are dash-less (and land at the ("bare", "single")
+    # bucket by their derived position, not via the retired add_bare hack).
+    single_word_proportions = {"common": 3, "rare": 1}
     mg = MeaningGenerator(meaning_db, {}, multi_word_proportions)
     mg.load_parts(single_word_proportions, "single")
     # 2-element compound word — passes is_structurally_grammatical
@@ -566,8 +637,8 @@ def test_name_generator_usage_frequency_by_bucket_snapshots_generators():
     name_gen = NameGenerator(meaning_db, mg, structs)
     assert name_gen.usage_frequency_by_bucket[("pre",)] == {"Common-": 6, "Rare-": 2}
     assert name_gen.usage_frequency_by_bucket[("bare", "single")] == {
-        "Common-": 3,
-        "Rare-": 1,
+        "common": 3,
+        "rare": 1,
     }
 
 
@@ -595,3 +666,151 @@ def test_name_generator_usage_frequency_by_bucket_separates_qualifier_buckets():
     name_gen = NameGenerator(meaning_db, mg, structs)
     assert name_gen.usage_frequency_by_bucket[("pre",)] == {"Port-": 5}
     assert name_gen.usage_frequency_by_bucket[("pre", "name")] == {"Smith-": 3}
+
+
+def test_select_via_vector_renders_picks_at_slot_positions():
+    """wyrd-g1hj: the vector reconstruction renders each pick at its SLOT-derived
+    position, not the stored dash-variant — the regression behind `Gōstōn` →
+    `gōs-`/`tōn-` (two pre) and `-tre-` inner-at-word-start. For a (pre, post)
+    struct, slot 0 emits a pre-form (`X-`) and slot 1 a post-form (`-x`), even
+    though both morphemes are STORED pre-shaped (`Ton-` at the post slot must
+    render `-ton`)."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    db = {
+        "Gos-": [Meaning("Gos-", ["urban"], ["g"], {})],
+        "Ton-": [Meaning("Ton-", ["urban"], ["t"], {})],
+    }
+    mg = MeaningGenerator(db, {}, {})
+    mg.load_parts({"Gos-": 1})  # surface 'gos' → pre bucket
+    mg.load_parts({"-ton": 1})  # surface 'ton' → post bucket (stored variant is still 'Ton-')
+    structs = {((("pre",), ("post",)),): 1}
+    ng = NameGenerator(db, mg, structs)
+
+    seen = False
+    for seed in range(30):
+        r = ng.select_via_vector(
+            random.Random(seed), request=_vector_request(), priors=EmpiricalPriors()
+        )
+        if r is None:
+            continue
+        seen = True
+        word = r.name[0]  # one word, two morphemes
+        assert len(word) == 2
+        assert word[0].endswith("-") and not word[0].startswith("-"), (
+            f"pre slot must render a pre-form: {word}"
+        )
+        assert word[1].startswith("-"), (
+            f"post slot must render a slot-derived post-form, not the stored variant: {word}"
+        )
+    assert seen, "expected at least one generated name across seeds"
+
+
+def test_select_via_vector_applies_d8_d18_rendering():
+    """wyrd-nbpw: vector mode threads inflection_density / spelling_variety
+    through the SAME _render_substitutions the legacy proportions path uses, so
+    D8 inflection (form + grammatical-case label) and D18 spelling variants
+    render identically across both scoring modes. Default (both knobs 0) skips
+    the substitution pass entirely → rendered/inflection_labels stay None
+    (bit-stable). Mirrors test_select_populates_inflection_labels_at_high_density
+    on the proportions side."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    # 'family name' flips is_name() True so the single bare-name slot fills;
+    # 'urban' gives the request a non-zero score. old_english carries a variant
+    # pool (cot/cotum) + an inflection (cotum/dative_or_pl).
+    m = Meaning(
+        "-cot",
+        ["family name", "urban"],
+        [],
+        {"old_english": ["cot", "cotum"]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    db = {"-cot": [m]}
+    structs = {((("bare", "name", "single"),),): 1}
+    ng = _build_synthetic_vector_name_gen(structs, db)
+
+    inflected = ng.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+        inflection_density=1.0,
+    )
+    assert inflected.rendered == [["cotum"]]
+    assert inflected.inflection_labels == [["dative_or_pl"]]
+
+    # Default knobs off → no substitution pass (bit-stable path).
+    plain = ng.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert plain.rendered is None
+    assert plain.inflection_labels is None
+
+
+def test_vector_mode_knobs_reach_render_path():
+    """wyrd-nbpw: scoring_mode='vector' threads inflection_density /
+    spelling_variety through generate → _generate_via_vector →
+    select_via_vector to the render pass. A dropped keyword anywhere in that
+    chain would leave the knobs inert; this pins the end-to-end wiring (mirror
+    of the proportions test_high_inflection_density_changes_output_when_pool_present)."""
+    k = Kenning()
+    canonical = set()
+    inflected = set()
+    varied = set()
+    for seed in range(20):
+        canonical.add(
+            k.generate({"culture": "english", "scoring_mode": "vector"}, seed=seed).result
+        )
+        inflected.add(
+            k.generate(
+                {"culture": "english", "scoring_mode": "vector", "inflection_density": 1.0},
+                seed=seed,
+            ).result
+        )
+        varied.add(
+            k.generate(
+                {"culture": "english", "scoring_mode": "vector", "spelling_variety": 1.0},
+                seed=seed,
+            ).result
+        )
+    assert inflected != canonical, "inflection_density must reach the vector render path"
+    assert varied != canonical, "spelling_variety must reach the vector render path"
+
+
+def test_select_via_vector_applies_d18_variant_without_label():
+    """wyrd-nbpw: the D18 spelling-variant branch (distinct from D8) — at
+    spelling_variety=1.0 the rendered surface is the attested variant and the
+    inflection label is None (variants carry no grammatical case). Mirrors the
+    proportions test_render_substitutions_substitutes_variant_with_case_mimic."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    m = Meaning(
+        "-cot",
+        ["family name", "urban"],
+        [],
+        {"old_english": ["cot"]},
+        variants={"old_english": [("cotte", 10)]},
+    )
+    structs = {((("bare", "name", "single"),),): 1}
+    ng = _build_synthetic_vector_name_gen(structs, {"-cot": [m]})
+    out = ng.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+        spelling_variety=1.0,
+    )
+    assert out.rendered is not None
+    assert out.rendered[0][0].lower() == "cotte", f"variant not applied: {out.rendered}"
+    assert out.inflection_labels == [[None]], "a D18 variant carries no inflection label"

@@ -25,6 +25,7 @@
 // last-finished-wins shape v0 had).
 
 import { appState } from './appState.svelte.js';
+import { flagOn } from './featureFlags.js';
 import { getTransform } from './transforms/index.js';
 
 class PipelineState {
@@ -79,7 +80,7 @@ class PipelineState {
    *
    *  wyrd-hpjg: optional `paramOverrides` lets callers pre-populate
    *  step params at create time. Used by the direct-manipulation
-   *  Swap UX (MorphemeCard click bakes in wordIndex / morphemeIndex
+   *  Swap UX (MorphemeGrid cell click bakes in wordIndex / morphemeIndex
    *  / to). The palette path doesn't pass overrides and gets the
    *  transform's defaultParams. */
   addStep(kind, paramOverrides = {}) {
@@ -99,15 +100,15 @@ class PipelineState {
 
   /** Direct-manipulation swap (wyrd-2b50 follow-up): maintain AT MOST
    *  ONE swap step per (wordIndex, morphemeIndex) cell. Clicking a
-   *  variant on a morpheme card updates that cell's swap in place
+   *  variant in the era grid updates that cell's swap in place
    *  instead of stacking a new step (10 clicks → 1 step, not 10).
    *  Clicking the cell's ORIGINAL generated form removes the swap —
    *  i.e. clicking the original is "revert". `original` is the col-2
    *  result's usage for that cell. Dashes + case are normalized away
    *  for the revert comparison ("-wald-" vs "Wald") — matching
-   *  MorphemeCard.swapTo's folding so the two never disagree — but
+   *  MorphemeGrid.swap's folding so the two never disagree — but
    *  accents are kept, so adding an accent to a plain original is a swap. */
-  setSwap({ wordIndex, morphemeIndex, to, original }) {
+  setSwap({ wordIndex, morphemeIndex, to, original, language, cellId }) {
     const norm = (s) => (s || '').replace(/^-+|-+$/g, '').toLowerCase();
     const idx = this.steps.findIndex(
       (s) =>
@@ -115,16 +116,24 @@ class PipelineState {
         s.params.wordIndex === wordIndex &&
         s.params.morphemeIndex === morphemeIndex,
     );
-    if (norm(to) === norm(original)) {
+    // Value-based revert: clicking a form whose surface equals the original
+    // is a no-op revert — UNLESS a language is pinned (wyrd-thhb). For a
+    // cross-language homograph the surface CAN equal the original ("don" in
+    // Old French vs the generated Old English "don") while still being a real
+    // selection, so a language pin suppresses the surface-only revert.
+    if (!language && norm(to) === norm(original)) {
       if (idx !== -1) this.removeStep(idx);
       return;
     }
     if (idx !== -1) {
       const next = [...this.steps];
-      next[idx] = { ...next[idx], params: { ...next[idx].params, to } };
+      next[idx] = {
+        ...next[idx],
+        params: { ...next[idx].params, to, language, cellId },
+      };
       this.steps = next;
     } else {
-      this.addStep('swap', { wordIndex, morphemeIndex, to });
+      this.addStep('swap', { wordIndex, morphemeIndex, to, language, cellId });
     }
   }
 
@@ -195,6 +204,14 @@ class PipelineState {
       const step = stepsSnapshot[i];
       try {
         const t = getTransform(step.kind);
+        // wyrd-nwpa: a flag-gated transform (e.g. Rewind) whose flag is off is
+        // skipped as a pass-through, so a restored/shared workspace can't run
+        // it in prod (where the palette also hides it).
+        if (t.flag && !flagOn(appState.config, t.flag)) {
+          nextStates.push(state);
+          nextErrors.push(null);
+          continue;
+        }
         state = await t.apply(state, step.params);
         nextStates.push(state);
         nextErrors.push(null);
