@@ -414,6 +414,48 @@ class Meaning:
             return False
         return all(tag in _PROPER_NOUN_TAGS for tag in self.tags)
 
+    def is_manorial_subject(self):
+        """wyrd-57d8: True for a synthesized Norman manorial-family subject
+        (``Malet``, ``Beauchamp``, ``Mandeville`` …), tagged ``manorial`` at
+        load by ``__init__._norman_manorial_subjects``. These exist only so
+        ``KenningExplain`` can decompose the manorial-affix names Kenning emits
+        with ``manorial_affix > 0``; they are NEVER a base-generation morpheme.
+        Their sole legitimate entry into output is the dedicated
+        ``manorial_affix`` knob, so — like synthesized saint subjects (D40) —
+        they're excluded from the base pool (see ``is_base_pool_excluded``)."""
+        return "manorial" in self.tags
+
+    def is_base_pool_excluded(self):
+        """wyrd-57d8: the request-INDEPENDENT class exclusions from base
+        generation, in one place so every base pool applies them identically —
+        the scored native pool (``vector_name_select._native_meaning_eligible``),
+        the proportions frequency-weight pool
+        (``proportions.MeaningGenerator.load_parts``), AND the
+        repeat-diversification re-pick
+        (``proportions.NewName._collect_repick_pools``). The re-pick previously
+        read ``meaning_db`` raw and so re-introduced an excluded morpheme to
+        break a ``corner corner`` repeat (the manorial ``Malet`` leak).
+
+        Excluded classes (each belongs only in its dedicated slot, never the
+        generic base pool):
+
+        - pure-proper-noun saints / personal given names — reach output only via
+          the param-gated St-dedication synthesis (wyrd-eyjk/D40 + wyrd-g1hj);
+        - synthesized Norman manorial subjects — reach output only via the
+          ``manorial_affix`` knob (wyrd-57d8);
+        - connector particles (``cum`` / ``le`` / ``juxta`` …) — require a
+          complement; their home is joiner insertion (wyrd-gwj3).
+
+        Family-name etymons that carry a real place sense are NOT excluded here
+        (they form legitimate manorial places); nor is a place element merely
+        co-tagged with a name (`stān`+`Stan` — not a pure proper noun). Only the
+        three classes enumerated above are excluded."""
+        if self.is_pure_proper_noun() and (self.is_saint() or self.is_given_name()):
+            return True
+        if self.is_manorial_subject():
+            return True
+        return self.is_connector_particle()
+
     def era_reflex_for(self, target_language: str) -> list[str]:
         """wyrd-obpw Phase 3.3: return the cluster-mate forms attested
         for ``target_language`` (e.g. 'middle-english') as a sorted
@@ -902,6 +944,58 @@ def load_joiners(data) -> dict[str, list[tuple[str, int]]]:
     }
 
 
+def _extract_phonological_vectors(
+    word: dict,
+) -> tuple[PhonologicalVector | None, dict[str, dict[str, PhonologicalVector]]]:
+    """Parse a word's phonological-vector data (wyrd-ecjp.5 / kq7w.1 / 10a).
+
+    Reads the per-language ``<lang>_phonological_vector`` siblings (D26)
+    into the plural ``phonological_vectors`` dict keyed by
+    ``(lang, canonical_form)``, skipping malformed entries (best-effort
+    parse, degrade silently). For the back-compat singular
+    ``phonological_vector`` it reads a legacy top-level
+    ``phonological_vector`` key first, falling back to the first
+    non-empty vector across the deterministic lang × form walk.
+
+    Returns ``(phonological_vector, phonological_vectors)``.
+    """
+    phonological_vectors: dict[str, dict[str, PhonologicalVector]] = {}
+    for k, v in word.items():
+        if not k.endswith(_PHONOLOGICAL_VECTOR_SUFFIX):
+            continue
+        lang_key = k[: -len(_PHONOLOGICAL_VECTOR_SUFFIX)]
+        per_form: dict[str, PhonologicalVector] = {}
+        for entry in v:
+            # Skip malformed entries: a non-dict entry or a dict missing
+            # the "form" key would crash the parse loop. Bundles can in
+            # principle ship arbitrary JSON, and the "best-effort parse;
+            # degrade silently" contract that _parse_phon_vector
+            # documents extends to the surrounding entry shape.
+            if not isinstance(entry, dict) or "form" not in entry:
+                continue
+            parsed = _parse_phon_vector(entry.get("phonological_vector"))
+            if parsed is not None:
+                per_form[entry["form"]] = parsed
+        if per_form:
+            phonological_vectors[lang_key] = per_form
+    legacy_top_level = word.get("phonological_vector")
+    if legacy_top_level is not None:
+        phonological_vector = _parse_phon_vector(legacy_top_level)
+    else:
+        # Deterministic lang × form walk: pick the first non-empty
+        # vector. next(gen, None) is the Pythonic "first match or None"
+        # — avoids the nested-break pattern.
+        phonological_vector = next(
+            (
+                phonological_vectors[lang_key][form]
+                for lang_key in sorted(phonological_vectors)
+                for form in sorted(phonological_vectors[lang_key])
+            ),
+            None,
+        )
+    return phonological_vector, phonological_vectors
+
+
 def load_meanings(data):
     meaning_db: dict[str, list[Meaning]] = {}
     tags_db: dict[str, list[str]] = {}
@@ -1025,42 +1119,7 @@ def load_meanings(data):
             # a top-level "phonological_vector" key (pre-10a) still
             # work — we read it first and only fall back to the
             # per-language walk when absent.
-            phonological_vectors: dict[str, dict[str, PhonologicalVector]] = {}
-            for k, v in word.items():
-                if not k.endswith(_PHONOLOGICAL_VECTOR_SUFFIX):
-                    continue
-                lang_key = k[: -len(_PHONOLOGICAL_VECTOR_SUFFIX)]
-                per_form: dict[str, PhonologicalVector] = {}
-                for entry in v:
-                    # Skip malformed entries: a non-dict entry or a
-                    # dict missing the "form" key would crash the
-                    # parse loop. Bundles can in principle ship
-                    # arbitrary JSON, and the "best-effort parse;
-                    # degrade silently" contract that _parse_phon_vector
-                    # documents extends to the surrounding entry shape.
-                    if not isinstance(entry, dict) or "form" not in entry:
-                        continue
-                    parsed = _parse_phon_vector(entry.get("phonological_vector"))
-                    if parsed is not None:
-                        per_form[entry["form"]] = parsed
-                if per_form:
-                    phonological_vectors[lang_key] = per_form
-            legacy_top_level = word.get("phonological_vector")
-            if legacy_top_level is not None:
-                phonological_vector = _parse_phon_vector(legacy_top_level)
-            else:
-                # Deterministic lang × form walk: pick the first
-                # non-empty vector. next(gen, None) is the Pythonic
-                # form of "first match or None" — avoids the
-                # nested-break pattern.
-                phonological_vector = next(
-                    (
-                        phonological_vectors[lang_key][form]
-                        for lang_key in sorted(phonological_vectors)
-                        for form in sorted(phonological_vectors[lang_key])
-                    ),
-                    None,
-                )
+            phonological_vector, phonological_vectors = _extract_phonological_vectors(word)
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.

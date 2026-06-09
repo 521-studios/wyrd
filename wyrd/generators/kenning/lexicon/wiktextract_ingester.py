@@ -1019,32 +1019,29 @@ def _extract_entry_tags(entry: dict[str, Any]) -> list[str]:
     return _map_categories_to_tags(all_categories)
 
 
-def _process_entry(
+def _upsert_head_and_record(
     db: LexiconDB,
     entry: dict[str, Any],
     *,
     apply: bool,
     counts: dict[str, int],
-) -> None:
-    """Walk one wiktextract entry: upsert the head etymon, then emit
-    upward edges from etymology_templates and downward edges from the
-    descendants tree. Counts are mutated in place."""
+) -> int:
+    """Upsert the entry's head etymon and record its per-entry metadata.
+
+    Pulls pronunciation + multi-script renderings (wyrd-ha9q Phase 2a)
+    and sense tags (wyrd-vsvi), upserts the head etymon with them (the
+    upsert COALESCEs against existing rows so a pre-column wave-1 etymon
+    gets backfilled), and — on ``apply`` — records the
+    pronunciation/original-script/transliteration capture counts and
+    attaches the sense tags. Returns the head etymon id (or the dry-run
+    placeholder). Mutates ``counts``.
+    """
     this_word = entry["word"]
     this_lang = _canonical_language(entry["lang_code"])
-    # wyrd-ha9q Phase 2a: pull pronunciation + multi-script kwargs from
-    # the entry's `sounds` and `head_templates` arrays. None when the
-    # entry has neither (e.g. Latin / OE entries usually lack `sounds`
-    # and don't need original_script). The upsert path COALESCEs these
-    # against existing rows, so a wave-1 etymon that pre-dates this
-    # column gets its pronunciation backfilled on the next ingest pass.
     pron_ipa, pron_dialect = _extract_pronunciation(entry.get("sounds") or [])
     orig_script, translit = _extract_head_template_renderings(
         entry.get("head_templates") or [], this_word
     )
-    # wyrd-vsvi: tags from sense categories — surface modern-english /
-    # middle-english / OF tag coverage that the corpus-miner path
-    # only fills for fragment-matched entries. The full ingester walks
-    # every entry so tag coverage tracks the slice's sense coverage.
     tag_list = _extract_entry_tags(entry)
     this_id = (
         db.upsert_etymon(
@@ -1070,11 +1067,25 @@ def _process_entry(
                 db.add_tag(this_id, tag)
             counts["tags_added"] = counts.get("tags_added", 0) + len(tag_list)
             counts["entries_with_tags"] = counts.get("entries_with_tags", 0) + 1
+    return this_id
 
-    # Etymology templates — each may produce one or more UPWARD edges
-    # from this entry to its named parent(s). Single-parent templates
-    # (inh/bor/der/cal) yield exactly one edge. Multi-parent templates
-    # (compound/affix, root with parallel roots) yield N edges.
+
+def _emit_upward_edges(
+    db: LexiconDB,
+    entry: dict[str, Any],
+    this_id: int,
+    counts: dict[str, int],
+    *,
+    apply: bool,
+) -> None:
+    """Emit UPWARD descent edges from the entry's etymology_templates.
+
+    Each template may yield one or more edges from this entry to its
+    named parent(s) — single-parent templates (inh/bor/der/cal) yield
+    one, multi-parent (compound/affix, parallel roots) yield N. Templates
+    that yield no edges bump ``skipped_templates`` (known-but-ignored) or
+    ``unsupported_templates`` (unknown). Mutates ``counts``.
+    """
     for tmpl in entry.get("etymology_templates") or []:
         name = tmpl.get("name", "")
         edges = _upward_edges_from_template(tmpl)
@@ -1092,13 +1103,27 @@ def _process_entry(
             _emit_descent_edge(db, parent_id, this_id, edge_type, apply=apply)
             counts["upward_edges"] += 1
 
+
+def _process_entry(
+    db: LexiconDB,
+    entry: dict[str, Any],
+    *,
+    apply: bool,
+    counts: dict[str, int],
+) -> None:
+    """Walk one wiktextract entry: upsert the head etymon, then emit
+    upward edges from etymology_templates and downward edges from the
+    descendants tree. Counts are mutated in place."""
+    this_id = _upsert_head_and_record(db, entry, apply=apply, counts=counts)
+    _emit_upward_edges(db, entry, this_id, counts, apply=apply)
+
     # wyrd-fqil: emit etymon_variant rows for each form Wiktionary
     # records — alternative spellings, inflections, romanizations.
     # Lets surface-form lookups (the wyrd-ami pre-filter, et al.)
     # match historical / inflected forms that aren't separate lemmas.
     forms = entry.get("forms") or []
     if forms:
-        _emit_form_variants(db, this_id, forms, this_word, apply=apply, counts=counts)
+        _emit_form_variants(db, this_id, forms, entry["word"], apply=apply, counts=counts)
 
     # Descendants section — a NESTED TREE. Each node has lang_code +
     # word directly, with optional `descendants` for sub-trees.

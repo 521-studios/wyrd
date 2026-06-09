@@ -84,62 +84,44 @@ def init_schema(db_path: Path | str) -> None:
 # helpers here.
 
 
-def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
-    """Add the etymon-table column migrations: lemma_id / inflection /
-    merged_into_id / lemma_method (D8 + D22), cognate_id / cognate_method
-    (D27), and the wyrd-ha9q Phase 2a pronunciation + multi-script set
-    (pronunciation_ipa, pronunciation_dialect, original_script,
-    transliteration, english_shaped). Each column is independent and
-    idempotent — re-running migrate_schema on an already-migrated DB is
-    a no-op for all of them.
-    """
-    cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
-    if "lemma_id" not in cols:
-        # ON DELETE SET NULL matches lexicon.sql's base schema and keeps
-        # the migration / fresh-install paths in sync. Without it, deleting
-        # a lemma row would FK-fail when foreign_keys=ON is enabled.
-        db.conn.execute(
-            "ALTER TABLE etymon ADD COLUMN lemma_id INTEGER "
-            "REFERENCES etymon(id) ON DELETE SET NULL"
-        )
-        applied["etymon.lemma_id"] = True
-    if "inflection" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN inflection TEXT")
-        applied["etymon.inflection"] = True
+# Ordered (column_name, ADD COLUMN DDL) migrations for the etymon table.
+# Order is load-bearing: it fixes the column order in PRAGMA table_info on
+# a fresh migrate. Each is independent + idempotent (guarded on presence).
+_ETYMON_COLUMN_MIGRATIONS: list[tuple[str, str]] = [
+    # ON DELETE SET NULL matches lexicon.sql's base schema and keeps the
+    # migration / fresh-install paths in sync. Without it, deleting a lemma
+    # row would FK-fail when foreign_keys=ON is enabled.
+    (
+        "lemma_id",
+        "ALTER TABLE etymon ADD COLUMN lemma_id INTEGER REFERENCES etymon(id) ON DELETE SET NULL",
+    ),
+    ("inflection", "ALTER TABLE etymon ADD COLUMN inflection TEXT"),
     # merged_into_id: non-destructive OCR clustering. When two etymons are
     # merged by cluster_ocr_variants, the loser gets merged_into_id pointing
     # at the canonical winner instead of being DELETE'd. Per D22, this lets
     # callers blow away clustering (UPDATE etymon SET merged_into_id = NULL)
     # and re-run with new heuristics without re-mining.
-    if "merged_into_id" not in cols:
-        db.conn.execute(
-            "ALTER TABLE etymon ADD COLUMN merged_into_id INTEGER "
-            "REFERENCES etymon(id) ON DELETE SET NULL"
-        )
-        applied["etymon.merged_into_id"] = True
+    (
+        "merged_into_id",
+        "ALTER TABLE etymon ADD COLUMN merged_into_id INTEGER REFERENCES etymon(id) ON DELETE SET NULL",
+    ),
     # lemma_method: which version of the lemma-linker produced the
     # lemma_id/inflection attribution on this row. Lets future link-lemmas
     # versions identify their predecessors' work for selective rebuild.
-    if "lemma_method" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN lemma_method TEXT")
-        applied["etymon.lemma_method"] = True
+    ("lemma_method", "ALTER TABLE etymon ADD COLUMN lemma_method TEXT"),
     # cognate_id (D27 / wyrd-0ug): cognate-cluster rollup. Points at the
     # most-ancestral known etymon in this cognate set; populated by the
     # cluster-cognates pass (wyrd-81n) walking etymon_descent inheritance
     # edges. Cross-language by design — distinct from merged_into_id
     # (within-language OCR cluster) and lemma_id (within-language
     # inflection family).
-    if "cognate_id" not in cols:
-        db.conn.execute(
-            "ALTER TABLE etymon ADD COLUMN cognate_id INTEGER "
-            "REFERENCES etymon(id) ON DELETE SET NULL"
-        )
-        applied["etymon.cognate_id"] = True
+    (
+        "cognate_id",
+        "ALTER TABLE etymon ADD COLUMN cognate_id INTEGER REFERENCES etymon(id) ON DELETE SET NULL",
+    ),
     # cognate_method: which version of cluster-cognates produced this
     # cognate_id assignment. Mirrors lemma_method.
-    if "cognate_method" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN cognate_method TEXT")
-        applied["etymon.cognate_method"] = True
+    ("cognate_method", "ALTER TABLE etymon ADD COLUMN cognate_method TEXT"),
     # wyrd-ha9q Phase 2a: pronunciation + multi-script renderings.
     # All TEXT NULL. Populated by the wiktextract ingester from
     # `entry.sounds[*]` (IPA + dialect) and `entry.head_templates[0].args`
@@ -147,28 +129,16 @@ def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
     # stays NULL until Phase 2b (rule-derived from IPA + transliteration).
     # Existing rows that pre-date this migration keep NULLs until the
     # next ingest pass picks them up via the ingester's upsert logic.
-    if "pronunciation_ipa" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN pronunciation_ipa TEXT")
-        applied["etymon.pronunciation_ipa"] = True
-    if "pronunciation_dialect" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN pronunciation_dialect TEXT")
-        applied["etymon.pronunciation_dialect"] = True
-    if "original_script" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN original_script TEXT")
-        applied["etymon.original_script"] = True
-    if "transliteration" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN transliteration TEXT")
-        applied["etymon.transliteration"] = True
-    if "english_shaped" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN english_shaped TEXT")
-        applied["etymon.english_shaped"] = True
+    ("pronunciation_ipa", "ALTER TABLE etymon ADD COLUMN pronunciation_ipa TEXT"),
+    ("pronunciation_dialect", "ALTER TABLE etymon ADD COLUMN pronunciation_dialect TEXT"),
+    ("original_script", "ALTER TABLE etymon ADD COLUMN original_script TEXT"),
+    ("transliteration", "ALTER TABLE etymon ADD COLUMN transliteration TEXT"),
+    ("english_shaped", "ALTER TABLE etymon ADD COLUMN english_shaped TEXT"),
     # wyrd-lr4: within-language stratum tag. NULL on rows that haven't
     # been classified yet (stays NULL until ``lexicon classify-stratum``
     # runs for that language family). Strata are language-specific — no
     # global CHECK constraint.
-    if "stratum" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN stratum TEXT")
-        applied["etymon.stratum"] = True
+    ("stratum", "ALTER TABLE etymon ADD COLUMN stratum TEXT"),
     # wyrd-kq7w.1: per-etymon phonological vector — JSON blob of the
     # 14 named PhonologicalVector dimensions + optional extras. NULL
     # on rows that haven't been processed by the
@@ -177,9 +147,25 @@ def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
     # :mod:`wyrd.generators.kenning.registers.phonological_vector_compute`.
     # Deterministic + idempotent — re-running the enrichment pass on
     # an unchanged DB produces the same JSON blob.
-    if "phonological_vector" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN phonological_vector TEXT")
-        applied["etymon.phonological_vector"] = True
+    ("phonological_vector", "ALTER TABLE etymon ADD COLUMN phonological_vector TEXT"),
+]
+
+
+def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Add the etymon-table column migrations: lemma_id / inflection /
+    merged_into_id / lemma_method (D8 + D22), cognate_id / cognate_method
+    (D27), and the wyrd-ha9q Phase 2a pronunciation + multi-script set
+    (pronunciation_ipa, pronunciation_dialect, original_script,
+    transliteration, english_shaped). Each column is independent and
+    idempotent — re-running migrate_schema on an already-migrated DB is
+    a no-op for all of them. The column set + DDL + order live in the
+    module-level ``_ETYMON_COLUMN_MIGRATIONS`` table.
+    """
+    cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
+    for col_name, ddl in _ETYMON_COLUMN_MIGRATIONS:
+        if col_name not in cols:
+            db.conn.execute(ddl)
+            applied[f"etymon.{col_name}"] = True
 
 
 def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:

@@ -1381,6 +1381,47 @@ def test_seed_from_minimal_meanings(fresh_db: Path) -> None:
         assert {row["tag"] for row in tag_rows} == {"plant", "food"}
 
 
+def test_seed_word_without_modern_usage_seeds_etymon_but_no_reflex(fresh_db: Path) -> None:
+    """A word with no ``modern_usage`` still contributes its etymon (first
+    pass) but produces no reflex (second pass skips it). Pins the
+    empty/missing-modern_usage guard in _link_subject_reflexes — the
+    C901 extraction owns it but no prior test exercised the skip
+    (wyrd-8uvi)."""
+    data = [
+        {
+            "meaning": ["Hill"],
+            "modifier_tags": [],
+            "modifier_type": "Topographical",
+            "words": [
+                {"modern_usage": "-don", "old_english": ["dun"]},
+                # No modern_usage key → etymon seeded, but no reflex.
+                {"old_english": ["beorg"]},
+            ],
+        },
+    ]
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="test-src", title="Test")
+        db.commit()
+        seed_from_meanings(db, data, "test-src")
+        stats = db.stats()
+        # Both etymons seeded (dun, beorg) ...
+        assert stats["etymon"] == 2
+        # ... but only the word with modern_usage made a reflex.
+        assert stats["reflex"] == 1
+        assert stats["reflex_etymon"] == 1
+        # The beorg etymon exists with no reflex pointing at it.
+        forms = {
+            row["canonical_form"]
+            for row in db.conn.execute("SELECT canonical_form FROM etymon").fetchall()
+        }
+        assert forms == {"dun", "beorg"}
+        surfaces = [
+            row["surface_form"]
+            for row in db.conn.execute("SELECT surface_form FROM reflex").fetchall()
+        ]
+        assert surfaces == ["-don"]
+
+
 def test_seed_from_meanings_accepts_dict_shape_bundle(fresh_db: Path) -> None:
     """wyrd-h8k1: ``seed_from_meanings`` must accept the dict-shape
     bundle ``{"subjects": [...], "canonical_decompositions": {...}}``
@@ -15002,6 +15043,29 @@ def test_bridge_celtic_forms_prefers_clustered_target(fresh_db: Path) -> None:
     # Despite irish/mac being higher-priority, the clustered old-irish/mac
     # is chosen because the prefer-clustered logic kicks in.
     assert merged == old_irish_clustered
+
+
+def test_bridge_celtic_forms_candidate_index_first_seen_wins(fresh_db: Path) -> None:
+    """_build_candidate_index keys on lower(canonical_form), so two
+    case-variant rows in the same candidate language collapse to one key;
+    ORDER BY id makes the LOWER-id (first-seen) row win. Pin it: a
+    lower-id UNCLUSTERED 'Mac' must beat a higher-id CLUSTERED 'mac' —
+    proving the later duplicate is dropped at index-build BEFORE the
+    prefer-clustered selection runs (wyrd-8uvi). A last-seen-wins or
+    dropped ORDER BY regression would instead surface the clustered
+    higher-id row and fail this."""
+    with LexiconDB(fresh_db) as db:
+        first_seen = db.upsert_etymon("Mac", "irish")  # lower id, unclustered
+        later_clustered = db.upsert_etymon("mac", "irish")  # higher id, clustered
+        db.conn.execute("UPDATE etymon SET cognate_id = id WHERE id = ?", (later_clustered,))
+        celtic_x = db.upsert_etymon("x", "celtic")
+        db.commit()
+        bridge_celtic_forms(db, apply=True, table={"x": "mac"})
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (celtic_x,)
+        ).fetchone()["merged_into_id"]
+    # First-seen (lower-id 'Mac') wins despite the higher-id 'mac' being clustered.
+    assert merged == first_seen
 
 
 def test_bridge_celtic_forms_falls_back_to_unclustered(

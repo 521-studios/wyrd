@@ -14,7 +14,7 @@ import re
 from collections.abc import Callable
 
 from ..era.cells import family_stage_order, language_family
-from .meaning import _mimic_case
+from .meaning import Meaning, _mimic_case
 from .word import _position_form
 
 # wyrd-lftl: family display order for the SPA col-3 reflex grid — English
@@ -364,26 +364,21 @@ class MeaningGenerator:
                 continue
             position = _location_from_form(usage)
             # Flags (name/saint) come from the morpheme; position from the form.
-            # wyrd-eyjk/D40 + wyrd-g1hj: a pure proper noun that is a SAINT
-            # subject (`Mary`/`John`/`Giles` from the St-dedication list) or a
-            # personal GIVEN name (`John`/`Edmund` male/female-name etymons)
-            # must NOT enter the empirical base pool — both dangle as bare
-            # personal names in plain generation (`Mary Margaret`, `By St Mary`,
-            # `Leigh Alton Chapel John`). Saint subjects reach names only via the
-            # param-gated St-dedication affix; given names need composition
-            # (`Edmund`+`-ton`) which the matcher still mines. NOT excluded: a
-            # place element merely co-tagged with a name (`stān`+`Stan` — not
-            # pure), or a FAMILY-name etymon (`Smith`/Norman manorial families —
-            # those form legitimate toponyms + are what the synthetic test
+            # wyrd-57d8: this per-bucket frequency-weight pool (snapshotted into
+            # `usage_frequency_by_bucket` and threaded into the live vector
+            # scorer) must apply the SAME base-pool class exclusions as the
+            # scored eligibility pool — so route through `is_base_pool_excluded`
+            # rather than re-spelling the predicate inline. It drops pure-proper-
+            # noun SAINT subjects (`Mary`/`Giles` from the St-dedication list)
+            # and personal GIVEN names (`John`/`Edmund`) — both dangle as bare
+            # personal names in plain generation — synthesized Norman manorial
+            # subjects (`Malet`; they reach output only via `manorial_affix`),
+            # and connector morphemes (`cum`/`le`/`juxta`, which need a
+            # complement). NOT excluded: a place element merely co-tagged with a
+            # name (`stān`+`Stan` — not pure) or a real FAMILY-name etymon
+            # (`Smith`; forms legitimate toponyms + is what the synthetic test
             # fixtures use), so neither realism nor the fixtures are disturbed.
-            # wyrd-gwj3: also drop connector morphemes (cum / le / juxta …) —
-            # they require a complement and must not dangle as a lone word.
-            keys = {
-                (position, *m.key()[1:])
-                for m in meanings
-                if not (m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()))
-                and not m.is_connector_particle()
-            }
+            keys = {(position, *m.key()[1:]) for m in meanings if not m.is_base_pool_excluded()}
             for key in keys:
                 if addkeys:
                     key = (*key, *addkeys)
@@ -1598,7 +1593,15 @@ class NewName:
         a SOURCE LANGUAGE with the original (the language filter is skipped only
         when the original carries no language data, e.g. synthetic test
         Meanings). Returns ``(same_lang, tag_sharing)`` — ``tag_sharing`` is the
-        subset additionally sharing a thematic tag with the original."""
+        subset additionally sharing a thematic tag with the original.
+
+        wyrd-57d8: a candidate key is admitted only if at least one of its
+        senses is base-pool-eligible (``not Meaning.is_base_pool_excluded()``) —
+        the SAME class exclusion the scored native pool applies. Without it this
+        re-pick read ``meaning_db`` raw and could break a ``corner corner``
+        repeat by grafting in a synthesized proper-noun subject the base pool
+        would never have picked (the manorial ``Malet`` leak: bare, old_french,
+        so it passed the position + source-language filters)."""
         same_lang: list[str] = []
         tag_sharing: list[str] = []
         # Localize the staticmethod lookups — this loop scans the whole
@@ -1611,6 +1614,15 @@ class NewName:
                 continue
             kf = k.strip("-").lower()
             if not kf or kf in seen_folds:
+                continue
+            # Drop keys whose every sense is a base-pool-excluded class
+            # (synthesized saint / manorial subjects, connector particles): they
+            # belong only in their dedicated slots, never a base re-pick. A key
+            # keeps eligibility as long as one co-tagged place sense survives.
+            # (Synthetic non-Meaning test entries carry no class, so an all-
+            # synthetic key is left admissible.)
+            senses = [m for m in ms if isinstance(m, Meaning)]
+            if senses and all(m.is_base_pool_excluded() for m in senses):
                 continue
             if canon_langs and not (meaning_langs(ms) & canon_langs):
                 continue

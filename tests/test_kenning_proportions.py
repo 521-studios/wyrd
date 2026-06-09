@@ -160,6 +160,50 @@ def test_diversify_native_collision_falls_back_to_modern():
     assert nn.modern_name() == "Biscop Bishop"  # modern was always distinct
 
 
+def test_diversify_repeats_skips_base_pool_excluded_repick():
+    """wyrd-57d8: a base-pool-excluded morpheme (here a synthesized manorial
+    subject, same bare position + same language as the dupe) is NOT a valid
+    re-pick target. With no other candidate, the dupe is left as-is rather than
+    grafting in the manorial 'Malet' — the original 'Corner Malet' leak, where
+    the re-pick read meaning_db raw and admitted it."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    park = Meaning("park", tags=[], meanings=["park"], sources={"old_english": ["park"]})
+    malet = Meaning(
+        "Malet",
+        tags=["manorial", "norman"],
+        meanings=["Norman manorial family: Malet"],
+        sources={"old_english": ["malet"]},
+    )
+    meaning_db = {"park": [park], "Malet": [malet]}
+    nn = NewName(struct=None, meaning_db=meaning_db, name=[["park"], ["park"]])
+    # 'Malet' is the only other bare same-language morpheme, but it's excluded —
+    # so the dupe stays rather than becoming "Park Malet".
+    assert str(nn) == "Park Park"
+
+
+def test_diversify_repeats_keeps_mixed_key_with_surviving_place_sense():
+    """wyrd-57d8 carve-out: a usage key whose senses include BOTH an excluded
+    manorial subject AND a legitimate place element stays eligible for re-pick —
+    only keys whose EVERY sense is base-pool-excluded are dropped."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    park = Meaning("park", tags=[], meanings=["park"], sources={"old_english": ["park"]})
+    dale_place = Meaning("dale", tags=[], meanings=["valley"], sources={"old_english": ["dale"]})
+    dale_manor = Meaning(
+        "dale",
+        tags=["manorial", "norman"],
+        meanings=["Norman manorial family: Dale"],
+        sources={"old_english": ["dale"]},
+    )
+    meaning_db = {"park": [park], "dale": [dale_place, dale_manor]}
+    nn = NewName(struct=None, meaning_db=meaning_db, name=[["park"], ["park"]])
+    # 'dale' survives because its plain place sense is not excluded.
+    assert str(nn) == "Park Dale"
+
+
 # wyrd-5z5j force-structure: structure label <-> key round-trip + listing.
 def test_weighted_choice_all_zero_weights_returns_none():
     assert weighted_choice(random.Random(0), [("a", 0), ("b", 0)]) is None

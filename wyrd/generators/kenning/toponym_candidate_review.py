@@ -307,6 +307,35 @@ class CommitReport:
     # stays accurate beyond the cap.
     demoted_records: list[tuple[int, int, str]] = field(default_factory=list)
 
+    def record_error(self, row_idx: int, reason: str) -> None:
+        """Count an errored row; keep the first ``_ERROR_RECORDS_CAP``
+        ``(row_idx, reason)`` details (the counter stays accurate past
+        the cap, only the detail list stops growing)."""
+        self.errors += 1
+        if len(self.error_records) < _ERROR_RECORDS_CAP:
+            self.error_records.append((row_idx, reason))
+
+    def record_demotion(self, row_idx: int, existing_tid: int, modern_name: str) -> None:
+        """Count a CREATE→MAP collision-demotion; keep the first
+        ``_DEMOTED_RECORDS_CAP`` ``(row_idx, existing_tid, modern_name)``
+        details for operator visibility (counter stays accurate past the
+        cap)."""
+        self.demoted_count += 1
+        if len(self.demoted_records) < _DEMOTED_RECORDS_CAP:
+            self.demoted_records.append((row_idx, existing_tid, modern_name))
+
+
+@dataclass(frozen=True)
+class _TriageRow:
+    """Per-row context derived once in the commit loop and threaded into
+    the action handlers (keeps their arg lists small)."""
+
+    idx: int
+    form: str
+    source_id: str
+    date_year: int | None
+    apply: bool
+
 
 def _coerce_text(raw: object) -> str:
     """Defensive ``str.strip()`` for operator-edited JSONL fields.
@@ -366,6 +395,82 @@ def _existing_toponym_id_for_create(
     return row["id"] if row else None
 
 
+def _commit_map_row(
+    conn: sqlite3.Connection, row: dict, ctx: _TriageRow, report: CommitReport
+) -> None:
+    """Apply an ``action: map`` row: validate ``toponym_id`` (must be an
+    existing int, not a bool) and write one idempotent
+    ``toponym_attestation`` (under ``ctx.apply``). Records an error on a
+    missing/invalid or non-existent ``toponym_id``."""
+    tid = row.get("toponym_id")
+    if not isinstance(tid, int) or isinstance(tid, bool):
+        report.record_error(ctx.idx, f"action=map but toponym_id missing/invalid: {tid!r}")
+        return
+    existing = conn.execute("SELECT 1 FROM toponym WHERE id = ? LIMIT 1", (tid,)).fetchone()
+    if existing is None:
+        report.record_error(ctx.idx, f"action=map but toponym_id {tid} doesn't exist")
+        return
+    if ctx.apply:
+        conn.execute(
+            "INSERT OR IGNORE INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (tid, ctx.form, ctx.date_year, ctx.source_id),
+        )
+    report.mapped += 1
+
+
+def _commit_create_row(
+    conn: sqlite3.Connection, row: dict, ctx: _TriageRow, report: CommitReport
+) -> None:
+    """Apply an ``action: create`` row: insert a new ``toponym`` (+ its
+    attestation), OR — when ``(modern_name, country, region)`` collides
+    with an existing toponym — demote to MAP against the colliding id
+    (counting the demotion so ``--verbose`` can surface which CREATEs
+    collided). Records an error on a missing ``create_modern_name``."""
+    modern_name = _coerce_text(row.get("create_modern_name"))
+    if not modern_name:
+        report.record_error(ctx.idx, "action=create but create_modern_name missing")
+        return
+    country = row.get("create_country")
+    if isinstance(country, str):
+        country = country.strip() or None
+    else:
+        country = None
+    region = row.get("create_region")
+    if isinstance(region, str):
+        region = region.strip() or None
+    else:
+        region = None
+    # Collision detect — if a toponym with this (name, country, region)
+    # already exists, treat as map-to-existing. The UNIQUE index would
+    # silently no-op under INSERT OR IGNORE, but we count the demotion
+    # AND record (row_idx, existing toponym_id, modern_name) so --verbose
+    # surfaces which of the operator's CREATEs hit a collision.
+    existing_tid = _existing_toponym_id_for_create(conn, modern_name, country, region)
+    if existing_tid is not None:
+        if ctx.apply:
+            conn.execute(
+                "INSERT OR IGNORE INTO toponym_attestation "
+                "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+                (existing_tid, ctx.form, ctx.date_year, ctx.source_id),
+            )
+        report.mapped += 1
+        report.record_demotion(ctx.idx, existing_tid, modern_name)
+        return
+    if ctx.apply:
+        cursor = conn.execute(
+            "INSERT INTO toponym(modern_name, country, region) VALUES (?, ?, ?)",
+            (modern_name, country, region),
+        )
+        new_tid = cursor.lastrowid
+        conn.execute(
+            "INSERT OR IGNORE INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (new_tid, ctx.form, ctx.date_year, ctx.source_id),
+        )
+    report.created += 1
+
+
 def commit_triage_decisions(
     conn: sqlite3.Connection,
     rows: list[dict],
@@ -395,18 +500,10 @@ def commit_triage_decisions(
     counted as an error with the row's index + reason recorded.
     """
     report = CommitReport()
-
-    def _record_error(row_idx: int, reason: str) -> None:
-        # Cap-bounded append. Counter remains accurate past the cap;
-        # only the per-row detail list stops growing.
-        report.errors += 1
-        if len(report.error_records) < _ERROR_RECORDS_CAP:
-            report.error_records.append((row_idx, reason))
-
     for idx, row in enumerate(rows):
         report.processed += 1
         if not isinstance(row, dict):
-            _record_error(idx, f"row is not a dict: {type(row).__name__}")
+            report.record_error(idx, f"row is not a dict: {type(row).__name__}")
             continue
         action = _coerce_text(row.get("action")).lower()
         form = _coerce_text(row.get("form"))
@@ -419,78 +516,16 @@ def commit_triage_decisions(
             report.deferred += 1
             continue
         if not form or not source_id:
-            _record_error(
+            report.record_error(
                 idx,
                 f"missing form or source_id (form={form!r}, source_id={source_id!r})",
             )
             continue
+        ctx = _TriageRow(idx=idx, form=form, source_id=source_id, date_year=date_year, apply=apply)
         if action == "map":
-            tid = row.get("toponym_id")
-            if not isinstance(tid, int) or isinstance(tid, bool):
-                _record_error(idx, f"action=map but toponym_id missing/invalid: {tid!r}")
-                continue
-            existing = conn.execute("SELECT 1 FROM toponym WHERE id = ? LIMIT 1", (tid,)).fetchone()
-            if existing is None:
-                _record_error(idx, f"action=map but toponym_id {tid} doesn't exist")
-                continue
-            if apply:
-                conn.execute(
-                    "INSERT OR IGNORE INTO toponym_attestation "
-                    "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
-                    (tid, form, date_year, source_id),
-                )
-            report.mapped += 1
-            continue
-        if action == "create":
-            modern_name = _coerce_text(row.get("create_modern_name"))
-            if not modern_name:
-                _record_error(idx, "action=create but create_modern_name missing")
-                continue
-            country = row.get("create_country")
-            if isinstance(country, str):
-                country = country.strip() or None
-            else:
-                country = None
-            region = row.get("create_region")
-            if isinstance(region, str):
-                region = region.strip() or None
-            else:
-                region = None
-            # Collision detect — if a toponym with this (name, country,
-            # region) already exists, treat as map-to-existing. The
-            # UNIQUE index would silently no-op under INSERT OR IGNORE,
-            # but we count the demotion AND record (row_idx, existing
-            # toponym_id, modern_name) so --verbose surfaces which of
-            # the operator's CREATEs hit a collision. Without that
-            # record the operator can't tell which 7 of their 30
-            # CREATEs landed as MAPs.
-            existing_tid = _existing_toponym_id_for_create(conn, modern_name, country, region)
-            if existing_tid is not None:
-                if apply:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO toponym_attestation "
-                        "(toponym_id, form, date_year, source_doc) "
-                        "VALUES (?, ?, ?, ?)",
-                        (existing_tid, form, date_year, source_id),
-                    )
-                report.mapped += 1
-                report.demoted_count += 1
-                if len(report.demoted_records) < _DEMOTED_RECORDS_CAP:
-                    report.demoted_records.append((idx, existing_tid, modern_name))
-                continue
-            if apply:
-                cursor = conn.execute(
-                    "INSERT INTO toponym(modern_name, country, region) VALUES (?, ?, ?)",
-                    (modern_name, country, region),
-                )
-                new_tid = cursor.lastrowid
-                conn.execute(
-                    "INSERT OR IGNORE INTO toponym_attestation "
-                    "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
-                    (new_tid, form, date_year, source_id),
-                )
-            report.created += 1
-            continue
-        # Unknown action.
-        _record_error(idx, f"unknown action: {action!r}")
+            _commit_map_row(conn, row, ctx, report)
+        elif action == "create":
+            _commit_create_row(conn, row, ctx, report)
+        else:
+            report.record_error(idx, f"unknown action: {action!r}")
     return report

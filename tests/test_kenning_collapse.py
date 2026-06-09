@@ -12,7 +12,10 @@ import sqlite3
 from pathlib import Path
 
 from wyrd.generators.kenning.enrichment import apply_collapses
-from wyrd.generators.kenning.jsonl.build import collect_collapses
+from wyrd.generators.kenning.jsonl.build import (
+    _resolve_collapse_cycles,
+    collect_collapses,
+)
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 
 
@@ -507,6 +510,51 @@ def test_collect_collapses_resolves_cycles(tmp_path: Path) -> None:
     # chain flattened to the terminal survivor c
     assert intos["x:a"] == "x:c"
     assert intos["x:b"] == "x:c"
+
+
+def test_resolve_collapse_cycles_passthrough_and_multicluster() -> None:
+    """Direct unit pin of _resolve_collapse_cycles (wyrd-8uvi C901
+    extraction): no-op rows (empty/absent ``into``) pass through with
+    their payload untouched, and independent clusters resolve without
+    cross-contamination. The cycle+chain branches are covered by
+    test_collect_collapses_resolves_cycles via the public collector."""
+    state = {
+        # No-op rows: the payload object must pass through unchanged.
+        "x:noop_empty": {"into": "", "method": "revert"},
+        "x:noop_absent": {"method": "rejected"},
+        # Cluster 1: a -> b (kept, b is its own survivor).
+        "x:a": {"into": "x:b"},
+        "x:b": {"into": "x:c"},
+        # Cluster 2: independent chain p -> q (must NOT fold into cluster 1).
+        "x:p": {"into": "x:q"},
+    }
+    out = _resolve_collapse_cycles(state)
+    # No-op passthrough: same payload, untouched (identity preserved).
+    assert out["x:noop_empty"] is state["x:noop_empty"]
+    assert out["x:noop_absent"] is state["x:noop_absent"]
+    # Cluster 1 flattens to terminal survivor c; cluster 2 stays separate.
+    assert out["x:a"]["into"] == "x:c"
+    assert out["x:b"]["into"] == "x:c"
+    assert out["x:p"]["into"] == "x:q"
+
+
+def test_resolve_collapse_cycles_path_compression_multi_hop() -> None:
+    """A late edge attaching above an already-built chain forces the
+    union-find path-compression inner loop in _uf_find to fire (the one
+    non-trivial branch the helper owns). With a -> b -> c already unioned,
+    `d -> a` makes find(a) walk a->b->c and rewire the intermediates to
+    the root; all four refs must resolve to the terminal survivor c.
+    Sorted-ref processing order (a, b, d) builds the chain before d
+    arrives, so find(d->a) traverses multiple hops (wyrd-8uvi)."""
+    state = {
+        "x:a": {"into": "x:b"},
+        "x:b": {"into": "x:c"},
+        "x:d": {"into": "x:a"},
+    }
+    out = _resolve_collapse_cycles(state)
+    assert out["x:a"]["into"] == "x:c"
+    assert out["x:b"]["into"] == "x:c"
+    assert out["x:d"]["into"] == "x:c"
 
 
 def test_folded_form_exports_with_lemma_gloss_not_pointer(tmp_path: Path) -> None:

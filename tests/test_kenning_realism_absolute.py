@@ -87,6 +87,62 @@ def test_compute_corpus_reference_structure():
     assert set(ref.morpheme_counts) == {"Bre", "ton"}
 
 
+def test_normalize_weights():
+    """_normalize_weights (wyrd-8uvi extraction): positive totals → shares
+    summing to 1.0; non-positive total → empty dict."""
+    from wyrd.generators.kenning.runtime.realism_reference import _normalize_weights
+
+    out = _normalize_weights({"a": 1.0, "b": 3.0})
+    assert out == {"a": 0.25, "b": 0.75}
+    assert abs(sum(out.values()) - 1.0) < 1e-9
+    # Non-positive totals → empty (both empty-input and all-zero).
+    assert _normalize_weights({}) == {}
+    assert _normalize_weights({"a": 0.0}) == {}
+
+
+def test_accumulate_slot_weights_branches():
+    """_accumulate_slot_weights (wyrd-8uvi extraction): pins the gloss
+    keep-set filter, the total_f<=0 / morpheme-None skips, and the
+    location-absent guard — branches previously only reachable via the
+    DB-dependent integration gate."""
+    from wyrd.generators.kenning.runtime.realism_reference import (
+        _accumulate_slot_weights,
+        _WeightAccumulator,
+    )
+
+    # features_fn: 'a'->morpheme a, post + tag t1; 'b'->morpheme b, no
+    # location, tag t2; 'gone'->resolves to None (must be skipped).
+    feats = {
+        "a": ("a", ["t1"], "post"),
+        "b": ("b", ["t2"], None),
+        "gone": (None, [], None),
+    }
+
+    # Gloss keep-set drops 'b' (only 'a' kept); 'a' weight = 1.0 * (2/2).
+    acc = _WeightAccumulator()
+    _accumulate_slot_weights({"a": 2, "b": 8}, 1.0, frozenset({"a"}), feats.__getitem__, acc)
+    assert acc.morpheme == {"a": 1.0}
+    assert acc.position == {"post": 1.0}
+    assert acc.tag == {"t1": 1.0}
+
+    # No keep-set: 'b' contributes morpheme + tag but NO position (location None).
+    acc2 = _WeightAccumulator()
+    _accumulate_slot_weights({"b": 5}, 1.0, None, feats.__getitem__, acc2)
+    assert acc2.morpheme == {"b": 1.0}
+    assert acc2.position == {}  # location-absent guard
+    assert acc2.tag == {"t2": 1.0}
+
+    # morpheme-None usage is skipped entirely.
+    acc3 = _WeightAccumulator()
+    _accumulate_slot_weights({"gone": 3}, 1.0, None, feats.__getitem__, acc3)
+    assert acc3.morpheme == {} and acc3.position == {} and acc3.tag == {}
+
+    # total_f <= 0 (empty bucket after no matches) → no-op.
+    acc4 = _WeightAccumulator()
+    _accumulate_slot_weights({"a": 5}, 1.0, frozenset({"nomatch"}), feats.__getitem__, acc4)
+    assert acc4.morpheme == {} and acc4.position == {} and acc4.tag == {}
+
+
 # ---- check_realism_against_tolerance: violation logic (wyrd-jfaz) ---------
 # The gate test above only ever exercises the PASS path (assert no violations).
 # These pin the violation branches directly so an inverted comparison or a

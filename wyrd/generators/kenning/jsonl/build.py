@@ -1230,6 +1230,31 @@ def collect_collapses(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
     return _resolve_collapse_cycles(merged)
 
 
+def _uf_find(parent: dict[str, str], x: str) -> str:
+    """Union-find root of ``x`` with path compression, mutating ``parent``.
+
+    Unseen nodes are initialized as their own root (``setdefault``)."""
+    parent.setdefault(x, x)
+    root = x
+    while parent[root] != root:
+        root = parent[root]
+    while parent[x] != root:
+        parent[x], x = root, parent[x]
+    return root
+
+
+def _collapse_survivor(kept_into: dict[str, str], ref: str) -> str:
+    """Walk ``ref`` along the kept ``into`` edges to its terminal survivor.
+
+    ``kept_into`` is acyclic by construction (cycle-closers are dropped
+    before this runs); the ``seen`` guard is a belt-and-suspenders stop."""
+    cur, seen = ref, set()
+    while cur in kept_into and cur not in seen:
+        seen.add(cur)
+        cur = kept_into[cur]
+    return cur
+
+
 def _resolve_collapse_cycles(
     state: dict[str, dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
@@ -1240,40 +1265,23 @@ def _resolve_collapse_cycles(
     ``a -> b -> c`` becomes ``a -> c`` / ``b -> c`` (apply-order independent).
     No-op rows (rejections, reverts) pass through untouched."""
     parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        parent.setdefault(x, x)
-        root = x
-        while parent[root] != root:
-            root = parent[root]
-        while parent[x] != root:
-            parent[x], x = root, parent[x]
-        return root
-
     kept_into: dict[str, str] = {}
     for ref in sorted(state):
         into = state[ref].get("into")
         if not into:
             continue
-        ra, rb = find(ref), find(into)
+        ra, rb = _uf_find(parent, ref), _uf_find(parent, into)
         if ra == rb:
             continue  # cycle-closer — demoted to a no-op below
         parent[ra] = rb
         kept_into[ref] = into
-
-    def survivor(ref: str) -> str:
-        cur, seen = ref, set()
-        while cur in kept_into and cur not in seen:
-            seen.add(cur)
-            cur = kept_into[cur]
-        return cur
 
     out: dict[str, dict[str, Any]] = {}
     for ref, payload in state.items():
         if not payload.get("into"):
             out[ref] = payload  # already a no-op
         elif ref in kept_into:
-            out[ref] = {**payload, "into": survivor(ref)}  # flatten
+            out[ref] = {**payload, "into": _collapse_survivor(kept_into, ref)}  # flatten
         else:
             out[ref] = {**payload, "into": ""}  # cycle-closer → no-op
     return out

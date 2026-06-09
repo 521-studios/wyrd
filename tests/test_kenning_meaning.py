@@ -61,6 +61,42 @@ def test_key_with_saint_usage():
     assert make_meaning("saint", tags=[]).key() == ("bare", "saint")
 
 
+# wyrd-57d8: base-pool class exclusions. is_manorial_subject identifies the
+# synthesized Norman manorial subjects (tagged 'manorial'); is_base_pool_excluded
+# is the single predicate every base pool consults so manorial / saint / given-
+# name / connector morphemes never enter plain generation.
+
+
+def test_is_manorial_subject_true_only_for_manorial_tag():
+    assert make_meaning("Malet", tags=["manorial", "norman"]).is_manorial_subject()
+    assert not make_meaning("ham", tags=["water"]).is_manorial_subject()
+    assert not make_meaning("Smith-", tags=["family name"]).is_manorial_subject()
+
+
+def test_is_base_pool_excluded_true_for_each_excluded_class():
+    # Synthesized manorial subject (the wyrd-57d8 leak class).
+    assert make_meaning("Malet", tags=["manorial", "norman"]).is_base_pool_excluded()
+    # Pure-proper-noun saint subject (reaches output only via St-dedication).
+    assert make_meaning(
+        "Mary", tags=["saint", "personal-name", "religious"]
+    ).is_base_pool_excluded()
+    # Pure-proper-noun personal given name.
+    assert make_meaning("Edmund", tags=["male name"]).is_base_pool_excluded()
+    # Connector particle (needs a complement; would dangle as a lone word).
+    assert make_meaning("cum", tags=[]).is_base_pool_excluded()
+
+
+def test_is_base_pool_excluded_false_for_legitimate_base_morphemes():
+    # Plain place element.
+    assert not make_meaning("ham", tags=["water"]).is_base_pool_excluded()
+    # Place element merely CO-TAGGED with a name (not a pure proper noun).
+    assert not make_meaning("Stan-", tags=["male name", "stone"]).is_base_pool_excluded()
+    # A real FAMILY-name etymon forms legitimate manorial toponyms — stays in
+    # (it is a pure proper noun but neither saint nor given name nor a
+    # synthesized 'manorial'-tagged subject).
+    assert not make_meaning("Smith-", tags=["family name"]).is_base_pool_excluded()
+
+
 def test_load_meanings_indexes_by_usage_and_tag():
     data = [
         {
