@@ -184,6 +184,55 @@ _MORPHEME_INDEX_CACHE: dict[int, tuple[dict, dict[str, object]]] = {}
 _MORPHEME_INDEX_CACHE_MAX = 32
 
 
+def _union_lang(genuine: dict, selfs: dict) -> list:
+    """wyrd-phww: union one language's self-seeds onto its genuine reflexes —
+    genuine listed first (source preserved); a self-seed is added only for a
+    form no genuine reflex already covers."""
+    out = dict(genuine)  # genuine first, source preserved
+    for form, entry in selfs.items():
+        out.setdefault(form, entry)  # self-seed only if no genuine form collides
+    return list(out.values())
+
+
+def _collect_reflex_buckets(ordered: list) -> tuple[dict, dict, dict]:
+    """Walk the morpheme group, partitioning each language's era_reflexes into
+    genuine (non-``self``, attestation-backed) vs self-seed buckets (so genuine
+    can win below), and unioning era_reflex_glosses. First-seen-wins per form.
+    Returns ``(nonself, selfseed, glosses)``."""
+    nonself: dict[str, dict[str, tuple]] = {}
+    selfseed: dict[str, dict[str, tuple]] = {}
+    glosses: dict[str, dict[str, str]] = {}
+    for m in ordered:
+        for lang, entries in (m.era_reflexes or {}).items():
+            for form, source in entries:
+                bucket = (selfseed if source == "self" else nonself).setdefault(lang, {})
+                bucket.setdefault(form, (form, source))
+        for lang, form_gloss in (m.era_reflex_glosses or {}).items():
+            gbucket = glosses.setdefault(lang, {})
+            for form, gloss in form_gloss.items():
+                gbucket.setdefault(form, gloss)
+    return nonself, selfseed, glosses
+
+
+def _merge_reflex_buckets(nonself: dict, selfseed: dict, glosses: dict) -> tuple[dict, dict]:
+    """Build the merged ``(era_reflexes, era_reflex_glosses)`` from the collected
+    buckets: per language (sorted, for determinism) union self-seeds onto
+    genuine via :func:`_union_lang`, then keep only glosses whose form survived
+    (dropping a language whose every glossed form was a filtered-out self-seed
+    rather than leaving an empty map)."""
+    merged_reflexes = {
+        lang: _union_lang(nonself.get(lang, {}), selfseed.get(lang, {}))
+        for lang in sorted(nonself.keys() | selfseed.keys())
+    }
+    kept = {lang: {form for form, _src in entries} for lang, entries in merged_reflexes.items()}
+    merged_glosses: dict[str, dict[str, str]] = {}
+    for lang, gloss in glosses.items():
+        surviving = {f: g for f, g in gloss.items() if f in kept.get(lang, ())}
+        if surviving:
+            merged_glosses[lang] = surviving
+    return merged_reflexes, merged_glosses
+
+
 def _merge_morpheme_meanings(meanings: list):
     """Collapse the Meanings sharing one morpheme_id (the connective-form
     fragments — ``-ing``/``-ing-``/``Ing-``) into a single Meaning whose
@@ -225,51 +274,20 @@ def _merge_morpheme_meanings(meanings: list):
     # constructed-compound artifact, not the morpheme's attested spelling.
     if len(ordered) == 1:
         return ordered[0]
-    # Collect non-``self`` ("genuine", attestation-backed) reflexes separately
-    # from self-seeds per language, so genuine can win over self-seeds below.
-    nonself: dict[str, dict[str, tuple]] = {}
-    selfseed: dict[str, dict[str, tuple]] = {}
-    glosses: dict[str, dict[str, str]] = {}
-    for m in ordered:
-        for lang, entries in (m.era_reflexes or {}).items():
-            for form, source in entries:
-                bucket = (selfseed if source == "self" else nonself).setdefault(lang, {})
-                bucket.setdefault(form, (form, source))
-        for lang, form_gloss in (m.era_reflex_glosses or {}).items():
-            gbucket = glosses.setdefault(lang, {})
-            for form, gloss in form_gloss.items():
-                gbucket.setdefault(form, gloss)
-
-    # wyrd-phww: UNION self-seeds with genuine reflexes per language — genuine
-    # listed first, source preserved; a self-seed is added only for a form no
-    # genuine reflex already covers. The pre-fix genuine-WINS rule discarded ALL
-    # self-seeds whenever any genuine reflex existed, which dropped the GENERATED
-    # SURFACE (the attested modern toponym form — 'Park-'/'Paddock-' for pearroc)
-    # from the grid -> "X not in its own reflexes". The flood risk the old rule
-    # guarded against (every constructed -ton town self-seeds its whole surface,
-    # ~120 for tūn) is handled downstream: _era_grid narrows the PRESENT-DAY
-    # stage to the word's OWN surface (generate = the generated surface,
-    # explain = the decomposed input surface), so only the one relevant
-    # self-seed survives next to the genuine reflexes — never the ~120.
-    def _union_lang(genuine: dict, selfs: dict) -> list:
-        out = dict(genuine)  # genuine first, source preserved
-        for form, entry in selfs.items():
-            out.setdefault(form, entry)  # self-seed only if no genuine form collides
-        return list(out.values())
-
-    merged_reflexes = {
-        lang: _union_lang(nonself.get(lang, {}), selfseed.get(lang, {}))
-        for lang in sorted(nonself.keys() | selfseed.keys())
-    }
-    # Keep glosses only for forms that survived the genuine-wins filter; drop a
-    # language whose every glossed form was a filtered-out self-seed (omit it
-    # rather than leave an empty map).
-    kept = {lang: {form for form, _src in entries} for lang, entries in merged_reflexes.items()}
-    merged_glosses: dict[str, dict[str, str]] = {}
-    for lang, gloss in glosses.items():
-        surviving = {f: g for f, g in gloss.items() if f in kept.get(lang, ())}
-        if surviving:
-            merged_glosses[lang] = surviving
+    # Collect genuine (non-``self``) vs self-seed reflexes + glosses, then union
+    # per language. wyrd-phww: genuine listed first, source preserved; a
+    # self-seed is added only for a form no genuine reflex already covers. The
+    # pre-fix genuine-WINS rule discarded ALL self-seeds whenever any genuine
+    # reflex existed, which dropped the GENERATED SURFACE (the attested modern
+    # toponym form — 'Park-'/'Paddock-' for pearroc) from the grid -> "X not in
+    # its own reflexes". The flood risk the old rule guarded against (every
+    # constructed -ton town self-seeds its whole surface, ~120 for tūn) is
+    # handled downstream: _era_grid narrows the PRESENT-DAY stage to the word's
+    # OWN surface (generate = the generated surface, explain = the decomposed
+    # input surface), so only the one relevant self-seed survives next to the
+    # genuine reflexes — never the ~120.
+    nonself, selfseed, glosses = _collect_reflex_buckets(ordered)
+    merged_reflexes, merged_glosses = _merge_reflex_buckets(nonself, selfseed, glosses)
     # Base = richest member, for the pronunciation/respelling context _era_grid
     # also reads off the Meaning.
     base = max(ordered, key=lambda m: sum(len(v) for v in (m.era_reflexes or {}).values()))
