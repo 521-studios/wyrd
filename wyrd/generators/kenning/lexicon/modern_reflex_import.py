@@ -44,7 +44,6 @@ def import_modern_reflexes(db, jsonl_path: str | Path, *, apply: bool = True) ->
     if not path.is_file():
         return {"file_missing": 1}
 
-    conn = db.conn
     if apply:
         db.upsert_source(
             id=MODERN_REFLEX_SOURCE,
@@ -61,13 +60,13 @@ def import_modern_reflexes(db, jsonl_path: str | Path, *, apply: bool = True) ->
             raise ValueError(f"{path}:{lineno}: malformed JSONL: {exc}") from exc
         if row.get("_type") != "modern_reflex":
             continue
-        _process_reflex_row(db, conn, row, apply=apply, counts=counts)
+        _process_reflex_row(db, row, apply=apply, counts=counts)
     if apply:
         db.commit()
     return dict(counts)
 
 
-def _process_reflex_row(db, conn, row: dict, *, apply: bool, counts: Counter) -> None:
+def _process_reflex_row(db, row: dict, *, apply: bool, counts: Counter) -> None:
     """Apply one ``modern_reflex`` JSONL row: resolve its source morpheme, then
     link each modern form. No-ops (counted) when the row has no forms or the
     morpheme isn't in the lexicon. Mutates ``counts`` (and ``db`` when applying)."""
@@ -76,7 +75,7 @@ def _process_reflex_row(db, conn, row: dict, *, apply: bool, counts: Counter) ->
         counts["skipped_no_reflex"] += 1
         return
     lang, _sep, canon = (row.get("etymon_ref") or "").partition(":")
-    morpheme = conn.execute(
+    morpheme = db.conn.execute(
         "SELECT id, cognate_id FROM etymon "
         "WHERE canonical_form=? AND language=? AND merged_into_id IS NULL",
         (canon, lang),
@@ -86,17 +85,17 @@ def _process_reflex_row(db, conn, row: dict, *, apply: bool, counts: Counter) ->
         return
     m_id, m_cog = morpheme[0], morpheme[1]
     for form in forms:
-        _apply_reflex_form(db, conn, form, m_id, m_cog, row, apply=apply, counts=counts)
+        _apply_reflex_form(db, form, m_id, m_cog, row, apply=apply, counts=counts)
 
 
 def _apply_reflex_form(
-    db, conn, form: str, m_id: int, m_cog, row: dict, *, apply: bool, counts: Counter
+    db, form: str, m_id: int, m_cog, row: dict, *, apply: bool, counts: Counter
 ) -> None:
     """Link one modern-English ``form`` to its source morpheme: create the
     reflex etymon (or reuse an existing one), add gloss + citation, record the
     inheritance descent edge, and cluster it onto the morpheme's cognate group.
     When ``apply=False`` only the would-create / would-link counts are bumped."""
-    existing = conn.execute(
+    existing = db.conn.execute(
         "SELECT id, cognate_id FROM etymon "
         "WHERE canonical_form=? AND language='modern-english' AND merged_into_id IS NULL",
         (form,),
@@ -120,7 +119,7 @@ def _apply_reflex_form(
         db.add_gloss(reflex_id, row["gloss"])
     # preserve the curated scholarly reference as the citation provenance.
     db.add_citation(reflex_id, MODERN_REFLEX_SOURCE, short_quote=row.get("reference"))
-    conn.execute(
+    db.conn.execute(
         "INSERT OR IGNORE INTO etymon_descent"
         "(parent_id, child_id, edge_type, source_id, confidence, notes) "
         "VALUES (?, ?, 'inheritance', ?, ?, ?)",
@@ -134,7 +133,7 @@ def _apply_reflex_form(
     )
     counts["descent_edges"] += 1
     if m_cog is not None and reflex_cog is None:
-        conn.execute(
+        db.conn.execute(
             "UPDATE etymon SET cognate_id=?, cognate_method=? WHERE id=?",
             (m_cog, MODERN_REFLEX_COGNATE_METHOD, reflex_id),
         )
