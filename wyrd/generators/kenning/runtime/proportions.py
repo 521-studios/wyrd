@@ -1351,11 +1351,12 @@ class NewName:
         normally a ``{lang: [forms]}`` dict, but synthetic Meanings (some tests)
         pass a bare list — a non-dict contributes no languages, so diversification
         simply no-ops there."""
-        out: set[str] = set()
-        for m in meanings:
-            if isinstance(getattr(m, "sources", None), dict):
-                out |= set(m.sources.keys())
-        return out
+        return {
+            lang
+            for m in meanings
+            if isinstance(getattr(m, "sources", None), dict)
+            for lang in m.sources
+        }
 
     @staticmethod
     def _cross_lang_synonym(canon, siblings, exclude_langs):
