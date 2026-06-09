@@ -64,6 +64,19 @@ class CorpusReference:
     morpheme_counts: dict[str, float] = field(default_factory=dict)
 
 
+@dataclass
+class _WeightAccumulator:
+    """Mutable per-feature weight tallies accumulated across slots.
+
+    Bundles the three weight dicts so the per-slot helper takes one
+    accumulator (not three out-params) with type-checked attribute
+    access rather than stringly-typed keys."""
+
+    tag: dict[str, float] = field(default_factory=dict)
+    position: dict[str, float] = field(default_factory=dict)
+    morpheme: dict[str, float] = field(default_factory=dict)
+
+
 def _normalize_weights(weights: dict[str, float]) -> dict[str, float]:
     """Normalize a weight dict to shares summing to 1.0; empty when the
     total is non-positive."""
@@ -78,10 +91,9 @@ def _accumulate_slot_weights(
     p_struct: float,
     gloss_keep: frozenset[str] | None,
     features_fn: Callable[[str], tuple[str | None, list[str], str | None]],
-    acc: dict[str, dict[str, float]],
+    acc: _WeightAccumulator,
 ) -> None:
-    """Fold one slot's usage-frequency ``bucket`` into the ``acc`` weight
-    dicts (keys ``"tag"`` / ``"position"`` / ``"morpheme"``).
+    """Fold one slot's usage-frequency ``bucket`` into the ``acc`` tallies.
 
     Applies the gloss keep-set BEFORE normalizing, so ``P(usage|slot)`` is
     over the eligible pool the generator actually samples (matches
@@ -100,11 +112,11 @@ def _accumulate_slot_weights(
         morpheme, tags, location = features_fn(usage)
         if morpheme is None:
             continue
-        acc["morpheme"][morpheme] = acc["morpheme"].get(morpheme, 0.0) + weight
+        acc.morpheme[morpheme] = acc.morpheme.get(morpheme, 0.0) + weight
         if location:
-            acc["position"][location] = acc["position"].get(location, 0.0) + weight
+            acc.position[location] = acc.position.get(location, 0.0) + weight
         for tag in tags:
-            acc["tag"][tag] = acc["tag"].get(tag, 0.0) + weight
+            acc.tag[tag] = acc.tag.get(tag, 0.0) + weight
 
 
 def compute_corpus_reference(
@@ -154,9 +166,9 @@ def compute_corpus_reference(
     # filter (``k.lower().replace("-","") in keep_keys``).
     gloss_keep = name_gen.meaning_gen.keep_keys_for_gloss(include_unglossed)
 
-    # Accumulator: three weight dicts bundled so the per-slot helper takes
-    # one accumulator rather than three out-params.
-    acc: dict[str, dict[str, float]] = {"tag": {}, "position": {}, "morpheme": {}}
+    # Accumulator bundles the three weight tallies so the per-slot helper
+    # takes one accumulator rather than three out-params.
+    acc = _WeightAccumulator()
 
     # Resolve each usage's (morpheme, tags, location) once — the same
     # _resolve_surface + _rank_siblings work NewName.components does.
@@ -187,7 +199,7 @@ def compute_corpus_reference(
 
     return CorpusReference(
         culture=culture,
-        tag_distribution=_normalize_weights(acc["tag"]),
-        position_distribution=_normalize_weights(acc["position"]),
-        morpheme_counts=acc["morpheme"],
+        tag_distribution=_normalize_weights(acc.tag),
+        position_distribution=_normalize_weights(acc.position),
+        morpheme_counts=acc.morpheme,
     )
