@@ -9,11 +9,123 @@ that becomes visible once rogd.9 enriches a morpheme's lineage span.
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.proportions import (
+    _era_grid,
+    _grid_surface_key,
     _merge_morpheme_meanings,
     _resolve_morpheme,
 )
+
+
+def _modern_cell(grid, lang="modern-english"):
+    for fam in grid:
+        for stage in fam["stages"]:
+            if stage["language"] == lang:
+                return [c["form"] for c in stage["forms"]]
+    return []
+
+
+def test_era_grid_narrows_present_day_to_own_surface():
+    """wyrd-phww: with the merge unioning self-seeds, _era_grid(own_surface=...)
+    narrows the PRESENT-DAY stage (modern-english) to genuine reflexes + only the
+    self-seed matching the name's own surface — so the generated/own surface
+    shows ('-ton') without the constructed-town flood ('-bolton' dropped). The
+    own-form self-seed in a NON-present-day stage (OE 'tūn') is untouched."""
+    m = _m(
+        "-ton",
+        "old-english:tūn",
+        {
+            "modern-english": [("town", "cluster"), ("-ton", "self"), ("-bolton", "self")],
+            "old-english": [("tūn", "self")],
+        },
+    )
+    grid = _era_grid(m, {}, own_surface="-ton")
+    assert set(_modern_cell(grid)) == {"town", "-ton"}  # genuine + matching self only
+    assert "-bolton" not in _modern_cell(grid)  # non-matching self-seed dropped
+    assert _modern_cell(grid, "old-english") == ["tūn"]  # OE own-form self-seed survives
+
+
+def test_era_grid_none_keeps_full_union():
+    """wyrd-phww: own_surface=None (no narrowing) keeps every self-seed — the
+    full union, used when no specific surface applies."""
+    m = _m(
+        "-ton",
+        "old-english:tūn",
+        {"modern-english": [("town", "cluster"), ("-ton", "self"), ("-bolton", "self")]},
+    )
+    assert set(_modern_cell(_era_grid(m, {}, own_surface=None))) == {"town", "-ton", "-bolton"}
+
+
+def test_era_grid_own_surface_matches_case_and_dashes_insensitively():
+    """wyrd-phww: the own-surface match ignores case + affix dashes, so the
+    bundle's 'Park-' self-seed matches a generated surface of 'park'."""
+    m = _m(
+        "park",
+        "old-english:pearroc",
+        {"modern-english": [("parrock", "cluster"), ("Park-", "self"), ("Paddock-", "self")]},
+    )
+    cell = _modern_cell(_era_grid(m, {}, own_surface="park"))
+    assert set(cell) == {"parrock", "Park-"}  # 'park' folds to 'Park-'; 'Paddock-' dropped
+
+
+def test_era_grid_keeps_own_form_when_newest_stage_is_own_language():
+    """wyrd-phww (Gemini HIGH): a family with NO present-day cell (norse → only
+    old-norse) has its newest stage == the morpheme's own-language stage, which
+    also holds the own-form self-seed. Narrowing to a generated surface must NOT
+    drop the morpheme's own canonical form — keep both own-form + generated."""
+    m = _m(
+        "Rigg-",
+        "old-norse:hryggr",
+        {"old-norse": [("hryggr", "self"), ("Rigg-", "self")]},
+    )
+    cell = _modern_cell(_era_grid(m, {}, own_surface="rigg"), "old-norse")
+    assert "hryggr" in cell  # own canonical form preserved (matches own_form)
+    assert "Rigg-" in cell  # generated surface kept (matches own_surface)
+
+
+def test_era_grid_drops_present_day_stage_when_only_unmatched_self_seeds():
+    """wyrd-phww: a present-day stage left with only NON-matching self-seeds (no
+    genuine reflex) is dropped — and if that was the only stage, the grid
+    collapses to []. This is the intended flood suppression."""
+    m = _m(
+        "-ton",
+        "old-english:tūn",
+        {"modern-english": [("-bolton", "self"), ("-newton", "self")]},
+    )
+    assert _era_grid(m, {}, own_surface="-ton") == []
+
+
+def test_era_grid_keeps_older_stage_when_present_day_emptied():
+    """wyrd-phww: when the present-day stage empties (no match) but an older
+    stage survives, the section is kept with just the older stage."""
+    m = _m(
+        "-ton",
+        "old-english:tūn",
+        {"modern-english": [("-bolton", "self")], "old-english": [("tūn", "self")]},
+    )
+    grid = _era_grid(m, {}, own_surface="-ton")
+    assert _modern_cell(grid, "modern-english") == []  # present-day dropped
+    assert _modern_cell(grid, "old-english") == ["tūn"]  # older stage retained
+
+
+@pytest.mark.parametrize(
+    "form,expected",
+    [
+        ("Park-", "park"),
+        ("-ton", "ton"),
+        ("Minster-", "minster"),
+        ("---", ""),
+        ("", ""),
+        ("  -  ", ""),
+    ],
+)
+def test_grid_surface_key_normalizes(form, expected):
+    """wyrd-phww: the own-surface match key folds case + strips affix dashes /
+    whitespace; all-dash / empty forms fold to '' (no live caller passes empty)."""
+    assert _grid_surface_key(form) == expected
 
 
 def _m(usage: str, morpheme_id, era_reflexes=None, glosses=None) -> Meaning:
@@ -71,13 +183,14 @@ def test_merge_returns_base_unchanged_when_no_gain():
     assert merged.era_reflex_for("old-english") == ["ing"]
 
 
-def test_merge_genuine_reflexes_win_over_constructed_self_seeds():
-    """wyrd-5olv: a morpheme_id groups every usage CONSTRUCTED with the
-    morpheme as a head (every -ton town carries morpheme_id=old-english:tūn),
-    and each self-seeds its OWN surface (source='self'). The merged morpheme
-    must show the morpheme's ATTESTED spellings, not the constructed towns —
-    so when a language has any genuine (non-self) reflex, the self-seeds for
-    that language are dropped."""
+def test_merge_unions_self_seeds_with_genuine_reflexes():
+    """wyrd-phww (supersedes the wyrd-5olv genuine-WINS rule): the merge now
+    UNIONS self-seeds with genuine reflexes (genuine first, source preserved).
+    Self-seeds are no longer dropped HERE — instead _era_grid narrows the
+    present-day stage to the name's OWN surface at render time (see
+    test_era_grid_narrows_present_day_to_own_surface), so the generated/own
+    surface stays available to the grid while the ~120-constructed-town flood
+    is still avoided per-name."""
     core = _m(
         "-ton", "old-english:tūn", {"modern-english": [("-ton", "descent"), ("town", "cluster")]}
     )
@@ -93,16 +206,15 @@ def test_merge_genuine_reflexes_win_over_constructed_self_seeds():
     )
     merged = _merge_morpheme_meanings([core, bolton, newton])
     modern = merged.era_reflex_for("modern-english")
-    assert set(modern) == {"-ton", "town"}  # attested spellings only
-    assert "-bolton" not in modern and "-newton" not in modern  # constructed towns dropped
+    assert set(modern) == {"-ton", "town", "-bolton", "-newton"}  # union, nothing dropped
+    assert modern[:2] == ["-ton", "town"]  # genuine listed first (deterministic)
 
 
 def test_merge_keeps_self_seeds_when_no_genuine_reflex_preserves_ling():
-    """wyrd-5olv guardrail: an all-self connective morpheme (no cluster/descent
-    attestation, e.g. -ing) must NOT be stripped — its self-seeded variants are
-    the morpheme's only surfaces. In particular -ling must survive. This is why
-    the fix is genuine-wins-with-fallback, NOT a compound-detector (which can't
-    tell the real suffix -ling from the constructed town -bolton)."""
+    """An all-self connective morpheme (no cluster/descent attestation, e.g.
+    -ing) keeps its self-seeded variants — in particular -ling must survive.
+    Held under both the old genuine-wins-with-fallback rule and the wyrd-phww
+    union (which keeps self-seeds unconditionally)."""
     ing = _m("-ing", "old-english:ing", {"modern-english": [("-ing", "self"), ("-inge", "self")]})
     ling = _m("-ling", "old-english:ing", {"modern-english": [("-ling", "self")]})
     merged = _merge_morpheme_meanings([ing, ling])
@@ -111,11 +223,9 @@ def test_merge_keeps_self_seeds_when_no_genuine_reflex_preserves_ling():
     assert set(modern) == {"-ing", "-inge", "-ling"}
 
 
-def test_merge_genuine_wins_is_per_language():
-    """wyrd-5olv: the genuine-wins choice is independent per language. A
-    language with only self-seeds keeps them even when a sibling language has
-    genuine reflexes (so a morpheme isn't blanked in an era it's only
-    self-attested in)."""
+def test_merge_unions_per_language():
+    """wyrd-phww: the union is independent per language — each language keeps its
+    genuine reflexes plus its self-seeds (a self-only language is unaffected)."""
     a = _m(
         "-ton",
         "old-english:tūn",
@@ -127,14 +237,14 @@ def test_merge_genuine_wins_is_per_language():
         {"modern-english": [("-bolton", "self"), ("town", "cluster")]},
     )
     merged = _merge_morpheme_meanings([a, b])
-    assert set(merged.era_reflex_for("modern-english")) == {"town"}  # genuine wins
-    assert merged.era_reflex_for("old-english") == ["-ton"]  # self kept (no genuine there)
+    assert set(merged.era_reflex_for("modern-english")) == {"town", "-bolton"}  # genuine + self
+    assert merged.era_reflex_for("old-english") == ["-ton"]  # self-only language kept
 
 
-def test_merge_drops_glosses_for_filtered_self_seed_forms():
-    """wyrd-5olv: when genuine-wins drops a constructed self-seed, its gloss is
-    dropped too — the era-grid's gloss map stays in lockstep with the surviving
-    reflexes (only the kept forms' glosses remain)."""
+def test_merge_keeps_glosses_for_unioned_self_seed_forms():
+    """wyrd-phww: the union keeps every form, so glosses stay in lockstep —
+    both the genuine form's gloss and a self-seed's gloss survive (they're only
+    narrowed later, per-name, at the grid)."""
     core = _m(
         "-ton",
         "old-english:tūn",
@@ -148,23 +258,11 @@ def test_merge_drops_glosses_for_filtered_self_seed_forms():
         {"modern-english": {"-bolton": "Bolton (a place)"}},
     )
     merged = _merge_morpheme_meanings([core, bolton])
-    assert merged.era_reflex_for("modern-english") == ["town"]
-    assert merged.era_reflex_gloss_for("modern-english") == {"town": "settlement"}
-
-
-def test_merge_omits_language_whose_only_glossed_form_was_dropped():
-    """wyrd-5olv: a language whose every glossed form was a dropped self-seed is
-    omitted from era_reflex_glosses (not left present-but-empty)."""
-    core = _m("-ton", "old-english:tūn", {"modern-english": [("town", "cluster")]})
-    bolton = _m(
-        "-bolton",
-        "old-english:tūn",
-        {"modern-english": [("-bolton", "self"), ("town", "cluster")]},
-        {"modern-english": {"-bolton": "Bolton (a place)"}},
-    )
-    merged = _merge_morpheme_meanings([core, bolton])
-    assert merged.era_reflex_for("modern-english") == ["town"]
-    assert merged.era_reflex_gloss_for("modern-english") == {}  # nothing survived → lang omitted
+    assert set(merged.era_reflex_for("modern-english")) == {"town", "-bolton"}
+    assert merged.era_reflex_gloss_for("modern-english") == {
+        "town": "settlement",
+        "-bolton": "Bolton (a place)",
+    }
 
 
 def test_merge_genuine_source_wins_for_duplicate_form():
