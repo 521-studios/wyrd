@@ -883,6 +883,224 @@ def format_etymon_split_run(counts: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _resolve_live_etymon(conn: sqlite3.Connection, ref: str | None):
+    """Resolve ``"<language>:<canonical_form>"`` → an etymon row,
+    EXCLUDING already-tombstoned rows (``merged_into_id IS NULL``). This
+    is what makes collapse idempotent: a second apply no longer finds a
+    ``from`` that an earlier row already folded. Returns ``None`` for an
+    empty/absent or unmatched ref."""
+    if not ref:
+        return None
+    return conn.execute(
+        "SELECT id, canonical_form, language FROM etymon "
+        "WHERE (language || ':' || canonical_form) = ? AND merged_into_id IS NULL",
+        (ref,),
+    ).fetchone()
+
+
+@dataclass
+class _CollapseContext:
+    """Shared state threaded through the collapse row-type handlers: the
+    DB handle, the running telemetry counts dict (mutated in place), and
+    the apply/dry-run flag."""
+
+    db: LexiconDB
+    counts: dict[str, Any]
+    apply: bool
+
+
+def _apply_reflex_link(ctx: _CollapseContext, from_ref: str, payload: dict[str, Any]) -> None:
+    """wyrd-rogd.15 reflex-LINK row (carries ``inherits``): assert ``from_ref``
+    is a later-era reflex of the ``inherits`` ancestor — the same morpheme
+    across eras — by adding an ``inheritance`` descent edge (parent = ancestor,
+    child = ref). Both etymons stay DISTINCT (vs the ``into`` fold, which
+    tombstones). ``inherits: ""`` (a recorded LLM rejection / revert) is a
+    no-op counted as ``link_rejections`` — it must NOT fall through to the fold.
+    Idempotent via OR IGNORE."""
+    inherits_ref = payload.get("inherits")
+    if not inherits_ref:
+        ctx.counts["link_rejections"] += 1
+        return
+    child_row = _resolve_live_etymon(ctx.db.conn, from_ref)
+    if child_row is None:
+        ctx.counts["unresolved_from"] += 1
+        return
+    parent_row = _resolve_live_etymon(ctx.db.conn, inherits_ref)
+    if parent_row is None:
+        ctx.counts["unresolved_inherits"] += 1
+        return
+    if child_row["id"] == parent_row["id"]:
+        ctx.counts["self_link_skipped"] += 1
+        return
+    ctx.counts["links_processed"] += 1
+    if ctx.apply:
+        ctx.db.conn.execute(
+            "INSERT OR IGNORE INTO etymon_descent "
+            "(parent_id, child_id, edge_type, source_id, confidence, notes) "
+            "VALUES (?, ?, 'inheritance', ?, ?, ?)",
+            (
+                parent_row["id"],
+                child_row["id"],
+                COLLAPSE_VARIANT_SOURCE_ID,
+                payload.get("confidence"),
+                payload.get("notes") or payload.get("reason") or "wyrd-rogd.15 reflex-link",
+            ),
+        )
+
+
+def _apply_edge_detach(ctx: _CollapseContext, from_ref: str, payload: dict[str, Any]) -> bool:
+    """wyrd-qp9c descent-edge DETACH. ``detach_parents`` / ``detach_children``
+    name wrong-sense edge endpoints to DELETE BEFORE the fold, so
+    cluster_cognates — which resolves a tombstone's edges through
+    ``merged_into_id`` — never redirects the wrong lineage onto ``into``.
+    ``detach_parents`` removes ``<parent> -> from`` edges; ``detach_children``
+    removes ``from -> <child>`` edges (any edge_type for the named pair: the
+    operator is asserting the two etymons are unrelated). Returns whether the
+    row carried ANY detach refs, so the caller can tell a legitimate
+    detach-only row from a truly empty one.
+
+    Detach refs resolve TOMBSTONE-AGNOSTICALLY (``_resolve_etymon_id``, which
+    has no ``merged_into_id IS NULL`` filter): edges are id-keyed regardless of
+    tombstone state, so an endpoint (or ``from``) already folded by an earlier
+    row must still resolve, else its wrong-sense edge would silently survive.
+    ``detach_unresolved_*`` thus counts only genuine typos, and a re-run is a
+    clean no-op (DELETE of an absent row → rowcount 0). ``dict.fromkeys`` dedups
+    while preserving order so an accidental duplicate ref can't make dry-run
+    (apply=False, COUNT returns 1 per occurrence) telemetry diverge from the
+    applied result (the second DELETE hits 0 rows)."""
+    detach_parents = list(dict.fromkeys(payload.get("detach_parents") or []))
+    detach_children = list(dict.fromkeys(payload.get("detach_children") or []))
+    if not (detach_parents or detach_children):
+        return False
+    detach_from_id = _resolve_etymon_id(ctx.db.conn, from_ref)
+    if detach_from_id is None:
+        ctx.counts["detach_unresolved_from"] += 1
+        return True
+    for endpoint_ref, is_parent in (
+        *((p, True) for p in detach_parents),
+        *((c, False) for c in detach_children),
+    ):
+        endpoint_id = _resolve_etymon_id(ctx.db.conn, endpoint_ref)
+        if endpoint_id is None:
+            ctx.counts["detach_unresolved_endpoint"] += 1
+            continue
+        # detach_parents: <endpoint> is the PARENT; detach_children:
+        # <endpoint> is the CHILD. detach_from is the other end.
+        if is_parent:
+            parent_id, child_id = endpoint_id, detach_from_id
+        else:
+            parent_id, child_id = detach_from_id, endpoint_id
+        if ctx.apply:
+            cur = ctx.db.conn.execute(
+                "DELETE FROM etymon_descent WHERE parent_id = ? AND child_id = ?",
+                (parent_id, child_id),
+            )
+            ctx.counts["detach_edges_removed"] += cur.rowcount or 0
+        else:
+            ctx.counts["detach_edges_removed"] += ctx.db.conn.execute(
+                "SELECT COUNT(*) AS n FROM etymon_descent WHERE parent_id = ? AND child_id = ?",
+                (parent_id, child_id),
+            ).fetchone()["n"]
+    return True
+
+
+def _migrate_collapse_evidence(
+    ctx: _CollapseContext, from_row: Any, into_row: Any, payload: dict[str, Any]
+) -> None:
+    """The fold's DB writes: record the from-form as an ``etymon_variant`` of
+    the surviving lemma, migrate reflexes + citations to ``into`` (OR IGNORE;
+    UNIQUE-conflict survivors stay on ``from``, counted under
+    ``*_skipped_conflict``), stamp migrated citations' ``attested_form`` with
+    the from-form (wyrd-jhdw hybrid; the ``attested_form IS NULL`` guard keeps
+    an earlier collapse's form from being re-stamped), then tombstone ``from``
+    into ``into`` via ``merged_into_id``. Caller gates this on ``apply``."""
+    from_id, into_id = from_row["id"], into_row["id"]
+    from_form = from_row["canonical_form"]
+    variant_class = payload.get("variant_class") or "alternative"
+    if variant_class not in _VARIANT_CLASSES:
+        # OOV variant_class from a hand-edited / LLM row would trip the
+        # table's CHECK constraint; coerce to the catch-all.
+        variant_class = "other"
+
+    # 1. Record the form as a variant of the surviving lemma. UNIQUE
+    #    (etymon_id, form, variant_class) → OR IGNORE no-ops when the
+    #    bulk ingest already registered it (the common case).
+    cur = ctx.db.conn.execute(
+        "INSERT OR IGNORE INTO etymon_variant "
+        "(etymon_id, form, variant_class, source_id) VALUES (?, ?, ?, ?)",
+        (into_id, from_form, variant_class, COLLAPSE_VARIANT_SOURCE_ID),
+    )
+    ctx.counts["variants_created"] += cur.rowcount or 0
+
+    # 2. Migrate reflexes. PRIMARY KEY (reflex_id, etymon_id) → OR
+    #    IGNORE survives the case where `into` already carries the
+    #    same reflex; those rows stay on `from` (counted).
+    reflex_before = ctx.db.conn.execute(
+        "SELECT COUNT(*) AS n FROM reflex_etymon WHERE etymon_id = ?", (from_id,)
+    ).fetchone()["n"]
+    cur = ctx.db.conn.execute(
+        "UPDATE OR IGNORE reflex_etymon SET etymon_id = ? WHERE etymon_id = ?",
+        (into_id, from_id),
+    )
+    reflex_moved = cur.rowcount or 0
+    ctx.counts["reflexes_moved"] += reflex_moved
+    ctx.counts["reflexes_skipped_conflict"] += reflex_before - reflex_moved
+
+    # 3. Migrate citations + stamp the attested form (wyrd-jhdw hybrid).
+    #    UNIQUE (etymon_id, source_id, COALESCE(page,'')) → OR IGNORE.
+    cit_before = ctx.db.conn.execute(
+        "SELECT COUNT(*) AS n FROM etymon_citation WHERE etymon_id = ? AND attested_form IS NULL",
+        (from_id,),
+    ).fetchone()["n"]
+    cur = ctx.db.conn.execute(
+        "UPDATE OR IGNORE etymon_citation "
+        "SET etymon_id = ?, attested_form = ? "
+        "WHERE etymon_id = ? AND attested_form IS NULL",
+        (into_id, from_form, from_id),
+    )
+    cit_moved = cur.rowcount or 0
+    ctx.counts["citations_moved"] += cit_moved
+    ctx.counts["citations_skipped_conflict"] += cit_before - cit_moved
+
+    # 4. Tombstone `from` into `into` — it is no longer an independent
+    #    lemma. cluster_cognates + the export resolution follow this.
+    ctx.db.conn.execute(
+        "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+        (into_id, from_id),
+    )
+
+
+def _apply_collapse_fold(
+    ctx: _CollapseContext, from_ref: str, payload: dict[str, Any], *, had_detach: bool
+) -> None:
+    """The ``into`` fold path. A detach-only row (no ``into``) is a legitimate
+    no-fold event; only a row with neither detach nor into is an
+    ``empty_into_skipped``. Resolves from/into live (non-tombstoned), skips a
+    self-collapse, counts ``collapses_processed``, and — only when applying —
+    performs the variant/reflex/citation migration + tombstone via
+    :func:`_migrate_collapse_evidence`."""
+    into_ref = payload.get("into")
+    if not into_ref:
+        if not had_detach:
+            ctx.counts["empty_into_skipped"] += 1
+        return
+    from_row = _resolve_live_etymon(ctx.db.conn, from_ref)
+    if from_row is None:
+        ctx.counts["unresolved_from"] += 1
+        return
+    into_row = _resolve_live_etymon(ctx.db.conn, into_ref)
+    if into_row is None:
+        ctx.counts["unresolved_into"] += 1
+        return
+    if from_row["id"] == into_row["id"]:
+        ctx.counts["self_collapse_skipped"] += 1
+        return
+    ctx.counts["collapses_processed"] += 1
+    if not ctx.apply:
+        return
+    _migrate_collapse_evidence(ctx, from_row, into_row, payload)
+
+
 def apply_collapses(
     db: LexiconDB,
     collapse_state: dict[str, dict[str, Any]],
@@ -921,9 +1139,9 @@ def apply_collapses(
     ``from``, which ``merged_into_id`` routes through at read time.
 
     No-ops: empty/absent ``into``, ``into == from``, or an unresolved
-    ref. Idempotent: ``_resolve`` excludes already-tombstoned rows
-    (``merged_into_id IS NULL``), so a second apply no longer finds the
-    ``from`` etymon — it is counted ``unresolved_from`` and changes
+    ref. Idempotent: ``_resolve_live_etymon`` excludes already-tombstoned
+    rows (``merged_into_id IS NULL``), so a second apply no longer finds
+    the ``from`` etymon — it is counted ``unresolved_from`` and changes
     nothing further.
 
     An out-of-vocabulary ``variant_class`` is coerced to ``"other"`` so
@@ -931,7 +1149,10 @@ def apply_collapses(
     constraint.
 
     Validation always runs; DB writes happen only when ``apply=True``.
-    Returns a counts dict for telemetry.
+    Each row's type is dispatched to a handler — reflex-link
+    (:func:`_apply_reflex_link`), edge-detach (:func:`_apply_edge_detach`),
+    or the ``into`` fold (:func:`_apply_collapse_fold`). Returns a counts
+    dict for telemetry.
     """
     counts: dict[str, Any] = {
         "collapses_processed": 0,
@@ -960,15 +1181,6 @@ def apply_collapses(
         "method_version": COLLAPSE_METHOD_VERSION,
     }
 
-    def _resolve(ref: str | None):
-        if not ref:
-            return None
-        return db.conn.execute(
-            "SELECT id, canonical_form, language FROM etymon "
-            "WHERE (language || ':' || canonical_form) = ? AND merged_into_id IS NULL",
-            (ref,),
-        ).fetchone()
-
     if apply and collapse_state:
         # Ensure the synthetic variant source exists (derived; re-created
         # idempotently on every rebuild). source.title is NOT NULL.
@@ -977,185 +1189,19 @@ def apply_collapses(
             (COLLAPSE_VARIANT_SOURCE_ID, "Etymon collapse (derived)"),
         )
 
+    ctx = _CollapseContext(db=db, counts=counts, apply=apply)
     for from_ref, payload in collapse_state.items():
-        # wyrd-rogd.15: a reflex-LINK row (``inherits``) asserts that ``ref`` is
-        # a later-era reflex of the ``inherits`` ancestor — the same morpheme
-        # across eras. Apply by adding an inheritance descent edge (parent =
-        # ancestor, child = ref); both etymons stay DISTINCT (vs the ``into``
-        # fold, which tombstones). Idempotent via OR IGNORE. A row that CARRIES
-        # the ``inherits`` key is a link row regardless of value: ``inherits: ""``
-        # (a recorded LLM rejection, or a revert) is a no-op handled HERE — it
-        # must NOT fall through to the ``into`` fold path. Mutually exclusive
-        # with ``into`` (reflex_verdict_to_row never writes both).
+        # A row carrying ``inherits`` is a reflex-LINK, regardless of value
+        # (mutually exclusive with ``into``); handle it and move on so an
+        # ``inherits: ""`` no-op never falls through to the fold.
         if "inherits" in payload:
-            inherits_ref = payload.get("inherits")
-            if not inherits_ref:
-                counts["link_rejections"] += 1
-                continue
-            child_row = _resolve(from_ref)
-            if child_row is None:
-                counts["unresolved_from"] += 1
-                continue
-            parent_row = _resolve(inherits_ref)
-            if parent_row is None:
-                counts["unresolved_inherits"] += 1
-                continue
-            if child_row["id"] == parent_row["id"]:
-                counts["self_link_skipped"] += 1
-                continue
-            counts["links_processed"] += 1
-            if apply:
-                db.conn.execute(
-                    "INSERT OR IGNORE INTO etymon_descent "
-                    "(parent_id, child_id, edge_type, source_id, confidence, notes) "
-                    "VALUES (?, ?, 'inheritance', ?, ?, ?)",
-                    (
-                        parent_row["id"],
-                        child_row["id"],
-                        COLLAPSE_VARIANT_SOURCE_ID,
-                        payload.get("confidence"),
-                        payload.get("notes") or payload.get("reason") or "wyrd-rogd.15 reflex-link",
-                    ),
-                )
+            _apply_reflex_link(ctx, from_ref, payload)
             continue
-
-        # wyrd-qp9c: descent-edge DETACH. A homograph-conflated row (e.g. OE
-        # ``don`` = the toponym "hill" AND the verb "to do") carries descent
-        # edges that belong to only ONE of its senses. ``detach_parents`` /
-        # ``detach_children`` name the wrong-sense edge endpoints to DELETE
-        # BEFORE the fold, so cluster_cognates — which resolves a tombstone's
-        # edges through ``merged_into_id`` — never redirects the verb lineage
-        # onto ``into``. ``detach_parents`` removes ``<parent> -> from`` edges;
-        # ``detach_children`` removes ``from -> <child>`` edges. Any edge_type
-        # for the named pair is dropped: the operator is asserting the two
-        # etymons are unrelated. Pairs with ``into`` (detach the verb lineage,
-        # THEN fold the clean toponym into its lemma) but also stands alone.
-        # dict.fromkeys dedups while preserving order: an accidental duplicate
-        # ref would otherwise double-count under dry-run (apply=False, COUNT
-        # returns 1 per occurrence) vs real-run (the second DELETE hits 0 rows),
-        # making the dry-run telemetry diverge from the applied result.
-        detach_parents = list(dict.fromkeys(payload.get("detach_parents") or []))
-        detach_children = list(dict.fromkeys(payload.get("detach_children") or []))
-        if detach_parents or detach_children:
-            # Resolve detach refs TOMBSTONE-AGNOSTICALLY (via _resolve_etymon_id,
-            # which has no `merged_into_id IS NULL` filter). etymon_descent edges
-            # reference etymon ids regardless of tombstone state, and detach is
-            # pure id-keyed edge removal — so an endpoint (or `from`) that was
-            # already folded by an earlier ledger row must still resolve, else
-            # its wrong-sense edge would silently survive. The `_resolve`
-            # (canonical-only) call below is for the FOLD, which correctly
-            # no-ops on an already-tombstoned `from`. `detach_unresolved_*` thus
-            # counts only genuine typos (ref matches no etymon at all), and a
-            # re-run is a clean no-op (DELETE of an absent row → rowcount 0).
-            detach_from_id = _resolve_etymon_id(db.conn, from_ref)
-            if detach_from_id is None:
-                counts["detach_unresolved_from"] += 1
-            else:
-                for endpoint_ref, is_parent in (
-                    *((p, True) for p in detach_parents),
-                    *((c, False) for c in detach_children),
-                ):
-                    endpoint_id = _resolve_etymon_id(db.conn, endpoint_ref)
-                    if endpoint_id is None:
-                        counts["detach_unresolved_endpoint"] += 1
-                        continue
-                    # detach_parents: <endpoint> is the PARENT; detach_children:
-                    # <endpoint> is the CHILD. detach_from is the other end.
-                    if is_parent:
-                        parent_id, child_id = endpoint_id, detach_from_id
-                    else:
-                        parent_id, child_id = detach_from_id, endpoint_id
-                    if apply:
-                        cur = db.conn.execute(
-                            "DELETE FROM etymon_descent WHERE parent_id = ? AND child_id = ?",
-                            (parent_id, child_id),
-                        )
-                        counts["detach_edges_removed"] += cur.rowcount or 0
-                    else:
-                        counts["detach_edges_removed"] += db.conn.execute(
-                            "SELECT COUNT(*) AS n FROM etymon_descent "
-                            "WHERE parent_id = ? AND child_id = ?",
-                            (parent_id, child_id),
-                        ).fetchone()["n"]
-
-        into_ref = payload.get("into")
-        if not into_ref:
-            # A detach-only row (no ``into``) is a legitimate no-fold event;
-            # only a row with neither detach nor into is an empty skip.
-            if not (detach_parents or detach_children):
-                counts["empty_into_skipped"] += 1
-            continue
-        from_row = _resolve(from_ref)
-        if from_row is None:
-            counts["unresolved_from"] += 1
-            continue
-        into_row = _resolve(into_ref)
-        if into_row is None:
-            counts["unresolved_into"] += 1
-            continue
-        if from_row["id"] == into_row["id"]:
-            counts["self_collapse_skipped"] += 1
-            continue
-
-        counts["collapses_processed"] += 1
-        if not apply:
-            continue
-
-        from_id, into_id = from_row["id"], into_row["id"]
-        from_form = from_row["canonical_form"]
-        variant_class = payload.get("variant_class") or "alternative"
-        if variant_class not in _VARIANT_CLASSES:
-            variant_class = "other"
-
-        # 1. Record the form as a variant of the surviving lemma. UNIQUE
-        #    (etymon_id, form, variant_class) → OR IGNORE no-ops when the
-        #    bulk ingest already registered it (the common case).
-        cur = db.conn.execute(
-            "INSERT OR IGNORE INTO etymon_variant "
-            "(etymon_id, form, variant_class, source_id) VALUES (?, ?, ?, ?)",
-            (into_id, from_form, variant_class, COLLAPSE_VARIANT_SOURCE_ID),
-        )
-        counts["variants_created"] += cur.rowcount or 0
-
-        # 2. Migrate reflexes. PRIMARY KEY (reflex_id, etymon_id) → OR
-        #    IGNORE survives the case where `into` already carries the
-        #    same reflex; those rows stay on `from` (counted).
-        reflex_before = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM reflex_etymon WHERE etymon_id = ?", (from_id,)
-        ).fetchone()["n"]
-        cur = db.conn.execute(
-            "UPDATE OR IGNORE reflex_etymon SET etymon_id = ? WHERE etymon_id = ?",
-            (into_id, from_id),
-        )
-        reflex_moved = cur.rowcount or 0
-        counts["reflexes_moved"] += reflex_moved
-        counts["reflexes_skipped_conflict"] += reflex_before - reflex_moved
-
-        # 3. Migrate citations + stamp the attested form (wyrd-jhdw hybrid).
-        #    UNIQUE (etymon_id, source_id, COALESCE(page,'')) → OR IGNORE.
-        #    attested_form IS NULL guard keeps a cite that already carries
-        #    an earlier collapse's form from being re-stamped.
-        cit_before = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM etymon_citation "
-            "WHERE etymon_id = ? AND attested_form IS NULL",
-            (from_id,),
-        ).fetchone()["n"]
-        cur = db.conn.execute(
-            "UPDATE OR IGNORE etymon_citation "
-            "SET etymon_id = ?, attested_form = ? "
-            "WHERE etymon_id = ? AND attested_form IS NULL",
-            (into_id, from_form, from_id),
-        )
-        cit_moved = cur.rowcount or 0
-        counts["citations_moved"] += cit_moved
-        counts["citations_skipped_conflict"] += cit_before - cit_moved
-
-        # 4. Tombstone `from` into `into` — it is no longer an independent
-        #    lemma. cluster_cognates + the export resolution follow this.
-        db.conn.execute(
-            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
-            (into_id, from_id),
-        )
+        # Detach wrong-sense edges (if any) BEFORE the fold; the return tells
+        # the fold whether a no-``into`` row was a legit detach-only event or
+        # a truly empty skip.
+        had_detach = _apply_edge_detach(ctx, from_ref, payload)
+        _apply_collapse_fold(ctx, from_ref, payload, had_detach=had_detach)
 
     return counts
 
