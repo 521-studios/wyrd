@@ -1219,26 +1219,35 @@ def _apply_joiner_insertion(
     joiners: dict[str, list[tuple[str, int]]],
     rng,
     density: float,
-) -> tuple[str, str, list[dict[str, Any]]]:
+) -> tuple[str, str, str, list[dict[str, Any]]]:
     """Walk a NewName's per-word morpheme structure and insert joiners
     between adjacent picked morphemes whose lang_fields share a
     populated joiner pool.
 
-    Returns ``(surface_str, explanation, components)`` rebuilt to
-    incorporate the inserted joiners. Each inserted joiner appends a
-    component dict with ``location='joiner'`` so the API envelope
-    surfaces the breakdown to clients (the matcher-side ``Joiner``
-    sentinel from PR #130 is what KenningExplain uses for round-trip
-    decomposition; this component is purely the structured-output
-    annotation).
+    Returns ``(surface_str, modern_str, explanation, components)`` rebuilt
+    to incorporate the inserted joiners. wyrd-24s6 (D38): both the native
+    ``surface_str`` and the modern ``modern_str`` are built in this single
+    walk so the SAME joiner (drawn once per gap) lands in BOTH renderings at
+    the SAME position — otherwise the modern companion would lose the joiners
+    the native canonical gained. Each inserted joiner appends a component dict
+    with ``location='joiner'`` so the API envelope surfaces the breakdown to
+    clients (the matcher-side ``Joiner`` sentinel from PR #130 is what
+    KenningExplain uses for round-trip decomposition; this component is purely
+    the structured-output annotation).
 
     Within-word only — no cross-word insertion (whitespace is the
     natural separator).
     """
     word_surfaces: list[str] = []
+    modern_word_surfaces: list[str] = []
     inserted: list[tuple[str, str]] = []  # (joiner_surface, lang_field)
     for wi, word in enumerate(new_name.name):
-        elements: list[tuple[str, list[Meaning]]] = []
+        # Each element: (native_surface, meanings, modern_surface). The native
+        # surface prefers the rendered (era / native / substituted) form; the
+        # modern surface mirrors NewName.modern_name() — the diversified
+        # cross-language synonym's own usage when one overrode the slot, else
+        # the modern bucket key. Both have dash markers stripped.
+        elements: list[tuple[str, list[Meaning], str]] = []
         for ei, e in enumerate(word):
             if e is None:
                 continue
@@ -1246,11 +1255,15 @@ def _apply_joiner_insertion(
                 surface = new_name.rendered[wi][ei]
             else:
                 surface = e.replace("-", "")
+            override = new_name._lang_override[wi][ei] if new_name._lang_override else None
+            modern_surface = (override.usage if override is not None else e).replace("-", "")
             meanings = new_name.meaning_db[e]
-            elements.append((surface, meanings))
+            elements.append((surface, meanings, modern_surface))
         word_parts: list[str] = []
+        modern_parts: list[str] = []
         for ei in range(len(elements)):
             word_parts.append(elements[ei][0])
+            modern_parts.append(elements[ei][2])
             if ei < len(elements) - 1:
                 shared = _shared_lang_fields_with_joiners(
                     elements[ei][1], elements[ei + 1][1], joiners
@@ -1261,14 +1274,17 @@ def _apply_joiner_insertion(
                     lang = rng.choice(sorted(shared))
                     joiner_surface = _weighted_joiner_choice(joiners[lang], rng)
                     word_parts.append(joiner_surface)
+                    modern_parts.append(joiner_surface)
                     inserted.append((joiner_surface, lang))
         word_surfaces.append("".join(word_parts))
+        modern_word_surfaces.append("".join(modern_parts))
 
     surface_str = " ".join(word_surfaces).strip()
+    modern_str = " ".join(modern_word_surfaces).strip()
     base_explanation = new_name.description()
     base_components = new_name.components()
     if not inserted:
-        return surface_str, base_explanation, list(base_components)
+        return surface_str, modern_str, base_explanation, list(base_components)
 
     new_components = list(base_components)
     for surface, lang in inserted:
@@ -1284,7 +1300,7 @@ def _apply_joiner_insertion(
         )
     joiner_descs = [f"+joiner: {surface} ({lang})" for surface, lang in inserted]
     new_explanation = f"{base_explanation} {' '.join(joiner_descs)}"
-    return surface_str, new_explanation, new_components
+    return surface_str, modern_str, new_explanation, new_components
 
 
 def _build_explanation_part(chunk, meaning_db: dict[str, list[Meaning]]) -> str:

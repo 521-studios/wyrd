@@ -10,20 +10,14 @@
     isNameMorpheme,
   } from '../lib/morphemeGloss.js';
   import { accentedName } from '../lib/accents.js';
+  // wyrd-24s6 (D38): native/modern surface predicates live in lib/render.js so
+  // they're unit-testable (svelte components have no test harness here).
+  import { nativeSurface, modernSurface, showModernCompanion } from '../lib/render.js';
 
   function selectResult(i) {
     appState.currentResultIndex =
       i === appState.currentResultIndex ? null : i;
   }
-
-  // wyrd-24s6 (D38): each result renders BOTH a native (as-generated, each
-  // morpheme in its source-era form) surface and a modern companion. The
-  // native surface is the canonical/primary one. Per morpheme the backend
-  // ships `rendered` (native; absent when this slot has no distinct native
-  // form) + `usage` (the modern bucket key); the native surface falls back to
-  // `usage` so a slot with no native form still renders.
-  const nativeSurface = (morph) => morph.rendered || morph.usage || '';
-  const modernSurface = (morph) => morph.usage || '';
 
   // wyrd-z3fl: "report defective" moved to the Inspect & Transform column
   // (col 3) — you flag the result you're inspecting there, not per-row here.
@@ -68,7 +62,7 @@
                      lettering to the right. Shown only when it differs from the
                      native canonical (a plain/force-modern roll has native ==
                      modern, so the companion would be noise). -->
-                {#if r.result_modern && r.result_modern !== r.result}
+                {#if showModernCompanion(r)}
                   <span class="name-modern" title="modern reflex">{r.result_modern}</span>
                 {/if}
               </span>

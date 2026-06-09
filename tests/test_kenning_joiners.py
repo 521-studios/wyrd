@@ -710,8 +710,9 @@ def test_apply_joiner_insertion_skips_when_no_shared_lang() -> None:
     # Joiner pool only has 'old_english' but right meaning is celtic.
     joiners = {"old_english": [("en", 100)]}
     rng = random.Random(0)
-    surface, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    surface, modern, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
     assert "en" not in surface  # no shared lang → no joiner
+    assert "en" not in modern  # wyrd-24s6: modern companion stays joiner-free too
     assert all(c["location"] != "joiner" for c in components)
 
 
@@ -731,8 +732,13 @@ def test_apply_joiner_insertion_inserts_joiner_when_shared_lang() -> None:
 
     joiners = {"old_english": [("en", 100)]}
     rng = random.Random(0)
-    surface, explanation, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    surface, modern, explanation, components = _apply_joiner_insertion(
+        new_name, joiners, rng, density=1.0
+    )
     assert "en" in surface
+    # wyrd-24s6 (D38): the SAME joiner lands in the modern companion too, so the
+    # two renderings don't drift apart on joiner placement.
+    assert "en" in modern
     assert "+joiner: en" in explanation
     joiner_components = [c for c in components if c["location"] == "joiner"]
     assert len(joiner_components) == 1
@@ -755,9 +761,10 @@ def test_apply_joiner_insertion_zero_density_is_no_op() -> None:
 
     joiners = {"old_english": [("en", 100)]}
     rng = random.Random(0)
-    surface, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=0.0)
+    surface, modern, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=0.0)
     assert all(c["location"] != "joiner" for c in components)
     assert "bridgewater" in surface.lower()
+    assert "bridgewater" in modern.lower()  # wyrd-24s6: modern companion also joiner-free
 
 
 def test_shared_lang_fields_returns_intersection_with_populated_pools() -> None:
@@ -889,7 +896,7 @@ def test_apply_joiner_insertion_skips_none_elements() -> None:
 
     joiners = {"old_english": [("en", 100)]}
     rng = random.Random(0)
-    surface, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    surface, _, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
     # Joiner still inserted between the two non-None morphemes.
     assert "en" in surface
     assert any(c["location"] == "joiner" for c in components)
@@ -909,7 +916,7 @@ def test_apply_joiner_insertion_single_element_word_no_op() -> None:
 
     joiners = {"old_english": [("en", 100)]}
     rng = random.Random(0)
-    _, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    _, _, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
     assert all(c["location"] != "joiner" for c in components)
 
 
@@ -935,12 +942,18 @@ def test_apply_joiner_insertion_uses_rendered_substitutions() -> None:
 
     joiners = {"old_english": [("en", 100)]}
     rng = random.Random(0)
-    surface, _, _ = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    surface, modern, _, _ = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
     # Surface should carry the variant 'brycg' (not 'bridge'), the joiner
     # 'en', and the default 'water'.
     assert "brycg" in surface
     assert "en" in surface
     assert "water" in surface
+    # wyrd-24s6 (D38): the modern companion ignores the native `rendered`
+    # substitution — it shows the modern usage ('bridge', not the 'brycg'
+    # variant) — but carries the SAME joiner.
+    assert "brycg" not in modern.lower()
+    assert "bridge" in modern.lower()
+    assert "en" in modern
 
 
 def test_apply_joiner_insertion_multi_word_within_each_word() -> None:
@@ -965,7 +978,7 @@ def test_apply_joiner_insertion_multi_word_within_each_word() -> None:
 
     joiners = {"old_english": [("en", 100)]}
     rng = random.Random(0)
-    surface, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    surface, _, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
     # Surface has exactly one joiner — between Bridge and water.
     assert surface.count("en") >= 1
     joiner_components = [c for c in components if c["location"] == "joiner"]

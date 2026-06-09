@@ -1092,8 +1092,11 @@ class NameGenerator:
         new_name = NewName(struct, self.meaning_db, words)
         # wyrd-nbpw/6c8x: post-pick rendering — era-form (feature A) or the D8
         # inflection / D18 spelling-variant substitution — applied via
-        # _apply_render. Default generation (all knobs 0, no era) stays
-        # bit-stable: _apply_render is a no-op that leaves new_name.rendered None.
+        # _apply_render. wyrd-24s6 (D38): default generation (all knobs 0, no era
+        # requested) now renders the NATIVE source-language form into
+        # new_name.rendered (the canonical result is native; the modern companion
+        # is composed by modern_name()). Only an explicit era="modern-english"
+        # leaves rendered None for the force-modern fallback.
         self._apply_render(
             rng, new_name, spelling_variety, inflection_density, era_render_language, era_requested
         )
@@ -1278,10 +1281,15 @@ class NameGenerator:
         period spelling, so it supersedes the D18 spelling-variant axis (and D8
         inflection is not combined with era in v1). Otherwise fall back to the
         D8/D18 substitution. Either way the result is written to
-        ``new_name.rendered`` (+ ``inflection_labels`` for D8). A no-op — leaving
-        ``new_name.rendered`` as None so __str__ uses the canonical reflex — when
-        no era is set and both substitution knobs are 0, keeping default
-        generation bit-stable (no extra rng draws)."""
+        ``new_name.rendered`` (+ ``inflection_labels`` for D8). wyrd-24s6 (D38):
+        when no era is set and both substitution knobs are 0 but no era was
+        *requested* (the default ``era=""`` path), render each morpheme in its
+        NATIVE source-language form (``_render_native_forms``) — the canonical
+        result is native, with the modern companion composed by
+        ``NewName.modern_name()``. Only an EXPLICIT ``era="modern-english"``
+        request (which sets ``era_requested`` while resolving
+        ``era_render_language`` to None) leaves ``new_name.rendered`` as None so
+        __str__ falls back to the modern usage (the force-modern path)."""
         if era_render_language:
             new_name.rendered = self._render_era_forms(new_name.name, era_render_language)
             # wyrd-mf2u: record the era language so the breakdown can resolve +
@@ -1340,7 +1348,7 @@ class NameGenerator:
             rendered.append(word_rendered)
         return rendered
 
-    def _render_native_forms(self, name):
+    def _render_native_forms(self, name) -> list[list[str | None]]:
         """wyrd-24s6 (D38): render each picked morpheme in its NATIVE
         (source-language) form so the default (era="") name is "as selected" —
         a genuinely mixed-era surface — rather than coerced to modern. Mirrors
@@ -1675,8 +1683,9 @@ class NewName:
 
     def modern_name(self) -> str:
         """wyrd-24s6 (D38): the MODERN rendering — every morpheme in its
-        present-day surface (``modern_usage``), the always-present secondary
-        beside the native ``__str__`` canonical. Honors the later composition
+        present-day surface (the ``Meaning.usage`` bucket key, sourced from the
+        bundle's ``modern_usage`` field), the always-present secondary beside the
+        native ``__str__`` canonical. Honors the later composition
         layers: a diversified cross-language synonym ("Hill Hill" → "Hill
         Haeth") shows ITS OWN modern surface (the override Meaning's ``usage``),
         and a re-picked morpheme uses its replacement's modern usage (already in

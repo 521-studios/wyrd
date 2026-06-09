@@ -506,7 +506,10 @@ class Kenning(Generator):
         if joiner_density > 0:
             joiners = _load_joiners()
             if joiners:
-                result_str, explanation, components = _apply_joiner_insertion(
+                # wyrd-24s6 (D38): joiner insertion rebuilds BOTH the native
+                # result_str and the modern result_modern in one walk, so the
+                # same joiners land in both renderings at the same positions.
+                result_str, result_modern, explanation, components = _apply_joiner_insertion(
                     new_name, joiners, rng, joiner_density
                 )
         # wyrd-obu: optional Norman manorial-family affix appended after

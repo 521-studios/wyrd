@@ -94,6 +94,72 @@ def test_diversify_repeats_repicks_different_morpheme_when_no_synonym():
     assert d["words"][1][0]["usage"] == "dale"  # breakdown follows
 
 
+def test_modern_name_uses_override_modern_usage_after_diversification():
+    """wyrd-24s6 (D38): for a cross-language-synonym diversification, the NATIVE
+    render shows the synonym's source form ('Haeth') but the MODERN companion
+    shows the override Meaning's OWN modern usage. Here the Norse synonym is
+    bucketed under 'hill' (it glosses 'hill'), so its modern usage is 'hill' —
+    modern_name() collapses to 'Hill Hill'. The native render keeps the OE/ON
+    distinction the modern English reflexes don't. (Documents the known
+    name-level vs per-morpheme modern gap the general reviewer flagged.)"""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    hill = Meaning("hill", tags=[], meanings=["hill"], sources={"old_english": ["hill"]})
+    norse = Meaning("hill", tags=[], meanings=["Hill"], sources={"old_scandinavian": ["haeth"]})
+    nn = NewName(struct=None, meaning_db={"hill": [hill, norse]}, name=[["hill"], ["hill"]])
+    assert str(nn) == "Hill Haeth"  # native: source forms, diversified
+    assert nn.modern_name() == "Hill Hill"  # modern: override's own usage ('hill')
+
+
+def test_diversify_repick_renders_native_form_when_rendered_active():
+    """wyrd-24s6 (D38) Branch A: a re-pick that happens while a native render is
+    active renders the REPLACEMENT in its own native (source) form, and the
+    modern companion uses the replacement's modern usage. Pre-D38 the re-picked
+    slot's rendered was left None (→ modern surface even in the native render)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    park = Meaning("park", tags=[], meanings=["park"], sources={"old_english": ["park"]})
+    park.morpheme_id = "old-english:park"
+    dale = Meaning("dale", tags=[], meanings=["valley"], sources={"old_english": ["dale"]})
+    dale.morpheme_id = "old-english:dæl"
+    meaning_db = {"park": [park], "dale": [dale]}
+    # rendered pre-set (native render already ran) to the colliding 'pearroc'/park
+    # native form for both slots; diversification re-picks slot 1 to 'dale'.
+    nn = NewName(
+        struct=None,
+        meaning_db=meaning_db,
+        name=[["park"], ["park"]],
+        rendered=[["pearroc"], ["pearroc"]],
+    )
+    assert str(nn) == "Pearroc Dæl"  # re-pick rendered in its NATIVE form (dæl)
+    assert nn.modern_name() == "Park Dale"  # modern uses the replacement's modern usage
+    assert nn.name[1][0] == "dale"  # name key swapped to the re-pick
+
+
+def test_diversify_native_collision_falls_back_to_modern():
+    """wyrd-24s6 (D38) Branch B: two DISTINCT morphemes whose NATIVE forms
+    collide ('Biscop Biscop') but whose modern usages differ — with no synonym
+    and no re-pick available — break the native duplicate by falling one slot
+    back to its modern usage. The modern companion (always distinct here) is
+    unaffected."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m1 = Meaning("biscop", tags=[], meanings=["bishop"], sources={"old_english": ["biscop"]})
+    m2 = Meaning("bishop", tags=[], meanings=["bishop"], sources={"old_english": ["biscop"]})
+    nn = NewName(
+        struct=None,
+        meaning_db={"biscop": [m1], "bishop": [m2]},
+        name=[["biscop"], ["bishop"]],
+        rendered=[["Biscop"], ["Biscop"]],  # native render collided on 'Biscop'
+    )
+    assert str(nn) == "Biscop Bishop"  # collision broken — slot 2 fell back to modern
+    assert nn.rendered[1][0] is None  # the colliding native render was dropped
+    assert nn.modern_name() == "Biscop Bishop"  # modern was always distinct
+
+
 # wyrd-5z5j force-structure: structure label <-> key round-trip + listing.
 def test_weighted_choice_all_zero_weights_returns_none():
     assert weighted_choice(random.Random(0), [("a", 0), ("b", 0)]) is None
