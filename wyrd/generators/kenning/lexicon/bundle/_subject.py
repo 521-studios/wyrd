@@ -647,70 +647,91 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
     order so output is deterministic regardless of source-lang sort
     order.
     """
+    _emit_buckets_to_word(word, _aggregate_language_buckets(accs))
+
+
+# The eight sibling families merged source-lang → bucket by a plain set/dict
+# ``.update()`` (forms / variants / attested_years need bespoke merge logic and
+# stay explicit in _accumulate_lang_into_bucket).
+_BUCKET_UNION_FAMILIES = (
+    "inflections",
+    "citations",
+    "english_shaped",
+    "original_script",
+    "transliteration",
+    "pronunciation",
+    "stratum",
+    "phonological_vector",
+)
+
+# (_BucketAccumulator attr == json-key suffix, emit fn), in the stable output
+# order the word dict's keys must follow.
+_EMIT_FAMILIES: tuple[tuple[str, Any], ...] = (
+    ("variants", _emit_variant_list),
+    ("inflections", _emit_inflection_list),
+    ("citations", sorted),
+    ("attested_years", _emit_attested_years_list),
+    ("english_shaped", _emit_english_shaped_list),
+    ("original_script", _emit_original_script_list),
+    ("transliteration", _emit_transliteration_list),
+    ("pronunciation", _emit_pronunciation_list),
+    ("stratum", _emit_stratum_list),
+    ("phonological_vector", _emit_phonological_vector_list),
+)
+
+
+def _accumulate_lang_into_bucket(
+    bucket: _BucketAccumulator, accs: _WordLanguageAccumulators, lang: str
+) -> None:
+    """Union one source language's forms + sibling metadata into its bundle
+    bucket. Forms dedup (preserving first-seen order); variants sum their
+    weights; attested_years keep the earliest year on collision (the
+    rest-of-pipeline ascending-year convention); the remaining eight families
+    are plain set/dict ``.update()``s driven off ``_BUCKET_UNION_FAMILIES``."""
+    for form in accs.forms_by_lang[lang]:
+        if form not in bucket.forms_set:
+            bucket.forms.append(form)
+            bucket.forms_set.add(form)
+    for form, weight in accs.variants.get(lang, {}).items():
+        bucket.variants[form] = bucket.variants.get(form, 0) + weight
+    for form, year in accs.attested_years.get(lang, {}).items():
+        existing = bucket.attested_years.get(form)
+        if existing is None or year < existing:
+            bucket.attested_years[form] = year
+    for family in _BUCKET_UNION_FAMILIES:
+        src = getattr(accs, family).get(lang)
+        if src:
+            getattr(bucket, family).update(src)
+
+
+def _aggregate_language_buckets(
+    accs: _WordLanguageAccumulators,
+) -> dict[str, _BucketAccumulator]:
+    """Route each source language's accumulators into its bundle bucket,
+    unioning the multiple lexicon codes that map to the same bucket (e.g.
+    welsh + old-welsh → ``celtic_mix``). Walks langs in sorted order so the
+    union is deterministic regardless of source-lang discovery order."""
     buckets: dict[str, _BucketAccumulator] = {}
     for lang in sorted(accs.forms_by_lang):
         json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
         if not json_field:
             continue
         bucket = buckets.setdefault(json_field, _BucketAccumulator())
-        for form in accs.forms_by_lang[lang]:
-            if form not in bucket.forms_set:
-                bucket.forms.append(form)
-                bucket.forms_set.add(form)
-        if lang in accs.variants:
-            for form, weight in accs.variants[lang].items():
-                bucket.variants[form] = bucket.variants.get(form, 0) + weight
-        if lang in accs.inflections:
-            bucket.inflections.update(accs.inflections[lang])
-        if lang in accs.citations:
-            bucket.citations.update(accs.citations[lang])
-        if lang in accs.attested_years:
-            for form, year in accs.attested_years[lang].items():
-                # Keep the earliest year on collision (matches the
-                # rest-of-pipeline ascending-year sort convention).
-                existing = bucket.attested_years.get(form)
-                if existing is None or year < existing:
-                    bucket.attested_years[form] = year
-        if lang in accs.english_shaped:
-            bucket.english_shaped.update(accs.english_shaped[lang])
-        if lang in accs.original_script:
-            bucket.original_script.update(accs.original_script[lang])
-        if lang in accs.transliteration:
-            bucket.transliteration.update(accs.transliteration[lang])
-        if lang in accs.pronunciation:
-            bucket.pronunciation.update(accs.pronunciation[lang])
-        if lang in accs.stratum:
-            bucket.stratum.update(accs.stratum[lang])
-        if lang in accs.phonological_vector:
-            bucket.phonological_vector.update(accs.phonological_vector[lang])
+        _accumulate_lang_into_bucket(bucket, accs, lang)
+    return buckets
 
+
+def _emit_buckets_to_word(word: dict[str, Any], buckets: dict[str, _BucketAccumulator]) -> None:
+    """Write each bucket's forms + every non-empty sibling family onto the word
+    dict under ``<json_field>`` / ``<json_field>_<family>`` keys, in stable
+    bucket then ``_EMIT_FAMILIES`` order. ``_fill_surface_pronunciation`` runs
+    first (it only fills gaps in ``bucket.pronunciation``) so a surface form
+    lacking etymon IPA still contributes before the pronunciation family emits."""
     for json_field in sorted(buckets):
         bucket = buckets[json_field]
         word[json_field] = bucket.forms
-        if bucket.variants:
-            word[f"{json_field}_variants"] = _emit_variant_list(bucket.variants)
-        if bucket.inflections:
-            word[f"{json_field}_inflections"] = _emit_inflection_list(bucket.inflections)
-        if bucket.citations:
-            word[f"{json_field}_citations"] = sorted(bucket.citations)
-        if bucket.attested_years:
-            word[f"{json_field}_attested_years"] = _emit_attested_years_list(bucket.attested_years)
-        if bucket.english_shaped:
-            word[f"{json_field}_english_shaped"] = _emit_english_shaped_list(bucket.english_shaped)
-        if bucket.original_script:
-            word[f"{json_field}_original_script"] = _emit_original_script_list(
-                bucket.original_script
-            )
-        if bucket.transliteration:
-            word[f"{json_field}_transliteration"] = _emit_transliteration_list(
-                bucket.transliteration
-            )
         _fill_surface_pronunciation(bucket, json_field)
-        if bucket.pronunciation:
-            word[f"{json_field}_pronunciation"] = _emit_pronunciation_list(bucket.pronunciation)
-        if bucket.stratum:
-            word[f"{json_field}_stratum"] = _emit_stratum_list(bucket.stratum)
-        if bucket.phonological_vector:
-            word[f"{json_field}_phonological_vector"] = _emit_phonological_vector_list(
-                bucket.phonological_vector
-            )
+        for family, emit_fn in _EMIT_FAMILIES:
+            value = getattr(bucket, family)
+            if value:
+                word[f"{json_field}_{family}"] = emit_fn(value)
