@@ -1043,6 +1043,20 @@ def test_kenning_generate_cohesion_one_diverges_from_zero():
     assert diffs > 0
 
 
+def test_kenning_generate_cohesion_one_is_deterministic():
+    """wyrd-e2b4: cohesion>0 still honours the ``(params, seed) → same
+    output`` contract. The cohesion path sums float co-occurrence probs over
+    tag sets; ``_cohesion_multiplier`` sorts both tag sets so set-iteration
+    order (PYTHONHASHSEED-dependent) can't perturb the sum. Repeat the same
+    seed and assert byte-identical output — a guard on that sort."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    params = {"culture": "english", "cohesion": 1.0}
+    runs = [[k.generate(params, seed=s).result for s in range(20)] for _ in range(3)]
+    assert runs[0] == runs[1] == runs[2]
+
+
 def test_load_proportions_handles_missing_cooccurrence_keys():
     """test-coverage P3: legacy bundles without the new tag_cooccurrence
     key must load cleanly — load_proportions defaults it to an empty dict
@@ -1067,6 +1081,8 @@ def test_load_proportions_handles_missing_cooccurrence_keys():
     }
     name_gen = load_proportions(legacy_data, meaning_db, tag_db)
     assert name_gen.tag_cooccurrence == {}
+    # No counts + no marginal → empty derived table → bit-stable no-op cohesion.
+    assert name_gen.cohesion_table == {}
 
 
 def test_load_proportions_passes_cooccurrence_keys_through():
@@ -1091,6 +1107,8 @@ def test_load_proportions_passes_cooccurrence_keys_through():
     }
     name_gen = load_proportions(data, meaning_db, tag_db)
     assert name_gen.tag_cooccurrence == {"water|plant": 7}
+    # tag_marginal must also thread through (it's the normalizer denominator).
+    assert name_gen.tag_marginal == {"water": 7, "plant": 7}
 
 
 def test_load_proportions_builds_nested_cohesion_table():

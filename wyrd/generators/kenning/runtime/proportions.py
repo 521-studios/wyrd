@@ -875,30 +875,45 @@ def build_cohesion_table(
     for the current (later) slot, the prior is an already-picked (earlier)
     slot's tag.
 
-    So we invert the pipe key (left == prior/earlier, right ==
-    candidate/later) and normalize per D17's refinement formula —
+    So we restructure to an inverted index — the flat key's left tag (prior)
+    becomes the inner key, the right tag (candidate) the outer key — and
+    normalize per D17's refinement formula —
     ``P(candidate | prior) = cooccur[prior|candidate] / tag_marginal[prior]``
     — yielding a value in ``[0, 1]``. Iteration is sorted so the float table
     is byte-identical across processes (PYTHONHASHSEED). Returns an empty
-    dict when either input is missing or malformed, which degrades the
-    cohesion knob to its bit-stable no-op.
+    dict when either input is missing, which degrades the cohesion knob to
+    its bit-stable no-op.
     """
     if not flat_cooccurrence or not tag_marginal:
         return {}
     table: dict[str, dict[str, float]] = {}
+    skipped = 0
     for key in sorted(flat_cooccurrence):
         left, sep, right = key.partition("|")
         if not sep or not right:
-            # Malformed key without a pipe separator; skip defensively
+            # Malformed key (no pipe separator, or empty right side): skip
             # rather than mis-key the whole tag under a bare string.
+            skipped += 1
             continue
         denom = tag_marginal.get(left, 0)
         if denom <= 0:
+            # No marginal for the prior tag — every tag in a co-occurrence
+            # pair is also counted in tag_marginal at build time, so a zero
+            # here means the bundle's two tables drifted apart.
+            skipped += 1
             continue
         # min(1.0, …) guards against any marginal/cooccurrence inconsistency
         # so the consumer's avg_p stays bounded in [0, 1].
         prob = min(1.0, flat_cooccurrence[key] / denom)
         table.setdefault(right, {})[left] = prob
+    if skipped:
+        # Matches the wyrd-van9 / wyrd-zzli house pattern: a bundle that
+        # drifted from its builder shouldn't silently lose cohesion signal.
+        _logger.warning(
+            "wyrd-e2b4: build_cohesion_table skipped %d malformed/orphaned "
+            "tag_cooccurrence keys; re-emit the bundle to clear the drift",
+            skipped,
+        )
     return table
 
 
@@ -1025,8 +1040,8 @@ class NameGenerator:
         # JSON↔SQLite bundle round-trip is byte-checkable (and
         # language_quality audits can rank it). Optional — legacy bundles
         # without it produce a no-op cohesion knob.
-        self.tag_cooccurrence = tag_cooccurrence or {}
-        self.tag_marginal = tag_marginal or {}
+        self.tag_cooccurrence: dict[str, int] = tag_cooccurrence or {}
+        self.tag_marginal: dict[str, int] = tag_marginal or {}
         # wyrd-e2b4: the cohesion multiplier consumes a NESTED conditional-
         # probability table (``{candidate_tag: {prior_tag: prob}}``), not the
         # flat counts above. Derive it once at construction from the raw
@@ -1034,7 +1049,9 @@ class NameGenerator:
         # bundle lacks either input → cohesion degrades to a bit-stable
         # no-op (the multiplier also short-circuits on cohesion<=0 before
         # touching this table, so cohesion=0 output is unchanged regardless).
-        self.cohesion_table = build_cohesion_table(self.tag_cooccurrence, self.tag_marginal)
+        self.cohesion_table: dict[str, dict[str, float]] = build_cohesion_table(
+            self.tag_cooccurrence, self.tag_marginal
+        )
         # wyrd-bol9: per-bucket empirical-frequency lookup for the
         # vector path. Pre-fix, vector scoring sampled each Meaning by
         # D36.2 score(lemma) regardless of how often the underlying
