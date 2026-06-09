@@ -2379,6 +2379,98 @@ def test_clear_enrichment_all_derived_resets_three_stages(fresh_db: Path) -> Non
         assert tuple(leftover) == (0, 0, 0)
 
 
+def test_clear_enrichment_cognates_resets_assignments(fresh_db: Path) -> None:
+    """stage='cognates' nulls cognate_id + cognate_method (one of the
+    table-driven _SIMPLE_CLEAR_STAGES rows — pins that row's SQL)."""
+    with LexiconDB(fresh_db) as db:
+        root = db.upsert_etymon("burg", "old-english")
+        member = db.upsert_etymon("burh", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ?, cognate_method = 'cluster-v1' WHERE id = ?",
+            (root, member),
+        )
+        db.commit()
+        dry = clear_enrichment(db, stage="cognates", apply=False)
+        assert dry["cognate_assignments_to_clear"] == 1
+        # dry-run wrote nothing
+        assert (
+            db.conn.execute("SELECT COUNT(*) FROM etymon WHERE cognate_id IS NOT NULL").fetchone()[
+                0
+            ]
+            == 1
+        )
+        clear_enrichment(db, stage="cognates", apply=True)
+        row = db.conn.execute(
+            "SELECT cognate_id, cognate_method FROM etymon WHERE id = ?", (member,)
+        ).fetchone()
+        assert row["cognate_id"] is None and row["cognate_method"] is None
+
+
+def test_clear_enrichment_attested_years_clears_both_sources(fresh_db: Path) -> None:
+    """stage='attested-years' clears attested_year on BOTH row sources
+    (etymon_text_match + toponym_etymology); the dry-run count is the sum.
+    Pins the dual-source logic in _populate_clear_counts and the standalone
+    (text-match-NOT-in-stages → run the etymon_text_match UPDATE) branch of
+    _apply_stage_clears."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        eid = db.upsert_etymon("denu", "old-english")
+        tid = db.conn.execute("INSERT INTO toponym (modern_name) VALUES ('T')").lastrowid
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, attested_year) VALUES (?, 'src-a', 'denu', 1, 0, 1200)",
+            (eid,),
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, attested_year) "
+            "VALUES (?, 'src-a', 1086)",
+            (tid,),
+        )
+        db.commit()
+        dry = clear_enrichment(db, stage="attested-years", apply=False)
+        assert dry["attested_years_to_clear"] == 2  # one per source
+        clear_enrichment(db, stage="attested-years", apply=True)
+        etm_year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE etymon_id = ?", (eid,)
+        ).fetchone()[0]
+        te_year = db.conn.execute(
+            "SELECT attested_year FROM toponym_etymology WHERE toponym_id = ?", (tid,)
+        ).fetchone()[0]
+        assert etm_year is None and te_year is None  # both sources cleared
+
+
+def test_clear_enrichment_all_derived_clears_attested_years_via_guard(fresh_db: Path) -> None:
+    """all-derived clears attested_year too: text-match DELETEs
+    etymon_text_match, so the attested-years stage's guard skips the (now
+    pointless) etymon_text_match UPDATE while still nulling
+    toponym_etymology.attested_year. Pins the all-derived apply path +
+    the 'text-match in stages' guard branch (wyrd-8uvi reorder)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        eid = db.upsert_etymon("denu", "old-english")
+        tid = db.conn.execute("INSERT INTO toponym (modern_name) VALUES ('T')").lastrowid
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, attested_year) VALUES (?, 'src-a', 'denu', 1, 0, 1200)",
+            (eid,),
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, attested_year) "
+            "VALUES (?, 'src-a', 1086)",
+            (tid,),
+        )
+        db.commit()
+        result = clear_enrichment(db, stage="all-derived", apply=True)
+        assert result["attested_years_to_clear"] == 2
+        # text-match DELETE removed the ETM row entirely; toponym_etymology
+        # row survives with attested_year nulled by the (reordered) guard.
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_text_match").fetchone()[0] == 0
+        te_year = db.conn.execute(
+            "SELECT attested_year FROM toponym_etymology WHERE toponym_id = ?", (tid,)
+        ).fetchone()[0]
+        assert te_year is None
+
+
 def test_clear_enrichment_rejects_unknown_stage(fresh_db: Path) -> None:
     """Defensive: unknown stage raises ValueError before touching the DB."""
     with LexiconDB(fresh_db) as db, pytest.raises(ValueError, match="unknown stage"):
