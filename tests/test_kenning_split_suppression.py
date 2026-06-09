@@ -919,6 +919,32 @@ def test_cli_curate_split_etymon_rejects_unrecognized_token(tmp_path: Path):
     assert not (tmp_path / "_curation.jsonl").exists()
 
 
+def test_cli_curate_split_etymon_parses_tags_and_skips_blank_segments(tmp_path: Path):
+    """A --into spec with a ``tags=`` field is ``;``-split into a list
+    (the same code path as glosses, but only glosses was CLI-tested),
+    and empty pipe segments (a ``||`` from a stray pipe) are skipped.
+    Pins the tags-list branch + the blank-part ``continue`` branch the
+    C901 extraction now owns in _parse_one_spec (wyrd-8uvi)."""
+    curation = tmp_path / "_curation.jsonl"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            # double-pipe → blank segment; tags → ;-split list.
+            "suffix=weir|tags=topography;water||primary",
+            "--curation-file",
+            str(curation),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    event = json.loads(curation.read_text().strip().splitlines()[-1])
+    assert event["into"] == [{"suffix": "weir", "tags": ["topography", "water"], "primary": True}]
+
+
 # ---------------------------------------------------------------------------
 # run_full_enrichment plumbing
 # ---------------------------------------------------------------------------
