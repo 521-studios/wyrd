@@ -428,7 +428,11 @@ def parse_alphabetical_text(text: str, *, max_entries: int | None = None) -> lis
                     pending_topo = name
                     pending_body = [chunk]
                     if max_entries is not None and len(out) >= max_entries:
-                        _emit_alpha_entry(out, pending_topo, pending_body)
+                        # ``out`` already holds max_entries completed entries;
+                        # the just-started entry is incomplete (only its
+                        # headword chunk, continuation not yet gathered), so
+                        # stop without emitting it. (Previously this flushed the
+                        # incomplete entry, returning max_entries + 1.)
                         return out
                     continue
             if pending_topo is not None:
@@ -444,13 +448,14 @@ def _group_into_paragraphs(body_lines: list[str]) -> list[str]:
     paragraphs: list[str] = []
     current: list[str] = []
     for ln in body_lines:
-        if ln.strip():
-            current.append(ln)
+        stripped = ln.strip()
+        if stripped:
+            current.append(stripped)
         elif current:
-            paragraphs.append(" ".join(s.strip() for s in current))
+            paragraphs.append(" ".join(current))
             current = []
     if current:
-        paragraphs.append(" ".join(s.strip() for s in current))
+        paragraphs.append(" ".join(current))
     return paragraphs
 
 
@@ -647,7 +652,7 @@ def _emit_numbered_entry(
     detected place-name (or "")."""
     if number is None or not _ordinal_in_bounds(number, min_n, max_n):
         return
-    body = " ".join(line.strip() for line in lines if line.strip())
+    body = " ".join(filter(None, (line.strip() for line in lines)))
     if not body:
         return
     match = _FIRST_TOPONYM.search(body)
