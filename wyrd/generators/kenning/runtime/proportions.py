@@ -1549,122 +1549,102 @@ class NewName:
         stays available to downstream consumers that need it via
         their own meaning_db lookup using ``usage``.
         """
-        # wyrd-o53o + wyrd-ywm9 + wyrd-emlb: rank siblings (drop
-        # modern_english homographs, prioritize older strata) and
-        # split semantic vs derivative glosses. Lazy-import to avoid
-        # a circular dep with wyrd.generators.kenning.__init__ at
-        # module load — to_dict is called per roll, so the import is
-        # paid once after Python caches sys.modules.
-        from wyrd.generators.kenning import (
-            _all_senses,
-            _meaning_groups,
-            _rank_siblings,
-            _split_senses_for_display,
-        )
-
         self._ensure_diversified()
         words: list[list[dict]] = []
         for wi, word in enumerate(self.name):
-            morphemes: list[dict] = []
-            for ei, e in enumerate(word):
-                if e is None:
-                    continue
-                # wyrd-vd6y: a diversified repeat ("Hill Hill" → "Hill Haeth")
-                # uses its override sibling — a different-language synonym — for
-                # BOTH the displayed surface and the etymology, so the breakdown
-                # matches the rendered name instead of showing the original
-                # repeated morpheme.
-                override = self._lang_override[wi][ei] if self._lang_override else None
-                if override is not None:
-                    ranked = [override]
-                    usage_str = (self.rendered[wi][ei] if self.rendered else None) or e
-                else:
-                    ranked = _rank_siblings(_resolve_surface(self.meaning_db, e))
-                    usage_str = e
-                first = ranked[0] if ranked else None
-                morpheme: dict = {"usage": usage_str}
-                if first is not None:
-                    # Sources stay from the top-ranked sibling (the
-                    # canonical etymon for THIS surface form). Tags
-                    # union across all ranked siblings — same as the
-                    # explainer (wyrd-ywm9). Meanings split into
-                    # primary + derivative for the SPA card layout.
-                    morpheme["sources"] = {
-                        lang: list(forms) for lang, forms in first.sources.items()
-                    }
-                    morpheme["tags"] = list(dict.fromkeys(t for m in ranked for t in m.tags))
-                    primary, derivative = _split_senses_for_display(_all_senses(ranked))
-                    morpheme["meanings"] = primary
-                    morpheme["derivative_meanings"] = derivative
-                    # wyrd-0y3k: per-sibling, deduped sense groups so the SPA
-                    # can show the senses visually separated (the flat
-                    # `meanings` above stays for back-compat / other consumers).
-                    groups = _meaning_groups(ranked)
-                    if groups:
-                        morpheme["meaning_groups"] = groups
-                    # wyrd-cp2d round 3: pronunciation + cross-script
-                    # renderings (wyrd-ha9q's original_script /
-                    # transliteration / english_shaped / IPA) so the
-                    # JSON continuity flow carries the same panel data
-                    # ``components()`` exposes to the SPA. Sparse by
-                    # design — only emit the field when the
-                    # _collect_renderings dict isn't empty so Latin-
-                    # script-only morphemes don't carry a noisy '{}'.
-                    # wyrd-o53o: renderings drawn from the ranked
-                    # siblings (so dropped modern_english entries
-                    # don't contribute spurious pronunciation /
-                    # transliteration data).
-                    renderings = _collect_renderings(ranked)
-                    if renderings:
-                        morpheme["renderings"] = renderings
-                    # wyrd-bvwu: carry the morpheme's scholarly citations
-                    # (source_ids, wyrd-9kh.1) so the SPA inspector can
-                    # surface them in an expandable view. Sparse — only
-                    # when non-empty — matching renderings, so rando-port-
-                    # only morphemes don't carry an empty list. components()
-                    # already exposes this; to_dict (morphemes_by_word, what
-                    # the cards iterate) didn't until now.
-                    citations = _collect_citations(ranked)
-                    if citations:
-                        morpheme["citations"] = citations
-                    # wyrd-lftl: per-morpheme family × era reflex grid for the
-                    # SPA col-3 inspector. Sparse — only when the etymon carries
-                    # era_reflexes (coverage gap tracked in wyrd-32t1).
-                    # wyrd-rogd.10 Phase 3: resolve the grid against the UNIFIED
-                    # morpheme by its stable id — morpheme_id is now authoritative
-                    # (Phase 2's keying is live in the bundle), so the dash-strip
-                    # string-derivation FALLBACK is retired here. A surface with
-                    # no/unresolvable morpheme_id (un-attributable, e.g. -'s) isn't
-                    # a morpheme and gets no grid (_era_grid(None) → []). NOTE:
-                    # _resolve_surface stays the generation MATCHER (tags /
-                    # siblings / location); only the era-grid stops using string-
-                    # derivation. (The design's 'delete _resolve_surface' was
-                    # over-stated — the matcher is load-bearing and must stay.)
-                    morpheme_meaning = _resolve_morpheme(
-                        self.meaning_db, getattr(first, "morpheme_id", None)
-                    )
-                    grid = _era_grid(morpheme_meaning, renderings)
-                    if grid:
-                        morpheme["era_grid"] = grid
-                # D18 variant / D8 inflection / era substitute if present
-                if self.rendered is not None and self.rendered[wi][ei] is not None:
-                    era_form = self.rendered[wi][ei]
-                    morpheme["rendered"] = era_form
-                    # wyrd-mf2u: for an ERA render, carry the era language + the
-                    # era form's OWN pronunciation so the breakdown shows the
-                    # period form (matching the name) alongside the modern
-                    # anchor, instead of the modern surface only.
-                    if self.era_render_language:
-                        morpheme["rendered_language"] = self.era_render_language
-                        pron = _era_pronunciation(
-                            morpheme.get("renderings"), self.era_render_language, era_form, first
-                        )
-                        if pron:
-                            morpheme["rendered_pron"] = pron
-                morphemes.append(morpheme)
+            morphemes = [
+                self._morpheme_to_dict(wi, ei, e) for ei, e in enumerate(word) if e is not None
+            ]
             if morphemes:
                 words.append(morphemes)
         return {"name": str(self), "words": words}
+
+    def _morpheme_to_dict(self, wi: int, ei: int, e) -> dict:
+        """Build one morpheme's breakdown dict for :meth:`to_dict`."""
+        # wyrd-o53o + wyrd-ywm9 + wyrd-emlb: rank siblings (drop modern_english
+        # homographs, prioritize older strata). Lazy-import to avoid a circular
+        # dep with wyrd.generators.kenning.__init__ at module load — called per
+        # morpheme, so the import is paid once after Python caches sys.modules.
+        from wyrd.generators.kenning import _rank_siblings
+
+        # wyrd-vd6y: a diversified repeat ("Hill Hill" → "Hill Haeth") uses its
+        # override sibling — a different-language synonym — for BOTH the displayed
+        # surface and the etymology, so the breakdown matches the rendered name
+        # instead of showing the original repeated morpheme.
+        override = self._lang_override[wi][ei] if self._lang_override else None
+        if override is not None:
+            ranked = [override]
+            usage_str = (self.rendered[wi][ei] if self.rendered else None) or e
+        else:
+            ranked = _rank_siblings(_resolve_surface(self.meaning_db, e))
+            usage_str = e
+        first = ranked[0] if ranked else None
+        morpheme: dict = {"usage": usage_str}
+        if first is not None:
+            self._add_etymology_fields(morpheme, ranked, first)
+        self._add_rendered_fields(morpheme, wi, ei, first)
+        return morpheme
+
+    def _add_etymology_fields(self, morpheme: dict, ranked: list, first) -> None:
+        """Add the etymology fields for the top-ranked sibling ``first``. Sources
+        stay from ``first`` (the canonical etymon for this surface); tags union
+        across all ranked siblings (wyrd-ywm9); meanings split into primary +
+        derivative for the SPA card layout. meaning_groups / renderings /
+        citations / era_grid are sparse — emitted only when non-empty, so
+        Latin-script / rando-port-only morphemes don't carry noisy empties."""
+        # Lazy import (circular-dep avoidance — see _morpheme_to_dict).
+        from wyrd.generators.kenning import (
+            _all_senses,
+            _meaning_groups,
+            _split_senses_for_display,
+        )
+
+        morpheme["sources"] = {lang: list(forms) for lang, forms in first.sources.items()}
+        morpheme["tags"] = list(dict.fromkeys(t for m in ranked for t in m.tags))
+        primary, derivative = _split_senses_for_display(_all_senses(ranked))
+        morpheme["meanings"] = primary
+        morpheme["derivative_meanings"] = derivative
+        # wyrd-0y3k: per-sibling deduped sense groups (the flat `meanings` above
+        # stays for back-compat / other consumers).
+        groups = _meaning_groups(ranked)
+        if groups:
+            morpheme["meaning_groups"] = groups
+        # wyrd-cp2d r3 + wyrd-o53o: cross-script renderings (original_script /
+        # transliteration / english_shaped / IPA) drawn from the ranked siblings,
+        # so dropped modern_english entries don't add spurious data.
+        renderings = _collect_renderings(ranked)
+        if renderings:
+            morpheme["renderings"] = renderings
+        # wyrd-bvwu: scholarly citations (source_ids, wyrd-9kh.1) for the SPA
+        # inspector's expandable view.
+        citations = _collect_citations(ranked)
+        if citations:
+            morpheme["citations"] = citations
+        # wyrd-lftl + wyrd-rogd.10 P3: per-morpheme family × era reflex grid,
+        # resolved against the UNIFIED morpheme by its stable morpheme_id (no
+        # dash-strip string fallback; an un-attributable surface → _era_grid(None)
+        # → [] → no grid).
+        morpheme_meaning = _resolve_morpheme(self.meaning_db, getattr(first, "morpheme_id", None))
+        grid = _era_grid(morpheme_meaning, renderings)
+        if grid:
+            morpheme["era_grid"] = grid
+
+    def _add_rendered_fields(self, morpheme: dict, wi: int, ei: int, first) -> None:
+        """Add the D18 variant / D8 inflection / era-substitute fields when this
+        slot carries a rendered form. For an ERA render also carry the era
+        language + the era form's OWN pronunciation (wyrd-mf2u), so the breakdown
+        shows the period form alongside the modern anchor."""
+        if self.rendered is None or self.rendered[wi][ei] is None:
+            return
+        era_form = self.rendered[wi][ei]
+        morpheme["rendered"] = era_form
+        if self.era_render_language:
+            morpheme["rendered_language"] = self.era_render_language
+            pron = _era_pronunciation(
+                morpheme.get("renderings"), self.era_render_language, era_form, first
+            )
+            if pron:
+                morpheme["rendered_pron"] = pron
 
     def components(self):
         """Structured component breakdown for the API envelope.
