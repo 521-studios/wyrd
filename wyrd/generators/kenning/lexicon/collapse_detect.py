@@ -162,7 +162,7 @@ def detect_deterministic_collapses(conn: sqlite3.Connection) -> list[dict[str, s
     variants BIDIRECTIONALLY (``wode`` is a variant of ``wood`` AND
     ``wood`` of ``wode``), so naively emitting both would tombstone each
     into the other — a ``merged_into_id`` cycle that
-    ``apply_collapses._resolve`` (it excludes already-tombstoned rows)
+    ``_resolve_live_etymon`` (it excludes already-tombstoned rows)
     could never settle. Edges are processed in deterministic ``(ref,
     into)`` order; the first direction seen for a pair survives, the
     cycle-closer is skipped.
