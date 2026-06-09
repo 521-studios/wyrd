@@ -30,6 +30,7 @@
     glossForSurface,
     isGlossDrift,
   } from '../lib/era.js';
+  import { showModernCompanion } from '../lib/render.js';
   import NameGuideCard from '../components/NameGuideCard.svelte';
   import MorphemeGrid from '../components/MorphemeGrid.svelte';
   import DefectModal from '../components/DefectModal.svelte';
@@ -183,7 +184,10 @@
           label={eraLabel}
           rows={activeRows}
         />
-        {#if paragonRows.length}
+        <!-- wyrd-swh2: only show the modern paragon when it differs from the
+             native (result_modern !== result), matching the Output column —
+             a native==modern roll would otherwise duplicate the card. -->
+        {#if paragonRows.length && showModernCompanion(result)}
           <NameGuideCard name={paragonName} label="modern" dim rows={paragonRows} />
         {/if}
       </div>
