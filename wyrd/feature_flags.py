@@ -73,3 +73,56 @@ def resolve_feature_config(env: Mapping[str, str] | None = None) -> dict:
         elif key.startswith(_DEFAULT_PREFIX):
             defaults[key[len(_DEFAULT_PREFIX) :].lower()] = value
     return {"all": all_on, "flags": flags, "defaults": defaults}
+
+
+def _coerce_to_schema_type(raw: str, prop: Mapping) -> object | None:
+    """Coerce a ``WYRD_DEFAULT_*`` string to an option's JSON-schema type.
+
+    The server-side mirror of the SPA's ``featureFlags.coerceToType``. Returns
+    ``None`` for an empty/uncoercible value or an ``array`` option, so the
+    caller falls back to the option's own schema default rather than seeding
+    garbage (matches the SPA, which returns ``undefined`` in those cases)."""
+    schema_type = (prop or {}).get("type")
+    if schema_type == "array":
+        return None
+    if schema_type in ("number", "integer"):
+        text = str(raw).strip()
+        if not text:
+            return None
+        try:
+            return int(text) if schema_type == "integer" else float(text)
+        except ValueError:
+            return None
+    if schema_type == "boolean":
+        return _parse_bool(str(raw))
+    return raw
+
+
+def apply_env_defaults(
+    params: dict, properties: Mapping, env: Mapping[str, str] | None = None
+) -> dict:
+    """Fill option values from ``WYRD_DEFAULT_<OPTION>`` for options ABSENT from
+    a generation request, coerced to each option's schema type. Mutates and
+    returns ``params``.
+
+    This is the server-side half of the ``WYRD_DEFAULT`` contract (CLAUDE.md:
+    it overrides an option's default *value*, not just its SPA visibility). The
+    SPA seeds the same overrides for display, but it omits any field still at
+    its seeded default from the request (the wyrd-14hn "default = don't include"
+    rule), so without this the server would fall back to the SCHEMA default and
+    a value-changing override like ``WYRD_DEFAULT_NOVELTY=0.1`` would be a no-op
+    on generation while the slider showed 0.1 (wyrd-7f22). Only fills keys that
+    are real options for this generator and absent from the request, so an
+    explicit request value (incl. one equal to the schema default) always wins
+    and bit-stability holds when no ``WYRD_DEFAULT_*`` is set."""
+    defaults = resolve_feature_config(env)["defaults"]
+    for key, raw in defaults.items():
+        if key in params:
+            continue
+        prop = properties.get(key)
+        if prop is None:
+            continue
+        coerced = _coerce_to_schema_type(raw, prop)
+        if coerced is not None:
+            params[key] = coerced
+    return params
