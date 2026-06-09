@@ -1171,6 +1171,13 @@ def test_summary_table_era_cell_renders_na_when_no_bundle_subjects() -> None:
     # '0% covered'. Otherwise _format_pct returns '0.0%' for zero
     # denominator, which is misleading.
     assert "Bundle subjects with reflex stop targeting this language: 0/0 (n/a)" in md
+    # The other zero-denominator detail sections must also render their 'n/a'
+    # branch (this fixture has bundle_attestation_total=0, bundle_sibling=None,
+    # and rando_total_cited_families=0). Pins the n/a wording each section owns.
+    assert "B₂. Bundle attestation:** n/a" in md
+    assert "C₂. Bundle tag visibility:** n/a" in md
+    assert "bundle n/a — no bundle subjects" in md  # H. Pronunciation coverage
+    assert "K. Rando-port grandfather audit:** n/a" in md
 
 
 def test_scorecard_inheritance_warning_pin() -> None:
