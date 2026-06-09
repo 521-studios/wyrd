@@ -54,6 +54,29 @@ _BODY_END_PATTERNS = [
 ]
 
 
+def _find_body_end(lines: list[str], from_line: int) -> int:
+    """First body-end marker at or after ``from_line`` (else end-of-document).
+
+    Scans from ``from_line`` (not +1) so an end-marker on the very next line —
+    common in TOC lines like "PART II. ELEMENTS .... 100" — is recognized and
+    collapses the candidate span to zero."""
+    for j in range(from_line, len(lines)):
+        if any(p.match(lines[j]) for p in _BODY_END_PATTERNS):
+            return j
+    return len(lines)
+
+
+def _fallback_body_start(lines: list[str]) -> int:
+    """First plausible headword in the second half of the document, or -1 when
+    none — the fallback when no body-start marker was found."""
+    midpoint = len(lines) // 2
+    for i in range(midpoint, len(lines)):
+        m = _ENTRY_HEADWORD.match(lines[i])
+        if m and _is_real_headword(m.group("name")):
+            return i
+    return -1
+
+
 def find_body_bounds(lines: list[str]) -> tuple[int, int]:
     """Locate the alphabetical body inside `lines`.
 
@@ -76,37 +99,21 @@ def find_body_bounds(lines: list[str]) -> tuple[int, int]:
        under-yielded by ~99% before this safety net).
     """
 
-    def _find_end(from_line: int) -> int:
-        # Scan from `from_line` (not from_line+1) so an end-marker on the
-        # very next line — common in TOC lines like "PART II. ELEMENTS .... 100"
-        # — is recognized and collapses the candidate span to zero.
-        for j in range(from_line, len(lines)):
-            if any(p.match(lines[j]) for p in _BODY_END_PATTERNS):
-                return j
-        return len(lines)
-
     starts: list[int] = []
     for i, line in enumerate(lines):
         if any(p.match(line) for p in _BODY_START_PATTERNS):
             starts.append(i)
 
-    candidates = [(s + 1, _find_end(s + 1)) for s in starts]
+    candidates = [(s + 1, _find_body_end(lines, s + 1)) for s in starts]
 
     if candidates:
         # Pick the candidate with the largest body span.
         start, end = max(candidates, key=lambda se: se[1] - se[0])
     else:
-        # Fall back: first plausible headword in the second half.
-        start = -1
-        midpoint = len(lines) // 2
-        for i in range(midpoint, len(lines)):
-            m = _ENTRY_HEADWORD.match(lines[i])
-            if m and _is_real_headword(m.group("name")):
-                start = i
-                break
+        start = _fallback_body_start(lines)
         if start < 0:
             return 0, len(lines)
-        end = _find_end(start + 1)
+        end = _find_body_end(lines, start + 1)
 
     # Safety net: tiny bodies on big documents almost always mean the
     # heuristic mis-fired. 5% is conservative — the smallest legitimate
@@ -399,18 +406,7 @@ def parse_alphabetical_text(text: str, *, max_entries: int | None = None) -> lis
     start, end = find_body_bounds(lines)
     body_lines = _strip_noise(lines[start:end])
 
-    # Group lines into paragraphs (blank-line-delimited).
-    paragraphs: list[str] = []
-    current: list[str] = []
-    for ln in body_lines:
-        if ln.strip():
-            current.append(ln)
-        else:
-            if current:
-                paragraphs.append(" ".join(s.strip() for s in current))
-                current = []
-    if current:
-        paragraphs.append(" ".join(s.strip() for s in current))
+    paragraphs = _group_into_paragraphs(body_lines)
 
     # Walk paragraphs: each headword paragraph starts a new entry; subsequent
     # paragraphs without a headword are continuation (Mawer often spans an
@@ -418,29 +414,6 @@ def parse_alphabetical_text(text: str, *, max_entries: int | None = None) -> lis
     out: list[ParsedEntry] = []
     pending_topo: str | None = None
     pending_body: list[str] = []
-
-    def flush() -> None:
-        if pending_topo is None:
-            return
-        body = " ".join(pending_body).strip()
-        body = re.sub(r"\s+", " ", body)
-        # Reject paragraph-fragments: bodies too short or lacking any of the
-        # etymology-signal markers a real entry always carries (year / OE /
-        # AS / Phonology / Domesday). Catches OCR line-break artifacts where
-        # mid-sentence fragments look like headword paragraphs.
-        if not _entry_body_is_real(body):
-            return
-        out.append(
-            ParsedEntry(
-                toponym=pending_topo,
-                section_suffix=None,
-                historical_form=None,
-                elements=[],
-                confidence="low",
-                source_quote=_shorten(body),
-                body_text=body,
-            )
-        )
 
     for para in paragraphs:
         flat = re.sub(r"\s+", " ", para).strip()
@@ -451,18 +424,59 @@ def parse_alphabetical_text(text: str, *, max_entries: int | None = None) -> lis
             if m:
                 name = m.group("name").strip()
                 if _is_real_headword(name):
-                    flush()
+                    _emit_alpha_entry(out, pending_topo, pending_body)
                     pending_topo = name
                     pending_body = [chunk]
                     if max_entries is not None and len(out) >= max_entries:
-                        flush()
+                        _emit_alpha_entry(out, pending_topo, pending_body)
                         return out
                     continue
             if pending_topo is not None:
                 pending_body.append(chunk)
 
-    flush()
+    _emit_alpha_entry(out, pending_topo, pending_body)
     return out
+
+
+def _group_into_paragraphs(body_lines: list[str]) -> list[str]:
+    """Group body lines into blank-line-delimited paragraphs (each a single
+    whitespace-collapsed string)."""
+    paragraphs: list[str] = []
+    current: list[str] = []
+    for ln in body_lines:
+        if ln.strip():
+            current.append(ln)
+        elif current:
+            paragraphs.append(" ".join(s.strip() for s in current))
+            current = []
+    if current:
+        paragraphs.append(" ".join(s.strip() for s in current))
+    return paragraphs
+
+
+def _emit_alpha_entry(
+    out: list[ParsedEntry], pending_topo: str | None, pending_body: list[str]
+) -> None:
+    """Append a low-confidence ParsedEntry for the in-progress alphabetical
+    entry to ``out``, unless there's no headword or the body fails the
+    etymology-signal filter (rejects OCR line-break fragments)."""
+    if pending_topo is None:
+        return
+    body = " ".join(pending_body).strip()
+    body = re.sub(r"\s+", " ", body)
+    if not _entry_body_is_real(body):
+        return
+    out.append(
+        ParsedEntry(
+            toponym=pending_topo,
+            section_suffix=None,
+            historical_form=None,
+            elements=[],
+            confidence="low",
+            source_quote=_shorten(body),
+            body_text=body,
+        )
+    )
 
 
 def _split_packed_paragraph(flat: str) -> list[str]:
@@ -573,35 +587,6 @@ def parse_numbered_list_text(
     current_number: int | None = None
     current_lines: list[str] = []
 
-    def _flush() -> None:
-        if current_number is None:
-            return
-        if current_number < min_entry_number:
-            return
-        if max_entry_number is not None and current_number > max_entry_number:
-            return
-        body = " ".join(line.strip() for line in current_lines if line.strip())
-        if not body:
-            return
-        match = _FIRST_TOPONYM.search(body)
-        toponym = match.group("name").strip() if match else ""
-        entries.append(
-            ParsedEntry(
-                toponym=toponym,
-                section_suffix=None,
-                historical_form=None,
-                elements=[],
-                confidence="low",
-                source_quote=_shorten(body),
-                body_text=body,
-            )
-        )
-
-    def _in_bounds(candidate: int) -> bool:
-        if candidate < min_entry_number:
-            return False
-        return not (max_entry_number is not None and candidate > max_entry_number)
-
     for line in text.splitlines():
         m = _NUMBERED_ENTRY_START.match(line)
         if m:
@@ -618,14 +603,16 @@ def parse_numbered_list_text(
             #
             # When neither bound is set (default min=1, max=None) every
             # candidate is in-bounds and we get the historic behavior.
-            if not _in_bounds(candidate):
+            if not _ordinal_in_bounds(candidate, min_entry_number, max_entry_number):
                 if current_number is not None:
                     current_lines.append(line)
                 continue
-            _flush()
+            _emit_numbered_entry(
+                entries, current_number, current_lines, min_entry_number, max_entry_number
+            )
             if max_entries is not None and len(entries) >= max_entries:
                 # Already at the cap — stop accumulating new entries.
-                # The cap is checked AFTER _flush so the in-progress
+                # The cap is checked AFTER the flush so the in-progress
                 # entry is committed before we exit.
                 current_number = None
                 current_lines = []
@@ -634,8 +621,45 @@ def parse_numbered_list_text(
             current_lines = [m.group("rest")]
         elif current_number is not None:
             current_lines.append(line)
-    _flush()
+    _emit_numbered_entry(entries, current_number, current_lines, min_entry_number, max_entry_number)
 
     if max_entries is not None:
         entries = entries[:max_entries]
     return entries
+
+
+def _ordinal_in_bounds(candidate: int, min_n: int, max_n: int | None) -> bool:
+    """Whether a numbered-list ordinal falls in the inclusive [min, max] window."""
+    if candidate < min_n:
+        return False
+    return not (max_n is not None and candidate > max_n)
+
+
+def _emit_numbered_entry(
+    entries: list[ParsedEntry],
+    number: int | None,
+    lines: list[str],
+    min_n: int,
+    max_n: int | None,
+) -> None:
+    """Append a ParsedEntry for the in-progress numbered entry to ``entries``,
+    unless it's out of bounds or has an empty body. Toponym is the first
+    detected place-name (or "")."""
+    if number is None or not _ordinal_in_bounds(number, min_n, max_n):
+        return
+    body = " ".join(line.strip() for line in lines if line.strip())
+    if not body:
+        return
+    match = _FIRST_TOPONYM.search(body)
+    toponym = match.group("name").strip() if match else ""
+    entries.append(
+        ParsedEntry(
+            toponym=toponym,
+            section_suffix=None,
+            historical_form=None,
+            elements=[],
+            confidence="low",
+            source_quote=_shorten(body),
+            body_text=body,
+        )
+    )
