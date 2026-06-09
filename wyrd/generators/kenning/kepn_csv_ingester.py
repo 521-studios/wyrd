@@ -319,119 +319,216 @@ def emit_kepn_jsonl(
     # ordered place records for emit
     places: list[dict] = []
 
-    def _note_etymon(
-        ref: str,
-        form: str,
-        lang: str,
-        gloss: str | None,
-        referenced: bool,
-        ref_title: str,
-        tags: list[str],
-    ) -> None:
-        e = etymons.get(ref)
-        if e is None:
-            etymons[ref] = {
-                "form": form,
-                "lang": lang,
-                "gloss": gloss,
-                "referenced": referenced,
-                "ref_title": ref_title if referenced else "",
-                "tags": list(tags),
-            }
-        else:
-            if gloss and not e["gloss"]:
-                e["gloss"] = gloss
-            if referenced and not e["referenced"]:
-                e["referenced"], e["ref_title"] = True, ref_title
-            for t in tags:
-                if t not in e["tags"]:
-                    e["tags"].append(t)
-
     with csv_path.open(encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
-            place = (row.get("PlaceName") or "").strip()
-            etym = row.get("Etymology") or ""
-            deriv = row.get("Derivation") or ""
-            ref_title = (row.get("ReferenceTitle") or "").strip()
-            if not place:
-                stats.skipped_empty_places += 1
-                continue
-            stats.places += 1
-            referenced = bool(ref_title)
-            elements = parse_derivation(deriv, stats)
-            ordered_refs: list[str] = []
-            unresolved_names: list[str] = []
-            pn_count = 0
-            for el in elements:
-                if el.is_personal_name:
-                    pn_count += 1  # resolved below from prose
-                    continue
-                if not el.form or not el.lang:
-                    continue
-                if element_whitelist is not None and _nfc(el.form) not in element_whitelist:
-                    stats.whitelist_quarantined += 1
-                    if len(stats.quarantine_sample) < 12:
-                        stats.quarantine_sample.append(f"{el.form!r}[{el.raw_lang_label}]")
-                    continue
-                stats.lexical_elements += 1
-                ref = _ref(el.lang, el.form)
-                _note_etymon(ref, el.form, el.lang, el.gloss, referenced, ref_title, [])
-                ordered_refs.append(ref)
-
-            if pn_count:
-                # Count every personal-name slot (not once per place) so the
-                # match/miss measure is accurate on multi-name compounds.
-                stats.pn_slots += pn_count
-                # Align prose possessives to slots (usually 1:1). Slots beyond
-                # the names we can extract stay in the pn_slots − pn_extracted
-                # gap rather than being silently counted as resolved.
-                cands = extract_personal_names(etym)
-                for i in range(pn_count):
-                    if i >= len(cands):
-                        # a slot with no prose candidate to resolve — mark it
-                        # unresolved rather than silently ignoring it.
-                        unresolved_names.append("(unextracted personal name)")
-                        continue
-                    cand = cands[i]
-                    stats.pn_extracted += 1
-                    matched, tier = match_name(cand, name_index)
-                    if tier == "t1":
-                        stats.pn_match_t1 += 1
-                    elif tier == "t2":
-                        stats.pn_match_t2 += 1
-                    else:
-                        stats.pn_miss += 1
-                        if len(stats.pn_miss_sample) < 15:
-                            stats.pn_miss_sample.append(cand)
-                    if matched:
-                        cf, lang = matched
-                        ref = _ref(lang, cf)
-                        # corroborate the Briggs name etymon; carry its name tag
-                        _note_etymon(ref, cf, lang, None, referenced, ref_title, [])
-                        ordered_refs.append(ref)
-                    else:
-                        unresolved_names.append(cand)
-
-            notes_parts = []
-            # Greedy: capture the WHOLE leading quoted gloss. A non-greedy /
-            # negated-class match stops at the apostrophe inside a possessive
-            # ("'Earda's wood'" → "Earda"), truncating the note.
-            quoted = re.search(r"'(.+)'", etym)
-            if quoted:
-                notes_parts.append(quoted.group(1).strip())
-            if unresolved_names:
-                notes_parts.append("unresolved personal name(s): " + ", ".join(unresolved_names))
-            places.append(
-                {
-                    "place": place,
-                    "notes": "; ".join(notes_parts) or None,
-                    "refs": ordered_refs,
-                }
+            _process_kepn_row(
+                row,
+                stats=stats,
+                name_index=name_index,
+                element_whitelist=element_whitelist,
+                etymons=etymons,
+                places=places,
             )
             if on_progress is not None and stats.places % 250 == 0:
                 on_progress(stats)
 
-    # ---- emit ----
+    _emit_kepn_rows(jsonl_path, etymons, places, county, stats)
+    if on_progress is not None:
+        on_progress(stats)
+    return stats
+
+
+def _note_etymon(
+    etymons: dict[str, dict],
+    ref: str,
+    form: str,
+    lang: str,
+    gloss: str | None,
+    referenced: bool,
+    ref_title: str,
+    tags: list[str],
+) -> None:
+    """Merge an etymon observation into the two-pass collector dict — dedupes
+    glosses / reference flags / tags across every place that cites the ref."""
+    e = etymons.get(ref)
+    if e is None:
+        etymons[ref] = {
+            "form": form,
+            "lang": lang,
+            "gloss": gloss,
+            "referenced": referenced,
+            "ref_title": ref_title if referenced else "",
+            "tags": list(tags),
+        }
+    else:
+        if gloss and not e["gloss"]:
+            e["gloss"] = gloss
+        if referenced and not e["referenced"]:
+            e["referenced"], e["ref_title"] = True, ref_title
+        for t in tags:
+            if t not in e["tags"]:
+                e["tags"].append(t)
+
+
+def _collect_lexical_elements(
+    elements,
+    *,
+    stats: KepnStats,
+    element_whitelist: frozenset[str] | None,
+    etymons: dict[str, dict],
+    referenced: bool,
+    ref_title: str,
+) -> tuple[int, list[str]]:
+    """First pass over one place's parsed elements: note each lexical etymon
+    (whitelist-quarantining as configured) and count personal-name slots.
+    Returns ``(personal_name_count, ordered_refs)``."""
+    pn_count = 0
+    ordered_refs: list[str] = []
+    for el in elements:
+        if el.is_personal_name:
+            pn_count += 1  # resolved below from prose
+            continue
+        if not el.form or not el.lang:
+            continue
+        if element_whitelist is not None and _nfc(el.form) not in element_whitelist:
+            stats.whitelist_quarantined += 1
+            if len(stats.quarantine_sample) < 12:
+                stats.quarantine_sample.append(f"{el.form!r}[{el.raw_lang_label}]")
+            continue
+        stats.lexical_elements += 1
+        ref = _ref(el.lang, el.form)
+        _note_etymon(etymons, ref, el.form, el.lang, el.gloss, referenced, ref_title, [])
+        ordered_refs.append(ref)
+    return pn_count, ordered_refs
+
+
+def _resolve_personal_names(
+    etym: str,
+    pn_count: int,
+    *,
+    stats: KepnStats,
+    name_index: dict[str, tuple[str, str]],
+    etymons: dict[str, dict],
+    referenced: bool,
+    ref_title: str,
+    ordered_refs: list[str],
+    unresolved_names: list[str],
+) -> None:
+    """Second pass for one place: align prose possessives to personal-name
+    slots, score match tiers, corroborate matched Briggs name etymons, and
+    record unresolved slots. Mutates stats / etymons / ordered_refs /
+    unresolved_names in place."""
+    # Count every personal-name slot (not once per place) so the match/miss
+    # measure is accurate on multi-name compounds.
+    stats.pn_slots += pn_count
+    # Align prose possessives to slots (usually 1:1). Slots beyond the names we
+    # can extract stay in the pn_slots − pn_extracted gap rather than being
+    # silently counted as resolved.
+    cands = extract_personal_names(etym)
+    for i in range(pn_count):
+        if i >= len(cands):
+            # a slot with no prose candidate to resolve — mark it unresolved
+            # rather than silently ignoring it.
+            unresolved_names.append("(unextracted personal name)")
+            continue
+        cand = cands[i]
+        stats.pn_extracted += 1
+        matched, tier = match_name(cand, name_index)
+        if tier == "t1":
+            stats.pn_match_t1 += 1
+        elif tier == "t2":
+            stats.pn_match_t2 += 1
+        else:
+            stats.pn_miss += 1
+            if len(stats.pn_miss_sample) < 15:
+                stats.pn_miss_sample.append(cand)
+        if matched:
+            cf, lang = matched
+            ref = _ref(lang, cf)
+            # corroborate the Briggs name etymon; carry its name tag
+            _note_etymon(etymons, ref, cf, lang, None, referenced, ref_title, [])
+            ordered_refs.append(ref)
+        else:
+            unresolved_names.append(cand)
+
+
+def _build_place_notes(etym: str, unresolved_names: list[str]) -> str | None:
+    """Per-place notes: the leading quoted gloss + any unresolved personal
+    names, joined; or None when empty."""
+    notes_parts = []
+    # Greedy: capture the WHOLE leading quoted gloss. A non-greedy /
+    # negated-class match stops at the apostrophe inside a possessive
+    # ("'Earda's wood'" → "Earda"), truncating the note.
+    quoted = re.search(r"'(.+)'", etym)
+    if quoted:
+        notes_parts.append(quoted.group(1).strip())
+    if unresolved_names:
+        notes_parts.append("unresolved personal name(s): " + ", ".join(unresolved_names))
+    return "; ".join(notes_parts) or None
+
+
+def _process_kepn_row(
+    row: dict,
+    *,
+    stats: KepnStats,
+    name_index: dict[str, tuple[str, str]],
+    element_whitelist: frozenset[str] | None,
+    etymons: dict[str, dict],
+    places: list[dict],
+) -> None:
+    """Process one CSV row into the collector: skip empty places, parse the
+    derivation, note lexical + personal-name etymons, append the place record.
+    Mutates stats / etymons / places."""
+    place = (row.get("PlaceName") or "").strip()
+    etym = row.get("Etymology") or ""
+    deriv = row.get("Derivation") or ""
+    ref_title = (row.get("ReferenceTitle") or "").strip()
+    if not place:
+        stats.skipped_empty_places += 1
+        return
+    stats.places += 1
+    referenced = bool(ref_title)
+    elements = parse_derivation(deriv, stats)
+    pn_count, ordered_refs = _collect_lexical_elements(
+        elements,
+        stats=stats,
+        element_whitelist=element_whitelist,
+        etymons=etymons,
+        referenced=referenced,
+        ref_title=ref_title,
+    )
+    unresolved_names: list[str] = []
+    if pn_count:
+        _resolve_personal_names(
+            etym,
+            pn_count,
+            stats=stats,
+            name_index=name_index,
+            etymons=etymons,
+            referenced=referenced,
+            ref_title=ref_title,
+            ordered_refs=ordered_refs,
+            unresolved_names=unresolved_names,
+        )
+    places.append(
+        {
+            "place": place,
+            "notes": _build_place_notes(etym, unresolved_names),
+            "refs": ordered_refs,
+        }
+    )
+
+
+def _emit_kepn_rows(
+    jsonl_path: Path,
+    etymons: dict[str, dict],
+    places: list[dict],
+    county: str,
+    stats: KepnStats,
+) -> None:
+    """Stream the collected etymons + places to the L2 JSONL sink: source +
+    cited_source headers, one etymon (+ kepn / kepn_external citations) per
+    collected ref, then one toponym + etymology_element per place."""
     jsonl_path.parent.mkdir(parents=True, exist_ok=True)
     with jsonl_path.open("w", encoding="utf-8") as sink:
         _w(
@@ -497,9 +594,6 @@ def emit_kepn_jsonl(
             if p["notes"]:
                 ee["notes"] = p["notes"]
             _w(sink, ee)
-    if on_progress is not None:
-        on_progress(stats)
-    return stats
 
 
 def _w(sink: TextIO, row: dict) -> None:
