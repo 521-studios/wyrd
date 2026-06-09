@@ -36,7 +36,11 @@ variable "log_level" {
 variable "enabled_feature_flags" {
   description = "SPA feature-flag names to force on for this environment (each → WYRD_FF_<NAME>=true). Ignored where WYRD_FF_ALL is already true (staging)."
   type        = list(string)
-  default     = []
+  # wyrd-7f22: novelty is validated + shipping on, so surface its slider in
+  # production (staging already shows every option via WYRD_FF_ALL). Both envs
+  # read this default — the deploy passes only -var="env=..." (see deploy.yml),
+  # so a single default applies to staging + production alike.
+  default = ["novelty"]
 }
 
 # wyrd-0gou: per-environment overrides for option DEFAULT VALUES (not just
@@ -45,5 +49,10 @@ variable "enabled_feature_flags" {
 variable "feature_flag_defaults" {
   description = "Per-option default-value overrides (option name → value); each → WYRD_DEFAULT_<OPTION>."
   type        = map(string)
-  default     = {}
+  # wyrd-7f22: default novelty to 0.1 in both prod + staging — a small,
+  # always-on amount of lexical surprise. The schema default stays 0.0 (CLI /
+  # local / tests bit-stable); this env override seeds the deployed SPA's
+  # novelty slider to 0.1. Resolves to WYRD_DEFAULT_NOVELTY=0.1; the SPA
+  # coerces the string to the number 0.1 when seeding (featureFlags.coerceToType).
+  default = { novelty = "0.1" }
 }

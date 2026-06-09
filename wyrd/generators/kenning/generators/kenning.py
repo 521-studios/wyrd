@@ -136,13 +136,15 @@ class Kenning(Generator):
                     "default": 0.0,
                     "minimum": 0.0,
                     "maximum": 1.0,
+                    # wyrd-0k9o: render as a slider in the SPA (a [0,1] proportion).
+                    "ui_widget": "slider",
+                    # wyrd-tngt: terse, accurate, user-facing — no internal jargon.
+                    # 0 weights by attested frequency (typical); 1 is uniform over
+                    # the ELIGIBLE pool (hard filters still apply), not "random".
                     "description": (
-                        "Lexical-surprise dial (wyrd-fcub). Blends the per-slot score "
-                        "distribution toward uniform: 0 samples by score (common "
-                        "morphemes like '-ton'/'-ham' dominate); 1 samples every "
-                        "eligible morpheme equally, surfacing rare morphemes as often "
-                        "as common ones for deliberately unusual names. Applied after "
-                        "tag/mood/harshness scoring."
+                        "How adventurous the name is (0–1): 0 favors historically "
+                        "common morphemes; 1 makes every eligible morpheme equally "
+                        "likely."
                     ),
                 },
                 "mood": {
