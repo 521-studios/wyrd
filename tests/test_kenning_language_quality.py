@@ -20,6 +20,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli
@@ -885,7 +886,9 @@ def test_cli_language_report_source_tag_mutually_exclusive(tmp_path: Path) -> No
     assert "mutually exclusive" in result.output.lower()
 
 
-def test_cli_language_report_bundle_without_proportions_does_not_crash(tmp_path, monkeypatch):
+def test_cli_language_report_bundle_without_proportions_does_not_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """wyrd-62cc regression: ``--bundle X`` WITHOUT ``--proportions`` must
     not raise UnboundLocalError. ``runtime_db`` and the
     ``proportions_dict_for_culture`` import were bound only inside the
