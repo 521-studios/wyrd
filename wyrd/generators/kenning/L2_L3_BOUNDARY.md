@@ -400,4 +400,4 @@ per-file CSV shape if hosting it in S3 ever becomes worthwhile.
 
 Per-PR: when a table or column shifts between L2 and L3, update the
 relevant section here. The doc is single-source-of-truth for the
-boundary; lexicon.sql comments cross-reference it.
+boundary; data/seed/lexicon.sql comments cross-reference it.

@@ -42,7 +42,7 @@ In scope when the PR does any of:
   data-writing whole-word / subgroup command the test enumerates by hand
   (`build`, `synsets seed`, `synsets assign`; add new such commands to
   `_EXTRA_DATA_POPULATION_COMMANDS` in the test).
-- Adds a new table or layer (schema migration / `data/lexicon.sql` /
+- Adds a new table or layer (schema migration / `data/seed/lexicon.sql` /
   `schema.py`) whose rows are **mined or ingested** (not deterministically
   derivable by `lexicon enrich`), i.e. something a full wipe would drop
   unless restored.

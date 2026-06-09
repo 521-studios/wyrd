@@ -26,6 +26,7 @@ from importlib import resources
 import pytest
 
 from wyrd.generators.kenning import _load_meanings
+from wyrd.generators.kenning.paths import seed_data_path
 from wyrd.generators.kenning.runtime.meaning import load_meanings
 from wyrd.generators.kenning.runtime.name import Name, load_names
 
@@ -175,11 +176,7 @@ def test_sidecar_lifts_irish_corpus_perfect_rate() -> None:
         .joinpath("irish_anglicizations.json")
         .read_text()
     )
-    place_names_text = (
-        resources.files("wyrd.generators.kenning.data")
-        .joinpath("irish_place_names.json")
-        .read_text()
-    )
+    place_names_text = seed_data_path("irish_place_names.json").read_text()
 
     main_subjects = main.get("subjects") or []
     # Sidecar stays list-shape (its own format, separate from the L4 emit).

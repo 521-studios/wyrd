@@ -72,7 +72,7 @@ def _add_descent(
 
 def test_init_schema_creates_etymon_stratum_column(fresh_db: Path) -> None:
     """Fresh installs pick up the ``etymon.stratum`` column from
-    data/lexicon.sql. Pinning here so a future schema-rewrite that
+    data/seed/lexicon.sql. Pinning here so a future schema-rewrite that
     drops the column would fail this test loudly."""
     with LexiconDB(fresh_db) as db:
         cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}

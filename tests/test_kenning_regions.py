@@ -353,7 +353,7 @@ def test_backfill_merge_honors_canonical_source_priority(tmp_path: Path):
     the merge picks the higher-priority ``canonical_source`` per the
     schema's hierarchy (scholar > scholar-disagreement >
     unique-zero-unaccounted > tiebreaker, per
-    ``data/lexicon.sql:418-429``). The surviving row is the target by
+    ``data/seed/lexicon.sql:418-429``). The surviving row is the target by
     id (FKs stable), but its flags reflect whichever side had the
     higher-priority source. Pin both directions so a reversed
     condition wouldn't pass."""

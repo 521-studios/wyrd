@@ -16,7 +16,7 @@ The failure mode this guards against: an ingester that writes DB rows but emits 
 **What to check:**
 
 1. Walk the PR diff for any of:
-   - `CREATE TABLE` in `wyrd/generators/kenning/data/lexicon.sql`, `wyrd/generators/kenning/lexicon/schema.py`, or `wyrd/generators/kenning/lexicon/sql/migrations/versions/`
+   - `CREATE TABLE` in `wyrd/generators/kenning/data/seed/lexicon.sql`, `wyrd/generators/kenning/lexicon/schema.py`, or `wyrd/generators/kenning/lexicon/sql/migrations/versions/`
    - `INSERT INTO` / `INSERT OR IGNORE INTO` / `INSERT OR REPLACE INTO` in any new ingester or CLI module
    - New `mine-*` / `ingest-*` CLI subcommands
    - LLM calls (`chat_json`, `provider="ollama"|"gemini"|"anthropic"`, etc.) or network fetches whose outputs land in the DB
@@ -58,7 +58,7 @@ rebuild-from-jsonl
 **Flag issues if:**
 
 - A new ingester writes to the lexicon DB but emits no JSONL artifact AND is not handled by `dump-jsonl`. Concretely: blowing away the DB and running `rebuild-from-jsonl` would leave those rows missing.
-- A new table is added to the schema (alembic migration / `data/lexicon.sql` / `schema.py` helper) but `wyrd/generators/kenning/jsonl/dump.py` is not updated to round-trip it AND no per-ingester JSONL emission lands the rows.
+- A new table is added to the schema (alembic migration / `data/seed/lexicon.sql` / `schema.py` helper) but `wyrd/generators/kenning/jsonl/dump.py` is not updated to round-trip it AND no per-ingester JSONL emission lands the rows.
 - A new `mine-*` / `ingest-*` CLI writes DB rows but the only path back is "re-run the LLM on the source materials" — i.e., reconstruction depends on either expensive compute or staged source files.
 - A migration adds a column whose value is mined (not derived) and the mining step has no JSONL trail.
 - An ingester takes an external source (HTTP URL, S3 fetch, PDF) and writes to the DB without first capturing the raw response / parsed events to JSONL.

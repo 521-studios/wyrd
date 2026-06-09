@@ -859,7 +859,7 @@ def test_migration_idempotent_on_already_migrated_db(tmp_path):
     db = LexiconDB(db_path)
     # Second pass: should be a no-op for the new columns.
     result = migrate_schema(db)
-    # Fresh installs have the columns from data/lexicon.sql, so migration
+    # Fresh installs have the columns from data/seed/lexicon.sql, so migration
     # sees them and skips the ADD COLUMN.
     assert result["toponym_etymology.is_canonical"] is False
     assert result["toponym_etymology.consensus_size"] is False

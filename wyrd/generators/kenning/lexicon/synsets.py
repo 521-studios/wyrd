@@ -19,16 +19,14 @@ Phase 2 will add an LLM-assisted candidate proposer that hangs off
 from __future__ import annotations
 
 import json
-from importlib import resources
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.paths import seed_data_path
 
 
 def _meaning_synsets_seed() -> dict:
     """Read the bundled seed catalog from package data."""
-    raw = (
-        resources.files("wyrd.generators.kenning.data").joinpath("meaning_synsets.json").read_text()
-    )
+    raw = seed_data_path("meaning_synsets.json").read_text()
     return json.loads(raw)
 
 

@@ -663,7 +663,7 @@ def _format_morphemes(morphemes: list[Any]) -> str:
     Unaccounted fragments render as ``[chars]`` brackets so the
     visual difference is obvious in a grep.
 
-    Legacy / alt shape (per lexicon.sql docstring): bare string for a
+    Legacy / alt shape (per data/seed/lexicon.sql docstring): bare string for a
     matched morpheme, ``{"unaccounted": "<chars>"}`` dict for a leftover.
     Supported for backward-compat.
     """

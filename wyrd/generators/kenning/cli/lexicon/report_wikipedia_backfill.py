@@ -25,7 +25,7 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     "--data-dir",
     "data_dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=Path("wyrd/generators/kenning/data"),
+    default=Path("data/seed"),
     show_default=True,
     help="Directory containing the *_place_names.json files.",
 )

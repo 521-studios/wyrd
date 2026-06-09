@@ -28,7 +28,7 @@ from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.regions import country_for_region
 
 # Priority hierarchy for ``toponym_decomposition.canonical_source`` per
-# ``data/lexicon.sql:418-429`` (which mirrors the rules in
+# ``data/seed/lexicon.sql:418-429`` (which mirrors the rules in
 # ``runtime/decomposition.pick_canonical_decomposition``). Lower index
 # = higher priority. Used by ``_merge_toponym_into`` to pick the
 # winning canonical_source when both sides of a signature collision

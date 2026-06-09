@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import UTC, datetime
-from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +13,7 @@ from wyrd.generators.kenning import CULTURES
 from wyrd.generators.kenning.bulk_sources import DEFAULT_LOCAL_CACHE_DIR
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _load_meanings_data
 from wyrd.generators.kenning.lexicon import LexiconDB, record_mining_run
-from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
+from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY, seed_data_path
 from wyrd.generators.kenning.wiktextract_corpus_miner import (
     WIKTIONARY_EMPIRICAL_SOURCE_ID,
     compute_unaccounted_fragments,
@@ -213,11 +212,7 @@ def _stage_place_names_paths(
     paths: dict[str, Path] = {}
     try:
         for culture in target_cultures:
-            text = (
-                resources.files("wyrd.generators.kenning.data")
-                .joinpath(f"{culture}_place_names.json")
-                .read_text()
-            )
+            text = seed_data_path(f"{culture}_place_names.json").read_text()
             p = tmpdir / f"{culture}_place_names.json"
             p.write_text(text)
             paths[culture] = p

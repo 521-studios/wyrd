@@ -32,8 +32,8 @@ wyrd kenning generate english --tag tree --tag water --seed 42
 # data (structures + tag co-occurrence), not a scoring mode — after editing
 # meanings or place names
 wyrd kenning rebuild-proportions english \
-    wyrd/generators/kenning/data/english_place_names.json \
-    > wyrd/generators/kenning/data/english_proportions.json
+    data/seed/english_place_names.json \
+    > data/seed/english_proportions.json
 
 # Append new name-based meanings (e.g. saints' names)
 cat saints.txt | wyrd kenning add-meaning --tag saint --tag religion

@@ -16,10 +16,10 @@ the trie path's documented contracts:
 from __future__ import annotations
 
 import json
-from importlib import resources
 
 import pytest
 
+from wyrd.generators.kenning.paths import seed_data_path
 from wyrd.generators.kenning.runtime.meaning import load_meanings
 from wyrd.generators.kenning.runtime.name import Name, _trie_cache, load_names
 
@@ -146,11 +146,7 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
     names per culture for english/irish, but the trie path is
     O(match-length) per position so the full pass is sub-second.
     """
-    place_names_text = (
-        resources.files("wyrd.generators.kenning.data")
-        .joinpath(f"{culture}_place_names.json")
-        .read_text()
-    )
+    place_names_text = seed_data_path(f"{culture}_place_names.json").read_text()
     names = load_names(json.loads(place_names_text))
 
     perfect = 0

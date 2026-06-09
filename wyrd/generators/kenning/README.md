@@ -9,7 +9,7 @@ generation. The runtime hasn't changed shape — it still reads
 ## Data model
 
 The lexicon (SQLite, `data/lexicon.db`) is normalized so multiple sources
-can disagree without losing each other's claims. Schema in `data/lexicon.sql`.
+can disagree without losing each other's claims. Schema in `data/seed/lexicon.sql`.
 
 ```
                 ┌────────────┐

@@ -209,7 +209,7 @@ def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
     the migration path stays self-contained. The full rationale for
     each view (why MIN(attested_year), why SUM(match_count), how the
     two-step chain handles merged_into_id → lemma_id) lives next to
-    the matching CREATE VIEW blocks in data/lexicon.sql; this function
+    the matching CREATE VIEW blocks in data/seed/lexicon.sql; this function
     just mirrors them for legacy-DB migration.
     """
     _recreate_view(
@@ -308,7 +308,7 @@ def _create_etymon_descent_table(db: LexiconDB, applied: dict[str, bool]) -> Non
     assertions. The cognate cluster column etymon.cognate_id is derived
     from this graph by the cluster-cognates pass (wyrd-81n).
 
-    Schema mirrors data/lexicon.sql so fresh-install and migration paths
+    Schema mirrors data/seed/lexicon.sql so fresh-install and migration paths
     stay in lockstep. Idempotent — checks for the table before creating.
     """
     existing = {
@@ -445,7 +445,7 @@ def _migrate_citation_context_snippet(db: LexiconDB, applied: dict[str, bool]) -
     """Add etymon_citation.context_snippet to existing DBs (wyrd-9kh.3).
 
     Idempotent: PRAGMA-checks the column before adding. Fresh installs
-    pick the column up from data/lexicon.sql so this is a migration-only
+    pick the column up from data/seed/lexicon.sql so this is a migration-only
     path.
     """
     cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon_citation)")}
@@ -459,7 +459,7 @@ def _migrate_toponym_etymology_attested_year(db: LexiconDB, applied: dict[str, b
     (wyrd-bag — D5-1 expansion).
 
     Idempotent: PRAGMA-checks the column before adding. Fresh installs
-    pick the column up from data/lexicon.sql so this is a migration-only
+    pick the column up from data/seed/lexicon.sql so this is a migration-only
     path.
     """
     cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(toponym_etymology)")}
@@ -477,7 +477,7 @@ def _migrate_toponym_etymology_canonical(db: LexiconDB, applied: dict[str, bool]
     + partial index + canonical view to toponym_etymology on legacy DBs.
 
     Idempotent: PRAGMA-checks each column before adding. Fresh installs
-    pick everything up from data/lexicon.sql; this is migration-only.
+    pick everything up from data/seed/lexicon.sql; this is migration-only.
 
     Why three columns rather than a sibling table: keeps the canonical
     decision colocated with the hypothesis it applies to (no JOIN to
@@ -526,7 +526,7 @@ def _create_etymon_period_form_table(db: LexiconDB, applied: dict[str, bool]) ->
     re-projection idempotent.
 
     Idempotent: PRAGMA-checks for the table first; runs as no-op on
-    fresh installs (table ships in data/lexicon.sql).
+    fresh installs (table ships in data/seed/lexicon.sql).
     """
     cur = db.conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='etymon_period_form'"
@@ -568,7 +568,7 @@ def _create_empirical_priors_tables(db: LexiconDB, applied: dict[str, bool]) -> 
     not-merge each run).
 
     Idempotent: PRAGMA-checks for each table first; runs as no-op on
-    fresh installs (tables ship in data/lexicon.sql).
+    fresh installs (tables ship in data/seed/lexicon.sql).
     """
     cur = db.conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='empirical_priors_native'"
@@ -632,7 +632,7 @@ def _create_toponym_decomposition_table(db: LexiconDB, applied: dict[str, bool])
     populator idempotent.
 
     Idempotent: checks for the table first; runs as no-op on fresh
-    installs (table ships in data/lexicon.sql).
+    installs (table ships in data/seed/lexicon.sql).
     """
     cur = db.conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='toponym_decomposition'"
@@ -682,7 +682,7 @@ def _create_toponym_attestation_unique_index(db: LexiconDB, applied: dict[str, b
     COALESCE(source_doc, ''))`` so the ``mine-attestations`` ingest
     is idempotent.
 
-    The base table ships in ``data/lexicon.sql`` but pre-existed without
+    The base table ships in ``data/seed/lexicon.sql`` but pre-existed without
     a unique constraint. Adding one via CREATE UNIQUE INDEX rather than
     a table-recreate keeps existing rows intact and runs as a no-op on
     fresh schemas (the index ships in lexicon.sql alongside the table).
@@ -1067,7 +1067,7 @@ def _rename_synset_to_cognate(db: LexiconDB, applied: dict[str, bool]) -> None:
     .synset_method → .cognate_method, idx_etymon_synset →
     idx_etymon_cognate). Idempotent — runs only on legacy DBs that
     still carry the old names; fresh-install DBs already have the
-    cognate-prefixed names from data/lexicon.sql.
+    cognate-prefixed names from data/seed/lexicon.sql.
 
     Renames the COLUMN in place via SQLite's ALTER TABLE RENAME COLUMN
     (3.25+) so existing data carries over without a copy. Drops + re-
@@ -1097,13 +1097,13 @@ def _rename_synset_to_cognate(db: LexiconDB, applied: dict[str, bool]) -> None:
 def _create_meaning_synset_tables(db: LexiconDB, applied: dict[str, bool]) -> None:
     """Create meaning_synset + etymon_meaning_synset if missing (wyrd-7tz).
 
-    Schema mirrors data/lexicon.sql so fresh-install and migration paths
+    Schema mirrors data/seed/lexicon.sql so fresh-install and migration paths
     stay in lockstep. Idempotent — checks for the tables before creating.
 
     Distinct from etymon.cognate_id (cognate-cluster ID from
     cluster-cognates enrichment); these are MEANING synsets — fine-
     grained semantic equivalence used by upcoming generator transforms.
-    See the comment block in data/lexicon.sql for why the naming
+    See the comment block in data/seed/lexicon.sql for why the naming
     overlaps and how to disambiguate.
     """
     existing = {
