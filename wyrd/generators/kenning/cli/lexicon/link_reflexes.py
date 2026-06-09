@@ -16,9 +16,89 @@ from __future__ import annotations
 import json
 import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import click
+
+
+@dataclass
+class _LinkRun:
+    """Shared state for the per-candidate reflex-judge loop: the LLM client,
+    the output handle (``None`` in ``--dry-run``), the dry-run flag, the link
+    confidence threshold, and the mutable links/rejects/skipped counters."""
+
+    client: Any
+    fh: Any
+    dry_run: bool
+    min_confidence: str
+    counts: dict[str, int]
+
+
+def _load_judged_links(collapse_file: Path) -> set[str]:
+    """Child refs already judged as reflex links in the ledger (rows carrying
+    ``inherits``). A fold row sharing a ref must NOT block a reflex candidate
+    for the same child surface, so only ``inherits``-bearing rows count."""
+    judged: set[str] = set()
+    if collapse_file.exists():
+        for line in collapse_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line.startswith("{"):  # tolerate blank lines / operator comments
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if row.get("_type") == "collapse" and row.get("ref") and "inherits" in row:
+                judged.add(row["ref"])
+    return judged
+
+
+def _select_todo(candidates: list, judged: set[str], limit: int | None) -> list:
+    """Candidates whose child ref isn't yet judged, capped at ``limit``."""
+    todo = [c for c in candidates if c.child_ref not in judged]
+    if limit is not None:
+        todo = todo[:limit]
+    return todo
+
+
+def _judge_and_record(ctx: _LinkRun, c: Any) -> None:
+    """Judge one reflex-link candidate with the LLM (one retry on transport/
+    parse failure) and either print (``--dry-run``) or append its verdict row
+    to the ledger. A transient failure is skipped WITHOUT recording, so a later
+    run retries rather than burning the pair on noise."""
+    from wyrd.generators.kenning.lexicon.reflex_link_detect import (
+        build_reflex_judge_prompt,
+        parse_reflex_verdict,
+        reflex_verdict_to_row,
+    )
+
+    system, user = build_reflex_judge_prompt(c)
+    verdict = None
+    for _attempt in range(2):  # one retry on transport/parse failure
+        try:
+            verdict = parse_reflex_verdict(ctx.client.chat_json(system, user, {}))
+        except Exception:
+            verdict = None
+        if verdict is not None:
+            break
+    if verdict is None:
+        ctx.counts["skipped"] += 1  # transient/unparseable — don't burn the pair
+        return
+    row = reflex_verdict_to_row(c, verdict, ctx.min_confidence)
+    is_link = row["inherits"] != ""
+    ctx.counts["links"] += is_link
+    ctx.counts["rejects"] += not is_link
+    if ctx.dry_run:
+        tag = "LINK" if is_link else "skip"
+        click.echo(
+            f"  [{tag}] {c.parent_form}->{c.child_form} {verdict.confidence} ({verdict.reason})",
+            err=True,
+        )
+    else:
+        ctx.fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        ctx.fh.flush()  # crash-safety: each verdict durable as we go
 
 
 @click.command("link-reflexes")
@@ -73,12 +153,7 @@ def lexicon_link_reflexes(
     """Judge cross-era reflex-link candidates with an LLM, recording verdicts."""
     from wyrd.generators.kenning.cli.utils import _readonly_lexicon
     from wyrd.generators.kenning.extractors.llm import OllamaClient
-    from wyrd.generators.kenning.lexicon.reflex_link_detect import (
-        build_reflex_judge_prompt,
-        detect_reflex_link_candidates,
-        parse_reflex_verdict,
-        reflex_verdict_to_row,
-    )
+    from wyrd.generators.kenning.lexicon.reflex_link_detect import detect_reflex_link_candidates
 
     if db_path is None:
         env_path = os.environ.get("WYRD_LEXICON_DB")
@@ -93,25 +168,8 @@ def lexicon_link_reflexes(
             conn, min_similarity=min_similarity, max_per_gloss=max_per_gloss
         )
 
-    judged: set[str] = set()
-    if collapse_file.exists():
-        for line in collapse_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line.startswith("{"):  # tolerate blank lines / operator comments
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            # Only reflex-link rows count as already-judged here (they carry
-            # `inherits`); a fold row sharing a ref must NOT block a reflex
-            # candidate for the same child surface.
-            if row.get("_type") == "collapse" and row.get("ref") and "inherits" in row:
-                judged.add(row["ref"])
-
-    todo = [c for c in candidates if c.child_ref not in judged]
-    if limit is not None:
-        todo = todo[:limit]
+    judged = _load_judged_links(collapse_file)
+    todo = _select_todo(candidates, judged, limit)
     click.echo(
         f"  candidates={len(candidates)} already-judged={len(candidates) - len(todo)} "
         f"to-judge={len(todo)} (model={model}, min-confidence={min_confidence})",
@@ -121,52 +179,34 @@ def lexicon_link_reflexes(
         click.echo("Nothing to judge.", err=True)
         return
 
-    client = OllamaClient(base_url=base_url, model=model, timeout_s=90.0)
     if not dry_run:
         collapse_file.parent.mkdir(parents=True, exist_ok=True)
-    fh = None if dry_run else collapse_file.open("a", encoding="utf-8")
-    links = rejects = skipped = 0
+    ctx = _LinkRun(
+        client=OllamaClient(base_url=base_url, model=model, timeout_s=90.0),
+        fh=None if dry_run else collapse_file.open("a", encoding="utf-8"),
+        dry_run=dry_run,
+        min_confidence=min_confidence,
+        counts={"links": 0, "rejects": 0, "skipped": 0},
+    )
     start = time.perf_counter()
     try:
         for i, c in enumerate(todo, 1):
-            system, user = build_reflex_judge_prompt(c)
-            verdict = None
-            for _attempt in range(2):  # one retry on transport/parse failure
-                try:
-                    verdict = parse_reflex_verdict(client.chat_json(system, user, {}))
-                except Exception:
-                    verdict = None
-                if verdict is not None:
-                    break
-            if verdict is None:
-                skipped += 1  # transient/unparseable — don't burn the pair
-                continue
-            row = reflex_verdict_to_row(c, verdict, min_confidence)
-            is_link = row["inherits"] != ""
-            links += is_link
-            rejects += not is_link
-            if dry_run:
-                tag = "LINK" if is_link else "skip"
-                click.echo(
-                    f"  [{tag}] {c.parent_form}->{c.child_form} {verdict.confidence} ({verdict.reason})",
-                    err=True,
-                )
-            else:
-                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-                fh.flush()  # crash-safety: each verdict durable as we go
+            _judge_and_record(ctx, c)
             if i % 10 == 0 or i == len(todo):
                 rate = (time.perf_counter() - start) / i
                 click.echo(
-                    f"  [{i}/{len(todo)}]  links={links} rejects={rejects} skipped={skipped} ({rate:.1f}s/entry)",
+                    f"  [{i}/{len(todo)}]  links={ctx.counts['links']} rejects={ctx.counts['rejects']} "
+                    f"skipped={ctx.counts['skipped']} ({rate:.1f}s/entry)",
                     err=True,
                 )
     finally:
-        if fh is not None:
-            fh.close()
+        if ctx.fh is not None:
+            ctx.fh.close()
 
     verb = "would record" if dry_run else "recorded"
     click.echo(
-        f"{verb}: {links} links + {rejects} rejections ({skipped} skipped) → {collapse_file}",
+        f"{verb}: {ctx.counts['links']} links + {ctx.counts['rejects']} rejections "
+        f"({ctx.counts['skipped']} skipped) → {collapse_file}",
         err=True,
     )
 
