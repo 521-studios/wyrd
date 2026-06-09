@@ -500,8 +500,13 @@ def format_etymon(data: dict[str, Any]) -> str:
 
 
 def _etymon_lemma_family_lines(data: dict[str, Any]) -> list[str]:
-    """### Lemma family — inflection-of link + inflected variants."""
-    if not (data["lemma_ref"] or data["inflection"] or data["inflections"]):
+    """### Lemma family — inflection-of link + inflected variants.
+
+    ``inflection`` is deliberately NOT a guard: it only ever renders as a suffix
+    to the ``lemma_ref`` line, so an inflection-only row (no lemma_ref, no
+    inflections) has nothing to show — gating on it would emit an empty header.
+    """
+    if not (data["lemma_ref"] or data["inflections"]):
         return []
     lines: list[str] = ["", "### Lemma family"]
     if data["lemma_ref"]:
