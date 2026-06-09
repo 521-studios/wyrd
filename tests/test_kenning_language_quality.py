@@ -1313,6 +1313,30 @@ def test_grandfather_audit_follows_family_rollup() -> None:
     assert oe["total_families"] == 3
 
 
+def test_grandfather_audit_skips_family_with_no_language_root() -> None:
+    """A citation-bearing family whose root id has no etymon row (a
+    dangling lemma_id — the schema doesn't FK-enforce it) is excluded
+    from the audit: lang_by_id.get(root) is None so it counts toward no
+    bucket and no total_families. Pins the no-language skip branch the
+    C901 extraction owns in _classify_grandfather_families (wyrd-8uvi)."""
+    conn = _seed_grandfather_fixture_db()
+    # etymon 300 points its lemma_id at a non-existent root (9999); the
+    # family rolls up to id 9999, which has no row → no language.
+    conn.execute(
+        "INSERT INTO etymon(id, canonical_form, language, lemma_id) "
+        "VALUES (300, 'orphan', 'old-english', 9999)"
+    )
+    conn.execute("INSERT INTO etymon_citation(etymon_id, source_id) VALUES (300, 'rando-port')")
+    conn.commit()
+    audit = compute_rando_port_grandfather_audit(conn)
+    # The dangling-root family is excluded — OE counts are unchanged from
+    # the 3-family baseline, and no spurious bucket appears for it.
+    oe = audit["old-english"]
+    assert oe["total_families"] == 3
+    assert oe["pure_grandfather"] == 1
+    assert oe["mixed_grandfather"] == 1
+
+
 # --- per-language scorecard ----------------------------------------------
 
 
