@@ -75,6 +75,73 @@ _PRIMARY_LANG_PRIORITY = (
 )
 
 
+def _post_embed_request(
+    base_url: str, url: str, model: str, texts: list[str], timeout: float
+) -> dict:
+    """POST the batch to ``url`` (``/api/embed``) and return the parsed payload.
+    Wraps the three common transport failures (Ollama down → URLError; model not
+    pulled → HTTPError 404; …) as operator-actionable ClickExceptions so the CLI
+    exits 1 with a single-line message instead of a traceback (wyrd-36ez)."""
+    body = json.dumps({"model": model, "input": texts}).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body_text = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        # Ollama returns 404 with "model 'X' not found, try pulling it first"
+        # when the model isn't installed.
+        if e.code == 404 and "not found" in body_text.lower():
+            raise click.ClickException(
+                f"Ollama model {model!r} not available at {base_url}. "
+                f"Pull it with: ollama pull {model}"
+            ) from e
+        raise click.ClickException(f"Ollama {url} returned HTTP {e.code}: {body_text[:200]}") from e
+    except urllib.error.URLError as e:
+        raise click.ClickException(
+            f"Could not reach Ollama at {base_url}: {e.reason}. "
+            f"Is the service running? Override with --ollama-url or $WYRD_OLLAMA_URL."
+        ) from e
+
+
+def _retry_degenerate_vectors(
+    embeddings: list[list[float]], texts: list[str], url: str, model: str, timeout: float
+) -> tuple[int, int]:
+    """Re-embed degenerate vectors (norm ~0, wyrd-a106) ONE AT A TIME so
+    concurrent batch load can't recur during the retry. Mutates ``embeddings``
+    in place; returns ``(n_retried, n_retry_failed)``."""
+    degen_threshold = 0.5
+    n_retried = 0
+    n_retry_failed = 0
+    for i, v in enumerate(embeddings):
+        norm_sq = sum(x * x for x in v)
+        if norm_sq >= degen_threshold * degen_threshold:
+            continue
+        n_retried += 1
+        # Re-embed up to 3 times; if still degenerate, accept it and let
+        # cosine flagging surface it downstream.
+        attempts = 0
+        while attempts < 3:
+            attempts += 1
+            retry_body = json.dumps(
+                {"model": model, "input": [texts[i]], "options": {"num_ctx": 8192}}
+            ).encode("utf-8")
+            retry_req = urllib.request.Request(
+                url, data=retry_body, headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(retry_req, timeout=timeout) as retry_resp:
+                retry_payload = json.loads(retry_resp.read().decode("utf-8"))
+            retry_vecs = retry_payload.get("embeddings") or []
+            if retry_vecs:
+                new_v = retry_vecs[0]
+                if sum(x * x for x in new_v) >= degen_threshold * degen_threshold:
+                    embeddings[i] = new_v
+                    break
+        else:
+            n_retry_failed += 1  # all 3 retries failed
+    return n_retried, n_retry_failed
+
+
 def _ollama_embed(
     base_url: str, model: str, texts: list[str], timeout: float = 60.0
 ) -> list[list[float]]:
@@ -92,30 +159,7 @@ def _ollama_embed(
     exits with code 1 + a clear single-line message instead of a
     Python traceback."""
     url = f"{base_url.rstrip('/')}/api/embed"
-    body = json.dumps({"model": model, "input": texts}).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=body,
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body_text = e.read().decode("utf-8", errors="replace") if e.fp else ""
-        # Ollama returns 404 with "model 'X' not found, try pulling it first"
-        # when the model isn't installed.
-        if e.code == 404 and "not found" in body_text.lower():
-            raise click.ClickException(
-                f"Ollama model {model!r} not available at {base_url}. "
-                f"Pull it with: ollama pull {model}"
-            ) from e
-        raise click.ClickException(f"Ollama {url} returned HTTP {e.code}: {body_text[:200]}") from e
-    except urllib.error.URLError as e:
-        raise click.ClickException(
-            f"Could not reach Ollama at {base_url}: {e.reason}. "
-            f"Is the service running? Override with --ollama-url or $WYRD_OLLAMA_URL."
-        ) from e
+    payload = _post_embed_request(base_url, url, model, texts, timeout)
     # Response shape: {"model": ..., "embeddings": [[...], [...], ...]}
     embeddings = payload.get("embeddings")
     if not isinstance(embeddings, list) or len(embeddings) != len(texts):
@@ -125,45 +169,10 @@ def _ollama_embed(
             f"{len(embeddings) if isinstance(embeddings, list) else type(embeddings)}"
         )
     # wyrd-a106 bug 2026-05-23: mxbai-embed-large under batched load
-    # intermittently returns degenerate vectors (norm ~0.05 instead
-    # of 1.0) for some inputs while others in the same batch come
-    # back clean — looks like a transient model-state issue rather
-    # than malformed input (the SAME text re-embedded standalone
-    # immediately afterward returns a proper unit-norm vector).
-    # Detect + retry the bad inputs ONE AT A TIME so concurrent
-    # load can't recur during the retry.
-    DEGEN_THRESHOLD = 0.5
-    n_retried = 0
-    n_retry_failed = 0
-    for i, v in enumerate(embeddings):
-        norm_sq = sum(x * x for x in v)
-        if norm_sq < DEGEN_THRESHOLD * DEGEN_THRESHOLD:
-            n_retried += 1
-            # Re-embed this single input up to 3 times. If still
-            # degenerate, accept and let cosine flagging surface it.
-            attempts = 0
-            while attempts < 3:
-                attempts += 1
-                retry_body = json.dumps(
-                    {"model": model, "input": [texts[i]], "options": {"num_ctx": 8192}}
-                ).encode("utf-8")
-                retry_req = urllib.request.Request(
-                    url,
-                    data=retry_body,
-                    headers={"Content-Type": "application/json"},
-                )
-                with urllib.request.urlopen(retry_req, timeout=timeout) as retry_resp:
-                    retry_payload = json.loads(retry_resp.read().decode("utf-8"))
-                retry_vecs = retry_payload.get("embeddings") or []
-                if retry_vecs:
-                    new_v = retry_vecs[0]
-                    new_norm_sq = sum(x * x for x in new_v)
-                    if new_norm_sq >= DEGEN_THRESHOLD * DEGEN_THRESHOLD:
-                        embeddings[i] = new_v
-                        break
-            else:
-                # All 3 retries failed
-                n_retry_failed += 1
+    # intermittently returns degenerate vectors (norm ~0.05 instead of 1.0) for
+    # some inputs while others in the same batch come back clean — a transient
+    # model-state issue, not malformed input. Detect + retry one at a time.
+    n_retried, n_retry_failed = _retry_degenerate_vectors(embeddings, texts, url, model, timeout)
     if n_retried:
         import sys as _sys
 
@@ -299,6 +308,195 @@ def _apply_allowlist_filter(
 _apply_polysemy_filter = _apply_allowlist_filter
 
 
+def _build_audit_entities(subjects: list, limit: int | None) -> list[dict]:
+    """One audit entity per (subject, word) pair — most subjects have one word,
+    but a words list can contribute several modern_usages. Skips subjects with
+    no glosses and words with no usage / no primary source lemma."""
+    entities: list[dict] = []
+    for i, subject in enumerate(subjects):
+        if limit is not None and i >= limit:
+            break
+        glosses = subject.get("meaning") or []
+        if not glosses:
+            continue
+        for w_idx, word in enumerate(subject.get("words") or []):
+            usage = word.get("modern_usage")
+            if not usage:
+                continue
+            primary = _primary_source_lemma(word)
+            if primary is None:
+                continue
+            entities.append(
+                {
+                    "subject_idx": i,
+                    "word_idx": w_idx,
+                    "modern_usage": usage,
+                    "source_lang": primary[0],
+                    "source_lemma": primary[1],
+                    "glosses": glosses,
+                    "joined": " | ".join(glosses),
+                }
+            )
+    return entities
+
+
+def _embed_entities(entities: list[dict], ollama_url: str, model: str, batch_size: int) -> None:
+    """Pass 1: embed each entity's joined gloss list (batched), storing the
+    dense vector on ``e['vector']``. Echoes throughput progress."""
+    click.echo(
+        f"Embedding {len(entities)} entity gloss lists via {model} @ {ollama_url}...",
+        err=True,
+    )
+    t0 = time.time()
+    for batch_start in range(0, len(entities), batch_size):
+        batch = entities[batch_start : batch_start + batch_size]
+        texts = [e["joined"] for e in batch]
+        vectors = _ollama_embed(ollama_url, model, texts)
+        for e, v in zip(batch, vectors, strict=True):
+            e["vector"] = v
+        if batch_start % (batch_size * 10) == 0:
+            done = min(batch_start + batch_size, len(entities))
+            elapsed = time.time() - t0
+            rate = done / elapsed if elapsed > 0 else 0
+            click.echo(
+                f"  [{done}/{len(entities)}]  {rate:.1f} entities/s",
+                err=True,
+            )
+    click.echo(
+        f"  done in {time.time() - t0:.1f}s ({len(entities) / max(time.time() - t0, 0.001):.1f} entities/s)",
+        err=True,
+    )
+
+
+def _bucket_by_usage(
+    entities: list[dict],
+) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
+    """Pass 2: bucket entities by modern_usage. Returns ``(buckets,
+    multi_buckets)`` — multi_buckets keeps only the ≥2-sibling buckets."""
+    buckets: dict[str, list[dict]] = defaultdict(list)
+    for e in entities:
+        buckets[e["modern_usage"]].append(e)
+    multi_buckets = {k: v for k, v in buckets.items() if len(v) >= 2}
+    return buckets, multi_buckets
+
+
+def _cross_row(usage: str, s: dict, sibs: list[dict]) -> dict:
+    """One cross-sibling suspect row: ``s``'s avg/min/max cosine to its
+    bucket-mates + the distinct other-source lemmas in the bucket."""
+    others = [o for o in sibs if o is not s]
+    sims = [_cosine(s["vector"], o["vector"]) for o in others]
+    avg = sum(sims) / len(sims) if sims else 0.0
+    other_lemmas = sorted(
+        {(o["source_lang"], o["source_lemma"]) for o in others}
+        - {(s["source_lang"], s["source_lemma"])}
+    )
+    return {
+        "modern_usage": usage,
+        "subject_idx": s["subject_idx"],
+        "source_lang": s["source_lang"],
+        "source_lemma": s["source_lemma"],
+        "glosses": s["joined"],
+        "n_bucket_mates": len(others),
+        "avg_cosine_to_mates": round(avg, 4),
+        "min_cosine_to_mate": round(min(sims), 4) if sims else 0.0,
+        "max_cosine_to_mate": round(max(sims), 4) if sims else 0.0,
+        "other_bucket_lemmas": "; ".join(f"{lang}:{lemma}" for lang, lemma in other_lemmas),
+    }
+
+
+def _compute_cross_rows(multi_buckets: dict[str, list[dict]]) -> list[dict]:
+    """Pass 3: cross-sibling avg-similarity rows, sorted ascending by avg cosine
+    (lowest = most suspect cluster pollution)."""
+    cross_rows: list[dict] = []
+    for usage, sibs in multi_buckets.items():
+        for s in sibs:
+            cross_rows.append(_cross_row(usage, s, sibs))
+    cross_rows.sort(key=lambda r: r["avg_cosine_to_mates"])
+    return cross_rows
+
+
+def _embed_per_gloss(
+    multi_gloss: list[dict], ollama_url: str, model: str, batch_size: int
+) -> tuple[list[list[float]], list[tuple[int, int]]]:
+    """Pass 4: flatten the multi-gloss entities' glosses, embed them in batches,
+    and return ``(flat_vectors, gloss_offsets)`` where each offset is the
+    ``(start_in_flat, length)`` slice for that entity."""
+    click.echo(
+        f"Embedding per-gloss vectors for {len(multi_gloss)} multi-gloss entities...",
+        err=True,
+    )
+    t0 = time.time()
+    flat_glosses: list[str] = []
+    gloss_offsets: list[tuple[int, int]] = []  # (start_in_flat, length) per entity
+    for e in multi_gloss:
+        gloss_offsets.append((len(flat_glosses), len(e["glosses"])))
+        flat_glosses.extend(e["glosses"])
+    flat_vectors: list[list[float]] = []
+    for batch_start in range(0, len(flat_glosses), batch_size):
+        batch_texts = flat_glosses[batch_start : batch_start + batch_size]
+        flat_vectors.extend(_ollama_embed(ollama_url, model, batch_texts))
+        if batch_start % (batch_size * 10) == 0:
+            done = min(batch_start + batch_size, len(flat_glosses))
+            elapsed = time.time() - t0
+            rate = done / elapsed if elapsed > 0 else 0
+            click.echo(
+                f"  [{done}/{len(flat_glosses)}]  {rate:.1f} glosses/s",
+                err=True,
+            )
+    click.echo(
+        f"  done in {time.time() - t0:.1f}s",
+        err=True,
+    )
+    return flat_vectors, gloss_offsets
+
+
+def _intra_row(
+    e: dict, vecs: list[list[float]], length: int, buckets: dict[str, list[dict]]
+) -> dict:
+    """One intra-entry suspect row: pairwise-cosine stats among ``e``'s gloss
+    vectors + the homonym signal (other source lemmas sharing this surface)."""
+    sims = []
+    for i in range(len(vecs)):
+        for j in range(i + 1, len(vecs)):
+            sims.append(_cosine(vecs[i], vecs[j]))
+    avg = sum(sims) / len(sims) if sims else 0.0
+    bucket_mates = [o for o in buckets[e["modern_usage"]] if o is not e]
+    same_surface_other_lemmas = sorted(
+        {(o["source_lang"], o["source_lemma"]) for o in bucket_mates}
+        - {(e["source_lang"], e["source_lemma"])}
+    )
+    return {
+        "modern_usage": e["modern_usage"],
+        "subject_idx": e["subject_idx"],
+        "source_lang": e["source_lang"],
+        "source_lemma": e["source_lemma"],
+        "glosses": e["joined"],
+        "n_glosses": length,
+        "avg_intra_pairwise_cosine": round(avg, 4),
+        "min_intra_pairwise_cosine": round(min(sims), 4) if sims else 0.0,
+        "same_surface_other_lemmas": "; ".join(
+            f"{lang}:{lemma}" for lang, lemma in same_surface_other_lemmas
+        ),
+        "has_other_lemmas": bool(same_surface_other_lemmas),
+    }
+
+
+def _compute_intra_rows(
+    multi_gloss: list[dict],
+    flat_vectors: list[list[float]],
+    gloss_offsets: list[tuple[int, int]],
+    buckets: dict[str, list[dict]],
+) -> list[dict]:
+    """Pass 5: intra-entry coherence rows, sorted ascending by avg pairwise
+    cosine (lowest = most likely undetected homonym)."""
+    intra_rows: list[dict] = []
+    for e, (start, length) in zip(multi_gloss, gloss_offsets, strict=True):
+        vecs = flat_vectors[start : start + length]
+        intra_rows.append(_intra_row(e, vecs, length, buckets))
+    intra_rows.sort(key=lambda r: r["avg_intra_pairwise_cosine"])
+    return intra_rows
+
+
 @click.command("audit-semantic-coherence")
 @click.option(
     "--meanings",
@@ -431,102 +629,21 @@ def lexicon_audit_semantic_coherence(
     subjects = bundle.get("subjects", [])
     click.echo(f"  {len(subjects)} subjects", err=True)
 
-    # Build the audit entity list. One entity per (subject, word)
-    # pair — most subjects have a single word, but a subject can
-    # contribute multiple modern_usages if its words list has
-    # several. Each entity tracks its bucket key, primary source
-    # lemma, and the gloss list (shared per-subject).
-    entities: list[dict] = []
-    for i, subject in enumerate(subjects):
-        if limit is not None and i >= limit:
-            break
-        glosses = subject.get("meaning") or []
-        if not glosses:
-            continue
-        for w_idx, word in enumerate(subject.get("words") or []):
-            usage = word.get("modern_usage")
-            if not usage:
-                continue
-            primary = _primary_source_lemma(word)
-            if primary is None:
-                continue
-            entities.append(
-                {
-                    "subject_idx": i,
-                    "word_idx": w_idx,
-                    "modern_usage": usage,
-                    "source_lang": primary[0],
-                    "source_lemma": primary[1],
-                    "glosses": glosses,
-                    "joined": " | ".join(glosses),
-                }
-            )
-
+    entities = _build_audit_entities(subjects, limit)
     click.echo(f"  {len(entities)} audit entities (subject × word)", err=True)
 
     # === Pass 1: embed each entity's joined gloss list ============
-    click.echo(
-        f"Embedding {len(entities)} entity gloss lists via {model} @ {ollama_url}...",
-        err=True,
-    )
-    t0 = time.time()
-    for batch_start in range(0, len(entities), batch_size):
-        batch = entities[batch_start : batch_start + batch_size]
-        texts = [e["joined"] for e in batch]
-        vectors = _ollama_embed(ollama_url, model, texts)
-        for e, v in zip(batch, vectors, strict=True):
-            e["vector"] = v
-        if batch_start % (batch_size * 10) == 0:
-            done = min(batch_start + batch_size, len(entities))
-            elapsed = time.time() - t0
-            rate = done / elapsed if elapsed > 0 else 0
-            click.echo(
-                f"  [{done}/{len(entities)}]  {rate:.1f} entities/s",
-                err=True,
-            )
-    click.echo(
-        f"  done in {time.time() - t0:.1f}s ({len(entities) / max(time.time() - t0, 0.001):.1f} entities/s)",
-        err=True,
-    )
+    _embed_entities(entities, ollama_url, model, batch_size)
 
     # === Pass 2: bucket entities by modern_usage ==================
-    buckets: dict[str, list[dict]] = defaultdict(list)
-    for e in entities:
-        buckets[e["modern_usage"]].append(e)
-    multi_buckets = {k: v for k, v in buckets.items() if len(v) >= 2}
+    buckets, multi_buckets = _bucket_by_usage(entities)
     click.echo(
         f"{len(multi_buckets)} multi-sibling buckets (out of {len(buckets)} total)",
         err=True,
     )
 
     # === Pass 3: cross-sibling avg similarity =====================
-    cross_rows: list[dict] = []
-    for usage, sibs in multi_buckets.items():
-        for s in sibs:
-            others = [o for o in sibs if o is not s]
-            sims = [_cosine(s["vector"], o["vector"]) for o in others]
-            avg = sum(sims) / len(sims) if sims else 0.0
-            other_lemmas = sorted(
-                {(o["source_lang"], o["source_lemma"]) for o in others}
-                - {(s["source_lang"], s["source_lemma"])}
-            )
-            cross_rows.append(
-                {
-                    "modern_usage": usage,
-                    "subject_idx": s["subject_idx"],
-                    "source_lang": s["source_lang"],
-                    "source_lemma": s["source_lemma"],
-                    "glosses": s["joined"],
-                    "n_bucket_mates": len(others),
-                    "avg_cosine_to_mates": round(avg, 4),
-                    "min_cosine_to_mate": round(min(sims), 4) if sims else 0.0,
-                    "max_cosine_to_mate": round(max(sims), 4) if sims else 0.0,
-                    "other_bucket_lemmas": "; ".join(
-                        f"{lang}:{lemma}" for lang, lemma in other_lemmas
-                    ),
-                }
-            )
-    cross_rows.sort(key=lambda r: r["avg_cosine_to_mates"])
+    cross_rows = _compute_cross_rows(multi_buckets)
     cross_rows, cross_filtered_out = _apply_allowlist_filter(cross_rows, known_cluster_acceptable)
     cross_path = output_dir / "cross-sibling-suspects.csv"
     _write_csv(cross_path, cross_rows[:top])
@@ -541,68 +658,10 @@ def lexicon_audit_semantic_coherence(
 
     # === Pass 4: intra-entry coherence (per-gloss embed needed) ==
     multi_gloss = [e for e in entities if len(e["glosses"]) >= 2]
-    click.echo(
-        f"Embedding per-gloss vectors for {len(multi_gloss)} multi-gloss entities...",
-        err=True,
-    )
-    t0 = time.time()
-    flat_glosses: list[str] = []
-    gloss_offsets: list[tuple[int, int]] = []  # (start_in_flat, length) per entity
-    for e in multi_gloss:
-        gloss_offsets.append((len(flat_glosses), len(e["glosses"])))
-        flat_glosses.extend(e["glosses"])
-    flat_vectors: list[list[float]] = []
-    for batch_start in range(0, len(flat_glosses), batch_size):
-        batch_texts = flat_glosses[batch_start : batch_start + batch_size]
-        flat_vectors.extend(_ollama_embed(ollama_url, model, batch_texts))
-        if batch_start % (batch_size * 10) == 0:
-            done = min(batch_start + batch_size, len(flat_glosses))
-            elapsed = time.time() - t0
-            rate = done / elapsed if elapsed > 0 else 0
-            click.echo(
-                f"  [{done}/{len(flat_glosses)}]  {rate:.1f} glosses/s",
-                err=True,
-            )
-    click.echo(
-        f"  done in {time.time() - t0:.1f}s",
-        err=True,
-    )
+    flat_vectors, gloss_offsets = _embed_per_gloss(multi_gloss, ollama_url, model, batch_size)
 
-    intra_rows: list[dict] = []
-    for e, (start, length) in zip(multi_gloss, gloss_offsets, strict=True):
-        vecs = flat_vectors[start : start + length]
-        # Pairwise cosines among this entity's gloss vectors.
-        sims = []
-        for i in range(len(vecs)):
-            for j in range(i + 1, len(vecs)):
-                sims.append(_cosine(vecs[i], vecs[j]))
-        avg = sum(sims) / len(sims) if sims else 0.0
-        # Homonym signal: other source-lang lemmas in this bucket
-        # with a DIFFERENT lemma from this entity's. Already-split
-        # homonyms show up here; if empty, this entity might be an
-        # undetected homonym hiding as polysemy.
-        bucket_mates = [o for o in buckets[e["modern_usage"]] if o is not e]
-        same_surface_other_lemmas = sorted(
-            {(o["source_lang"], o["source_lemma"]) for o in bucket_mates}
-            - {(e["source_lang"], e["source_lemma"])}
-        )
-        intra_rows.append(
-            {
-                "modern_usage": e["modern_usage"],
-                "subject_idx": e["subject_idx"],
-                "source_lang": e["source_lang"],
-                "source_lemma": e["source_lemma"],
-                "glosses": e["joined"],
-                "n_glosses": length,
-                "avg_intra_pairwise_cosine": round(avg, 4),
-                "min_intra_pairwise_cosine": round(min(sims), 4) if sims else 0.0,
-                "same_surface_other_lemmas": "; ".join(
-                    f"{lang}:{lemma}" for lang, lemma in same_surface_other_lemmas
-                ),
-                "has_other_lemmas": bool(same_surface_other_lemmas),
-            }
-        )
-    intra_rows.sort(key=lambda r: r["avg_intra_pairwise_cosine"])
+    # === Pass 5: intra-entry pairwise-cosine rows ================
+    intra_rows = _compute_intra_rows(multi_gloss, flat_vectors, gloss_offsets, buckets)
     intra_rows, intra_filtered_out = _apply_allowlist_filter(intra_rows, known_polysemy)
     intra_path = output_dir / "intra-entry-suspects.csv"
     _write_csv(intra_path, intra_rows[:top])
