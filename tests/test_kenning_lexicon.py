@@ -985,6 +985,136 @@ def test_alembic_head_views_match_expected_set(fresh_db: Path) -> None:
     )
 
 
+def _normalize_ddl(sql: str) -> str:
+    """Collapse all whitespace runs to single spaces (and strip) so the
+    snapshot pins the DDL SEMANTICS, not the migration's incidental
+    indentation / line-wrapping."""
+    return " ".join(sql.split())
+
+
+# wyrd-0nrg: snapshot the BODIES of the COALESCE-padded expression-unique
+# indexes. The name-set / table-DDL parity tests above would NOT catch a
+# migration that changes a sentinel (e.g. COALESCE(page, '') → COALESCE(page,
+# ' ')), which silently changes uniqueness semantics — the same class of
+# silent bug as wyrd-rrse (collation). Pin the normalized DDL so such a change
+# fails loudly. Intentional brittleness: an intended index-body change is the
+# signal to update this dict. (idx_pn_toponym_dedup was dropped with the
+# personal_name tables in migration 0014, so only three remain.)
+_EXPECTED_EXPRESSION_INDEX_BODIES = {
+    "idx_etymon_citation_unique": (
+        "CREATE UNIQUE INDEX idx_etymon_citation_unique "
+        "ON etymon_citation(etymon_id, source_id, COALESCE(page, ''))"
+    ),
+    "idx_toponym_unique": (
+        "CREATE UNIQUE INDEX idx_toponym_unique "
+        "ON toponym(modern_name, COALESCE(country, ''), COALESCE(region, ''))"
+    ),
+    "idx_attestation_unique": (
+        "CREATE UNIQUE INDEX idx_attestation_unique ON toponym_attestation( "
+        "toponym_id, form, COALESCE(date_year, 0), COALESCE(source_doc, '') )"
+    ),
+}
+
+
+def test_alembic_head_expression_index_bodies_pin_to_snapshot(fresh_db: Path) -> None:
+    """wyrd-0nrg: the COALESCE-padded unique indexes carry uniqueness
+    semantics in their expression bodies (the sentinel padding), which the
+    name-set parity test can't see. Pin each body to a normalized snapshot so
+    a sentinel change (e.g. '' → ' ') fails loudly. When this fails on an
+    intended change, update ``_EXPECTED_EXPRESSION_INDEX_BODIES``."""
+    with sqlite3.connect(fresh_db) as conn:
+        for name, expected in _EXPECTED_EXPRESSION_INDEX_BODIES.items():
+            row = conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' AND name=?", (name,)
+            ).fetchone()
+            assert row is not None, f"expression-unique index {name!r} missing from alembic head"
+            assert _normalize_ddl(row[0]) == expected, (
+                f"index-body drift for {name!r}:\n  expected: {expected}\n"
+                f"  actual:   {_normalize_ddl(row[0])}"
+            )
+
+
+# wyrd-0nrg: snapshot the BODIES of the canonical-projection views. _EXPECTED_VIEWS
+# pins NAMES only — a migration that rewrites a view's SELECT (projected columns
+# or WHERE filter) would silently ship, and downstream code reads these
+# projections. Pin the normalized body; an intended rewrite is the signal to
+# update this dict.
+_EXPECTED_VIEW_BODIES = {
+    "etymon_canonical": "CREATE VIEW etymon_canonical AS SELECT * FROM etymon WHERE merged_into_id IS NULL",
+    "etymon_consensus": (
+        "CREATE VIEW etymon_consensus AS SELECT lemma_id, canonical_form, language, "
+        "COUNT(DISTINCT source_id) AS witnesses FROM ( SELECT "
+        "COALESCE(le.id, target.id, e.id) AS lemma_id, "
+        "COALESCE(le.canonical_form, target.canonical_form, e.canonical_form) AS canonical_form, "
+        "e.language, c.source_id FROM etymon e LEFT JOIN etymon target "
+        "ON target.id = COALESCE(e.merged_into_id, e.lemma_id) "
+        "LEFT JOIN etymon le ON le.id = target.lemma_id "
+        "LEFT JOIN etymon_citation c ON c.etymon_id = e.id ) "
+        "GROUP BY lemma_id, canonical_form, language"
+    ),
+    "etymon_gloss_canonical": (
+        "CREATE VIEW etymon_gloss_canonical AS SELECT DISTINCT "
+        "COALESCE(le.id, target.id, e.id) AS canonical_etymon_id, g.gloss "
+        "FROM etymon e JOIN etymon_gloss g ON g.etymon_id = e.id "
+        "LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id) "
+        "LEFT JOIN etymon le ON le.id = target.lemma_id"
+    ),
+    "etymon_tag_canonical": (
+        "CREATE VIEW etymon_tag_canonical AS SELECT DISTINCT "
+        "COALESCE(le.id, target.id, e.id) AS canonical_etymon_id, t.tag "
+        "FROM etymon e JOIN etymon_tag t ON t.etymon_id = e.id "
+        "LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id) "
+        "LEFT JOIN etymon le ON le.id = target.lemma_id"
+    ),
+    "etymon_text_match_canonical": (
+        "CREATE VIEW etymon_text_match_canonical AS SELECT "
+        "COALESCE(le.id, target.id, e.id) AS canonical_etymon_id, m.source_id, m.matched_form, "
+        "SUM(m.match_count) AS total_match_count, MIN(m.edit_distance) AS edit_distance, "
+        "MIN(m.attested_year) AS attested_year FROM etymon e "
+        "JOIN etymon_text_match m ON m.etymon_id = e.id "
+        "LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id) "
+        "LEFT JOIN etymon le ON le.id = target.lemma_id "
+        "GROUP BY canonical_etymon_id, m.source_id, m.matched_form"
+    ),
+    "toponym_breakdown_signature": (
+        "CREATE VIEW toponym_breakdown_signature AS SELECT toponym_id, toponym_etymology_id, "
+        "source_id, GROUP_CONCAT(etymon_id, ',') AS signature FROM ( SELECT te.toponym_id, "
+        "te.id AS toponym_etymology_id, te.source_id, tee.etymon_id, tee.ordinal "
+        "FROM toponym_etymology te LEFT JOIN toponym_etymology_element tee "
+        "ON tee.toponym_etymology_id = te.id ORDER BY te.id, tee.ordinal ) "
+        "GROUP BY toponym_etymology_id, toponym_id, source_id"
+    ),
+    "toponym_etymology_canonical": (
+        "CREATE VIEW toponym_etymology_canonical AS "
+        "SELECT * FROM toponym_etymology WHERE is_canonical = 1"
+    ),
+}
+
+
+def test_alembic_head_view_bodies_match_snapshot(fresh_db: Path) -> None:
+    """wyrd-0nrg: pin each view's SELECT body (normalized) so a migration that
+    rewrites a projection or WHERE filter fails loudly — _EXPECTED_VIEWS only
+    pins names. When this fails on an intended rewrite, update
+    ``_EXPECTED_VIEW_BODIES`` (and any downstream consumers of the projection)."""
+    with sqlite3.connect(fresh_db) as conn:
+        actual = {
+            name: _normalize_ddl(sql)
+            for name, sql in conn.execute(
+                "SELECT name, sql FROM sqlite_master WHERE type='view'"
+            ).fetchall()
+        }
+    # Body snapshot is keyed by the same set the name parity test pins; if the
+    # two drift apart that's a bug in this test, not the schema.
+    assert set(actual) == set(_EXPECTED_VIEW_BODIES), (
+        "view set changed — reconcile _EXPECTED_VIEW_BODIES (and _EXPECTED_VIEWS) "
+        f"with alembic head: {sorted(set(actual) ^ set(_EXPECTED_VIEW_BODIES))}"
+    )
+    for name, expected in _EXPECTED_VIEW_BODIES.items():
+        assert actual[name] == expected, (
+            f"view-body drift for {name!r}:\n  expected: {expected}\n  actual:   {actual[name]}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # wyrd-jaur item 6: direct branch tests for _filter_sqlite_reflection_artifacts.
 # Each filter branch (FK pairs, PK nullable, modify_type collation) was
