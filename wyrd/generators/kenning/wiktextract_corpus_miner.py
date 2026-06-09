@@ -804,6 +804,82 @@ def _ensure_forms_source_row(db: LexiconDB) -> None:
     )
 
 
+def _process_corpus_entry(
+    db: LexiconDB, entry: dict[str, Any], counts: dict[str, Any], *, apply: bool
+) -> bool:
+    """Enrich one wiktextract entry's meaningful ``forms`` into
+    etymon_text_match. Returns True when the entry was processed (its canonical
+    etymon exists), False for a skip (no word, no resolvable language, or the
+    canonical headword isn't in the lexicon — counted under ``etymons_missing``;
+    forms-mining enriches existing rows, never creates them). Mutates ``counts``
+    in place; DB writes (idempotent ON CONFLICT upsert) are gated on ``apply``."""
+    canonical_form = (entry.get("word") or "").strip()
+    if not canonical_form:
+        return False
+    # ``_canonical_language`` returns the empty string for missing lang_code
+    # (not None); guard on truthiness so we short-circuit before a wasted SELECT.
+    canonical_lang = _canonical_language(entry.get("lang_code") or "")
+    if not canonical_lang:
+        return False
+    row = db.conn.execute(
+        "SELECT id FROM etymon WHERE canonical_form = ? AND language = ? AND merged_into_id IS NULL",
+        (canonical_form, canonical_lang),
+    ).fetchone()
+    if row is None:
+        counts["etymons_missing"] += 1
+        return False
+    etymon_id = row["id"]
+    # Count noise BEFORE filtering so the dashboard can surface how much of the
+    # slice's forms array is structural noise vs meaningful inflection.
+    forms_in_entry = entry.get("forms") or []
+    meaningful = list(_iter_meaningful_forms(entry))
+    counts["forms_skipped_noise"] += len(forms_in_entry) - len(meaningful)
+    for form, label in meaningful:
+        counts["forms_processed"] += 1
+        if not apply:
+            continue
+        db.conn.execute(
+            """
+            INSERT INTO etymon_text_match
+              (etymon_id, source_id, matched_form, match_count,
+               edit_distance, snippet, method)
+            VALUES (?, ?, ?, 1, 0, ?, 'wiktionary-forms-v1')
+            ON CONFLICT(etymon_id, source_id, matched_form) DO UPDATE
+              SET match_count = match_count + 1
+            """,
+            (etymon_id, WIKTIONARY_FORMS_SOURCE_ID, form, label),
+        )
+        counts["forms_written"] += 1
+    return True
+
+
+def _emit_corpus_progress(counts: dict[str, Any], started_at: float, *, final: bool) -> None:
+    """Emit the CLAUDE.md-convention progress line (stderr, with s/entry rate)
+    — periodic (every 1000 entries) or the final summary (which also reports
+    ``forms_skipped_noise`` so the last partial chunk shows up)."""
+    walked = counts["entries_walked"]
+    rate = (time.time() - started_at) / walked if walked else 0.0
+    if final:
+        click.echo(
+            f"  [{walked}] (final) "
+            f"forms_processed={counts['forms_processed']} "
+            f"forms_skipped_noise={counts['forms_skipped_noise']} "
+            f"forms_written={counts['forms_written']} "
+            f"etymons_missing={counts['etymons_missing']} "
+            f"({rate:.4f}s/entry)",
+            err=True,
+        )
+    else:
+        click.echo(
+            f"  [{walked}] "
+            f"forms_processed={counts['forms_processed']} "
+            f"forms_written={counts['forms_written']} "
+            f"etymons_missing={counts['etymons_missing']} "
+            f"({rate:.4f}s/entry)",
+            err=True,
+        )
+
+
 def mine_corpus_forms(
     db: LexiconDB,
     slice_path: Path,
@@ -859,83 +935,18 @@ def mine_corpus_forms(
         if limit is not None and counts["entries_walked"] >= limit:
             break
         counts["entries_walked"] += 1
-        canonical_form = (entry.get("word") or "").strip()
-        if not canonical_form:
-            continue
-        # Resolve the canonical language via the existing helper —
-        # consistent with how mine_corpus tags the etymon language.
-        # ``_canonical_language`` returns the empty string for
-        # missing lang_code (not None); guard on truthiness so we
-        # short-circuit before issuing a wasted etymon SELECT.
-        lang_code = entry.get("lang_code") or ""
-        canonical_lang = _canonical_language(lang_code)
-        if not canonical_lang:
-            continue
-        # Locate the existing etymon. Don't create new ones — the
-        # forms-mining path enriches existing rows; if mine_corpus
-        # hasn't ingested the headword yet, count and skip.
-        row = db.conn.execute(
-            "SELECT id FROM etymon WHERE canonical_form = ? AND language = ? "
-            "AND merged_into_id IS NULL",
-            (canonical_form, canonical_lang),
-        ).fetchone()
-        if row is None:
-            counts["etymons_missing"] += 1
-            continue
-        etymon_id = row["id"]
-        # Count noise BEFORE filtering so the dashboard can surface
-        # how much of the slice's forms array is structural noise vs
-        # meaningful inflection.
-        forms_in_entry = entry.get("forms") or []
-        meaningful = list(_iter_meaningful_forms(entry))
-        counts["forms_skipped_noise"] += len(forms_in_entry) - len(meaningful)
-        for form, label in meaningful:
-            counts["forms_processed"] += 1
-            if not apply:
-                continue
-            db.conn.execute(
-                """
-                INSERT INTO etymon_text_match
-                  (etymon_id, source_id, matched_form, match_count,
-                   edit_distance, snippet, method)
-                VALUES (?, ?, ?, 1, 0, ?, 'wiktionary-forms-v1')
-                ON CONFLICT(etymon_id, source_id, matched_form) DO UPDATE
-                  SET match_count = match_count + 1
-                """,
-                (etymon_id, WIKTIONARY_FORMS_SOURCE_ID, form, label),
-            )
-            counts["forms_written"] += 1
-        # Periodic commit + progress line every 1000 entries. CLAUDE.md
-        # mining-progress convention: ~every-N records, stderr,
-        # include s/entry rate when wall-clock matters. 1000 is the
-        # right cadence for slice walks (50k+ entries common).
+        if not _process_corpus_entry(db, entry, counts, apply=apply):
+            continue  # skipped entry (no word / lang / etymon) — no progress line
+        # Periodic commit + progress line every 1000 PROCESSED entries
+        # (CLAUDE.md mining-progress convention: ~every-N records, stderr,
+        # s/entry rate). 1000 is the right cadence for 50k+-entry slices.
         if counts["entries_walked"] % 1000 == 0:
-            elapsed = time.time() - started_at
-            rate = elapsed / counts["entries_walked"] if counts["entries_walked"] else 0.0
-            click.echo(
-                f"  [{counts['entries_walked']}] "
-                f"forms_processed={counts['forms_processed']} "
-                f"forms_written={counts['forms_written']} "
-                f"etymons_missing={counts['etymons_missing']} "
-                f"({rate:.4f}s/entry)",
-                err=True,
-            )
+            _emit_corpus_progress(counts, started_at, final=False)
             if apply:
                 db.commit()
 
-    # Final progress line so the last partial chunk shows up,
-    # per CLAUDE.md convention.
-    elapsed = time.time() - started_at
-    rate = elapsed / counts["entries_walked"] if counts["entries_walked"] else 0.0
-    click.echo(
-        f"  [{counts['entries_walked']}] (final) "
-        f"forms_processed={counts['forms_processed']} "
-        f"forms_skipped_noise={counts['forms_skipped_noise']} "
-        f"forms_written={counts['forms_written']} "
-        f"etymons_missing={counts['etymons_missing']} "
-        f"({rate:.4f}s/entry)",
-        err=True,
-    )
+    # Final progress line so the last partial chunk shows up.
+    _emit_corpus_progress(counts, started_at, final=True)
 
     if apply:
         db.commit()
