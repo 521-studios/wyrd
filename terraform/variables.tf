@@ -40,7 +40,10 @@ variable "enabled_feature_flags" {
   # production. Both envs read this default — the deploy passes only
   # -var="env=..." (see deploy.yml), so one default applies to staging +
   # production alike.
-  default = ["novelty"]
+  # wyrd-e2b4: cohesion is now functional (slot-relative tag co-occurrence
+  # bias) + validated diversity-safe across all 5 cultures, so surface its
+  # slider in production alongside novelty.
+  default = ["novelty", "cohesion"]
 }
 
 # wyrd-0gou: per-environment overrides for option DEFAULT VALUES (not just
@@ -55,5 +58,9 @@ variable "feature_flag_defaults" {
   # seeds the deployed SPA's novelty slider AND the server-side generation
   # default (WYRD_DEFAULT_NOVELTY → feature_flags.apply_env_defaults; the SPA
   # coerces the string via featureFlags.coerceToType).
-  default = { novelty = "0.1" }
+  # wyrd-e2b4: default cohesion to 0.6 in both envs — past the midpoint for a
+  # clear attested-pair-fidelity effect while keeping full output variety
+  # (validated: coherence lifts in 4/5 cultures, ~290/300 distinct names even
+  # at 1.0, so 0.6 leaves plenty of wiggle). Schema default stays 0.0.
+  default = { novelty = "0.1", cohesion = "0.6" }
 }

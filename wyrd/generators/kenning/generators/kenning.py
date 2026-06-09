@@ -255,13 +255,17 @@ class Kenning(Generator):
                     "default": 0.0,
                     "minimum": 0.0,
                     "maximum": 1.0,
+                    # wyrd-0k9o: render as a [0,1] slider like novelty (Field.svelte
+                    # gates the slider widget on this key). wyrd-e2b4 added it once
+                    # the knob actually biased.
+                    "x-ui-widget": "slider",
+                    # wyrd-e2b4: user-facing copy — no internal jargon, parallel to
+                    # the novelty blurb above.
                     "description": (
-                        "wyrd-mj2 tag co-occurrence bias (0..1). 0 leaves each slot "
-                        "sampling independently from its marginal (today's behavior). "
-                        "Higher values bias each slot's pick toward usages whose tags "
-                        "co-occur with previously-picked slots' tags in the empirical "
-                        "corpus — so 'topography + plant' and 'water + plant' (both "
-                        "common) are preferred over 'religion + plant' (rare)."
+                        "How naturally the name's parts fit together (0–1): 0 picks "
+                        "each part independently; higher values favor meaning "
+                        "combinations that are common in real place names (water + "
+                        "hill) over odd pairings."
                     ),
                 },
                 "stratum": {

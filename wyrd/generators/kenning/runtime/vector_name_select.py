@@ -45,6 +45,7 @@ Out of scope for v1:
 
 from __future__ import annotations
 
+import math
 import random
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
@@ -113,61 +114,73 @@ def _matches_stratum(meaning: Meaning, stratum: str | None) -> bool:
     return meaning.in_stratum(stratum)
 
 
-def _cohesion_multiplier(
+def _cohesion_raw(
     meaning_tags: frozenset[str],
     prior_tags: frozenset[str],
-    cohesion: float,
-    tag_cooccurrence: dict[str, dict[str, float]] | None,
+    cohesion_table: dict[str, dict[str, float]] | None,
 ) -> float:
-    """D17 cohesion adapter: returns a multiplicative score bias
-    based on tag co-occurrence overlap with previously-picked slots'
-    tags.
+    """Per-candidate D17 *raw* coherence: the mean co-occurrence probability
+    ``P(candidate_tag | prior_tag)`` over every (candidate_tag, prior_tag)
+    pair that has data in ``cohesion_table``.
 
-    Formula: ``1.0 + cohesion * avg_p`` where ``avg_p`` is the mean
-    co-occurrence probability across all (lemma_tag, prior_tag)
-    pairs that have data in ``tag_cooccurrence``.
+    Returns 0.0 when there's no prior (first slot), no table, or no
+    overlapping pair — such a candidate sits at the bottom of the
+    slot-relative ranking :func:`_cohesion_multipliers` builds.
 
-    Edge values:
-      * ``cohesion == 0`` (default) — returns 1.0 (no bias, every
-        slot scores independently)
-      * empty ``prior_tags`` (first slot in a name) — returns 1.0
-      * ``tag_cooccurrence is None`` (legacy / empty bundle) — returns
-        1.0 (same bit-stable degradation pattern as the legacy cohesion
-        path)
-      * ``cohesion == 1`` + ``avg_p == 1.0`` — returns 2.0 (the
-        maximum bias under the formula; ``avg_p`` is bounded in
-        [0, 1] since it's an average of co-occurrence probabilities).
-      * Intermediate values linearly blend.
-
-    The bias is per-slot multiplicative on top of the base score, so
-    the composition stays consistent with the canonical formula:
-    ``score'(lemma) = score(lemma) * cohesion_mult(lemma_tags, prior_tags)``.
+    Tags are iterated in sorted order so the float sum is byte-identical
+    across processes (the PYTHONHASHSEED / D17-refinement bit-stability
+    concern, now load-bearing).
     """
-    if cohesion <= 0 or not prior_tags or not tag_cooccurrence:
-        return 1.0
-    # For each (lemma_tag, prior_tag) pair, look up the empirical
-    # co-occurrence probability + sum. Higher overlap → higher bias.
+    if not prior_tags or not cohesion_table:
+        return 0.0
     overlap_sum = 0.0
     pair_count = 0
-    for ltag in meaning_tags:
-        ltag_co = tag_cooccurrence.get(ltag)
+    for ltag in sorted(meaning_tags):
+        ltag_co = cohesion_table.get(ltag)
         if not ltag_co:
             continue
-        for ptag in prior_tags:
+        for ptag in sorted(prior_tags):
             p = ltag_co.get(ptag)
             if p is None:
                 continue
             overlap_sum += p
             pair_count += 1
     if pair_count == 0:
-        return 1.0
-    # Average co-occurrence probability over the pairs we found.
-    avg_p = overlap_sum / pair_count
-    # Multiplicative bias: at avg_p=0 → 1.0; at avg_p=1 → 1.0 + cohesion.
-    # cohesion=1 doubles the bias for perfectly-cooccurring tags; cohesion=0
-    # is the no-bias identity. Linear in cohesion to keep the knob
-    # legible to operators.
-    return 1.0 + cohesion * avg_p
+        return 0.0
+    return overlap_sum / pair_count
+
+
+def _cohesion_multipliers(raws: list[float], cohesion: float) -> list[float]:
+    """D17 *slot-relative* cohesion bias. Given the per-candidate raw
+    coherence scores (:func:`_cohesion_raw`) for one slot's pool, return each
+    candidate's multiplicative weight bias::
+
+        multiplier_i = (1 - cohesion) + cohesion * (raw_i / mean_raw)
+
+    so above-pool-average coherence gets >1x, below-average <1x, and the
+    multipliers sum to ``len(raws)`` (algebraically exact; within float
+    tolerance in practice) — mean-normalized, so cohesion *redistributes* a
+    slot's weight toward attested-pair candidates rather than inflating it. At cohesion=1 a candidate with no co-occurrence to the
+    priors (raw=0) is fully suppressed; the pool can't collapse because a
+    positive ``mean_raw`` guarantees at least one candidate with raw>0.
+
+    Returns all-1.0 — the bit-stable no-op — when cohesion<=0 or the pool has
+    no coherence signal at all (every raw is 0 → mean_raw=0). At cohesion=0
+    each multiplier is exactly 1.0, so default output is unchanged.
+
+    This replaces the pre-fix per-candidate ``1 + cohesion*avg_p`` form, whose
+    absolute probabilities (~0.07 mean) gave a near-uniform <=1.07x nudge that
+    perturbed picks without concentrating mass on attested pairs (wyrd-e2b4).
+    ``math.fsum`` keeps the pool mean order-independent and exact.
+    """
+    n = len(raws)
+    if cohesion <= 0 or n == 0:
+        return [1.0] * n
+    total = math.fsum(raws)
+    if total <= 0.0:
+        return [1.0] * n
+    mean = total / n
+    return [(1.0 - cohesion) + cohesion * (r / mean) for r in raws]
 
 
 def _slot_position_label(structural_element: str) -> str:
@@ -664,7 +677,7 @@ def _slot_weighted_pool(
     priors: EmpiricalPriors,
     era_midpoint: int,
     cohesion: float,
-    tag_cooccurrence: dict[str, dict[str, float]] | None,
+    cohesion_table: dict[str, dict[str, float]] | None,
     usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None,
     novelty: float,
     prior_tags: frozenset[str],
@@ -703,13 +716,23 @@ def _slot_weighted_pool(
         return []
 
     # Cohesion depends on prior_tags, which evolves across slots within a single
-    # name, so it's per-sample and NOT cacheable.
+    # name, so it's per-sample and NOT cacheable. Score each candidate's raw
+    # tag-coherence against the already-picked slots, then reweight
+    # slot-relative (mean-normalized) so above-average-coherence candidates
+    # gain weight and below-average lose it, with the slot's total weight
+    # preserved (D17). Skip the per-candidate raw walk entirely at the default
+    # cohesion=0 (it would be discarded by _cohesion_multipliers anyway) so the
+    # hot default path pays nothing.
+    if cohesion > 0:
+        raws = [
+            _cohesion_raw(frozenset(m.tags), prior_tags, cohesion_table) for m, _ in base_scored
+        ]
+        multipliers = _cohesion_multipliers(raws, cohesion)
+    else:
+        multipliers = [1.0] * len(base_scored)
     weighted: list[tuple[Meaning, float]] = []
-    for m, bs in base_scored:
-        cohesion_mult = _cohesion_multiplier(
-            frozenset(m.tags), prior_tags, cohesion, tag_cooccurrence
-        )
-        final_score = bs * cohesion_mult
+    for (m, bs), mult in zip(base_scored, multipliers, strict=True):
+        final_score = bs * mult
         if final_score > 0:
             weighted.append((m, final_score))
     if not weighted:
@@ -744,7 +767,7 @@ def _choose_mood_slot(
     priors: EmpiricalPriors,
     era_midpoint: int,
     cohesion: float,
-    tag_cooccurrence: dict[str, dict[str, float]] | None,
+    cohesion_table: dict[str, dict[str, float]] | None,
     usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None,
     novelty: float,
     slot_base_scores: dict[tuple, list[tuple[Meaning, float]]] | None,
@@ -771,7 +794,7 @@ def _choose_mood_slot(
             priors=priors,
             era_midpoint=era_midpoint,
             cohesion=cohesion,
-            tag_cooccurrence=tag_cooccurrence,
+            cohesion_table=cohesion_table,
             usage_frequency_by_bucket=usage_frequency_by_bucket,
             novelty=novelty,
             prior_tags=frozenset(),
@@ -793,7 +816,7 @@ def select_via_vector_scoring(
     priors: EmpiricalPriors,
     era_midpoint: int = 0,
     cohesion: float = 0.0,
-    tag_cooccurrence: dict[str, dict[str, float]] | None = None,
+    cohesion_table: dict[str, dict[str, float]] | None = None,
     exclude_tags: frozenset[str] = frozenset(),
     pack_meaning_dbs: dict[str, dict[str, list[Meaning]]] | None = None,
     non_position_eligible: list[Meaning] | None = None,
@@ -825,9 +848,11 @@ def select_via_vector_scoring(
             tag-wildcard / all-wildcard cells).
         cohesion: D17 cohesion knob in [0, 1]. 0 = no bias; 1 =
             strongest tag-overlap bias.
-        tag_cooccurrence: ``{tag → {tag → cooccurrence_prob}}`` from
-            the bundle (legacy data). None = no cohesion bias even
-            when cohesion > 0 (graceful degrade).
+        cohesion_table: nested ``{candidate_tag → {prior_tag → prob}}``
+            conditional co-occurrence table, derived by
+            :func:`proportions.build_cohesion_table` from the bundle's
+            flat counts + tag_marginal. None / empty = no cohesion bias
+            even when cohesion > 0 (graceful degrade).
         exclude_tags: meanings carrying ANY tag in this set are
             filtered out pre-score. Used by the fiction / curated-
             exclusion paths.
@@ -892,7 +917,7 @@ def select_via_vector_scoring(
             priors=priors,
             era_midpoint=era_midpoint,
             cohesion=cohesion,
-            tag_cooccurrence=tag_cooccurrence,
+            cohesion_table=cohesion_table,
             usage_frequency_by_bucket=usage_frequency_by_bucket,
             novelty=novelty,
             slot_base_scores=slot_base_scores,
@@ -923,7 +948,7 @@ def select_via_vector_scoring(
             priors=priors,
             era_midpoint=era_midpoint,
             cohesion=cohesion,
-            tag_cooccurrence=tag_cooccurrence,
+            cohesion_table=cohesion_table,
             usage_frequency_by_bucket=usage_frequency_by_bucket,
             novelty=novelty,
             prior_tags=frozenset(prior_tags),

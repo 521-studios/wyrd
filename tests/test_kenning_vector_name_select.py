@@ -15,7 +15,8 @@ import pytest
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.vector_name_select import (
     _blend_uniform_by_novelty,
-    _cohesion_multiplier,
+    _cohesion_multipliers,
+    _cohesion_raw,
     _lemma_ref_for,
     _slot_position_label,
     _weighted_choice,
@@ -199,63 +200,63 @@ def test_lemma_ref_maps_wave_two_bundle_fields():
         assert _lemma_ref_for(m) == f"{expected_lang}:form-x", field
 
 
-# ---- _cohesion_multiplier -------------------------------------------------
+# ---- _cohesion_raw + _cohesion_multipliers (D17 slot-relative) ------------
 
 
-def test_cohesion_zero_returns_identity():
-    """At cohesion=0 the multiplier is 1.0 regardless of overlap."""
-    result = _cohesion_multiplier(
+def test_cohesion_raw_averages_pair_probabilities():
+    """raw = mean P(candidate_tag | prior_tag) over the pairs with data."""
+    raw = _cohesion_raw(
         frozenset({"animal"}),
         frozenset({"plant"}),
-        cohesion=0.0,
-        tag_cooccurrence={"animal": {"plant": 0.9}},
+        cohesion_table={"animal": {"plant": 0.6}},
     )
-    assert result == 1.0
+    assert abs(raw - 0.6) < 1e-9
 
 
-def test_cohesion_empty_prior_tags_returns_identity():
-    """First slot has no prior tags → no bias."""
-    result = _cohesion_multiplier(
-        frozenset({"animal"}),
-        frozenset(),
-        cohesion=1.0,
-        tag_cooccurrence={"animal": {"animal": 1.0}},
-    )
-    assert result == 1.0
+def test_cohesion_raw_zero_on_empty_prior_or_missing_data():
+    """No prior (first slot), no table, or no overlapping pair → raw 0.0."""
+    table = {"animal": {"plant": 0.9}}
+    assert _cohesion_raw(frozenset({"animal"}), frozenset(), table) == 0.0
+    assert _cohesion_raw(frozenset({"animal"}), frozenset({"plant"}), None) == 0.0
+    # tags present but absent from the table → no pair → 0.0 (not a crash).
+    assert _cohesion_raw(frozenset({"unknown_a"}), frozenset({"unknown_b"}), table) == 0.0
 
 
-def test_cohesion_missing_cooccurrence_data_returns_identity():
-    """Legacy / empty bundle (no tag_cooccurrence) → no bias even at
-    cohesion=1.0 (graceful degrade per the docstring contract)."""
-    result = _cohesion_multiplier(
-        frozenset({"animal"}),
-        frozenset({"plant"}),
-        cohesion=1.0,
-        tag_cooccurrence=None,
-    )
-    assert result == 1.0
+def test_cohesion_multipliers_zero_cohesion_is_identity():
+    """cohesion=0 → every multiplier is exactly 1.0 (bit-stable default)."""
+    assert _cohesion_multipliers([0.9, 0.1, 0.0], 0.0) == [1.0, 1.0, 1.0]
 
 
-def test_cohesion_full_overlap_doubles_at_cohesion_one():
-    """Perfectly co-occurring tags at cohesion=1.0 → 1.0 + 1.0*1.0 = 2.0"""
-    result = _cohesion_multiplier(
-        frozenset({"animal"}),
-        frozenset({"plant"}),
-        cohesion=1.0,
-        tag_cooccurrence={"animal": {"plant": 1.0}},
-    )
-    assert result == 2.0
+def test_cohesion_multipliers_no_signal_is_identity():
+    """A pool with no coherence signal (all raw 0) → all 1.0 even at
+    cohesion=1, so the slot can't collapse on a no-data slot."""
+    assert _cohesion_multipliers([0.0, 0.0], 1.0) == [1.0, 1.0]
 
 
-def test_cohesion_half_overlap_at_cohesion_half():
-    """avg_p=0.6, cohesion=0.5 → 1.0 + 0.5*0.6 = 1.3"""
-    result = _cohesion_multiplier(
-        frozenset({"animal"}),
-        frozenset({"plant"}),
-        cohesion=0.5,
-        tag_cooccurrence={"animal": {"plant": 0.6}},
-    )
-    assert abs(result - 1.3) < 1e-9
+def test_cohesion_multipliers_slot_relative_mean_normalized():
+    """Two candidates raw 0.9 / 0.1 (mean 0.5) at cohesion=1 → above-average
+    gets 1.8x, below-average 0.2x; the multipliers sum to len(pool)."""
+    mults = _cohesion_multipliers([0.9, 0.1], 1.0)
+    assert abs(mults[0] - 1.8) < 1e-9
+    assert abs(mults[1] - 0.2) < 1e-9
+    assert abs(sum(mults) - 2.0) < 1e-9  # mean-normalized → mass preserved
+
+
+def test_cohesion_multipliers_partial_cohesion_blends():
+    """At cohesion=0.5, multiplier = 0.5 + 0.5*(raw/mean): raw 0.9/mean 0.5
+    → 1.4, raw 0.1 → 0.6. Still sums to len(pool)."""
+    mults = _cohesion_multipliers([0.9, 0.1], 0.5)
+    assert abs(mults[0] - 1.4) < 1e-9
+    assert abs(mults[1] - 0.6) < 1e-9
+    assert abs(sum(mults) - 2.0) < 1e-9
+
+
+def test_cohesion_multipliers_full_suppression_at_cohesion_one():
+    """At cohesion=1 a zero-raw candidate alongside a positive one is fully
+    suppressed (multiplier 0), but the positive candidate survives."""
+    mults = _cohesion_multipliers([0.0, 0.5], 1.0)
+    assert mults[0] == 0.0
+    assert mults[1] > 0.0
 
 
 # ---- _weighted_choice -----------------------------------------------------
@@ -517,7 +518,7 @@ def test_select_d17_cohesion_biases_second_slot_toward_overlapping_tags():
                 request=request,
                 priors=EmpiricalPriors(),
                 cohesion=cohesion,
-                tag_cooccurrence=tag_cooccurrence,
+                cohesion_table=tag_cooccurrence,
                 slot_bucket_keys=slot_bucket_keys,
                 usage_frequency_by_bucket=usage_frequency_by_bucket,
             )
@@ -527,13 +528,63 @@ def test_select_d17_cohesion_biases_second_slot_toward_overlapping_tags():
 
     baseline_wins = _count_match_wins(cohesion=0.0)
     biased_wins = _count_match_wins(cohesion=1.0)
-    # With perfect 0.9-vs-0.1 cooccurrence ratio + cohesion=1.0, the
-    # match should win materially more often than baseline (the bias
-    # is multiplicative: match score scales by 1.9, mismatch by 1.1).
+    # With a 0.9-vs-0.1 cooccurrence ratio + cohesion=1.0, the match should
+    # win materially more often than baseline. The bias is slot-relative
+    # (mean-normalized): raws 0.9/0.1, pool mean 0.5, so the match multiplier
+    # is 1.8x and the mismatch 0.2x.
     assert biased_wins > baseline_wins + 20, (
         f"D17 cohesion bias not observable in pick distribution: "
         f"baseline={baseline_wins}/200 vs biased={biased_wins}/200"
     )
+
+
+def test_select_d17_cohesion_suppresses_orphan_without_collapsing_slot():
+    """wyrd-e2b4: the load-bearing safety property of the slot-relative
+    multiplier, exercised end-to-end through a REAL mixed pool (not just the
+    multiplier unit). At cohesion=1 a candidate whose tags have no
+    co-occurrence with the priors (raw=0) is fully suppressed — multiplier 0,
+    dropped from the weighted pool — yet the slot does NOT collapse, because
+    the co-occurring candidate (raw>0) survives. The whole rework rests on
+    'suppress without collapse'; this proves both halves through the
+    generator, not just the multiplier math."""
+    pre = _meaning("Castle-", tags=["fortified"], phon=PhonologicalVector())
+    # Both compete in slot 1 at the same usage key. post_match co-occurs with
+    # the prior 'fortified'; post_orphan's tag is absent from the table → raw=0.
+    post_match = _meaning("-keep", tags=["fortified"], phon=PhonologicalVector())
+    post_orphan = _meaning("-keep", tags=["orphan_tag"], phon=PhonologicalVector())
+    db = {"Castle-": [pre], "-keep": [post_match, post_orphan]}
+    cohesion_table = {"fortified": {"fortified": 0.9}}  # orphan_tag absent → raw 0
+    register = RegisterEffect(name="any", semantic_tags={"fortified": 1.0, "orphan_tag": 1.0})
+    request = RequestVector(
+        gate=EligibilityGate(culture="english"),
+        register=register,
+        weights=ScoringWeights(sem_w=1.0, phon_w=0.0, pos_w=0.0, base_w=0.0),
+    )
+    usage_frequency_by_bucket = {("pre",): {"Castle-": 1.0}, ("post",): {"-keep": 1.0}}
+    slot_bucket_keys = [("pre",), ("post",)]
+
+    completed = 0
+    orphan_picks = 0
+    for seed in range(100):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["Castle-", "-keep"],
+            request=request,
+            priors=EmpiricalPriors(),
+            cohesion=1.0,
+            cohesion_table=cohesion_table,
+            slot_bucket_keys=slot_bucket_keys,
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if len(picks) == 2 and picks[1] is not None:
+            completed += 1
+            if "orphan_tag" in picks[1].tags:
+                orphan_picks += 1
+    # Pool survived every time (slot never collapsed despite full suppression).
+    assert completed == 100, f"slot collapsed on {100 - completed}/100 seeds"
+    # The raw=0 orphan was fully suppressed — never picked at cohesion=1.
+    assert orphan_picks == 0, f"fully-suppressed orphan picked {orphan_picks}/100 times"
 
 
 def test_select_stratum_gate_filters_meanings():
@@ -643,19 +694,18 @@ def test_select_baseline_axis_returns_empty_when_priors_miss():
     assert result == []
 
 
-def test_cohesion_multiplier_handles_pair_count_zero():
-    """_cohesion_multiplier: when lemma_tags and prior_tags have NO
-    overlap with the tag_cooccurrence table (zero pair_count), the
-    function returns identity (1.0) rather than dividing by zero."""
-    # Cooccurrence table has data for 'fortified' / 'pastoral' but
-    # we pass tags 'unknown_a' / 'unknown_b' that aren't in it.
-    result = _cohesion_multiplier(
+def test_cohesion_raw_handles_pair_count_zero():
+    """_cohesion_raw: when candidate and prior tags have NO overlap with the
+    tag_cooccurrence table (zero pair_count), raw is 0.0 — not a divide-by-zero
+    — so the candidate just sorts to the bottom of the slot-relative ranking."""
+    # Cooccurrence table has data for 'fortified' / 'pastoral' but we pass
+    # tags 'unknown_a' / 'unknown_b' that aren't in it.
+    result = _cohesion_raw(
         frozenset({"unknown_a"}),
         frozenset({"unknown_b"}),
-        cohesion=1.0,
-        tag_cooccurrence={"fortified": {"pastoral": 0.5}},
+        cohesion_table={"fortified": {"pastoral": 0.5}},
     )
-    assert result == 1.0
+    assert result == 0.0
 
 
 def test_select_era_gate_filters_out_of_window():
@@ -1414,15 +1464,24 @@ def test_select_via_vector_scoring_permissive_handles_zeroed_weights(monkeypatch
     multiplier. permissive=True → None for the slot (full-length result);
     non-permissive → [] (abort)."""
     db = {"Port-": [_meaning("Port-", tags=["urban"])]}
-    kwargs = {"structure": ["pre"], "request": _request(), "priors": EmpiricalPriors()}
+    # cohesion>0 so _slot_weighted_pool takes the multiplier path (the cohesion=0
+    # default short-circuits past _cohesion_multipliers, which the monkeypatch
+    # below targets). cohesion_table stays None, so the un-patched baseline still
+    # fills normally (all multipliers 1.0).
+    kwargs = {
+        "structure": ["pre"],
+        "request": _request(),
+        "priors": EmpiricalPriors(),
+        "cohesion": 1.0,
+    }
     # Sanity (no monkeypatch yet): the slot fills normally, so base_scored is
     # non-empty — the collapse below is specifically the 'not weighted' branch,
     # not the already-covered empty-pool ('not base_scored') branch.
     baseline = select_via_vector_scoring(random.Random(0), db, **kwargs)
     assert baseline and baseline[0] is not None
     monkeypatch.setattr(
-        "wyrd.generators.kenning.runtime.vector_name_select._cohesion_multiplier",
-        lambda *a, **k: 0.0,
+        "wyrd.generators.kenning.runtime.vector_name_select._cohesion_multipliers",
+        lambda raws, cohesion: [0.0] * len(raws),
     )
     permissive = select_via_vector_scoring(random.Random(0), db, permissive=True, **kwargs)
     assert permissive == [None], "zeroed weights under permissive → None slot, full-length"
