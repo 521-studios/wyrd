@@ -16,8 +16,12 @@ Why: keeps the runtime path stable while we churn on the data layer.
 
 Three roles, three providers:
 
-- **Bulk mining**: Ollama on Hades (Qwen 3.5 9B). Free, fast enough, no rate
-  limits. Used for first-pass extraction across thousands of entries.
+- **Bulk mining**: Ollama on the operator's MacBook (Qwen 3.5 9B) at
+  `http://10.5.2.31:11434` (set `WYRD_OLLAMA_URL`). Free, fast enough, no
+  rate limits. Used for first-pass extraction across thousands of entries.
+  (Hades is *not* used for mining — its GPU is too weak, capped at
+  ~qwen2.5:7b — per the parent-workspace `521Studios/CLAUDE.md`, one level
+  above this repo.)
 - **Quality review**: Gemini 2.5 Flash. Cheap per-call, native JSON-schema
   enforcement, stronger on hedge-recognition and OE-form OCR. Used for the
   `lexicon review` second-pass on questionable Ollama rows.
@@ -332,8 +336,9 @@ column" path and rejected it as architectural debt.
 
 ## D13. Haiku 4.5 is Tier 1 for Celtic content; Qwen stays Tier 1 for English.
 
-Empirically, Qwen 3.5 9B on Hades produces good extraction yields on
-English-etymology books (Skeat, Mawer, Ekwall) but underperforms on
+Empirically, Qwen 3.5 9B on the operator's MacBook (the Ollama mining
+host — D2) produces good extraction yields on English-etymology books
+(Skeat, Mawer, Ekwall) but underperforms on
 Celtic and Welsh sources where headword recognition gets confused by
 mutations and digraphs. Haiku 4.5 (~$0.60/book on the Anthropic API)
 roughly doubles the yield on those books with the same SYSTEM_PROMPT.
