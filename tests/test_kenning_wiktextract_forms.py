@@ -246,6 +246,48 @@ def test_mine_corpus_forms_skips_when_etymon_absent(tmp_path: Path) -> None:
     assert counts["forms_written"] == 0
 
 
+def test_mine_corpus_forms_skips_entry_without_word(tmp_path: Path) -> None:
+    """An entry with a missing/blank ``word`` is a silent skip — it bumps
+    ``entries_walked`` but is neither a missing-etymon nor a write. Pins the
+    no-word guard in _process_corpus_entry (wyrd-8uvi)."""
+    db_path = tmp_path / "lexicon.db"
+    _seed_minimal_db(db_path)  # seeds welsh 'march'
+    slice_path = tmp_path / "wiktextract_welsh.jsonl"
+    _write_slice(
+        slice_path,
+        [
+            {"lang_code": "cy", "forms": [{"form": "x", "tags": ["plural"]}]},  # no 'word'
+            {"word": "march", "lang_code": "cy", "forms": [{"form": "meirch", "tags": ["plural"]}]},
+        ],
+    )
+    with LexiconDB(db_path) as db:
+        counts = mine_corpus_forms(db, slice_path, apply=True)
+    assert counts["entries_walked"] == 2  # both walked
+    assert counts["etymons_missing"] == 0  # the no-word entry is NOT a missing-etymon
+    assert counts["forms_written"] == 1  # only the valid 'march' entry wrote
+
+
+def test_mine_corpus_forms_skips_entry_without_language(tmp_path: Path) -> None:
+    """An entry with a ``word`` but no resolvable language is a silent skip
+    BEFORE the etymon lookup — distinct from the etymon-absent path (it does
+    NOT increment ``etymons_missing`` even though 'march' exists). Pins the
+    no-language guard in _process_corpus_entry (wyrd-8uvi)."""
+    db_path = tmp_path / "lexicon.db"
+    _seed_minimal_db(db_path)  # seeds welsh 'march'
+    slice_path = tmp_path / "wiktextract_welsh.jsonl"
+    _write_slice(
+        slice_path,
+        # 'march' IS in the DB, but no lang_code -> _canonical_language() == ""
+        # -> short-circuit skip before the etymon SELECT.
+        [{"word": "march", "forms": [{"form": "meirch", "tags": ["plural"]}]}],
+    )
+    with LexiconDB(db_path) as db:
+        counts = mine_corpus_forms(db, slice_path, apply=True)
+    assert counts["entries_walked"] == 1
+    assert counts["etymons_missing"] == 0  # NOT counted as missing — skipped earlier
+    assert counts["forms_written"] == 0
+
+
 def test_mine_corpus_forms_dry_run_does_not_write(tmp_path: Path) -> None:
     """Without ``--apply``, the run only counts; no rows written."""
     db_path = tmp_path / "lexicon.db"
