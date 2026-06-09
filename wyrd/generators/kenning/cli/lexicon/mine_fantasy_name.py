@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import time
+from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -13,6 +15,107 @@ from wyrd.generators.kenning import fantasy_pipeline
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
+
+
+@dataclass
+class _FantasyRun:
+    """Shared state for the per-input resolution loop: the DB path + skip-LLM
+    flag and the (model-bound) LLM callers passed to ``fantasy_pipeline.resolve``,
+    the write handle (``None`` in dry-run), and the mutable counts accumulator."""
+
+    db_path: Path
+    skip_llm: bool
+    llm_caller: Any
+    semantic_check_caller: Any
+    write_db: Any
+    counts: dict[str, Any]
+
+
+def _validate_input_args(
+    batch_path: Path | None, name: str | None, description: str | None
+) -> None:
+    """``--batch`` and ``--name/--description`` are mutually exclusive, and one
+    of them is required."""
+    if batch_path and (name or description):
+        raise click.ClickException("--batch is mutually exclusive with --name/--description")
+    if not batch_path and not (name and description):
+        raise click.ClickException("provide either --batch or both --name and --description")
+
+
+def _parse_batch_inputs(batch_path: Path) -> list[tuple[str, str]]:
+    """Parse the batch JSONL into ``(name, description)`` pairs, raising a
+    friendly ClickException on bad JSON or a missing field (with line number)."""
+    inputs: list[tuple[str, str]] = []
+    with batch_path.open() as f:
+        for i, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise click.ClickException(f"line {i}: invalid JSON: {e}") from e
+            if "name" not in rec or "description" not in rec:
+                raise click.ClickException(f"line {i}: missing 'name' or 'description'")
+            inputs.append((rec["name"], rec["description"]))
+    return inputs
+
+
+def _apply_skip_resolved(
+    inputs: list[tuple[str, str]], db_path: Path
+) -> tuple[list[tuple[str, str]], int]:
+    """Drop inputs whose name is already resolved in ``fantasy_morpheme``.
+    Lowercase-fold both sides — ``input_name`` is COLLATE NOCASE, so 'Harpy'
+    and 'harpy' are the same row; without folding, varying casing would
+    re-trigger LLM calls the upsert would later collapse. Returns
+    ``(kept, skipped_count)``."""
+    with LexiconDB(db_path) as resolved_db:
+        already = {n.lower() for n in fantasy_pipeline.fetch_resolved_input_names(resolved_db.conn)}
+    kept = [(n, d) for (n, d) in inputs if n.lower() not in already]
+    return kept, len(inputs) - len(kept)
+
+
+def _process_input(ctx: _FantasyRun, in_name: str, in_desc: str) -> None:
+    """Resolve one fantasy-name input through the pipeline (descent-walk
+    pre-filter, then the LLM full-research fallback), echo the verdict,
+    accumulate counts, and — when applying — write the resolution row +
+    commit (per-input, so a long batch's paid-for results survive a crash)."""
+    res = fantasy_pipeline.resolve(
+        ctx.db_path,
+        in_name,
+        in_desc,
+        skip_llm=ctx.skip_llm,
+        llm_caller=ctx.llm_caller,
+        semantic_check_caller=ctx.semantic_check_caller,
+    )
+    if res.usable:
+        ctx.counts["usable"] += 1
+        tag = f"USABLE  {in_name:<18}"
+    else:
+        ctx.counts["barred"] += 1
+        tag = f"BARRED  {in_name:<18}"
+        ctx.counts["by_bar"][res.bar_reason or "?"] = (
+            ctx.counts["by_bar"].get(res.bar_reason or "?", 0) + 1
+        )
+    ctx.counts["by_method"][res.resolution_method] = (
+        ctx.counts["by_method"].get(res.resolution_method, 0) + 1
+    )
+    click.echo(
+        f"  {tag} via={res.resolution_method:<22} conf={res.confidence or '-':<7}"
+        f"{(' bar=' + res.bar_reason) if res.bar_reason else ''}"
+        f"{(' citation=' + res.citation) if res.citation else ''}",
+        err=True,
+    )
+    if ctx.write_db is not None:
+        fantasy_pipeline.write_resolution(
+            ctx.write_db.conn,
+            input_name=in_name,
+            input_description=in_desc,
+            resolution=res,
+        )
+        if res.usable and res.etymon_id is not None:
+            fantasy_pipeline.tag_etymon_as_fantasy(ctx.write_db.conn, res.etymon_id)
+        ctx.write_db.commit()
 
 
 @click.command("mine-fantasy-name")
@@ -107,61 +210,32 @@ def lexicon_mine_fantasy_name(
     Single mode: `--name X --description Y`
     Batch mode:  `--batch path/to/names.jsonl`
     """
-    fp = fantasy_pipeline  # local alias matches the helper-style usage below
-
-    if batch_path and (name or description):
-        raise click.ClickException("--batch is mutually exclusive with --name/--description")
-    if not batch_path and not (name and description):
-        raise click.ClickException("provide either --batch or both --name and --description")
-
-    inputs: list[tuple[str, str]] = []
-    if batch_path:
-        with batch_path.open() as f:
-            for i, line in enumerate(f, 1):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    rec = json.loads(line)
-                except json.JSONDecodeError as e:
-                    raise click.ClickException(f"line {i}: invalid JSON: {e}") from e
-                if "name" not in rec or "description" not in rec:
-                    raise click.ClickException(f"line {i}: missing 'name' or 'description'")
-                inputs.append((rec["name"], rec["description"]))
-    else:
-        inputs.append((name, description))  # type: ignore[arg-type]
+    _validate_input_args(batch_path, name, description)
+    inputs = _parse_batch_inputs(batch_path) if batch_path else [(name, description)]
 
     skipped_count = 0
     if skip_resolved:
-        # Lowercase-fold both sides — fantasy_morpheme.input_name uses
-        # COLLATE NOCASE, so 'Harpy' and 'harpy' are the same row.
-        # Without folding, varying input casing would re-trigger LLM
-        # calls even though the upsert would later collapse them.
-        with LexiconDB(db_path) as resolved_db:
-            already = {n.lower() for n in fp.fetch_resolved_input_names(resolved_db.conn)}
-        before = len(inputs)
-        inputs = [(n, d) for (n, d) in inputs if n.lower() not in already]
-        skipped_count = before - len(inputs)
+        inputs, skipped_count = _apply_skip_resolved(inputs, db_path)
 
     click.echo(
         f"Routing {len(inputs)} fantasy-name input(s)"
         f"{f' (skipped {skipped_count} already-resolved)' if skip_resolved else ''}. "
-        f"approach_version={fp.APPROACH_VERSION}. "
+        f"approach_version={fantasy_pipeline.APPROACH_VERSION}. "
         f"{'Applying' if apply_changes else 'Dry-run'}.",
         err=True,
     )
 
-    counts = {"usable": 0, "barred": 0, "by_method": {}, "by_bar": {}}
-    # Bind the LLM callers to the user-supplied model (if any). The
-    # pipeline calls semantic_check_caller(name, desc, ancestor, glosses)
-    # and llm_caller(name, desc); functools.partial pre-binds the model
-    # kwarg without changing those signatures.
+    counts: dict[str, Any] = {"usable": 0, "barred": 0, "by_method": {}, "by_bar": {}}
+    # Bind the LLM callers to the user-supplied model (if any). The pipeline
+    # calls semantic_check_caller(name, desc, ancestor, glosses) and
+    # llm_caller(name, desc); functools.partial pre-binds the model kwarg
+    # without changing those signatures.
     if model:
-        llm_caller = partial(fp._llm_full_research, model=model)
-        semantic_check_caller = partial(fp._llm_semantic_check, model=model)
+        llm_caller = partial(fantasy_pipeline._llm_full_research, model=model)
+        semantic_check_caller = partial(fantasy_pipeline._llm_semantic_check, model=model)
     else:
-        llm_caller = fp._llm_full_research
-        semantic_check_caller = fp._llm_semantic_check
+        llm_caller = fantasy_pipeline._llm_full_research
+        semantic_check_caller = fantasy_pipeline._llm_semantic_check
 
     # Mining-progress convention: same shape as `lexicon mine-llm` so
     # operators can read both batches the same way. See repo CLAUDE.md
@@ -170,48 +244,17 @@ def lexicon_mine_fantasy_name(
     progress_every = 10
     total_inputs = len(inputs)
 
-    write_db: LexiconDB | None = LexiconDB(db_path) if apply_changes else None
+    ctx = _FantasyRun(
+        db_path=db_path,
+        skip_llm=skip_llm,
+        llm_caller=llm_caller,
+        semantic_check_caller=semantic_check_caller,
+        write_db=LexiconDB(db_path) if apply_changes else None,
+        counts=counts,
+    )
     try:
         for completed, (in_name, in_desc) in enumerate(inputs, start=1):
-            res = fp.resolve(
-                db_path,
-                in_name,
-                in_desc,
-                skip_llm=skip_llm,
-                llm_caller=llm_caller,
-                semantic_check_caller=semantic_check_caller,
-            )
-            if res.usable:
-                counts["usable"] += 1
-                tag = f"USABLE  {in_name:<18}"
-            else:
-                counts["barred"] += 1
-                tag = f"BARRED  {in_name:<18}"
-                counts["by_bar"][res.bar_reason or "?"] = (
-                    counts["by_bar"].get(res.bar_reason or "?", 0) + 1
-                )
-            counts["by_method"][res.resolution_method] = (
-                counts["by_method"].get(res.resolution_method, 0) + 1
-            )
-            click.echo(
-                f"  {tag} via={res.resolution_method:<22} conf={res.confidence or '-':<7}"
-                f"{(' bar=' + res.bar_reason) if res.bar_reason else ''}"
-                f"{(' citation=' + res.citation) if res.citation else ''}",
-                err=True,
-            )
-            if write_db is not None:
-                fp.write_resolution(
-                    write_db.conn,
-                    input_name=in_name,
-                    input_description=in_desc,
-                    resolution=res,
-                )
-                if res.usable and res.etymon_id is not None:
-                    fp.tag_etymon_as_fantasy(write_db.conn, res.etymon_id)
-                # Commit per resolution: each input cost an LLM call, so
-                # crashing partway through a long batch shouldn't lose
-                # already-paid-for results.
-                write_db.commit()
+            _process_input(ctx, in_name, in_desc)
             # Periodic progress line (matches mine-llm shape so operators
             # can scan both batches the same way).
             if completed % progress_every == 0 or completed == total_inputs:
@@ -224,8 +267,8 @@ def lexicon_mine_fantasy_name(
                     err=True,
                 )
     finally:
-        if write_db is not None:
-            write_db.close()
+        if ctx.write_db is not None:
+            ctx.write_db.close()
 
     click.echo("", err=True)
     click.echo(f"Summary: {counts}", err=True)
