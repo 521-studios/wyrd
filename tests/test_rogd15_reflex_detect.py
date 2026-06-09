@@ -208,3 +208,30 @@ def test_cli_link_reflexes_writes_inherits_rows(
     ]
     link = next(r for r in rows if r.get("inherits"))
     assert link["ref"] == "modern-english:bishop" and link["inherits"] == "old-english:biscop"
+
+
+def test_pair_sharing_two_glosses_emits_one_candidate(fresh_db: Path) -> None:
+    """A cross-era pair that shares TWO glosses surfaces in both gloss groups,
+    but the ``seen`` guard + best-per-child dedup yield exactly ONE candidate,
+    whose shared_glosses lists both (sorted)."""
+    with LexiconDB(fresh_db) as db:
+        _e(db, "tūn", "old-english", "farmstead", "enclosure")
+        _e(db, "-ton", "modern-english", "farmstead", "enclosure")
+        db.commit()
+        cands = detect_reflex_link_candidates(db.conn)
+        assert len(cands) == 1
+        assert cands[0].shared_glosses == ("enclosure", "farmstead")
+
+
+def test_max_per_gloss_skips_oversized_groups(fresh_db: Path) -> None:
+    """A gloss group larger than ``max_per_gloss`` is skipped wholesale (the
+    O(n^2) pairing never runs inside it)."""
+    with LexiconDB(fresh_db) as db:
+        _e(db, "tūn", "old-english", "farmstead")
+        _e(db, "toun", "middle-english", "farmstead")
+        _e(db, "-ton", "modern-english", "farmstead")
+        db.commit()
+        # group size 3 > cap 2 → skipped entirely
+        assert detect_reflex_link_candidates(db.conn, max_per_gloss=2) == []
+        # within cap → the chain still yields a candidate
+        assert len(detect_reflex_link_candidates(db.conn, max_per_gloss=3)) == 1

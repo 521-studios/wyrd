@@ -113,7 +113,9 @@ def detect_reflex_link_candidates(
     return out
 
 
-def _index_reflex_glosses(rows) -> tuple[dict[int, dict], dict[int, set[str]], dict[str, set[int]]]:
+def _index_reflex_glosses(
+    rows: list[sqlite3.Row],
+) -> tuple[dict[int, dict], dict[int, set[str]], dict[str, set[int]]]:
     """Index gloss rows → (by_id, norm_glosses, by_gloss): by_id[id] =
     {lang, form, glosses}; norm_glosses[id] = lowercased gloss set; by_gloss
     maps each normalized gloss to the etymon ids carrying it."""
@@ -151,7 +153,15 @@ def _reflex_pair_eligible(ea: dict, eb: dict) -> tuple[int, int] | None:
     return ra, rb
 
 
-def _eval_reflex_pair(a, b, by_id, norm_glosses, edges, *, min_similarity):
+def _eval_reflex_pair(
+    a: int,
+    b: int,
+    by_id: dict[int, dict],
+    norm_glosses: dict[int, set[str]],
+    edges: set[tuple[int, int]],
+    *,
+    min_similarity: float,
+) -> tuple[str, str, str, str, tuple[str, ...], float, int] | None:
     """Evaluate one candidate etymon pair (ids ``a``, ``b``). Returns the raw
     candidate tuple ``(child_ref, parent_ref, child_form, parent_form,
     shared_glosses, sim, parent_rank)`` for an eligible, form-similar,
@@ -165,8 +175,11 @@ def _eval_reflex_pair(a, b, by_id, norm_glosses, edges, *, min_similarity):
     fa, fb = _bare(ea["form"]), _bare(eb["form"])
     if not fa or not fb:
         return None
+    # Edge check first: an O(1) set lookup fails fast before the O(N*M) ratio.
+    if (a, b) in edges or (b, a) in edges:
+        return None
     sim = difflib.SequenceMatcher(None, fa, fb).ratio()
-    if sim < min_similarity or (a, b) in edges or (b, a) in edges:
+    if sim < min_similarity:
         return None
     (parent, prank), child = ((a, ra), b) if ra < rb else ((b, rb), a)
     # The child's raw glosses the parent also carries (normalized) — never empty
