@@ -37,33 +37,46 @@ export function deAccent(s) {
 }
 
 /**
- * The era_grid cell whose form matches a morpheme's current surface (folded on
- * accent + dash + case), or null. One source of truth for "which variant is
- * live": the active-card pronunciation reads it, and the grid highlights it.
- *
- * wyrd-rogd.7: a swap records the EXACT chosen cell on `morpheme._cellId`,
- * which is authoritative — we return that cell by id so a surface-fold
- * collision (bǣre/bære, *ur/ur) can't light up two cells at once. Only when
- * no id is pinned (the initial, un-swapped state) do we fall back to matching
- * the live surface by accent+dash+case fold, preferring the `_lang` stage for
- * a homograph and otherwise taking the first match.
+ * wyrd-i4jd: find the era_grid cell with a given stable `id` ({family, language,
+ * cell} or null). The id-based lookup behind both the swap pin (`_cellId`) and
+ * the backend `active_form_id` — opaque id compare, no surface fold.
+ * @returns {{family: string, language: string, cell: object} | null}
+ */
+export function cellById(grid, id) {
+  if (!id) return null;
+  for (const section of grid || []) {
+    for (const stage of section?.stages || []) {
+      for (const cell of stage?.forms || []) {
+        if (cell?.id === id) {
+          return { family: section.family, language: stage.language, cell };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The era_grid cell that is "live" for a morpheme. ID-FIRST (wyrd-i4jd): an
+ * explicit user swap (`morpheme._cellId`) wins, then the backend's
+ * `active_form_id` (the id of the form the generator actually rendered), and
+ * only as a legacy fallback (old bundles / no id) do we match the live surface
+ * by accent+dash+case fold — preferring the `_lang` stage for a homograph,
+ * else the first match. The id path avoids the surface-fold collision
+ * (bǣre/bære, *ur/ur, same spelling across eras) that lit up two cells at once.
  * @returns {{family: string, language: string, cell: object} | null}
  */
 export function cellForSurface(morpheme, surface) {
   const grid = morpheme?.era_grid || [];
-  const pinnedId = morpheme?._cellId;
-  if (pinnedId) {
-    for (const section of grid) {
-      for (const stage of section?.stages || []) {
-        for (const cell of stage?.forms || []) {
-          if (cell?.id === pinnedId) {
-            return { family: section.family, language: stage.language, cell };
-          }
-        }
-      }
-    }
-    // a pinned id with no matching cell (stale) falls through to surface match.
-  }
+  // wyrd-i4jd: highlight BY ID, not by surface fold (which collides on
+  // same-spelled forms across eras/etymons). Precedence:
+  //   1. `_cellId` — an explicit user swap (authoritative).
+  //   2. `active_form_id` — the backend's id of the form the generator actually
+  //      rendered (the unswapped highlight). The form is guaranteed in this
+  //      morpheme's own grid, so no cross-grid string match.
+  // A stale/missing id falls through to the legacy surface fold (old bundles).
+  const byId = cellById(grid, morpheme?._cellId) || cellById(grid, morpheme?.active_form_id);
+  if (byId) return byId;
   const target = accentFold(surface);
   if (!target) return null;
   const pinned = morpheme?._lang;

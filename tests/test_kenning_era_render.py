@@ -82,9 +82,13 @@ class _FakeMeaning:
 
 
 def _render(name, index, lang="old-english"):
-    """Call _render_era_forms with a stub self exposing only what it reads:
-    self.meaning_gen._surface_index()."""
-    stub = SimpleNamespace(meaning_gen=SimpleNamespace(_surface_index=lambda: index))
+    """Call _render_era_forms with a stub self exposing only what it reads on the
+    None-id (legacy surface) path: self.meaning_gen._surface_index() via the real
+    _morpheme_for_slot. wyrd-i4jd: picked_ids defaults None → surface path."""
+    stub = SimpleNamespace(
+        meaning_gen=SimpleNamespace(_surface_index=lambda: index), meaning_db=None
+    )
+    stub._morpheme_for_slot = NameGenerator._morpheme_for_slot.__get__(stub)
     return NameGenerator._render_era_forms(stub, name, lang)
 
 
@@ -141,7 +145,7 @@ def _apply_render_stub(spy):
     """A stub `self` for NameGenerator._apply_render that records whether the
     era path or the D8/D18 substitution path ran, without touching the DB."""
 
-    def _era(name, lang):
+    def _era(name, lang, picked_ids=None):
         spy.append(("era", lang))
         return [["ERAFORM"]]
 
@@ -149,7 +153,7 @@ def _apply_render_stub(spy):
         spy.append(("sub", sv, idn))
         return [["SUBSTITUTED"]], [["case"]]
 
-    def _native(name):
+    def _native(name, picked_ids=None):
         spy.append(("native",))
         return [["NATIVE"]]
 
@@ -161,7 +165,9 @@ def _apply_render_stub(spy):
 def test_apply_render_era_supersedes_substitution():
     # era set AND both substitution knobs hot → era wins, substitution skipped.
     spy: list = []
-    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
+    new_name = SimpleNamespace(
+        name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None
+    )
     NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 1.0, 1.0, "old-english")
     assert new_name.rendered == [["ERAFORM"]]
     assert new_name.inflection_labels is None  # era path leaves labels unset
@@ -170,7 +176,9 @@ def test_apply_render_era_supersedes_substitution():
 
 def test_apply_render_falls_back_to_substitution_without_era():
     spy: list = []
-    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
+    new_name = SimpleNamespace(
+        name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None
+    )
     NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 1.0, 0.0, None)
     assert new_name.rendered == [["SUBSTITUTED"]]
     assert new_name.inflection_labels == [["case"]]
@@ -181,7 +189,9 @@ def test_apply_render_native_when_no_era_and_no_knobs():
     # wyrd-24s6 (D38): default generation (era="" / not requested, no knobs) now
     # renders NATIVE — the "as-selected" surface — not the old modern no-op.
     spy: list = []
-    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
+    new_name = SimpleNamespace(
+        name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None
+    )
     NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 0.0, 0.0, None)
     assert new_name.rendered == [["NATIVE"]]
     assert spy == [("native",)]  # native path ran; era / substitution did not
@@ -193,7 +203,9 @@ def test_apply_render_modern_noop_when_explicit_modern_era():
     # sets era_requested=True, so it falls through to MODERN — rendered stays None
     # (→ modern usage), NOT native. This is the explicit force-modern path.
     spy: list = []
-    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
+    new_name = SimpleNamespace(
+        name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None
+    )
     NameGenerator._apply_render(
         _apply_render_stub(spy), None, new_name, 0.0, 0.0, None, era_requested=True
     )

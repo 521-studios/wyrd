@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   deAccent,
   cellForSurface,
+  cellById,
   hasEraGrid,
   pronForSurface,
   eraBadge,
@@ -133,6 +134,71 @@ describe('cellForSurface', () => {
     expect(cellForSurface({ ...collide, _cellId: 'gone:9' }, 'bære')?.cell?.id).toBe(
       'old-english:0',
     );
+  });
+
+  // wyrd-i4jd: the backend stamps `active_form_id` — the id of the form actually
+  // generated — so the UNSWAPPED highlight is by id, not a brittle surface fold.
+  const COLLIDE = {
+    usage: 'roth',
+    era_grid: [
+      {
+        family: 'english',
+        stages: [
+          {
+            language: 'old-english',
+            forms: [
+              { id: 'old-english:roth', form: 'roth' },
+              { id: 'middle-english:roth', form: 'roth' },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  it('honours active_form_id over a surface-fold collision (initial highlight)', () => {
+    // two cells fold equal on "roth"; the backend id picks the EXACT one the
+    // generator rendered, where a surface fold would pick the first.
+    expect(
+      cellForSurface({ ...COLLIDE, active_form_id: 'middle-english:roth' }, 'roth')?.cell?.id,
+    ).toBe('middle-english:roth');
+    // no active_form_id → first fold-match wins (legacy bundles).
+    expect(cellForSurface(COLLIDE, 'roth')?.cell?.id).toBe('old-english:roth');
+  });
+
+  it('lets _cellId (a user swap) win over active_form_id', () => {
+    expect(
+      cellForSurface(
+        { ...COLLIDE, active_form_id: 'old-english:roth', _cellId: 'middle-english:roth' },
+        'roth',
+      )?.cell?.id,
+    ).toBe('middle-english:roth');
+  });
+
+  it('falls through to the surface fold when active_form_id is stale/missing', () => {
+    expect(cellForSurface({ ...COLLIDE, active_form_id: 'gone:x' }, 'roth')?.cell?.id).toBe(
+      'old-english:roth',
+    );
+  });
+});
+
+describe('cellById', () => {
+  const grid = [
+    {
+      family: 'english',
+      stages: [{ language: 'old-english', forms: [{ id: 'old-english:tūn', form: 'tūn' }] }],
+    },
+  ];
+  it('returns the {family, language, cell} for a matching id', () => {
+    const hit = cellById(grid, 'old-english:tūn');
+    expect(hit?.family).toBe('english');
+    expect(hit?.language).toBe('old-english');
+    expect(hit?.cell?.form).toBe('tūn');
+  });
+  it('is null for a missing id, empty id, or empty grid', () => {
+    expect(cellById(grid, 'nope:0')).toBeNull();
+    expect(cellById(grid, null)).toBeNull();
+    expect(cellById([], 'old-english:tūn')).toBeNull();
   });
 });
 

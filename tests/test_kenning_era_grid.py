@@ -202,14 +202,14 @@ def test_era_grid_strips_star_from_respelled_reader():
 
 
 def test_era_grid_cells_carry_stable_distinct_ids():
-    # wyrd-rogd.7: each cell gets a stable lang:index id. Fold-equal forms
-    # (bǣre/bære, which collide under accent-fold) get DISTINCT ids so the SPA
-    # tracks the selected variant by identity, not by surface — the fix for the
-    # "click bǣre, bære also highlights" defect.
+    # wyrd-rogd.7 / wyrd-i4jd: each cell gets a CONTENT-stable ``lang:<form>`` id
+    # (was positional ``lang:index``, which shifted on reflex-list reorder). Fold-
+    # equal forms (bǣre/bære) keep DISTINCT ids — they are distinct form strings —
+    # so the SPA tracks the selected/active variant by identity, not by surface.
     m = _meaning_with_reflexes({"old-english": [("bǣre", "cluster"), ("bære", "cluster")]})
     cells = _era_grid(m, renderings={})[0]["stages"][0]["forms"]
     ids = [c["id"] for c in cells]
-    assert ids == ["old-english:0", "old-english:1"]
+    assert ids == ["old-english:bǣre", "old-english:bære"]
     assert len(set(ids)) == 2  # distinct despite folding equal
 
 
