@@ -33,6 +33,8 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from .lexicon import (
@@ -117,6 +119,100 @@ def _build_ref_resolver(conn: sqlite3.Connection):
     return resolve
 
 
+@dataclass
+class _CurationContext:
+    """Shared state threaded through the per-ref curation appliers: the
+    DB handle, the memoized ref resolver, the running telemetry counts
+    dict (mutated in place), and the apply/dry-run flag."""
+
+    db: LexiconDB
+    resolve: Callable[[str], int | None]
+    counts: dict[str, Any]
+    apply: bool
+
+
+def _apply_curated_lemma(ctx: _CurationContext, payload: dict[str, Any], etymon_id: int) -> None:
+    """Apply a curation event's ``lemma_ref`` decision to one etymon.
+
+    ``None`` clears lemma_id + inflection (stamping the method version so
+    the operator decision stays auditable via ``WHERE lemma_method =
+    'manual-curation-v1'``). A resolvable ref points lemma_id at it and
+    clears merged_into_id (the etymon stays canonical); ``inflection`` is
+    written only when the key is present, so an auto-detected inflection
+    from link-lemmas survives when the operator gave no opinion.
+    Unresolved and self-reference refs are counted and skipped. DB writes
+    are gated on ``ctx.apply``.
+    """
+    lemma_ref = payload["lemma_ref"]
+    if lemma_ref is None:
+        ctx.counts["lemma_id_cleared"] += 1
+        if ctx.apply:
+            ctx.db.conn.execute(
+                "UPDATE etymon SET lemma_id = NULL, inflection = NULL, "
+                "lemma_method = ? WHERE id = ?",
+                (CURATION_METHOD_VERSION, etymon_id),
+            )
+        return
+    lemma_id = ctx.resolve(lemma_ref)
+    if lemma_id is None:
+        ctx.counts["unresolved_lemma_ref"] += 1
+    elif lemma_id == etymon_id:
+        ctx.counts["self_reference_lemma"] += 1
+    else:
+        ctx.counts["lemma_id_set"] += 1
+        if ctx.apply:
+            # Dynamic SET list: only touch ``inflection`` when the
+            # operator explicitly provided it (absent key = no opinion).
+            set_clauses = [
+                "lemma_id = ?",
+                "lemma_method = ?",
+                "merged_into_id = NULL",
+            ]
+            values: list[Any] = [lemma_id, CURATION_METHOD_VERSION]
+            if "inflection" in payload:
+                set_clauses.append("inflection = ?")
+                values.append(payload["inflection"])
+            values.append(etymon_id)
+            ctx.db.conn.execute(
+                f"UPDATE etymon SET {', '.join(set_clauses)} WHERE id = ?",
+                tuple(values),
+            )
+
+
+def _apply_curated_merge(ctx: _CurationContext, payload: dict[str, Any], etymon_id: int) -> None:
+    """Apply a curation event's ``merged_into_ref`` decision to one etymon.
+
+    ``None`` clears merged_into_id (method-stamped for audit). A
+    resolvable ref points merged_into_id at it as an OCR-cluster
+    tombstone and clears lemma_id + inflection so the tombstone doesn't
+    double as a lemma parent. Unresolved and self-reference refs are
+    counted and skipped. DB writes are gated on ``ctx.apply``.
+    """
+    merge_ref = payload["merged_into_ref"]
+    if merge_ref is None:
+        ctx.counts["merged_into_cleared"] += 1
+        if ctx.apply:
+            ctx.db.conn.execute(
+                "UPDATE etymon SET merged_into_id = NULL, lemma_method = ? WHERE id = ?",
+                (CURATION_METHOD_VERSION, etymon_id),
+            )
+        return
+    merge_id = ctx.resolve(merge_ref)
+    if merge_id is None:
+        ctx.counts["unresolved_merge_ref"] += 1
+    elif merge_id == etymon_id:
+        ctx.counts["self_reference_merge"] += 1
+    else:
+        ctx.counts["merged_into_set"] += 1
+        if ctx.apply:
+            ctx.db.conn.execute(
+                "UPDATE etymon SET merged_into_id = ?, "
+                "lemma_id = NULL, inflection = NULL, "
+                "lemma_method = ? WHERE id = ?",
+                (merge_id, CURATION_METHOD_VERSION, etymon_id),
+            )
+
+
 def apply_curation_overrides(
     db: LexiconDB,
     curation_state: dict[str, dict[str, Any]],
@@ -174,6 +270,7 @@ def apply_curation_overrides(
         "applied": apply,
     }
     resolve = _build_ref_resolver(db.conn)
+    ctx = _CurationContext(db=db, resolve=resolve, counts=counts, apply=apply)
 
     for etymon_ref, payload in curation_state.items():
         etymon_id = resolve(etymon_ref)
@@ -181,85 +278,15 @@ def apply_curation_overrides(
             counts["unresolved_etymon"] += 1
             continue
 
-        # lemma_ref handling: present key (even with None value) means
-        # "operator made a decision about lemma_id"; absent key means
-        # "no opinion, leave whatever auto-clustering chose alone".
-        # Both ref fields process independently within a payload — a
-        # failed lemma_ref resolution shouldn't skip merged_into_ref
-        # in the same event.
+        # A present ref key (even with None value) means "operator made a
+        # decision"; an absent key means "no opinion, leave auto-
+        # clustering's output alone". The two ref fields process
+        # independently within a payload — a failed lemma_ref resolution
+        # shouldn't skip merged_into_ref in the same event.
         if "lemma_ref" in payload:
-            lemma_ref = payload["lemma_ref"]
-            if lemma_ref is None:
-                counts["lemma_id_cleared"] += 1
-                if apply:
-                    # Stamp manual-curation-v1 even on clear so audit
-                    # queries (WHERE lemma_method = 'manual-curation-v1')
-                    # find the operator decision. lemma_id=NULL with a
-                    # method version means "operator decided no lemma".
-                    db.conn.execute(
-                        "UPDATE etymon SET lemma_id = NULL, inflection = NULL, "
-                        "lemma_method = ? WHERE id = ?",
-                        (CURATION_METHOD_VERSION, etymon_id),
-                    )
-            else:
-                lemma_id = resolve(lemma_ref)
-                if lemma_id is None:
-                    counts["unresolved_lemma_ref"] += 1
-                elif lemma_id == etymon_id:
-                    counts["self_reference_lemma"] += 1
-                else:
-                    counts["lemma_id_set"] += 1
-                    if apply:
-                        # "Absent inflection key = no opinion": only touch
-                        # the column when the operator explicitly provided
-                        # it. Otherwise an auto-detected inflection from
-                        # link-lemmas survives the curation. Dynamic SET
-                        # list keeps the semantic clean.
-                        set_clauses = [
-                            "lemma_id = ?",
-                            "lemma_method = ?",
-                            "merged_into_id = NULL",
-                        ]
-                        values: list[Any] = [lemma_id, CURATION_METHOD_VERSION]
-                        if "inflection" in payload:
-                            set_clauses.append("inflection = ?")
-                            values.append(payload["inflection"])
-                        values.append(etymon_id)
-                        db.conn.execute(
-                            f"UPDATE etymon SET {', '.join(set_clauses)} WHERE id = ?",
-                            tuple(values),
-                        )
-
+            _apply_curated_lemma(ctx, payload, etymon_id)
         if "merged_into_ref" in payload:
-            merge_ref = payload["merged_into_ref"]
-            if merge_ref is None:
-                counts["merged_into_cleared"] += 1
-                if apply:
-                    # Stamp method on clear so the operator decision is
-                    # findable via the same WHERE lemma_method query
-                    # used for lemma curations.
-                    db.conn.execute(
-                        "UPDATE etymon SET merged_into_id = NULL, lemma_method = ? WHERE id = ?",
-                        (CURATION_METHOD_VERSION, etymon_id),
-                    )
-            else:
-                merge_id = resolve(merge_ref)
-                if merge_id is None:
-                    counts["unresolved_merge_ref"] += 1
-                elif merge_id == etymon_id:
-                    counts["self_reference_merge"] += 1
-                else:
-                    counts["merged_into_set"] += 1
-                    if apply:
-                        # Tombstone target: clear lemma_id (a tombstone
-                        # shouldn't double as a lemma parent). Stamp the
-                        # method so curation-tombstones are auditable.
-                        db.conn.execute(
-                            "UPDATE etymon SET merged_into_id = ?, "
-                            "lemma_id = NULL, inflection = NULL, "
-                            "lemma_method = ? WHERE id = ?",
-                            (merge_id, CURATION_METHOD_VERSION, etymon_id),
-                        )
+            _apply_curated_merge(ctx, payload, etymon_id)
 
     if apply:
         db.commit()
