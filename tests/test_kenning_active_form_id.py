@@ -90,3 +90,107 @@ def test_active_form_id_present_for_morphemes_with_grid():
     # Allow the rare no-cell residual (e.g. a render whose source stage isn't in
     # the grid), but the vast majority must resolve.
     assert len(misses) <= 2, f"too many gridded+rendered morphemes without active_form_id: {misses}"
+
+
+# --- focused unit tests for the id-first helpers (wyrd-i4jd) ----------------
+
+
+def test_reconstruct_picked_ids_shape_and_none_degrade():
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import _reconstruct_picked_ids
+
+    struct = [[("pre",), ("post",)], [("bare",)]]  # 2 + 1 slots
+    picked = [
+        SimpleNamespace(morpheme_id="old-english:a"),
+        None,  # dropped / permissive slot → None
+        SimpleNamespace(morpheme_id=None),  # pick without a morpheme_id → None
+    ]
+    assert _reconstruct_picked_ids(struct, picked) == [["old-english:a", None], [None]]
+
+
+def test_active_cell_id_lang_scope_then_fold_then_none():
+    from wyrd.generators.kenning.runtime.proportions import _active_cell_id
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {"language": "old-english", "forms": [{"id": "old-english:roth", "form": "roth"}]},
+                {
+                    "language": "middle-english",
+                    "forms": [{"id": "middle-english:roth", "form": "roth"}],
+                },
+            ],
+        }
+    ]
+    # exact match inside the requested lang stage wins (both stages fold equal).
+    assert _active_cell_id(grid, "middle-english", "roth") == "middle-english:roth"
+    assert _active_cell_id(grid, "old-english", "roth") == "old-english:roth"
+    # case differs → fold (not exact) match in the lang stage.
+    assert _active_cell_id(grid, "middle-english", "Roth") == "middle-english:roth"
+    # no lang hint → first folding cell anywhere (fold_any).
+    assert _active_cell_id(grid, None, "roth") == "old-english:roth"
+    # no fold match, empty grid, empty surface → None.
+    assert _active_cell_id(grid, "old-english", "zzz") is None
+    assert _active_cell_id([], "old-english", "roth") is None
+    assert _active_cell_id(grid, "old-english", "") is None
+
+
+def test_set_active_form_id_native_lang_from_grid_mid_not_first():
+    """wyrd-i4jd regression: the native-render lang scope must come from the
+    PICKED morpheme (grid_mid), not first.morpheme_id (the surface sibling) —
+    else the cross-era fold collision the PR removes comes back."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {"language": "old-english", "forms": [{"id": "old-english:roth", "form": "roth"}]},
+                {
+                    "language": "middle-english",
+                    "forms": [{"id": "middle-english:roth", "form": "roth"}],
+                },
+            ],
+        }
+    ]
+    first = SimpleNamespace(morpheme_id="old-english:hyll")  # surface sibling, WRONG stage
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+
+    # grid built from the ME-picked morpheme → ME stage must win.
+    m = {"usage": "x", "rendered": "roth", "era_grid": grid}
+    nn._set_active_form_id(m, first, grid_mid="middle-english:roth")
+    assert m["active_form_id"] == "middle-english:roth"
+
+    # without grid_mid it falls back to first's lang (old-english) — proving the
+    # grid_mid threading is what disambiguates.
+    m2 = {"usage": "x", "rendered": "roth", "era_grid": grid}
+    nn._set_active_form_id(m2, first)
+    assert m2["active_form_id"] == "old-english:roth"
+
+
+def test_morpheme_id_for_guard_and_resolve_repeat_lockstep():
+    """_morpheme_id_for None-degrades on bad indices; diversification updates
+    picked_ids in lockstep with the override (cross-language synonym)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    hill = Meaning("hill", tags=[], meanings=["hill"], sources={"old_english": ["hill"]})
+    hill.morpheme_id = "old-english:hyll"
+    norse = Meaning("hill", tags=[], meanings=["Hill"], sources={"old_scandinavian": ["haeth"]})
+    norse.morpheme_id = "old-scandinavian:haeth"
+    nn = NewName(
+        struct=None,
+        meaning_db={"hill": [hill, norse]},
+        name=[["hill"], ["hill"]],
+        picked_ids=[["old-english:hyll"], ["old-english:hyll"]],
+    )
+    # out-of-range / no picked_ids → None, never raises.
+    assert nn._morpheme_id_for(9, 9) is None
+    assert str(nn) == "Hill Haeth"  # triggers diversification (override slot 1)
+    # the repeat slot's identity now follows the synonym override, in lockstep.
+    assert nn._morpheme_id_for(1, 0) == "old-scandinavian:haeth"
+    assert nn._morpheme_id_for(0, 0) == "old-english:hyll"  # first slot unchanged

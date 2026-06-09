@@ -1441,7 +1441,12 @@ class NameGenerator:
                 mid = picked_ids[wi][ei] if picked_ids else None
                 form = _native_form_for_morpheme_id(mid) if mid else None
                 if form is None and not mid:
-                    # Legacy / None-id slot: derive from the surface bucket.
+                    # Legacy / None-id slot ONLY: derive from the surface bucket.
+                    # When a slot HAS a picked id but it yields no canonical
+                    # (malformed / dash-only morpheme_id) we deliberately leave
+                    # form None → modern usage, rather than scanning the surface
+                    # siblings — that fallback would render a DIFFERENT morpheme's
+                    # canonical, the cross-sibling string-derivation wyrd-i4jd removes.
                     meanings = self.meaning_gen._surface_index().get(
                         usage.lower().replace("-", "")
                     ) or []
@@ -1977,7 +1982,7 @@ class NewName:
         if first is not None:
             self._add_etymology_fields(morpheme, ranked, first, grid_mid)
         self._add_rendered_fields(morpheme, wi, ei, first)
-        self._set_active_form_id(morpheme, first)
+        self._set_active_form_id(morpheme, first, grid_mid)
         return morpheme
 
     def _add_etymology_fields(self, morpheme: dict, ranked: list, first, grid_mid=None) -> None:
@@ -2052,7 +2057,7 @@ class NewName:
             if pron:
                 morpheme["rendered_pron"] = pron
 
-    def _set_active_form_id(self, morpheme: dict, first) -> None:
+    def _set_active_form_id(self, morpheme: dict, first, grid_mid=None) -> None:
         """wyrd-i4jd: stamp ``active_form_id`` — the grid-cell id of the surface
         this morpheme actually rendered — so the SPA highlights it BY ID instead
         of re-deriving it from a cross-grid surface fold. Call AFTER the grid +
@@ -2067,9 +2072,12 @@ class NewName:
         if rendered is not None and morpheme.get("rendered_language"):
             lang, surface = morpheme["rendered_language"], rendered
         elif rendered is not None:
-            # Native render: no rendered_language; the active stage is the picked
-            # morpheme's source language, from its morpheme_id (old-english:smiþþe).
-            lang = (getattr(first, "morpheme_id", "") or "").partition(":")[0] or None
+            # Native render: no rendered_language; the active stage is the PICKED
+            # morpheme's source language — from ``grid_mid`` (the id the grid was
+            # built from), NOT first.morpheme_id (the surface-ranked sibling,
+            # which can differ in the exact case wyrd-i4jd corrects).
+            mid = grid_mid or getattr(first, "morpheme_id", "")
+            lang = (mid or "").partition(":")[0] or None
             surface = rendered
         else:
             # Modern / force-modern: the present-day stage holds the usage seed.
@@ -2171,7 +2179,7 @@ class NewName:
                         )
                         if pron:
                             morpheme["rendered_pron"] = pron
-                self._set_active_form_id(morpheme, first)
+                self._set_active_form_id(morpheme, first, grid_mid)
                 out.append(morpheme)
         return out
 

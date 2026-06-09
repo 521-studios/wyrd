@@ -87,6 +87,10 @@ export const swapTransform = {
         // wyrd-rogd.7: record the EXACT chosen cell's id so the grid highlight
         // tracks it by identity, not by surface-fold (which collides for
         // fold-equal forms like bǣre/bære and lit up two cells).
+        // wyrd-i4jd: drop the backend's generation-time active_form_id — the swap
+        // supersedes it; _cellId (or, if absent, the swapped surface) now drives
+        // the highlight, never the stale generated id.
+        delete next.active_form_id;
         if (cellId) next._cellId = cellId;
         else delete next._cellId;
         return next;
