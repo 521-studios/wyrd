@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -15,6 +16,86 @@ from wyrd.generators.kenning import (
 )
 from wyrd.generators.kenning.registers.effects import available_register_effects
 from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
+
+
+def _validate_tags_and_moods(tags: tuple[str, ...], moods: tuple[str, ...]) -> None:
+    """Pre-validate ``--tag`` / ``--mood`` against the known sets; print the
+    available options + exit non-zero on any unknown value. The CLI ACCEPTS
+    internal tags (some scripts pass them explicitly), so the tag set is
+    widened with ``_INTERNAL_TAGS`` rather than the literal subset, which would
+    silently desync as new internal markers get added."""
+    known_tags = set(available_tags()) | _INTERNAL_TAGS
+    bad = [t for t in tags if t not in known_tags]
+    if bad:
+        click.echo(f"Unknown tag(s): {', '.join(bad)}", err=True)
+        click.echo("Available tags:", err=True)
+        for t in sorted(known_tags - _INTERNAL_TAGS):
+            click.echo(f"  {t}", err=True)
+        sys.exit(1)
+    known_moods = available_register_effects()
+    bad_moods = [m for m in moods if m.split(":", 1)[0] not in known_moods]
+    if bad_moods:
+        click.echo(f"Unknown mood(s): {', '.join(bad_moods)}", err=True)
+        click.echo(f"Available moods: {', '.join(known_moods)}", err=True)
+        sys.exit(1)
+
+
+def _resolve_pack_params(
+    pack_specs: tuple[str, ...], pack_tag_filter_specs: tuple[str, ...]
+) -> list[dict]:
+    """Parse + validate the ``--pack`` / ``--pack-tag-filter`` specs at the CLI
+    boundary (wyrd-ecjp.11) so invalid input surfaces as a friendly Click error
+    + exit before reaching the generator. Returns the ``params['packs']``
+    overlay list."""
+    from wyrd.generators.kenning import _load_packs
+    from wyrd.generators.kenning.cli._pack_args import (
+        parse_pack_specs,
+        parse_pack_tag_filter_specs,
+        validate_packs_against_catalog,
+    )
+
+    try:
+        parsed_packs = parse_pack_specs(pack_specs)
+        declared = {s.pack_name for s in parsed_packs}
+        tag_filters = parse_pack_tag_filter_specs(pack_tag_filter_specs, declared)
+        validate_packs_against_catalog(parsed_packs, set(_load_packs().keys()))
+    except click.BadParameter as exc:
+        click.echo(f"Error: {exc.format_message()}", err=True)
+        sys.exit(1)
+    return [
+        {
+            "pack_name": spec.pack_name,
+            "weight_override": spec.weight_override,
+            "allowed_pack_tags": sorted(tag_filters.get(spec.pack_name, ())),
+        }
+        for spec in parsed_packs
+    ]
+
+
+def _emit_result(result: Any, culture: str, json_output: bool, describe: bool) -> None:
+    """Print one generated name: NDJSON (name + per-word morpheme breakdown
+    with per-language source lemmas, wyrd-cp2d) when ``--json``, else the
+    rendered string + the optional ``--describe`` explanation."""
+    if json_output:
+        # wyrd-cp2d: newline-delimited JSON, one object per name. Includes the
+        # rendered string + per-word morpheme breakdown so downstream commands
+        # can skip re-decomposition and use the generator's actual picks.
+        import json
+
+        click.echo(
+            json.dumps(
+                {
+                    "name": result.result,
+                    "culture": culture,
+                    "words": result.morphemes_by_word or [],
+                },
+                sort_keys=True,
+            )
+        )
+    else:
+        click.echo(result.result)
+        if describe:
+            click.echo(result.explanation)
 
 
 @click.command()
@@ -260,25 +341,7 @@ def generate(
     pack_tag_filter_specs: tuple[str, ...],
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
-    # `available_tags()` already strips _INTERNAL_TAGS for the SPA dropdown,
-    # but the CLI needs to ACCEPT internal tags (some scripts pass them
-    # explicitly) — so widen the validation set with _INTERNAL_TAGS rather
-    # than the literal subset, which would silently desync as new internal
-    # markers (e.g. wyrd-yan's 'fiction') get added.
-    known_tags = set(available_tags()) | _INTERNAL_TAGS
-    bad = [t for t in tags if t not in known_tags]
-    if bad:
-        click.echo(f"Unknown tag(s): {', '.join(bad)}", err=True)
-        click.echo("Available tags:", err=True)
-        for t in sorted(known_tags - _INTERNAL_TAGS):
-            click.echo(f"  {t}", err=True)
-        sys.exit(1)
-    known_moods = available_register_effects()
-    bad_moods = [m for m in moods if m.split(":", 1)[0] not in known_moods]
-    if bad_moods:
-        click.echo(f"Unknown mood(s): {', '.join(bad_moods)}", err=True)
-        click.echo(f"Available moods: {', '.join(known_moods)}", err=True)
-        sys.exit(1)
+    _validate_tags_and_moods(tags, moods)
 
     resolved = resolve_seed(seed)
     seed_rng = rng_for(resolved)
@@ -306,33 +369,9 @@ def generate(
         "pos_w": position_weight,
         "base_w": baseline_weight,
     }
-    # wyrd-ecjp.11: pack overlays. Parse + validate at the CLI
-    # boundary so invalid input surfaces as a friendly Click error
-    # before reaching the generator.
+    # wyrd-ecjp.11: pack overlays parsed + validated at the CLI boundary.
     if pack_specs or pack_tag_filter_specs:
-        from wyrd.generators.kenning import _load_packs
-        from wyrd.generators.kenning.cli._pack_args import (
-            parse_pack_specs,
-            parse_pack_tag_filter_specs,
-            validate_packs_against_catalog,
-        )
-
-        try:
-            parsed_packs = parse_pack_specs(pack_specs)
-            declared = {s.pack_name for s in parsed_packs}
-            tag_filters = parse_pack_tag_filter_specs(pack_tag_filter_specs, declared)
-            validate_packs_against_catalog(parsed_packs, set(_load_packs().keys()))
-        except click.BadParameter as exc:
-            click.echo(f"Error: {exc.format_message()}", err=True)
-            sys.exit(1)
-        params["packs"] = [
-            {
-                "pack_name": spec.pack_name,
-                "weight_override": spec.weight_override,
-                "allowed_pack_tags": sorted(tag_filters.get(spec.pack_name, ())),
-            }
-            for spec in parsed_packs
-        ]
+        params["packs"] = _resolve_pack_params(pack_specs, pack_tag_filter_specs)
     for _ in range(count):
         try:
             # wyrd-aof8: cap sub-seeds at JS Number safe range so
@@ -345,28 +384,7 @@ def generate(
             # exceptions still propagate so a real bug isn't silenced.
             click.echo(f"Error: {exc}", err=True)
             sys.exit(1)
-        if json_output:
-            # wyrd-cp2d: newline-delimited JSON, one object per name.
-            # Includes the rendered string + per-word morpheme breakdown
-            # (with per-language source lemmas) so downstream commands
-            # can skip re-decomposition and use the generator's actual
-            # morpheme picks.
-            import json
-
-            click.echo(
-                json.dumps(
-                    {
-                        "name": result.result,
-                        "culture": culture,
-                        "words": result.morphemes_by_word or [],
-                    },
-                    sort_keys=True,
-                )
-            )
-        else:
-            click.echo(result.result)
-            if describe:
-                click.echo(result.explanation)
+        _emit_result(result, culture, json_output, describe)
     click.echo(f"(seed: {resolved})", err=True)
 
 
