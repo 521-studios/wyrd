@@ -336,8 +336,8 @@ column" path and rejected it as architectural debt.
 ## D13. Haiku 4.5 is Tier 1 for Celtic content; Qwen stays Tier 1 for English.
 
 Empirically, Qwen 3.5 9B on the operator's MacBook (the Ollama mining
-host — D2) produces good extraction yields on
-English-etymology books (Skeat, Mawer, Ekwall) but underperforms on
+host — D2) produces good extraction yields on English-etymology books
+(Skeat, Mawer, Ekwall) but underperforms on
 Celtic and Welsh sources where headword recognition gets confused by
 mutations and digraphs. Haiku 4.5 (~$0.60/book on the Anthropic API)
 roughly doubles the yield on those books with the same SYSTEM_PROMPT.
