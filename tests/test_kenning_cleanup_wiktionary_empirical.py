@@ -99,6 +99,11 @@ def test_collect_classifies_wikt_only_buckets(tmp_path: Path) -> None:
 def test_delete_cleanup_handles_no_action_fks(tmp_path: Path) -> None:
     ids = _seed(tmp_path / "lex.db")
     with LexiconDB(tmp_path / "lex.db") as db:
+        # Disable FK enforcement so this pins the helper's EXPLICIT pre-handle
+        # statements, not the schema's ON DELETE cascades — i.e. removing the
+        # helper's `UPDATE ... lemma_id = NULL` / `DELETE ... element` lines
+        # would now leave a dangling lemma_id + orphan element and fail below.
+        db.conn.execute("PRAGMA foreign_keys = OFF")
         _delete_cleanup_etymons(db, [ids["deriv"], ids["modern"], ids["nogloss"]])
         db.commit()
         remaining = {r[0] for r in db.conn.execute("SELECT id FROM etymon")}
