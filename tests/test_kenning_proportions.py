@@ -1183,9 +1183,7 @@ class TestBuildCohesionTable:
 
         # "nopipe" has no separator → skipped (no bare-string mis-key).
         # "x|y" has no marginal for x (denom 0) → skipped.
-        table = build_cohesion_table(
-            {"nopipe": 5, "x|y": 4, "a|b": 2}, {"nopipe": 5, "a": 4}
-        )
+        table = build_cohesion_table({"nopipe": 5, "x|y": 4, "a|b": 2}, {"nopipe": 5, "a": 4})
         assert table == {"b": {"a": 0.5}}
 
 
