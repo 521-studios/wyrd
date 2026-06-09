@@ -406,6 +406,33 @@ def test_bundle_attestation_scholar_wins_mixed_citations() -> None:
     assert counts["rando_only"] == 0
 
 
+def test_bundle_attestation_scholar_wins_across_words() -> None:
+    """Attestation is a SUBJECT-level (not per-word) classification: if
+    ANY word in the subject has a scholar citation, the whole subject is
+    scholar_attested — even when another word is rando-only. Pins the
+    cross-word aggregation + the outer scholar short-circuit in
+    _subject_citation_flags (wyrd-8uvi), which single-word fixtures don't
+    exercise. Both word orders, to prove a later rando/empirical word
+    can't override an earlier scholar (and vice-versa)."""
+    for words in (
+        # rando-only word first, scholar word second
+        [
+            {"modern_usage": "a", "old_english": ["a"], "old_english_citations": ["rando-port"]},
+            {"modern_usage": "b", "old_english": ["b"], "old_english_citations": ["skeat_1901"]},
+        ],
+        # scholar word first, rando-only word second (outer break short-circuits)
+        [
+            {"modern_usage": "b", "old_english": ["b"], "old_english_citations": ["skeat_1901"]},
+            {"modern_usage": "a", "old_english": ["a"], "old_english_citations": ["rando-port"]},
+        ],
+    ):
+        bundle = [{"meaning": ["m"], "modifier_tags": [], "modifier_type": None, "words": words}]
+        counts = _bundle_attestation_breakdown(bundle, "old_english")
+        assert counts["total"] == 1
+        assert counts["scholar_attested"] == 1
+        assert counts["rando_only"] == 0
+
+
 def test_bundle_attestation_handles_dict_shape() -> None:
     """Forward-compat: dict-shaped bundles (post-wyrd-c1vq) read the
     'subjects' key. Same coverage as the list-shaped fixture."""
