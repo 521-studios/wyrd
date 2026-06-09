@@ -136,11 +136,13 @@ class Kenning(Generator):
                     "default": 0.0,
                     "minimum": 0.0,
                     "maximum": 1.0,
-                    # wyrd-0k9o: render as a slider in the SPA (a [0,1] proportion).
-                    "ui_widget": "slider",
-                    # wyrd-tngt: terse, accurate, user-facing — no internal jargon.
-                    # 0 weights by attested frequency (typical); 1 is uniform over
-                    # the ELIGIBLE pool (hard filters still apply), not "random".
+                    # wyrd-0k9o: SPA renders this as a slider (a [0,1] proportion).
+                    # `x-ui-*` matches the repo's x-prefixed SPA-extension convention
+                    # (x-options-by-culture / x-pick-from); Field.svelte reads it.
+                    "x-ui-widget": "slider",
+                    # wyrd-tngt: 0 weights by attested frequency (typical); 1 is
+                    # uniform over the ELIGIBLE pool (hard filters still apply), not
+                    # "random" — the description must not overclaim.
                     "description": (
                         "How adventurous the name is (0–1): 0 favors historically "
                         "common morphemes; 1 makes every eligible morpheme equally "
