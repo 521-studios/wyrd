@@ -138,6 +138,9 @@ def _run_judgments(
                 err=True,
             )
         else:
+            # fh is non-None whenever dry_run is False (see _judge_and_record);
+            # narrow it for type checkers.
+            assert fh is not None
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
             fh.flush()
         if i % 10 == 0 or i == len(todo):

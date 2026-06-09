@@ -143,7 +143,7 @@ def _gloss_tokens(gloss: str) -> set[str]:
     return out
 
 
-def _index_gloss_rows(rows) -> tuple[dict[int, dict], dict[str, set[int]]]:
+def _index_gloss_rows(rows: list[sqlite3.Row]) -> tuple[dict[int, dict], dict[str, set[int]]]:
     """Index the etymon×gloss rows into per-etymon records keyed by etymon id
     (language, form, bare form, consonant skeleton, cluster id, glosses, gloss
     content tokens) plus an inverted content-token -> etymon-ids map. Bare form
