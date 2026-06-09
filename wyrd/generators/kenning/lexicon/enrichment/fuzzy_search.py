@@ -25,6 +25,7 @@ output of ``reverse_search``).
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from wyrd.generators.kenning.lexicon.constants import normalize_ocr_form
@@ -90,6 +91,93 @@ def levenshtein(a: str, b: str, *, max_distance: int | None = None) -> int:
     return prev[lb]
 
 
+@dataclass(frozen=True)
+class _FuzzyScanConfig:
+    """Tuning + lookup state shared by the per-source token scan: the set of
+    all normalized canonical forms (so a token that IS a canonical etymon is
+    skipped, not treated as a fuzzy variant — wyrd-c3x), the max Levenshtein
+    distance, and the ±char window in which a gloss must appear to anchor the
+    candidate's meaning."""
+
+    other_canonicals: frozenset[str] | set[str]
+    max_distance: int
+    gloss_window: int
+
+
+def _fuzzy_match_in_source(
+    norm_form: str,
+    text: str,
+    vocab: set[str],
+    glosses: list[str],
+    cfg: _FuzzyScanConfig,
+) -> tuple[str, int, int, str] | None:
+    """Find the FIRST gloss-anchored fuzzy variant of ``norm_form`` in one
+    source's ``vocab`` (returns ``(matched_form, distance, count, snippet)`` or
+    ``None``). A token qualifies only when: within ±max_distance length, not an
+    exact match, not itself a canonical etymon, 0 < Levenshtein ≤ max_distance,
+    and one of ``glosses`` appears within ±gloss_window chars of its first
+    occurrence."""
+    for tok in vocab:
+        if abs(len(tok) - len(norm_form)) > cfg.max_distance:
+            continue
+        if tok == norm_form:
+            continue  # exact match — handled by reverse_search
+        # If `tok` is itself a canonical etymon, it's not a fuzzy variant —
+        # it's its own thing. See wyrd-c3x. Cheap O(1) lookup gates the
+        # expensive Levenshtein call.
+        if tok in cfg.other_canonicals:
+            continue
+        d = levenshtein(norm_form, tok, max_distance=cfg.max_distance)
+        if d > cfg.max_distance or d == 0:
+            continue
+        # Found a fuzzy candidate. Now verify meaning: does any gloss appear
+        # within ±gloss_window chars of this token's first occurrence?
+        pattern = re.compile(r"\b" + re.escape(tok) + r"\b")
+        m = pattern.search(text)
+        if not m:
+            continue
+        start = max(0, m.start() - cfg.gloss_window)
+        end = min(len(text), m.end() + cfg.gloss_window)
+        window_text = text[start:end]
+        if not any(g in window_text for g in glosses):
+            continue  # meaning didn't anchor — skip
+        # Record. snippet shows the matched form with marker.
+        snip_start = max(0, m.start() - _TEXT_MATCH_SNIPPET_RADIUS)
+        snip_end = min(len(text), m.end() + _TEXT_MATCH_SNIPPET_RADIUS)
+        snippet = text[snip_start:snip_end].strip().replace(tok, f"«{tok}»", 1)
+        count = len(pattern.findall(text))
+        return (tok, d, count, snippet)
+    return None
+
+
+def _write_fuzzy_matches(
+    db: LexiconDB, matches: dict[int, list[tuple[str, str, int, int, str]]]
+) -> int:
+    """Upsert the collected fuzzy matches into etymon_text_match (method
+    fuzzy-search-v1, edit_distance > 0 so queries can tell fuzzy from exact).
+    Returns the number of rows written. Caller commits + gates on apply."""
+    written = 0
+    for etymon_id, hits in matches.items():
+        for source_id, matched_form, distance, count, snippet in hits:
+            db.conn.execute(
+                """
+                INSERT INTO etymon_text_match
+                    (etymon_id, source_id, matched_form, match_count,
+                     edit_distance, snippet, method)
+                VALUES (?, ?, ?, ?, ?, ?, 'fuzzy-search-v1')
+                ON CONFLICT(etymon_id, source_id, matched_form)
+                DO UPDATE SET
+                    match_count = excluded.match_count,
+                    edit_distance = excluded.edit_distance,
+                    snippet = excluded.snippet,
+                    method = excluded.method
+                """,
+                (etymon_id, source_id, matched_form, count, distance, snippet),
+            )
+            written += 1
+    return written
+
+
 def fuzzy_search_attestations(
     db: LexiconDB,
     sources_dir: Path | str,
@@ -126,69 +214,24 @@ def fuzzy_search_attestations(
     vocab_by_source = _build_source_vocab(source_texts)
     other_canonicals = _all_canonical_forms_normalized(db)
 
+    cfg = _FuzzyScanConfig(
+        other_canonicals=other_canonicals,
+        max_distance=max_distance,
+        gloss_window=gloss_window,
+    )
     matches: dict[int, list[tuple[str, str, int, int, str]]] = {}
-    # value: (source_id, matched_form, distance, count, snippet)
+    # value: (source_id, matched_form, distance, count, snippet). One fuzzy
+    # match per source per etymon is enough (the helper returns the first).
     for etymon_id, form, glosses in candidates:
         norm_form = normalize_ocr_form(form)
         for source_id, vocab in vocab_by_source.items():
-            text = source_texts[source_id]
-            # Fast filter: only consider tokens within ±2 length and starting
-            # with the same character (cheap heuristic, good for OE-style
-            # short morphemes that vary in their tail).
-            for tok in vocab:
-                if abs(len(tok) - len(norm_form)) > max_distance:
-                    continue
-                if tok == norm_form:
-                    continue  # exact match — handled by reverse_search
-                # If `tok` is itself a canonical etymon, it's not a fuzzy
-                # variant — it's its own thing. See wyrd-c3x. Cheap O(1)
-                # lookup gates the expensive Levenshtein call.
-                if tok in other_canonicals:
-                    continue
-                d = levenshtein(norm_form, tok, max_distance=max_distance)
-                if d > max_distance or d == 0:
-                    continue
-                # Found a fuzzy candidate. Now verify meaning: does any gloss
-                # appear within ±gloss_window chars of this token's first
-                # occurrence?
-                pattern = re.compile(r"\b" + re.escape(tok) + r"\b")
-                m = pattern.search(text)
-                if not m:
-                    continue
-                start = max(0, m.start() - gloss_window)
-                end = min(len(text), m.end() + gloss_window)
-                window_text = text[start:end]
-                if not any(g in window_text for g in glosses):
-                    continue  # meaning didn't anchor — skip
-                # Record. snippet shows the matched form with marker.
-                snip_start = max(0, m.start() - _TEXT_MATCH_SNIPPET_RADIUS)
-                snip_end = min(len(text), m.end() + _TEXT_MATCH_SNIPPET_RADIUS)
-                snippet = text[snip_start:snip_end].strip().replace(tok, f"«{tok}»", 1)
-                count = len(pattern.findall(text))
-                matches.setdefault(etymon_id, []).append((source_id, tok, d, count, snippet))
-                break  # one fuzzy match per source per etymon is enough
+            hit = _fuzzy_match_in_source(norm_form, source_texts[source_id], vocab, glosses, cfg)
+            if hit is not None:
+                matches.setdefault(etymon_id, []).append((source_id, *hit))
 
     forms_by_id = {eid: f for eid, f, _ in candidates}
-    written = 0
+    written = _write_fuzzy_matches(db, matches) if apply else 0
     if apply:
-        for etymon_id, hits in matches.items():
-            for source_id, matched_form, distance, count, snippet in hits:
-                db.conn.execute(
-                    """
-                    INSERT INTO etymon_text_match
-                        (etymon_id, source_id, matched_form, match_count,
-                         edit_distance, snippet, method)
-                    VALUES (?, ?, ?, ?, ?, ?, 'fuzzy-search-v1')
-                    ON CONFLICT(etymon_id, source_id, matched_form)
-                    DO UPDATE SET
-                        match_count = excluded.match_count,
-                        edit_distance = excluded.edit_distance,
-                        snippet = excluded.snippet,
-                        method = excluded.method
-                    """,
-                    (etymon_id, source_id, matched_form, count, distance, snippet),
-                )
-                written += 1
         db.commit()
 
     return {
