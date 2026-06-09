@@ -1408,6 +1408,52 @@ def test_select_via_vector_scoring_permissive_returns_none_for_empty_slot():
     assert select_via_vector_scoring(random.Random(0), db, **kwargs) == []
 
 
+def test_select_via_vector_scoring_permissive_handles_zeroed_weights(monkeypatch):
+    """wyrd-2idg: the 'not weighted' permissive branch. base_scored is non-empty
+    but every final score collapses to <= 0 after the cohesion multiplier, so
+    nothing is weight-eligible. This is defensive — build_slot_base_scores only
+    emits base scores > 0 — so force the collapse by zeroing the cohesion
+    multiplier. permissive=True → None for the slot (full-length result);
+    non-permissive → [] (abort)."""
+    db = {"Port-": [_meaning("Port-", tags=["urban"])]}
+    kwargs = {"structure": ["pre"], "request": _request(), "priors": EmpiricalPriors()}
+    # Sanity (no monkeypatch yet): the slot fills normally, so base_scored is
+    # non-empty — the collapse below is specifically the 'not weighted' branch,
+    # not the already-covered empty-pool ('not base_scored') branch.
+    baseline = select_via_vector_scoring(random.Random(0), db, **kwargs)
+    assert baseline and baseline[0] is not None
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.runtime.vector_name_select._cohesion_multiplier",
+        lambda *a, **k: 0.0,
+    )
+    permissive = select_via_vector_scoring(random.Random(0), db, permissive=True, **kwargs)
+    assert permissive == [None], "zeroed weights under permissive → None slot, full-length"
+    # Non-permissive aborts the whole struct when a slot has no weighted pool.
+    assert select_via_vector_scoring(random.Random(0), db, **kwargs) == []
+
+
+def test_select_via_vector_scoring_permissive_handles_weighted_choice_none(monkeypatch):
+    """wyrd-2idg: the '_weighted_choice returns None' permissive branch.
+    base_scored AND weighted are both non-empty, but the weighted draw returns
+    None. This is defensive — a positive-weight list won't normally yield None —
+    so force it. permissive=True → None for the slot; non-permissive → []."""
+    db = {"Port-": [_meaning("Port-", tags=["urban"])]}
+    kwargs = {"structure": ["pre"], "request": _request(), "priors": EmpiricalPriors()}
+    # Sanity (no monkeypatch yet): the slot fills normally, so base_scored and
+    # weighted are non-empty — the [None] below is specifically the
+    # '_weighted_choice returns None' branch, reached only after both pass.
+    baseline = select_via_vector_scoring(random.Random(0), db, **kwargs)
+    assert baseline and baseline[0] is not None
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.runtime.vector_name_select._weighted_choice",
+        lambda *a, **k: None,
+    )
+    permissive = select_via_vector_scoring(random.Random(0), db, permissive=True, **kwargs)
+    assert permissive == [None], "weighted_choice None under permissive → None slot"
+    # Non-permissive aborts the whole struct when the weighted draw returns None.
+    assert select_via_vector_scoring(random.Random(0), db, **kwargs) == []
+
+
 # ---------------------------------------------------------------------------
 # Register-bias smoke tests (relocated from test_kenning_realism_regression.py)
 # ---------------------------------------------------------------------------
