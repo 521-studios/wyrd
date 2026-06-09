@@ -1430,7 +1430,7 @@ class NewName:
             if canon_langs and not (self._meaning_langs(ms) & canon_langs):
                 continue
             same_lang.append(k)
-            if canon_tags and ({t for m in ms for t in getattr(m, "tags", [])} & canon_tags):
+            if canon_tags and ({t for m in ms for t in getattr(m, "tags", None) or []} & canon_tags):
                 tag_sharing.append(k)
         return same_lang, tag_sharing
 
