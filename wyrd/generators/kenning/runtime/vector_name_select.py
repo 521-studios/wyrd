@@ -978,6 +978,10 @@ def select_via_vector_scoring(
         # weight) on top of its normal freq×score. _choose_mood_slot already
         # verified this slot's pool is non-empty for the mood, so the restricted
         # list is non-empty; the guard keeps us safe if membership ever shifts.
+        # Note: ``weighted`` still carries the slot's novelty + cohesion
+        # weighting, so the mood morpheme is picked by freq × mood-fit even at
+        # novelty=1 (the mood slot is deliberately NOT flattened to uniform —
+        # the theme stays attestation-led while the rest of the name flattens).
         if slot_index == mood_slot_index and weighted:
             mood_restricted = [
                 (m, wt * _mood_morpheme_weight(m, request.mood_tags))
