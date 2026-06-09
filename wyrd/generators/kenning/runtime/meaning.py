@@ -944,6 +944,58 @@ def load_joiners(data) -> dict[str, list[tuple[str, int]]]:
     }
 
 
+def _extract_phonological_vectors(
+    word: dict,
+) -> tuple[PhonologicalVector | None, dict[str, dict[str, PhonologicalVector]]]:
+    """Parse a word's phonological-vector data (wyrd-ecjp.5 / kq7w.1 / 10a).
+
+    Reads the per-language ``<lang>_phonological_vector`` siblings (D26)
+    into the plural ``phonological_vectors`` dict keyed by
+    ``(lang, canonical_form)``, skipping malformed entries (best-effort
+    parse, degrade silently). For the back-compat singular
+    ``phonological_vector`` it reads a legacy top-level
+    ``phonological_vector`` key first, falling back to the first
+    non-empty vector across the deterministic lang × form walk.
+
+    Returns ``(phonological_vector, phonological_vectors)``.
+    """
+    phonological_vectors: dict[str, dict[str, PhonologicalVector]] = {}
+    for k, v in word.items():
+        if not k.endswith(_PHONOLOGICAL_VECTOR_SUFFIX):
+            continue
+        lang_key = k[: -len(_PHONOLOGICAL_VECTOR_SUFFIX)]
+        per_form: dict[str, PhonologicalVector] = {}
+        for entry in v:
+            # Skip malformed entries: a non-dict entry or a dict missing
+            # the "form" key would crash the parse loop. Bundles can in
+            # principle ship arbitrary JSON, and the "best-effort parse;
+            # degrade silently" contract that _parse_phon_vector
+            # documents extends to the surrounding entry shape.
+            if not isinstance(entry, dict) or "form" not in entry:
+                continue
+            parsed = _parse_phon_vector(entry.get("phonological_vector"))
+            if parsed is not None:
+                per_form[entry["form"]] = parsed
+        if per_form:
+            phonological_vectors[lang_key] = per_form
+    legacy_top_level = word.get("phonological_vector")
+    if legacy_top_level is not None:
+        phonological_vector = _parse_phon_vector(legacy_top_level)
+    else:
+        # Deterministic lang × form walk: pick the first non-empty
+        # vector. next(gen, None) is the Pythonic "first match or None"
+        # — avoids the nested-break pattern.
+        phonological_vector = next(
+            (
+                phonological_vectors[lang_key][form]
+                for lang_key in sorted(phonological_vectors)
+                for form in sorted(phonological_vectors[lang_key])
+            ),
+            None,
+        )
+    return phonological_vector, phonological_vectors
+
+
 def load_meanings(data):
     meaning_db: dict[str, list[Meaning]] = {}
     tags_db: dict[str, list[str]] = {}
@@ -1067,42 +1119,7 @@ def load_meanings(data):
             # a top-level "phonological_vector" key (pre-10a) still
             # work — we read it first and only fall back to the
             # per-language walk when absent.
-            phonological_vectors: dict[str, dict[str, PhonologicalVector]] = {}
-            for k, v in word.items():
-                if not k.endswith(_PHONOLOGICAL_VECTOR_SUFFIX):
-                    continue
-                lang_key = k[: -len(_PHONOLOGICAL_VECTOR_SUFFIX)]
-                per_form: dict[str, PhonologicalVector] = {}
-                for entry in v:
-                    # Skip malformed entries: a non-dict entry or a
-                    # dict missing the "form" key would crash the
-                    # parse loop. Bundles can in principle ship
-                    # arbitrary JSON, and the "best-effort parse;
-                    # degrade silently" contract that _parse_phon_vector
-                    # documents extends to the surrounding entry shape.
-                    if not isinstance(entry, dict) or "form" not in entry:
-                        continue
-                    parsed = _parse_phon_vector(entry.get("phonological_vector"))
-                    if parsed is not None:
-                        per_form[entry["form"]] = parsed
-                if per_form:
-                    phonological_vectors[lang_key] = per_form
-            legacy_top_level = word.get("phonological_vector")
-            if legacy_top_level is not None:
-                phonological_vector = _parse_phon_vector(legacy_top_level)
-            else:
-                # Deterministic lang × form walk: pick the first
-                # non-empty vector. next(gen, None) is the Pythonic
-                # form of "first match or None" — avoids the
-                # nested-break pattern.
-                phonological_vector = next(
-                    (
-                        phonological_vectors[lang_key][form]
-                        for lang_key in sorted(phonological_vectors)
-                        for form in sorted(phonological_vectors[lang_key])
-                    ),
-                    None,
-                )
+            phonological_vector, phonological_vectors = _extract_phonological_vectors(word)
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
