@@ -18,7 +18,6 @@ from wyrd.generators.kenning.lexicon.merge_audit import (
     PROV_OCR,
     MergeAuditCandidate,
     MergeAuditVerdict,
-    audit_verdict_to_rows,
     build_audit_judge_prompt,
     detect_merge_audit_candidates,
     parse_audit_verdict,
@@ -142,73 +141,19 @@ def test_detect_dedup_across_sources(tmp_path):
 # --- verdict routing -------------------------------------------------------
 
 
-def test_revert_collapse_fold_goes_to_collapse_ledger():
-    c = _cand("oe:ton", "oe:tonweight", PROV_COLLAPSE)
+def test_revert_rows_lemma_provenance_keys_lemma_ref():
+    """PROV_LEMMA wrong-merge revert routes to a curation row keyed
+    ``lemma_ref`` (not ``merged_into_ref``), with no collapse row. Re-pins the
+    provenance ternary in the live ``revert_rows`` after ``audit_verdict_to_rows``
+    — its former sole test caller — was removed in the PR #498 dead-code audit."""
     v = MergeAuditVerdict(correct=False, confidence="high", reason="distinct")
-    rows = audit_verdict_to_rows(c, v, "medium")
-    assert rows.curation is None
-    assert rows.collapse == {
-        "_type": "collapse",
-        "ref": "oe:ton",
-        "into": "",
-        "method": LLM_MERGE_AUDIT_REVERT_METHOD,
-        "confidence": "high",
-        "reason": "distinct",
-    }
-    assert rows.audit_log["same_morpheme"] is False  # raw verdict recorded
-
-
-def test_revert_ocr_goes_to_curation_merged_into():
-    c = _cand("modern-english:-ton", "modern-english:ton", PROV_OCR)
-    v = MergeAuditVerdict(correct=False, confidence="high", reason="suffix not weight")
-    rows = audit_verdict_to_rows(c, v, "medium")
-    assert rows.collapse is None
-    assert rows.curation == {
-        "_type": "etymon_curation",
-        "ref": "modern-english:-ton",
-        "reason": "suffix not weight",
-        "merged_into_ref": None,
-    }
-
-
-def test_revert_lemma_goes_to_curation_lemma_ref():
-    c = _cand("oe:streamX", "oe:stream", PROV_LEMMA)
-    v = MergeAuditVerdict(correct=False, confidence="high", reason="distinct")
-    rows = audit_verdict_to_rows(c, v, "medium")
-    assert rows.collapse is None
-    assert rows.curation["lemma_ref"] is None
-    assert "merged_into_ref" not in rows.curation
-
-
-def test_keep_verdict_emits_only_audit_log():
-    c = _cand("modern-english:-land", "modern-english:land", PROV_OCR)
-    v = MergeAuditVerdict(correct=True, confidence="high", reason="same morpheme")
-    rows = audit_verdict_to_rows(c, v, "medium")
-    assert rows.collapse is None and rows.curation is None
-    assert rows.audit_log["same_morpheme"] is True
-
-
-def test_below_threshold_records_raw_wrongmerge_but_emits_no_revert():
-    """A wrong-merge verdict below --min-confidence emits no revert, but the audit
-    log STILL records the raw same_morpheme=False so a later lower-threshold run
-    can re-derive the revert without re-judging (emit high now, emit medium later)."""
-    c = _cand("modern-english:-ton", "modern-english:ton", PROV_OCR)
-    v = MergeAuditVerdict(correct=False, confidence="medium", reason="suffix not weight")
-    rows = audit_verdict_to_rows(c, v, "high")
-    assert rows.collapse is None and rows.curation is None  # below 'high' → no revert
-    assert rows.audit_log["same_morpheme"] is False  # raw verdict still recorded
-    assert rows.audit_log["confidence"] == "medium"
+    collapse, curation = revert_rows("oe:streamX", PROV_LEMMA, v, "medium")
+    assert collapse is None
+    assert curation["lemma_ref"] is None
+    assert "merged_into_ref" not in curation
 
 
 # --- raw-verdict round-trip: emit high now, re-derive medium later -----------
-
-
-def test_verdict_from_log_round_trips():
-    c = _cand("m:-ton", "m:ton", PROV_OCR)
-    v = MergeAuditVerdict(correct=False, confidence="medium", reason="distinct")
-    row = audit_verdict_to_rows(c, v, "high").audit_log
-    back = verdict_from_log(row)
-    assert back.correct is False and back.confidence == "medium" and back.reason == "distinct"
 
 
 def test_verdict_from_log_rejects_legacy_row_without_raw_verdict():

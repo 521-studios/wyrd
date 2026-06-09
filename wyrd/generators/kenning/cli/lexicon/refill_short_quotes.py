@@ -11,6 +11,71 @@ from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
+def _resolve_target_sources(conn, sources: tuple[str, ...]) -> list[str]:
+    """Resolve which source_ids to refill.
+
+    With explicit ``--source`` values, validate them up front (a
+    misspelled id used to silently produce zero output) and raise a
+    ``ClickException`` listing any unknown ids. Without ``--source``,
+    only return sources that actually have citations (Gemini PR #211
+    round-7 efficiency) — many `source` rows are placeholders with zero
+    citations whose refill_source call would return empty anyway.
+    """
+    if sources:
+        known = {r["id"] for r in conn.execute("SELECT id FROM source")}
+        unknown = sorted(set(sources) - known)
+        if unknown:
+            raise click.ClickException(
+                f"unknown source_id(s): {', '.join(unknown)}. "
+                f"Check spelling against `lexicon report --sources` output."
+            )
+        return list(sources)
+    return [
+        r[0]
+        for r in conn.execute("SELECT DISTINCT source_id FROM etymon_citation ORDER BY source_id")
+    ]
+
+
+def _warn_if_body_missing(report, sources_dir: Path, source_id: str) -> None:
+    """Warn when refill_source never consulted the source body.
+
+    Fires only when the report has truncated rows but neither refilled
+    nor flagged-hallucinated any — which happens exactly when
+    ``_load_source_body`` returned None (missing file, decode error, or
+    empty/whitespace-only body). The narrow ``refilled==0 AND
+    hallucinated==0`` condition distinguishes "source body unavailable"
+    from "source body fine but every row hallucinated" (Gemini PR #211
+    rounds 2 / 5b). Uses ``source_body_path`` so the reported path
+    matches what ``_load_source_body`` looked at (round-9 DRY fix).
+    """
+    if report.refilled != 0 or report.hallucinated != 0:
+        return
+    from wyrd.generators.kenning.short_quote_refill import source_body_path
+
+    txt = source_body_path(sources_dir, source_id)
+    if not txt.exists():
+        click.echo(f"    warning: {txt} not found — refill needs the source body")
+    else:
+        click.echo(
+            f"    warning: {txt} exists but read returned empty/unreadable "
+            f"content (non-UTF8 bytes? whitespace-only?) — refill needs a "
+            f"readable source body"
+        )
+
+
+def _echo_refill_samples(report) -> None:
+    """Print before/after RefillReport.samples so operators can
+    spot-check refill quality without manual DB inspection."""
+    for sample in report.samples:
+        click.echo(f"    [{sample.status}] {sample.etymon_ref}")
+        if sample.old_short_quote:
+            click.echo(f"      old (...{sample.old_short_quote[-60:]!r})")
+        if sample.new_short_quote:
+            click.echo(
+                f"      new (+{sample.recovered_chars}c: ...{sample.new_short_quote[-100:]!r})"
+            )
+
+
 @click.command("refill-short-quotes")
 @click.option(
     "--db",
@@ -87,32 +152,7 @@ def lexicon_refill_short_quotes(
     # foreign_keys=ON + synchronous=NORMAL on every open, which the
     # bare sqlite3.connect skipped.
     with LexiconDB(db_path) as db:
-        # Validate --source values up front (silent-failure-hunter
-        # round-1 finding): a misspelled source id used to silently
-        # produce zero output, masking operator intent. Surface as a
-        # ClickException with the list of unknown ids.
-        if sources:
-            known = {r["id"] for r in db.conn.execute("SELECT id FROM source")}
-            unknown = sorted(set(sources) - known)
-            if unknown:
-                raise click.ClickException(
-                    f"unknown source_id(s): {', '.join(unknown)}. "
-                    f"Check spelling against `lexicon report --sources` output."
-                )
-            target_sources = list(sources)
-        else:
-            # Only iterate sources that actually have citations
-            # (Gemini PR #211 round-7 efficiency). Many sources in
-            # the source table have zero citations (placeholder rows
-            # for not-yet-mined books, retired sources, etc.) —
-            # skipping them avoids per-source refill_source calls
-            # that would return empty reports anyway.
-            target_sources = [
-                r[0]
-                for r in db.conn.execute(
-                    "SELECT DISTINCT source_id FROM etymon_citation ORDER BY source_id"
-                )
-            ]
+        target_sources = _resolve_target_sources(db.conn, sources)
 
         for source_id in target_sources:
             report = refill_source(db.conn, source_id, sources_dir, apply=apply, window=window)
@@ -131,56 +171,9 @@ def lexicon_refill_short_quotes(
                 f"refilled={report.refilled:>4} "
                 f"hallucinated={report.hallucinated:>4}"
             )
-            # Gemini PR #211 round-2 visibility fix (kept narrow per
-            # round-5 reconsideration on hallucinated false-positives,
-            # broadened scope per Gemini round-5b on default-mode
-            # visibility): warning fires when refill_source returned
-            # without ever consulting the source body — which only
-            # happens when _load_source_body returned None (missing
-            # file, UnicodeDecodeError, OSError, or empty/whitespace-
-            # only body). The narrow condition (refilled==0 AND
-            # hallucinated==0) correctly distinguishes 'source body
-            # unavailable' from 'source body fine but LLM
-            # hallucinated everything'.
-            #
-            # No longer gated on `sources` (explicit --source) per
-            # Gemini round-5b: default-mode runs across all sources
-            # should ALSO surface missing-body gaps. The narrow
-            # condition keeps the noise floor low (only fires for
-            # sources that have truncated rows but no consulted
-            # source body), so default-mode runs only warn for
-            # sources where the operator actually has a refill
-            # surface to fix.
-            if report.refilled == 0 and report.hallucinated == 0:
-                # Use the centralized helper so this warning's reported
-                # path is guaranteed to match what _load_source_body
-                # looked at (Gemini PR #211 round-9 DRY fix; the
-                # round-7 path-traversal hardening + round-8
-                # consistency fix now live in one place).
-                from wyrd.generators.kenning.short_quote_refill import source_body_path
-
-                txt = source_body_path(sources_dir, source_id)
-                if not txt.exists():
-                    click.echo(f"    warning: {txt} not found — refill needs the source body")
-                else:
-                    click.echo(
-                        f"    warning: {txt} exists but read returned empty/unreadable "
-                        f"content (non-UTF8 bytes? whitespace-only?) — refill needs a "
-                        f"readable source body"
-                    )
+            _warn_if_body_missing(report, sources_dir, source_id)
             if verbose:
-                # Surface RefillReport.samples so operators can
-                # spot-check before/after quality without manual DB
-                # inspection .
-                for sample in report.samples:
-                    click.echo(f"    [{sample.status}] {sample.etymon_ref}")
-                    if sample.old_short_quote:
-                        click.echo(f"      old (...{sample.old_short_quote[-60:]!r})")
-                    if sample.new_short_quote:
-                        click.echo(
-                            f"      new (+{sample.recovered_chars}c: "
-                            f"...{sample.new_short_quote[-100:]!r})"
-                        )
+                _echo_refill_samples(report)
     click.echo("")
     click.echo(
         f"TOTAL: truncated={total_truncated} refilled={total_refilled} "

@@ -109,6 +109,10 @@ def test_find_ambiguous_rows_picks_multi_candidate_cases(fresh_db: Path) -> None
     with LexiconDB(fresh_db) as db:
         _seed_minimum(db)
         assert candidate_ids == {db._heath_id, db._herath_id}
+        # Candidate ORDER is load-bearing (it's the order the disambiguator
+        # lists them to the LLM) and tracks by_norm first-seen = etymon
+        # insertion order: heath was upserted before herath.
+        assert [c.etymon_id for c in case.candidates] == [db._heath_id, db._herath_id]
 
 
 def test_find_ambiguous_rows_skips_when_only_one_candidate(fresh_db: Path) -> None:
@@ -455,7 +459,8 @@ def test_find_ambiguous_rows_groups_rows_sharing_source_and_form(fresh_db: Path)
         "to one AmbiguityCase — one LLM call serves both"
     )
     case = cases[0]
-    assert set(case.text_match_ids) == {row_a, row_b}
+    # Deterministic order (rows queried ORDER BY m.id; row_a inserted first).
+    assert case.text_match_ids == (row_a, row_b)
     assert set(case.current_etymon_ids) == {db._herath_id, third_id}
 
 

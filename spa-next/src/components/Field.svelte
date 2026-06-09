@@ -188,6 +188,26 @@
         onkeydown={onChipKeydown}
       />
     </div>
+  {:else if (prop.type === 'number' || prop.type === 'integer') && prop['x-ui-widget'] === 'slider'}
+    <!-- wyrd-0k9o: bounded proportions (novelty, …) render as a slider with a
+         live value readout. Opt-in via the schema's `x-ui-widget: 'slider'`
+         hint (x-prefixed, matching the repo's SPA-extension keys) so other
+         numeric knobs keep the plain box. -->
+    <div class="slider-row">
+      <input
+        id="field-{fieldKey}"
+        type="range"
+        min={prop.minimum ?? 0}
+        max={prop.maximum ?? 1}
+        step={prop.type === 'integer' ? 1 : (prop['x-ui-step'] ?? 0.05)}
+        bind:value={appState.currentParams[fieldKey]}
+      />
+      <!-- Round for display only: a restored/shared value can carry IEEE-754
+           noise (0.05 steps → 0.30000000000000004); the bound param is untouched. -->
+      <output class="slider-value" for="field-{fieldKey}">
+        {Math.round((appState.currentParams[fieldKey] ?? 0) * 1000) / 1000}
+      </output>
+    </div>
   {:else if prop.type === 'integer' || prop.type === 'number'}
     <input
       id="field-{fieldKey}"
@@ -263,6 +283,23 @@
   input:focus {
     outline: 1px solid var(--accent);
     outline-offset: -1px;
+  }
+  /* wyrd-0k9o: slider row — range input + live value readout. */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .slider-row input[type='range'] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+  .slider-value {
+    min-width: 2.5em;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--fg-muted);
   }
   .tag-grid {
     display: flex;

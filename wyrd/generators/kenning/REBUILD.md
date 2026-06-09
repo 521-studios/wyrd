@@ -282,13 +282,13 @@ WYRD_RUNTIME_DB=/tmp/rebuild-final.db \
 # 2. Full suite against the committed seed.
 .venv/bin/python -m pytest tests/ -q -p no:cacheprovider
 
-# 3. Generation smoke, both scoring modes:
+# 3. Generation smoke (vector is the only scoring path):
 wyrd kenning generate english --seed 42
-wyrd kenning generate english --scoring-mode vector --tag water --seed 42
+wyrd kenning generate english --tag water --seed 42
 
-# 4. Per-culture drift report (also confirms all 5 cultures generate):
+# 4. Realism gate (also confirms all 5 cultures generate):
 WYRD_RUNTIME_DB=/tmp/rebuild-final.db \
-  wyrd kenning lexicon drift-report --culture english --count 500 --format markdown
+  .venv/bin/python -m pytest tests/test_kenning_realism_absolute.py -q
 
 # 5. Export-side drift vs the committed bundle:
 wyrd kenning lexicon diff-bundle      # exit 0 = byte-identical; exit 1 = drift summary

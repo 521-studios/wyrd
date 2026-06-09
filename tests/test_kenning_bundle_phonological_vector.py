@@ -208,6 +208,34 @@ def test_load_meanings_legacy_top_level_vector_preserved():
     assert meaning.phonological_vectors == {}
 
 
+def test_load_meanings_legacy_wins_for_singular_with_siblings_present():
+    """When a word carries BOTH a legacy top-level ``phonological_vector``
+    AND per-language ``<lang>_phonological_vector`` siblings, the legacy
+    value wins for the singular ``phonological_vector`` (read-first
+    precedence) while the plural ``phonological_vectors`` still populates
+    from the siblings. Pins the legacy+siblings interaction the C901
+    extraction (_extract_phonological_vectors) owns — the legacy-only
+    test above doesn't exercise it (wyrd-8uvi)."""
+    bundle = _bundle_with_word(
+        {
+            "modern_usage": "-foo",
+            "old_english": ["bar"],
+            "phonological_vector": {"cluster_density": 0.5},
+            "old_english_phonological_vector": [
+                {"form": "bar", "phonological_vector": {"cluster_density": 0.9}}
+            ],
+        }
+    )
+    meaning_db, _ = load_meanings(bundle)
+    meaning = meaning_db["-foo"][0]
+    # Legacy top-level wins for the singular (not the 0.9 sibling).
+    assert meaning.phonological_vector == PhonologicalVector(cluster_density=0.5)
+    # Plural still populated from the per-language sibling.
+    assert meaning.phonological_vectors == {
+        "old_english": {"bar": PhonologicalVector(cluster_density=0.9)}
+    }
+
+
 def test_load_meanings_no_phon_vector_anywhere():
     """Legacy bundle with no phon-vector data: Meaning.phonological_vector
     is None, Meaning.phonological_vectors is {}."""
@@ -348,5 +376,5 @@ def test_load_meanings_round_trips_pr290_new_dimensions():
     assert vec.rhotic_r == 0.25
     assert vec.vowel_tenseness == 1.0
     assert vec.cluster_density == 0.2
-    # Unspecified dims default to 0.0 (vector_from_json tolerance).
+    # Unspecified dims default to 0.0 (deserialize tolerance).
     assert vec.soft_consonants == 0.0

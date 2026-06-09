@@ -28,7 +28,6 @@ from wyrd.generators.kenning.extractors.llm import (
     SOURCE_QUOTE_BUDGET,
     SYSTEM_PROMPT,
     OllamaClient,
-    _form_in_body,
     _normalize_for_match,
     validate_response,
 )
@@ -51,34 +50,6 @@ def test_normalize_for_match_preserves_distinct_words() -> None:
     """Different roots must NOT collapse together."""
     assert _normalize_for_match("ham") != _normalize_for_match("hamm")
     assert _normalize_for_match("tun") != _normalize_for_match("dun")
-
-
-# --- form-in-body checks ---------------------------------------------------
-
-
-def test_form_in_body_basic_substring() -> None:
-    body = "This is the A.S. bere-tun, lit. 'corn-farm'."
-    assert _form_in_body("bere", body)
-    assert _form_in_body("tun", body)
-    assert not _form_in_body("xyz", body)
-
-
-def test_form_in_body_handles_ocr_variants() -> None:
-    """Model emits 'hædan' but body has OCR-mangled 'Hcsdan' — should still match."""
-    body = "O.E. Hcsdan-ham. The personal name."
-    assert _form_in_body("hædan", body)
-    assert _form_in_body("Hædan", body)
-    assert _form_in_body("haedan", body)
-
-
-def test_form_in_body_rejects_short_forms() -> None:
-    """A single-character or empty form can't be a meaningful etymon —
-    the substring match would too easily collide with random text."""
-    body = "Some etymology text with ab embedded inside."
-    assert not _form_in_body("", body)
-    assert not _form_in_body("a", body)
-    # 2-char forms are technically the minimum we accept; "ab" is in body.
-    assert _form_in_body("ab", body)
 
 
 # --- validate_response -----------------------------------------------------

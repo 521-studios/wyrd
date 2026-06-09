@@ -1,10 +1,10 @@
 """Gate→score→sample primitive for vector-driven name generation
 (wyrd-ecjp.5).
 
-The legacy ``Generator.select`` pipeline does proportion-table
-sampling: pre-baked per-(culture × tag × position) weight tables
-drive ``weighted_choice`` at each slot. This module is the
-vector-driven alternative — every slot's per-lemma weight is
+The retired proportions pipeline did proportion-table sampling:
+pre-baked per-(culture × tag × position) weight tables drove
+``weighted_choice`` at each slot. This module — now the sole scoring
+path — is the vector-driven approach: every slot's per-lemma weight is
 computed at request time by the D36.2 composition rule
 (:func:`wyrd.generators.kenning.vectors.scoring.score`):
 
@@ -30,16 +30,17 @@ Per-slot pipeline:
      sampling (``weighted_choice`` skips them anyway, but the
      explicit filter keeps the diagnostic cleaner).
 
-This is the runtime side of ecjp.5. The Kenning generator dispatches
-into here via the ``--scoring-mode vector`` opt-in; bit-stable legacy
-behavior stays on the proportion-table path. ecjp.6/7 (realism-
-retention drift measurement) empirically compares the two.
+This is the runtime side of ecjp.5, and the only scoring path: the
+Kenning generator always dispatches into here. (The proportion-table
+path it once coexisted with — opt-in via the old ``--scoring-mode``
+flag — is retired; ecjp.6/7 drift measurement empirically validated
+vector before the proportions path was removed.)
 
 Out of scope for v1:
   * Multi-pack composition (wyrd-ecjp.8 / Phase 7).
   * Tolerance bands on the composed register (D8, deferred).
-  * Per-slot inflection / variant resolution (handled the same way
-    as the legacy path; this module just picks the lemma).
+  * Per-slot inflection / variant resolution (handled downstream by
+    the shared rendering path; this module just picks the lemma).
 """
 
 from __future__ import annotations
@@ -201,6 +202,162 @@ def _slot_position_label(structural_element: str) -> str:
     return "bare"
 
 
+def _passes_base_gates(
+    m: Meaning,
+    *,
+    gate,
+    exclude_tags: frozenset[str],
+    include_unglossed: bool,
+) -> bool:
+    """Slot-independent eligibility gates shared by the native and pack pools:
+    era window, stratum, exclude-tags, the --tag HARD gate, and the gloss
+    policy. Returns False on the first failing gate."""
+    if not _matches_era(m, gate.era_min, gate.era_max):
+        return False
+    if not _matches_stratum(m, gate.stratum):
+        return False
+    # frozenset.isdisjoint runs in C and skips the per-tag generator overhead
+    # in this O(64k) hot path; equivalent to any(t in <fs> for t in m.tags).
+    if exclude_tags and not exclude_tags.isdisjoint(m.tags):
+        return False
+    # wyrd-wv85: --tag HARD gate (D36.6). Drop lemmas carrying none of the
+    # requested tags — OR semantics, matching proportions' filter_for_tag.
+    # Empty required_tags = no-op.
+    if gate.required_tags and gate.required_tags.isdisjoint(m.tags):
+        return False
+    # wyrd-glos: gloss policy — same predicate keep_keys_for_gloss applies, so
+    # this filter and the keep-set share the rule.
+    return _gloss_eligible(m.usage, bool(m.meanings), include_unglossed)
+
+
+def _native_meaning_eligible(
+    m: Meaning,
+    *,
+    admitted_langs: frozenset[str] | None,
+    gate,
+    exclude_tags: frozenset[str],
+    include_unglossed: bool,
+) -> bool:
+    """Whether a native-pool Meaning is admitted: the per-Meaning attested-
+    language narrowing (wyrd-pfoo), the shared base gates, and the native-only
+    exclusions (pure-proper-noun saints / given names, connector particles).
+
+    ``admitted_langs`` is ``None`` when the per-Meaning filter is inactive
+    (legacy bundle, or this usage_key carried no per-Meaning attestation data);
+    a frozenset (even empty) means the filter is active. The ``is not None``
+    check is load-bearing — an empty frozenset ("attested, no eligible
+    language") must not be conflated with the missing case.
+    """
+    if admitted_langs is not None:
+        primary = m.primary_language()
+        if primary is None or primary not in admitted_langs:
+            return False
+    if not _passes_base_gates(
+        m, gate=gate, exclude_tags=exclude_tags, include_unglossed=include_unglossed
+    ):
+        return False
+    # wyrd-57d8: the request-independent base-pool class exclusions (D40
+    # pure-proper-noun saints / given names, wyrd-gwj3 connector particles, AND
+    # synthesized Norman manorial subjects) live on Meaning so every base pool —
+    # this scored pool, the proportions frequency-weight pool
+    # (MeaningGenerator.load_parts), and the diversification re-pick
+    # (proportions.NewName._collect_repick_pools) — applies them identically.
+    # Family-name etymons with a real place sense stay in (manorial places).
+    return not m.is_base_pool_excluded()
+
+
+def _pack_meaning_eligible(
+    m: Meaning,
+    *,
+    pack,
+    gate,
+    exclude_tags: frozenset[str],
+    include_unglossed: bool,
+) -> bool:
+    """Whether a pack-overlay Meaning is admitted: the shared base gates plus
+    the per-pack allowed/excluded tag filters (wyrd-ecjp.8). Pack overlays are
+    intentionally NOT culture-restricted — they add other-culture flavor."""
+    if not _passes_base_gates(
+        m, gate=gate, exclude_tags=exclude_tags, include_unglossed=include_unglossed
+    ):
+        return False
+    # isdisjoint (C-level) avoids the per-tag generator overhead.
+    if pack.allowed_pack_tags and pack.allowed_pack_tags.isdisjoint(m.tags):
+        return False
+    # Eligible unless the morpheme carries an excluded tag (De Morgan of
+    # `excluded and not isdisjoint`): no excluded set, or disjoint from it.
+    return not pack.excluded_pack_tags or pack.excluded_pack_tags.isdisjoint(m.tags)
+
+
+def _native_pool(
+    meaning_db: dict[str, list[Meaning]],
+    *,
+    gate,
+    exclude_tags: frozenset[str],
+    culture_attested_usages: frozenset[str] | None,
+    culture_attested_meanings: dict[str, frozenset[str]] | None,
+    include_unglossed: bool,
+) -> list[Meaning]:
+    """Native (non-pack) eligibility pool, walked in ``meaning_db`` insertion
+    order so the output list is reproducible across runs."""
+    pool: list[Meaning] = []
+    for usage_key, meanings_for_usage in meaning_db.items():
+        # wyrd-eyjk/D40: culture_attested_usages holds bare SURFACES (the
+        # proportions side records position-forms); compare this entry's stored
+        # variant by surface so a morpheme stored as `Giles-` but recorded as
+        # `-giles` isn't silently dropped from the pool.
+        if (
+            culture_attested_usages is not None
+            and usage_key.lower().replace("-", "") not in culture_attested_usages
+        ):
+            continue
+        # Per-Meaning narrowing set for this usage_key (wyrd-pfoo); None when
+        # the filter is inactive or this usage carried no per-Meaning data.
+        admitted_langs: frozenset[str] | None = (
+            culture_attested_meanings.get(usage_key)
+            if culture_attested_meanings is not None
+            else None
+        )
+        for m in meanings_for_usage:
+            if _native_meaning_eligible(
+                m,
+                admitted_langs=admitted_langs,
+                gate=gate,
+                exclude_tags=exclude_tags,
+                include_unglossed=include_unglossed,
+            ):
+                pool.append(m)
+    return pool
+
+
+def _pack_pool(
+    pack_meaning_dbs: dict[str, dict[str, list[Meaning]]],
+    *,
+    packs,
+    gate,
+    exclude_tags: frozenset[str],
+    include_unglossed: bool,
+) -> list[Meaning]:
+    """Pack-overlay eligibility pool (wyrd-ecjp.8), appended after the native
+    pool. Per-pack tag filters gate on top of the shared base gates."""
+    pool: list[Meaning] = []
+    for pack in packs:
+        pack_db = pack_meaning_dbs.get(pack.pack_name)
+        if pack_db is None:
+            continue
+        for meanings_for_usage in pack_db.values():
+            for m in meanings_for_usage:
+                if _pack_meaning_eligible(
+                    m,
+                    pack=pack,
+                    gate=gate,
+                    exclude_tags=exclude_tags,
+                    include_unglossed=include_unglossed,
+                ):
+                    pool.append(m)
+    return pool
+
+
 def build_non_position_eligible(
     meaning_db: dict[str, list[Meaning]],
     *,
@@ -252,9 +409,9 @@ def build_non_position_eligible(
     (``-X`` → ``-Xs`` for is_name() lemmas) and inflection shadows
     (``meaning.py:_register_inflection_shadows``) are added to
     ``meaning_db`` at non-canonical keys that don't appear in the
-    proportions tables. They get filtered out here — same behavior
-    as proportions mode (which only samples from its weight tables,
-    so plurals + shadows are never sampled directly there either).
+    proportions tables. They get filtered out here — matching the
+    retired proportions path, which only sampled from its weight tables,
+    so plurals + shadows were never sampled directly there either.
     The shadows still surface in the trie matcher for explainer
     requests; only the GENERATOR pool excludes them.
 
@@ -262,111 +419,29 @@ def build_non_position_eligible(
     intentionally introduce other-culture flavor (per wyrd-ecjp.11)
     and are NOT culture-restricted.
     """
-    non_position_eligible: list[Meaning] = []
-    for usage_key, meanings_for_usage in meaning_db.items():
-        # wyrd-eyjk/D40: culture_attested_usages holds bare SURFACES (the
-        # proportions side records position-forms); compare this meaning_db
-        # entry's stored variant by surface so a morpheme stored as `Giles-`
-        # but recorded as `-giles` isn't silently dropped from the pool.
-        if (
-            culture_attested_usages is not None
-            and usage_key.lower().replace("-", "") not in culture_attested_usages
-        ):
-            continue
-        # wyrd-pfoo: per-Meaning narrowing. When the per-usage filter
-        # admits a usage_key, we further check that each Meaning's
-        # primary language is in the per-usage attested-language set
-        # for this culture. Wrong-sense Meanings (Celtic ``-ton``→
-        # 'tone', etc.) are dropped here even though their usage_key
-        # passed the per-usage filter.
-        #
-        # Three states for ``admitted_langs``:
-        #   - ``culture_attested_meanings is None`` → ``admitted_langs``
-        #     stays None → no per-Meaning filter (legacy bundle).
-        #   - usage_key missing from the dict → ``admitted_langs`` is
-        #     None → no per-Meaning filter (defensive admit when the
-        #     per-usage filter admitted this usage but the per-Meaning
-        #     emit didn't carry it; data drift safety).
-        #   - usage_key present (even with an empty frozenset) →
-        #     ``admitted_langs`` is a frozenset → per-Meaning filter
-        #     active. The ``is not None`` check is load-bearing here
-        #     vs a truthiness check: an empty frozenset must NOT be
-        #     conflated with the missing case (the builder doesn't
-        #     emit empty values today, but a future change could, and
-        #     "this usage is attested with no eligible language" is
-        #     semantically different from "this usage has no
-        #     attestation data").
-        admitted_langs: frozenset[str] | None = None
-        if culture_attested_meanings is not None:
-            admitted_langs = culture_attested_meanings.get(usage_key)
-        for m in meanings_for_usage:
-            if admitted_langs is not None:
-                primary = m.primary_language()
-                if primary is None or primary not in admitted_langs:
-                    continue
-            if not _matches_era(m, gate.era_min, gate.era_max):
-                continue
-            if not _matches_stratum(m, gate.stratum):
-                continue
-            if exclude_tags and any(t in exclude_tags for t in m.tags):
-                continue
-            # wyrd-wv85: --tag HARD gate (D36.6). Drop lemmas carrying
-            # none of the requested tags — OR semantics, matching
-            # proportions' filter_for_tag. Empty required_tags = no-op.
-            if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
-                continue
-            # wyrd-glos: gloss policy — same predicate the proportions
-            # keep_keys_for_gloss applies, so both modes share the rule.
-            if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
-                continue
-            # wyrd-eyjk/D40 + wyrd-g1hj: exclude pure-proper-noun saint subjects
-            # AND personal given names (male/female) from the base pool — same
-            # rule MeaningGenerator.load_parts applies, so the two scoring modes
-            # stay aligned. Saints reach names only via the param-gated
-            # St-dedication synthesis; given names dangle as bare personal names.
-            # Family-name etymons are NOT excluded (legitimate manorial places).
-            if m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()):
-                continue
-            # wyrd-gwj3: connector morphemes (cum / le / juxta …) require a
-            # complement — keep them out of the base pool (same rule as load_parts).
-            if m.is_connector_particle():
-                continue
-            non_position_eligible.append(m)
-
-    # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Pack-
-    # tag filters (allowed_pack_tags / excluded_pack_tags) gate per-
-    # pack on top of the shared era/stratum/exclude predicates.
+    # wyrd-8uvi: the per-guard predicates + pool builders are extracted to
+    # module-level helpers to keep this function under the C901 ceiling; the
+    # native pool is built first, then pack overlays are appended (preserving
+    # the original native-then-pack output order for seed reproducibility).
+    non_position_eligible = _native_pool(
+        meaning_db,
+        gate=gate,
+        exclude_tags=exclude_tags,
+        culture_attested_usages=culture_attested_usages,
+        culture_attested_meanings=culture_attested_meanings,
+        include_unglossed=include_unglossed,
+    )
+    # wyrd-ecjp.8: admit pack lemmas alongside native lemmas.
     if pack_meaning_dbs:
-        for pack in packs:
-            pack_db = pack_meaning_dbs.get(pack.pack_name)
-            if pack_db is None:
-                continue
-            for meanings_for_usage in pack_db.values():
-                for m in meanings_for_usage:
-                    if not _matches_era(m, gate.era_min, gate.era_max):
-                        continue
-                    if not _matches_stratum(m, gate.stratum):
-                        continue
-                    if exclude_tags and any(t in exclude_tags for t in m.tags):
-                        continue
-                    # wyrd-wv85: --tag HARD gate applies to pack lemmas
-                    # too, so a --tag request doesn't admit off-tag pack
-                    # morphemes (the pack-tag filters are an additional,
-                    # pack-scoped narrowing on top).
-                    if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
-                        continue
-                    # wyrd-glos: gloss policy applies to pack lemmas too.
-                    if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
-                        continue
-                    if pack.allowed_pack_tags and not any(
-                        t in pack.allowed_pack_tags for t in m.tags
-                    ):
-                        continue
-                    if pack.excluded_pack_tags and any(
-                        t in pack.excluded_pack_tags for t in m.tags
-                    ):
-                        continue
-                    non_position_eligible.append(m)
+        non_position_eligible.extend(
+            _pack_pool(
+                pack_meaning_dbs,
+                packs=packs,
+                gate=gate,
+                exclude_tags=exclude_tags,
+                include_unglossed=include_unglossed,
+            )
+        )
     return non_position_eligible
 
 
@@ -451,13 +526,14 @@ def build_slot_base_scores(
 
     ``slot_usage_frequency`` (wyrd-bol9) is the per-usage empirical
     frequency lookup for this slot's bucket — the same per-culture
-    proportions data the legacy path samples from. When present,
+    proportions data the retired proportions path once sampled from.
+    When present,
     the final per-Meaning weight is composed via
     :func:`_apply_per_usage_frequency` (per-usage normalization, not
     a flat ``base_score * frequency`` multiplication — see that
     helper's docstring for the exact formula). Meanings whose usage
     is missing or carries frequency 0 in this bucket are filtered
-    (they wouldn't have been sampled in proportions mode either).
+    (they wouldn't have been sampled by the old proportions path either).
     ``None`` (legacy / non-NameGenerator callers) keeps the
     unweighted-pool behavior bit-stable.
 
@@ -612,6 +688,84 @@ def _apply_per_usage_frequency(
     return out
 
 
+def _slot_position_for(element: str) -> str:
+    """Resolve a structure element to a position label. Accepts either a literal
+    position label (``pre``/``inner``/``post``/``bare`` — the caller's choice,
+    skipping the encode/decode round-trip the legacy struct walker uses) or a
+    structural-element string the heuristic decodes. (``bare`` added in
+    wyrd-vpri for no-dash single-word slots.)"""
+    if element in ("pre", "inner", "post", "bare"):
+        return element
+    return _slot_position_label(element)
+
+
+def _slot_weighted_pool(
+    non_position_eligible: list[Meaning],
+    *,
+    slot_position: str,
+    slot_qualifier: str | None,
+    slot_bucket_key: tuple | None,
+    request: RequestVector,
+    priors: EmpiricalPriors,
+    era_midpoint: int,
+    cohesion: float,
+    tag_cooccurrence: dict[str, dict[str, float]] | None,
+    usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None,
+    novelty: float,
+    prior_tags: frozenset[str],
+    slot_base_scores: dict[tuple, list[tuple[Meaning, float]]] | None,
+) -> list[tuple[Meaning, float]]:
+    """The weighted ``(meaning, score)`` pool for one slot: base scores ×
+    per-sample cohesion bias, then the novelty blend. Returns an empty list when
+    the slot collapses — no eligible meanings, or every score <= 0 after
+    cohesion.
+
+    Base scores are request-deterministic (no cohesion / no sampling), so they're
+    cached per ``(slot_position, slot_qualifier, slot_bucket_key)`` on the
+    caller-supplied dict; sub-seeds in a count>1 dispatch reuse the cached list.
+    The full bucket key keeps single- vs multi-element bucket variants of the same
+    (position, qualifier) distinct — they multiply by different per-bucket
+    frequencies, so sharing a cache entry would mis-score (wyrd-bol9)."""
+    cache_key = (slot_position, slot_qualifier, slot_bucket_key)
+    if slot_base_scores is not None and cache_key in slot_base_scores:
+        base_scored = slot_base_scores[cache_key]
+    else:
+        base_scored = build_slot_base_scores(
+            non_position_eligible,
+            slot_position=slot_position,
+            request=request,
+            priors=priors,
+            era_midpoint=era_midpoint,
+            slot_qualifier=slot_qualifier,
+            slot_usage_frequency=_resolve_slot_usage_frequency(
+                usage_frequency_by_bucket, slot_bucket_key
+            ),
+        )
+        if slot_base_scores is not None:
+            slot_base_scores[cache_key] = base_scored
+    if not base_scored:
+        return []
+
+    # Cohesion depends on prior_tags, which evolves across slots within a single
+    # name, so it's per-sample and NOT cacheable.
+    weighted: list[tuple[Meaning, float]] = []
+    for m, bs in base_scored:
+        cohesion_mult = _cohesion_multiplier(
+            frozenset(m.tags), prior_tags, cohesion, tag_cooccurrence
+        )
+        final_score = bs * cohesion_mult
+        if final_score > 0:
+            weighted.append((m, final_score))
+    if not weighted:
+        return []
+    # wyrd-fcub: novelty blends the score distribution toward uniform over the
+    # eligible pool, applied LAST just before the weighted draw (mirrors the
+    # retired proportions path's _blend_uniform).
+    if novelty > 0:
+        weighted = _blend_uniform_by_novelty(weighted, novelty)
+    return weighted
+
+
 def select_via_vector_scoring(
     rng: random.Random,
     meaning_db: dict[str, list[Meaning]],
@@ -629,6 +783,7 @@ def select_via_vector_scoring(
     slot_qualifiers: list[str | None] | None = None,
     slot_bucket_keys: list[tuple] | None = None,
     usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None = None,
+    novelty: float = 0.0,
     permissive: bool = False,
 ) -> list[Meaning | None]:
     """Pick one Meaning per slot in the structure via the D36.2
@@ -671,9 +826,9 @@ def select_via_vector_scoring(
             (default), a slot whose gated pool is empty aborts the whole
             struct (returns ``[]``) so the caller can retry a different
             struct. When True, such a slot instead contributes ``None`` and
-            scoring continues — mirroring the legacy proportions
-            ``_select_no_tag`` contract (an empty bucket → a ``None`` slot
-            the NewName drops), so the vector path degrades to a shorter
+            scoring continues — matching the retired proportions path's
+            empty-bucket contract (an empty bucket → a ``None`` slot the
+            NewName drops), so the vector path degrades to a shorter
             name instead of failing. The caller uses this as a last-resort
             fallback once no struct is fully satisfiable.
 
@@ -702,82 +857,37 @@ def select_via_vector_scoring(
 
     structure_list = list(structure)
     for slot_index, element in enumerate(structure_list):
-        # Accept either a structural-element string ("X-"/"-X-"/"-X")
-        # the heuristic decodes, or a position label ("pre"/"inner"/
-        # "post"/"bare") — caller's choice. Position labels skip the
-        # encode/decode round-trip the legacy struct walker uses to
-        # synthesize a string from its key tuples. ("bare" added in
-        # wyrd-vpri for no-dash single-word slots.)
-        if element in ("pre", "inner", "post", "bare"):
-            slot_position = element
-        else:
-            slot_position = _slot_position_label(element)
-
-        # wyrd-izcr: per-slot qualifier filter ("name" / "saint" /
-        # None) — set when the caller's structure marked the slot as
-        # a name/saint qualifier word. Pre-fix the vector path
-        # silently flattened structures to bare position labels and
-        # filled qualifier-flagged slots with any matching morpheme;
-        # cache key now includes the qualifier so a single dispatch
-        # can mix (pre, None) and (pre, "name") slots safely.
+        slot_position = _slot_position_for(element)
+        # wyrd-izcr: per-slot qualifier ("name" / "saint" / None) and wyrd-bol9:
+        # the full bucket key. Both ride lockstep with the structure — the sole
+        # caller (select_via_vector) builds slot_qualifiers / slot_bucket_keys in
+        # the same loop that builds the structure — so a length mismatch is a
+        # programming error that should surface as IndexError, not silently
+        # coerce to None. Legacy / non-NameGenerator callers pass neither, and
+        # the cache key collapses to the prior (position, None, None) semantics.
         slot_qualifier: str | None = (
             slot_qualifiers[slot_index] if slot_qualifiers is not None else None
         )
-        # wyrd-bol9: cache key now includes the full bucket key so
-        # single-element / multi-element bucket variants of the same
-        # (position, qualifier) get distinct cached score lists —
-        # they multiply by different per-bucket frequencies, so
-        # caching one in place of the other would produce wrong
-        # picks. When the caller doesn't supply slot_bucket_keys
-        # (legacy / non-NameGenerator callers), bucket_key is None
-        # and the 3-tuple collapses to the prior 2-tuple semantics
-        # at the trailing None slot. Mirrors the slot_qualifiers
-        # lockstep assumption above — sole caller (select_via_vector)
-        # builds slot_bucket_keys in the same loop that builds
-        # candidate_positions, so a length mismatch is a programming
-        # error that should surface as IndexError rather than
-        # silently coerce to None.
         slot_bucket_key = slot_bucket_keys[slot_index] if slot_bucket_keys is not None else None
-        cache_key = (slot_position, slot_qualifier, slot_bucket_key)
-
-        # Base scores: cached on caller-supplied dict if provided,
-        # else built fresh. The base score is request-deterministic
-        # (no cohesion / no sampling) so sub-seeds in a count>1
-        # dispatch reuse the cached list.
-        if slot_base_scores is not None and cache_key in slot_base_scores:
-            base_scored = slot_base_scores[cache_key]
-        else:
-            base_scored = build_slot_base_scores(
-                non_position_eligible,
-                slot_position=slot_position,
-                request=request,
-                priors=priors,
-                era_midpoint=era_midpoint,
-                slot_qualifier=slot_qualifier,
-                slot_usage_frequency=_resolve_slot_usage_frequency(
-                    usage_frequency_by_bucket, slot_bucket_key
-                ),
-            )
-            if slot_base_scores is not None:
-                slot_base_scores[cache_key] = base_scored
-        if not base_scored:
-            if permissive:
-                picked.append(None)
-                continue
-            return []
-
-        # Apply per-sample cohesion bias + weighted choice. Cohesion
-        # depends on prior_tags which evolves across slots within a
-        # single name, so it's per-sample and NOT cacheable.
-        prior_tags_frozen = frozenset(prior_tags)
-        weighted: list[tuple[Meaning, float]] = []
-        for m, bs in base_scored:
-            cohesion_mult = _cohesion_multiplier(
-                frozenset(m.tags), prior_tags_frozen, cohesion, tag_cooccurrence
-            )
-            final_score = bs * cohesion_mult
-            if final_score > 0:
-                weighted.append((m, final_score))
+        weighted = _slot_weighted_pool(
+            non_position_eligible,
+            slot_position=slot_position,
+            slot_qualifier=slot_qualifier,
+            slot_bucket_key=slot_bucket_key,
+            request=request,
+            priors=priors,
+            era_midpoint=era_midpoint,
+            cohesion=cohesion,
+            tag_cooccurrence=tag_cooccurrence,
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+            novelty=novelty,
+            prior_tags=frozenset(prior_tags),
+            slot_base_scores=slot_base_scores,
+        )
+        # wyrd-tbke: permissive degrades an unsatisfiable slot to None and
+        # continues (full-length result); non-permissive aborts the whole
+        # struct. A collapsed pool (empty `weighted`) and a None weighted-draw
+        # are the two ways a slot can fail to fill.
         if not weighted:
             if permissive:
                 picked.append(None)
@@ -868,6 +978,33 @@ def _lemma_ref_for(meaning: Meaning) -> str:
         if first:
             return f"{l3_lang}:{first}"
     return meaning.usage.replace("-", "")
+
+
+def _blend_uniform_by_novelty(
+    weighted: list[tuple[Meaning, float]], novelty: float
+) -> list[tuple[Meaning, float]]:
+    """wyrd-fcub: interpolate a (meaning, score) distribution toward a uniform
+    marginal by ``novelty`` in [0, 1].
+
+    Each blended weight is ``(1 - novelty)·(score / total) + novelty·(1 / n)`` —
+    a normalized distribution. novelty=0 returns the score-normalized
+    distribution unchanged (up to scaling, which weighted_choice is invariant
+    to); novelty=1 returns pure-uniform 1/n. Ported from the retired
+    proportions ``_blend_uniform`` so the lexical-surprise knob behaves
+    identically under vector generation. Callers fast-path novelty<=0.
+    """
+    n = len(weighted)
+    if n == 0:
+        return weighted
+    total = sum(score for _, score in weighted)
+    if total <= 0:
+        # No score signal to blend against — uniform is the only meaningful axis.
+        return [(m, 1.0 / n) for m, _ in weighted]
+    # Hoist the per-element constants out of the comprehension: blended weight
+    # is score * factor + term == (1-novelty)*(score/total) + novelty/n.
+    factor = (1.0 - novelty) / total
+    term = novelty / n
+    return [(m, score * factor + term) for m, score in weighted]
 
 
 def _weighted_choice(

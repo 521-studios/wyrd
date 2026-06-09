@@ -311,3 +311,23 @@ def test_merge_verdict_to_row_records_candidate_lemma() -> None:
     rej = merge_verdict_to_row(c, MeaningMergeVerdict(False, "high", "distinct"), "medium")
     assert rej["into"] == "" and rej["method"] == LLM_MEANING_REJECT_METHOD
     assert rej["candidate_lemma"] == "old-english:feld"  # pair-dedup even on reject
+
+
+def test_best_major_prefers_richest_cluster_over_more_similar(fresh_db: Path) -> None:
+    """When a minor has two eligible majors, the RICHER cluster wins even if a
+    poorer major is more form-similar — richness is the first sort key (pins
+    _update_best_major's primary discriminator)."""
+    with LexiconDB(fresh_db) as db:
+        _cluster(db, "field", "old-english", "open land, field", size=6)
+        # richer (60) but LESS similar to 'field'; poorer (40) but MORE similar.
+        _cluster(db, "feldx", "old-english", "country, field", size=60)
+        _cluster(db, "feld", "old-english", "meadow, field", size=40)
+        db.commit()
+        field = [
+            c
+            for c in detect_meaning_merge_candidates(db.conn, min_similarity=0.6)
+            if c.minor_ref == "old-english:field"
+        ]
+        assert len(field) == 1
+        assert field[0].major_ref == "old-english:feldx"  # richest wins over more-similar
+        assert field[0].major_cluster_size == 60

@@ -252,6 +252,27 @@ MAX_DECOMPOSITIONS_PER_POSITION = 10000
 MAX_TIED_DECOMPOSITIONS_PER_POSITION = 100
 
 
+def _append_capped(
+    results: list[list[Any]],
+    head: Any,
+    tails: list[list[Any]],
+    truncated: list[bool],
+) -> bool:
+    """Append ``[head, *tail]`` for each tail in ``tails`` until the
+    per-position cap (``MAX_DECOMPOSITIONS_PER_POSITION``) is reached.
+
+    Sets ``truncated[0] = True`` and returns ``True`` the moment the cap
+    fires (so the caller can stop iterating outer branches); returns
+    ``False`` when all tails were appended within the cap.
+    """
+    for tail in tails:
+        if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
+            truncated[0] = True
+            return True
+        results.append([head, *tail])
+    return False
+
+
 def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
     """Enumerate every valid decomposition of ``word`` against the
     trie. Each result is a list whose elements alternate between
@@ -310,11 +331,13 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
         # (Word.get_structure) and statistically ranked at build time, never
         # used to reject a match here.
         for end, meaning in _find_matches_at(trie, word, pos):
-            for tail in walk(end):
-                if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
-                    truncated[0] = True
-                    break
-                results.append([meaning, *tail])
+            if _append_capped(results, meaning, walk(end), truncated):
+                break
+            # State-check break, faithful to the original: stop scanning
+            # further matches once results is full even if this match's
+            # _append_capped didn't itself trip the cap (e.g. empty tails
+            # at an exactly-full results). Does NOT set truncated[0] —
+            # matches the pre-refactor flag semantics exactly.
             if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
                 break
         # Branch 2: skip one character into the unaccounted bucket and
@@ -322,11 +345,7 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
         # that have unrecognized fragments. Adjacent skip characters
         # collapse into one unaccounted string at emit time.
         if len(results) < MAX_DECOMPOSITIONS_PER_POSITION:
-            for tail in walk(pos + 1):
-                if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
-                    truncated[0] = True
-                    break
-                results.append([word[pos], *tail])
+            _append_capped(results, word[pos], walk(pos + 1), truncated)
         cache[pos] = results
         return results
 
@@ -510,7 +529,7 @@ def _prefer_culture_aligned(
     return [d for s, d in scores if s == best]
 
 
-def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:
+def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:  # noqa: V103 — public single-answer decomposition API; tests pin tiebreakers (PR #498 triage)
     """Return ONE 'best' decomposition for ``word`` against the trie —
     the deterministic single-answer variant of
     ``canonical_decompositions``. Use this when the caller wants one
@@ -567,7 +586,7 @@ def _decomposition_score(decomposition: list[Any]) -> tuple[int, int, int, int]:
     return (unaccounted_chars, morpheme_count, first_meaning_pos, first_meaning_len)
 
 
-def iter_morphemes(decomposition: Iterable[Any]) -> Iterable[Any]:
+def iter_morphemes(decomposition: Iterable[Any]) -> Iterable[Any]:  # noqa: V103 — public morpheme iterator; tests pin behavior (PR #498 triage)
     """Yield only the Meaning elements of a decomposition, dropping
     unaccounted fragments. Convenience for callers that want the
     matched morpheme sequence (e.g. proportions training)."""

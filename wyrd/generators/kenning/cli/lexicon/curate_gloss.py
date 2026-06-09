@@ -25,6 +25,10 @@ import click
 # still hits the applier).
 from wyrd.generators.kenning.enrichment import SUFFIX_PATTERN
 
+# Allowed key=value fields in a ``curate-split-etymon --into`` spec.
+# (The bare token ``primary`` is handled separately.)
+_SPLIT_INTO_ALLOWED_KEYS = {"suffix", "glosses", "tags"}
+
 _CURATION_SOURCE_ROW = {
     "_type": "source",
     "ref": "manual-curation",
@@ -165,6 +169,68 @@ def lexicon_curate_add_gloss(
     )
 
 
+def _parse_one_spec(spec: str, seen_primary: bool) -> tuple[dict, bool]:
+    """Parse a single ``--into`` spec into a child dict.
+
+    A spec is pipe-delimited ``key=value`` fields plus an optional bare
+    ``primary`` token (e.g. ``suffix=weir|glosses=Weir;weir|primary``).
+    ``glosses`` / ``tags`` values are ``;``-split into lists. Returns the
+    child dict and the updated ``seen_primary`` flag (at most one child
+    across the run may be ``primary``). Raises ``click.UsageError`` on an
+    unknown key, an unrecognized bare token, a second ``primary``, or a
+    missing / charset-invalid ``suffix``.
+    """
+    child: dict = {}
+    for part in spec.split("|"):
+        part = part.strip()
+        if not part:
+            continue
+        if "=" in part:
+            key, _, value = part.partition("=")
+            key = key.strip()
+            value = value.strip()
+            if key not in _SPLIT_INTO_ALLOWED_KEYS:
+                raise click.UsageError(
+                    f"--into spec {spec!r}: unknown key {key!r}; "
+                    f"allowed keys: {sorted(_SPLIT_INTO_ALLOWED_KEYS)} "
+                    "(plus the bare token 'primary')."
+                )
+            if key in ("glosses", "tags"):
+                child[key] = [g.strip() for g in value.split(";") if g.strip()]
+            else:
+                child[key] = value
+        elif part == "primary":
+            if seen_primary:
+                raise click.UsageError(
+                    "More than one --into spec flagged 'primary'; at most one child may be primary."
+                )
+            child["primary"] = True
+            seen_primary = True
+        else:
+            raise click.UsageError(
+                f"--into spec {spec!r}: unrecognized token {part!r}; "
+                "use key=value form or the bare token 'primary'."
+            )
+    suffix = child.get("suffix")
+    if not suffix:
+        raise click.UsageError(f"--into spec {spec!r}: missing or empty required ``suffix`` field.")
+    # wyrd-van9: suffix charset validation. Children land at
+    # canonical form ``<original-form>#<suffix>`` and ref
+    # ``<language>:<original-form>#<suffix>``. A suffix carrying
+    # ``:`` (the ref-grammar separator), ``#`` (the disambiguator),
+    # or whitespace would corrupt downstream ref parsers that
+    # naively split on those. Lock to ``[a-z0-9_-]+`` for human
+    # readability + ref-safety.
+    if not SUFFIX_PATTERN.fullmatch(suffix):
+        raise click.UsageError(
+            f"--into spec {spec!r}: suffix {suffix!r} contains "
+            "disallowed characters; allowed charset is [a-z0-9_-]+ "
+            "(lowercase alphanumeric, underscore, hyphen). Disambiguators "
+            "like #/: would corrupt downstream ref parsing."
+        )
+    return child, seen_primary
+
+
 @click.command("curate-split-etymon")
 @click.argument("etymon_ref")
 @click.option(
@@ -217,61 +283,10 @@ def lexicon_curate_split_etymon(
     ``primary``; if none is, the first child in the ``--into`` order
     becomes the default primary.
     """
-    _ALLOWED_KEYS = {"suffix", "glosses", "tags"}
     into: list[dict] = []
     seen_primary = False
     for spec in into_specs:
-        child: dict = {}
-        for part in spec.split("|"):
-            part = part.strip()
-            if not part:
-                continue
-            if "=" in part:
-                key, _, value = part.partition("=")
-                key = key.strip()
-                value = value.strip()
-                if key not in _ALLOWED_KEYS:
-                    raise click.UsageError(
-                        f"--into spec {spec!r}: unknown key {key!r}; "
-                        f"allowed keys: {sorted(_ALLOWED_KEYS)} "
-                        "(plus the bare token 'primary')."
-                    )
-                if key in ("glosses", "tags"):
-                    child[key] = [g.strip() for g in value.split(";") if g.strip()]
-                else:
-                    child[key] = value
-            elif part == "primary":
-                if seen_primary:
-                    raise click.UsageError(
-                        "More than one --into spec flagged 'primary'; at "
-                        "most one child may be primary."
-                    )
-                child["primary"] = True
-                seen_primary = True
-            else:
-                raise click.UsageError(
-                    f"--into spec {spec!r}: unrecognized token {part!r}; "
-                    "use key=value form or the bare token 'primary'."
-                )
-        suffix = child.get("suffix")
-        if not suffix:
-            raise click.UsageError(
-                f"--into spec {spec!r}: missing or empty required ``suffix`` field."
-            )
-        # wyrd-van9: suffix charset validation. Children land at
-        # canonical form ``<original-form>#<suffix>`` and ref
-        # ``<language>:<original-form>#<suffix>``. A suffix carrying
-        # ``:`` (the ref-grammar separator), ``#`` (the disambiguator),
-        # or whitespace would corrupt downstream ref parsers that
-        # naively split on those. Lock to ``[a-z0-9_-]+`` for human
-        # readability + ref-safety.
-        if not SUFFIX_PATTERN.fullmatch(suffix):
-            raise click.UsageError(
-                f"--into spec {spec!r}: suffix {suffix!r} contains "
-                "disallowed characters; allowed charset is [a-z0-9_-]+ "
-                "(lowercase alphanumeric, underscore, hyphen). Disambiguators "
-                "like #/: would corrupt downstream ref parsing."
-            )
+        child, seen_primary = _parse_one_spec(spec, seen_primary)
         into.append(child)
 
     payload: dict = {

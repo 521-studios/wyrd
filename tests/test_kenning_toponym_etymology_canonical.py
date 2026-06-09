@@ -802,6 +802,37 @@ def test_cli_source_filter(tmp_path):
     # Only toponym 1 has rows in s1, so we examine 1 toponym (not 2).
     assert "Examining 1 toponym" in result.output
     assert "filtered to source_id='s1'" in result.output
+    # Both s1 rows are the same extractor (llm:m1) → one witness → no
+    # consensus. Pins the _echo_plan_preview no_consensus counter.
+    assert "no_consensus=1" in result.output
+
+
+def test_cli_preview_counts_no_elements(tmp_path):
+    """The _echo_plan_preview no_elements counter is value-pinned end-
+    to-end: a toponym whose only rows carry no element tuples renders
+    `no_elements=1 promote=0 no_consensus=0` in the preview line.
+    Guards against a counter swap in the C901 extraction (wyrd-8uvi)."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('s', 'S')")
+    db.conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'X')")
+    # Two distinct extractors, but NEITHER has element rows → all-empty.
+    for extractor in ("llm:qwen", "anthropic:claude-haiku"):
+        db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, notes) VALUES (1, 's', ?)",
+            (f"extracted_by:{extractor}; no elements",),
+        )
+    db.commit()
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "canonicalize-toponym-etymology", "--db", str(db_path)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "no_elements=1" in result.output
+    assert "promote=0" in result.output
+    assert "no_consensus=0" in result.output
 
 
 def test_cli_handles_empty_db(tmp_path):

@@ -9,8 +9,7 @@ English. Phase 2.3 (PR #141) added Old Welsh → Modern Welsh. Phase
 rules) remains.
 
 Public API: ``apply_rules(form, language, from_era, to_era, mode)``
-returns ``[(derived_form, probability), ...]``. ``has_rules`` checks
-whether a given forward cell is registered.
+returns ``[(derived_form, probability), ...]``.
 
 Rule encoding: patterns are literal strings (no regex). Rule order
 matters — declarations are specific-before-general so multi-char
@@ -678,14 +677,6 @@ _RULES: dict[tuple[str, str, str], tuple[SoundChangeRule, ...]] = {
 _PROBABILITY_FLOOR: float = 1e-6
 
 
-def has_rules(language: str, from_era: str, to_era: str) -> bool:
-    """True iff Phase 1+ ships rules for the requested cell direction
-    (forward). Inverse availability is the same check with eras
-    swapped — callers needing inverse should query
-    ``has_rules(language, to_era, from_era)``."""
-    return (language, from_era, to_era) in _RULES
-
-
 def apply_rules(
     form: str,
     language: str,
@@ -706,8 +697,7 @@ def apply_rules(
     drops candidates whose mass falls past 1e-6 so inverse explosion
     stays bounded.
 
-    Unknown cells return ``[(form, 1.0)]``. Use ``has_rules`` to
-    discriminate 'no cell registered' from 'cell ran, no match'.
+    Unknown cells return ``[(form, 1.0)]``.
     """
     if mode not in ("forward", "inverse"):
         raise ValueError(f"mode must be 'forward' or 'inverse', got {mode!r}")

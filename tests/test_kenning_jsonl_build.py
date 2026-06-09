@@ -2171,6 +2171,196 @@ def test_build_fantasy_morpheme_via_init_schema_dedups_case_insensitively(tmp_pa
         conn.close()
 
 
+def test_build_fantasy_morpheme_via_init_schema_barred_row(tmp_path: Path):
+    """wyrd-bk4b: companion to test_build_fantasy_morpheme_via_init_schema.
+    The wyrd-rrse "no such table" crash would have hit the BARRED path
+    (usable=0) equally, so pin it through the real init_schema schema too.
+    A barred row carries usable=0 + bar_reason, has no resolved etymon
+    (etymon_id NULL, no etymon_ref — so it is NOT an orphan, per the
+    legitimately-no-ref path), and records the LLM's finding in a
+    non-approved language via unapproved_language / unapproved_form."""
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    jsonl_dir = tmp_path / "mining"
+    jsonl_dir.mkdir()
+    _write_jsonl(
+        jsonl_dir,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "Vrock",
+                "usable": 0,
+                "bar_reason": "modern_coinage",
+                "resolution_method": "llm_full_research",
+                "approach_version": "fantasy-v1",
+                "unapproved_language": "japanese",
+                "unapproved_form": "vurokku",
+                "processed_at": "2026-05-15T00:00:00+00:00",
+            },
+        ],
+    )
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(conn, jsonl_paths_in(jsonl_dir))
+        assert counts["fantasy_morpheme"] == 1
+        assert counts["fantasy_morpheme_orphans"] == 0
+        row = conn.execute(
+            "SELECT input_name, usable, bar_reason, etymon_id, resolution_method, "
+            "approach_version, unapproved_language, unapproved_form FROM fantasy_morpheme"
+        ).fetchone()
+        assert row is not None, "expected one barred fantasy_morpheme row after build"
+        assert row["input_name"] == "Vrock"
+        assert row["usable"] == 0
+        assert row["bar_reason"] == "modern_coinage"
+        assert row["etymon_id"] is None
+        # The required NOT NULL scalars must round-trip on the barred /
+        # etymon_id-NULL path too (a distinct code path from usable=1).
+        assert row["resolution_method"] == "llm_full_research"
+        assert row["approach_version"] == "fantasy-v1"
+        assert row["unapproved_language"] == "japanese"
+        assert row["unapproved_form"] == "vurokku"
+    finally:
+        conn.close()
+
+
+def test_build_fantasy_morpheme_dedup_respects_approach_version(tmp_path: Path):
+    """wyrd-bk4b: the UNIQUE is composite (input_name, approach_version),
+    NOT input_name alone — migration 0011's re-processing invariant. A
+    later pass under a bumped approach_version must NOT dedupe against the
+    earlier version's row (re-researching all inputs under a stronger
+    pipeline is the intended use). Pre-populate (Angel, fantasy-v1),
+    replay (angel, fantasy-v2), and assert TWO rows survive: the input
+    matches case-insensitively but the versions differ, so it is not a
+    UNIQUE conflict."""
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    pre = sqlite3.connect(db_path)
+    try:
+        pre.execute(
+            "INSERT INTO fantasy_morpheme "
+            "(input_name, usable, resolution_method, approach_version, processed_at) "
+            "VALUES ('Angel', 1, 'descent_lookup', 'fantasy-v1', '2026-05-01T00:00:00+00:00')"
+        )
+        pre.commit()
+    finally:
+        pre.close()
+
+    jsonl_dir = tmp_path / "mining"
+    jsonl_dir.mkdir()
+    _write_jsonl(
+        jsonl_dir,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "angel",
+                "usable": 1,
+                # Distinct from the pre-populated v1 row so the assertions can
+                # confirm the v2 row is the freshly-replayed one, not a mutation.
+                "resolution_method": "llm_full_research",
+                "approach_version": "fantasy-v2",
+                "processed_at": "2026-05-20T00:00:00+00:00",
+            },
+        ],
+    )
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(conn, jsonl_paths_in(jsonl_dir))
+        assert counts["fantasy_morpheme"] == 1  # v2 is a NEW row, not a dupe of v1
+        rows = conn.execute(
+            "SELECT approach_version, resolution_method FROM fantasy_morpheme "
+            "ORDER BY approach_version"
+        ).fetchall()
+        assert [r["approach_version"] for r in rows] == ["fantasy-v1", "fantasy-v2"], (
+            "composite UNIQUE must let a bumped approach_version re-process the input"
+        )
+        # Each surviving row carries its OWN fields — the v2 row is the
+        # replayed one, not an in-place edit of the v1 row.
+        assert [r["resolution_method"] for r in rows] == [
+            "descent_lookup",
+            "llm_full_research",
+        ]
+    finally:
+        conn.close()
+
+
+def test_build_fantasy_morpheme_insert_or_ignore_does_not_replace_columns(tmp_path: Path):
+    """wyrd-bk4b: an INSERT OR IGNORE on a (input_name, approach_version)
+    conflict must leave the EXISTING row untouched — IGNORE, not REPLACE.
+    The sibling case-insensitive test pins processed_at; this pins a
+    SECOND column (unapproved_language) so a future switch to
+    INSERT OR REPLACE is caught on more than one field. Pre-populate a
+    barred row carrying unapproved_language='latin'; replay a same-key
+    (case-insensitive) row with unapproved_language='greek'; assert the
+    pre-populated value survives."""
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    pre = sqlite3.connect(db_path)
+    try:
+        pre.execute(
+            "INSERT INTO fantasy_morpheme "
+            "(input_name, usable, bar_reason, resolution_method, approach_version, "
+            "unapproved_language, processed_at) "
+            "VALUES ('Sphinx', 0, 'outside_language_family', 'llm_full_research', "
+            "'fantasy-v1', 'latin', '2026-05-01T00:00:00+00:00')"
+        )
+        pre.commit()
+    finally:
+        pre.close()
+
+    jsonl_dir = tmp_path / "mining"
+    jsonl_dir.mkdir()
+    _write_jsonl(
+        jsonl_dir,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "sphinx",
+                "usable": 0,
+                "bar_reason": "outside_language_family",
+                "resolution_method": "llm_full_research",
+                "approach_version": "fantasy-v1",
+                "unapproved_language": "greek",
+                "processed_at": "2026-05-20T00:00:00+00:00",
+            },
+        ],
+    )
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(conn, jsonl_paths_in(jsonl_dir))
+        assert counts["fantasy_morpheme"] == 0  # IGNORE'd, not replaced
+        rows = conn.execute(
+            "SELECT unapproved_language, processed_at FROM fantasy_morpheme"
+        ).fetchall()
+        assert len(rows) == 1
+        assert rows[0]["unapproved_language"] == "latin", (
+            "INSERT OR IGNORE must not overwrite the existing row's columns"
+        )
+        assert rows[0]["processed_at"] == "2026-05-01T00:00:00+00:00"
+    finally:
+        conn.close()
+
+
 # ---------------------------------------------------------------------------
 # wyrd-ned5: seed reflex layer L2 round-trip
 # ---------------------------------------------------------------------------

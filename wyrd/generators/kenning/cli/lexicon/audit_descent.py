@@ -253,8 +253,15 @@ def _emit_detaches(
     show_default=True,
     help="Minimum LLM confidence to actually DETACH a wrong-edge verdict.",
 )
+@click.option(
+    "--scope",
+    type=click.Choice(["2a", "2b", "both"]),
+    default="both",
+    show_default=True,
+    help="2a=incoherent-cluster bridges; 2b=glossless-proto-conductor fan-out; both.",
+)
 @click.option("--limit", type=int, default=None, help="Cap edges judged this run.")
-@click.option("--limit-clusters", type=int, default=None, help="Cap incoherent clusters screened.")
+@click.option("--limit-clusters", type=int, default=None, help="Cap clusters screened.")
 @click.option("--dry-run", is_flag=True, default=False, help="Judge + print; write nothing.")
 def lexicon_audit_descent(
     db_path: Path | None,
@@ -263,6 +270,7 @@ def lexicon_audit_descent(
     model: str,
     ollama_url: str | None,
     min_confidence: str,
+    scope: str,
     limit: int | None,
     limit_clusters: int | None,
     dry_run: bool,
@@ -285,7 +293,9 @@ def lexicon_audit_descent(
 
     click.echo(f"Detecting descent-audit candidates in {db_path}...", err=True)
     with _readonly_lexicon(db_path) as conn:
-        candidates = detect_descent_audit_candidates(conn, limit_clusters=limit_clusters)
+        candidates = detect_descent_audit_candidates(
+            conn, scope=scope, limit_clusters=limit_clusters
+        )
 
     log = _load_log(audit_file)
     collapse_state = collect_collapses([collapse_file]) if collapse_file.exists() else {}

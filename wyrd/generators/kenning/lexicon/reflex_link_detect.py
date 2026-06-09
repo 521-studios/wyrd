@@ -73,22 +73,9 @@ def detect_reflex_link_candidates(
         "FROM etymon e JOIN etymon_gloss g ON g.etymon_id = e.id "
         "WHERE e.merged_into_id IS NULL"
     ).fetchall()
-    by_id: dict[int, dict] = {}
-    norm_glosses: dict[int, set[str]] = defaultdict(set)
-    by_gloss: dict[str, set[int]] = defaultdict(set)
-    for r in rows:
-        rec = by_id.setdefault(
-            r["id"], {"lang": r["language"], "form": r["canonical_form"], "glosses": set()}
-        )
-        rec["glosses"].add(r["gloss"])
-        ng = r["gloss"].strip().lower()
-        norm_glosses[r["id"]].add(ng)
-        by_gloss[ng].add(r["id"])
-
+    by_id, norm_glosses, by_gloss = _index_reflex_glosses(rows)
     # Bulk-load descent connectivity once (a per-pair SELECT would be N+1).
-    edges: set[tuple[int, int]] = set()
-    for p, c in conn.execute("SELECT parent_id, child_id FROM etymon_descent"):
-        edges.add((p, c))
+    edges = _load_descent_edges(conn)
 
     # (child_ref, parent_ref, child_form, parent_form, shared, sim, parent_rank)
     raw: list[tuple] = []
@@ -102,56 +89,15 @@ def detect_reflex_link_candidates(
                 a, b = ordered[i], ordered[j]
                 if (a, b) in seen:  # the same pair can sit in two gloss groups
                     continue
-                ea, eb = by_id[a], by_id[b]
-                if ea["lang"] == eb["lang"]:
-                    continue  # same-language variant = FOLD (existing detector), not a link
-                ra = _LANGUAGE_ERA_RANK.get(ea["lang"])
-                rb = _LANGUAGE_ERA_RANK.get(eb["lang"])
-                # Only KNOWN era stages in the SAME family, ranked apart — so
-                # orientation is reliable (parent = earlier) and we never pair a
-                # cross-family / proto cognate.
-                if ra is None or rb is None or ra == rb:
-                    continue
-                if _LANGUAGE_FAMILY[ea["lang"]] != _LANGUAGE_FAMILY[eb["lang"]]:
-                    continue
-                fa, fb = _bare(ea["form"]), _bare(eb["form"])
-                if not fa or not fb:
-                    continue
-                sim = difflib.SequenceMatcher(None, fa, fb).ratio()
-                if sim < min_similarity or (a, b) in edges or (b, a) in edges:
-                    continue
-                seen.add((a, b))
-                (parent, prank), child = ((a, ra), b) if ra < rb else ((b, rb), a)
-                # The child's raw glosses the parent also carries (normalized) —
-                # never empty (the pair was grouped on a shared normalized gloss).
-                shared = tuple(
-                    sorted(
-                        g
-                        for g in by_id[child]["glosses"]
-                        if g.strip().lower() in norm_glosses[parent]
-                    )
+                t = _eval_reflex_pair(
+                    a, b, by_id, norm_glosses, edges, min_similarity=min_similarity
                 )
-                raw.append(
-                    (
-                        f"{by_id[child]['lang']}:{by_id[child]['form']}",
-                        f"{by_id[parent]['lang']}:{by_id[parent]['form']}",
-                        by_id[child]["form"],
-                        by_id[parent]["form"],
-                        shared,
-                        round(sim, 3),
-                        prank,
-                    )
-                )
+                if t is not None:
+                    seen.add((a, b))
+                    raw.append(t)
 
-    # One best ancestor per child: the most IMMEDIATE (highest parent era rank,
-    # i.e. closest to the child), tie-broken by form similarity — so a child
-    # never writes multiple same-``ref`` ledger rows where collect_collapses'
-    # last-write-wins would pick an arbitrary ancestor.
-    best: dict[str, tuple] = {}
-    for t in raw:
-        cur = best.get(t[0])
-        if cur is None or (t[6], t[5]) > (cur[6], cur[5]):
-            best[t[0]] = t
+    # One best ancestor per child (most immediate, tie-broken by similarity).
+    best = _best_per_child(raw)
     out = [
         ReflexLinkCandidate(
             child_ref=t[0],
@@ -165,6 +111,104 @@ def detect_reflex_link_candidates(
     ]
     out.sort(key=lambda c: (c.parent_ref, c.child_ref))
     return out
+
+
+def _index_reflex_glosses(
+    rows: list[sqlite3.Row],
+) -> tuple[dict[int, dict], dict[int, set[str]], dict[str, set[int]]]:
+    """Index gloss rows → (by_id, norm_glosses, by_gloss): by_id[id] =
+    {lang, form, glosses}; norm_glosses[id] = lowercased gloss set; by_gloss
+    maps each normalized gloss to the etymon ids carrying it."""
+    by_id: dict[int, dict] = {}
+    norm_glosses: dict[int, set[str]] = defaultdict(set)
+    by_gloss: dict[str, set[int]] = defaultdict(set)
+    for r in rows:
+        rec = by_id.setdefault(
+            r["id"], {"lang": r["language"], "form": r["canonical_form"], "glosses": set()}
+        )
+        rec["glosses"].add(r["gloss"])
+        ng = r["gloss"].strip().lower()
+        norm_glosses[r["id"]].add(ng)
+        by_gloss[ng].add(r["id"])
+    return by_id, norm_glosses, by_gloss
+
+
+def _load_descent_edges(conn: sqlite3.Connection) -> set[tuple[int, int]]:
+    """All ``(parent_id, child_id)`` descent edges, loaded once."""
+    return {(p, c) for p, c in conn.execute("SELECT parent_id, child_id FROM etymon_descent")}
+
+
+def _reflex_pair_eligible(ea: dict, eb: dict) -> tuple[int, int] | None:
+    """Era-rank pair ``(ra, rb)`` when ea/eb are a cross-language, same-family
+    pair in two KNOWN era stages ranked apart (so parent=earlier orientation is
+    reliable); ``None`` otherwise. Same-language pairs are FOLDs, not links."""
+    if ea["lang"] == eb["lang"]:
+        return None
+    ra = _LANGUAGE_ERA_RANK.get(ea["lang"])
+    rb = _LANGUAGE_ERA_RANK.get(eb["lang"])
+    if ra is None or rb is None or ra == rb:
+        return None
+    if _LANGUAGE_FAMILY[ea["lang"]] != _LANGUAGE_FAMILY[eb["lang"]]:
+        return None
+    return ra, rb
+
+
+def _eval_reflex_pair(
+    a: int,
+    b: int,
+    by_id: dict[int, dict],
+    norm_glosses: dict[int, set[str]],
+    edges: set[tuple[int, int]],
+    *,
+    min_similarity: float,
+) -> tuple[str, str, str, str, tuple[str, ...], float, int] | None:
+    """Evaluate one candidate etymon pair (ids ``a``, ``b``). Returns the raw
+    candidate tuple ``(child_ref, parent_ref, child_form, parent_form,
+    shared_glosses, sim, parent_rank)`` for an eligible, form-similar,
+    not-already-linked cross-era pair (parent = the earlier era); ``None``
+    otherwise."""
+    ea, eb = by_id[a], by_id[b]
+    ranks = _reflex_pair_eligible(ea, eb)
+    if ranks is None:
+        return None
+    ra, rb = ranks
+    fa, fb = _bare(ea["form"]), _bare(eb["form"])
+    if not fa or not fb:
+        return None
+    # Edge check first: an O(1) set lookup fails fast before the O(N*M) ratio.
+    if (a, b) in edges or (b, a) in edges:
+        return None
+    sim = difflib.SequenceMatcher(None, fa, fb).ratio()
+    if sim < min_similarity:
+        return None
+    (parent, prank), child = ((a, ra), b) if ra < rb else ((b, rb), a)
+    # The child's raw glosses the parent also carries (normalized) — never empty
+    # (the pair was grouped on a shared normalized gloss).
+    shared = tuple(
+        sorted(g for g in by_id[child]["glosses"] if g.strip().lower() in norm_glosses[parent])
+    )
+    return (
+        f"{by_id[child]['lang']}:{by_id[child]['form']}",
+        f"{by_id[parent]['lang']}:{by_id[parent]['form']}",
+        by_id[child]["form"],
+        by_id[parent]["form"],
+        shared,
+        round(sim, 3),
+        prank,
+    )
+
+
+def _best_per_child(raw: list[tuple]) -> dict[str, tuple]:
+    """One best ancestor per child: the most IMMEDIATE (highest parent era rank,
+    closest to the child), tie-broken by form similarity — so a child never
+    writes multiple same-``ref`` ledger rows where collect_collapses'
+    last-write-wins would pick an arbitrary ancestor."""
+    best: dict[str, tuple] = {}
+    for t in raw:
+        cur = best.get(t[0])
+        if cur is None or (t[6], t[5]) > (cur[6], cur[5]):
+            best[t[0]] = t
+    return best
 
 
 @dataclass(frozen=True)

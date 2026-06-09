@@ -184,7 +184,10 @@ def lexicon_mine_toponym_mentions_tiered(
                 f"{stale} record(s); appending (`> {capture_failures}` to clear)",
                 err=True,
             )
-        failure_sink = capture_failures.open("a", encoding="utf-8")
+        # errors="replace": surrogate-escape backstop (wyrd-klod; see the
+        # rationale on the mentions sink). A "?" in the captured-failures
+        # output means a surrogate slipped past the in-band sanitizer.
+        failure_sink = capture_failures.open("a", encoding="utf-8", errors="replace")
 
     # Resolve source list. If --source isn't given, walk *.txt under
     # the sources dir; sort for deterministic ordering across runs.
@@ -364,7 +367,9 @@ def lexicon_mine_toponym_mentions_tiered(
             # leaves the previous output (if any) intact rather than
             # truncated. Same pattern as Phase 2b.1's candidates-out.
             tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-            with tmp_path.open("w", encoding="utf-8") as sink:
+            with tmp_path.open(
+                "w", encoding="utf-8", errors="replace"
+            ) as sink:  # wyrd-klod surrogate backstop
                 for m in report.mentions:
                     sink.write(_line(source_id, m) + "\n")
             tmp_path.replace(out_path)

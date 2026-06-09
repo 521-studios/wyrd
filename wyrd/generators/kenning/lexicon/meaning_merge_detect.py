@@ -81,6 +81,31 @@ def detect_meaning_merge_candidates(
         "FROM etymon e JOIN etymon_gloss g ON g.etymon_id = e.id "
         "WHERE e.merged_into_id IS NULL ORDER BY e.id"
     ).fetchall()
+    by_id, by_token = _index_meaning_glosses(rows)
+    cluster_size = _load_cluster_sizes(conn)
+    # Precompute each etymon's cluster richness once (live cluster size, 0 when
+    # unclustered) so the nested pairing loops are plain dict reads — mirrors
+    # variant_fold_detect's pattern.
+    for rec in by_id.values():
+        rec["richness"] = cluster_size.get(rec["clu"], 0) if rec["clu"] is not None else 0
+    edges = _load_descent_edges(conn)
+    best = _best_majors_per_minor(
+        by_token,
+        by_id,
+        edges,
+        min_similarity=min_similarity,
+        minor_max=minor_max,
+        major_min=major_min,
+        ratio=ratio,
+        max_per_gloss=max_per_gloss,
+    )
+    return _build_merge_candidates(best, by_id)
+
+
+def _index_meaning_glosses(rows) -> tuple[dict[int, dict], dict[str, set[int]]]:
+    """Index gloss rows → (by_id, by_token). by_id[id] = {lang, form, bare,
+    skel, clu, gl (gloss set), tok (token set)}; by_token maps each gloss
+    content token to the set of etymon ids carrying it."""
     by_id: dict[int, dict] = {}
     by_token: dict[str, set[int]] = defaultdict(set)
     for r in rows:
@@ -101,66 +126,148 @@ def detect_meaning_merge_candidates(
         rec["tok"].update(toks)
         for t in toks:
             by_token[t].add(eid)
+    return by_id, by_token
 
-    cluster_size: dict[int, int] = {}
-    for r in conn.execute(
-        "SELECT cognate_id, count(*) n FROM etymon "
-        "WHERE cognate_id IS NOT NULL AND merged_into_id IS NULL GROUP BY cognate_id"
-    ):
-        cluster_size[r["cognate_id"]] = r["n"]
 
-    edges: set[tuple[int, int]] = set()
-    for p, c in conn.execute("SELECT parent_id, child_id FROM etymon_descent"):
-        edges.add((p, c))
+def _load_cluster_sizes(conn: sqlite3.Connection) -> dict[int, int]:
+    """cognate_id → live (non-merged) member count."""
+    return {
+        r["cognate_id"]: r["n"]
+        for r in conn.execute(
+            "SELECT cognate_id, count(*) n FROM etymon "
+            "WHERE cognate_id IS NOT NULL AND merged_into_id IS NULL GROUP BY cognate_id"
+        )
+    }
 
-    def richness(rec: dict) -> int:
-        return cluster_size.get(rec["clu"], 0) if rec["clu"] is not None else 0
 
-    # best major per minor id -> (major id, sim)
+def _load_descent_edges(conn: sqlite3.Connection) -> set[tuple[int, int]]:
+    """All ``(parent_id, child_id)`` descent edges."""
+    return {(p, c) for p, c in conn.execute("SELECT parent_id, child_id FROM etymon_descent")}
+
+
+def _merge_pair_sim(
+    mi: int,
+    mrec: dict,
+    skb: str,
+    rmi: int,
+    ai: int,
+    arec: dict,
+    matcher: difflib.SequenceMatcher,
+    edges: set[tuple[int, int]],
+    *,
+    min_similarity: float,
+    ratio: int,
+) -> float | None:
+    """Similarity for a (minor ``mi``, major ``ai``) pair when it's an eligible
+    merge candidate — same language, DIFFERENT clusters, major dominates by
+    ≥ratio, form-similar (difflib ≥ min_similarity) OR sharing a ≥2-consonant
+    skeleton, and no existing descent edge — else ``None``. ``matcher`` already
+    has seq1 set to the minor's bare form (reused across majors)."""
+    if mrec["lang"] != arec["lang"] or mrec["clu"] == arec["clu"]:
+        return None  # same language, DIFFERENT clusters
+    if arec["richness"] < ratio * rmi:
+        return None  # major must clearly dominate
+    fr = arec["bare"]
+    if not fr:
+        return None
+    # NOTE: identical bare forms (fb == fr) are NOT excluded here — two
+    # non-barren clusters that simplify to the same form (an accent/diacritic
+    # split, e.g. 'feld' vs 'fēld', or a homograph split into two clusters) are
+    # PRIME merge candidates; let the LLM judge decide. (The barren fold
+    # excludes fb == fr because there one side is barren and identical-form means
+    # the same etymon; here both are real clusters.)
+    matcher.set_seq2(fr)
+    sim = matcher.ratio()
+    skeleton_match = len(skb) >= 2 and skb == arec["skel"]
+    if sim < min_similarity and not skeleton_match:
+        return None
+    if (mi, ai) in edges or (ai, mi) in edges:
+        return None
+    return sim
+
+
+def _update_best_major(
+    best: dict[int, tuple[int, float]],
+    mi: int,
+    mrec: dict,
+    major: list[tuple[int, dict]],
+    by_id: dict[int, dict],
+    edges: set[tuple[int, int]],
+    *,
+    min_similarity: float,
+    ratio: int,
+) -> None:
+    """Scan one minor's candidate majors and record the best in ``best``:
+    richest cluster, then highest similarity, then lowest id."""
+    fb, skb, rmi = mrec["bare"], mrec["skel"], mrec["richness"]
+    if not fb:
+        return
+    matcher = difflib.SequenceMatcher(None, fb)
+    for ai, arec in major:
+        sim = _merge_pair_sim(
+            mi,
+            mrec,
+            skb,
+            rmi,
+            ai,
+            arec,
+            matcher,
+            edges,
+            min_similarity=min_similarity,
+            ratio=ratio,
+        )
+        if sim is None:
+            continue
+        rma = arec["richness"]
+        cur = best.get(mi)
+        if cur is None or (rma, sim, -ai) > (
+            by_id[cur[0]]["richness"],
+            cur[1],
+            -cur[0],
+        ):
+            best[mi] = (ai, sim)
+
+
+def _best_majors_per_minor(
+    by_token: dict[str, set[int]],
+    by_id: dict[int, dict],
+    edges: set[tuple[int, int]],
+    *,
+    min_similarity: float,
+    minor_max: int,
+    major_min: int,
+    ratio: int,
+    max_per_gloss: int,
+) -> dict[int, tuple[int, float]]:
+    """Best major cluster per minor id: ``{minor id -> (major id, sim)}``. Only
+    pairs sharing a gloss content token (via ``by_token``) are considered; huge
+    generic-gloss groups (> max_per_gloss) are skipped."""
     best: dict[int, tuple[int, float]] = {}
     for ids in by_token.values():
         if len(ids) < 2 or len(ids) > max_per_gloss:
             continue
-        minor = [(i, by_id[i]) for i in ids if 2 <= richness(by_id[i]) <= minor_max]
-        major = [(i, by_id[i]) for i in ids if richness(by_id[i]) >= major_min]
+        minor = [(i, by_id[i]) for i in ids if 2 <= by_id[i]["richness"] <= minor_max]
+        major = [(i, by_id[i]) for i in ids if by_id[i]["richness"] >= major_min]
         if not minor or not major:
             continue
         for mi, mrec in minor:
-            fb, skb, rmi = mrec["bare"], mrec["skel"], richness(mrec)
-            if not fb:
-                continue
-            matcher = difflib.SequenceMatcher(None, fb)
-            for ai, arec in major:
-                if mrec["lang"] != arec["lang"] or mrec["clu"] == arec["clu"]:
-                    continue  # same language, DIFFERENT clusters
-                rma = richness(arec)
-                if rma < ratio * rmi:
-                    continue  # major must clearly dominate
-                fr = arec["bare"]
-                if not fr:
-                    continue
-                # NOTE: identical bare forms (fb == fr) are NOT excluded here —
-                # two non-barren clusters that simplify to the same form (an
-                # accent/diacritic split, e.g. 'feld' vs 'fēld', or a homograph
-                # split into two clusters) are PRIME merge candidates; let the
-                # LLM judge decide. (The barren fold excludes fb == fr because
-                # there one side is barren and identical-form means the same
-                # etymon; here both are real clusters.)
-                matcher.set_seq2(fr)
-                sim = matcher.ratio()
-                skeleton_match = len(skb) >= 2 and skb == arec["skel"]
-                if sim < min_similarity and not skeleton_match:
-                    continue
-                if (mi, ai) in edges or (ai, mi) in edges:
-                    continue
-                cur = best.get(mi)
-                if cur is None or (rma, sim, -ai) > (
-                    richness(by_id[cur[0]]),
-                    cur[1],
-                    -cur[0],
-                ):
-                    best[mi] = (ai, sim)
+            _update_best_major(
+                best,
+                mi,
+                mrec,
+                major,
+                by_id,
+                edges,
+                min_similarity=min_similarity,
+                ratio=ratio,
+            )
+    return best
 
+
+def _build_merge_candidates(
+    best: dict[int, tuple[int, float]], by_id: dict[int, dict]
+) -> list[MeaningMergeCandidate]:
+    """Turn the best-major-per-minor map into sorted MeaningMergeCandidates."""
     out: list[MeaningMergeCandidate] = []
     for minor, (major, sim) in best.items():
         em, ea = by_id[minor], by_id[major]
@@ -173,8 +280,8 @@ def detect_meaning_merge_candidates(
                 minor_glosses=tuple(sorted(em["gl"]))[:4],
                 major_glosses=tuple(sorted(ea["gl"]))[:4],
                 similarity=round(sim, 3),
-                minor_cluster_size=cluster_size.get(em["clu"], 0),
-                major_cluster_size=cluster_size.get(ea["clu"], 0),
+                minor_cluster_size=em["richness"],
+                major_cluster_size=ea["richness"],
             )
         )
     out.sort(key=lambda c: (c.major_ref, c.minor_ref))

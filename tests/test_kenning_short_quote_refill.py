@@ -662,6 +662,11 @@ def test_cli_refill_short_quotes_verbose_surfaces_samples(tmp_path: Path):
     assert result.exit_code == 0, result.output
     assert "[refilled]" in result.output
     assert "old-english:acum" in result.output
+    # Pin the format-dense old/new sample lines emitted by
+    # _echo_refill_samples (wyrd-8uvi C901 extraction owns this) — the
+    # branch was executed but its format went unasserted.
+    assert "old (" in result.output
+    assert "new (+" in result.output
 
 
 # ---------------------------------------------------------------------------

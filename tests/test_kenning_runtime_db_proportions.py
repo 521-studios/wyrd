@@ -291,12 +291,10 @@ def test_bit_equivalent_names_across_backends(
     json_gen = load_proportions(json_proportions, meaning_db, tag_db)
     sqlite_gen = load_proportions(sqlite_proportions, meaning_db, tag_db)
 
-    # The structures dict + cooccurrence dict + marginal dict on the
-    # NameGenerator must be identical across backends — that's the
-    # load-bearing surface Generator.select samples from. (Direct
-    # equality check is stronger than seeded-sample equivalence
-    # because it covers every potential sample, not just the one
-    # seed=42 happens to pick.)
+    # The structures dict + cooccurrence dict on the NameGenerator must be
+    # identical across backends — that's the load-bearing surface the vector
+    # selection path samples from. (Direct equality check is stronger than
+    # seeded-sample equivalence because it covers every potential sample, not
+    # just the one seed=42 happens to pick.)
     assert json_gen.structs == sqlite_gen.structs
     assert json_gen.tag_cooccurrence == sqlite_gen.tag_cooccurrence
-    assert json_gen.tag_marginal == sqlite_gen.tag_marginal

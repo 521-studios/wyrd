@@ -41,7 +41,6 @@ describe('flagOn (fail-closed)', () => {
 describe('envify (server parity)', () => {
   it('upper-cases and maps . and - to _ (matches WYRD_FF_<NAME>)', () => {
     expect(envify('culture.welsh')).toBe('CULTURE_WELSH');
-    expect(envify('scoring_mode')).toBe('SCORING_MODE');
     expect(envify('priors-path')).toBe('PRIORS_PATH');
   });
 
@@ -50,18 +49,23 @@ describe('envify (server parity)', () => {
   });
 });
 
-describe('fieldFlag / fieldEnabled (grouping)', () => {
+describe('fieldFlag / fieldEnabled', () => {
   it('maps 1:1 by default', () => {
     expect(fieldFlag('novelty')).toBe('novelty');
   });
 
-  it('groups the vector axis-weight knobs under scoring_mode', () => {
-    for (const w of ['phonological_weight', 'semantic_weight', 'position_weight', 'baseline_weight']) {
-      expect(fieldFlag(w)).toBe('scoring_mode');
+  it('flag-gated fields follow their controlling flag', () => {
+    expect(fieldEnabled({ all: false, flags: {} }, 'novelty')).toBe(false);
+    expect(fieldEnabled({ all: false, flags: { NOVELTY: true } }, 'novelty')).toBe(true);
+  });
+
+  it('the vector axis-weight knobs are always on (vector is the only scoring path)', () => {
+    const weights = ['phonological_weight', 'semantic_weight', 'position_weight', 'baseline_weight'];
+    // Always-on even with a null/empty config (no flag controls them).
+    for (const w of weights) {
+      expect(fieldEnabled(null, w)).toBe(true);
+      expect(fieldEnabled({ all: false, flags: {} }, w)).toBe(true);
     }
-    const cfg = { all: false, flags: { SCORING_MODE: true } };
-    expect(fieldEnabled(cfg, 'phonological_weight')).toBe(true);
-    expect(fieldEnabled(cfg, 'novelty')).toBe(false);
   });
 });
 
@@ -136,22 +140,22 @@ describe('seedDefault (override > schema default)', () => {
 });
 
 describe('snapEnumValue (wyrd-etvd: never preempt the config-default seed)', () => {
-  const prop = ['proportions', 'vector'];
+  const prop = ['english', 'welsh'];
 
   it('returns undefined for an UNSEEDED (undefined) value — the seed pass owns it', () => {
-    // THE regression: snapping undefined → schema default here clobbered the
-    // WYRD_DEFAULT_SCORING_MODE=vector override (Advanced menu stuck on
-    // Proportions despite the manifest serving vector).
-    expect(snapEnumValue(undefined, prop, 'proportions')).toBeUndefined();
+    // THE regression class: snapping undefined → schema default here clobbered
+    // a WYRD_DEFAULT_<OPTION> override (the Advanced menu stuck on the schema
+    // default despite the manifest serving the override).
+    expect(snapEnumValue(undefined, prop, 'english')).toBeUndefined();
   });
 
   it('returns undefined (no change) for a value already in the options', () => {
-    expect(snapEnumValue('vector', prop, 'proportions')).toBeUndefined();
-    expect(snapEnumValue('proportions', prop, 'proportions')).toBeUndefined();
+    expect(snapEnumValue('welsh', prop, 'english')).toBeUndefined();
+    expect(snapEnumValue('english', prop, 'english')).toBeUndefined();
   });
 
   it('snaps a DEFINED out-of-options value to the schema default when valid', () => {
-    expect(snapEnumValue('banana', prop, 'proportions')).toBe('proportions');
+    expect(snapEnumValue('banana', prop, 'english')).toBe('english');
   });
 
   it('snaps to the first option when the schema default is also invalid/absent', () => {
@@ -169,11 +173,9 @@ describe('snapEnumValue (wyrd-etvd: never preempt the config-default seed)', () 
 });
 
 describe('initialFieldValue (wyrd-b6hd: store-seeded init — override > default > empty)', () => {
-  it('uses the config.defaults override (the scoring_mode=vector case)', () => {
-    const prop = { type: 'string', enum: ['proportions', 'vector'], default: 'proportions' };
-    expect(initialFieldValue({ defaults: { scoring_mode: 'vector' } }, 'scoring_mode', prop)).toBe(
-      'vector',
-    );
+  it('uses the config.defaults override (e.g. culture=welsh)', () => {
+    const prop = { type: 'string', enum: ['english', 'welsh'], default: 'english' };
+    expect(initialFieldValue({ defaults: { culture: 'welsh' } }, 'culture', prop)).toBe('welsh');
   });
 
   it('falls back to the schema default when no override', () => {

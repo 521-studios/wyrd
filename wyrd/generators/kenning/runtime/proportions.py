@@ -11,10 +11,10 @@ from __future__ import annotations
 import logging
 import random
 import re
-from functools import lru_cache
+from collections.abc import Callable
 
 from ..era.cells import family_stage_order, language_family
-from .meaning import _mimic_case
+from .meaning import Meaning, _mimic_case
 from .word import _position_form
 
 # wyrd-lftl: family display order for the SPA col-3 reflex grid — English
@@ -37,6 +37,48 @@ _logger = logging.getLogger(__name__)
 _VECTOR_STRUCT_RETRY_LIMIT = 5
 
 
+def _flatten_struct_slots(candidate_struct):
+    """Flatten a struct (tuple-of-words, each word a tuple-of-keys) into parallel
+    position / qualifier / bucket-key lists for the vector primitive. Each key's
+    element 0 is the position label (per ``word_to_key``); a ``name`` / ``saint``
+    flag becomes the qualifier; the FULL key is the bucket key — preserving the
+    ``single`` flag ``word_to_key`` adds so the per-slot frequency lookup hits the
+    exact bucket the proportions sample from."""
+    positions: list[str] = []
+    qualifiers: list[str | None] = []
+    bucket_keys: list[tuple] = []
+    for word in candidate_struct:
+        for key in word:
+            positions.append(key[0])
+            if "name" in key:
+                qualifiers.append("name")
+            elif "saint" in key:
+                qualifiers.append("saint")
+            else:
+                qualifiers.append(None)
+            bucket_keys.append(key)
+    return positions, qualifiers, bucket_keys
+
+
+def _reconstruct_words(struct, picked):
+    """Reconstruct the words list-of-lists from the flat ``picked`` list, matching
+    the struct's word-grouping so NewName surfaces the same word boundaries as the
+    legacy path. wyrd-g1hj: render each pick at its SLOT-derived position
+    (``slot[0]``, the eyjk position-form), NOT the stored dash-variant — NewName
+    still strips dashes + applies word-initial case. wyrd-tbke: a permissive-
+    fallback None pick passes through as a dropped slot (NewName skips None)."""
+    words: list[list[str | None]] = []
+    idx = 0
+    for word in struct:
+        word_keys: list[str | None] = []
+        for slot in word:
+            pick = picked[idx]
+            word_keys.append(_position_form(pick, slot[0]) if pick is not None else None)
+            idx += 1
+        words.append(word_keys)
+    return words
+
+
 class Generator:
     def __init__(self, tag_db, elements):
         self.tag_db = tag_db
@@ -44,139 +86,6 @@ class Generator:
 
     def add_item(self, key, proportion):
         self.elements[key] = proportion
-
-    def select(
-        self,
-        rng,
-        *tags,
-        novelty: float = 0.0,
-        harshness: float = 0.0,
-        exclude_tags: tuple[str, ...] = (),
-        exclude_keys: frozenset[str] | None = None,
-        keep_keys: frozenset[str] | None = None,
-        key_boost: dict[str, float] | None = None,
-    ):
-        """Pick one element, optionally blending toward a uniform marginal
-        and/or biasing toward phonologically-harsh keys.
-
-        Per D17, the runtime samples from a mixture
-        ``(1-novelty)·empirical + novelty·uniform``: at ``novelty=0`` (default)
-        sampling is pure empirical-frequency (current behavior); at
-        ``novelty=1`` every key in the bucket is equally likely. Intermediate
-        values softly blend, allowing plausible-but-unattested combinations
-        without abandoning the corpus. The D17 β-term (tag-class-prior) is
-        realized via the multiplicative ``key_boost`` parameter — wyrd-mj2's
-        cohesion knob threads neighbor-context through the structure walk
-        in NameGenerator and computes the per-key prior from the tag
-        co-occurrence model; that boost multiplies empirical weights here
-        before novelty blends with the uniform marginal. See DECISIONS.md
-        D17 for the realized-vs-textbook math.
-
-        Per D6, ``harshness`` re-weights each candidate by its phonological
-        harshness score (computed from the key string) — at ``harshness=0``
-        every key keeps its empirical weight; at ``harshness=1`` soft-keyed
-        items go to zero and harsh-keyed items keep 2× their original weight.
-        Composition order: harshness is applied first to the empirical
-        weights, then ``_blend_uniform`` blends the result with the uniform
-        marginal. So ``--harsh 1 --novelty 1`` yields uniform sampling over
-        the entire bucket (because ``_blend_uniform`` ignores the empirical
-        side at novelty=1), while ``--harsh 1 --novelty 0`` is pure
-        harsh-empirical.
-
-        ``exclude_tags`` (wyrd-yan) drops keys whose usage carries any of
-        the named tags. Applied AFTER the positive ``tags`` include-filter,
-        so a fiction-tagged usage is removed even if the caller asked for
-        a tag the usage also carries. The default ``()`` is a no-op for
-        bit-stable historical behavior.
-
-        ``keep_keys`` (D5-2 era filter, wyrd-lyp) restricts the bucket to
-        only the named usages. None means 'no filter' (bit-stable). The
-        caller (typically MeaningGenerator) precomputes the allowed-usage
-        set from the meaning_db once per ``--era`` value and passes the
-        same frozenset for every subsequent select call, so the per-bucket
-        intersection here is a fast O(bucket-size) walk.
-
-        ``key_boost`` (wyrd-mj2 cohesion) is a per-key multiplier applied
-        to empirical weights before harshness/novelty composition. The
-        caller (typically NameGenerator) precomputes it per slot from the
-        tag co-occurrence model conditioned on previously-picked usages.
-        Missing keys default to 1.0 (no boost). None means 'no boost'
-        (bit-stable). Composes multiplicatively with harshness; novelty
-        still blends with the uniform marginal LAST so the high-novelty
-        path remains a clean tunable.
-        """
-        items = self.elements.items()
-        if len(tags) > 0:
-            items = self.filter_for_tag(*tags).items()
-        if exclude_tags:
-            items = self._apply_excludes(items, exclude_tags).items()
-        if keep_keys is not None:
-            # wyrd-eyjk/D40: keep_keys holds bare SURFACES; bucket items are
-            # position-forms — compare by surface.
-            items = [(k, v) for k, v in items if k.lower().replace("-", "") in keep_keys]
-        # wyrd-gzvr: exclude_keys drops specific usages from sampling
-        # (the previously-picked usage at an adjacent slot, to break
-        # the 'North North' / 'Green Green' duplicate-word pattern).
-        # Applied AFTER keep_keys + tag filters so the exclusion only
-        # narrows the eligible pool — never widens it past the other
-        # constraints. None means 'no exclusion' (bit-stable). Empty
-        # frozenset is also a no-op (defensive).
-        if exclude_keys:
-            items = [(k, v) for k, v in items if k not in exclude_keys]
-        if len(items) == 0:
-            return None
-        items_list = list(items)
-        if key_boost is not None:
-            items_list = [(k, v * key_boost.get(k, 1.0)) for k, v in items_list]
-        if harshness <= 0 and novelty <= 0 and key_boost is None:
-            return weighted_choice(rng, items_list)
-        if harshness > 0:
-            items_list = _blend_harsh(items_list, harshness)
-        if novelty > 0:
-            items_list = _blend_uniform(items_list, novelty)
-        return weighted_choice(rng, items_list)
-
-    def has_tag(self, *tags):
-        return len(self.filter_for_tag(*tags)) > 0
-
-    def filter_for_tag(self, *tags):
-        # Dedupe via set, then sort: the resulting dict's iteration order
-        # feeds weighted_choice's cumulative-threshold construction, which
-        # is order-dependent. Set iteration is hash-randomized across
-        # PYTHONHASHSEED, so without sort() the same (tags, seed) tuple
-        # could produce different picks across processes. Same fix shape
-        # as wyrd-mj2's _raw_class_score sort. wyrd-8ga.
-        # wyrd-eyjk/D40: tag_db is keyed by the bundle's meaning_db usages
-        # (dash-variants), but the bucket items (self.elements) are
-        # position-forms — match by bare SURFACE so a morpheme tagged under
-        # any variant is found at whatever position it was recorded. Iterate
-        # sorted(self.elements) for the same order-determinism reason.
-        tag_surfaces = {
-            u.lower().replace("-", "") for tag in tags for u in self.tag_db.get(tag, [])
-        }
-        return {
-            key: self.elements[key]
-            for key in sorted(self.elements)
-            if key.lower().replace("-", "") in tag_surfaces
-        }
-
-    def _apply_excludes(self, items, exclude_tags: tuple[str, ...]):
-        """Drop keys whose usage appears in tag_db under any exclude tag.
-        Returns a dict to keep the .items() call site consistent.
-
-        Hot-path short-circuit: if no exclude tag is present in this
-        bucket's tag_db, nothing can be filtered — return ``dict(items)``
-        directly without the per-key membership check. Today's bundle has
-        no fiction-tagged morphemes so this is the steady-state path."""
-        # wyrd-eyjk/D40: match by bare SURFACE (tag_db holds dash-variants,
-        # items are position-forms).
-        excluded: set[str] = set()
-        for tag in exclude_tags:
-            for u in self.tag_db.get(tag, ()):
-                excluded.add(u.lower().replace("-", ""))
-        if not excluded:
-            return dict(items)
-        return {k: v for k, v in items if k.lower().replace("-", "") not in excluded}
 
 
 _TRIPLE_LETTER_RUN_RE = re.compile(r"(.)\1{2,}")
@@ -200,33 +109,11 @@ def _collapse_triple_letters(text: str) -> str:
     return _TRIPLE_LETTER_RUN_RE.sub(r"\1\1", text)
 
 
-def _bucket_keys_matching_surface(
-    bucket_keys: tuple[str, ...],
-    surface: str | None,
-) -> frozenset[str] | None:
-    """wyrd-gzvr: expand a surface form into the set of bucket keys
-    whose dash-stripped lowercased form matches it. Used by
-    ``_select_no_tag`` to dedup on surface form (not bucket key)
-    so cross-bucket duplicates like '-bridge' (post-marker) /
-    '-bridge-' (infix-marker) both get filtered when the previous
-    slot rendered 'bridge'.
-
-    Returns ``None`` when ``surface`` is None (no previous pick to
-    dedup against) or when no bucket key matches — both paths
-    short-circuit ``Generator.select``'s exclude_keys filter to its
-    bit-stable no-filter behavior.
-    """
-    if surface is None:
-        return None
-    matches = {k for k in bucket_keys if k.replace("-", "").lower() == surface}
-    return frozenset(matches) if matches else None
-
-
 def _gloss_eligible(usage: str, has_gloss: bool, include_unglossed: bool) -> bool:
-    """Gloss-policy predicate shared by the proportions keep-key filter
+    """Gloss-policy predicate shared by the keep-key filter
     (:meth:`MeaningGenerator.keep_keys_for_gloss`) and the vector pool
     filter (:func:`vector_name_select.build_non_position_eligible`) so
-    both scoring modes apply identical generation-pool rules (wyrd-glos).
+    both consumers apply identical generation-pool rules (wyrd-glos).
 
     * has_gloss → eligible (any length; a glossed single-char like Norse
       ``á`` = river is a real morpheme).
@@ -241,30 +128,6 @@ def _gloss_eligible(usage: str, has_gloss: bool, include_unglossed: bool) -> boo
     if len(core) <= 1:
         return False
     return include_unglossed
-
-
-def _intersect_keep_keys(
-    a: frozenset[str] | None,
-    b: frozenset[str] | None,
-) -> frozenset[str] | None:
-    """Compose two keep-key filters (era + stratum, today; any future
-    per-call USAGE-level gate would compose the same way). ``None``
-    means 'no filter' for either side, so the result follows the
-    standard intersection-with-identity rule:
-
-      * both None → None (bit-stable no-filter fast path)
-      * one None, other set → the set (single filter wins)
-      * both set → frozenset intersection (must clear both gates)
-
-    Returning ``None`` when both filters are absent is what lets
-    ``Generator.select`` short-circuit to its bit-stable empirical
-    path — see ``keep_keys_for_era`` for the contract.
-    """
-    if a is None:
-        return b
-    if b is None:
-        return a
-    return a & b
 
 
 # Maps id(meaning_db) → (meaning_db, surface_index). Storing the meaning_db
@@ -376,10 +239,26 @@ def _merge_morpheme_meanings(meanings: list):
             gbucket = glosses.setdefault(lang, {})
             for form, gloss in form_gloss.items():
                 gbucket.setdefault(form, gloss)
-    # Genuine reflexes win per language; self-seeds only when a language has no
-    # genuine reflex at all (don't strand an all-self connective morpheme).
+
+    # wyrd-phww: UNION self-seeds with genuine reflexes per language — genuine
+    # listed first, source preserved; a self-seed is added only for a form no
+    # genuine reflex already covers. The pre-fix genuine-WINS rule discarded ALL
+    # self-seeds whenever any genuine reflex existed, which dropped the GENERATED
+    # SURFACE (the attested modern toponym form — 'Park-'/'Paddock-' for pearroc)
+    # from the grid -> "X not in its own reflexes". The flood risk the old rule
+    # guarded against (every constructed -ton town self-seeds its whole surface,
+    # ~120 for tūn) is handled downstream: _era_grid narrows the PRESENT-DAY
+    # stage to the word's OWN surface (generate = the generated surface,
+    # explain = the decomposed input surface), so only the one relevant
+    # self-seed survives next to the genuine reflexes — never the ~120.
+    def _union_lang(genuine: dict, selfs: dict) -> list:
+        out = dict(genuine)  # genuine first, source preserved
+        for form, entry in selfs.items():
+            out.setdefault(form, entry)  # self-seed only if no genuine form collides
+        return list(out.values())
+
     merged_reflexes = {
-        lang: list((nonself.get(lang) or selfseed.get(lang)).values())
+        lang: _union_lang(nonself.get(lang, {}), selfseed.get(lang, {}))
         for lang in sorted(nonself.keys() | selfseed.keys())
     }
     # Keep glosses only for forms that survived the genuine-wins filter; drop a
@@ -451,25 +330,6 @@ class MeaningGenerator:
         self.meaning_db = meaning_db
         self.tag_db = tag_db
         self.generators: dict[tuple, Generator] = {}
-        # wyrd-cj6f: bucket keys a structure slot referenced but that have
-        # no registered Generator (see `select`). Tracked so the drift
-        # warning fires once per unique key, not once per generation.
-        self._warned_missing_buckets: set[tuple] = set()
-        # D5-2 era-filter cache: era_range tuple → frozenset of allowed
-        # usages, OR None when the era covers every usage (the
-        # bit-stable fast-path signal — see keep_keys_for_era). Keyed by
-        # (start, end) so two callers passing the same range share the
-        # precomputed value. Computed lazily on first lookup; the
-        # meaning_db is immutable post-load so the cache is safe to
-        # reuse for the process lifetime.
-        self._era_keep_cache: dict[tuple[int | None, int | None], frozenset[str] | None] = {}
-        # wyrd-lr4 Phase 3 stratum-filter cache: stratum string →
-        # frozenset of allowed usages (or None for the full-coverage
-        # / no-filter fast path). Same caching contract as
-        # _era_keep_cache; meaning_db is immutable post-load so a
-        # single computation per stratum value lasts the process
-        # lifetime.
-        self._stratum_keep_cache: dict[str, frozenset[str] | None] = {}
         # Gloss-policy keep cache: include_unglossed bool → frozenset of
         # allowed usages (or None for the full-coverage / no-filter fast
         # path). Only two keys ever; same immutable-meaning_db contract.
@@ -504,26 +364,21 @@ class MeaningGenerator:
                 continue
             position = _location_from_form(usage)
             # Flags (name/saint) come from the morpheme; position from the form.
-            # wyrd-eyjk/D40 + wyrd-g1hj: a pure proper noun that is a SAINT
-            # subject (`Mary`/`John`/`Giles` from the St-dedication list) or a
-            # personal GIVEN name (`John`/`Edmund` male/female-name etymons)
-            # must NOT enter the empirical base pool — both dangle as bare
-            # personal names in plain generation (`Mary Margaret`, `By St Mary`,
-            # `Leigh Alton Chapel John`). Saint subjects reach names only via the
-            # param-gated St-dedication affix; given names need composition
-            # (`Edmund`+`-ton`) which the matcher still mines. NOT excluded: a
-            # place element merely co-tagged with a name (`stān`+`Stan` — not
-            # pure), or a FAMILY-name etymon (`Smith`/Norman manorial families —
-            # those form legitimate toponyms + are what the synthetic test
+            # wyrd-57d8: this per-bucket frequency-weight pool (snapshotted into
+            # `usage_frequency_by_bucket` and threaded into the live vector
+            # scorer) must apply the SAME base-pool class exclusions as the
+            # scored eligibility pool — so route through `is_base_pool_excluded`
+            # rather than re-spelling the predicate inline. It drops pure-proper-
+            # noun SAINT subjects (`Mary`/`Giles` from the St-dedication list)
+            # and personal GIVEN names (`John`/`Edmund`) — both dangle as bare
+            # personal names in plain generation — synthesized Norman manorial
+            # subjects (`Malet`; they reach output only via `manorial_affix`),
+            # and connector morphemes (`cum`/`le`/`juxta`, which need a
+            # complement). NOT excluded: a place element merely co-tagged with a
+            # name (`stān`+`Stan` — not pure) or a real FAMILY-name etymon
+            # (`Smith`; forms legitimate toponyms + is what the synthetic test
             # fixtures use), so neither realism nor the fixtures are disturbed.
-            # wyrd-gwj3: also drop connector morphemes (cum / le / juxta …) —
-            # they require a complement and must not dangle as a lone word.
-            keys = {
-                (position, *m.key()[1:])
-                for m in meanings
-                if not (m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()))
-                and not m.is_connector_particle()
-            }
+            keys = {(position, *m.key()[1:]) for m in meanings if not m.is_base_pool_excluded()}
             for key in keys:
                 if addkeys:
                     key = (*key, *addkeys)
@@ -536,86 +391,6 @@ class MeaningGenerator:
                 "re-rebuild proportions against it) to clear the drift.",
                 missing_count,
             )
-
-    def keep_keys_for_era(
-        self, era_range: tuple[int | None, int | None] | None
-    ) -> frozenset[str] | None:
-        """Resolve an ``era_range`` to the set of usages that have at least
-        one Meaning admissible under the half-open ``[start, end)`` window.
-
-        Returns ``None`` when ``era_range`` is None — the caller's
-        bit-stable 'no filter' signal. Also returns ``None`` when the
-        computed keep-set covers EVERY usage in ``meaning_db`` — there's
-        nothing to filter, so ``Generator.select`` should take its
-        bit-stable fast path rather than walk every bucket through a
-        membership check that admits everything. The full-coverage case
-        is the steady state today (zero attested_years data → every
-        morpheme passes the filter); collapsing it to None preserves
-        bit-stability with the no-filter call until the bundle re-emit
-        actually populates attestation data for some morphemes.
-
-        The result is cached so a single ``--era`` value across many
-        ``select`` calls only walks the meaning_db once.
-
-        Granularity caveat: filtering happens at the USAGE level, not
-        the SENSE level. A usage with two senses (one in-era, one out-
-        of-era) stays in the pool; the downstream pick at
-        ``NameGenerator._pick_surface`` falls back to ``meanings[0]`` for
-        variant/inflection rendering, which may surface the wrong-era
-        sense. See the existing comment block at ``_render_substitutions``
-        for the deterministic-fallback rationale; tightening the filter
-        to sense level would need that same call site reworked.
-        """
-        if era_range is None:
-            return None
-        if era_range in self._era_keep_cache:
-            return self._era_keep_cache[era_range]
-        # wyrd-eyjk/D40: keep-sets are keyed by bare SURFACE (the bucket items
-        # are position-forms; Generator.select compares the item's surface).
-        allowed: frozenset[str] | None = frozenset(
-            usage.lower().replace("-", "")
-            for usage, meanings in self.meaning_db.items()
-            if any(m.attested_in_era_range(era_range) for m in meanings)
-        )
-        if len(allowed) == len(self._surface_index()):
-            allowed = None
-        self._era_keep_cache[era_range] = allowed
-        return allowed
-
-    def keep_keys_for_stratum(self, stratum: str | None) -> frozenset[str] | None:
-        """wyrd-lr4 Phase 3: resolve a stratum tag to the set of usages
-        with at least one Meaning admissible under that stratum.
-
-        Mirrors ``keep_keys_for_era`` exactly — same None-on-no-filter,
-        None-on-full-coverage signal, same per-process cache. Today
-        only Welsh-family etymons carry stratum data, so most usages
-        will pass via the 'no stratum data → admit' branch in
-        ``Meaning.in_stratum``; the keep-set narrows only those usages
-        whose Meaning HAS stratum data and the data doesn't include
-        the requested tag. As Phase 4 lands and more languages get
-        classified, the set tightens automatically.
-
-        Granularity caveat (same as era): filtering happens at the
-        USAGE level, not the SENSE level. A usage with two senses
-        (one in-stratum, one out) stays in the pool; the downstream
-        pick at ``NameGenerator._pick_surface`` falls back to
-        ``meanings[0]`` for variant/inflection rendering, which may
-        surface the wrong-stratum sense. Sense-level filtering would
-        need ``_render_substitutions`` reworked.
-        """
-        if stratum is None:
-            return None
-        if stratum in self._stratum_keep_cache:
-            return self._stratum_keep_cache[stratum]
-        allowed: frozenset[str] | None = frozenset(
-            usage.lower().replace("-", "")
-            for usage, meanings in self.meaning_db.items()
-            if any(m.in_stratum(stratum) for m in meanings)
-        )
-        if len(allowed) == len(self._surface_index()):
-            allowed = None
-        self._stratum_keep_cache[stratum] = allowed
-        return allowed
 
     def keep_keys_for_gloss(self, include_unglossed: bool) -> frozenset[str] | None:
         """Resolve the gloss policy to the set of usages eligible for
@@ -634,9 +409,8 @@ class MeaningGenerator:
         carry no meaning to show. A single-char GLOSSED usage (Norse
         ``á`` = river) survives on the has-gloss branch.
 
-        Mirrors ``keep_keys_for_era`` / ``keep_keys_for_stratum``: None
-        when the keep-set covers every usage (no-filter fast path), else
-        the frozenset; cached per include_unglossed value. Same
+        Returns None when the keep-set covers every usage (no-filter fast
+        path), else the frozenset; cached per include_unglossed value. Same
         USAGE-level granularity caveat — a usage with one glossed and one
         unglossed sense stays in the pool, and the downstream
         ``_pick_surface`` may surface the unglossed sense; tightening to
@@ -653,68 +427,6 @@ class MeaningGenerator:
             allowed = None
         self._gloss_keep_cache[include_unglossed] = allowed
         return allowed
-
-    def select(
-        self,
-        rng,
-        key,
-        *tags,
-        novelty: float = 0.0,
-        harshness: float = 0.0,
-        exclude_tags: tuple[str, ...] = (),
-        exclude_keys: frozenset[str] | None = None,
-        keep_keys: frozenset[str] | None = None,
-        key_boost: dict[str, float] | None = None,
-    ):
-        # wyrd-cj6f: a structure slot can reference a (position, tag,
-        # count) bucket that has no registered Generator — structures are
-        # kept in full while the usage(s) that would populate the bucket
-        # can be absent (bundle/proportions drift) or trimmed out (the
-        # --dev seed keeps top-N usages but all structures). Pre-fix this
-        # KeyError'd mid-generation (welsh proportions, seed 806). Treat a
-        # missing bucket like an empty one: return None, which the callers
-        # (`_select_no_tag` / `_select_tag`) already handle by leaving that
-        # element unfilled. Mirrors `load_parts`' wyrd-van9 skip-don't-
-        # crash policy and `bucket_keys`' existing `.get()`.
-        gen = self.generators.get(key)
-        if gen is None:
-            # Observability per DECISIONS.md D24: a returned-None here means
-            # a structure slot rendered nothing (degraded / empty element).
-            # Warn ONCE per unique key (bulk generation calls select per
-            # slot per name). This is a DISTINCT drift dimension from
-            # `load_parts`' wyrd-van9 warning — that one catches a
-            # proportions usage with no Meaning; this catches a structure
-            # slot whose bucket was never built — so it needs its own
-            # message, not the constructor's.
-            if key not in self._warned_missing_buckets:
-                self._warned_missing_buckets.add(key)
-                _logger.warning(
-                    "wyrd-cj6f: MeaningGenerator: structure slot references "
-                    "bucket %r with no registered Generator; rendering an "
-                    "empty element. Re-emit the bundle to clear the drift.",
-                    key,
-                )
-            return None
-        return gen.select(
-            rng,
-            *tags,
-            novelty=novelty,
-            harshness=harshness,
-            exclude_tags=exclude_tags,
-            exclude_keys=exclude_keys,
-            keep_keys=keep_keys,
-            key_boost=key_boost,
-        )
-
-    def bucket_keys(self, key) -> tuple[str, ...]:
-        """Return the tuple of usages registered under bucket ``key``.
-        Used by NameGenerator to enumerate candidates when computing the
-        per-slot cohesion boost. Empty tuple if the bucket doesn't exist
-        — caller falls back to the no-boost path."""
-        bucket = self.generators.get(key)
-        if bucket is None:
-            return ()
-        return tuple(bucket.elements)
 
 
 def _is_ungrammatical_word_template(word_key: tuple) -> bool:
@@ -799,14 +511,11 @@ def _is_single_morpheme_structure(struct_key: tuple) -> bool:
     interest comes from COMPOSITION: a multi-morpheme word (`Higham` =
     `High-`+`-ham`) or multiple words (`Green Park`, 2 morphemes). So these are
     filtered out at LOAD time (``load_proportions``), before the NameGenerator
-    is built — they're absent from BOTH ``structs`` and ``_all_structs``, so no
-    generation path (select / vector / force_structure) can emit them. (Unlike
-    the grammaticality filter, which runs inside ``NameGenerator.__init__`` and
-    leaves its drops in ``_all_structs`` — still forceable.) This is a
-    generation-time exclusion, NOT a mining/bundle change: the on-disk
-    proportions still RECORD these structures, so no re-export is needed. A
-    single bare word standing INSIDE a larger structure (`Green` in
-    `Green Park`) is unaffected — that's 2 morphemes total."""
+    is built — they're absent from ``structs``, so the vector generation path
+    can't emit them. This is a generation-time exclusion, NOT a mining/bundle
+    change: the on-disk proportions still RECORD these structures, so no
+    re-export is needed. A single bare word standing INSIDE a larger structure
+    (`Green` in `Green Park`) is unaffected — that's 2 morphemes total."""
     return sum(len(word_key) for word_key in struct_key) <= 1
 
 
@@ -929,9 +638,27 @@ def _ordered_stage_langs(family, present):
     ]
 
 
-def _era_grid(meaning, renderings):
+def _grid_surface_key(form: str) -> str:
+    """Normalized key for matching a word's own surface to a present-day era
+    cell form: case-insensitive, affix dashes + whitespace ignored ('Park-' ==
+    'park', '-ton' == 'ton')."""
+    return form.strip().strip("-").strip().casefold()
+
+
+def _era_grid(meaning, renderings, own_surface=None):
     """wyrd-lftl: per-morpheme family × era reflex grid for the SPA col-3
     inspector.
+
+    wyrd-phww: ``own_surface`` is the word's OWN surface for this instance —
+    the generated surface (generate) or the decomposed input surface (explain).
+    When given, the PRESENT-DAY stage of each family keeps its genuine reflexes
+    plus ONLY the self-seed matching ``own_surface`` — so the surface the name
+    actually used appears ('Park' next to etymological 'parrock') without the
+    flood of every sibling self-seed (~120 constructed -ton towns) the merge now
+    unions in. Genuine reflexes and all non-present-day stages are untouched (the
+    morpheme's own-form self-seed in its OWN era stage, e.g. OE 'pearroc', is
+    NOT a present-day cell and survives). ``None`` keeps every self-seed (the
+    full union — no caller relies on this today but it's the safe default).
 
     Returns a list of family sections::
 
@@ -989,7 +716,46 @@ def _era_grid(meaning, renderings):
         ]
         if stages:
             sections.append({"family": family, "stages": stages})
+    if own_surface is not None:
+        own_form = (getattr(meaning, "morpheme_id", None) or "").partition(":")[2]
+        sections = _narrow_present_day_self_seeds(sections, own_surface, own_form)
     return sections
+
+
+def _narrow_present_day_self_seeds(
+    sections: list[dict], own_surface: str, own_form: str
+) -> list[dict]:
+    """wyrd-phww: in each family's PRESENT-DAY stage, drop ``source='self'`` cells
+    EXCEPT the one(s) matching ``own_surface`` (the name's generated/input
+    surface) or ``own_form`` (the morpheme's OWN canonical form). Every genuine
+    cell is kept. Non-present-day stages are untouched, so the own-form self-seed
+    in a separate older stage (OE ``pearroc``) survives.
+
+    Keeping ``own_form`` matters when a family's newest stage IS the morpheme's
+    own-language stage — e.g. ``norse``/``latin`` have no present-day cell, so
+    ``family_stage_order(family)[-1]`` is the historical stage that ALSO holds
+    the own-form self-seed (ON ``hryggr``); without this it would be dropped.
+    Stages/sections emptied by the filter are dropped."""
+    keep_keys = {_grid_surface_key(own_surface), _grid_surface_key(own_form)}
+    out: list[dict] = []
+    for section in sections:
+        stage_order = family_stage_order(section["family"])
+        present_day_lang = stage_order[-1] if stage_order else None
+        stages = []
+        for stage in section["stages"]:
+            if stage["language"] == present_day_lang:
+                forms = [
+                    c
+                    for c in stage["forms"]
+                    if c.get("source") != "self" or _grid_surface_key(c["form"]) in keep_keys
+                ]
+                if not forms:
+                    continue  # present-day stage emptied (only unmatched self-seeds)
+                stage = {**stage, "forms": forms}
+            stages.append(stage)
+        if stages:
+            out.append({"family": section["family"], "stages": stages})
+    return out
 
 
 class NameGenerator:
@@ -999,7 +765,6 @@ class NameGenerator:
         meaning_gen,
         structs,
         tag_cooccurrence: dict[str, int] | None = None,
-        tag_marginal: dict[str, int] | None = None,
         culture_attested_usages: frozenset[str] | None = None,
         culture_attested_meanings: dict[str, frozenset[str]] | None = None,
     ):
@@ -1077,15 +842,11 @@ class NameGenerator:
         # (re-exported as ``_encode_structs`` from ``cli.rebuild_proportions``)
         # prevents future rebuilds from emitting them; this runtime gate
         # defends against bundles built before that data fix lands.
-        # wyrd-5z5j: retain the UNFILTERED structures so list_structures() /
-        # force_structure can surface + use shapes the wyrd-zzli filter drops.
-        self._all_structs = dict(structs)
         self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
         # Loud-failure guard (generator-contract-reviewer P2, round 1):
         # if the filter empties an otherwise-non-empty structs dict, the
-        # legacy select() path would crash deep inside _select_no_tag on
-        # a None struct from weighted_choice(rng, []). Raise here with an
-        # operator-attributable message instead.
+        # vector path would crash on a None struct from weighted_choice(rng,
+        # []). Raise here with an operator-attributable message instead.
         if structs and not self.structs:
             raise ValueError(
                 "NameGenerator: every structure was filtered as ungrammatical "
@@ -1115,30 +876,28 @@ class NameGenerator:
         # wyrd-mj2 (D17 β-term per the ticket reframe): tag-level
         # bigram statistics from each culture's place-name corpus.
         # ``tag_cooccurrence`` keys are "left|right" tag pairs; values
-        # are co-occurrence counts. ``tag_marginal`` keys are tags;
-        # values are how often each tag appeared as either side of any
-        # pair. Both are optional — legacy bundles without them produce
-        # a no-op cohesion knob (cohesion=0 takes the bit-stable path
-        # regardless).
+        # are co-occurrence counts. Threaded to the vector path's
+        # cohesion multiplier. Optional — legacy bundles without it
+        # produce a no-op cohesion knob (cohesion=0 takes the bit-stable
+        # path regardless).
         self.tag_cooccurrence = tag_cooccurrence or {}
-        self.tag_marginal = tag_marginal or {}
         # wyrd-bol9: per-bucket empirical-frequency lookup for the
-        # vector path. Pre-fix, vector mode sampled each Meaning by
+        # vector path. Pre-fix, vector scoring sampled each Meaning by
         # D36.2 score(lemma) regardless of how often the underlying
         # USAGE actually appeared in this culture's corpus. The pool
         # was uniformly distributed across culture-attested usages —
-        # losing the empirical-frequency signal proportions mode
-        # carries via its per-bucket weight tables. Welsh / Irish /
-        # Breton names came out 25-35pp more OE-dominated than
-        # proportions because the OE-heavy attested pool dominated
+        # losing the empirical-frequency signal the per-bucket weight
+        # tables carry. Welsh / Irish /
+        # Breton names came out 25-35pp more OE-dominated than the
+        # corpus proportions because the OE-heavy attested pool dominated
         # under uniform sampling.
         #
         # Frequency-weighted pool restoration: each Meaning's vector
         # score is composed with its USAGE's per-bucket frequency
-        # from the same proportions tables proportions mode samples
-        # from. Within a usage's Meanings, D36.2 score discriminates;
-        # across usages, frequency drives pick-share — matching
-        # proportions' per-usage weighted sampling while preserving
+        # from those same proportions tables. Within a usage's Meanings,
+        # D36.2 score discriminates;
+        # across usages, frequency drives pick-share — restoring the
+        # corpus's per-usage weighting while preserving
         # vector's per-Meaning composition. Bucket-key shape and the
         # lookup contract live on ``_build_usage_frequency_by_bucket``.
         self.usage_frequency_by_bucket: dict[tuple, dict[str, float]] = (
@@ -1170,193 +929,6 @@ class NameGenerator:
             out[bucket_key] = dict(gen.elements)
         return out
 
-    def list_structures(self) -> list[dict]:
-        """All structure templates (INCLUDING the wyrd-zzli-filtered ones),
-        each as a readable label passable to ``force_structure``, sorted by
-        weight. Intended to feed a future SPA Advanced 'force structure'
-        dropdown (the CLI/API/SPA wiring is not landed yet — wyrd-5z5j
-        force-structure backend; the consumer is a follow-up)."""
-        total = sum(self._all_structs.values()) or 1
-        return [
-            {
-                "label": structure_key_to_label(key),
-                "weight": weight,
-                "proportion": weight / total,
-                "words": len(key),
-                "grammatical": is_structurally_grammatical(key),
-            }
-            for key, weight in sorted(self._all_structs.items(), key=lambda kv: -kv[1])
-        ]
-
-    @staticmethod
-    def _resolve_forced_structure(force_structure: str | tuple | list) -> tuple:
-        """A force_structure arg (label string or key tuple) → a struct key.
-
-        A nested-list input (e.g. decoded from a JSON request body) is
-        recursively converted to tuples so the result is hashable for the
-        dict-key lookups the structure key feeds (Gemini review)."""
-        if isinstance(force_structure, str):
-            return structure_label_to_key(force_structure)
-
-        def _to_tuple(val):
-            if isinstance(val, list):
-                return tuple(_to_tuple(x) for x in val)
-            return val
-
-        return _to_tuple(force_structure)
-
-    def select(
-        self,
-        rng,
-        *tags,
-        spelling_variety: float = 0.0,
-        novelty: float = 0.0,
-        inflection_density: float = 0.0,
-        harshness: float = 0.0,
-        exclude_tags: tuple[str, ...] = (),
-        era_range: tuple[int | None, int | None] | None = None,
-        stratum: str | None = None,
-        cohesion: float = 0.0,
-        include_unglossed: bool = True,
-        force_structure: str | tuple | list | None = None,
-        era_render_language: str | None = None,
-    ):
-        """Pick a structure, fill it with morpheme usages, optionally render
-        each usage as an attested archaic spelling variant (D18) or an
-        inflected form (D8), and blend sampling toward a uniform marginal
-        (D17) or harsh-keyed empirical (D6).
-
-        ``spelling_variety`` is the probability *per morpheme* that the
-        rendered surface form is drawn from the etymon's variant pool
-        rather than the canonical reflex.
-
-        ``novelty`` (D17) blends each morpheme-bucket's empirical-frequency
-        distribution with a uniform marginal over the same keys.
-
-        ``inflection_density`` (D8) is the probability *per morpheme* that
-        the rendered surface form is drawn from the lemma family's
-        inflected-children pool ('cot' → 'cotum', 'cotan', 'cotes'). The
-        inflection's grammatical-case label is preserved in
-        ``new_name.inflection_labels`` for the explainer.
-
-        ``harshness`` (D6) re-weights each morpheme-bucket toward
-        phonologically-harsh keys (stop-final, cluster-heavy). Composes
-        orthogonally with ``novelty``: the harsh skew applies to empirical
-        weights first, then ``novelty`` blends the result with the uniform
-        marginal.
-
-        ``exclude_tags`` (wyrd-yan) drops morpheme usages tagged with any
-        of the named tags. Threaded down to ``Generator.select`` and
-        applied per-bucket. Used by the runtime's fiction gate: 'fiction'
-        is excluded by default so realistic-mode generation never draws
-        from constructed-etymology entries; the GM opts in via
-        ``include_fiction``.
-
-        ``era_range`` (D5-2 / wyrd-lyp) is a half-open ``[start, end)`` year
-        window. Morphemes whose attested-year evidence falls outside the
-        window are dropped from every bucket; morphemes with no evidence
-        pass through (see ``Meaning.attested_in_era_range``). ``None``
-        disables the filter — bit-stable behavior. The keep-set is computed
-        once per call from ``meaning_gen.keep_keys_for_era`` and reused
-        across every per-bucket pick within this name.
-
-        ``stratum`` (wyrd-lr4 Phase 3) restricts the morpheme inventory
-        to forms classified into a specific within-language register
-        bucket — e.g. 'native-welsh' / 'brittonic-substrate' /
-        'medieval-welsh' / 'latin-loan' / 'english-loan'. Morphemes
-        with no stratum data pass through (Welsh is the only family
-        classified today; routing every culture through a strict gate
-        would gut bundles for Latin / OE / French / etc.). ``None``
-        disables the filter — bit-stable. Composes with ``era_range``
-        via frozenset intersection: a morpheme must clear BOTH gates
-        when both are set. Same usage-level granularity caveat as era.
-
-        ``cohesion`` (wyrd-mj2) biases each slot's pick toward usages whose
-        tags co-occur with previously-picked slots' tags in the empirical
-        corpus. At ``cohesion=0`` (default) every slot samples
-        independently from its marginal — bit-stable with the pre-D17 path.
-        At ``cohesion=1`` slot-N's empirical weights are scaled by the
-        normalized class-conditional likelihood given the union of prior
-        slots' tags. Intermediate values blend. Composes orthogonally with
-        novelty (which still blends with the uniform marginal LAST) so a
-        GM can dial 'attested-pair fidelity' (cohesion) and 'novelty'
-        independently. No-op when the bundle carries no tag-cooccurrence
-        data (legacy bundles or empty corpora) — ``_cohesion_boost``
-        short-circuits to None and ``Generator.select`` takes its
-        bit-stable fast path. Cohesion gating happens inside
-        ``_cohesion_boost`` (not pre-filtered here) so a single source
-        of truth for the no-op decision lives next to the boost
-        computation.
-
-        Dilution caveat (multi-tag selection): when ``tags`` carries more
-        than one entry, ``_select_tags`` runs an independent pool walk per
-        tag and merges via ``rng.choice``. Each pool maintains its own
-        ``prior_tags`` accumulator, so cohesion biases within each pool
-        but the cross-pool merge undoes some of that bias. Same dynamic
-        applies to harshness and novelty — pre-existing pattern, not a
-        new regression. A future refactor could share prior_tags across
-        pool members, at the cost of breaking the existing per-tag
-        independence invariant.
-
-        When both inflection_density and spelling_variety would fire on the
-        same morpheme, inflection wins — it carries grammatical meaning
-        that the variant axis doesn't.
-
-        ``include_unglossed`` (wyrd-glos) is the gloss policy. ``True``
-        (this method's back-compat default) admits unglossed morphemes;
-        the Kenning.generate operator surface defaults it to ``False``
-        (glossed-only, the rando-era behavior) so the etymology line —
-        the load-bearing feature — is always meaningful. Single-char
-        UNGLOSSED usages are dropped regardless. Composes with era/stratum
-        via the same keep-key intersection.
-        """
-        keep_keys = _intersect_keep_keys(
-            _intersect_keep_keys(
-                self.meaning_gen.keep_keys_for_era(era_range),
-                self.meaning_gen.keep_keys_for_stratum(stratum),
-            ),
-            self.meaning_gen.keep_keys_for_gloss(include_unglossed),
-        )
-        if force_structure is not None:
-            # wyrd-5z5j: bypass the weighted sample AND the wyrd-zzli filter so
-            # the operator can force any template (incl. filter-dropped shapes).
-            struct = self._resolve_forced_structure(force_structure)
-            # Fail loud on an unknown/typo'd template rather than silently
-            # filling every slot from missing buckets and emitting a blank
-            # name (error-handling / type-design review). Validate against the
-            # UNFILTERED set so filter-dropped shapes are still forceable.
-            if struct not in self._all_structs:
-                raise ValueError(
-                    f"force_structure {force_structure!r} is not a known "
-                    "template; call list_structures() for valid labels"
-                )
-        else:
-            items = list(self.structs.items())
-            struct = weighted_choice(rng, items)
-        if len(tags) == 0:
-            new_name = self._select_no_tag(
-                rng,
-                struct,
-                novelty=novelty,
-                harshness=harshness,
-                exclude_tags=exclude_tags,
-                keep_keys=keep_keys,
-                cohesion=cohesion,
-            )
-        else:
-            new_name = self._select_tags(
-                rng,
-                struct,
-                *tags,
-                novelty=novelty,
-                harshness=harshness,
-                exclude_tags=exclude_tags,
-                keep_keys=keep_keys,
-                cohesion=cohesion,
-            )
-        self._apply_render(rng, new_name, spelling_variety, inflection_density, era_render_language)
-        return new_name
-
     def select_via_vector(
         self,
         rng,
@@ -1370,6 +942,7 @@ class NameGenerator:
         include_unglossed: bool = True,
         spelling_variety: float = 0.0,
         inflection_density: float = 0.0,
+        novelty: float = 0.0,
         era_render_language: str | None = None,
     ):
         """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
@@ -1401,93 +974,45 @@ class NameGenerator:
                 no pack lemmas (pure native generation).
             spelling_variety: D18 per-morpheme probability of emitting an
                 attested archaic spelling variant instead of the modern
-                reflex. wyrd-nbpw: threaded through the SAME
-                ``_render_substitutions`` the legacy path uses, so both
-                scoring modes produce identical D8/D18 rendering for a
-                given pick. 0 (default) = no variant substitution.
+                reflex. wyrd-nbpw: threaded through the shared
+                ``_render_substitutions`` render path, so D8/D18 rendering
+                is consistent for a given pick. 0 (default) = no variant
+                substitution.
             inflection_density: D8 per-morpheme probability of emitting an
                 inflected morphological form (with a grammatical-case
                 label). 0 (default) = no inflection. Inflection wins ties
-                over the variant axis (same rule as the legacy path).
+                over the variant axis.
 
         Returns:
             A :class:`NewName` or None when the vector path's gate or
             scoring filtered every candidate (caller decides whether
             to raise or fall back).
 
-        Out of scope for v1:
-            * Cohesion uses the simple-overlap form from
-              ``vector_name_select._cohesion_multiplier``, not the
-              legacy ``_cohesion_boost`` / ``tag_marginal`` form.
-              Tag-cooccurrence data from the bundle is threaded
-              through; legacy and vector cohesion live in two
-              independent code paths until ecjp.6/7 reconciles.
+        Cohesion uses the simple-overlap form from
+        ``vector_name_select._cohesion_multiplier``; the bundle's
+        tag-cooccurrence data is threaded through to it.
         """
         # Lazy import: no actual cycle (vector_name_select imports
-        # only from vectors.{schemas,scoring}, not runtime), but the
-        # lazy form keeps the legacy proportions path's cold-start
-        # cost flat for callers that never reach scoring_mode='vector'.
+        # only from vectors.{schemas,scoring}, not runtime); the lazy
+        # form also keeps module-load cost off callers that never
+        # generate.
         from wyrd.generators.kenning.runtime.vector_name_select import (
-            build_non_position_eligible,
-            request_signature,
             select_via_vector_scoring,
         )
 
         items = list(self.structs.items())
-
-        # Build (or reuse) the non-position eligibility pool. The
-        # cache key folds every filter that affects pool membership.
-        # Pack-overlay signature uses the ``request.packs`` tuple +
-        # id(pack_meaning_dbs) so the cache invalidates when overlays
-        # change (operator passes a different pack set on a later
-        # request); ``request.packs`` is itself a tuple of frozen
-        # :class:`PackOverlay` dataclasses, hashable + comparable.
-        gate = request.gate
+        # The eligibility pool + per-slot base-score map are cached (folding every
+        # pool-membership filter into the key); see _vector_caches. exclude_tags_fz
+        # is also threaded into the per-slot _score below.
         exclude_tags_fz = frozenset(exclude_tags)
-        cache_key = (
-            gate.era_min,
-            gate.era_max,
-            gate.stratum,
+        non_position_eligible, slot_base_scores = self._vector_caches(
+            request,
             exclude_tags_fz,
-            request.packs,
-            id(pack_meaning_dbs),
+            pack_meaning_dbs,
             include_unglossed,
-        )
-        non_position_eligible = self._vector_eligible_cache.get(cache_key)
-        if non_position_eligible is None:
-            non_position_eligible = build_non_position_eligible(
-                self.meaning_db,
-                gate=gate,
-                exclude_tags=exclude_tags_fz,
-                pack_meaning_dbs=pack_meaning_dbs,
-                packs=request.packs,
-                culture_attested_usages=self.culture_attested_usages,
-                culture_attested_meanings=self.culture_attested_meanings,
-                include_unglossed=include_unglossed,
-            )
-            self._vector_eligible_cache[cache_key] = non_position_eligible
-
-        # Per-slot base-score cache: (eligible_cache_key, request,
-        # era_midpoint, priors_id) — sub-seeds within one dispatch
-        # all share the same key + lazy-fill the slot_position →
-        # base_scored map. Bounded FIFO eviction prevents unbounded
-        # growth across warm-Lambda lifetime.
-        slot_cache_key = (
-            cache_key,
-            request_signature(request),
             era_midpoint,
-            id(priors),
+            priors,
         )
-        slot_base_scores = self._vector_slot_score_cache.get(slot_cache_key)
-        if slot_base_scores is None:
-            slot_base_scores = {}
-            if len(self._vector_slot_score_cache) >= self._VECTOR_SLOT_CACHE_MAX:
-                # FIFO eviction: drop the oldest entry. dict
-                # iteration order is insertion order in Python 3.7+,
-                # so next(iter(...)) is the oldest key.
-                oldest = next(iter(self._vector_slot_score_cache))
-                del self._vector_slot_score_cache[oldest]
-            self._vector_slot_score_cache[slot_cache_key] = slot_base_scores
 
         # wyrd-izcr: pick a struct, flatten to positions + qualifier
         # flags, attempt the per-slot score+sample. On failure (empty
@@ -1511,23 +1036,11 @@ class NameGenerator:
         # samples from. ``permissive`` is threaded through for the wyrd-tbke
         # graceful-degradation fallback below.
         def _score(candidate_struct, *, permissive):
-            candidate_positions: list[str] = []
-            candidate_qualifiers: list[str | None] = []
-            candidate_bucket_keys: list[tuple] = []
-            for word in candidate_struct:
-                for key in word:
-                    candidate_positions.append(key[0])
-                    if "name" in key:
-                        candidate_qualifiers.append("name")
-                    elif "saint" in key:
-                        candidate_qualifiers.append("saint")
-                    else:
-                        candidate_qualifiers.append(None)
-                    candidate_bucket_keys.append(key)
+            positions, qualifiers, bucket_keys = _flatten_struct_slots(candidate_struct)
             return select_via_vector_scoring(
                 rng,
                 self.meaning_db,
-                structure=candidate_positions,
+                structure=positions,
                 request=request,
                 priors=priors,
                 era_midpoint=era_midpoint,
@@ -1537,91 +1050,126 @@ class NameGenerator:
                 pack_meaning_dbs=pack_meaning_dbs,
                 non_position_eligible=non_position_eligible,
                 slot_base_scores=slot_base_scores,
-                slot_qualifiers=candidate_qualifiers,
-                slot_bucket_keys=candidate_bucket_keys,
+                slot_qualifiers=qualifiers,
+                slot_bucket_keys=bucket_keys,
                 usage_frequency_by_bucket=self.usage_frequency_by_bucket,
+                novelty=novelty,
                 permissive=permissive,
             )
 
-        struct = None
-        picked: list = []
+        struct, picked = self._pick_struct_via_vector(rng, items, _score)
+        if struct is None:
+            # No struct is fully satisfiable AND even the permissive fallback
+            # filled nothing (or the bundle is structure-less): genuinely no
+            # eligible name. Return None so the caller raises its operator-visible
+            # diagnostic — an all-empty name is useless, and proportions only ever
+            # emits an empty name in this same degenerate case.
+            return None
+        words = _reconstruct_words(struct, picked)
+
+        new_name = NewName(struct, self.meaning_db, words)
+        # wyrd-nbpw/6c8x: post-pick rendering — era-form (feature A) or the D8
+        # inflection / D18 spelling-variant substitution — applied via
+        # _apply_render. Default generation (all knobs 0, no era) stays
+        # bit-stable: _apply_render is a no-op that leaves new_name.rendered None.
+        self._apply_render(rng, new_name, spelling_variety, inflection_density, era_render_language)
+        return new_name
+
+    def _vector_caches(
+        self,
+        request,
+        exclude_tags_fz: frozenset[str],
+        pack_meaning_dbs: dict | None,
+        include_unglossed: bool,
+        era_midpoint: int,
+        priors,
+    ) -> tuple[list, dict]:
+        """Get-or-build the cached non-position eligibility pool + per-slot
+        base-score map for one vector dispatch.
+
+        The eligibility cache key folds every filter that affects pool
+        membership (era / stratum / exclude-tags / pack overlays via the
+        ``request.packs`` tuple + ``id(pack_meaning_dbs)`` / include_unglossed).
+        The slot-base-score cache adds the request signature, era_midpoint, and
+        ``id(priors)`` — sub-seeds within one dispatch share it and lazy-fill the
+        slot_position → base_scored map. Bounded FIFO eviction keeps the slot
+        cache from growing unbounded over a warm-Lambda lifetime."""
+        from wyrd.generators.kenning.runtime.vector_name_select import (
+            build_non_position_eligible,
+            request_signature,
+        )
+
+        gate = request.gate
+        cache_key = (
+            gate.era_min,
+            gate.era_max,
+            gate.stratum,
+            exclude_tags_fz,
+            request.packs,
+            id(pack_meaning_dbs),
+            include_unglossed,
+        )
+        non_position_eligible = self._vector_eligible_cache.get(cache_key)
+        if non_position_eligible is None:
+            non_position_eligible = build_non_position_eligible(
+                self.meaning_db,
+                gate=gate,
+                exclude_tags=exclude_tags_fz,
+                pack_meaning_dbs=pack_meaning_dbs,
+                packs=request.packs,
+                culture_attested_usages=self.culture_attested_usages,
+                culture_attested_meanings=self.culture_attested_meanings,
+                include_unglossed=include_unglossed,
+            )
+            self._vector_eligible_cache[cache_key] = non_position_eligible
+
+        slot_cache_key = (cache_key, request_signature(request), era_midpoint, id(priors))
+        slot_base_scores = self._vector_slot_score_cache.get(slot_cache_key)
+        if slot_base_scores is None:
+            slot_base_scores = {}
+            if len(self._vector_slot_score_cache) >= self._VECTOR_SLOT_CACHE_MAX:
+                # FIFO eviction: dict iteration order is insertion order in
+                # Python 3.7+, so next(iter(...)) is the oldest key.
+                oldest = next(iter(self._vector_slot_score_cache))
+                del self._vector_slot_score_cache[oldest]
+            self._vector_slot_score_cache[slot_cache_key] = slot_base_scores
+        return non_position_eligible, slot_base_scores
+
+    def _pick_struct_via_vector(self, rng, items, score_fn):
+        """wyrd-izcr: pick a satisfiable struct + its per-slot picks. Draw a
+        struct (weighted) and score it; on failure (empty qualifier-restricted
+        pool, or all-zero scores in a qualifier slot) retry with a DIFFERENT
+        struct — failed candidates are excluded from the next draw so retries
+        can't converge on the same unsatisfiable struct, bounded so a
+        pathologically restrictive gate doesn't burn time.
+
+        Returns ``(struct, picked)`` on a full pick. If no struct is fully
+        satisfiable, falls back to wyrd-tbke graceful degradation: pick a struct
+        (weighted) and fill what it can, emitting ``None`` for slots whose gated
+        pool is empty (NewName drops them → a shorter name). Returns
+        ``(None, [])`` only when there is genuinely nothing to emit — a
+        structure-less bundle, or a gate that excludes every morpheme at every
+        slot — so the caller raises its operator-visible diagnostic."""
         tried: set = set()
         for _attempt in range(_VECTOR_STRUCT_RETRY_LIMIT):
             remaining = [it for it in items if it[0] not in tried]
             if not remaining:
-                # Exhausted the distinct structure pool — fall through to the
-                # graceful-degradation fallback (don't raise).
-                break
+                break  # exhausted the distinct structure pool → degrade below
             candidate_struct = weighted_choice(rng, remaining)
             if candidate_struct is None:
                 break
             tried.add(candidate_struct)
-            picked = _score(candidate_struct, permissive=False)
+            picked = score_fn(candidate_struct, permissive=False)
             if picked:
-                struct = candidate_struct
-                break
+                return candidate_struct, picked
 
-        if struct is None:
-            # wyrd-tbke empty-pick PARITY: no struct is FULLY satisfiable under
-            # the gates (era / stratum / tag / qualifier). Rather than return
-            # None (→ the caller's loud "no eligible name" raise), degrade
-            # gracefully like the legacy proportions ``_select_no_tag`` path —
-            # pick a struct (weighted, as proportions does) and fill what we
-            # can, emitting ``None`` for slots whose gated pool is empty
-            # (NewName drops them → a shorter name). Only a genuinely
-            # structure-less bundle (nothing to draw) still returns None, which
-            # preserves the legitimate bundle-broken raise.
-            candidate_struct = weighted_choice(rng, items)
-            if candidate_struct is None:
-                return None
-            picked = _score(candidate_struct, permissive=True)
-            if not any(p is not None for p in picked):
-                # Even permissive filled NOTHING — the gate excludes every
-                # morpheme at every slot. Genuinely no eligible name: return
-                # None so the caller raises its operator-visible diagnostic (an
-                # all-empty name is useless, and proportions only ever emits an
-                # empty name in this same degenerate case). The PARTIAL case —
-                # some slots fillable, some empty — falls through to the
-                # degraded NewName below, matching the proportions contract.
-                return None
-            struct = candidate_struct
-
-        # Reconstruct the words list-of-lists from the flat picks,
-        # matching the original struct's word-grouping shape so the
-        # NewName surfaces with the same word-boundary semantics as
-        # the legacy path.
-        #
-        # wyrd-g1hj: render each pick at its SLOT-derived position (the eyjk
-        # position-form), NOT the stored dash-variant. Pre-fix the vector path
-        # emitted ``picked.usage`` (e.g. ``gōs-`` / ``tōn-`` / ``Grange-`` /
-        # ``-tre-``), so the morpheme breakdown showed nonsensical positions
-        # (two ``pre`` in ``Gōstōn``, a lone ``pre`` ``Grange-``, ``-tre-``
-        # inner-at-word-start) while the rendered NAME was fine. The proportions
-        # path already feeds position-forms to NewName; this brings the vector
-        # path into line — slot position is ``slot[0]``; NewName still strips
-        # dashes + applies word-initial case for the rendered name.
-        words: list[list[str | None]] = []
-        idx = 0
-        for word in struct:
-            word_keys: list[str | None] = []
-            for slot in word:
-                # wyrd-tbke: a permissive-fallback pick may be None (slot whose
-                # gated pool was empty) — pass it straight through as a dropped
-                # slot, matching the proportions path's None slots; NewName
-                # skips None elements when rendering.
-                pick = picked[idx]
-                word_keys.append(_position_form(pick, slot[0]) if pick is not None else None)
-                idx += 1
-            words.append(word_keys)
-
-        new_name = NewName(struct, self.meaning_db, words)
-        # wyrd-nbpw/6c8x: post-pick rendering — era-form (feature A) or the D8
-        # inflection / D18 spelling-variant substitution — shared with the
-        # legacy proportions select() via _apply_render so both scoring paths
-        # render identically. Default generation (all knobs 0, no era) stays
-        # bit-stable: _apply_render is a no-op that leaves new_name.rendered None.
-        self._apply_render(rng, new_name, spelling_variety, inflection_density, era_render_language)
-        return new_name
+        candidate_struct = weighted_choice(rng, items)
+        if candidate_struct is None:
+            return None, []
+        picked = score_fn(candidate_struct, permissive=True)
+        if not any(p is not None for p in picked):
+            return None, []
+        return candidate_struct, picked
 
     def _render_substitutions(self, rng, name, spelling_variety, inflection_density):
         """Walk the picked usages and produce two parallel lists: surface
@@ -1693,7 +1241,7 @@ class NameGenerator:
     def _apply_render(
         self, rng, new_name, spelling_variety, inflection_density, era_render_language
     ):
-        """Post-pick render dispatch, shared by select() and select_via_vector().
+        """Post-pick render dispatch, used by select_via_vector().
 
         Precedence (wyrd-6c8x): when an era render-language is set, render each
         morpheme in its era-appropriate attested form — the era reflex IS the
@@ -1750,287 +1298,6 @@ class NameGenerator:
                 word_rendered.append(_mimic_case(usage, form) if form else None)
             rendered.append(word_rendered)
         return rendered
-
-    def _select_no_tag(
-        self,
-        rng,
-        struct,
-        *,
-        novelty: float = 0.0,
-        harshness: float = 0.0,
-        exclude_tags: tuple[str, ...] = (),
-        keep_keys: frozenset[str] | None = None,
-        cohesion: float = 0.0,
-    ):
-        words = []
-        prior_tags: set[str] = set()
-        # wyrd-a4p5 / wyrd-gzvr: track the most-recently-picked SURFACE
-        # FORM (dash-stripped, lowercased) so adjacent slots don't
-        # dupe — 'North North' / 'Bridge Bridge' / 'Portes Portes'
-        # surface when independent buckets each contain a key that
-        # renders to the same surface. Comparing bucket keys directly
-        # misses cross-bucket dupes: '-bridge' (post-slot key) and
-        # '-bridge-' (infix-slot key) are different keys with the same
-        # render. The exclude_keys filter expands per-slot to all
-        # bucket keys whose stripped-lowercased form matches the
-        # previous surface. Fallback: if the dedup empties the
-        # eligible bucket, sample without it and accept the dupe.
-        prev_surface: str | None = None
-        for w in struct:
-            keys = []
-            for key in w:
-                key_boost = self._cohesion_boost(key, prior_tags, cohesion, keep_keys=keep_keys)
-                exclude_for_dedup = (
-                    _bucket_keys_matching_surface(self.meaning_gen.bucket_keys(key), prev_surface)
-                    if prev_surface is not None
-                    else None
-                )
-                picked = self.meaning_gen.select(
-                    rng,
-                    key,
-                    novelty=novelty,
-                    harshness=harshness,
-                    exclude_tags=exclude_tags,
-                    exclude_keys=exclude_for_dedup,
-                    keep_keys=keep_keys,
-                    key_boost=key_boost,
-                )
-                if picked is None and exclude_for_dedup:
-                    # Dedup-filter emptied the eligible bucket — sample
-                    # without it. Better to ship a dupe once than crash
-                    # on a single-surface bucket post-dedup.
-                    picked = self.meaning_gen.select(
-                        rng,
-                        key,
-                        novelty=novelty,
-                        harshness=harshness,
-                        exclude_tags=exclude_tags,
-                        keep_keys=keep_keys,
-                        key_boost=key_boost,
-                    )
-                keys.append(picked)
-                if picked is not None:
-                    prior_tags.update(self._tags_for_usage(picked))
-                    prev_surface = picked.replace("-", "").lower()
-            words.append(keys)
-        return NewName(struct, self.meaning_db, words)
-
-    def _select_tags(
-        self,
-        rng,
-        struct,
-        *tags,
-        novelty: float = 0.0,
-        harshness: float = 0.0,
-        exclude_tags: tuple[str, ...] = (),
-        keep_keys: frozenset[str] | None = None,
-        cohesion: float = 0.0,
-    ):
-        name_pool = [
-            self._select_no_tag(
-                rng,
-                struct,
-                novelty=novelty,
-                harshness=harshness,
-                exclude_tags=exclude_tags,
-                keep_keys=keep_keys,
-                cohesion=cohesion,
-            )
-        ]
-        for tag in tags:
-            name_pool.append(
-                self._select_tag(
-                    rng,
-                    struct,
-                    tag,
-                    novelty=novelty,
-                    harshness=harshness,
-                    exclude_tags=exclude_tags,
-                    keep_keys=keep_keys,
-                    cohesion=cohesion,
-                )
-            )
-        words = []
-        # wyrd-a4p5: track the most-recently-picked usage across the
-        # merged pools so the per-slot rng.choice doesn't produce
-        # adjacent dupes ('port port' / 'les les'). Three re-roll
-        # attempts on tied pools; accept the dupe if the pool only
-        # contains the dupe.
-        prev_picked: str | None = None
-        for i in range(len(struct)):
-            keys = []
-            for j in range(len(struct[i])):
-                pool = []
-                for elem in name_pool:
-                    e = elem.name[i][j]
-                    if e:
-                        pool.append(e)
-                if not pool:
-                    keys.append(None)
-                    continue
-                # rng.choice always returns a usage; the loop's job is
-                # to retry up to 3 times if it's an adjacent dupe of
-                # the previous slot's pick. After the loop the latest
-                # picked stands either way (3rd-attempt dupe accepted
-                # rather than infinite-loop on a single-element pool).
-                for _ in range(3):
-                    picked = rng.choice(pool)
-                    if picked != prev_picked:
-                        break
-                keys.append(picked)
-                prev_picked = picked
-            words.append(keys)
-        return NewName(struct, self.meaning_db, words)
-
-    def _select_tag(
-        self,
-        rng,
-        struct,
-        tag,
-        *,
-        novelty: float = 0.0,
-        harshness: float = 0.0,
-        exclude_tags: tuple[str, ...] = (),
-        keep_keys: frozenset[str] | None = None,
-        cohesion: float = 0.0,
-    ):
-        words = []
-        prior_tags: set[str] = set()
-        # wyrd-gzvr: mirror the surface-form anti-dup from _select_no_tag
-        # so the multi-tag generation path (--tag X) doesn't surface
-        # adjacent-duplicate words either. Same algorithm: track
-        # prev_surface, expand to all bucket keys matching that
-        # surface, exclude them from the next pick; fall back when
-        # the exclusion empties the eligible bucket.
-        prev_surface: str | None = None
-        for w in struct:
-            keys = []
-            for key in w:
-                key_boost = self._cohesion_boost(key, prior_tags, cohesion, keep_keys=keep_keys)
-                exclude_for_dedup = (
-                    _bucket_keys_matching_surface(self.meaning_gen.bucket_keys(key), prev_surface)
-                    if prev_surface is not None
-                    else None
-                )
-                picked = self.meaning_gen.select(
-                    rng,
-                    key,
-                    tag,
-                    novelty=novelty,
-                    harshness=harshness,
-                    exclude_tags=exclude_tags,
-                    exclude_keys=exclude_for_dedup,
-                    keep_keys=keep_keys,
-                    key_boost=key_boost,
-                )
-                if picked is None and exclude_for_dedup:
-                    picked = self.meaning_gen.select(
-                        rng,
-                        key,
-                        tag,
-                        novelty=novelty,
-                        harshness=harshness,
-                        exclude_tags=exclude_tags,
-                        keep_keys=keep_keys,
-                        key_boost=key_boost,
-                    )
-                keys.append(picked)
-                if picked is not None:
-                    prior_tags.update(self._tags_for_usage(picked))
-                    prev_surface = picked.replace("-", "").lower()
-            words.append(keys)
-        return NewName(struct, self.meaning_db, words)
-
-    def _tags_for_usage(self, usage: str) -> set[str]:
-        """Union of tags across every Meaning sharing one usage. Used to
-        accumulate the prior-context tag set as the cohesion walk fills
-        in slots."""
-        out: set[str] = set()
-        for m in _resolve_surface(self.meaning_db, usage):
-            out.update(m.tags)
-        return out
-
-    def _cohesion_boost(
-        self,
-        bucket_key,
-        prior_tags: set[str],
-        cohesion: float,
-        keep_keys: frozenset[str] | None = None,
-    ) -> dict[str, float] | None:
-        """Per-key multiplier for the bucket given the prior-context tag
-        set. None means 'no boost' — taken on the bit-stable fast path
-        (cohesion=0, no prior tags yet, no co-occurrence data, or no
-        candidate carries any tag).
-
-        ``keep_keys`` (D5-2 era filter) restricts the normalization
-        denominator to the surviving subset of the bucket — without it,
-        the mean would be computed over candidates that ``Generator.select``
-        is about to drop, and the surviving subset's effective mean
-        would drift from 1.0. None means 'no era filter applied' (use
-        the full bucket).
-
-        The boost is normalized so the surviving subset's mean
-        multiplier at cohesion=1 is ~1.0 (preserves total mass): a
-        candidate with average class-conditional likelihood gets ~1×,
-        the strongest gets >1×, the weakest <1×. Composes orthogonally
-        with novelty (uniform-marginal blend) and harshness
-        (phonological re-weight) — both apply downstream in
-        Generator.select.
-        """
-        if cohesion <= 0 or not prior_tags or not self.tag_cooccurrence:
-            return None
-        candidates = self.meaning_gen.bucket_keys(bucket_key)
-        if keep_keys is not None:
-            candidates = tuple(c for c in candidates if c in keep_keys)
-        if not candidates:
-            return None
-        raw_scores: dict[str, float] = {}
-        for usage in candidates:
-            cand_tags = self._tags_for_usage(usage)
-            raw_scores[usage] = self._raw_class_score(prior_tags, cand_tags)
-        nonzero_count = sum(1 for s in raw_scores.values() if s > 0)
-        if nonzero_count == 0:
-            return None
-        total_raw = sum(raw_scores.values())
-        mean_raw = total_raw / len(raw_scores)
-        # Multiplier composition: at cohesion=1, candidates with average
-        # class likelihood get ×1; above-average get >1, below-average
-        # get <1. At cohesion=0 we'd return None (handled above) so the
-        # downstream path is bit-stable.
-        return {
-            usage: (1 - cohesion) + cohesion * (raw / mean_raw) for usage, raw in raw_scores.items()
-        }
-
-    def _raw_class_score(self, prior_tags: set[str], candidate_tags: set[str]) -> float:
-        """Sum of P(tb | ta) over (ta in prior, tb in candidate) using
-        the empirical bigram statistics. Zero when no candidate tag was
-        ever observed following any prior tag in the corpus.
-
-        Sum (rather than mean) is intentional: a candidate carrying many
-        tags that each separately co-occur with the prior context is a
-        stronger match than one carrying a single moderately-cooccurring
-        tag. This biases toward semantically rich morphemes when prior
-        slots have set strong context.
-
-        Iteration is sorted on both axes — set iteration order is
-        hash-randomized across PYTHONHASHSEED, and float += is
-        non-associative. Without sorting, the same input data produces
-        ULP-level different scores across processes, which can flip
-        weighted_choice outcomes at boundaries. Locking iteration order
-        keeps the cohesion path bit-stable across runs.
-        """
-        if not prior_tags or not candidate_tags:
-            return 0.0
-        score = 0.0
-        for ta in sorted(prior_tags):
-            ma = self.tag_marginal.get(ta, 0)
-            if ma == 0:
-                continue
-            for tb in sorted(candidate_tags):
-                count = self.tag_cooccurrence.get(f"{ta}|{tb}", 0)
-                if count:
-                    score += count / ma
-        return score
 
 
 class NewName:
@@ -2092,12 +1359,6 @@ class NewName:
             return  # nothing to resolve siblings against (e.g. render-only tests)
         from wyrd.generators.kenning import _rank_siblings
 
-        # Meaning.sources is normally a {lang: [forms]} dict, but synthetic
-        # Meanings (some tests) pass a bare list — treat a non-dict as "no
-        # language data" so diversification simply no-ops there.
-        def _langs(m) -> set[str]:
-            return set(m.sources.keys()) if isinstance(getattr(m, "sources", None), dict) else set()
-
         # wyrd-72q9: stable per-name signature for varied-but-deterministic
         # re-picks (hash the name, NOT the rng, so it stays seed-stable).
         name_sig = "|".join("/".join(c for c in w if c) for w in self.name)
@@ -2111,36 +1372,59 @@ class NewName:
                 fold = surface.replace("-", "").lower()
                 siblings = _rank_siblings(_resolve_surface(self.meaning_db, usage))
                 canon = siblings[0] if siblings else None
-                canon_langs = _langs(canon) if canon else set()
                 if fold not in seen:
-                    seen[fold] = set(canon_langs)
+                    seen[fold] = self._meaning_langs([canon]) if canon else set()
                     continue
-                # Repeat. Prefer a same-meaning synonym in another language
-                # ("Hill Hill" → "Hill Haeth"). If none exists, REJECT the
-                # repeat and re-pick a DIFFERENT same-position morpheme
-                # ("Park ... Park" → "Park ... <other>") — wyrd-72q9.
-                alt = self._cross_lang_synonym(canon, siblings, seen[fold] | canon_langs)
-                if alt is not None:
-                    sib, lang, form = alt
-                    lead = usage[: len(usage) - len(usage.lstrip("-"))]
-                    trail = usage[len(usage.rstrip("-")) :]
-                    grafted = f"{lead}{form.strip('-')}{trail}"
-                    if self.rendered is None:
-                        self.rendered = [[None] * len(w) for w in self.name]
-                    self.rendered[wi][ei] = grafted
-                    self._lang_override[wi][ei] = sib
-                    seen.setdefault(form.strip("-").lower(), set()).add(lang)
-                    continue
-                repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
-                if repl is not None:
-                    self.name[wi][ei] = repl
-                    if self.rendered is not None:
-                        self.rendered[wi][ei] = None
-                    if self.inflection_labels is not None:
-                        self.inflection_labels[wi][ei] = None
-                    repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
-                    seen[repl.strip("-").lower()] = _langs(repl_sibs[0]) if repl_sibs else set()
-                # else: nothing else of this position available → leave the dupe.
+                # Repeat: resolve it (cross-language synonym → re-pick → leave).
+                self._resolve_repeat(wi, ei, usage, fold, canon, siblings, seen, name_sig)
+
+    def _resolve_repeat(self, wi, ei, usage, fold, canon, siblings, seen, name_sig) -> None:
+        """Resolve one repeated surface (wyrd-vd6y / wyrd-72q9): prefer a
+        same-meaning synonym in a DIFFERENT language ("Hill Hill" → "Hill Haeth",
+        a render override); else re-pick a DIFFERENT same-position morpheme
+        ("Park ... Park" → "Park ... <other>", replacing the name key); else
+        leave the duplicate. Updates ``seen`` in place with whatever fold /
+        language the resolution introduces. Deterministic — no rng."""
+        from wyrd.generators.kenning import _rank_siblings
+
+        canon_langs = self._meaning_langs([canon]) if canon else set()
+        alt = self._cross_lang_synonym(canon, siblings, seen[fold] | canon_langs)
+        if alt is not None:
+            sib, lang, form = alt
+            lead = usage[: len(usage) - len(usage.lstrip("-"))]
+            trail = usage[len(usage.rstrip("-")) :]
+            grafted = f"{lead}{form.strip('-')}{trail}"
+            if self.rendered is None:
+                self.rendered = [[None] * len(w) for w in self.name]
+            self.rendered[wi][ei] = grafted
+            self._lang_override[wi][ei] = sib
+            seen.setdefault(form.strip("-").lower(), set()).add(lang)
+            return
+        repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
+        if repl is not None:
+            self.name[wi][ei] = repl
+            if self.rendered is not None:
+                self.rendered[wi][ei] = None
+            if self.inflection_labels is not None:
+                self.inflection_labels[wi][ei] = None
+            repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
+            seen[repl.strip("-").lower()] = (
+                self._meaning_langs([repl_sibs[0]]) if repl_sibs else set()
+            )
+        # else: nothing else of this position available → leave the dupe.
+
+    @staticmethod
+    def _meaning_langs(meanings) -> set[str]:
+        """Union of source-languages across ``meanings``. Meaning.sources is
+        normally a ``{lang: [forms]}`` dict, but synthetic Meanings (some tests)
+        pass a bare list — a non-dict contributes no languages, so diversification
+        simply no-ops there."""
+        return {
+            lang
+            for m in meanings
+            if isinstance(getattr(m, "sources", None), dict)
+            for lang in m.sources
+        }
 
     @staticmethod
     def _cross_lang_synonym(canon, siblings, exclude_langs):
@@ -2178,40 +1462,69 @@ class NewName:
         when nothing appropriate is available (then the dupe is left as-is)."""
         import hashlib
 
-        def _pos(u: str) -> tuple[bool, bool]:
-            return (u.startswith("-"), u.endswith("-"))
-
-        def _langs_of(ms) -> set[str]:
-            out: set[str] = set()
-            for m in ms:
-                if isinstance(getattr(m, "sources", None), dict):
-                    out |= set(m.sources.keys())
-            return out
-
-        want = _pos(usage)
-        canon_langs = _langs_of([canon]) if canon is not None else set()
+        want = self._position_markers(usage)
+        canon_langs = self._meaning_langs([canon]) if canon is not None else set()
         canon_tags = set(getattr(canon, "tags", []) or [])
-
-        same_lang: list[str] = []
-        tag_sharing: list[str] = []
-        for k, ms in self.meaning_db.items():
-            if not isinstance(k, str) or _pos(k) != want:
-                continue
-            kf = k.strip("-").lower()
-            if not kf or kf in seen_folds:
-                continue
-            # Keep the same language family (skip the filter only when the
-            # original carries no language data, e.g. synthetic test Meanings).
-            if canon_langs and not (_langs_of(ms) & canon_langs):
-                continue
-            same_lang.append(k)
-            if canon_tags and ({t for m in ms for t in getattr(m, "tags", [])} & canon_tags):
-                tag_sharing.append(k)
+        same_lang, tag_sharing = self._collect_repick_pools(
+            want, seen_folds, canon_langs, canon_tags
+        )
         pool = sorted(tag_sharing) or sorted(same_lang)
         if not pool:
             return None
         h = int(hashlib.md5(f"{name_sig}#{wi}.{ei}".encode()).hexdigest(), 16)
         return pool[h % len(pool)]
+
+    @staticmethod
+    def _position_markers(usage: str) -> tuple[bool, bool]:
+        """Position signature of a bucket key: (has-leading-dash, has-trailing-
+        dash) — distinguishes pre 'X-' / post '-X' / inner '-X-' / bare 'X'."""
+        return (usage.startswith("-"), usage.endswith("-"))
+
+    def _collect_repick_pools(self, want, seen_folds, canon_langs, canon_tags):
+        """Scan meaning_db for same-position re-pick candidates (wyrd-72q9):
+        same position as ``want``, not already used (``seen_folds``), and sharing
+        a SOURCE LANGUAGE with the original (the language filter is skipped only
+        when the original carries no language data, e.g. synthetic test
+        Meanings). Returns ``(same_lang, tag_sharing)`` — ``tag_sharing`` is the
+        subset additionally sharing a thematic tag with the original.
+
+        wyrd-57d8: a candidate key is admitted only if at least one of its
+        senses is base-pool-eligible (``not Meaning.is_base_pool_excluded()``) —
+        the SAME class exclusion the scored native pool applies. Without it this
+        re-pick read ``meaning_db`` raw and could break a ``corner corner``
+        repeat by grafting in a synthesized proper-noun subject the base pool
+        would never have picked (the manorial ``Malet`` leak: bare, old_french,
+        so it passed the position + source-language filters)."""
+        same_lang: list[str] = []
+        tag_sharing: list[str] = []
+        # Localize the staticmethod lookups — this loop scans the whole
+        # meaning_db (thousands of buckets), so per-iteration self. attribute
+        # resolution is measurable overhead.
+        pos_markers = self._position_markers
+        meaning_langs = self._meaning_langs
+        for k, ms in self.meaning_db.items():
+            if not isinstance(k, str) or pos_markers(k) != want:
+                continue
+            kf = k.strip("-").lower()
+            if not kf or kf in seen_folds:
+                continue
+            # Drop keys whose every sense is a base-pool-excluded class
+            # (synthesized saint / manorial subjects, connector particles): they
+            # belong only in their dedicated slots, never a base re-pick. A key
+            # keeps eligibility as long as one co-tagged place sense survives.
+            # (Synthetic non-Meaning test entries carry no class, so an all-
+            # synthetic key is left admissible.)
+            senses = [m for m in ms if isinstance(m, Meaning)]
+            if senses and all(m.is_base_pool_excluded() for m in senses):
+                continue
+            if canon_langs and not (meaning_langs(ms) & canon_langs):
+                continue
+            same_lang.append(k)
+            if canon_tags and (
+                {t for m in ms for t in getattr(m, "tags", None) or []} & canon_tags
+            ):
+                tag_sharing.append(k)
+        return same_lang, tag_sharing
 
     def __str__(self):
         # wyrd-3xdb: title-case the first letter of each space-
@@ -2373,122 +1686,106 @@ class NewName:
         stays available to downstream consumers that need it via
         their own meaning_db lookup using ``usage``.
         """
-        # wyrd-o53o + wyrd-ywm9 + wyrd-emlb: rank siblings (drop
-        # modern_english homographs, prioritize older strata) and
-        # split semantic vs derivative glosses. Lazy-import to avoid
-        # a circular dep with wyrd.generators.kenning.__init__ at
-        # module load — to_dict is called per roll, so the import is
-        # paid once after Python caches sys.modules.
-        from wyrd.generators.kenning import (
-            _all_senses,
-            _meaning_groups,
-            _rank_siblings,
-            _split_senses_for_display,
-        )
-
         self._ensure_diversified()
         words: list[list[dict]] = []
         for wi, word in enumerate(self.name):
-            morphemes: list[dict] = []
-            for ei, e in enumerate(word):
-                if e is None:
-                    continue
-                # wyrd-vd6y: a diversified repeat ("Hill Hill" → "Hill Haeth")
-                # uses its override sibling — a different-language synonym — for
-                # BOTH the displayed surface and the etymology, so the breakdown
-                # matches the rendered name instead of showing the original
-                # repeated morpheme.
-                override = self._lang_override[wi][ei] if self._lang_override else None
-                if override is not None:
-                    ranked = [override]
-                    usage_str = (self.rendered[wi][ei] if self.rendered else None) or e
-                else:
-                    ranked = _rank_siblings(_resolve_surface(self.meaning_db, e))
-                    usage_str = e
-                first = ranked[0] if ranked else None
-                morpheme: dict = {"usage": usage_str}
-                if first is not None:
-                    # Sources stay from the top-ranked sibling (the
-                    # canonical etymon for THIS surface form). Tags
-                    # union across all ranked siblings — same as the
-                    # explainer (wyrd-ywm9). Meanings split into
-                    # primary + derivative for the SPA card layout.
-                    morpheme["sources"] = {
-                        lang: list(forms) for lang, forms in first.sources.items()
-                    }
-                    morpheme["tags"] = list(dict.fromkeys(t for m in ranked for t in m.tags))
-                    primary, derivative = _split_senses_for_display(_all_senses(ranked))
-                    morpheme["meanings"] = primary
-                    morpheme["derivative_meanings"] = derivative
-                    # wyrd-0y3k: per-sibling, deduped sense groups so the SPA
-                    # can show the senses visually separated (the flat
-                    # `meanings` above stays for back-compat / other consumers).
-                    groups = _meaning_groups(ranked)
-                    if groups:
-                        morpheme["meaning_groups"] = groups
-                    # wyrd-cp2d round 3: pronunciation + cross-script
-                    # renderings (wyrd-ha9q's original_script /
-                    # transliteration / english_shaped / IPA) so the
-                    # JSON continuity flow carries the same panel data
-                    # ``components()`` exposes to the SPA. Sparse by
-                    # design — only emit the field when the
-                    # _collect_renderings dict isn't empty so Latin-
-                    # script-only morphemes don't carry a noisy '{}'.
-                    # wyrd-o53o: renderings drawn from the ranked
-                    # siblings (so dropped modern_english entries
-                    # don't contribute spurious pronunciation /
-                    # transliteration data).
-                    renderings = _collect_renderings(ranked)
-                    if renderings:
-                        morpheme["renderings"] = renderings
-                    # wyrd-bvwu: carry the morpheme's scholarly citations
-                    # (source_ids, wyrd-9kh.1) so the SPA inspector can
-                    # surface them in an expandable view. Sparse — only
-                    # when non-empty — matching renderings, so rando-port-
-                    # only morphemes don't carry an empty list. components()
-                    # already exposes this; to_dict (morphemes_by_word, what
-                    # the cards iterate) didn't until now.
-                    citations = _collect_citations(ranked)
-                    if citations:
-                        morpheme["citations"] = citations
-                    # wyrd-lftl: per-morpheme family × era reflex grid for the
-                    # SPA col-3 inspector. Sparse — only when the etymon carries
-                    # era_reflexes (coverage gap tracked in wyrd-32t1).
-                    # wyrd-rogd.10 Phase 3: resolve the grid against the UNIFIED
-                    # morpheme by its stable id — morpheme_id is now authoritative
-                    # (Phase 2's keying is live in the bundle), so the dash-strip
-                    # string-derivation FALLBACK is retired here. A surface with
-                    # no/unresolvable morpheme_id (un-attributable, e.g. -'s) isn't
-                    # a morpheme and gets no grid (_era_grid(None) → []). NOTE:
-                    # _resolve_surface stays the generation MATCHER (tags /
-                    # siblings / location); only the era-grid stops using string-
-                    # derivation. (The design's 'delete _resolve_surface' was
-                    # over-stated — the matcher is load-bearing and must stay.)
-                    morpheme_meaning = _resolve_morpheme(
-                        self.meaning_db, getattr(first, "morpheme_id", None)
-                    )
-                    grid = _era_grid(morpheme_meaning, renderings)
-                    if grid:
-                        morpheme["era_grid"] = grid
-                # D18 variant / D8 inflection / era substitute if present
-                if self.rendered is not None and self.rendered[wi][ei] is not None:
-                    era_form = self.rendered[wi][ei]
-                    morpheme["rendered"] = era_form
-                    # wyrd-mf2u: for an ERA render, carry the era language + the
-                    # era form's OWN pronunciation so the breakdown shows the
-                    # period form (matching the name) alongside the modern
-                    # anchor, instead of the modern surface only.
-                    if self.era_render_language:
-                        morpheme["rendered_language"] = self.era_render_language
-                        pron = _era_pronunciation(
-                            morpheme.get("renderings"), self.era_render_language, era_form, first
-                        )
-                        if pron:
-                            morpheme["rendered_pron"] = pron
-                morphemes.append(morpheme)
+            morphemes = [
+                self._morpheme_to_dict(wi, ei, e) for ei, e in enumerate(word) if e is not None
+            ]
             if morphemes:
                 words.append(morphemes)
         return {"name": str(self), "words": words}
+
+    def _morpheme_to_dict(self, wi: int, ei: int, e) -> dict:
+        """Build one morpheme's breakdown dict for :meth:`to_dict`."""
+        # wyrd-o53o + wyrd-ywm9 + wyrd-emlb: rank siblings (drop modern_english
+        # homographs, prioritize older strata). Lazy-import to avoid a circular
+        # dep with wyrd.generators.kenning.__init__ at module load — called per
+        # morpheme, so the import is paid once after Python caches sys.modules.
+        from wyrd.generators.kenning import _rank_siblings
+
+        # wyrd-vd6y: a diversified repeat ("Hill Hill" → "Hill Haeth") uses its
+        # override sibling — a different-language synonym — for BOTH the displayed
+        # surface and the etymology, so the breakdown matches the rendered name
+        # instead of showing the original repeated morpheme.
+        override = self._lang_override[wi][ei] if self._lang_override else None
+        if override is not None:
+            ranked = [override]
+            usage_str = (self.rendered[wi][ei] if self.rendered else None) or e
+        else:
+            ranked = _rank_siblings(_resolve_surface(self.meaning_db, e))
+            usage_str = e
+        first = ranked[0] if ranked else None
+        morpheme: dict = {"usage": usage_str}
+        if first is not None:
+            self._add_etymology_fields(morpheme, ranked, first)
+        self._add_rendered_fields(morpheme, wi, ei, first)
+        return morpheme
+
+    def _add_etymology_fields(self, morpheme: dict, ranked: list, first) -> None:
+        """Add the etymology fields for the top-ranked sibling ``first``. Sources
+        stay from ``first`` (the canonical etymon for this surface); tags union
+        across all ranked siblings (wyrd-ywm9); meanings split into primary +
+        derivative for the SPA card layout. meaning_groups / renderings /
+        citations / era_grid are sparse — emitted only when non-empty, so
+        Latin-script / rando-port-only morphemes don't carry noisy empties."""
+        # Lazy import (circular-dep avoidance — see _morpheme_to_dict).
+        from wyrd.generators.kenning import (
+            _all_senses,
+            _meaning_groups,
+            _split_senses_for_display,
+        )
+
+        morpheme["sources"] = {lang: list(forms) for lang, forms in first.sources.items()}
+        morpheme["tags"] = list(dict.fromkeys(t for m in ranked for t in m.tags))
+        primary, derivative = _split_senses_for_display(_all_senses(ranked))
+        morpheme["meanings"] = primary
+        morpheme["derivative_meanings"] = derivative
+        # wyrd-0y3k: per-sibling deduped sense groups (the flat `meanings` above
+        # stays for back-compat / other consumers).
+        groups = _meaning_groups(ranked)
+        if groups:
+            morpheme["meaning_groups"] = groups
+        # wyrd-cp2d r3 + wyrd-o53o: cross-script renderings (original_script /
+        # transliteration / english_shaped / IPA) drawn from the ranked siblings,
+        # so dropped modern_english entries don't add spurious data.
+        renderings = _collect_renderings(ranked)
+        if renderings:
+            morpheme["renderings"] = renderings
+        # wyrd-bvwu: scholarly citations (source_ids, wyrd-9kh.1) for the SPA
+        # inspector's expandable view.
+        citations = _collect_citations(ranked)
+        if citations:
+            morpheme["citations"] = citations
+        # wyrd-lftl + wyrd-rogd.10 P3: per-morpheme family × era reflex grid,
+        # resolved against the UNIFIED morpheme by its stable morpheme_id (no
+        # dash-strip string fallback; an un-attributable surface → _era_grid(None)
+        # → [] → no grid).
+        morpheme_meaning = _resolve_morpheme(self.meaning_db, getattr(first, "morpheme_id", None))
+        # wyrd-phww: narrow the present-day stage to the surface this instance
+        # used (morpheme['usage'] — the generated surface for generate, the
+        # decomposed input surface for explain) so the era-grid shows what the
+        # name actually used, not the genuine cluster reflex alone.
+        grid = _era_grid(morpheme_meaning, renderings, own_surface=morpheme.get("usage"))
+        if grid:
+            morpheme["era_grid"] = grid
+
+    def _add_rendered_fields(self, morpheme: dict, wi: int, ei: int, first) -> None:
+        """Add the D18 variant / D8 inflection / era-substitute fields when this
+        slot carries a rendered form. For an ERA render also carry the era
+        language + the era form's OWN pronunciation (wyrd-mf2u), so the breakdown
+        shows the period form alongside the modern anchor."""
+        if self.rendered is None or self.rendered[wi][ei] is None:
+            return
+        era_form = self.rendered[wi][ei]
+        morpheme["rendered"] = era_form
+        if self.era_render_language:
+            morpheme["rendered_language"] = self.era_render_language
+            pron = _era_pronunciation(
+                morpheme.get("renderings"), self.era_render_language, era_form, first
+            )
+            if pron:
+                morpheme["rendered_pron"] = pron
 
     def components(self):
         """Structured component breakdown for the API envelope.
@@ -2562,7 +1859,7 @@ class NewName:
                 morpheme_meaning = _resolve_morpheme(
                     self.meaning_db, getattr(first, "morpheme_id", None)
                 )
-                grid = _era_grid(morpheme_meaning, renderings)
+                grid = _era_grid(morpheme_meaning, renderings, own_surface=usage_str)
                 if grid:
                     morpheme["era_grid"] = grid
                 # wyrd-mf2u: carry the era form + its own pronunciation/language
@@ -2582,10 +1879,6 @@ class NewName:
                             morpheme["rendered_pron"] = pron
                 out.append(morpheme)
         return out
-
-    def _find_meaning(self, meaning):
-        roots = self._roots_str(meaning)
-        return f"{roots} {', '.join(meaning.meanings)}"
 
     def _roots(self, meaning) -> list[str]:
         keys = [
@@ -2660,36 +1953,57 @@ def _collect_renderings(meanings):
     def _ensure(lang_field: str, form: str) -> dict[str, str]:
         return by_lang_form.setdefault(lang_field, {}).setdefault(form, {})
 
-    def _set(slot: dict[str, str], key: str, value: str | None) -> None:
-        # Don't overwrite a previously-stored non-None value with None
-        # (matters when the same usage spans multiple Meanings and one
-        # carries richer data than another for the same canonical form).
-        if value is None:
-            return
-        slot[key] = value
-
+    # wyrd-nrxr: each rendering column is walked by its own per-attribute
+    # helper so this function stays under the C901 ceiling and mirrors the
+    # per-attribute structure of the schema. The three flat columns
+    # (original_script / transliteration / english_shaped) share one helper;
+    # pronunciation carries an ipa/dialect pair so it has its own.
     for m in meanings:
-        for lang_field, forms in m.original_script.items():
-            for form, value in forms.items():
-                _set(_ensure(lang_field, form), "original_script", value)
-        for lang_field, forms in m.transliteration.items():
-            for form, value in forms.items():
-                _set(_ensure(lang_field, form), "transliteration", value)
-        for lang_field, forms in m.english_shaped.items():
-            for form, value in forms.items():
-                _set(_ensure(lang_field, form), "english_shaped", value)
-        for lang_field, forms in m.pronunciation.items():
-            for form, pron in forms.items():
-                slot = _ensure(lang_field, form)
-                _set(slot, "ipa", pron.get("ipa"))
-                _set(slot, "dialect", pron.get("dialect"))
+        _ingest_flat_rendering(m, "original_script", _ensure)
+        _ingest_flat_rendering(m, "transliteration", _ensure)
+        _ingest_flat_rendering(m, "english_shaped", _ensure)
+        _ingest_pronunciation_rendering(m, _ensure)
     # wyrd-03cx: derive reader_pronunciation from ipa when no hand-
-    # curated english_shaped value already filled the slot. Extracted
-    # to a helper to keep _collect_renderings under the C901 ceiling
-    # (the per-Meaning loop above already pushed cyclomatic close to
-    # threshold pre-PR; the fallback walk adds a nested loop + branch).
+    # curated english_shaped value already filled the slot.
     _fill_reader_pronunciations(by_lang_form)
     return by_lang_form
+
+
+def _set_rendering_slot(slot: dict[str, str], key: str, value: str | None) -> None:
+    """Store a rendering value into ``slot[key]``, but never overwrite a
+    previously-stored non-None value with None — matters when the same usage
+    spans multiple Meanings and one carries richer data than another for the
+    same canonical form (most importantly the ipa/dialect pair)."""
+    if value is None:
+        return
+    slot[key] = value
+
+
+def _ingest_flat_rendering(
+    meaning,
+    attr: str,
+    ensure: Callable[[str, str], dict[str, str]],
+) -> None:
+    """Copy one flat ``dict[lang_field][form] = value`` rendering column
+    (original_script / transliteration / english_shaped) into the slots.
+    The attribute name doubles as the slot key."""
+    for lang_field, forms in getattr(meaning, attr).items():
+        for form, value in forms.items():
+            _set_rendering_slot(ensure(lang_field, form), attr, value)
+
+
+def _ingest_pronunciation_rendering(
+    meaning,
+    ensure: Callable[[str, str], dict[str, str]],
+) -> None:
+    """Copy the pronunciation column into the slots. Unlike the flat columns
+    each entry is a dict carrying both ipa and dialect, written into two
+    separate slot keys."""
+    for lang_field, forms in meaning.pronunciation.items():
+        for form, pron in forms.items():
+            slot = ensure(lang_field, form)
+            _set_rendering_slot(slot, "ipa", pron.get("ipa"))
+            _set_rendering_slot(slot, "dialect", pron.get("dialect"))
 
 
 def _fill_reader_pronunciations(
@@ -2717,25 +2031,6 @@ def _fill_reader_pronunciations(
                 slot["reader_pronunciation"] = rendered
 
 
-# Compact display max for description()'s citation block. Above this, the
-# explainer renders 'first, second, third (+N more)' rather than a wall of
-# 18 source_ids. components() keeps the full list so the SPA can render
-# its own disclosure UI.
-_DESCRIPTION_CITATION_LIMIT = 3
-
-
-def _format_citations_for_description(citations: list[str]) -> str:
-    """Render a short scholar-ID list for the explainer breakdown line.
-    Long lists collapse to 'first, second, third (+N more)'; lists at or
-    under the limit display in full. source_ids stay as-is — the SPA
-    layer (wyrd-9kh.6) substitutes prettier titles via the source table."""
-    if len(citations) <= _DESCRIPTION_CITATION_LIMIT:
-        return ", ".join(citations)
-    head = ", ".join(citations[:_DESCRIPTION_CITATION_LIMIT])
-    extra = len(citations) - _DESCRIPTION_CITATION_LIMIT
-    return f"{head} (+{extra} more)"
-
-
 def word_to_key(word):
     elements = []
     for element in word:
@@ -2748,63 +2043,6 @@ def word_to_key(word):
     if len(word) == 1:
         elements[0].append("single")
     return tuple(tuple(e) for e in elements)
-
-
-# wyrd-5z5j force-structure: a structure key (tuple of word-keys) <-> a readable
-# template label like 'A | B- -c- -d'. Words are separated by ' | ', slots
-# within a word by spaces; each slot is a placeholder letter (word-INITIAL
-# capitalized, else lowercase — mirroring D39's case rule) decorated with its
-# position dashes (pre 'X-', post '-x', inner '-x-', bare 'X'); a name/saint
-# flag is appended as '@name'/'@saint'. The letters are decorative — round-trip
-# reads position from the dashes, flags from '@', word boundaries from ' | '.
-_LOC_TO_DASHES = {"pre": ("", "-"), "post": ("-", ""), "inner": ("-", "-"), "bare": ("", "")}
-# Exact inverse of _LOC_TO_DASHES, keyed by (has_leading_dash, has_trailing_dash).
-# structure_label_to_key decodes through this table so the two directions can't
-# drift (complexity review).
-_DASHES_TO_LOC = {(lead != "", trail != ""): loc for loc, (lead, trail) in _LOC_TO_DASHES.items()}
-
-
-def structure_key_to_label(key: tuple) -> str:
-    """Render a structure key as a readable template string."""
-    words_out: list[str] = []
-    n = 0
-    for word in key:
-        slots: list[str] = []
-        for i, elem in enumerate(word):
-            loc = elem[0]
-            flags = [f for f in elem[1:] if f in ("name", "saint")]
-            ch = chr(65 + n % 26)
-            ch = ch if i == 0 else ch.lower()  # word-initial cap, else lower
-            lead, trail = _LOC_TO_DASHES.get(loc, ("", ""))
-            tok = f"{lead}{ch}{trail}" + "".join(f"@{f}" for f in flags)
-            slots.append(tok)
-            n += 1
-        words_out.append(" ".join(slots))
-    return " | ".join(words_out)
-
-
-def structure_label_to_key(label: str) -> tuple:
-    """Parse a structure label back to a key (inverse of structure_key_to_label).
-
-    The label format does not encode the ``single`` flag; it is re-added below
-    for any single-element word, mirroring ``word_to_key``'s ``len(word) == 1``
-    rule. (Both directions depend on that arity↔``single`` coupling.)"""
-    words = []
-    for word_str in label.split("|"):
-        word_str = word_str.strip()
-        if not word_str:
-            continue
-        elements = []
-        for tok in word_str.split():
-            parts = tok.split("@")
-            base = parts[0]
-            flags = [p for p in parts[1:] if p in ("name", "saint")]
-            loc = _DASHES_TO_LOC[(base.startswith("-"), base.endswith("-"))]
-            elements.append((loc, *flags))
-        if len(elements) == 1:
-            elements[0] = (*elements[0], "single")
-        words.append(tuple(elements))
-    return tuple(words)
 
 
 def load_proportions(data, meaning_db, tag_db):
@@ -2825,9 +2063,9 @@ def load_proportions(data, meaning_db, tag_db):
         # words `Green Park`). The bundle/proportions STILL RECORD these (mining
         # keeps them — this is a generation-time exclusion applied at load, so
         # no re-export is needed); they're simply never loaded into a generator,
-        # so no path (select / vector / force_structure) can produce them. A
-        # bare word standing INSIDE a larger structure (`Green` in `Green Park`)
-        # is unaffected — that structure has 2 morphemes total.
+        # so the vector generation path can't produce them. A bare word standing
+        # INSIDE a larger structure (`Green` in `Green Park`) is unaffected —
+        # that structure has 2 morphemes total.
         if _is_single_morpheme_structure(words):
             continue
         struct[words] = proportion
@@ -2835,8 +2073,8 @@ def load_proportions(data, meaning_db, tag_db):
     # BEFORE NameGenerator, so its empty-structs guard (which checks
     # ``if structs and not self.structs``) can't see this case — a culture
     # whose structures are ALL single-morpheme would yield an empty ``struct``,
-    # and the legacy select() path would later crash deep in _select_no_tag on
-    # a None from weighted_choice([]). Fail loud + attributable here instead.
+    # and the vector path would later get a None struct from
+    # weighted_choice([]). Fail loud + attributable here instead.
     if structures and not struct:
         raise ValueError(
             "load_proportions: every structure was a single morpheme (wyrd-g1hj) "
@@ -2844,12 +2082,11 @@ def load_proportions(data, meaning_db, tag_db):
             "Re-emit the bundle (the proportions still record them) or relax the "
             "single-morpheme exclusion."
         )
-    # wyrd-mj2: tag-level co-occurrence + marginal — empirical bigram
-    # statistics over the (left.tags × right.tags) cartesian product
-    # learned from each culture's place-name corpus. Optional: legacy
-    # bundles without these keys produce a no-op cohesion knob.
+    # wyrd-mj2: tag-level co-occurrence — empirical bigram statistics over
+    # the (left.tags × right.tags) cartesian product learned from each
+    # culture's place-name corpus. Optional: legacy bundles without this
+    # key produce a no-op cohesion knob.
     cooccurrence = data.get("tag_cooccurrence", {})
-    marginal = data.get("tag_marginal", {})
     # Union the two attested-usage sources so the vector path filters
     # by "anything this culture's corpus attests" rather than
     # "compound usages only" or "standalone usages only".
@@ -2883,118 +2120,9 @@ def load_proportions(data, meaning_db, tag_db):
         mg,
         struct,
         cooccurrence,
-        marginal,
         culture_attested_usages=culture_attested_usages,
         culture_attested_meanings=culture_attested_meanings,
     )
-
-
-def _blend_uniform(items, novelty: float):
-    """Blend each (item, weight) pair with a uniform marginal.
-
-    Returns a new list of (item, blended_weight) where blended_weight is
-    ``(1-novelty)·normalized_empirical + novelty·uniform_share``. The result
-    is a normalized distribution (sums to ~1.0); weighted_choice handles
-    fractional weights fine via its uniform draw over the cumulative range.
-
-    novelty must be > 0 (callers fast-path the novelty=0 case to avoid
-    re-allocating). Items with weight <= 0 are stripped from the empirical
-    side but still get their uniform share — without that, novelty=1 would
-    silently undercount keys that happened to have zero empirical weight.
-    """
-    if not items:
-        return items
-    n = len(items)
-    total = sum(max(w, 0) for _, w in items)
-    if total <= 0:
-        # Pure uniform if every empirical weight is zero — there's nothing to
-        # blend against, so the novelty knob has no meaningful axis. Returning
-        # 1/n keeps the result a normalized probability distribution as the
-        # docstring promises.
-        return [(k, 1 / n) for k, _ in items]
-    return [(k, (1 - novelty) * (max(w, 0) / total) + novelty / n) for k, w in items]
-
-
-# D6 --harsh: phonological harshness scoring. Heuristic, not phonotactic.
-# Goal is order-of-magnitude separation between vowel-soft morphemes
-# ('ham', 'baron', 'borough') and stop-cluster-heavy ones ('shuck', 'crag',
-# 'fork'). The exact ranking isn't load-bearing — only relative ordering
-# matters for the per-item multiplier. Common OE/ON long-vowel diacritics
-# count as vowels so 'tūn' / 'lēah' don't get falsely classified.
-_VOWELS = frozenset("aeiouyæāēīōūȳáéíóúýǣǿǫâêîôûŵŷ")
-_VOICED_STOPS = frozenset("bdg")
-_VOICELESS_STOPS = frozenset("pktc")
-_NASALS = frozenset("nm")
-
-
-@lru_cache(maxsize=4096)
-def _harshness_score(usage: str) -> float:
-    """Phonological harshness in [0, 1]. Higher = more menacing-feeling.
-
-    Cached: the bundle has ~1600 unique modern_usages and `_blend_harsh`
-    runs the score over every key on every bucket on every sample, so
-    the same string is hit thousands of times across one batch of name
-    generations. lru_cache pins the per-string cost at one pass.
-
-    Combines three signals on the dash-stripped lowercased usage:
-
-    - Coda harshness: stops at the end (b/d/g, p/t/k, c) score 1.0; nasals
-      0.4; vowels 0.0; everything else (l/r/s/h/f/etc.) 0.5.
-    - Cluster density: fraction of adjacent-consonant positions.
-    - Consonant density: non-vowel chars / total chars.
-
-    Composition is a simple weighted sum (45/35/20) chosen so coda dominates
-    perception ('cot' > 'co'), with cluster + density as tiebreakers. This
-    is meant for a sampling reweight, not for serious phonological work.
-    """
-    s = "".join(c for c in usage.lower() if c.isalpha())
-    if not s:
-        return 0.5
-    n = len(s)
-
-    last = s[-1]
-    if last in _VOICED_STOPS or last in _VOICELESS_STOPS:
-        coda_score = 1.0
-    elif last in _NASALS:
-        coda_score = 0.4
-    elif last in _VOWELS:
-        coda_score = 0.0
-    else:
-        coda_score = 0.5
-
-    cluster_count = 0
-    consonant_count = 0
-    for i, c in enumerate(s):
-        if c not in _VOWELS:
-            consonant_count += 1
-            if i > 0 and s[i - 1] not in _VOWELS:
-                cluster_count += 1
-    cluster_score = cluster_count / max(1, n - 1)
-    consonant_density = consonant_count / n
-
-    return min(1.0, 0.45 * coda_score + 0.35 * cluster_score + 0.2 * consonant_density)
-
-
-def _blend_harsh(items, harshness: float):
-    """Re-weight items by phonological harshness score.
-
-    Each (key, weight) becomes (key, weight * (1 - harshness + harshness *
-    2 * score)) where score ∈ [0, 1] is computed from the key string. At
-    ``harshness=0`` every multiplier is 1.0 (bit-stable); at ``harshness=1``
-    soft-keyed items go to weight 0 and harsh-keyed items get 2× their
-    empirical weight.
-
-    The 2× scaling is deliberate: an absolute multiplier of 0..1 would
-    mean even harsh=1 only halves the mean weight, leaving soft items
-    competitive. 0..2 puts soft items at 0 at the harshness=1 limit.
-
-    Callers should fast-path ``harshness <= 0`` to avoid re-allocating.
-    """
-    if not items:
-        return items
-    return [
-        (k, max(w, 0) * (1 - harshness + harshness * 2 * _harshness_score(k))) for k, w in items
-    ]
 
 
 def weighted_choice(rng: random.Random, choices):
