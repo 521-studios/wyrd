@@ -20,6 +20,9 @@ from __future__ import annotations
 import pytest
 
 from wyrd.generators.kenning.generators.kenning import Kenning
+
+# Reused for morpheme-level extraction: run_realism_samples (the public entry) hardwires
+# vector mode and exposes no novelty knob, so the per-sample helper is the seam.
 from wyrd.generators.kenning.runtime.drift_runner import _sample_from_generation_result
 
 N = 120
@@ -72,3 +75,21 @@ def test_novelty_actually_changes_output(culture):
     high = [k.generate({"culture": culture, "novelty": 1.0}, seed=i).result for i in range(N)]
     changed = sum(1 for a, b in zip(base, high, strict=True) if a != b)
     assert changed / N >= 0.2, f"{culture}: novelty barely changed output ({changed}/{N})"
+
+
+@pytest.mark.parametrize("culture", CULTURES)
+def test_mid_novelty_is_distinct_from_both_endpoints(culture):
+    """A mid stop must differ from BOTH endpoints — guards the *graduated* nature
+    of the dial, not just the two extremes. Without this, a regression collapsing
+    novelty to a binary (0.5 silently == 0.0, or snapping to 1.0) passes the
+    other tests yet is exactly the silent-no-op class they aim to catch, at the
+    midpoint. The sweep showed 0.5 diverges ~93–94% from 0.0; 20% is a
+    conservative floor on each side."""
+    k = Kenning()
+    low = [k.generate({"culture": culture, "novelty": 0.0}, seed=i).result for i in range(N)]
+    mid = [k.generate({"culture": culture, "novelty": 0.5}, seed=i).result for i in range(N)]
+    high = [k.generate({"culture": culture, "novelty": 1.0}, seed=i).result for i in range(N)]
+    vs_low = sum(1 for a, b in zip(mid, low, strict=True) if a != b) / N
+    vs_high = sum(1 for a, b in zip(mid, high, strict=True) if a != b) / N
+    assert vs_low >= 0.2, f"{culture}: novelty=0.5 barely differs from 0.0 ({vs_low:.0%})"
+    assert vs_high >= 0.2, f"{culture}: novelty=0.5 barely differs from 1.0 ({vs_high:.0%})"
