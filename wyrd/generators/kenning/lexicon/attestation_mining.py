@@ -257,6 +257,72 @@ _ATTEST_FORM_BLACKLIST = frozenset(
 )
 
 
+def _matched_form(m: re.Match[str]) -> str | None:
+    """Resolve which named group fired in a Domesday alternation.
+
+    Each compiled regex carries either a ``form`` group (single branch) or
+    both ``form`` and ``form2`` (two branches sharing one regex). Returning
+    the first non-None capture, stripped of trailing punctuation, gives one
+    accessor for both shapes.
+    """
+    for key in ("form", "form2"):
+        captured = m.groupdict().get(key)
+        if captured is not None:
+            return captured.rstrip(",.;:")
+    return None
+
+
+def _admit_year_match(
+    m: re.Match[str],
+    notes: str,
+    pairs: set[tuple[str, int]],
+    *,
+    context_is_body: bool,
+    telemetry: dict[str, int] | None,
+) -> None:
+    """Validate and absorb a ``(form, year)`` match from the year-anchored or
+    chain-anchored regex into ``pairs``.
+
+    Shared guards:
+    * form-quality filter (lowercase-required, blacklist),
+    * year-range bounds,
+    * immediate-predecessor page-marker check (rejects ``"Bedinga feld,
+      p. 1086"`` shape where the year is actually a page reference; probe
+      scope is narrow ``0:year_start`` since pages cited AFTER the year are
+      caught by the ``(?!\\s*\\(p+\\.)`` lookahead on ``_ATTEST_FORM_YEAR_RE``),
+    * source-attribution-chain check (rejects ``"1539 Wills, 1544 LP"`` shape
+      where the form is a SOURCE name in a multi-source chain — see
+      _SOURCE_CHAIN_*_RE comments). Both the preceding-``<year> `` and
+      following-``, <year>`` conditions are required so real attestation
+      chains (``Edreston ; 1242 ...``) aren't suppressed. Calibrated for
+      short notes strings; body-text callers (``context_is_body=True``)
+      disable suppression because in body text the same pattern is
+      dominantly legitimate (wyrd-9ekl). Telemetry bumps on every pattern
+      match — even in body mode — so callers see how often the shape occurs,
+      decoupled from whether the guard suppressed.
+    """
+    form = m.group("form").rstrip(",.;:")
+    if not _form_passes_filter(form):
+        return
+    year = int(m.group("year"))
+    if year < _ATTESTED_YEAR_MIN_LOOKUP or year > _ATTESTED_YEAR_MAX_LOOKUP:
+        return
+    if _TOPONYM_NOTE_PAGE_MARKER_RE.search(notes, 0, m.start("year")):
+        return
+    form_start = m.start("form")
+    form_end = m.end("form")
+    if _SOURCE_CHAIN_PRECEDING_YEAR_RE.search(
+        notes, 0, form_start
+    ) and _SOURCE_CHAIN_FOLLOWING_YEAR_RE.match(notes, form_end):
+        if telemetry is not None:
+            telemetry["suppressed_by_source_chain"] = (
+                telemetry.get("suppressed_by_source_chain", 0) + 1
+            )
+        if not context_is_body:
+            return
+    pairs.add((form, year))
+
+
 def _extract_attestation_pairs(
     notes: str | None,
     *,
@@ -318,81 +384,20 @@ def _extract_attestation_pairs(
     filtered via ``_ATTEST_FORM_BLACKLIST``.
     """
 
-    def _matched_form(m: re.Match[str]) -> str | None:
-        """Resolve which named group fired in a Domesday alternation.
-
-        Each compiled regex carries either a ``form`` group (single
-        branch) or both ``form`` and ``form2`` (two branches sharing
-        one regex). Returning the first non-None capture, stripped of
-        trailing punctuation, gives one accessor for both shapes.
-        """
-        for key in ("form", "form2"):
-            captured = m.groupdict().get(key)
-            if captured is not None:
-                return captured.rstrip(",.;:")
-        return None
-
     if not notes:
         return []
     pairs: set[tuple[str, int]] = set()
 
-    def _admit_year_match(m: re.Match[str]) -> None:
-        """Validate and absorb a ``(form, year)`` match from the year-
-        anchored or chain-anchored regex.
-
-        Shared guards:
-        * form-quality filter (lowercase-required, blacklist),
-        * year-range bounds,
-        * immediate-predecessor page-marker check (rejects
-          ``"Bedinga feld, p. 1086"`` shape where the year is actually
-          a page reference; probe scope is narrow ``0:year_start``
-          since pages cited AFTER the year are caught by the
-          ``(?!\\s*\\(p+\\.)`` lookahead on ``_ATTEST_FORM_YEAR_RE``),
-        * source-attribution-chain check (rejects ``"1539 Wills,
-          1544 LP"`` shape where the form is a SOURCE name in a
-          multi-source chain — see _SOURCE_CHAIN_*_RE comments).
-        """
-        form = m.group("form").rstrip(",.;:")
-        if not _form_passes_filter(form):
-            return
-        year = int(m.group("year"))
-        if year < _ATTESTED_YEAR_MIN_LOOKUP or year > _ATTESTED_YEAR_MAX_LOOKUP:
-            return
-        if _TOPONYM_NOTE_PAGE_MARKER_RE.search(notes, 0, m.start("year")):
-            return
-        # Source-attribution-chain check: form preceded by `<year> `
-        # AND followed by `, <year>` is the source-name FP shape
-        # (`Wills, 1544 LP`). Both conditions required so real
-        # attestation chains (`Edreston ; 1242 ...`) aren't
-        # suppressed. Calibrated for short notes strings; body-text
-        # callers (context_is_body=True) disable suppression because
-        # in body text the same pattern is dominantly legitimate
-        # (wyrd-9ekl). Telemetry bumps on every pattern match — even
-        # in body mode — so callers see how often the shape occurs in
-        # their input, decoupled from whether the guard suppressed.
-        form_start = m.start("form")
-        form_end = m.end("form")
-        if _SOURCE_CHAIN_PRECEDING_YEAR_RE.search(
-            notes, 0, form_start
-        ) and _SOURCE_CHAIN_FOLLOWING_YEAR_RE.match(notes, form_end):
-            if telemetry is not None:
-                telemetry["suppressed_by_source_chain"] = (
-                    telemetry.get("suppressed_by_source_chain", 0) + 1
-                )
-            if not context_is_body:
-                return
-        pairs.add((form, year))
-
     # Year-anchored pattern: explicit connector between form and year.
     for m in _ATTEST_FORM_YEAR_RE.finditer(notes):
-        _admit_year_match(m)
+        _admit_year_match(m, notes, pairs, context_is_body=context_is_body, telemetry=telemetry)
 
     # Chain-element pattern: ``;FORM YEAR`` — the last item of a
     # comma/semicolon-separated citation chain often drops the
     # explicit connector. The leading ``;`` anchors this to chain
     # positions so sentence flow ("After 1066") can't slip through.
     for m in _ATTEST_CHAIN_FORM_YEAR_RE.finditer(notes):
-        _admit_year_match(m)
+        _admit_year_match(m, notes, pairs, context_is_body=context_is_body, telemetry=telemetry)
 
     # Domesday-anchored patterns (year fixed to 1086 per
     # _DOMESDAY_RES). The driver tuple folds the four shape variants
