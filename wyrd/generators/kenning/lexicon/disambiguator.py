@@ -670,15 +670,15 @@ def find_ambiguous_rows(
     return cases
 
 
-def _index_etymons_by_norm(etymon_rows, sep: str) -> dict[str, list[Candidate]]:
+def _index_etymons_by_norm(etymon_rows: list[Any], sep: str) -> dict[str, list[Candidate]]:
     """Index live etymons by OCR-normalized canonical form → Candidates, so the
     ambiguity scan can gather every etymon close to a matched form. Glosses/tags
     come from the ``sep``-joined GROUP_CONCAT columns, split back to tuples."""
     by_norm: dict[str, list[Candidate]] = {}
     for r in etymon_rows:
         norm = normalize_ocr_form(r["canonical_form"])
-        glosses = tuple((r["glosses"] or "").split(sep)) if r["glosses"] else ()
-        tags = tuple((r["tags"] or "").split(sep)) if r["tags"] else ()
+        glosses = tuple(r["glosses"].split(sep)) if r["glosses"] else ()
+        tags = tuple(r["tags"].split(sep)) if r["tags"] else ()
         by_norm.setdefault(norm, []).append(
             Candidate(
                 etymon_id=r["id"],
