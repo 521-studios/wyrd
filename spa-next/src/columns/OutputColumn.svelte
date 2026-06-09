@@ -9,12 +9,21 @@
     representativeMeanings,
     isNameMorpheme,
   } from '../lib/morphemeGloss.js';
-  import { accentedUsage, accentedName } from '../lib/accents.js';
+  import { accentedName } from '../lib/accents.js';
 
   function selectResult(i) {
     appState.currentResultIndex =
       i === appState.currentResultIndex ? null : i;
   }
+
+  // wyrd-24s6 (D38): each result renders BOTH a native (as-generated, each
+  // morpheme in its source-era form) surface and a modern companion. The
+  // native surface is the canonical/primary one. Per morpheme the backend
+  // ships `rendered` (native; absent when this slot has no distinct native
+  // form) + `usage` (the modern bucket key); the native surface falls back to
+  // `usage` so a slot with no native form still renders.
+  const nativeSurface = (morph) => morph.rendered || morph.usage || '';
+  const modernSurface = (morph) => morph.usage || '';
 
   // wyrd-z3fl: "report defective" moved to the Inspect & Transform column
   // (col 3) — you flag the result you're inspecting there, not per-row here.
@@ -53,20 +62,30 @@
               class:selected={appState.currentResultIndex === i}
               onclick={() => selectResult(i)}
             >
-              <span class="name">{accentedName(r)}</span>
+              <span class="name-line">
+                <span class="name">{accentedName(r)}</span>
+                <!-- wyrd-24s6 (D38): the modern companion, in darker secondary
+                     lettering to the right. Shown only when it differs from the
+                     native canonical (a plain/force-modern roll has native ==
+                     modern, so the companion would be noise). -->
+                {#if r.result_modern && r.result_modern !== r.result}
+                  <span class="name-modern" title="modern reflex">{r.result_modern}</span>
+                {/if}
+              </span>
               {#if r.morphemes_by_word?.length}
                 <span class="etymology">
                   {#each r.morphemes_by_word as word}
                     <span class="word-group">
                       {#each word as morph}
                         {@const g = glossFor(morph)}
+                        {@const nat = nativeSurface(morph)}
+                        {@const mod = modernSurface(morph)}
                         <span class="morph-col">
-                          <!-- wyrd-de5t: show the accented surface (bȳ) when a
-                               rendering supplies one. wyrd-2ien: for an era
-                               render show the era form (matching the name); the
-                               modern breakdown lives in the inspector's two-card
-                               view, not here. -->
-                          <span class="surface">{morph.rendered || accentedUsage(morph) || morph.usage || ''}</span>
+                          <!-- wyrd-24s6 (D38): native surface primary, modern
+                               reflex in darker lettering beneath it when the two
+                               differ (it matches the name's native + modern pair). -->
+                          <span class="surface">{nat}</span>
+                          {#if mod && mod !== nat}<span class="surface-modern" title="modern reflex">{mod}</span>{/if}
                           {#if g}<span class="gloss">{g}</span>{/if}
                         </span>
                       {/each}
@@ -125,9 +144,22 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 1px var(--accent);
   }
+  /* wyrd-24s6 (D38): native name + modern companion on one baseline-aligned
+     row; the modern reflex sits to the right in darker, lighter-weight type. */
+  .name-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+  }
   .name {
     font-size: 15px;
     font-weight: 600;
+  }
+  .name-modern {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--fg-muted);
   }
   /* wyrd-2b50: aligned etymology grid — each morpheme's surface form sits
      directly above its 1–2 word gloss; words are spaced apart, wrap as a
@@ -154,6 +186,13 @@
     font-family: ui-monospace, 'SF Mono', Consolas, monospace;
     font-size: 12px;
     color: var(--fg);
+  }
+  /* wyrd-24s6 (D38): the modern reflex of a morpheme, dimmer + smaller, sitting
+     directly under its native surface. */
+  .surface-modern {
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 11px;
+    color: var(--fg-muted);
   }
   .gloss {
     font-size: 11px;

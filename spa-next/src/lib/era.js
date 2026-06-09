@@ -101,12 +101,22 @@ export function hasEraGrid(morpheme) {
  *                           are still at their default (un-swapped) surface
  * ``labelFn`` maps a stage/language tag to its display label — injected so this
  * stays a pure helper with no dependency on languageLabels.
+ *
+ * wyrd-24s6 (D38): the canonical render is NATIVE (each morpheme in its
+ * source-era form), with modern as the companion. So an un-pinned render whose
+ * morphemes carry a distinct native ``rendered`` form is framed as 'native'
+ * (paired with the 'modern' paragon beside it). 'as generated' stays for a roll
+ * with no native/modern distinction (a plain roll, or an explicit
+ * era=modern-english force-modern, where native == modern).
  */
 export function eraBadge(morphemes, labelFn) {
   const morphs = (morphemes || []).flat().filter((m) => m?.usage?.trim());
   const eras = morphs.map((m) => m?._lang || m?.rendered_language || null);
   const explicit = [...new Set(eras.filter(Boolean))];
-  if (explicit.length === 0) return 'as generated';
+  if (explicit.length === 0) {
+    const isNative = morphs.some((m) => m?.rendered && m.rendered !== m.usage);
+    return isNative ? 'native' : 'as generated';
+  }
   const hasDefault = eras.some((e) => !e);
   if (explicit.length === 1 && !hasDefault) return labelFn(explicit[0]);
   const labels = [...new Set([...explicit.map(labelFn), ...(hasDefault ? ['Modern'] : [])])];
