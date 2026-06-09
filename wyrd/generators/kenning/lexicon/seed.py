@@ -17,11 +17,7 @@ from wyrd.generators.kenning.lexicon.db import LexiconDB
 
 def _seed_subject_etymons(
     db: LexiconDB,
-    words: list[dict[str, Any]],
-    *,
-    glosses: list[str],
-    tags: list[str],
-    modifier_type: str | None,
+    subject: dict[str, Any],
     source_id: str,
     counts: dict[str, int],
 ) -> dict[tuple[str, str], int]:
@@ -31,6 +27,10 @@ def _seed_subject_etymons(
 
     Returns the ``(form, lang) -> etymon_id`` map and mutates ``counts``.
     """
+    glosses: list[str] = subject.get("meaning", []) or []
+    tags: list[str] = subject.get("modifier_tags", []) or []
+    modifier_type: str | None = subject.get("modifier_type")
+    words: list[dict[str, Any]] = subject.get("words", []) or []
     etymons_in_subject: dict[tuple[str, str], int] = {}
     for word in words:
         for json_field, lang_code in LANGUAGE_FIELDS.items():
@@ -55,12 +55,13 @@ def _seed_subject_etymons(
 
 def _link_subject_reflexes(
     db: LexiconDB,
-    words: list[dict[str, Any]],
+    subject: dict[str, Any],
     etymons_in_subject: dict[tuple[str, str], int],
     counts: dict[str, int],
 ) -> None:
     """Each word gives one reflex (from ``modern_usage``); link it to every
     etymon implied by the language fields on the same word. Mutates ``counts``."""
+    words: list[dict[str, Any]] = subject.get("words", []) or []
     for word in words:
         modern_usage = word.get("modern_usage")
         if not modern_usage:
@@ -118,25 +119,12 @@ def seed_from_meanings(
     }
 
     for subject in _bundle_subjects(meanings_data):
-        glosses: list[str] = subject.get("meaning", []) or []
-        tags: list[str] = subject.get("modifier_tags", []) or []
-        modifier_type: str | None = subject.get("modifier_type")
-        words: list[dict[str, Any]] = subject.get("words", []) or []
-
         # First pass: collect every (form, lang) tuple this subject mentions,
         # so each one becomes a single etymon shared across its reflexes.
-        etymons_in_subject = _seed_subject_etymons(
-            db,
-            words,
-            glosses=glosses,
-            tags=tags,
-            modifier_type=modifier_type,
-            source_id=source_id,
-            counts=counts,
-        )
+        etymons_in_subject = _seed_subject_etymons(db, subject, source_id, counts)
         # Second pass: each word gives one reflex; link it to every etymon
         # implied by the language fields on the same word.
-        _link_subject_reflexes(db, words, etymons_in_subject, counts)
+        _link_subject_reflexes(db, subject, etymons_in_subject, counts)
 
     db.commit()
     return counts
