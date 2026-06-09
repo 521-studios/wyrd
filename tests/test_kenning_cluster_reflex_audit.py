@@ -110,6 +110,69 @@ def test_no_clear_dominant_sense_not_screened(lex):
     assert detect_cluster_reflex_candidates(lex.conn) == []
 
 
+def test_single_glossed_member_not_screened(lex):
+    """A cluster with only ONE glossed member has no dominant sense (needs >=2
+    glossed) — distinct from the tie path. Pins the `len(glossed) < 2` guard in
+    _dominant_sense (wyrd-8uvi)."""
+    a = _mk(lex, "alpha", "latin", gloss="fire")  # the only glossed member
+    m1 = _mk(lex, "m1", "modern-english")  # glossless
+    m2 = _mk(lex, "m2", "modern-english")  # glossless
+    p = _mk(lex, "p", "latin")
+    _cluster(lex, a, m1, m2, p)
+    _edge(lex, p, m1)
+    _edge(lex, p, m2)
+    lex.commit()
+    assert detect_cluster_reflex_candidates(lex.conn) == []
+
+
+def test_prescreen_false_emits_onsense_member_with_bridging_parent(lex):
+    """prescreen=False (broad) skips the auto-keep, so an on-sense modern member
+    that still carries a bridging parent edge IS emitted for judging — whereas
+    prescreen=True auto-keeps it (it's in the dominant sense group). Pins the
+    `if prescreen:` guard in _emit_modern_candidates (wyrd-8uvi)."""
+    vallis = _mk(lex, "vallis", "latin", gloss="valley")
+    val = _mk(lex, "val", "old-french", gloss="valley")
+    vale = _mk(lex, "vale", "modern-english", gloss="valley")  # on-sense (in domset)
+    lvulva = _mk(lex, "vulva", "latin")
+    mvulva = _mk(lex, "vulva", "modern-english")
+    _cluster(lex, vallis, val, vale, lvulva, mvulva)
+    _edge(lex, lvulva, mvulva)
+    _edge(lex, val, vale)  # vale gets a bridging parent so broad mode can emit it
+    lex.commit()
+    default_refs = {c.reflex_ref for c in detect_cluster_reflex_candidates(lex.conn)}
+    broad_refs = {c.reflex_ref for c in detect_cluster_reflex_candidates(lex.conn, prescreen=False)}
+    assert "modern-english:vale" not in default_refs  # auto-kept (in dominant sense)
+    assert "modern-english:vale" in broad_refs  # broad mode re-judges it
+
+
+def test_limit_clusters_counts_only_qualifying_clusters(lex):
+    """limit_clusters caps how many QUALIFYING (clear-dominant) clusters are
+    processed; the counter increments only after _dominant_sense qualifies, so
+    the first-by-cognate-id qualifying cluster is the one kept. Pins the
+    processed-counter/break ordering the wyrd-8uvi refactor preserves."""
+    # upsert_etymon assigns ascending ids; the cluster rep (cognate_id) is its
+    # first member, so cluster 1 (seeded first) sorts before cluster 2.
+    v1 = _mk(lex, "vallis", "latin", gloss="valley")
+    v2 = _mk(lex, "val", "old-french", gloss="valley")
+    v3 = _mk(lex, "vale", "modern-english", gloss="valley")
+    lv = _mk(lex, "vulva", "latin")
+    mv = _mk(lex, "vulva", "modern-english")
+    _cluster(lex, v1, v2, v3, lv, mv)
+    _edge(lex, lv, mv)
+    m1 = _mk(lex, "mons", "latin", gloss="mountain")
+    m2 = _mk(lex, "mont", "old-french", gloss="mountain")
+    m3 = _mk(lex, "mount", "modern-english", gloss="mountain")
+    lp = _mk(lex, "mons-pubis", "latin")
+    mp = _mk(lex, "pubis", "modern-english")
+    _cluster(lex, m1, m2, m3, lp, mp)
+    _edge(lex, lp, mp)
+    lex.commit()
+    full = {c.reflex_ref for c in detect_cluster_reflex_candidates(lex.conn)}
+    assert full == {"modern-english:vulva", "modern-english:pubis"}
+    limited = detect_cluster_reflex_candidates(lex.conn, limit_clusters=1)
+    assert [c.reflex_ref for c in limited] == ["modern-english:vulva"]  # first cluster only
+
+
 def test_detach_row_targets_bridging_parents():
     row = {
         "reflex_ref": "modern-english:vulva",

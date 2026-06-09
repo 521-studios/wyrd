@@ -83,6 +83,67 @@ def _bridging_parents(conn: sqlite3.Connection, child_id: int, by_id: dict[int, 
     return parents
 
 
+def _dominant_features(domset: set[int], by_id: dict[int, dict]) -> tuple[set[str], tuple]:
+    """The dominant sense-group's pooled gloss TOKENS (for the prescreen
+    auto-keep) and its first 4 sorted GLOSSES (surfaced on each candidate)."""
+    domtok = {t for i in domset for t in by_id[i]["tokens"]}
+    dom_glosses = tuple(sorted({gl for i in domset for gl in by_id[i]["glosses"]}))[:4]
+    return domtok, dom_glosses
+
+
+def _dominant_sense(ids: list[int], by_id: dict[int, dict]) -> tuple | None:
+    """The cluster's CLEAR dominant glossed sense, as ``(domset,
+    dominant_tokens, dominant_glosses)`` — or ``None`` when there isn't one:
+    fewer than 2 glossed members, or the largest sense group isn't a unique
+    >=2-member winner (a tie means no clear dominant)."""
+    glossed = [(i, by_id[i]["tokens"]) for i in ids if by_id[i]["tokens"]]
+    if len(glossed) < 2:
+        return None
+    groups = _sense_groups(glossed)
+    sizes = sorted((len(g) for g in groups), reverse=True)
+    # need a CLEAR dominant glossed sense (unique largest, >=2 members)
+    if sizes[0] < 2 or (len(sizes) > 1 and sizes[0] == sizes[1]):
+        return None
+    dom = max(range(len(groups)), key=lambda gi: len(groups[gi]))
+    domset = set(groups[dom])
+    domtok, dom_glosses = _dominant_features(domset, by_id)
+    return domset, domtok, dom_glosses
+
+
+def _emit_modern_candidates(
+    conn: sqlite3.Connection,
+    moderns: list[int],
+    by_id: dict[int, dict],
+    dom: tuple,
+    *,
+    prescreen: bool,
+) -> list[ClusterReflexCandidate]:
+    """Emit a candidate per modern member that needs auditing. With
+    ``prescreen`` a member IN the dominant sense, or sharing any of its gloss
+    tokens, is auto-kept (skipped); members with no in-cluster bridging parent
+    edge to cut are already orphaned and skipped."""
+    domset, domtok, dom_glosses = dom
+    out: list[ClusterReflexCandidate] = []
+    for m in moderns:
+        if prescreen:
+            if m in domset:
+                continue  # a glossed modern member OF the dominant sense
+            if by_id[m]["tokens"] and (by_id[m]["tokens"] & domtok):
+                continue  # shares the dominant sense — auto-keep
+        parents = _bridging_parents(conn, m, by_id)
+        if not parents:
+            continue  # already orphaned / no in-cluster bridging edge to cut
+        out.append(
+            ClusterReflexCandidate(
+                reflex_ref=by_id[m]["ref"],
+                reflex_form=by_id[m]["form"],
+                dominant_glosses=dom_glosses,
+                bridging_parents=tuple(sorted(set(parents))),
+            )
+        )
+    return out
+
+
 def detect_cluster_reflex_candidates(
     conn: sqlite3.Connection, *, limit_clusters: int | None = None, prescreen: bool = True
 ) -> list[ClusterReflexCandidate]:
@@ -108,38 +169,13 @@ def detect_cluster_reflex_candidates(
         moderns = [i for i in ids if by_id[i]["lang"] == _MODERN]
         if len(moderns) < _MIN_MODERN_MEMBERS:
             continue
-        glossed = [(i, by_id[i]["tokens"]) for i in ids if by_id[i]["tokens"]]
-        if len(glossed) < 2:
-            continue
-        groups = _sense_groups(glossed)
-        sizes = sorted((len(g) for g in groups), reverse=True)
-        # need a CLEAR dominant glossed sense (unique largest, >=2 members)
-        if sizes[0] < 2 or (len(sizes) > 1 and sizes[0] == sizes[1]):
-            continue
+        dom = _dominant_sense(ids, by_id)
+        if dom is None:
+            continue  # no CLEAR dominant glossed sense
         if limit_clusters is not None and processed >= limit_clusters:
             break
         processed += 1
-        dom = max(range(len(groups)), key=lambda gi: len(groups[gi]))
-        domset = set(groups[dom])
-        domtok = {t for i in domset for t in by_id[i]["tokens"]}
-        dom_glosses = tuple(sorted({gl for i in domset for gl in by_id[i]["glosses"]}))[:4]
-        for m in moderns:
-            if prescreen:
-                if m in domset:
-                    continue  # a glossed modern member OF the dominant sense
-                if by_id[m]["tokens"] and (by_id[m]["tokens"] & domtok):
-                    continue  # shares the dominant sense — auto-keep
-            parents = _bridging_parents(conn, m, by_id)
-            if not parents:
-                continue  # already orphaned / no in-cluster bridging edge to cut
-            out.append(
-                ClusterReflexCandidate(
-                    reflex_ref=by_id[m]["ref"],
-                    reflex_form=by_id[m]["form"],
-                    dominant_glosses=dom_glosses,
-                    bridging_parents=tuple(sorted(set(parents))),
-                )
-            )
+        out.extend(_emit_modern_candidates(conn, moderns, by_id, dom, prescreen=prescreen))
     return sorted(out, key=lambda c: c.reflex_ref)
 
 
