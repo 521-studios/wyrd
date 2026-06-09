@@ -83,11 +83,15 @@ def detect_meaning_merge_candidates(
     ).fetchall()
     by_id, by_token = _index_meaning_glosses(rows)
     cluster_size = _load_cluster_sizes(conn)
+    # Precompute each etymon's cluster richness once (live cluster size, 0 when
+    # unclustered) so the nested pairing loops are plain dict reads — mirrors
+    # variant_fold_detect's pattern.
+    for rec in by_id.values():
+        rec["richness"] = cluster_size.get(rec["clu"], 0) if rec["clu"] is not None else 0
     edges = _load_descent_edges(conn)
     best = _best_majors_per_minor(
         by_token,
         by_id,
-        cluster_size,
         edges,
         min_similarity=min_similarity,
         minor_max=minor_max,
@@ -95,7 +99,7 @@ def detect_meaning_merge_candidates(
         ratio=ratio,
         max_per_gloss=max_per_gloss,
     )
-    return _build_merge_candidates(best, by_id, cluster_size)
+    return _build_merge_candidates(best, by_id)
 
 
 def _index_meaning_glosses(rows) -> tuple[dict[int, dict], dict[str, set[int]]]:
@@ -141,11 +145,6 @@ def _load_descent_edges(conn: sqlite3.Connection) -> set[tuple[int, int]]:
     return {(p, c) for p, c in conn.execute("SELECT parent_id, child_id FROM etymon_descent")}
 
 
-def _richness(rec: dict, cluster_size: dict[int, int]) -> int:
-    """Cluster size for ``rec``'s cognate id (0 when unclustered)."""
-    return cluster_size.get(rec["clu"], 0) if rec["clu"] is not None else 0
-
-
 def _merge_pair_sim(
     mi: int,
     mrec: dict,
@@ -154,7 +153,6 @@ def _merge_pair_sim(
     ai: int,
     arec: dict,
     matcher: difflib.SequenceMatcher,
-    cluster_size: dict[int, int],
     edges: set[tuple[int, int]],
     *,
     min_similarity: float,
@@ -167,7 +165,7 @@ def _merge_pair_sim(
     has seq1 set to the minor's bare form (reused across majors)."""
     if mrec["lang"] != arec["lang"] or mrec["clu"] == arec["clu"]:
         return None  # same language, DIFFERENT clusters
-    if _richness(arec, cluster_size) < ratio * rmi:
+    if arec["richness"] < ratio * rmi:
         return None  # major must clearly dominate
     fr = arec["bare"]
     if not fr:
@@ -194,7 +192,6 @@ def _update_best_major(
     mrec: dict,
     major: list[tuple[int, dict]],
     by_id: dict[int, dict],
-    cluster_size: dict[int, int],
     edges: set[tuple[int, int]],
     *,
     min_similarity: float,
@@ -202,7 +199,7 @@ def _update_best_major(
 ) -> None:
     """Scan one minor's candidate majors and record the best in ``best``:
     richest cluster, then highest similarity, then lowest id."""
-    fb, skb, rmi = mrec["bare"], mrec["skel"], _richness(mrec, cluster_size)
+    fb, skb, rmi = mrec["bare"], mrec["skel"], mrec["richness"]
     if not fb:
         return
     matcher = difflib.SequenceMatcher(None, fb)
@@ -215,17 +212,16 @@ def _update_best_major(
             ai,
             arec,
             matcher,
-            cluster_size,
             edges,
             min_similarity=min_similarity,
             ratio=ratio,
         )
         if sim is None:
             continue
-        rma = _richness(arec, cluster_size)
+        rma = arec["richness"]
         cur = best.get(mi)
         if cur is None or (rma, sim, -ai) > (
-            _richness(by_id[cur[0]], cluster_size),
+            by_id[cur[0]]["richness"],
             cur[1],
             -cur[0],
         ):
@@ -235,7 +231,6 @@ def _update_best_major(
 def _best_majors_per_minor(
     by_token: dict[str, set[int]],
     by_id: dict[int, dict],
-    cluster_size: dict[int, int],
     edges: set[tuple[int, int]],
     *,
     min_similarity: float,
@@ -251,8 +246,8 @@ def _best_majors_per_minor(
     for ids in by_token.values():
         if len(ids) < 2 or len(ids) > max_per_gloss:
             continue
-        minor = [(i, by_id[i]) for i in ids if 2 <= _richness(by_id[i], cluster_size) <= minor_max]
-        major = [(i, by_id[i]) for i in ids if _richness(by_id[i], cluster_size) >= major_min]
+        minor = [(i, by_id[i]) for i in ids if 2 <= by_id[i]["richness"] <= minor_max]
+        major = [(i, by_id[i]) for i in ids if by_id[i]["richness"] >= major_min]
         if not minor or not major:
             continue
         for mi, mrec in minor:
@@ -262,7 +257,6 @@ def _best_majors_per_minor(
                 mrec,
                 major,
                 by_id,
-                cluster_size,
                 edges,
                 min_similarity=min_similarity,
                 ratio=ratio,
@@ -271,7 +265,7 @@ def _best_majors_per_minor(
 
 
 def _build_merge_candidates(
-    best: dict[int, tuple[int, float]], by_id: dict[int, dict], cluster_size: dict[int, int]
+    best: dict[int, tuple[int, float]], by_id: dict[int, dict]
 ) -> list[MeaningMergeCandidate]:
     """Turn the best-major-per-minor map into sorted MeaningMergeCandidates."""
     out: list[MeaningMergeCandidate] = []
@@ -286,8 +280,8 @@ def _build_merge_candidates(
                 minor_glosses=tuple(sorted(em["gl"]))[:4],
                 major_glosses=tuple(sorted(ea["gl"]))[:4],
                 similarity=round(sim, 3),
-                minor_cluster_size=cluster_size.get(em["clu"], 0),
-                major_cluster_size=cluster_size.get(ea["clu"], 0),
+                minor_cluster_size=em["richness"],
+                major_cluster_size=ea["richness"],
             )
         )
     out.sort(key=lambda c: (c.major_ref, c.minor_ref))
