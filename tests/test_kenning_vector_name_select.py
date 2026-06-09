@@ -1306,31 +1306,29 @@ def test_required_tags_or_semantics_across_multiple_tags():
     assert got == {"-mere", "-burn", "-grim"}  # settlement-only lemma excluded
 
 
-def test_build_request_vector_tags_and_mood_tags_become_hard_gate():
-    """wyrd-wv85 Gap 1+2: the adapter routes BOTH explicit --tag and a
-    mood's semantic tags into the HARD gate.required_tags, matching
-    proportions (whose _apply_mood appends mood tags to filter_for_tag).
-    The mood's tags ALSO reach the soft semantic axis."""
+def test_build_request_vector_tag_is_hard_gate_mood_is_soft_overlay():
+    """wyrd-4rp8: explicit --tag is the HARD gate (required_tags); a thematic
+    mood is a SOFT preference on RequestVector.mood_tags, NOT a gate. (The old
+    wyrd-wv85 design unioned the mood's tags into required_tags too, which gated
+    the pool so hard that generation fell back to ungated — making moods a
+    no-op. Per D36.6 only --tag is the hard filter.)"""
     from wyrd.generators.kenning.runtime.vector_kenning_adapter import build_request_vector
 
-    # Explicit --tag → hard gate.
+    # Explicit --tag → hard gate (unchanged).
     rv = build_request_vector(culture="english", tags=["water", "death"])
     assert rv.gate.required_tags == frozenset({"water", "death"})
+    assert rv.mood_tags == {}
 
-    # Gap 2: a mood's semantic tags → hard gate too. grim expands to
-    # {death, military, monster, undead, magic} (the catalog effect's tags).
+    # A mood does NOT touch the gate; its tags + weights ride on mood_tags.
     rv_mood = build_request_vector(culture="english", mood=["grim"])
-    assert rv_mood.gate.required_tags == frozenset(
-        {"death", "military", "monster", "undead", "magic"}
-    )
-    # and still reach the soft semantic axis for within-pool discrimination:
-    assert set(rv_mood.register.semantic_tags) & {"death", "monster", "undead"}
+    assert rv_mood.gate.required_tags == frozenset()
+    assert set(rv_mood.mood_tags) == {"death", "military", "monster", "undead", "magic"}
+    assert all(w > 0 for w in rv_mood.mood_tags.values())  # per-tag weights kept
 
-    # --tag + --mood union in the gate.
+    # --tag + --mood: only the --tag gates; the mood stays soft.
     rv_both = build_request_vector(culture="english", tags=["water"], mood=["grim"])
-    assert rv_both.gate.required_tags == frozenset(
-        {"water", "death", "military", "monster", "undead", "magic"}
-    )
+    assert rv_both.gate.required_tags == frozenset({"water"})
+    assert set(rv_both.mood_tags) == {"death", "military", "monster", "undead", "magic"}
 
     # A purely PHONOLOGICAL mood (harsh: harshness only, no semantic tags)
     # contributes NO required tags — it gates nothing, only re-weights phon.

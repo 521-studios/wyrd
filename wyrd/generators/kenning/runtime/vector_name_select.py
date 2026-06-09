@@ -766,6 +766,68 @@ def _slot_weighted_pool(
     return weighted
 
 
+def _mood_morpheme_weight(meaning, mood_tags: dict[str, float]) -> float:
+    """wyrd-4rp8: how strongly ``meaning`` fits the mood — the max mood-tag
+    weight it carries (grim → a death morpheme scores 0.7, a military one 0.3).
+    Multiplied onto the morpheme's normal freq×score weight inside the mood slot
+    so the draw still favours frequent + position-natural morphemes but leans
+    toward the more on-theme ones. Returns 0 for a morpheme with no mood tag (it
+    is filtered out of the mood slot before this is applied)."""
+    return max((mood_tags[t] for t in meaning.tags if t in mood_tags), default=0.0)
+
+
+def _choose_mood_slot(
+    rng: random.Random,
+    structure_list: list[str],
+    *,
+    mood_tags: dict[str, float],
+    non_position_eligible: list[Meaning],
+    slot_qualifiers: list[str | None] | None,
+    slot_bucket_keys: list[tuple] | None,
+    request: RequestVector,
+    priors: EmpiricalPriors,
+    era_midpoint: int,
+    cohesion: float,
+    tag_cooccurrence: dict[str, dict[str, float]] | None,
+    usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None,
+    novelty: float,
+    slot_base_scores: dict[tuple, list[tuple[Meaning, float]]] | None,
+) -> int | None:
+    """wyrd-4rp8: pick the slot that will carry the mood morpheme. Builds each
+    slot's pool (membership only — cohesion/novelty re-weight but never add or
+    drop members, so ``prior_tags`` is irrelevant here) and randomly selects one
+    whose pool contains a mood-tagged morpheme. Returns ``None`` when no slot can
+    carry the mood (rare) — then the name comes out un-themed, no hard failure.
+
+    Reuses the ``slot_base_scores`` cache the main pick loop reads, so the only
+    added cost is the membership check + one ``rng`` draw."""
+    mood_tag_set = frozenset(mood_tags)
+    capable: list[int] = []
+    for slot_index, element in enumerate(structure_list):
+        slot_qualifier = slot_qualifiers[slot_index] if slot_qualifiers is not None else None
+        slot_bucket_key = slot_bucket_keys[slot_index] if slot_bucket_keys is not None else None
+        weighted = _slot_weighted_pool(
+            non_position_eligible,
+            slot_position=_slot_position_for(element),
+            slot_qualifier=slot_qualifier,
+            slot_bucket_key=slot_bucket_key,
+            request=request,
+            priors=priors,
+            era_midpoint=era_midpoint,
+            cohesion=cohesion,
+            tag_cooccurrence=tag_cooccurrence,
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+            novelty=novelty,
+            prior_tags=frozenset(),
+            slot_base_scores=slot_base_scores,
+        )
+        if weighted and any(mood_tag_set & frozenset(m.tags) for m, _ in weighted):
+            capable.append(slot_index)
+    if not capable:
+        return None
+    return capable[rng.randrange(len(capable))]
+
+
 def select_via_vector_scoring(
     rng: random.Random,
     meaning_db: dict[str, list[Meaning]],
@@ -856,6 +918,33 @@ def select_via_vector_scoring(
         )
 
     structure_list = list(structure)
+    # wyrd-4rp8: thematic-mood overlay. When a mood is requested, reserve ONE
+    # slot (randomly, among those whose pool can carry a mood tag) to draw a
+    # mood-appropriate morpheme; every other slot generates normally. No mood
+    # (``request.mood_tags`` empty) → no draw → byte-identical to plain
+    # generation, so the no-mood RNG stream + realism gate are untouched.
+    mood_tag_set = frozenset(request.mood_tags)
+    mood_slot_index = (
+        _choose_mood_slot(
+            rng,
+            structure_list,
+            mood_tags=request.mood_tags,
+            non_position_eligible=non_position_eligible,
+            slot_qualifiers=slot_qualifiers,
+            slot_bucket_keys=slot_bucket_keys,
+            request=request,
+            priors=priors,
+            era_midpoint=era_midpoint,
+            cohesion=cohesion,
+            tag_cooccurrence=tag_cooccurrence,
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+            novelty=novelty,
+            slot_base_scores=slot_base_scores,
+        )
+        if mood_tag_set
+        else None
+    )
+
     for slot_index, element in enumerate(structure_list):
         slot_position = _slot_position_for(element)
         # wyrd-izcr: per-slot qualifier ("name" / "saint" / None) and wyrd-bol9:
@@ -884,6 +973,23 @@ def select_via_vector_scoring(
             prior_tags=frozenset(prior_tags),
             slot_base_scores=slot_base_scores,
         )
+        # wyrd-4rp8: on the reserved mood slot, restrict the draw to mood-tagged
+        # morphemes, re-weighted by mood fit (× the morpheme's strongest mood-tag
+        # weight) on top of its normal freq×score. _choose_mood_slot already
+        # verified this slot's pool is non-empty for the mood, so the restricted
+        # list is non-empty; the guard keeps us safe if membership ever shifts.
+        # Note: ``weighted`` still carries the slot's novelty + cohesion
+        # weighting, so the mood morpheme is picked by freq × mood-fit even at
+        # novelty=1 (the mood slot is deliberately NOT flattened to uniform —
+        # the theme stays attestation-led while the rest of the name flattens).
+        if slot_index == mood_slot_index and weighted:
+            mood_restricted = [
+                (m, wt * _mood_morpheme_weight(m, request.mood_tags))
+                for m, wt in weighted
+                if mood_tag_set & frozenset(m.tags)
+            ]
+            if mood_restricted:
+                weighted = mood_restricted
         # wyrd-tbke: permissive degrades an unsatisfiable slot to None and
         # continues (full-length result); non-permissive aborts the whole
         # struct. A collapsed pool (empty `weighted`) and a None weighted-draw

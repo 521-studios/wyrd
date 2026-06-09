@@ -606,6 +606,16 @@ class RequestVector:
     register: RegisterEffect
     weights: ScoringWeights = field(default_factory=ScoringWeights)
     packs: tuple[PackOverlay, ...] = ()
+    # wyrd-4rp8: a thematic mood's tag preference ({tag: weight}, e.g. grim →
+    # {death: 0.7, military: 0.3, …}). NOT a hard gate (that's the broken design
+    # this replaces — it gated the whole pool and fell back) and NOT the soft
+    # score axis (no cross-usage teeth post-bol9). It drives a "one mood morpheme
+    # per name" overlay in select_via_vector_scoring: one slot whose pool can
+    # carry a mood tag is restricted to mood-tagged morphemes; every other slot
+    # generates normally. Empty (default / no mood) → no overlay → byte-identical
+    # to plain generation. Distinct from gate.required_tags (the HARD --tag
+    # filter, D36.6).
+    mood_tags: dict[str, float] = field(default_factory=dict)
 
 
 # ---- empirical-baseline priors (ecjp.1 priors schema) -------------------
