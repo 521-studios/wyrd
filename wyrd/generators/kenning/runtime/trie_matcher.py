@@ -252,6 +252,27 @@ MAX_DECOMPOSITIONS_PER_POSITION = 10000
 MAX_TIED_DECOMPOSITIONS_PER_POSITION = 100
 
 
+def _append_capped(
+    results: list[list[Any]],
+    head: Any,
+    tails: list[list[Any]],
+    truncated: list[bool],
+) -> bool:
+    """Append ``[head, *tail]`` for each tail in ``tails`` until the
+    per-position cap (``MAX_DECOMPOSITIONS_PER_POSITION``) is reached.
+
+    Sets ``truncated[0] = True`` and returns ``True`` the moment the cap
+    fires (so the caller can stop iterating outer branches); returns
+    ``False`` when all tails were appended within the cap.
+    """
+    for tail in tails:
+        if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
+            truncated[0] = True
+            return True
+        results.append([head, *tail])
+    return False
+
+
 def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
     """Enumerate every valid decomposition of ``word`` against the
     trie. Each result is a list whose elements alternate between
@@ -310,23 +331,14 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
         # (Word.get_structure) and statistically ranked at build time, never
         # used to reject a match here.
         for end, meaning in _find_matches_at(trie, word, pos):
-            for tail in walk(end):
-                if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
-                    truncated[0] = True
-                    break
-                results.append([meaning, *tail])
-            if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
+            if _append_capped(results, meaning, walk(end), truncated):
                 break
         # Branch 2: skip one character into the unaccounted bucket and
         # recurse. The skip lets the matcher partially-decompose names
         # that have unrecognized fragments. Adjacent skip characters
         # collapse into one unaccounted string at emit time.
         if len(results) < MAX_DECOMPOSITIONS_PER_POSITION:
-            for tail in walk(pos + 1):
-                if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
-                    truncated[0] = True
-                    break
-                results.append([word[pos], *tail])
+            _append_capped(results, word[pos], walk(pos + 1), truncated)
         cache[pos] = results
         return results
 
