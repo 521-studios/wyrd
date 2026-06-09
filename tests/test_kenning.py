@@ -1016,3 +1016,25 @@ def test_harshness_shifts_vector_distribution_end_to_end():
         plain.add(k.generate({"culture": "english"}, seed=seed).result)
         harsh.add(k.generate({"culture": "english", "harshness": 1.0}, seed=seed).result)
     assert plain != harsh
+
+
+def test_novelty_shifts_vector_distribution_end_to_end():
+    """wyrd-fcub: novelty blends the per-slot score distribution toward uniform
+    over the eligible pool, so novelty=1 (every eligible morpheme equally
+    likely) produces a different distribution than novelty=0 (score-weighted)."""
+    k = Kenning()
+    plain: set[str] = set()
+    novel: set[str] = set()
+    for seed in range(30):
+        plain.add(k.generate({"culture": "english"}, seed=seed).result)
+        novel.add(k.generate({"culture": "english", "novelty": 1.0}, seed=seed).result)
+    assert plain != novel
+
+
+def test_novelty_is_seed_stable():
+    """Same seed + same novelty → identical result (the seed-stability contract
+    novelty must preserve)."""
+    k = Kenning()
+    a = k.generate({"culture": "english", "novelty": 0.7}, seed=42).result
+    b = k.generate({"culture": "english", "novelty": 0.7}, seed=42).result
+    assert a == b

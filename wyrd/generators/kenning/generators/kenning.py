@@ -131,6 +131,20 @@ class Kenning(Generator):
                         "morpheme."
                     ),
                 },
+                "novelty": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "Lexical-surprise dial (wyrd-fcub). Blends the per-slot score "
+                        "distribution toward uniform: 0 samples by score (common "
+                        "morphemes like '-ton'/'-ham' dominate); 1 samples every "
+                        "eligible morpheme equally, surfacing rare morphemes as often "
+                        "as common ones for deliberately unusual names. Applied after "
+                        "tag/mood/harshness scoring."
+                    ),
+                },
                 "mood": {
                     "type": "array",
                     "items": {"type": "string"},
@@ -380,6 +394,7 @@ class Kenning(Generator):
             raw_tags = [raw_tags]
         spelling_variety = float(params.get("spelling_variety", 0.0) or 0.0)
         inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
+        novelty = float(params.get("novelty", 0.0) or 0.0)
         harshness = float(params.get("harshness", 0.0) or 0.0)
         cohesion = float(params.get("cohesion", 0.0) or 0.0)
         manorial_affix = float(params.get("manorial_affix", 0.0) or 0.0)
@@ -460,6 +475,7 @@ class Kenning(Generator):
             include_unglossed=include_unglossed,
             spelling_variety=spelling_variety,
             inflection_density=inflection_density,
+            novelty=novelty,
             era_render_language=era_render_language,
         )
         if new_name is None:
@@ -576,6 +592,7 @@ def _generate_via_vector(
     include_unglossed: bool = False,
     spelling_variety: float = 0.0,
     inflection_density: float = 0.0,
+    novelty: float = 0.0,
     era_render_language: str | None = None,
 ):
     """Dispatch helper for vector scoring (the only scoring path).
@@ -697,5 +714,6 @@ def _generate_via_vector(
         include_unglossed=include_unglossed,
         spelling_variety=spelling_variety,
         inflection_density=inflection_density,
+        novelty=novelty,
         era_render_language=era_render_language,
     )

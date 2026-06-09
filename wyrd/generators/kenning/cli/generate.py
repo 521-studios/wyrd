@@ -66,6 +66,17 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
     ),
 )
 @click.option(
+    "--novelty",
+    type=click.FloatRange(0.0, 1.0),
+    default=0.0,
+    show_default=True,
+    help=(
+        "Lexical-surprise dial (0..1). Blends the score distribution toward "
+        "uniform: 0 favors common morphemes, 1 samples every eligible morpheme "
+        "equally for deliberately unusual names."
+    ),
+)
+@click.option(
     "--mood",
     "moods",
     multiple=True,
@@ -233,6 +244,7 @@ def generate(
     json_output: bool,
     spelling_variety: float,
     inflection_density: float,
+    novelty: float,
     moods: tuple[str, ...],
     include_fiction: bool,
     include_unglossed: bool,
@@ -276,6 +288,7 @@ def generate(
         "tags": list(tags),
         "spelling_variety": spelling_variety,
         "inflection_density": inflection_density,
+        "novelty": novelty,
         "mood": list(moods),
         "include_fiction": include_fiction,
         "include_unglossed": include_unglossed,
