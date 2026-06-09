@@ -7,9 +7,85 @@ from __future__ import annotations
 import json
 import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import click
+
+
+@dataclass
+class _MergeRun:
+    """Shared state for the per-candidate judge loop: the LLM client, the
+    output handle (``None`` in ``--dry-run``), the dry-run flag, the fold
+    confidence threshold, and the mutable folds/rejects/skipped counters."""
+
+    client: Any
+    fh: Any
+    dry_run: bool
+    min_confidence: str
+    counts: dict[str, int]
+
+
+def _load_judged(collapse_file: Path) -> set[str]:
+    """Refs already in the ledger (a positive collapse OR a prior no-op
+    rejection) — skipped on re-run so each pair is judged once."""
+    judged: set[str] = set()
+    if collapse_file.exists():
+        for line in collapse_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            if row.get("_type") == "collapse" and row.get("ref"):
+                judged.add(row["ref"])
+    return judged
+
+
+def _select_todo(candidates: list, judged: set[str], limit: int | None) -> list:
+    """Candidates not yet in the ledger, capped at ``limit`` when set."""
+    todo = [c for c in candidates if c.from_ref not in judged]
+    if limit is not None:
+        todo = todo[:limit]
+    return todo
+
+
+def _judge_and_record(ctx: _MergeRun, c: Any) -> None:
+    """Judge one candidate with the LLM (one retry on transport/parse failure)
+    and either print (``--dry-run``) or append its verdict row to the ledger.
+    A transient failure is skipped WITHOUT recording, so a later run retries
+    rather than burning the pair on noise."""
+    from wyrd.generators.kenning.lexicon.collapse_merge import (
+        build_judge_prompt,
+        parse_verdict,
+        verdict_to_row,
+    )
+
+    system, user = build_judge_prompt(c)
+    verdict = None
+    for _attempt in range(2):  # one retry on transport/parse failure
+        try:
+            verdict = parse_verdict(ctx.client.chat_json(system, user, {}))
+        except Exception:
+            verdict = None
+        if verdict is not None:
+            break
+    if verdict is None:
+        ctx.counts["skipped"] += 1
+        return
+    row = verdict_to_row(c, verdict, ctx.min_confidence)
+    is_fold = row["into"] != ""
+    ctx.counts["folds"] += is_fold
+    ctx.counts["rejects"] += not is_fold
+    if ctx.dry_run:
+        tag = "FOLD" if is_fold else "skip"
+        click.echo(
+            f"  [{tag}] {c.from_form}->{c.into_form} {verdict.confidence} ({verdict.reason})",
+            err=True,
+        )
+    else:
+        ctx.fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        ctx.fh.flush()  # crash-safety: each verdict is durable as we go
 
 
 @click.command("merge-collapses")
@@ -70,12 +146,7 @@ def lexicon_merge_collapses(
     """
     from wyrd.generators.kenning.cli.utils import _readonly_lexicon
     from wyrd.generators.kenning.extractors.llm import OllamaClient
-    from wyrd.generators.kenning.lexicon.collapse_merge import (
-        build_judge_prompt,
-        detect_merge_candidates,
-        parse_verdict,
-        verdict_to_row,
-    )
+    from wyrd.generators.kenning.lexicon.collapse_merge import detect_merge_candidates
 
     if db_path is None:
         env_path = os.environ.get("WYRD_LEXICON_DB")
@@ -90,21 +161,11 @@ def lexicon_merge_collapses(
 
     # Skip pairs already judged (any ref already in the ledger — a positive
     # collapse OR a prior no-op rejection).
-    judged: set[str] = set()
-    if collapse_file.exists():
-        for line in collapse_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            row = json.loads(line)
-            if row.get("_type") == "collapse" and row.get("ref"):
-                judged.add(row["ref"])
-
-    todo = [c for c in candidates if c.from_ref not in judged]
-    if limit is not None:
-        todo = todo[:limit]
+    judged = _load_judged(collapse_file)
+    todo = _select_todo(candidates, judged, limit)
+    already_judged = len(candidates) - len([c for c in candidates if c.from_ref not in judged])
     click.echo(
-        f"  candidates={len(candidates)} already-judged={len(candidates) - len([c for c in candidates if c.from_ref not in judged])} "
+        f"  candidates={len(candidates)} already-judged={already_judged} "
         f"to-judge={len(todo)} (model={model}, min-confidence={min_confidence})",
         err=True,
     )
@@ -112,52 +173,32 @@ def lexicon_merge_collapses(
         click.echo("Nothing to judge.", err=True)
         return
 
-    client = OllamaClient(base_url=base_url, model=model, timeout_s=90.0)
-    fh = None if dry_run else collapse_file.open("a", encoding="utf-8")
-    folds = rejects = skipped = 0
+    ctx = _MergeRun(
+        client=OllamaClient(base_url=base_url, model=model, timeout_s=90.0),
+        fh=None if dry_run else collapse_file.open("a", encoding="utf-8"),
+        dry_run=dry_run,
+        min_confidence=min_confidence,
+        counts={"folds": 0, "rejects": 0, "skipped": 0},
+    )
     start = time.perf_counter()
     try:
         for i, c in enumerate(todo, 1):
-            system, user = build_judge_prompt(c)
-            verdict = None
-            for _attempt in range(2):  # one retry on transport/parse failure
-                try:
-                    verdict = parse_verdict(client.chat_json(system, user, {}))
-                except Exception:
-                    verdict = None
-                if verdict is not None:
-                    break
-            if verdict is None:
-                # transient error / unparseable — skip WITHOUT recording, so
-                # a later run retries rather than burning the pair on noise.
-                skipped += 1
-                continue
-            row = verdict_to_row(c, verdict, min_confidence)
-            is_fold = row["into"] != ""
-            folds += is_fold
-            rejects += not is_fold
-            if dry_run:
-                tag = "FOLD" if is_fold else "skip"
-                click.echo(
-                    f"  [{tag}] {c.from_form}->{c.into_form} {verdict.confidence} ({verdict.reason})",
-                    err=True,
-                )
-            else:
-                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-                fh.flush()  # crash-safety: each verdict is durable as we go
+            _judge_and_record(ctx, c)
             if i % 10 == 0 or i == len(todo):
                 rate = (time.perf_counter() - start) / i
                 click.echo(
-                    f"  [{i}/{len(todo)}]  folds={folds} rejects={rejects} skipped={skipped} ({rate:.1f}s/entry)",
+                    f"  [{i}/{len(todo)}]  folds={ctx.counts['folds']} rejects={ctx.counts['rejects']} "
+                    f"skipped={ctx.counts['skipped']} ({rate:.1f}s/entry)",
                     err=True,
                 )
     finally:
-        if fh is not None:
-            fh.close()
+        if ctx.fh is not None:
+            ctx.fh.close()
 
     verb = "would record" if dry_run else "recorded"
     click.echo(
-        f"{verb}: {folds} folds + {rejects} rejections ({skipped} skipped) → {collapse_file}",
+        f"{verb}: {ctx.counts['folds']} folds + {ctx.counts['rejects']} rejections "
+        f"({ctx.counts['skipped']} skipped) → {collapse_file}",
         err=True,
     )
 
