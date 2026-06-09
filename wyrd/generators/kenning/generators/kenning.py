@@ -577,9 +577,11 @@ def _load_priors_sidecar_cached(priors_path: str):
     caps total memory under a heavy-experimentation workflow that
     rotates sidecars; oldest unused entry gets evicted on overflow.
 
-    Returns a fresh ``EmpiricalPriors`` per unique path, then reuses
-    that instance forever — so the vector slot-score cache's
-    ``id(priors)`` key is stable across dispatches.
+    This memoizes a disk read keyed by the file path — the sidecar's
+    content is immutable for a given path, so it's the "load bundled/file
+    data once" case, not request-derived state (wyrd-i7uy): re-reading +
+    re-parsing the sidecar JSON on every request that names it would be
+    pure waste.
     """
     from pathlib import Path
 
@@ -700,12 +702,10 @@ def _generate_via_vector(
     )
 
     if priors_path:
-        # Process-cache by ``priors_path`` so repeated dispatches with
-        # the same sidecar reuse one ``EmpiricalPriors`` instance.
-        # Without this, ``id(priors)`` would differ per dispatch + the
-        # vector slot-score cache would miss on every sidecar request
-        # (zero hit rate + FIFO churn against any concurrent bundled-
-        # priors callers in the same warm container).
+        # Cache the sidecar's parsed content by ``priors_path`` so repeated
+        # requests naming the same sidecar don't re-read + re-parse the JSON
+        # from disk each time (immutable file data keyed by path — fine under
+        # the no-request-state rule, wyrd-i7uy).
         priors = _load_priors_sidecar_cached(str(priors_path))
     else:
         # wyrd-ecjp.10b: fall back to the bundled priors.json sidecar

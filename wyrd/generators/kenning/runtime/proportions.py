@@ -890,44 +890,13 @@ class NameGenerator:
         # names. ``None`` (legacy bundles built pre-wyrd-pfoo) falls
         # back to the per-usage filter only.
         self.culture_attested_meanings: dict[str, frozenset[str]] | None = culture_attested_meanings
-        # Cache the vector-path's non-position eligibility pool keyed
-        # by (era_min, era_max, stratum, exclude_tags, packs_signature).
-        # The dispatch loop calls ``select_via_vector`` once per
-        # sub-seed; without this cache, the O(N=meaning_db_size) scan
-        # rebuilds on every sub-seed and dominates count=N vector
-        # latency (~300ms per sub-seed × N). With the cache, only the
-        # first sub-seed pays the build; subsequent sub-seeds reuse.
-        # Process-lifetime safe: meaning_db is immutable post-load.
-        self._vector_eligible_cache: dict[tuple, list] = {}
-        # Cache per-slot ``(meaning, base_score)`` lists keyed by
-        # ``(eligible_cache_key, slot_position, slot_qualifier,
-        # slot_bucket_key, request_signature, era_midpoint,
-        # id(priors))``. Base scores depend only on request +
-        # (slot_position, slot_qualifier, slot_bucket_key) +
-        # era_midpoint + priors (all constant across sub-seeds in
-        # one count=N dispatch); only the cohesion-multiplier +
-        # weighted-sample steps vary per sub-seed. Caching the base
-        # scores collapses the O(P) score loop per slot from "every
-        # sub-seed" to "once per (request, slot) pair". Per-dispatch
-        # the inner dict is fresh; across dispatches the outer cache
-        # reuses by request signature so repeated identical requests
-        # hit warm scores.
-        #
-        # Inner-key history: wyrd-izcr extended ``slot_position`` to
-        # ``(slot_position, slot_qualifier)`` so one dispatch could
-        # mix ``(pre, None)`` and ``(pre, "name")`` slots without
-        # shadowing. wyrd-bol9 added ``slot_bucket_key`` so single-
-        # element and multi-element bucket variants of the same
-        # (position, qualifier) — which multiply by different per-
-        # bucket empirical frequencies — get distinct cached lists.
-        self._vector_slot_score_cache: dict[tuple, dict[tuple, list]] = {}
-        # Bound the per-slot cache to avoid unbounded growth across a
-        # warm Lambda's lifetime. Distinct request signatures grow
-        # linearly with operator-knob diversity (mood / harshness /
-        # tags / weights / era / stratum / packs). 16 distinct
-        # (request, era_midpoint, priors) tuples covers typical SPA
-        # exploration; older entries get FIFO-evicted on overflow.
-        self._VECTOR_SLOT_CACHE_MAX = 16
+        # wyrd-i7uy: the vector path's eligibility pool + per-slot base-score map
+        # are built FRESH per generate() call (see _build_vector_pools) and never
+        # stored on the instance. The NameGenerator is shared (one per culture via
+        # _load_culture's cache) and long-lived behind the Lambda, so persisting
+        # request-derived state here leaked across requests (a tag-filtered pool
+        # stuck for later different-tag requests). Caching must never outlive a
+        # single request; the per-call rebuild is ~6 ms.
         # wyrd-zzli + wyrd-80ib: filter out structures that would render
         # a bare pre/post/inner morpheme as a standalone word. Two
         # shapes both fail this predicate:
@@ -1100,17 +1069,15 @@ class NameGenerator:
         )
 
         items = list(self.structs.items())
-        # The eligibility pool + per-slot base-score map are cached (folding every
-        # pool-membership filter into the key); see _vector_caches. exclude_tags_fz
-        # is also threaded into the per-slot _score below.
+        # wyrd-i7uy: the eligibility pool + per-slot base-score map are built
+        # fresh per call and live only for this dispatch (no cross-request state).
+        # exclude_tags_fz is also threaded into the per-slot _score below.
         exclude_tags_fz = frozenset(exclude_tags)
-        non_position_eligible, slot_base_scores = self._vector_caches(
+        non_position_eligible, slot_base_scores = self._build_vector_pools(
             request,
             exclude_tags_fz,
             pack_meaning_dbs,
             include_unglossed,
-            era_midpoint,
-            priors,
         )
 
         # wyrd-izcr: pick a struct, flatten to positions + qualifier
@@ -1183,64 +1150,44 @@ class NameGenerator:
         )
         return new_name
 
-    def _vector_caches(
+    def _build_vector_pools(
         self,
         request,
         exclude_tags_fz: frozenset[str],
         pack_meaning_dbs: dict | None,
         include_unglossed: bool,
-        era_midpoint: int,
-        priors,
     ) -> tuple[list, dict]:
-        """Get-or-build the cached non-position eligibility pool + per-slot
-        base-score map for one vector dispatch.
+        """Build the non-position eligibility pool + an empty per-slot base-score
+        map for ONE vector dispatch (a single generate() call → one name).
 
-        The eligibility cache key folds every filter that affects pool
-        membership (era / stratum / exclude-tags / pack overlays via the
-        ``request.packs`` tuple + ``id(pack_meaning_dbs)`` / include_unglossed).
-        The slot-base-score cache adds the request signature, era_midpoint, and
-        ``id(priors)`` — sub-seeds within one dispatch share it and lazy-fill the
-        slot_position → base_scored map. Bounded FIFO eviction keeps the slot
-        cache from growing unbounded over a warm-Lambda lifetime."""
+        wyrd-i7uy: these are scoped to this single call and are NEVER persisted on
+        the instance. The pool is reused across this call's struct retries; the
+        ``slot_base_scores`` dict is lazy-filled across this call's slots; both are
+        discarded when the call returns. Previously they were memoized on the
+        NameGenerator — which is shared (one per culture, via ``_load_culture``'s
+        cache) and long-lived behind the Lambda — under a hand-built key that had
+        drifted from the pool's actual filter inputs (it omitted
+        ``gate.required_tags``), so one request's tag-filtered pool leaked into
+        later different-tag requests from any user on the warm container. A
+        webservice must NEVER cache request-derived state above a single request;
+        the per-call rebuild is ~6 ms, negligible vs the correctness it buys."""
         from wyrd.generators.kenning.runtime.vector_name_select import (
             build_non_position_eligible,
-            request_signature,
         )
 
-        gate = request.gate
-        cache_key = (
-            gate.era_min,
-            gate.era_max,
-            gate.stratum,
-            exclude_tags_fz,
-            request.packs,
-            id(pack_meaning_dbs),
-            include_unglossed,
+        non_position_eligible = build_non_position_eligible(
+            self.meaning_db,
+            gate=request.gate,
+            exclude_tags=exclude_tags_fz,
+            pack_meaning_dbs=pack_meaning_dbs,
+            packs=request.packs,
+            culture_attested_usages=self.culture_attested_usages,
+            culture_attested_meanings=self.culture_attested_meanings,
+            include_unglossed=include_unglossed,
         )
-        non_position_eligible = self._vector_eligible_cache.get(cache_key)
-        if non_position_eligible is None:
-            non_position_eligible = build_non_position_eligible(
-                self.meaning_db,
-                gate=gate,
-                exclude_tags=exclude_tags_fz,
-                pack_meaning_dbs=pack_meaning_dbs,
-                packs=request.packs,
-                culture_attested_usages=self.culture_attested_usages,
-                culture_attested_meanings=self.culture_attested_meanings,
-                include_unglossed=include_unglossed,
-            )
-            self._vector_eligible_cache[cache_key] = non_position_eligible
-
-        slot_cache_key = (cache_key, request_signature(request), era_midpoint, id(priors))
-        slot_base_scores = self._vector_slot_score_cache.get(slot_cache_key)
-        if slot_base_scores is None:
-            slot_base_scores = {}
-            if len(self._vector_slot_score_cache) >= self._VECTOR_SLOT_CACHE_MAX:
-                # FIFO eviction: dict iteration order is insertion order in
-                # Python 3.7+, so next(iter(...)) is the oldest key.
-                oldest = next(iter(self._vector_slot_score_cache))
-                del self._vector_slot_score_cache[oldest]
-            self._vector_slot_score_cache[slot_cache_key] = slot_base_scores
+        # Lazy-filled within THIS call's slot loop (select_via_vector_scoring),
+        # reused across the call's struct retries, discarded on return.
+        slot_base_scores: dict = {}
         return non_position_eligible, slot_base_scores
 
     def _pick_struct_via_vector(self, rng, items, score_fn):
