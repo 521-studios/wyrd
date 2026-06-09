@@ -105,13 +105,14 @@ def _load_recorded_collapse_refs(collapse_file: Path) -> set[str]:
     existing: set[str] = set()
     if not collapse_file.exists():
         return existing
-    for line in collapse_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        row = json.loads(line)
-        if row.get("_type") == "collapse" and row.get("ref"):
-            existing.add(row["ref"])
+    with collapse_file.open(encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            if isinstance(row, dict) and row.get("_type") == "collapse" and row.get("ref"):
+                existing.add(row["ref"])
     return existing
 
 
