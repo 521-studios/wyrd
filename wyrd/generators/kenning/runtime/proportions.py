@@ -239,26 +239,29 @@ def _merge_morpheme_meanings(meanings: list):
     ``era_reflexes`` + ``era_reflex_glosses`` are the union across the group, so
     the era-grid reflects the whole morpheme rather than one surface variant.
 
-    **Genuine reflexes win; self-seeds are a fallback (wyrd-5olv).** A
-    ``morpheme_id`` groups not only spelling/position variants of the morpheme
-    (``-ing``/``Ing-``) but every usage CONSTRUCTED with it as a head: every
-    ``-ton`` town (``-bolton``/``-newton``/...) carries
+    **Genuine reflexes first; self-seeds unioned in (wyrd-5olv → wyrd-phww).**
+    A ``morpheme_id`` groups not only spelling/position variants of the
+    morpheme (``-ing``/``Ing-``) but every usage CONSTRUCTED with it as a head:
+    every ``-ton`` town (``-bolton``/``-newton``/...) carries
     ``morpheme_id=old-english:tūn`` because Wiktionary records the town's
     etymology as an inheritance edge FROM ``tūn`` — a word built *with* the
     etymon, recorded as a reflex *of* it (bad upstream data). Each such usage
     self-seeds its OWN surface (``source='self'``, the mook self-seed) into
-    ``era_reflexes``, so a naive union floods tūn's modern era-grid with ~120
-    town surfaces instead of its ~10 attested spellings.
+    ``era_reflexes``.
 
-    So per language: when the group carries ANY genuine — non-``self``:
-    cluster / descent / period-form / phonology-rule — reflex, keep ONLY those
-    (the attested spellings of the morpheme); fall back to the self-seeds for a
-    language only when it has no attestation at all. The fallback is what keeps
-    an all-self connective morpheme intact — ``-ing`` has no cluster/descent
-    reflexes, so its self-seeded variants (including the legitimate ``-ling``)
-    are retained rather than stranded. This deliberately avoids a
-    compound-detector heuristic, which can't tell a real derivational suffix
-    (``-ling``) from a constructed compound (``-bolton``) and would eat both.
+    So per language the group's genuine — non-``self``: cluster / descent /
+    period-form / phonology-rule — reflexes are listed FIRST (their attested
+    source preserved), then each self-seed is unioned in only for a form no
+    genuine reflex already covers (:func:`_union_lang`). An all-``self``
+    connective morpheme is thus retained intact — ``-ing`` has no
+    cluster/descent reflexes, so its self-seeded variants (including the
+    legitimate ``-ling``) survive. The pre-wyrd-phww rule discarded ALL
+    self-seeds whenever any genuine reflex existed, which dropped the generated
+    surface (the attested modern toponym form) from the grid; the flood risk
+    that rule guarded against (every constructed ``-ton`` town self-seeds its
+    whole surface, ~120 for ``tūn``) is instead handled downstream — ``_era_grid``
+    narrows the present-day stage to the word's OWN surface, so only the one
+    relevant self-seed survives next to the genuine reflexes, never the ~120.
 
     Deterministic: the group is processed in ``usage`` order, forms dedupe
     first-seen-wins, and languages are visited in sorted order. Returns the

@@ -265,6 +265,33 @@ def test_merge_keeps_glosses_for_unioned_self_seed_forms():
     }
 
 
+def test_merge_drops_gloss_language_with_no_surviving_form():
+    """A gloss for a form that appears in NO era_reflexes entry is dropped, and
+    a language whose every glossed form is thus filtered is OMITTED from the
+    merged glosses (not left as an empty `{}`). Pins the `if surviving:` branch
+    in _merge_reflex_buckets (wyrd-8uvi) — the only era field that can shrink
+    relative to the inputs under the wyrd-phww union."""
+    a = _m(
+        "-ton",
+        "old-english:tūn",
+        {"modern-english": [("town", "cluster")]},
+        {"modern-english": {"town": "settlement"}},
+    )
+    # 'b' glosses a 'ghost' form in a language ('welsh') it never lists in
+    # era_reflexes, so that gloss has no surviving form to attach to.
+    b = _m(
+        "-x",
+        "old-english:tūn",
+        {"modern-english": [("town", "cluster")]},
+        {"welsh": {"ghost": "phantom"}},
+    )
+    merged = _merge_morpheme_meanings([a, b])
+    assert "welsh" not in (merged.era_reflexes or {})
+    # The welsh gloss language is omitted entirely — not present even as {}.
+    assert "welsh" not in (merged.era_reflex_glosses or {})
+    assert merged.era_reflex_gloss_for("modern-english") == {"town": "settlement"}
+
+
 def test_merge_genuine_source_wins_for_duplicate_form():
     """wyrd-5olv: when a form appears as a self-seed in one usage and a genuine
     reflex in another, the genuine entry wins — the surviving form keeps its
