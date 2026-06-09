@@ -15,6 +15,7 @@ import sqlite3
 from wyrd.generators.kenning.ingesters.domesday import (
     COUNTY_CODE_TO_NAME,
     DOMESDAY_SOURCE_ID,
+    _compute_source_doc,
     _ingest_from_tables,
     upsert_domesday_source,
 )
@@ -404,3 +405,71 @@ def test_ingest_writes_source_row_on_apply() -> None:
     assert src is not None
     assert src["year"] == 1086
     assert src["region"] == "England"
+
+
+def test_compute_source_doc_assembly_and_fallbacks() -> None:
+    """`_compute_source_doc` joins the present Phillimore / Hundred / OS parts
+    with '; ' in that fixed order, and falls back to DOMESDAY_SOURCE_ID when
+    none are present (so citation-less rows still dedup against the index).
+    Pins the wyrd-8uvi-extracted helper across the present/absent matrix."""
+    assert (
+        _compute_source_doc("15,8", "Doddingtree", "SO7567")
+        == "Phillimore 15,8; Hundred=Doddingtree; OS=SO7567"
+    )
+    assert _compute_source_doc("15,8", None, None) == "Phillimore 15,8"
+    assert _compute_source_doc(None, "Doddingtree", None) == "Hundred=Doddingtree"
+    assert _compute_source_doc("", None, "SO7567") == "OS=SO7567"
+    # All absent (None Phillimore, empty Hundred/OS) → the source-id fallback.
+    assert _compute_source_doc(None, None, None) == DOMESDAY_SOURCE_ID
+
+
+def test_dry_run_distinct_negative_ids_for_same_name_different_region() -> None:
+    """Two DISTINCT new toponyms sharing a modern_name + identical source_doc
+    but a different region must get DISTINCT dry-run negative ids, so their
+    attestations don't collapse in the attestation_index. With a shared id the
+    second attestation would be miscounted as existing. Pins the
+    dry_run_id_counter uniqueness on _DomesdayIngestState (wyrd-8uvi).
+
+    Both rows have no Phillimore/Hundred/OS → identical source_doc
+    (DOMESDAY_SOURCE_ID); only the negative id distinguishes the att_keys."""
+    places = {"PlacesIdx": [100, 200], "Phillimore": [None, None]}
+    placeforms = {
+        "PlacesIdx": [100, 200],
+        "Vill": ["Newton", "Newton"],
+        "County": ["DEV", "ESS"],  # different regions → distinct toponyms
+        "OSref": [None, None],
+        "OScodes": [None, None],
+        "Hundred": [None, None],
+    }
+    apply_counts = _ingest_from_tables(_build_fixture_db(), places, placeforms, apply=True)
+    dry_counts = _ingest_from_tables(_build_fixture_db(), places, placeforms, apply=False)
+    # Two distinct toponyms, two distinct attestations — dry-run matches apply.
+    assert dry_counts["toponym_inserted"] == apply_counts["toponym_inserted"] == 2
+    assert dry_counts["attestation_inserted"] == apply_counts["attestation_inserted"] == 2
+
+
+def test_preexisting_toponym_hit_twice_counts_existing_once() -> None:
+    """A pre-existing DB toponym hit by 2+ PlaceForm rows is counted in
+    `toponym_existing` exactly ONCE (the in-run seen_this_run guard), while
+    each row's distinct-source_doc attestation still inserts. Pins the
+    multi-count guard on _DomesdayIngestState.seen_this_run (wyrd-8uvi)."""
+    conn = _build_fixture_db()
+    # Pre-seed the toponym 'Town' in Worcestershire (WOR → Worcestershire).
+    conn.execute(
+        "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+        ("Town", "England", COUNTY_CODE_TO_NAME["WOR"]),
+    )
+    conn.commit()
+    places = {"PlacesIdx": [1, 2], "Phillimore": ["1,1", "1,2"]}
+    placeforms = {
+        "PlacesIdx": [1, 2],
+        "Vill": ["Town", "Town"],
+        "County": ["WOR", "WOR"],  # same (name, region) → same pre-existing toponym
+        "OSref": ["SO1", "SO2"],  # distinct → distinct source_doc → both attest
+        "OScodes": [None, None],
+        "Hundred": [None, None],
+    }
+    counts = _ingest_from_tables(conn, places, placeforms, apply=True)
+    assert counts["toponym_inserted"] == 0
+    assert counts["toponym_existing"] == 1  # counted once, not twice
+    assert counts["attestation_inserted"] == 2
