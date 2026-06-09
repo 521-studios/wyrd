@@ -1574,14 +1574,14 @@ class NewName:
     def _resolve_repeat(
         self, wi, ei, usage, fold, canon, siblings, seen, name_sig, first_slot=None
     ) -> None:
-        """Resolve one repeated surface (wyrd-vd6y / wyrd-72q9): prefer a
-        same-meaning synonym in a DIFFERENT language ("Hill Hill" → "Hill Haeth",
-        a render override); else re-pick a DIFFERENT same-position morpheme
-        ("Park ... Park" → "Park ... <other>", replacing the name key); else
-        leave the duplicate. Updates ``seen`` in place with whatever fold /
-        language the resolution introduces. Deterministic — no rng."""
-        from wyrd.generators.kenning import _rank_siblings
-
+        """Resolve one repeated surface (wyrd-vd6y / wyrd-72q9) by trying, in
+        order: a same-meaning synonym in a DIFFERENT language ("Hill Hill" →
+        "Hill Haeth", a render override); else re-pick a DIFFERENT same-position
+        morpheme ("Park ... Park" → "Park ... <other>", replacing the name key);
+        else break a native-render visual duplicate by falling a slot back to
+        modern; else leave the duplicate. Updates ``seen`` in place with
+        whatever fold / language the resolution introduces. Deterministic — no
+        rng."""
         canon_langs = self._meaning_langs([canon]) if canon else set()
         alt = self._cross_lang_synonym(canon, siblings, seen[fold] | canon_langs)
         if alt is not None:
@@ -1598,45 +1598,55 @@ class NewName:
             self.picked_ids[wi][ei] = getattr(sib, "morpheme_id", None)
             seen.setdefault(form.strip("-").lower(), set()).add(lang)
             return
-        repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
-        if repl is not None:
-            self.name[wi][ei] = repl
-            repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
-            # wyrd-i4jd: a re-pick chooses a BUCKET (not a scored Meaning), so the
-            # identity is the ranked-first of that bucket — the one residual
-            # string-derivation in generate, bounded to literal-repeat slots.
-            self.picked_ids[wi][ei] = (
-                getattr(repl_sibs[0], "morpheme_id", None) if repl_sibs else None
-            )
-            if self.rendered is not None:
-                # wyrd-24s6 (D38): render the re-picked morpheme in its NATIVE
-                # form so the native render stays consistent (pre-D38 set None →
-                # the modern usage). modern_name() reads the replacement's modern
-                # surface from self.name (e) directly.
-                native = _native_form_for_meanings(repl_sibs)
-                native_rendered = _mimic_case(repl, native) if native else None
-                # If the re-pick's NATIVE form ALSO collides (a native homograph
-                # of an earlier slot — re-pick excludes seen folds by BUCKET key,
-                # but a distinct morpheme can share a native surface), render it
-                # MODERN instead: repl's modern usage is collision-free since it
-                # was chosen outside the seen folds.
-                if native_rendered and native_rendered.strip("-").lower() in seen:
-                    native_rendered = None
-                self.rendered[wi][ei] = native_rendered
-            if self.inflection_labels is not None:
-                self.inflection_labels[wi][ei] = None
-            seen[repl.strip("-").lower()] = (
-                self._meaning_langs([repl_sibs[0]]) if repl_sibs else set()
-            )
+        if self._repick_repeat(wi, ei, usage, seen, name_sig, canon):
             return
-        # wyrd-24s6 (D38): no synonym + no re-pick. Native rendering can collide
-        # where modern doesn't — two morphemes sharing a source-era form but
-        # differing modern surfaces ('Biscop Biscop'). Break the visual native
-        # duplicate by falling EITHER colliding slot back to its modern usage,
-        # preferring whichever one's modern surface differs from the collision
-        # fold (the OTHER may itself be an archaic morpheme whose modern == its
-        # native, e.g. a 'Biscop' whose modern is also 'Biscop'). Only when a
-        # native render is active; else leave the dupe as before.
+        self._break_native_duplicate(wi, ei, usage, fold, seen, first_slot)
+
+    def _repick_repeat(self, wi, ei, usage, seen, name_sig, canon) -> bool:
+        """Re-pick a DIFFERENT same-position morpheme for a repeated surface
+        ("Park ... Park" → "Park ... Dale"), replacing the name key. Returns
+        True (and updates name / rendered / inflection_labels / ``seen``) when a
+        non-duplicate replacement exists, else False (caller falls through)."""
+        from wyrd.generators.kenning import _rank_siblings
+
+        repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
+        if repl is None:
+            return False
+        self.name[wi][ei] = repl
+        repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
+        # wyrd-i4jd: a re-pick chooses a BUCKET (not a scored Meaning), so the
+        # identity is the ranked-first of that bucket — the one residual
+        # string-derivation in generate, bounded to literal-repeat slots.
+        self.picked_ids[wi][ei] = getattr(repl_sibs[0], "morpheme_id", None) if repl_sibs else None
+        if self.rendered is not None:
+            # wyrd-24s6 (D38): render the re-picked morpheme in its NATIVE
+            # form so the native render stays consistent (pre-D38 set None →
+            # the modern usage). modern_name() reads the replacement's modern
+            # surface from self.name (e) directly.
+            native = _native_form_for_meanings(repl_sibs)
+            native_rendered = _mimic_case(repl, native) if native else None
+            # If the re-pick's NATIVE form ALSO collides (a native homograph
+            # of an earlier slot — re-pick excludes seen folds by BUCKET key,
+            # but a distinct morpheme can share a native surface), render it
+            # MODERN instead: repl's modern usage is collision-free since it
+            # was chosen outside the seen folds.
+            if native_rendered and native_rendered.strip("-").lower() in seen:
+                native_rendered = None
+            self.rendered[wi][ei] = native_rendered
+        if self.inflection_labels is not None:
+            self.inflection_labels[wi][ei] = None
+        seen[repl.strip("-").lower()] = self._meaning_langs([repl_sibs[0]]) if repl_sibs else set()
+        return True
+
+    def _break_native_duplicate(self, wi, ei, usage, fold, seen, first_slot) -> None:
+        """wyrd-24s6 (D38) last resort: no synonym + no re-pick. Native rendering
+        can collide where modern doesn't — two morphemes sharing a source-era
+        form but differing modern surfaces ('Biscop Biscop'). Break the visual
+        native duplicate by falling EITHER colliding slot back to its modern
+        usage, preferring whichever one's modern surface differs from the
+        collision fold (the OTHER may itself be an archaic morpheme whose modern
+        == its native). Only acts when a native render is active; else leaves the
+        dupe."""
         if self.rendered is None:
             return
         candidates = [(wi, ei, usage)]
