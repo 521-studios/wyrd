@@ -79,6 +79,27 @@ def _reconstruct_words(struct, picked):
     return words
 
 
+def _reconstruct_picked_ids(struct, picked):
+    """wyrd-i4jd: the per-slot ``morpheme_id`` of each selected ``pick``, shaped
+    exactly like :func:`_reconstruct_words` (same word-grouping + index walk), so
+    it stays index-aligned with ``NewName.name``. This is the IDENTITY the
+    generator actually selected — carried so render/grid/highlight resolve the
+    morpheme by id instead of re-deriving it from the surface string (which
+    string-collides + can land on a different sibling). ``None`` for dropped /
+    permissive-fallback slots and for picks lacking a morpheme_id (legacy
+    bundles) — every downstream consumer then degrades to the surface path."""
+    picked_ids: list[list[str | None]] = []
+    idx = 0
+    for word in struct:
+        word_ids: list[str | None] = []
+        for _slot in word:
+            pick = picked[idx]
+            word_ids.append(getattr(pick, "morpheme_id", None) if pick is not None else None)
+            idx += 1
+        picked_ids.append(word_ids)
+    return picked_ids
+
+
 class Generator:
     def __init__(self, tag_db, elements):
         self.tag_db = tag_db
@@ -538,6 +559,15 @@ def _era_form_for_meanings(meanings, era_render_language: str | None) -> str | N
     return None
 
 
+def _native_form_for_morpheme_id(morpheme_id) -> str | None:
+    """wyrd-i4jd: the NATIVE surface encoded in a ``morpheme_id``
+    (``old-english:smiþþe`` → ``smiþþe``), or None when the id is unset /
+    malformed / has a dash-only canonical. The single source of truth for
+    'morpheme_id → native form' shared by the surface-list and id-first paths."""
+    src, sep, canon = (morpheme_id or "").partition(":")
+    return canon if (sep and src and canon.strip("-")) else None
+
+
 def _native_form_for_meanings(meanings) -> str | None:
     """wyrd-24s6 (D38): the morpheme's NATIVE surface — its source-language
     headword, taken from the ``morpheme_id`` canonical (``old-english:smiþþe`` →
@@ -547,10 +577,9 @@ def _native_form_for_meanings(meanings) -> str | None:
     ``morpheme_id`` — the caller then falls back to the modern usage (the ~orphan
     / synthesized morphemes), mirroring the era-render fallback convention."""
     for meaning in meanings:
-        mid = getattr(meaning, "morpheme_id", None) or ""
-        src, sep, canon = mid.partition(":")
-        if sep and src and canon.strip("-"):
-            return canon
+        form = _native_form_for_morpheme_id(getattr(meaning, "morpheme_id", None))
+        if form is not None:
+            return form
     return None
 
 
@@ -629,17 +658,20 @@ def _era_stage(meaning, renderings, lang):
     or None when the language has no forms (so the caller drops the empty
     column).
 
-    wyrd-rogd.7: each cell carries a stable ``id`` (``lang:index`` — a language
-    is unique per stage within a morpheme's grid, so this uniquely identifies
-    the cell). The SPA tracks the SELECTED variant by this id rather than by
-    surface-fold, which collides for forms that fold equal (bǣre/bære, *ur/ur)
-    and lit up two cells at once."""
+    wyrd-rogd.7 / wyrd-i4jd: each cell carries a stable ``id`` — ``lang:<form>``
+    using the RAW reflex form (``*`` marker kept so the reconstructed ``*ur`` and
+    attested ``ur`` stay distinct). Forms dedupe within a stage (first-seen-wins
+    in the merge), so ``(lang, form)`` uniquely identifies the cell, and it is
+    CONTENT-stable — unaffected by reflex-list reordering / bundle re-emit (the
+    old positional ``lang:index`` shifted when the list moved). The SPA tracks
+    the selected + active variant by this id rather than by surface-fold, which
+    collides for forms that fold equal (bǣre/bære) and lit up two cells at once."""
     sources = meaning.era_reflex_sources_for(lang)
     glosses = meaning.era_reflex_gloss_for(lang)
     forms = []
-    for i, form in enumerate(meaning.era_reflex_for(lang)):
+    for form in meaning.era_reflex_for(lang):
         cell = _era_form_cell(meaning, renderings, lang, form, sources, glosses)
-        cell["id"] = f"{lang}:{i}"
+        cell["id"] = f"{lang}:{form}"
         forms.append(cell)
     return {"language": lang, "forms": forms} if forms else None
 
@@ -659,6 +691,35 @@ def _grid_surface_key(form: str) -> str:
     cell form: case-insensitive, affix dashes + whitespace ignored ('Park-' ==
     'park', '-ton' == 'ton')."""
     return form.strip().strip("-").strip().casefold()
+
+
+def _active_cell_id(grid, lang, surface):
+    """wyrd-i4jd: the stable grid-cell ``id`` for a morpheme's ACTIVE (rendered)
+    surface, so the SPA highlights the generated form BY ID instead of
+    re-deriving it with a brittle cross-grid surface fold (which collides on
+    same-spelled forms across eras/etymons). The match is scoped to the
+    morpheme's OWN grid (already built from the picked etymon) and, when known,
+    its render-language stage — so cross-etymon / cross-era collisions can't
+    happen. Prefers an exact form match in ``lang``'s stage, then a case/dash
+    fold there, then the first folding cell anywhere. None when nothing matches
+    (→ frontend falls back to its legacy fold for that morpheme)."""
+    if not grid or not surface:
+        return None
+    folded = _grid_surface_key(surface)
+    exact_lang = fold_lang = fold_any = None
+    for section in grid:
+        for stage in section.get("stages", []):
+            in_lang = lang is not None and stage.get("language") == lang
+            for cell in stage.get("forms", []):
+                form = cell.get("form", "")
+                if in_lang and form == surface and exact_lang is None:
+                    exact_lang = cell.get("id")
+                if _grid_surface_key(form) == folded:
+                    if in_lang and fold_lang is None:
+                        fold_lang = cell.get("id")
+                    elif fold_any is None:
+                        fold_any = cell.get("id")
+    return exact_lang or fold_lang or fold_any
 
 
 def _era_grid(meaning, renderings, own_surface=None):
@@ -1083,8 +1144,12 @@ class NameGenerator:
             # emits an empty name in this same degenerate case.
             return None
         words = _reconstruct_words(struct, picked)
+        # wyrd-i4jd: carry the picked morpheme_ids alongside the surfaces so the
+        # render + grid + breakdown resolve the etymon the generator ACTUALLY
+        # selected, by id, instead of re-deriving it from the surface string.
+        picked_ids = _reconstruct_picked_ids(struct, picked)
 
-        new_name = NewName(struct, self.meaning_db, words)
+        new_name = NewName(struct, self.meaning_db, words, picked_ids=picked_ids)
         # wyrd-nbpw/6c8x: post-pick rendering — era-form (feature A) or the D8
         # inflection / D18 spelling-variant substitution — applied via
         # _apply_render. wyrd-24s6 (D38): default generation (all knobs 0, no era
@@ -1286,7 +1351,9 @@ class NameGenerator:
         ``era_render_language`` to None) leaves ``new_name.rendered`` as None so
         __str__ falls back to the modern usage (the force-modern path)."""
         if era_render_language:
-            new_name.rendered = self._render_era_forms(new_name.name, era_render_language)
+            new_name.rendered = self._render_era_forms(
+                new_name.name, era_render_language, new_name.picked_ids
+            )
             # wyrd-mf2u: record the era language so the breakdown can resolve +
             # label the era form's own pronunciation (the rendered surfaces are
             # this language's cluster reflexes, not modern-orthography variants).
@@ -1307,9 +1374,22 @@ class NameGenerator:
             # to None (contemporary suppression) but DOES set era_requested, so it
             # falls through here → rendered stays None → modern usage (the explicit
             # force-modern path, distinct from the native default).
-            new_name.rendered = self._render_native_forms(new_name.name)
+            new_name.rendered = self._render_native_forms(new_name.name, new_name.picked_ids)
 
-    def _render_era_forms(self, name, era_render_language):
+    def _morpheme_for_slot(self, usage, mid):
+        """wyrd-i4jd: the Meaning to render this slot from. When the generator's
+        picked ``morpheme_id`` is known, resolve THAT exact morpheme (so the
+        rendered form is one of its own reflexes — id-first); else fall back to
+        the surface-derived sense list (legacy / None-id slots). Returns a list
+        of Meanings for ``_*_for_meanings`` to consume (one merged morpheme in
+        the id-first case)."""
+        if mid:
+            m = _resolve_morpheme(self.meaning_db, mid)
+            if m is not None:
+                return [m]
+        return self.meaning_gen._surface_index().get(usage.lower().replace("-", "")) or []
+
+    def _render_era_forms(self, name, era_render_language, picked_ids=None):
         """wyrd-6c8x (feature A): render each picked morpheme in its era-
         appropriate attested form for ``era_render_language`` (the canonical
         etymon-language of the requested era cell) instead of the modern
@@ -1317,58 +1397,62 @@ class NameGenerator:
 
         Returns a ``NewName.rendered``-shaped list (parallel to ``name``): the
         era form, case-projected onto the slot via ``_mimic_case``, where the
-        bundle carries a reflex for the target language; else None — which
-        ``NewName.__str__`` renders as the canonical usage. Empty-reflex
-        morphemes (the ~10% with no era data) thus fall back to the modern
-        form, matching the rewind 'no era data → canonical' convention.
+        morpheme carries a reflex for the target language; else None — which
+        ``NewName.__str__`` renders as the canonical usage.
 
-        Deterministic + bit-stable: resolves each usage to its senses by bare
-        surface (mirroring ``_render_substitutions``, since usages are
-        position-forms like ``-ton``) and delegates form selection to
-        ``_era_form_for_meanings`` (attested-over-reconstructed, no rng draw).
-        A usage with no reflex renders as None — ``NewName.__str__`` then falls
-        back to the canonical usage (the ~10% with no era data)."""
+        wyrd-i4jd: resolves the morpheme the generator ACTUALLY picked (by
+        ``picked_ids``), so the era form is one of that morpheme's OWN reflexes
+        — not a first-with-data sibling from the surface bucket. Delegates form
+        selection to ``_era_form_for_meanings`` (attested-over-reconstructed, no
+        rng draw). None-id slots (legacy) fall back to the surface-derived
+        senses; a morpheme with no reflex renders None → modern usage."""
         rendered: list[list[str | None]] = []
-        for word in name:
+        for wi, word in enumerate(name):
             word_rendered: list[str | None] = []
-            for usage in word:
+            for ei, usage in enumerate(word):
                 if usage is None:
                     word_rendered.append(None)
                     continue
-                meanings = (
-                    self.meaning_gen._surface_index().get(usage.lower().replace("-", "")) or []
-                )
+                mid = picked_ids[wi][ei] if picked_ids else None
+                meanings = self._morpheme_for_slot(usage, mid)
                 form = _era_form_for_meanings(meanings, era_render_language)
                 word_rendered.append(_mimic_case(usage, form) if form else None)
             rendered.append(word_rendered)
         return rendered
 
-    def _render_native_forms(self, name) -> list[list[str | None]]:
+    def _render_native_forms(self, name, picked_ids=None) -> list[list[str | None]]:
         """wyrd-24s6 (D38): render each picked morpheme in its NATIVE
         (source-language) form so the default (era="") name is "as selected" —
-        a genuinely mixed-era surface — rather than coerced to modern. Mirrors
-        ``_render_era_forms`` but resolves each morpheme to its OWN source
-        language via ``_native_form_for_meanings`` (the morpheme_id canonical),
-        case-projected onto the slot. A morpheme with no morpheme_id renders as
-        None — ``NewName.__str__`` then falls back to the modern usage."""
+        a genuinely mixed-era surface — rather than coerced to modern.
+
+        wyrd-i4jd: the native form is the generator's PICKED morpheme's
+        ``morpheme_id`` canonical (resolved by ``picked_ids``), so the rendered
+        surface is that morpheme's own headword — not a first-with-data sibling.
+        Case-projected onto the slot. A slot whose picked morpheme has no
+        morpheme_id (or a None-id legacy slot with no surface match) renders None
+        — ``NewName.__str__`` then falls back to the modern usage."""
         rendered: list[list[str | None]] = []
-        for word in name:
+        for wi, word in enumerate(name):
             word_rendered: list[str | None] = []
-            for usage in word:
+            for ei, usage in enumerate(word):
                 if usage is None:
                     word_rendered.append(None)
                     continue
-                meanings = (
-                    self.meaning_gen._surface_index().get(usage.lower().replace("-", "")) or []
-                )
-                form = _native_form_for_meanings(meanings)
+                mid = picked_ids[wi][ei] if picked_ids else None
+                form = _native_form_for_morpheme_id(mid) if mid else None
+                if form is None and not mid:
+                    # Legacy / None-id slot: derive from the surface bucket.
+                    meanings = self.meaning_gen._surface_index().get(
+                        usage.lower().replace("-", "")
+                    ) or []
+                    form = _native_form_for_meanings(meanings)
                 word_rendered.append(_mimic_case(usage, form) if form else None)
             rendered.append(word_rendered)
         return rendered
 
 
 class NewName:
-    def __init__(self, struct, meaning_db, name, rendered=None, inflection_labels=None):
+    def __init__(self, struct, meaning_db, name, rendered=None, inflection_labels=None, picked_ids=None):
         self.struct = struct
         self.meaning_db = meaning_db
         self.name = name
@@ -1397,6 +1481,14 @@ class NewName:
         # and to_dict honor it so the name + breakdown stay consistent.
         # Per-element override Meaning for a diversified slot (else None).
         self._lang_override = [[None] * len(w) for w in (name or [])]
+        # wyrd-i4jd: per-element ``morpheme_id`` of the lemma the generator
+        # actually selected, parallel to ``name``. The id-first identity that
+        # render/grid/breakdown resolve through (via _resolve_morpheme) instead
+        # of re-deriving the etymon from the surface string. None where unknown
+        # (render-only / rewind-from-json builds, dropped slots, legacy bundles)
+        # → consumers degrade to the surface path. Diversification updates this
+        # in lockstep with _lang_override (see _resolve_repeat).
+        self.picked_ids = picked_ids if picked_ids is not None else [[None] * len(w) for w in (name or [])]
         # Run lazily on first render (see _ensure_diversified): callers set
         # self.rendered (variant/inflection substitution) AFTER __init__, and
         # the diversification must layer on top of the FINAL rendered surfaces.
@@ -1471,12 +1563,21 @@ class NewName:
                 self.rendered = [[None] * len(w) for w in self.name]
             self.rendered[wi][ei] = grafted
             self._lang_override[wi][ei] = sib
+            # wyrd-i4jd: the slot's identity is now the synonym's — keep
+            # picked_ids in lockstep so grid/breakdown resolve the override.
+            self.picked_ids[wi][ei] = getattr(sib, "morpheme_id", None)
             seen.setdefault(form.strip("-").lower(), set()).add(lang)
             return
         repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
         if repl is not None:
             self.name[wi][ei] = repl
             repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
+            # wyrd-i4jd: a re-pick chooses a BUCKET (not a scored Meaning), so the
+            # identity is the ranked-first of that bucket — the one residual
+            # string-derivation in generate, bounded to literal-repeat slots.
+            self.picked_ids[wi][ei] = (
+                getattr(repl_sibs[0], "morpheme_id", None) if repl_sibs else None
+            )
             if self.rendered is not None:
                 # wyrd-24s6 (D38): render the re-picked morpheme in its NATIVE
                 # form so the native render stays consistent (pre-D38 set None →
@@ -1784,6 +1885,16 @@ class NewName:
         except IndexError:
             return None
 
+    def _morpheme_id_for(self, wi: int, ei: int) -> str | None:
+        """wyrd-i4jd: the morpheme_id the generator selected for this slot (after
+        diversification override), or None when unknown → caller falls back to
+        the surface-derived etymon. Single accessor so every consumer
+        None-degrades identically."""
+        try:
+            return self.picked_ids[wi][ei]
+        except (IndexError, TypeError):
+            return None
+
     def to_dict(self) -> dict:
         """wyrd-cp2d: structured dump preserving per-word morpheme
         grouping + per-morpheme source-language picks. Consumed by
@@ -1848,23 +1959,39 @@ class NewName:
         if override is not None:
             ranked = [override]
             usage_str = (self.rendered[wi][ei] if self.rendered else None) or e
+            grid_mid = getattr(override, "morpheme_id", None)
         else:
             ranked = _rank_siblings(_resolve_surface(self.meaning_db, e))
             usage_str = e
+            # wyrd-i4jd: the reflex GRID (+ active_form_id highlight) is id-first
+            # — built from the morpheme the generator actually PICKED, so the
+            # grid + highlight match the rendered surface instead of a homograph
+            # re-derived from the string. The display fields (tags/meanings/
+            # sources) stay the surface-sibling union. Fall back to the
+            # ranked-first's id for a None-id slot (legacy / rewind-from-json).
+            grid_mid = self._morpheme_id_for(wi, ei) or (
+                getattr(ranked[0], "morpheme_id", None) if ranked else None
+            )
         first = ranked[0] if ranked else None
         morpheme: dict = {"usage": usage_str}
         if first is not None:
-            self._add_etymology_fields(morpheme, ranked, first)
+            self._add_etymology_fields(morpheme, ranked, first, grid_mid)
         self._add_rendered_fields(morpheme, wi, ei, first)
+        self._set_active_form_id(morpheme, first)
         return morpheme
 
-    def _add_etymology_fields(self, morpheme: dict, ranked: list, first) -> None:
+    def _add_etymology_fields(self, morpheme: dict, ranked: list, first, grid_mid=None) -> None:
         """Add the etymology fields for the top-ranked sibling ``first``. Sources
         stay from ``first`` (the canonical etymon for this surface); tags union
         across all ranked siblings (wyrd-ywm9); meanings split into primary +
         derivative for the SPA card layout. meaning_groups / renderings /
         citations / era_grid are sparse — emitted only when non-empty, so
-        Latin-script / rando-port-only morphemes don't carry noisy empties."""
+        Latin-script / rando-port-only morphemes don't carry noisy empties.
+
+        wyrd-i4jd: the era_grid is resolved from ``grid_mid`` — the morpheme_id
+        the generator PICKED — so the reflex grid (+ active_form_id highlight)
+        matches the rendered surface, not a homograph re-derived from the string.
+        Falls back to ``first.morpheme_id`` when ``grid_mid`` is None (legacy)."""
         # Lazy import (circular-dep avoidance — see _morpheme_to_dict).
         from wyrd.generators.kenning import (
             _all_senses,
@@ -1897,7 +2024,9 @@ class NewName:
         # resolved against the UNIFIED morpheme by its stable morpheme_id (no
         # dash-strip string fallback; an un-attributable surface → _era_grid(None)
         # → [] → no grid).
-        morpheme_meaning = _resolve_morpheme(self.meaning_db, getattr(first, "morpheme_id", None))
+        morpheme_meaning = _resolve_morpheme(
+            self.meaning_db, grid_mid or getattr(first, "morpheme_id", None)
+        )
         # wyrd-phww: narrow the present-day stage to the surface this instance
         # used (morpheme['usage'] — the generated surface for generate, the
         # decomposed input surface for explain) so the era-grid shows what the
@@ -1922,6 +2051,32 @@ class NewName:
             )
             if pron:
                 morpheme["rendered_pron"] = pron
+
+    def _set_active_form_id(self, morpheme: dict, first) -> None:
+        """wyrd-i4jd: stamp ``active_form_id`` — the grid-cell id of the surface
+        this morpheme actually rendered — so the SPA highlights it BY ID instead
+        of re-deriving it from a cross-grid surface fold. Call AFTER the grid +
+        rendered fields are set. The active surface is the era/native ``rendered``
+        form (in its render language) or, when there's no distinct render, the
+        modern ``usage`` (present-day stage). Sparse: omitted when no cell matches
+        (no era data, or a None-id legacy slot) → frontend falls back to its fold."""
+        grid = morpheme.get("era_grid")
+        if not grid:
+            return
+        rendered = morpheme.get("rendered")
+        if rendered is not None and morpheme.get("rendered_language"):
+            lang, surface = morpheme["rendered_language"], rendered
+        elif rendered is not None:
+            # Native render: no rendered_language; the active stage is the picked
+            # morpheme's source language, from its morpheme_id (old-english:smiþþe).
+            lang = (getattr(first, "morpheme_id", "") or "").partition(":")[0] or None
+            surface = rendered
+        else:
+            # Modern / force-modern: the present-day stage holds the usage seed.
+            lang, surface = None, morpheme.get("usage")
+        cid = _active_cell_id(grid, lang, surface)
+        if cid:
+            morpheme["active_form_id"] = cid
 
     def components(self):
         """Structured component breakdown for the API envelope.
@@ -1958,14 +2113,17 @@ class NewName:
                 if override is not None:
                     ranked = [override]
                     usage_str = (self.rendered[wi][ei] if self.rendered else None) or e
+                    grid_mid = getattr(override, "morpheme_id", None)
                 else:
-                    # wyrd-o53o round 4 (Gemini MED): defensive access
-                    # matching to_dict()'s pattern. e SHOULD exist (it
-                    # came from the generator's pool) but the consistency
-                    # win + no-IndexError-on-empty-siblings is worth the
-                    # cost of one .get() + one truthy check.
                     ranked = _rank_siblings(_resolve_surface(self.meaning_db, e))
                     usage_str = e
+                    # wyrd-i4jd: id-first GRID — built from the picked morpheme so
+                    # the reflex panel + active_form_id match the rendered surface;
+                    # display fields stay the surface-sibling union (mirrors
+                    # _morpheme_to_dict).
+                    grid_mid = self._morpheme_id_for(wi, ei) or (
+                        getattr(ranked[0], "morpheme_id", None) if ranked else None
+                    )
                 if not ranked:
                     continue
                 first = ranked[0]
@@ -1993,7 +2151,7 @@ class NewName:
                 # wyrd-rogd.10 Phase 3: morpheme_id is authoritative for the grid
                 # — no string-derivation fallback (see the to_dict site above).
                 morpheme_meaning = _resolve_morpheme(
-                    self.meaning_db, getattr(first, "morpheme_id", None)
+                    self.meaning_db, grid_mid or getattr(first, "morpheme_id", None)
                 )
                 grid = _era_grid(morpheme_meaning, renderings, own_surface=usage_str)
                 if grid:
@@ -2013,6 +2171,7 @@ class NewName:
                         )
                         if pron:
                             morpheme["rendered_pron"] = pron
+                self._set_active_form_id(morpheme, first)
                 out.append(morpheme)
         return out
 

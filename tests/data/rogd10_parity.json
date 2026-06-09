@@ -33,114 +33,14 @@
                 [
                   "old-english",
                   [
-                    "bablian",
-                    "bæblian",
-                    "bæflian",
-                    "forbannan",
-                    "bannan",
-                    "bon",
-                    "bēn",
-                    "bōnian",
-                    "bœ̄n",
-                    "wæflian",
-                    "ġebannan"
+                    "bān",
+                    "bōhnēs"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "waffelen",
-                    "babelen",
-                    "bablen",
-                    "banne(n)",
-                    "bannen",
-                    "ben",
-                    "bene",
-                    "bone",
-                    "bonnen",
-                    "boon",
-                    "bowen",
-                    "forbannen"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "-phasia",
-                    "-phone",
-                    "-phonia",
-                    "-phonic",
-                    "-phony",
-                    "abandon",
-                    "anthem",
-                    "antiphon",
-                    "aphanite",
-                    "aphantasia",
-                    "aphasia",
-                    "apophasis",
-                    "apophenia",
-                    "babble",
-                    "banal",
-                    "bane",
-                    "banish",
-                    "bawn",
-                    "be",
-                    "bean",
-                    "been",
-                    "bene",
-                    "blasphemous",
-                    "bon",
-                    "boon",
-                    "byen",
-                    "confab",
-                    "confabulate",
-                    "confabulation",
-                    "confess",
-                    "corytophanid",
-                    "dysphemism",
-                    "emphasis",
-                    "emphatic",
-                    "epiphany",
-                    "epiphenomena",
-                    "epiphenomenon",
-                    "euphemism",
-                    "euphonious",
-                    "euphony",
-                    "fable",
-                    "fabulous",
-                    "fairy",
-                    "fanal",
-                    "fantasia",
-                    "fantastic",
-                    "fate",
-                    "fatidic",
-                    "forban",
-                    "hierophant",
-                    "infant",
-                    "inficiate",
-                    "phanerite",
-                    "phaneritic",
-                    "phaneron",
-                    "phantasia",
-                    "phantasmal",
-                    "phase",
-                    "phonate",
-                    "phoneme",
-                    "phonetic",
-                    "phonetics",
-                    "phosphorus",
-                    "profess",
-                    "professor",
-                    "prophecy",
-                    "prophesier",
-                    "prophesy",
-                    "prophetic",
-                    "prophetize",
-                    "saxophone",
-                    "smartphone",
-                    "sycophant",
-                    "telophase",
-                    "waffle"
+                    "bon"
                   ]
                 ]
               ]
@@ -158,31 +58,20 @@
           "bo-",
           [
             [
-              "english",
+              "norse",
               [
                 [
-                  "old-english",
+                  "old-norse",
                   [
-                    "botel",
-                    "botl"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "bitle",
-                    "botl",
-                    "botle",
-                    "bottle",
-                    "buttle"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "bitle",
-                    "boodle",
-                    "botl"
+                    "barr",
+                    "boli",
+                    "bolr",
+                    "einir",
+                    "segja",
+                    "vera",
+                    "vesa",
+                    "vápn",
+                    "bol"
                   ]
                 ]
               ]
@@ -238,10 +127,10 @@
           "Ker-",
           [
             [
-              "norse",
+              "norman-french",
               [
                 [
-                  "old-norse",
+                  "old-french",
                   [
                     "ker"
                   ]
@@ -398,34 +287,21 @@
                 [
                   "old-english",
                   [
-                    "hog",
-                    "hō",
-                    "hōh"
+                    "wog",
+                    "wōh"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "ho",
-                    "hoche",
-                    "hogh",
-                    "hoghe",
-                    "hokke",
-                    "hoo",
-                    "houe",
-                    "hough",
-                    "houȝ",
-                    "how",
-                    "howe",
-                    "howghe",
-                    "howh",
-                    "hoȝ"
+                    "wough",
+                    "wouȝh"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "hoh"
+                    "woh"
                   ]
                 ]
               ]
@@ -433,7 +309,7 @@
           ]
         ]
       ],
-      "name": "Gourhōh",
+      "name": "Gourwōh",
       "name_modern": "Gouro",
       "seed": 7028257956033530
     },
@@ -459,18 +335,46 @@
           "-del-",
           [
             [
-              "brythonic",
+              "english",
               [
                 [
-                  "welsh",
+                  "old-english",
                   [
-                    "dail"
+                    "dælan",
+                    "dāl",
+                    "dēhlēs",
+                    "dēlan",
+                    "dǣl",
+                    "dǣlan"
                   ]
                 ],
                 [
-                  "breton",
+                  "middle-english",
                   [
-                    "del"
+                    "dal",
+                    "dalen",
+                    "deal",
+                    "deale",
+                    "dealen",
+                    "deel",
+                    "deele",
+                    "deelen",
+                    "deil",
+                    "del",
+                    "del, dele",
+                    "delen",
+                    "deol",
+                    "deyl",
+                    "diel",
+                    "dæl",
+                    "dælen",
+                    "dælenn"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "dale"
                   ]
                 ]
               ]
@@ -685,36 +589,12 @@
           "-in",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "celtic",
                   [
-                    "in",
-                    "niþer-",
-                    "nyþer",
-                    "ᛁᚾ"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "-yn",
-                    "in",
-                    "neother-",
-                    "nether",
-                    "nethere",
-                    "nither-",
-                    "nithere"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "-in",
-                    "-ine",
-                    "een",
-                    "nether"
+                    "-in"
                   ]
                 ]
               ]
@@ -808,26 +688,28 @@
                 [
                   "old-english",
                   [
-                    "rūh"
+                    "rude",
+                    "rūta",
+                    "rūte"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "rogh",
-                    "rough",
-                    "roughe",
-                    "row",
-                    "roȝe",
-                    "rugh",
-                    "ruh",
-                    "ruȝ"
+                    "reuwe",
+                    "rew",
+                    "rude",
+                    "rue",
+                    "rute",
+                    "ruwe",
+                    "rwe"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "rouh"
+                    "roude",
+                    "rude"
                   ]
                 ]
               ]
@@ -843,34 +725,21 @@
                 [
                   "old-english",
                   [
-                    "hog",
-                    "hō",
-                    "hōh"
+                    "wog",
+                    "wōh"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "ho",
-                    "hoche",
-                    "hogh",
-                    "hoghe",
-                    "hokke",
-                    "hoo",
-                    "houe",
-                    "hough",
-                    "houȝ",
-                    "how",
-                    "howe",
-                    "howghe",
-                    "howh",
-                    "hoȝ"
+                    "wough",
+                    "wouȝh"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "hoh"
+                    "woh"
                   ]
                 ]
               ]
@@ -909,7 +778,7 @@
           ]
         ]
       ],
-      "name": "Rūhhōhmer",
+      "name": "Rudewōhmere",
       "name_modern": "Ruomer",
       "seed": 271828
     }
@@ -926,19 +795,37 @@
                 [
                   "old-english",
                   [
-                    "wig"
+                    "wīx",
+                    "wix",
+                    "wrixlan",
+                    "wīc",
+                    "wīċ"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "wig"
+                    "diocise",
+                    "wic",
+                    "wike",
+                    "wrixlen",
+                    "wych",
+                    "wyk",
+                    "wīx"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "wig"
+                    "-wich",
+                    "bailiwick",
+                    "diocese",
+                    "ecoduct",
+                    "oecus",
+                    "vicinal",
+                    "vicinity",
+                    "villain",
+                    "wrixle"
                   ]
                 ]
               ]
@@ -979,31 +866,12 @@
           "bo-",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "celtic",
                   [
-                    "botel",
-                    "botl"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "bitle",
-                    "botl",
-                    "botle",
-                    "bottle",
-                    "buttle"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "bitle",
-                    "boodle",
-                    "botl"
+                    "bó"
                   ]
                 ]
               ]
@@ -1035,25 +903,20 @@
                 [
                   "old-english",
                   [
-                    "comb"
+                    "cumb"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "camb",
-                    "cambe",
-                    "cimbe",
                     "comb",
-                    "combe",
-                    "kambe",
-                    "kombe"
+                    "cumb"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "cimbe"
+                    "coombe"
                   ]
                 ]
               ]
@@ -1061,7 +924,7 @@
           ]
         ]
       ],
-      "name": "Bolingcumb",
+      "name": "Bóingcumb",
       "name_modern": "Boingcombe",
       "seed": 42
     },
@@ -1077,6 +940,7 @@
                   "old-english",
                   [
                     "-or",
+                    "Eæst",
                     "easte",
                     "ec",
                     "hiran",
@@ -1087,6 +951,7 @@
                     "ēac",
                     "ēast",
                     "ēk",
+                    "ēæstġhng",
                     "ǣac",
                     "ȳr"
                   ]
@@ -1232,31 +1097,21 @@
                 [
                   "old-english",
                   [
-                    "stān",
-                    "stānas"
+                    "stānig"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "stan",
-                    "stane",
-                    "steinen",
-                    "steynen",
-                    "stoan",
-                    "ston",
-                    "stonas",
-                    "stone",
-                    "stoon",
-                    "stoone"
+                    "stani",
+                    "stoni",
+                    "stony"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "stein",
-                    "steyn",
-                    "stonas"
+                    "stonig"
                   ]
                 ]
               ]
@@ -1264,7 +1119,7 @@
           ]
         ]
       ],
-      "name": "Eastan Bolstone",
+      "name": "East Botlstānig",
       "name_modern": "East Bostone",
       "seed": 1337
     },
@@ -1313,34 +1168,21 @@
                 [
                   "old-english",
                   [
-                    "hog",
-                    "hō",
-                    "hōh"
+                    "wog",
+                    "wōh"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "ho",
-                    "hoche",
-                    "hogh",
-                    "hoghe",
-                    "hokke",
-                    "hoo",
-                    "houe",
-                    "hough",
-                    "houȝ",
-                    "how",
-                    "howe",
-                    "howghe",
-                    "howh",
-                    "hoȝ"
+                    "wough",
+                    "wouȝh"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "hoh"
+                    "woh"
                   ]
                 ]
               ]
@@ -1356,6 +1198,7 @@
                 [
                   "old-english",
                   [
+                    "Hġhlhl",
                     "heald",
                     "heall",
                     "helan",
@@ -1373,8 +1216,8 @@
                     "hulu",
                     "hyldo",
                     "hyldu",
-                    "hyll",
                     "hyllan",
+                    "hġhlhlēd",
                     "hœ̄lan"
                   ]
                 ],
@@ -1392,14 +1235,8 @@
                     "helde",
                     "helen",
                     "helien",
-                    "helle",
                     "helme",
-                    "hil",
                     "hilen",
-                    "hillas",
-                    "hille",
-                    "hilles",
-                    "hillum",
                     "hold",
                     "hole",
                     "holgh",
@@ -1411,9 +1248,6 @@
                     "holuȝ",
                     "holwe",
                     "holȝ",
-                    "hul",
-                    "hulle",
-                    "hylle",
                     "ladder",
                     "laddere",
                     "laddir",
@@ -1438,13 +1272,6 @@
                   [
                     "cellar",
                     "clime",
-                    "colonel",
-                    "column",
-                    "columnar",
-                    "culmen",
-                    "culminate",
-                    "excel",
-                    "excellent",
                     "hale",
                     "halfpenny",
                     "hall",
@@ -1453,10 +1280,6 @@
                     "heild",
                     "hele",
                     "hill",
-                    "hillas",
-                    "hille",
-                    "hilles",
-                    "hillum",
                     "hollow",
                     "hyel",
                     "ladder",
@@ -1468,7 +1291,7 @@
           ]
         ]
       ],
-      "name": "Cowhōhkelli",
+      "name": "Cūwōhhill",
       "name_modern": "Cowohill",
       "seed": 8502015221875428
     },
@@ -1519,22 +1342,253 @@
                 [
                   "old-english",
                   [
-                    "hēafod"
+                    "haf",
+                    "hafu",
+                    "hæf",
+                    "āhafu",
+                    "-hēæd",
+                    "Hēæd",
+                    "hafetian",
+                    "hafettan",
+                    "heaf",
+                    "hefeġ",
+                    "hefiġ",
+                    "hæf",
+                    "hæfen",
+                    "hæfene",
+                    "hæfiġ",
+                    "hēæd",
+                    "hēædēd",
+                    "upahafu",
+                    "hede"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "heed"
+                    "efd",
+                    "haftre",
+                    "have",
+                    "haven",
+                    "havene",
+                    "heviȝ",
+                    "hevy"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "'ead",
+                    "-ception",
+                    "abra",
+                    "acapsular",
+                    "acceptability",
+                    "acceptable",
+                    "acceptably",
+                    "acceptance",
+                    "accepted",
+                    "acceptedly",
+                    "acceptible",
+                    "acceptibly",
+                    "acception",
+                    "acceptress",
+                    "achieve",
+                    "afterperception",
+                    "anticontraception",
+                    "antinociception",
+                    "antioccupation",
+                    "apperceive",
+                    "apperception",
+                    "archdeceiver",
+                    "beau-catcher",
+                    "becatch",
+                    "behave",
+                    "behaver",
+                    "behavior",
+                    "behavioral",
+                    "behaviorism",
+                    "behaviorist",
+                    "behead",
+                    "behoof",
+                    "behove",
+                    "behovely",
+                    "birdcatcher",
+                    "birdcatching",
+                    "bycatch",
+                    "cable",
+                    "cablecar",
+                    "cableco",
+                    "cablegami",
+                    "cablegram",
+                    "cableless",
+                    "cablelike",
+                    "cabler",
+                    "cablese",
+                    "cablet",
+                    "cablevision",
+                    "cableway",
+                    "cacciatore",
+                    "caddie",
+                    "caddy",
+                    "cadet",
+                    "caitiff",
+                    "capability",
+                    "capable",
+                    "capacious",
+                    "capacitance",
+                    "capacitate",
+                    "capacitation",
+                    "capacitively",
+                    "capacity",
+                    "capias",
+                    "capillary",
+                    "capisce",
+                    "capistrum",
+                    "capita",
+                    "capital",
+                    "capitalism",
+                    "capitalistic",
+                    "capitellum",
+                    "capitol",
+                    "capitulate",
+                    "capitulation",
+                    "capo",
+                    "capsicum",
+                    "capstan",
+                    "capsular",
+                    "capsulate",
+                    "capsule",
+                    "captain",
+                    "captee",
+                    "caption",
+                    "captionable",
+                    "captioner",
+                    "captious",
+                    "captivate",
+                    "captive",
+                    "captivity",
+                    "captor",
+                    "capture",
+                    "caput",
+                    "catchable",
+                    "catcher",
+                    "catchpole",
+                    "catchy",
+                    "caterer",
+                    "catering",
+                    "cattle",
+                    "cattlehead",
+                    "caudillo",
+                    "chapiter",
+                    "chapter",
+                    "chase",
+                    "chaser",
+                    "chasseur",
+                    "chassis",
+                    "chattel",
+                    "chef",
+                    "chemoperception",
+                    "chemoreception",
+                    "chemosusceptibility",
+                    "chickenhawk",
+                    "chief",
+                    "chieftain",
+                    "chronoception",
+                    "coalheaver",
+                    "coalheaving",
+                    "conceit",
+                    "conceited",
+                    "conceivability",
+                    "conceivable",
+                    "conceivableness",
+                    "conceivably",
+                    "conceive",
+                    "conceiver",
+                    "conceptacle",
+                    "conceptible",
+                    "conceptive",
+                    "conceptively",
+                    "conceptor",
+                    "conceptualisation",
+                    "contracept",
+                    "contraceptive",
+                    "copepod",
+                    "copepodite",
+                    "copper",
+                    "cowcatcher",
+                    "deceit",
+                    "deceitful",
+                    "deceivability",
+                    "deceivableness",
+                    "deceive",
+                    "deceiver",
+                    "deceivingly",
+                    "deception",
+                    "deceptive",
+                    "deceptress",
+                    "discept",
+                    "disciple",
+                    "dishevelled",
+                    "disoccupation",
+                    "dogcatcher",
+                    "dorhawk",
+                    "electroreception",
+                    "emancipation",
+                    "emancipatist",
+                    "emancipator",
+                    "emancipatory",
+                    "emancipatrix",
+                    "emancipist",
+                    "encapsulate",
+                    "enchaser",
+                    "except",
+                    "excipient",
+                    "eye-catcher",
+                    "eyecatch",
+                    "fishcatcher",
+                    "flycatcher",
+                    "flycatching",
+                    "forechase",
+                    "foreconceive",
+                    "foreconceiving",
+                    "forehead",
+                    "forepurchased",
+                    "gamecatcher",
+                    "gnatcatcher",
+                    "goshawk",
+                    "graviperception",
+                    "haaf",
+                    "hafnium",
+                    "haft",
+                    "havenage",
+                    "havener",
+                    "havenless",
+                    "hawkery",
+                    "hawkish",
+                    "hawklike",
+                    "hawkmoth",
+                    "hawknose",
+                    "hawksbeard",
+                    "hawkweed",
+                    "hawky",
                     "head",
-                    "heead",
-                    "heed"
+                    "header",
+                    "headily",
+                    "heading",
+                    "headset",
+                    "headship",
+                    "heady",
+                    "heavy",
+                    "heft",
+                    "kapala",
+                    "occupation",
+                    "occupy",
+                    "precipice",
+                    "precipitate",
+                    "precipitous",
+                    "quadriceps",
+                    "quaich",
+                    "scarper",
+                    "triceps"
                   ]
                 ]
               ]
@@ -1542,7 +1596,7 @@
           ]
         ]
       ],
-      "name": "Dhubhhofuth",
+      "name": "Dufehede",
       "name_modern": "Dowhead",
       "seed": 7028257956033530
     },
@@ -1552,18 +1606,30 @@
           "tre-",
           [
             [
-              "brythonic",
+              "english",
               [
                 [
-                  "middle-welsh",
+                  "old-english",
                   [
-                    "trei"
+                    "treowen",
+                    "triewen",
+                    "trē",
+                    "trēēhn"
                   ]
                 ],
                 [
-                  "breton",
+                  "middle-english",
                   [
-                    "tre"
+                    "tre",
+                    "treen"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "doru",
+                    "dory",
+                    "treen"
                   ]
                 ]
               ]
@@ -1610,28 +1676,18 @@
           "long-",
           [
             [
-              "english",
+              "goidelic",
               [
                 [
-                  "old-english",
+                  "old-irish",
                   [
-                    "lang"
+                    "long"
                   ]
                 ],
                 [
-                  "middle-english",
+                  "irish",
                   [
-                    "lang",
-                    "lange",
-                    "long",
-                    "longe"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "lang",
-                    "lung"
+                    "long"
                   ]
                 ]
               ]
@@ -1791,21 +1847,13 @@
                 [
                   "old-english",
                   [
-                    "sanct"
+                    "seynte"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "seynt"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "saint",
-                    "sanctus",
-                    "sayn"
+                    "seinte"
                   ]
                 ]
               ]
@@ -1892,7 +1940,7 @@
           ]
         ]
       ],
-      "name": "Cillatūn",
+      "name": "Cildtūn",
       "name_modern": "Chilton",
       "seed": 31415
     },
@@ -1907,14 +1955,400 @@
                 [
                   "old-english",
                   [
-                    "weadu",
-                    "wudu"
+                    "-weardes",
+                    "Wōōd",
+                    "acurna",
+                    "aqueorna",
+                    "aquorna",
+                    "bewarian",
+                    "doa",
+                    "doan",
+                    "doe",
+                    "don",
+                    "doæ",
+                    "dæd",
+                    "dēman",
+                    "dēmere",
+                    "dōm",
+                    "dōmere",
+                    "dœ̄man",
+                    "fordēman",
+                    "forewarnian",
+                    "gewær",
+                    "misdǣd",
+                    "uard",
+                    "uueard",
+                    "warian",
+                    "warnian",
+                    "weard",
+                    "wearn",
+                    "wearnian",
+                    "weldǣd",
+                    "weler",
+                    "weornan",
+                    "werd",
+                    "werian",
+                    "wiernan",
+                    "wirnan",
+                    "word",
+                    "wræstlian",
+                    "wyrnan",
+                    "wær",
+                    "wǣr",
+                    "ācuaerna",
+                    "ācweorna",
+                    "ġewær",
+                    "ᛞᚩᛗ"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "wude"
+                    "forewarnen",
+                    "-dom",
+                    "-wardes",
+                    "-wardis",
+                    "-wardus",
+                    "-ware",
+                    "acquerne",
+                    "aquerne",
+                    "aquierne",
+                    "aware",
+                    "bewar",
+                    "consuetude",
+                    "costom",
+                    "costome",
+                    "custom",
+                    "custome",
+                    "custoum",
+                    "custowme",
+                    "custum",
+                    "custume",
+                    "custumme",
+                    "custwm",
+                    "custwme",
+                    "cwstwme",
+                    "dam",
+                    "dame",
+                    "dede",
+                    "demar",
+                    "demare",
+                    "demen",
+                    "demer",
+                    "demere",
+                    "do",
+                    "doim",
+                    "dome",
+                    "don",
+                    "donne",
+                    "doom",
+                    "doon",
+                    "doyn",
+                    "dum",
+                    "fordemen",
+                    "forwarien",
+                    "garant",
+                    "garnysshen",
+                    "garrant",
+                    "garrantye",
+                    "garraunt",
+                    "iwar",
+                    "iware",
+                    "iwær",
+                    "kostome",
+                    "misdede",
+                    "ocquerne",
+                    "okerne",
+                    "pilwer",
+                    "quostome",
+                    "tykke",
+                    "vord",
+                    "wadde",
+                    "war",
+                    "warance",
+                    "warant",
+                    "waranten",
+                    "warantie",
+                    "ward",
+                    "warde",
+                    "waren",
+                    "waresche",
+                    "wariche",
+                    "warien",
+                    "warisch",
+                    "warisschen",
+                    "warisse",
+                    "warisshe",
+                    "warn",
+                    "warne",
+                    "warnen",
+                    "warnien",
+                    "warsche",
+                    "warschen",
+                    "warschyn",
+                    "warysche",
+                    "warysshen",
+                    "wearne",
+                    "wearnen",
+                    "weerde",
+                    "weird",
+                    "welde",
+                    "weldede",
+                    "weord",
+                    "weorne",
+                    "werd",
+                    "werde",
+                    "werede",
+                    "weren",
+                    "werid",
+                    "werien",
+                    "werne",
+                    "wernen",
+                    "wierde",
+                    "wird",
+                    "wirde",
+                    "wired",
+                    "wirid",
+                    "wod",
+                    "wode",
+                    "wolde",
+                    "woord",
+                    "word",
+                    "worde",
+                    "worne",
+                    "wourd",
+                    "wrastlen",
+                    "wurd",
+                    "wurne",
+                    "wyerde",
+                    "wyrde",
+                    "wærnen",
+                    "ywar",
+                    "ȝewær"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "-dom",
+                    "-ification",
+                    "-orama",
+                    "abscond",
+                    "affair",
+                    "affect",
+                    "affection",
+                    "antithesis",
+                    "anypotheton",
+                    "apothecary",
+                    "apotheke",
+                    "apothem",
+                    "artifact",
+                    "artifice",
+                    "artificial",
+                    "atheist",
+                    "athetize",
+                    "athetoid",
+                    "athetosis",
+                    "auditor",
+                    "auralization",
+                    "auralize",
+                    "aurally",
+                    "aware",
+                    "bearward",
+                    "beatific",
+                    "beneficial",
+                    "benefit",
+                    "beware",
+                    "bibliothecary",
+                    "bodega",
+                    "boutique",
+                    "calcify",
+                    "certify",
+                    "clarification",
+                    "condiment",
+                    "condite",
+                    "confect",
+                    "confection",
+                    "confit",
+                    "consuetude",
+                    "credence",
+                    "credential",
+                    "credibility",
+                    "credible",
+                    "credo",
+                    "credulous",
+                    "cruciverbalist",
+                    "dam",
+                    "damn",
+                    "de",
+                    "deed",
+                    "deem",
+                    "deemer",
+                    "deficient",
+                    "deficit",
+                    "desuetude",
+                    "discomfit",
+                    "discotheque",
+                    "div",
+                    "divide",
+                    "do",
+                    "doff",
+                    "done",
+                    "doom",
+                    "doomer",
+                    "doomsday",
+                    "earring",
+                    "edification",
+                    "edifice",
+                    "edify",
+                    "efface",
+                    "effect",
+                    "efficient",
+                    "endware",
+                    "epenthesis",
+                    "epenthetic",
+                    "ethical",
+                    "ethnic",
+                    "ethnos",
+                    "etho",
+                    "ethos",
+                    "facile",
+                    "facility",
+                    "fact",
+                    "faction",
+                    "factor",
+                    "factory",
+                    "factualization",
+                    "familial",
+                    "familiar",
+                    "family",
+                    "fan",
+                    "fanum",
+                    "fashion",
+                    "feast",
+                    "feature",
+                    "festal",
+                    "festival",
+                    "festive",
+                    "fetish",
+                    "fordeem",
+                    "forewarn",
+                    "forfeit",
+                    "fortification",
+                    "fortify",
+                    "garage",
+                    "garnish",
+                    "gratification",
+                    "gratify",
+                    "guarantee",
+                    "guaranty",
+                    "hacienda",
+                    "harken",
+                    "hearken",
+                    "hearsay",
+                    "hypothecate",
+                    "hypothesis",
+                    "incredible",
+                    "infect",
+                    "infection",
+                    "insolent",
+                    "justification",
+                    "justify",
+                    "kastom",
+                    "kitchendom",
+                    "liquefaction",
+                    "liquefy",
+                    "mathematics",
+                    "matheme",
+                    "mathesis",
+                    "metathesis",
+                    "milliner",
+                    "misdeed",
+                    "modification",
+                    "modify",
+                    "mollify",
+                    "multifarious",
+                    "nomothete",
+                    "officiant",
+                    "olfactory",
+                    "orifice",
+                    "perfect",
+                    "pitch-perfect",
+                    "polymath",
+                    "pradhan",
+                    "pradhana",
+                    "prefect",
+                    "profane",
+                    "profect",
+                    "proficient",
+                    "profit",
+                    "prosthesis",
+                    "prothesis",
+                    "proverb",
+                    "regard",
+                    "revere",
+                    "reward",
+                    "sacrifice",
+                    "sacrificial",
+                    "sanctify",
+                    "sandhi",
+                    "satisfaction",
+                    "satisfy",
+                    "significance",
+                    "significant",
+                    "signify",
+                    "simplification",
+                    "simplify",
+                    "stupefaction",
+                    "stupefy",
+                    "suffice",
+                    "sufficient",
+                    "synthesis",
+                    "synthesize",
+                    "synthetic",
+                    "theism",
+                    "theist",
+                    "thematic",
+                    "theme",
+                    "theo-",
+                    "theobroma",
+                    "theologue",
+                    "theologus",
+                    "theoretic",
+                    "theosis",
+                    "thesis",
+                    "theurgy",
+                    "torrefy",
+                    "tribute",
+                    "unverified",
+                    "unwisdom",
+                    "varna",
+                    "verb",
+                    "verbatim",
+                    "verifiable",
+                    "verification",
+                    "verify",
+                    "verve",
+                    "wards",
+                    "warence",
+                    "warish",
+                    "warison",
+                    "warrant",
+                    "warranty",
+                    "wary",
+                    "weard",
+                    "weer",
+                    "weird",
+                    "werd",
+                    "weren",
+                    "wern",
+                    "wood",
+                    "word",
+                    "worry",
+                    "wrastle",
+                    "wrestle",
+                    "wyrd",
+                    "zoothome"
                   ]
                 ]
               ]
@@ -2147,7 +2581,7 @@
           ]
         ]
       ],
-      "name": "Wuduingstede",
+      "name": "Woodingstede",
       "name_modern": "Woodningstead",
       "seed": 271828
     }
@@ -2175,24 +2609,12 @@
           "-kil-",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "celtic",
                   [
-                    "cild"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "child"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "chield"
+                    "cill"
                   ]
                 ]
               ]
@@ -2264,7 +2686,7 @@
           ]
         ]
       ],
-      "name": "Clooncillfield",
+      "name": "Clooncillfeld",
       "name_modern": "Cloonkilfield",
       "seed": 1
     },
@@ -2287,12 +2709,6 @@
                   [
                     "agh"
                   ]
-                ],
-                [
-                  "scottish-gaelic",
-                  [
-                    "agh"
-                  ]
                 ]
               ]
             ]
@@ -2307,7 +2723,21 @@
                 [
                   "old-english",
                   [
-                    "lacu"
+                    "broga",
+                    "luh"
+                  ]
+                ],
+                [
+                  "middle-english",
+                  [
+                    "lough",
+                    "wolk"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "loch"
                   ]
                 ]
               ]
@@ -2424,7 +2854,7 @@
           ]
         ]
       ],
-      "name": "Aghlochmhòr",
+      "name": "Aghluhmōr",
       "name_modern": "Aghloughmore",
       "seed": 42
     },
@@ -2567,23 +2997,19 @@
                 [
                   "old-english",
                   [
-                    "-ra"
+                    "ræge"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "ra",
-                    "raa",
-                    "ro",
-                    "roa",
-                    "roo"
+                    "rage"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "ro"
+                    "rage"
                   ]
                 ]
               ]
@@ -2591,7 +3017,7 @@
           ]
         ]
       ],
-      "name": "Cillra",
+      "name": "Cildræge",
       "name_modern": "Kilra",
       "seed": 8502015221875428
     },
@@ -2617,28 +3043,12 @@
           "-ra-",
           [
             [
-              "english",
+              "norse",
               [
                 [
-                  "old-english",
+                  "old-norse",
                   [
-                    "-ra"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "ra",
-                    "raa",
-                    "ro",
-                    "roa",
-                    "roo"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "ro"
+                    "rá"
                   ]
                 ]
               ]
@@ -2662,7 +3072,7 @@
           ]
         ]
       ],
-      "name": "Glinneraan",
+      "name": "Glinneráan",
       "name_modern": "Glenraan",
       "seed": 7028257956033530
     },
@@ -2677,7 +3087,7 @@
                 [
                   "celtic",
                   [
-                    "-ar-"
+                    "aírd"
                   ]
                 ]
               ]
@@ -2688,12 +3098,19 @@
           "-ard",
           [
             [
-              "brythonic",
+              "goidelic",
               [
                 [
-                  "celtic",
+                  "old-irish",
                   [
                     "ard"
+                  ]
+                ],
+                [
+                  "irish",
+                  [
+                    "ard-",
+                    "ardaigh"
                   ]
                 ]
               ]
@@ -2701,7 +3118,7 @@
           ]
         ]
       ],
-      "name": "Arard",
+      "name": "Aírdard",
       "name_modern": "Arard",
       "seed": 99
     },
@@ -2725,22 +3142,10 @@
         ],
         [
           "-town",
-          [
-            [
-              "english",
-              [
-                [
-                  "old-english",
-                  [
-                    "town"
-                  ]
-                ]
-              ]
-            ]
-          ]
+          []
         ]
       ],
-      "name": "Cnoctūn",
+      "name": "Cnoctunan",
       "name_modern": "Knocktown",
       "seed": 250
     },
@@ -2861,34 +3266,21 @@
                 [
                   "old-english",
                   [
-                    "hog",
-                    "hō",
-                    "hōh"
+                    "wog",
+                    "wōh"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "ho",
-                    "hoche",
-                    "hogh",
-                    "hoghe",
-                    "hokke",
-                    "hoo",
-                    "houe",
-                    "hough",
-                    "houȝ",
-                    "how",
-                    "howe",
-                    "howghe",
-                    "howh",
-                    "hoȝ"
+                    "wough",
+                    "wouȝh"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "hoh"
+                    "woh"
                   ]
                 ]
               ]
@@ -2933,6 +3325,7 @@
                   "old-english",
                   [
                     "-or",
+                    "Eæst",
                     "easte",
                     "ec",
                     "hiran",
@@ -2943,6 +3336,7 @@
                     "ēac",
                     "ēast",
                     "ēk",
+                    "ēæstġhng",
                     "ǣac",
                     "ȳr"
                   ]
@@ -3045,7 +3439,7 @@
           ]
         ]
       ],
-      "name": "Bolhōhagh Eastan",
+      "name": "Botlwōhagh East",
       "name_modern": "Booagh East",
       "seed": 31415
     },
@@ -3145,12 +3539,24 @@
           "loch-",
           [
             [
-              "english",
+              "goidelic",
               [
                 [
-                  "old-english",
+                  "old-irish",
                   [
-                    "lacu"
+                    "loch"
+                  ]
+                ],
+                [
+                  "irish",
+                  [
+                    "loch"
+                  ]
+                ],
+                [
+                  "scottish-gaelic",
+                  [
+                    "loch"
                   ]
                 ]
               ]
@@ -3166,25 +3572,16 @@
                 [
                   "old-english",
                   [
-                    "līn",
-                    "līne"
+                    "lind",
+                    "linde"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "lin",
-                    "line",
-                    "lyn",
-                    "lyne",
-                    "lyny",
-                    "lynye"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "linseed"
+                    "lind",
+                    "linde",
+                    "lynd"
                   ]
                 ]
               ]
@@ -3192,7 +3589,7 @@
           ]
         ]
       ],
-      "name": "Lochhlinc",
+      "name": "Lochlind",
       "name_modern": "Lochlin",
       "seed": 1
     },
@@ -3207,7 +3604,7 @@
                 [
                   "celtic",
                   [
-                    "-ar-"
+                    "ard"
                   ]
                 ]
               ]
@@ -3218,12 +3615,24 @@
           "-loch-",
           [
             [
-              "english",
+              "goidelic",
               [
                 [
-                  "old-english",
+                  "old-irish",
                   [
-                    "lacu"
+                    "loch"
+                  ]
+                ],
+                [
+                  "irish",
+                  [
+                    "loch"
+                  ]
+                ],
+                [
+                  "scottish-gaelic",
+                  [
+                    "loch"
                   ]
                 ]
               ]
@@ -3247,7 +3656,7 @@
           ]
         ]
       ],
-      "name": "Arloching",
+      "name": "Ardloching",
       "name_modern": "Arloching",
       "seed": 42
     },
@@ -3262,7 +3671,7 @@
                 [
                   "celtic",
                   [
-                    "inse"
+                    "inis"
                   ]
                 ]
               ]
@@ -3379,7 +3788,7 @@
           ]
         ]
       ],
-      "name": "Insemhòr",
+      "name": "Inismōr",
       "name_modern": "Inchmore",
       "seed": 1337
     },
@@ -3392,21 +3801,9 @@
               "brythonic",
               [
                 [
-                  "old-welsh",
+                  "celtic",
                   [
-                    "kar"
-                  ]
-                ],
-                [
-                  "middle-welsh",
-                  [
-                    "carr"
-                  ]
-                ],
-                [
-                  "welsh",
-                  [
-                    "car"
+                    "càrr"
                   ]
                 ]
               ]
@@ -3422,13 +3819,20 @@
                 [
                   "old-english",
                   [
-                    "hār"
+                    "hæfer"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "hor"
+                    "Hafer",
+                    "hafer"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "hafer"
                   ]
                 ]
               ]
@@ -3452,7 +3856,7 @@
           ]
         ]
       ],
-      "name": "Carhafedisc",
+      "name": "Càrrhæferedisc",
       "name_modern": "Carharish",
       "seed": 8502015221875428
     },
@@ -3462,89 +3866,12 @@
           "Dun-",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "celtic",
                   [
-                    "dēagan",
-                    "dēawian",
-                    "dox",
-                    "dēagian",
-                    "dēaw",
-                    "dūn"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "deau",
-                    "deaw",
-                    "deew",
-                    "deu",
-                    "dew",
-                    "dewe",
-                    "dewen",
-                    "dewey",
-                    "dewy",
-                    "dewyn",
-                    "dewȝ",
-                    "deyen",
-                    "dieuȝ",
-                    "donne",
-                    "dosk",
-                    "doun",
-                    "doune",
-                    "doune-",
-                    "down-",
-                    "downe",
-                    "dun",
-                    "dune",
-                    "dunne",
-                    "dæw",
-                    "dæwwenn"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "-thymia",
-                    "alexithymia",
-                    "arithmothymia",
-                    "athymia",
-                    "cyclothymia",
-                    "deun",
-                    "dew",
-                    "dewy",
-                    "deyen",
-                    "doon",
-                    "doun",
-                    "doune",
-                    "doune-",
-                    "down",
-                    "downright",
-                    "duma",
-                    "dune",
-                    "dusk",
-                    "dust",
-                    "duvet",
-                    "dye",
-                    "dysthymia",
-                    "euthymia",
-                    "fuliginous",
-                    "fume",
-                    "fumigate",
-                    "hyperthymia",
-                    "hypothymia",
-                    "isothymia",
-                    "megalothymia",
-                    "mildew",
-                    "obfuscate",
-                    "schizothymia",
-                    "thyme",
-                    "thymus",
-                    "typhon",
-                    "typhoon"
+                    "din"
                   ]
                 ]
               ]
@@ -3560,6 +3887,7 @@
                 [
                   "old-english",
                   [
+                    "Hġhlhl",
                     "heald",
                     "heall",
                     "helan",
@@ -3577,8 +3905,8 @@
                     "hulu",
                     "hyldo",
                     "hyldu",
-                    "hyll",
                     "hyllan",
+                    "hġhlhlēd",
                     "hœ̄lan"
                   ]
                 ],
@@ -3596,14 +3924,8 @@
                     "helde",
                     "helen",
                     "helien",
-                    "helle",
                     "helme",
-                    "hil",
                     "hilen",
-                    "hillas",
-                    "hille",
-                    "hilles",
-                    "hillum",
                     "hold",
                     "hole",
                     "holgh",
@@ -3615,9 +3937,6 @@
                     "holuȝ",
                     "holwe",
                     "holȝ",
-                    "hul",
-                    "hulle",
-                    "hylle",
                     "ladder",
                     "laddere",
                     "laddir",
@@ -3642,13 +3961,6 @@
                   [
                     "cellar",
                     "clime",
-                    "colonel",
-                    "column",
-                    "columnar",
-                    "culmen",
-                    "culminate",
-                    "excel",
-                    "excellent",
                     "hale",
                     "halfpenny",
                     "hall",
@@ -3657,10 +3969,6 @@
                     "heild",
                     "hele",
                     "hill",
-                    "hillas",
-                    "hille",
-                    "hilles",
-                    "hillum",
                     "hollow",
                     "hyel",
                     "ladder",
@@ -3672,7 +3980,7 @@
           ]
         ]
       ],
-      "name": "Dūnkelli",
+      "name": "Dinhill",
       "name_modern": "Dunhill",
       "seed": 7028257956033530
     },
@@ -3682,12 +3990,12 @@
           "loch-",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "celtic",
                   [
-                    "lacu"
+                    "loch"
                   ]
                 ]
               ]
@@ -3698,10 +4006,10 @@
           "-ker-",
           [
             [
-              "norse",
+              "norman-french",
               [
                 [
-                  "old-norse",
+                  "old-french",
                   [
                     "ker"
                   ]
@@ -3719,94 +4027,21 @@
                 [
                   "old-english",
                   [
-                    "Hæhlhl",
-                    "Hæhlē",
-                    "heald",
-                    "heall",
-                    "helan",
-                    "heldu",
-                    "helma",
-                    "hlid",
-                    "hlædder",
-                    "hlæder",
-                    "hlæw",
-                    "hlēo",
-                    "hlǣder",
-                    "hlǣw",
-                    "hold",
-                    "holh",
-                    "hulu",
-                    "hyldo",
-                    "hyldu",
-                    "hyllan",
-                    "hæhlēd",
-                    "hæhlġhng",
-                    "hœ̄lan"
+                    "healh"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "alle",
-                    "hal",
-                    "hale",
-                    "hall",
-                    "halle",
-                    "haule",
-                    "hawle",
-                    "held",
-                    "helde",
-                    "helen",
-                    "helien",
-                    "helme",
-                    "hilen",
-                    "hold",
-                    "hole",
-                    "holgh",
-                    "holh",
-                    "holouȝ",
-                    "holow",
-                    "holowe",
-                    "holugh",
-                    "holuȝ",
-                    "holwe",
-                    "holȝ",
-                    "ladder",
-                    "laddere",
-                    "laddir",
-                    "laddre",
-                    "ladre",
-                    "law",
-                    "le",
-                    "leaddre",
-                    "ledder",
-                    "leddere",
-                    "leddre",
-                    "leddyr",
-                    "lheddre",
-                    "lid",
-                    "læddre",
-                    "læddræ",
-                    "ylde"
+                    "halch",
+                    "halgh"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "cellar",
-                    "clime",
-                    "hale",
-                    "halfpenny",
-                    "hall",
-                    "heavel",
-                    "heddle",
-                    "heild",
-                    "hele",
-                    "hill",
-                    "hollow",
-                    "hyel",
-                    "ladder",
-                    "lied"
+                    "hales",
+                    "haugh"
                   ]
                 ]
               ]
@@ -3814,7 +4049,7 @@
           ]
         ]
       ],
-      "name": "Lochkerhofuth",
+      "name": "Lochkerhealh",
       "name_modern": "Lochkerhall",
       "seed": 99
     },
@@ -3970,89 +4205,12 @@
           "Dun-",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "celtic",
                   [
-                    "dēagan",
-                    "dēawian",
-                    "dox",
-                    "dēagian",
-                    "dēaw",
-                    "dūn"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "deau",
-                    "deaw",
-                    "deew",
-                    "deu",
-                    "dew",
-                    "dewe",
-                    "dewen",
-                    "dewey",
-                    "dewy",
-                    "dewyn",
-                    "dewȝ",
-                    "deyen",
-                    "dieuȝ",
-                    "donne",
-                    "dosk",
-                    "doun",
-                    "doune",
-                    "doune-",
-                    "down-",
-                    "downe",
-                    "dun",
-                    "dune",
-                    "dunne",
-                    "dæw",
-                    "dæwwenn"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "-thymia",
-                    "alexithymia",
-                    "arithmothymia",
-                    "athymia",
-                    "cyclothymia",
-                    "deun",
-                    "dew",
-                    "dewy",
-                    "deyen",
-                    "doon",
-                    "doun",
-                    "doune",
-                    "doune-",
-                    "down",
-                    "downright",
-                    "duma",
-                    "dune",
-                    "dusk",
-                    "dust",
-                    "duvet",
-                    "dye",
-                    "dysthymia",
-                    "euthymia",
-                    "fuliginous",
-                    "fume",
-                    "fumigate",
-                    "hyperthymia",
-                    "hypothymia",
-                    "isothymia",
-                    "megalothymia",
-                    "mildew",
-                    "obfuscate",
-                    "schizothymia",
-                    "thyme",
-                    "thymus",
-                    "typhon",
-                    "typhoon"
+                    "dun"
                   ]
                 ]
               ]
@@ -4076,7 +4234,7 @@
           ]
         ]
       ],
-      "name": "Dūnlie",
+      "name": "Dunlie",
       "name_modern": "Dunlie",
       "seed": 777
     },
@@ -4091,7 +4249,7 @@
                 [
                   "celtic",
                   [
-                    "-ar-"
+                    "ard"
                   ]
                 ]
               ]
@@ -4107,7 +4265,35 @@
                 [
                   "old-english",
                   [
-                    "town"
+                    "tūn"
+                  ]
+                ],
+                [
+                  "middle-english",
+                  [
+                    "-ton",
+                    "toun",
+                    "town",
+                    "towne",
+                    "tun",
+                    "tune"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "-ton",
+                    "kaona",
+                    "tahn",
+                    "tawn",
+                    "teun",
+                    "toon",
+                    "toun",
+                    "toune",
+                    "town",
+                    "towne",
+                    "tun-moot",
+                    "tuna"
                   ]
                 ]
               ]
@@ -4115,7 +4301,7 @@
           ]
         ]
       ],
-      "name": "Artūn",
+      "name": "Ardtūn",
       "name_modern": "Artown",
       "seed": 31415
     },
@@ -4433,34 +4619,25 @@
                 [
                   "old-english",
                   [
-                    "hog",
-                    "hō",
-                    "hōh"
+                    "weald",
+                    "wād"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "ho",
-                    "hoche",
-                    "hogh",
-                    "hoghe",
-                    "hokke",
-                    "hoo",
-                    "houe",
-                    "hough",
-                    "houȝ",
-                    "how",
-                    "howe",
-                    "howghe",
-                    "howh",
-                    "hoȝ"
+                    "wad",
+                    "wadde",
+                    "welde",
+                    "wod",
+                    "wode",
+                    "wolde"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "hoh"
+                    "wod"
                   ]
                 ]
               ]
@@ -4484,7 +4661,7 @@
           ]
         ]
       ],
-      "name": "Porthōhlael",
+      "name": "Portwādlael",
       "name_modern": "Portoly",
       "seed": 271828
     }
@@ -4496,52 +4673,12 @@
           "Rhos-",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "celtic",
                   [
-                    "met",
-                    "mete",
-                    "mett",
-                    "mette",
-                    "mæte",
-                    "mōs",
-                    "mǣte"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "meate",
-                    "meet",
-                    "meete",
-                    "met",
-                    "mete",
-                    "mette",
-                    "mos",
-                    "mose",
-                    "mosse",
-                    "mæte",
-                    "titmose"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "mastoid",
-                    "mastos",
-                    "mete",
-                    "mina",
-                    "minah",
-                    "moose",
-                    "moot",
-                    "mousse",
-                    "mush",
-                    "mushroom",
-                    "musth",
-                    "myna",
-                    "titmouse"
+                    "rhos"
                   ]
                 ]
               ]
@@ -4565,7 +4702,7 @@
           ]
         ]
       ],
-      "name": "Mōsyn",
+      "name": "Rhosyn",
       "name_modern": "Rhosyn",
       "seed": 1
     },
@@ -4578,7 +4715,19 @@
               "brythonic",
               [
                 [
-                  "celtic",
+                  "old-welsh",
+                  [
+                    "kwm"
+                  ]
+                ],
+                [
+                  "middle-welsh",
+                  [
+                    "cwm"
+                  ]
+                ],
+                [
+                  "welsh",
                   [
                     "cwm"
                   ]
@@ -4711,7 +4860,7 @@
           ]
         ]
       ],
-      "name": "Puinewydd",
+      "name": "Peningnewydd",
       "name_modern": "Pennewydd",
       "seed": 1337
     },
@@ -4721,54 +4870,12 @@
           "Bod-",
           [
             [
-              "english",
+              "goidelic",
               [
                 [
-                  "old-english",
+                  "irish",
                   [
-                    "bod",
-                    "boda",
-                    "bodian",
-                    "bēod",
-                    "bēodan",
-                    "bȳsen",
-                    "bȳsn",
-                    "gebod",
-                    "onbēodan"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "beade",
-                    "bedden",
-                    "beden",
-                    "beiden",
-                    "beod",
-                    "beoden",
-                    "bied",
-                    "bieden",
-                    "bisen",
-                    "bisne",
-                    "bod",
-                    "bode",
-                    "boden",
-                    "bodien",
-                    "buden",
-                    "bysen"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "bisson",
-                    "bizen",
-                    "bodai",
-                    "bodhi",
-                    "bodhicitta",
-                    "body",
-                    "buddhi",
-                    "verboten"
+                    "bod"
                   ]
                 ]
               ]
@@ -4784,39 +4891,16 @@
                 [
                   "old-english",
                   [
-                    "henn",
-                    "hænn"
+                    "hengest",
+                    "hengst"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "accent",
-                    "han",
-                    "heene",
-                    "hen",
-                    "henne"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "accent",
-                    "canorous",
-                    "cantrix",
-                    "chanter",
-                    "chantwell",
-                    "concent",
-                    "descant",
-                    "disincentive",
-                    "enchant",
-                    "enchantment",
-                    "han",
-                    "incant",
-                    "incantate",
-                    "incantation",
-                    "incentive",
-                    "recant"
+                    "henshman",
+                    "henxman",
+                    "henxtman"
                   ]
                 ]
               ]
@@ -4827,10 +4911,16 @@
           "-nant",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "middle-welsh",
+                  [
+                    "nant"
+                  ]
+                ],
+                [
+                  "welsh",
                   [
                     "nant"
                   ]
@@ -4840,7 +4930,7 @@
           ]
         ]
       ],
-      "name": "Bodhennant",
+      "name": "Bodhengestnant",
       "name_modern": "Bodhennant",
       "seed": 8502015221875428
     },
@@ -4871,34 +4961,64 @@
                 [
                   "old-english",
                   [
-                    "cirice",
-                    "ciric"
+                    "hūn",
+                    "Chuhrċ",
+                    "Hūnbald",
+                    "cāwl",
+                    "hūnþyrel",
+                    "sċealdhūn",
+                    "Ælfhūn"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "chirche",
-                    "chirche, kirke",
-                    "kyrke"
+                    "cal",
+                    "cale",
+                    "calle",
+                    "cave",
+                    "col",
+                    "coul",
+                    "coyl",
+                    "houn",
+                    "hownde",
+                    "hun",
+                    "hune",
+                    "kal",
+                    "kale",
+                    "kalle",
+                    "kelle",
+                    "kolle"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "chorch",
-                    "kyrk"
-                  ]
-                ]
-              ]
-            ],
-            [
-              "norse",
-              [
-                [
-                  "old-norse",
-                  [
-                    "kirkja"
+                    "cajole",
+                    "cavaedium",
+                    "caveola",
+                    "cavernous",
+                    "cavity",
+                    "cavum",
+                    "cavus",
+                    "church",
+                    "coal",
+                    "coelanaglyphic",
+                    "concave",
+                    "coolth",
+                    "cumbrous",
+                    "cymose",
+                    "cymule",
+                    "excavate",
+                    "forehold",
+                    "hulk",
+                    "hune",
+                    "incavo",
+                    "kail",
+                    "kale",
+                    "kuudere",
+                    "kyriarchy",
+                    "kyrie"
                   ]
                 ]
               ]
@@ -4906,7 +5026,7 @@
           ]
         ]
       ],
-      "name": "Cwmciric",
+      "name": "Cwmchurch",
       "name_modern": "Cwmchurch",
       "seed": 7028257956033530
     },
@@ -4919,9 +5039,27 @@
               "brythonic",
               [
                 [
-                  "celtic",
+                  "old-welsh",
                   [
-                    "llan"
+                    "itlann",
+                    "lann"
+                  ]
+                ],
+                [
+                  "middle-welsh",
+                  [
+                    "llann",
+                    "ydlan",
+                    "ytlan"
+                  ]
+                ],
+                [
+                  "welsh",
+                  [
+                    "llan",
+                    "llannerch",
+                    "perllan",
+                    "ydlan"
                   ]
                 ]
               ]
@@ -5001,7 +5139,19 @@
               "brythonic",
               [
                 [
-                  "celtic",
+                  "old-welsh",
+                  [
+                    "kwm"
+                  ]
+                ],
+                [
+                  "middle-welsh",
+                  [
+                    "cwm"
+                  ]
+                ],
+                [
+                  "welsh",
                   [
                     "cwm"
                   ]
@@ -5014,88 +5164,12 @@
           "-y-",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "celtic",
                   [
-                    "-i",
-                    "-ie",
-                    "ge",
-                    "genog",
-                    "genugan",
-                    "getæl",
-                    "geþafa",
-                    "neah",
-                    "neh",
-                    "nih",
-                    "nēa",
-                    "nēar",
-                    "nēarra",
-                    "nīehsta",
-                    "nīehste",
-                    "ġe-",
-                    "ġenugan",
-                    "ġenyht",
-                    "ġenōg",
-                    "ġenōh",
-                    "ġi-",
-                    "ġæ-",
-                    "ᚷᛁ-",
-                    "ᚸᛖ-"
-                  ]
-                ],
-                [
-                  "middle-english",
-                  [
-                    "-ge",
-                    "ge",
-                    "gea",
-                    "geo",
-                    "gie",
-                    "hye",
-                    "i-",
-                    "inoh",
-                    "inow",
-                    "itel",
-                    "itæl",
-                    "iye",
-                    "ner",
-                    "nexste",
-                    "nexte",
-                    "neygh",
-                    "nighe",
-                    "nixte",
-                    "nye",
-                    "nygh",
-                    "nyȝ",
-                    "ya",
-                    "yee",
-                    "yeȝ",
-                    "yie",
-                    "ynogh",
-                    "ynough",
-                    "ȝa",
-                    "ȝe-",
-                    "ȝea",
-                    "ȝeo",
-                    "ȝetel",
-                    "ȝetæl",
-                    "ȝhe",
-                    "ȝi",
-                    "ȝie"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "-ge",
-                    "eneugh",
-                    "enoo",
-                    "enough",
-                    "enow",
-                    "ge",
-                    "nigh"
+                    "y"
                   ]
                 ]
               ]
@@ -5125,7 +5199,7 @@
           ]
         ]
       ],
-      "name": "Cwmeybach",
+      "name": "Cwmybach",
       "name_modern": "Cwmybach",
       "seed": 250
     },
@@ -5138,7 +5212,19 @@
               "brythonic",
               [
                 [
-                  "celtic",
+                  "old-welsh",
+                  [
+                    "kwm"
+                  ]
+                ],
+                [
+                  "middle-welsh",
+                  [
+                    "cwm"
+                  ]
+                ],
+                [
+                  "welsh",
                   [
                     "cwm"
                   ]
@@ -5241,7 +5327,7 @@
           ]
         ]
       ],
-      "name": "Puibach",
+      "name": "Peningbach",
       "name_modern": "Penbach",
       "seed": 31415
     },
@@ -5251,16 +5337,10 @@
           "pont-",
           [
             [
-              "norman-french",
+              "brythonic",
               [
                 [
-                  "old-french",
-                  [
-                    "pont"
-                  ]
-                ],
-                [
-                  "french",
+                  "welsh",
                   [
                     "pont"
                   ]
@@ -5278,34 +5358,21 @@
                 [
                   "old-english",
                   [
-                    "hog",
-                    "hō",
-                    "hōh"
+                    "wog",
+                    "wōh"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "ho",
-                    "hoche",
-                    "hogh",
-                    "hoghe",
-                    "hokke",
-                    "hoo",
-                    "houe",
-                    "hough",
-                    "houȝ",
-                    "how",
-                    "howe",
-                    "howghe",
-                    "howh",
-                    "hoȝ"
+                    "wough",
+                    "wouȝh"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "hoh"
+                    "woh"
                   ]
                 ]
               ]
@@ -5428,7 +5495,7 @@
           ]
         ]
       ],
-      "name": "Ponthōheycoch",
+      "name": "Pontwōhgecoch",
       "name_modern": "Pontoycoch",
       "seed": 271828
     }

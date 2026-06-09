@@ -49,21 +49,31 @@ export function deAccent(s) {
  * a homograph and otherwise taking the first match.
  * @returns {{family: string, language: string, cell: object} | null}
  */
-export function cellForSurface(morpheme, surface) {
-  const grid = morpheme?.era_grid || [];
-  const pinnedId = morpheme?._cellId;
-  if (pinnedId) {
-    for (const section of grid) {
-      for (const stage of section?.stages || []) {
-        for (const cell of stage?.forms || []) {
-          if (cell?.id === pinnedId) {
-            return { family: section.family, language: stage.language, cell };
-          }
+export function cellById(grid, id) {
+  if (!id) return null;
+  for (const section of grid || []) {
+    for (const stage of section?.stages || []) {
+      for (const cell of stage?.forms || []) {
+        if (cell?.id === id) {
+          return { family: section.family, language: stage.language, cell };
         }
       }
     }
-    // a pinned id with no matching cell (stale) falls through to surface match.
   }
+  return null;
+}
+
+export function cellForSurface(morpheme, surface) {
+  const grid = morpheme?.era_grid || [];
+  // wyrd-i4jd: highlight BY ID, not by surface fold (which collides on
+  // same-spelled forms across eras/etymons). Precedence:
+  //   1. `_cellId` — an explicit user swap (authoritative).
+  //   2. `active_form_id` — the backend's id of the form the generator actually
+  //      rendered (the unswapped highlight). The form is guaranteed in this
+  //      morpheme's own grid, so no cross-grid string match.
+  // A stale/missing id falls through to the legacy surface fold (old bundles).
+  const byId = cellById(grid, morpheme?._cellId) || cellById(grid, morpheme?.active_form_id);
+  if (byId) return byId;
   const target = accentFold(surface);
   if (!target) return null;
   const pinned = morpheme?._lang;
