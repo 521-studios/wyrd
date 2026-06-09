@@ -684,8 +684,8 @@ the only scorer (D36); "proportions" here just names the bundled corpus stats.
 ```bash
 for culture in english scottish welsh irish; do
   .venv/bin/wyrd kenning rebuild-proportions $culture \
-    wyrd/generators/kenning/data/${culture}_place_names.json \
-    > wyrd/generators/kenning/data/${culture}_proportions.json
+    data/seed/${culture}_place_names.json \
+    > data/seed/${culture}_proportions.json
 done
 ```
 
@@ -780,7 +780,7 @@ to every reachable etymon. Reversible via
 
 The ingest is idempotent on `(canonical_form, language)` for
 etymons and on `(parent_id, child_id, edge_type, source_id)` for
-descent edges (UNIQUE constraints from data/lexicon.sql). Re-running
+descent edges (UNIQUE constraints from data/seed/lexicon.sql). Re-running
 the same JSONL is safe — duplicate inserts are silently skipped.
 
 If interrupted, note the last `lines_read` from the CLI output and

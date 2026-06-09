@@ -126,7 +126,7 @@ def _insert_scholar_etymology(
 
 def test_init_schema_creates_toponym_decomposition_table(fresh_db: Path) -> None:
     """Fresh installs pick up the ``toponym_decomposition`` table from
-    ``data/lexicon.sql``."""
+    ``data/seed/lexicon.sql``."""
     with LexiconDB(fresh_db) as db:
         tables = {
             row["name"]

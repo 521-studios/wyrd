@@ -19,8 +19,8 @@ Read `wyrd/generators/kenning/.reviewers/lexicon-package-structure-reviewer.md` 
 
 ## alembic-migration-discipline-reviewer
 
-**What it checks:** schema changes go through new Alembic migrations under `lexicon/sql/migrations/versions/` — not direct edits to `data/lexicon.sql`, not new `_create_*_table` / `_migrate_*` helpers in `lexicon/__init__.py`. SA Core MetaData in `lexicon/sql/tables.py` must stay synced with migrations.
-**When to spawn:** PR touches `data/lexicon.sql`, any file under `lexicon/sql/migrations/`, `lexicon/sql/tables.py`, or schema helpers in `lexicon/__init__.py`. Skip otherwise.
+**What it checks:** schema changes go through new Alembic migrations under `lexicon/sql/migrations/versions/` — not direct edits to `data/seed/lexicon.sql`, not new `_create_*_table` / `_migrate_*` helpers in `lexicon/__init__.py`. SA Core MetaData in `lexicon/sql/tables.py` must stay synced with migrations.
+**When to spawn:** PR touches `data/seed/lexicon.sql`, any file under `lexicon/sql/migrations/`, `lexicon/sql/tables.py`, or schema helpers in `lexicon/__init__.py`. Skip otherwise.
 
 Read `wyrd/generators/kenning/.reviewers/alembic-migration-discipline-reviewer.md` and follow it as your complete review specification.
 

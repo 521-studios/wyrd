@@ -21,7 +21,7 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 )
 def lexicon_synsets_seed(db_path: Path) -> None:
     """Idempotently populate meaning_synset from the bundled catalog
-    (data/meaning_synsets.json). Reports inserts / updates / unchanged."""
+    (data/seed/meaning_synsets.json). Reports inserts / updates / unchanged."""
     with LexiconDB(db_path) as db:
         result = seed_meaning_synsets(db)
     click.echo(

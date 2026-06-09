@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from importlib import resources
 from pathlib import Path
 
 import click
 
+from wyrd.generators.kenning.paths import seed_data_path
 from wyrd.generators.kenning.place_names_converter import CULTURES, convert_file
 
 
@@ -39,10 +39,9 @@ def lexicon_convert_place_names(culture: str | None, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     total = 0
     for c in cultures:
-        entry = resources.files("wyrd.generators.kenning.data").joinpath(f"{c}_place_names.json")
-        with resources.as_file(entry) as json_path:
-            jsonl_path = out_dir / f"{c}_place_names.jsonl"
-            n = convert_file(c, json_path, jsonl_path)
+        json_path = seed_data_path(f"{c}_place_names.json")
+        jsonl_path = out_dir / f"{c}_place_names.jsonl"
+        n = convert_file(c, json_path, jsonl_path)
         total += n
         click.echo(f"  {c}: {n} toponyms -> {jsonl_path}", err=True)
     click.echo(f"Done. {total} toponyms across {len(cultures)} culture(s).", err=True)

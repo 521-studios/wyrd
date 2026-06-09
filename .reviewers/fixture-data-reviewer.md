@@ -16,7 +16,7 @@ Review test changes for **isolation from live operator data**. Tests must run ag
 3. **No live-bulk-manifest dependency.** Tests must NOT trigger the L1 wiktextract ingest against the operator's `~/.wyrd/sources/`. The conftest autouse `_isolate_bulk_manifest` fixture handles this for `rebuild-from-jsonl` tests; tests that exercise bulk-source paths directly should monkeypatch `bulk_sources.MANIFEST_PATH` to a tmp manifest with synthetic slices.
 
 4. **Fixture data must stay representative.** When the production data shape changes (schema migration, new column, manifest schema_version bump, new row type), the fixture data has to evolve in lockstep. A test that pins a 2-row fixture against an obsolete shape passes locally but is no longer testing what its name claims. Watch for:
-   - Schema changes in `wyrd/generators/kenning/data/lexicon.sql` not reflected in test fixtures that `executescript` partial schemas
+   - Schema changes in `data/seed/lexicon.sql` not reflected in test fixtures that `executescript` partial schemas
    - Manifest `schema_version` bumps in `bulk_sources.py` not reflected in test-fixture manifests
    - New required columns / fields on JSONL row types that fixtures still elide
    - New L3 derivations or enrichment columns that fixtures don't seed

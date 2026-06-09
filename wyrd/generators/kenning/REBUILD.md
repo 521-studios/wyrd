@@ -65,7 +65,7 @@ DB, so they aren't active rebuild steps — but if you ever populate them,
 here's the obligation:
 
 - **`meaning_synset`** (semantic-equivalence catalog, D28) — seeded FREE
-  from the committed `data/meaning_synsets.json` via `lexicon synsets
+  from the committed `data/seed/meaning_synsets.json` via `lexicon synsets
   seed`. `rebuild-from-jsonl` does **not** run it. If you populate it,
   run `synsets seed` after the rebuild and promote it to a documented
   rebuild step.

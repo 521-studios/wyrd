@@ -9,7 +9,7 @@ Source inputs:
   * the 5 per-culture proportions JSONs (read from the bundled data
     directory or any override path)
 
-The schema lives in ``wyrd/generators/kenning/data/runtime.sql``. The
+The schema lives in ``data/seed/runtime.sql``. The
 runtime treats the emitted DB as read-only (``file:...?mode=ro`` URI);
 re-emit and ship a new versioned key on S3 to update. See D38 for the
 L4 architecture rationale.
@@ -30,11 +30,12 @@ import logging
 import sqlite3
 from collections import Counter
 from collections.abc import Iterable
-from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
+
+from wyrd.generators.kenning.paths import seed_data_path
 
 _logger = logging.getLogger(__name__)
 
@@ -373,7 +374,7 @@ def _compute_proportions_inline(
 
 def _init_runtime_schema(conn: sqlite3.Connection) -> None:
     """Run runtime.sql against the freshly-created DB."""
-    sql = resources.files("wyrd.generators.kenning.data").joinpath("runtime.sql").read_text()
+    sql = seed_data_path("runtime.sql").read_text()
     conn.executescript(sql)
 
 

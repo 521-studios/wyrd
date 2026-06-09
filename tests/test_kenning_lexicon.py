@@ -12530,7 +12530,7 @@ def test_export_meanings_output_is_byte_stable_across_runs(fresh_db: Path) -> No
 
 
 def test_init_schema_creates_etymon_descent_table(fresh_db: Path) -> None:
-    """Fresh install carries the etymon_descent table from data/lexicon.sql
+    """Fresh install carries the etymon_descent table from data/seed/lexicon.sql
     so the migration and fresh-install paths stay in lockstep."""
     with LexiconDB(fresh_db) as db:
         tables = {
@@ -12826,7 +12826,7 @@ def test_etymon_descent_cascades_when_parent_deleted(fresh_db: Path) -> None:
         after = db.conn.execute("SELECT COUNT(*) AS n FROM etymon_descent").fetchone()["n"]
     assert after == 0, (
         "ON DELETE CASCADE on parent_id failed; got dangling descent edges. "
-        "Check the FK declaration in data/lexicon.sql + the migration helper."
+        "Check the FK declaration in data/seed/lexicon.sql + the migration helper."
     )
 
 
@@ -12864,7 +12864,7 @@ def test_etymon_descent_cascades_when_child_deleted(fresh_db: Path) -> None:
 def test_migrate_schema_adds_etymon_descent_to_legacy_db(fresh_db: Path) -> None:
     """A pre-D27 DB without etymon_descent picks it up on migrate_schema.
     Verifies (1) the table is created, (2) ON DELETE CASCADE survives
-    the migration DDL — not just the data/lexicon.sql DDL the fresh-
+    the migration DDL — not just the data/seed/lexicon.sql DDL the fresh-
     install cascade tests cover. Catches a drift between the two
     parallel CREATE TABLE statements in lexicon.py vs lexicon.sql.
     Idempotent on re-run."""
