@@ -20,6 +20,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli
@@ -883,6 +884,46 @@ def test_cli_language_report_source_tag_mutually_exclusive(tmp_path: Path) -> No
     )
     assert result.exit_code != 0
     assert "mutually exclusive" in result.output.lower()
+
+
+def test_cli_language_report_bundle_without_proportions_does_not_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """wyrd-62cc regression: ``--bundle X`` WITHOUT ``--proportions`` must
+    not raise UnboundLocalError. ``runtime_db`` and the
+    ``proportions_dict_for_culture`` import were bound only inside the
+    ``bundle_path is None`` branch, but the ``proportions_path is None``
+    branch referenced them regardless — so passing ``--bundle`` alone
+    crashed before reaching ``compute_report``.
+
+    Stub the runtime-DB resolution + report pipeline (the fix is purely
+    about variable binding before ``compute_report``, so trivial stubs
+    isolate it without a real L4 bundle)."""
+    import wyrd.generators.kenning.language_quality as lq
+    import wyrd.generators.kenning.runtime.runtime_db as rdb
+    import wyrd.generators.kenning.runtime.runtime_db_adapter as rda
+
+    db_path = tmp_path / "lexicon.db"
+    sqlite3.connect(db_path).close()
+    bundle_path = tmp_path / "bundle.json"
+    bundle_path.write_text(json.dumps({"subjects": [], "joiners": {}}))
+
+    sentinel_db = object()
+    monkeypatch.setattr(rdb, "get_runtime_db", lambda: sentinel_db)
+    monkeypatch.setattr(rda, "proportions_dict_for_culture", lambda db, culture: {})
+    monkeypatch.setattr(lq, "load_reference_tags", lambda source, top_n: {})
+    monkeypatch.setattr(lq, "compute_report", lambda *a, **k: [])
+    monkeypatch.setattr(lq, "report_to_markdown", lambda *a, **k: "ok")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["lexicon", "language-report", "--db", str(db_path), "--bundle", str(bundle_path)],
+    )
+    assert not isinstance(result.exception, UnboundLocalError), (
+        f"--bundle without --proportions regressed to UnboundLocalError: {result.exception!r}"
+    )
+    assert result.exit_code == 0, f"{result.output}\n{result.exception!r}"
 
 
 def test_populate_eligible_etymon_table_handles_minimal_schema() -> None:
