@@ -49,10 +49,11 @@ variable "enabled_feature_flags" {
 variable "feature_flag_defaults" {
   description = "Per-option default-value overrides (option name → value); each → WYRD_DEFAULT_<OPTION>."
   type        = map(string)
-  # wyrd-7f22: default novelty to 0.1 in both prod + staging — a small,
-  # always-on amount of lexical surprise. The schema default stays 0.0 (CLI /
-  # local / tests bit-stable); this env override seeds the deployed SPA's
-  # novelty slider to 0.1. Resolves to WYRD_DEFAULT_NOVELTY=0.1; the SPA
-  # coerces the string to the number 0.1 when seeding (featureFlags.coerceToType).
-  default = { novelty = "0.1" }
+  # wyrd-7f22: default novelty in both prod + staging — a small, always-on
+  # amount of lexical surprise (bumped 0.1 → 0.2, 2026-06-09). The schema
+  # default stays 0.0 (CLI / local / tests bit-stable); this env override seeds
+  # the deployed SPA's novelty slider AND the server-side generation default
+  # (WYRD_DEFAULT_NOVELTY → feature_flags.apply_env_defaults; the SPA coerces
+  # the string via featureFlags.coerceToType).
+  default = { novelty = "0.2" }
 }
