@@ -71,8 +71,34 @@ def test_reflex_link_unresolved_and_self_are_skipped(fresh_db: Path) -> None:
         # self-link
         c2 = apply_collapses(db, {"old-english:tūn": {"inherits": "old-english:tūn"}})
         assert c2["self_link_skipped"] == 1
+        # unresolved CHILD (from_ref) on a link row — distinct code path from
+        # the fold's unresolved_from; the ancestor exists but the child doesn't.
+        c3 = apply_collapses(db, {"old-english:ghostchild": {"inherits": "old-english:tūn"}})
+        assert c3["unresolved_from"] == 1 and c3["links_processed"] == 0
         assert db.conn.execute("SELECT count(*) FROM etymon_descent").fetchone()[0] == 0
         _ = tun
+
+
+def test_reflex_link_empty_inherits_is_rejection_not_fold(fresh_db: Path) -> None:
+    """A row carrying ``inherits: ""`` (a recorded LLM rejection / revert) is a
+    no-op counted as link_rejections — it MUST NOT fall through to the ``into``
+    fold (no tombstone, no edge, not even empty_into_skipped). Pins the
+    dispatch short-circuit the wyrd-8uvi C901 split moved into a returning
+    helper (_apply_reflex_link)."""
+    with LexiconDB(fresh_db) as db:
+        tun = db.upsert_etymon("tūn", "old-english", modifier_type="Habitative")
+        db.commit()
+        counts = apply_collapses(db, {"old-english:tūn": {"inherits": ""}})
+        assert counts["link_rejections"] == 1
+        assert counts["links_processed"] == 0
+        assert counts["collapses_processed"] == 0
+        assert counts["empty_into_skipped"] == 0  # NOT treated as an empty fold
+        # no edge written, and tūn is NOT tombstoned (no fold fall-through)
+        assert db.conn.execute("SELECT count(*) FROM etymon_descent").fetchone()[0] == 0
+        assert (
+            db.conn.execute("SELECT merged_into_id FROM etymon WHERE id=?", (tun,)).fetchone()[0]
+            is None
+        )
 
 
 def test_fold_still_works_alongside_link(fresh_db: Path) -> None:

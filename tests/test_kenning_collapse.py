@@ -150,6 +150,33 @@ def test_reflex_conflict_left_on_tombstone(tmp_path: Path) -> None:
     _ = ids
 
 
+def test_citation_conflict_left_on_tombstone(tmp_path: Path) -> None:
+    """Citation twin of the reflex-conflict case: a cite `into` already
+    carries on the same UNIQUE (etymon_id, source_id, COALESCE(page,'')) key
+    can't move — it stays on the tombstone, counted, not lost. Pins the
+    citations_skipped_conflict accounting + the attested_form IS NULL guard in
+    _migrate_collapse_evidence (wyrd-8uvi)."""
+    ids = _seed(tmp_path / "lex.db")
+    conn = sqlite3.connect(tmp_path / "lex.db")
+    # burg (the lemma) already carries the SAME (ekwall, p12) cite burh has.
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (2, 'ekwall', 'p12')"
+    )
+    conn.commit()
+    conn.close()
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, _COLLAPSE, apply=True)
+        # burh's cite couldn't move (conflict) → still on the tombstone, unstamped.
+        burh_cit = db.conn.execute(
+            "SELECT source_id, page, attested_form FROM etymon_citation WHERE etymon_id = 1"
+        ).fetchone()
+    assert counts["citations_skipped_conflict"] == 1
+    assert counts["citations_moved"] == 0
+    assert burh_cit is not None and burh_cit[0] == "ekwall" and burh_cit[1] == "p12"
+    assert burh_cit[2] is None  # never stamped — the move was skipped
+    _ = ids
+
+
 def test_bad_variant_class_coerced_to_other(tmp_path: Path) -> None:
     """An out-of-vocabulary variant_class (hand-edited / LLM row) is
     coerced to 'other' rather than tripping the CHECK constraint."""
