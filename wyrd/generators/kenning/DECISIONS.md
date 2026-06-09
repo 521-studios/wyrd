@@ -1263,6 +1263,10 @@ concern — those need to pick non-English source-lang renders, which
 is exactly when `english_shaped_for` becomes the right surface-form
 source. Phase 2c is the plumbing those demos consume.
 
+> **SUPERSEDED by D38 (wyrd-24s6).** Per-language / native rendering is no longer
+> "the demos' concern" — it is the canonical render. Every name now renders BOTH
+> native (source-era, canonical) AND modern. See D38.
+
 ### Phase 2d: SPA etymological-provenance panel + the other 3 renderings
 
 Phase 2d completes wyrd-ha9q's runtime story by surfacing the four
@@ -1330,6 +1334,10 @@ for english_shaped over modern_usage at render time. That stays the
 wyrd-rni / wyrd-381 era-rewind demos' concern — Phase 2d delivers
 the EDUCATIONAL view (panel) but the GENERATION default still uses
 modern_usage everywhere (bit-stable historical behavior).
+
+> **SUPERSEDED by D38 (wyrd-24s6).** The generation default is NO LONGER
+> modern_usage everywhere. `era=""` now renders native (as-selected); modern is
+> the always-present secondary, not the default. See D38.
 
 
 ## D32. Within-language stratum tagging (wyrd-lr4, PRs #105 / #107 / #109 / #111 / #112 / #113 / #115 / #120 / #121).
@@ -1615,6 +1623,9 @@ Anchor-resolver design notes:
   * Tier 3: alphabetical first.
 - **Fallback rule**: when no era reflex found, render the
   morpheme's modern canonical (NOT the anchor's OE source). The
+  <!-- D38 (wyrd-24s6): this is a FALLBACK for a missing era reflex, not a
+  statement that modern is THE canonical surface. Per D38 native is canonical;
+  modern is the parallel/secondary rendering. -->
   asterisk `*` flag in the CLI output is the truth-marker. Falling
   back to the source would make the era ladder look reversed
   (`oe-late: king → me: chinge → modern: cyning`).
@@ -2591,3 +2602,62 @@ wyrd-g6u9 (position-plausibility via bucket frequency) / wyrd-fbdb (derived posi
 into structures/buckets via bare-surface resolution). Residual vector-mode
 realism alignment is tracked in the wyrd-vidi follow-up.
 
+
+## D38. Generated names render BOTH native and modern; native is canonical (wyrd-24s6, supersedes D31's "modern_usage everywhere").
+
+**The decision: every generated name carries TWO renderings, and we surface
+both.** A **native** rendering (each morpheme in its source-era attested form —
+"as selected", e.g. an Old-English-sourced morpheme renders `Tūn`, `Pearroc`)
+is the **canonical/primary** render (`result`); a **modern** rendering
+(`modern_usage`, the present-day surface) is the **always-present secondary**.
+Neither is "the" rendering — the product decision is that we render *both*.
+
+This SUPERSEDES the D31 (wyrd-ha9q Phase 2c/2d) position that "the GENERATION
+default uses `modern_usage` everywhere (bit-stable historical behavior)" and that
+native / per-language rendering is "the era-rewind demos' concern / out of
+scope." That framing made `Meaning.__str__` → `modern_usage` the one true
+surface and kept re-seeding a recurring bug: users select from all eras with
+`era=""` but the output silently coerced every morpheme to modern, with no way
+to "display what was selected."
+
+### Behavior
+
+- **`era=""` means "render as-selected" (native), NOT "coerce to modern."** Each
+  morpheme renders in its own source-era form. `era="modern-english"` is the
+  explicit way to force the all-modern rendering. `era="old-english"` etc. render
+  at that requested era (unchanged). A morpheme whose source IS the present day
+  stays modern (native == modern for it).
+- **Both renderings are exposed** on every result: `result` (native) +
+  `result_modern`, and per-morpheme native + modern surfaces in the API envelope
+  (`components` / `morphemes_by_word`).
+- **SPA surfaces both:** the Output column shows native primary + modern in the
+  darker secondary lettering to the right; Inspect & Transform shows native on
+  the left and modern on the right (the darker "MODERN" card).
+
+### Deliberate bit-stability break
+
+Changing the canonical `result` from modern to native **breaks the
+`(generator, params, seed) → result` string contract** by design. The
+`test_rogd10_parity` snapshot is regenerated once (`WYRD_REGEN_PARITY=1`) and the
+break is recorded here. The bit-stability contract serves the product, not the
+reverse — pinning output to a behavior the product owner calls a bug is not a
+reason to keep it.
+
+### Guard against recurrence (audit)
+
+The "force modern" assumption was a *decision* (D31) plus a bit-stability guard,
+not a stray code path — which is why code-only fixes kept regressing. As part of
+wyrd-24s6 the codebase / tests / docs were audited for the assumption:
+`Meaning.__str__`/`NewName.__str__` (canonical render), `_resolve_era_render_language`
+returning None→modern, `_contemporary_language_for_family` suppression, the
+era-reflex modern-canonical fallback (D33), and the parity snapshot. Each was
+flipped to "native is the default; modern is a parallel rendering," and this
+entry is the single source of truth so it cannot re-seed.
+
+### Relationship to D33
+
+D33's era-reflex picker is unchanged as machinery. Its **"fallback: when no era
+reflex found, render the morpheme's modern canonical"** rule now means "fall back
+to the morpheme's own form" — modern is no longer privileged as *the* canonical,
+it is the fallback surface for a morpheme with no source-era reflex. See the
+annotation on D33.
