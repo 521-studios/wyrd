@@ -468,9 +468,27 @@ def parse_entry(toponym: str, body: str, *, suffix_hint: str | None) -> ParsedEn
         body_text=body,
     )
 
-    # Try A.S. / O.E. / O.N. forms in priority order.
-    historical_form: str | None = None
-    historical_lang: str | None = None
+    historical_form, historical_lang = _detect_historical_form(body)
+    entry.historical_form = historical_form
+    suffix_root = _bare_suffix(suffix_hint)
+
+    # Patterns applied in priority order; each is a no-op unless its evidence
+    # is present, and the later ones only fire when no elements were recovered
+    # yet (hyphenated A.S. forms are the highest-priority evidence).
+    _apply_hyphenated_split(entry, historical_form, historical_lang)
+    _apply_suffix_split(entry, historical_form, historical_lang, suffix_root)
+    _apply_from_and(entry, body, historical_lang)
+    _apply_personal_name(entry, body, suffix_hint, suffix_root)
+    _apply_lit_gloss(entry, body)
+
+    if not entry.elements:
+        entry.confidence = "low"
+
+    return entry
+
+
+def _detect_historical_form(body: str) -> tuple[str | None, str | None]:
+    """Try A.S. / O.E. / O.N. forms in priority order; return (form, lang)."""
     for pattern, lang in (
         (_AS_FORM, "old-english"),
         (_OE_FORM, "old-english"),
@@ -478,99 +496,111 @@ def parse_entry(toponym: str, body: str, *, suffix_hint: str | None) -> ParsedEn
     ):
         m = pattern.search(body)
         if m:
-            historical_form = m.group("form")
-            historical_lang = lang
-            break
-    entry.historical_form = historical_form
+            return m.group("form"), lang
+    return None, None
 
-    suffix_root = _bare_suffix(suffix_hint)
 
-    # Pattern A: hyphenated historical form.
-    if historical_form and "-" in historical_form and historical_lang:
-        parts = _split_hyphenated(historical_form)
-        if 2 <= len(parts) <= 4:
-            for i, part in enumerate(parts):
-                if i == 0:
-                    pos = "pre"
-                elif i == len(parts) - 1:
-                    pos = "post"
-                else:
-                    pos = "inner"
-                entry.elements.append(
-                    ParsedElement(form=part.lower(), language=historical_lang, position=pos)
-                )
-            entry.confidence = "high"
-
-    # Pattern A': unhyphenated historical form that ends with the section's
-    # suffix root. We split at that boundary.
-    if not entry.elements and historical_form and historical_lang and suffix_root:
-        split = _split_form_by_suffix(historical_form, suffix_root)
-        if split is not None:
-            prefix, post = split
-            entry.elements = [
-                ParsedElement(form=prefix.lower(), language=historical_lang, position="pre"),
-                ParsedElement(form=post.lower(), language=historical_lang, position="post"),
-            ]
-            entry.historical_form = f"{prefix}-{post}"
-            entry.confidence = "high"
-
-    # Pattern B: "from X, gloss, and Y" — fills in glosses or supplies a
-    # 2-element breakdown when no historical form was parsed.
-    m = _FROM_AND.search(body)
-    if m and historical_lang:
-        a_form = m.group("a").lower()
-        a_gloss = (m.group("a_gloss") or "").strip() or None
-        b_form = m.group("b").lower()
-        b_gloss = (m.group("b_gloss") or "").strip() or None
-        if entry.elements:
-            for elem in entry.elements:
-                if elem.form == a_form and not elem.gloss:
-                    elem.gloss = a_gloss
-                elif elem.form == b_form and not elem.gloss:
-                    elem.gloss = b_gloss
+def _apply_hyphenated_split(
+    entry: ParsedEntry, historical_form: str | None, historical_lang: str | None
+) -> None:
+    """Pattern A: hyphenated historical form → 2–4 positioned elements."""
+    if not (historical_form and "-" in historical_form and historical_lang):
+        return
+    parts = _split_hyphenated(historical_form)
+    if not (2 <= len(parts) <= 4):
+        return
+    for i, part in enumerate(parts):
+        if i == 0:
+            pos = "pre"
+        elif i == len(parts) - 1:
+            pos = "post"
         else:
-            entry.elements = [
-                ParsedElement(form=a_form, language=historical_lang, gloss=a_gloss, position="pre"),
-                ParsedElement(
-                    form=b_form, language=historical_lang, gloss=b_gloss, position="post"
-                ),
-            ]
-            entry.confidence = "medium"
+            pos = "inner"
+        entry.elements.append(
+            ParsedElement(form=part.lower(), language=historical_lang, position=pos)
+        )
+    entry.confidence = "high"
 
-    # Pattern C: personal-name prefix + section suffix. Matches only when no
-    # elements have been recovered yet, since hyphenated A.S. forms are
-    # higher-priority evidence.
-    if not entry.elements and suffix_hint and suffix_root:
-        m = _PERSONAL_NAME.search(body)
-        if m:
-            personal = m.group("form").lower()
-            entry.elements = [
-                ParsedElement(
-                    form=personal,
-                    language="old-english",
-                    position="pre",
-                    inflection="genitive",
-                ),
-                ParsedElement(
-                    form=suffix_root,
-                    language="old-english",
-                    position="post",
-                ),
-            ]
-            entry.confidence = "medium"
 
-    # Pattern D: "lit. 'X-Y'" gloss applies to the whole compound; attach to
-    # the historical form if found.
+def _apply_suffix_split(
+    entry: ParsedEntry,
+    historical_form: str | None,
+    historical_lang: str | None,
+    suffix_root: str | None,
+) -> None:
+    """Pattern A': unhyphenated historical form ending with the section's
+    suffix root — split at that boundary into pre/post."""
+    if not (not entry.elements and historical_form and historical_lang and suffix_root):
+        return
+    split = _split_form_by_suffix(historical_form, suffix_root)
+    if split is None:
+        return
+    prefix, post = split
+    entry.elements = [
+        ParsedElement(form=prefix.lower(), language=historical_lang, position="pre"),
+        ParsedElement(form=post.lower(), language=historical_lang, position="post"),
+    ]
+    entry.historical_form = f"{prefix}-{post}"
+    entry.confidence = "high"
+
+
+def _apply_from_and(entry: ParsedEntry, body: str, historical_lang: str | None) -> None:
+    """Pattern B: "from X, gloss, and Y" — fills in glosses on existing
+    elements, or supplies a 2-element breakdown when none were parsed."""
+    m = _FROM_AND.search(body)
+    if not (m and historical_lang):
+        return
+    a_form = m.group("a").lower()
+    a_gloss = (m.group("a_gloss") or "").strip() or None
+    b_form = m.group("b").lower()
+    b_gloss = (m.group("b_gloss") or "").strip() or None
+    if entry.elements:
+        for elem in entry.elements:
+            if elem.form == a_form and not elem.gloss:
+                elem.gloss = a_gloss
+            elif elem.form == b_form and not elem.gloss:
+                elem.gloss = b_gloss
+    else:
+        entry.elements = [
+            ParsedElement(form=a_form, language=historical_lang, gloss=a_gloss, position="pre"),
+            ParsedElement(form=b_form, language=historical_lang, gloss=b_gloss, position="post"),
+        ]
+        entry.confidence = "medium"
+
+
+def _apply_personal_name(
+    entry: ParsedEntry, body: str, suffix_hint: str | None, suffix_root: str | None
+) -> None:
+    """Pattern C: personal-name prefix + section suffix. Only fires when no
+    elements have been recovered yet."""
+    if not (not entry.elements and suffix_hint and suffix_root):
+        return
+    m = _PERSONAL_NAME.search(body)
+    if not m:
+        return
+    personal = m.group("form").lower()
+    entry.elements = [
+        ParsedElement(
+            form=personal,
+            language="old-english",
+            position="pre",
+            inflection="genitive",
+        ),
+        ParsedElement(
+            form=suffix_root,
+            language="old-english",
+            position="post",
+        ),
+    ]
+    entry.confidence = "medium"
+
+
+def _apply_lit_gloss(entry: ParsedEntry, body: str) -> None:
+    """Pattern D: "lit. 'X-Y'" overall gloss → attach to the first element
+    (so it isn't lost) when none already carry a per-element gloss."""
     m = _LIT_GLOSS.search(body)
     if m and entry.elements and not any(el.gloss for el in entry.elements):
-        # Distribute as a single overall gloss on the first element so it
-        # isn't lost; per-element glosses come from Pattern B.
         entry.elements[0].gloss = m.group("gloss").strip()
-
-    if not entry.elements:
-        entry.confidence = "low"
-
-    return entry
 
 
 # --- public API ------------------------------------------------------------
