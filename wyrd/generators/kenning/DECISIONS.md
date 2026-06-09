@@ -20,7 +20,8 @@ Three roles, three providers:
   `http://10.5.2.31:11434` (set `WYRD_OLLAMA_URL`). Free, fast enough, no
   rate limits. Used for first-pass extraction across thousands of entries.
   (Hades is *not* used for mining — its GPU is too weak, capped at
-  ~qwen2.5:7b; see the workspace `CLAUDE.md`.)
+  ~qwen2.5:7b — per the parent-workspace `521Studios/CLAUDE.md`, one level
+  above this repo.)
 - **Quality review**: Gemini 2.5 Flash. Cheap per-call, native JSON-schema
   enforcement, stronger on hedge-recognition and OE-form OCR. Used for the
   `lexicon review` second-pass on questionable Ollama rows.
