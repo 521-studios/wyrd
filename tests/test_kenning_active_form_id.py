@@ -48,8 +48,7 @@ def _check_result(r):
             seen_any = True
             cell = _cell_by_id(m.get("era_grid"), cid)
             assert cell is not None, (
-                f"active_form_id {cid!r} not in this morpheme's era_grid "
-                f"(usage={m.get('usage')!r})"
+                f"active_form_id {cid!r} not in this morpheme's era_grid (usage={m.get('usage')!r})"
             )
             active_surface = m.get("rendered") or m.get("usage")
             assert _fold(cell["form"]) == _fold(active_surface), (

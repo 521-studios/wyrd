@@ -1447,9 +1447,9 @@ class NameGenerator:
                     # form None → modern usage, rather than scanning the surface
                     # siblings — that fallback would render a DIFFERENT morpheme's
                     # canonical, the cross-sibling string-derivation wyrd-i4jd removes.
-                    meanings = self.meaning_gen._surface_index().get(
-                        usage.lower().replace("-", "")
-                    ) or []
+                    meanings = (
+                        self.meaning_gen._surface_index().get(usage.lower().replace("-", "")) or []
+                    )
                     form = _native_form_for_meanings(meanings)
                 word_rendered.append(_mimic_case(usage, form) if form else None)
             rendered.append(word_rendered)
@@ -1457,7 +1457,9 @@ class NameGenerator:
 
 
 class NewName:
-    def __init__(self, struct, meaning_db, name, rendered=None, inflection_labels=None, picked_ids=None):
+    def __init__(
+        self, struct, meaning_db, name, rendered=None, inflection_labels=None, picked_ids=None
+    ):
         self.struct = struct
         self.meaning_db = meaning_db
         self.name = name
@@ -1493,7 +1495,9 @@ class NewName:
         # (render-only / rewind-from-json builds, dropped slots, legacy bundles)
         # → consumers degrade to the surface path. Diversification updates this
         # in lockstep with _lang_override (see _resolve_repeat).
-        self.picked_ids = picked_ids if picked_ids is not None else [[None] * len(w) for w in (name or [])]
+        self.picked_ids = (
+            picked_ids if picked_ids is not None else [[None] * len(w) for w in (name or [])]
+        )
         # Run lazily on first render (see _ensure_diversified): callers set
         # self.rendered (variant/inflection substitution) AFTER __init__, and
         # the diversification must layer on top of the FINAL rendered surfaces.

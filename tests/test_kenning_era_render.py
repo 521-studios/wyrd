@@ -165,7 +165,9 @@ def _apply_render_stub(spy):
 def test_apply_render_era_supersedes_substitution():
     # era set AND both substitution knobs hot → era wins, substitution skipped.
     spy: list = []
-    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None)
+    new_name = SimpleNamespace(
+        name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None
+    )
     NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 1.0, 1.0, "old-english")
     assert new_name.rendered == [["ERAFORM"]]
     assert new_name.inflection_labels is None  # era path leaves labels unset
@@ -174,7 +176,9 @@ def test_apply_render_era_supersedes_substitution():
 
 def test_apply_render_falls_back_to_substitution_without_era():
     spy: list = []
-    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None)
+    new_name = SimpleNamespace(
+        name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None
+    )
     NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 1.0, 0.0, None)
     assert new_name.rendered == [["SUBSTITUTED"]]
     assert new_name.inflection_labels == [["case"]]
@@ -185,7 +189,9 @@ def test_apply_render_native_when_no_era_and_no_knobs():
     # wyrd-24s6 (D38): default generation (era="" / not requested, no knobs) now
     # renders NATIVE — the "as-selected" surface — not the old modern no-op.
     spy: list = []
-    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None)
+    new_name = SimpleNamespace(
+        name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None
+    )
     NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 0.0, 0.0, None)
     assert new_name.rendered == [["NATIVE"]]
     assert spy == [("native",)]  # native path ran; era / substitution did not
@@ -197,7 +203,9 @@ def test_apply_render_modern_noop_when_explicit_modern_era():
     # sets era_requested=True, so it falls through to MODERN — rendered stays None
     # (→ modern usage), NOT native. This is the explicit force-modern path.
     spy: list = []
-    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None)
+    new_name = SimpleNamespace(
+        name=[["-ton"]], rendered=None, inflection_labels=None, picked_ids=None
+    )
     NameGenerator._apply_render(
         _apply_render_stub(spy), None, new_name, 0.0, 0.0, None, era_requested=True
     )
