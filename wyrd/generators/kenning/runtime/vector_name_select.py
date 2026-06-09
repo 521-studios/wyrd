@@ -202,6 +202,162 @@ def _slot_position_label(structural_element: str) -> str:
     return "bare"
 
 
+def _passes_base_gates(
+    m: Meaning,
+    *,
+    gate,
+    exclude_tags: frozenset[str],
+    include_unglossed: bool,
+) -> bool:
+    """Slot-independent eligibility gates shared by the native and pack pools:
+    era window, stratum, exclude-tags, the --tag HARD gate, and the gloss
+    policy. Returns False on the first failing gate."""
+    if not _matches_era(m, gate.era_min, gate.era_max):
+        return False
+    if not _matches_stratum(m, gate.stratum):
+        return False
+    # frozenset.isdisjoint runs in C and skips the per-tag generator overhead
+    # in this O(64k) hot path; equivalent to any(t in <fs> for t in m.tags).
+    if exclude_tags and not exclude_tags.isdisjoint(m.tags):
+        return False
+    # wyrd-wv85: --tag HARD gate (D36.6). Drop lemmas carrying none of the
+    # requested tags — OR semantics, matching proportions' filter_for_tag.
+    # Empty required_tags = no-op.
+    if gate.required_tags and gate.required_tags.isdisjoint(m.tags):
+        return False
+    # wyrd-glos: gloss policy — same predicate keep_keys_for_gloss applies, so
+    # this filter and the keep-set share the rule.
+    return _gloss_eligible(m.usage, bool(m.meanings), include_unglossed)
+
+
+def _native_meaning_eligible(
+    m: Meaning,
+    *,
+    admitted_langs: frozenset[str] | None,
+    gate,
+    exclude_tags: frozenset[str],
+    include_unglossed: bool,
+) -> bool:
+    """Whether a native-pool Meaning is admitted: the per-Meaning attested-
+    language narrowing (wyrd-pfoo), the shared base gates, and the native-only
+    exclusions (pure-proper-noun saints / given names, connector particles).
+
+    ``admitted_langs`` is ``None`` when the per-Meaning filter is inactive
+    (legacy bundle, or this usage_key carried no per-Meaning attestation data);
+    a frozenset (even empty) means the filter is active. The ``is not None``
+    check is load-bearing — an empty frozenset ("attested, no eligible
+    language") must not be conflated with the missing case.
+    """
+    if admitted_langs is not None:
+        primary = m.primary_language()
+        if primary is None or primary not in admitted_langs:
+            return False
+    if not _passes_base_gates(
+        m, gate=gate, exclude_tags=exclude_tags, include_unglossed=include_unglossed
+    ):
+        return False
+    # wyrd-eyjk/D40 + wyrd-g1hj: exclude pure-proper-noun saint subjects AND
+    # personal given names from the base pool — saints reach names only via the
+    # param-gated St-dedication synthesis; given names would dangle as bare
+    # personal names. Family-name etymons are NOT excluded (manorial places).
+    if m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()):
+        return False
+    # wyrd-gwj3: connector morphemes (cum / le / juxta …) require a complement.
+    return not m.is_connector_particle()
+
+
+def _pack_meaning_eligible(
+    m: Meaning,
+    *,
+    pack,
+    gate,
+    exclude_tags: frozenset[str],
+    include_unglossed: bool,
+) -> bool:
+    """Whether a pack-overlay Meaning is admitted: the shared base gates plus
+    the per-pack allowed/excluded tag filters (wyrd-ecjp.8). Pack overlays are
+    intentionally NOT culture-restricted — they add other-culture flavor."""
+    if not _passes_base_gates(
+        m, gate=gate, exclude_tags=exclude_tags, include_unglossed=include_unglossed
+    ):
+        return False
+    # isdisjoint (C-level) avoids the per-tag generator overhead.
+    if pack.allowed_pack_tags and pack.allowed_pack_tags.isdisjoint(m.tags):
+        return False
+    # Eligible unless the morpheme carries an excluded tag (De Morgan of
+    # `excluded and not isdisjoint`): no excluded set, or disjoint from it.
+    return not pack.excluded_pack_tags or pack.excluded_pack_tags.isdisjoint(m.tags)
+
+
+def _native_pool(
+    meaning_db: dict[str, list[Meaning]],
+    *,
+    gate,
+    exclude_tags: frozenset[str],
+    culture_attested_usages: frozenset[str] | None,
+    culture_attested_meanings: dict[str, frozenset[str]] | None,
+    include_unglossed: bool,
+) -> list[Meaning]:
+    """Native (non-pack) eligibility pool, walked in ``meaning_db`` insertion
+    order so the output list is reproducible across runs."""
+    pool: list[Meaning] = []
+    for usage_key, meanings_for_usage in meaning_db.items():
+        # wyrd-eyjk/D40: culture_attested_usages holds bare SURFACES (the
+        # proportions side records position-forms); compare this entry's stored
+        # variant by surface so a morpheme stored as `Giles-` but recorded as
+        # `-giles` isn't silently dropped from the pool.
+        if (
+            culture_attested_usages is not None
+            and usage_key.lower().replace("-", "") not in culture_attested_usages
+        ):
+            continue
+        # Per-Meaning narrowing set for this usage_key (wyrd-pfoo); None when
+        # the filter is inactive or this usage carried no per-Meaning data.
+        admitted_langs: frozenset[str] | None = (
+            culture_attested_meanings.get(usage_key)
+            if culture_attested_meanings is not None
+            else None
+        )
+        for m in meanings_for_usage:
+            if _native_meaning_eligible(
+                m,
+                admitted_langs=admitted_langs,
+                gate=gate,
+                exclude_tags=exclude_tags,
+                include_unglossed=include_unglossed,
+            ):
+                pool.append(m)
+    return pool
+
+
+def _pack_pool(
+    pack_meaning_dbs: dict[str, dict[str, list[Meaning]]],
+    *,
+    packs,
+    gate,
+    exclude_tags: frozenset[str],
+    include_unglossed: bool,
+) -> list[Meaning]:
+    """Pack-overlay eligibility pool (wyrd-ecjp.8), appended after the native
+    pool. Per-pack tag filters gate on top of the shared base gates."""
+    pool: list[Meaning] = []
+    for pack in packs:
+        pack_db = pack_meaning_dbs.get(pack.pack_name)
+        if pack_db is None:
+            continue
+        for meanings_for_usage in pack_db.values():
+            for m in meanings_for_usage:
+                if _pack_meaning_eligible(
+                    m,
+                    pack=pack,
+                    gate=gate,
+                    exclude_tags=exclude_tags,
+                    include_unglossed=include_unglossed,
+                ):
+                    pool.append(m)
+    return pool
+
+
 def build_non_position_eligible(
     meaning_db: dict[str, list[Meaning]],
     *,
@@ -263,111 +419,29 @@ def build_non_position_eligible(
     intentionally introduce other-culture flavor (per wyrd-ecjp.11)
     and are NOT culture-restricted.
     """
-    non_position_eligible: list[Meaning] = []
-    for usage_key, meanings_for_usage in meaning_db.items():
-        # wyrd-eyjk/D40: culture_attested_usages holds bare SURFACES (the
-        # proportions side records position-forms); compare this meaning_db
-        # entry's stored variant by surface so a morpheme stored as `Giles-`
-        # but recorded as `-giles` isn't silently dropped from the pool.
-        if (
-            culture_attested_usages is not None
-            and usage_key.lower().replace("-", "") not in culture_attested_usages
-        ):
-            continue
-        # wyrd-pfoo: per-Meaning narrowing. When the per-usage filter
-        # admits a usage_key, we further check that each Meaning's
-        # primary language is in the per-usage attested-language set
-        # for this culture. Wrong-sense Meanings (Celtic ``-ton``→
-        # 'tone', etc.) are dropped here even though their usage_key
-        # passed the per-usage filter.
-        #
-        # Three states for ``admitted_langs``:
-        #   - ``culture_attested_meanings is None`` → ``admitted_langs``
-        #     stays None → no per-Meaning filter (legacy bundle).
-        #   - usage_key missing from the dict → ``admitted_langs`` is
-        #     None → no per-Meaning filter (defensive admit when the
-        #     per-usage filter admitted this usage but the per-Meaning
-        #     emit didn't carry it; data drift safety).
-        #   - usage_key present (even with an empty frozenset) →
-        #     ``admitted_langs`` is a frozenset → per-Meaning filter
-        #     active. The ``is not None`` check is load-bearing here
-        #     vs a truthiness check: an empty frozenset must NOT be
-        #     conflated with the missing case (the builder doesn't
-        #     emit empty values today, but a future change could, and
-        #     "this usage is attested with no eligible language" is
-        #     semantically different from "this usage has no
-        #     attestation data").
-        admitted_langs: frozenset[str] | None = None
-        if culture_attested_meanings is not None:
-            admitted_langs = culture_attested_meanings.get(usage_key)
-        for m in meanings_for_usage:
-            if admitted_langs is not None:
-                primary = m.primary_language()
-                if primary is None or primary not in admitted_langs:
-                    continue
-            if not _matches_era(m, gate.era_min, gate.era_max):
-                continue
-            if not _matches_stratum(m, gate.stratum):
-                continue
-            if exclude_tags and any(t in exclude_tags for t in m.tags):
-                continue
-            # wyrd-wv85: --tag HARD gate (D36.6). Drop lemmas carrying
-            # none of the requested tags — OR semantics, matching
-            # proportions' filter_for_tag. Empty required_tags = no-op.
-            if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
-                continue
-            # wyrd-glos: gloss policy — same predicate keep_keys_for_gloss
-            # applies, so this filter and the keep-set share the rule.
-            if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
-                continue
-            # wyrd-eyjk/D40 + wyrd-g1hj: exclude pure-proper-noun saint subjects
-            # AND personal given names (male/female) from the base pool — same
-            # rule MeaningGenerator.load_parts applies, so this filter and the
-            # proportions-data pool stay aligned. Saints reach names only via the param-gated
-            # St-dedication synthesis; given names dangle as bare personal names.
-            # Family-name etymons are NOT excluded (legitimate manorial places).
-            if m.is_pure_proper_noun() and (m.is_saint() or m.is_given_name()):
-                continue
-            # wyrd-gwj3: connector morphemes (cum / le / juxta …) require a
-            # complement — keep them out of the base pool (same rule as load_parts).
-            if m.is_connector_particle():
-                continue
-            non_position_eligible.append(m)
-
-    # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Pack-
-    # tag filters (allowed_pack_tags / excluded_pack_tags) gate per-
-    # pack on top of the shared era/stratum/exclude predicates.
+    # wyrd-8uvi: the per-guard predicates + pool builders are extracted to
+    # module-level helpers to keep this function under the C901 ceiling; the
+    # native pool is built first, then pack overlays are appended (preserving
+    # the original native-then-pack output order for seed reproducibility).
+    non_position_eligible = _native_pool(
+        meaning_db,
+        gate=gate,
+        exclude_tags=exclude_tags,
+        culture_attested_usages=culture_attested_usages,
+        culture_attested_meanings=culture_attested_meanings,
+        include_unglossed=include_unglossed,
+    )
+    # wyrd-ecjp.8: admit pack lemmas alongside native lemmas.
     if pack_meaning_dbs:
-        for pack in packs:
-            pack_db = pack_meaning_dbs.get(pack.pack_name)
-            if pack_db is None:
-                continue
-            for meanings_for_usage in pack_db.values():
-                for m in meanings_for_usage:
-                    if not _matches_era(m, gate.era_min, gate.era_max):
-                        continue
-                    if not _matches_stratum(m, gate.stratum):
-                        continue
-                    if exclude_tags and any(t in exclude_tags for t in m.tags):
-                        continue
-                    # wyrd-wv85: --tag HARD gate applies to pack lemmas
-                    # too, so a --tag request doesn't admit off-tag pack
-                    # morphemes (the pack-tag filters are an additional,
-                    # pack-scoped narrowing on top).
-                    if gate.required_tags and not any(t in gate.required_tags for t in m.tags):
-                        continue
-                    # wyrd-glos: gloss policy applies to pack lemmas too.
-                    if not _gloss_eligible(m.usage, bool(m.meanings), include_unglossed):
-                        continue
-                    if pack.allowed_pack_tags and not any(
-                        t in pack.allowed_pack_tags for t in m.tags
-                    ):
-                        continue
-                    if pack.excluded_pack_tags and any(
-                        t in pack.excluded_pack_tags for t in m.tags
-                    ):
-                        continue
-                    non_position_eligible.append(m)
+        non_position_eligible.extend(
+            _pack_pool(
+                pack_meaning_dbs,
+                packs=packs,
+                gate=gate,
+                exclude_tags=exclude_tags,
+                include_unglossed=include_unglossed,
+            )
+        )
     return non_position_eligible
 
 
