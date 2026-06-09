@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -114,7 +115,6 @@ def lexicon_disambiguate_fuzzy(
     from wyrd.generators.kenning.extractors.gemini import GeminiClient
     from wyrd.generators.kenning.lexicon.disambiguator import (
         SnippetExpander,
-        apply_disambiguator_result,
         find_ambiguous_rows,
     )
 
@@ -135,63 +135,33 @@ def lexicon_disambiguate_fuzzy(
         err=True,
     )
 
-    client = GeminiClient(timeout_s=timeout, **({"model": model} if model else {}))
-    expander = SnippetExpander(sources_dir=sources_dir) if agentic else None
-
-    counts = {"kept": 0, "reassigned": 0, "deleted": 0, "errors": 0}
-    # Aggregate agentic stats so the operator can see how often the loop
-    # had to widen and how often the cap forced a commit. Not surfaced
-    # in the non-agentic path.
-    agentic_totals = {"expansions": 0, "forced_commits": 0}
-    write_db = LexiconDB(db_path) if apply_changes else None
+    ctx = _DisambiguationRun(
+        client=GeminiClient(timeout_s=timeout, **({"model": model} if model else {})),
+        expander=SnippetExpander(sources_dir=sources_dir) if agentic else None,
+        agentic=agentic,
+        max_expansions=max_expansions,
+        total_char_cap=total_char_cap,
+        apply_changes=apply_changes,
+        write_db=LexiconDB(db_path) if apply_changes else None,
+        counts={"kept": 0, "reassigned": 0, "deleted": 0, "errors": 0},
+        # Aggregate agentic stats so the operator can see how often the loop
+        # had to widen and how often the cap forced a commit. Not surfaced
+        # in the non-agentic path.
+        agentic_totals={"expansions": 0, "forced_commits": 0},
+    )
     try:
         for case in cases:
-            try:
-                result, stats = _disambiguate_dispatch(
-                    client,
-                    case,
-                    expander,
-                    agentic=agentic,
-                    max_expansions=max_expansions,
-                    total_char_cap=total_char_cap,
-                )
-            except RuntimeError as e:
-                counts["errors"] += 1
-                click.echo(f"  ERROR  {case.matched_form:20} {e}", err=True)
-                continue
-            if stats is not None:
-                agentic_totals["expansions"] += stats.expansions
-                if stats.forced_commit:
-                    agentic_totals["forced_commits"] += 1
-            choice_str = (
-                f"id={result.chosen_etymon_id}" if result.chosen_etymon_id is not None else "none"
-            )
-            n_rows = len(case.text_match_ids)
-            row_label = f" ({n_rows} rows)" if n_rows > 1 else ""
-            click.echo(
-                f"  {case.matched_form:20}{row_label} → {choice_str} "
-                f"(conf={result.confidence}) — {result.reason[:80]}",
-                err=True,
-            )
-            if apply_changes and write_db is not None:
-                row_counts = apply_disambiguator_result(write_db, case, result)
-                # Commit per-case so a crash mid-run doesn't lose previously
-                # disambiguated rows (the LLM calls have already been paid for).
-                write_db.commit()
-            else:
-                row_counts = _classify_dry_run_row_counts(result, case)
-            for k, v in row_counts.items():
-                counts[k] += v
+            _process_one_case(ctx, case)
     finally:
-        if write_db is not None:
-            write_db.close()
+        if ctx.write_db is not None:
+            ctx.write_db.close()
 
     click.echo("", err=True)
-    click.echo(f"Disambiguator summary: {counts}", err=True)
+    click.echo(f"Disambiguator summary: {ctx.counts}", err=True)
     if agentic:
         click.echo(
-            f"Agentic stats: expansions={agentic_totals['expansions']} "
-            f"forced_commits={agentic_totals['forced_commits']}",
+            f"Agentic stats: expansions={ctx.agentic_totals['expansions']} "
+            f"forced_commits={ctx.agentic_totals['forced_commits']}",
             err=True,
         )
     if not apply_changes:
@@ -243,6 +213,68 @@ def _disambiguate_dispatch(
         )
         return result, stats
     return disambiguate_one(client, case), None
+
+
+@dataclass
+class _DisambiguationRun:
+    """Shared state for the per-case disambiguation loop: the LLM client +
+    optional snippet expander, the agentic config, the apply flag + write
+    handle, and the mutable ``counts`` / ``agentic_totals`` accumulators."""
+
+    client: Any
+    expander: Any
+    agentic: bool
+    max_expansions: int
+    total_char_cap: int
+    apply_changes: bool
+    write_db: Any
+    counts: dict[str, int]
+    agentic_totals: dict[str, int]
+
+
+def _process_one_case(ctx: _DisambiguationRun, case: Any) -> None:
+    """Disambiguate one ambiguous case: dispatch to the (LLM) single-shot or
+    agentic path, accumulate agentic stats, echo the verdict, then apply it
+    (``--apply``, committing per-case) or classify it for the dry-run summary.
+    A transport ``RuntimeError`` is counted + skipped so the batch continues."""
+    # Lazy import (matches _disambiguate_dispatch): keeps the disambiguator
+    # deps off the cold-start path for unrelated CLI commands.
+    from wyrd.generators.kenning.lexicon.disambiguator import apply_disambiguator_result
+
+    try:
+        result, stats = _disambiguate_dispatch(
+            ctx.client,
+            case,
+            ctx.expander,
+            agentic=ctx.agentic,
+            max_expansions=ctx.max_expansions,
+            total_char_cap=ctx.total_char_cap,
+        )
+    except RuntimeError as e:
+        ctx.counts["errors"] += 1
+        click.echo(f"  ERROR  {case.matched_form:20} {e}", err=True)
+        return
+    if stats is not None:
+        ctx.agentic_totals["expansions"] += stats.expansions
+        if stats.forced_commit:
+            ctx.agentic_totals["forced_commits"] += 1
+    choice_str = f"id={result.chosen_etymon_id}" if result.chosen_etymon_id is not None else "none"
+    n_rows = len(case.text_match_ids)
+    row_label = f" ({n_rows} rows)" if n_rows > 1 else ""
+    click.echo(
+        f"  {case.matched_form:20}{row_label} → {choice_str} "
+        f"(conf={result.confidence}) — {result.reason[:80]}",
+        err=True,
+    )
+    if ctx.apply_changes and ctx.write_db is not None:
+        row_counts = apply_disambiguator_result(ctx.write_db, case, result)
+        # Commit per-case so a crash mid-run doesn't lose previously
+        # disambiguated rows (the LLM calls have already been paid for).
+        ctx.write_db.commit()
+    else:
+        row_counts = _classify_dry_run_row_counts(result, case)
+    for k, v in row_counts.items():
+        ctx.counts[k] += v
 
 
 def add_to(parent: click.Group) -> None:
