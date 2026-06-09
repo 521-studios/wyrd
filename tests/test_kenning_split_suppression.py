@@ -894,6 +894,57 @@ def test_cli_curate_split_etymon_rejects_multiple_primary(tmp_path: Path):
     assert "primary" in result.output.lower()
 
 
+def test_cli_curate_split_etymon_rejects_unrecognized_token(tmp_path: Path):
+    """A bare --into token that is neither key=value nor 'primary'
+    (e.g. a stray word from a typo'd pipe) is rejected. Pins the
+    else-branch of the spec parser the C901 extraction now owns in
+    _parse_one_spec (wyrd-8uvi)."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            "suffix=weir|gibberish",
+            "--curation-file",
+            str(tmp_path / "_curation.jsonl"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "unrecognized token" in result.output.lower()
+    assert "gibberish" in result.output
+    # Nothing should have been written to the curation file.
+    assert not (tmp_path / "_curation.jsonl").exists()
+
+
+def test_cli_curate_split_etymon_parses_tags_and_skips_blank_segments(tmp_path: Path):
+    """A --into spec with a ``tags=`` field is ``;``-split into a list
+    (the same code path as glosses, but only glosses was CLI-tested),
+    and empty pipe segments (a ``||`` from a stray pipe) are skipped.
+    Pins the tags-list branch + the blank-part ``continue`` branch the
+    C901 extraction now owns in _parse_one_spec (wyrd-8uvi)."""
+    curation = tmp_path / "_curation.jsonl"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            # double-pipe → blank segment; tags → ;-split list.
+            "suffix=weir|tags=topography;water||primary",
+            "--curation-file",
+            str(curation),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    event = json.loads(curation.read_text().strip().splitlines()[-1])
+    assert event["into"] == [{"suffix": "weir", "tags": ["topography", "water"], "primary": True}]
+
+
 # ---------------------------------------------------------------------------
 # run_full_enrichment plumbing
 # ---------------------------------------------------------------------------
