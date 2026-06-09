@@ -356,6 +356,34 @@ def test_commit_map_missing_toponym_id_is_error():
     assert "toponym_id missing" in msg
 
 
+def test_commit_map_bool_toponym_id_is_error():
+    """A boolean toponym_id is rejected as invalid, NOT silently treated
+    as id 1. `isinstance(True, int)` is True and `True == 1` in Python, so
+    without the explicit bool guard `toponym_id: true` would map onto
+    whatever toponym has id 1. Pins that guard (wyrd-8uvi: it lives in the
+    extracted _commit_map_row)."""
+    conn = _make_conn()
+    # Seed so id 1 exists — a regressed guard would map onto it.
+    _seed_toponyms(conn, [{"modern_name": "Edlingham"}])
+    rows = [
+        {
+            "source_id": "mawer_1920",
+            "form": "Eadlingham",
+            "action": "map",
+            "toponym_id": True,
+        }
+    ]
+    report = commit_triage_decisions(conn, rows, apply=True)
+    assert report.mapped == 0
+    assert report.errors == 1
+    idx, msg = report.error_records[0]
+    assert idx == 0
+    assert "missing/invalid" in msg
+    # No attestation written (would have landed on toponym 1 if the guard regressed).
+    count = conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
+    assert count == 0
+
+
 def test_commit_map_unknown_toponym_id_is_error():
     """Operator typoed the toponym_id — must error, not silently
     create a foreign-key-violating attestation row."""
