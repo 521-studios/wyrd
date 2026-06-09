@@ -149,7 +149,13 @@ def _apply_render_stub(spy):
         spy.append(("sub", sv, idn))
         return [["SUBSTITUTED"]], [["case"]]
 
-    return SimpleNamespace(_render_era_forms=_era, _render_substitutions=_sub)
+    def _native(name):
+        spy.append(("native",))
+        return [["NATIVE"]]
+
+    return SimpleNamespace(
+        _render_era_forms=_era, _render_substitutions=_sub, _render_native_forms=_native
+    )
 
 
 def test_apply_render_era_supersedes_substitution():
@@ -171,13 +177,28 @@ def test_apply_render_falls_back_to_substitution_without_era():
     assert spy == [("sub", 1.0, 0.0)]  # era path NOT called
 
 
-def test_apply_render_noop_when_no_era_and_no_knobs():
-    # Default generation: nothing renders (bit-stable, no rng draw).
+def test_apply_render_native_when_no_era_and_no_knobs():
+    # wyrd-24s6 (D38): default generation (era="" / not requested, no knobs) now
+    # renders NATIVE — the "as-selected" surface — not the old modern no-op.
     spy: list = []
     new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
     NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 0.0, 0.0, None)
+    assert new_name.rendered == [["NATIVE"]]
+    assert spy == [("native",)]  # native path ran; era / substitution did not
+
+
+def test_apply_render_modern_noop_when_explicit_modern_era():
+    # wyrd-24s6 (D38): an EXPLICIT era that resolves to no render-language
+    # (era="modern-english" → contemporary suppression → era_render_language None)
+    # sets era_requested=True, so it falls through to MODERN — rendered stays None
+    # (→ modern usage), NOT native. This is the explicit force-modern path.
+    spy: list = []
+    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
+    NameGenerator._apply_render(
+        _apply_render_stub(spy), None, new_name, 0.0, 0.0, None, era_requested=True
+    )
     assert new_name.rendered is None
-    assert spy == []
+    assert spy == []  # neither era, substitution, NOR native ran
 
 
 # --- end-to-end (committed dev bundle) -------------------------------------
@@ -328,3 +349,151 @@ def test_resolve_era_render_language_accepts_stage_labels():
     assert _resolve_era_render_language("welsh", "welsh") is None  # contemporary brythonic
     assert _resolve_era_render_language("old-irish", "irish") == "old-irish"
     assert _resolve_era_render_language("irish", "irish") is None  # contemporary goidelic
+
+
+# --- wyrd-24s6 (D38): render BOTH native + modern ---------------------------
+
+
+def _gen_one(params, seed):
+    from wyrd.generators.kenning import Kenning
+
+    res = Kenning().generate(params, seed)
+    return res[0] if isinstance(res, list) else res
+
+
+def test_generate_surfaces_both_native_and_modern():
+    """wyrd-24s6 (D38): a default (era="") generation carries BOTH a native
+    `result` and a modern `result_modern`; both are non-empty strings."""
+    r = _gen_one({"culture": "english", "count": 1}, 42)
+    assert r.result and isinstance(r.result, str)
+    assert r.result_modern and isinstance(r.result_modern, str)
+
+
+def test_envelope_carries_result_modern():
+    """The API envelope exposes result_modern (falling back to result when a
+    generator doesn't distinguish the two)."""
+    from wyrd.envelope import envelope
+
+    r = _gen_one({"culture": "english", "count": 1}, 42)
+    env = envelope(generator="kenning", parameters={"culture": "english"}, seed=42, results=[r])
+    row = env["results"][0]
+    assert row["result"] == r.result
+    assert row["result_modern"] == r.result_modern
+
+
+def test_native_default_differs_from_forced_modern():
+    """era="" (native, as-selected) and era="modern-english" (explicit
+    force-modern) are distinct render paths: across a seed sweep the native
+    default produces at least one name with an Old-English-distinctive character
+    that the forced-modern render (ASCII) never does — proving era="" no longer
+    silently coerces to modern."""
+    native = [_gen_one({"culture": "english", "count": 1}, s).result for s in range(15)]
+    forced_modern = [
+        _gen_one({"culture": "english", "era": "modern-english", "count": 1}, s).result
+        for s in range(15)
+    ]
+    assert any(set(n) & _OE_CHARS for n in native), f"native default never period: {native}"
+    assert not any(set(m) & _OE_CHARS for m in forced_modern), (
+        f"era=modern-english leaked period forms: {forced_modern}"
+    )
+
+
+def test_forced_modern_result_equals_result_modern():
+    """wyrd-24s6 (D38): on the explicit force-modern path (era="modern-english")
+    the native canonical IS the modern surface, so result == result_modern for
+    every seed — the invariant OutputColumn's companion show/hide + eraBadge's
+    'as generated' label both lean on."""
+    for s in range(15):
+        r = _gen_one({"culture": "english", "era": "modern-english", "count": 1}, s)
+        assert r.result == r.result_modern, (
+            f"force-modern seed {s}: result={r.result!r} != result_modern={r.result_modern!r}"
+        )
+
+
+def test_result_modern_is_deterministic():
+    """The modern companion is seed-stable: same (params, seed) → same
+    result_modern across runs (the modern surface must not introduce new rng)."""
+    params = {"culture": "english", "count": 1}
+    for s in (0, 1, 7, 42):
+        a = _gen_one(params, s)
+        b = _gen_one(params, s)
+        assert a.result == b.result
+        assert a.result_modern == b.result_modern
+
+
+# --- _native_form_for_meanings (pure: morpheme_id canonical) ---------------
+
+
+def test_native_form_for_meanings_takes_morpheme_id_canonical():
+    from wyrd.generators.kenning.runtime.proportions import _native_form_for_meanings
+
+    meanings = [SimpleNamespace(morpheme_id="old-english:smiþþe")]
+    assert _native_form_for_meanings(meanings) == "smiþþe"
+    # First sense WITH a usable morpheme_id wins; an empty-id sense is skipped.
+    mixed = [SimpleNamespace(morpheme_id=""), SimpleNamespace(morpheme_id="welsh:tref")]
+    assert _native_form_for_meanings(mixed) == "tref"
+
+
+def test_native_form_for_meanings_none_when_no_morpheme_id_or_dash_only():
+    from wyrd.generators.kenning.runtime.proportions import _native_form_for_meanings
+
+    # No morpheme_id at all → None (caller falls back to modern usage).
+    assert _native_form_for_meanings([SimpleNamespace(morpheme_id=None)]) is None
+    assert _native_form_for_meanings([]) is None
+    # A dash-only canonical ("lang:-") is guarded out (canon.strip("-") empty).
+    assert _native_form_for_meanings([SimpleNamespace(morpheme_id="old-english:-")]) is None
+    # A malformed id with no separator → None.
+    assert _native_form_for_meanings([SimpleNamespace(morpheme_id="smiþþe")]) is None
+
+
+# --- _render_native_forms (stub _surface_index, no DB) ---------------------
+
+
+def _render_native(name, index):
+    """Call _render_native_forms with a stub self exposing only
+    self.meaning_gen._surface_index()."""
+    stub = SimpleNamespace(meaning_gen=SimpleNamespace(_surface_index=lambda: index))
+    return NameGenerator._render_native_forms(stub, name)
+
+
+def test_render_native_forms_resolves_native_and_projects_case():
+    index = {"ton": [SimpleNamespace(morpheme_id="old-english:tūn")]}
+    # post-slot stays lower; pre-slot capitalizes (slot-case projection).
+    assert _render_native([["-ton"]], index) == [["tūn"]]
+    assert _render_native([["Ton-"]], index) == [["Tūn"]]
+
+
+def test_render_native_forms_none_when_no_morpheme_id_or_unknown():
+    # Known surface but no morpheme_id → None (→ __str__ uses modern usage).
+    assert _render_native([["-ton"]], {"ton": [SimpleNamespace(morpheme_id=None)]}) == [[None]]
+    # Unknown surface → no meanings → None. None slots pass through.
+    assert _render_native([["-zzz", None]], {}) == [[None, None]]
+
+
+# --- NewName.modern_name() (native vs modern divergence) -------------------
+
+
+def test_modern_name_renders_modern_surface_ignoring_native_rendered():
+    """wyrd-24s6 (D38): modern_name() composes the modern usages, independent of
+    the native ``rendered`` forms __str__ uses — so the two surfaces diverge for
+    a name whose morphemes have distinct native forms."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    # meaning_db={} → diversification early-returns; pure render exercise.
+    nn = NewName(
+        struct=None,
+        meaning_db={},
+        name=[["Stan-", "-ton"]],
+        rendered=[["Stān", "tūn"]],
+    )
+    assert str(nn) == "Stāntūn"  # native canonical (rendered forms)
+    assert nn.modern_name() == "Stanton"  # modern companion (usage keys)
+
+
+def test_modern_name_equals_str_when_no_native_rendered():
+    """With no native rendered forms (the force-modern / no-distinct-native case)
+    the modern companion equals the canonical render."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    nn = NewName(struct=None, meaning_db={}, name=[["Stan-", "-ton"]])
+    assert nn.modern_name() == str(nn) == "Stanton"

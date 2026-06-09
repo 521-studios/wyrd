@@ -746,13 +746,17 @@ def test_select_via_vector_applies_d8_d18_rendering():
     assert inflected.rendered == [["cotum"]]
     assert inflected.inflection_labels == [["dative_or_pl"]]
 
-    # Default knobs off → no substitution pass (bit-stable path).
+    # wyrd-24s6 (D38): default knobs off → no D8/D18 substitution pass, but the
+    # NATIVE render now runs (era="" → as-selected). This synthetic Meaning has
+    # no morpheme_id, so _native_form_for_meanings returns None → the native
+    # layer is [[None]] (each slot falls back to the modern usage at __str__
+    # time, so the displayed name is unchanged). inflection_labels stays None.
     plain = ng.select_via_vector(
         random.Random(0),
         request=_vector_request(),
         priors=EmpiricalPriors(),
     )
-    assert plain.rendered is None
+    assert plain.rendered == [[None]]  # native layer ran; no morpheme_id → None
     assert plain.inflection_labels is None
 
 

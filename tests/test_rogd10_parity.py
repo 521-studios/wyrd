@@ -49,8 +49,11 @@ def _capture() -> dict:
         per_culture = []
         for seed in _SEEDS:
             res = k.generate({"culture": culture, "count": _COUNT}, seed=seed)
-            # name(s) — the byte-identical-through-all-phases invariant
-            entry = {"seed": seed, "name": res.result}
+            # name(s) — the byte-identical-through-all-phases invariant.
+            # wyrd-24s6 (D38): also pin the modern companion (result_modern) so a
+            # regression where modern_name() returns the native form, an empty
+            # string, or the wrong surface is caught by the oracle.
+            entry = {"seed": seed, "name": res.result, "name_modern": res.result_modern}
             # era-grid digest of the first result's morphemes (the Phase-2 delta)
             grid = []
             for word in res.morphemes_by_word or []:
@@ -78,12 +81,15 @@ def test_generation_and_era_grid_parity():
 
     # Names are the hard invariant — assert them separately for a clear failure.
     def names_only(snap):
-        return {c: [(e["seed"], e["name"]) for e in rows] for c, rows in snap.items()}
+        return {
+            c: [(e["seed"], e["name"], e.get("name_modern")) for e in rows]
+            for c, rows in snap.items()
+        }
 
     assert names_only(captured) == names_only(expected), (
-        "GENERATION OUTPUT DRIFTED — names changed for a fixed seed. This breaks "
-        "the (generator,params,seed)->output contract; it is NOT an expected "
-        "morpheme-id refactor delta."
+        "GENERATION OUTPUT DRIFTED — names (native or modern companion) changed "
+        "for a fixed seed. This breaks the (generator,params,seed)->output "
+        "contract; it is NOT an expected morpheme-id refactor delta."
     )
     # Era-grid digest: identical through Phase 1; regenerate intentionally at Phase 2.
     assert captured == expected, (

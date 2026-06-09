@@ -149,6 +149,7 @@
         ]
       ],
       "name": "Monterbon",
+      "name_modern": "Monterbon",
       "seed": 1
     },
     {
@@ -227,7 +228,8 @@
           ]
         ]
       ],
-      "name": "Boenelin",
+      "name": "Bolingelin",
+      "name_modern": "Boenelin",
       "seed": 42
     },
     {
@@ -265,7 +267,8 @@
           ]
         ]
       ],
-      "name": "Keren",
+      "name": "Kering",
+      "name_modern": "Keren",
       "seed": 1337
     },
     {
@@ -274,39 +277,30 @@
           "Bre-",
           [
             [
-              "goidelic",
+              "brythonic",
               [
                 [
-                  "old-irish",
+                  "old-welsh",
                   [
-                    "Brigit",
-                    "Brénainn",
-                    "brí",
-                    "bríg"
+                    "bryeint"
                   ]
                 ],
                 [
-                  "middle-irish",
+                  "middle-welsh",
                   [
-                    "Brían"
+                    "bre",
+                    "breeint"
                   ]
                 ],
                 [
-                  "irish",
+                  "welsh",
                   [
-                    "borgaire",
-                    "buirgléir",
-                    "buirgéiseach",
-                    "compord",
-                    "fórsa",
-                    "fórsáil",
-                    "rugbaí"
-                  ]
-                ],
-                [
-                  "scottish-gaelic",
-                  [
-                    "bre"
+                    "braint",
+                    "bre",
+                    "brenin",
+                    "brith",
+                    "bwrw",
+                    "rygbi"
                   ]
                 ]
               ]
@@ -353,7 +347,8 @@
           ]
         ]
       ],
-      "name": "Breguéen",
+      "name": "Breguéing",
+      "name_modern": "Breguéen",
       "seed": 8502015221875428
     },
     {
@@ -438,7 +433,8 @@
           ]
         ]
       ],
-      "name": "Gouro",
+      "name": "Gourhōh",
+      "name_modern": "Gouro",
       "seed": 7028257956033530
     },
     {
@@ -566,7 +562,8 @@
           ]
         ]
       ],
-      "name": "Landelent",
+      "name": "Llandelent",
+      "name_modern": "Landelent",
       "seed": 99
     },
     {
@@ -660,7 +657,8 @@
           ]
         ]
       ],
-      "name": "Plusoan",
+      "name": "Plushōhan",
+      "name_modern": "Plusoan",
       "seed": 250
     },
     {
@@ -725,6 +723,7 @@
         ]
       ],
       "name": "Dinin",
+      "name_modern": "Dinin",
       "seed": 777
     },
     {
@@ -794,7 +793,8 @@
           ]
         ]
       ],
-      "name": "Lanel",
+      "name": "Llanel",
+      "name_modern": "Lanel",
       "seed": 31415
     },
     {
@@ -909,7 +909,8 @@
           ]
         ]
       ],
-      "name": "Ruomer",
+      "name": "Rūhhōhmer",
+      "name_modern": "Ruomer",
       "seed": 271828
     }
   ],
@@ -968,7 +969,8 @@
           ]
         ]
       ],
-      "name": "Wigwood",
+      "name": "Wīcwudu",
+      "name_modern": "Wigwood",
       "seed": 1
     },
     {
@@ -1059,7 +1061,8 @@
           ]
         ]
       ],
-      "name": "Boingcombe",
+      "name": "Bolingcumb",
+      "name_modern": "Boingcombe",
       "seed": 42
     },
     {
@@ -1261,7 +1264,8 @@
           ]
         ]
       ],
-      "name": "East Bostone",
+      "name": "Eastan Bolstone",
+      "name_modern": "East Bostone",
       "seed": 1337
     },
     {
@@ -1464,7 +1468,8 @@
           ]
         ]
       ],
-      "name": "Cowohill",
+      "name": "Cowhōhkelli",
+      "name_modern": "Cowohill",
       "seed": 8502015221875428
     },
     {
@@ -1537,7 +1542,8 @@
           ]
         ]
       ],
-      "name": "Dowhead",
+      "name": "Dhubhhofuth",
+      "name_modern": "Dowhead",
       "seed": 7028257956033530
     },
     {
@@ -1595,6 +1601,7 @@
         ]
       ],
       "name": "Treby",
+      "name_modern": "Treby",
       "seed": 99
     },
     {
@@ -1676,7 +1683,8 @@
           ]
         ]
       ],
-      "name": "Longton",
+      "name": "Longtūn",
+      "name_modern": "Longton",
       "seed": 250
     },
     {
@@ -1805,7 +1813,8 @@
           ]
         ]
       ],
-      "name": "Bank St",
+      "name": "Bank Seynte",
+      "name_modern": "Bank St",
       "seed": 777
     },
     {
@@ -1883,7 +1892,8 @@
           ]
         ]
       ],
-      "name": "Chilton",
+      "name": "Cillatūn",
+      "name_modern": "Chilton",
       "seed": 31415
     },
     {
@@ -1928,7 +1938,7 @@
           ]
         ],
         [
-          "-ing",
+          "-stead",
           [
             [
               "english",
@@ -1936,7 +1946,200 @@
                 [
                   "old-english",
                   [
-                    "-ing"
+                    "spana",
+                    "bestandan",
+                    "forstandan",
+                    "spane",
+                    "spanu",
+                    "stal",
+                    "staþol",
+                    "steal",
+                    "steall",
+                    "stede",
+                    "stedefæst",
+                    "stefn",
+                    "stemn",
+                    "stieran",
+                    "stæg",
+                    "stæl",
+                    "stæll",
+                    "stōr",
+                    "stōwian",
+                    "ætstandan"
+                  ]
+                ],
+                [
+                  "middle-english",
+                  [
+                    "spane",
+                    "spene",
+                    "atstonden",
+                    "bestanden",
+                    "bistanden",
+                    "etstonden",
+                    "forstanden",
+                    "stad",
+                    "stal",
+                    "stalle",
+                    "stat",
+                    "stathel",
+                    "stawen",
+                    "stay",
+                    "sted",
+                    "stedd",
+                    "stedde",
+                    "steddefast",
+                    "stede",
+                    "stedefasst",
+                    "stedefast",
+                    "stedefaste",
+                    "stedeffast",
+                    "steden",
+                    "stedevast",
+                    "stedevest",
+                    "stedfast",
+                    "stedfaste",
+                    "stedy",
+                    "steed",
+                    "steede",
+                    "steeren",
+                    "stem",
+                    "stemme",
+                    "stemne",
+                    "stempn",
+                    "stempne",
+                    "steode",
+                    "steoren",
+                    "steren",
+                    "stethi",
+                    "stethie",
+                    "stethy",
+                    "steuin",
+                    "steven",
+                    "stevin",
+                    "stewen",
+                    "steyd",
+                    "steyth",
+                    "stid",
+                    "stide",
+                    "stidefast",
+                    "stidfast",
+                    "stidie",
+                    "stidy",
+                    "stiren",
+                    "stith",
+                    "stithi",
+                    "stithie",
+                    "stithy",
+                    "stithþi",
+                    "stode",
+                    "stodefast",
+                    "stoede",
+                    "stoor",
+                    "store",
+                    "stour",
+                    "stoure",
+                    "stowen",
+                    "stud",
+                    "stude",
+                    "studee",
+                    "studefast",
+                    "studefest",
+                    "studevest",
+                    "studfast",
+                    "studfaste",
+                    "stur",
+                    "sturen",
+                    "styd",
+                    "stydde",
+                    "styde",
+                    "stydfast",
+                    "stydfaste",
+                    "styth",
+                    "stythe",
+                    "stythie",
+                    "stythy",
+                    "ætstanden"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "-stan",
+                    "-stat",
+                    "adhisthana",
+                    "anhypostasia",
+                    "astasia",
+                    "astatine",
+                    "atstand",
+                    "attest",
+                    "bestand",
+                    "besteer",
+                    "bestow",
+                    "catasta",
+                    "catastasis",
+                    "chronostasis",
+                    "constitution",
+                    "constitutional",
+                    "contest",
+                    "detest",
+                    "ecstatic",
+                    "enhypostasia",
+                    "epistemic",
+                    "existential",
+                    "forstand",
+                    "instant",
+                    "interstice",
+                    "metastasis",
+                    "metastasize",
+                    "obstinacy",
+                    "obstinance",
+                    "obstinancy",
+                    "obstinate",
+                    "obstinateness",
+                    "obstinence",
+                    "persistent",
+                    "psychostasia",
+                    "shtetl",
+                    "spean",
+                    "spene",
+                    "stable",
+                    "staddle",
+                    "stage",
+                    "stagnum",
+                    "staid",
+                    "stalwart",
+                    "stamen",
+                    "stamina",
+                    "stamnos",
+                    "stance",
+                    "standing",
+                    "stanno-",
+                    "stannum",
+                    "stasis",
+                    "stathel",
+                    "stathmos",
+                    "stationary",
+                    "stationer",
+                    "stative",
+                    "stato-",
+                    "status",
+                    "staunch",
+                    "stay",
+                    "steadfast",
+                    "steady",
+                    "steam",
+                    "steatopygous",
+                    "steed",
+                    "stem",
+                    "stempne",
+                    "stevvon",
+                    "stithy",
+                    "stool",
+                    "stoor",
+                    "store",
+                    "testify",
+                    "verstehen"
                   ]
                 ]
               ]
@@ -1944,7 +2147,8 @@
           ]
         ]
       ],
-      "name": "Woodninging",
+      "name": "Wuduingstede",
+      "name_modern": "Woodningstead",
       "seed": 271828
     }
   ],
@@ -2060,7 +2264,8 @@
           ]
         ]
       ],
-      "name": "Cloonkilfield",
+      "name": "Clooncillfield",
+      "name_modern": "Cloonkilfield",
       "seed": 1
     },
     {
@@ -2219,7 +2424,8 @@
           ]
         ]
       ],
-      "name": "Aghloughmore",
+      "name": "Aghlochmhòr",
+      "name_modern": "Aghloughmore",
       "seed": 42
     },
     {
@@ -2318,7 +2524,8 @@
           ]
         ]
       ],
-      "name": "Killory",
+      "name": "Cillhōhēa",
+      "name_modern": "Killory",
       "seed": 1337
     },
     {
@@ -2384,7 +2591,8 @@
           ]
         ]
       ],
-      "name": "Kilra",
+      "name": "Cillra",
+      "name_modern": "Kilra",
       "seed": 8502015221875428
     },
     {
@@ -2454,7 +2662,8 @@
           ]
         ]
       ],
-      "name": "Glenraan",
+      "name": "Glinneraan",
+      "name_modern": "Glenraan",
       "seed": 7028257956033530
     },
     {
@@ -2493,6 +2702,7 @@
         ]
       ],
       "name": "Arard",
+      "name_modern": "Arard",
       "seed": 99
     },
     {
@@ -2530,7 +2740,8 @@
           ]
         ]
       ],
-      "name": "Knocktown",
+      "name": "Cnoctūn",
+      "name_modern": "Knocktown",
       "seed": 250
     },
     {
@@ -2600,7 +2811,8 @@
           ]
         ]
       ],
-      "name": "Garryragan",
+      "name": "Garraíragag",
+      "name_modern": "Garryragan",
       "seed": 777
     },
     {
@@ -2833,7 +3045,8 @@
           ]
         ]
       ],
-      "name": "Booagh East",
+      "name": "Bolhōhagh Eastan",
+      "name_modern": "Booagh East",
       "seed": 31415
     },
     {
@@ -2920,7 +3133,8 @@
           ]
         ]
       ],
-      "name": "Derrytily",
+      "name": "Daratwilael",
+      "name_modern": "Derrytily",
       "seed": 271828
     }
   ],
@@ -2978,7 +3192,8 @@
           ]
         ]
       ],
-      "name": "Lochlin",
+      "name": "Lochhlinc",
+      "name_modern": "Lochlin",
       "seed": 1
     },
     {
@@ -3033,6 +3248,7 @@
         ]
       ],
       "name": "Arloching",
+      "name_modern": "Arloching",
       "seed": 42
     },
     {
@@ -3163,7 +3379,8 @@
           ]
         ]
       ],
-      "name": "Inchmore",
+      "name": "Insemhòr",
+      "name_modern": "Inchmore",
       "seed": 1337
     },
     {
@@ -3235,7 +3452,8 @@
           ]
         ]
       ],
-      "name": "Carharish",
+      "name": "Carhafedisc",
+      "name_modern": "Carharish",
       "seed": 8502015221875428
     },
     {
@@ -3454,7 +3672,8 @@
           ]
         ]
       ],
-      "name": "Dunhill",
+      "name": "Dūnkelli",
+      "name_modern": "Dunhill",
       "seed": 7028257956033530
     },
     {
@@ -3595,7 +3814,8 @@
           ]
         ]
       ],
-      "name": "Lochkerhall",
+      "name": "Lochkerhofuth",
+      "name_modern": "Lochkerhall",
       "seed": 99
     },
     {
@@ -3740,7 +3960,8 @@
           ]
         ]
       ],
-      "name": "Kilabank",
+      "name": "Cillábank",
+      "name_modern": "Kilabank",
       "seed": 250
     },
     {
@@ -3855,7 +4076,8 @@
           ]
         ]
       ],
-      "name": "Dunlie",
+      "name": "Dūnlie",
+      "name_modern": "Dunlie",
       "seed": 777
     },
     {
@@ -3893,7 +4115,8 @@
           ]
         ]
       ],
-      "name": "Artown",
+      "name": "Artūn",
+      "name_modern": "Artown",
       "seed": 31415
     },
     {
@@ -4261,7 +4484,8 @@
           ]
         ]
       ],
-      "name": "Portoly",
+      "name": "Porthōhlael",
+      "name_modern": "Portoly",
       "seed": 271828
     }
   ],
@@ -4341,7 +4565,8 @@
           ]
         ]
       ],
-      "name": "Rhosyn",
+      "name": "Mōsyn",
+      "name_modern": "Rhosyn",
       "seed": 1
     },
     {
@@ -4407,7 +4632,8 @@
           ]
         ]
       ],
-      "name": "Cwmeston",
+      "name": "Cwmtūn",
+      "name_modern": "Cwmeston",
       "seed": 42
     },
     {
@@ -4485,7 +4711,8 @@
           ]
         ]
       ],
-      "name": "Pennewydd",
+      "name": "Puinewydd",
+      "name_modern": "Pennewydd",
       "seed": 1337
     },
     {
@@ -4614,6 +4841,7 @@
         ]
       ],
       "name": "Bodhennant",
+      "name_modern": "Bodhennant",
       "seed": 8502015221875428
     },
     {
@@ -4678,7 +4906,8 @@
           ]
         ]
       ],
-      "name": "Cwmchurch",
+      "name": "Cwmciric",
+      "name_modern": "Cwmchurch",
       "seed": 7028257956033530
     },
     {
@@ -4759,7 +4988,8 @@
           ]
         ]
       ],
-      "name": "Llanogoed",
+      "name": "Llanhōhcoed",
+      "name_modern": "Llanogoed",
       "seed": 99
     },
     {
@@ -4895,7 +5125,8 @@
           ]
         ]
       ],
-      "name": "Cwmybach",
+      "name": "Cwmeybach",
+      "name_modern": "Cwmybach",
       "seed": 250
     },
     {
@@ -4939,7 +5170,8 @@
           ]
         ]
       ],
-      "name": "Cwmney",
+      "name": "Cwmey",
+      "name_modern": "Cwmney",
       "seed": 777
     },
     {
@@ -5009,7 +5241,8 @@
           ]
         ]
       ],
-      "name": "Penbach",
+      "name": "Puibach",
+      "name_modern": "Penbach",
       "seed": 31415
     },
     {
@@ -5195,7 +5428,8 @@
           ]
         ]
       ],
-      "name": "Pontoycoch",
+      "name": "Ponthōheycoch",
+      "name_modern": "Pontoycoch",
       "seed": 271828
     }
   ]

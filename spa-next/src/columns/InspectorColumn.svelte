@@ -139,10 +139,15 @@
   // an untouched modern roll. Logic lives in eraBadge (lib/era.js, unit-tested).
   let eraLabel = $derived(eraBadge(displayState?.morphemes_by_word, languageLabel));
 
-  // Paragon: the stable, de-accented version of the ORIGINAL name (pinned —
-  // unaffected by swaps). A true modern-reflex paragon awaits cleaner modern
-  // data (wyrd-rogd.1 / wyrd-yrf9); de-accent is the reliable skeleton form.
-  let paragonName = $derived(deAccent(original?.name || ''));
+  // Paragon: the MODERN companion of the as-generated name, pinned to the
+  // ORIGINAL (unaffected by swaps). wyrd-24s6 (D38): the backend now renders
+  // BOTH surfaces, so `result_modern` is the true modern reflex — used directly,
+  // no longer the de-accented native skeleton. Only the FALLBACK path (a
+  // generator that doesn't distinguish the two renderings, so `result_modern` is
+  // absent) de-accents the native name as a best-effort modern skeleton. Per
+  // morpheme the modern surface is `usage` (the modern bucket key), de-accented
+  // in `paragonRows` below (modern reflexes are ASCII anyway).
+  let paragonName = $derived(result?.result_modern || deAccent(original?.name || ''));
   let paragonRows = $derived.by(() =>
     rowsFor(original?.morphemes_by_word, (m) => deAccent(m.usage)),
   );

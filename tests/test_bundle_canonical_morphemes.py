@@ -137,3 +137,26 @@ def test_canonical_morpheme_top_etymon(
         f"(case-insensitive). This catches cases where the etymon is "
         f"right but its gloss list shifted away from the canonical sense."
     )
+
+
+def test_rank_siblings_deterministic_regardless_of_input_order():
+    """wyrd-24s6 (D38): siblings that tie on every rank signal (stratum, sense
+    kind, surface similarity, meaning/tag counts) must rank in an order that is
+    INDEPENDENT of meaning_db load order. Before the content-derived tiebreaker
+    (`_sibling_identity`), a tie fell through to input order — which varies
+    across SQLite / Python builds — so `siblings[0]` (the canonical etymon, read
+    by diversification's tag/language filters) could differ between environments
+    and drift generation output (the rogd10 parity test caught exactly this)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    def mk(mid):
+        m = Meaning("hill", tags=["topo"], meanings=["hill"], sources={"old_english": ["hyll"]})
+        m.morpheme_id = mid
+        return m
+
+    a, b = mk("old-english:aaa"), mk("old-english:bbb")
+    order_ab = [m.morpheme_id for m in _rank_siblings([a, b])]
+    order_ba = [m.morpheme_id for m in _rank_siblings([b, a])]
+    assert order_ab == order_ba, (
+        f"_rank_siblings is order-dependent on a tie: [a,b]->{order_ab}, [b,a]->{order_ba}"
+    )

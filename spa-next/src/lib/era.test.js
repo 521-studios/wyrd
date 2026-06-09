@@ -173,10 +173,21 @@ describe('hasEraGrid', () => {
 describe('eraBadge', () => {
   const word = (...ms) => [ms]; // one word of morphemes
 
-  it('is "as generated" when no morpheme carries an explicit era', () => {
+  it('is "as generated" when no morpheme carries an explicit era nor a distinct native form', () => {
     expect(eraBadge(word({ usage: 'Stan-' }, { usage: '-ton' }), label)).toBe('as generated');
     expect(eraBadge([], label)).toBe('as generated');
     expect(eraBadge(null, label)).toBe('as generated');
+  });
+
+  it('is "native" (D38) when a morpheme carries a distinct native rendered form', () => {
+    // a native-default roll: each morpheme has a `rendered` (native) distinct
+    // from its `usage` (modern bucket key), but no explicit era pin.
+    expect(
+      eraBadge(word({ usage: 'bo-', rendered: 'bol' }, { usage: '-combe', rendered: 'cumb' }), label),
+    ).toBe('native');
+    // a slot whose native == modern (rendered equals usage) carries no
+    // distinction and doesn't tip the badge to 'native' on its own.
+    expect(eraBadge(word({ usage: 'green', rendered: 'green' }), label)).toBe('as generated');
   });
 
   it('shows the single era when every morpheme shares one', () => {

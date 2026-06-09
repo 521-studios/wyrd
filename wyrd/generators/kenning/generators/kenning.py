@@ -481,6 +481,10 @@ class Kenning(Generator):
             inflection_density=inflection_density,
             novelty=novelty,
             era_render_language=era_render_language,
+            # wyrd-24s6 (D38): True for ANY requested era (incl. "modern-english"),
+            # so the renderer can tell era="" (→ native default) from an explicit
+            # era that resolves to no render-language (→ modern).
+            era_requested=bool(params.get("era")),
         )
         if new_name is None:
             # Vector path filtered everything (empty register + empty
@@ -496,6 +500,9 @@ class Kenning(Generator):
         t_sample_ms = (time.perf_counter() - t_sample) * 1000
         t_render = time.perf_counter()
         result_str = str(new_name)
+        # wyrd-24s6 (D38): the MODERN companion rendering, surfaced beside the
+        # canonical native result_str.
+        result_modern = new_name.modern_name()
         explanation = new_name.description()
         components = new_name.components()
         # wyrd-q0g6 Phase 1.5: compose-time joiner insertion. Gated on
@@ -503,7 +510,10 @@ class Kenning(Generator):
         if joiner_density > 0:
             joiners = _load_joiners()
             if joiners:
-                result_str, explanation, components = _apply_joiner_insertion(
+                # wyrd-24s6 (D38): joiner insertion rebuilds BOTH the native
+                # result_str and the modern result_modern in one walk, so the
+                # same joiners land in both renderings at the same positions.
+                result_str, result_modern, explanation, components = _apply_joiner_insertion(
                     new_name, joiners, rng, joiner_density
                 )
         # wyrd-obu: optional Norman manorial-family affix appended after
@@ -517,6 +527,7 @@ class Kenning(Generator):
         if manorial_affix > 0 and culture == "english" and rng.random() < manorial_affix:
             family = rng.choice(_load_norman_manorial_families())
             result_str = f"{result_str} {family}"
+            result_modern = f"{result_modern} {family}"  # wyrd-24s6: same affix on both
             explanation = f"{explanation} + manorial: {family} (Norman family)"
             components.append(
                 {
@@ -552,6 +563,7 @@ class Kenning(Generator):
             )
         return GenerationResult(
             result=result_str,
+            result_modern=result_modern,
             explanation=explanation,
             components=components,
             morphemes_by_word=morphemes_by_word,
@@ -598,6 +610,7 @@ def _generate_via_vector(
     inflection_density: float = 0.0,
     novelty: float = 0.0,
     era_render_language: str | None = None,
+    era_requested: bool = False,
 ):
     """Dispatch helper for vector scoring (the only scoring path).
 
@@ -720,4 +733,5 @@ def _generate_via_vector(
         inflection_density=inflection_density,
         novelty=novelty,
         era_render_language=era_render_language,
+        era_requested=era_requested,
     )
