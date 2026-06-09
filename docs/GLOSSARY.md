@@ -330,9 +330,8 @@ language (D6).
 ### --cohesion
 Biases each slot toward usages whose tags co-occur with already-picked
 slots' tags in the corpus — "attested-pair fidelity" (D17 / wyrd-mj2).
-(The companion `--novelty` knob — blend toward a uniform marginal — was
-removed with the proportions scoring path; pending re-wire onto the
-vector path, wyrd-fcub.)
+(The companion `--novelty` knob — blend each slot's score distribution
+toward a uniform marginal — is wired onto the vector path, wyrd-fcub.)
 
 ### --mood
 A stylistic-register preset (repeatable; e.g. `grim`, `harsh`, `noble`,

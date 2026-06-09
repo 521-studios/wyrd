@@ -631,6 +631,7 @@ def select_via_vector_scoring(
     slot_qualifiers: list[str | None] | None = None,
     slot_bucket_keys: list[tuple] | None = None,
     usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None = None,
+    novelty: float = 0.0,
     permissive: bool = False,
 ) -> list[Meaning | None]:
     """Pick one Meaning per slot in the structure via the D36.2
@@ -785,6 +786,13 @@ def select_via_vector_scoring(
                 picked.append(None)
                 continue
             return []
+        # wyrd-fcub: novelty blends the score distribution toward uniform over
+        # the eligible pool — novelty=0 samples by score (typical morphemes
+        # dominate), novelty=1 samples every eligible meaning equally (surfaces
+        # rare morphemes as often as common). Applied LAST, just before the
+        # weighted draw, mirroring the retired proportions path's _blend_uniform.
+        if novelty > 0:
+            weighted = _blend_uniform_by_novelty(weighted, novelty)
         picked_meaning = _weighted_choice(rng, weighted)
         if picked_meaning is None:
             if permissive:
@@ -870,6 +878,33 @@ def _lemma_ref_for(meaning: Meaning) -> str:
         if first:
             return f"{l3_lang}:{first}"
     return meaning.usage.replace("-", "")
+
+
+def _blend_uniform_by_novelty(
+    weighted: list[tuple[Meaning, float]], novelty: float
+) -> list[tuple[Meaning, float]]:
+    """wyrd-fcub: interpolate a (meaning, score) distribution toward a uniform
+    marginal by ``novelty`` in [0, 1].
+
+    Each blended weight is ``(1 - novelty)·(score / total) + novelty·(1 / n)`` —
+    a normalized distribution. novelty=0 returns the score-normalized
+    distribution unchanged (up to scaling, which weighted_choice is invariant
+    to); novelty=1 returns pure-uniform 1/n. Ported from the retired
+    proportions ``_blend_uniform`` so the lexical-surprise knob behaves
+    identically under vector generation. Callers fast-path novelty<=0.
+    """
+    n = len(weighted)
+    if n == 0:
+        return weighted
+    total = sum(score for _, score in weighted)
+    if total <= 0:
+        # No score signal to blend against — uniform is the only meaningful axis.
+        return [(m, 1.0 / n) for m, _ in weighted]
+    # Hoist the per-element constants out of the comprehension: blended weight
+    # is score * factor + term == (1-novelty)*(score/total) + novelty/n.
+    factor = (1.0 - novelty) / total
+    term = novelty / n
+    return [(m, score * factor + term) for m, score in weighted]
 
 
 def _weighted_choice(

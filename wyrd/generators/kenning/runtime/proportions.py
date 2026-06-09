@@ -832,6 +832,7 @@ class NameGenerator:
         include_unglossed: bool = True,
         spelling_variety: float = 0.0,
         inflection_density: float = 0.0,
+        novelty: float = 0.0,
         era_render_language: str | None = None,
     ):
         """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
@@ -998,6 +999,7 @@ class NameGenerator:
                 slot_qualifiers=candidate_qualifiers,
                 slot_bucket_keys=candidate_bucket_keys,
                 usage_frequency_by_bucket=self.usage_frequency_by_bucket,
+                novelty=novelty,
                 permissive=permissive,
             )
 

@@ -155,7 +155,7 @@ single `--mood` flag.** Two axes ride under one GM-facing surface:
   proportion-table sampler's per-bucket re-weighting; under the vector
   path harshness enters as a phonological register dimension. The
   `--novelty` knob it once composed with was removed with proportions
-  scoring — pending re-wire onto vector, wyrd-fcub.)
+  scoring — re-wired onto vector, wyrd-fcub.)
 - `--mood harsh:0.5` graduates the harshness skew via colon-suffix.
 - `--mood pastoral` (plant / animal / water / agriculture / tree / bird
   tag union) for rural / agricultural feel.
@@ -432,7 +432,7 @@ boost; result = (1-novelty)·weights + novelty·uniform`) rather than the
 strict additive `α·empirical + β·tag-class-prior + γ·marginal` of the
 textbook formulation. wyrd-9gt closed as superseded by this realized
 form. When proportions scoring was retired, the **`--novelty`** half was
-removed with it (pending re-wire onto the vector path, wyrd-fcub); the
+removed with it (re-wired onto the vector path, wyrd-fcub); the
 **`--cohesion`** half survives, now applied as a multiplicative boost
 inside the vector scorer, so a GM can still dial attested-pair fidelity.
 
@@ -941,7 +941,7 @@ cross-family fallback — it's too easy to accidentally route an
 
 > **Status:** the implementation below targeted the proportions
 > sampler. Proportions scoring is now retired: `--novelty` was removed
-> (pending re-wire onto the vector path, wyrd-fcub) and `--cohesion` was
+> (re-wired onto the vector path, wyrd-fcub) and `--cohesion` was
 > re-wired as a multiplicative boost inside the vector scorer. The math
 > and rationale carry over; the named proportions-era helpers
 > (`Generator.select`, `_cohesion_boost`, `_raw_class_score`) are gone.
@@ -1871,7 +1871,7 @@ knobs map onto these:
   the ONE realism knob — there's no separate concept.
 * `--novelty` was the D17 uniform-marginal blend (not a per-axis
   weight; see D36.5). It was removed with proportions scoring and is
-  pending re-wire onto the vector path (wyrd-fcub); the `--cohesion`
+  re-wired onto the vector path (wyrd-fcub); the `--cohesion`
   half of D17 survives as a multiplicative boost in the vector scorer.
 
 `baseline_score(lemma, source, request)` reads from the
@@ -1932,7 +1932,7 @@ against empirical data).
 > **Outcome note:** as specified, D36.5 kept the D17 novelty + cohesion
 > blend on the proportions sampling layer behind an adapter. When
 > proportions scoring was retired, the **`--novelty`** blend was removed
-> (pending re-wire onto the vector path, wyrd-fcub) while **`--cohesion`**
+> (re-wired onto the vector path, wyrd-fcub) while **`--cohesion`**
 > was carried over as a multiplicative boost inside the vector scorer.
 > The original design below is kept for rationale.
 

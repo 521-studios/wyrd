@@ -14,6 +14,7 @@ import pytest
 
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.vector_name_select import (
+    _blend_uniform_by_novelty,
     _cohesion_multiplier,
     _lemma_ref_for,
     _slot_position_label,
@@ -70,6 +71,37 @@ def _request(culture: str = "english", era_min=None, era_max=None) -> RequestVec
         ),
         weights=ScoringWeights(),
     )
+
+
+# ---- _blend_uniform_by_novelty (wyrd-fcub) --------------------------------
+
+
+def test_blend_uniform_by_novelty_boundaries():
+    """novelty=1 → pure uniform (1/n each); novelty=0 → the score-normalized
+    distribution; intermediate interpolates between them."""
+    weighted = [(_meaning("a"), 3.0), (_meaning("b"), 1.0)]  # total 4
+    full = _blend_uniform_by_novelty(weighted, 1.0)
+    assert [round(w, 6) for _, w in full] == [0.5, 0.5]
+    none = _blend_uniform_by_novelty(weighted, 0.0)
+    assert [round(w, 6) for _, w in none] == [0.75, 0.25]  # 3/4, 1/4
+    half = _blend_uniform_by_novelty(weighted, 0.5)
+    assert [round(w, 6) for _, w in half] == [0.625, 0.375]  # 0.5*frac + 0.5*0.5
+
+
+def test_blend_uniform_by_novelty_single_meaning_always_weight_one():
+    """n==1: a lone eligible meaning gets weight 1.0 at any novelty (the
+    score-normalized and uniform marginals both collapse to it)."""
+    single = [(_meaning("a"), 2.5)]
+    for nov in (0.0, 0.5, 1.0):
+        out = _blend_uniform_by_novelty(single, nov)
+        assert [round(w, 6) for _, w in out] == [1.0], nov
+
+
+def test_blend_uniform_by_novelty_zero_total_returns_uniform():
+    """All-zero scores → no axis to blend against → pure uniform."""
+    weighted = [(_meaning("a"), 0.0), (_meaning("b"), 0.0)]
+    out = _blend_uniform_by_novelty(weighted, 0.5)
+    assert [round(w, 6) for _, w in out] == [0.5, 0.5]
 
 
 # ---- _slot_position_label -------------------------------------------------

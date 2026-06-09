@@ -368,8 +368,8 @@ to off / 0 (bit-stable historical behavior):
   whose tags co-occur with previously-picked slots' tags in the
   empirical corpus — "attested-pair fidelity". No-op when the bundle
   carries no tag_cooccurrence data. (The companion `--novelty` knob —
-  blend toward a uniform marginal — was removed with the proportions
-  scoring path; pending re-wire onto the vector path, wyrd-fcub.)
+  blend each slot's score distribution toward a uniform marginal — is
+  wired onto the vector path, wyrd-fcub.)
 - `--era` (D5-3, wyrd-lyp): restrict morpheme inventory to forms
   attested in a particular period. Accepts year (`1086`), cell label
   (`oe-late`), or `family/label` (`english/oe-late`). Active in
