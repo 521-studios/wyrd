@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +70,88 @@ def lexicon_mine_skeat(path: Path, db_path: Path, source_id: str | None) -> None
     click.echo(f"Ingested: {counts}", err=True)
 
 
+@dataclass
+class _MineState:
+    """Accumulator state for the mine loop, shared across the serial / parallel
+    paths and the progress echo. ``accepted_slot`` is filled by INPUT index so
+    accepted entries stay in parsed order regardless of completion order."""
+
+    accepted_slot: list
+    declined: int
+    rejected: int
+    by_failure: dict[str, int]
+    parsed: list
+    progress_start: float
+    log_every: int
+
+
+def _process(state: _MineState, i: int, result) -> None:
+    """Slot one ``extract_one`` result: accept (with elements) into its input
+    index, or count it as declined / rejected (tallying failure reasons)."""
+    if result.accepted and result.entry and result.entry.elements:
+        state.accepted_slot[i] = result.entry
+    elif result.accepted:
+        state.declined += 1
+    else:
+        state.rejected += 1
+        for f in result.failures:
+            state.by_failure[f.reason] = state.by_failure.get(f.reason, 0) + 1
+
+
+def _emit_progress(state: _MineState, completed: int) -> None:
+    """Every ``log_every`` entries, echo the mine-progress line. Caller must
+    pass ``completed >= 1`` (the elapsed/completed division would otherwise
+    ZeroDivisionError on the first call)."""
+    if completed % state.log_every:
+        return
+    elapsed = time.time() - state.progress_start
+    accepted_count = sum(1 for x in state.accepted_slot if x is not None)
+    click.echo(
+        f"  [{completed}/{len(state.parsed)}]  "
+        f"accepted={accepted_count} declined={state.declined} rejected={state.rejected} "
+        f"({elapsed / completed:.1f}s/entry)",
+        err=True,
+    )
+
+
+def _mine_entries_parallel(
+    state: _MineState, parsed: list, client: Any, extract_one: Any, concurrency: int
+) -> None:
+    """Fan ``extract_one`` out via ThreadPoolExecutor. The state mutation in
+    _process / _emit_progress runs only on the main thread (as_completed yields
+    back here serially, so no per-counter lock is needed); worker threads only
+    call extract_one (HTTP I/O, GIL-friendly)."""
+
+    def _task(i: int):
+        p = parsed[i]
+        return i, extract_one(
+            client,
+            toponym=p.toponym,
+            body=p.body_text,
+            suffix_hint=p.section_suffix,
+        )
+
+    completed_count = 0
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        futures = [executor.submit(_task, i) for i in range(len(parsed))]
+        try:
+            for fut in as_completed(futures):
+                i, result = fut.result()
+                _process(state, i, result)
+                completed_count += 1
+                _emit_progress(state, completed_count)
+        except BaseException:
+            # ThreadPoolExecutor.__exit__ would otherwise drain every remaining
+            # submitted future before the exception surfaces (shutdown(wait=True,
+            # cancel_futures=False) is the default). On a real 5xx burst that
+            # means ~N-1 extra paid-API calls fire after the first failure —
+            # meaningful cost asymmetry on Anthropic / Gemini. Cancel pending
+            # futures eagerly so we abort at the first failure, not after the
+            # full batch.
+            executor.shutdown(wait=False, cancel_futures=True)
+            raise
+
+
 def _mine_entries(
     *,
     parsed: list,
@@ -90,36 +173,15 @@ def _mine_entries(
     downstream ingestion order is deterministic with respect to the
     source document, regardless of completion order.
     """
-    accepted_slot: list = [None] * len(parsed)
-    declined = 0
-    rejected = 0
-    by_failure: dict[str, int] = {}
-
-    def _process(i: int, result) -> None:
-        nonlocal declined, rejected
-        if result.accepted and result.entry and result.entry.elements:
-            accepted_slot[i] = result.entry
-        elif result.accepted:
-            declined += 1
-        else:
-            rejected += 1
-            for f in result.failures:
-                by_failure[f.reason] = by_failure.get(f.reason, 0) + 1
-
-    def _emit_progress(completed: int) -> None:
-        # Caller must increment `completed` BEFORE calling so it's >= 1
-        # — both branches below uphold this. The elapsed/completed
-        # division would otherwise ZeroDivisionError on the first call.
-        if completed % log_every:
-            return
-        elapsed = time.time() - progress_start
-        accepted_count = sum(1 for x in accepted_slot if x is not None)
-        click.echo(
-            f"  [{completed}/{len(parsed)}]  "
-            f"accepted={accepted_count} declined={declined} rejected={rejected} "
-            f"({elapsed / completed:.1f}s/entry)",
-            err=True,
-        )
+    state = _MineState(
+        accepted_slot=[None] * len(parsed),
+        declined=0,
+        rejected=0,
+        by_failure={},
+        parsed=parsed,
+        progress_start=progress_start,
+        log_every=log_every,
+    )
 
     if concurrency <= 1:
         # Serial path — bit-stable with the pre-wyrd-l0r mining loop.
@@ -130,46 +192,13 @@ def _mine_entries(
                 body=p.body_text,
                 suffix_hint=p.section_suffix,
             )
-            _process(i, result)
-            _emit_progress(i + 1)
+            _process(state, i, result)
+            _emit_progress(state, i + 1)
     else:
-        # Parallel path — fan out via ThreadPoolExecutor. The state
-        # mutation in _process / _emit_progress runs only on the main
-        # thread because as_completed yields results back here serially,
-        # so no per-counter lock is needed. Worker threads only call
-        # extract_one (which is HTTP I/O, GIL-friendly).
+        _mine_entries_parallel(state, parsed, client, extract_one, concurrency)
 
-        def _task(i: int):
-            p = parsed[i]
-            return i, extract_one(
-                client,
-                toponym=p.toponym,
-                body=p.body_text,
-                suffix_hint=p.section_suffix,
-            )
-
-        completed_count = 0
-        with ThreadPoolExecutor(max_workers=concurrency) as executor:
-            futures = [executor.submit(_task, i) for i in range(len(parsed))]
-            try:
-                for fut in as_completed(futures):
-                    i, result = fut.result()
-                    _process(i, result)
-                    completed_count += 1
-                    _emit_progress(completed_count)
-            except BaseException:
-                # ThreadPoolExecutor.__exit__ would otherwise drain every
-                # remaining submitted future before the exception surfaces
-                # (shutdown(wait=True, cancel_futures=False) is the default).
-                # On a real 5xx burst that means ~N-1 extra paid-API calls
-                # fire after the first failure — meaningful cost asymmetry on
-                # Anthropic / Gemini. Cancel pending futures eagerly so we
-                # abort at the first failure rather than after the full batch.
-                executor.shutdown(wait=False, cancel_futures=True)
-                raise
-
-    accepted_entries = [e for e in accepted_slot if e is not None]
-    return accepted_entries, declined, rejected, by_failure
+    accepted_entries = [e for e in state.accepted_slot if e is not None]
+    return accepted_entries, state.declined, state.rejected, state.by_failure
 
 
 def add_to(parent: click.Group) -> None:
