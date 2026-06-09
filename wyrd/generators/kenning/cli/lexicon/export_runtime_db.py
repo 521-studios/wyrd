@@ -186,6 +186,11 @@ def lexicon_export_runtime_db(
     Replaces ``meanings.json`` + 5 ``<culture>_proportions.json`` files
     in a single artifact downloaded from S3 on Lambda cold start (D38).
     """
+    if dev_subset and generation_subset:
+        # CLI-level guard for a friendly UsageError (parity with the --dev
+        # filter rejection below). write_runtime_db also raises ValueError as
+        # the defense-in-depth backstop for non-CLI callers.
+        raise click.UsageError("--dev and --generation-subset are mutually exclusive")
     if dev_subset:
         _reject_non_default_filters_under_dev(
             min_witnesses=min_witnesses,

@@ -35,6 +35,7 @@ from wyrd.generators.kenning.lexicon.runtime_db_export import (
     DEV_SOURCE_LEXICON_SENTINEL,
     _top_n_by_weight,
     select_dev_subset,
+    write_runtime_db,
 )
 
 # ---------- select_dev_subset ----------
@@ -509,6 +510,112 @@ def test_dev_flag_pins_source_lexicon_sentinel(tmp_path: Path) -> None:
         conn.close()
 
     assert source == DEV_SOURCE_LEXICON_SENTINEL
+
+
+# ---------- generation_subset (wyrd-ukq0): the production cold-start trim ----------
+
+
+def test_select_dev_subset_none_keeps_all_referenced_usages() -> None:
+    """``top_n_per_culture=None`` (--generation-subset) keeps EVERY proportion-
+    referenced usage — not just the top N — so a low-weight usage that
+    ``top_n=1`` would drop survives, while a truly unreferenced subject is
+    still dropped. This is the load-bearing difference from the --dev slice."""
+    subjects = [
+        _subject("-ham-"),  # high weight
+        _subject("-ton-"),  # low weight — top_n=1 would drop it, None keeps it
+        _subject("-orphan-"),  # unreferenced — dropped either way
+    ]
+    proportions = {"english": _proportions({"-ham-": 100, "-ton-": 50})}
+    subs_out, _, _, props_out = select_dev_subset(
+        subjects,
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=None,
+    )
+    assert {s["words"][0]["modern_usage"] for s in subs_out} == {"-ham-", "-ton-"}
+    assert set(props_out["english"]["usages"]) == {"-ham-", "-ton-"}
+
+
+def test_write_runtime_db_rejects_dev_and_generation_subset(tmp_path: Path) -> None:
+    """The two subset modes are mutually exclusive — guarded at the library
+    layer (defense-in-depth backstop for non-CLI callers), raised before any
+    expensive proportions work."""
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        write_runtime_db(
+            output_path=tmp_path / "out.db",
+            subjects=[],
+            fantasy_morphemes={},
+            canonical_decompositions={},
+            proportions_dir=tmp_path,
+            source_lexicon_db=tmp_path / "lexicon.db",
+            dev_subset=True,
+            generation_subset=True,
+        )
+
+
+def test_generation_subset_carries_real_metadata(tmp_path: Path) -> None:
+    """--generation-subset stamps REAL built_at + source_lexicon_db (NOT the
+    --dev byte-stability sentinels) — the production DB must be self-identifying."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--generation-subset",
+            "--db",
+            str(db_path),
+            "--proportions-dir",
+            str(tmp_path),
+            "--output",
+            str(out_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        meta = dict(conn.execute("SELECT key, value FROM bundle_metadata").fetchall())
+    finally:
+        conn.close()
+
+    assert meta["built_at"] != DEV_BUILT_AT
+    assert meta["source_lexicon_db"] != DEV_SOURCE_LEXICON_SENTINEL
+    assert str(db_path.resolve()) == meta["source_lexicon_db"]
+
+
+def test_cli_rejects_dev_and_generation_subset_together(tmp_path: Path) -> None:
+    """--dev + --generation-subset is a friendly UsageError (exit≠0, no
+    traceback), parity with the --dev filter rejection."""
+    db_path = tmp_path / "lexicon.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--dev",
+            "--generation-subset",
+            "--db",
+            str(db_path),
+            "--proportions-dir",
+            str(tmp_path),
+            "--output",
+            str(tmp_path / "out.db"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output
 
 
 def test_dev_flag_rejects_non_default_filters(tmp_path: Path) -> None:
