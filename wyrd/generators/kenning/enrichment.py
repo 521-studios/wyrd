@@ -508,6 +508,210 @@ def format_gloss_suppression_run(counts: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+@dataclass
+class _SplitContext:
+    """Shared state threaded through the etymon-split phase helpers: the
+    DB handle, the running telemetry counts dict (mutated in place), and
+    the apply/dry-run flag."""
+
+    db: LexiconDB
+    counts: dict[str, Any]
+    apply: bool
+
+
+@dataclass
+class _SplitParent:
+    """The resolved parent etymon being split — its row id, canonical
+    form, language, and the ``<lang>:<form>`` ref that named it."""
+
+    id: int
+    form: str
+    lang: str
+    ref: str
+
+
+@dataclass(frozen=True)
+class _AttrMoveSpec:
+    """Identifies a parent→child named-attribute repoint (gloss or tag):
+    the table, its value column, and the moved/missing counter keys. The
+    gloss and tag moves are structurally identical bar these four."""
+
+    table: str
+    col: str
+    moved_key: str
+    missing_key: str
+
+
+_GLOSS_MOVE = _AttrMoveSpec("etymon_gloss", "gloss", "glosses_moved", "glosses_missing")
+_TAG_MOVE = _AttrMoveSpec("etymon_tag", "tag", "tags_moved", "tags_missing")
+
+
+def _pick_primary_index(into: list[Any], counts: dict[str, Any]) -> int:
+    """Choose which child in ``into`` inherits the parent's mining
+    evidence. The first child flagged ``primary`` wins; absent any flag
+    the first child defaults (counted as ``no_primary_defaulted``). The
+    CLI rejects multi-primary specs, but a hand-edited JSONL could slip
+    through — count the collapse (``multiple_primary_collapsed``) so it's
+    visible in the summary."""
+    primary_flags = sum(1 for child in into if isinstance(child, dict) and child.get("primary"))
+    if primary_flags > 1:
+        counts["multiple_primary_collapsed"] += 1
+    for idx, child in enumerate(into):
+        if isinstance(child, dict) and child.get("primary"):
+            return idx
+    counts["no_primary_defaulted"] += 1
+    return 0
+
+
+def _repoint_child_attr(
+    ctx: _SplitContext,
+    orig_id: int,
+    child_id: int | None,
+    names: list[str] | None,
+    spec: _AttrMoveSpec,
+) -> None:
+    """Repoint named gloss/tag rows from the parent to the child via
+    DELETE-then-INSERT-OR-IGNORE (the PRIMARY KEY ``(etymon_id, value)``
+    means a plain UPDATE could hit a uniqueness conflict when the child
+    already carries the value from a prior run). Names not present on the
+    parent are counted under ``spec.missing_key`` and skipped. Counting
+    always runs; writes only when ``apply`` and a real child id exists."""
+    for name in names or []:
+        row = ctx.db.conn.execute(
+            f"SELECT 1 FROM {spec.table} WHERE etymon_id = ? AND {spec.col} = ?",
+            (orig_id, name),
+        ).fetchone()
+        if row is None:
+            ctx.counts[spec.missing_key] += 1
+            continue
+        ctx.counts[spec.moved_key] += 1
+        if ctx.apply and child_id is not None:
+            ctx.db.conn.execute(
+                f"DELETE FROM {spec.table} WHERE etymon_id = ? AND {spec.col} = ?",
+                (orig_id, name),
+            )
+            ctx.db.conn.execute(
+                f"INSERT OR IGNORE INTO {spec.table} (etymon_id, {spec.col}) VALUES (?, ?)",
+                (child_id, name),
+            )
+
+
+def _apply_split_child(ctx: _SplitContext, parent: _SplitParent, child: Any) -> int | None:
+    """Create (or reuse) one split child etymon and repoint its named
+    glosses + tags off the parent. Returns the child's etymon id, or
+    ``None`` when the child spec is rejected (missing/invalid suffix) or
+    the row doesn't exist yet under dry-run.
+
+    ``canonical_form`` is ``<orig_form>#<suffix>``; the suffix charset
+    gate mirrors the CLI's ``_SUFFIX_PATTERN`` to defend against
+    hand-edited JSONL events whose suffix would corrupt the child ref.
+    """
+    suffix = child.get("suffix") if isinstance(child, dict) else None
+    if not suffix:
+        # CLI rejects this, but a hand-edited JSONL could land here.
+        ctx.counts["children_skipped_no_suffix"] += 1
+        return None
+    if not SUFFIX_PATTERN.fullmatch(suffix):
+        ctx.counts["children_skipped_invalid_suffix"] += 1
+        return None
+    child_form = f"{parent.form}#{suffix}"
+
+    existing = ctx.db.conn.execute(
+        "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
+        (parent.lang, child_form),
+    ).fetchone()
+    if existing is not None:
+        ctx.counts["children_already_existed"] += 1
+        child_id: int | None = existing["id"]
+    else:
+        ctx.counts["children_created"] += 1
+        if ctx.apply:
+            cur = ctx.db.conn.execute(
+                "INSERT INTO etymon (canonical_form, language, notes) VALUES (?, ?, ?)",
+                (child_form, parent.lang, f"[wyrd-kutx-split-child of {parent.ref}]"),
+            )
+            child_id = cur.lastrowid
+        else:
+            child_id = None  # dry-run: no row exists yet
+
+    _repoint_child_attr(ctx, parent.id, child_id, child.get("glosses"), _GLOSS_MOVE)
+    _repoint_child_attr(ctx, parent.id, child_id, child.get("tags"), _TAG_MOVE)
+    return child_id
+
+
+def _move_parent_evidence(ctx: _SplitContext, orig_id: int, primary_child_id: int | None) -> None:
+    """Move the parent's mining evidence (citations, descent edges,
+    etymology elements) to the primary child so it inherits the witness
+    count for bundle promotion (D21: evidence is moved, not destroyed).
+
+    Apply path uses ``UPDATE OR IGNORE`` to survive UNIQUE conflicts on a
+    re-apply where the primary already carries matching rows; the
+    conflict rows stay on the parent and surface under ``*_skipped_
+    conflict`` (counted via ``rowcount`` so the summary reflects what
+    actually moved). Dry-run (or no primary) moves nothing but counts the
+    eligible rows so an operator preview shows the impact size."""
+    cit_count = ctx.db.conn.execute(
+        "SELECT COUNT(*) AS n FROM etymon_citation WHERE etymon_id = ?",
+        (orig_id,),
+    ).fetchone()["n"]
+    descent_count = ctx.db.conn.execute(
+        "SELECT COUNT(*) AS n FROM etymon_descent WHERE parent_id = ? OR child_id = ?",
+        (orig_id, orig_id),
+    ).fetchone()["n"]
+    element_count = ctx.db.conn.execute(
+        "SELECT COUNT(*) AS n FROM toponym_etymology_element WHERE etymon_id = ?",
+        (orig_id,),
+    ).fetchone()["n"]
+    if ctx.apply and primary_child_id is not None:
+        cur = ctx.db.conn.execute(
+            "UPDATE OR IGNORE etymon_citation SET etymon_id = ? WHERE etymon_id = ?",
+            (primary_child_id, orig_id),
+        )
+        cit_moved = cur.rowcount or 0
+        cur = ctx.db.conn.execute(
+            "UPDATE OR IGNORE etymon_descent SET parent_id = ? WHERE parent_id = ?",
+            (primary_child_id, orig_id),
+        )
+        descent_parent_moved = cur.rowcount or 0
+        cur = ctx.db.conn.execute(
+            "UPDATE OR IGNORE etymon_descent SET child_id = ? WHERE child_id = ?",
+            (primary_child_id, orig_id),
+        )
+        descent_child_moved = cur.rowcount or 0
+        descent_moved = descent_parent_moved + descent_child_moved
+        cur = ctx.db.conn.execute(
+            "UPDATE OR IGNORE toponym_etymology_element SET etymon_id = ? WHERE etymon_id = ?",
+            (primary_child_id, orig_id),
+        )
+        element_moved = cur.rowcount or 0
+    else:
+        cit_moved = cit_count
+        descent_moved = descent_count
+        element_moved = element_count
+
+    ctx.counts["citations_moved"] += cit_moved
+    ctx.counts["descent_edges_moved"] += descent_moved
+    ctx.counts["etymology_elements_moved"] += element_moved
+    ctx.counts["citations_skipped_conflict"] += max(0, cit_count - cit_moved)
+    ctx.counts["descent_edges_skipped_conflict"] += max(0, descent_count - descent_moved)
+    ctx.counts["etymology_elements_skipped_conflict"] += max(0, element_count - element_moved)
+
+
+def _stamp_split_parent(
+    ctx: _SplitContext, parent: _SplitParent, into: list[Any], primary_child_id: int | None
+) -> None:
+    """Mark the parent's ``notes`` as split — but only when at least one
+    child produced a usable row (``primary_child_id`` set). Without this
+    guard a JSONL hand-edit with all-invalid child specs would stamp the
+    parent 'split' while leaving it full of glosses/citations: an
+    audit-query trap."""
+    if ctx.apply and primary_child_id is not None:
+        ctx.db.conn.execute(
+            "UPDATE etymon SET notes = ? WHERE id = ?",
+            (f"[wyrd-kutx-split:{len(into)}] (was: {parent.form})", parent.id),
+        )
+
+
 def apply_etymon_splits(
     db: LexiconDB,
     split_state: dict[str, dict[str, Any]],
@@ -580,6 +784,8 @@ def apply_etymon_splits(
         "method_version": ETYMON_SPLIT_METHOD_VERSION,
     }
 
+    ctx = _SplitContext(db=db, counts=counts, apply=apply)
+
     for etymon_ref, payload in split_state.items():
         into = payload.get("into") or []
         if not into:
@@ -598,196 +804,25 @@ def apply_etymon_splits(
             counts["unresolved_etymon"] += 1
             continue
 
-        orig_id = orig_row["id"]
-        orig_form = orig_row["canonical_form"]
-        orig_lang = orig_row["language"]
+        parent = _SplitParent(
+            id=orig_row["id"],
+            form=orig_row["canonical_form"],
+            lang=orig_row["language"],
+            ref=etymon_ref,
+        )
         counts["splits_processed"] += 1
 
-        # Pick the primary child up-front so the gloss/tag loop can stash
-        # the chosen primary id for the post-loop evidence move. The CLI
-        # rejects multi-primary specs, but JSONL hand-edits could slip
-        # through — count the collapse so it's visible in the summary.
-        primary_index: int | None = None
-        primary_flags = sum(1 for child in into if isinstance(child, dict) and child.get("primary"))
-        if primary_flags > 1:
-            counts["multiple_primary_collapsed"] += 1
-        for idx, child in enumerate(into):
-            if isinstance(child, dict) and child.get("primary"):
-                primary_index = idx
-                break
-        if primary_index is None:
-            primary_index = 0
-            counts["no_primary_defaulted"] += 1
+        # Pick the primary child up-front so the child loop can stash the
+        # chosen primary's id for the post-loop evidence move.
+        primary_index = _pick_primary_index(into, counts)
         primary_child_id: int | None = None
-
         for idx, child in enumerate(into):
-            suffix = child.get("suffix") if isinstance(child, dict) else None
-            if not suffix:
-                # CLI rejects this, but a hand-edited JSONL could land
-                # here. Count and skip rather than silently passing.
-                counts["children_skipped_no_suffix"] += 1
-                continue
-            # wyrd-van9: charset gate mirrors the CLI's _SUFFIX_PATTERN.
-            # Defends against hand-edited JSONL events where the suffix
-            # carries characters that would corrupt the resulting ref
-            # ``<lang>:<form>#<suffix>``.
-            if not SUFFIX_PATTERN.fullmatch(suffix):
-                counts["children_skipped_invalid_suffix"] += 1
-                continue
-            child_form = f"{orig_form}#{suffix}"
-
-            existing = db.conn.execute(
-                "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
-                (orig_lang, child_form),
-            ).fetchone()
-            if existing is not None:
-                counts["children_already_existed"] += 1
-                child_id = existing["id"]
-            else:
-                counts["children_created"] += 1
-                if apply:
-                    cur = db.conn.execute(
-                        "INSERT INTO etymon (canonical_form, language, notes) VALUES (?, ?, ?)",
-                        (
-                            child_form,
-                            orig_lang,
-                            f"[wyrd-kutx-split-child of {etymon_ref}]",
-                        ),
-                    )
-                    child_id = cur.lastrowid
-                else:
-                    child_id = None  # dry-run: no row exists yet
-
+            child_id = _apply_split_child(ctx, parent, child)
             if idx == primary_index:
                 primary_child_id = child_id
 
-            for gloss in child.get("glosses") or []:
-                row = db.conn.execute(
-                    "SELECT 1 FROM etymon_gloss WHERE etymon_id = ? AND gloss = ?",
-                    (orig_id, gloss),
-                ).fetchone()
-                if row is None:
-                    counts["glosses_missing"] += 1
-                    continue
-                counts["glosses_moved"] += 1
-                if apply and child_id is not None:
-                    # DELETE-then-INSERT rather than UPDATE because the
-                    # PRIMARY KEY (etymon_id, gloss) means UPDATE could
-                    # hit a uniqueness conflict if the child already
-                    # carries the same gloss from a previous run.
-                    db.conn.execute(
-                        "DELETE FROM etymon_gloss WHERE etymon_id = ? AND gloss = ?",
-                        (orig_id, gloss),
-                    )
-                    db.conn.execute(
-                        "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",
-                        (child_id, gloss),
-                    )
-
-            for tag in child.get("tags") or []:
-                row = db.conn.execute(
-                    "SELECT 1 FROM etymon_tag WHERE etymon_id = ? AND tag = ?",
-                    (orig_id, tag),
-                ).fetchone()
-                if row is None:
-                    counts["tags_missing"] += 1
-                    continue
-                counts["tags_moved"] += 1
-                if apply and child_id is not None:
-                    db.conn.execute(
-                        "DELETE FROM etymon_tag WHERE etymon_id = ? AND tag = ?",
-                        (orig_id, tag),
-                    )
-                    db.conn.execute(
-                        "INSERT OR IGNORE INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
-                        (child_id, tag),
-                    )
-
-        # Move mining evidence from the parent to the primary child so
-        # the primary inherits witness count / descent / element refs
-        # for bundle promotion. Per D21 evidence is moved, not deleted.
-        # Counts always run (dry-run shows what would move); writes
-        # only happen when apply=True AND we have a real child id.
-        cit_count = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM etymon_citation WHERE etymon_id = ?",
-            (orig_id,),
-        ).fetchone()["n"]
-        descent_count = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM etymon_descent WHERE parent_id = ? OR child_id = ?",
-            (orig_id, orig_id),
-        ).fetchone()["n"]
-        element_count = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM toponym_etymology_element WHERE etymon_id = ?",
-            (orig_id,),
-        ).fetchone()["n"]
-        # Apply path: use UPDATE OR IGNORE to survive UNIQUE conflicts
-        # on a re-apply where the primary child already carries rows
-        # matching one of the parent's. Constraints:
-        #   etymon_citation     UNIQUE (etymon_id, source_id, COALESCE(page,''))
-        #   etymon_descent      UNIQUE (parent_id, child_id, edge_type, source_id)
-        # The OR-IGNORE form skips the colliding row and leaves it on
-        # the parent — operator can re-attribute later. Without IGNORE a
-        # re-run after manual evidence moves would abort mid-loop.
-        #
-        # Count via cur.rowcount AFTER the UPDATE so the summary
-        # reflects what actually moved, not what was eligible. When
-        # IGNORE silently leaves N conflict-rows on the parent, those
-        # land in *_skipped_conflict instead of *_moved.
-        if apply and primary_child_id is not None:
-            cur = db.conn.execute(
-                "UPDATE OR IGNORE etymon_citation SET etymon_id = ? WHERE etymon_id = ?",
-                (primary_child_id, orig_id),
-            )
-            cit_moved = cur.rowcount or 0
-            cur = db.conn.execute(
-                "UPDATE OR IGNORE etymon_descent SET parent_id = ? WHERE parent_id = ?",
-                (primary_child_id, orig_id),
-            )
-            descent_parent_moved = cur.rowcount or 0
-            cur = db.conn.execute(
-                "UPDATE OR IGNORE etymon_descent SET child_id = ? WHERE child_id = ?",
-                (primary_child_id, orig_id),
-            )
-            descent_child_moved = cur.rowcount or 0
-            descent_moved = descent_parent_moved + descent_child_moved
-            cur = db.conn.execute(
-                "UPDATE OR IGNORE toponym_etymology_element SET etymon_id = ? WHERE etymon_id = ?",
-                (primary_child_id, orig_id),
-            )
-            element_moved = cur.rowcount or 0
-        else:
-            # Dry-run (or no primary): nothing actually moved. Eligible
-            # rows still get counted to the *_eligible_to_move surface so
-            # operators previewing a curation batch see the impact size.
-            cit_moved = cit_count
-            descent_moved = descent_count
-            element_moved = element_count
-
-        counts["citations_moved"] += cit_moved
-        counts["descent_edges_moved"] += descent_moved
-        counts["etymology_elements_moved"] += element_moved
-        # Surface the OR-IGNORE gap so operators see when re-apply
-        # leaves rows stranded on the parent (a follow-on indicator that
-        # they need to manually reassign or run a citation-reassign
-        # event that doesn't exist yet).
-        counts["citations_skipped_conflict"] += max(0, cit_count - cit_moved)
-        counts["descent_edges_skipped_conflict"] += max(0, descent_count - descent_moved)
-        counts["etymology_elements_skipped_conflict"] += max(0, element_count - element_moved)
-
-        # Parent stamping: only mark this etymon as split if at least
-        # one child actually produced a usable row. Without this guard a
-        # JSONL hand-edit with all-invalid child specs (empty suffix,
-        # etc.) would silently stamp the parent as 'split' while leaving
-        # it full of glosses, citations, and evidence — an audit-query
-        # trap.
-        if apply and primary_child_id is not None:
-            db.conn.execute(
-                "UPDATE etymon SET notes = ? WHERE id = ?",
-                (
-                    f"[wyrd-kutx-split:{len(into)}] (was: {orig_form})",
-                    orig_id,
-                ),
-            )
+        _move_parent_evidence(ctx, parent.id, primary_child_id)
+        _stamp_split_parent(ctx, parent, into, primary_child_id)
 
     if apply:
         db.commit()

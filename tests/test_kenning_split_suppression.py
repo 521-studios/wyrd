@@ -639,6 +639,128 @@ def test_apply_split_citations_skipped_conflict_counted(tmp_path: Path):
     db.close()
 
 
+def test_apply_split_moves_descent_edges_to_primary(tmp_path: Path):
+    """Descent edges move to the primary child on BOTH legs: an edge
+    where the parent is the parent_id AND one where it's the child_id.
+    Pins the dual UPDATE OR IGNORE (parent_id + child_id) in
+    _move_parent_evidence (wyrd-8uvi C901 split) — the subtlest path,
+    since one etymon can be both ends of different edges."""
+    db_path = _build_db(tmp_path)
+    parent_id = _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["weir"])
+    ancestor_id = _add_etymon_with_glosses_and_tags(db_path, "proto-germanic", "jeram", ["yr"])
+    descendant_id = _add_etymon_with_glosses_and_tags(db_path, "middle-english", "yer", ["y"])
+    conn = sqlite3.connect(db_path)
+    conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('s', 's')")
+    # parent as child_id (ancestor -> parent) and as parent_id (parent -> descendant)
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) VALUES (?, ?, ?, ?)",
+        (ancestor_id, parent_id, "inheritance", "s"),
+    )
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) VALUES (?, ?, ?, ?)",
+        (parent_id, descendant_id, "inheritance", "s"),
+    )
+    conn.commit()
+    conn.close()
+
+    db = LexiconDB(db_path)
+    state = {
+        "old-english:gear": {"into": [{"suffix": "weir", "glosses": ["weir"], "primary": True}]}
+    }
+    counts = apply_etymon_splits(db, state, apply=True)
+    assert counts["descent_edges_moved"] == 2
+    assert counts["descent_edges_skipped_conflict"] == 0
+
+    weir_id = db.conn.execute(
+        "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
+        ("old-english", "gear#weir"),
+    ).fetchone()["id"]
+    # Parent no longer on any edge; the primary child now is, on both legs.
+    parent_edges = db.conn.execute(
+        "SELECT COUNT(*) AS n FROM etymon_descent WHERE parent_id = ? OR child_id = ?",
+        (parent_id, parent_id),
+    ).fetchone()["n"]
+    child_edges = db.conn.execute(
+        "SELECT COUNT(*) AS n FROM etymon_descent WHERE parent_id = ? OR child_id = ?",
+        (weir_id, weir_id),
+    ).fetchone()["n"]
+    assert parent_edges == 0
+    assert child_edges == 2
+    db.close()
+
+
+def test_apply_split_moves_etymology_elements_to_primary(tmp_path: Path):
+    """toponym_etymology_element rows pointing at the parent migrate to
+    the primary child so the split etymon keeps its toponym links. Pins
+    the element leg of _move_parent_evidence (wyrd-8uvi)."""
+    db_path = _build_db(tmp_path)
+    parent_id = _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["weir"])
+    conn = sqlite3.connect(db_path)
+    conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('s', 's')")
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Gearby')")
+    conn.execute("INSERT INTO toponym_etymology (id, toponym_id, source_id) VALUES (1, 1, 's')")
+    conn.execute(
+        "INSERT INTO toponym_etymology_element (toponym_etymology_id, ordinal, etymon_id) "
+        "VALUES (1, 0, ?)",
+        (parent_id,),
+    )
+    conn.commit()
+    conn.close()
+
+    db = LexiconDB(db_path)
+    state = {
+        "old-english:gear": {"into": [{"suffix": "weir", "glosses": ["weir"], "primary": True}]}
+    }
+    counts = apply_etymon_splits(db, state, apply=True)
+    assert counts["etymology_elements_moved"] == 1
+
+    weir_id = db.conn.execute(
+        "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
+        ("old-english", "gear#weir"),
+    ).fetchone()["id"]
+    elem_etymon = db.conn.execute(
+        "SELECT etymon_id FROM toponym_etymology_element WHERE toponym_etymology_id = 1 AND ordinal = 0"
+    ).fetchone()["etymon_id"]
+    assert elem_etymon == weir_id
+    db.close()
+
+
+def test_apply_split_tag_not_on_parent_counted(tmp_path: Path):
+    """Tag twin of test_apply_split_gloss_not_on_parent_counted: a child
+    `tags` entry not present on the parent is counted under tags_missing
+    and skipped (no spurious tag created on the child). Pins the _TAG_MOVE
+    missing path through the shared _repoint_child_attr (wyrd-8uvi)."""
+    db_path = _build_db(tmp_path)
+    _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["weir"], tags=["realtag"])
+    db = LexiconDB(db_path)
+    state = {
+        "old-english:gear": {
+            "into": [
+                {
+                    "suffix": "weir",
+                    "glosses": ["weir"],
+                    "tags": ["realtag", "ghosttag"],
+                    "primary": True,
+                }
+            ]
+        }
+    }
+    counts = apply_etymon_splits(db, state, apply=True)
+    assert counts["tags_moved"] == 1
+    assert counts["tags_missing"] == 1
+
+    weir_id = db.conn.execute(
+        "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
+        ("old-english", "gear#weir"),
+    ).fetchone()["id"]
+    child_tags = sorted(
+        row["tag"]
+        for row in db.conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id = ?", (weir_id,))
+    )
+    assert child_tags == ["realtag"]  # ghosttag never created
+    db.close()
+
+
 def test_format_etymon_split_run_markdown(tmp_path: Path):
     counts = {
         "splits_processed": 2,
