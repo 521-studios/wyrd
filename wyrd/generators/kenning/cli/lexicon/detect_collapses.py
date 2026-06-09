@@ -53,27 +53,12 @@ def lexicon_detect_collapses(
         detect_deterministic_collapses,
     )
 
-    if db_path is None:
-        env_path = os.environ.get("WYRD_LEXICON_DB")
-        db_path = Path(env_path) if env_path else Path.home() / ".wyrd" / "lexicon.db"
-    if not db_path.exists():
-        raise click.ClickException(f"Lexicon DB not found: {db_path}")
-
+    db_path = _resolve_lexicon_db(db_path)
     click.echo(f"Scanning {db_path} for deterministic collapses...", err=True)
     with _readonly_lexicon(db_path) as conn:
         detected = detect_deterministic_collapses(conn)
 
-    # Skip refs already recorded (idempotent re-runs).
-    existing: set[str] = set()
-    if collapse_file.exists():
-        for line in collapse_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            row = json.loads(line)
-            if row.get("_type") == "collapse" and row.get("ref"):
-                existing.add(row["ref"])
-
+    existing = _load_recorded_collapse_refs(collapse_file)
     new_rows = [r for r in detected if r["ref"] not in existing]
     if limit is not None:
         new_rows = new_rows[:limit]
@@ -100,6 +85,40 @@ def lexicon_detect_collapses(
         click.echo(f"DRY-RUN: would append {len(new_rows)} rows to {collapse_file}", err=True)
         return
 
+    _append_collapse_rows(collapse_file, new_rows)
+    click.echo(f"Appended {len(new_rows)} collapse rows → {collapse_file}", err=True)
+
+
+def _resolve_lexicon_db(db_path: Path | None) -> Path:
+    """Resolve the lexicon DB path (arg → $WYRD_LEXICON_DB → ~/.wyrd/lexicon.db)
+    and ensure it exists, else raise a ClickException."""
+    if db_path is None:
+        env_path = os.environ.get("WYRD_LEXICON_DB")
+        db_path = Path(env_path) if env_path else Path.home() / ".wyrd" / "lexicon.db"
+    if not db_path.exists():
+        raise click.ClickException(f"Lexicon DB not found: {db_path}")
+    return db_path
+
+
+def _load_recorded_collapse_refs(collapse_file: Path) -> set[str]:
+    """Collapse refs already in the ledger — skipped on idempotent re-runs."""
+    existing: set[str] = set()
+    if not collapse_file.exists():
+        return existing
+    for line in collapse_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        row = json.loads(line)
+        if row.get("_type") == "collapse" and row.get("ref"):
+            existing.add(row["ref"])
+    return existing
+
+
+def _append_collapse_rows(collapse_file: Path, new_rows: list[dict]) -> None:
+    """Append collapse rows to the ledger, creating it (with the one required
+    synthetic ``source`` row apply_collapses expects) when absent. Echoes append
+    progress every 25 rows."""
     # Each L2 file needs exactly one source row (id matches the synthetic
     # source apply_collapses uses for variant rows).
     if not collapse_file.exists():
@@ -140,8 +159,6 @@ def lexicon_detect_collapses(
             fh.write("\n")
             if i % 25 == 0:
                 click.echo(f"  appended [{i}/{len(new_rows)}]", err=True)
-
-    click.echo(f"Appended {len(new_rows)} collapse rows → {collapse_file}", err=True)
 
 
 def add_to(parent: click.Group) -> None:
