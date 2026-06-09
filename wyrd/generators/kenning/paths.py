@@ -149,8 +149,8 @@ def _migrate_legacy_db(legacy: Path, new_path: Path) -> None:
 # NOT loaded by the Lambda serve path, so they don't ship inside the package.
 
 
-def seed_data_path(filename: str) -> Path:
-    """Resolve a relocated build/authoring data file under ``<repo>/data/seed/``.
+def seed_data_dir() -> Path:
+    """The relocated build/authoring data directory, ``<repo>/data/seed/``.
 
     Resolves relative to this package's location (``paths.py`` lives at
     ``<repo>/wyrd/generators/kenning/paths.py``, so ``parents[3]`` is the repo
@@ -158,4 +158,9 @@ def seed_data_path(filename: str) -> Path:
     contexts that run the build/authoring/reporting commands that read these
     files.
     """
-    return Path(__file__).resolve().parents[3] / "data" / "seed" / filename
+    return Path(__file__).resolve().parents[3] / "data" / "seed"
+
+
+def seed_data_path(filename: str) -> Path:
+    """Resolve a relocated build/authoring data file under ``<repo>/data/seed/``."""
+    return seed_data_dir() / filename

@@ -9,7 +9,7 @@ import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import LexiconDB
-from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
+from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY, seed_data_dir
 
 
 @click.command("report-wikipedia-backfill")
@@ -25,8 +25,8 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     "--data-dir",
     "data_dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=Path("data/seed"),
-    show_default=True,
+    default=seed_data_dir(),
+    show_default="<repo>/data/seed",
     help="Directory containing the *_place_names.json files.",
 )
 @click.option(
