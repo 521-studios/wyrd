@@ -1061,6 +1061,26 @@ def test_kenning_generate_cohesion_one_is_deterministic():
     assert runs[0] == runs[1] == runs[2]
 
 
+def test_kenning_generate_cohesion_preserves_diversity_non_english():
+    """wyrd-e2b4: the prod default (WYRD_DEFAULT_COHESION=0.6) rests on cohesion
+    staying diversity-safe across cultures, not just english. Generate a
+    non-english culture at full cohesion=1.0 and assert the output does not
+    collapse to a handful of repeated names — the mean-normalized multiplier
+    redistributes a slot's weight without pruning the pool down to one pick.
+    (Empirically ~187/200 distinct at cohesion=1; the floor here is
+    conservative against seed variance while still catching a real collapse,
+    which would drop distinct into the single digits.)"""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    names = [
+        k.generate({"culture": "welsh", "count": 1, "cohesion": 1.0}, seed=s).result
+        for s in range(60)
+    ]
+    distinct = len(set(names))
+    assert distinct >= 40, f"cohesion=1.0 collapsed welsh diversity: {distinct}/60 distinct"
+
+
 def test_load_proportions_handles_missing_cooccurrence_keys():
     """test-coverage P3: legacy bundles without the new tag_cooccurrence
     key must load cleanly — load_proportions defaults it to an empty dict
@@ -1169,8 +1189,8 @@ class TestBuildCohesionTable:
     def test_clamps_to_one_on_marginal_inconsistency(self):
         from wyrd.generators.kenning.runtime.proportions import build_cohesion_table
 
-        # 10 / 5 = 2.0 would exceed 1.0; clamp keeps avg_p bounded for the
-        # multiplier's ``1 + cohesion * avg_p`` contract.
+        # 10 / 5 = 2.0 would exceed 1.0; the clamp keeps each cell a probability
+        # in [0,1] so _cohesion_raw's per-candidate mean stays bounded.
         table = build_cohesion_table({"a|b": 10}, {"a": 5})
         assert table == {"b": {"a": 1.0}}
 

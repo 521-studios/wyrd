@@ -869,7 +869,7 @@ def build_cohesion_table(
     culture's decomposed toponyms by
     :func:`lexicon.proportions_builder.ordered_tag_pairs` — plus a per-tag
     ``tag_marginal`` count. The consumer
-    (:func:`vector_name_select._cohesion_multiplier`) instead reads a nested
+    (:func:`vector_name_select._cohesion_raw`) instead reads a nested
     ``{candidate_tag: {prior_tag: prob}}`` map, indexing
     ``table[candidate][prior]``: the candidate is the meaning being scored
     for the current (later) slot, the prior is an already-picked (earlier)
@@ -878,11 +878,16 @@ def build_cohesion_table(
     So we restructure to an inverted index — the flat key's left tag (prior)
     becomes the inner key, the right tag (candidate) the outer key — and
     normalize per D17's refinement formula —
-    ``P(candidate | prior) = cooccur[prior|candidate] / tag_marginal[prior]``
-    — yielding a value in ``[0, 1]``. Iteration is sorted so the float table
-    is byte-identical across processes (PYTHONHASHSEED). Returns an empty
-    dict when either input is missing, which degrades the cohesion knob to
-    its bit-stable no-op.
+    ``P(candidate | prior) ≈ cooccur[prior|candidate] / tag_marginal[prior]``
+    — yielding a value in ``[0, 1]``. (Approximate, not a strict conditional:
+    ``tag_marginal`` counts a tag in BOTH left and right positions while the
+    numerator counts only the prior-as-left pairing, so the denominator is
+    inflated. The downstream multiplier mean-normalizes within each slot, so
+    this uniform deflation cancels — it's the relative ranking that matters,
+    not the absolute value.) Iteration is sorted so the float table is
+    byte-identical across processes (PYTHONHASHSEED). Returns an empty dict
+    when either input is missing, which degrades the cohesion knob to its
+    bit-stable no-op.
     """
     if not flat_cooccurrence or not tag_marginal:
         return {}
@@ -1136,7 +1141,8 @@ class NameGenerator:
                 via :func:`lexicon.empirical_priors.load_empirical_priors_from_json`).
             era_midpoint: int year for the baseline-axis lookup.
             cohesion: D17 cohesion knob in [0, 1]. Threads through
-                to the vector primitive's :func:`_cohesion_multiplier`.
+                to the vector primitive's slot-relative cohesion
+                bias (:func:`_cohesion_raw` + :func:`_cohesion_multipliers`).
             exclude_tags: meanings carrying any of these tags are
                 filtered out pre-score.
             pack_meaning_dbs: optional ``{pack_name: meaning_db}`` from
@@ -1160,9 +1166,9 @@ class NameGenerator:
             scoring filtered every candidate (caller decides whether
             to raise or fall back).
 
-        Cohesion uses the simple-overlap form from
-        ``vector_name_select._cohesion_multiplier``; the bundle's
-        tag-cooccurrence data is threaded through to it.
+        Cohesion uses the slot-relative form from
+        ``vector_name_select._cohesion_raw`` + ``_cohesion_multipliers``;
+        the derived ``self.cohesion_table`` is threaded through to it.
         """
         # Lazy import: no actual cycle (vector_name_select imports
         # only from vectors.{schemas,scoring}, not runtime); the lazy
@@ -1217,7 +1223,7 @@ class NameGenerator:
                 priors=priors,
                 era_midpoint=era_midpoint,
                 cohesion=cohesion,
-                tag_cooccurrence=self.cohesion_table or None,
+                cohesion_table=self.cohesion_table or None,
                 exclude_tags=exclude_tags_fz,
                 pack_meaning_dbs=pack_meaning_dbs,
                 non_position_eligible=non_position_eligible,
