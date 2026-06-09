@@ -856,6 +856,52 @@ def _narrow_present_day_self_seeds(
     return out
 
 
+def build_cohesion_table(
+    flat_cooccurrence: dict[str, int] | None,
+    tag_marginal: dict[str, int] | None,
+) -> dict[str, dict[str, float]]:
+    """Convert the bundle's flat tag co-occurrence counts into the nested
+    conditional-probability table the vector path's cohesion multiplier
+    consumes (wyrd-e2b4 / D17 refinement).
+
+    The bundle ships co-occurrence as flat ``{"left|right": count}`` pairs —
+    ordered (earlier-slot tag → later-slot tag), accumulated over each
+    culture's decomposed toponyms by
+    :func:`lexicon.proportions_builder.ordered_tag_pairs` — plus a per-tag
+    ``tag_marginal`` count. The consumer
+    (:func:`vector_name_select._cohesion_multiplier`) instead reads a nested
+    ``{candidate_tag: {prior_tag: prob}}`` map, indexing
+    ``table[candidate][prior]``: the candidate is the meaning being scored
+    for the current (later) slot, the prior is an already-picked (earlier)
+    slot's tag.
+
+    So we invert the pipe key (left == prior/earlier, right ==
+    candidate/later) and normalize per D17's refinement formula —
+    ``P(candidate | prior) = cooccur[prior|candidate] / tag_marginal[prior]``
+    — yielding a value in ``[0, 1]``. Iteration is sorted so the float table
+    is byte-identical across processes (PYTHONHASHSEED). Returns an empty
+    dict when either input is missing or malformed, which degrades the
+    cohesion knob to its bit-stable no-op.
+    """
+    if not flat_cooccurrence or not tag_marginal:
+        return {}
+    table: dict[str, dict[str, float]] = {}
+    for key in sorted(flat_cooccurrence):
+        left, sep, right = key.partition("|")
+        if not sep or not right:
+            # Malformed key without a pipe separator; skip defensively
+            # rather than mis-key the whole tag under a bare string.
+            continue
+        denom = tag_marginal.get(left, 0)
+        if denom <= 0:
+            continue
+        # min(1.0, …) guards against any marginal/cooccurrence inconsistency
+        # so the consumer's avg_p stays bounded in [0, 1].
+        prob = min(1.0, flat_cooccurrence[key] / denom)
+        table.setdefault(right, {})[left] = prob
+    return table
+
+
 class NameGenerator:
     def __init__(
         self,
@@ -865,6 +911,7 @@ class NameGenerator:
         tag_cooccurrence: dict[str, int] | None = None,
         culture_attested_usages: frozenset[str] | None = None,
         culture_attested_meanings: dict[str, frozenset[str]] | None = None,
+        tag_marginal: dict[str, int] | None = None,
     ):
         self.meaning_db = meaning_db
         self.meaning_gen = meaning_gen
@@ -974,11 +1021,20 @@ class NameGenerator:
         # wyrd-mj2 (D17 β-term per the ticket reframe): tag-level
         # bigram statistics from each culture's place-name corpus.
         # ``tag_cooccurrence`` keys are "left|right" tag pairs; values
-        # are co-occurrence counts. Threaded to the vector path's
-        # cohesion multiplier. Optional — legacy bundles without it
-        # produce a no-op cohesion knob (cohesion=0 takes the bit-stable
-        # path regardless).
+        # are co-occurrence counts. Kept in raw-count shape so the
+        # JSON↔SQLite bundle round-trip is byte-checkable (and
+        # language_quality audits can rank it). Optional — legacy bundles
+        # without it produce a no-op cohesion knob.
         self.tag_cooccurrence = tag_cooccurrence or {}
+        self.tag_marginal = tag_marginal or {}
+        # wyrd-e2b4: the cohesion multiplier consumes a NESTED conditional-
+        # probability table (``{candidate_tag: {prior_tag: prob}}``), not the
+        # flat counts above. Derive it once at construction from the raw
+        # counts + marginals (see ``build_cohesion_table``). Empty when the
+        # bundle lacks either input → cohesion degrades to a bit-stable
+        # no-op (the multiplier also short-circuits on cohesion<=0 before
+        # touching this table, so cohesion=0 output is unchanged regardless).
+        self.cohesion_table = build_cohesion_table(self.tag_cooccurrence, self.tag_marginal)
         # wyrd-bol9: per-bucket empirical-frequency lookup for the
         # vector path. Pre-fix, vector scoring sampled each Meaning by
         # D36.2 score(lemma) regardless of how often the underlying
@@ -1144,7 +1200,7 @@ class NameGenerator:
                 priors=priors,
                 era_midpoint=era_midpoint,
                 cohesion=cohesion,
-                tag_cooccurrence=self.tag_cooccurrence or None,
+                tag_cooccurrence=self.cohesion_table or None,
                 exclude_tags=exclude_tags_fz,
                 pack_meaning_dbs=pack_meaning_dbs,
                 non_position_eligible=non_position_eligible,
@@ -2423,8 +2479,11 @@ def load_proportions(data, meaning_db, tag_db):
     # wyrd-mj2: tag-level co-occurrence — empirical bigram statistics over
     # the (left.tags × right.tags) cartesian product learned from each
     # culture's place-name corpus. Optional: legacy bundles without this
-    # key produce a no-op cohesion knob.
+    # key produce a no-op cohesion knob. wyrd-e2b4: ``tag_marginal`` (also
+    # shipped in the bundle) is the normalizing denominator for the nested
+    # conditional-probability table NameGenerator derives for cohesion.
     cooccurrence = data.get("tag_cooccurrence", {})
+    tag_marginal = data.get("tag_marginal", {})
     # Union the two attested-usage sources so the vector path filters
     # by "anything this culture's corpus attests" rather than
     # "compound usages only" or "standalone usages only".
@@ -2460,6 +2519,7 @@ def load_proportions(data, meaning_db, tag_db):
         cooccurrence,
         culture_attested_usages=culture_attested_usages,
         culture_attested_meanings=culture_attested_meanings,
+        tag_marginal=tag_marginal,
     )
 
 

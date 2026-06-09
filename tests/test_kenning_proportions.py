@@ -1024,6 +1024,25 @@ def test_kenning_generate_cohesion_zero_bit_stable_against_default():
     assert seq_default == seq_zero
 
 
+def test_kenning_generate_cohesion_one_diverges_from_zero():
+    """wyrd-e2b4: cohesion is no longer a no-op. Generating English with
+    cohesion=1 differs from cohesion=0 on at least one seed. Pre-fix the
+    flat ``{"a|b": count}`` table was handed to a multiplier that indexed
+    it as nested ``{"a": {"b": prob}}``, so every lookup missed and the
+    multiplier always returned 1.0 (byte-identical output regardless of
+    cohesion). This pins the inverse so a regression back to the no-op
+    fails loudly."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    diffs = sum(
+        k.generate({"culture": "english", "cohesion": 0.0}, seed=s).result
+        != k.generate({"culture": "english", "cohesion": 1.0}, seed=s).result
+        for s in range(40)
+    )
+    assert diffs > 0
+
+
 def test_load_proportions_handles_missing_cooccurrence_keys():
     """test-coverage P3: legacy bundles without the new tag_cooccurrence
     key must load cleanly — load_proportions defaults it to an empty dict
@@ -1072,6 +1091,84 @@ def test_load_proportions_passes_cooccurrence_keys_through():
     }
     name_gen = load_proportions(data, meaning_db, tag_db)
     assert name_gen.tag_cooccurrence == {"water|plant": 7}
+
+
+def test_load_proportions_builds_nested_cohesion_table():
+    """wyrd-e2b4: the loader normalizes the flat counts + ``tag_marginal``
+    into the nested conditional-probability table the cohesion multiplier
+    consumes. Raw counts stay on ``.tag_cooccurrence`` (the JSON↔SQLite
+    round-trip surface); the derived nested table lands on
+    ``.cohesion_table`` keyed ``{candidate: {prior: prob}}``."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import load_proportions
+
+    meaning_db = {"-a": [Meaning("-a", [], [], {})]}
+    tag_db = {}
+    data = {
+        "usages": {"-a": 1},
+        "single_usages": {"-a": 1},
+        "structures": [
+            {"proportion": 1, "words": [[{"location": "pre"}, {"location": "post", "name": True}]]}
+        ],
+        # "water|plant" = water (earlier/prior) → plant (later/candidate).
+        "tag_cooccurrence": {"water|plant": 7},
+        "tag_marginal": {"water": 7, "plant": 7},
+    }
+    name_gen = load_proportions(data, meaning_db, tag_db)
+    # Inverted to candidate-keyed, normalized by the prior tag's marginal:
+    # P(plant | water) = 7 / marginal[water] = 7 / 7 = 1.0.
+    assert name_gen.cohesion_table == {"plant": {"water": 1.0}}
+
+
+class TestBuildCohesionTable:
+    """wyrd-e2b4: ``build_cohesion_table`` turns the bundle's flat tag
+    co-occurrence counts + per-tag marginals into the nested conditional-
+    probability table the vector path's ``_cohesion_multiplier`` reads."""
+
+    def test_conditional_normalization_and_inversion(self):
+        from wyrd.generators.kenning.runtime.proportions import build_cohesion_table
+
+        # "a|b" = a (prior/earlier) → b (candidate/later). P(b|a) = 3/6 = 0.5.
+        table = build_cohesion_table({"a|b": 3}, {"a": 6, "b": 6})
+        assert table == {"b": {"a": 0.5}}
+
+    def test_all_probs_bounded_and_directional(self):
+        from wyrd.generators.kenning.runtime.proportions import build_cohesion_table
+
+        flat = {"water|plant": 5, "water|tree": 2, "plant|water": 1}
+        marg = {"water": 10, "plant": 4, "tree": 3}
+        table = build_cohesion_table(flat, marg)
+        # candidate-keyed, prior-valued
+        assert table["plant"]["water"] == 0.5  # 5 / marginal[water]=10
+        assert table["tree"]["water"] == 0.2  # 2 / 10
+        assert table["water"]["plant"] == 0.25  # 1 / marginal[plant]=4
+        assert all(0.0 <= p <= 1.0 for inner in table.values() for p in inner.values())
+
+    def test_clamps_to_one_on_marginal_inconsistency(self):
+        from wyrd.generators.kenning.runtime.proportions import build_cohesion_table
+
+        # 10 / 5 = 2.0 would exceed 1.0; clamp keeps avg_p bounded for the
+        # multiplier's ``1 + cohesion * avg_p`` contract.
+        table = build_cohesion_table({"a|b": 10}, {"a": 5})
+        assert table == {"b": {"a": 1.0}}
+
+    def test_missing_inputs_return_empty(self):
+        from wyrd.generators.kenning.runtime.proportions import build_cohesion_table
+
+        assert build_cohesion_table(None, None) == {}
+        assert build_cohesion_table({}, {}) == {}
+        assert build_cohesion_table({"a|b": 1}, {}) == {}  # no marginals
+        assert build_cohesion_table({}, {"a": 1}) == {}  # no co-occurrence
+
+    def test_skips_malformed_keys_and_missing_denominators(self):
+        from wyrd.generators.kenning.runtime.proportions import build_cohesion_table
+
+        # "nopipe" has no separator → skipped (no bare-string mis-key).
+        # "x|y" has no marginal for x (denom 0) → skipped.
+        table = build_cohesion_table(
+            {"nopipe": 5, "x|y": 4, "a|b": 2}, {"nopipe": 5, "a": 4}
+        )
+        assert table == {"b": {"a": 0.5}}
 
 
 def test_new_name_str_title_cases_lowercase_morpheme_compound() -> None:

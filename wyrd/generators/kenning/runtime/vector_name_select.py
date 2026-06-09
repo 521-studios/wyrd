@@ -147,13 +147,18 @@ def _cohesion_multiplier(
         return 1.0
     # For each (lemma_tag, prior_tag) pair, look up the empirical
     # co-occurrence probability + sum. Higher overlap → higher bias.
+    # Iterate the tag sets in sorted order: float summation isn't
+    # associative, so set-iteration order (which varies across processes
+    # under PYTHONHASHSEED) could otherwise accumulate ULP-level different
+    # avg_p values and flip a weighted_choice outcome at a boundary
+    # (the D17-refinement bit-stability concern, now load-bearing).
     overlap_sum = 0.0
     pair_count = 0
-    for ltag in meaning_tags:
+    for ltag in sorted(meaning_tags):
         ltag_co = tag_cooccurrence.get(ltag)
         if not ltag_co:
             continue
-        for ptag in prior_tags:
+        for ptag in sorted(prior_tags):
             p = ltag_co.get(ptag)
             if p is None:
                 continue
