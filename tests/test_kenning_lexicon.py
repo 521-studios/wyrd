@@ -10939,6 +10939,59 @@ def test_export_meanings_stratum_collision_resolves_by_lang_sort_order(
     ]
 
 
+def test_export_meanings_attested_years_picks_earliest_across_lexicon_codes(
+    fresh_db: Path,
+) -> None:
+    """attested_years twin of the stratum-collision test, but the merge is a
+    MIN not last-lang-wins: two welsh-substrata codes sharing form='caer' land
+    in the same celtic_mix bucket with DIFFERENT attested years; the bucket
+    must keep the EARLIEST regardless of lang sort order. Unlike the eight
+    plain-.update() families (last-lang-wins), attested_years uses the bespoke
+    ``year < existing`` merge that lives entirely in _accumulate_lang_into_bucket
+    (wyrd-8uvi C901 split) — a `<`→`>` flip or a dropped `existing is None`
+    guard would pass every other test."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="mawer_1920", title="Mawer")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["fort"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[{"modern_usage": "Caer-", "celtic_mix": ["caer"]}],
+            language_overrides={"caer": "welsh"},
+        )
+        caer_root_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'caer' AND language = 'welsh'"
+        ).fetchone()["id"]
+        db.add_citation(caer_root_id, "mawer_1920")
+        # welsh 'caer' attests 1300 (later); middle-welsh sibling 'caer'
+        # (same bucket) attests 1086 (earlier) — the min must win.
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, attested_year) VALUES (?, ?, ?, ?, ?, ?)",
+            (caer_root_id, "mawer_1920", "caer", 1, 0, 1300),
+        )
+        cur = db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language, lemma_id) VALUES (?, ?, ?)",
+            ("caer", "middle-welsh", caer_root_id),
+        )
+        mw_id = cur.lastrowid
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, attested_year) VALUES (?, ?, ?, ?, ?, ?)",
+            (mw_id, "mawer_1920", "caer", 1, 0, 1086),
+        )
+        db.commit()
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["celtic_mix"] == ["caer"]
+    # Earliest (1086, middle-welsh) wins over 1300 (welsh) in the bucket merge.
+    assert word["celtic_mix_attested_years"] == [{"form": "caer", "year": 1086}]
+
+
 def test_export_meanings_stratum_via_reflex_linked_inflected_descendant(
     fresh_db: Path,
 ) -> None:
