@@ -252,7 +252,9 @@ def lexicon_fold_variants(
         return
 
     client = OllamaClient(base_url=base_url, model=model, timeout_s=90.0)
-    folds, rejects, skipped = _judge_and_record(todo, client, collapse_file, min_confidence, dry_run)
+    folds, rejects, skipped = _judge_and_record(
+        todo, client, collapse_file, min_confidence, dry_run
+    )
     click.echo(
         f"{'(dry-run) ' if dry_run else ''}recorded: {folds} folds + {rejects} rejections "
         f"({skipped} skipped) → {collapse_file}",
