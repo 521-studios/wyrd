@@ -330,6 +330,55 @@ def test_apply_clears_lemma_when_setting_merge(tmp_path: Path):
     assert row["inflection"] is None
 
 
+def test_apply_null_merged_into_ref_clears_existing_tombstone(tmp_path: Path):
+    """Merge twin of test_apply_null_lemma_ref_clears_existing_link: a
+    null merged_into_ref clears an existing OCR-cluster tombstone and
+    stamps manual-curation-v1 so the operator decision is auditable.
+    Pins the merge-clear branch the C901 split moved into
+    _apply_curated_merge (wyrd-8uvi)."""
+    db_path = _build_db(tmp_path)
+    vath_id = _add_etymon(db_path, "old-norse", "vath")
+    vad_id = _add_etymon(db_path, "old-norse", "vað")
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "UPDATE etymon SET merged_into_id = ?, lemma_method = 'normalize-ocr-v1' WHERE id = ?",
+        (vad_id, vath_id),
+    )
+    conn.commit()
+    conn.close()
+    with LexiconDB(db_path) as db:
+        counts = apply_curation_overrides(db, {"old-norse:vath": {"merged_into_ref": None}})
+    assert counts["merged_into_cleared"] == 1
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT merged_into_id, lemma_method FROM etymon WHERE id=?", (vath_id,)
+    ).fetchone()
+    conn.close()
+    assert row["merged_into_id"] is None
+    assert row["lemma_method"] == CURATION_METHOD_VERSION
+
+
+def test_apply_unresolved_merge_ref_logs_and_skips(tmp_path: Path):
+    """Merge twin of the unresolved-lemma-ref case: a merged_into_ref
+    that resolves to nothing is counted and skipped (no write, no
+    raise), so a stale ref can't block the rebuild. Pins the
+    unresolved-merge branch in _apply_curated_merge (wyrd-8uvi)."""
+    db_path = _build_db(tmp_path)
+    vath_id = _add_etymon(db_path, "old-norse", "vath")
+    with LexiconDB(db_path) as db:
+        counts = apply_curation_overrides(
+            db, {"old-norse:vath": {"merged_into_ref": "old-norse:does-not-exist"}}
+        )
+    assert counts["unresolved_merge_ref"] == 1
+    assert counts["merged_into_set"] == 0
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT merged_into_id FROM etymon WHERE id=?", (vath_id,)).fetchone()
+    conn.close()
+    assert row["merged_into_id"] is None  # unchanged — ref didn't resolve
+
+
 def test_apply_lemma_clears_merged_into_id(tmp_path: Path):
     """Mirror case: setting lemma_ref on a row that was auto-tombstoned
     means the operator is rejecting the OCR merge — clear it."""
