@@ -37,6 +37,85 @@ from wyrd.generators.kenning.lexicon.db import LexiconDB
 _TEXT_MATCH_SNIPPET_RADIUS = 100
 
 
+def _find_reverse_matches(
+    candidates: list[tuple[int, str, str]],
+    source_texts: dict[str, str],
+    *,
+    min_form_length: int,
+) -> dict[int, list[tuple[str, int, str]]]:
+    """For each rando-only candidate, word-boundary-search every source body
+    for its normalized form. Returns ``{etymon_id: [(source_id, count,
+    snippet), ...]}`` — snippet is ±_TEXT_MATCH_SNIPPET_RADIUS chars around the
+    FIRST match in that source (with the matched form marked), enough for the
+    SPA citation panel without storing every occurrence."""
+    matches: dict[int, list[tuple[str, int, str]]] = {}
+    for etymon_id, form, _language in candidates:
+        norm = normalize_ocr_form(form)
+        if len(norm) < min_form_length:
+            continue
+        pattern = re.compile(r"\b" + re.escape(norm) + r"\b")
+        for source_id, text in source_texts.items():
+            hits = list(pattern.finditer(text))
+            if not hits:
+                continue
+            first = hits[0]
+            start = max(0, first.start() - _TEXT_MATCH_SNIPPET_RADIUS)
+            end = min(len(text), first.end() + _TEXT_MATCH_SNIPPET_RADIUS)
+            snippet = text[start:end].strip()
+            # Mark the matched form within the snippet for app display.
+            snippet = snippet.replace(norm, f"«{norm}»", 1)
+            matches.setdefault(etymon_id, []).append((source_id, len(hits), snippet))
+    return matches
+
+
+def _write_reverse_matches(
+    db: LexiconDB,
+    matches: dict[int, list[tuple[str, int, str]]],
+    forms_by_id: dict[int, str],
+) -> int:
+    """Persist reverse-search matches to the etymon_text_match table (kept
+    separate from etymon_citation so the consensus view stays an
+    extraction-witness count only; search-evidence is loose-confidence). The
+    ``source_id`` points at the REAL source row — its being search-evidence is
+    encoded by which table the row lives in. Some books in sources/ aren't
+    LLM-mined yet, so a stub source row is upserted first for the FK. Returns
+    rows written; caller commits + gates on apply."""
+    all_source_ids = set()
+    for hits in matches.values():
+        for sid, _count, _snip in hits:
+            all_source_ids.add(sid)
+    for sid in all_source_ids:
+        db.upsert_source(
+            id=sid,
+            title=sid.replace("_", " ").title(),
+            notes=(
+                "Source row created by reverse-search; the book exists "
+                "in sources/ but may not have been LLM-mined yet. Full "
+                "metadata fills in when the book is formally mined."
+            ),
+        )
+
+    written = 0
+    for etymon_id, hits in matches.items():
+        form = forms_by_id.get(etymon_id, "")
+        matched_form = normalize_ocr_form(form)
+        for source_id, count, snippet in hits:
+            db.conn.execute(
+                """
+                INSERT INTO etymon_text_match
+                    (etymon_id, source_id, matched_form, match_count, edit_distance, snippet)
+                VALUES (?, ?, ?, ?, 0, ?)
+                ON CONFLICT(etymon_id, source_id, matched_form)
+                DO UPDATE SET
+                    match_count = excluded.match_count,
+                    snippet = excluded.snippet
+                """,
+                (etymon_id, source_id, matched_form, count, snippet),
+            )
+            written += 1
+    return written
+
+
 def reverse_search_attestations(
     db: LexiconDB,
     sources_dir: Path | str,
@@ -77,74 +156,9 @@ def reverse_search_attestations(
     # Build a quick lookup so the sample report can name the etymons.
     forms_by_id = {eid: form for eid, form, _ in candidates}
 
-    # matches[etymon_id] = [(source_id, count, sample_snippet), ...]
-    # Snippet is ±_TEXT_MATCH_SNIPPET_RADIUS chars around the FIRST match
-    # in that source — gives the SPA citation panel enough scholarly prose
-    # to display without storing every occurrence.
-    matches: dict[int, list[tuple[str, int, str]]] = {}
-    for etymon_id, form, _language in candidates:
-        norm = normalize_ocr_form(form)
-        if len(norm) < min_form_length:
-            continue
-        pattern = re.compile(r"\b" + re.escape(norm) + r"\b")
-        for source_id, text in source_texts.items():
-            hits = list(pattern.finditer(text))
-            if not hits:
-                continue
-            first = hits[0]
-            start = max(0, first.start() - _TEXT_MATCH_SNIPPET_RADIUS)
-            end = min(len(text), first.end() + _TEXT_MATCH_SNIPPET_RADIUS)
-            snippet = text[start:end].strip()
-            # Mark the matched form within the snippet for app display.
-            snippet = snippet.replace(norm, f"«{norm}»", 1)
-            matches.setdefault(etymon_id, []).append((source_id, len(hits), snippet))
-
-    written = 0
+    matches = _find_reverse_matches(candidates, source_texts, min_form_length=min_form_length)
+    written = _write_reverse_matches(db, matches, forms_by_id) if apply else 0
     if apply:
-        # Write to the parallel etymon_text_match table — kept separate from
-        # etymon_citation so the consensus view stays a measure of
-        # extraction-witness count only. Search-evidence is loose-confidence
-        # and should be presented to users as "also mentioned in" rather than
-        # equated with peer-reviewed scholarly extraction.
-        #
-        # source_id points at the REAL source row (e.g. mawer_1920_…), not a
-        # synthetic one. The fact that this is search-evidence (not
-        # extraction-evidence) is encoded by which table the row lives in.
-        #
-        # Some books in sources/ haven't been mined yet, so their source row
-        # doesn't exist yet. Upsert a stub so the FK constraint passes.
-        all_source_ids = set()
-        for hits in matches.values():
-            for sid, _count, _snip in hits:
-                all_source_ids.add(sid)
-        for sid in all_source_ids:
-            db.upsert_source(
-                id=sid,
-                title=sid.replace("_", " ").title(),
-                notes=(
-                    "Source row created by reverse-search; the book exists "
-                    "in sources/ but may not have been LLM-mined yet. Full "
-                    "metadata fills in when the book is formally mined."
-                ),
-            )
-
-        for etymon_id, hits in matches.items():
-            form = forms_by_id.get(etymon_id, "")
-            matched_form = normalize_ocr_form(form)
-            for source_id, count, snippet in hits:
-                db.conn.execute(
-                    """
-                    INSERT INTO etymon_text_match
-                        (etymon_id, source_id, matched_form, match_count, edit_distance, snippet)
-                    VALUES (?, ?, ?, ?, 0, ?)
-                    ON CONFLICT(etymon_id, source_id, matched_form)
-                    DO UPDATE SET
-                        match_count = excluded.match_count,
-                        snippet = excluded.snippet
-                    """,
-                    (etymon_id, source_id, matched_form, count, snippet),
-                )
-                written += 1
         db.commit()
 
     parser_bug_suspects = _score_extraction_gaps(db, matches, forms_by_id)

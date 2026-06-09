@@ -8575,6 +8575,49 @@ def test_reverse_search_captures_wider_snippet_window(fresh_db: Path, tmp_path: 
     assert len(snippet) > 150, f"snippet only {len(snippet)} chars: {snippet!r}"
 
 
+def test_reverse_search_match_skip_dryrun_and_stub_source(fresh_db: Path, tmp_path: Path) -> None:
+    """End-to-end coverage of the wyrd-8uvi-extracted _find_reverse_matches +
+    _write_reverse_matches: a single-count match (sutton), a multi-count match
+    (norton×2), a no-match skip (xyzzy), the min_form_length exclusion (ham),
+    dry-run-writes-nothing gating, and the FK source-stub upsert (the matched
+    book has no pre-existing source row, so reverse-search must create one)."""
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "mawer_1920.txt").write_text(
+        "The vill of sutton lay east. Near norton and norton mill the river ran. "
+        "A short ham is not matched.\n"
+    )
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="Rando port (seed)")
+        # NOTE: no 'mawer_1920' source row — the stub upsert must create it.
+        for form in ("sutton", "norton", "xyzzy", "ham"):
+            db.add_citation(db.upsert_etymon(form, "old-english"), "rando-port")
+        db.commit()
+
+        # Dry-run: computes matches but writes nothing.
+        dry = reverse_search_attestations(db, sources_dir, apply=False)
+        assert dry["etymons_with_match"] == 2  # sutton + norton (xyzzy/ham excluded)
+        assert dry["written"] == 0
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_text_match").fetchone()[0] == 0
+        assert (
+            db.conn.execute("SELECT COUNT(*) FROM source WHERE id = 'mawer_1920'").fetchone()[0]
+            == 0
+        )  # no stub created on dry-run
+
+        # Apply: writes rows + creates the FK stub source.
+        result = reverse_search_attestations(db, sources_dir, apply=True)
+        assert result["written"] == 2
+        rows = {
+            r["matched_form"]: r["match_count"]
+            for r in db.conn.execute("SELECT matched_form, match_count FROM etymon_text_match")
+        }
+    assert rows == {"sutton": 1, "norton": 2}  # multi-occurrence counted; ham/xyzzy absent
+    # The stub source row was upserted so the FK held.
+    with LexiconDB(fresh_db) as db:
+        stub = db.conn.execute("SELECT title FROM source WHERE id = 'mawer_1920'").fetchone()
+    assert stub is not None and stub["title"] == "Mawer 1920"
+
+
 def test_fuzzy_search_skips_match_when_token_is_canonical_etymon(
     fresh_db: Path, tmp_path: Path
 ) -> None:
