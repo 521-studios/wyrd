@@ -1098,6 +1098,51 @@ def apply_collapses(
     return counts
 
 
+def _run_curation_slot_passes(
+    db: LexiconDB,
+    states: dict[str, Any],
+    order: list[str],
+    *,
+    apply: bool,
+) -> dict[str, Any]:
+    """Run the optional operator/derived curation-slot passes whose state
+    is provided, in dependency order, appending each run pass's pipeline
+    name to ``order``. Returns ``{result_key: counts}`` (None when the
+    pass was skipped).
+
+    The slot runs AFTER link-lemmas and BEFORE the L3 derivations so the
+    derivations see the post-curation / post-split / post-collapse graph
+    and the cleaned-up gloss + tag inventory. Validation + counting always
+    run for a provided state; only the DB writes are gated by ``apply``.
+
+    Table order is the dependency order: curation overrides first, then
+    gloss suppression then addition (suppress-then-re-add in one call),
+    then etymon-splits + their inverse collapses, then element-gloss
+    backfill over the post-collapse graph.
+    """
+    # Lazy import (cold-start cost; no import cycle) — kept function-local.
+    from .lexicon.element_gloss_backfill import apply_element_glosses
+
+    # (result_key, pass function, pipeline-order name), in execution order.
+    passes = [
+        ("curation", apply_curation_overrides, "apply-curation"),
+        ("gloss_suppressions", apply_gloss_suppressions, "apply-gloss-suppressions"),
+        ("gloss_additions", apply_gloss_additions, "apply-gloss-additions"),
+        ("etymon_splits", apply_etymon_splits, "apply-etymon-splits"),
+        ("collapses", apply_collapses, "apply-collapses"),
+        ("element_glosses", apply_element_glosses, "apply-element-glosses"),
+    ]
+    counts: dict[str, Any] = {}
+    for key, pass_fn, order_name in passes:
+        state = states.get(key)
+        if state is None:
+            counts[key] = None
+            continue
+        counts[key] = pass_fn(db, state, apply=apply)
+        order.append(order_name)
+    return counts
+
+
 def run_full_enrichment(
     db: LexiconDB,
     *,
@@ -1166,63 +1211,23 @@ def run_full_enrichment(
     """
     ocr_result = cluster_ocr_variants(db, apply=apply)
     lemma_result = link_lemmas(db, apply=apply)
-    curation_counts: dict[str, Any] | None = None
-    if curation_state is not None:
-        # Always run validation + counting; only writes are gated by apply.
-        # Lets `lexicon enrich` (dry-run) preview curation issues without
-        # committing — surfaces unresolved refs / self-references early.
-        curation_counts = apply_curation_overrides(db, curation_state, apply=apply)
 
-    # wyrd-kutx: gloss suppression + etymon-split passes run AFTER the
-    # curation overrides (so they see the post-curation etymon set) and
-    # BEFORE the L3 derivations (decompose / cluster-cognates / stratum /
-    # english_shaped) so the derivations work against the cleaned-up
-    # gloss + tag inventory.
-    suppression_counts: dict[str, Any] | None = None
-    if suppression_state is not None:
-        suppression_counts = apply_gloss_suppressions(db, suppression_state, apply=apply)
-    # wyrd-wz82: gloss-addition runs AFTER suppression so the operator
-    # can suppress + re-add (or shadow) a gloss in the same enrich call.
-    # Idempotent on re-runs (etymon_gloss has a PK on (etymon_id, gloss)
-    # so duplicates are absorbed as additions_already_present).
-    addition_counts: dict[str, Any] | None = None
-    if addition_state is not None:
-        addition_counts = apply_gloss_additions(db, addition_state, apply=apply)
-    split_counts: dict[str, Any] | None = None
-    if split_state is not None:
-        split_counts = apply_etymon_splits(db, split_state, apply=apply)
-
-    # wyrd-y651: collapse form-of/variant etymons into their lemma. Runs
-    # in the curation slot (after link-lemmas, beside etymon-splits — its
-    # inverse) and BEFORE the L3 derivations so decompose / cluster /
-    # proportions derive over the post-collapse graph.
-    collapse_counts: dict[str, Any] | None = None
-    if collapse_state is not None:
-        collapse_counts = apply_collapses(db, collapse_state, apply=apply)
-
-    # wyrd-u9k6: backfill glosses for unglossed generation surfaces by linking
-    # each orphan-reflex surface to a grounded etymon (reflex_etymon). Runs
-    # after collapses (targets the post-collapse graph) + before the L3
-    # derivations so the now-glossed surfaces flow into proportions.
-    element_gloss_counts: dict[str, int] | None = None
-    if element_gloss_state is not None:
-        from .lexicon.element_gloss_backfill import apply_element_glosses
-
-        element_gloss_counts = apply_element_glosses(db, element_gloss_state, apply=apply)
-
+    # Optional curation-slot passes (operator + derived overlays): each
+    # runs only when its state was provided, in the dependency order fixed
+    # by _run_curation_slot_passes' table. They execute AFTER link-lemmas
+    # and BEFORE the L3 derivations so decompose / cluster-cognates /
+    # stratum / english_shaped see the post-curation, post-split,
+    # post-collapse graph + cleaned-up gloss/tag inventory.
     order: list[str] = ["normalize-ocr", "link-lemmas"]
-    if curation_counts is not None:
-        order.append("apply-curation")
-    if suppression_counts is not None:
-        order.append("apply-gloss-suppressions")
-    if addition_counts is not None:
-        order.append("apply-gloss-additions")
-    if split_counts is not None:
-        order.append("apply-etymon-splits")
-    if collapse_counts is not None:
-        order.append("apply-collapses")
-    if element_gloss_counts is not None:
-        order.append("apply-element-glosses")
+    slot_states = {
+        "curation": curation_state,
+        "gloss_suppressions": suppression_state,
+        "gloss_additions": addition_state,
+        "etymon_splits": split_state,
+        "collapses": collapse_state,
+        "element_glosses": element_gloss_state,
+    }
+    slot_counts = _run_curation_slot_passes(db, slot_states, order, apply=apply)
 
     decompose_result: dict[str, Any] | None = None
     cognate_result: dict[str, Any] | None = None
@@ -1272,12 +1277,12 @@ def run_full_enrichment(
             "candidates": lemma_result["candidates"],
             "sample": lemma_result.get("sample", []),
         },
-        "curation": curation_counts,
-        "gloss_suppressions": suppression_counts,
-        "gloss_additions": addition_counts,
-        "etymon_splits": split_counts,
-        "collapses": collapse_counts,
-        "element_glosses": element_gloss_counts,
+        "curation": slot_counts["curation"],
+        "gloss_suppressions": slot_counts["gloss_suppressions"],
+        "gloss_additions": slot_counts["gloss_additions"],
+        "etymon_splits": slot_counts["etymon_splits"],
+        "collapses": slot_counts["collapses"],
+        "element_glosses": slot_counts["element_glosses"],
         "pronunciation_ipa": pronunciation_result,
         "decompose": decompose_result,
         "cognates": cognate_result,
