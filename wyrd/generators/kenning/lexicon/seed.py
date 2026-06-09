@@ -15,6 +15,69 @@ from wyrd.generators.kenning.lexicon.constants import LANGUAGE_FIELDS, position_
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
 
+def _seed_subject_etymons(
+    db: LexiconDB,
+    words: list[dict[str, Any]],
+    *,
+    glosses: list[str],
+    tags: list[str],
+    modifier_type: str | None,
+    source_id: str,
+    counts: dict[str, int],
+) -> dict[tuple[str, str], int]:
+    """Collect every (form, language) tuple this subject mentions across its
+    ``words[]`` and upsert one shared etymon per tuple, attaching the
+    subject's glosses + tags + a ``source_id`` citation to each new etymon.
+
+    Returns the ``(form, lang) -> etymon_id`` map and mutates ``counts``.
+    """
+    etymons_in_subject: dict[tuple[str, str], int] = {}
+    for word in words:
+        for json_field, lang_code in LANGUAGE_FIELDS.items():
+            forms = word.get(json_field) or []
+            for form in forms:
+                key = (form, lang_code)
+                if key in etymons_in_subject:
+                    continue
+                etymon_id = db.upsert_etymon(form, lang_code, modifier_type=modifier_type)
+                etymons_in_subject[key] = etymon_id
+                counts["etymons"] += 1
+                for gloss in glosses:
+                    db.add_gloss(etymon_id, gloss)
+                    counts["glosses"] += 1
+                for tag in tags:
+                    db.add_tag(etymon_id, tag)
+                    counts["tags"] += 1
+                db.add_citation(etymon_id, source_id)
+                counts["citations"] += 1
+    return etymons_in_subject
+
+
+def _link_subject_reflexes(
+    db: LexiconDB,
+    words: list[dict[str, Any]],
+    etymons_in_subject: dict[tuple[str, str], int],
+    counts: dict[str, int],
+) -> None:
+    """Each word gives one reflex (from ``modern_usage``); link it to every
+    etymon implied by the language fields on the same word. Mutates ``counts``."""
+    for word in words:
+        modern_usage = word.get("modern_usage")
+        if not modern_usage:
+            continue
+        position = position_from_usage(modern_usage)
+        reflex_id = db.upsert_reflex(modern_usage, position)
+        counts["reflexes"] += 1
+        for json_field, lang_code in LANGUAGE_FIELDS.items():
+            forms = word.get(json_field) or []
+            for form in forms:
+                etymon_id = etymons_in_subject.get((form, lang_code))
+                if etymon_id is None:
+                    continue
+                db.link_reflex_etymon(reflex_id, etymon_id)
+                counts["links"] += 1
+
+
 def seed_from_meanings(
     db: LexiconDB,
     meanings_data: list[dict[str, Any]] | dict[str, Any],
@@ -62,47 +125,18 @@ def seed_from_meanings(
 
         # First pass: collect every (form, lang) tuple this subject mentions,
         # so each one becomes a single etymon shared across its reflexes.
-        etymons_in_subject: dict[tuple[str, str], int] = {}
-        for word in words:
-            for json_field, lang_code in LANGUAGE_FIELDS.items():
-                forms = word.get(json_field) or []
-                for form in forms:
-                    key = (form, lang_code)
-                    if key in etymons_in_subject:
-                        continue
-                    etymon_id = db.upsert_etymon(
-                        form,
-                        lang_code,
-                        modifier_type=modifier_type,
-                    )
-                    etymons_in_subject[key] = etymon_id
-                    counts["etymons"] += 1
-                    for gloss in glosses:
-                        db.add_gloss(etymon_id, gloss)
-                        counts["glosses"] += 1
-                    for tag in tags:
-                        db.add_tag(etymon_id, tag)
-                        counts["tags"] += 1
-                    db.add_citation(etymon_id, source_id)
-                    counts["citations"] += 1
-
+        etymons_in_subject = _seed_subject_etymons(
+            db,
+            words,
+            glosses=glosses,
+            tags=tags,
+            modifier_type=modifier_type,
+            source_id=source_id,
+            counts=counts,
+        )
         # Second pass: each word gives one reflex; link it to every etymon
         # implied by the language fields on the same word.
-        for word in words:
-            modern_usage = word.get("modern_usage")
-            if not modern_usage:
-                continue
-            position = position_from_usage(modern_usage)
-            reflex_id = db.upsert_reflex(modern_usage, position)
-            counts["reflexes"] += 1
-            for json_field, lang_code in LANGUAGE_FIELDS.items():
-                forms = word.get(json_field) or []
-                for form in forms:
-                    etymon_id = etymons_in_subject.get((form, lang_code))
-                    if etymon_id is None:
-                        continue
-                    db.link_reflex_etymon(reflex_id, etymon_id)
-                    counts["links"] += 1
+        _link_subject_reflexes(db, words, etymons_in_subject, counts)
 
     db.commit()
     return counts
