@@ -28,6 +28,7 @@ var + a new SPA mapping entry — no change here.
 
 from __future__ import annotations
 
+import math
 import os
 from collections.abc import Mapping
 
@@ -90,9 +91,16 @@ def _coerce_to_schema_type(raw: str, prop: Mapping) -> object | None:
         if not text:
             return None
         try:
-            return int(text) if schema_type == "integer" else float(text)
+            value = int(text) if schema_type == "integer" else float(text)
         except ValueError:
             return None
+        # float() accepts "nan"/"inf"; reject non-finite so an operator typo
+        # (WYRD_DEFAULT_NOVELTY=inf) can't poison the score blend or serialize as
+        # invalid-JSON `NaN` in the echoed params. Mirrors the SPA's
+        # Number.isNaN guard. (int() can't produce nan/inf.)
+        if isinstance(value, float) and not math.isfinite(value):
+            return None
+        return value
     if schema_type == "boolean":
         return _parse_bool(str(raw))
     return raw

@@ -133,6 +133,15 @@ def test_apply_env_defaults_skips_unknown_and_uncoercible():
     assert params == {}
 
 
+def test_apply_env_defaults_rejects_non_finite_number():
+    # float() accepts "inf"/"nan"; they must NOT leak into params (would poison
+    # the score blend / emit invalid-JSON NaN). Mirrors the SPA's isNaN guard.
+    for bad in ("inf", "-inf", "Infinity", "nan", "NaN"):
+        params = {}
+        apply_env_defaults(params, _PROPS, env={"WYRD_DEFAULT_NOVELTY": bad})
+        assert params == {}, f"{bad!r} should be rejected, not seeded"
+
+
 def test_apply_env_defaults_integer_coercion():
     params = {}
     apply_env_defaults(params, _PROPS, env={"WYRD_DEFAULT_COUNT": "7"})
