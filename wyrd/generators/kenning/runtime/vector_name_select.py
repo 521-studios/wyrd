@@ -688,6 +688,84 @@ def _apply_per_usage_frequency(
     return out
 
 
+def _slot_position_for(element: str) -> str:
+    """Resolve a structure element to a position label. Accepts either a literal
+    position label (``pre``/``inner``/``post``/``bare`` — the caller's choice,
+    skipping the encode/decode round-trip the legacy struct walker uses) or a
+    structural-element string the heuristic decodes. (``bare`` added in
+    wyrd-vpri for no-dash single-word slots.)"""
+    if element in ("pre", "inner", "post", "bare"):
+        return element
+    return _slot_position_label(element)
+
+
+def _slot_weighted_pool(
+    non_position_eligible: list[Meaning],
+    *,
+    slot_position: str,
+    slot_qualifier: str | None,
+    slot_bucket_key: tuple | None,
+    request: RequestVector,
+    priors: EmpiricalPriors,
+    era_midpoint: int,
+    cohesion: float,
+    tag_cooccurrence: dict[str, dict[str, float]] | None,
+    usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None,
+    novelty: float,
+    prior_tags: frozenset[str],
+    slot_base_scores: dict[tuple, list[tuple[Meaning, float]]] | None,
+) -> list[tuple[Meaning, float]]:
+    """The weighted ``(meaning, score)`` pool for one slot: base scores ×
+    per-sample cohesion bias, then the novelty blend. Returns an empty list when
+    the slot collapses — no eligible meanings, or every score <= 0 after
+    cohesion.
+
+    Base scores are request-deterministic (no cohesion / no sampling), so they're
+    cached per ``(slot_position, slot_qualifier, slot_bucket_key)`` on the
+    caller-supplied dict; sub-seeds in a count>1 dispatch reuse the cached list.
+    The full bucket key keeps single- vs multi-element bucket variants of the same
+    (position, qualifier) distinct — they multiply by different per-bucket
+    frequencies, so sharing a cache entry would mis-score (wyrd-bol9)."""
+    cache_key = (slot_position, slot_qualifier, slot_bucket_key)
+    if slot_base_scores is not None and cache_key in slot_base_scores:
+        base_scored = slot_base_scores[cache_key]
+    else:
+        base_scored = build_slot_base_scores(
+            non_position_eligible,
+            slot_position=slot_position,
+            request=request,
+            priors=priors,
+            era_midpoint=era_midpoint,
+            slot_qualifier=slot_qualifier,
+            slot_usage_frequency=_resolve_slot_usage_frequency(
+                usage_frequency_by_bucket, slot_bucket_key
+            ),
+        )
+        if slot_base_scores is not None:
+            slot_base_scores[cache_key] = base_scored
+    if not base_scored:
+        return []
+
+    # Cohesion depends on prior_tags, which evolves across slots within a single
+    # name, so it's per-sample and NOT cacheable.
+    weighted: list[tuple[Meaning, float]] = []
+    for m, bs in base_scored:
+        cohesion_mult = _cohesion_multiplier(
+            frozenset(m.tags), prior_tags, cohesion, tag_cooccurrence
+        )
+        final_score = bs * cohesion_mult
+        if final_score > 0:
+            weighted.append((m, final_score))
+    if not weighted:
+        return []
+    # wyrd-fcub: novelty blends the score distribution toward uniform over the
+    # eligible pool, applied LAST just before the weighted draw (mirrors the
+    # retired proportions path's _blend_uniform).
+    if novelty > 0:
+        weighted = _blend_uniform_by_novelty(weighted, novelty)
+    return weighted
+
+
 def select_via_vector_scoring(
     rng: random.Random,
     meaning_db: dict[str, list[Meaning]],
@@ -779,94 +857,42 @@ def select_via_vector_scoring(
 
     structure_list = list(structure)
     for slot_index, element in enumerate(structure_list):
-        # Accept either a structural-element string ("X-"/"-X-"/"-X")
-        # the heuristic decodes, or a position label ("pre"/"inner"/
-        # "post"/"bare") — caller's choice. Position labels skip the
-        # encode/decode round-trip the legacy struct walker uses to
-        # synthesize a string from its key tuples. ("bare" added in
-        # wyrd-vpri for no-dash single-word slots.)
-        if element in ("pre", "inner", "post", "bare"):
-            slot_position = element
-        else:
-            slot_position = _slot_position_label(element)
-
-        # wyrd-izcr: per-slot qualifier filter ("name" / "saint" /
-        # None) — set when the caller's structure marked the slot as
-        # a name/saint qualifier word. Pre-fix the vector path
-        # silently flattened structures to bare position labels and
-        # filled qualifier-flagged slots with any matching morpheme;
-        # cache key now includes the qualifier so a single dispatch
-        # can mix (pre, None) and (pre, "name") slots safely.
+        slot_position = _slot_position_for(element)
+        # wyrd-izcr: per-slot qualifier ("name" / "saint" / None) and wyrd-bol9:
+        # the full bucket key. Both ride lockstep with the structure — the sole
+        # caller (select_via_vector) builds slot_qualifiers / slot_bucket_keys in
+        # the same loop that builds the structure — so a length mismatch is a
+        # programming error that should surface as IndexError, not silently
+        # coerce to None. Legacy / non-NameGenerator callers pass neither, and
+        # the cache key collapses to the prior (position, None, None) semantics.
         slot_qualifier: str | None = (
             slot_qualifiers[slot_index] if slot_qualifiers is not None else None
         )
-        # wyrd-bol9: cache key now includes the full bucket key so
-        # single-element / multi-element bucket variants of the same
-        # (position, qualifier) get distinct cached score lists —
-        # they multiply by different per-bucket frequencies, so
-        # caching one in place of the other would produce wrong
-        # picks. When the caller doesn't supply slot_bucket_keys
-        # (legacy / non-NameGenerator callers), bucket_key is None
-        # and the 3-tuple collapses to the prior 2-tuple semantics
-        # at the trailing None slot. Mirrors the slot_qualifiers
-        # lockstep assumption above — sole caller (select_via_vector)
-        # builds slot_bucket_keys in the same loop that builds
-        # candidate_positions, so a length mismatch is a programming
-        # error that should surface as IndexError rather than
-        # silently coerce to None.
         slot_bucket_key = slot_bucket_keys[slot_index] if slot_bucket_keys is not None else None
-        cache_key = (slot_position, slot_qualifier, slot_bucket_key)
-
-        # Base scores: cached on caller-supplied dict if provided,
-        # else built fresh. The base score is request-deterministic
-        # (no cohesion / no sampling) so sub-seeds in a count>1
-        # dispatch reuse the cached list.
-        if slot_base_scores is not None and cache_key in slot_base_scores:
-            base_scored = slot_base_scores[cache_key]
-        else:
-            base_scored = build_slot_base_scores(
-                non_position_eligible,
-                slot_position=slot_position,
-                request=request,
-                priors=priors,
-                era_midpoint=era_midpoint,
-                slot_qualifier=slot_qualifier,
-                slot_usage_frequency=_resolve_slot_usage_frequency(
-                    usage_frequency_by_bucket, slot_bucket_key
-                ),
-            )
-            if slot_base_scores is not None:
-                slot_base_scores[cache_key] = base_scored
-        if not base_scored:
-            if permissive:
-                picked.append(None)
-                continue
-            return []
-
-        # Apply per-sample cohesion bias + weighted choice. Cohesion
-        # depends on prior_tags which evolves across slots within a
-        # single name, so it's per-sample and NOT cacheable.
-        prior_tags_frozen = frozenset(prior_tags)
-        weighted: list[tuple[Meaning, float]] = []
-        for m, bs in base_scored:
-            cohesion_mult = _cohesion_multiplier(
-                frozenset(m.tags), prior_tags_frozen, cohesion, tag_cooccurrence
-            )
-            final_score = bs * cohesion_mult
-            if final_score > 0:
-                weighted.append((m, final_score))
+        weighted = _slot_weighted_pool(
+            non_position_eligible,
+            slot_position=slot_position,
+            slot_qualifier=slot_qualifier,
+            slot_bucket_key=slot_bucket_key,
+            request=request,
+            priors=priors,
+            era_midpoint=era_midpoint,
+            cohesion=cohesion,
+            tag_cooccurrence=tag_cooccurrence,
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+            novelty=novelty,
+            prior_tags=frozenset(prior_tags),
+            slot_base_scores=slot_base_scores,
+        )
+        # wyrd-tbke: permissive degrades an unsatisfiable slot to None and
+        # continues (full-length result); non-permissive aborts the whole
+        # struct. A collapsed pool (empty `weighted`) and a None weighted-draw
+        # are the two ways a slot can fail to fill.
         if not weighted:
             if permissive:
                 picked.append(None)
                 continue
             return []
-        # wyrd-fcub: novelty blends the score distribution toward uniform over
-        # the eligible pool — novelty=0 samples by score (typical morphemes
-        # dominate), novelty=1 samples every eligible meaning equally (surfaces
-        # rare morphemes as often as common). Applied LAST, just before the
-        # weighted draw, mirroring the retired proportions path's _blend_uniform.
-        if novelty > 0:
-            weighted = _blend_uniform_by_novelty(weighted, novelty)
         picked_meaning = _weighted_choice(rng, weighted)
         if picked_meaning is None:
             if permissive:
