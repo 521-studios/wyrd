@@ -35,8 +35,13 @@ default reading path.
 
 ## Reviewed and KEPT (not archived)
 
-Decisions that mention proportions but remain **load-bearing** — left in
-`DECISIONS.md` deliberately:
+Decisions that carry a supersession marker but remain **load-bearing** — left in
+`DECISIONS.md` deliberately. The distinction that matters: a whole-entry
+supersession (the implementation it describes is entirely gone, like D17) is
+archived; a **partial** supersession (one specific claim inside an otherwise-live
+decision, already corrected by an inline `> **SUPERSEDED by …**` banner) is
+**kept in place** — the banner is the right tool, and moving the body would
+strip live documentation.
 
 - **D16.** Co-occurrence lives at the tag level — the `tag_cooccurrence` /
   `tag_marginal` **data** it defines still feeds the vector scorer's cohesion
@@ -44,15 +49,18 @@ Decisions that mention proportions but remain **load-bearing** — left in
   that originally consumed it is gone.
 - **D36.** Vector-driven generator architecture — this **is** the current
   scoring path; it documents the proportions retirement (do not archive).
+- **D6.** Languages are morally-neutral palette options — LIVE (the
+  morally-neutral-palette principle + the `--mood` system ship today). Only the
+  5-entry preset *list* is superseded (D37's 12-entry phonaesthetic-vector
+  catalog), already marked by an inline banner. Keep.
+- **D31.** Multi-script renderings (Phase 2a–2d) — LIVE (the renderings schema,
+  bundle siblings, and SPA provenance panel all ship). Only two specific claims
+  ("per-language rendering is the demos' concern"; "generation default is
+  modern_usage everywhere") are superseded by D38 (wyrd-24s6), already marked by
+  inline banners. Keep — NOT an archival candidate despite the markers.
 
-## Candidates for archival (audited, not yet moved)
+## Follow-ups (not archival)
 
-Identified during the 2026-06-09 doc audit; queued for the same treatment once
-the convention above is confirmed:
-
-- **D31 Phase 2a / Phase 2d** sub-sections (`DECISIONS.md`) — already carry
-  inline `> **SUPERSEDED by D38 (wyrd-24s6)**` banners; their bodies still sit
-  in `DECISIONS.md` and should move here under the convention.
 - **Operational-doc proportions framing** — `INGESTION.md`, `REBUILD.md`,
   `README.md` ("Extending" §), and the repo-root `README.md` present
   `rebuild-proportions` / `<culture>_proportions.json` as the *scoring*
