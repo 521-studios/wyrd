@@ -15,6 +15,11 @@ class GenerationResult:
 
     result: str
     explanation: str = ""
+    # wyrd-24s6 (D38): the MODERN rendering of the same name, beside the
+    # canonical NATIVE ``result``. Kenning surfaces both so the SPA can show
+    # native (primary) + modern (secondary). None for generators that don't
+    # distinguish the two (the value then collapses to ``result`` downstream).
+    result_modern: str | None = None
     components: list[dict[str, Any]] = field(default_factory=list)
     # wyrd-h8k1: KenningExplain marks the canonical decomposition reading
     # so the SPA can render it distinctly. ``canonical_source`` carries

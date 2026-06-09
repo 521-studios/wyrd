@@ -543,6 +543,22 @@ def _era_form_for_meanings(meanings, era_render_language: str | None) -> str | N
     return None
 
 
+def _native_form_for_meanings(meanings) -> str | None:
+    """wyrd-24s6 (D38): the morpheme's NATIVE surface — its source-language
+    headword, taken from the ``morpheme_id`` canonical (``old-english:smiþþe`` →
+    ``smiþþe``). This is the form "as selected": for a morpheme sourced in a
+    historical language it is that language's form; for a modern-sourced morpheme
+    it equals the modern form. Returns None when no resolved sense carries a
+    ``morpheme_id`` — the caller then falls back to the modern usage (the ~orphan
+    / synthesized morphemes), mirroring the era-render fallback convention."""
+    for meaning in meanings:
+        mid = getattr(meaning, "morpheme_id", None) or ""
+        src, sep, canon = mid.partition(":")
+        if sep and src and canon.strip("-"):
+            return canon
+    return None
+
+
 def _era_pronunciation(renderings, era_language, era_form, meaning):
     """wyrd-mf2u: the breakdown's pronunciation for an ERA form — its OWN
     pronunciation, not an arbitrary cluster form's.
@@ -949,6 +965,7 @@ class NameGenerator:
         inflection_density: float = 0.0,
         novelty: float = 0.0,
         era_render_language: str | None = None,
+        era_requested: bool = False,
     ):
         """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
 
@@ -1077,7 +1094,9 @@ class NameGenerator:
         # inflection / D18 spelling-variant substitution — applied via
         # _apply_render. Default generation (all knobs 0, no era) stays
         # bit-stable: _apply_render is a no-op that leaves new_name.rendered None.
-        self._apply_render(rng, new_name, spelling_variety, inflection_density, era_render_language)
+        self._apply_render(
+            rng, new_name, spelling_variety, inflection_density, era_render_language, era_requested
+        )
         return new_name
 
     def _vector_caches(
@@ -1244,7 +1263,13 @@ class NameGenerator:
         return canonical, None
 
     def _apply_render(
-        self, rng, new_name, spelling_variety, inflection_density, era_render_language
+        self,
+        rng,
+        new_name,
+        spelling_variety,
+        inflection_density,
+        era_render_language,
+        era_requested=False,
     ):
         """Post-pick render dispatch, used by select_via_vector().
 
@@ -1269,6 +1294,17 @@ class NameGenerator:
             )
             new_name.rendered = rendered
             new_name.inflection_labels = labels
+        elif not era_requested:
+            # wyrd-24s6 (D38): NO era requested + no substitution → render each
+            # morpheme in its NATIVE (source-language) form, so the default
+            # (era="") name is "as-selected" rather than coerced to modern. The
+            # MODERN companion is composed separately by NewName.modern_name().
+            # (Supersedes the pre-D38 bit-stable "leave rendered None → modern".)
+            # An EXPLICIT era="modern-english" request resolves era_render_language
+            # to None (contemporary suppression) but DOES set era_requested, so it
+            # falls through here → rendered stays None → modern usage (the explicit
+            # force-modern path, distinct from the native default).
+            new_name.rendered = self._render_native_forms(new_name.name)
 
     def _render_era_forms(self, name, era_render_language):
         """wyrd-6c8x (feature A): render each picked morpheme in its era-
@@ -1300,6 +1336,29 @@ class NameGenerator:
                     self.meaning_gen._surface_index().get(usage.lower().replace("-", "")) or []
                 )
                 form = _era_form_for_meanings(meanings, era_render_language)
+                word_rendered.append(_mimic_case(usage, form) if form else None)
+            rendered.append(word_rendered)
+        return rendered
+
+    def _render_native_forms(self, name):
+        """wyrd-24s6 (D38): render each picked morpheme in its NATIVE
+        (source-language) form so the default (era="") name is "as selected" —
+        a genuinely mixed-era surface — rather than coerced to modern. Mirrors
+        ``_render_era_forms`` but resolves each morpheme to its OWN source
+        language via ``_native_form_for_meanings`` (the morpheme_id canonical),
+        case-projected onto the slot. A morpheme with no morpheme_id renders as
+        None — ``NewName.__str__`` then falls back to the modern usage."""
+        rendered: list[list[str | None]] = []
+        for word in name:
+            word_rendered: list[str | None] = []
+            for usage in word:
+                if usage is None:
+                    word_rendered.append(None)
+                    continue
+                meanings = (
+                    self.meaning_gen._surface_index().get(usage.lower().replace("-", "")) or []
+                )
+                form = _native_form_for_meanings(meanings)
                 word_rendered.append(_mimic_case(usage, form) if form else None)
             rendered.append(word_rendered)
         return rendered
@@ -1369,6 +1428,7 @@ class NewName:
         name_sig = "|".join("/".join(c for c in w if c) for w in self.name)
 
         seen: dict[str, set[str]] = {}  # folded surface -> languages already used
+        first_slot: dict[str, tuple[int, int, str]] = {}  # fold -> first (wi, ei, usage)
         for wi, word in enumerate(self.name):
             for ei, usage in enumerate(word):
                 if usage is None:
@@ -1379,11 +1439,16 @@ class NewName:
                 canon = siblings[0] if siblings else None
                 if fold not in seen:
                     seen[fold] = self._meaning_langs([canon]) if canon else set()
+                    first_slot[fold] = (wi, ei, usage)
                     continue
                 # Repeat: resolve it (cross-language synonym → re-pick → leave).
-                self._resolve_repeat(wi, ei, usage, fold, canon, siblings, seen, name_sig)
+                self._resolve_repeat(
+                    wi, ei, usage, fold, canon, siblings, seen, name_sig, first_slot
+                )
 
-    def _resolve_repeat(self, wi, ei, usage, fold, canon, siblings, seen, name_sig) -> None:
+    def _resolve_repeat(
+        self, wi, ei, usage, fold, canon, siblings, seen, name_sig, first_slot=None
+    ) -> None:
         """Resolve one repeated surface (wyrd-vd6y / wyrd-72q9): prefer a
         same-meaning synonym in a DIFFERENT language ("Hill Hill" → "Hill Haeth",
         a render override); else re-pick a DIFFERENT same-position morpheme
@@ -1408,15 +1473,49 @@ class NewName:
         repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
         if repl is not None:
             self.name[wi][ei] = repl
+            repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
             if self.rendered is not None:
-                self.rendered[wi][ei] = None
+                # wyrd-24s6 (D38): render the re-picked morpheme in its NATIVE
+                # form so the native render stays consistent (pre-D38 set None →
+                # the modern usage). modern_name() reads the replacement's modern
+                # surface from self.name (e) directly.
+                native = _native_form_for_meanings(repl_sibs)
+                native_rendered = _mimic_case(repl, native) if native else None
+                # If the re-pick's NATIVE form ALSO collides (a native homograph
+                # of an earlier slot — re-pick excludes seen folds by BUCKET key,
+                # but a distinct morpheme can share a native surface), render it
+                # MODERN instead: repl's modern usage is collision-free since it
+                # was chosen outside the seen folds.
+                if native_rendered and native_rendered.strip("-").lower() in seen:
+                    native_rendered = None
+                self.rendered[wi][ei] = native_rendered
             if self.inflection_labels is not None:
                 self.inflection_labels[wi][ei] = None
-            repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
             seen[repl.strip("-").lower()] = (
                 self._meaning_langs([repl_sibs[0]]) if repl_sibs else set()
             )
-        # else: nothing else of this position available → leave the dupe.
+            return
+        # wyrd-24s6 (D38): no synonym + no re-pick. Native rendering can collide
+        # where modern doesn't — two morphemes sharing a source-era form but
+        # differing modern surfaces ('Biscop Biscop'). Break the visual native
+        # duplicate by falling EITHER colliding slot back to its modern usage,
+        # preferring whichever one's modern surface differs from the collision
+        # fold (the OTHER may itself be an archaic morpheme whose modern == its
+        # native, e.g. a 'Biscop' whose modern is also 'Biscop'). Only when a
+        # native render is active; else leave the dupe as before.
+        if self.rendered is None:
+            return
+        candidates = [(wi, ei, usage)]
+        if first_slot is not None and fold in first_slot:
+            candidates.append(first_slot[fold])
+        for slot_wi, slot_ei, slot_usage in candidates:
+            if self.rendered[slot_wi][slot_ei] is None:
+                continue
+            modern_fold = (slot_usage or "").strip("-").lower()
+            if modern_fold and modern_fold != fold:
+                self.rendered[slot_wi][slot_ei] = None  # __str__ → modern for this slot
+                seen.setdefault(modern_fold, set())
+                return
 
     @staticmethod
     def _meaning_langs(meanings) -> set[str]:
@@ -1564,6 +1663,34 @@ class NewName:
                     surface = self.rendered[wi][ei]
                 else:
                     surface = e
+                surface = surface.replace("-", "")
+                chunks.append(surface if first else surface.lower())
+                first = False
+            joined = "".join(chunks)
+            if joined:
+                joined = _collapse_triple_letters(joined)
+                joined = joined[0].upper() + joined[1:]
+            words.append(joined)
+        return " ".join(w for w in words if w)
+
+    def modern_name(self) -> str:
+        """wyrd-24s6 (D38): the MODERN rendering — every morpheme in its
+        present-day surface (``modern_usage``), the always-present secondary
+        beside the native ``__str__`` canonical. Honors the later composition
+        layers: a diversified cross-language synonym ("Hill Hill" → "Hill
+        Haeth") shows ITS OWN modern surface (the override Meaning's ``usage``),
+        and a re-picked morpheme uses its replacement's modern usage (already in
+        ``self.name``). Same slot-case rules as ``__str__``."""
+        self._ensure_diversified()
+        words: list[str] = []
+        for wi, w in enumerate(self.name):
+            chunks: list[str] = []
+            first = True
+            for ei, e in enumerate(w):
+                if e is None:
+                    continue
+                override = self._lang_override[wi][ei]
+                surface = override.usage if override is not None else e
                 surface = surface.replace("-", "")
                 chunks.append(surface if first else surface.lower())
                 first = False

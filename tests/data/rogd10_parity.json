@@ -227,7 +227,7 @@
           ]
         ]
       ],
-      "name": "Boenelin",
+      "name": "Bolingelin",
       "seed": 42
     },
     {
@@ -265,7 +265,7 @@
           ]
         ]
       ],
-      "name": "Keren",
+      "name": "Kering",
       "seed": 1337
     },
     {
@@ -353,7 +353,7 @@
           ]
         ]
       ],
-      "name": "Breguéen",
+      "name": "Breguéing",
       "seed": 8502015221875428
     },
     {
@@ -438,7 +438,7 @@
           ]
         ]
       ],
-      "name": "Gouro",
+      "name": "Gourhōh",
       "seed": 7028257956033530
     },
     {
@@ -566,7 +566,7 @@
           ]
         ]
       ],
-      "name": "Landelent",
+      "name": "Llandelent",
       "seed": 99
     },
     {
@@ -660,7 +660,7 @@
           ]
         ]
       ],
-      "name": "Plusoan",
+      "name": "Plushōhan",
       "seed": 250
     },
     {
@@ -794,7 +794,7 @@
           ]
         ]
       ],
-      "name": "Lanel",
+      "name": "Llanel",
       "seed": 31415
     },
     {
@@ -909,7 +909,7 @@
           ]
         ]
       ],
-      "name": "Ruomer",
+      "name": "Rūhhōhmer",
       "seed": 271828
     }
   ],
@@ -968,7 +968,7 @@
           ]
         ]
       ],
-      "name": "Wigwood",
+      "name": "Wīcwudu",
       "seed": 1
     },
     {
@@ -1059,7 +1059,7 @@
           ]
         ]
       ],
-      "name": "Boingcombe",
+      "name": "Bolingcumb",
       "seed": 42
     },
     {
@@ -1261,7 +1261,7 @@
           ]
         ]
       ],
-      "name": "East Bostone",
+      "name": "Eastan Bolstone",
       "seed": 1337
     },
     {
@@ -1464,7 +1464,7 @@
           ]
         ]
       ],
-      "name": "Cowohill",
+      "name": "Cowhōhkelli",
       "seed": 8502015221875428
     },
     {
@@ -1537,7 +1537,7 @@
           ]
         ]
       ],
-      "name": "Dowhead",
+      "name": "Dhubhhofuth",
       "seed": 7028257956033530
     },
     {
@@ -1676,7 +1676,7 @@
           ]
         ]
       ],
-      "name": "Longton",
+      "name": "Longtūn",
       "seed": 250
     },
     {
@@ -1805,7 +1805,7 @@
           ]
         ]
       ],
-      "name": "Bank St",
+      "name": "Bank Seynte",
       "seed": 777
     },
     {
@@ -1883,7 +1883,7 @@
           ]
         ]
       ],
-      "name": "Chilton",
+      "name": "Cillatūn",
       "seed": 31415
     },
     {
@@ -1928,15 +1928,32 @@
           ]
         ],
         [
-          "-ing",
+          "-ley",
           [
             [
               "english",
               [
                 [
-                  "old-english",
+                  "middle-english",
                   [
-                    "-ing"
+                    "leagum"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "leagum"
+                  ]
+                ]
+              ]
+            ],
+            [
+              "norman-french",
+              [
+                [
+                  "norman-french",
+                  [
+                    "launde"
                   ]
                 ]
               ]
@@ -1944,7 +1961,7 @@
           ]
         ]
       ],
-      "name": "Woodninging",
+      "name": "Wuduinglaunde",
       "seed": 271828
     }
   ],
@@ -2060,7 +2077,7 @@
           ]
         ]
       ],
-      "name": "Cloonkilfield",
+      "name": "Clooncillfield",
       "seed": 1
     },
     {
@@ -2219,7 +2236,7 @@
           ]
         ]
       ],
-      "name": "Aghloughmore",
+      "name": "Aghlochmhòr",
       "seed": 42
     },
     {
@@ -2318,7 +2335,7 @@
           ]
         ]
       ],
-      "name": "Killory",
+      "name": "Cillhōhēa",
       "seed": 1337
     },
     {
@@ -2384,7 +2401,7 @@
           ]
         ]
       ],
-      "name": "Kilra",
+      "name": "Cillra",
       "seed": 8502015221875428
     },
     {
@@ -2454,7 +2471,7 @@
           ]
         ]
       ],
-      "name": "Glenraan",
+      "name": "Glinneraan",
       "seed": 7028257956033530
     },
     {
@@ -2530,7 +2547,7 @@
           ]
         ]
       ],
-      "name": "Knocktown",
+      "name": "Cnoctūn",
       "seed": 250
     },
     {
@@ -2600,7 +2617,7 @@
           ]
         ]
       ],
-      "name": "Garryragan",
+      "name": "Garraíragag",
       "seed": 777
     },
     {
@@ -2833,7 +2850,7 @@
           ]
         ]
       ],
-      "name": "Booagh East",
+      "name": "Bolhōhagh Eastan",
       "seed": 31415
     },
     {
@@ -2920,7 +2937,7 @@
           ]
         ]
       ],
-      "name": "Derrytily",
+      "name": "Daratwilael",
       "seed": 271828
     }
   ],
@@ -2978,7 +2995,7 @@
           ]
         ]
       ],
-      "name": "Lochlin",
+      "name": "Lochhlinc",
       "seed": 1
     },
     {
@@ -3163,7 +3180,7 @@
           ]
         ]
       ],
-      "name": "Inchmore",
+      "name": "Insemhòr",
       "seed": 1337
     },
     {
@@ -3235,7 +3252,7 @@
           ]
         ]
       ],
-      "name": "Carharish",
+      "name": "Carhafedisc",
       "seed": 8502015221875428
     },
     {
@@ -3454,7 +3471,7 @@
           ]
         ]
       ],
-      "name": "Dunhill",
+      "name": "Dūnkelli",
       "seed": 7028257956033530
     },
     {
@@ -3595,7 +3612,7 @@
           ]
         ]
       ],
-      "name": "Lochkerhall",
+      "name": "Lochkerhofuth",
       "seed": 99
     },
     {
@@ -3740,7 +3757,7 @@
           ]
         ]
       ],
-      "name": "Kilabank",
+      "name": "Cillábank",
       "seed": 250
     },
     {
@@ -3855,7 +3872,7 @@
           ]
         ]
       ],
-      "name": "Dunlie",
+      "name": "Dūnlie",
       "seed": 777
     },
     {
@@ -3893,7 +3910,7 @@
           ]
         ]
       ],
-      "name": "Artown",
+      "name": "Artūn",
       "seed": 31415
     },
     {
@@ -4261,7 +4278,7 @@
           ]
         ]
       ],
-      "name": "Portoly",
+      "name": "Porthōhlael",
       "seed": 271828
     }
   ],
@@ -4341,7 +4358,7 @@
           ]
         ]
       ],
-      "name": "Rhosyn",
+      "name": "Mōsyn",
       "seed": 1
     },
     {
@@ -4407,7 +4424,7 @@
           ]
         ]
       ],
-      "name": "Cwmeston",
+      "name": "Cwmtūn",
       "seed": 42
     },
     {
@@ -4485,7 +4502,7 @@
           ]
         ]
       ],
-      "name": "Pennewydd",
+      "name": "Puinewydd",
       "seed": 1337
     },
     {
@@ -4678,7 +4695,7 @@
           ]
         ]
       ],
-      "name": "Cwmchurch",
+      "name": "Cwmciric",
       "seed": 7028257956033530
     },
     {
@@ -4759,7 +4776,7 @@
           ]
         ]
       ],
-      "name": "Llanogoed",
+      "name": "Llanhōhcoed",
       "seed": 99
     },
     {
@@ -4895,7 +4912,7 @@
           ]
         ]
       ],
-      "name": "Cwmybach",
+      "name": "Cwmeybach",
       "seed": 250
     },
     {
@@ -4939,7 +4956,7 @@
           ]
         ]
       ],
-      "name": "Cwmney",
+      "name": "Cwmey",
       "seed": 777
     },
     {
@@ -5009,7 +5026,7 @@
           ]
         ]
       ],
-      "name": "Penbach",
+      "name": "Puibach",
       "seed": 31415
     },
     {
@@ -5195,7 +5212,7 @@
           ]
         ]
       ],
-      "name": "Pontoycoch",
+      "name": "Ponthōheycoch",
       "seed": 271828
     }
   ]

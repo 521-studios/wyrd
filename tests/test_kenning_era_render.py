@@ -149,7 +149,13 @@ def _apply_render_stub(spy):
         spy.append(("sub", sv, idn))
         return [["SUBSTITUTED"]], [["case"]]
 
-    return SimpleNamespace(_render_era_forms=_era, _render_substitutions=_sub)
+    def _native(name):
+        spy.append(("native",))
+        return [["NATIVE"]]
+
+    return SimpleNamespace(
+        _render_era_forms=_era, _render_substitutions=_sub, _render_native_forms=_native
+    )
 
 
 def test_apply_render_era_supersedes_substitution():
@@ -171,13 +177,28 @@ def test_apply_render_falls_back_to_substitution_without_era():
     assert spy == [("sub", 1.0, 0.0)]  # era path NOT called
 
 
-def test_apply_render_noop_when_no_era_and_no_knobs():
-    # Default generation: nothing renders (bit-stable, no rng draw).
+def test_apply_render_native_when_no_era_and_no_knobs():
+    # wyrd-24s6 (D38): default generation (era="" / not requested, no knobs) now
+    # renders NATIVE — the "as-selected" surface — not the old modern no-op.
     spy: list = []
     new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
     NameGenerator._apply_render(_apply_render_stub(spy), None, new_name, 0.0, 0.0, None)
+    assert new_name.rendered == [["NATIVE"]]
+    assert spy == [("native",)]  # native path ran; era / substitution did not
+
+
+def test_apply_render_modern_noop_when_explicit_modern_era():
+    # wyrd-24s6 (D38): an EXPLICIT era that resolves to no render-language
+    # (era="modern-english" → contemporary suppression → era_render_language None)
+    # sets era_requested=True, so it falls through to MODERN — rendered stays None
+    # (→ modern usage), NOT native. This is the explicit force-modern path.
+    spy: list = []
+    new_name = SimpleNamespace(name=[["-ton"]], rendered=None, inflection_labels=None)
+    NameGenerator._apply_render(
+        _apply_render_stub(spy), None, new_name, 0.0, 0.0, None, era_requested=True
+    )
     assert new_name.rendered is None
-    assert spy == []
+    assert spy == []  # neither era, substitution, NOR native ran
 
 
 # --- end-to-end (committed dev bundle) -------------------------------------
@@ -328,3 +349,50 @@ def test_resolve_era_render_language_accepts_stage_labels():
     assert _resolve_era_render_language("welsh", "welsh") is None  # contemporary brythonic
     assert _resolve_era_render_language("old-irish", "irish") == "old-irish"
     assert _resolve_era_render_language("irish", "irish") is None  # contemporary goidelic
+
+
+# --- wyrd-24s6 (D38): render BOTH native + modern ---------------------------
+
+
+def _gen_one(params, seed):
+    from wyrd.generators.kenning import Kenning
+
+    res = Kenning().generate(params, seed)
+    return res[0] if isinstance(res, list) else res
+
+
+def test_generate_surfaces_both_native_and_modern():
+    """wyrd-24s6 (D38): a default (era="") generation carries BOTH a native
+    `result` and a modern `result_modern`; both are non-empty strings."""
+    r = _gen_one({"culture": "english", "count": 1}, 42)
+    assert r.result and isinstance(r.result, str)
+    assert r.result_modern and isinstance(r.result_modern, str)
+
+
+def test_envelope_carries_result_modern():
+    """The API envelope exposes result_modern (falling back to result when a
+    generator doesn't distinguish the two)."""
+    from wyrd.envelope import envelope
+
+    r = _gen_one({"culture": "english", "count": 1}, 42)
+    env = envelope(generator="kenning", parameters={"culture": "english"}, seed=42, results=[r])
+    row = env["results"][0]
+    assert row["result"] == r.result
+    assert row["result_modern"] == r.result_modern
+
+
+def test_native_default_differs_from_forced_modern():
+    """era="" (native, as-selected) and era="modern-english" (explicit
+    force-modern) are distinct render paths: across a seed sweep the native
+    default produces at least one name with an Old-English-distinctive character
+    that the forced-modern render (ASCII) never does — proving era="" no longer
+    silently coerces to modern."""
+    native = [_gen_one({"culture": "english", "count": 1}, s).result for s in range(15)]
+    forced_modern = [
+        _gen_one({"culture": "english", "era": "modern-english", "count": 1}, s).result
+        for s in range(15)
+    ]
+    assert any(set(n) & _OE_CHARS for n in native), f"native default never period: {native}"
+    assert not any(set(m) & _OE_CHARS for m in forced_modern), (
+        f"era=modern-english leaked period forms: {forced_modern}"
+    )
