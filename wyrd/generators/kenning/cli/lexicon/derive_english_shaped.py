@@ -30,8 +30,10 @@ def _select_candidate_rows(
     interpolate user-supplied values (``--language``) into the query.
     ``--limit`` is f-string-formatted but only after ``int(limit)``
     (Click already cast it; an int isn't interpolatable to anything
-    dangerous). When ``reshape`` is false the predicate narrows to
-    ``english_shaped IS NULL``.
+    dangerous). ``limit is not None`` rather than truthiness so an
+    explicit ``--limit 0`` means "process zero rows" rather than
+    silently falling through to no limit. When ``reshape`` is false the
+    predicate narrows to ``english_shaped IS NULL``.
     """
     if language_filter:
         lang_pred = "language = ?"
@@ -41,7 +43,7 @@ def _select_candidate_rows(
         lang_pred = f"language IN ({placeholders})"
         lang_params = _PHASE2A_NON_LATIN_LANGS
     where_pred = lang_pred + ("" if reshape else " AND english_shaped IS NULL")
-    limit_clause = f" LIMIT {int(limit)}" if limit else ""
+    limit_clause = f" LIMIT {int(limit)}" if limit is not None else ""
 
     with LexiconDB(db_path) as db:
         return db.conn.execute(
@@ -55,7 +57,9 @@ def _select_candidate_rows(
         ).fetchall()
 
 
-def _process_rows(rows: list, db_writer, total: int) -> tuple[int, int, dict[str, int]]:
+def _process_rows(
+    rows: list, db_writer: LexiconDB | None, total: int
+) -> tuple[int, int, dict[str, int]]:
     """Derive english_shaped for each row, optionally writing it.
 
     Echoes a ``[N/total]`` progress line every ``_PROGRESS_EVERY`` rows
@@ -87,8 +91,7 @@ def _process_rows(rows: list, db_writer, total: int) -> tuple[int, int, dict[str
                     db_writer.commit()
         if completed % _PROGRESS_EVERY == 0 or completed == total:
             click.echo(
-                f"  [{completed}/{total}]  written={written} "
-                f"skipped_no_input={skipped_no_input}",
+                f"  [{completed}/{total}]  written={written} skipped_no_input={skipped_no_input}",
                 err=True,
             )
     return written, skipped_no_input, by_language
