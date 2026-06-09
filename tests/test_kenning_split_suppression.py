@@ -1051,3 +1051,40 @@ def test_run_full_enrichment_threads_suppression_and_split_state(tmp_path: Path)
     assert result["gloss_suppressions"]["glosses_dropped"] == 1
     assert result["etymon_splits"]["splits_processed"] == 1
     assert result["etymon_splits"]["children_created"] == 2
+
+
+def test_run_full_enrichment_threads_collapse_state(tmp_path: Path):
+    """collapse_state threads through run_full_enrichment: the collapse
+    pass runs, its counts surface on result["collapses"], and
+    "apply-collapses" lands in the pipeline order after
+    "apply-etymon-splits". This is the one curation-slot the orchestrator
+    didn't exercise end-to-end before the wyrd-8uvi table refactor
+    (apply_collapses was only tested directly).
+
+    skip_l3_derivations=True keeps it fast."""
+    db_path = _build_db(tmp_path)
+    # A form-of etymon (dim) folded into its lemma (dimm).
+    _add_etymon_with_glosses(db_path, "old-english", "dimm", ["a down or hill"])
+    _add_etymon_with_glosses(db_path, "old-english", "dim", ["alternative form of dimm"])
+    collapse_state = {"old-english:dim": {"into": "old-english:dimm"}}
+
+    with LexiconDB(db_path) as db:
+        result = run_full_enrichment(
+            db,
+            apply=True,
+            collapse_state=collapse_state,
+            split_state={
+                "old-english:dimm": {
+                    "into": [{"suffix": "x", "glosses": ["a down or hill"], "primary": True}]
+                }
+            },
+            skip_l3_derivations=True,
+        )
+
+    order = result["order"]
+    assert "apply-collapses" in order
+    # collapses run after splits (its inverse) per the slot's table order.
+    assert order.index("apply-etymon-splits") < order.index("apply-collapses")
+    # Counts surfaced on the top-level result (not None → the slot ran).
+    assert result["collapses"] is not None
+    assert result["collapses"]["applied"] is True
