@@ -278,14 +278,7 @@ def _dominant_sense(
     # A UNIQUE largest group is the dominant sense; a tie => no clear dominant.
     unique_dom = top[0] if len(top) == 1 else None
     dom_glosses: tuple[str, ...] = tuple(
-        sorted(
-            {
-                gl
-                for gi in (top if unique_dom is None else [unique_dom])
-                for i in groups[gi]
-                for gl in by_id[i]["glosses"]
-            }
-        )
+        sorted({gl for gi in top for i in groups[gi] for gl in by_id[i]["glosses"]})
     )[:4]
     return gidx, unique_dom, max_size, dom_glosses
 

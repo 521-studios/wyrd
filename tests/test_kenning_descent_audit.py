@@ -220,9 +220,14 @@ def test_even_split_screens_both_conductor_edges(lex):
     _edge(lex, proto, a)
     _edge(lex, proto, b)
     lex.commit()
-    keys = {c.edge_key for c in detect_descent_audit_candidates(lex.conn)}
+    cands = detect_descent_audit_candidates(lex.conn)
+    keys = {c.edge_key for c in cands}
     assert "ine-pro:*x->latin:alpha" in keys
     assert "ine-pro:*x->latin:beta" in keys
+    # On a tie there is no single dominant sense, so dom_glosses widens to the
+    # union of ALL tied top sense-groups — pins _dominant_sense's tie path
+    # (a `[top[0]]`/`[unique_dom]` would drop one sense or KeyError on None).
+    assert set(cands[0].cluster_dominant_glosses) == {"fire flame", "water river"}
 
 
 # --- round-trip (reviewer P2) ---
