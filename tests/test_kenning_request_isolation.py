@@ -11,6 +11,8 @@ call. Seed-deterministic → non-flaky.
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.generators.kenning.generators.kenning import Kenning
 
 
@@ -59,3 +61,17 @@ def test_no_request_derived_caches_persist_on_the_generator():
     ng, _ = _load_culture("english")
     assert not hasattr(ng, "_vector_eligible_cache")
     assert not hasattr(ng, "_vector_slot_score_cache")
+
+
+def test_empty_tag_pool_raises_instead_of_reusing_a_warmed_pool():
+    """A --tag with zero eligible morphemes ("religion" isn't a real corpus
+    tag — it's "religious") must fail loudly, NOT silently reuse a pool warmed
+    by an earlier valid tag. The cache bug masked exactly this: it served the
+    first tag's pool, so the empty tag never raised. wyrd-i7uy unmasked it; lock
+    the unmasked behavior in (the raise itself is pre-existing, kenning.py)."""
+    k = Kenning()
+    # Warm the shared generator with a valid tag first — the old bug would have
+    # made the next (empty) tag reuse this pool and return water names.
+    k.generate({"culture": "english", "tags": ["water"]}, seed=0)
+    with pytest.raises(ValueError, match="no eligible name"):
+        k.generate({"culture": "english", "tags": ["religion"]}, seed=0)

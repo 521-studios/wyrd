@@ -891,7 +891,7 @@ class NameGenerator:
         # back to the per-usage filter only.
         self.culture_attested_meanings: dict[str, frozenset[str]] | None = culture_attested_meanings
         # wyrd-i7uy: the vector path's eligibility pool + per-slot base-score map
-        # are built FRESH per generate() call (see _vector_caches) and never
+        # are built FRESH per generate() call (see _build_vector_pools) and never
         # stored on the instance. The NameGenerator is shared (one per culture via
         # _load_culture's cache) and long-lived behind the Lambda, so persisting
         # request-derived state here leaked across requests (a tag-filtered pool
@@ -1073,7 +1073,7 @@ class NameGenerator:
         # fresh per call and live only for this dispatch (no cross-request state).
         # exclude_tags_fz is also threaded into the per-slot _score below.
         exclude_tags_fz = frozenset(exclude_tags)
-        non_position_eligible, slot_base_scores = self._vector_caches(
+        non_position_eligible, slot_base_scores = self._build_vector_pools(
             request,
             exclude_tags_fz,
             pack_meaning_dbs,
@@ -1150,7 +1150,7 @@ class NameGenerator:
         )
         return new_name
 
-    def _vector_caches(
+    def _build_vector_pools(
         self,
         request,
         exclude_tags_fz: frozenset[str],

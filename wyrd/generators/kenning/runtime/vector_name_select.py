@@ -371,22 +371,16 @@ def build_non_position_eligible(
 ) -> list[Meaning]:
     """Pre-compute the non-position-filtered eligibility pool.
 
-    Era, stratum, and exclude_tags don't depend on the slot — they
-    apply uniformly across every slot in the structure. Pulling this
-    out into a free function lets the caller cache the result across
-    sub-seeds (the dispatch loop calls
-    :meth:`NameGenerator.select_via_vector` once per sub-seed; without
-    caching, this O(N=64k) scan re-runs every time).
-
-    Caller-side cache key for the result:
-    ``(id(meaning_db), gate, exclude_tags, packs, id(pack_meaning_dbs),
-       culture_attested_usages, id(culture_attested_meanings))`` —
-    same meaning_db + same filters + same pack overlays + same
-    culture sets → identical output. The list is per-meaning
-    order-stable across re-runs (we walk ``meaning_db.items()`` which
-    is insertion-ordered in Python 3.7+), so the caller can re-use
-    the cached list directly in the weighted-sampling loop without
-    re-shuffling.
+    The gate (era / stratum / required_tags / exclude_tags) doesn't depend on the
+    slot — it applies uniformly across every slot in the structure. Pulling this
+    out into a free function lets one call build the pool once and reuse it across
+    that dispatch's struct retries (the per-call caller is
+    :meth:`NameGenerator._build_vector_pools`; wyrd-i7uy: the pool is built fresh
+    per ``generate()`` call and discarded on return — never cached across
+    requests, because it depends on the request's gate, incl. ``required_tags``).
+    The list is per-meaning order-stable (we walk ``meaning_db.items()``, which is
+    insertion-ordered in Python 3.7+), so the weighted-sampling loop can consume it
+    directly without re-shuffling.
 
     ``culture_attested_usages`` is the per-usage culture-bleed filter
     (wyrd-361): only Meanings whose ``usage`` key appears in this
@@ -445,46 +439,6 @@ def build_non_position_eligible(
     return non_position_eligible
 
 
-def request_signature(request: RequestVector) -> tuple:
-    """Return a hashable signature of the ``RequestVector`` fields
-    that affect ``score()``'s output. Used as a cache key by the
-    slot-scoring path so two distinct ``RequestVector`` instances
-    with identical content hit the same cached weighted list.
-
-    The signature folds:
-
-    * The gate (culture / era / stratum / required_tags). Score
-      doesn't read these directly, but they're already filtered into
-      the eligibility pool, so different gates need different caches —
-      two requests differing only in ``--tag`` (required_tags) have
-      different pools and must not share cached scores.
-    * The register's three dict axes (``semantic_tags``,
-      ``phonological``, ``position_bias``) as frozensets so dict-
-      iteration order doesn't change the key. All three are read by
-      one of ``phon_score`` / ``sem_score`` / ``pos_score``;
-      omitting any would let cached scores survive a register-axis
-      change.
-    * The four ``ScoringWeights`` fields.
-    * The ``packs`` tuple (each :class:`PackOverlay` is already a
-      hashable frozen dataclass).
-    """
-    return (
-        request.gate.culture,
-        request.gate.era_min,
-        request.gate.era_max,
-        request.gate.stratum,
-        request.gate.required_tags,
-        frozenset(request.register.semantic_tags.items()),
-        frozenset(request.register.phonological.items()),
-        frozenset(request.register.position_bias.items()),
-        request.weights.phon_w,
-        request.weights.sem_w,
-        request.weights.pos_w,
-        request.weights.base_w,
-        request.packs,
-    )
-
-
 def build_slot_base_scores(
     non_position_eligible: list[Meaning],
     *,
@@ -500,9 +454,10 @@ def build_slot_base_scores(
 
     "Base score" = phon + sem + pos + baseline. It excludes the
     cohesion-multiplier step (which depends on prior-slot picks +
-    is per-sample). Caching this list across sub-seeds in a
-    count>1 dispatch saves the O(P) score loop per sub-seed —
-    typically the dominant cost in count=N vector latency.
+    is per-sample). The caller memoizes this list within one dispatch
+    (reused across that call's struct retries) so the O(P) score loop
+    runs once per (slot, request) per call — wyrd-i7uy: per-call only,
+    never cached across requests.
 
     ``slot_qualifier`` (wyrd-izcr) restricts the pool by qualifier
     flag when the structure's word_key carried one. The predicates
