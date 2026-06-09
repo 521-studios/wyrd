@@ -537,6 +537,25 @@ def test_select_dev_subset_none_keeps_all_referenced_usages() -> None:
     assert set(props_out["english"]["usages"]) == {"-ham-", "-ton-"}
 
 
+def test_generation_subset_preserves_cohesion_tag_tables() -> None:
+    """wyrd-ukq0 × wyrd-e2b4: the trim drops unreferenced SUBJECTS but MUST keep
+    tag_marginal + tag_cooccurrence in FULL — cohesion (build_cohesion_table)
+    derives its conditional-probability table from exactly those two tables at
+    load, so silently dropping them under the trim would break the --cohesion
+    knob on the trimmed runtime DB. Pin them through the uncapped path."""
+    proportions = {"english": _proportions({"-ham-": 100}, {"-castle": 20})}
+    # _proportions seeds tag_marginal={"water": 1}, tag_cooccurrence={"water|tree": 1}
+    _, _, _, props_out = select_dev_subset(
+        [_subject("-ham-")],
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=None,
+    )
+    assert props_out["english"]["tag_marginal"] == {"water": 1}
+    assert props_out["english"]["tag_cooccurrence"] == {"water|tree": 1}
+
+
 def test_write_runtime_db_rejects_dev_and_generation_subset(tmp_path: Path) -> None:
     """The two subset modes are mutually exclusive — guarded at the library
     layer (defense-in-depth backstop for non-CLI callers), raised before any
