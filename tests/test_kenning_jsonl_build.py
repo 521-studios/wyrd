@@ -2212,14 +2212,18 @@ def test_build_fantasy_morpheme_via_init_schema_barred_row(tmp_path: Path):
         assert counts["fantasy_morpheme"] == 1
         assert counts["fantasy_morpheme_orphans"] == 0
         row = conn.execute(
-            "SELECT input_name, usable, bar_reason, etymon_id, "
-            "unapproved_language, unapproved_form FROM fantasy_morpheme"
+            "SELECT input_name, usable, bar_reason, etymon_id, resolution_method, "
+            "approach_version, unapproved_language, unapproved_form FROM fantasy_morpheme"
         ).fetchone()
         assert row is not None, "expected one barred fantasy_morpheme row after build"
         assert row["input_name"] == "Vrock"
         assert row["usable"] == 0
         assert row["bar_reason"] == "modern_coinage"
         assert row["etymon_id"] is None
+        # The required NOT NULL scalars must round-trip on the barred /
+        # etymon_id-NULL path too (a distinct code path from usable=1).
+        assert row["resolution_method"] == "llm_full_research"
+        assert row["approach_version"] == "fantasy-v1"
         assert row["unapproved_language"] == "japanese"
         assert row["unapproved_form"] == "vurokku"
     finally:
@@ -2262,7 +2266,9 @@ def test_build_fantasy_morpheme_dedup_respects_approach_version(tmp_path: Path):
                 "_type": "fantasy_morpheme",
                 "input_name": "angel",
                 "usable": 1,
-                "resolution_method": "descent_lookup",
+                # Distinct from the pre-populated v1 row so the assertions can
+                # confirm the v2 row is the freshly-replayed one, not a mutation.
+                "resolution_method": "llm_full_research",
                 "approach_version": "fantasy-v2",
                 "processed_at": "2026-05-20T00:00:00+00:00",
             },
@@ -2275,11 +2281,18 @@ def test_build_fantasy_morpheme_dedup_respects_approach_version(tmp_path: Path):
         counts = build_from_jsonl(conn, jsonl_paths_in(jsonl_dir))
         assert counts["fantasy_morpheme"] == 1  # v2 is a NEW row, not a dupe of v1
         rows = conn.execute(
-            "SELECT approach_version FROM fantasy_morpheme ORDER BY approach_version"
+            "SELECT approach_version, resolution_method FROM fantasy_morpheme "
+            "ORDER BY approach_version"
         ).fetchall()
         assert [r["approach_version"] for r in rows] == ["fantasy-v1", "fantasy-v2"], (
             "composite UNIQUE must let a bumped approach_version re-process the input"
         )
+        # Each surviving row carries its OWN fields — the v2 row is the
+        # replayed one, not an in-place edit of the v1 row.
+        assert [r["resolution_method"] for r in rows] == [
+            "descent_lookup",
+            "llm_full_research",
+        ]
     finally:
         conn.close()
 
