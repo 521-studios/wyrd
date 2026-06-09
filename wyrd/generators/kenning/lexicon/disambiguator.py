@@ -631,22 +631,9 @@ def find_ambiguous_rows(
         """
     ).fetchall()
 
-    # Build (normalized_form, [Candidate, ...]) so the inner loop can
+    # Build (normalized_form, [Candidate, ...]) so the per-group loop can
     # gather every etymon close to a given matched_form.
-    by_norm: dict[str, list[Candidate]] = {}
-    for r in etymon_rows:
-        norm = normalize_ocr_form(r["canonical_form"])
-        glosses = tuple((r["glosses"] or "").split(sep)) if r["glosses"] else ()
-        tags = tuple((r["tags"] or "").split(sep)) if r["tags"] else ()
-        by_norm.setdefault(norm, []).append(
-            Candidate(
-                etymon_id=r["id"],
-                canonical_form=r["canonical_form"],
-                language=r["language"],
-                glosses=tuple(g for g in glosses if g),
-                tags=tuple(t for t in tags if t),
-            )
-        )
+    by_norm = _index_etymons_by_norm(etymon_rows, sep)
 
     # Group fuzzy rows by (source_id, matched_form) so a single
     # ambiguity decision serves every row that observed the same body
@@ -659,20 +646,7 @@ def find_ambiguous_rows(
 
     cases: list[AmbiguityCase] = []
     for (source_id, matched_form), rows in grouped.items():
-        target = normalize_ocr_form(matched_form)
-        candidates: list[Candidate] = []
-        seen_etymon_ids: set[int] = set()
-        for norm, etymons in by_norm.items():
-            if abs(len(norm) - len(target)) > max_distance:
-                continue
-            d = levenshtein(norm, target, max_distance=max_distance)
-            if d > max_distance:
-                continue
-            for c in etymons:
-                if c.etymon_id in seen_etymon_ids:
-                    continue
-                seen_etymon_ids.add(c.etymon_id)
-                candidates.append(c)
+        candidates = _candidates_for_form(normalize_ocr_form(matched_form), by_norm, max_distance)
         # Cost gate: only ambiguous when ≥ 2 distinct etymons within range.
         # (One candidate means the matched_form is unambiguous already.)
         if len(candidates) < 2:
@@ -694,6 +668,49 @@ def find_ambiguous_rows(
         if limit is not None and len(cases) >= limit:
             break
     return cases
+
+
+def _index_etymons_by_norm(etymon_rows: list[Any], sep: str) -> dict[str, list[Candidate]]:
+    """Index live etymons by OCR-normalized canonical form → Candidates, so the
+    ambiguity scan can gather every etymon close to a matched form. Glosses/tags
+    come from the ``sep``-joined GROUP_CONCAT columns, split back to tuples."""
+    by_norm: dict[str, list[Candidate]] = {}
+    for r in etymon_rows:
+        norm = normalize_ocr_form(r["canonical_form"])
+        glosses = tuple(r["glosses"].split(sep)) if r["glosses"] else ()
+        tags = tuple(r["tags"].split(sep)) if r["tags"] else ()
+        by_norm.setdefault(norm, []).append(
+            Candidate(
+                etymon_id=r["id"],
+                canonical_form=r["canonical_form"],
+                language=r["language"],
+                glosses=tuple(g for g in glosses if g),
+                tags=tuple(t for t in tags if t),
+            )
+        )
+    return by_norm
+
+
+def _candidates_for_form(
+    target: str, by_norm: dict[str, list[Candidate]], max_distance: int
+) -> list[Candidate]:
+    """All distinct live etymons whose normalized form is within ``max_distance``
+    (Levenshtein) of ``target``, de-duped by etymon_id in by_norm iteration
+    order (which tracks first-seen for deterministic case sequencing)."""
+    candidates: list[Candidate] = []
+    seen_etymon_ids: set[int] = set()
+    for norm, etymons in by_norm.items():
+        if abs(len(norm) - len(target)) > max_distance:
+            continue
+        d = levenshtein(norm, target, max_distance=max_distance)
+        if d > max_distance:
+            continue
+        for c in etymons:
+            if c.etymon_id in seen_etymon_ids:
+                continue
+            seen_etymon_ids.add(c.etymon_id)
+            candidates.append(c)
+    return candidates
 
 
 def apply_disambiguator_result(
