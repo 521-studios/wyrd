@@ -188,6 +188,55 @@ def test_personal_name_match_corroborates_briggs(tmp_path):
     db.close()
 
 
+def test_element_ordinals_preserve_lexical_then_personal_name_order(tmp_path):
+    """The breakdown lists lexical elements before personal-name elements, in
+    parse order: ordinal 1 = lēah (lexical), ordinal 2 = Earda (resolved name).
+    Pins the two-pass collect→resolve ref ordering."""
+    import json
+
+    idx = load_name_index(_briggs_fixture(tmp_path / "briggs.jsonl"))
+    csv = _write_csv(
+        tmp_path / "shire.csv",
+        [
+            (
+                "Ardeley",
+                "'Earda's wood/clearing'.",
+                "lēah Old English - A clearing; "
+                "Personal name (Old English) Old English - Personal name",
+                "DEPN",
+            ),
+        ],
+    )
+    out = tmp_path / "kepn.jsonl"
+    emit_kepn_jsonl(csv, out, county="Shire", name_index=idx)
+    records = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    ee = next(r for r in records if r["_type"] == "etymology_element")
+    assert ee["elements"] == [
+        {"ordinal": 1, "etymon_ref": "old-english:lēah"},
+        {"ordinal": 2, "etymon_ref": "old-english:Earda"},
+    ]
+
+
+def test_note_etymon_backfills_gloss_across_places(tmp_path):
+    """When one place cites an element with no gloss and a later place cites the
+    SAME (form, lang) with a gloss, the merged etymon carries the gloss. Pins
+    the _note_etymon dedup back-fill."""
+    import json
+
+    csv = _write_csv(
+        tmp_path / "shire.csv",
+        [
+            ("Ashby", "no gloss here.", "æsc Old English", ""),
+            ("Ashwell", "'Ash spring'.", "æsc Old English - Ash; wella Old English - Spring.", ""),
+        ],
+    )
+    out = tmp_path / "kepn.jsonl"
+    emit_kepn_jsonl(csv, out, county="Shire", name_index={})
+    records = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    aesc = next(r for r in records if r["_type"] == "etymon" and r["ref"] == "old-english:æsc")
+    assert aesc.get("glosses") == ["Ash"]
+
+
 def test_personal_name_miss_yields_partial_breakdown_note(tmp_path):
     idx = load_name_index(_briggs_fixture(tmp_path / "briggs.jsonl"))
     csv = _write_csv(
