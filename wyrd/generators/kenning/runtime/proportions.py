@@ -1291,12 +1291,6 @@ class NewName:
             return  # nothing to resolve siblings against (e.g. render-only tests)
         from wyrd.generators.kenning import _rank_siblings
 
-        # Meaning.sources is normally a {lang: [forms]} dict, but synthetic
-        # Meanings (some tests) pass a bare list — treat a non-dict as "no
-        # language data" so diversification simply no-ops there.
-        def _langs(m) -> set[str]:
-            return set(m.sources.keys()) if isinstance(getattr(m, "sources", None), dict) else set()
-
         # wyrd-72q9: stable per-name signature for varied-but-deterministic
         # re-picks (hash the name, NOT the rng, so it stays seed-stable).
         name_sig = "|".join("/".join(c for c in w if c) for w in self.name)
@@ -1310,36 +1304,59 @@ class NewName:
                 fold = surface.replace("-", "").lower()
                 siblings = _rank_siblings(_resolve_surface(self.meaning_db, usage))
                 canon = siblings[0] if siblings else None
-                canon_langs = _langs(canon) if canon else set()
                 if fold not in seen:
-                    seen[fold] = set(canon_langs)
+                    seen[fold] = self._meaning_langs([canon]) if canon else set()
                     continue
-                # Repeat. Prefer a same-meaning synonym in another language
-                # ("Hill Hill" → "Hill Haeth"). If none exists, REJECT the
-                # repeat and re-pick a DIFFERENT same-position morpheme
-                # ("Park ... Park" → "Park ... <other>") — wyrd-72q9.
-                alt = self._cross_lang_synonym(canon, siblings, seen[fold] | canon_langs)
-                if alt is not None:
-                    sib, lang, form = alt
-                    lead = usage[: len(usage) - len(usage.lstrip("-"))]
-                    trail = usage[len(usage.rstrip("-")) :]
-                    grafted = f"{lead}{form.strip('-')}{trail}"
-                    if self.rendered is None:
-                        self.rendered = [[None] * len(w) for w in self.name]
-                    self.rendered[wi][ei] = grafted
-                    self._lang_override[wi][ei] = sib
-                    seen.setdefault(form.strip("-").lower(), set()).add(lang)
-                    continue
-                repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
-                if repl is not None:
-                    self.name[wi][ei] = repl
-                    if self.rendered is not None:
-                        self.rendered[wi][ei] = None
-                    if self.inflection_labels is not None:
-                        self.inflection_labels[wi][ei] = None
-                    repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
-                    seen[repl.strip("-").lower()] = _langs(repl_sibs[0]) if repl_sibs else set()
-                # else: nothing else of this position available → leave the dupe.
+                # Repeat: resolve it (cross-language synonym → re-pick → leave).
+                self._resolve_repeat(wi, ei, usage, fold, canon, siblings, seen, name_sig)
+
+    def _resolve_repeat(self, wi, ei, usage, fold, canon, siblings, seen, name_sig) -> None:
+        """Resolve one repeated surface (wyrd-vd6y / wyrd-72q9): prefer a
+        same-meaning synonym in a DIFFERENT language ("Hill Hill" → "Hill Haeth",
+        a render override); else re-pick a DIFFERENT same-position morpheme
+        ("Park ... Park" → "Park ... <other>", replacing the name key); else
+        leave the duplicate. Updates ``seen`` in place with whatever fold /
+        language the resolution introduces. Deterministic — no rng."""
+        from wyrd.generators.kenning import _rank_siblings
+
+        canon_langs = self._meaning_langs([canon]) if canon else set()
+        alt = self._cross_lang_synonym(canon, siblings, seen[fold] | canon_langs)
+        if alt is not None:
+            sib, lang, form = alt
+            lead = usage[: len(usage) - len(usage.lstrip("-"))]
+            trail = usage[len(usage.rstrip("-")) :]
+            grafted = f"{lead}{form.strip('-')}{trail}"
+            if self.rendered is None:
+                self.rendered = [[None] * len(w) for w in self.name]
+            self.rendered[wi][ei] = grafted
+            self._lang_override[wi][ei] = sib
+            seen.setdefault(form.strip("-").lower(), set()).add(lang)
+            return
+        repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
+        if repl is not None:
+            self.name[wi][ei] = repl
+            if self.rendered is not None:
+                self.rendered[wi][ei] = None
+            if self.inflection_labels is not None:
+                self.inflection_labels[wi][ei] = None
+            repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
+            seen[repl.strip("-").lower()] = (
+                self._meaning_langs([repl_sibs[0]]) if repl_sibs else set()
+            )
+        # else: nothing else of this position available → leave the dupe.
+
+    @staticmethod
+    def _meaning_langs(meanings) -> set[str]:
+        """Union of source-languages across ``meanings``. Meaning.sources is
+        normally a ``{lang: [forms]}`` dict, but synthetic Meanings (some tests)
+        pass a bare list — a non-dict contributes no languages, so diversification
+        simply no-ops there."""
+        return {
+            lang
+            for m in meanings
+            if isinstance(getattr(m, "sources", None), dict)
+            for lang in m.sources
+        }
 
     @staticmethod
     def _cross_lang_synonym(canon, siblings, exclude_langs):
@@ -1377,40 +1394,52 @@ class NewName:
         when nothing appropriate is available (then the dupe is left as-is)."""
         import hashlib
 
-        def _pos(u: str) -> tuple[bool, bool]:
-            return (u.startswith("-"), u.endswith("-"))
-
-        def _langs_of(ms) -> set[str]:
-            out: set[str] = set()
-            for m in ms:
-                if isinstance(getattr(m, "sources", None), dict):
-                    out |= set(m.sources.keys())
-            return out
-
-        want = _pos(usage)
-        canon_langs = _langs_of([canon]) if canon is not None else set()
+        want = self._position_markers(usage)
+        canon_langs = self._meaning_langs([canon]) if canon is not None else set()
         canon_tags = set(getattr(canon, "tags", []) or [])
-
-        same_lang: list[str] = []
-        tag_sharing: list[str] = []
-        for k, ms in self.meaning_db.items():
-            if not isinstance(k, str) or _pos(k) != want:
-                continue
-            kf = k.strip("-").lower()
-            if not kf or kf in seen_folds:
-                continue
-            # Keep the same language family (skip the filter only when the
-            # original carries no language data, e.g. synthetic test Meanings).
-            if canon_langs and not (_langs_of(ms) & canon_langs):
-                continue
-            same_lang.append(k)
-            if canon_tags and ({t for m in ms for t in getattr(m, "tags", [])} & canon_tags):
-                tag_sharing.append(k)
+        same_lang, tag_sharing = self._collect_repick_pools(
+            want, seen_folds, canon_langs, canon_tags
+        )
         pool = sorted(tag_sharing) or sorted(same_lang)
         if not pool:
             return None
         h = int(hashlib.md5(f"{name_sig}#{wi}.{ei}".encode()).hexdigest(), 16)
         return pool[h % len(pool)]
+
+    @staticmethod
+    def _position_markers(usage: str) -> tuple[bool, bool]:
+        """Position signature of a bucket key: (has-leading-dash, has-trailing-
+        dash) — distinguishes pre 'X-' / post '-X' / inner '-X-' / bare 'X'."""
+        return (usage.startswith("-"), usage.endswith("-"))
+
+    def _collect_repick_pools(self, want, seen_folds, canon_langs, canon_tags):
+        """Scan meaning_db for same-position re-pick candidates (wyrd-72q9):
+        same position as ``want``, not already used (``seen_folds``), and sharing
+        a SOURCE LANGUAGE with the original (the language filter is skipped only
+        when the original carries no language data, e.g. synthetic test
+        Meanings). Returns ``(same_lang, tag_sharing)`` — ``tag_sharing`` is the
+        subset additionally sharing a thematic tag with the original."""
+        same_lang: list[str] = []
+        tag_sharing: list[str] = []
+        # Localize the staticmethod lookups — this loop scans the whole
+        # meaning_db (thousands of buckets), so per-iteration self. attribute
+        # resolution is measurable overhead.
+        pos_markers = self._position_markers
+        meaning_langs = self._meaning_langs
+        for k, ms in self.meaning_db.items():
+            if not isinstance(k, str) or pos_markers(k) != want:
+                continue
+            kf = k.strip("-").lower()
+            if not kf or kf in seen_folds:
+                continue
+            if canon_langs and not (meaning_langs(ms) & canon_langs):
+                continue
+            same_lang.append(k)
+            if canon_tags and (
+                {t for m in ms for t in getattr(m, "tags", None) or []} & canon_tags
+            ):
+                tag_sharing.append(k)
+        return same_lang, tag_sharing
 
     def __str__(self):
         # wyrd-3xdb: title-case the first letter of each space-
