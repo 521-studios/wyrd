@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -66,8 +65,6 @@ def lexicon_dump_jsonl(
     the source of truth and the SQLite DB becomes a rebuildable build
     artifact.
     """
-    from urllib.parse import quote
-
     from wyrd.generators.kenning.jsonl.dump import (
         DEFAULT_BULK_EXCLUDED_SOURCES,
         dump_all_sources,
@@ -76,21 +73,16 @@ def lexicon_dump_jsonl(
         dump_source_to_file,
     )
 
-    # Read-only DB access — dump never writes.
-    db_uri = f"file:{quote(str(db_path.absolute()))}?mode=ro"
-    conn = sqlite3.connect(db_uri, uri=True)
-    conn.row_factory = sqlite3.Row
-
     exclude = () if include_bulk else DEFAULT_BULK_EXCLUDED_SOURCES
 
-    # Pre-initialize so the post-try summary doesn't UnboundLocalError
-    # if dump_all_sources raises (the finally still runs; control then
-    # jumps past the summary lines, but a future maintainer reorganizing
-    # this block won't trip on a phantom name binding).
+    # Pre-initialize so the post-block summary doesn't UnboundLocalError
+    # if dump_all_sources raises (a future maintainer reorganizing this
+    # block won't trip on a phantom name binding).
     counts: dict[str, int] = {}
     fm_count = 0
     reflex_count = 0
-    try:
+    # Read-only DB access — dump never writes.
+    with _readonly_lexicon(db_path) as conn:
         if source_id is not None:
             path, count = dump_source_to_file(conn, source_id, out_dir)
             click.echo(f"Wrote {count} rows → {path}", err=True)
@@ -102,8 +94,6 @@ def lexicon_dump_jsonl(
         # wyrd-ned5: the seed reflex layer has no source attribution —
         # emit to the synthetic ``_reflexes.jsonl`` file.
         _, reflex_count = dump_reflexes_to_file(conn, out_dir)
-    finally:
-        conn.close()
 
     total_rows = sum(counts.values()) + fm_count + reflex_count
     sources_dumped = len(counts) + (1 if fm_count else 0) + (1 if reflex_count else 0)

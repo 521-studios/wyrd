@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import click
 
 from wyrd.generators.kenning import fantasy_pipeline
-from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
@@ -48,8 +47,7 @@ def lexicon_backfill_fantasy_tags(db_path: Path, apply_changes: bool) -> None:
         )
     else:
         # Dry-run: count without writing.
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        try:
+        with _readonly_lexicon(db_path) as conn:
             n = conn.execute("""SELECT COUNT(DISTINCT et.etymon_id)
                    FROM etymon_tag et
                    WHERE et.tag = 'monster'
@@ -57,8 +55,6 @@ def lexicon_backfill_fantasy_tags(db_path: Path, apply_changes: bool) -> None:
                        SELECT 1 FROM etymon_tag et2
                        WHERE et2.etymon_id = et.etymon_id AND et2.tag = 'fantasy'
                      )""").fetchone()[0]
-        finally:
-            conn.close()
         click.echo(
             f"Would backfill `fantasy` tag onto {n} monster-tagged etymon(s). "
             f"(dry-run; pass --apply to write)",

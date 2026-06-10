@@ -160,9 +160,11 @@ def test_cli_lexicon_files_do_not_define_db_helpers() -> None:
     cli_lex_dir = _KENNING_ROOT / "cli" / "lexicon"
     skip: frozenset[str] = frozenset(
         {
-            "backfill_fantasy_tags.py",
+            # wyrd-mewu: remaining direct-sqlite3 files awaiting migration. The
+            # read-only ones (backfill_fantasy_tags, dump_jsonl) are done; these
+            # are writers / multi-DB comparisons needing a LexiconDB context or
+            # conditional rw/ro handling (heavier refactor).
             "diff_rebuild.py",
-            "dump_jsonl.py",
             "ingest_domesday.py",
             "rebuild_from_jsonl.py",
             "review.py",
