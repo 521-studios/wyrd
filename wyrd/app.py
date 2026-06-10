@@ -217,7 +217,11 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
     return jsonify(
         envelope(
             generator=generator.name,
-            parameters=params,
+            # Echo the operator's params, minus internal ``_``-prefixed request-
+            # scratch keys (e.g. wyrd-dag4's ``_vector_pool_cache``, which holds
+            # non-serializable request-scoped state). The client never sends
+            # ``_``-prefixed keys, so this returns exactly what it sent.
+            parameters={k: v for k, v in params.items() if not k.startswith("_")},
             seed=seed,
             results=results,
             bundle_version=bundle_version,

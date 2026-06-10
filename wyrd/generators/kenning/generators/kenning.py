@@ -497,6 +497,15 @@ class Kenning(Generator):
             # so the renderer can tell era="" (→ native default) from an explicit
             # era that resolves to no render-language (→ modern).
             era_requested=bool(params.get("era")),
+            # wyrd-dag4: a REQUEST-scoped cache for the vector eligibility pool.
+            # It lives in ``params`` — the same dict the app's count loop reuses
+            # across all N names — so the pool is built once per request and
+            # reused across the count loop, then discarded with ``params`` when
+            # the request ends. NOT on the shared per-culture name_gen, so it
+            # never leaks across requests (the wyrd-i7uy rule). Single-result /
+            # test callers pass no count loop → a fresh {} each call (no reuse,
+            # prior behavior).
+            pool_cache=params.setdefault("_vector_pool_cache", {}),
         )
         if new_name is None:
             # Vector path filtered everything (empty register + empty
@@ -625,6 +634,7 @@ def _generate_via_vector(
     novelty: float = 0.0,
     era_render_language: str | None = None,
     era_requested: bool = False,
+    pool_cache: dict | None = None,
 ):
     """Dispatch helper for vector scoring (the only scoring path).
 
@@ -746,4 +756,5 @@ def _generate_via_vector(
         novelty=novelty,
         era_render_language=era_render_language,
         era_requested=era_requested,
+        pool_cache=pool_cache,
     )
