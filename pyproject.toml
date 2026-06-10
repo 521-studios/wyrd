@@ -108,7 +108,6 @@ max-complexity = 10
 "scripts/**" = ["C901"]
 "wyrd/defects.py" = ["C901"]
 "wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions_staged.py" = ["C901"]
-"wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions_tiered.py" = ["C901"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
