@@ -18,6 +18,7 @@
 
   import { appState } from '../lib/appState.svelte.js';
   import { flagOn } from '../lib/featureFlags.js';
+  import { selectSingle, toggleMulti, removeValue } from '../lib/composerSelection.js';
 
   let { open = $bindable(false) } = $props();
 
@@ -105,21 +106,21 @@
     };
   });
 
-  function toggleMood(m) {
-    workingMoods = workingMoods.includes(m)
-      ? workingMoods.filter((x) => x !== m)
-      : [...workingMoods, m];
+  // wyrd-tbcj.1: moods are single-select (radio-style) to match the
+  // runtime's "one mood morpheme per name" overlay (wyrd-4rp8/#565) —
+  // selecting another mood replaces the current one, re-clicking clears it.
+  // Tags stay multi-select. See lib/composerSelection.js.
+  function selectMood(m) {
+    workingMoods = selectSingle(workingMoods, m);
   }
   function removeMood(m) {
-    workingMoods = workingMoods.filter((x) => x !== m);
+    workingMoods = removeValue(workingMoods, m);
   }
   function toggleTag(t) {
-    workingTags = workingTags.includes(t)
-      ? workingTags.filter((x) => x !== t)
-      : [...workingTags, t];
+    workingTags = toggleMulti(workingTags, t);
   }
   function removeTag(t) {
-    workingTags = workingTags.filter((x) => x !== t);
+    workingTags = removeValue(workingTags, t);
   }
 
   function apply() {
@@ -180,7 +181,8 @@
                   type="button"
                   class="opt"
                   class:active={workingMoods.includes(m)}
-                  onclick={() => toggleMood(m)}
+                  aria-pressed={workingMoods.includes(m)}
+                  onclick={() => selectMood(m)}
                 >{m}</button>
               {/each}
             </div>
@@ -205,9 +207,9 @@
 
       <section class="active" aria-label="Active stack">
         {#if showMoods}
-          <h3>Moods <span class="count">({workingMoods.length})</span></h3>
+          <h3>Mood <span class="count">(one per name)</span></h3>
           {#if workingMoods.length === 0}
-            <p class="empty">No moods selected. Click a mood at left to add.</p>
+            <p class="empty">No mood selected. Click a mood at left to set one.</p>
           {:else}
             <div class="chips">
               {#each workingMoods as m (m)}
