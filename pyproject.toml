@@ -97,17 +97,14 @@ ignore = ["E501", "SIM108"]
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
-# Pre-existing over-the-floor functions, grandfathered so C901 catches only
-# NEW complexity (the wyrd-8uvi sweep already cleared every other function in
-# wyrd/generators/kenning/). Tests/scripts are exempt by convention; the
-# remaining kenning file is the x82p toponym-mentions group (its own epic);
-# wyrd/defects.py:list_defects (11) is a minor deferred cleanup. era/cells.py
-# was cleared by the wyrd-8uvi follow-up sweep.
+# The wyrd-8uvi sweep (+ follow-ups) cleared EVERY over-the-floor function in
+# wyrd/generators/kenning/, so the McCabe <=10 floor is now fully enforced
+# there with no kenning exceptions. Tests/scripts stay exempt by convention;
+# wyrd/defects.py:list_defects (11) is a minor deferred cleanup outside kenning.
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["C901"]
 "scripts/**" = ["C901"]
 "wyrd/defects.py" = ["C901"]
-"wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions_staged.py" = ["C901"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
