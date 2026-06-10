@@ -92,6 +92,12 @@ _CURRENT_POINTER_KEY = "current.json"
 _conn: sqlite3.Connection | None = None
 _conn_lock = threading.Lock()
 
+# wyrd-04oi: the DB file path the cached connection opened against, recorded so
+# the decomposition matcher cache can find its ``<db>.matcher.pkl`` sidecar
+# beside whichever DB served this container (env override / /tmp etag-cache /
+# downloaded / bundled seed) — same file, same version.
+_resolved_db_path: Path | None = None
+
 
 def get_runtime_db() -> sqlite3.Connection:
     """Return the process-wide read-only SQLite connection to the L4 DB.
@@ -113,6 +119,8 @@ def get_runtime_db() -> sqlite3.Connection:
         if _conn is not None:
             return _conn
         path = _resolve_db_path()
+        global _resolved_db_path
+        _resolved_db_path = path
         # Assign to a local + verify BEFORE promoting to the module
         # global. Promoting first would leak the unverified handle on
         # ``RuntimeDBVersionMismatch``: the exception bubbles, but the
@@ -131,6 +139,23 @@ def get_runtime_db() -> sqlite3.Connection:
             raise
         _conn = conn
     return _conn
+
+
+def runtime_matcher_path() -> Path | None:
+    """wyrd-04oi: the decomposition matcher pickle beside the live runtime DB,
+    or None when there's no sidecar to load.
+
+    Resolved off the DB path the container actually opened (recorded by
+    :func:`get_runtime_db`), so the matcher version always matches the DB
+    version — they ship + cache as siblings (``<db>`` / ``<db>.matcher.pkl``).
+    Returns None when no DB has been opened yet, or no sidecar exists beside it
+    (cold-load then rebuilds the trie from the corpus)."""
+    from .matcher_cache import matcher_sidecar_path
+
+    if _resolved_db_path is None:
+        return None
+    sidecar = matcher_sidecar_path(_resolved_db_path)
+    return sidecar if sidecar.exists() else None
 
 
 def _verify_schema_version(conn: sqlite3.Connection, path: Path) -> None:
@@ -206,7 +231,7 @@ def reset_runtime_db_cache() -> None:  # noqa: V103 — test/ops cache-reset hel
     re-resolves the path + reopens. For tests and operator-driven
     reload (a stat-the-pointer hook in a future PR could rotate
     connections without restarting the container)."""
-    global _conn, _bundle_version_cache
+    global _conn, _bundle_version_cache, _resolved_db_path
     with _conn_lock:
         if _conn is not None:
             try:
@@ -215,6 +240,7 @@ def reset_runtime_db_cache() -> None:  # noqa: V103 — test/ops cache-reset hel
                 _logger.exception("ignoring close error on cached runtime DB")
         _conn = None
         _bundle_version_cache = None
+        _resolved_db_path = None
 
 
 def reset_runtime_db_connection() -> None:
@@ -364,6 +390,7 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
             "runtime DB cache hit (%s); skipping download",
             cached_path,
         )
+        _download_matcher_sidecar(s3, bucket, version_key, cached_path)
         return cached_path
 
     # Download to a unique .tmp file then atomic-rename into place so
@@ -399,7 +426,39 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
         version_key,
         cached_path,
     )
+    _download_matcher_sidecar(s3, bucket, version_key, cached_path)
     return cached_path
+
+
+def _download_matcher_sidecar(s3, bucket: str, version_key: str, cached_db_path: Path) -> None:
+    """wyrd-04oi: best-effort fetch of the decomposition matcher pickle that
+    sits beside the DB in S3 (``<version_key>.matcher.pkl``) into the local
+    sidecar (``<cached_db_path>.matcher.pkl``).
+
+    Silent on absence/failure — a DB published before this feature (or a
+    transient S3 error) simply has no pickle, and the cold-load rebuilds the
+    trie. No-op when the local sidecar already exists (warm /tmp reuse)."""
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    from .matcher_cache import matcher_sidecar_path
+
+    local = matcher_sidecar_path(cached_db_path)
+    if local.is_file():
+        return
+    key = f"{version_key}.matcher.pkl"
+    fd, tmp_str = tempfile.mkstemp(dir=str(local.parent), prefix=local.name + ".", suffix=".tmp")
+    os.close(fd)
+    tmp = Path(tmp_str)
+    try:
+        s3.download_file(bucket, key, str(tmp))
+        tmp.replace(local)
+        _logger.info("matcher pickle downloaded from s3://%s/%s to %s", bucket, key, local)
+    except (ClientError, BotoCoreError, OSError):
+        # Absent (DB predates the sidecar) or transient — fine; cold-load
+        # rebuilds. INFO not exception: a missing pickle is an expected,
+        # non-error state.
+        _logger.info("no matcher pickle at s3://%s/%s; cold-load will rebuild", bucket, key)
+        tmp.unlink(missing_ok=True)
 
 
 def _bundled_seed_path() -> Path:

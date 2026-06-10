@@ -162,7 +162,9 @@ class Name:
                 cnt += meaning.count_unaccounted()
         return cnt
 
-    def find_meaning(self, word_db, reduce=True, joiners=None, *, culture_languages=None):
+    def find_meaning(
+        self, word_db, reduce=True, joiners=None, *, culture_languages=None, trie=None
+    ):
         """Decompose every word in this place name against ``word_db``
         via the trie matcher.
 
@@ -234,7 +236,11 @@ class Name:
         hash doesn't quietly drift this contract.
         """
         self.word_db = word_db
-        trie = _trie_for(word_db)
+        # wyrd-04oi: callers on the decomposition path may inject a prebuilt
+        # trie (e.g. the pickled matcher loaded beside the runtime DB) to skip
+        # the per-cold-container rebuild; default rebuilds (+ in-memory caches).
+        if trie is None:
+            trie = _trie_for(word_db)
         joiner_forms = _build_joiner_lookup(joiners)
         for word in self.words:
             decompositions = (
