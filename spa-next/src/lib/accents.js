@@ -71,6 +71,39 @@ export function accentedUsage(morph) {
 }
 
 /**
+ * wyrd-rogd.17: accent-upgrade an ARBITRARY (bare) form against a morpheme's
+ * renderings — the per-cell counterpart of `accentedUsage`. Returns the
+ * accented `original_script` when a rendering for the same accent+case-folded
+ * form supplies one with a diacritic; otherwise the form unchanged.
+ *
+ * The Output column (col 2) shows `accentedUsage` ("Tongbȳ", "Tretōn"), but the
+ * Inspect era-grid (col 3) historically displayed the plain `cell.form`
+ * ("Tongby", "Treton") — so the two surfaces disagreed on macrons whenever a
+ * rendering carried an accented original_script the stored reflex form didn't.
+ * (#594 fixed the by-ID highlight; this fixes the displayed SURFACE.) Folding
+ * by `accentFold` — not a raw equality — is what lets the ASCII cell form find
+ * its accented rendering.
+ */
+export function accentForm(form, morph) {
+  const bare = stripDashes(form || '');
+  if (!bare || !morph) return form;
+  const target = accentFold(bare);
+  if (!target) return form;
+  const R = morph.renderings || {};
+  for (const lang of Object.keys(R)) {
+    const langForms = R[lang];
+    if (!langForms) continue; // a null lang bucket would crash Object.keys
+    for (const f of Object.keys(langForms)) {
+      const os = langForms[f]?.original_script;
+      if (os && accentFold(f) === target && hasAccent(os)) {
+        return stripDashes(os);
+      }
+    }
+  }
+  return form;
+}
+
+/**
  * wyrd-at53: graft a new surface into a morpheme slot's POSITION, taking the
  * leading/trailing dash markers from `positionFrom` (the slot's generated
  * usage, e.g. "-hām", "-ing-", "Cornel-") and applying the position's case

@@ -16,7 +16,7 @@
   import { languageLabel } from '../lib/languageLabels.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
-  import { graftPosition } from '../lib/accents.js';
+  import { accentForm, graftPosition } from '../lib/accents.js';
   import { cellForSurface, primaryGloss, isGlossDrift, eraAxis } from '../lib/era.js';
 
   let { morpheme } = $props();
@@ -64,8 +64,12 @@
   }
 
   // Display the cell form WITH the slot's placement dashes (tre- / -bȳ / hall)
-  // so every breakdown is placement-consistent.
-  const withPlacement = (form) => graftPosition(originalUsage || morpheme.usage, form);
+  // so every breakdown is placement-consistent. wyrd-rogd.17: accent-upgrade
+  // the cell form first (ASCII "Tongby" → "Tongbȳ") so the Inspect grid shows
+  // the SAME accented surface the Output column does (accentedUsage), instead
+  // of the plain stored reflex form.
+  const withPlacement = (form) =>
+    graftPosition(originalUsage || morpheme.usage, accentForm(form, morpheme));
 
   function swap(stage, cell) {
     const to = graftPosition(originalUsage || morpheme.usage, cell.form);

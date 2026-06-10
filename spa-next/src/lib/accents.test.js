@@ -2,7 +2,7 @@
 // leak into rendered surfaces — it grafts away on display + swap, and folds
 // away for matching. Plus the core accentFold / graftPosition behavior.
 import { describe, it, expect } from 'vitest';
-import { accentFold, graftPosition } from './accents.js';
+import { accentForm, accentFold, graftPosition } from './accents.js';
 
 describe('accentFold', () => {
   it('folds case, diacritics, dashes — and the reconstructed * marker', () => {
@@ -14,6 +14,44 @@ describe('accentFold', () => {
     expect(accentFold('*ur')).toBe('ur');
     expect(accentFold('*ur')).toBe(accentFold('ur'));
     expect(accentFold('*bearwe')).toBe('bearwe');
+  });
+});
+
+describe('accentForm (wyrd-rogd.17: Inspect grid cell matches Output accents)', () => {
+  // A morpheme whose stored reflex form is ASCII ("Tongby") but whose
+  // rendering carries the accented original_script ("Tongbȳ") — the exact
+  // Output/Inspect divergence the ticket reports.
+  const morph = {
+    renderings: {
+      old_english: {
+        Tongby: { original_script: 'Tongbȳ' },
+        Treton: { original_script: 'Tretōn' },
+      },
+    },
+  };
+
+  it('upgrades an ASCII cell form to its accented original_script', () => {
+    expect(accentForm('Tongby', morph)).toBe('Tongbȳ');
+    expect(accentForm('Treton', morph)).toBe('Tretōn');
+  });
+
+  it('folds (case/dash) when matching the rendering — not raw equality', () => {
+    expect(accentForm('tongby', morph)).toBe('Tongbȳ');
+    expect(accentForm('-Tongby', morph)).toBe('Tongbȳ');
+  });
+
+  it('returns the form unchanged when no rendering supplies an accent', () => {
+    expect(accentForm('Halton', morph)).toBe('Halton');
+    // a rendering with no diacritic in original_script is not an "upgrade".
+    const plain = { renderings: { old_english: { stone: { original_script: 'stone' } } } };
+    expect(accentForm('stone', plain)).toBe('stone');
+  });
+
+  it('is safe on missing/empty inputs and null lang buckets', () => {
+    expect(accentForm('', morph)).toBe('');
+    expect(accentForm('Tongby', null)).toBe('Tongby');
+    expect(accentForm('Tongby', {})).toBe('Tongby');
+    expect(accentForm('Tongby', { renderings: { old_english: null } })).toBe('Tongby');
   });
 });
 
