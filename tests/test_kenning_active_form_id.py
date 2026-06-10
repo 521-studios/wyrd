@@ -196,6 +196,43 @@ def test_set_active_form_id_falls_back_to_fold_when_surface_not_a_reflex_cell():
     assert m["active_form_id"] == "old-english:roth"  # fold fallback still works
 
 
+def test_set_active_form_id_force_modern_prefers_present_day_stage():
+    """wyrd-3vju.2: force-modern (era="modern-english") leaves rendered None, so the
+    active id is resolved from the usage against each family's PRESENT-DAY stage.
+    A same-spelled earlier-era homograph (middle-english "water") must NOT outrank
+    the modern cell — the old lang=None fold returned the FIRST same-spelled cell
+    in grid order (middle-english), the visible mis-highlight in defect 6d808d94
+    (Hesketh Water)."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName, _active_cell_id
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                # middle-english listed FIRST (older→newer); both display "water".
+                {
+                    "language": "middle-english",
+                    "forms": [{"id": "middle-english:water", "form": "water"}],
+                },
+                {
+                    "language": "modern-english",
+                    "forms": [{"id": "modern-english:water", "form": "water"}],
+                },
+            ],
+        }
+    ]
+    # The old fallback (lang=None) returns the FIRST same-spelled cell — the bug.
+    assert _active_cell_id(grid, None, "water") == "middle-english:water"
+
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    # Force-modern: rendered absent/None, usage IS the present-day surface.
+    m = {"usage": "water", "era_grid": grid}
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid="modern-english:water")
+    assert m["active_form_id"] == "modern-english:water"
+
+
 def test_active_form_id_is_the_exact_rendered_reflex_corpus():
     """wyrd-3vju.1 contract: across rolls, an emitted active_form_id resolves to
     a cell whose form casefold-equals the rendered surface WITH combining marks
