@@ -122,6 +122,51 @@ def test_falls_back_to_bundled_seed(_clear_env) -> None:
     assert "meaning" in tables
 
 
+def test_seed_materialized_via_as_file_and_memoized(_clear_env) -> None:
+    """wyrd-5kw0: the seed is materialized on disk via ``resources.as_file``
+    (zip-loader compatible) behind a process-held ExitStack, and memoized so a
+    second resolve doesn't re-extract."""
+    from wyrd.generators.kenning.runtime import runtime_db as rtdb
+
+    p1 = rtdb._bundled_seed_path()
+    assert p1.is_file()
+    assert rtdb._seed_exit_stack is not None  # held open for the process
+    p2 = rtdb._bundled_seed_path()
+    assert p1 == p2  # memoized — not re-materialized
+
+
+def test_seed_materialization_released_on_reset(_clear_env) -> None:
+    """Resetting the cache releases the materialized seed (deletes the extracted
+    temp under zip-loader); a later resolve re-materializes."""
+    from wyrd.generators.kenning.runtime import runtime_db as rtdb
+
+    rtdb._bundled_seed_path()
+    assert rtdb._seed_exit_stack is not None
+    reset_runtime_db_cache()
+    assert rtdb._seed_exit_stack is None
+    assert rtdb._seed_path is None
+    assert rtdb._bundled_seed_path().is_file()  # re-materializes cleanly
+
+
+def test_rematerialize_rotates_stack_when_temp_vanishes(_clear_env) -> None:
+    """If the materialized seed temp vanishes (e.g. a SnapStart /tmp wipe) but
+    the globals survive, the next resolve ROTATES the ExitStack rather than
+    piling a new as_file context onto the stale one (which would leak temps
+    across restore cycles)."""
+    from pathlib import Path
+
+    from wyrd.generators.kenning.runtime import runtime_db as rtdb
+
+    rtdb._bundled_seed_path()
+    stale_stack = rtdb._seed_exit_stack
+    assert stale_stack is not None
+    # Simulate the temp vanishing out from under us (memo guard will now miss).
+    rtdb._seed_path = Path("/nonexistent/seed-runtime.db")
+    p = rtdb._bundled_seed_path()
+    assert p.is_file()  # re-materialized
+    assert rtdb._seed_exit_stack is not stale_stack  # rotated, not appended
+
+
 # ---------- read-only contract ----------
 
 
