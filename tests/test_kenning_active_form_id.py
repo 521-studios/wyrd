@@ -268,14 +268,25 @@ def test_set_active_form_id_injects_usage_cell_when_reflex_missing():
     modern = next(st for sec in grid for st in sec["stages"] if st["language"] == "modern-english")
     injected = next(c for c in modern["forms"] if c["id"] == "modern-english:gold")
     assert injected["form"] == "gold"
-    assert injected["source"] == "usage"  # marked as the central rendered form
+    assert injected["source"] == "usage"  # injected as the identity anchor
+    assert injected["is_usage"] is True
     # the (garbage) 'gowth' reflex is preserved as another swap option, not removed.
     assert any(c["id"] == "modern-english:gowth" for c in modern["forms"])
+    # the identity also appears as the OE 'gold' reflex → it too is marked is_usage.
+    oe = next(
+        c
+        for sec in grid
+        for st in sec["stages"]
+        for c in st["forms"]
+        if c["id"] == "old-english:gold"
+    )
+    assert oe["is_usage"] is True
+    assert oe["source"] == "cluster"  # provenance preserved; not overwritten
 
 
-def test_set_active_form_id_no_duplicate_when_usage_is_already_a_reflex():
-    """wyrd-3vju.3: when the rendered usage already equals a present-day reflex cell,
-    use that cell — do NOT inject a duplicate."""
+def test_set_active_form_id_marks_identity_reflex_without_duplicating():
+    """wyrd-3vju.3: when the usage already equals a present-day reflex, use that cell
+    (no duplicate) and mark it is_usage while preserving its provenance."""
     from types import SimpleNamespace
 
     from wyrd.generators.kenning.runtime.proportions import NewName
@@ -297,6 +308,48 @@ def test_set_active_form_id_no_duplicate_when_usage_is_already_a_reflex():
     assert m["active_form_id"] == "modern-english:stone"
     modern = next(st for sec in grid for st in sec["stages"] if st["language"] == "modern-english")
     assert len(modern["forms"]) == 1  # no duplicate injected
+    assert modern["forms"][0]["is_usage"] is True
+    assert modern["forms"][0]["source"] == "cluster"  # provenance untouched
+
+
+def test_set_active_form_id_era_render_anchors_identity_separately():
+    """wyrd-3vju.3: in a HISTORICAL-era render the live highlight is the era reflex
+    ('-tun' in OE), but the morpheme's IDENTITY (the usage '-ton') is still anchored
+    + marked in the present-day stage — so the parent form is always visible and the
+    user can swap back to it. The live OE reflex is NOT the identity."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName, _grid_has_cell_id
+
+    grid = [{"family": "english", "stages": [{"language": "old-english", "forms": []}]}]
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    # Era render: rendered '-tun' at old-english; usage/identity is '-ton'.
+    m = {"usage": "ton", "rendered": "tun", "rendered_language": "old-english", "era_grid": grid}
+    nn._set_active_form_id(
+        m, SimpleNamespace(morpheme_id="old-english:ton"), grid_mid="old-english:ton"
+    )
+
+    # live highlight = the OE reflex actually rendered
+    assert m["active_form_id"] == "old-english:tun"
+    # identity anchored in the present-day stage, marked, but NOT highlighted
+    assert _grid_has_cell_id(grid, "modern-english:ton")
+    anchor = next(
+        c
+        for sec in grid
+        for st in sec["stages"]
+        for c in st["forms"]
+        if c["id"] == "modern-english:ton"
+    )
+    assert anchor["is_usage"] is True
+    assert anchor["source"] == "usage"
+    tun = next(
+        c
+        for sec in grid
+        for st in sec["stages"]
+        for c in st["forms"]
+        if c["id"] == "old-english:tun"
+    )
+    assert tun.get("is_usage") is not True  # the live era reflex is not the identity
 
 
 def test_active_form_id_is_the_exact_rendered_reflex_corpus():

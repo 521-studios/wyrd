@@ -119,18 +119,19 @@
                    morpheme's (the cognate no longer means the same thing). -->
               {@const drifted = isGlossDrift(baseGloss, cell.gloss)}
               {@const current = isCurrent(cell)}
-              <!-- wyrd-3vju.3: the morpheme's CENTRAL rendered form — injected
-                   API-side (source='usage') so the live form is always a cell here
-                   (the swap menu), letting the user swap away AND back even when the
-                   era data lacks/garbles the rendered reflex. -->
-              {@const isUsage = cell.source === 'usage'}
+              <!-- wyrd-3vju.3: the morpheme's IDENTITY (its canonical usage). The
+                   API marks EVERY cell folding to the usage with is_usage — the
+                   present-day anchor (always present, injected if no reflex carries
+                   it) AND any era reflex that equals the identity — so the parent
+                   form is always visible + swappable-back, whatever era is live. -->
+              {@const isUsage = cell.is_usage === true}
               <!-- wyrd-rogd.17: name the cell by its accented display surface
                    (the same one shown), not the raw stored form. -->
               {@const cellName = accentForm(cell.form, morpheme)}
               {@const swapTitle = inferred
                 ? `Swap to ${cellName} — inferred via phonology rule (not attested)`
                 : isUsage
-                  ? `Swap to ${cellName} — the morpheme's own form (what the name uses)`
+                  ? `Swap to ${cellName} — the morpheme's own form (its identity)`
                   : `Swap this morpheme to ${cellName}`}
               {@const liveTitle = inferred
                 ? 'Live in the name (inferred via phonology rule) — click to revert'
@@ -150,7 +151,11 @@
                 title={(current ? liveTitle : swapTitle) + glossNote}
               >
                 <span class="cell-form"
-                  >{withPlacement(cell.form)}{#if inferred}<span
+                  >{withPlacement(cell.form)}{#if isUsage}<span
+                      class="cell-usage"
+                      role="img"
+                      aria-label="the morpheme's own form (identity)">●</span
+                    >{/if}{#if inferred}<span
                       class="cell-mark"
                       role="img"
                       aria-label="inferred (phonology rule)">~</span
@@ -287,6 +292,18 @@
     margin-left: 2px;
     font-size: 10px;
     font-weight: 600;
+    color: var(--accent);
+    vertical-align: super;
+  }
+  /* wyrd-3vju.3: the morpheme's IDENTITY (its canonical usage). A ● marker + a
+     subtle outline so the parent form is recognizable in any era, even when a
+     different era reflex is the live (highlighted) one. */
+  .cell.usage {
+    border-color: var(--accent);
+  }
+  .cell-usage {
+    margin-left: 2px;
+    font-size: 8px;
     color: var(--accent);
     vertical-align: super;
   }

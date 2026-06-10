@@ -761,24 +761,20 @@ def _active_cell_id(grid, lang, surface):
     return exact_lang or fold_lang or fold_any
 
 
-def _ensure_rendered_cell(grid, lang, surface):
-    """wyrd-3vju.3: GUARANTEE the actually-rendered surface is a clickable cell in
-    its render stage. The era grid IS the SPA's swap menu, so the live form MUST be
-    in it (with a stable id) or the user can't swap away from it AND back — the
-    long-standing UI defect. Returns the cell id.
+def _ensure_cell(grid, lang, surface, source):
+    """wyrd-3vju.3: GUARANTEE a clickable cell for ``surface`` in ``lang``'s stage.
+    The era grid IS the SPA's swap menu, so the live/identity form MUST be in it
+    (with a stable id) or the user can't swap to it AND back — the long-standing UI
+    defect. Returns the cell id.
 
     If a cell in ``lang``'s stage already matches ``surface`` (case/dash fold),
-    return its id (no duplicate — the common path where the usage already equals a
-    reflex). Otherwise INJECT ``{id, form, source: 'usage'}`` into that stage,
-    creating the stage / family section in canonical order if absent, and return
-    its id. ``source='usage'`` marks the morpheme's central rendered form so the
-    SPA can flag it (and it survives present-day self-seed narrowing, which only
-    drops ``source='self'``).
-
-    Needed because era_reflexes can OMIT or CORRUPT the rendered form: the modern
-    'gold' cell holds 'gowth', and '-ston' renders 'ston' while its modern cells
-    are 'stone/steen/sten'. Force-modern renders the clean usage, so without this
-    the live form has no cell at all in its era column."""
+    return its id (no duplicate). Otherwise INJECT ``{id, form, source}`` into that
+    stage, creating the stage / family section in canonical order if absent.
+    ``source='usage'`` for the identity anchor (the morpheme's canonical usage when
+    no reflex carries it); ``source='self'`` for a rendered reflex the sparse
+    era_reflexes omit. Needed because era_reflexes can OMIT or CORRUPT the form:
+    the modern 'gold' cell holds 'gowth', and '-ston' renders 'ston' while its
+    modern cells are 'stone/steen/sten'."""
     if not grid or not lang or not surface:
         return None
     form = surface.strip().strip("-").strip()
@@ -787,10 +783,40 @@ def _ensure_rendered_cell(grid, lang, surface):
     folded = _grid_surface_key(form)
     existing = _cell_id_in_stage(grid, lang, folded)
     if existing is not None:
-        return existing  # usage already equals a reflex — no duplicate
+        return existing  # surface already equals a reflex — no duplicate
     cid = f"{lang}:{form}"
-    _grid_stage_for(grid, lang)["forms"].append({"id": cid, "form": form, "source": "usage"})
+    _grid_stage_for(grid, lang)["forms"].append({"id": cid, "form": form, "source": source})
     return cid
+
+
+def _mark_usage_cells(grid, usage) -> None:
+    """wyrd-3vju.3: mark EVERY cell whose form folds to the canonical ``usage`` (the
+    morpheme's IDENTITY) with ``is_usage=True`` — across all eras, not just the
+    anchor. So when the identity also surfaces as a genuine reflex (modern 'ton'
+    AND middle-english 'ton' both folding to the '-ton' identity), every matching
+    cell gets the SPA's identity rendering. Independent of ``active_form_id`` (the
+    live reflex highlight): a cell can be the identity, the live form, or both."""
+    folded = _grid_surface_key((usage or "").strip().strip("-"))
+    if not folded:
+        return
+    for section in grid:
+        for stage in section.get("stages", []):
+            for cell in stage.get("forms", []):
+                if _grid_surface_key(cell.get("form", "")) == folded:
+                    cell["is_usage"] = True
+
+
+def _present_day_lang(grid, mid):
+    """The present-day stage language of the morpheme's family (from ``mid``'s
+    source language, else the grid's primary section) — where the identity/usage
+    anchor lives (modern-english for the english family)."""
+    src = (mid or "").partition(":")[0]
+    fam = language_family(src) if src else None
+    section = next((s for s in grid if s.get("family") == fam), None) or (grid[0] if grid else None)
+    if section is None:
+        return None
+    order = family_stage_order(section.get("family", ""))
+    return order[-1] if order else None
 
 
 def _cell_id_in_stage(grid, lang, folded):
@@ -2244,60 +2270,56 @@ class NewName:
         grid = morpheme.get("era_grid")
         if not grid:
             return
+        mid = grid_mid or getattr(first, "morpheme_id", "")
+        usage = morpheme.get("usage")
+        # wyrd-3vju.3 ANCHOR: the morpheme's canonical usage is its IDENTITY (the
+        # parent the name actually chose, e.g. '-ton'), independent of which era
+        # reflex is live ('-tun' in OE). Always guarantee the identity is a present-
+        # day cell (inject if no reflex carries it), then mark EVERY cell that folds
+        # to it across eras — so the SPA can always show + swap back to the identity.
+        anchor_id = None
+        anchor_lang = _present_day_lang(grid, mid)
+        if usage and anchor_lang:
+            anchor_id = _ensure_cell(grid, anchor_lang, usage, source="usage")
+        if usage:
+            _mark_usage_cells(grid, usage)
+        # ACTIVE: the live rendered reflex (highlight), distinct from the identity.
         rendered = morpheme.get("rendered")
-        # FORWARD: the cell id of the reflex actually rendered, built from the
-        # raw form + render language (not the case-projected display surface).
-        forward_id = None
-        if rendered is not None and morpheme.get("rendered_language"):
-            # Era render: the raw reflex the era picker chose at this language,
-            # resolved against the SAME morpheme the grid was built from.
-            lang = morpheme["rendered_language"]
-            grid_meaning = _resolve_morpheme(
-                self.meaning_db, grid_mid or getattr(first, "morpheme_id", None)
-            )
-            raw = _era_reflex_raw_choice([grid_meaning] if grid_meaning else [], lang)
-            if raw is not None:
-                forward_id = f"{lang}:{raw}"
-        elif rendered is not None:
-            # Native render: the picked morpheme's own headword (its morpheme_id
-            # canonical) in its source language — a self-seed cell of its grid.
-            mid = grid_mid or getattr(first, "morpheme_id", "")
-            lang = (mid or "").partition(":")[0] or None
-            native = _native_form_for_morpheme_id(mid)
-            if lang and native:
-                forward_id = f"{lang}:{native}"
+        forward_id = self._forward_active_id(morpheme, mid)
         if forward_id and _grid_has_cell_id(grid, forward_id):
             morpheme["active_form_id"] = forward_id
             return
-        # wyrd-3vju.3: the rendered surface isn't an enumerated reflex of this
-        # etymon (sparse/garbage era_reflexes). The grid is the swap menu, so rather
-        # than leave the live form absent + unhighlighted, GUARANTEE it: ensure a
-        # cell exists in its render stage (injecting a source='usage' cell when the
-        # reflexes don't carry it) and stamp that id. Determine (lang, surface):
+        # The rendered reflex isn't an enumerated cell (sparse era_reflexes) — ensure
+        # it so the highlight has a target; force-modern's live form IS the identity
+        # anchor (rendered is None → the usage), so reuse the anchor cell there.
         if rendered is not None and morpheme.get("rendered_language"):
-            # Era render: the rendered reflex's own render language.
-            lang, surface = morpheme["rendered_language"], rendered
+            cid = _ensure_cell(grid, morpheme["rendered_language"], rendered, source="self")
         elif rendered is not None:
-            # Native render: the picked morpheme's source language.
-            mid = grid_mid or getattr(first, "morpheme_id", "")
-            lang, surface = (mid or "").partition(":")[0] or None, rendered
+            cid = _ensure_cell(grid, (mid or "").partition(":")[0] or None, rendered, source="self")
         else:
-            # wyrd-3vju.2/.3: force-modern (era="modern-english") leaves rendered
-            # None and the usage IS the present-day surface — target the PRESENT-DAY
-            # stage (family_stage_order[-1], e.g. modern-english) of the morpheme's
-            # family (from grid_mid when known, else the grid's primary section), so
-            # the live modern form is a cell in the modern column even when the modern
-            # era-reflex is missing/garbage (gold's modern cell holds 'gowth').
-            mid = grid_mid or getattr(first, "morpheme_id", "")
-            src = (mid or "").partition(":")[0]
-            fam = language_family(src) if src else None
-            section = next((s for s in grid if s.get("family") == fam), None) or grid[0]
-            order = family_stage_order(section.get("family", ""))
-            lang = order[-1] if order else None
-            surface = morpheme.get("usage")
-        cid = _ensure_rendered_cell(grid, lang, surface)
+            cid = anchor_id
         if cid:
             morpheme["active_form_id"] = cid
+
+    def _forward_active_id(self, morpheme: dict, mid):
+        """The grid-cell id of the reflex the render actually chose, computed FORWARD
+        from its raw form + render language (era render) or the morpheme's native
+        headword (native render). None for force-modern (rendered is None) or when
+        the picked morpheme can't be resolved — the caller then falls back."""
+        rendered = morpheme.get("rendered")
+        if rendered is None:
+            return None
+        lang = morpheme.get("rendered_language")
+        if lang:
+            # Era render: the raw reflex chosen at this language, resolved against the
+            # SAME morpheme the grid was built from (raw form keeps the '*' marker).
+            grid_meaning = _resolve_morpheme(self.meaning_db, mid or None)
+            raw = _era_reflex_raw_choice([grid_meaning] if grid_meaning else [], lang)
+            return f"{lang}:{raw}" if raw is not None else None
+        # Native render: the picked morpheme's own headword in its source language.
+        lang = (mid or "").partition(":")[0] or None
+        native = _native_form_for_morpheme_id(mid)
+        return f"{lang}:{native}" if (lang and native) else None
 
     def components(self):
         """Structured component breakdown for the API envelope.
