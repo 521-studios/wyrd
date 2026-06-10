@@ -211,6 +211,50 @@ def canonical_language_for_cell(family: str, cell: str) -> str | None:
     return CANONICAL_LANGUAGE_FOR_CELL.get((family, cell))
 
 
+def _cell_for_family_label(family: str, label: str) -> tuple[str, str]:
+    """The ``family/label`` branch of :func:`era_cell_for_input`: explicit
+    family, with a cell label or a compressed stage (→ its first cell)."""
+    if label in era_cells_for_family(family):
+        return (family, label)
+    # wyrd-rogd.2: explicit family/STAGE form too (e.g. 'english/old-english')
+    stage_cells = cells_for_stage(family, label)
+    if stage_cells:
+        return (family, stage_cells[0])
+    valid = [*era_cells_for_family(family), *family_stage_order(family)]
+    raise ValueError(f"unknown era cell/stage {label!r} for family {family!r}; valid: {valid}")
+
+
+def _cell_for_bare_label(era: str, default_family: str) -> tuple[str, str]:
+    """The bare-label branch of :func:`era_cell_for_input`: a cell or stage of
+    ``default_family``, else a cross-family hint, else 'unknown era input'."""
+    if era in era_cells_for_family(default_family):
+        return (default_family, era)
+    # wyrd-rogd.2: a compressed STAGE label maps to a representative cell (its
+    # first) so canonical_language_for_cell resolves to the stage's language —
+    # all the stage's cells share it, so any one renders the era correctly.
+    stage_cells = cells_for_stage(default_family, era)
+    if stage_cells:
+        return (default_family, stage_cells[0])
+    defined_in = [f for f in sorted(ERA_CELLS) if era in era_cells_for_family(f)]
+    if defined_in:
+        choices = ", ".join(f"{f}/{era}" for f in defined_in)
+        raise ValueError(
+            f"era cell {era!r} is not defined in family {default_family!r}; use one of: {choices}"
+        )
+    # wyrd-rogd.2: same cross-family hint for a STAGE label of another family
+    # (e.g. 'old-welsh' with default_family='english').
+    defined_in_stages = [f for f in sorted(ERA_CELLS) if cells_for_stage(f, era)]
+    if defined_in_stages:
+        choices = ", ".join(f"{f}/{era}" for f in defined_in_stages)
+        raise ValueError(
+            f"era stage {era!r} is not defined in family {default_family!r}; use one of: {choices}"
+        )
+    raise ValueError(
+        f"unknown era input {era!r}; pass a year (e.g. 1086), a cell label "
+        f"(e.g. 'oe-late'), a stage (e.g. 'old-english'), or a 'family/label' pair"
+    )
+
+
 def era_cell_for_input(
     era: str | int,
     *,
@@ -260,40 +304,8 @@ def era_cell_for_input(
         return era_cell_for_input(year, default_family=default_family)
     if "/" in era:
         family, _, label = era.partition("/")
-        if label in era_cells_for_family(family):
-            return (family, label)
-        # wyrd-rogd.2: explicit family/STAGE form too (e.g. 'english/old-english')
-        stage_cells = cells_for_stage(family, label)
-        if stage_cells:
-            return (family, stage_cells[0])
-        valid = [*era_cells_for_family(family), *family_stage_order(family)]
-        raise ValueError(f"unknown era cell/stage {label!r} for family {family!r}; valid: {valid}")
-    if era in era_cells_for_family(default_family):
-        return (default_family, era)
-    # wyrd-rogd.2: a compressed STAGE label maps to a representative cell (its
-    # first) so canonical_language_for_cell resolves to the stage's language —
-    # all the stage's cells share it, so any one renders the era correctly.
-    stage_cells = cells_for_stage(default_family, era)
-    if stage_cells:
-        return (default_family, stage_cells[0])
-    defined_in = [f for f in sorted(ERA_CELLS) if era in era_cells_for_family(f)]
-    if defined_in:
-        choices = ", ".join(f"{f}/{era}" for f in defined_in)
-        raise ValueError(
-            f"era cell {era!r} is not defined in family {default_family!r}; use one of: {choices}"
-        )
-    # wyrd-rogd.2: same cross-family hint for a STAGE label of another family
-    # (e.g. 'old-welsh' with default_family='english').
-    defined_in_stages = [f for f in sorted(ERA_CELLS) if cells_for_stage(f, era)]
-    if defined_in_stages:
-        choices = ", ".join(f"{f}/{era}" for f in defined_in_stages)
-        raise ValueError(
-            f"era stage {era!r} is not defined in family {default_family!r}; use one of: {choices}"
-        )
-    raise ValueError(
-        f"unknown era input {era!r}; pass a year (e.g. 1086), a cell label "
-        f"(e.g. 'oe-late'), a stage (e.g. 'old-english'), or a 'family/label' pair"
-    )
+        return _cell_for_family_label(family, label)
+    return _cell_for_bare_label(era, default_family)
 
 
 def language_family(language: str) -> str | None:
@@ -462,6 +474,61 @@ def stage_year_range(family: str, stage: str) -> tuple[int | None, int | None] |
     return (start, end)
 
 
+def _range_for_family_label(family: str, label: str) -> tuple[int | None, int | None]:
+    """The ``family/label`` branch of :func:`resolve_era_input`: a cell range,
+    else a compressed-stage UNION range, else a bare KeyError / ValueError."""
+    try:
+        return era_year_range(family, label)
+    except KeyError:
+        # wyrd-rogd.2: explicit family/STAGE form (e.g. 'english/old-english')
+        stage_range = stage_year_range(family, label)
+        if stage_range is not None:
+            return stage_range
+        if family not in ERA_CELLS:
+            raise  # unknown family — surface the bare KeyError
+        valid = [*era_cells_for_family(family), *family_stage_order(family)]
+        raise ValueError(
+            f"unknown era cell/stage {label!r} for family {family!r}; valid: {valid}"
+        ) from None
+
+
+def _range_for_bare_label(era: str, default_family: str) -> tuple[int | None, int | None]:
+    """The bare-label branch of :func:`resolve_era_input`: a cell or
+    compressed-stage range of ``default_family``, else a cross-family hint,
+    else 'unknown era input'."""
+    try:
+        return era_year_range(default_family, era)
+    except KeyError:
+        # wyrd-rogd.2: a compressed STAGE label (e.g. 'old-english') isn't a
+        # cell but collapses several — resolve to the UNION of their ranges so
+        # the Configure dropdown can offer stages, not raw cells. A label that is
+        # BOTH a cell and a stage (goidelic 'old-irish' / 'middle-irish') already
+        # resolved via the cell path above — the cell intentionally shadows the
+        # stage (same range there, so identical), and this fallback never sees it.
+        stage_range = stage_year_range(default_family, era)
+        if stage_range is not None:
+            return stage_range
+        defined_in = [f for f in sorted(ERA_CELLS) if era in era_cells_for_family(f)]
+        if defined_in:
+            choices = ", ".join(f"{f}/{era}" for f in defined_in)
+            raise ValueError(
+                f"era cell {era!r} is not defined in family "
+                f"{default_family!r}; use one of: {choices}"
+            ) from None
+        # wyrd-rogd.2: same cross-family hint for a STAGE label of another family.
+        defined_in_stages = [f for f in sorted(ERA_CELLS) if cells_for_stage(f, era)]
+        if defined_in_stages:
+            choices = ", ".join(f"{f}/{era}" for f in defined_in_stages)
+            raise ValueError(
+                f"era stage {era!r} is not defined in family "
+                f"{default_family!r}; use one of: {choices}"
+            ) from None
+        raise ValueError(
+            f"unknown era input {era!r}; pass a year (e.g. 1086), a cell label "
+            f"(e.g. 'oe-late'), a stage (e.g. 'old-english'), or a 'family/label' pair"
+        ) from None
+
+
 def resolve_era_input(
     era: str | int | None,
     *,
@@ -516,51 +583,9 @@ def resolve_era_input(
         return resolve_era_input(year, default_family=default_family)
     if "/" in era:
         family, _, label = era.partition("/")
-        try:
-            return era_year_range(family, label)
-        except KeyError:
-            # wyrd-rogd.2: explicit family/STAGE form (e.g. 'english/old-english')
-            stage_range = stage_year_range(family, label)
-            if stage_range is not None:
-                return stage_range
-            if family not in ERA_CELLS:
-                raise  # unknown family — surface the bare KeyError
-            valid = [*era_cells_for_family(family), *family_stage_order(family)]
-            raise ValueError(
-                f"unknown era cell/stage {label!r} for family {family!r}; valid: {valid}"
-            ) from None
+        return _range_for_family_label(family, label)
     # Bare label — must exist in default_family. Cross-family fallback
     # would silently route a typo or wrong-culture label into the wrong
     # range; instead, point the user at the families that DO define the
     # label so they can switch to the explicit ``family/label`` form.
-    try:
-        return era_year_range(default_family, era)
-    except KeyError:
-        # wyrd-rogd.2: a compressed STAGE label (e.g. 'old-english') isn't a
-        # cell but collapses several — resolve to the UNION of their ranges so
-        # the Configure dropdown can offer stages, not raw cells. A label that is
-        # BOTH a cell and a stage (goidelic 'old-irish' / 'middle-irish') already
-        # resolved via the cell path above — the cell intentionally shadows the
-        # stage (same range there, so identical), and this fallback never sees it.
-        stage_range = stage_year_range(default_family, era)
-        if stage_range is not None:
-            return stage_range
-        defined_in = [f for f in sorted(ERA_CELLS) if era in era_cells_for_family(f)]
-        if defined_in:
-            choices = ", ".join(f"{f}/{era}" for f in defined_in)
-            raise ValueError(
-                f"era cell {era!r} is not defined in family "
-                f"{default_family!r}; use one of: {choices}"
-            ) from None
-        # wyrd-rogd.2: same cross-family hint for a STAGE label of another family.
-        defined_in_stages = [f for f in sorted(ERA_CELLS) if cells_for_stage(f, era)]
-        if defined_in_stages:
-            choices = ", ".join(f"{f}/{era}" for f in defined_in_stages)
-            raise ValueError(
-                f"era stage {era!r} is not defined in family "
-                f"{default_family!r}; use one of: {choices}"
-            ) from None
-        raise ValueError(
-            f"unknown era input {era!r}; pass a year (e.g. 1086), a cell label "
-            f"(e.g. 'oe-late'), a stage (e.g. 'old-english'), or a 'family/label' pair"
-        ) from None
+    return _range_for_bare_label(era, default_family)

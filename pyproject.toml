@@ -100,13 +100,13 @@ max-complexity = 10
 # Pre-existing over-the-floor functions, grandfathered so C901 catches only
 # NEW complexity (the wyrd-8uvi sweep already cleared every other function in
 # wyrd/generators/kenning/). Tests/scripts are exempt by convention; the
-# kenning files are tracked under their own epics (era-grid; x82p toponym-
-# mentions); wyrd/defects.py:list_defects (11) is a minor deferred cleanup.
+# remaining kenning file is the x82p toponym-mentions group (its own epic);
+# wyrd/defects.py:list_defects (11) is a minor deferred cleanup. era/cells.py
+# was cleared by the wyrd-8uvi follow-up sweep.
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["C901"]
 "scripts/**" = ["C901"]
 "wyrd/defects.py" = ["C901"]
-"wyrd/generators/kenning/era/cells.py" = ["C901"]
 "wyrd/generators/kenning/cli/lexicon/ingest_toponym_mentions.py" = ["C901"]
 "wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions.py" = ["C901"]
 "wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions_staged.py" = ["C901"]
