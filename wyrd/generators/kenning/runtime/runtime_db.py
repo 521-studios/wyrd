@@ -236,7 +236,13 @@ def reset_runtime_db_connection() -> None:
             try:
                 _conn.close()
             except sqlite3.Error:
-                _logger.debug("ignoring close error on connection reset (snapstart restore)")
+                # WARNING (not DEBUG) for parity with reset_runtime_db_cache /
+                # get_runtime_db: a close failing on the SnapStart restore path
+                # should be visible in default-INFO Lambda logs, not invisible.
+                _logger.warning(
+                    "ignoring close error on connection reset (snapstart restore)",
+                    exc_info=True,
+                )
         _conn = None
 
 

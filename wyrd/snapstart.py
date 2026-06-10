@@ -15,9 +15,10 @@ Two halves, both invoked from ``create_app`` at init:
     gone on restore) WITHOUT touching the parsed caches, so a restored container
     serves from memory and never re-downloads the DB.
 
-Both are no-ops off Lambda: preload only runs when ``AWS_LAMBDA_FUNCTION_NAME``
-is set, and hook registration is skipped when the ``snapshot_restore_py`` runtime
-library isn't importable (local dev, tests, non-SnapStart deploys).
+Both are no-ops off SnapStart: preload only runs when
+``AWS_LAMBDA_INITIALIZATION_TYPE == "snap-start"`` (Lambda sets this during
+snapshotting), and the after-restore hook is registered through the
+``snapshot_restore_py`` runtime library and simply never fires off-SnapStart.
 """
 
 from __future__ import annotations
@@ -44,13 +45,26 @@ def preload_runtime() -> None:
     try:
         from wyrd.generators.kenning import (
             CULTURES,
+            _load_canonical_decompositions,
             _load_culture,
+            _load_empirical_priors,
+            _load_fantasy_morphemes,
+            _load_joiners,
             available_tags,
         )
         from wyrd.generators.kenning.runtime import runtime_db
 
         runtime_db.get_runtime_db()  # resolve + download + open the connection
-        available_tags()  # _load_meanings: parse the bundle (the dominant cold cost)
+        available_tags()  # _load_meanings → _runtime_db_bundle_dict: parse the bundle
+        # Warm EVERY lru-cache the default generate() path touches so the snapshot
+        # is fully warm and the first post-restore request needs no DB read. These
+        # read the now-warm bundle dict; _load_empirical_priors is the critical one
+        # — it calls get_runtime_db() DIRECTLY, so without warming it the first
+        # restored request would re-resolve (re-download the DB), defeating SnapStart.
+        _load_joiners()
+        _load_canonical_decompositions()
+        _load_fantasy_morphemes()
+        _load_empirical_priors()
         for culture in CULTURES:
             _load_culture(culture)  # proportions + NameGenerator per culture
         runtime_db.bundle_version()  # cache the per-request version stamp
@@ -59,14 +73,23 @@ def preload_runtime() -> None:
         _logger.warning("snapstart preload failed; falling back to lazy load", exc_info=True)
 
 
+_hooks_registered = False
+
+
 def register_snapstart_hooks() -> None:
     """Register the after-restore hook that invalidates the snapshot's stale
-    sqlite connection (wyrd-g1wp). No-op when not running under SnapStart (the
-    ``snapshot_restore_py`` library ships only in the Lambda runtime path)."""
+    sqlite connection (wyrd-g1wp). No-op when ``snapshot_restore_py`` isn't
+    importable (off-SnapStart) and idempotent — ``create_app`` may be called more
+    than once (tests), but the hook registry de-dups via the module flag so the
+    callback isn't appended repeatedly."""
+    global _hooks_registered
+    if _hooks_registered:
+        return
     try:
         from snapshot_restore_py import register_after_restore
     except ImportError:
         return
+    _hooks_registered = True
 
     @register_after_restore
     def _drop_stale_runtime_db_connection() -> None:

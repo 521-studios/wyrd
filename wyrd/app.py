@@ -113,8 +113,8 @@ def create_app() -> Flask:
     # imports + calls it at module load), so this is the snapshot point. Register
     # the after-restore hook BEFORE warming the caches, then preload the bundle +
     # cultures so the parsed objects are captured in the snapshot. Both no-op off
-    # Lambda (preload gates on AWS_LAMBDA_FUNCTION_NAME; the hook needs the
-    # snapshot_restore_py runtime lib), so local dev + tests are unaffected.
+    # SnapStart (preload gates on AWS_LAMBDA_INITIALIZATION_TYPE==snap-start; the
+    # after-restore hook only fires under SnapStart), so dev + tests are unaffected.
     from wyrd.snapstart import preload_runtime, register_snapstart_hooks
 
     register_snapstart_hooks()
