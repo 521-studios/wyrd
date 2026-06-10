@@ -761,6 +761,36 @@ def _active_cell_id(grid, lang, surface):
     return exact_lang or fold_lang or fold_any
 
 
+def _present_day_cell_id(grid, surface):
+    """wyrd-3vju.2: the grid-cell id for a FORCE-MODERN (``era="modern-english"``)
+    surface. That path leaves ``NewName.rendered`` None — the morpheme's usage IS
+    the present-day form — so there's no render-language to scope by. Resolving
+    with ``lang=None`` (the old fallback) returned ``fold_any`` = the FIRST
+    same-spelled cell in grid order, which mis-binds an earlier-era homograph
+    (``middle-english:water``) over the modern cell. Scope the match to each
+    family's PRESENT-DAY stage (``family_stage_order[-1]``) so the modern cell
+    wins: exact-in-stage first, then a case/dash fold there."""
+    if not grid or not surface:
+        return None
+    folded = _grid_surface_key(surface)
+    fold_hit = None
+    for section in grid:
+        order = family_stage_order(section.get("family", ""))
+        present_day_lang = order[-1] if order else None
+        if present_day_lang is None:
+            continue
+        for stage in section.get("stages", []):
+            if stage.get("language") != present_day_lang:
+                continue
+            for cell in stage.get("forms", []):
+                form = cell.get("form", "")
+                if form == surface:
+                    return cell.get("id")
+                if fold_hit is None and _grid_surface_key(form) == folded:
+                    fold_hit = cell.get("id")
+    return fold_hit
+
+
 def _grid_has_cell_id(grid, cell_id: str) -> bool:
     """wyrd-3vju.1: True when ``cell_id`` is an exact cell id in ``grid``. Used to
     confirm the FORWARD-computed active-form id (the cell of the reflex the
@@ -2203,13 +2233,19 @@ class NewName:
         # data cleanup that closes the gap is the wyrd-3vju epic.
         if rendered is not None and morpheme.get("rendered_language"):
             lang, surface = morpheme["rendered_language"], rendered
+            cid = _active_cell_id(grid, lang, surface)
         elif rendered is not None:
             mid = grid_mid or getattr(first, "morpheme_id", "")
             lang, surface = (mid or "").partition(":")[0] or None, rendered
+            cid = _active_cell_id(grid, lang, surface)
         else:
-            # Modern / force-modern: the present-day stage holds the usage seed.
-            lang, surface = None, morpheme.get("usage")
-        cid = _active_cell_id(grid, lang, surface)
+            # wyrd-3vju.2: force-modern (era="modern-english") leaves rendered None
+            # and the usage IS the present-day surface — no render-language to scope
+            # by. Resolve against each family's PRESENT-DAY stage so a same-spelled
+            # earlier-era homograph (middle-english "water") can't outrank the modern
+            # cell; the old lang=None path returned fold_any = the first same-spelled
+            # cell in grid order (the earlier era).
+            cid = _present_day_cell_id(grid, morpheme.get("usage"))
         if cid:
             morpheme["active_form_id"] = cid
 

@@ -705,6 +705,14 @@ def _resolve_era_render_language(era: Any, culture: str) -> str | None:
         return None
     lang = canonical_language_for_cell(family, cell)
     if lang is None or lang == _contemporary_language_for_family(family):
+        # wyrd-3vju.2: the contemporary stage (modern-english) stays FORCE-modern
+        # — render the clean modern usage, NOT era_reflex_for("modern-english").
+        # Empirically the modern era reflexes carry archaic/wrong forms (New- →
+        # "Niwan" OE, gold → "gowth"), so era-rendering modern distorts 42/60
+        # surfaces (the wyrd-8qbi concern; id-first does NOT save it). The highlight
+        # for this force-modern path is corrected by _present_day_cell_id (the
+        # present-day-stage active_form_id resolution), so modern is a real,
+        # correctly-highlighted choice WITHOUT the distortion.
         return None
     return lang
 
