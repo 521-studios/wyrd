@@ -75,7 +75,9 @@ where = ["."]
 include = ["wyrd*"]
 
 [tool.setuptools.package-data]
-"wyrd.generators.kenning" = ["data/*.json", "data/*.sql", "data/*.yaml", "data/*.db"]
+# wyrd-mewu: no *.sql remain in the package data dir — lexicon.sql / runtime.sql
+# were relocated to <repo>/data/seed/ (build-time inputs, not bundled).
+"wyrd.generators.kenning" = ["data/*.json", "data/*.yaml", "data/*.db"]
 "wyrd.generators.kenning.lexicon.sql.migrations" = ["script.py.mako"]
 
 [tool.black]
