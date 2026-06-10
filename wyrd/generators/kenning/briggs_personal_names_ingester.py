@@ -1,26 +1,22 @@
 """Parse + ingest Keith Briggs's *Index to Personal Names in English
 Place-Names* (EPNS Supplementary Series 2, 3rd revised pdf edn 2024).
 
-wyrd-uzoh. The source is a pdftotext-flattened two-column index
-(~13 K lines of body text) keyed on personal-name headforms with
-toponym attestations and source citations per entry. Two artifacts
-land in the lexicon DB:
+wyrd-uzoh, reworked in wyrd-2b50. The source is a pdftotext-flattened
+two-column index (~13 K lines of body text) keyed on personal-name
+headforms with toponym attestations and source citations per entry.
 
-1. ``personal_name`` — one row per unique headform (with diacritics
-   preserved verbatim, plus a diacritic-stripped ``normalized_form``
-   for ASCII-lookup). Carries citation-count metadata (PASE count,
-   DLV presence) and language hints.
+Each name lands as a first-class ``etymon`` — one row per headform
+(diacritics preserved; language resolved from the Briggs hint), tagged
+``male name`` / ``female name`` — plus one ``citation`` per attesting
+source (Briggs primary, with PASE / DLV / Anglo-Saxon-charter
+corroboration). Name etymons therefore flow through the normal witness
+gate, proportions, and vectors like any other etymon.
 
-2. ``personal_name_toponym_attestation`` — one row per (PN, toponym,
-   county) occurrence. Each row also captures the attested
-   orthographic variant of the PN as it appears in the toponym
-   (e.g. for Ēadwulf, the toponym Adlington gives an *Adl-* variant),
-   so downstream consumers can read both queries from one table:
-
-   - "Given a toponym, what PN attestations exist?" — index on
-     (toponym_form, county_canonical).
-   - "Given a PN, what variants did its toponyms produce?" — index
-     on (personal_name_id).
+(The original wyrd-uzoh design emitted bespoke ``personal_name`` +
+``personal_name_toponym_attestation`` tables; those were retired in
+migration ``0014_drop_personal_name_tables`` / wyrd-2b50 because no
+consumer read them — the data now lives in the shared etymon schema and
+re-ingests from ``data/mining/briggs_2024_personal_names_index.jsonl``.)
 
 The pdftotext output uses a two-column layout. Each physical line
 has the left column in chars 0:38 and the right column in chars 38:
