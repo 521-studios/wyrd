@@ -231,15 +231,23 @@ class Kenning(Generator):
                     # them via languageLabel (old-english → "Old English"),
                     # matching the col-3 grid's stage headers.
                     "x-option-language": True,
+                    # wyrd-3vju.2: the empty default ('') is the native-per-morpheme
+                    # mix — each part rendered in its OWN source-era form — so the
+                    # SPA labels it "Mixed Era" (a real, chosen mode), not "(no
+                    # filter)". The present-day stage (modern-english) is the
+                    # force-modern choice: clean modern spellings throughout.
+                    "x-empty-option-label": "Mixed Era",
                     "description": (
-                        "Period of the name. Does two things (wyrd-lyp + wyrd-6c8x): "
+                        "Period of the name. The default, 'Mixed Era', renders each "
+                        "morpheme in its OWN native source-era form (a historical mix). "
+                        "Picking a period does two things (wyrd-lyp + wyrd-6c8x): "
                         "(1) restricts the morpheme inventory to forms attested in that "
                         "period, and (2) for a HISTORICAL period, renders each morpheme "
                         "in its era-appropriate attested form (e.g. 'old-english' → Old "
                         "English 'Tūn', 'Sūþ'; 'middle-english' → 'Toun') instead of "
                         "the modern spelling — so the name LOOKS period, not just "
-                        "period-eligible. The present-day stage (modern-english) keeps "
-                        "the modern canonical spelling. The SPA renders this as a "
+                        "period-eligible. The present-day stage (modern-english) renders "
+                        "the modern canonical spelling throughout. The SPA renders this as a "
                         "dropdown of the chosen culture's compressed era STAGES; a stage "
                         "resolves to the union year range of its cells. CLI/API also "
                         "accept a raw cell, a bare year (e.g. '1086' → the cell "

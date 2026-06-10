@@ -39,8 +39,15 @@
   // wyrd-rogd.2: option display label — '' is the 'no filter' sentinel; when
   // the options are language tags (x-option-language, the era stages) label
   // them via languageLabel so they read 'Old English' not 'old-english'.
+  // wyrd-3vju.2: a field may name its empty sentinel via x-empty-option-label
+  // (the era field calls '' "Mixed Era" — the native-per-morpheme default — so
+  // it reads as a real, chosen mode, not an absence of one).
   const optionLabel = (opt) =>
-    opt === '' ? '(no filter)' : prop['x-option-language'] ? languageLabel(opt) : opt;
+    opt === ''
+      ? prop['x-empty-option-label'] || '(no filter)'
+      : prop['x-option-language']
+        ? languageLabel(opt)
+        : opt;
 
   // wyrd-0gou: snap-to-valid for plain string-enum selects. The culture enum
   // is filtered by feature flags (visibleCultures), so a seeded value — incl.
