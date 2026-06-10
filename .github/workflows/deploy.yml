@@ -13,7 +13,7 @@ on:
 
 # wyrd-8f1p: serialize deploys per environment so two near-simultaneous
 # pushes to main (or a push racing a dispatch) don't run overlapping
-# `terraform apply` + Lambda `UpdateFunctionCode` against the same function —
+# `tofu apply` + Lambda `UpdateFunctionCode` against the same function —
 # which fails the second with a 409 ResourceConflictException. The group key
 # resolves to the target env: push → 'staging', dispatch → the chosen input.
 # cancel-in-progress: false lets an in-flight apply/update finish (never
@@ -66,15 +66,15 @@ jobs:
       - name: Build Lambda zip
         run: bin/build-lambda.sh
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: opentofu/setup-opentofu@v1
         with:
-          terraform_version: ${{ env.TF_VERSION }}
+          tofu_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: Terraform init
         working-directory: terraform
         run: |
-          terraform init \
+          tofu init \
             -input=false \
             -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
             -backend-config="key=wyrd/staging/terraform.tfstate"
@@ -85,18 +85,18 @@ jobs:
         # timing logs Kenning.generate emits — left to default INFO on
         # production. Flip in terraform/variables.tf if staging needs
         # to go quieter.
-        run: terraform apply -auto-approve -input=false -var="env=staging" -var="log_level=DEBUG"
+        run: tofu apply -auto-approve -input=false -var="env=staging" -var="log_level=DEBUG"
 
       - name: Wait for SnapStart snapshot Active
         working-directory: terraform
-        # wyrd-g1wp: `terraform apply` (publish=true + snap_start) deployed the
+        # wyrd-g1wp: `tofu apply` (publish=true + snap_start) deployed the
         # code from function.zip, published a version with a SnapStart snapshot,
         # and repointed the `live` alias at it (the Function URL serves through
         # `live`). This replaces the old `update-function-code` step — terraform
         # now owns code + publish + alias. A published version isn't invocable
         # until its snapshot finishes optimizing, so block until State=Active.
         run: |
-          FUNCTION=$(terraform output -raw lambda_function_name)
+          FUNCTION=$(tofu output -raw lambda_function_name)
           VERSION=$(aws lambda get-alias --function-name "$FUNCTION" --name live --query FunctionVersion --output text)
           echo "live alias → version $VERSION; waiting for State=Active (SnapStart optimization)…"
           OK=
@@ -160,33 +160,33 @@ jobs:
       - name: Build Lambda zip
         run: bin/build-lambda.sh
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: opentofu/setup-opentofu@v1
         with:
-          terraform_version: ${{ env.TF_VERSION }}
+          tofu_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: Terraform init
         working-directory: terraform
         run: |
-          terraform init \
+          tofu init \
             -input=false \
             -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
             -backend-config="key=wyrd/production/terraform.tfstate"
 
       - name: Terraform apply
         working-directory: terraform
-        run: terraform apply -auto-approve -input=false -var="env=production"
+        run: tofu apply -auto-approve -input=false -var="env=production"
 
       - name: Wait for SnapStart snapshot Active
         working-directory: terraform
-        # wyrd-g1wp: `terraform apply` (publish=true + snap_start) deployed the
+        # wyrd-g1wp: `tofu apply` (publish=true + snap_start) deployed the
         # code from function.zip, published a version with a SnapStart snapshot,
         # and repointed the `live` alias at it (the Function URL serves through
         # `live`). This replaces the old `update-function-code` step — terraform
         # now owns code + publish + alias. A published version isn't invocable
         # until its snapshot finishes optimizing, so block until State=Active.
         run: |
-          FUNCTION=$(terraform output -raw lambda_function_name)
+          FUNCTION=$(tofu output -raw lambda_function_name)
           VERSION=$(aws lambda get-alias --function-name "$FUNCTION" --name live --query FunctionVersion --output text)
           echo "live alias → version $VERSION; waiting for State=Active (SnapStart optimization)…"
           OK=
