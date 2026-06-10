@@ -475,7 +475,9 @@ def _download_matcher_sidecar(s3, bucket: str, version_key: str, cached_db_path:
 # context cleanup is a no-op; under zip-loader packaging (Lambda Layers as zip,
 # zipapp) it EXTRACTS the binary to a temp file that must outlive the cached
 # read-only connection (the seed is read for the container's lifetime). The
-# ExitStack keeps that temp alive until the process exits or the cache is reset.
+# ExitStack keeps that temp alive until the process exits, the cache is reset,
+# or the seed is re-materialized (which rotates the stack — see
+# _bundled_seed_path — so a vanished temp can't accumulate replacements).
 _seed_exit_stack: contextlib.ExitStack | None = None
 _seed_path: Path | None = None
 
@@ -496,8 +498,17 @@ def _bundled_seed_path() -> Path:
     if _seed_path is not None and _seed_path.is_file():
         return _seed_path
     seed = resources.files("wyrd.generators.kenning.data").joinpath("seed-runtime.db")
-    if _seed_exit_stack is None:
-        _seed_exit_stack = contextlib.ExitStack()
+    # Re-materializing (memo missed — first call, OR a prior temp vanished, e.g.
+    # a SnapStart restore wiped /tmp while these globals survived the snapshot).
+    # ROTATE the ExitStack rather than appending: pushing a fresh as_file
+    # context onto a stale stack would pile up extracted temps across restore
+    # cycles. Closing the old stack also drops any now-dead temp. Safe because
+    # the memo only misses once the prior temp is gone (an open connection keeps
+    # _seed_path.is_file() true → early return above), and the SnapStart /
+    # cache-reset paths close _conn before we get here.
+    if _seed_exit_stack is not None:
+        _seed_exit_stack.close()
+    _seed_exit_stack = contextlib.ExitStack()
     path = _seed_exit_stack.enter_context(resources.as_file(seed))
     if not path.is_file():
         raise FileNotFoundError(
