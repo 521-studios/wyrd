@@ -119,12 +119,19 @@
                    morpheme's (the cognate no longer means the same thing). -->
               {@const drifted = isGlossDrift(baseGloss, cell.gloss)}
               {@const current = isCurrent(cell)}
+              <!-- wyrd-3vju.3: the morpheme's CENTRAL rendered form — injected
+                   API-side (source='usage') so the live form is always a cell here
+                   (the swap menu), letting the user swap away AND back even when the
+                   era data lacks/garbles the rendered reflex. -->
+              {@const isUsage = cell.source === 'usage'}
               <!-- wyrd-rogd.17: name the cell by its accented display surface
                    (the same one shown), not the raw stored form. -->
               {@const cellName = accentForm(cell.form, morpheme)}
               {@const swapTitle = inferred
                 ? `Swap to ${cellName} — inferred via phonology rule (not attested)`
-                : `Swap this morpheme to ${cellName}`}
+                : isUsage
+                  ? `Swap to ${cellName} — the morpheme's own form (what the name uses)`
+                  : `Swap this morpheme to ${cellName}`}
               {@const liveTitle = inferred
                 ? 'Live in the name (inferred via phonology rule) — click to revert'
                 : 'Live in the name — click to revert'}
@@ -137,6 +144,7 @@
                 class:current={current}
                 class:inferred
                 class:drift={drifted}
+                class:usage={isUsage}
                 aria-pressed={current}
                 onclick={() => swap(stage, cell)}
                 title={(current ? liveTitle : swapTitle) + glossNote}

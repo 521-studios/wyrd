@@ -761,34 +761,75 @@ def _active_cell_id(grid, lang, surface):
     return exact_lang or fold_lang or fold_any
 
 
-def _present_day_cell_id(grid, surface):
-    """wyrd-3vju.2: the grid-cell id for a FORCE-MODERN (``era="modern-english"``)
-    surface. That path leaves ``NewName.rendered`` None — the morpheme's usage IS
-    the present-day form — so there's no render-language to scope by. Resolving
-    with ``lang=None`` (the old fallback) returned ``fold_any`` = the FIRST
-    same-spelled cell in grid order, which mis-binds an earlier-era homograph
-    (``middle-english:water``) over the modern cell. Scope the match to each
-    family's PRESENT-DAY stage (``family_stage_order[-1]``) so the modern cell
-    wins: exact-in-stage first, then a case/dash fold there."""
-    if not grid or not surface:
+def _ensure_rendered_cell(grid, lang, surface):
+    """wyrd-3vju.3: GUARANTEE the actually-rendered surface is a clickable cell in
+    its render stage. The era grid IS the SPA's swap menu, so the live form MUST be
+    in it (with a stable id) or the user can't swap away from it AND back — the
+    long-standing UI defect. Returns the cell id.
+
+    If a cell in ``lang``'s stage already matches ``surface`` (case/dash fold),
+    return its id (no duplicate — the common path where the usage already equals a
+    reflex). Otherwise INJECT ``{id, form, source: 'usage'}`` into that stage,
+    creating the stage / family section in canonical order if absent, and return
+    its id. ``source='usage'`` marks the morpheme's central rendered form so the
+    SPA can flag it (and it survives present-day self-seed narrowing, which only
+    drops ``source='self'``).
+
+    Needed because era_reflexes can OMIT or CORRUPT the rendered form: the modern
+    'gold' cell holds 'gowth', and '-ston' renders 'ston' while its modern cells
+    are 'stone/steen/sten'. Force-modern renders the clean usage, so without this
+    the live form has no cell at all in its era column."""
+    if not grid or not lang or not surface:
         return None
-    folded = _grid_surface_key(surface)
-    fold_hit = None
+    form = surface.strip().strip("-").strip()
+    if not form:
+        return None
+    folded = _grid_surface_key(form)
+    existing = _cell_id_in_stage(grid, lang, folded)
+    if existing is not None:
+        return existing  # usage already equals a reflex — no duplicate
+    cid = f"{lang}:{form}"
+    _grid_stage_for(grid, lang)["forms"].append({"id": cid, "form": form, "source": "usage"})
+    return cid
+
+
+def _cell_id_in_stage(grid, lang, folded):
+    """The id of a cell in ``lang``'s stage whose form folds to ``folded``, else
+    None. Scoped to the language stage so a same-spelled earlier-era homograph
+    can't match (wyrd-3vju.2)."""
     for section in grid:
-        order = family_stage_order(section.get("family", ""))
-        present_day_lang = order[-1] if order else None
-        if present_day_lang is None:
-            continue
         for stage in section.get("stages", []):
-            if stage.get("language") != present_day_lang:
+            if stage.get("language") != lang:
                 continue
             for cell in stage.get("forms", []):
-                form = cell.get("form", "")
-                if form == surface:
+                if _grid_surface_key(cell.get("form", "")) == folded:
                     return cell.get("id")
-                if fold_hit is None and _grid_surface_key(form) == folded:
-                    fold_hit = cell.get("id")
-    return fold_hit
+    return None
+
+
+def _grid_stage_for(grid, lang):
+    """Find — or create, in canonical oldest→newest stage order — the
+    ``{language: lang}`` stage of its family section, returning the stage to append
+    cells to. Creates the family section too if the grid lacks it."""
+    fam = language_family(lang)
+    section = next((s for s in grid if s.get("family") == fam), None)
+    if section is None:
+        section = {"family": fam, "stages": []}
+        grid.append(section)
+    stage = next((st for st in section["stages"] if st.get("language") == lang), None)
+    if stage is not None:
+        return stage
+    stage = {"language": lang, "forms": []}
+    order = family_stage_order(fam)
+    insert_at = len(section["stages"])
+    if lang in order:
+        for i, st in enumerate(section["stages"]):
+            other = st.get("language")
+            if other in order and order.index(other) > order.index(lang):
+                insert_at = i
+                break
+    section["stages"].insert(insert_at, stage)
+    return stage
 
 
 def _grid_has_cell_id(grid, cell_id: str) -> bool:
@@ -2228,24 +2269,33 @@ class NewName:
         if forward_id and _grid_has_cell_id(grid, forward_id):
             morpheme["active_form_id"] = forward_id
             return
-        # Fallback (data gap): the rendered surface isn't an enumerated reflex of
-        # this etymon — keep the legacy fold so something highlights; the reflex
-        # data cleanup that closes the gap is the wyrd-3vju epic.
+        # wyrd-3vju.3: the rendered surface isn't an enumerated reflex of this
+        # etymon (sparse/garbage era_reflexes). The grid is the swap menu, so rather
+        # than leave the live form absent + unhighlighted, GUARANTEE it: ensure a
+        # cell exists in its render stage (injecting a source='usage' cell when the
+        # reflexes don't carry it) and stamp that id. Determine (lang, surface):
         if rendered is not None and morpheme.get("rendered_language"):
+            # Era render: the rendered reflex's own render language.
             lang, surface = morpheme["rendered_language"], rendered
-            cid = _active_cell_id(grid, lang, surface)
         elif rendered is not None:
+            # Native render: the picked morpheme's source language.
             mid = grid_mid or getattr(first, "morpheme_id", "")
             lang, surface = (mid or "").partition(":")[0] or None, rendered
-            cid = _active_cell_id(grid, lang, surface)
         else:
-            # wyrd-3vju.2: force-modern (era="modern-english") leaves rendered None
-            # and the usage IS the present-day surface — no render-language to scope
-            # by. Resolve against each family's PRESENT-DAY stage so a same-spelled
-            # earlier-era homograph (middle-english "water") can't outrank the modern
-            # cell; the old lang=None path returned fold_any = the first same-spelled
-            # cell in grid order (the earlier era).
-            cid = _present_day_cell_id(grid, morpheme.get("usage"))
+            # wyrd-3vju.2/.3: force-modern (era="modern-english") leaves rendered
+            # None and the usage IS the present-day surface — target the PRESENT-DAY
+            # stage (family_stage_order[-1], e.g. modern-english) of the morpheme's
+            # family (from grid_mid when known, else the grid's primary section), so
+            # the live modern form is a cell in the modern column even when the modern
+            # era-reflex is missing/garbage (gold's modern cell holds 'gowth').
+            mid = grid_mid or getattr(first, "morpheme_id", "")
+            src = (mid or "").partition(":")[0]
+            fam = language_family(src) if src else None
+            section = next((s for s in grid if s.get("family") == fam), None) or grid[0]
+            order = family_stage_order(section.get("family", ""))
+            lang = order[-1] if order else None
+            surface = morpheme.get("usage")
+        cid = _ensure_rendered_cell(grid, lang, surface)
         if cid:
             morpheme["active_form_id"] = cid
 

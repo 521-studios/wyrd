@@ -233,6 +233,72 @@ def test_set_active_form_id_force_modern_prefers_present_day_stage():
     assert m["active_form_id"] == "modern-english:water"
 
 
+def test_set_active_form_id_injects_usage_cell_when_reflex_missing():
+    """wyrd-3vju.3: the era grid is the SPA's swap menu, so the rendered surface MUST
+    be a clickable cell. When force-modern renders the usage but the modern era-reflex
+    is missing/garbage (here the modern cell holds 'gowth', not 'gold'), inject a
+    source='usage' cell for the usage into the present-day stage and point
+    active_form_id at it — so the live form is in the menu (swap away AND back) with a
+    stable id. The existing (garbage) reflex stays as another swap option."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName, _grid_has_cell_id
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {
+                    "language": "old-english",
+                    "forms": [{"id": "old-english:gold", "form": "gold", "source": "cluster"}],
+                },
+                {
+                    "language": "modern-english",
+                    "forms": [{"id": "modern-english:gowth", "form": "gowth", "source": "cluster"}],
+                },
+            ],
+        }
+    ]
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    m = {"usage": "gold", "era_grid": grid}  # force-modern: rendered None, usage is modern surface
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid="old-english:gold")
+
+    assert m["active_form_id"] == "modern-english:gold"
+    assert _grid_has_cell_id(grid, "modern-english:gold")
+    modern = next(st for sec in grid for st in sec["stages"] if st["language"] == "modern-english")
+    injected = next(c for c in modern["forms"] if c["id"] == "modern-english:gold")
+    assert injected["form"] == "gold"
+    assert injected["source"] == "usage"  # marked as the central rendered form
+    # the (garbage) 'gowth' reflex is preserved as another swap option, not removed.
+    assert any(c["id"] == "modern-english:gowth" for c in modern["forms"])
+
+
+def test_set_active_form_id_no_duplicate_when_usage_is_already_a_reflex():
+    """wyrd-3vju.3: when the rendered usage already equals a present-day reflex cell,
+    use that cell — do NOT inject a duplicate."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {
+                    "language": "modern-english",
+                    "forms": [{"id": "modern-english:stone", "form": "stone", "source": "cluster"}],
+                },
+            ],
+        }
+    ]
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    m = {"usage": "stone", "era_grid": grid}
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid="old-english:stan")
+    assert m["active_form_id"] == "modern-english:stone"
+    modern = next(st for sec in grid for st in sec["stages"] if st["language"] == "modern-english")
+    assert len(modern["forms"]) == 1  # no duplicate injected
+
+
 def test_active_form_id_is_the_exact_rendered_reflex_corpus():
     """wyrd-3vju.1 contract: across rolls, an emitted active_form_id resolves to
     a cell whose form casefold-equals the rendered surface WITH combining marks
