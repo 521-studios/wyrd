@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -13,8 +12,17 @@ from typing import Any
 import click
 
 from wyrd.generators.kenning import anthropic_extractor, gemini_extractor, llm_extractor
-from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _select_parser_and_run
-from wyrd.generators.kenning.lexicon import LexiconDB, ingest_parsed_entries, record_mining_run
+from wyrd.generators.kenning.cli.utils import (
+    _DEFAULT_LEXICON_PATH,
+    _readonly_lexicon,
+    _select_parser_and_run,
+)
+from wyrd.generators.kenning.lexicon import (
+    LexiconDB,
+    LexiconError,
+    ingest_parsed_entries,
+    record_mining_run,
+)
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -157,7 +165,7 @@ def lexicon_review(
         return
 
     # Group by source_id so we only re-parse each book once.
-    by_book: dict[str, list[sqlite3.Row]] = {}
+    by_book: dict[str, list[Any]] = {}
     for c in candidates:
         by_book.setdefault(c["source_id"], []).append(c)
 
@@ -293,8 +301,7 @@ def _select_already_extracted_toponyms(db_path: Path, source_id: str) -> set[str
     Returns an empty set if the source row doesn't exist yet (fresh book) or
     if no etymology rows have been written for it.
     """
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    try:
+    with _readonly_lexicon(db_path) as conn:
         rows = conn.execute(
             """
             SELECT DISTINCT t.modern_name
@@ -305,8 +312,6 @@ def _select_already_extracted_toponyms(db_path: Path, source_id: str) -> set[str
             (source_id,),
         ).fetchall()
         return {r[0] for r in rows}
-    finally:
-        conn.close()
 
 
 def _select_review_candidates(
@@ -318,7 +323,7 @@ def _select_review_candidates(
     limit: int | None,
     include_haiku: bool = False,
     include_sonnet: bool = False,
-) -> list[sqlite3.Row]:
+) -> list[Any]:
     """Pick `toponym_etymology` rows eligible for Tier-2 re-extraction.
 
     Eligibility: row was extracted by an LLM provider (notes contain
@@ -345,9 +350,7 @@ def _select_review_candidates(
     a row that already has a Tier-2 pass from the chosen provider, so
     flipping the flags is idempotent.
     """
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    try:
+    with _readonly_lexicon(db_path) as conn:
         placeholders = ",".join("?" * len(confidence))
         provider_clauses = [
             "te.notes LIKE '%extracted_by:llm:%'",
@@ -390,8 +393,6 @@ def _select_review_candidates(
             sql += " LIMIT ?"
             args.append(limit)
         return conn.execute(sql, args).fetchall()
-    finally:
-        conn.close()
 
 
 @dataclass(frozen=True)
@@ -468,7 +469,7 @@ def _record_review_run(
 def _review_one_book(
     *,
     source_id: str,
-    rows: list[sqlite3.Row],
+    rows: list[Any],
     source_path: Path,
     client: Any,
     provider_extract_one: Any,
@@ -605,7 +606,7 @@ def _import_mining_log_record(
         ValueError,
         TypeError,
         AttributeError,
-        sqlite3.Error,
+        LexiconError,
     ) as e:
         return f"line {line_no}: {e}"
 
