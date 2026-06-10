@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
+from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -66,15 +66,7 @@ def lexicon_ingest_domesday(
     See ``ingesters.domesday.DOMESDAY_SOURCE_NOTES`` for the full
     attribution recorded in the ``source`` table.
     """
-    from urllib.parse import quote
-
     from wyrd.generators.kenning.ingesters.domesday import ingest_domesday
-
-    # URL-quote the path so spaces / reserved chars (?, #) in
-    # operator-supplied paths don't get parsed as URI components.
-    db_uri = f"file:{quote(str(db_path.absolute()))}?mode={'rw' if apply_changes else 'ro'}"
-    conn = sqlite3.connect(db_uri, uri=True)
-    conn.row_factory = sqlite3.Row
 
     last_pct = -1
 
@@ -89,16 +81,29 @@ def lexicon_ingest_domesday(
                 err=True,
             )
 
-    try:
-        counts = ingest_domesday(
-            conn,
-            mdb_path,
-            apply=apply_changes,
-            include_uncertain=include_uncertain,
-            progress_callback=_progress,
-        )
-    finally:
-        conn.close()
+    # The ingester writes (+ commits) under --apply and only reads on dry-run,
+    # so take a writable LexiconDB vs a read-only connection accordingly. Match
+    # the raw-connect default the ingester ran under (foreign_keys OFF) —
+    # LexiconDB otherwise forces FK ON via its per-connection pragmas.
+    if apply_changes:
+        with LexiconDB(db_path) as db:
+            db.conn.execute("PRAGMA foreign_keys = OFF")
+            counts = ingest_domesday(
+                db.conn,
+                mdb_path,
+                apply=True,
+                include_uncertain=include_uncertain,
+                progress_callback=_progress,
+            )
+    else:
+        with _readonly_lexicon(db_path) as conn:
+            counts = ingest_domesday(
+                conn,
+                mdb_path,
+                apply=False,
+                include_uncertain=include_uncertain,
+                progress_callback=_progress,
+            )
 
     click.echo("", err=True)
     click.echo(f"Summary: {counts}", err=True)

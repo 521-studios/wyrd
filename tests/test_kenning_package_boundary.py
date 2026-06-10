@@ -160,13 +160,11 @@ def test_cli_lexicon_files_do_not_define_db_helpers() -> None:
     cli_lex_dir = _KENNING_ROOT / "cli" / "lexicon"
     skip: frozenset[str] = frozenset(
         {
-            # wyrd-mewu: remaining direct-sqlite3 files awaiting migration. The
-            # read-only ones (backfill_fantasy_tags, dump_jsonl) are done; these
-            # are writers / multi-DB comparisons needing a LexiconDB context or
-            # conditional rw/ro handling (heavier refactor).
-            "diff_rebuild.py",
-            "ingest_domesday.py",
-            "rebuild_from_jsonl.py",
+            # wyrd-mewu: review.py legitimately needs the sqlite3 module — it
+            # catches ``sqlite3.Error`` and annotates rows as ``sqlite3.Row``.
+            # Dropping the import would broaden the exception (behavior change),
+            # so it stays exempt (the other 5 files have been migrated to
+            # _readonly_lexicon / LexiconDB).
             "review.py",
         }
     )
