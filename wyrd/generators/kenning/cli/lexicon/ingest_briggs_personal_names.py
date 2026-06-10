@@ -100,9 +100,9 @@ def lexicon_ingest_briggs_personal_names(
 
     db = LexiconDB(db_path)
     try:
-        # Defensive migrate: ensures the two target tables exist even
-        # on legacy DBs that haven't been alembic'd up. No-op on
-        # fresh-install / current schema.
+        # Defensive migrate: bring a legacy DB up to the current etymon
+        # schema the ingest writes into (etymon columns/views + citation
+        # table, wyrd-2b50). No-op on fresh-install / current schema.
         migrate_schema(db)
 
         def _report(stats: IngestStats) -> None:
