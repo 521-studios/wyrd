@@ -136,6 +136,95 @@ def test_active_cell_id_lang_scope_then_fold_then_none():
     assert _active_cell_id(grid, "old-english", "") is None
 
 
+def test_set_active_form_id_forward_exact_not_reconstructed_sibling():
+    """wyrd-3vju.1: the active id is computed FORWARD from the picked morpheme's
+    own form, so it lands on the EXACT reflex the generator rendered — not a
+    fold-equal sibling. Here the reconstructed ``*west`` cell and the attested
+    ``west`` cell both display form ``west``; the legacy backwards fold-search
+    returned the FIRST folding cell (``*west``), but the render chose the
+    attested ``west`` — the forward id (built from the picked morpheme's own
+    form) picks it exactly, with no fold."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName, _active_cell_id
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {
+                    "language": "old-english",
+                    "forms": [
+                        {"id": "old-english:*west", "form": "west"},  # reconstructed
+                        {"id": "old-english:west", "form": "west"},  # attested (rendered)
+                    ],
+                }
+            ],
+        }
+    ]
+    # The legacy backwards search would (wrongly) return the reconstructed sibling.
+    assert _active_cell_id(grid, "old-english", "West") == "old-english:*west"
+
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    m = {"usage": "West", "rendered": "West", "era_grid": grid}  # native render
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid="old-english:west")
+    # Forward-exact: the rendered reflex's own cell, NOT the *west fold collision.
+    assert m["active_form_id"] == "old-english:west"
+
+
+def test_set_active_form_id_falls_back_to_fold_when_surface_not_a_reflex_cell():
+    """wyrd-3vju.1: when the rendered surface is NOT an enumerated reflex of the
+    picked etymon (the genuine data gap — sparse era_reflexes / synthesized
+    surface), the forward id isn't in the grid, so we fall back to the legacy
+    fold so SOMETHING still highlights. No regression vs the pre-3vju.1 path."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {"language": "old-english", "forms": [{"id": "old-english:roth", "form": "roth"}]}
+            ],
+        }
+    ]
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    # grid_mid's native form is 'hyll' (NOT a cell here); rendered folds to 'roth'.
+    m = {"usage": "Roth", "rendered": "Roth", "era_grid": grid}
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid="old-english:hyll")
+    assert m["active_form_id"] == "old-english:roth"  # fold fallback still works
+
+
+def test_active_form_id_is_the_exact_rendered_reflex_corpus():
+    """wyrd-3vju.1 contract: across rolls, an emitted active_form_id resolves to
+    a cell whose form casefold-equals the rendered surface WITH combining marks
+    preserved (macron-strict) — i.e. the highlight is the exact reflex rendered,
+    not a lossy accent-fold collision (the Output/Inspect macron mismatch). The
+    residual (rendered surface genuinely absent from the reflex set) is the
+    era-grid data-quality epic; it stays small."""
+    strict_hits = total = 0
+    for era in ("", "modern-english", "oe-late"):
+        for seed in range(60):
+            r = _gen({"culture": "english", "count": 1, "era": era}, seed)
+            for word in r.morphemes_by_word or []:
+                for m in word:
+                    cid = m.get("active_form_id")
+                    if not cid or not m.get("rendered"):
+                        continue
+                    total += 1
+                    cell = _cell_by_id(m.get("era_grid"), cid)
+                    cf = (cell or {}).get("form", "")
+                    if (
+                        cf.strip().strip("-").casefold()
+                        == m["rendered"].strip().strip("-").casefold()
+                    ):
+                        strict_hits += 1
+    assert total > 100, f"too few samples ({total})"
+    # Forward-exact dominates; allow a small fold-fallback residue (data gap).
+    assert strict_hits / total >= 0.97, f"only {strict_hits}/{total} macron-strict"
+
+
 def test_set_active_form_id_native_lang_from_grid_mid_not_first():
     """wyrd-i4jd regression: the native-render lang scope must come from the
     PICKED morpheme (grid_mid), not first.morpheme_id (the surface sibling) —
