@@ -561,6 +561,26 @@ def _is_single_morpheme_structure(struct_key: tuple) -> bool:
     return sum(len(word_key) for word_key in struct_key) <= 1
 
 
+def _era_reflex_raw_choice(meanings, era_render_language: str | None) -> str | None:
+    """wyrd-3vju.1: the RAW ``era_reflexes`` entry (``*`` reconstruction marker
+    PRESERVED) that the era render selects for ``meanings`` at
+    ``era_render_language`` — the same first-sense / attested-over-reconstructed
+    choice as :func:`_era_form_for_meanings`, but unstripped.
+
+    The grid cell id is ``lang:<raw form>`` (the ``*`` is kept in the id; see
+    :func:`_era_stage`), so returning the raw form lets a caller build the EXACT
+    cell id of the reflex the generator rendered — FORWARD — instead of folding
+    the stripped, case-projected surface back into the grid (which mismatches on
+    macrons / reconstruction markers). None when no sense carries a reflex."""
+    for meaning in meanings:
+        forms = meaning.era_reflex_for(era_render_language)
+        if not forms:
+            continue
+        attested = [f for f in forms if not f.startswith("*")]
+        return attested[0] if attested else forms[0]
+    return None
+
+
 def _era_form_for_meanings(meanings, era_render_language: str | None) -> str | None:
     """wyrd-6c8x: the era-appropriate form for a usage's resolved senses, or
     None when none of them carries a reflex at ``era_render_language``.
@@ -570,14 +590,12 @@ def _era_form_for_meanings(meanings, era_render_language: str | None) -> str | N
     before letters, so a naive ``forms[0]`` is biased toward reconstructed
     (unattested) forms — we take the first non-starred form, falling back to the
     marker-stripped first form only when every reflex is reconstructed (still a
-    plausible period spelling). Deterministic: no rng draw."""
-    for meaning in meanings:
-        forms = meaning.era_reflex_for(era_render_language)
-        if not forms:
-            continue
-        attested = [f for f in forms if not f.startswith("*")]
-        return attested[0] if attested else forms[0].lstrip("*")
-    return None
+    plausible period spelling). Deterministic: no rng draw.
+
+    Shares its selection with :func:`_era_reflex_raw_choice` (which keeps the
+    ``*`` for cell-id construction); this returns the marker-stripped surface."""
+    raw = _era_reflex_raw_choice(meanings, era_render_language)
+    return raw.lstrip("*") if raw is not None else None
 
 
 def _native_form_for_morpheme_id(morpheme_id) -> str | None:
@@ -741,6 +759,22 @@ def _active_cell_id(grid, lang, surface):
                     elif fold_any is None:
                         fold_any = cell.get("id")
     return exact_lang or fold_lang or fold_any
+
+
+def _grid_has_cell_id(grid, cell_id: str) -> bool:
+    """wyrd-3vju.1: True when ``cell_id`` is an exact cell id in ``grid``. Used to
+    confirm the FORWARD-computed active-form id (the cell of the reflex the
+    generator actually rendered) is present before stamping it — an exact-id
+    compare, no surface fold, so it can't mis-bind a macron / reconstruction
+    variant the way the legacy fold search does."""
+    if not grid or not cell_id:
+        return False
+    return any(
+        cell.get("id") == cell_id
+        for section in grid
+        for stage in section.get("stages", [])
+        for cell in stage.get("forms", [])
+    )
 
 
 def _era_grid(meaning, renderings, own_surface=None):
@@ -2119,27 +2153,59 @@ class NewName:
                 morpheme["rendered_pron"] = pron
 
     def _set_active_form_id(self, morpheme: dict, first, grid_mid=None) -> None:
-        """wyrd-i4jd: stamp ``active_form_id`` — the grid-cell id of the surface
-        this morpheme actually rendered — so the SPA highlights it BY ID instead
-        of re-deriving it from a cross-grid surface fold. Call AFTER the grid +
-        rendered fields are set. The active surface is the era/native ``rendered``
-        form (in its render language) or, when there's no distinct render, the
-        modern ``usage`` (present-day stage). Sparse: omitted when no cell matches
-        (no era data, or a None-id legacy slot) → frontend falls back to its fold."""
+        """wyrd-i4jd / wyrd-3vju.1: stamp ``active_form_id`` — the grid-cell id of
+        the reflex this morpheme actually rendered — so the SPA highlights it BY
+        ID. Call AFTER the grid + rendered fields are set.
+
+        wyrd-3vju.1 (reflex-id contract): compute the id FORWARD from the exact
+        reflex the render chose — its raw form + render language — and stamp it
+        when that cell is present in the grid (exact-id check, no fold). This is
+        the guarantee the operator specified: the rendered surface IS one of the
+        listed reflexes, by construction, so 'a morpheme not in its own reflexes'
+        and the macron Output/Inspect mismatch (the fold disagreeing on combining
+        marks) can't happen for the common path.
+
+        The legacy backwards fold-search (:func:`_active_cell_id`) survives only
+        as a fallback for the genuine data gap — when the rendered form is NOT an
+        enumerated reflex of the picked etymon (sparse era_reflexes / synthesized
+        surface; the era-grid data-quality work, wyrd-3vju). Sparse: omitted when
+        even the fallback finds nothing → frontend falls back to its own fold."""
         grid = morpheme.get("era_grid")
         if not grid:
             return
         rendered = morpheme.get("rendered")
+        # FORWARD: the cell id of the reflex actually rendered, built from the
+        # raw form + render language (not the case-projected display surface).
+        forward_id = None
+        if rendered is not None and morpheme.get("rendered_language"):
+            # Era render: the raw reflex the era picker chose at this language,
+            # resolved against the SAME morpheme the grid was built from.
+            lang = morpheme["rendered_language"]
+            grid_meaning = _resolve_morpheme(
+                self.meaning_db, grid_mid or getattr(first, "morpheme_id", None)
+            )
+            raw = _era_reflex_raw_choice([grid_meaning] if grid_meaning else [], lang)
+            if raw is not None:
+                forward_id = f"{lang}:{raw}"
+        elif rendered is not None:
+            # Native render: the picked morpheme's own headword (its morpheme_id
+            # canonical) in its source language — a self-seed cell of its grid.
+            mid = grid_mid or getattr(first, "morpheme_id", "")
+            lang = (mid or "").partition(":")[0] or None
+            native = _native_form_for_morpheme_id(mid)
+            if lang and native:
+                forward_id = f"{lang}:{native}"
+        if forward_id and _grid_has_cell_id(grid, forward_id):
+            morpheme["active_form_id"] = forward_id
+            return
+        # Fallback (data gap): the rendered surface isn't an enumerated reflex of
+        # this etymon — keep the legacy fold so something highlights; the reflex
+        # data cleanup that closes the gap is the wyrd-3vju epic.
         if rendered is not None and morpheme.get("rendered_language"):
             lang, surface = morpheme["rendered_language"], rendered
         elif rendered is not None:
-            # Native render: no rendered_language; the active stage is the PICKED
-            # morpheme's source language — from ``grid_mid`` (the id the grid was
-            # built from), NOT first.morpheme_id (the surface-ranked sibling,
-            # which can differ in the exact case wyrd-i4jd corrects).
             mid = grid_mid or getattr(first, "morpheme_id", "")
-            lang = (mid or "").partition(":")[0] or None
-            surface = rendered
+            lang, surface = (mid or "").partition(":")[0] or None, rendered
         else:
             # Modern / force-modern: the present-day stage holds the usage seed.
             lang, surface = None, morpheme.get("usage")
