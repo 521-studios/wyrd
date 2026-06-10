@@ -225,6 +225,105 @@ def test_active_form_id_is_the_exact_rendered_reflex_corpus():
     assert strict_hits / total >= 0.97, f"only {strict_hits}/{total} macron-strict"
 
 
+def test_era_reflex_raw_choice_attested_over_reconstructed_and_strip_parity():
+    """wyrd-3vju.1: _era_reflex_raw_choice keeps the raw reflex (``*`` marker
+    preserved, for the cell id) and shares its attested-over-reconstructed
+    selection with _era_form_for_meanings (which returns the ``*``-stripped
+    surface). Pins both directly (the era forward branch builds the cell id
+    from this raw choice)."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import (
+        _era_form_for_meanings,
+        _era_reflex_raw_choice,
+    )
+
+    def mk(forms):
+        return SimpleNamespace(
+            era_reflex_for=lambda lang, f=forms: f if lang == "old-english" else []
+        )
+
+    # attested present → raw is the attested (no star); surface equal.
+    assert _era_reflex_raw_choice([mk(["*west", "west"])], "old-english") == "west"
+    assert _era_form_for_meanings([mk(["*west", "west"])], "old-english") == "west"
+    # all reconstructed → raw KEEPS the star (cell-id distinct); surface strips it.
+    assert _era_reflex_raw_choice([mk(["*west"])], "old-english") == "*west"
+    assert _era_form_for_meanings([mk(["*west"])], "old-english") == "west"
+    # first sense carrying a reflex wins; no reflex anywhere → None.
+    assert _era_reflex_raw_choice([mk([]), mk(["ham"])], "old-english") == "ham"
+    assert _era_reflex_raw_choice([mk([])], "old-english") is None
+    assert _era_form_for_meanings([mk([])], "old-english") is None
+
+
+def test_set_active_form_id_era_forward_exact(monkeypatch):
+    """wyrd-3vju.1: era-render forward branch — active_form_id is the EXACT cell
+    of the era reflex chosen (attested 'west' over reconstructed '*west'),
+    resolved from the PICKED morpheme, not a fold of the case-projected surface
+    (which would land on the first folding cell, '*west')."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime import proportions as P
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    fake = SimpleNamespace(
+        era_reflex_for=lambda lang: ["*west", "west"] if lang == "old-english" else []
+    )
+    monkeypatch.setattr(P, "_resolve_morpheme", lambda db, mid: fake)
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {
+                    "language": "old-english",
+                    "forms": [
+                        {"id": "old-english:*west", "form": "west"},
+                        {"id": "old-english:west", "form": "west"},
+                    ],
+                }
+            ],
+        }
+    ]
+    nn = NewName(struct=None, meaning_db={"x": 1}, name=[["x"]])
+    m = {
+        "usage": "West",
+        "rendered": "West",
+        "rendered_language": "old-english",
+        "era_grid": grid,
+    }
+    nn._set_active_form_id(
+        m, SimpleNamespace(morpheme_id="old-english:west"), grid_mid="old-english:west"
+    )
+    assert m["active_form_id"] == "old-english:west"
+
+
+def test_set_active_form_id_modern_path_and_no_grid():
+    """wyrd-3vju.1: the no-distinct-render (modern) path resolves the present-day
+    usage seed; and a morpheme with no era_grid stamps nothing."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {
+                    "language": "modern-english",
+                    "forms": [{"id": "modern-english:west", "form": "west"}],
+                }
+            ],
+        }
+    ]
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    m = {"usage": "West", "era_grid": grid}  # no 'rendered' → modern
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid=None)
+    assert m["active_form_id"] == "modern-english:west"
+
+    m2 = {"usage": "x"}  # no era_grid → early return, nothing stamped
+    nn._set_active_form_id(m2, SimpleNamespace(morpheme_id=None))
+    assert "active_form_id" not in m2
+
+
 def test_set_active_form_id_native_lang_from_grid_mid_not_first():
     """wyrd-i4jd regression: the native-render lang scope must come from the
     PICKED morpheme (grid_mid), not first.morpheme_id (the surface sibling) —
