@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import click
@@ -125,14 +124,12 @@ def lexicon_rebuild_from_jsonl(
             raise SystemExit(1)
         click.echo("", err=True)
 
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    try:
+    # LexiconDB gives a writable connection with row_factory=Row and
+    # foreign_keys=ON via its per-connection pragmas — matching the raw
+    # connect this replaces; build_from_jsonl commits as it goes.
+    with LexiconDB(db_path) as db:
         paths = jsonl_paths_in(jsonl_dir)
-        counts = build_from_jsonl(conn, paths)
-    finally:
-        conn.close()
+        counts = build_from_jsonl(db.conn, paths)
 
     click.echo(f"Rebuilt {db_path} from {len(paths)} JSONL files", err=True)
     click.echo("Inserted:", err=True)

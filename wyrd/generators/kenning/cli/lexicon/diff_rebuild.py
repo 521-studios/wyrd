@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
@@ -53,7 +52,6 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
     # keeps `wyrd kenning --help` snappy. tempfile + urllib.parse are
     # deferred for symmetry with the other heavy imports in this body.
     import tempfile
-    from urllib.parse import quote
 
     from wyrd.generators.kenning.jsonl.build import (
         build_from_jsonl,
@@ -66,13 +64,8 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
     from wyrd.generators.kenning.lexicon import init_schema
 
     # Read current DB counts before touching anything else.
-    db_uri = f"file:{quote(str(db_path.absolute()))}?mode=ro"
-    current_conn = sqlite3.connect(db_uri, uri=True)
-    current_conn.row_factory = sqlite3.Row
-    try:
+    with _readonly_lexicon(db_path) as current_conn:
         before = table_counts(current_conn)
-    finally:
-        current_conn.close()
 
     # Rebuild into a temp directory so the WAL sidecars (-wal, -shm
     # that init_schema creates because of journal_mode=WAL) get
@@ -83,13 +76,12 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
     with tempfile.TemporaryDirectory(prefix="wyrd-diff-rebuild-") as tmpdir:
         rebuilt_path = Path(tmpdir) / "rebuilt.db"
         init_schema(rebuilt_path)
-        rebuilt_conn = sqlite3.connect(rebuilt_path)
-        rebuilt_conn.row_factory = sqlite3.Row
-        try:
+        # Build into the temp DB. Match the raw-connect default the builder
+        # ran under (foreign_keys OFF) — LexiconDB otherwise forces FK ON.
+        with LexiconDB(rebuilt_path) as rebuilt_db:
+            rebuilt_db.conn.execute("PRAGMA foreign_keys = OFF")
             paths = jsonl_paths_in(jsonl_dir)
-            build_from_jsonl(rebuilt_conn, paths)
-        finally:
-            rebuilt_conn.close()
+            build_from_jsonl(rebuilt_db.conn, paths)
 
         if with_enrichment:
             from wyrd.generators.kenning.enrichment import run_full_enrichment
@@ -134,12 +126,8 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
                     pronunciation_state=pronunciations,
                 )
 
-        rebuilt_conn = sqlite3.connect(rebuilt_path)
-        rebuilt_conn.row_factory = sqlite3.Row
-        try:
+        with _readonly_lexicon(rebuilt_path) as rebuilt_conn:
             after = table_counts(rebuilt_conn)
-        finally:
-            rebuilt_conn.close()
 
     rows = diff_table_counts(before, after)
     click.echo(f"## diff-rebuild: {db_path} ↔ rebuild({jsonl_dir})")
