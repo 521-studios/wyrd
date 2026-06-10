@@ -92,7 +92,7 @@ def register_snapstart_hooks() -> None:
     _hooks_registered = True
 
     @register_after_restore
-    def _drop_stale_runtime_db_connection() -> None:  # noqa: V103 — invoked by SnapStart's after-restore runtime (dynamic registration; vulture can't see it)
+    def _drop_stale_runtime_db_connection() -> None:
         # The snapshot captured an open connection to
         # /tmp/wyrd-runtime-<etag>.db; /tmp is wiped on restore so the handle is
         # dead. Drop the connection ONLY (keep the parsed lru-caches + version

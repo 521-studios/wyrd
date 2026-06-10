@@ -111,8 +111,11 @@ exclude = ["*/sql/migrations/*"]
 #   @*.route / @*.errorhandler — Flask view + error handlers (wyrd/app.py)
 #   @click.* / @*.command / @*.group — Click CLI commands (cli.py, cli_defects.py)
 #   @*.fixture — pytest fixtures, if tests/ is ever added to paths
+#   @register_after_restore — AWS Lambda SnapStart after-restore hook
+#     (wyrd/snapstart.py); invoked by the runtime on restore, not by name
 ignore_decorators = [
     "@event.listens_for",
+    "@register_after_restore",
     "@*.route",
     "@*.errorhandler",
     # Flask 2.x method shorthands (@app.get/@app.post/...) — app.py uses these
