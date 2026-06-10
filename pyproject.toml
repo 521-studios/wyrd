@@ -107,8 +107,6 @@ max-complexity = 10
 "tests/**" = ["C901"]
 "scripts/**" = ["C901"]
 "wyrd/defects.py" = ["C901"]
-"wyrd/generators/kenning/cli/lexicon/ingest_toponym_mentions.py" = ["C901"]
-"wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions.py" = ["C901"]
 "wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions_staged.py" = ["C901"]
 "wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions_tiered.py" = ["C901"]
 

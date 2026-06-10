@@ -12,6 +12,82 @@ from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
+def _check_candidates_out(candidates_out: Path | None, force: bool) -> None:
+    """Pre-flight the --candidates-out path: refuse to clobber an existing file
+    unless --force, and warn when --force overwrites one."""
+    if candidates_out is not None and candidates_out.exists() and not force:
+        raise click.ClickException(
+            f"--candidates-out {candidates_out} already exists; pass --force to overwrite"
+        )
+    if candidates_out is not None and candidates_out.exists() and force:
+        click.echo(
+            f"warning: --force overwriting existing {candidates_out}",
+            err=True,
+        )
+
+
+def _load_mentions_by_source(
+    jsonl_path: Path, source_id_override: str | None
+) -> tuple[dict[str, list[dict]], int]:
+    """Parse the mentions JSONL once and group rows by source_id.
+
+    Each row carries its own source_id (the JSONL format permits mixed
+    sources), so we read the whole file before dispatching per-source. The
+    groupings stay in memory; for the pilot scope (~thousands of mentions)
+    that's bounded, and the per-source SELECT bulk-load downstream amortizes
+    the parse cost. A future streaming rewrite (Phase 2b.2 full-scope) would
+    emit per-source sub-batches and avoid the upfront groupby.
+    """
+    mentions_by_source: dict[str, list[dict]] = {}
+    total_lines = 0
+    with jsonl_path.open("r", encoding="utf-8") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise click.ClickException(f"{jsonl_path}:{line_no}: invalid JSON: {e}") from e
+            if not isinstance(row, dict):
+                raise click.ClickException(
+                    f"{jsonl_path}:{line_no}: row is not a JSON object ({type(row).__name__})"
+                )
+            sid = source_id_override or row.get("source_id")
+            if not sid:
+                raise click.ClickException(
+                    f"{jsonl_path}:{line_no}: mention missing source_id "
+                    f"and no --source override given"
+                )
+            mentions_by_source.setdefault(sid, []).append(row)
+            total_lines += 1
+            if total_lines % 10000 == 0:
+                # Project mining-progress convention from CLAUDE.md —
+                # surface load progress for large files.
+                click.echo(
+                    f"  loaded {total_lines:,} mentions...",
+                    err=True,
+                )
+    return mentions_by_source, total_lines
+
+
+def _write_candidates(candidates_out: Path, all_unresolved: list[dict]) -> None:
+    """Atomically write the unresolved-mention records to --candidates-out:
+    write to a sibling tempfile then rename, so a mid-write crash leaves the
+    prior file intact rather than truncated (silent-failure round-1 finding —
+    the JSONL is the only artifact of the unresolved set; an interrupted write
+    under --force was a real foot-gun)."""
+    tmp_path = candidates_out.with_suffix(candidates_out.suffix + ".tmp")
+    with tmp_path.open("w", encoding="utf-8") as sink:
+        for rec in all_unresolved:
+            sink.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    tmp_path.replace(candidates_out)
+    click.echo(
+        f"Wrote {len(all_unresolved)} unresolved → {candidates_out}",
+        err=True,
+    )
+
+
 @click.command("ingest-toponym-mentions")
 @click.option(
     "--jsonl",
@@ -94,54 +170,9 @@ def lexicon_ingest_toponym_mentions(
 
     click.echo(f"Using DB {db_path}", err=True)
 
-    if candidates_out is not None and candidates_out.exists() and not force:
-        raise click.ClickException(
-            f"--candidates-out {candidates_out} already exists; pass --force to overwrite"
-        )
-    if candidates_out is not None and candidates_out.exists() and force:
-        click.echo(
-            f"warning: --force overwriting existing {candidates_out}",
-            err=True,
-        )
+    _check_candidates_out(candidates_out, force)
 
-    # Parse JSONL once and group by source. Each row carries its own
-    # source_id (the JSONL format permits mixed sources), so we have
-    # to read the whole file before dispatching per-source. The
-    # groupings stay in memory; for the pilot scope (~thousands of
-    # mentions) that's bounded, and the per-source SELECT bulk-load
-    # downstream amortizes the parse cost. A future streaming
-    # rewrite (Phase 2b.2 full-scope) would emit per-source
-    # sub-batches and avoid the upfront groupby.
-    mentions_by_source: dict[str, list[dict]] = {}
-    total_lines = 0
-    with jsonl_path.open("r", encoding="utf-8") as f:
-        for line_no, line in enumerate(f, start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError as e:
-                raise click.ClickException(f"{jsonl_path}:{line_no}: invalid JSON: {e}") from e
-            if not isinstance(row, dict):
-                raise click.ClickException(
-                    f"{jsonl_path}:{line_no}: row is not a JSON object ({type(row).__name__})"
-                )
-            sid = source_id_override or row.get("source_id")
-            if not sid:
-                raise click.ClickException(
-                    f"{jsonl_path}:{line_no}: mention missing source_id "
-                    f"and no --source override given"
-                )
-            mentions_by_source.setdefault(sid, []).append(row)
-            total_lines += 1
-            if total_lines % 10000 == 0:
-                # Project mining-progress convention from CLAUDE.md —
-                # surface load progress for large files.
-                click.echo(
-                    f"  loaded {total_lines:,} mentions...",
-                    err=True,
-                )
+    mentions_by_source, total_lines = _load_mentions_by_source(jsonl_path, source_id_override)
 
     click.echo(
         f"Loaded {total_lines:,} mentions across {len(mentions_by_source)} source(s)",
@@ -202,20 +233,7 @@ def lexicon_ingest_toponym_mentions(
     )
 
     if candidates_out is not None:
-        # Atomic write: write to a sibling tempfile then rename, so a
-        # mid-write crash leaves the prior file intact rather than
-        # truncated. silent-failure round-1 finding (the JSONL is the
-        # only artifact of the unresolved set; an interrupted write
-        # under --force was a real foot-gun).
-        tmp_path = candidates_out.with_suffix(candidates_out.suffix + ".tmp")
-        with tmp_path.open("w", encoding="utf-8") as sink:
-            for rec in all_unresolved:
-                sink.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        tmp_path.replace(candidates_out)
-        click.echo(
-            f"Wrote {len(all_unresolved)} unresolved → {candidates_out}",
-            err=True,
-        )
+        _write_candidates(candidates_out, all_unresolved)
 
 
 def add_to(parent: click.Group) -> None:

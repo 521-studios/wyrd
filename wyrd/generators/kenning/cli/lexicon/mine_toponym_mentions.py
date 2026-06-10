@@ -9,6 +9,88 @@ from pathlib import Path
 import click
 
 
+def _load_source_body(sources_dir: Path, source_id: str) -> str:
+    """Read a source's .txt body. Warns when errors="replace" mapped invalid
+    UTF-8 to U+FFFD: OE/ME place-name texts genuinely use æ/þ/ð, and the
+    form-in-chunk validator silently drops any mention containing U+FFFD, so
+    the operator should fix the encoding upstream."""
+    txt_path = sources_dir / f"{Path(source_id).name}.txt"
+    if not txt_path.exists():
+        raise click.ClickException(f"source body not found: {txt_path}")
+    body = txt_path.read_text(encoding="utf-8", errors="replace")
+    if "�" in body:
+        click.echo(
+            f"warning: {txt_path} contained invalid UTF-8 sequences "
+            f"(now U+FFFD); some mentions may be silently rejected",
+            err=True,
+        )
+    click.echo(f"Loaded {len(body):,} chars from {txt_path}", err=True)
+    return body
+
+
+def _check_output_overwrite(output: Path | None, force: bool) -> None:
+    """Refuse to clobber an existing --output unless --force (a multi-hour
+    pilot run shouldn't be silently obliterated by a typo'd re-run); warn when
+    --force overwrites one."""
+    if output is not None and output.exists():
+        if not force:
+            raise click.ClickException(
+                f"--output {output} already exists; pass --force to overwrite"
+            )
+        click.echo(
+            f"warning: --force overwriting existing {output}",
+            err=True,
+        )
+
+
+def _report_failed_chunks(report) -> None:
+    """Echo the failed-chunk summary to stderr, noting how many were elided
+    when the cap truncated the list."""
+    if not report.failed_chunks:
+        return
+    click.echo("Failed chunks:", err=True)
+    for fc in report.failed_chunks:
+        click.echo(f"  chunk {fc.index}: {fc.error}", err=True)
+    elided = report.chunks_failed - len(report.failed_chunks)
+    if elided > 0:
+        click.echo(f"  ... and {elided} more failures (cap reached)", err=True)
+
+
+def _emit_mentions(mentions, output: Path | None, source_id: str) -> None:
+    """Serialize mentions to JSONL — to --output (explicit UTF-8) or stdout
+    (click.echo handles terminal-encoding edge cases: Latin-1 PYTHONIOENCODING,
+    non-UTF-8 stdout device, where a bare sys.stdout.write would raise).
+    ensure_ascii=False preserves Old/Middle English diacritics (æ, þ, ð) —
+    project convention used by the existing diff/export commands."""
+
+    def _line(m) -> str:
+        return json.dumps(
+            {
+                "source_id": source_id,
+                "form": m.form,
+                "date_year": m.date_year,
+                "region_hint": m.region_hint,
+                "context": m.context,
+            },
+            ensure_ascii=False,
+        )
+
+    if output is not None:
+        # errors="replace" is a defense-in-depth backstop (wyrd-klod): the
+        # in-band sanitizer (wyrd-8wa4 / PR #309) already maps surrogate code
+        # points to U+FFFD before they reach here, so this only fires if a
+        # future path bypasses that guard. It substitutes ASCII "?" rather than
+        # crashing — so a "?" in the output is the operator-visible signal that
+        # the in-band guard was bypassed somewhere.
+        with output.open("w", encoding="utf-8", errors="replace") as sink:
+            for m in mentions:
+                sink.write(_line(m) + "\n")
+        click.echo(f"Wrote {len(mentions)} mentions → {output}", err=True)
+    else:
+        for m in mentions:
+            click.echo(_line(m))
+
+
 @click.command("mine-toponym-mentions")
 @click.option(
     "--source",
@@ -89,39 +171,11 @@ def lexicon_mine_toponym_mentions(
     to existing toponyms (via the form→toponym lookup from Phase 1)
     OR creates new toponym rows for unresolved mentions.
     """
-    from wyrd.generators.kenning.extractors.toponym_mentions import (
-        ToponymMention,
-        mine_toponym_mentions,
-    )
+    from wyrd.generators.kenning.extractors.toponym_mentions import mine_toponym_mentions
 
-    txt_path = sources_dir / f"{Path(source_id).name}.txt"
-    if not txt_path.exists():
-        raise click.ClickException(f"source body not found: {txt_path}")
-    body = txt_path.read_text(encoding="utf-8", errors="replace")
-    if "�" in body:
-        # errors="replace" silently mapped invalid bytes to U+FFFD.
-        # The form-in-chunk validator will then drop any mention
-        # containing those characters, with no visible signal.
-        # OE/ME place-name texts genuinely use æ/þ/ð — surface a
-        # warning so the operator can fix the encoding upstream.
-        click.echo(
-            f"warning: {txt_path} contained invalid UTF-8 sequences "
-            f"(now U+FFFD); some mentions may be silently rejected",
-            err=True,
-        )
-    click.echo(f"Loaded {len(body):,} chars from {txt_path}", err=True)
+    body = _load_source_body(sources_dir, source_id)
 
-    if output is not None and output.exists():
-        if not force:
-            raise click.ClickException(
-                f"--output {output} already exists; pass --force to overwrite"
-            )
-        # --force was passed; warn the operator so a multi-hour pilot
-        # run doesn't get silently obliterated by a typo'd re-run.
-        click.echo(
-            f"warning: --force overwriting existing {output}",
-            err=True,
-        )
+    _check_output_overwrite(output, force)
 
     # Route through the shared _build_extractor_client helper (same
     # dispatch as mine-toponym-mentions-tiered) so both commands use
@@ -166,49 +220,9 @@ def lexicon_mine_toponym_mentions(
         f"surrogates_sanitized={report.surrogates_sanitized}",
         err=True,
     )
-    if report.failed_chunks:
-        click.echo("Failed chunks:", err=True)
-        for fc in report.failed_chunks:
-            click.echo(f"  chunk {fc.index}: {fc.error}", err=True)
-        # When the cap truncates the list, mention how many were elided.
-        elided = report.chunks_failed - len(report.failed_chunks)
-        if elided > 0:
-            click.echo(f"  ... and {elided} more failures (cap reached)", err=True)
+    _report_failed_chunks(report)
 
-    # ensure_ascii=False preserves Old/Middle English diacritics
-    # (æ, þ, ð) in the JSONL output — project convention used by the
-    # existing diff/export commands. For stdout we use click.echo
-    # : it handles terminal-encoding edge cases
-    # (Latin-1 PYTHONIOENCODING, stdout=non-UTF-8 device) by re-
-    # encoding via UTF-8 or replacement, where a bare sys.stdout.write
-    # would raise UnicodeEncodeError. For --output we write the file
-    # directly with explicit UTF-8 encoding.
-    def _line(m: ToponymMention) -> str:
-        return json.dumps(
-            {
-                "source_id": source_id,
-                "form": m.form,
-                "date_year": m.date_year,
-                "region_hint": m.region_hint,
-                "context": m.context,
-            },
-            ensure_ascii=False,
-        )
-
-    if output is not None:
-        # errors="replace" is a defense-in-depth backstop (wyrd-klod): the
-        # in-band sanitizer (wyrd-8wa4 / PR #309) already maps surrogate
-        # code points to U+FFFD before they reach here, so this only fires
-        # if a future path bypasses that guard. It substitutes ASCII "?"
-        # rather than crashing — so a "?" in the output is the operator-
-        # visible signal that the in-band guard was bypassed somewhere.
-        with output.open("w", encoding="utf-8", errors="replace") as sink:
-            for m in report.mentions:
-                sink.write(_line(m) + "\n")
-        click.echo(f"Wrote {len(report.mentions)} mentions → {output}", err=True)
-    else:
-        for m in report.mentions:
-            click.echo(_line(m))
+    _emit_mentions(report.mentions, output, source_id)
 
 
 # 8192-token max-tokens for Anthropic — fits ~100-150 mentions per
