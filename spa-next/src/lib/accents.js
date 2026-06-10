@@ -83,6 +83,12 @@ export function accentedUsage(morph) {
  * (#594 fixed the by-ID highlight; this fixes the displayed SURFACE.) Folding
  * by `accentFold` — not a raw equality — is what lets the ASCII cell form find
  * its accented rendering.
+ *
+ * NOTE: this intentionally folds via `accentFold` (strips diacritics) on BOTH
+ * sides, where `accentedUsage` matches via `norm` (case+dash only). The grid
+ * keys on arbitrary `cell.form`s (and rendering keys may themselves carry an
+ * accent), so the diacritic-fold is the robust match here — don't "unify" the
+ * two to the same fold without re-checking both call sites.
  */
 export function accentForm(form, morph) {
   const bare = stripDashes(form || '');

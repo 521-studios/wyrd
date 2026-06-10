@@ -119,9 +119,12 @@
                    morpheme's (the cognate no longer means the same thing). -->
               {@const drifted = isGlossDrift(baseGloss, cell.gloss)}
               {@const current = isCurrent(cell)}
+              <!-- wyrd-rogd.17: name the cell by its accented display surface
+                   (the same one shown), not the raw stored form. -->
+              {@const cellName = accentForm(cell.form, morpheme)}
               {@const swapTitle = inferred
-                ? `Swap to ${cell.form} — inferred via phonology rule (not attested)`
-                : `Swap this morpheme to ${cell.form}`}
+                ? `Swap to ${cellName} — inferred via phonology rule (not attested)`
+                : `Swap this morpheme to ${cellName}`}
               {@const liveTitle = inferred
                 ? 'Live in the name (inferred via phonology rule) — click to revert'
                 : 'Live in the name — click to revert'}
