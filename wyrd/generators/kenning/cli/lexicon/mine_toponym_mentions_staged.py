@@ -95,6 +95,77 @@ def _make_chunk_mentions_writer(
     return _write
 
 
+def _validate_staged_flags(from_failures, sources, skip_existing, force) -> None:
+    """Reject incompatible flag combinations. --from-failures (resume mode)
+    can't combine with --source or the fresh-mode-only --skip-existing/--force
+    (they gate per-source output existence; resume always APPENDS with dedup,
+    so silently ignoring them would mislead an operator); --skip-existing and
+    --force are themselves mutually exclusive."""
+    if from_failures is not None and sources:
+        raise click.ClickException("--from-failures and --source are mutually exclusive")
+    if from_failures is not None and (skip_existing or force):
+        bad = "--skip-existing" if skip_existing else "--force"
+        raise click.ClickException(
+            f"{bad} is only valid in fresh-mining mode (cannot combine with --from-failures)"
+        )
+    if skip_existing and force:
+        raise click.ClickException("--skip-existing and --force are mutually exclusive")
+
+
+def _open_staged_failure_sink(capture_failures):
+    """Open the --capture-failures append sink (or None). Append-mode so
+    re-running a stage doesn't blow away the prior run's tail; warns on an
+    existing non-empty file because stale records from a DIFFERENT cascade run
+    would silently flow into the next stage's input (wyrd-srd2 R1). Stream-
+    counts the warning rather than read_text() so a large file doesn't load
+    into memory. errors="replace" is the wyrd-klod surrogate backstop."""
+    if capture_failures is None:
+        return None
+    capture_failures.parent.mkdir(parents=True, exist_ok=True)
+    if capture_failures.exists() and capture_failures.stat().st_size > 0:
+        with capture_failures.open("r", encoding="utf-8") as _fh:
+            stale = sum(1 for ln in _fh if ln.strip())
+        click.echo(
+            f"  warning: --capture-failures {capture_failures} already has "
+            f"{stale} record(s); appending (`> {capture_failures}` to clear)",
+            err=True,
+        )
+    return capture_failures.open("a", encoding="utf-8", errors="replace")
+
+
+def _emit_staged_summary(totals: dict, from_failures, capture_failures) -> None:
+    """Final TOTAL line (+ resume-mode dedup / malformed-purge counts) and the
+    capture-failures status — always surfaced so operators know whether the
+    next stage has work or the file is now stale (wyrd-srd2 R1 MEDIUM)."""
+    click.echo("", err=True)
+    summary = (
+        f"TOTAL sources={totals['sources_processed']} "
+        f"(skipped={totals['sources_skipped']}) "
+        f"chunks={totals['chunks_processed']} "
+        f"failed={totals['chunks_failed']} "
+        f"halluc={totals['hallucinations_dropped']} "
+        f"clamped={totals['years_clamped']} "
+        f"surrogates={totals['surrogates_sanitized']} "
+        f"mentions={totals['mentions']}"
+    )
+    if from_failures is not None:
+        summary += f" deduped={totals['mentions_deduped']}"
+        if totals["malformed_purged"]:
+            summary += f" malformed_purged={totals['malformed_purged']}"
+    click.echo(summary, err=True)
+    if capture_failures is not None:
+        if totals["chunks_failed"] > 0:
+            click.echo(
+                f"  {totals['chunks_failed']} failed chunk(s) appended → {capture_failures}",
+                err=True,
+            )
+        else:
+            click.echo(
+                f"  0 new failures → {capture_failures} unchanged this run",
+                err=True,
+            )
+
+
 @click.command("mine-toponym-mentions-staged")
 @click.option(
     "--sources-dir",
@@ -257,20 +328,7 @@ def lexicon_mine_toponym_mentions_staged(
         mine_toponym_mentions_from_chunks,
     )
 
-    if from_failures is not None and sources:
-        raise click.ClickException("--from-failures and --source are mutually exclusive")
-    if from_failures is not None and (skip_existing or force):
-        # --skip-existing and --force only make sense in fresh-mining
-        # mode (they gate per-source output existence). Resume-mode
-        # always APPENDS with dedup against existing rows. Silently
-        # ignoring the flags would mislead an operator who passed
-        # `--from-failures … --force` expecting overwrite.
-        bad = "--skip-existing" if skip_existing else "--force"
-        raise click.ClickException(
-            f"{bad} is only valid in fresh-mining mode (cannot combine with --from-failures)"
-        )
-    if skip_existing and force:
-        raise click.ClickException("--skip-existing and --force are mutually exclusive")
+    _validate_staged_flags(from_failures, sources, skip_existing, force)
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -288,33 +346,7 @@ def lexicon_mine_toponym_mentions_staged(
             client_box["client"] = built
             client_box["extractor"] = f"{provider}:{built.model}"
 
-    failure_sink = None
-    if capture_failures is not None:
-        capture_failures.parent.mkdir(parents=True, exist_ok=True)
-        # Stale-records warning: appending to a non-empty failures file
-        # is legitimate (an operator may be incrementally building one),
-        # but if the file came from a DIFFERENT cascade run the stale
-        # records would silently flow into the next stage's input. Warn
-        # so the operator can confirm/clear before continuing. wyrd-srd2
-        # R1 silent-failure-hunter HIGH.
-        if capture_failures.exists() and capture_failures.stat().st_size > 0:
-            # Stream-count rather than read_text() so a large stale
-            # failures file doesn't load into memory just to compute
-            # the warning count.
-            with capture_failures.open("r", encoding="utf-8") as _fh:
-                stale = sum(1 for ln in _fh if ln.strip())
-            click.echo(
-                f"  warning: --capture-failures {capture_failures} already has "
-                f"{stale} record(s); appending (`> {capture_failures}` to clear)",
-                err=True,
-            )
-        # Append-mode: re-running the same stage doesn't blow away the
-        # tail of the prior run. The operator can clear the file
-        # manually if a fresh slate is wanted (see warning above).
-        # errors="replace": surrogate-escape backstop (wyrd-klod; see the
-        # rationale on the mentions sink). A "?" in the captured-failures
-        # output means a surrogate slipped past the in-band sanitizer.
-        failure_sink = capture_failures.open("a", encoding="utf-8", errors="replace")
+    failure_sink = _open_staged_failure_sink(capture_failures)
 
     def _emit_failure(source_id, fc):
         if failure_sink is None:
@@ -393,37 +425,182 @@ def lexicon_mine_toponym_mentions_staged(
         if failure_sink is not None:
             failure_sink.close()
 
-    click.echo("", err=True)
-    summary = (
-        f"TOTAL sources={totals['sources_processed']} "
-        f"(skipped={totals['sources_skipped']}) "
-        f"chunks={totals['chunks_processed']} "
-        f"failed={totals['chunks_failed']} "
-        f"halluc={totals['hallucinations_dropped']} "
-        f"clamped={totals['years_clamped']} "
-        f"surrogates={totals['surrogates_sanitized']} "
-        f"mentions={totals['mentions']}"
+    _emit_staged_summary(totals, from_failures, capture_failures)
+
+
+def _merge_canonical_output(out_path, report, existing_keys, line_fn, source_id):
+    """Atomic-write append: build the union (existing + new-deduped) in a .tmp
+    file, then replace the original — a killed process mid-write leaves the
+    original intact, vs an ``open("a")`` that could leave a half-written final
+    line downstream commands would stumble on (wyrd-srd2 R1). Preserves well-
+    formed existing rows VERBATIM (don't re-serialize: stage-specific fields
+    like ``extractor`` must keep their value through the cascade) and DROPS
+    malformed rows (non-JSON / non-dict) so corruption doesn't persist every
+    resume (R3). Returns ``(new_count, dup_count, purged_count)``."""
+    new_count = 0
+    dup_count = 0
+    purged_count = 0
+    tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+    with tmp_path.open(
+        "w", encoding="utf-8", errors="replace"
+    ) as sink:  # wyrd-klod surrogate backstop
+        if out_path.exists():
+            with out_path.open("r", encoding="utf-8") as src:
+                for line in src:
+                    stripped = line.rstrip("\n")
+                    if not stripped:
+                        continue
+                    try:
+                        row = json.loads(stripped)
+                    except json.JSONDecodeError:
+                        purged_count += 1
+                        continue
+                    if not isinstance(row, dict):
+                        purged_count += 1
+                        continue
+                    sink.write(stripped + "\n")
+        for m in report.mentions:
+            key = dedup_key_from_mention(m)
+            if key in existing_keys:
+                dup_count += 1
+                continue
+            sink.write(line_fn(source_id, m) + "\n")
+            existing_keys.add(key)
+            new_count += 1
+    tmp_path.replace(out_path)
+    return new_count, dup_count, purged_count
+
+
+def _resume_one_source(
+    src_i,
+    source_id,
+    indexed_chunks,
+    n_sources,
+    limit,
+    output_dir,
+    chunk_size,
+    client_box,
+    ensure_client,
+    emit_failure,
+    line_fn,
+    mine_fn,
+    totals,
+):
+    """Re-mine one source's failed chunks with crash-safe per-chunk
+    persistence (wyrd-w7i3): the in-progress log holds this invocation's NEW
+    mentions; on crash the canonical file (intact via atomic-write) + the
+    in-progress log are merged by recover-inprogress-chunks. Updates totals."""
+    if limit is not None:
+        indexed_chunks = indexed_chunks[:limit]
+    ensure_client()
+    out_path = output_dir / f"{source_id}.jsonl"
+    start_ts = time.monotonic()
+    progress, warn, on_fail = _make_chunk_callbacks(source_id, start_ts, emit_failure)
+    existing_keys, malformed = _load_existing_mention_keys(out_path, log_warning=warn)
+    click.echo(
+        f"[{src_i}/{n_sources}] {source_id}: "
+        f"{len(indexed_chunks)} chunk(s) to retry "
+        f"({len(existing_keys)} existing mentions"
+        + (f", {malformed} malformed" if malformed else "")
+        + ")",
+        err=True,
     )
-    if from_failures is not None:
-        summary += f" deduped={totals['mentions_deduped']}"
-        if totals["malformed_purged"]:
-            summary += f" malformed_purged={totals['malformed_purged']}"
-    click.echo(summary, err=True)
-    # Always surface the capture-failures status — operators want to
-    # know whether the next stage has work to do (or whether the file
-    # is now stale and should be cleared). wyrd-srd2 R1 silent-failure
-    # MEDIUM: silent "0 failures, file unchanged" path was ambiguous.
-    if capture_failures is not None:
-        if totals["chunks_failed"] > 0:
+
+    # The try block wraps mine_fn AND the atomic-merge — a crash in the merge
+    # (e.g. ENOSPC during the verbatim-copy of existing rows) leaves the
+    # canonical file untouched and the in-progress log behind. wyrd-w7i3
+    # CRITICAL-1.
+    inprogress = _inprogress_path(output_dir, source_id)
+    _check_inprogress_clear(inprogress, output_dir)
+    inprogress.parent.mkdir(parents=True, exist_ok=True)
+    inprogress_sink = inprogress.open(
+        "w", encoding="utf-8", errors="replace"
+    )  # wyrd-klod surrogate backstop
+    new_count = 0
+    dup_count = 0
+    purged_count = 0
+    canonical_completed = False
+    try:
+        chunk_writer = _make_chunk_mentions_writer(inprogress_sink, source_id, line_fn)
+        report = mine_fn(
+            client_box["client"],
+            source_id,
+            indexed_chunks,
+            target_chunk_size=chunk_size,
+            on_chunk_done=progress,
+            on_chunk_failed=on_fail,
+            on_chunk_mentions=chunk_writer,
+            log_warning=warn,
+        )
+
+        # wyrd-st1r: skip the atomic-write when no useful output was produced
+        # AND at least one chunk FAILED — otherwise a provider that times out
+        # every chunk leaves a 0-byte canonical that --skip-existing treats as
+        # "done", silently losing the source. ``not report.mentions`` covers
+        # total- AND partial-outage (Gemini R2 P2); ``chunks_failed > 0``
+        # distinguishes a real outage from an empty source body (which would
+        # otherwise loop forever on "will retry").
+        outage_with_no_progress = not report.mentions and report.chunks_failed > 0
+        if outage_with_no_progress:
             click.echo(
-                f"  {totals['chunks_failed']} failed chunk(s) appended → {capture_failures}",
+                f"  → no canonical file written for {source_id}: "
+                f"0 mentions captured ({report.chunks_failed} chunks failed); "
+                f"--skip-existing will retry on the next run",
                 err=True,
             )
+            canonical_completed = True  # frees the inprogress unlink
         else:
+            new_count, dup_count, purged_count = _merge_canonical_output(
+                out_path, report, existing_keys, line_fn, source_id
+            )
+            canonical_completed = True
+    except BaseException:
+        # Tell the operator the work is recoverable. The canonical file is
+        # still intact (atomic-write contract), and the in-progress log holds
+        # the NEW mentions from this resume.
+        click.echo(
+            f"  → in-progress log preserved at {inprogress}\n"
+            f"    canonical file {out_path} is unchanged\n"
+            f"    recover with: wyrd kenning lexicon recover-inprogress-chunks "
+            f"--output-dir {output_dir}",
+            err=True,
+        )
+        raise
+    finally:
+        try:
+            inprogress_sink.close()
+        except Exception as close_err:
             click.echo(
-                f"  0 new failures → {capture_failures} unchanged this run",
+                f"  warning: in-progress log close failed: {close_err}",
                 err=True,
             )
+    # Only unlink once the canonical merge is durably in place.
+    if canonical_completed:
+        inprogress.unlink(missing_ok=True)
+    if purged_count:
+        click.echo(
+            f"    purged {purged_count} malformed row(s) from {out_path}",
+            err=True,
+        )
+
+    click.echo(
+        f"  → {out_path} | chunks={report.chunks_processed} "
+        f"failed={report.chunks_failed} new_mentions={new_count} "
+        f"deduped={dup_count} halluc={report.hallucinations_dropped} "
+        f"clamped={report.years_clamped} "
+        f"surrogates={report.surrogates_sanitized}",
+        err=True,
+    )
+
+    totals["sources_processed"] += 1
+    totals["chunks_processed"] += report.chunks_processed
+    totals["chunks_failed"] += report.chunks_failed
+    totals["hallucinations_dropped"] += report.hallucinations_dropped
+    totals["years_clamped"] += report.years_clamped
+    totals["surrogates_sanitized"] += report.surrogates_sanitized
+    totals["mentions"] += new_count
+    totals["mentions_deduped"] += dup_count
+    totals["malformed_purged"] += purged_count
 
 
 def _run_resume_from_failures(
@@ -470,195 +647,21 @@ def _run_resume_from_failures(
     click.echo(f"Provider: {provider} (model={model or 'default'})", err=True)
 
     for src_i, source_id in enumerate(sorted(by_source), start=1):
-        indexed_chunks = by_source[source_id]
-        if limit is not None:
-            indexed_chunks = indexed_chunks[:limit]
-        ensure_client()
-        out_path = output_dir / f"{source_id}.jsonl"
-        start_ts = time.monotonic()
-        progress, warn, on_fail = _make_chunk_callbacks(source_id, start_ts, emit_failure)
-        existing_keys, malformed = _load_existing_mention_keys(out_path, log_warning=warn)
-        click.echo(
-            f"[{src_i}/{len(by_source)}] {source_id}: "
-            f"{len(indexed_chunks)} chunk(s) to retry "
-            f"({len(existing_keys)} existing mentions"
-            + (f", {malformed} malformed" if malformed else "")
-            + ")",
-            err=True,
+        _resume_one_source(
+            src_i,
+            source_id,
+            by_source[source_id],
+            len(by_source),
+            limit,
+            output_dir,
+            chunk_size,
+            client_box,
+            ensure_client,
+            emit_failure,
+            line_fn,
+            mine_fn,
+            totals,
         )
-
-        # wyrd-w7i3: crash-safe per-chunk persistence (resume path).
-        # See _run_fresh_mining for the design; here the in-progress
-        # log holds the NEW mentions for this resume invocation. On
-        # crash, the canonical file (still intact via atomic-write) +
-        # the in-progress log are merged by recover-inprogress-chunks.
-        # The try block wraps mine_fn AND the atomic-merge — a crash
-        # in the merge (e.g. ENOSPC during the verbatim-copy of
-        # existing rows) leaves the canonical file untouched and the
-        # in-progress log behind for recovery. wyrd-w7i3 CRITICAL-1.
-        inprogress = _inprogress_path(output_dir, source_id)
-        _check_inprogress_clear(inprogress, output_dir)
-        inprogress.parent.mkdir(parents=True, exist_ok=True)
-        inprogress_sink = inprogress.open(
-            "w", encoding="utf-8", errors="replace"
-        )  # wyrd-klod surrogate backstop
-        new_count = 0
-        dup_count = 0
-        purged_count = 0
-        canonical_completed = False
-        try:
-            chunk_writer = _make_chunk_mentions_writer(inprogress_sink, source_id, line_fn)
-            report = mine_fn(
-                client_box["client"],
-                source_id,
-                indexed_chunks,
-                target_chunk_size=chunk_size,
-                on_chunk_done=progress,
-                on_chunk_failed=on_fail,
-                on_chunk_mentions=chunk_writer,
-                log_warning=warn,
-            )
-
-            # wyrd-st1r: skip the atomic-write entirely when no
-            # useful output was produced AND at least one chunk
-            # FAILED. Without this guard, a provider that times-out
-            # every chunk (or partial-failures-and-zero-mentions)
-            # produces a 0-byte canonical file at ``out_path``, and
-            # the next --skip-existing run treats it as "done" — the
-            # source is silently lost.
-            #
-            # Concrete 2026-05-22: gemma4 Ollama power loss caused 12
-            # sources to land as 0-byte files mid-corpus. Operators
-            # discovered the gap only on a manual file-size audit.
-            #
-            # Predicate breakdown:
-            # - ``not report.mentions``: no useful output captured
-            #   on this resume. Covers the total-outage case
-            #   (chunks_processed=0) AND the partial-outage case
-            #   (some chunks succeeded but found no mentions while
-            #   others failed) — Gemini R2 P2: the prior narrower
-            #   predicate (``chunks_processed == 0``) missed the
-            #   partial case and produced 0-byte canonicals there.
-            # - ``chunks_failed > 0``: distinguishes "real outage"
-            #   from "source has nothing to mine" (empty body →
-            #   chunk_source_body returns [] → chunks_processed=0
-            #   AND chunks_failed=0). Without this term, an empty
-            #   source body would fire the guard with a "will retry"
-            #   message, creating an infinite retry loop.
-            #
-            # We DON'T gate on out_path.exists() here: if a canonical
-            # file already exists (resume mode is common) and 0 new
-            # mentions captured, skipping the atomic-write preserves
-            # the existing canonical untouched. The else branch's
-            # existing-rows copy path would do a verbatim rewrite —
-            # wasteful I/O that silent-failure-hunter flagged. One
-            # side-effect lost: malformed-row purging (the else
-            # branch drops non-JSON/non-dict rows during the copy).
-            # When the guard fires AND the existing canonical has
-            # malformed rows, those rows persist until a subsequent
-            # successful run does the purge. Deferred cleanup, not
-            # permanent loss.
-            outage_with_no_progress = not report.mentions and report.chunks_failed > 0
-            if outage_with_no_progress:
-                click.echo(
-                    f"  → no canonical file written for {source_id}: "
-                    f"0 mentions captured ({report.chunks_failed} chunks failed); "
-                    f"--skip-existing will retry on the next run",
-                    err=True,
-                )
-                canonical_completed = True  # frees the inprogress unlink
-            else:
-                # Atomic-write append: build the union (existing + new-deduped)
-                # in a .tmp file, then replace the original. A killed process
-                # mid-write leaves the original intact, vs. a direct
-                # ``open("a")`` which could leave a half-written final line
-                # that downstream commands would silently drop or stumble on.
-                # wyrd-srd2 R1 silent-failure-hunter HIGH.
-                tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-                with tmp_path.open(
-                    "w", encoding="utf-8", errors="replace"
-                ) as sink:  # wyrd-klod surrogate backstop
-                    if out_path.exists():
-                        # Preserve well-formed existing rows verbatim (don't
-                        # re-serialize: stage-specific fields like ``extractor``
-                        # must keep their original value through the cascade).
-                        # DROP malformed rows (non-JSON, non-dict) — without
-                        # this the corruption persists every resume and the
-                        # file's bad-row count grows forever. R3 silent-failure
-                        # MEDIUM. ``_load_existing_mention_keys`` already
-                        # surfaced the malformed_count to the operator; here
-                        # we also remove them.
-                        with out_path.open("r", encoding="utf-8") as src:
-                            for line in src:
-                                stripped = line.rstrip("\n")
-                                if not stripped:
-                                    continue
-                                try:
-                                    row = json.loads(stripped)
-                                except json.JSONDecodeError:
-                                    purged_count += 1
-                                    continue
-                                if not isinstance(row, dict):
-                                    purged_count += 1
-                                    continue
-                                sink.write(stripped + "\n")
-                    for m in report.mentions:
-                        key = dedup_key_from_mention(m)
-                        if key in existing_keys:
-                            dup_count += 1
-                            continue
-                        sink.write(line_fn(source_id, m) + "\n")
-                        existing_keys.add(key)
-                        new_count += 1
-                tmp_path.replace(out_path)
-                canonical_completed = True
-        except BaseException:
-            # Tell the operator the work is recoverable. The canonical
-            # file is still intact (atomic-write contract), and the
-            # in-progress log holds the NEW mentions from this resume.
-            click.echo(
-                f"  → in-progress log preserved at {inprogress}\n"
-                f"    canonical file {out_path} is unchanged\n"
-                f"    recover with: wyrd kenning lexicon recover-inprogress-chunks "
-                f"--output-dir {output_dir}",
-                err=True,
-            )
-            raise
-        finally:
-            try:
-                inprogress_sink.close()
-            except Exception as close_err:
-                click.echo(
-                    f"  warning: in-progress log close failed: {close_err}",
-                    err=True,
-                )
-        # Only unlink once the canonical merge is durably in place.
-        if canonical_completed:
-            inprogress.unlink(missing_ok=True)
-        if purged_count:
-            click.echo(
-                f"    purged {purged_count} malformed row(s) from {out_path}",
-                err=True,
-            )
-
-        click.echo(
-            f"  → {out_path} | chunks={report.chunks_processed} "
-            f"failed={report.chunks_failed} new_mentions={new_count} "
-            f"deduped={dup_count} halluc={report.hallucinations_dropped} "
-            f"clamped={report.years_clamped} "
-            f"surrogates={report.surrogates_sanitized}",
-            err=True,
-        )
-
-        totals["sources_processed"] += 1
-        totals["chunks_processed"] += report.chunks_processed
-        totals["chunks_failed"] += report.chunks_failed
-        totals["hallucinations_dropped"] += report.hallucinations_dropped
-        totals["years_clamped"] += report.years_clamped
-        totals["surrogates_sanitized"] += report.surrogates_sanitized
-        totals["mentions"] += new_count
-        totals["mentions_deduped"] += dup_count
-        totals["malformed_purged"] += purged_count
 
 
 def _run_fresh_mining(
