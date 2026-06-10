@@ -7,6 +7,10 @@ dependencies = [
     "flask>=3.0",
     "click>=8.1",
     "apig-wsgi>=2.18",
+    # wyrd-g1wp: AWS Lambda SnapStart runtime hooks (register_after_restore) to
+    # drop the snapshot's stale sqlite connection on cold restore. Import is
+    # guarded (wyrd/snapstart.py) so non-Lambda paths that lack it still run.
+    "snapshot-restore-py>=1.0",
     # wyrd-0vj3: S3 + zstd handling for bulk-source sync. Both imports
     # live behind ``lexicon fetch-bulk-sources`` / ``push-bulk-sources``
     # / ``verify-bulk-sources`` and the ``.jsonl.zst`` reader in

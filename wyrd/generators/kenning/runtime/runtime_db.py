@@ -217,6 +217,29 @@ def reset_runtime_db_cache() -> None:  # noqa: V103 — test/ops cache-reset hel
         _bundle_version_cache = None
 
 
+def reset_runtime_db_connection() -> None:
+    """Drop ONLY the cached sqlite connection — keep the bundle_version cache.
+
+    For SnapStart restore (wyrd-g1wp): the snapshot captures the open ``_conn``
+    object, but Lambda wipes ``/tmp`` on restore so the file backing it is gone
+    and the handle is stale. Null it (after a best-effort close) so any later
+    ``get_runtime_db`` re-resolves cleanly — WITHOUT clearing
+    ``_bundle_version_cache`` (plain Python data already captured in the
+    snapshot). That keeps the post-restore request path served from the warm
+    parsed caches (the ``_load_meanings`` / ``_load_culture`` lru_caches + the
+    version cache) so a restored container never re-downloads the DB. Distinct
+    from :func:`reset_runtime_db_cache`, which also drops the version cache and
+    would force a re-query → re-download on the first post-restore request."""
+    global _conn
+    with _conn_lock:
+        if _conn is not None:
+            try:
+                _conn.close()
+            except sqlite3.Error:
+                _logger.debug("ignoring close error on connection reset (snapstart restore)")
+        _conn = None
+
+
 def _resolve_db_path() -> Path:
     """Pick the L4 DB file the connection should open against.
 
