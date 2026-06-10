@@ -91,6 +91,12 @@ def _register_per_connection_pragmas(engine: Engine) -> None:
         dbapi_conn.row_factory = sqlite3.Row
 
 
+# Re-export sqlite3's base error so cli/lexicon callers can catch DB
+# failures without importing sqlite3 directly (keeps them off the
+# package-boundary skip-list, wyrd-mewu). LexiconError IS sqlite3.Error.
+LexiconError = sqlite3.Error
+
+
 class LexiconDB:
     """SQLAlchemy-backed wrapper around the lexicon SQLite DB.
 

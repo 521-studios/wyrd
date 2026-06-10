@@ -158,16 +158,10 @@ def test_cli_lexicon_files_do_not_define_db_helpers() -> None:
     ingest, dump) and need slightly heavier refactoring to land on a
     canonical authoring helper. Tracked at wyrd-mewu."""
     cli_lex_dir = _KENNING_ROOT / "cli" / "lexicon"
-    skip: frozenset[str] = frozenset(
-        {
-            # wyrd-mewu: review.py legitimately needs the sqlite3 module — it
-            # catches ``sqlite3.Error`` and annotates rows as ``sqlite3.Row``.
-            # Dropping the import would broaden the exception (behavior change),
-            # so it stays exempt (the other 5 files have been migrated to
-            # _readonly_lexicon / LexiconDB).
-            "review.py",
-        }
-    )
+    # wyrd-mewu COMPLETE: every cli/lexicon file is off direct sqlite3.
+    # (review.py now catches lexicon.LexiconError instead of sqlite3.Error
+    # and uses _readonly_lexicon for its read connections.)
+    skip: frozenset[str] = frozenset()
     violators: list[str] = []
     for py in sorted(cli_lex_dir.glob("*.py")):
         if py.name in skip:

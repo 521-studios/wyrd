@@ -72,7 +72,7 @@ from wyrd.generators.kenning.lexicon.constants import (  # noqa: E402, F401
     normalize_ocr_form,
     position_from_usage,
 )
-from wyrd.generators.kenning.lexicon.db import LexiconDB  # noqa: E402, F401
+from wyrd.generators.kenning.lexicon.db import LexiconDB, LexiconError  # noqa: E402, F401
 from wyrd.generators.kenning.lexicon.decomposition_export import (  # noqa: E402, F401
     collect_canonical_decompositions,
 )
