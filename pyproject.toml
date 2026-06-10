@@ -83,8 +83,29 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM"]
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "C901"]
 ignore = ["E501", "SIM108"]
+
+# wyrd-8uvi: enforce the McCabe ≤10 floor in CI so reduced functions can't
+# regress and new complexity is caught at PR time.
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+# Pre-existing over-the-floor functions, grandfathered so C901 catches only
+# NEW complexity (the wyrd-8uvi sweep already cleared every other function in
+# wyrd/generators/kenning/). Tests/scripts are exempt by convention; the
+# kenning files are tracked under their own epics (era-grid; x82p toponym-
+# mentions); wyrd/defects.py:list_defects (11) is a minor deferred cleanup.
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["C901"]
+"scripts/**" = ["C901"]
+"wyrd/defects.py" = ["C901"]
+"wyrd/generators/kenning/era/cells.py" = ["C901"]
+"wyrd/generators/kenning/cli/lexicon/ingest_toponym_mentions.py" = ["C901"]
+"wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions.py" = ["C901"]
+"wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions_staged.py" = ["C901"]
+"wyrd/generators/kenning/cli/lexicon/mine_toponym_mentions_tiered.py" = ["C901"]
+"wyrd/generators/kenning/extractors/toponym_mentions.py" = ["C901"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
