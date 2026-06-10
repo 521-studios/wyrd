@@ -1154,6 +1154,7 @@ class NameGenerator:
         novelty: float = 0.0,
         era_render_language: str | None = None,
         era_requested: bool = False,
+        pool_cache: dict | None = None,
     ):
         """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
 
@@ -1216,12 +1217,26 @@ class NameGenerator:
         # fresh per call and live only for this dispatch (no cross-request state).
         # exclude_tags_fz is also threaded into the per-slot _score below.
         exclude_tags_fz = frozenset(exclude_tags)
-        non_position_eligible, slot_base_scores = self._build_vector_pools(
-            request,
-            exclude_tags_fz,
-            pack_meaning_dbs,
-            include_unglossed,
-        )
+        # wyrd-dag4: build the eligibility pool + base-score map ONCE per request
+        # and reuse across the count loop's names. ``pool_cache`` lives in the
+        # request's ``params`` (one gate per request, the same dict for every
+        # name in the count loop), so a fixed key is correct AND it never
+        # crosses requests — preserving the wyrd-i7uy no-cross-request-state
+        # rule while recovering the per-name rebuild cost (~200ms/req at count=5
+        # on the 1-vCPU Lambda). ``pool_cache is None`` → build fresh (single-
+        # result / non-count callers, tests).
+        cached_pools = pool_cache.get("vector_pools") if pool_cache is not None else None
+        if cached_pools is not None:
+            non_position_eligible, slot_base_scores = cached_pools
+        else:
+            non_position_eligible, slot_base_scores = self._build_vector_pools(
+                request,
+                exclude_tags_fz,
+                pack_meaning_dbs,
+                include_unglossed,
+            )
+            if pool_cache is not None:
+                pool_cache["vector_pools"] = (non_position_eligible, slot_base_scores)
 
         # wyrd-izcr: pick a struct, flatten to positions + qualifier
         # flags, attempt the per-slot score+sample. On failure (empty
