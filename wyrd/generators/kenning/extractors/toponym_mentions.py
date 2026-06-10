@@ -403,6 +403,81 @@ def _form_in_chunk(form: str, chunk_collapsed: str) -> bool:
     return re.search(pattern, chunk_collapsed) is not None
 
 
+def _parse_mention_fields(
+    m: dict,
+    counters: ValidationCounters,
+) -> tuple[str, str | None, str] | None:
+    """Type-guard + surrogate-sanitize the LLM-emitted fields of one raw
+    mention dict, returning ``(form, region_hint, context)`` or None to skip.
+
+    Sanitize lone surrogates on each free-text LLM-emitted str field (form,
+    region_hint, context) up front, before any validation that might
+    short-circuit. The surrogates_sanitized counter must reflect what the
+    upstream model actually emitted, not what survived later validation —
+    otherwise a model regression that smears surrogates across every field
+    looks identical to one that only damaged form (which would short-circuit
+    at form-in-chunk before the validator ever inspects region_hint /
+    context). date_year is also LLM-emitted, but ``_coerce_year`` enforces a
+    digit-only regex that drops any surrogate-bearing value to None+clamped —
+    no separate sanitization needed on that path. (wyrd-8wa4.)
+
+    wyrd-2iiy: type-guard each LLM-emitted field before any string operation.
+    With the wyrd-sj50 switch from format=<schema> to format='json', the
+    Ollama server no longer constrains output shape — gemma4 occasionally
+    returns ``form`` (or other fields) as a dict / list / int. Without these
+    guards, the next ``.strip()`` AttributeErrors and the whole source aborts
+    mid-mining. Returns None to drop the mention; counts a wrong-type form as
+    a hallucination (a missing form is an uncounted protocol error — matches
+    the pre-wyrd-2iiy contract the empty/None-form test pins).
+    """
+    raw_form = m.get("form")
+    if raw_form is None:
+        return None
+    if not isinstance(raw_form, str):
+        counters.hallucinations_dropped += 1
+        return None
+    form = _sanitize_and_count(raw_form.strip(), counters)
+    raw_region = m.get("region_hint")
+    if isinstance(raw_region, str):
+        # Strip before sanitize so the sanitizer operates on a potentially
+        # shorter string and the processing order matches the form/context
+        # paths.
+        region_hint: str | None = _sanitize_and_count(raw_region.strip(), counters) or None
+    else:
+        region_hint = None
+    raw_context = m.get("context")
+    if not isinstance(raw_context, str):
+        # Non-str context isn't fatal: form is the load-bearing field. Treat
+        # as missing context (empty string) and let the synthesize-from-chunk
+        # path fill it.
+        raw_context = ""
+    context = _sanitize_and_count(_WHITESPACE_RUN.sub(" ", raw_context).strip(), counters)
+    return (form, region_hint, context)
+
+
+def _synthesize_context(form: str, chunk: str, chunk_collapsed: str) -> str:
+    """A +/-40-char context window around ``form`` for when the LLM left
+    context empty — gives operators something to inspect. Word-boundary regex
+    (not substring) so a fragment INSIDE a longer word (e.g. "on" inside
+    "upon"/"Northampton") can't match — the same hazard the form-in-chunk
+    guard prevents. Searches the raw chunk first; falls back to the collapsed
+    view when soft-wrap means the form's whitespace isn't literal in the raw
+    chunk. Returns "" when neither locates it."""
+    form_collapsed = _collapse_whitespace(form)
+    pattern = r"(?<!\w)" + re.escape(form_collapsed) + r"(?!\w)"
+    raw_match = re.search(pattern, chunk)
+    if raw_match is not None:
+        start = max(0, raw_match.start() - 40)
+        end = min(len(chunk), raw_match.end() + 40)
+        return _WHITESPACE_RUN.sub(" ", chunk[start:end]).strip()
+    collapsed_match = re.search(pattern, chunk_collapsed)
+    if collapsed_match is not None:
+        start = max(0, collapsed_match.start() - 40)
+        end = min(len(chunk_collapsed), collapsed_match.end() + 40)
+        return chunk_collapsed[start:end]
+    return ""
+
+
 def _validated_mentions(
     raw: list[dict],
     chunk: str,
@@ -427,54 +502,12 @@ def _validated_mentions(
     for m in raw:
         if not isinstance(m, dict):
             continue
-        # Sanitize lone surrogates on each free-text LLM-emitted str
-        # field (form, region_hint, context) up front, before any
-        # validation that might short-circuit. The surrogates_sanitized
-        # counter must reflect what the upstream model actually
-        # emitted, not what survived later validation — otherwise a
-        # model regression that smears surrogates across every field
-        # looks identical to one that only damaged form (which would
-        # short-circuit at form-in-chunk before the validator ever
-        # inspects region_hint / context). date_year is also LLM-
-        # emitted, but `_coerce_year` below enforces a digit-only
-        # regex that drops any surrogate-bearing value to None+clamped
-        # — no separate sanitization needed on that path. (wyrd-8wa4.)
-        # wyrd-2iiy: type-guard each LLM-emitted field before any string
-        # operation. With the wyrd-sj50 switch from format=<schema> to
-        # format='json', the Ollama server no longer constrains output
-        # shape — gemma4 occasionally returns ``form`` (or other fields)
-        # as a dict / list / int. Without these guards, the next
-        # ``.strip()`` AttributeErrors and the whole source aborts mid-
-        # mining. Drop the mention as a hallucination and count it.
-        raw_form = m.get("form")
-        if raw_form is None:
-            # Missing form is a protocol error (not a hallucination) —
-            # don't count, matches the pre-wyrd-2iiy contract that the
-            # empty/None-form test pins.
+        fields = _parse_mention_fields(m, counters)
+        if fields is None:
+            # Missing form (uncounted protocol error) or wrong-type form
+            # (counted hallucination) — the helper handled counting; skip.
             continue
-        if not isinstance(raw_form, str):
-            # Wrong-type form (dict/list/int/bool) is a hallucination
-            # in the wyrd-2iiy sense — the model invented a shape
-            # the schema would have forbidden if grammar-constrained
-            # output were available.
-            counters.hallucinations_dropped += 1
-            continue
-        form = _sanitize_and_count(raw_form.strip(), counters)
-        raw_region = m.get("region_hint")
-        if isinstance(raw_region, str):
-            # Strip before sanitize so the sanitizer operates on a
-            # potentially shorter string and the processing order
-            # matches the form/context paths.
-            region_hint: str | None = _sanitize_and_count(raw_region.strip(), counters) or None
-        else:
-            region_hint = None
-        raw_context = m.get("context")
-        if not isinstance(raw_context, str):
-            # Non-str context isn't fatal: form is the load-bearing
-            # field. Treat as missing context (empty string) and let
-            # the validator's synthesize-from-chunk path below fill it.
-            raw_context = ""
-        context = _sanitize_and_count(_WHITESPACE_RUN.sub(" ", raw_context).strip(), counters)
+        form, region_hint, context = fields
         # Validation gates fire AFTER full sanitization above.
         if not form:
             continue
@@ -496,23 +529,7 @@ def _validated_mentions(
             # would risk locating a fragment INSIDE a longer word
             # (e.g. "on" inside "upon"/"Northampton") — the same
             # hazard the form-in-chunk guard prevents.
-            form_collapsed = _collapse_whitespace(form)
-            pattern = r"(?<!\w)" + re.escape(form_collapsed) + r"(?!\w)"
-            raw_match = re.search(pattern, chunk)
-            if raw_match is not None:
-                start = max(0, raw_match.start() - 40)
-                end = min(len(chunk), raw_match.end() + 40)
-                context = _WHITESPACE_RUN.sub(" ", chunk[start:end]).strip()
-            else:
-                # Soft-wrap fallback: form spans a line break in raw
-                # chunk so it's not found verbatim. The collapsed chunk
-                # has it; locate it there with the same word-boundary
-                # check to avoid in-word matches.
-                collapsed_match = re.search(pattern, chunk_collapsed)
-                if collapsed_match is not None:
-                    start = max(0, collapsed_match.start() - 40)
-                    end = min(len(chunk_collapsed), collapsed_match.end() + 40)
-                    context = chunk_collapsed[start:end]
+            context = _synthesize_context(form, chunk, chunk_collapsed)
         out.append(
             ToponymMention(
                 form=form,
@@ -1152,6 +1169,94 @@ def _run_primary_failure_fallback(
     return mentions, chunk_counters, None
 
 
+def _maybe_warn_oversize(chunk, i, oversize_threshold, log_warning):
+    """Inline oversize-paragraph warning (matches the single-tier shape).
+    Fires before either LLM call so the operator sees it interleaved with
+    progress."""
+    if log_warning is not None and len(chunk) > oversize_threshold:
+        log_warning(
+            f"chunk {i}: oversized paragraph "
+            f"({len(chunk):,} chars > {int(oversize_threshold):,} threshold) — "
+            f"LLM output may truncate; consider lowering --chunk-size"
+        )
+
+
+def _should_rescue(threshold: int | None, counters: ValidationCounters) -> bool:
+    """Hallucination-rescue predicate (wyrd-z8mq): the primary succeeded but
+    emitted >= threshold dropped forms. None or <= 0 disables the rescue."""
+    return threshold is not None and threshold > 0 and counters.hallucinations_dropped >= threshold
+
+
+def _record_failed_chunk(report, failure, head_failures, tail_failures, on_chunk_failed):
+    """Record a both-tiers-failed chunk: bump the counter, store into the head
+    buffer (first N) or the bounded tail deque, and fire the callback."""
+    report.chunks_failed += 1
+    if len(head_failures) < _FAILED_CHUNKS_HEAD:
+        head_failures.append(failure)
+    else:
+        tail_failures.append(failure)
+    if on_chunk_failed is not None:
+        on_chunk_failed(failure)
+
+
+def _extract_chunk_tiered(
+    primary_client,
+    fallback_client,
+    chunk,
+    i,
+    report,
+    hallucination_fallback_threshold,
+    log_warning,
+):
+    """Primary -> fallback -> hallucination-rescue for ONE chunk. Returns
+    ``(mentions, chunk_counters, failure)``: ``failure`` is a FailedChunk when
+    BOTH tiers failed (caller records it + skips), else None. Updates the
+    report's ``chunks_recovered_by_fallback`` / hallucination-rescue counters
+    in place. Bare ``except Exception`` (not RuntimeError) so provider-SDK
+    error classes (anthropic.APIError, httpx.HTTPError, TimeoutError) trigger
+    the fallback rather than aborting the whole source."""
+    chunk_counters = ValidationCounters()
+    primary_error: str | None = None
+    mentions: list[ToponymMention] | None = None
+    try:
+        mentions, chunk_counters = extract_toponym_mentions_from_chunk(primary_client, chunk)
+    except _PROGRAMMER_ERROR_EXCEPTIONS:
+        raise  # Our bug — let it surface as a traceback.
+    except Exception as e:
+        primary_error = f"{type(e).__name__}: {e}"
+        if log_warning is not None:
+            log_warning(f"chunk {i} primary failed: {primary_error} — retrying with fallback")
+    if mentions is None:
+        # Phase 2: primary failed — try fallback. See
+        # :func:`_run_primary_failure_fallback` for counter/failure semantics.
+        # ``primary_error`` is non-None on this branch: the only path that
+        # leaves ``mentions`` as None is the primary's except block above.
+        mentions, chunk_counters, failure = _run_primary_failure_fallback(
+            fallback_client, chunk, i, primary_error, log_warning
+        )
+        if failure is not None:
+            return (mentions, chunk_counters, failure)
+        report.chunks_recovered_by_fallback += 1
+    elif _should_rescue(hallucination_fallback_threshold, chunk_counters):
+        # Phase 3: primary succeeded but hallucinated — try rescue. See
+        # :func:`_run_hallucination_rescue` for the detailed contract +
+        # counter-folding semantics (wyrd-z8mq).
+        report.chunks_hallucination_rescue_attempted += 1
+        if log_warning is not None:
+            log_warning(
+                f"chunk {i} primary hallucinated "
+                f"{chunk_counters.hallucinations_dropped} forms — "
+                f"running fallback for rescue"
+            )
+        mentions, rescue_delta, rescue_ok = _run_hallucination_rescue(
+            fallback_client, chunk, i, mentions, log_warning
+        )
+        chunk_counters += rescue_delta
+        if rescue_ok:
+            report.chunks_hallucination_rescue_succeeded += 1
+    return (mentions, chunk_counters, None)
+
+
 def mine_toponym_mentions_tiered(
     primary_client,
     fallback_client,
@@ -1272,70 +1377,19 @@ def mine_toponym_mentions_tiered(
     head_failures: list[FailedChunk] = []
     tail_failures: deque[FailedChunk] = deque(maxlen=_FAILED_CHUNKS_TAIL)
     for i, chunk in enumerate(chunks):
-        # Inline oversize warning (matches the single-tier shape).
-        # Fires before either LLM call so the operator sees the
-        # warning interleaved with progress.
-        if log_warning is not None and len(chunk) > oversize_threshold:
-            log_warning(
-                f"chunk {i}: oversized paragraph "
-                f"({len(chunk):,} chars > {int(oversize_threshold):,} threshold) — "
-                f"LLM output may truncate; consider lowering --chunk-size"
-            )
-        # Phase 1: try primary. Bare ``except Exception`` (not
-        # RuntimeError) so provider-SDK error classes
-        # (anthropic.APIError, httpx.HTTPError, TimeoutError) trigger
-        # the fallback rather than aborting the whole source.
-        chunk_counters = ValidationCounters()
-        primary_error: str | None = None
-        mentions: list[ToponymMention] | None = None
-        try:
-            mentions, chunk_counters = extract_toponym_mentions_from_chunk(primary_client, chunk)
-        except _PROGRAMMER_ERROR_EXCEPTIONS:
-            raise  # Our bug — let it surface as a traceback.
-        except Exception as e:
-            primary_error = f"{type(e).__name__}: {e}"
-            if log_warning is not None:
-                log_warning(f"chunk {i} primary failed: {primary_error} — retrying with fallback")
-        if mentions is None:
-            # Phase 2: primary failed — try fallback. See
-            # :func:`_run_primary_failure_fallback` for counter/failure
-            # semantics. ``primary_error`` is non-None on this branch:
-            # the only path that leaves ``mentions`` as None is the
-            # primary's except block above, which sets it.
-            mentions, chunk_counters, failure = _run_primary_failure_fallback(
-                fallback_client, chunk, i, primary_error, log_warning
-            )
-            if failure is not None:
-                report.chunks_failed += 1
-                if len(head_failures) < _FAILED_CHUNKS_HEAD:
-                    head_failures.append(failure)
-                else:
-                    tail_failures.append(failure)
-                if on_chunk_failed is not None:
-                    on_chunk_failed(failure)
-                continue
-            report.chunks_recovered_by_fallback += 1
-        elif (
-            hallucination_fallback_threshold is not None
-            and hallucination_fallback_threshold > 0
-            and chunk_counters.hallucinations_dropped >= hallucination_fallback_threshold
-        ):
-            # Phase 3: primary succeeded but hallucinated — try rescue.
-            # See :func:`_run_hallucination_rescue` for the detailed
-            # contract + counter-folding semantics (wyrd-z8mq).
-            report.chunks_hallucination_rescue_attempted += 1
-            if log_warning is not None:
-                log_warning(
-                    f"chunk {i} primary hallucinated "
-                    f"{chunk_counters.hallucinations_dropped} forms — "
-                    f"running fallback for rescue"
-                )
-            mentions, rescue_delta, rescue_ok = _run_hallucination_rescue(
-                fallback_client, chunk, i, mentions, log_warning
-            )
-            chunk_counters += rescue_delta
-            if rescue_ok:
-                report.chunks_hallucination_rescue_succeeded += 1
+        _maybe_warn_oversize(chunk, i, oversize_threshold, log_warning)
+        mentions, chunk_counters, failure = _extract_chunk_tiered(
+            primary_client,
+            fallback_client,
+            chunk,
+            i,
+            report,
+            hallucination_fallback_threshold,
+            log_warning,
+        )
+        if failure is not None:
+            _record_failed_chunk(report, failure, head_failures, tail_failures, on_chunk_failed)
+            continue
         report.mentions.extend(mentions)
         report.chunks_processed += 1
         report.hallucinations_dropped += chunk_counters.hallucinations_dropped
