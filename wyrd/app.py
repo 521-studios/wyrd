@@ -109,6 +109,17 @@ def create_app() -> Flask:
     def not_found(_):
         return jsonify({"error": "not_found"}), 404
 
+    # wyrd-g1wp: SnapStart. create_app() runs at Lambda INIT (lambda_handler
+    # imports + calls it at module load), so this is the snapshot point. Register
+    # the after-restore hook BEFORE warming the caches, then preload the bundle +
+    # cultures so the parsed objects are captured in the snapshot. Both no-op off
+    # SnapStart (preload gates on AWS_LAMBDA_INITIALIZATION_TYPE==snap-start; the
+    # after-restore hook only fires under SnapStart), so dev + tests are unaffected.
+    from wyrd.snapstart import preload_runtime, register_snapstart_hooks
+
+    register_snapstart_hooks()
+    preload_runtime()
+
     return app
 
 

@@ -87,15 +87,26 @@ jobs:
         # to go quieter.
         run: terraform apply -auto-approve -input=false -var="env=staging" -var="log_level=DEBUG"
 
-      - name: Update Lambda code
+      - name: Wait for SnapStart snapshot Active
         working-directory: terraform
+        # wyrd-g1wp: `terraform apply` (publish=true + snap_start) deployed the
+        # code from function.zip, published a version with a SnapStart snapshot,
+        # and repointed the `live` alias at it (the Function URL serves through
+        # `live`). This replaces the old `update-function-code` step — terraform
+        # now owns code + publish + alias. A published version isn't invocable
+        # until its snapshot finishes optimizing, so block until State=Active.
         run: |
           FUNCTION=$(terraform output -raw lambda_function_name)
-          aws lambda update-function-code \
-            --function-name "$FUNCTION" \
-            --zip-file fileb://../function.zip \
-            --architectures arm64
-          aws lambda wait function-updated --function-name "$FUNCTION"
+          VERSION=$(aws lambda get-alias --function-name "$FUNCTION" --name live --query FunctionVersion --output text)
+          echo "live alias → version $VERSION; waiting for State=Active (SnapStart optimization)…"
+          OK=
+          for _ in $(seq 1 90); do
+            CFG=$(aws lambda get-function-configuration --function-name "$FUNCTION" --qualifier "$VERSION" --query '[State,LastUpdateStatus]' --output text 2>/dev/null || printf 'Pending\tInProgress')
+            echo "  v$VERSION: $CFG"
+            [ "$CFG" = "$(printf 'Active\tSuccessful')" ] && { OK=1; break; }
+            sleep 10
+          done
+          [ "$OK" = 1 ] || { echo "::error::version $VERSION not Active+Successful after wait"; exit 1; }
 
       # wyrd-20pz: Vite SPA build needs Node. Sourced from spa-next/
       # via deploy-spa.sh (npm ci + npm run build + aws s3 sync).
@@ -166,15 +177,26 @@ jobs:
         working-directory: terraform
         run: terraform apply -auto-approve -input=false -var="env=production"
 
-      - name: Update Lambda code
+      - name: Wait for SnapStart snapshot Active
         working-directory: terraform
+        # wyrd-g1wp: `terraform apply` (publish=true + snap_start) deployed the
+        # code from function.zip, published a version with a SnapStart snapshot,
+        # and repointed the `live` alias at it (the Function URL serves through
+        # `live`). This replaces the old `update-function-code` step — terraform
+        # now owns code + publish + alias. A published version isn't invocable
+        # until its snapshot finishes optimizing, so block until State=Active.
         run: |
           FUNCTION=$(terraform output -raw lambda_function_name)
-          aws lambda update-function-code \
-            --function-name "$FUNCTION" \
-            --zip-file fileb://../function.zip \
-            --architectures arm64
-          aws lambda wait function-updated --function-name "$FUNCTION"
+          VERSION=$(aws lambda get-alias --function-name "$FUNCTION" --name live --query FunctionVersion --output text)
+          echo "live alias → version $VERSION; waiting for State=Active (SnapStart optimization)…"
+          OK=
+          for _ in $(seq 1 90); do
+            CFG=$(aws lambda get-function-configuration --function-name "$FUNCTION" --qualifier "$VERSION" --query '[State,LastUpdateStatus]' --output text 2>/dev/null || printf 'Pending\tInProgress')
+            echo "  v$VERSION: $CFG"
+            [ "$CFG" = "$(printf 'Active\tSuccessful')" ] && { OK=1; break; }
+            sleep 10
+          done
+          [ "$OK" = 1 ] || { echo "::error::version $VERSION not Active+Successful after wait"; exit 1; }
 
       - uses: actions/setup-node@v6
         with:

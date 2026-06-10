@@ -218,6 +218,18 @@ resource "aws_lambda_function" "api" {
   memory_size      = 1769
   timeout          = 15
 
+  # wyrd-g1wp: SnapStart snapshots the initialized container (after create_app()
+  # preloads the bundle + cultures) at publish time and restores it on cold
+  # start, so a cold container skips the ~2-4s DB load. Applies ONLY to
+  # published versions, so `publish = true` cuts a version per deploy and the
+  # Function URL / CloudFront permissions target the `live` alias (below), not
+  # $LATEST. python3.12 + arm64 support SnapStart in us-east-2.
+  publish = true
+
+  snap_start {
+    apply_on = "PublishedVersions"
+  }
+
   environment {
     # wyrd-0gou: SPA feature flags. Staging flips WYRD_FF_ALL=true so every
     # gated config option shows for validation; production defaults all off
@@ -259,10 +271,23 @@ resource "aws_cloudwatch_log_group" "api" {
   tags              = local.tags
 }
 
+# ─── SnapStart alias (wyrd-g1wp) ──────────────────────────────────────────
+# SnapStart applies only to PUBLISHED versions, so the Function URL + CloudFront
+# permissions invoke this alias (→ a published, snapshot-restored version)
+# rather than $LATEST. terraform tracks the version published at apply time; the
+# deploy then republishes with the new code + repoints this alias once the
+# snapshot is Active (see .github/workflows/deploy.yml).
+resource "aws_lambda_alias" "live" {
+  name             = "live"
+  function_name    = aws_lambda_function.api.function_name
+  function_version = aws_lambda_function.api.version
+}
+
 # ─── Lambda Function URL — CloudFront uses this as the API origin via OAC ──
 
 resource "aws_lambda_function_url" "api" {
   function_name      = aws_lambda_function.api.function_name
+  qualifier          = aws_lambda_alias.live.name
   authorization_type = "AWS_IAM"
 }
 
@@ -274,6 +299,7 @@ resource "aws_lambda_permission" "cloudfront_url" {
   statement_id  = "AllowCloudFrontInvokeFunctionUrl"
   action        = "lambda:InvokeFunctionUrl"
   function_name = aws_lambda_function.api.function_name
+  qualifier     = aws_lambda_alias.live.name
   principal     = "cloudfront.amazonaws.com"
 }
 
@@ -281,5 +307,6 @@ resource "aws_lambda_permission" "cloudfront_invoke" {
   statement_id  = "AllowCloudFrontInvokeFunction"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.api.function_name
+  qualifier     = aws_lambda_alias.live.name
   principal     = "cloudfront.amazonaws.com"
 }
