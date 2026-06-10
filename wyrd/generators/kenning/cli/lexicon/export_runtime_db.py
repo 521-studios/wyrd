@@ -145,6 +145,21 @@ _DEFAULT_INCLUDE_WAVE2_ENRICHED = True
     show_default=True,
     help="Per-culture cap on usages / single_usages in --dev mode.",
 )
+@click.option(
+    "--generation-subset",
+    "generation_subset",
+    is_flag=True,
+    default=False,
+    help=(
+        "Emit the production cold-start trim (wyrd-ukq0): keep ALL "
+        "proportion-referenced usages + their meanings, dropping the "
+        "decomposition-only corpus (~70% of subjects generation never "
+        "samples). Cuts the Lambda cold-load ~70%. Unlike --dev this is the "
+        "FULL generatable set (no top-N cap) and carries real built_at / "
+        "source_lexicon_db (not the dev sentinels). The arbitrary-name "
+        "decompose/explain path degrades on this DB (deferred per wyrd-ukq0)."
+    ),
+)
 def lexicon_export_runtime_db(
     db_path: Path,
     output_path: Path,
@@ -158,6 +173,7 @@ def lexicon_export_runtime_db(
     include_wave2_enriched: bool,
     dev_subset: bool,
     dev_top_n: int,
+    generation_subset: bool,
 ) -> None:
     """Emit the L4 runtime SQLite DB.
 
@@ -170,6 +186,11 @@ def lexicon_export_runtime_db(
     Replaces ``meanings.json`` + 5 ``<culture>_proportions.json`` files
     in a single artifact downloaded from S3 on Lambda cold start (D38).
     """
+    if dev_subset and generation_subset:
+        # CLI-level guard for a friendly UsageError (parity with the --dev
+        # filter rejection below). write_runtime_db also raises ValueError as
+        # the defense-in-depth backstop for non-CLI callers.
+        raise click.UsageError("--dev and --generation-subset are mutually exclusive")
     if dev_subset:
         _reject_non_default_filters_under_dev(
             min_witnesses=min_witnesses,
@@ -206,6 +227,7 @@ def lexicon_export_runtime_db(
         proportions_dir=proportions_dir,
         source_lexicon_db=db_path,
         dev_subset=dev_subset,
+        generation_subset=generation_subset,
         dev_top_n_per_culture=dev_top_n,
     )
 

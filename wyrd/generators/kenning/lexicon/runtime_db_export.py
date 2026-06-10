@@ -159,6 +159,7 @@ def write_runtime_db(
     empirical_priors_payload: dict[str, Any] | None = None,
     source_lexicon_db: Path,
     dev_subset: bool = False,
+    generation_subset: bool = False,
     dev_top_n_per_culture: int = DEV_TOP_N_PER_CULTURE,
 ) -> dict[str, int]:
     """Emit the L4 SQLite DB at ``output_path``.
@@ -185,7 +186,18 @@ def write_runtime_db(
     pinned to a fixed sentinel so re-emits with identical inputs
     produce byte-equal output (drift detection on the committed
     ``seed-runtime.db``).
+    ``generation_subset`` (wyrd-ukq0): the production cold-start trim. Runs
+    the same referenced-subset filter as ``dev_subset`` but UNCAPPED (keeps
+    every proportion-referenced usage, not just the top N), dropping only the
+    decomposition-only corpus, and stamps REAL ``built_at`` / ``source_lexicon_db``
+    (not the dev sentinels). Mutually exclusive with ``dev_subset``.
     """
+    # Validate flag combination before any expensive proportions work.
+    if dev_subset and generation_subset:
+        raise ValueError(
+            "dev_subset (tiny top-N seed) and generation_subset (full generatable "
+            "set; decomposition-only corpus dropped) are mutually exclusive"
+        )
     if proportions_dir is None:
         proportions_by_culture = _compute_proportions_inline(
             subjects, canonical_decompositions, source_lexicon_db
@@ -193,14 +205,20 @@ def write_runtime_db(
     else:
         proportions_by_culture = _load_proportions(proportions_dir)
 
-    if dev_subset:
+    if dev_subset or generation_subset:
+        # Same referenced-subset filter for both; generation_subset passes
+        # top_n=None to keep ALL proportion-referenced usages (no cap), dev
+        # keeps the top-N per culture. Either way the decomposition-only
+        # corpus (subjects no proportion references) is dropped. Metadata
+        # sentinels below stay keyed on dev_subset only, so a generation_subset
+        # DB carries the real built_at / source_lexicon_db.
         subjects, fantasy_morphemes, canonical_decompositions, proportions_by_culture = (
             select_dev_subset(
                 subjects,
                 fantasy_morphemes,
                 canonical_decompositions,
                 proportions_by_culture,
-                top_n_per_culture=dev_top_n_per_culture,
+                top_n_per_culture=(dev_top_n_per_culture if dev_subset else None),
             )
         )
 
@@ -785,14 +803,26 @@ def select_dev_subset(
     canonical_decompositions: dict[str, dict[str, str]],
     proportions_by_culture: dict[str, dict[str, Any]],
     *,
-    top_n_per_culture: int,
+    top_n_per_culture: int | None,
 ) -> tuple[
     list[dict[str, Any]],
     dict[str, Any],
     dict[str, dict[str, str]],
     dict[str, dict[str, Any]],
 ]:
-    """Trim the L4 input set down to a deterministic ``--dev`` slice.
+    """Trim the L4 input set to the subjects actually reachable by generation.
+
+    ``top_n_per_culture`` controls how aggressive the trim is:
+
+    * ``int`` (``--dev``): keep only the top-N highest-weighted usages per
+      culture — a tiny deterministic seed slice.
+    * ``None`` (``--generation-subset``, wyrd-ukq0): keep ALL proportion-
+      referenced usages (``_top_n_by_weight(d, None)`` slices ``[:None]`` =
+      everything), dropping only the decomposition-only corpus — subjects that
+      no culture's proportions reference. This is the production cold-start trim:
+      generation only ever samples proportion-referenced morphemes, so the
+      dropped ~70% is dead weight at generation load time (it served the
+      arbitrary-name decomposition/explain path, deferred per wyrd-ukq0).
 
     Selection rules — designed so re-running on the same inputs yields
     byte-equal output (the committed ``seed-runtime.db`` is a fixed
@@ -976,11 +1006,14 @@ def _subject_sort_key(subject: dict[str, Any]) -> tuple:
     )
 
 
-def _top_n_by_weight(items: dict[str, int], n: int) -> list[tuple[str, int]]:
+def _top_n_by_weight(items: dict[str, int], n: int | None) -> list[tuple[str, int]]:
     """Return the top-N highest-weighted (key, weight) pairs in a stable
     order: weight descending first, then key ascending for ties. The
     key-ascending tiebreaker keeps the output bit-stable across re-runs
     even if the input dict's insertion order changes.
+
+    ``n=None`` keeps ALL items (``[:None]`` slices the whole list) — the
+    uncapped ``--generation-subset`` path (wyrd-ukq0).
     """
     return sorted(items.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
 
