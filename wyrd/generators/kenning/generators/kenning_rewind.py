@@ -7,6 +7,7 @@ from typing import Any
 from wyrd.generators.kenning import (
     _LEGEND,
     _bundle_era_form,
+    _decomposition_matcher,
     _load_meanings,
 )
 from wyrd.generators.kenning.runtime.meaning import Meaning
@@ -120,7 +121,9 @@ class KenningRewind(Generator):
             name_obj = None
         else:
             name_obj = Name(text)
-            name_obj.find_meaning(meaning_db, reduce=True)
+            # wyrd-04oi: reuse the pickled matcher published beside the runtime
+            # DB (cold-start: skip the trie rebuild); fail-safe to a build.
+            name_obj.find_meaning(meaning_db, reduce=True, trie=_decomposition_matcher(meaning_db))
             per_word_meanings = None
         era_stops = (
             ("english", "oe-late"),

@@ -470,6 +470,29 @@ def _load_meanings():
     return load_meanings({"subjects": subjects})
 
 
+def _decomposition_matcher(meaning_db: dict):
+    """wyrd-04oi: the ``MorphemeTrie`` for the decomposition path (explain /
+    era-map / rewind).
+
+    Loads the pickled matcher published beside the runtime DB when its corpus
+    stamp matches the ``meaning_db`` we just loaded; otherwise builds the trie
+    (the prior behavior). Fail-safe — a missing / stale / corrupt / wrong-
+    Python pickle simply falls back to a rebuild, so this can only save the
+    cold-container trie build, never change a decomposition. Pass the result to
+    ``Name.find_meaning(..., trie=...)``.
+    """
+    from wyrd.generators.kenning.runtime.matcher_cache import load_matcher, matcher_stamp
+    from wyrd.generators.kenning.runtime.name import _trie_for
+    from wyrd.generators.kenning.runtime.runtime_db import runtime_matcher_path
+
+    path = runtime_matcher_path()
+    if path is not None:
+        cached = load_matcher(path, stamp=matcher_stamp(meaning_db))
+        if cached is not None:
+            return cached
+    return _trie_for(meaning_db)
+
+
 @lru_cache(maxsize=1)
 def _load_joiners() -> dict[str, list[tuple[str, int]]]:
     """Load the bundle's joiner pool. Returns

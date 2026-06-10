@@ -137,11 +137,16 @@ def publish_runtime_db(
     # first, then current.json. Reverse would expose a window where
     # current.json points at a missing key.
     _upload_db(s3, str(source), resolved_bucket, resolved_version_key)
+    # wyrd-04oi: upload the decomposition matcher pickle (if the export wrote
+    # one beside the DB) BEFORE current.json, so a reader that follows the new
+    # pointer finds the DB + its matcher together. Optional — absent → rebuild.
+    matcher_key = _upload_matcher_sidecar(s3, str(source), resolved_bucket, resolved_version_key)
     _upload_pointer(s3, resolved_bucket, pointer_bytes)
 
     return {
         "bucket": resolved_bucket,
         "version_key": resolved_version_key,
+        "matcher_key": matcher_key,
         "etag": etag,
         "current_pointer": pointer_payload,
         "dry_run": False,
@@ -217,6 +222,27 @@ def _md5_of_file(path: Path) -> str:
             f,
             lambda: hashlib.md5(usedforsecurity=False),
         ).hexdigest()
+
+
+def _upload_matcher_sidecar(s3, source: str, bucket: str, version_key: str) -> str | None:
+    """wyrd-04oi: upload the decomposition matcher pickle the export wrote
+    beside the DB (``<source>.matcher.pkl``) to ``<version_key>.matcher.pkl``.
+
+    Returns the uploaded key, or None when no sidecar exists (a trimmed-subset
+    or pre-feature export) — the pickle is purely a cold-start optimization, so
+    its absence just means the runtime rebuilds the trie. Single-part upload
+    like the DB; the pickle's S3 etag is irrelevant (the loader validates by
+    content stamp, not etag)."""
+    from pathlib import Path
+
+    from wyrd.generators.kenning.runtime.matcher_cache import matcher_sidecar_path
+
+    local = matcher_sidecar_path(source)
+    if not Path(local).is_file():
+        return None
+    key = f"{version_key}.matcher.pkl"
+    s3.upload_file(str(local), bucket, key, Config=_SINGLE_PART_CONFIG)
+    return key
 
 
 def _upload_db(s3, local_path: str, bucket: str, key: str) -> None:

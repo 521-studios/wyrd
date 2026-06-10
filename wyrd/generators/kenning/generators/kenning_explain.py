@@ -10,6 +10,7 @@ from wyrd.generators.kenning import (
     _MAX_DECOMPOSITIONS,
     _build_decomposition_result,
     _canonical_signature_for_words,
+    _decomposition_matcher,
     _decomposition_signature,
     _load_canonical_decompositions,
     _load_meanings,
@@ -74,8 +75,9 @@ class KenningExplain(Generator):
         meaning_db, _ = _load_meanings()
         name_obj = Name(text)
         # reduce=False keeps every alternative decomposition instead of
-        # collapsing to the "best" one.
-        name_obj.find_meaning(meaning_db, reduce=False)
+        # collapsing to the "best" one. wyrd-04oi: reuse the pickled matcher
+        # published beside the runtime DB (cold-start: skip the trie rebuild).
+        name_obj.find_meaning(meaning_db, reduce=False, trie=_decomposition_matcher(meaning_db))
         per_word = [name_obj.words[word] for word in text.split()]
         if not per_word:
             return [GenerationResult(result=text, explanation="no morphemes recognized")]

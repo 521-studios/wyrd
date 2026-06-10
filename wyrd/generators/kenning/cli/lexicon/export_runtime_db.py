@@ -247,6 +247,14 @@ def lexicon_export_runtime_db(
         err=True,
     )
 
+    # wyrd-04oi: pickle the decomposition matcher beside the FULL-corpus DB so
+    # cold containers load it instead of rebuilding the ~90k-morpheme trie. The
+    # trimmed generation / dev subsets never feed decomposition (explain / era-
+    # map / rewind load the full corpus), so they get no sidecar.
+    if not generation_subset and not dev_subset:
+        sidecar = _build_matcher_sidecar(output_path)
+        click.echo(f"Wrote decomposition matcher to {sidecar}", err=True)
+
 
 def _parse_lang_thresholds(specs: tuple[str, ...], *, use_preset: bool) -> dict[str, int]:
     """Parse ``LANG=N`` overrides. Mirrors the export-meanings shape."""
@@ -317,6 +325,58 @@ def _reject_non_default_filters_under_dev(
             "(otherwise the committed seed-runtime.db is unreproducible "
             "across operators). Conflicts:\n  - " + "\n  - ".join(offenders)
         )
+
+
+def _build_matcher_sidecar(output_path: Path) -> Path:
+    """wyrd-04oi: build the decomposition ``MorphemeTrie`` from the just-written
+    full-corpus DB + sidecars — exactly as the runtime loads it, so the stamp
+    matches at cold-load — and pickle it to ``<output_path>.matcher.pkl``.
+
+    Loads via the real runtime path (``WYRD_RUNTIME_DB`` pointed at the new DB)
+    so the matcher is built from the SAME ``_load_meanings`` output a container
+    sees (DB bundle + the four JSON sidecars). Resets the runtime caches before
+    and after so neither this process's prior state nor this temporary
+    redirection leaks into a later in-process load.
+    """
+    import os
+
+    from wyrd.generators.kenning import _load_meanings
+    from wyrd.generators.kenning.runtime import runtime_db as _runtime_db
+    from wyrd.generators.kenning.runtime.matcher_cache import (
+        dump_matcher,
+        matcher_sidecar_path,
+        matcher_stamp,
+    )
+    from wyrd.generators.kenning.runtime.trie_matcher import build_morpheme_trie
+
+    def _reset_runtime_caches() -> None:
+        _runtime_db.reset_runtime_db_cache()
+        _load_meanings.cache_clear()
+        _runtime_db_bundle_dict_cache_clear()
+
+    prev = os.environ.get("WYRD_RUNTIME_DB")
+    os.environ["WYRD_RUNTIME_DB"] = str(output_path)
+    try:
+        _reset_runtime_caches()
+        meaning_db, _ = _load_meanings()
+        trie = build_morpheme_trie(meaning_db)
+        sidecar = matcher_sidecar_path(output_path)
+        dump_matcher(trie, sidecar, stamp=matcher_stamp(meaning_db))
+        return sidecar
+    finally:
+        if prev is None:
+            os.environ.pop("WYRD_RUNTIME_DB", None)
+        else:
+            os.environ["WYRD_RUNTIME_DB"] = prev
+        _reset_runtime_caches()
+
+
+def _runtime_db_bundle_dict_cache_clear() -> None:
+    """Clear the ``_runtime_db_bundle_dict`` lru_cache (the DB→bundle reader
+    that ``_load_meanings`` builds on) so a redirected build sees the new DB."""
+    from wyrd.generators.kenning import _runtime_db_bundle_dict
+
+    _runtime_db_bundle_dict.cache_clear()
 
 
 def add_to(parent: click.Group) -> None:

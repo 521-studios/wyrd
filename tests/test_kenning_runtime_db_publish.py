@@ -176,6 +176,64 @@ def test_publish_uploads_versioned_key_then_pointer(fake_s3, source_db: Path) ->
     assert "must-revalidate" in pointer.get("CacheControl", "")
 
 
+# ---------- wyrd-04oi: matcher pickle sidecar (publish + download) ----------
+
+
+def test_publish_uploads_matcher_sidecar_when_present(fake_s3, source_db: Path) -> None:
+    """A ``<source>.matcher.pkl`` beside the DB is uploaded to
+    ``<version_key>.matcher.pkl`` and surfaced as ``matcher_key``."""
+    Path(str(source_db) + ".matcher.pkl").write_bytes(b"PICKLE-BYTES")
+    fixed = _dt.datetime(2026, 5, 24, 20, 30, 0, tzinfo=_dt.UTC)
+    result = publish_runtime_db(
+        source=source_db, env="staging", bucket=TEST_BUCKET, profile="", now=fixed
+    )
+    assert result["matcher_key"] == "v/2026-05-24T20-30Z.db.matcher.pkl"
+    got = fake_s3.get_object(Bucket=TEST_BUCKET, Key=result["matcher_key"])
+    assert got["Body"].read() == b"PICKLE-BYTES"
+
+
+def test_publish_no_matcher_sidecar_when_absent(fake_s3, source_db: Path) -> None:
+    """No sidecar beside the DB → ``matcher_key`` is None, nothing extra is
+    uploaded (the runtime rebuilds the trie)."""
+    fixed = _dt.datetime(2026, 5, 24, 20, 30, 0, tzinfo=_dt.UTC)
+    result = publish_runtime_db(
+        source=source_db, env="staging", bucket=TEST_BUCKET, profile="", now=fixed
+    )
+    assert result["matcher_key"] is None
+    with pytest.raises(fake_s3.exceptions.NoSuchKey):
+        fake_s3.get_object(Bucket=TEST_BUCKET, Key="v/2026-05-24T20-30Z.db.matcher.pkl")
+
+
+def test_download_matcher_sidecar_fetches_sibling(fake_s3, tmp_path: Path) -> None:
+    """The cold-load sibling fetch downloads ``<version_key>.matcher.pkl`` next
+    to the cached DB; absence is a silent no-op (cold-load rebuilds)."""
+    from wyrd.generators.kenning.runtime.runtime_db import _download_matcher_sidecar
+
+    version_key = "v/2026-05-24T20-30Z.db"
+    fake_s3.put_object(Bucket=TEST_BUCKET, Key=f"{version_key}.matcher.pkl", Body=b"PKL")
+    cached_db = tmp_path / "wyrd-runtime-etag123.db"
+    cached_db.write_bytes(b"db")
+
+    _download_matcher_sidecar(fake_s3, TEST_BUCKET, version_key, cached_db)
+    local = Path(str(cached_db) + ".matcher.pkl")
+    assert local.read_bytes() == b"PKL"
+
+    # Already-present → no-op (no overwrite).
+    local.write_bytes(b"WARM")
+    _download_matcher_sidecar(fake_s3, TEST_BUCKET, version_key, cached_db)
+    assert local.read_bytes() == b"WARM"
+
+
+def test_download_matcher_sidecar_absent_is_noop(fake_s3, tmp_path: Path) -> None:
+    from wyrd.generators.kenning.runtime.runtime_db import _download_matcher_sidecar
+
+    cached_db = tmp_path / "wyrd-runtime-etag999.db"
+    cached_db.write_bytes(b"db")
+    # No sidecar object in S3 → no local file, no raise.
+    _download_matcher_sidecar(fake_s3, TEST_BUCKET, "v/nope.db", cached_db)
+    assert not Path(str(cached_db) + ".matcher.pkl").exists()
+
+
 def test_publish_versioned_etag_matches_local_md5(fake_s3, source_db: Path) -> None:
     """Pins the single-part-upload contract: S3's ETag on the
     versioned key must equal the MD5 we recorded in current.json. If
