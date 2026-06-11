@@ -1,5 +1,5 @@
 // wyrd-y0lx: Regenerate-morpheme transform. Direct-manipulation like Swap —
-// the user clicks the ⟳ button on a morpheme card in Inspect & Transform,
+// the user clicks the Reroll button on a morpheme card in Inspect & Transform,
 // which adds (or re-rolls in place, one step per morpheme) a step targeting
 // that slot. apply() calls the kenning-regenerate-morpheme endpoint, which
 // re-runs the vector path's gate → score → sample for JUST that slot in the
@@ -35,7 +35,7 @@ export const regenerateTransform = {
   // `from` is the slot's pre-regenerate surface (display only — the step
   // card label); baked by setRegenerate at first click.
   defaultParams: { wordIndex: 0, morphemeIndex: 0, seed: 0, context: {}, from: '' },
-  // Params are baked by the ⟳ button (click-time), not operator-editable
+  // Params are baked by the Reroll button (click-time), not operator-editable
   // inline on the step card — same shape as Swap.
   paramSchema: {},
   summary({ wordIndex, morphemeIndex, from }) {

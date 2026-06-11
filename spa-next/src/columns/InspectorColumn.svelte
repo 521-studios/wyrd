@@ -224,21 +224,6 @@
       </div>
     </header>
 
-    <!-- wyrd-y0lx: the transform stack, re-mounted after the wyrd-qc0g col-3
-         rebuild dropped it. Each step card carries its × remove control —
-         removing a step (e.g. a regenerate) re-runs the pipeline without it,
-         which is the undo affordance for per-morpheme regeneration. The
-         palette stays unmounted (wyrd-410t's concern); steps are added via
-         direct manipulation (grid-cell swaps, the ⟳ regenerate button). -->
-    {#if pipeline.steps.length > 0}
-      <section class="transforms">
-        <h4 class="section-head">Transforms ({pipeline.steps.length})</h4>
-        {#each pipeline.steps as step, i (step.id)}
-          <TransformStep {step} index={i} />
-        {/each}
-      </section>
-    {/if}
-
     <section class="morphemes" bind:this={morphemesEl}>
       <h4 class="section-head">Morphemes ({allMorphemes.length})</h4>
 
@@ -256,16 +241,18 @@
               {/if}
               <!-- wyrd-y0lx: re-roll JUST this morpheme in the context of the
                    others. Adds (or re-rolls in place) a regenerate step on the
-                   pipeline; remove the step from the Transforms stack to undo. -->
+                   pipeline; remove the step from the Transforms stack to undo.
+                   wyrd-w7ak: styled like the header's Roll button so it's
+                   noticeable, labeled "Reroll". -->
               {#if regenEnabled}
                 <button
                   type="button"
-                  class="m-regen"
+                  class="m-reroll"
                   disabled={pipeline.isRunning}
                   onclick={() => regenerate(m)}
-                  aria-label="Regenerate this morpheme"
-                  title="Regenerate this morpheme (re-roll it in the context of the others)"
-                >⟳</button>
+                  aria-label="Reroll morpheme {m.rendered || m.usage}"
+                  title="Reroll this morpheme (re-roll it in the context of the others)"
+                >Reroll</button>
               {/if}
             </div>
 
@@ -301,6 +288,22 @@
         {/each}
       {/if}
     </section>
+
+    <!-- wyrd-y0lx: the transform stack, re-mounted after the wyrd-qc0g col-3
+         rebuild dropped it. Each step card carries its × remove control —
+         removing a step (e.g. a regenerate) re-runs the pipeline without it,
+         which is the undo affordance for per-morpheme regeneration. The
+         palette stays unmounted (wyrd-410t's concern); steps are added via
+         direct manipulation (grid-cell swaps, the Reroll button).
+         wyrd-w7ak: pinned BELOW the morpheme list (operator preference). -->
+    {#if pipeline.steps.length > 0}
+      <section class="transforms">
+        <h4 class="section-head">Transforms ({pipeline.steps.length})</h4>
+        {#each pipeline.steps as step, i (step.id)}
+          <TransformStep {step} index={i} />
+        {/each}
+      </section>
+    {/if}
 
     <DefectModal
       open={flaggedResult === result}
@@ -392,41 +395,51 @@
     flex-wrap: wrap;
     margin-bottom: 6px;
   }
-  /* wyrd-y0lx: per-morpheme regenerate button, pinned top-right of the card
-     head (margin-left auto pushes it past the usage + tags). */
-  .m-regen {
+  /* wyrd-y0lx + wyrd-w7ak: per-morpheme Reroll button, pinned top-right of
+     the card head (margin-left auto pushes it past the usage + tags).
+     Mirrors the header Roll button's look (accent fill, mono uppercase) at
+     card scale so the affordance is unmissable. */
+  .m-reroll {
     margin-left: auto;
     align-self: center;
-    background: transparent;
-    border: 1px solid var(--border);
+    background: var(--accent);
+    color: #1a1a1c;
+    border: none;
     border-radius: 3px;
-    color: var(--fg-muted);
+    height: 24px;
+    padding: 0 12px;
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
     cursor: pointer;
-    font: inherit;
-    font-size: 13px;
-    line-height: 1;
-    padding: 3px 7px;
+    transition: filter 120ms ease;
   }
-  .m-regen:hover:not(:disabled) {
-    color: var(--accent);
-    border-color: var(--accent);
+  .m-reroll:hover:not(:disabled) {
+    filter: brightness(1.12);
   }
-  .m-regen:disabled {
-    opacity: 0.5;
-    cursor: default;
+  .m-reroll:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
   }
-  .m-regen:focus-visible {
-    outline: 2px solid var(--accent);
+  .m-reroll:focus-visible {
+    outline: 2px solid var(--fg);
     outline-offset: 2px;
   }
-  /* wyrd-y0lx: the re-mounted transform stack — pinned (non-scroll) between
-     the name cards and the scrolling morpheme list, capped so a long stack
-     scrolls itself rather than crowding out the morphemes. */
+  /* wyrd-y0lx: the re-mounted transform stack. wyrd-w7ak: pinned (non-scroll)
+     BELOW the scrolling morpheme list, capped so a long stack scrolls itself
+     rather than crowding out the morphemes. */
   .transforms {
     flex-shrink: 0;
+    /* % is safe here: .column's height is DEFINITE (the app grid pins its
+       row to minmax(0, 1fr) inside a 100dvh container — wyrd-vith), so the
+       cap resolves against the column, not the viewport. Viewport units
+       would regress the dvh-vs-vh mobile lesson from PR #310 and misbehave
+       in split-pane/embedded contexts. */
     max-height: 30%;
     overflow-y: auto;
-    margin-bottom: 12px;
+    margin-top: 12px;
   }
   .m-usage {
     font-size: 16px;
