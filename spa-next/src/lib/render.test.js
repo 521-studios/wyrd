@@ -1,4 +1,4 @@
-// wyrd-24s6 (D38): unit tests for the native/modern Output-column predicates.
+// wyrd-24s6 (D41): unit tests for the native/modern Output-column predicates.
 import { describe, it, expect } from 'vitest';
 import {
   nativeSurface,

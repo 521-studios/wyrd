@@ -56,7 +56,7 @@ strip live documentation.
 - **D31.** Multi-script renderings (Phase 2a–2d) — LIVE (the renderings schema,
   bundle siblings, and SPA provenance panel all ship). Only two specific claims
   ("per-language rendering is the demos' concern"; "generation default is
-  modern_usage everywhere") are superseded by D38 (wyrd-24s6), already marked by
+  modern_usage everywhere") are superseded by D41 (wyrd-24s6), already marked by
   inline banners. Keep — NOT an archival candidate despite the markers.
 
 ## Follow-ups (not archival)

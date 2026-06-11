@@ -10,7 +10,7 @@
     isNameMorpheme,
   } from '../lib/morphemeGloss.js';
   import { accentedName } from '../lib/accents.js';
-  // wyrd-24s6 (D38): native/modern surface predicates live in lib/render.js so
+  // wyrd-24s6 (D41): native/modern surface predicates live in lib/render.js so
   // they're unit-testable (svelte components have no test harness here).
   import { nativeSurface, modernSurface, showModernCompanion } from '../lib/render.js';
 
@@ -58,7 +58,7 @@
             >
               <span class="name-line">
                 <span class="name">{accentedName(r)}</span>
-                <!-- wyrd-24s6 (D38): the modern companion, in darker secondary
+                <!-- wyrd-24s6 (D41): the modern companion, in darker secondary
                      lettering to the right. Shown only when it differs from the
                      native canonical (a plain/force-modern roll has native ==
                      modern, so the companion would be noise). -->
@@ -75,7 +75,7 @@
                         {@const nat = nativeSurface(morph)}
                         {@const mod = modernSurface(morph)}
                         <span class="morph-col">
-                          <!-- wyrd-24s6 (D38): native surface primary, modern
+                          <!-- wyrd-24s6 (D41): native surface primary, modern
                                reflex in darker lettering beneath it when the two
                                differ (it matches the name's native + modern pair). -->
                           <span class="surface">{nat}</span>
@@ -138,7 +138,7 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 1px var(--accent);
   }
-  /* wyrd-24s6 (D38): native name primary, with the modern reflex companion
+  /* wyrd-24s6 (D41): native name primary, with the modern reflex companion
      stacked directly beneath it (wyrd-swh2) in darker, lighter-weight type. */
   .name-line {
     display: flex;
@@ -181,7 +181,7 @@
     font-size: 12px;
     color: var(--fg);
   }
-  /* wyrd-24s6 (D38): the modern reflex of a morpheme, dimmer + smaller, sitting
+  /* wyrd-24s6 (D41): the modern reflex of a morpheme, dimmer + smaller, sitting
      directly under its native surface. */
   .surface-modern {
     font-family: ui-monospace, 'SF Mono', Consolas, monospace;

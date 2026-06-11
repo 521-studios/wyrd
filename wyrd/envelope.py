@@ -27,7 +27,7 @@ def envelope(
         "results": [
             {
                 "result": r.result,
-                # wyrd-24s6 (D38): the modern companion rendering (native `result`
+                # wyrd-24s6 (D41): the modern companion rendering (native `result`
                 # + modern `result_modern`). Falls back to `result` when a
                 # generator doesn't distinguish the two, so the field is always a
                 # string the SPA can render.

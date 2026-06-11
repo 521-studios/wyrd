@@ -1,8 +1,8 @@
-// wyrd-24s6 (D38): the native/modern surface predicates the Output column
+// wyrd-24s6 (D41): the native/modern surface predicates the Output column
 // renders with. Extracted from OutputColumn.svelte so they're unit-testable
 // like era.js (svelte components have no test harness here — only lib/*.test.js).
 //
-// The D38 contract: each result carries a native canonical `result` + a modern
+// The D41 contract: each result carries a native canonical `result` + a modern
 // `result_modern` companion; per morpheme the backend ships `rendered` (native,
 // absent when the slot has no distinct native form) + `usage` (the modern
 // bucket key).

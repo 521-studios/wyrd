@@ -2624,7 +2624,7 @@ be better modeled with native graph tooling. Spike conclusion: **no.**
   `lexicon/cognate_cluster.py`): `cluster-cognates-v2` is *not* pure WCC. It
   (1) **drops every edge touching `proto-indo-european`** (`_NON_BRIDGING_LANGUAGES`
   — PIE fans out across all IE branches; "143 of 155 clusters >200 members were
-  PIE-rooted" pre-fix), (2) **resolves parent/child through `merged_into_id`**
+  PIE-rooted" before the fix), (2) **resolves parent/child through `merged_into_id`**
   (canonical space, D22), and (3) does a **directional, smallest-root-wins BFS**,
   not undirected closure. Re-running WCC with the PIE filter + canonical
   resolution shrank the hairball only to 150,960 (24%) — the residual is
