@@ -244,6 +244,8 @@ resource "aws_lambda_function" "api" {
         WYRD_DEFECTS_TABLE     = aws_dynamodb_table.defects.name
         LOG_LEVEL              = var.log_level
         WYRD_FF_ALL            = var.env == "staging" ? "true" : "false"
+        # wyrd-rogd.13: bare word-placement threshold (D43); load-time knob.
+        WYRD_BARE_POSITION_THRESHOLD = var.bare_position_threshold
       },
       {
         # Skip "all" so a stray entry can't shadow the env-based WYRD_FF_ALL

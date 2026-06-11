@@ -68,6 +68,11 @@ def attestation_schema_conn():
             weight INTEGER NOT NULL,
             PRIMARY KEY (culture, tag1, tag2)
         );
+        CREATE TABLE proportions_bare_word_position (
+            culture TEXT NOT NULL, position TEXT NOT NULL,
+            usage_key TEXT NOT NULL, weight INTEGER NOT NULL,
+            PRIMARY KEY (culture, position, usage_key)
+        );
         CREATE TABLE proportions_attested_language (
             culture TEXT NOT NULL,
             usage_key TEXT NOT NULL,
@@ -159,7 +164,7 @@ def test_proportions_dict_for_culture_includes_attested_languages_when_populated
 # ---- select_dev_subset narrowing ------------------------------------------
 
 
-def _props(usages=None, single=None, attested=None):
+def _props(usages=None, single=None, attested=None, bare_positions=None):
     return {
         "usages": usages or {},
         "single_usages": single or {},
@@ -167,6 +172,7 @@ def _props(usages=None, single=None, attested=None):
         "tag_marginal": {},
         "tag_cooccurrence": {},
         "attested_languages": attested or {},
+        "bare_word_positions": bare_positions or {},
     }
 
 
@@ -229,6 +235,63 @@ def test_select_dev_subset_uses_per_culture_keep_set_no_cross_culture_leak():
     )
     assert trimmed["english"]["attested_languages"] == {"-ton": ["old_english"]}
     assert trimmed["welsh"]["attested_languages"] == {"pen-": ["celtic_mix"]}
+
+
+def test_select_dev_subset_narrows_bare_positions_to_kept_surfaces():
+    """wyrd-rogd.13: positional rows whose usage fell out of the kept
+    single_usages are dropped; the comparison is by bare SURFACE, so a
+    surface-keyed positional row survives via its kept case-twin form;
+    a position whose dict empties out is pruned entirely."""
+    proportions = {
+        "english": _props(
+            single={"Ghyll": 100, "Keep": 50, "Drop": 1},
+            bare_positions={
+                # surface-keyed row matches the kept stored-form 'Ghyll'
+                "post": {"ghyll": 4, "drop": 2},
+                # this position empties out entirely once 'drop' goes
+                "inner": {"drop": 1},
+                "pre": {"keep": 3},
+            },
+        ),
+    }
+    _, _, _, trimmed = select_dev_subset(
+        subjects=[],
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=2,
+    )
+    assert trimmed["english"]["bare_word_positions"] == {
+        "post": {"ghyll": 4},
+        "pre": {"keep": 3},
+    }
+
+
+def test_select_dev_subset_bare_positions_no_cross_culture_leak():
+    """The bare-position narrowing uses THIS culture's kept single
+    surfaces, not the cumulative cross-culture set (same isolation
+    contract as attested_languages)."""
+    proportions = {
+        "english": _props(
+            single={"Green": 100},
+            bare_positions={"post": {"green": 5}},
+        ),
+        "welsh": _props(
+            single={"Fawr": 100},
+            # 'green' shows up in Welsh positional stats but isn't in
+            # Welsh's kept single_usages this run.
+            bare_positions={"post": {"fawr": 4, "green": 2}},
+        ),
+    }
+    _, _, _, trimmed = select_dev_subset(
+        subjects=[],
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=1,
+    )
+    assert trimmed["english"]["bare_word_positions"] == {"post": {"green": 5}}
+    assert trimmed["welsh"]["bare_word_positions"] == {"post": {"fawr": 4}}
 
 
 # ---- vector_name_select.build_non_position_eligible per-Meaning filter ----
@@ -551,6 +614,11 @@ def test_insert_attested_languages_deduplicates_input_lists():
     conn = sqlite3.connect(":memory:")
     conn.executescript(
         """
+        CREATE TABLE proportions_bare_word_position (
+            culture TEXT NOT NULL, position TEXT NOT NULL,
+            usage_key TEXT NOT NULL, weight INTEGER NOT NULL,
+            PRIMARY KEY (culture, position, usage_key)
+        );
         CREATE TABLE proportions_attested_language (
             culture TEXT NOT NULL,
             usage_key TEXT NOT NULL,

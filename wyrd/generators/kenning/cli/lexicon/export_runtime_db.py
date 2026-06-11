@@ -237,6 +237,7 @@ def lexicon_export_runtime_db(
         + counts.get("proportions_structure", 0)
         + counts.get("proportions_tag_marginal", 0)
         + counts.get("proportions_tag_cooccurrence", 0)
+        + counts.get("proportions_bare_word_position", 0)
     )
     click.echo(
         f"Wrote L4 DB to {output_path}: "

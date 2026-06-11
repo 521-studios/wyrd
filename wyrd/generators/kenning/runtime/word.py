@@ -5,6 +5,8 @@ Ported from Rando (rando/word.py) — Python 2 → 3.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from .meaning import Meaning
 
 
@@ -21,6 +23,32 @@ def _structural_position(index: int, count: int) -> str:
     if index == 0:
         return "pre"
     if index == count - 1:
+        return "post"
+    return "inner"
+
+
+# wyrd-rogd.13: bucket-key element prefix for the WITHIN-NAME word position of a
+# bare word (which word slot of a multi-word name), distinct from the
+# WITHIN-WORD morpheme position above. A bare slot's bucket key gains
+# ``wp-pre`` / ``wp-inner`` / ``wp-post`` so its frequency pool is the
+# per-word-position one.
+WORD_POSITION_KEY_PREFIX = "wp-"
+
+
+def word_position_for(word_index: int, word_count: int) -> Literal["pre", "inner", "post"] | None:
+    """wyrd-rogd.13: map a word's index within its NAME to a word-position
+    label — first word → ``pre``, last → ``post``, interior → ``inner``.
+
+    Returns ``None`` for single-word names: there is no solo case in the
+    word-sequence model (a 1-word name carries no evidence about where its
+    word sits relative to others), mirroring the build-side tally which only
+    walks multi-word names.
+    """
+    if word_count <= 1:
+        return None
+    if word_index == 0:
+        return "pre"
+    if word_index == word_count - 1:
         return "post"
     return "inner"
 

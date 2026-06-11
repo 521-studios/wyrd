@@ -92,9 +92,9 @@ def proportions_from(names) -> dict[str, Any]:
     The returned shape matches the historical
     ``<culture>_proportions.json`` payload exactly: ``{usages,
     single_usages, structures, tag_marginal, tag_cooccurrence,
-    attested_languages}`` with ``structures`` already passed through
-    the wyrd-zzli grammatical filter and tag-pair keys serialized as
-    ``"left|right"`` strings.
+    attested_languages, bare_word_positions}`` with ``structures``
+    already passed through the wyrd-zzli grammatical filter and
+    tag-pair keys serialized as ``"left|right"`` strings.
 
     ``attested_languages`` (wyrd-pfoo) is the per-Meaning attestation
     half of the culture filter: for each usage_key, the set of primary
@@ -112,11 +112,14 @@ def proportions_from(names) -> dict[str, Any]:
     tag_cooccurrence: Counter = Counter()
     tag_marginal: Counter = Counter()
     attested_languages: dict[str, set[str]] = {}
+    bare_word_positions: dict[str, Counter] = {}
     for name in names:
         for u in name.get_samples():
             part_proportions[u] += 1
         for u in name.get_lone_samples():
             lone_proportions[u] += 1
+        for position, u in name.get_bare_word_positions():
+            bare_word_positions.setdefault(position, Counter())[u] += 1
         for structure in name.get_structure():
             struct_proportions[structure] += 1
         _accumulate_attested_languages(name, attested_languages)
@@ -132,6 +135,15 @@ def proportions_from(names) -> dict[str, Any]:
         # wyrd-pfoo: sorted-list values so the JSON round-trip is
         # deterministic across re-builds (set iteration order isn't).
         "attested_languages": {k: sorted(v) for k, v in attested_languages.items()},
+        # wyrd-rogd.13: per-word-position counts for bare words of multi-word
+        # names ({"pre"|"inner"|"post": {usage: count}}). Emitted RAW — the
+        # naked↔structured threshold is applied at LOAD time (env-tunable,
+        # WYRD_BARE_POSITION_THRESHOLD) so re-tuning never needs a re-export.
+        # Sorted keys both levels for deterministic JSON round-trips.
+        "bare_word_positions": {
+            position: dict(sorted(bare_word_positions[position].items()))
+            for position in sorted(bare_word_positions)
+        },
     }
 
 
