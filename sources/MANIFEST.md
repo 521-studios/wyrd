@@ -30,6 +30,13 @@ expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
   Single-theme monograph; high morpheme density for water-related elements.
 - `mawer_1924_chief_elements.txt` — Allen Mawer, *The Chief Elements Used in
   English Place-Names* (1924).
+- `searle_1897_onomasticon_anglo_saxonicum.txt` — W.G. Searle, *Onomasticon
+  Anglo-Saxonicum: A List of Anglo-Saxon Proper Names from the Time of Beda to
+  that of King John* (1897). PD personal-name etymology dictionary (archive.org
+  Google scan `onomasticonangl00seargoog`). Cross-cutting personal-name
+  inventory, complement to the Briggs 2024 index (Briggs indexes name→place;
+  Searle etymologizes the names). Reliability caveat: includes non-OE
+  Continental-Germanic / ON names. Mining tracked in wyrd-payp.
 
 ## England — regional
 
