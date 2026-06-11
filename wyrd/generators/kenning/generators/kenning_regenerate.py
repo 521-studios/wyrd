@@ -3,6 +3,7 @@ already-generated name in the context of the others (wyrd-y0lx)."""
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from wyrd.generators.kenning import (
@@ -17,6 +18,18 @@ from wyrd.generators.kenning import (
 )
 from wyrd.registry import GenerationResult, Generator
 from wyrd.seed import rng_for
+
+_logger = logging.getLogger(__name__)
+
+
+class NoEligibleReplacementError(ValueError):
+    """The candidate pool is empty after the context gates + in-use
+    exclusions — a valid request with no fulfillable answer, distinct from
+    the malformed-input ValueErrors raised by ``_validate_target``.
+
+    Subclasses ValueError so the dispatcher's existing ValueError → 400
+    mapping still fires (no API behavior change); callers / tests can catch
+    this specifically instead of matching message strings."""
 
 
 class KenningRegenerateMorpheme(Generator):
@@ -155,17 +168,19 @@ class KenningRegenerateMorpheme(Generator):
         return self.generate_all(params, seed)[0]
 
     def generate_all(self, params: dict[str, Any], seed: int) -> list[GenerationResult]:
+        # Lazy imports to dodge the circular dep: wyrd.generators.kenning.
+        # __init__ imports this module (via generators/__init__.py) at the END
+        # of its body, so module-level imports that trace back through that
+        # __init__ — or through runtime modules it is mid-loading — would hit
+        # partial-init AttributeErrors. Same pattern + reason as
+        # kenning_rewind.py's per-call-site lazy imports.
         from wyrd.generators.kenning import _rank_siblings
         from wyrd.generators.kenning.generators.kenning import _resolve_vector_inputs
         from wyrd.generators.kenning.runtime.proportions import (
             NewName,
             _resolve_surface,
         )
-        from wyrd.generators.kenning.runtime.vector_name_select import (
-            _mood_morpheme_weight,
-            _slot_weighted_pool,
-            _weighted_choice,
-        )
+        from wyrd.generators.kenning.runtime.vector_name_select import _weighted_choice
         from wyrd.generators.kenning.runtime.word import _position_form
 
         usages, wi, mi = _validate_target(params)
@@ -177,7 +192,7 @@ class KenningRegenerateMorpheme(Generator):
         # _rank_siblings pick to_dict anchors on) — held slots contribute
         # their tags (cohesion / mood context) + their folds (exclusions).
         ranked_first: list[list[Any]] = [
-            [_first_ranked(_rank_siblings(_resolve_surface(meaning_db, u))) for u in word]
+            [next(iter(_rank_siblings(_resolve_surface(meaning_db, u))), None) for u in word]
             for word in usages
         ]
         old_meaning = ranked_first[wi][mi]
@@ -210,41 +225,19 @@ class KenningRegenerateMorpheme(Generator):
             if m is not None and (w, e) != (wi, mi)
             for t in m.tags
         )
-        weighted = _slot_weighted_pool(
+        weighted = _weighted_pool_with_fallback(
+            name_gen,
             non_position_eligible,
-            slot_position=position,
-            slot_qualifier=qualifier,
-            slot_bucket_key=bucket_key,
+            position=position,
+            qualifier=qualifier,
+            bucket_key=bucket_key,
             request=request,
             priors=priors,
             era_midpoint=era_midpoint,
-            cohesion=knobs["cohesion"],
-            cohesion_table=name_gen.cohesion_table or None,
-            usage_frequency_by_bucket=name_gen.usage_frequency_by_bucket,
-            novelty=knobs["novelty"],
+            knobs=knobs,
             prior_tags=prior_tags,
             slot_base_scores=slot_base_scores,
         )
-        if not weighted:
-            # The reconstructed bucket key may not exist in this culture's
-            # frequency tables (the supplied breakdown can carry shapes the
-            # proportions never recorded — e.g. a post-transform structure).
-            # Degrade to the unweighted score-only pool rather than failing.
-            weighted = _slot_weighted_pool(
-                non_position_eligible,
-                slot_position=position,
-                slot_qualifier=qualifier,
-                slot_bucket_key=None,
-                request=request,
-                priors=priors,
-                era_midpoint=era_midpoint,
-                cohesion=knobs["cohesion"],
-                cohesion_table=name_gen.cohesion_table or None,
-                usage_frequency_by_bucket=None,
-                novelty=knobs["novelty"],
-                prior_tags=prior_tags,
-                slot_base_scores=None,
-            )
 
         # Operator decision (wyrd-y0lx): exclude the replaced morpheme and
         # every morpheme already in use elsewhere in the name. Fold by
@@ -254,30 +247,20 @@ class KenningRegenerateMorpheme(Generator):
         used_folds = _used_folds(usages, ranked_first)
         weighted = [(m, w) for m, w in weighted if not _collides(m, used_folds)]
         if not weighted:
-            raise ValueError(
+            raise NoEligibleReplacementError(
                 "no eligible replacement morpheme — every candidate for this "
                 "slot is either already in use in the name or filtered by the "
                 "generation context (culture / tags / era / stratum)"
             )
 
-        # wyrd-4rp8 context rule: when the request carries mood tags and the
-        # slot being replaced is the only mood-carrier among the held slots,
-        # keep the theme — restrict to mood-tagged candidates, re-weighted by
-        # mood fit. Graceful: an empty restriction falls back to the full pool.
-        mood_tag_set = frozenset(request.mood_tags)
-        if mood_tag_set and mood_tag_set.isdisjoint(prior_tags):
-            mood_restricted = [
-                (m, w * _mood_morpheme_weight(m, request.mood_tags))
-                for m, w in weighted
-                if mood_tag_set & frozenset(m.tags)
-            ]
-            if mood_restricted:
-                weighted = mood_restricted
+        weighted = _apply_mood_restriction(weighted, request.mood_tags, prior_tags)
 
         rng = rng_for(seed)
         pick = _weighted_choice(rng, weighted)
         if pick is None:
-            raise ValueError("no eligible replacement morpheme (all candidate scores were zero)")
+            raise NoEligibleReplacementError(
+                "no eligible replacement morpheme (all candidate scores were zero)"
+            )
 
         # Rebuild the full name with the target slot replaced. Held slots
         # keep their supplied surfaces verbatim (rendered=None → __str__
@@ -385,8 +368,96 @@ def _parse_knobs(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _first_ranked(ranked: list) -> Any | None:
-    return ranked[0] if ranked else None
+def _weighted_pool_with_fallback(
+    name_gen: Any,
+    non_position_eligible: list,
+    *,
+    position: str,
+    qualifier: str | None,
+    bucket_key: tuple[str, ...],
+    request: Any,
+    priors: Any,
+    era_midpoint: int,
+    knobs: dict[str, Any],
+    prior_tags: frozenset[str],
+    slot_base_scores: dict,
+) -> list[tuple[Any, float]]:
+    """The weighted candidate pool for the target slot, with the bucket-key
+    fallback: when the reconstructed bucket key doesn't exist in this
+    culture's frequency tables (the supplied breakdown can carry shapes the
+    proportions never recorded — e.g. a post-transform structure), degrade
+    to the unweighted score-only pool rather than failing. The degrade is
+    logged at WARNING so an operator can see the frequency layer was
+    bypassed (a `dispatch ok` line alone would hide it)."""
+    # Lazy import — same wyrd.generators.kenning.__init__ cycle as
+    # generate_all's imports (see the comment there).
+    from wyrd.generators.kenning.runtime.vector_name_select import _slot_weighted_pool
+
+    weighted = _slot_weighted_pool(
+        non_position_eligible,
+        slot_position=position,
+        slot_qualifier=qualifier,
+        slot_bucket_key=bucket_key,
+        request=request,
+        priors=priors,
+        era_midpoint=era_midpoint,
+        cohesion=knobs["cohesion"],
+        cohesion_table=name_gen.cohesion_table or None,
+        usage_frequency_by_bucket=name_gen.usage_frequency_by_bucket,
+        novelty=knobs["novelty"],
+        prior_tags=prior_tags,
+        slot_base_scores=slot_base_scores,
+    )
+    if weighted:
+        return weighted
+    _logger.warning(
+        "kenning_regenerate bucket_key_miss position=%s qualifier=%s bucket_key=%r "
+        "— falling back to the unweighted score-only pool",
+        position,
+        qualifier,
+        bucket_key,
+    )
+    return _slot_weighted_pool(
+        non_position_eligible,
+        slot_position=position,
+        slot_qualifier=qualifier,
+        slot_bucket_key=None,
+        request=request,
+        priors=priors,
+        era_midpoint=era_midpoint,
+        cohesion=knobs["cohesion"],
+        cohesion_table=name_gen.cohesion_table or None,
+        usage_frequency_by_bucket=None,
+        novelty=knobs["novelty"],
+        prior_tags=prior_tags,
+        slot_base_scores=None,
+    )
+
+
+def _apply_mood_restriction(
+    weighted: list[tuple[Any, float]],
+    mood_tags: dict[str, float],
+    prior_tags: frozenset[str],
+) -> list[tuple[Any, float]]:
+    """wyrd-4rp8 context rule: when the request carries mood tags and the
+    slot being replaced is the only mood-carrier among the held slots
+    (no prior tag intersects the mood set), keep the theme — restrict to
+    mood-tagged candidates, re-weighted by mood fit. Graceful: an empty
+    restriction (no candidate carries any mood tag) falls back to the
+    full pool unchanged."""
+    # Lazy import — same wyrd.generators.kenning.__init__ cycle as
+    # generate_all's imports (see the comment there).
+    from wyrd.generators.kenning.runtime.vector_name_select import _mood_morpheme_weight
+
+    mood_tag_set = frozenset(mood_tags)
+    if not mood_tag_set or not mood_tag_set.isdisjoint(prior_tags):
+        return weighted
+    mood_restricted = [
+        (m, w * _mood_morpheme_weight(m, mood_tags))
+        for m, w in weighted
+        if mood_tag_set & frozenset(m.tags)
+    ]
+    return mood_restricted or weighted
 
 
 def _derived_position(word_len: int, index: int) -> str:
@@ -405,12 +476,12 @@ def _slot_qualifier(meaning: Any | None, usage: str) -> str | None:
     """Infer the slot's qualifier flag from the morpheme being held /
     replaced, mirroring ``Meaning.key``'s bucket-assignment if/elif: a
     name-tagged morpheme routes through "name" even when saint-tagged; the
-    literal Saint- morpheme is "saint". An unresolvable usage gets no
-    qualifier."""
-    if usage.replace("-", "").lower() == "saint":
-        return "saint"
+    literal Saint- morpheme is "saint". An unresolvable usage falls back to
+    the literal-saint string check (the one half that needs no Meaning)."""
     if meaning is not None and meaning.is_name():
         return "name"
+    if usage.replace("-", "").lower() == "saint":
+        return "saint"
     return None
 
 
@@ -446,6 +517,8 @@ def _collides(meaning: Any, used_folds: set[str]) -> bool:
     """A candidate collides when its modern usage fold OR its native-form
     fold is already in use — covering both the modern companion and the
     D41 native rendering."""
+    # Lazy import — same wyrd.generators.kenning.__init__ cycle as
+    # generate_all's imports (see the comment there).
     from wyrd.generators.kenning.runtime.proportions import _native_form_for_morpheme_id
 
     if meaning.usage.replace("-", "").lower() in used_folds:
@@ -458,18 +531,21 @@ def _collides(meaning: Any, used_folds: set[str]) -> bool:
     return False
 
 
+def _null_non_target(grid: list[list[Any]], wi: int, mi: int) -> None:
+    """Set every entry of a NewName-parallel 2D grid to None except the
+    target slot ``(wi, mi)``."""
+    for w, word in enumerate(grid):
+        for e in range(len(word)):
+            if (w, e) != (wi, mi):
+                word[e] = None
+
+
 def _strip_held_renders(new_name: Any, wi: int, mi: int) -> None:
     """Null out the render substitutions on every HELD slot so the response
     preserves the caller's supplied surfaces verbatim (rendered=None →
     ``__str__`` / to_dict fall back to the usage we were given). Only the
     regenerated slot keeps its freshly-computed render."""
     if new_name.rendered is not None:
-        for w, word in enumerate(new_name.rendered):
-            for e in range(len(word)):
-                if (w, e) != (wi, mi):
-                    word[e] = None
+        _null_non_target(new_name.rendered, wi, mi)
     if new_name.inflection_labels is not None:
-        for w, word in enumerate(new_name.inflection_labels):
-            for e in range(len(word)):
-                if (w, e) != (wi, mi):
-                    word[e] = None
+        _null_non_target(new_name.inflection_labels, wi, mi)

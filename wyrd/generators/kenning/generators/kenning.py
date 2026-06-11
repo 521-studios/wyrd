@@ -5,7 +5,13 @@ from __future__ import annotations
 import logging
 import time
 from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import random
+
+    from wyrd.generators.kenning.runtime.proportions import NameGenerator, NewName
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors, RequestVector
 
 from wyrd.generators.kenning import (
     _FICTION_TAG,
@@ -624,15 +630,15 @@ def _resolve_vector_inputs(
     priors_path: str | None,
     scoring_weights_raw: dict[str, float] | None = None,
     packs_raw: list[dict[str, Any]] | None = None,
-):
+) -> tuple[RequestVector, EmpiricalPriors, int, dict[str, dict]]:
     """Translate per-call knobs into the vector path's shared inputs:
     ``(request, priors, era_midpoint, pack_meaning_dbs)``.
 
     Extracted from :func:`_generate_via_vector` (wyrd-y0lx) so the
     single-slot regeneration endpoint (``kenning-regenerate-morpheme``)
     builds its RequestVector / priors / era-midpoint through the exact
-    same resolution as a full generate — one drift surface instead of
-    two."""
+    same resolution as a full generate, instead of duplicating it and
+    letting the two copies drift apart."""
 
     from wyrd.generators.kenning.runtime.vector_kenning_adapter import (
         build_request_vector,
@@ -734,8 +740,8 @@ def _resolve_vector_inputs(
 
 
 def _generate_via_vector(
-    name_gen,
-    rng,
+    name_gen: NameGenerator,
+    rng: random.Random,
     *,
     culture: str,
     tags: list[str],
@@ -755,15 +761,15 @@ def _generate_via_vector(
     era_render_language: str | None = None,
     era_requested: bool = False,
     pool_cache: dict | None = None,
-):
+) -> NewName | None:
     """Dispatch helper for vector scoring (the only scoring path).
 
     Translates the per-call knobs into a RequestVector via the
     adapter (:func:`_resolve_vector_inputs`), loads priors from disk
     if provided, and calls NameGenerator.select_via_vector.
 
-    Returns a NewName-compatible object or None when the vector
-    path's gate / scoring filtered every candidate.
+    Returns a NewName or None when the vector path's gate / scoring
+    filtered every candidate.
     """
     request, priors, era_midpoint, pack_meaning_dbs = _resolve_vector_inputs(
         culture=culture,

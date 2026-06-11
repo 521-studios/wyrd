@@ -158,9 +158,12 @@ class PipelineState {
    *  decision: a second click on the same morpheme re-rolls IN PLACE
    *  (a fresh seed on the existing step), so removing the step always
    *  reverts straight to the pre-regenerate morpheme. `context` is the
-   *  generation-params snapshot baked at click time; it's kept on a
-   *  re-roll (the roll's context doesn't change between clicks). */
-  setRegenerate({ wordIndex, morphemeIndex, context }) {
+   *  generation-params snapshot the caller takes at click time and is
+   *  refreshed on every click (the caller computes it fresh; silently
+   *  keeping the first click's copy would discard it). `from` is the
+   *  slot's pre-regenerate surface, kept from the FIRST click so the
+   *  step card keeps labeling the original morpheme being re-rolled. */
+  setRegenerate({ wordIndex, morphemeIndex, context, from }) {
     // Number.MAX_SAFE_INTEGER keeps the seed in the JS-safe int range the
     // server's sub-seed contract already uses (wyrd-aof8).
     const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
@@ -172,10 +175,10 @@ class PipelineState {
     );
     if (idx !== -1) {
       const next = [...this.steps];
-      next[idx] = { ...next[idx], params: { ...next[idx].params, seed } };
+      next[idx] = { ...next[idx], params: { ...next[idx].params, seed, context } };
       this.steps = next;
     } else {
-      this.addStep('regenerate-morpheme', { wordIndex, morphemeIndex, seed, context });
+      this.addStep('regenerate-morpheme', { wordIndex, morphemeIndex, seed, context, from });
     }
   }
 

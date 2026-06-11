@@ -62,6 +62,9 @@
       wordIndex: m._wordIndex,
       morphemeIndex: m._morphemeIndex,
       context,
+      // The slot's CURRENT surface, so the step card reads
+      // "Stān morph[0,1] → re-roll" instead of a bare index.
+      from: m.rendered || m.usage,
     });
   }
 

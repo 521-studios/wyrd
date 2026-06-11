@@ -32,7 +32,9 @@ export const regenerateTransform = {
   flag: 'regenerate-morpheme',
   label: 'Regenerate morpheme',
   description: 'Re-roll one morpheme in the context of the others.',
-  defaultParams: { wordIndex: 0, morphemeIndex: 0, seed: 0, context: {} },
+  // `from` is the slot's pre-regenerate surface (display only — the step
+  // card label); baked by setRegenerate at first click.
+  defaultParams: { wordIndex: 0, morphemeIndex: 0, seed: 0, context: {}, from: '' },
   // Params are baked by the ⟳ button (click-time), not operator-editable
   // inline on the step card — same shape as Swap.
   paramSchema: {},
