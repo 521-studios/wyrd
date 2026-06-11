@@ -26,7 +26,12 @@ from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.era_reflex import EraReflex, etymon_era_reflexes
 
 
-def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[str, Any] | None:
+def _gather_family(
+    db: LexiconDB,
+    root_id: int,
+    member_ids: list[int],
+    attested_years_by_member: dict[int, int] | None = None,
+) -> dict[str, Any] | None:
     """Collect forms / glosses / tags / reflexes for one family root.
 
     Includes the root itself plus all etymons that roll up to it
@@ -136,7 +141,20 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         "member_stratum_by_id": member_stratum_by_id,
         "member_phonological_vector_by_id": member_phonological_vector_by_id,
         "member_citations": _fetch_member_citations(db, member_ids),
-        "member_attested_years": _fetch_member_attested_years(db, member_ids),
+        # wyrd-4zyb: when the caller bulk-prefetched attested years for ALL
+        # members (the _iterate_families_with_progress path), slice that map
+        # instead of re-running the per-family UNION/MIN query — that per-root
+        # query was ~96% of collect_families' wall time. None → the legacy
+        # per-root fallback (direct _gather_family callers, e.g. unit tests).
+        "member_attested_years": (
+            {
+                mid: attested_years_by_member[mid]
+                for mid in member_ids
+                if mid in attested_years_by_member
+            }
+            if attested_years_by_member is not None
+            else _fetch_member_attested_years(db, member_ids)
+        ),
         "glosses": _fetch_member_glosses(db, member_ids),
         # wyrd-c4wd: dropped the cluster-mate tag union (was wyrd-i1s1).
         # Pre-fix the bundle unioned member tags (lemma + inflections +
@@ -900,6 +918,54 @@ def _fetch_member_citations(db: LexiconDB, member_ids: list[int]) -> dict[int, l
             continue
         member_citations.setdefault(row["etymon_id"], []).append(row["source_id"])
     return member_citations
+
+
+def _bulk_attested_years(db: LexiconDB, member_ids) -> dict[int, int]:
+    """wyrd-4zyb: earliest attested year per member for ALL family members in
+    ONE pass — the bulk counterpart of :func:`_fetch_member_attested_years`.
+
+    The per-family version re-ran its UNION/MIN-over-two-tables CTE query once
+    per promoted root (~67K times) and was ~96% of ``collect_families`` wall
+    time. This materializes the whole member-id set into an INDEXED temp table
+    and joins to it once. Same rows, same ``{member_id: earliest_year}`` shape
+    (members with no attested year on either source are absent); per-member, so
+    a family just slices the ids it owns. The temp table is connection-local
+    and dropped on the way out.
+    """
+    ids = list(member_ids)
+    out: dict[int, int] = {}
+    if not ids:
+        return out
+    conn = db.conn
+    conn.execute("DROP TABLE IF EXISTS _bulk_attested_members")
+    conn.execute("CREATE TEMP TABLE _bulk_attested_members (etymon_id INTEGER PRIMARY KEY)")
+    try:
+        conn.executemany(
+            "INSERT OR IGNORE INTO _bulk_attested_members(etymon_id) VALUES (?)",
+            ((i,) for i in ids),
+        )
+        cur = conn.execute(
+            """
+            SELECT etymon_id, MIN(year) AS earliest_year FROM (
+                SELECT etm.etymon_id, etm.attested_year AS year
+                FROM etymon_text_match etm
+                JOIN _bulk_attested_members t ON t.etymon_id = etm.etymon_id
+                WHERE etm.attested_year IS NOT NULL
+                UNION ALL
+                SELECT tee.etymon_id, te.attested_year AS year
+                FROM toponym_etymology_element tee
+                JOIN _bulk_attested_members t ON t.etymon_id = tee.etymon_id
+                JOIN toponym_etymology te ON te.id = tee.toponym_etymology_id
+                WHERE te.attested_year IS NOT NULL
+            )
+            GROUP BY etymon_id
+            """
+        )
+        for row in cur:
+            out[row["etymon_id"]] = row["earliest_year"]
+    finally:
+        conn.execute("DROP TABLE IF EXISTS _bulk_attested_members")
+    return out
 
 
 def _fetch_member_attested_years(db: LexiconDB, member_ids: list[int]) -> dict[int, int]:
