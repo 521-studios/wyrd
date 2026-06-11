@@ -1202,9 +1202,9 @@ concern — those need to pick non-English source-lang renders, which
 is exactly when `english_shaped_for` becomes the right surface-form
 source. Phase 2c is the plumbing those demos consume.
 
-> **SUPERSEDED by D38 (wyrd-24s6).** Per-language / native rendering is no longer
+> **SUPERSEDED by D41 (wyrd-24s6).** Per-language / native rendering is no longer
 > "the demos' concern" — it is the canonical render. Every name now renders BOTH
-> native (source-era, canonical) AND modern. See D38.
+> native (source-era, canonical) AND modern. See D41.
 
 ### Phase 2d: SPA etymological-provenance panel + the other 3 renderings
 
@@ -1274,9 +1274,9 @@ wyrd-rni / wyrd-381 era-rewind demos' concern — Phase 2d delivers
 the EDUCATIONAL view (panel) but the GENERATION default still uses
 modern_usage everywhere (bit-stable historical behavior).
 
-> **SUPERSEDED by D38 (wyrd-24s6).** The generation default is NO LONGER
+> **SUPERSEDED by D41 (wyrd-24s6).** The generation default is NO LONGER
 > modern_usage everywhere. `era=""` now renders native (as-selected); modern is
-> the always-present secondary, not the default. See D38.
+> the always-present secondary, not the default. See D41.
 
 
 ## D32. Within-language stratum tagging (wyrd-lr4, PRs #105 / #107 / #109 / #111 / #112 / #113 / #115 / #120 / #121).
@@ -1562,8 +1562,8 @@ Anchor-resolver design notes:
   * Tier 3: alphabetical first.
 - **Fallback rule**: when no era reflex found, render the
   morpheme's modern canonical (NOT the anchor's OE source). The
-  <!-- D38 (wyrd-24s6): this is a FALLBACK for a missing era reflex, not a
-  statement that modern is THE canonical surface. Per D38 native is canonical;
+  <!-- D41 (wyrd-24s6): this is a FALLBACK for a missing era reflex, not a
+  statement that modern is THE canonical surface. Per D41 native is canonical;
   modern is the parallel/secondary rendering. -->
   asterisk `*` flag in the CLI output is the truth-marker. Falling
   back to the source would make the era ladder look reversed
@@ -2542,7 +2542,7 @@ into structures/buckets via bare-surface resolution). Residual vector-mode
 realism alignment is tracked in the wyrd-vidi follow-up.
 
 
-## D38. Generated names render BOTH native and modern; native is canonical (wyrd-24s6, supersedes D31's "modern_usage everywhere").
+## D41. Generated names render BOTH native and modern; native is canonical (wyrd-24s6, supersedes D31's "modern_usage everywhere").
 
 **The decision: every generated name carries TWO renderings, and we surface
 both.** A **native** rendering (each morpheme in its source-era attested form —
@@ -2601,7 +2601,7 @@ to the morpheme's own form" — modern is no longer privileged as *the* canonica
 it is the fallback surface for a morpheme with no source-era reflex. See the
 annotation on D33.
 
-## D41. Graph DB / Cypher (graphqlite) evaluated and NOT adopted for the descent layer (spike, 2026-06-11).
+## D42. Graph DB / Cypher (graphqlite) evaluated and NOT adopted for the descent layer (spike, 2026-06-11).
 
 **The decision: keep relational SQLite as the spine for the etymon /
 `etymon_descent` graph; do NOT route the cognate / descent passes through a graph

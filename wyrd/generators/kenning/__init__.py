@@ -1197,11 +1197,11 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
         # but BEFORE meaning/tag counts (so 'hyll' beats 'holt'
         # inside OE for the -hill bucket).
         surface_similarity = _max_form_similarity(matcher, usage_norm, m) if matcher else 0.0
-        # wyrd-24s6 (D38): a stable, content-derived final tiebreaker. Without it,
+        # wyrd-24s6 (D41): a stable, content-derived final tiebreaker. Without it,
         # siblings tying on every signal above retain meaning_db LOAD order, which
         # varies across SQLite / Python builds — so `siblings[0]` (the canonical
         # etymon) could differ between environments. That non-determinism was
-        # latent until D38's native render started routing diversification
+        # latent until D41's native render started routing diversification
         # re-picks through the canonical's tags/languages, surfacing as a
         # cross-environment generation drift (the parity test caught it). Keying
         # on the morpheme identity makes the ranking independent of load order.
@@ -1287,7 +1287,7 @@ def _apply_joiner_insertion(
     populated joiner pool.
 
     Returns ``(surface_str, modern_str, explanation, components)`` rebuilt
-    to incorporate the inserted joiners. wyrd-24s6 (D38): both the native
+    to incorporate the inserted joiners. wyrd-24s6 (D41): both the native
     ``surface_str`` and the modern ``modern_str`` are built in this single
     walk so the SAME joiner (drawn once per gap) lands in BOTH renderings at
     the SAME position — otherwise the modern companion would lose the joiners

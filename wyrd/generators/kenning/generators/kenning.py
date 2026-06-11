@@ -493,7 +493,7 @@ class Kenning(Generator):
             inflection_density=inflection_density,
             novelty=novelty,
             era_render_language=era_render_language,
-            # wyrd-24s6 (D38): True for ANY requested era (incl. "modern-english"),
+            # wyrd-24s6 (D41): True for ANY requested era (incl. "modern-english"),
             # so the renderer can tell era="" (→ native default) from an explicit
             # era that resolves to no render-language (→ modern).
             era_requested=bool(params.get("era")),
@@ -521,7 +521,7 @@ class Kenning(Generator):
         t_sample_ms = (time.perf_counter() - t_sample) * 1000
         t_render = time.perf_counter()
         result_str = str(new_name)
-        # wyrd-24s6 (D38): the MODERN companion rendering, surfaced beside the
+        # wyrd-24s6 (D41): the MODERN companion rendering, surfaced beside the
         # canonical native result_str.
         result_modern = new_name.modern_name()
         explanation = new_name.description()
@@ -531,7 +531,7 @@ class Kenning(Generator):
         if joiner_density > 0:
             joiners = _load_joiners()
             if joiners:
-                # wyrd-24s6 (D38): joiner insertion rebuilds BOTH the native
+                # wyrd-24s6 (D41): joiner insertion rebuilds BOTH the native
                 # result_str and the modern result_modern in one walk, so the
                 # same joiners land in both renderings at the same positions.
                 result_str, result_modern, explanation, components = _apply_joiner_insertion(

@@ -608,7 +608,7 @@ def _native_form_for_morpheme_id(morpheme_id) -> str | None:
 
 
 def _native_form_for_meanings(meanings) -> str | None:
-    """wyrd-24s6 (D38): the morpheme's NATIVE surface — its source-language
+    """wyrd-24s6 (D41): the morpheme's NATIVE surface — its source-language
     headword, taken from the ``morpheme_id`` canonical (``old-english:smiþþe`` →
     ``smiþþe``). This is the form "as selected": for a morpheme sourced in a
     historical language it is that language's form; for a modern-sourced morpheme
@@ -1298,7 +1298,7 @@ class NameGenerator:
         new_name = NewName(struct, self.meaning_db, words, picked_ids=picked_ids)
         # wyrd-nbpw/6c8x: post-pick rendering — era-form (feature A) or the D8
         # inflection / D18 spelling-variant substitution — applied via
-        # _apply_render. wyrd-24s6 (D38): default generation (all knobs 0, no era
+        # _apply_render. wyrd-24s6 (D41): default generation (all knobs 0, no era
         # requested) now renders the NATIVE source-language form into
         # new_name.rendered (the canonical result is native; the modern companion
         # is composed by modern_name()). Only an explicit era="modern-english"
@@ -1467,7 +1467,7 @@ class NameGenerator:
         period spelling, so it supersedes the D18 spelling-variant axis (and D8
         inflection is not combined with era in v1). Otherwise fall back to the
         D8/D18 substitution. Either way the result is written to
-        ``new_name.rendered`` (+ ``inflection_labels`` for D8). wyrd-24s6 (D38):
+        ``new_name.rendered`` (+ ``inflection_labels`` for D8). wyrd-24s6 (D41):
         when no era is set and both substitution knobs are 0 but no era was
         *requested* (the default ``era=""`` path), render each morpheme in its
         NATIVE source-language form (``_render_native_forms``) — the canonical
@@ -1491,11 +1491,11 @@ class NameGenerator:
             new_name.rendered = rendered
             new_name.inflection_labels = labels
         elif not era_requested:
-            # wyrd-24s6 (D38): NO era requested + no substitution → render each
+            # wyrd-24s6 (D41): NO era requested + no substitution → render each
             # morpheme in its NATIVE (source-language) form, so the default
             # (era="") name is "as-selected" rather than coerced to modern. The
             # MODERN companion is composed separately by NewName.modern_name().
-            # (Supersedes the pre-D38 bit-stable "leave rendered None → modern".)
+            # (Supersedes the pre-D41 bit-stable "leave rendered None → modern".)
             # An EXPLICIT era="modern-english" request resolves era_render_language
             # to None (contemporary suppression) but DOES set era_requested, so it
             # falls through here → rendered stays None → modern usage (the explicit
@@ -1547,7 +1547,7 @@ class NameGenerator:
         return rendered
 
     def _render_native_forms(self, name, picked_ids=None) -> list[list[str | None]]:
-        """wyrd-24s6 (D38): render each picked morpheme in its NATIVE
+        """wyrd-24s6 (D41): render each picked morpheme in its NATIVE
         (source-language) form so the default (era="") name is "as selected" —
         a genuinely mixed-era surface — rather than coerced to modern.
 
@@ -1724,8 +1724,8 @@ class NewName:
         # string-derivation in generate, bounded to literal-repeat slots.
         self.picked_ids[wi][ei] = getattr(repl_sibs[0], "morpheme_id", None) if repl_sibs else None
         if self.rendered is not None:
-            # wyrd-24s6 (D38): render the re-picked morpheme in its NATIVE
-            # form so the native render stays consistent (pre-D38 set None →
+            # wyrd-24s6 (D41): render the re-picked morpheme in its NATIVE
+            # form so the native render stays consistent (pre-D41 set None →
             # the modern usage). modern_name() reads the replacement's modern
             # surface from self.name (e) directly.
             native = _native_form_for_meanings(repl_sibs)
@@ -1744,7 +1744,7 @@ class NewName:
         return True
 
     def _break_native_duplicate(self, wi, ei, usage, fold, seen, first_slot) -> None:
-        """wyrd-24s6 (D38) last resort: no synonym + no re-pick. Native rendering
+        """wyrd-24s6 (D41) last resort: no synonym + no re-pick. Native rendering
         can collide where modern doesn't — two morphemes sharing a source-era
         form but differing modern surfaces ('Biscop Biscop'). Break the visual
         native duplicate by falling EITHER colliding slot back to its modern
@@ -1940,7 +1940,7 @@ class NewName:
         return " ".join(w for w in words if w)
 
     def modern_name(self) -> str:
-        """wyrd-24s6 (D38): the MODERN rendering — every morpheme in its
+        """wyrd-24s6 (D41): the MODERN rendering — every morpheme in its
         present-day surface (the ``Meaning.usage`` bucket key, sourced from the
         bundle's ``modern_usage`` field), the always-present secondary beside the
         native ``__str__`` canonical. Honors the later composition
