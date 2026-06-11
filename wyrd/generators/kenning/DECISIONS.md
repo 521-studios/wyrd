@@ -1202,9 +1202,9 @@ concern — those need to pick non-English source-lang renders, which
 is exactly when `english_shaped_for` becomes the right surface-form
 source. Phase 2c is the plumbing those demos consume.
 
-> **SUPERSEDED by D38 (wyrd-24s6).** Per-language / native rendering is no longer
+> **SUPERSEDED by D41 (wyrd-24s6).** Per-language / native rendering is no longer
 > "the demos' concern" — it is the canonical render. Every name now renders BOTH
-> native (source-era, canonical) AND modern. See D38.
+> native (source-era, canonical) AND modern. See D41.
 
 ### Phase 2d: SPA etymological-provenance panel + the other 3 renderings
 
@@ -1274,9 +1274,9 @@ wyrd-rni / wyrd-381 era-rewind demos' concern — Phase 2d delivers
 the EDUCATIONAL view (panel) but the GENERATION default still uses
 modern_usage everywhere (bit-stable historical behavior).
 
-> **SUPERSEDED by D38 (wyrd-24s6).** The generation default is NO LONGER
+> **SUPERSEDED by D41 (wyrd-24s6).** The generation default is NO LONGER
 > modern_usage everywhere. `era=""` now renders native (as-selected); modern is
-> the always-present secondary, not the default. See D38.
+> the always-present secondary, not the default. See D41.
 
 
 ## D32. Within-language stratum tagging (wyrd-lr4, PRs #105 / #107 / #109 / #111 / #112 / #113 / #115 / #120 / #121).
@@ -1562,8 +1562,8 @@ Anchor-resolver design notes:
   * Tier 3: alphabetical first.
 - **Fallback rule**: when no era reflex found, render the
   morpheme's modern canonical (NOT the anchor's OE source). The
-  <!-- D38 (wyrd-24s6): this is a FALLBACK for a missing era reflex, not a
-  statement that modern is THE canonical surface. Per D38 native is canonical;
+  <!-- D41 (wyrd-24s6): this is a FALLBACK for a missing era reflex, not a
+  statement that modern is THE canonical surface. Per D41 native is canonical;
   modern is the parallel/secondary rendering. -->
   asterisk `*` flag in the CLI output is the truth-marker. Falling
   back to the source would make the era ladder look reversed
@@ -2542,7 +2542,7 @@ into structures/buckets via bare-surface resolution). Residual vector-mode
 realism alignment is tracked in the wyrd-vidi follow-up.
 
 
-## D38. Generated names render BOTH native and modern; native is canonical (wyrd-24s6, supersedes D31's "modern_usage everywhere").
+## D41. Generated names render BOTH native and modern; native is canonical (wyrd-24s6, supersedes D31's "modern_usage everywhere").
 
 **The decision: every generated name carries TWO renderings, and we surface
 both.** A **native** rendering (each morpheme in its source-era attested form —
@@ -2600,3 +2600,54 @@ reflex found, render the morpheme's modern canonical"** rule now means "fall bac
 to the morpheme's own form" — modern is no longer privileged as *the* canonical,
 it is the fallback surface for a morpheme with no source-era reflex. See the
 annotation on D33.
+
+## D42. Graph DB / Cypher (graphqlite) evaluated and NOT adopted for the descent layer (spike, 2026-06-11).
+
+**The decision: keep relational SQLite as the spine for the etymon /
+`etymon_descent` graph; do NOT route the cognate / descent passes through a graph
+engine.** Evaluated [graphqlite](https://github.com/colliery-io/graphqlite) — a
+SQLite extension that adds Cypher + graph algorithms (WCC, SCC, Louvain,
+PageRank, Dijkstra) in-process, same `.db` file, MIT, ~98% openCypher TCK. The
+question was whether the genuinely graph-shaped data here (`etymon_descent`
+inheritance/borrowing edges, cognate clustering, the wyrd-ami descent walk) would
+be better modeled with native graph tooling. Spike conclusion: **no.**
+
+### What the spike found
+
+- **Performance is a non-issue.** 784,697 inheritance+borrowing edges loaded in
+  7.7s; weakly-connected-components ran in 0.9s. The engine handles corpus scale
+  trivially.
+- **Generic graph primitives ERASE the domain semantics the passes encode.**
+  The headline test — use connected-components to validate `cluster-cognates` —
+  failed by design: only ~33k of ~68k components matched 1:1, with a single
+  **272,905-node WCC mega-component (41.9% of the graph)**. Cause (per
+  `lexicon/cognate_cluster.py`): `cluster-cognates-v2` is *not* pure WCC. It
+  (1) **drops every edge touching `proto-indo-european`** (`_NON_BRIDGING_LANGUAGES`
+  — PIE fans out across all IE branches; "143 of 155 clusters >200 members were
+  PIE-rooted" before the fix), (2) **resolves parent/child through `merged_into_id`**
+  (canonical space, D22), and (3) does a **directional, smallest-root-wins BFS**,
+  not undirected closure. Re-running WCC with the PIE filter + canonical
+  resolution shrank the hairball only to 150,960 (24%) — the residual is
+  Latin/Greek borrowing hubs that undirected closure fuses but root-anchored
+  walking correctly keeps apart. A generic WCC cannot reach the pass's partition
+  without re-implementing its exact rules, at which point the engine adds nothing
+  over the existing ~35-line BFS.
+- **Operational cost:** graphqlite needs a Python built with loadable sqlite
+  extensions. pyenv's default build lacks `enable_load_extension`; uv's
+  standalone CPython works. A real friction point if it were ever a pipeline dep.
+
+### Where the residual value is (narrow — a disposable debugging sidecar, not architecture)
+
+If reached for at all, only as an ad-hoc analysis lens, never on the committed
+pipeline: ergonomic one-off traversal queries (Cypher beats recursive CTEs for
+"show the path between X and Y"); `strongly_connected_components` to characterize
+the `cycle_orphans` the cognate pass only *counts* today; centrality to surface
+the Latin/Greek borrowing hubs that might warrant PIE-style non-bridging
+treatment. Nothing for the **runtime** (flat key-value lookups, zero traversal —
+D38) or the **provenance/audit model** (relational by nature — D21/D23/D24).
+
+Why record a rejection: so "should we use a graph DB / Cypher for the descent
+graph?" doesn't get re-litigated. The graph-shaped subset here is *already*
+modeled correctly by purpose-built passes whose domain rules (PIE non-bridging,
+canonical resolution, root-anchoring, deterministic tiebreaks) a generic graph
+engine can't see. Fast and pleasant ≠ a better model.

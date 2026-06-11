@@ -15,7 +15,7 @@ class GenerationResult:
 
     result: str
     explanation: str = ""
-    # wyrd-24s6 (D38): the MODERN rendering of the same name, beside the
+    # wyrd-24s6 (D41): the MODERN rendering of the same name, beside the
     # canonical NATIVE ``result``. Kenning surfaces both so the SPA can show
     # native (primary) + modern (secondary). None for generators that don't
     # distinguish the two (the value then collapses to ``result`` downstream).

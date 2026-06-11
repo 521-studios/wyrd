@@ -245,7 +245,7 @@ describe('eraBadge', () => {
     expect(eraBadge(null, label)).toBe('as generated');
   });
 
-  it('is "native" (D38) when a morpheme carries a distinct native rendered form', () => {
+  it('is "native" (D41) when a morpheme carries a distinct native rendered form', () => {
     // a native-default roll: each morpheme has a `rendered` (native) distinct
     // from its `usage` (modern bucket key), but no explicit era pin.
     expect(

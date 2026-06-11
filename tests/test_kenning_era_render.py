@@ -186,7 +186,7 @@ def test_apply_render_falls_back_to_substitution_without_era():
 
 
 def test_apply_render_native_when_no_era_and_no_knobs():
-    # wyrd-24s6 (D38): default generation (era="" / not requested, no knobs) now
+    # wyrd-24s6 (D41): default generation (era="" / not requested, no knobs) now
     # renders NATIVE — the "as-selected" surface — not the old modern no-op.
     spy: list = []
     new_name = SimpleNamespace(
@@ -198,7 +198,7 @@ def test_apply_render_native_when_no_era_and_no_knobs():
 
 
 def test_apply_render_modern_noop_when_explicit_modern_era():
-    # wyrd-24s6 (D38): an EXPLICIT era that resolves to no render-language
+    # wyrd-24s6 (D41): an EXPLICIT era that resolves to no render-language
     # (era="modern-english" → contemporary suppression → era_render_language None)
     # sets era_requested=True, so it falls through to MODERN — rendered stays None
     # (→ modern usage), NOT native. This is the explicit force-modern path.
@@ -363,7 +363,7 @@ def test_resolve_era_render_language_accepts_stage_labels():
     assert _resolve_era_render_language("irish", "irish") is None  # contemporary goidelic
 
 
-# --- wyrd-24s6 (D38): render BOTH native + modern ---------------------------
+# --- wyrd-24s6 (D41): render BOTH native + modern ---------------------------
 
 
 def _gen_one(params, seed):
@@ -374,7 +374,7 @@ def _gen_one(params, seed):
 
 
 def test_generate_surfaces_both_native_and_modern():
-    """wyrd-24s6 (D38): a default (era="") generation carries BOTH a native
+    """wyrd-24s6 (D41): a default (era="") generation carries BOTH a native
     `result` and a modern `result_modern`; both are non-empty strings."""
     r = _gen_one({"culture": "english", "count": 1}, 42)
     assert r.result and isinstance(r.result, str)
@@ -411,7 +411,7 @@ def test_native_default_differs_from_forced_modern():
 
 
 def test_forced_modern_result_equals_result_modern():
-    """wyrd-24s6 (D38): on the explicit force-modern path (era="modern-english")
+    """wyrd-24s6 (D41): on the explicit force-modern path (era="modern-english")
     the native canonical IS the modern surface, so result == result_modern for
     every seed — the invariant OutputColumn's companion show/hide + eraBadge's
     'as generated' label both lean on."""
@@ -486,7 +486,7 @@ def test_render_native_forms_none_when_no_morpheme_id_or_unknown():
 
 
 def test_modern_name_renders_modern_surface_ignoring_native_rendered():
-    """wyrd-24s6 (D38): modern_name() composes the modern usages, independent of
+    """wyrd-24s6 (D41): modern_name() composes the modern usages, independent of
     the native ``rendered`` forms __str__ uses — so the two surfaces diverge for
     a name whose morphemes have distinct native forms."""
     from wyrd.generators.kenning.runtime.proportions import NewName

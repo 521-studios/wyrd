@@ -50,7 +50,7 @@ def _capture() -> dict:
         for seed in _SEEDS:
             res = k.generate({"culture": culture, "count": _COUNT}, seed=seed)
             # name(s) — the byte-identical-through-all-phases invariant.
-            # wyrd-24s6 (D38): also pin the modern companion (result_modern) so a
+            # wyrd-24s6 (D41): also pin the modern companion (result_modern) so a
             # regression where modern_name() returns the native form, an empty
             # string, or the wrong surface is caught by the oracle.
             entry = {"seed": seed, "name": res.result, "name_modern": res.result_modern}

@@ -115,7 +115,7 @@ export function hasEraGrid(morpheme) {
  * ``labelFn`` maps a stage/language tag to its display label — injected so this
  * stays a pure helper with no dependency on languageLabels.
  *
- * wyrd-24s6 (D38): the canonical render is NATIVE (each morpheme in its
+ * wyrd-24s6 (D41): the canonical render is NATIVE (each morpheme in its
  * source-era form), with modern as the companion. So an un-pinned render whose
  * morphemes carry a distinct native ``rendered`` form is framed as 'native'
  * (paired with the 'modern' paragon beside it). 'as generated' stays for a roll

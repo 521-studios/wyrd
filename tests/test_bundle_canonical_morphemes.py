@@ -140,7 +140,7 @@ def test_canonical_morpheme_top_etymon(
 
 
 def test_rank_siblings_deterministic_regardless_of_input_order():
-    """wyrd-24s6 (D38): siblings that tie on every rank signal (stratum, sense
+    """wyrd-24s6 (D41): siblings that tie on every rank signal (stratum, sense
     kind, surface similarity, meaning/tag counts) must rank in an order that is
     INDEPENDENT of meaning_db load order. Before the content-derived tiebreaker
     (`_sibling_identity`), a tie fell through to input order — which varies

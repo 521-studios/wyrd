@@ -141,7 +141,7 @@
   let eraLabel = $derived(eraBadge(displayState?.morphemes_by_word, languageLabel));
 
   // Paragon: the MODERN companion of the as-generated name, pinned to the
-  // ORIGINAL (unaffected by swaps). wyrd-24s6 (D38): the backend now renders
+  // ORIGINAL (unaffected by swaps). wyrd-24s6 (D41): the backend now renders
   // BOTH surfaces, so `result_modern` is the true modern reflex — used directly,
   // no longer the de-accented native skeleton. Only the FALLBACK path (a
   // generator that doesn't distinguish the two renderings, so `result_modern` is

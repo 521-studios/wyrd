@@ -630,7 +630,7 @@ def test_select_via_vector_applies_d8_d18_rendering():
     assert inflected.rendered == [["cotum"]]
     assert inflected.inflection_labels == [["dative_or_pl"]]
 
-    # wyrd-24s6 (D38): default knobs off → no D8/D18 substitution pass, but the
+    # wyrd-24s6 (D41): default knobs off → no D8/D18 substitution pass, but the
     # NATIVE render now runs (era="" → as-selected). This synthetic Meaning has
     # no morpheme_id, so _native_form_for_meanings returns None → the native
     # layer is [[None]] (each slot falls back to the modern usage at __str__
