@@ -481,8 +481,9 @@ def _iterate_families_with_progress(
     started = time.monotonic()
     # wyrd-4zyb: bulk-prefetch attested years for EVERY member up front (one
     # indexed-temp-table join) instead of re-running the per-family UNION/MIN
-    # query inside _gather_family for each of ~67K roots — that per-root query
-    # was ~96% of this loop's wall time (~13min → ~tens of seconds).
+    # query (_fetch_member_attested_years, called by _gather_family) for each of
+    # ~67K roots — that per-root query was ~96% of this loop's wall time
+    # (~13min → ~tens of seconds).
     all_member_ids = {m for rid in root_ids for m in members_by_root.get(rid, [rid])}
     attested_years_by_member = _bulk_attested_years(db, all_member_ids)
     families: list[dict[str, Any]] = []

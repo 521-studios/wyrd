@@ -19,6 +19,7 @@ deterministic cross-family merging.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from typing import Any
 
 from wyrd.generators.kenning.lexicon.collapse_detect import is_form_of_pointer
@@ -145,7 +146,8 @@ def _gather_family(
         # members (the _iterate_families_with_progress path), slice that map
         # instead of re-running the per-family UNION/MIN query — that per-root
         # query was ~96% of collect_families' wall time. None → the legacy
-        # per-root fallback (direct _gather_family callers, e.g. unit tests).
+        # per-root fallback (direct _gather_family callers, e.g. unit tests); a
+        # provided map (even empty) is authoritative — sliced directly, no query.
         "member_attested_years": (
             {
                 mid: attested_years_by_member[mid]
@@ -920,14 +922,15 @@ def _fetch_member_citations(db: LexiconDB, member_ids: list[int]) -> dict[int, l
     return member_citations
 
 
-def _bulk_attested_years(db: LexiconDB, member_ids) -> dict[int, int]:
+def _bulk_attested_years(db: LexiconDB, member_ids: Iterable[int]) -> dict[int, int]:
     """wyrd-4zyb: earliest attested year per member for ALL family members in
     ONE pass — the bulk counterpart of :func:`_fetch_member_attested_years`.
 
     The per-family version re-ran its UNION/MIN-over-two-tables CTE query once
     per promoted root (~67K times) and was ~96% of ``collect_families`` wall
     time. This materializes the whole member-id set into an INDEXED temp table
-    and joins to it once. Same rows, same ``{member_id: earliest_year}`` shape
+    and joins against it in a single SQL pass. Same rows, same
+    ``{member_id: earliest_year}`` shape
     (members with no attested year on either source are absent); per-member, so
     a family just slices the ids it owns. The temp table is connection-local
     and dropped on the way out.
@@ -939,11 +942,15 @@ def _bulk_attested_years(db: LexiconDB, member_ids) -> dict[int, int]:
     conn = db.conn
     conn.execute("DROP TABLE IF EXISTS _bulk_attested_members")
     conn.execute("CREATE TEMP TABLE _bulk_attested_members (etymon_id INTEGER PRIMARY KEY)")
+    cur = None
     try:
-        conn.executemany(
-            "INSERT OR IGNORE INTO _bulk_attested_members(etymon_id) VALUES (?)",
-            ((i,) for i in ids),
-        )
+        # Commit the INSERT so no write transaction dangles on the shared
+        # (StaticPool) connection after we return (Gemini, PR #613).
+        with conn:
+            conn.executemany(
+                "INSERT OR IGNORE INTO _bulk_attested_members(etymon_id) VALUES (?)",
+                ((i,) for i in ids),
+            )
         cur = conn.execute(
             """
             SELECT etymon_id, MIN(year) AS earliest_year FROM (
@@ -964,6 +971,11 @@ def _bulk_attested_years(db: LexiconDB, member_ids) -> dict[int, int]:
         for row in cur:
             out[row["etymon_id"]] = row["earliest_year"]
     finally:
+        # Close the cursor before DROP — a still-open cursor holds a read lock,
+        # so DROP would raise "database table is locked" and mask any in-flight
+        # exception from the loop above.
+        if cur is not None:
+            cur.close()
         conn.execute("DROP TABLE IF EXISTS _bulk_attested_members")
     return out
 

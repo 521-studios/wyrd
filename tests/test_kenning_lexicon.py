@@ -7017,7 +7017,6 @@ def test_transliterate_shavian_handles_digraphs() -> None:
 
 
 def test_transliterate_empty_returns_empty() -> None:
-
     assert transliterate("", "shavian") == ""
 
 
@@ -11364,7 +11363,6 @@ def test_emit_variant_list_sorts_by_descending_weight_then_form(
 
 
 def test_emit_variant_list_empty_input_returns_empty(fresh_db: Path) -> None:
-
     assert _emit_variant_list({}) == []
 
 
@@ -11453,7 +11451,6 @@ def test_emit_inflection_list_sorts_by_form_alphabetically(fresh_db: Path) -> No
 
 
 def test_emit_inflection_list_empty_input_returns_empty(fresh_db: Path) -> None:
-
     assert _emit_inflection_list({}) == []
 
 
@@ -16440,6 +16437,26 @@ def test_gather_family_uses_member_tags_only(fresh_db: Path) -> None:
         family = _gather_family(db, oe_id, [oe_id])
     assert family is not None
     assert family["tags"] == ["architecture"]
+
+
+def test_gather_family_slices_provided_attested_years(fresh_db: Path) -> None:
+    """wyrd-4zyb: when the caller bulk-prefetched attested years (the
+    _iterate_families_with_progress path), _gather_family SLICES the provided
+    map rather than re-running the per-family query. Members present in the map
+    are included; ids outside member_ids are ignored; the per-family DB fallback
+    is NOT consulted (no attested_year rows are seeded here, yet the year
+    survives — it can only have come from the provided map)."""
+
+    with LexiconDB(fresh_db) as db:
+        oe_id = db.upsert_etymon("ceaster", "old-english")
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
+        db.commit()
+        family = _gather_family(
+            db, oe_id, [oe_id], attested_years_by_member={oe_id: 1086, 999999: 1200}
+        )
+    assert family is not None
+    # oe_id sliced from the map; 999999 (not a member) dropped; no DB fallback.
+    assert family["member_attested_years"] == {oe_id: 1086}
 
 
 # ---------------------------------------------------------------------

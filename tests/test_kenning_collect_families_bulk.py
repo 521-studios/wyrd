@@ -1,6 +1,6 @@
 """wyrd-4zyb: the bulk attested-years prefetch (one indexed-temp-table join)
-must produce byte-identical results to the per-family query it replaces — that
-per-root query was ~96% of collect_families' wall time."""
+must return results equal to the per-family query it replaces — that per-root
+query was ~96% of collect_families' wall time."""
 
 from __future__ import annotations
 
@@ -67,8 +67,8 @@ def test_temp_table_is_dropped(tmp_path: Path) -> None:
     p = tmp_path / "lex.db"
     init_schema(p)
     with LexiconDB(p) as db:
-        _seed(db)
-        _bulk_attested_years(db, [1, 2, 3])
+        e1, e2, e3 = _seed(db)
+        _bulk_attested_years(db, [e1, e2, e3])
         temp = {
             r[0] for r in db.conn.execute("SELECT name FROM sqlite_temp_master WHERE type='table'")
         }
