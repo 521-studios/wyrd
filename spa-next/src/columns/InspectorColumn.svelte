@@ -432,9 +432,12 @@
      rather than crowding out the morphemes. */
   .transforms {
     flex-shrink: 0;
-    /* vh, not % — a percentage max-height resolves against the flex
-       parent's height and collapses to none when that isn't definite. */
-    max-height: 30vh;
+    /* % is safe here: .column's height is DEFINITE (the app grid pins its
+       row to minmax(0, 1fr) inside a 100dvh container — wyrd-vith), so the
+       cap resolves against the column, not the viewport. Viewport units
+       would regress the dvh-vs-vh mobile lesson from PR #310 and misbehave
+       in split-pane/embedded contexts. */
+    max-height: 30%;
     overflow-y: auto;
     margin-top: 12px;
   }
