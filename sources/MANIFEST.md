@@ -36,7 +36,7 @@ expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
   Google scan `onomasticonangl00seargoog`). Cross-cutting personal-name
   inventory, complement to the Briggs 2024 index (Briggs indexes name→place;
   Searle etymologizes the names). Reliability caveat: includes non-OE
-  Continental-Germanic / ON names. Mining tracked in wyrd-payp.
+  Continental-Germanic / ON names. Mining tracked in (wyrd-payp).
 
 ## England — regional
 
