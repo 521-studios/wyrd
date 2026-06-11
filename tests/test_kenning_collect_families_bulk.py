@@ -99,9 +99,14 @@ class _ExplodingCursor:
     def __init__(self, inner):
         self._inner = inner
 
+    def __getattr__(self, name):
+        # Delegate any other cursor method/attr (fetchall, description, …) so the
+        # double survives a refactor that touches the cursor in a new way.
+        return getattr(self._inner, name)
+
     def __iter__(self):
         for row in self._inner:
-            yield row  # one real row → the inner cursor is now mid-scan
+            yield row  # inner cursor is now mid-scan, holding a read lock
             raise RuntimeError("boom mid-iteration")
 
     def close(self):
@@ -109,8 +114,9 @@ class _ExplodingCursor:
 
 
 class _SelectExplodesConn:
-    """Delegates everything to a real sqlite3 connection except the bulk SELECT,
-    which it wraps in an :class:`_ExplodingCursor`."""
+    """Delegates everything to a real sqlite3 connection except the result query
+    that joins ``_bulk_attested_members``, which it wraps in an
+    :class:`_ExplodingCursor`."""
 
     def __init__(self, real):
         self._real = real
@@ -119,14 +125,21 @@ class _SelectExplodesConn:
         return getattr(self._real, name)
 
     def __enter__(self):
-        return self._real.__enter__()
+        # Return self (not the raw connection) so a future `with conn as c:` in
+        # the code under test still routes through this wrapper.
+        self._real.__enter__()
+        return self
 
     def __exit__(self, *exc):
         return self._real.__exit__(*exc)
 
     def execute(self, sql, *args):
         cur = self._real.execute(sql, *args)
-        if sql.lstrip().upper().startswith("SELECT"):
+        # Pin the fault to the bulk RESULT query (a SELECT/WITH that joins the
+        # temp table) — not the DROP/CREATE that also name it, and robust if the
+        # query is later rewritten as a CTE.
+        head = sql.lstrip().upper()
+        if head.startswith(("SELECT", "WITH")) and "_bulk_attested_members" in sql:
             return _ExplodingCursor(cur)
         return cur
 
@@ -182,9 +195,7 @@ def test_cross_family_isolation(tmp_path: Path) -> None:
         )
         db.commit()
         families = _iterate_families_with_progress(db, [a, b], {a: [a], b: [b]})
+    # _iterate_families_with_progress preserves root_ids order, so the exact
+    # list pins per-family slicing AND isolation (no extra or bled-in keys).
     years = [f["member_attested_years"] for f in families]
-    assert {a: 1000} in years
-    assert {b: 2000} in years
-    # Isolation: no family's slice carries the OTHER family's member.
-    for y in years:
-        assert not (a in y and b in y)
+    assert years == [{a: 1000}, {b: 2000}]
