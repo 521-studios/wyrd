@@ -31,6 +31,8 @@ import random
 import sqlite3
 from collections.abc import Iterable
 
+import pytest
+
 from wyrd.generators.kenning.lexicon.proportions_builder import proportions_from
 from wyrd.generators.kenning.lexicon.runtime_db_export import _insert_bare_word_positions
 from wyrd.generators.kenning.runtime.meaning import Meaning
@@ -216,6 +218,29 @@ def test_adapter_degrades_gracefully_without_the_table():
     the adapter returns {} so the runtime keeps legacy behavior."""
     conn = sqlite3.connect(":memory:")
     assert _read_proportions_bare_word_positions(conn, "english") == {}
+
+
+class _ExplodingConn:
+    """Stub connection whose execute raises a NON-missing-table
+    OperationalError (a locked DB), for the re-raise arm."""
+
+    def execute(self, *args, **kwargs):
+        raise sqlite3.OperationalError("database is locked")
+
+
+def test_adapter_propagates_non_missing_table_operational_errors():
+    """Only the missing-table shape is the legacy fallback: a locked /
+    corrupt DB must propagate loudly from BOTH adapter readers, not be
+    silently absorbed as an empty map."""
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        _read_proportions_attested_languages,
+    )
+
+    conn = _ExplodingConn()
+    with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+        _read_proportions_bare_word_positions(conn, "english")
+    with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+        _read_proportions_attested_languages(conn, "english")
 
 
 # ---- threshold env resolution -------------------------------------------------

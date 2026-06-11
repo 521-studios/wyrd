@@ -97,6 +97,9 @@ def _write_proportions_fixture(directory: Path, culture: str = "english") -> Non
         ],
         "tag_marginal": {"water": 12, "architecture": 8},
         "tag_cooccurrence": {"water|architecture": 3, "water|tree": 2},
+        # wyrd-rogd.13: surface-keyed per-word-position bare stats; the
+        # zero-weight row pins the emitter's weight>0 skip.
+        "bare_word_positions": {"post": {"castle": 4, "ghost": 0}, "pre": {"bury": 3}},
     }
     (directory / f"{culture}_proportions.json").write_text(json.dumps(payload))
 
@@ -280,6 +283,29 @@ def test_proportions_structure_stores_template_as_json(tmp_path: Path) -> None:
     assert first_template == [[{"location": "pre"}, {"location": "post"}]]
     assert [r[1] for r in rows] == [70, 30]
     assert [r[2] for r in rows] == [70, 100]
+
+
+def test_proportions_bare_word_position_rows_survive_the_emitter(tmp_path: Path) -> None:
+    """wyrd-rogd.13: positional bare-word rows land in
+    proportions_bare_word_position (point-lookup, no cumulative), and
+    zero-weight rows are skipped at emit."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        rows = conn.execute(
+            "SELECT position, usage_key, weight FROM proportions_bare_word_position "
+            "WHERE culture = 'english' ORDER BY position, usage_key"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    assert rows == [("post", "castle", 4), ("pre", "bury", 3)]
 
 
 def test_proportions_tag_marginal_and_cooccurrence(tmp_path: Path) -> None:

@@ -344,7 +344,7 @@ class Name:
         name contributes both positions.
         """
         words = self.name.split(" ")
-        out: set = set()
+        out: set[tuple[str, str]] = set()
         if len(words) < 2:
             return out
         for index, word_text in enumerate(words):

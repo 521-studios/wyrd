@@ -662,9 +662,9 @@ def _insert_bare_word_positions(
     rows = []
     for position in sorted(bare_word_positions):
         for usage_key, weight in sorted(bare_word_positions[position].items()):
-            # int() coercion matches _insert_cumulative's int(v): defends
-            # operator-supplied --proportions-dir JSON (floats / numeric
-            # strings); annotations aren't enforced on that path.
+            # int() coercion mirrors the int(v) at the _insert_cumulative
+            # call sites: defends operator-supplied --proportions-dir JSON
+            # (floats / numeric strings); annotations aren't enforced there.
             count = int(weight)
             if count > 0:
                 rows.append((culture, position, usage_key, count))
