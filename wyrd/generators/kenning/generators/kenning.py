@@ -613,9 +613,7 @@ def _load_priors_sidecar_cached(priors_path: str):
     return load_empirical_priors_from_json(Path(priors_path))
 
 
-def _generate_via_vector(
-    name_gen,
-    rng,
+def _resolve_vector_inputs(
     *,
     culture: str,
     tags: list[str],
@@ -623,28 +621,18 @@ def _generate_via_vector(
     harshness: float,
     era_range: tuple[int | None, int | None] | None,
     stratum: str | None,
-    cohesion: float,
-    exclude_tags: tuple[str, ...],
     priors_path: str | None,
     scoring_weights_raw: dict[str, float] | None = None,
     packs_raw: list[dict[str, Any]] | None = None,
-    include_unglossed: bool = False,
-    spelling_variety: float = 0.0,
-    inflection_density: float = 0.0,
-    novelty: float = 0.0,
-    era_render_language: str | None = None,
-    era_requested: bool = False,
-    pool_cache: dict | None = None,
 ):
-    """Dispatch helper for vector scoring (the only scoring path).
+    """Translate per-call knobs into the vector path's shared inputs:
+    ``(request, priors, era_midpoint, pack_meaning_dbs)``.
 
-    Translates the per-call knobs into a RequestVector via the
-    adapter, loads priors from disk if provided, and calls
-    NameGenerator.select_via_vector.
-
-    Returns a NewName-compatible object or None when the vector
-    path's gate / scoring filtered every candidate.
-    """
+    Extracted from :func:`_generate_via_vector` (wyrd-y0lx) so the
+    single-slot regeneration endpoint (``kenning-regenerate-morpheme``)
+    builds its RequestVector / priors / era-midpoint through the exact
+    same resolution as a full generate — one drift surface instead of
+    two."""
 
     from wyrd.generators.kenning.runtime.vector_kenning_adapter import (
         build_request_vector,
@@ -741,6 +729,53 @@ def _generate_via_vector(
         priors = _load_empirical_priors()
 
     era_midpoint = era_midpoint_from_range(era_min, era_max)
+
+    return request, priors, era_midpoint, pack_meaning_dbs
+
+
+def _generate_via_vector(
+    name_gen,
+    rng,
+    *,
+    culture: str,
+    tags: list[str],
+    mood: tuple[str, ...],
+    harshness: float,
+    era_range: tuple[int | None, int | None] | None,
+    stratum: str | None,
+    cohesion: float,
+    exclude_tags: tuple[str, ...],
+    priors_path: str | None,
+    scoring_weights_raw: dict[str, float] | None = None,
+    packs_raw: list[dict[str, Any]] | None = None,
+    include_unglossed: bool = False,
+    spelling_variety: float = 0.0,
+    inflection_density: float = 0.0,
+    novelty: float = 0.0,
+    era_render_language: str | None = None,
+    era_requested: bool = False,
+    pool_cache: dict | None = None,
+):
+    """Dispatch helper for vector scoring (the only scoring path).
+
+    Translates the per-call knobs into a RequestVector via the
+    adapter (:func:`_resolve_vector_inputs`), loads priors from disk
+    if provided, and calls NameGenerator.select_via_vector.
+
+    Returns a NewName-compatible object or None when the vector
+    path's gate / scoring filtered every candidate.
+    """
+    request, priors, era_midpoint, pack_meaning_dbs = _resolve_vector_inputs(
+        culture=culture,
+        tags=tags,
+        mood=mood,
+        harshness=harshness,
+        era_range=era_range,
+        stratum=stratum,
+        priors_path=priors_path,
+        scoring_weights_raw=scoring_weights_raw,
+        packs_raw=packs_raw,
+    )
 
     return name_gen.select_via_vector(
         rng,

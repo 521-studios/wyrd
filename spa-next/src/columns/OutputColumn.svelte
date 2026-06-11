@@ -4,6 +4,7 @@
   // as a header-triggered drawer (universal across workspaces).
   // Star icon on each result stays inline (per-result quick save).
   import { appState } from '../lib/appState.svelte.js';
+  import { pipeline } from '../lib/pipeline.svelte.js';
   import StarToggle from '../components/StarToggle.svelte';
   import {
     representativeMeanings,
@@ -32,6 +33,18 @@
     const looksProper = /^[A-Z]/.test(morph.usage || '');
     return looksProper && isNameMorpheme(morph) ? 'name' : '';
   }
+
+  // wyrd-y0lx (operator decision): the row being inspected LIVE-RENDERS the
+  // pipeline's current state — every transform (regenerate / swap / rewind)
+  // shows in the Output column, not just in col 3 — so the transformed name
+  // is what the ★ bookmarks. Gated on steps.length so an untouched row keeps
+  // its accent-upgraded original rendering; other rows are never affected.
+  function liveStateFor(i) {
+    if (i !== appState.currentResultIndex || pipeline.steps.length === 0) {
+      return null;
+    }
+    return pipeline.currentState;
+  }
 </script>
 
 <section class="column">
@@ -49,6 +62,10 @@
     </p>
     <ul class="results">
       {#each appState.results as r, i (i)}
+        {@const live = liveStateFor(i)}
+        {@const mbw = live?.morphemes_by_word?.length
+          ? live.morphemes_by_word
+          : r.morphemes_by_word}
         <li>
           <div class="result-row">
             <button
@@ -57,18 +74,20 @@
               onclick={() => selectResult(i)}
             >
               <span class="name-line">
-                <span class="name">{accentedName(r)}</span>
+                <span class="name">{live ? live.name : accentedName(r)}</span>
                 <!-- wyrd-24s6 (D41): the modern companion, in darker secondary
                      lettering to the right. Shown only when it differs from the
                      native canonical (a plain/force-modern roll has native ==
-                     modern, so the companion would be noise). -->
-                {#if showModernCompanion(r)}
+                     modern, so the companion would be noise). wyrd-y0lx: hidden
+                     once a transform changed the name — the roll's
+                     result_modern no longer describes the transformed state. -->
+                {#if showModernCompanion(r) && (!live || live.name === r.result)}
                   <span class="name-modern" title="modern reflex">{r.result_modern}</span>
                 {/if}
               </span>
-              {#if r.morphemes_by_word?.length}
+              {#if mbw?.length}
                 <span class="etymology">
-                  {#each r.morphemes_by_word as word}
+                  {#each mbw as word}
                     <span class="word-group">
                       {#each word as morph}
                         {@const g = glossFor(morph)}

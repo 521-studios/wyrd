@@ -1530,6 +1530,7 @@ from wyrd.generators.kenning.generators import (  # noqa: E402
     KenningCreature,
     KenningEraMap,
     KenningExplain,
+    KenningRegenerateMorpheme,
     KenningRender,
     KenningRewind,
 )
@@ -1554,6 +1555,7 @@ for _kenning_cls in (
     KenningRender,
     KenningEraMap,
     KenningCreature,
+    KenningRegenerateMorpheme,
 ):
     _kenning_cls.runtime_version = _kenning_runtime_version  # type: ignore[method-assign]
 
@@ -1563,3 +1565,4 @@ register(KenningRewind())
 register(KenningRender())
 register(KenningEraMap())
 register(KenningCreature())
+register(KenningRegenerateMorpheme())

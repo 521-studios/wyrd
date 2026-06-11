@@ -17,6 +17,9 @@ from wyrd.generators.kenning.generators.kenning import Kenning
 from wyrd.generators.kenning.generators.kenning_creature import KenningCreature
 from wyrd.generators.kenning.generators.kenning_era_map import KenningEraMap
 from wyrd.generators.kenning.generators.kenning_explain import KenningExplain
+from wyrd.generators.kenning.generators.kenning_regenerate import (
+    KenningRegenerateMorpheme,
+)
 from wyrd.generators.kenning.generators.kenning_render import KenningRender
 from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
 
@@ -25,6 +28,7 @@ __all__ = [
     "KenningCreature",
     "KenningEraMap",
     "KenningExplain",
+    "KenningRegenerateMorpheme",
     "KenningRender",
     "KenningRewind",
 ]

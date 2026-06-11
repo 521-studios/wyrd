@@ -65,6 +65,25 @@ export async function rewindWithMorphemes(name, morphemesByWord) {
 }
 
 /**
+ * wyrd-y0lx: POST /api/kenning-regenerate-morpheme — re-roll ONE morpheme
+ * of a generated name while holding the others fixed. The payload carries
+ * the current morphemes (`words`), the target `word_index` /
+ * `morpheme_index`, a `seed` (baked into the transform step so re-runs are
+ * deterministic), and the generation-context knobs the roll used (culture /
+ * tags / mood / era / …). Returns the standard envelope; the single
+ * result's `morphemes_by_word[word_index][morpheme_index]` is the
+ * replacement morpheme dict the transform splices in.
+ */
+export async function regenerateMorpheme(payload) {
+  const resp = await postSignedJson('/api/kenning-regenerate-morpheme', payload);
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`regenerate failed: HTTP ${resp.status} — ${text.slice(0, 200)}`);
+  }
+  return resp.json();
+}
+
+/**
  * Roll one generator with the supplied params. POSTs to
  * /api/<generator>. No seed is sent — the server picks a fresh random
  * one each call. Returns the envelope: { generator, parameters,
