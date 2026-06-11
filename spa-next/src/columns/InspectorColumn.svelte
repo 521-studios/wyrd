@@ -250,6 +250,7 @@
                   class="m-reroll"
                   disabled={pipeline.isRunning}
                   onclick={() => regenerate(m)}
+                  aria-label="Reroll morpheme {m.rendered || m.usage}"
                   title="Reroll this morpheme (re-roll it in the context of the others)"
                 >Reroll</button>
               {/if}
@@ -431,7 +432,9 @@
      rather than crowding out the morphemes. */
   .transforms {
     flex-shrink: 0;
-    max-height: 30%;
+    /* vh, not % — a percentage max-height resolves against the flex
+       parent's height and collapses to none when that isn't definite. */
+    max-height: 30vh;
     overflow-y: auto;
     margin-top: 12px;
   }
