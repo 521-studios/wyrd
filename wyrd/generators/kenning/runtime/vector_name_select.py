@@ -601,6 +601,10 @@ def _resolve_slot_usage_frequency(
     if slot_bucket_key is None:
         return {}
     frequency = usage_frequency_by_bucket.get(slot_bucket_key)
+    # Invariant: a non-None slot_bucket_key is never empty — every key is a
+    # word_to_key element tuple carrying at least the location element. On a
+    # malformed empty key, a loud IndexError here beats a truthiness guard
+    # that would silently read as "bucket missing" → slot unreachable.
     if (
         frequency is None
         and isinstance(slot_bucket_key[-1], str)
