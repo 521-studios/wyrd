@@ -2651,3 +2651,76 @@ graph?" doesn't get re-litigated. The graph-shaped subset here is *already*
 modeled correctly by purpose-built passes whose domain rules (PIE non-bridging,
 canonical resolution, root-anchoring, deterministic tiebreaks) a generic graph
 engine can't see. Fast and pleasant ≠ a better model.
+
+## D43. Bare word-sequence placement: per-WORD-position stats for bare words (wyrd-rogd.13, 2026-06-11).
+
+Some bare standalone words have a strong **word-sequence** position bias the
+model didn't capture — `Saint` is essentially always the FIRST word
+(Saint Albans), the Latin postpositives `Parva` / `Magna` the LAST (Wigston
+Parva; the live corpus tally is `parva` 37/37 post), `Great` overwhelmingly
+first, `End` / `Hall` / `Green` overwhelmingly last. Pre-D43 any bare slot
+could pull any bare word: the generator could emit "Parva Wigston".
+
+**Vocabulary guard — two distinct position axes.** This is the WITHIN-NAME
+word position (which word slot of a multi-word name a bare word occupies),
+NOT the within-word morpheme position the D39/D40 dash markers encode. Bare
+words have morpheme position `bare` and *additionally* get a word position.
+The label reuses the pre/inner/post names; bucket keys carry it with a
+`wp-` prefix (`wp-pre` / `wp-inner` / `wp-post`) so the two axes can't be
+confused in code.
+
+### The model
+
+* **Data** — derived at proportions-build time from the place-name corpus
+  walk the builder already does (`Name.get_bare_word_positions`): for each
+  MULTI-word name, each single-morpheme (bare) word records one
+  `(word_position, usage)` observation — first word → `pre`, interior →
+  `inner`, last → `post`. Single-word names contribute **nothing** (no solo
+  case: a 1-word name carries no word-sequence evidence; its observation
+  still feeds the general `single_usages` pool). No new mining;
+  rebuildable-from-JSONL by construction.
+* **Naked vs structured** — a bare word with ≥ threshold total positional
+  observations is **structured**: sampled per its per-position weights and
+  eligible only at positions it's attested in. Below the threshold it is
+  **naked**: eligible at ANY bare slot at its general `single_usages`
+  weight (which includes solo-name sightings). The generation pool for a
+  bare slot at word-position P = structured-words-attested-at-P (at their
+  P-weight) ∪ all naked words (at their general weight).
+* **Threshold** — resolved at LOAD time from `WYRD_BARE_POSITION_THRESHOLD`
+  (default 3, clamped ≥ 1). The L4 table carries RAW counts, so re-tuning
+  is an env flip + container recycle — never a re-export. Deliberately NOT
+  a request param and NOT an SPA advanced-panel option (user 2026-06-11);
+  empirically, threshold 3 admits ~1,244 structured English bare words
+  (~52% of which have ≥80% single-position skew), threshold 5 ~724.
+
+### Plumbing (where each piece lives)
+
+* Build: `Name.get_bare_word_positions` → `proportions_from`'s
+  `bare_word_positions` key (`{position: {usage: count}}`, raw).
+* L4: `proportions_bare_word_position (culture, position, usage_key,
+  weight)` — point-lookup table, no cumulative column (the vector path
+  samples in Python). **No schema_version bump**: the adapter reads it
+  defensively (missing table → `{}`), following the
+  `proportions_attested_language` precedent, so deploy ordering between
+  runtime code and re-exported DBs doesn't matter.
+* Load: `MeaningGenerator.load_bare_word_positions` registers per-word-
+  position buckets keyed `('bare', *flags, 'single', 'wp-<position>')` —
+  the same `load_parts` machinery, so name/saint bare bucket families get
+  the dimension uniformly.
+* Vector path: `_flatten_struct_slots` derives each bare slot's word
+  position from its word index in the struct (the struct already encodes
+  word order — no template change, the label is derived, never stored) and
+  extends the slot's bucket key; `_resolve_slot_usage_frequency` falls back
+  to the un-extended key when the wp bucket is absent (legacy bundle, or a
+  bucket family with no positional stats) — bit-stable pre-D43 behavior.
+  When the wp bucket EXISTS it is authoritative: a structured word
+  unattested at P is correctly absent from P's pool.
+
+### Scope + bit-stability
+
+Bare words only (the spec's scope; general word-sequence position for
+compound words is future work). Once a re-exported L4 ships, seeded output
+changes for any structure containing bare slots — accepted deliberately
+(pre-launch posture; same contract stance as D41): the placement fix IS the
+product improvement, and legacy DBs keep byte-identical output via the
+fallback.

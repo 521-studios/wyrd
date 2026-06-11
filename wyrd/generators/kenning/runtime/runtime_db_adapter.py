@@ -139,6 +139,8 @@ def proportions_dict_for_culture(conn: sqlite3.Connection, culture: str) -> dict
             "structures": [{"proportion": int, "words": [...]}, ...],
             "tag_marginal": {tag: weight, ...},
             "tag_cooccurrence": {"tagA|tagB": weight, ...},
+            "attested_languages": {usage_key: [primary_language, ...], ...},
+            "bare_word_positions": {position: {usage_key: weight, ...}, ...},
         }
 
     Why dict-shaped, not SQL-sampled: PR 6's contract is bit-identical
@@ -160,7 +162,34 @@ def proportions_dict_for_culture(conn: sqlite3.Connection, culture: str) -> dict
         "tag_marginal": _read_proportions_tag_marginal(conn, culture),
         "tag_cooccurrence": _read_proportions_tag_cooccurrence(conn, culture),
         "attested_languages": _read_proportions_attested_languages(conn, culture),
+        "bare_word_positions": _read_proportions_bare_word_positions(conn, culture),
     }
+
+
+def _read_proportions_bare_word_positions(
+    conn: sqlite3.Connection, culture: str
+) -> dict[str, dict[str, int]]:
+    """wyrd-rogd.13: read the per-word-position counts for bare words.
+    Returns ``{position: {usage_key: weight}}`` (positions among
+    pre/inner/post — the word's slot within the NAME, not the D39
+    within-word morpheme position). Counts are raw; the load-time
+    threshold (WYRD_BARE_POSITION_THRESHOLD) decides naked↔structured.
+    Empty dict for L4 DBs built before the table existed — the runtime
+    then skips the per-word-position buckets entirely and bare slots
+    sample from the general single_usage distribution, today's
+    behavior."""
+    try:
+        cursor = conn.execute(
+            "SELECT position, usage_key, weight FROM proportions_bare_word_position "
+            "WHERE culture = ? ORDER BY position, usage_key",
+            (culture,),
+        )
+    except sqlite3.OperationalError:
+        return {}
+    out: dict[str, dict[str, int]] = {}
+    for position, usage_key, weight in cursor:
+        out.setdefault(position, {})[usage_key] = weight
+    return out
 
 
 def _read_proportions_attested_languages(

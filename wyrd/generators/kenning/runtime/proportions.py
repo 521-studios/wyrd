@@ -9,13 +9,15 @@ so generation is reproducible from the seed param.
 from __future__ import annotations
 
 import logging
+import os
 import random
 import re
+from collections import Counter
 from collections.abc import Callable
 
 from ..era.cells import family_stage_order, language_family
 from .meaning import Meaning, _mimic_case
-from .word import _position_form
+from .word import WORD_POSITION_KEY_PREFIX, _position_form, word_position_for
 
 # wyrd-lftl: family display order for the SPA col-3 reflex grid — English
 # first, then Norse (Danelaw), the Celtic families, French, Latin. Mirrors
@@ -36,6 +38,51 @@ _logger = logging.getLogger(__name__)
 # attempts so each retry picks a different struct deterministically.
 _VECTOR_STRUCT_RETRY_LIMIT = 5
 
+# wyrd-rogd.13: naked↔structured threshold for bare word-sequence placement.
+# A bare word with >= threshold total positional observations (summed across
+# pre/inner/post in the culture's bare_word_positions stats) is "structured" —
+# sampled per its per-word-position weights and eligible only at positions
+# it's attested in. Below the threshold it's "naked" — eligible at ANY bare
+# slot via the general single_usage distribution. Env-tunable per deploy so
+# re-tuning needs no re-export; deliberately NOT a request param and NOT an
+# SPA advanced-panel option (operator posture, user 2026-06-11).
+_BARE_POSITION_THRESHOLD_ENV = "WYRD_BARE_POSITION_THRESHOLD"
+_BARE_POSITION_THRESHOLD_DEFAULT = 3
+
+
+def bare_position_threshold() -> int:
+    """Resolve the wyrd-rogd.13 naked↔structured threshold from the
+    environment (``WYRD_BARE_POSITION_THRESHOLD``), defaulting to 3.
+
+    Clamped to >= 1: at 0 every bare word would count as "structured" —
+    including words with NO positional observations, which would then be
+    eligible at no position at all and silently vanish from the bare
+    pools. Malformed values warn + fall back to the default rather than
+    failing generation over a typo'd env var.
+    """
+    raw = os.environ.get(_BARE_POSITION_THRESHOLD_ENV)
+    if raw is None or not raw.strip():
+        return _BARE_POSITION_THRESHOLD_DEFAULT
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        _logger.warning(
+            "wyrd-rogd.13: %s=%r is not an integer; using default %d",
+            _BARE_POSITION_THRESHOLD_ENV,
+            raw,
+            _BARE_POSITION_THRESHOLD_DEFAULT,
+        )
+        return _BARE_POSITION_THRESHOLD_DEFAULT
+    if value < 1:
+        _logger.warning(
+            "wyrd-rogd.13: %s=%d clamped to 1 (0 would strand "
+            "never-positionally-observed bare words with no eligible slot)",
+            _BARE_POSITION_THRESHOLD_ENV,
+            value,
+        )
+        return 1
+    return value
+
 
 def _flatten_struct_slots(candidate_struct):
     """Flatten a struct (tuple-of-words, each word a tuple-of-keys) into parallel
@@ -43,11 +90,23 @@ def _flatten_struct_slots(candidate_struct):
     element 0 is the position label (per ``word_to_key``); a ``name`` / ``saint``
     flag becomes the qualifier; the FULL key is the bucket key — preserving the
     ``single`` flag ``word_to_key`` adds so the per-slot frequency lookup hits the
-    exact bucket the proportions sample from."""
+    exact bucket the proportions sample from.
+
+    wyrd-rogd.13: a BARE slot in a multi-word struct additionally derives its
+    WORD position from the word's index in the struct (first → ``wp-pre``,
+    interior → ``wp-inner``, last → ``wp-post``) and extends its bucket key
+    with it, so the frequency lookup hits the per-word-position bare pool
+    (``Saint``-style placement stats). The struct already encodes word order;
+    no template change — the label is derived here, never stored. Bundles
+    without the per-word-position stats fall back to the un-extended key
+    (``_resolve_slot_usage_frequency``'s wyrd-rogd.13 fallback), keeping
+    legacy behavior bit-stable."""
     positions: list[str] = []
     qualifiers: list[str | None] = []
     bucket_keys: list[tuple] = []
-    for word in candidate_struct:
+    word_count = len(candidate_struct)
+    for word_index, word in enumerate(candidate_struct):
+        word_position = word_position_for(word_index, word_count)
         for key in word:
             positions.append(key[0])
             if "name" in key:
@@ -56,7 +115,10 @@ def _flatten_struct_slots(candidate_struct):
                 qualifiers.append("saint")
             else:
                 qualifiers.append(None)
-            bucket_keys.append(key)
+            if key[0] == "bare" and word_position is not None:
+                bucket_keys.append((*key, f"{WORD_POSITION_KEY_PREFIX}{word_position}"))
+            else:
+                bucket_keys.append(key)
     return positions, qualifiers, bucket_keys
 
 
@@ -433,6 +495,49 @@ class MeaningGenerator:
                 "re-rebuild proportions against it) to clear the drift.",
                 missing_count,
             )
+
+    def load_bare_word_positions(
+        self,
+        bare_word_positions: dict[str, dict[str, int]],
+        single_usages: dict[str, int],
+        threshold: int,
+    ) -> None:
+        """wyrd-rogd.13: build the per-WORD-position bare pools.
+
+        ``bare_word_positions`` is the raw per-position tally
+        (``{position: {usage: count}}`` over pre/inner/post — the word's
+        slot within the NAME, not the D39 within-word morpheme position).
+        A bare word whose total positional observations reach ``threshold``
+        is "structured": it enters only the word-position buckets it's
+        attested in, at its per-position weight. Every other bare word is
+        "naked": it enters ALL three word-position buckets at its general
+        ``single_usages`` weight, so thin-evidence words keep today's
+        any-slot behavior.
+
+        Buckets are registered via :meth:`load_parts` with the extra
+        ``wp-<position>`` addkey, producing keys like
+        ``('bare', 'single', 'wp-pre')`` / ``('bare', 'saint', 'single',
+        'wp-pre')`` — exactly the keys ``_flatten_struct_slots`` derives
+        for bare slots of multi-word structs. No-op when the stats are
+        absent (legacy bundle): the wp-extended keys then miss and the
+        vector path falls back to the general ``('bare', …, 'single')``
+        bucket, bit-stable with pre-rogd.13 behavior.
+        """
+        if not bare_word_positions:
+            return
+        totals: Counter = Counter()
+        for per_usage in bare_word_positions.values():
+            for usage, count in per_usage.items():
+                totals[usage] += count
+        structured = {usage for usage, total in totals.items() if total >= threshold}
+        naked = {u: w for u, w in single_usages.items() if u not in structured}
+        for position in ("pre", "inner", "post"):
+            pool = dict(naked)
+            for usage, count in (bare_word_positions.get(position) or {}).items():
+                if usage in structured:
+                    pool[usage] = count
+            if pool:
+                self.load_parts(pool, "single", f"{WORD_POSITION_KEY_PREFIX}{position}")
 
     def keep_keys_for_gloss(self, include_unglossed: bool) -> frozenset[str] | None:
         """Resolve the gloss policy to the set of usages eligible for
@@ -2531,6 +2636,16 @@ def load_proportions(data, meaning_db, tag_db):
     mg = MeaningGenerator(meaning_db, tag_db, usages)
     single_usages = data["single_usages"]
     mg.load_parts(single_usages, "single")
+    # wyrd-rogd.13: per-word-position bare pools. Raw counts from the
+    # bundle; the naked↔structured threshold resolves from the env here
+    # (load time) so re-tuning needs an env flip + container recycle,
+    # never a re-export. Absent key (legacy bundle) → no wp buckets →
+    # the vector path's fallback keeps today's behavior.
+    mg.load_bare_word_positions(
+        data.get("bare_word_positions") or {},
+        single_usages,
+        bare_position_threshold(),
+    )
     structures = data["structures"]
     struct = {}
     for element in structures:

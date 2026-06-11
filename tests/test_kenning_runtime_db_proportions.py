@@ -136,6 +136,9 @@ def test_proportions_dict_has_canonical_keys(_proportions_db: tuple[Path, Path])
         # dict for fixtures that don't populate the L4 attestation
         # table; populated dict for fresh emits.
         "attested_languages",
+        # wyrd-rogd.13: per-word-position bare stats. Empty dict for
+        # fixtures without positional rows; populated for fresh emits.
+        "bare_word_positions",
     }
 
 

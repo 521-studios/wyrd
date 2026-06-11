@@ -21,7 +21,7 @@ from .trie_matcher import (
     build_morpheme_trie,
     canonical_decompositions,
 )
-from .word import Word
+from .word import Word, word_position_for
 
 # Bounded LRU memoization of the trie per word_db identity. Building
 # the trie is O(M) where M is the morpheme count (~4ms on a 2.9K-
@@ -318,6 +318,34 @@ class Name:
             for word in word_list:
                 usage_set = usage_set.union(word.get_lone_samples())
         return usage_set
+
+    def get_bare_word_positions(self):
+        """wyrd-rogd.13: ``(word_position, usage)`` pairs for every bare
+        (single-morpheme) word of a MULTI-word name, where word_position is
+        the word's slot in the name's word sequence (first → ``pre``,
+        interior → ``inner``, last → ``post``).
+
+        This is the WITHIN-NAME word-position evidence the bare-placement
+        stats are built from — ``Saint`` is essentially always the first
+        word of ``Saint Albans``, ``Parva`` the last of ``Wigston Parva``.
+        Distinct from the WITHIN-WORD morpheme position (D39/D40 dashes).
+
+        Single-word names return the empty set: there is no solo case in
+        the word-sequence model. Set semantics dedupe across alternate
+        parses of the same word (matching ``get_samples`` /
+        ``get_lone_samples``); a word repeated at two positions in one
+        name contributes both positions.
+        """
+        words = self.name.split(" ")
+        out: set = set()
+        if len(words) < 2:
+            return out
+        for index, word_text in enumerate(words):
+            position = word_position_for(index, len(words))
+            for parse in self.words.get(word_text, []):
+                for usage in parse.get_lone_samples():
+                    out.add((position, usage))
+        return out
 
     def get_structure(self):
         structure = []

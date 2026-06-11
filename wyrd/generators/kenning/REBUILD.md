@@ -116,10 +116,14 @@ here's the obligation:
      covers it).
 
 5. **From a git worktree the `wyrd` console script does not exist** — it's
-   installed only in the main checkout's venv. Invoke as
-   `/home/devon/521Studios/wyrd/.venv/bin/python -m wyrd.cli kenning lexicon …`
-   with `PYTHONPATH=<worktree>` so worktree code shadows the installed
-   package. From the main checkout, plain `.venv/bin/wyrd …` works.
+   installed only in the main checkout's venv. Invoke the MAIN checkout's
+   console script with `PYTHONPATH=<worktree>` so worktree code shadows the
+   installed package:
+   `PYTHONPATH=<worktree> /home/devon/521Studios/wyrd/.venv/bin/wyrd kenning lexicon …`.
+   From the main checkout, plain `.venv/bin/wyrd …` works.
+   Do NOT use `python -m wyrd.cli …` — `wyrd/cli.py` has no
+   `if __name__ == "__main__"` guard, so `-m` imports the module, runs
+   nothing, and exits 0: a silent no-op that looks like success.
 
 6. **Capture before-reports** so you can diff the rebuild's effect:
    ```bash
