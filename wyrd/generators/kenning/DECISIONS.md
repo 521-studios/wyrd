@@ -2600,3 +2600,54 @@ reflex found, render the morpheme's modern canonical"** rule now means "fall bac
 to the morpheme's own form" — modern is no longer privileged as *the* canonical,
 it is the fallback surface for a morpheme with no source-era reflex. See the
 annotation on D33.
+
+## D41. Graph DB / Cypher (graphqlite) evaluated and NOT adopted for the descent layer (spike, 2026-06-11).
+
+**The decision: keep relational SQLite as the spine for the etymon /
+`etymon_descent` graph; do NOT route the cognate / descent passes through a graph
+engine.** Evaluated [graphqlite](https://github.com/colliery-io/graphqlite) — a
+SQLite extension that adds Cypher + graph algorithms (WCC, SCC, Louvain,
+PageRank, Dijkstra) in-process, same `.db` file, MIT, ~98% openCypher TCK. The
+question was whether the genuinely graph-shaped data here (`etymon_descent`
+inheritance/borrowing edges, cognate clustering, the wyrd-ami descent walk) would
+be better modeled with native graph tooling. Spike conclusion: **no.**
+
+### What the spike found
+
+- **Performance is a non-issue.** 784,697 inheritance+borrowing edges loaded in
+  7.7s; weakly-connected-components ran in 0.9s. The engine handles corpus scale
+  trivially.
+- **Generic graph primitives ERASE the domain semantics the passes encode.**
+  The headline test — use connected-components to validate `cluster-cognates` —
+  failed by design: only ~33k of ~68k components matched 1:1, with a single
+  **272,905-node WCC mega-component (41.9% of the graph)**. Cause (per
+  `lexicon/cognate_cluster.py`): `cluster-cognates-v2` is *not* pure WCC. It
+  (1) **drops every edge touching `proto-indo-european`** (`_NON_BRIDGING_LANGUAGES`
+  — PIE fans out across all IE branches; "143 of 155 clusters >200 members were
+  PIE-rooted" pre-fix), (2) **resolves parent/child through `merged_into_id`**
+  (canonical space, D22), and (3) does a **directional, smallest-root-wins BFS**,
+  not undirected closure. Re-running WCC with the PIE filter + canonical
+  resolution shrank the hairball only to 150,960 (24%) — the residual is
+  Latin/Greek borrowing hubs that undirected closure fuses but root-anchored
+  walking correctly keeps apart. A generic WCC cannot reach the pass's partition
+  without re-implementing its exact rules, at which point the engine adds nothing
+  over the existing ~35-line BFS.
+- **Operational cost:** graphqlite needs a Python built with loadable sqlite
+  extensions. pyenv's default build lacks `enable_load_extension`; uv's
+  standalone CPython works. A real friction point if it were ever a pipeline dep.
+
+### Where the residual value is (narrow — a disposable debugging sidecar, not architecture)
+
+If reached for at all, only as an ad-hoc analysis lens, never on the committed
+pipeline: ergonomic one-off traversal queries (Cypher beats recursive CTEs for
+"show the path between X and Y"); `strongly_connected_components` to characterize
+the `cycle_orphans` the cognate pass only *counts* today; centrality to surface
+the Latin/Greek borrowing hubs that might warrant PIE-style non-bridging
+treatment. Nothing for the **runtime** (flat key-value lookups, zero traversal —
+D38) or the **provenance/audit model** (relational by nature — D21/D23/D24).
+
+Why record a rejection: so "should we use a graph DB / Cypher for the descent
+graph?" doesn't get re-litigated. The graph-shaped subset here is *already*
+modeled correctly by purpose-built passes whose domain rules (PIE non-bridging,
+canonical resolution, root-anchoring, deterministic tiebreaks) a generic graph
+engine can't see. Fast and pleasant ≠ a better model.
