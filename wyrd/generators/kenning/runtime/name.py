@@ -319,7 +319,7 @@ class Name:
                 usage_set = usage_set.union(word.get_lone_samples())
         return usage_set
 
-    def get_bare_word_positions(self):
+    def get_bare_word_positions(self) -> set[tuple[str, str]]:
         """wyrd-rogd.13: ``(word_position, surface)`` pairs for every bare
         (single-morpheme) word of a MULTI-word name, where word_position is
         the word's slot in the name's word sequence (first → ``pre``,

@@ -176,7 +176,7 @@ def _read_proportions_bare_word_positions(
     threshold (WYRD_BARE_POSITION_THRESHOLD) decides naked↔structured.
     Empty dict for L4 DBs built before the table existed — the runtime
     then skips the per-word-position buckets entirely and bare slots
-    sample from the general single_usage distribution, today's
+    sample from the general single_usage distribution, pre-rogd.13
     behavior."""
     try:
         cursor = conn.execute(
@@ -184,7 +184,12 @@ def _read_proportions_bare_word_positions(
             "WHERE culture = ? ORDER BY position, usage_key",
             (culture,),
         )
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as exc:
+        # Only the missing-table shape is the legacy fallback. A locked DB,
+        # disk I/O error, or corrupt page must surface loudly, not be
+        # silently absorbed as "{}" (error-handling review, round 1).
+        if "no such table" not in str(exc):
+            raise
         return {}
     out: dict[str, dict[str, int]] = {}
     for position, usage_key, weight in cursor:
@@ -207,7 +212,10 @@ def _read_proportions_attested_languages(
             "WHERE culture = ? ORDER BY usage_key, primary_language",
             (culture,),
         )
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as exc:
+        # Missing-table only — see _read_proportions_bare_word_positions.
+        if "no such table" not in str(exc):
+            raise
         return {}
     out: dict[str, list[str]] = {}
     for usage_key, lang in cursor:

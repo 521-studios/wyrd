@@ -659,12 +659,15 @@ def _insert_bare_word_positions(
     job (WYRD_BARE_POSITION_THRESHOLD at load time), so re-tuning never
     requires a re-export. Point-lookup table (no cumulative column);
     the vector path builds its per-word-position pools in Python."""
-    rows = [
-        (culture, position, usage_key, int(weight))
-        for position in sorted(bare_word_positions)
-        for usage_key, weight in sorted(bare_word_positions[position].items())
-        if int(weight) > 0
-    ]
+    rows = []
+    for position in sorted(bare_word_positions):
+        for usage_key, weight in sorted(bare_word_positions[position].items()):
+            # int() coercion matches _insert_cumulative's int(v): defends
+            # operator-supplied --proportions-dir JSON (floats / numeric
+            # strings); annotations aren't enforced on that path.
+            count = int(weight)
+            if count > 0:
+                rows.append((culture, position, usage_key, count))
     if not rows:
         return 0
     conn.executemany(

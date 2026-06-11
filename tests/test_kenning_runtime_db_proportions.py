@@ -77,6 +77,9 @@ def _proportions_db(tmp_path: Path) -> tuple[Path, Path]:
         ],
         "tag_marginal": {"water": 12, "architecture": 8, "topography": 5},
         "tag_cooccurrence": {"water|architecture": 3, "water|tree": 2},
+        # wyrd-rogd.13: surface-keyed per-word-position counts for bare
+        # words, so the round-trip exercises the new table.
+        "bare_word_positions": {"post": {"castle": 4}, "pre": {"bury": 3}},
     }
     (proportions_dir / "english_proportions.json").write_text(json.dumps(english))
     # The other 4 cultures get minimal stubs so the emitter doesn't skip them.
@@ -276,6 +279,8 @@ def test_bit_equivalent_names_across_backends(
     assert sqlite_proportions["structures"] == json_proportions["structures"]
     assert sqlite_proportions["tag_marginal"] == json_proportions["tag_marginal"]
     assert sqlite_proportions["tag_cooccurrence"] == json_proportions["tag_cooccurrence"]
+    # wyrd-rogd.13: the new per-word-position bare stats round-trip too.
+    assert sqlite_proportions["bare_word_positions"] == json_proportions["bare_word_positions"]
 
     # Smoke: build a name generator from each and roll the same RNG.
     # Both should produce the same sequence of weighted_choice picks

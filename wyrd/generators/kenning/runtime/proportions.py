@@ -538,9 +538,14 @@ class MeaningGenerator:
         def _surface(form: str) -> str:
             return form.lower().replace("-", "")
 
+        # Totals sum ONLY the three known positions — same set the pool loop
+        # below builds. Summing every key would let a rogue position label in
+        # hand-edited data push a word over the threshold ("structured")
+        # while its observations feed no pool, stranding it with no eligible
+        # slot at all (type-design review, round 1).
         totals: Counter = Counter()
-        for per_usage in bare_word_positions.values():
-            for usage, count in per_usage.items():
+        for position in ("pre", "inner", "post"):
+            for usage, count in (bare_word_positions.get(position) or {}).items():
                 totals[_surface(usage)] += count
         structured = {surface for surface, total in totals.items() if total >= threshold}
         naked = {u: w for u, w in single_usages.items() if _surface(u) not in structured}

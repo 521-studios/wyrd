@@ -153,6 +153,7 @@ def test_emit_creates_l4_schema(tmp_path: Path) -> None:
         "proportions_structure",
         "proportions_tag_marginal",
         "proportions_tag_cooccurrence",
+        "proportions_bare_word_position",
         "bundle_metadata",
     } <= tables
 

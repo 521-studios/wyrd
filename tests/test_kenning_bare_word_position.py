@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import random
 import sqlite3
+from collections.abc import Iterable
 
 from wyrd.generators.kenning.lexicon.proportions_builder import proportions_from
 from wyrd.generators.kenning.lexicon.runtime_db_export import _insert_bare_word_positions
@@ -58,7 +59,7 @@ from wyrd.generators.kenning.vectors.schemas import (
 # ---- helpers ---------------------------------------------------------------
 
 
-def _meaning(usage: str, tags=None) -> Meaning:
+def _meaning(usage: str, tags: list[str] | None = None) -> Meaning:
     return Meaning(
         usage=usage,
         tags=tags if tags is not None else ["x"],
@@ -242,6 +243,15 @@ def test_threshold_clamps_to_one(monkeypatch):
     assert bare_position_threshold() == 1
 
 
+def test_threshold_empty_or_whitespace_env_falls_back_to_default(monkeypatch):
+    """An env entry that is present but empty is a realistic deploy state
+    (terraform passes the var as a string); it takes the early-return
+    branch, not the ValueError path."""
+    for raw in ("", "   "):
+        monkeypatch.setenv("WYRD_BARE_POSITION_THRESHOLD", raw)
+        assert bare_position_threshold() == 3, repr(raw)
+
+
 # ---- MeaningGenerator.load_bare_word_positions ---------------------------------
 
 
@@ -315,6 +325,49 @@ def test_case_twin_form_keys_aggregate_for_the_threshold():
     assert post == {"Ghyll": 2, "ghyll": 2}
     assert _bucket_usages(mg, ("bare", "single", "wp-pre")) == {}
     assert _bucket_usages(mg, ("bare", "single", "wp-inner")) == {}
+
+
+def test_structured_word_attested_only_at_inner():
+    """Positive wp-inner assertion: a structured word attested solely at
+    the interior word position lands in the wp-inner bucket at its
+    per-position weight and nowhere else (the only runtime path that
+    produces wp-inner pools is 3+-word interior placement)."""
+    db = _bare_db("Mid")
+    single = {"Mid": 4}
+    mg = MeaningGenerator(db, {}, {})
+    mg.load_parts(single, "single")
+    mg.load_bare_word_positions({"inner": {"Mid": 4}}, single, threshold=3)
+    assert _bucket_usages(mg, ("bare", "single", "wp-inner"))["Mid"] == 4
+    assert "Mid" not in _bucket_usages(mg, ("bare", "single", "wp-pre"))
+    assert "Mid" not in _bucket_usages(mg, ("bare", "single", "wp-post"))
+
+
+def test_word_with_zero_positional_observations_is_naked_by_absence():
+    """A word in single_usages with NO positional rows at all (solo-name
+    only) is naked by absence — eligible in all three wp buckets at its
+    general weight, even when other words DO carry positional stats."""
+    db = _bare_db("Parva", "Bath")
+    single = {"Parva": 5, "Bath": 7}
+    mg = MeaningGenerator(db, {}, {})
+    mg.load_parts(single, "single")
+    mg.load_bare_word_positions({"post": {"Parva": 5}}, single, threshold=3)
+    for wp in ("wp-pre", "wp-inner", "wp-post"):
+        assert _bucket_usages(mg, ("bare", "single", wp))["Bath"] == 7, wp
+    assert "Parva" not in _bucket_usages(mg, ("bare", "single", "wp-pre"))
+
+
+def test_rogue_position_key_cannot_strand_a_word():
+    """A position label outside pre/inner/post (hand-edited data) must not
+    count toward the naked↔structured threshold: its observations feed no
+    pool, so counting them could classify a word as structured while
+    leaving it eligible at no position at all. The word stays naked."""
+    db = _bare_db("Odd")
+    single = {"Odd": 9}
+    mg = MeaningGenerator(db, {}, {})
+    mg.load_parts(single, "single")
+    mg.load_bare_word_positions({"sideways": {"Odd": 9}}, single, threshold=3)
+    for wp in ("wp-pre", "wp-inner", "wp-post"):
+        assert _bucket_usages(mg, ("bare", "single", wp))["Odd"] == 9, wp
 
 
 def test_empty_stats_register_no_wp_buckets():
@@ -452,7 +505,7 @@ def _request() -> RequestVector:
     )
 
 
-def _generate_names(data, seeds=None) -> list[list[str]]:
+def _generate_names(data: dict, seeds: Iterable[int] | None = None) -> list[list[str]]:
     seeds = range(40) if seeds is None else seeds
     db = _bare_db("Great", "Parva", "Mount")
     gen = load_proportions(data, db, {})
@@ -494,3 +547,13 @@ def test_legacy_data_without_positions_keeps_any_slot_behavior():
     lasts = {words[-1] for words in names}
     assert "Parva" in firsts  # the bug this feature fixes…
     assert "Great" in lasts  # …still present on legacy data, by design
+
+
+def test_same_seed_same_params_is_deterministic():
+    """Same seed + same params → identical output through the wp-bucket
+    path (the seed-reproducibility contract for the modified generation
+    pipeline)."""
+    data = _two_bare_word_data()
+    first = _generate_names(data, seeds=[42, 43, 44])
+    second = _generate_names(data, seeds=[42, 43, 44])
+    assert first == second

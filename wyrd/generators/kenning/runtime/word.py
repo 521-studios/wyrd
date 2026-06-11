@@ -5,6 +5,8 @@ Ported from Rando (rando/word.py) — Python 2 → 3.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from .meaning import Meaning
 
 
@@ -33,7 +35,7 @@ def _structural_position(index: int, count: int) -> str:
 WORD_POSITION_KEY_PREFIX = "wp-"
 
 
-def word_position_for(word_index: int, word_count: int) -> str | None:
+def word_position_for(word_index: int, word_count: int) -> Literal["pre", "inner", "post"] | None:
     """wyrd-rogd.13: map a word's index within its NAME to a word-position
     label — first word → ``pre``, last → ``post``, interior → ``inner``.
 

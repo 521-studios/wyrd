@@ -603,7 +603,6 @@ def _resolve_slot_usage_frequency(
     frequency = usage_frequency_by_bucket.get(slot_bucket_key)
     if (
         frequency is None
-        and slot_bucket_key
         and isinstance(slot_bucket_key[-1], str)
         and slot_bucket_key[-1].startswith(WORD_POSITION_KEY_PREFIX)
     ):

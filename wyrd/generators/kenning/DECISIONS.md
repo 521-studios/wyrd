@@ -2686,11 +2686,11 @@ confused in code.
   both parse the same word; recording stored forms would double-count
   every sighting AND split it across two keys, diluting the threshold
   (each twin at 2 < 3 while the word genuinely has 2 sightings... and
-  the sampler sums them back together anyway — `_apply_per_usage_
-  frequency` already aggregates bucket frequency by surface). One name →
-  one observation per (word_position, surface), and the load-side
-  threshold also aggregates by surface defensively for operator-supplied
-  form-keyed JSON.
+  the sampler sums them back together anyway —
+  `_apply_per_usage_frequency` already aggregates bucket frequency by
+  surface). One name → one observation per (word_position, surface),
+  and the load-side threshold also aggregates by surface defensively
+  for operator-supplied form-keyed JSON.
 * **Naked vs structured** — a bare word with ≥ threshold total positional
   observations is **structured**: sampled per its per-position weights and
   eligible only at positions it's attested in. Below the threshold it is
