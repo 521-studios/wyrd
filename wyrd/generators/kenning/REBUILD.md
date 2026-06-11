@@ -247,7 +247,8 @@ wyrd kenning lexicon import-modern-reflexes --apply
 `<culture>_place_names.json` corpora, so there is no separate
 `rebuild-proportions` step in the L4 path. ("Proportions" here is the
 **vector** scorer's empirical input — slot structures + tag co-occurrence —
-baked into the L4 DB; the proportions *scoring* mode is retired, D36.) It is slow (~15–20 min: family
+baked into the L4 DB; the proportions *scoring* mode is retired, D36.) Takes
+~10 min wall (measured 9m37s / ~2 GB peak RSS on 2026-06-11: family
 collection over ~61k roots, then the inline proportions rebuild over ~85k
 toponyms). `Cross-product cap (256) reached for toponym '…'` lines are
 normal progress, not errors. Background it.

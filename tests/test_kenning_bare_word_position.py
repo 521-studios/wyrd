@@ -96,7 +96,7 @@ def test_bare_word_positions_two_word_name():
     db = _bare_db("Mount", "Pleasant")
     name = Name("Mount Pleasant")
     name.find_meaning(db)
-    assert name.get_bare_word_positions() == {("pre", "Mount"), ("post", "Pleasant")}
+    assert name.get_bare_word_positions() == {("pre", "mount"), ("post", "pleasant")}
 
 
 def test_bare_word_positions_three_word_name_records_inner():
@@ -104,9 +104,9 @@ def test_bare_word_positions_three_word_name_records_inner():
     name = Name("Newton Saint Loe")
     name.find_meaning(db)
     assert name.get_bare_word_positions() == {
-        ("pre", "Newton"),
-        ("inner", "Saint"),
-        ("post", "Loe"),
+        ("pre", "newton"),
+        ("inner", "saint"),
+        ("post", "loe"),
     }
 
 
@@ -129,14 +129,26 @@ def test_bare_word_positions_skips_multi_morpheme_words():
     }
     name = Name("Higham Green")
     name.find_meaning(db)
-    assert name.get_bare_word_positions() == {("post", "Green")}
+    assert name.get_bare_word_positions() == {("post", "green")}
 
 
 def test_bare_word_positions_repeated_word_records_both_positions():
     db = _bare_db("Newton")
     name = Name("Newton Newton")
     name.find_meaning(db)
-    assert name.get_bare_word_positions() == {("pre", "Newton"), ("post", "Newton")}
+    assert name.get_bare_word_positions() == {("pre", "newton"), ("post", "newton")}
+
+
+def test_bare_word_positions_case_twins_record_one_observation():
+    """The bundle routinely stores case twins of one surface (``Ghyll`` /
+    ``ghyll``) that both parse the same word. The tally records the
+    morpheme IDENTITY (bare lowercase surface, D40) — one observation per
+    name, not one per stored variant — so twins can't double-count AND
+    split the naked↔structured threshold."""
+    db = {"Ghyll": [_meaning("Ghyll")], "ghyll": [_meaning("ghyll")], "Ash": [_meaning("Ash")]}
+    name = Name("Ash Ghyll")
+    name.find_meaning(db)
+    assert name.get_bare_word_positions() == {("pre", "ash"), ("post", "ghyll")}
 
 
 # ---- proportions_from emit ---------------------------------------------------
@@ -157,8 +169,8 @@ def test_proportions_from_emits_raw_bare_word_positions():
     ]
     out = proportions_from(names)
     assert out["bare_word_positions"] == {
-        "post": {"Green": 1, "Pleasant": 1},
-        "pre": {"Mount": 2},
+        "post": {"green": 1, "pleasant": 1},
+        "pre": {"mount": 2},
     }
     # the solo observation still lands in the general bare pool
     assert out["single_usages"]["Green"] == 2  # one solo + one positional
@@ -286,6 +298,23 @@ def test_threshold_boundary_structures_at_exactly_threshold():
     assert _bucket_usages(mg, ("bare", "single", "wp-pre"))["Edge"] == 2
     assert _bucket_usages(mg, ("bare", "single", "wp-post"))["Edge"] == 1
     assert "Edge" not in _bucket_usages(mg, ("bare", "single", "wp-inner"))
+
+
+def test_case_twin_form_keys_aggregate_for_the_threshold():
+    """Operator-supplied proportions JSON may carry stored-form keys
+    (case twins). The naked↔structured decision aggregates by surface —
+    'Ghyll' 2 + 'ghyll' 2 = 4 >= 3 → structured post-only — so split
+    keys can't dilute the threshold. Both form keys enter only the
+    attested position's bucket (the slot scorer sums them by surface)."""
+    db = {"Ghyll": [_meaning("Ghyll")], "ghyll": [_meaning("ghyll")]}
+    single = {"Ghyll": 2, "ghyll": 2}
+    mg = MeaningGenerator(db, {}, {})
+    mg.load_parts(single, "single")
+    mg.load_bare_word_positions({"post": {"Ghyll": 2, "ghyll": 2}}, single, threshold=3)
+    post = _bucket_usages(mg, ("bare", "single", "wp-post"))
+    assert post == {"Ghyll": 2, "ghyll": 2}
+    assert _bucket_usages(mg, ("bare", "single", "wp-pre")) == {}
+    assert _bucket_usages(mg, ("bare", "single", "wp-inner")) == {}
 
 
 def test_empty_stats_register_no_wp_buckets():

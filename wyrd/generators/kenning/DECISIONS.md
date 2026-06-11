@@ -2674,11 +2674,23 @@ confused in code.
 * **Data** — derived at proportions-build time from the place-name corpus
   walk the builder already does (`Name.get_bare_word_positions`): for each
   MULTI-word name, each single-morpheme (bare) word records one
-  `(word_position, usage)` observation — first word → `pre`, interior →
+  `(word_position, surface)` observation — first word → `pre`, interior →
   `inner`, last → `post`. Single-word names contribute **nothing** (no solo
   case: a 1-word name carries no word-sequence evidence; its observation
   still feeds the general `single_usages` pool). No new mining;
   rebuildable-from-JSONL by construction.
+
+  The tally key is the morpheme's **identity** — the bare lowercase
+  surface (D40) — NOT the matched variant's stored form. The bundle
+  routinely stores case twins of one surface (`Ghyll` / `ghyll`) that
+  both parse the same word; recording stored forms would double-count
+  every sighting AND split it across two keys, diluting the threshold
+  (each twin at 2 < 3 while the word genuinely has 2 sightings... and
+  the sampler sums them back together anyway — `_apply_per_usage_
+  frequency` already aggregates bucket frequency by surface). One name →
+  one observation per (word_position, surface), and the load-side
+  threshold also aggregates by surface defensively for operator-supplied
+  form-keyed JSON.
 * **Naked vs structured** — a bare word with ≥ threshold total positional
   observations is **structured**: sampled per its per-position weights and
   eligible only at positions it's attested in. Below the threshold it is

@@ -135,7 +135,7 @@ CREATE TABLE proportions_tag_cooccurrence (
 CREATE TABLE proportions_bare_word_position (
     culture   TEXT NOT NULL,
     position  TEXT NOT NULL,                  -- 'pre' | 'inner' | 'post'
-    usage_key TEXT NOT NULL,
+    usage_key TEXT NOT NULL,                  -- bare lowercase SURFACE (D40 identity), not a stored form
     weight    INTEGER NOT NULL,
     PRIMARY KEY (culture, position, usage_key)
 );

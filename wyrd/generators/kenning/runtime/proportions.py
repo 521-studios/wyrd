@@ -522,19 +522,32 @@ class MeaningGenerator:
         absent (legacy bundle): the wp-extended keys then miss and the
         vector path falls back to the general ``('bare', …, 'single')``
         bucket, bit-stable with pre-rogd.13 behavior.
+
+        Identity granularity (D40): the naked↔structured decision is per
+        bare SURFACE. The build-side tally already records surfaces, but
+        operator-supplied proportions JSON may carry stored-form keys
+        (``Ghyll`` / ``ghyll`` case twins) — totals are surface-aggregated
+        here so split keys can't dilute the threshold. The naked pool
+        keeps ``single_usages``' form keys as-is: the slot scorer's
+        ``_apply_per_usage_frequency`` sums frequency by surface anyway,
+        so case twins compose exactly as they do in the general bucket.
         """
         if not bare_word_positions:
             return
+
+        def _surface(form: str) -> str:
+            return form.lower().replace("-", "")
+
         totals: Counter = Counter()
         for per_usage in bare_word_positions.values():
             for usage, count in per_usage.items():
-                totals[usage] += count
-        structured = {usage for usage, total in totals.items() if total >= threshold}
-        naked = {u: w for u, w in single_usages.items() if u not in structured}
+                totals[_surface(usage)] += count
+        structured = {surface for surface, total in totals.items() if total >= threshold}
+        naked = {u: w for u, w in single_usages.items() if _surface(u) not in structured}
         for position in ("pre", "inner", "post"):
             pool = dict(naked)
             for usage, count in (bare_word_positions.get(position) or {}).items():
-                if usage in structured:
+                if _surface(usage) in structured:
                     pool[usage] = count
             if pool:
                 self.load_parts(pool, "single", f"{WORD_POSITION_KEY_PREFIX}{position}")

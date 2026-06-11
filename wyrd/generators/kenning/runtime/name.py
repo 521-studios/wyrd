@@ -320,7 +320,7 @@ class Name:
         return usage_set
 
     def get_bare_word_positions(self):
-        """wyrd-rogd.13: ``(word_position, usage)`` pairs for every bare
+        """wyrd-rogd.13: ``(word_position, surface)`` pairs for every bare
         (single-morpheme) word of a MULTI-word name, where word_position is
         the word's slot in the name's word sequence (first → ``pre``,
         interior → ``inner``, last → ``post``).
@@ -330,10 +330,17 @@ class Name:
         word of ``Saint Albans``, ``Parva`` the last of ``Wigston Parva``.
         Distinct from the WITHIN-WORD morpheme position (D39/D40 dashes).
 
+        Records the morpheme's IDENTITY — the bare lowercased surface (D40)
+        — not the matched variant's stored form. The bundle routinely
+        stores case twins of one surface (``Ghyll`` / ``ghyll``) that both
+        parse the same word; recording the stored forms would double-count
+        every sighting AND split the count across two keys, diluting the
+        naked↔structured threshold. Set semantics per name: one observation
+        per (word_position, surface) regardless of how many parses or case
+        twins matched.
+
         Single-word names return the empty set: there is no solo case in
-        the word-sequence model. Set semantics dedupe across alternate
-        parses of the same word (matching ``get_samples`` /
-        ``get_lone_samples``); a word repeated at two positions in one
+        the word-sequence model. A word repeated at two positions in one
         name contributes both positions.
         """
         words = self.name.split(" ")
@@ -344,7 +351,7 @@ class Name:
             position = word_position_for(index, len(words))
             for parse in self.words.get(word_text, []):
                 for usage in parse.get_lone_samples():
-                    out.add((position, usage))
+                    out.add((position, usage.lower().replace("-", "")))
         return out
 
     def get_structure(self):

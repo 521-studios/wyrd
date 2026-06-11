@@ -911,13 +911,16 @@ def select_dev_subset(
         # culture's kept single_usages (the bare pool the runtime samples
         # from) so the seed's positional rows never reference a usage the
         # trimmed bare pool can't supply. Same per-culture-set rationale
-        # as attested_languages above.
+        # as attested_languages above. Compared by bare SURFACE: the
+        # positional rows are surface-keyed (D40 identity) while
+        # kept_single carries stored-form keys (case twins like 'Ghyll').
+        kept_single_surfaces = {u.lower().replace("-", "") for u in kept_single}
         raw_bare_positions = data.get("bare_word_positions") or {}
         trimmed_bare_positions = {
             position: {
                 usage: count
                 for usage, count in sorted(raw_bare_positions[position].items())
-                if usage in kept_single
+                if usage.lower().replace("-", "") in kept_single_surfaces
             }
             for position in sorted(raw_bare_positions)
         }
