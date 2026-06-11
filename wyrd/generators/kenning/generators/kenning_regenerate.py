@@ -180,6 +180,7 @@ class KenningRegenerateMorpheme(Generator):
         from wyrd.generators.kenning.generators.kenning import _resolve_vector_inputs
         from wyrd.generators.kenning.runtime.proportions import (
             NewName,
+            _native_form_for_morpheme_id,
             _resolve_surface,
         )
         from wyrd.generators.kenning.runtime.vector_name_select import _weighted_choice
@@ -247,7 +248,11 @@ class KenningRegenerateMorpheme(Generator):
         # both the candidate's modern usage and its native form so a
         # native-rendered collision ("tūn" vs a held "tūn") is excluded too.
         used_folds = _used_folds(usages, ranked_first)
-        weighted = [(m, w) for m, w in weighted if not _collides(m, used_folds)]
+        weighted = [
+            (m, w)
+            for m, w in weighted
+            if not _collides(m, used_folds, _native_form_for_morpheme_id)
+        ]
         if not weighted:
             raise NoEligibleReplacementError(
                 "no eligible replacement morpheme — every candidate for this "
@@ -515,19 +520,20 @@ def _used_folds(usages: list[list[str]], ranked_first: list[list[Any]]) -> set[s
     return folds
 
 
-def _collides(meaning: Any, used_folds: set[str]) -> bool:
+def _collides(meaning: Any, used_folds: set[str], native_form_for: Any) -> bool:
     """A candidate collides when its modern usage fold OR its native-form
     fold is already in use — covering both the modern companion and the
-    D41 native rendering."""
-    # Lazy import — same wyrd.generators.kenning.__init__ cycle as
-    # generate_all's imports (see the comment there).
-    from wyrd.generators.kenning.runtime.proportions import _native_form_for_morpheme_id
+    D41 native rendering.
 
+    ``native_form_for`` is ``proportions._native_form_for_morpheme_id``,
+    injected by the caller (which lazy-imports it once per request) so this
+    per-candidate filter predicate doesn't re-run the import machinery for
+    every pool entry."""
     if meaning.usage.replace("-", "").lower() in used_folds:
         return True
     mid = getattr(meaning, "morpheme_id", None)
     if mid:
-        native = _native_form_for_morpheme_id(mid)
+        native = native_form_for(mid)
         if native and native.replace("-", "").lower() in used_folds:
             return True
     return False

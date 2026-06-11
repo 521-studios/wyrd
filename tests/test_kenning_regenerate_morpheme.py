@@ -127,11 +127,11 @@ def test_collides_excludes_by_native_form_fold():
     assert candidate is not None, "seed bundle should carry a native≠modern morpheme"
     meaning, native = candidate
     # Modern fold not in use, native fold in use → still a collision.
-    assert _collides(meaning, {_fold(native)}) is True
+    assert _collides(meaning, {_fold(native)}, _native_form_for_morpheme_id) is True
     # Neither fold in use → no collision.
-    assert _collides(meaning, {"zzz-not-a-fold"}) is False
+    assert _collides(meaning, {"zzz-not-a-fold"}, _native_form_for_morpheme_id) is False
     # Modern fold in use → collision regardless of native.
-    assert _collides(meaning, {_fold(meaning.usage)}) is True
+    assert _collides(meaning, {_fold(meaning.usage)}, _native_form_for_morpheme_id) is True
 
 
 def test_pool_exhaustion_raises_no_eligible_replacement(english_roll, monkeypatch):
