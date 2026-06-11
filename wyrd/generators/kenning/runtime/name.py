@@ -349,6 +349,8 @@ class Name:
             return out
         for index, word_text in enumerate(words):
             position = word_position_for(index, len(words))
+            if position is None:  # unreachable: len(words) >= 2; narrows the type
+                continue
             for parse in self.words.get(word_text, []):
                 for usage in parse.get_lone_samples():
                     out.add((position, usage.lower().replace("-", "")))
