@@ -1,16 +1,13 @@
 <script>
   // wyrd-34tn: inline save-toggle for col 2 result cards. Clicking
   // a filled star REMOVES the save (toggle semantics); empty star
-  // adds. Captures just the result's original metadata — for the
-  // current pipeline state too, the col 3 save button is the
-  // larger-affordance "save current workspace" path.
-  //
-  // The star is in addition to col 3's save: col 2 is "save this
-  // generated name quickly without losing my place"; col 3 is
-  // "save this workspace including transforms". Both flow into the
-  // same savedStore.
+  // adds. wyrd-y0lx: starring the INSPECTED result also captures the
+  // live transform pipeline (the Output row renders the transformed
+  // state, so the bookmark restores it); starring any other row
+  // captures just the original.
   import { savedStore } from '../lib/savedStore.svelte.js';
   import { appState } from '../lib/appState.svelte.js';
+  import { pipeline } from '../lib/pipeline.svelte.js';
 
   let { result } = $props();
 
@@ -39,6 +36,18 @@
     // The picker might have changed since the roll; the params
     // that PRODUCED this result are the ones we need to save.
     const generator = appState.resultsGenerator;
+    // wyrd-y0lx (operator decision): when the starred result is the one
+    // being inspected, capture the live transform pipeline alongside the
+    // original — the Output row renders the transformed state, so the
+    // bookmark must restore it (SavedList.load replays the steps). Step
+    // ids are stripped: addStep regenerates them on restore. Starring a
+    // non-inspected row keeps the empty-pipeline behavior.
+    const isInspected =
+      appState.currentResultIndex !== null &&
+      appState.results[appState.currentResultIndex] === result;
+    const steps = isInspected
+      ? $state.snapshot(pipeline.steps).map(({ kind, params }) => ({ kind, params }))
+      : [];
     savedStore.add({
       generator,
       params: appState.paramsByGenerator[generator] || {},
@@ -49,9 +58,7 @@
         // SavedList load restores the full output card.
         explanation: result.explanation || '',
       },
-      // No pipeline — the ★ saves just the original. Header's
-      // + Save captures the workspace including transforms.
-      pipeline: [],
+      pipeline: steps,
     });
   }
 </script>

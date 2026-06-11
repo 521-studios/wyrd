@@ -31,11 +31,42 @@
     isGlossDrift,
   } from '../lib/era.js';
   import { showModernCompanion } from '../lib/render.js';
+  import { flagOn } from '../lib/featureFlags.js';
   import NameGuideCard from '../components/NameGuideCard.svelte';
   import MorphemeGrid from '../components/MorphemeGrid.svelte';
+  import TransformStep from '../components/TransformStep.svelte';
   import DefectModal from '../components/DefectModal.svelte';
 
   let result = $derived(appState.currentResult);
+
+  // wyrd-y0lx: per-morpheme regenerate. Kenning-only (the endpoint re-rolls
+  // against the kenning vector path) and flag-gated per the wyrd-nwpa
+  // convention (prod hides it until WYRD_FF_REGENERATE_MORPHEME / FF_ALL).
+  let regenEnabled = $derived(
+    appState.resultsGenerator === 'kenning' &&
+      flagOn(appState.config, 'regenerate-morpheme'),
+  );
+
+  function regenerate(m) {
+    // Bake the roll's generation context into the step at click time so
+    // pipeline re-runs + restored workspaces replay against the params that
+    // produced the result (resultsParams is the roll-time snapshot; fall
+    // back to the live form bag for loaded workspaces that predate it).
+    const gen = appState.resultsGenerator;
+    const context = $state.snapshot(
+      appState.resultsParams || appState.paramsByGenerator[gen] || {},
+    );
+    delete context.count;
+    delete context.seed;
+    pipeline.setRegenerate({
+      wordIndex: m._wordIndex,
+      morphemeIndex: m._morphemeIndex,
+      context,
+      // The slot's CURRENT surface, so the step card reads
+      // "Stān morph[0,1] → re-roll" instead of a bare index.
+      from: m.rendered || m.usage,
+    });
+  }
 
   // Reset the inspector's scroll region to the top whenever a different result
   // is selected — otherwise clicking a new name lands you mid-list at the old
@@ -193,6 +224,21 @@
       </div>
     </header>
 
+    <!-- wyrd-y0lx: the transform stack, re-mounted after the wyrd-qc0g col-3
+         rebuild dropped it. Each step card carries its × remove control —
+         removing a step (e.g. a regenerate) re-runs the pipeline without it,
+         which is the undo affordance for per-morpheme regeneration. The
+         palette stays unmounted (wyrd-410t's concern); steps are added via
+         direct manipulation (grid-cell swaps, the ⟳ regenerate button). -->
+    {#if pipeline.steps.length > 0}
+      <section class="transforms">
+        <h4 class="section-head">Transforms ({pipeline.steps.length})</h4>
+        {#each pipeline.steps as step, i (step.id)}
+          <TransformStep {step} index={i} />
+        {/each}
+      </section>
+    {/if}
+
     <section class="morphemes" bind:this={morphemesEl}>
       <h4 class="section-head">Morphemes ({allMorphemes.length})</h4>
 
@@ -207,6 +253,19 @@
                 <span class="m-tags">
                   {#each m.tags as tag}<span class="tag">{tag}</span>{/each}
                 </span>
+              {/if}
+              <!-- wyrd-y0lx: re-roll JUST this morpheme in the context of the
+                   others. Adds (or re-rolls in place) a regenerate step on the
+                   pipeline; remove the step from the Transforms stack to undo. -->
+              {#if regenEnabled}
+                <button
+                  type="button"
+                  class="m-regen"
+                  disabled={pipeline.isRunning}
+                  onclick={() => regenerate(m)}
+                  aria-label="Regenerate this morpheme"
+                  title="Regenerate this morpheme (re-roll it in the context of the others)"
+                >⟳</button>
               {/if}
             </div>
 
@@ -332,6 +391,42 @@
     gap: 10px;
     flex-wrap: wrap;
     margin-bottom: 6px;
+  }
+  /* wyrd-y0lx: per-morpheme regenerate button, pinned top-right of the card
+     head (margin-left auto pushes it past the usage + tags). */
+  .m-regen {
+    margin-left: auto;
+    align-self: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    padding: 3px 7px;
+  }
+  .m-regen:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .m-regen:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .m-regen:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  /* wyrd-y0lx: the re-mounted transform stack — pinned (non-scroll) between
+     the name cards and the scrolling morpheme list, capped so a long stack
+     scrolls itself rather than crowding out the morphemes. */
+  .transforms {
+    flex-shrink: 0;
+    max-height: 30%;
+    overflow-y: auto;
+    margin-bottom: 12px;
   }
   .m-usage {
     font-size: 16px;

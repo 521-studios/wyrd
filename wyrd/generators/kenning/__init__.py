@@ -1530,6 +1530,7 @@ from wyrd.generators.kenning.generators import (  # noqa: E402
     KenningCreature,
     KenningEraMap,
     KenningExplain,
+    KenningRegenerateMorpheme,
     KenningRender,
     KenningRewind,
 )
@@ -1539,7 +1540,7 @@ def _kenning_runtime_version(self) -> dict[str, str]:
     """Bundle-identity stamp for the API envelope + defect reports
     (wyrd-dsl5). Every kenning generator reads the same L4 bundle, so they
     all report the same version — bound onto each class here rather than
-    duplicated as a method body in six generator modules. Matches this
+    duplicated as a method body in seven generator modules. Matches this
     module's existing pattern of binding shared behavior post-import (see
     ``_load_meanings.cache_clear`` above)."""
     from wyrd.generators.kenning.runtime.runtime_db import bundle_version
@@ -1554,6 +1555,7 @@ for _kenning_cls in (
     KenningRender,
     KenningEraMap,
     KenningCreature,
+    KenningRegenerateMorpheme,
 ):
     _kenning_cls.runtime_version = _kenning_runtime_version  # type: ignore[method-assign]
 
@@ -1563,3 +1565,7 @@ register(KenningRewind())
 register(KenningRender())
 register(KenningEraMap())
 register(KenningCreature())
+# No standalone CLI subcommand — single-morpheme regeneration is the SPA's
+# direct-manipulation ⟳ button (wyrd-y0lx); a batch/offline CLI shape has no
+# meaningful use (the input is an in-flight SPA pipeline state).
+register(KenningRegenerateMorpheme())
