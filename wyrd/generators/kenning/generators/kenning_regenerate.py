@@ -23,9 +23,11 @@ _logger = logging.getLogger(__name__)
 
 
 class NoEligibleReplacementError(ValueError):
-    """The candidate pool is empty after the context gates + in-use
-    exclusions — a valid request with no fulfillable answer, distinct from
-    the malformed-input ValueErrors raised by ``_validate_target``.
+    """No candidate can fill the slot: the pool is empty after the context
+    gates + in-use exclusions, or every surviving candidate's weight is
+    zero/negative so the weighted draw can't pick. A valid request with no
+    fulfillable answer, distinct from the malformed-input ValueErrors
+    raised by ``_validate_target``.
 
     Subclasses ValueError so the dispatcher's existing ValueError → 400
     mapping still fires (no API behavior change); callers / tests can catch
@@ -380,7 +382,7 @@ def _weighted_pool_with_fallback(
     era_midpoint: int,
     knobs: dict[str, Any],
     prior_tags: frozenset[str],
-    slot_base_scores: dict,
+    slot_base_scores: dict[tuple, list[tuple[Any, float]]],
 ) -> list[tuple[Any, float]]:
     """The weighted candidate pool for the target slot, with the bucket-key
     fallback: when the reconstructed bucket key doesn't exist in this

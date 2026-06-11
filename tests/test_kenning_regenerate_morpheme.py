@@ -19,19 +19,24 @@ none)."""
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import pytest
 
 from wyrd.app import create_app
+from wyrd.generators.kenning import _load_culture
 from wyrd.generators.kenning.generators import Kenning, KenningRegenerateMorpheme
 from wyrd.generators.kenning.generators.kenning_regenerate import (
     NoEligibleReplacementError,
     _apply_mood_restriction,
     _collides,
     _derived_position,
+    _slot_qualifier,
 )
 from wyrd.generators.kenning.registers.effects import parse_mood_spec
+from wyrd.generators.kenning.runtime import vector_name_select
+from wyrd.generators.kenning.runtime.proportions import _native_form_for_morpheme_id
 from wyrd.registry import GenerationResult
 
 # This module exercises the kenning runtime, which reads the committed
@@ -105,9 +110,6 @@ def test_collides_excludes_by_native_form_fold():
     folds to an in-use surface is excluded even when its modern usage
     doesn't collide (a fresh `tūn` against a held `tūn` on era/native
     renders)."""
-    from wyrd.generators.kenning import _load_culture
-    from wyrd.generators.kenning.runtime.proportions import _native_form_for_morpheme_id
-
     name_gen, _ = _load_culture("english")
     # Find a real meaning whose native form differs from its modern usage.
     candidate = None
@@ -136,8 +138,6 @@ def test_pool_exhaustion_raises_no_eligible_replacement(english_roll, monkeypatc
     """When the pool is empty after gates + exclusions, the endpoint fails
     loudly with NoEligibleReplacementError (→ the dispatcher's 400), never
     a silent no-op or duplicate."""
-    from wyrd.generators.kenning.runtime import vector_name_select
-
     monkeypatch.setattr(vector_name_select, "_slot_weighted_pool", lambda *a, **k: [])
     words = english_roll.morphemes_by_word
     with pytest.raises(NoEligibleReplacementError, match="no eligible replacement"):
@@ -148,10 +148,6 @@ def test_bucket_key_miss_falls_back_to_unweighted_pool(english_roll, monkeypatch
     """When the reconstructed bucket key has no frequency-table entry, the
     endpoint degrades to the unweighted score-only pool — loudly (WARNING)
     — instead of failing."""
-    import logging
-
-    from wyrd.generators.kenning.runtime import vector_name_select
-
     real = vector_name_select._slot_weighted_pool
 
     def fake(*args, **kwargs):
@@ -232,6 +228,27 @@ def test_derived_position_covers_all_four_slots():
     assert _derived_position(2, 1) == "post"
     assert _derived_position(3, 1) == "inner"
     assert _derived_position(3, 2) == "post"
+
+
+def test_slot_qualifier_name_wins_over_saint_usage():
+    """Regression for the round-1 P1: _slot_qualifier must mirror
+    Meaning.key's if/elif priority — a name-tagged morpheme routes through
+    "name" even when its surface is literally "Saint-"; the saint string
+    check only decides for unresolvable / non-name morphemes."""
+
+    class _FakeMeaning:
+        def __init__(self, name):
+            self._name = name
+
+        def is_name(self):
+            return self._name
+
+    assert _slot_qualifier(_FakeMeaning(True), "Saint-") == "name"
+    assert _slot_qualifier(_FakeMeaning(False), "Saint-") == "saint"
+    assert _slot_qualifier(None, "Saint-") == "saint"
+    assert _slot_qualifier(_FakeMeaning(True), "Hill") == "name"
+    assert _slot_qualifier(_FakeMeaning(False), "Hill") is None
+    assert _slot_qualifier(None, "Hill") is None
 
 
 def test_era_request_renders_the_replacement_at_era():
