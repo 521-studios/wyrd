@@ -36,8 +36,10 @@ while epic wyrd-aicu removes it.
    or matches on it re-introduces the wyrd-eyjk P0.
 5. **Inconsistent folds** — mixing `strip("-")` with
    `replace("-", "")` for the same fold domain (they differ on
-   internal dashes; PR #625 swept the diversify region to
-   `replace` — new code must match).
+   internal dashes; PR #625 normalized the diversify region's FOLDS
+   to `replace` — render-layer `strip`/`lstrip`/`rstrip` for dash
+   DECORATION remains and is exempt. New fold code must use
+   `replace`).
 
 **Acceptable (do NOT flag):**
 
@@ -61,17 +63,16 @@ while epic wyrd-aicu removes it.
 
 1. Grep the diff for `-` inside string literals that flow into keys,
    identity comparisons, or storage writes; for `startswith("-")` /
-   `endswith("-")` / `strip("-")` / `replace("-"` on surfaces; and
-   for `.location` reads.
+   `endswith("-")` / `strip("-")` / `replace("-", "")` on surfaces;
+   and for `.location` reads.
 2. For each hit, classify: render decoration (OK), raw-source parsing
-   (OK), legacy-boundary fold (OK if `replace`-style and commented),
-   form-spelling data (OK) — or identity storage / keying / matching
-   (FLAG).
+   (OK), legacy-boundary fold (OK if `replace`-style), form-spelling
+   data (OK) — or identity storage / keying / matching (FLAG).
 3. For new tables, bundle fields, or fixture shapes: check the
    position axis is an explicit field, not a surface decoration.
 4. Cite D45 (and D39/D40 where relevant) in every finding; suggest
    the bare-surface + explicit-position alternative concretely.
 
 **Severity convention:** identity storage or matching gates → P1/P2
-(this is the recurring bug class); inconsistent folds or undocumented
-boundary folds → P3 with the concrete rewrite.
+(this is the recurring bug class); inconsistent folds → P3 with the
+concrete rewrite.

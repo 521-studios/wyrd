@@ -2471,9 +2471,9 @@ you MUST keep variants + inflections flowing through that same single owner.
 
 ## D40. Position is a DERIVED label and a SOFT statistic — never a match-time enforcer (wyrd-eyjk, 2026-06-01).
 
-> **READ THIS FIRST — the recurring confusion (corrected 5+ times across sessions).
+> **READ THIS FIRST — the recurring confusion (corrected 5+ times across sessions).**
 > The storage-layer half of this rule is D45 (no dashes in stored morpheme
-> identity, ever — enforced by `morpheme-surface-identity-reviewer`); read both.**
+> identity, ever — enforced by `morpheme-surface-identity-reviewer`); read both.
 > Position (`bare` / `pre-` / `-inner-` / `-post`) is an **OUTPUT of decomposition,
 > not an input to it.** A morpheme's identity is its **bare surface** (`giles`);
 > `Giles-` / `-giles` / `giles` are the *same morpheme rendered at a derived
@@ -2788,7 +2788,9 @@ L3 `reflex.surface_form`, L4 `meaning.usage_key` / `modern_usage` /
 `Meaning._set_location` DECODING dashes back out of the stored string. So one
 surface exists as up to four separate stored identities (`ton` / `Ton-` /
 `-ton` / `-ton-`), every consumer needs fold-the-dash compat code (~80
-production sites as of the 2026-06-12 audit — inventory in epic wyrd-aicu),
+production sites across the runtime/bundle/lexicon-export layers as of the
+2026-06-12 audit — inventory in epic wyrd-aicu; the raw repo-wide grep is
+~100, the remainder being exempt raw-source handling in parsers/extractors),
 and each new consumer that forgets to fold re-introduces the bug class. The
 latest instance was wyrd-c6o1.3: the per-Meaning attested-language narrowing
 keyed by exact stored usage_key, so the welsh `ton` homograph walked into
