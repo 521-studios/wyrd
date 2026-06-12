@@ -13,7 +13,7 @@
   // values persist across generator switches (paramsByGenerator stores
   // per-generator).
   import { appState } from '../lib/appState.svelte.js';
-  import { snapEnumValue } from '../lib/featureFlags.js';
+  import { snapDependentValue, snapEnumValue } from '../lib/featureFlags.js';
   import { languageLabel } from '../lib/languageLabels.js';
 
   let { fieldKey, prop } = $props();
@@ -86,11 +86,15 @@
     // wyrd-etvd/b6hd: same undefined-guard as the plain-enum snap — an unseeded
     // value is left for the store's seeding (preserving any config.defaults
     // override); only a defined value invalid for the current culture's options
-    // snaps.
-    const snapped = snapEnumValue(
+    // snaps. wyrd-kqyf: snapDependentValue adds the 'present-day' translation
+    // (env-default era token → the culture's present-day stage, incl. on
+    // culture switch).
+    const snapped = snapDependentValue(
       appState.currentParams[fieldKey],
       dependentOptions,
-      prop.default,
+      prop,
+      appState.config,
+      fieldKey,
     );
     if (snapped !== undefined) appState.currentParams[fieldKey] = snapped;
   });

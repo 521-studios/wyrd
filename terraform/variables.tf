@@ -80,5 +80,10 @@ variable "feature_flag_defaults" {
   # clear attested-pair-fidelity effect while keeping full output variety
   # (validated: coherence lifts in 4/5 cultures, ~290/300 distinct names even
   # at 1.0, so 0.6 leaves plenty of wiggle). Schema default stays 0.0.
-  default = { novelty = "0.1", cohesion = "0.6" }
+  # wyrd-kqyf: default era to the culture-agnostic 'present-day' token in both
+  # envs — names default to clean modern spellings (each culture's present-day
+  # stage: modern-english / welsh / irish). Schema default stays "" (Mixed Era)
+  # so CLI / local / tests are bit-stable; per-env override or removal here
+  # flips the deployed default without a code change.
+  default = { novelty = "0.1", cohesion = "0.6", era = "present-day" }
 }

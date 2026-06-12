@@ -126,6 +126,37 @@ export function snapEnumValue(value, options, schemaDefault) {
     : options[0];
 }
 
+/** wyrd-kqyf: the culture-agnostic era-default token (WYRD_DEFAULT_ERA /
+ *  terraform feature_flag_defaults). Era stages are per-culture, so the env
+ *  default can't name a literal stage; the token means "this culture's
+ *  present-day stage" on both sides of the contract (the server translates it
+ *  in _resolve_era_param / _resolve_era_render_language). */
+export const PRESENT_DAY_ERA = 'present-day';
+
+/** wyrd-kqyf: snap-to-valid for a DEPENDENT select (x-options-by-culture),
+ *  layering the present-day translation on snapEnumValue:
+ *
+ *  - a seeded `present-day` value resolves to the culture's present-day stage
+ *    — the LAST option (per-culture lists are chronologically ordered with ''
+ *    first), so the env default displays as e.g. "Modern English" instead of
+ *    binding an invalid select value;
+ *  - when the CONFIG default is the token, a culture switch that invalidates
+ *    the prior stage (english's 'modern-english' isn't a welsh option) snaps
+ *    to the NEW culture's present-day stage rather than clobbering to the
+ *    schema default — without this the env default would silently become
+ *    Mixed Era (and be sent as an explicit '') after every culture change.
+ *
+ *  Returns the value to set, or undefined for "leave it alone" (same contract
+ *  as snapEnumValue). */
+export function snapDependentValue(value, options, prop, config, fieldKey) {
+  if (value === undefined) return undefined;
+  const presentDay = options[options.length - 1];
+  if (value === PRESENT_DAY_ERA) return presentDay;
+  const target =
+    seedDefault(config, fieldKey, prop) === PRESENT_DAY_ERA ? presentDay : prop?.default;
+  return snapEnumValue(value, options, target);
+}
+
 /** wyrd-b6hd: the value a field should be INITIALIZED to — the env
  *  default-override (config.defaults) or schema default, falling back to a
  *  type-appropriate empty when neither is set. The store seeds every field

@@ -10,6 +10,8 @@ import {
   fieldEnabled,
   visibleCultures,
   coerceToType,
+  snapDependentValue,
+  PRESENT_DAY_ERA,
   seedDefault,
   snapEnumValue,
   initialFieldValue,
@@ -191,5 +193,50 @@ describe('initialFieldValue (wyrd-b6hd: store-seeded init — override > default
   it('never returns undefined — bound state is never empty at mount', () => {
     expect(initialFieldValue(null, 'whatever', { type: 'string' })).not.toBeUndefined();
     expect(initialFieldValue(null, 'novelty', { type: 'number' })).not.toBeUndefined();
+  });
+});
+
+// wyrd-kqyf: the culture-agnostic era-default token. The env default can't
+// name a literal stage (stages are per-culture), so 'present-day' means "this
+// culture's present-day stage" — the LAST option of the chronologically-
+// ordered per-culture list. These pin the two translation duties: seeding the
+// token to a real option, and re-snapping to the NEW culture's present-day
+// stage on culture switch (instead of clobbering the env default to '').
+describe('snapDependentValue (present-day era token)', () => {
+  const englishOptions = ['', 'old-english', 'middle-english', 'modern-english'];
+  const welshOptions = ['', 'old-welsh', 'middle-welsh', 'welsh'];
+  const eraProp = { type: 'string', default: '' };
+  const tokenConfig = { all: false, flags: {}, defaults: { era: PRESENT_DAY_ERA } };
+
+  it("translates a seeded token to the culture's present-day stage", () => {
+    expect(snapDependentValue(PRESENT_DAY_ERA, englishOptions, eraProp, tokenConfig, 'era')).toBe(
+      'modern-english',
+    );
+    expect(snapDependentValue(PRESENT_DAY_ERA, welshOptions, eraProp, tokenConfig, 'era')).toBe(
+      'welsh',
+    );
+  });
+
+  it('culture switch re-snaps an invalid stage to the NEW present-day stage when the config default is the token', () => {
+    // english's modern-english isn't a welsh option → snap to welsh's present-day
+    expect(snapDependentValue('modern-english', welshOptions, eraProp, tokenConfig, 'era')).toBe(
+      'welsh',
+    );
+  });
+
+  it('without a token config default, invalid values snap to the schema default (pre-kqyf behavior)', () => {
+    const plainConfig = { all: false, flags: {}, defaults: {} };
+    expect(snapDependentValue('modern-english', welshOptions, eraProp, plainConfig, 'era')).toBe(
+      '',
+    );
+  });
+
+  it('valid values and unseeded fields are left alone', () => {
+    expect(
+      snapDependentValue('middle-welsh', welshOptions, eraProp, tokenConfig, 'era'),
+    ).toBeUndefined();
+    expect(snapDependentValue(undefined, welshOptions, eraProp, tokenConfig, 'era')).toBeUndefined();
+    // explicit Mixed Era ('') is a valid option — never overridden back to modern
+    expect(snapDependentValue('', welshOptions, eraProp, tokenConfig, 'era')).toBeUndefined();
   });
 });
