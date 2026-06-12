@@ -11,7 +11,8 @@ from __future__ import annotations
 import logging
 import random
 import re
-from collections.abc import Callable
+import unicodedata
+from collections.abc import Callable, Iterator
 
 from ..era.cells import family_stage_order, language_family
 from .meaning import Meaning, _mimic_case
@@ -732,15 +733,40 @@ def _grid_surface_key(form: str) -> str:
     return form.strip().strip("-").strip().casefold()
 
 
-def _ensure_cell(grid, lang, surface, source):
+def _grid_match_key(form: str) -> str:
+    """Accent-insensitive variant of :func:`_grid_surface_key` — additionally
+    strips combining marks (NFD) and the reconstruction ``*`` marker, mirroring
+    the SPA's ``accentFold``. Used when reusing / marking grid cells so a lossy
+    ASCII surface ('ra') binds to its genuine accented reflex cell ('rá')
+    instead of spawning a visual duplicate."""
+    decomposed = unicodedata.normalize("NFD", _grid_surface_key(form).replace("*", ""))
+    return "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+
+
+def _iter_grid_cells(grid: list[dict], lang: str | None = None) -> Iterator[dict]:
+    """Yield every form cell in ``grid`` — optionally only ``lang``'s stage. The
+    single shared grid walk for the cell-matching helpers."""
+    for section in grid:
+        for stage in section.get("stages", []):
+            if lang is not None and stage.get("language") != lang:
+                continue
+            yield from stage.get("forms", [])
+
+
+def _ensure_cell(
+    grid: list[dict], lang: str | None, surface: str | None, source: str
+) -> str | None:
     """wyrd-3vju.3: GUARANTEE a clickable cell for ``surface`` in ``lang``'s stage.
     The era grid IS the SPA's swap menu, so the live/identity form MUST be in it
     (with a stable id) or the user can't swap to it AND back — the long-standing UI
-    defect. Returns the cell id.
+    defect. Returns the cell id, or None when grid/lang/surface is missing or
+    ``lang`` has no era family (nothing to inject into — the SPA keeps its legacy
+    fold fallback for that morpheme).
 
-    If a cell in ``lang``'s stage already matches ``surface`` (case/dash fold),
-    return its id (no duplicate). Otherwise INJECT ``{id, form, source}`` into that
-    stage, creating the stage / family section in canonical order if absent.
+    If a cell in ``lang``'s stage already matches ``surface`` (exact, then
+    case/dash fold, then accent-insensitive fold), return its id (no duplicate).
+    Otherwise INJECT ``{id, form, source}`` into that stage, creating the stage /
+    family section in canonical order if absent.
     ``source='usage'`` for the identity anchor (the morpheme's canonical usage when
     no reflex carries it); ``source='self'`` for a rendered reflex the sparse
     era_reflexes omit. Needed because era_reflexes can OMIT or CORRUPT the form:
@@ -751,33 +777,35 @@ def _ensure_cell(grid, lang, surface, source):
     form = surface.strip().strip("-").strip()
     if not form:
         return None
-    folded = _grid_surface_key(form)
-    existing = _cell_id_in_stage(grid, lang, folded)
+    existing = _cell_id_in_stage(grid, lang, form)
     if existing is not None:
         return existing  # surface already equals a reflex — no duplicate
+    if language_family(lang) is None:
+        # Unmapped language (proto-*, untracked): _era_grid never builds a section
+        # for it, so don't fabricate a {"family": None} one here — fail closed.
+        return None
     cid = f"{lang}:{form}"
     _grid_stage_for(grid, lang)["forms"].append({"id": cid, "form": form, "source": source})
     return cid
 
 
-def _mark_usage_cells(grid, usage) -> None:
+def _mark_usage_cells(grid: list[dict], usage: str | None) -> None:
     """wyrd-3vju.3: mark EVERY cell whose form folds to the canonical ``usage`` (the
     morpheme's IDENTITY) with ``is_usage=True`` — across all eras, not just the
-    anchor. So when the identity also surfaces as a genuine reflex (modern 'ton'
-    AND middle-english 'ton' both folding to the '-ton' identity), every matching
+    anchor, and accent-insensitively (the '-ra' identity marks its 'rá' reflex).
+    So when the identity also surfaces as a genuine reflex (modern 'ton' AND
+    middle-english 'ton' both folding to the '-ton' identity), every matching
     cell gets the SPA's identity rendering. Independent of ``active_form_id`` (the
     live reflex highlight): a cell can be the identity, the live form, or both."""
-    folded = _grid_surface_key((usage or "").strip().strip("-"))
-    if not folded:
+    key = _grid_match_key(usage or "")
+    if not key:
         return
-    for section in grid:
-        for stage in section.get("stages", []):
-            for cell in stage.get("forms", []):
-                if _grid_surface_key(cell.get("form", "")) == folded:
-                    cell["is_usage"] = True
+    for cell in _iter_grid_cells(grid):
+        if _grid_match_key(cell.get("form", "")) == key:
+            cell["is_usage"] = True
 
 
-def _present_day_lang(grid, mid):
+def _present_day_lang(grid: list[dict], mid: str | None) -> str | None:
     """The present-day stage language of the morpheme's family (from ``mid``'s
     source language, else the grid's primary section) — where the identity/usage
     anchor lives (modern-english for the english family)."""
@@ -790,24 +818,31 @@ def _present_day_lang(grid, mid):
     return order[-1] if order else None
 
 
-def _cell_id_in_stage(grid, lang, folded):
-    """The id of a cell in ``lang``'s stage whose form folds to ``folded``, else
-    None. Scoped to the language stage so a same-spelled earlier-era homograph
-    can't match (wyrd-3vju.2)."""
-    for section in grid:
-        for stage in section.get("stages", []):
-            if stage.get("language") != lang:
-                continue
-            for cell in stage.get("forms", []):
-                if _grid_surface_key(cell.get("form", "")) == folded:
-                    return cell.get("id")
-    return None
+def _cell_id_in_stage(grid: list[dict], lang: str, surface: str) -> str | None:
+    """The id of a cell in ``lang``'s stage matching ``surface`` — exact form
+    first, then case/dash fold, then accent-insensitive fold (so a lossy ASCII
+    surface reuses its genuine accented reflex cell rather than missing). None
+    when nothing matches. Scoped to the language stage so a same-spelled
+    earlier-era homograph can't match (wyrd-3vju.2)."""
+    folded = _grid_surface_key(surface)
+    accentless = _grid_match_key(surface)
+    fold_hit = accent_hit = None
+    for cell in _iter_grid_cells(grid, lang):
+        form = cell.get("form", "")
+        if form == surface:
+            return cell.get("id")
+        if fold_hit is None and _grid_surface_key(form) == folded:
+            fold_hit = cell.get("id")
+        elif accent_hit is None and _grid_match_key(form) == accentless:
+            accent_hit = cell.get("id")
+    return fold_hit or accent_hit
 
 
-def _grid_stage_for(grid, lang):
+def _grid_stage_for(grid: list[dict], lang: str) -> dict:
     """Find — or create, in canonical oldest→newest stage order — the
     ``{language: lang}`` stage of its family section, returning the stage to append
-    cells to. Creates the family section too if the grid lacks it."""
+    cells to. Creates the family section too if the grid lacks it. ``lang`` must
+    map to an era family (the :func:`_ensure_cell` caller guards this)."""
     fam = language_family(lang)
     section = next((s for s in grid if s.get("family") == fam), None)
     if section is None:
@@ -829,20 +864,15 @@ def _grid_stage_for(grid, lang):
     return stage
 
 
-def _grid_has_cell_id(grid, cell_id: str) -> bool:
+def _grid_has_cell_id(grid: list[dict], cell_id: str) -> bool:
     """wyrd-3vju.1: True when ``cell_id`` is an exact cell id in ``grid``. Used to
     confirm the FORWARD-computed active-form id (the cell of the reflex the
     generator actually rendered) is present before stamping it — an exact-id
     compare, no surface fold, so it can't mis-bind a macron / reconstruction
-    variant the way the legacy fold search does."""
+    variant the way the since-removed legacy fold search did."""
     if not grid or not cell_id:
         return False
-    return any(
-        cell.get("id") == cell_id
-        for section in grid
-        for stage in section.get("stages", [])
-        for cell in stage.get("forms", [])
-    )
+    return any(cell.get("id") == cell_id for cell in _iter_grid_cells(grid))
 
 
 def _era_grid(meaning, renderings, own_surface=None):
@@ -2252,27 +2282,29 @@ class NewName:
         anchor_lang = _present_day_lang(grid, mid)
         if usage and anchor_lang:
             anchor_id = _ensure_cell(grid, anchor_lang, usage, source="usage")
-        if usage:
-            _mark_usage_cells(grid, usage)
         # ACTIVE: the live rendered reflex (highlight), distinct from the identity.
+        # When the rendered reflex isn't an enumerated cell (sparse era_reflexes),
+        # ensure it so the highlight has a target; force-modern's live form IS the
+        # identity anchor (rendered is None → the usage), so reuse the anchor cell.
         rendered = morpheme.get("rendered")
         forward_id = self._forward_active_id(morpheme, mid)
         if forward_id and _grid_has_cell_id(grid, forward_id):
-            morpheme["active_form_id"] = forward_id
-            return
-        # The rendered reflex isn't an enumerated cell (sparse era_reflexes) — ensure
-        # it so the highlight has a target; force-modern's live form IS the identity
-        # anchor (rendered is None → the usage), so reuse the anchor cell there.
-        if rendered is not None and morpheme.get("rendered_language"):
+            cid = forward_id
+        elif rendered is not None and morpheme.get("rendered_language"):
             cid = _ensure_cell(grid, morpheme["rendered_language"], rendered, source="self")
         elif rendered is not None:
             cid = _ensure_cell(grid, (mid or "").partition(":")[0] or None, rendered, source="self")
         else:
             cid = anchor_id
+        # Mark the identity LAST, after every injection above, so a late-injected
+        # cell that folds to the usage carries is_usage too — the SPA invariant is
+        # "EVERY cell folding to the usage is marked".
+        if usage:
+            _mark_usage_cells(grid, usage)
         if cid:
             morpheme["active_form_id"] = cid
 
-    def _forward_active_id(self, morpheme: dict, mid):
+    def _forward_active_id(self, morpheme: dict, mid: str | None) -> str | None:
         """The grid-cell id of the reflex the render actually chose, computed FORWARD
         from its raw form + render language (era render) or the morpheme's native
         headword (native render). None for force-modern (rendered is None) or when

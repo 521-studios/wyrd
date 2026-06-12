@@ -317,6 +317,175 @@ def test_set_active_form_id_era_render_anchors_identity_separately():
         if c["id"] == "old-english:tun"
     )
     assert tun.get("is_usage") is not True  # the live era reflex is not the identity
+    assert tun["source"] == "self"  # injected via the era-render data-gap path, not the anchor
+
+
+def test_grid_stage_for_inserts_older_stage_in_canonical_order():
+    """wyrd-3vju.3: _grid_stage_for must INSERT an older stage BEFORE an existing
+    newer one (the SPA renders stages as oldest→newest columns), not append it.
+    Every other injection test creates modern-english (the family's last stage),
+    so this is the only test that exercises the mid-list insertion branch."""
+    from wyrd.generators.kenning.runtime.proportions import _ensure_cell
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {"language": "middle-english", "forms": []},
+                {"language": "modern-english", "forms": []},
+            ],
+        }
+    ]
+    cid = _ensure_cell(grid, "old-english", "tun", source="self")
+    assert cid == "old-english:tun"
+    assert [st["language"] for st in grid[0]["stages"]] == [
+        "old-english",
+        "middle-english",
+        "modern-english",
+    ]
+
+
+def test_ensure_cell_creates_missing_family_section():
+    """wyrd-3vju.3: injecting into a family the grid lacks creates a correctly
+    shaped {family, stages} section (here brythonic for a welsh cell)."""
+    from wyrd.generators.kenning.runtime.proportions import _ensure_cell
+
+    grid = [{"family": "english", "stages": [{"language": "modern-english", "forms": []}]}]
+    cid = _ensure_cell(grid, "welsh", "tre", source="self")
+    assert cid == "welsh:tre"
+    assert [s["family"] for s in grid] == ["english", "brythonic"]
+    assert grid[1]["stages"] == [
+        {"language": "welsh", "forms": [{"id": "welsh:tre", "form": "tre", "source": "self"}]}
+    ]
+
+
+def test_ensure_cell_declines_language_without_era_family():
+    """wyrd-3vju.3: a source language with no era family (proto-*, untracked) must
+    NOT fabricate a {"family": None} section — _era_grid never builds one, and the
+    SPA keys section headers by family. _ensure_cell fails closed (returns None →
+    no active_form_id → the SPA keeps its legacy fold fallback)."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName, _ensure_cell
+
+    grid = [{"family": "english", "stages": [{"language": "modern-english", "forms": []}]}]
+    assert _ensure_cell(grid, "proto-germanic", "tunaz", source="self") is None
+    assert [s["family"] for s in grid] == ["english"]  # no fabricated section
+
+    # End-to-end via the native-render fallback: mid's source lang has no family.
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    m = {"usage": None, "rendered": "tunaz", "era_grid": grid}
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid="proto-germanic:*tunaz")
+    assert "active_form_id" not in m
+    assert [s["family"] for s in grid] == ["english"]
+
+
+def test_set_active_form_id_without_lang_scope_stamps_nothing():
+    """wyrd-3vju.3: native render with NO resolvable morpheme id (no grid_mid, no
+    first.morpheme_id) has no language to scope by — nothing is stamped and the
+    frontend falls back to its own fold. Pins the deliberate behavior change from
+    the removed cross-grid fold_any guess (the collision bug this PR removes)."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {"language": "old-english", "forms": [{"id": "old-english:roth", "form": "roth"}]}
+            ],
+        }
+    ]
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    m = {"usage": None, "rendered": "Roth", "era_grid": grid}
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid=None)
+    assert "active_form_id" not in m  # no lang scope → no cross-grid fold guess
+
+
+def test_present_day_lang_anchors_in_mids_family_not_grid_order():
+    """wyrd-3vju.3: the identity anchor lands in MID's family's present-day stage
+    even when that family isn't the grid's first section; with no mid at all the
+    grid's primary (first) section is the documented fallback."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName, _present_day_lang
+
+    grid = [
+        {"family": "norse", "stages": [{"language": "old-norse", "forms": []}]},
+        {"family": "english", "stages": [{"language": "modern-english", "forms": []}]},
+    ]
+    assert _present_day_lang(grid, "old-english:ton") == "modern-english"
+    assert _present_day_lang(grid, None) == "old-norse"  # grid[0] fallback
+
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    m = {"usage": "ton", "era_grid": grid}
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid="old-english:ton")
+    # anchor injected into the english (second) section's present-day stage
+    assert m["active_form_id"] == "modern-english:ton"
+    assert grid[1]["stages"][0]["forms"][0]["id"] == "modern-english:ton"
+    assert grid[0]["stages"][0]["forms"] == []  # norse stage untouched
+
+
+def test_ensure_cell_reuses_accented_reflex_for_ascii_surface():
+    """wyrd-3vju.3: the dedupe fold is accent-insensitive (mirrors the SPA's
+    accentFold) — a lossy ASCII usage ('ra') binds to the genuine accented reflex
+    cell ('rá') instead of injecting a bare visual duplicate beside it, and the
+    identity mark lands on the genuine cell."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName, _ensure_cell
+
+    grid = [
+        {
+            "family": "norse",
+            "stages": [
+                {
+                    "language": "old-norse",
+                    "forms": [{"id": "old-norse:rá", "form": "rá", "source": "cluster"}],
+                }
+            ],
+        }
+    ]
+    assert _ensure_cell(grid, "old-norse", "ra", source="usage") == "old-norse:rá"
+    assert len(grid[0]["stages"][0]["forms"]) == 1  # reused, not duplicated
+
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    m = {"usage": "ra", "era_grid": grid}
+    nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid="old-norse:rá")
+    assert m["active_form_id"] == "old-norse:rá"
+    cell = grid[0]["stages"][0]["forms"][0]
+    assert cell["is_usage"] is True  # identity mark on the genuine accented cell
+    assert cell["source"] == "cluster"  # provenance preserved
+
+
+def test_late_injected_live_cell_folding_to_usage_is_marked():
+    """wyrd-3vju.3: is_usage marking runs AFTER the fallback injections, so a live
+    cell injected for an era render whose surface folds to the usage still carries
+    the identity mark — the invariant is 'EVERY cell folding to the usage is
+    marked', and a cell can be the identity, the live form, or both."""
+    from types import SimpleNamespace
+
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    grid = [{"family": "english", "stages": [{"language": "middle-english", "forms": []}]}]
+    nn = NewName(struct=None, meaning_db={}, name=[["x"]])
+    # Era render whose rendered surface IS the identity ('ton' at middle-english),
+    # not an enumerated reflex — the live cell is injected by the fallback.
+    m = {"usage": "ton", "rendered": "ton", "rendered_language": "middle-english", "era_grid": grid}
+    nn._set_active_form_id(
+        m, SimpleNamespace(morpheme_id="old-english:ton"), grid_mid="old-english:ton"
+    )
+    assert m["active_form_id"] == "middle-english:ton"
+    live = next(
+        c
+        for sec in grid
+        for st in sec["stages"]
+        for c in st["forms"]
+        if c["id"] == "middle-english:ton"
+    )
+    assert live["source"] == "self"
+    assert live["is_usage"] is True  # late-injected live cell still gets the identity mark
 
 
 def test_active_form_id_is_the_exact_rendered_reflex_corpus():
