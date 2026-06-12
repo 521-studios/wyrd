@@ -12,7 +12,7 @@ Soft preferences belong on the vector axes (phonological / semantic
 / position / empirical-baseline). The split is load-bearing:
 
 * The gate runs once per request and shrinks the pool from ~8500
-  bundle morphemes to ~hundreds per (culture, era, stratum) cell.
+  bundle morphemes to ~hundreds per (culture, stratum) cell.
 * The per-axis scoring runs N (number of slots) × M (filtered pool
   size) times per generated name. Doing all the work in the scorer
   would multiply ~hundreds by ~tens for every slot, every name.
@@ -29,10 +29,6 @@ The gate predicates implemented here:
   would otherwise pay the membership-check cost on every iteration.
 * **stratum**: ``Meaning.in_stratum`` — wraps the existing D32
   (wyrd-lr4 Phase 3) stratum filter ("no data → pass" convention).
-
-Era is deliberately NOT a gate predicate (D44): the morpheme
-inventory is time-invariant — era selects which reflex a morpheme
-RENDERS as, never which morphemes are eligible.
 * **tag-required**: every requested tag must appear in
   ``meaning.tags``. Empty required-set means no constraint.
 * **tag-excluded**: no excluded tag may appear in ``meaning.tags``.
@@ -42,6 +38,10 @@ RENDERS as, never which morphemes are eligible.
   + Phase 7 bundle / pack-overlay work (wyrd-ecjp.5 / wyrd-ecjp.8)
   can wire packs in without disturbing the gate API. See
   wyrd-v2gm for the scenario-pack epic.
+
+Era is deliberately NOT a gate predicate (D44): the morpheme
+inventory is time-invariant — era selects which reflex a morpheme
+RENDERS as, never which morphemes are eligible.
 
 Per the D36.7 design (per (culture × position × tag × era) cells),
 the gate produces an output set that the scoring runtime consumes

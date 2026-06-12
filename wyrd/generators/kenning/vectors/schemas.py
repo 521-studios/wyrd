@@ -22,9 +22,10 @@ The canonical composition rule is
                  + pos_w  * pos_score(lemma, request, slot)
                  + base_w * baseline_score(lemma, source, request)
 
-with hard gates (culture / era / stratum / pack-allowlist / pack-tag-
-filter) applied as boolean predicates OUTSIDE the vector space — they
-shrink the eligible pool before any scoring happens.
+with hard gates (culture / stratum / pack-allowlist / pack-tag-filter)
+applied as boolean predicates OUTSIDE the vector space — they shrink
+the eligible pool before any scoring happens. (Era is not a gate —
+D44: it selects the rendered reflex, never the eligible morphemes.)
 
 These dataclasses are the contract between Phase 2 (priors extraction),
 Phase 3 (eligibility-gate runtime), Phase 4 (vector-scoring runtime),

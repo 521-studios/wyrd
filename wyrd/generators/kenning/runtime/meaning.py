@@ -60,11 +60,11 @@ _CITATIONS_SUFFIX = "_citations"
 
 # Suffix used for per-language attested-year metadata (D5-1 / wyrd-bag).
 # Each entry is (form, year) where year is the earliest plausibly-
-# attested year for the form on the production corpus. Sorted by year
-# ascending as a stable display convention for the explainer; the
-# runtime --era filter (D5-2) walks the list and short-circuits on the
-# first IN-WINDOW match regardless of sort order. Empty / absent for
-# morphemes with no year evidence.
+# attested year for the form on the production corpus, sorted by year
+# ascending. Display/analytics data: the D5-2 era filter that consumed
+# it was retired by D44 (era renders, never gates), so it has no
+# runtime consumer today — the suffix router must still claim it so
+# the sibling field doesn't mis-route into the language sources.
 _ATTESTED_YEARS_SUFFIX = "_attested_years"
 
 # Suffix used for per-language english_shaped renderings (wyrd-ha9q
@@ -211,10 +211,9 @@ class Meaning:
         # bundles that pre-date the wyrd-9kh.1 citation field.
         self.citations = citations or {}
         # attested_years is a dict[lang_field, list[(form, year)]] sorted
-        # by ascending year — D5-1 / wyrd-bag. The D5-2 generator filter
-        # uses this to constrain morpheme inventory by attestation period
-        # under --era. Empty for morphemes with no year evidence; those
-        # morphemes pass any --era filter unconditionally.
+        # by ascending year — D5-1 / wyrd-bag. Display/analytics data
+        # kept from the bundle; the D5-2 era filter that consumed it was
+        # retired by D44 (era renders, never gates).
         self.attested_years = attested_years or {}
         # english_shaped is a dict[lang_field, dict[canonical_form,
         # english_shaped_form]] — wyrd-ha9q Phase 2c. Maps the

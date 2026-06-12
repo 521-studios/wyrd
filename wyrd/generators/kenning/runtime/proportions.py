@@ -1384,7 +1384,9 @@ class NameGenerator:
                 to translate Kenning's per-call knobs).
             priors: loaded :class:`EmpiricalPriors` (the JSON sidecar
                 via :func:`lexicon.empirical_priors.load_empirical_priors_from_json`).
-            era_midpoint: int year for the baseline-axis lookup.
+            era_midpoint: int year for the baseline-axis lookup. D44:
+                always 0 in practice — the request's era never drives
+                scoring (see vector_name_select.select_via_vector_scoring).
             cohesion: D17 cohesion knob in [0, 1]. Threads through
                 to the vector primitive's slot-relative cohesion
                 bias (:func:`_cohesion_raw` + :func:`_cohesion_multipliers`).
@@ -1939,20 +1941,21 @@ class NewName:
             # wyrd-i4jd: the slot's identity is now the synonym's — keep
             # picked_ids in lockstep so grid/breakdown resolve the override.
             self.picked_ids[wi][ei] = getattr(sib, "morpheme_id", None)
-            seen.setdefault(form.strip("-").lower(), set()).add(lang)
+            seen.setdefault(form.replace("-", "").lower(), set()).add(lang)
             return
         self._repick_repeat(wi, ei, usage, seen, name_sig, canon)
 
-    def _repick_repeat(self, wi, ei, usage, seen, name_sig, canon) -> bool:
+    def _repick_repeat(self, wi, ei, usage, seen, name_sig, canon) -> None:
         """Re-pick a DIFFERENT same-position morpheme for a repeated surface
-        ("Park ... Park" → "Park ... Dale"), replacing the name key. Returns
-        True (and updates name / rendered / inflection_labels / ``seen``) when a
-        non-duplicate replacement exists, else False (caller falls through)."""
+        ("Park ... Park" → "Park ... Dale"), replacing the name key + updating
+        rendered / inflection_labels / ``seen``. When no non-duplicate
+        replacement exists the duplicate is simply left (pass 2 may still
+        break a render-level collision)."""
         from wyrd.generators.kenning import _rank_siblings
 
         repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
         if repl is None:
-            return False
+            return
         self.name[wi][ei] = repl
         repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
         # wyrd-i4jd: a re-pick chooses a BUCKET (not a scored Meaning), so the
@@ -1971,13 +1974,14 @@ class NewName:
             # but a distinct morpheme can share a native surface), render it
             # MODERN instead: repl's modern usage is collision-free since it
             # was chosen outside the seen folds.
-            if native_rendered and native_rendered.strip("-").lower() in seen:
+            if native_rendered and native_rendered.replace("-", "").lower() in seen:
                 native_rendered = None
             self.rendered[wi][ei] = native_rendered
         if self.inflection_labels is not None:
             self.inflection_labels[wi][ei] = None
-        seen[repl.strip("-").lower()] = self._meaning_langs([repl_sibs[0]]) if repl_sibs else set()
-        return True
+        seen[repl.replace("-", "").lower()] = (
+            self._meaning_langs([repl_sibs[0]]) if repl_sibs else set()
+        )
 
     def _break_native_duplicate(self, wi, ei, usage, fold, seen, first_slot) -> None:
         """wyrd-24s6 (D41) / D44 pass 2: render-level visual collision. Era
@@ -1997,7 +2001,7 @@ class NewName:
         for slot_wi, slot_ei, slot_usage in candidates:
             if self.rendered[slot_wi][slot_ei] is None:
                 continue
-            modern_fold = (slot_usage or "").strip("-").lower()
+            modern_fold = (slot_usage or "").replace("-", "").lower()
             if modern_fold and modern_fold != fold:
                 self.rendered[slot_wi][slot_ei] = None  # __str__ → modern for this slot
                 seen.setdefault(modern_fold, set())

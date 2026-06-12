@@ -158,6 +158,9 @@ def test_diversify_native_collision_falls_back_to_modern():
     assert str(nn) == "Biscop Bishop"  # collision broken — slot 2 fell back to modern
     assert nn.rendered[1][0] is None  # the colliding native render was dropped
     assert nn.modern_name() == "Biscop Bishop"  # modern was always distinct
+    # D44: pass 2 is render-ONLY — a render collision must never rewrite the
+    # picked morphemes (name keys), only fall a slot's render back to modern.
+    assert nn.name == [["biscop"], ["bishop"]]
 
 
 def test_diversify_repeats_skips_base_pool_excluded_repick():

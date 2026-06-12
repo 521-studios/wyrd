@@ -263,10 +263,10 @@ class Kenning(Generator):
                         "culture (wyrd-kqyf). CLI/API also "
                         "accept a raw cell, a bare year (e.g. '1086' → the cell "
                         "containing 1086 in the culture's era family), or an explicit "
-                        "'family/label' pair (e.g. 'english/oe-late'). Morphemes with no attested-year "
-                        "evidence pass the filter unconditionally; morphemes with no era "
-                        "reflex fall back to the modern spelling (~10% of generated "
-                        "morphemes), so a period name may mix in some modern forms."
+                        "'family/label' pair (e.g. 'english/oe-late'). Morphemes with "
+                        "no era reflex fall back to the modern spelling (~10% of "
+                        "generated morphemes), so a period name may mix in some modern "
+                        "forms."
                     ),
                 },
                 "cohesion": {
@@ -314,7 +314,7 @@ class Kenning(Generator):
                         "Rejects culturally-incoherent strata (e.g. east-norse on welsh) "
                         "at request time, not just typos. Morphemes with no stratum data "
                         "pass through (Welsh / French / Old English / Old Norse families "
-                        "are classified today). Composes with --era via intersection. "
+                        "are classified today). "
                         "Empty disables the filter — bit-stable behavior."
                     ),
                 },
@@ -649,7 +649,7 @@ def _resolve_vector_inputs(
 
     Extracted from :func:`_generate_via_vector` (wyrd-y0lx) so the
     single-slot regeneration endpoint (``kenning-regenerate-morpheme``)
-    builds its RequestVector / priors / era-midpoint through the exact
+    builds its RequestVector / priors / pack overlays through the exact
     same resolution as a full generate, instead of duplicating it and
     letting the two copies drift apart."""
 

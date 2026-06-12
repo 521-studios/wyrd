@@ -76,3 +76,21 @@ def test_same_seed_same_skeleton_at_every_era():
         f"{N_SEEDS - render_diverged}/{N_SEEDS} seeds — the era reflex "
         "rendering looks broken (era should change the SURFACE)"
     )
+
+
+def test_skeleton_invariant_holds_with_tags_combined():
+    """The invariant must hold per-PARAMS, not just for the bare request —
+    an era leak gated behind another axis (here the --tag hard gate) would
+    slip past the headline test. Smaller sweep; same contract."""
+    gen = Kenning()
+    for seed in range(30):
+        results = {}
+        for era in ERAS:
+            params: dict = {"culture": "english", "tags": ["water"]}
+            if era:
+                params["era"] = era
+            results[era] = gen.generate(params, seed)
+        moderns = {era: r.result_modern for era, r in results.items()}
+        assert len(set(moderns.values())) == 1, (
+            f"seed {seed} (tags=water): skeleton differs between eras: {moderns}"
+        )

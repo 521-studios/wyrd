@@ -275,8 +275,9 @@ Renders the same etymon at multiple historical strata. Spans
 authoring (mining + projection) and runtime (CLI + SPA). Three
 generators currently surface the temporal-axis story:
 
-- `kenning` — main town-name generator. `--era` filters the
-  morpheme inventory by attestation period (D5-2 / D5-3).
+- `kenning` — main town-name generator. `--era` renders each
+  morpheme at the requested period's reflex (D44; the D5-2/D5-3
+  inventory filter is retired — era never gates the draw).
 - `kenning-explain` — decompose a name into morphemes, every
   reading.
 - **`kenning-rewind`** (Phase 3.1 / 3.3) — render a name at multiple

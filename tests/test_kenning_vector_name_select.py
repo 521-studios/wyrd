@@ -709,13 +709,27 @@ def test_cohesion_raw_handles_pair_count_zero():
 
 
 def test_select_ignores_attested_years_entirely():
-    """D44: era never gates — a meaning attested ONLY outside any
-    historical window is exactly as eligible as an undated one. The
-    gate carries no era fields at all (constructing one raises)."""
-    import pytest as _pytest
-
-    with _pytest.raises(TypeError):
+    """D44: era never gates — a meaning attested ONLY in one historical
+    period is exactly as eligible as an undated one, and the gate
+    carries no era fields at all (constructing one raises)."""
+    with pytest.raises(TypeError):
         EligibilityGate(culture="english", era_min=1066)  # type: ignore[call-arg]
+
+    # The behavioral half: a morpheme whose only attestation is medieval
+    # (1086) is selected without complaint — attested_years is inert data
+    # to the eligibility/scoring path.
+    rng = random.Random(0)
+    m = _meaning("Place-", tags=["x"], phon=PhonologicalVector(cluster_density=0.5))
+    m.attested_years = {"old_english": [("place", 1086)]}
+    db = {"Place-": [m]}
+    result = select_via_vector_scoring(
+        rng,
+        db,
+        structure=["Place-"],
+        request=_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert result == [m]
 
 
 def test_select_exclude_tags_filters_pre_score():

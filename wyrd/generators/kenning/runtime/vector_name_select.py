@@ -857,10 +857,10 @@ def select_via_vector_scoring(
             per-pack lemmas come from ``pack_meaning_dbs`` (keyed by
             pack name).
         priors: loaded :class:`EmpiricalPriors` (the JSON sidecar).
-        era_midpoint: int year used by ``baseline_score``'s era axis
-            (typically the midpoint of the requested era_min / era_max
-            range, or 0 when no era is requested → hits the fallback
-            tag-wildcard / all-wildcard cells).
+        era_midpoint: int year used by ``baseline_score``'s era axis.
+            D44: always 0 in practice (the wildcard-cell convention) —
+            the request's era never drives scoring; the parameter
+            survives for the scoring layer (priors era cells, D36.7).
         cohesion: D17 cohesion knob in [0, 1]. 0 = no bias; 1 =
             strongest tag-overlap bias.
         cohesion_table: nested ``{candidate_tag → {prior_tag → prob}}``
