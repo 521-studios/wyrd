@@ -63,8 +63,9 @@ while epic wyrd-aicu removes it.
 
 1. Grep the diff for `-` inside string literals that flow into keys,
    identity comparisons, or storage writes; for `startswith("-")` /
-   `endswith("-")` / `strip("-")` / `replace("-", "")` on surfaces;
-   and for `.location` reads.
+   `endswith("-")` / `strip("-")` / `replace("-", "")` on surfaces,
+   plus dash probes like `"-" in` / `split("-")` / `count("-")`; and
+   for `.location` reads.
 2. For each hit, classify: render decoration (OK), raw-source parsing
    (OK), legacy-boundary fold (OK if `replace`-style), form-spelling
    data (OK) — or identity storage / keying / matching (FLAG).
