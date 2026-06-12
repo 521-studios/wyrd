@@ -165,6 +165,14 @@ LIST_TYPES: frozenset[str] = frozenset(
         # replays inert. Registered here so rebuild-from-jsonl's glob over every
         # *.jsonl in data/mining/ accepts the file instead of raising ReplayError.
         "merge_audit",
+        # wyrd-xz3g: LLM tag-backfill decisions (``data/mining/_tags.jsonl``).
+        # Same shape as merge_audit — no build helper consumes the replay
+        # accumulation (``collect_tags`` reads the file directly for
+        # ``apply_tag_additions``); registered so rebuild-from-jsonl's glob
+        # accepts the file instead of raising ReplayError. The file also
+        # carries the mandatory canonical ``source`` row (ref ``tag-backfill``)
+        # like every other synthetic L2 file.
+        "tags",
     }
 )
 

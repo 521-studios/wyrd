@@ -1282,7 +1282,9 @@ def _run_curation_slot_passes(
     Table order is the dependency order: curation overrides first, then
     gloss suppression then addition (suppress-then-re-add in one call),
     then etymon-splits + their inverse collapses, then element-gloss
-    backfill over the post-collapse graph.
+    backfill over the post-collapse graph, then the LLM tag backfill
+    (apply-tag-additions, wyrd-xz3g) — independent of the others; it just
+    INSERT-OR-IGNOREs etymon_tag rows, so it runs last in the slot.
     """
     # Lazy import (cold-start cost; no import cycle) — kept function-local.
     from .lexicon.element_gloss_backfill import apply_element_glosses

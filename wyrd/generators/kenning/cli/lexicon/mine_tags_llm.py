@@ -1,7 +1,7 @@
 """``wyrd kenning lexicon mine-tags-llm`` — LLM tag backfill (wyrd-xz3g).
 
 Classifies the gloss of every generation-reachable etymon that has a gloss but
-NO semantic tag into the controlled tag vocabulary (45 existing + ``kinship``),
+NO semantic tag into the controlled tag vocabulary (44 existing + ``kinship``),
 using a local LLM (gemma4:26b on the macbook Ollama). A mandatory "none"
 outcome leaves genuinely-abstract glosses blank — operator constraint: NO bad
 matches, NO tag sprawl.
@@ -73,9 +73,7 @@ def lexicon_mine_tags_llm(
     targets = tag_mining.select_targets(str(db_path))
     resolved = tag_mining.existing_refs(str(output)) if skip_resolved else set()
     todo = [
-        (lang, form, gloss)
-        for (lang, form, gloss) in targets
-        if f"{lang}:{form}" not in resolved
+        (lang, form, gloss) for (lang, form, gloss) in targets if f"{lang}:{form}" not in resolved
     ]
     if limit is not None:
         todo = todo[:limit]
@@ -91,8 +89,15 @@ def lexicon_mine_tags_llm(
         return
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    client = OllamaClient(model=model) if ollama_url is None else OllamaClient(
-        base_url=ollama_url, model=model
+    if not output.exists() or output.stat().st_size == 0:
+        # First line of every _tags.jsonl is the canonical L2 `source` row so
+        # rebuild-from-jsonl's per-file source contract is met (wyrd-xz3g).
+        with open(output, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(tag_mining.source_row(), ensure_ascii=False, sort_keys=True) + "\n")
+    client = (
+        OllamaClient(model=model)
+        if ollama_url is None
+        else OllamaClient(base_url=ollama_url, model=model)
     )
 
     tagged = none = err = 0
@@ -103,7 +108,11 @@ def lexicon_mine_tags_llm(
             try:
                 raw = client.chat_json(system, user, {})
                 parsed = tag_mining.parse_response(raw)
-            except Exception:  # noqa: BLE001 — one bad call shouldn't kill the run
+            except Exception as e:  # noqa: BLE001 — one bad call shouldn't kill the run
+                # Record an error row (resumable) AND surface the cause on
+                # stderr — a systematic failure (wrong --ollama-url, model not
+                # loaded, timeout) must be visible, not just a rising err= count.
+                click.echo(f"  [{i}] {lang}:{form} classify failed: {e}", err=True)
                 parsed = None
             rec = tag_mining.record(lang, form, parsed, model)
             fh.write(json.dumps(rec, ensure_ascii=False, sort_keys=True) + "\n")
@@ -122,9 +131,7 @@ def lexicon_mine_tags_llm(
                     err=True,
                 )
 
-    click.echo(
-        f"Done. tagged={tagged} none={none} err={err} → {output}", err=True
-    )
+    click.echo(f"Done. tagged={tagged} none={none} err={err} → {output}", err=True)
 
 
 def add_to(parent: click.Group) -> None:

@@ -27,20 +27,57 @@ import json
 import os
 import sqlite3
 
-# The controlled vocabulary the LLM may use: the 45 EXISTING etymon_tag values
-# minus the typo-variant 'topology' (canonical is 'topography') plus the one
-# operator-approved new tag 'kinship' (wyrd-xz3g, 2026-06-12). The other ls13
-# candidates fold into existing tags by operator decision: body→anatomy,
-# conflict→military, food/drink→food. No sprawl: the model picks FROM this set
-# or returns nothing.
+# The controlled vocabulary the LLM may use (45 tags). It is 44 of the repo's
+# 45 existing etymon_tag values — dropping the typo-variant 'topology'
+# (canonical is 'topography') — plus the one operator-approved new tag
+# 'kinship' (wyrd-xz3g, 2026-06-12). The other ls13 candidates fold into
+# existing tags by operator decision: body→anatomy, conflict→military,
+# food/drink→food. No sprawl: the model picks FROM this set or returns nothing.
 TAG_VOCAB: tuple[str, ...] = (
-    "action", "agriculture", "anatomy", "animal", "architecture", "bird",
-    "color", "death", "descriptive", "direction", "economic", "element",
-    "fantasy", "female name", "food", "gender", "geography", "geology",
-    "grain", "insect", "item", "kinship", "male name", "mammal", "manorial",
-    "material", "measurement", "military", "monster", "norman", "number",
-    "personal-name", "plant", "possession", "profession", "religious", "saint",
-    "size", "social", "temperature", "topography", "tree", "undead", "water",
+    "action",
+    "agriculture",
+    "anatomy",
+    "animal",
+    "architecture",
+    "bird",
+    "color",
+    "death",
+    "descriptive",
+    "direction",
+    "economic",
+    "element",
+    "fantasy",
+    "female name",
+    "food",
+    "gender",
+    "geography",
+    "geology",
+    "grain",
+    "insect",
+    "item",
+    "kinship",
+    "male name",
+    "mammal",
+    "manorial",
+    "material",
+    "measurement",
+    "military",
+    "monster",
+    "norman",
+    "number",
+    "personal-name",
+    "plant",
+    "possession",
+    "profession",
+    "religious",
+    "saint",
+    "size",
+    "social",
+    "temperature",
+    "topography",
+    "tree",
+    "undead",
+    "water",
     "weather",
 )
 _VOCAB_SET = frozenset(TAG_VOCAB)
@@ -60,6 +97,30 @@ TAG_PARENTS: dict[str, tuple[str, ...]] = {
 _TAG_ALIASES: dict[str, str] = {"topology": "topography", "body": "anatomy"}
 
 METHOD = "llm-tags-v1"
+
+# The synthetic L2 source ref. Every _tags.jsonl carries one canonical
+# `source` row (its first line) so rebuild-from-jsonl's per-file
+# `_extract_source_id` contract is met — mirrors _reflexes.jsonl /
+# _merge_audit.jsonl / _fantasy_morphemes.jsonl. Without it, the rebuild's
+# glob over data/mining/*.jsonl raises BuildError on this file.
+SOURCE_REF = "tag-backfill"
+
+
+def source_row() -> dict:
+    """The mandatory canonical `source` row written as the first line of every
+    `_tags.jsonl`. The tag rows themselves replay INERT (no build helper
+    consumes the `tags` LIST_TYPE accumulation; `collect_tags` reads the file
+    directly for `apply_tag_additions`)."""
+    return {
+        "_type": "source",
+        "ref": SOURCE_REF,
+        "title": "LLM tag backfill (wyrd-xz3g)",
+        "notes": (
+            "Synthetic source for the etymon_tag L2 round-trip (gemma4:26b "
+            "gloss → controlled-vocab tags). Tag rows replay inert; "
+            "collect_tags reads the file directly for apply_tag_additions."
+        ),
+    }
 
 
 def select_targets(db_path: str) -> list[tuple[str, str, str]]:
@@ -126,7 +187,7 @@ def build_messages(gloss: str) -> tuple[str, str]:
     return system, user
 
 
-def parse_response(content) -> tuple[frozenset[str], str] | None:
+def parse_response(content: str | dict | None) -> tuple[frozenset[str], str] | None:
     """Extract ``(tags, confidence)`` from a reply. Tags are alias-normalized,
     filtered to the vocab, and expanded with parents; an empty set is a valid
     "none" outcome. Returns None only when the reply is unparseable."""
@@ -137,23 +198,30 @@ def parse_response(content) -> tuple[frozenset[str], str] | None:
             data = json.loads(content)
         except (json.JSONDecodeError, TypeError):
             return None
+    if not isinstance(data, dict):
+        # json.loads can yield a list / primitive (e.g. the model replied
+        # `["military"]`); `.get` would AttributeError-crash. Treat as
+        # unparseable.
+        return None
     raw = data.get("tags")
     if not isinstance(raw, list):
         return None
-    norm = (_TAG_ALIASES.get(t.strip().lower(), t.strip().lower())
-            for t in raw if isinstance(t, str))
+    norm = (
+        _TAG_ALIASES.get(t.strip().lower(), t.strip().lower()) for t in raw if isinstance(t, str)
+    )
     tags = set(norm) & _VOCAB_SET
     for t in list(tags):
-        tags.update(TAG_PARENTS.get(t, ()))
+        # Parents are intersected with the vocab too, so a removed / typo'd
+        # TAG_PARENTS entry can never inject an out-of-vocab tag (the set is
+        # otherwise only ever filtered through _VOCAB_SET above).
+        tags.update(set(TAG_PARENTS.get(t, ())) & _VOCAB_SET)
     confidence = str(data.get("confidence") or "low").lower()
     if confidence not in ("high", "medium", "low"):
         confidence = "low"
     return frozenset(tags), confidence
 
 
-def record(
-    language: str, form: str, parsed: tuple[frozenset[str], str] | None, model: str
-) -> dict:
+def record(language: str, form: str, parsed: tuple[frozenset[str], str] | None, model: str) -> dict:
     """The L2 jsonl record for one classified element (tags may be empty =
     'none' outcome, which is a real recorded decision, not an error)."""
     rec = {
@@ -184,7 +252,13 @@ def existing_refs(path: str) -> set[str]:
             line = line.strip()
             if not line:
                 continue
-            ref = json.loads(line).get("ref")
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                # Tolerate a truncated trailing line from a crash-interrupted
+                # flush — skip it rather than abort the resume skip-set.
+                continue
+            ref = row.get("ref") if isinstance(row, dict) else None
             if ref:
                 refs.add(ref)
     return refs
@@ -211,9 +285,18 @@ def collect_tags(path: str) -> dict[str, dict[str, list[str]]]:
             line = line.strip()
             if not line:
                 continue
-            r = json.loads(line)
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                # A corrupt/truncated line must not abort the whole enrichment
+                # replay — skip it (the file is append-only, flushed per row).
+                continue
+            if not isinstance(r, dict):
+                continue
             ref, tags = r.get("ref"), r.get("tags")
-            if not ref or not tags:
+            # Skips the canonical `source` row (no `tags`) and 'none'/error
+            # rows; guards against a non-list `tags` value.
+            if not ref or not isinstance(tags, list) or not tags:
                 continue
             state[ref] = {"tags": sorted({t for t in tags if isinstance(t, str)})}
     return state

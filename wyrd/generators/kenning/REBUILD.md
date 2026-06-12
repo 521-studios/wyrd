@@ -26,7 +26,7 @@ A full wipe silently drops every *L3-only* enrichment layer — no error,
 no warning, just a bundle that's ~37% smaller and tests that fail on
 morphemes you "know" are there.
 
-The 13-pass enrichment chain (`--with-enrichment`) rebuilds the
+The 16-pass enrichment chain (`--with-enrichment`) rebuilds the
 *derived columns* (OCR clusters, lemma links, cognates, stratum,
 english-shaped, phonological vectors, decompositions, period-forms).
 It does **not** run the *mining* passes that populate the empirical,
@@ -44,7 +44,7 @@ DB and must be re-run by hand after the rebuild.
 | curation overrides | ✅ yes — `data/mining/_curation.jsonl` | — |
 | collapse ledger (form-of/variant folds, wyrd-y651) | ✅ yes — `data/mining/_collapses.jsonl`, replayed by `run_full_enrichment`'s curation slot (`apply_collapses`) | — |
 | element-gloss backfill (`reflex_etymon` links for unglossed generation surfaces, wyrd-u9k6) | ✅ yes — `data/mining/_element_glosses.jsonl` (deterministic consensus) + `_element_gloss_adjudications.jsonl` (LLM picks), replayed by `run_full_enrichment`'s element-gloss pass (`apply_element_glosses`) | — |
-| LLM tag backfill (`etymon_tag` rows for untagged-but-glossed generation morphemes, wyrd-xz3g) | ✅ yes — `data/mining/_tags.jsonl` (gemma4:26b decisions classifying a gloss into the 45-existing + `kinship` controlled vocab; PAID), replayed by `run_full_enrichment`'s curation slot (`collect_tags` → `apply_tag_additions`, INSERT OR IGNORE) so the LLM pass never re-runs | — |
+| LLM tag backfill (`etymon_tag` rows for untagged-but-glossed generation morphemes, wyrd-xz3g) | ✅ yes — `data/mining/_tags.jsonl` (gemma4:26b decisions classifying a gloss into the 44-existing + `kinship` controlled vocab; PAID), replayed by `run_full_enrichment`'s curation slot (`collect_tags` → `apply_tag_additions`, INSERT OR IGNORE) so the LLM pass never re-runs | — |
 | pronunciation IPA backfill (`etymon.pronunciation_ipa`, wyrd-vm8t) | ✅ yes — **two tiers**: (1) the deterministic G2P fill for OE/ON/welsh/celtic is re-derived for free by `run_full_enrichment`'s `derive_pronunciation_ipa` pass (no jsonl — same as english-shaped/stratum); (2) the LLM tier for the no-G2P-table languages (Goidelic/Romance/Middle English/Breton) replays the high+medium-confidence rows of `data/mining/_pronunciation.jsonl` through the same pass (`collect_pronunciation` → `llm_state`, gaps only) | — |
 | **`toponym.country`** | ❌ dropped | `backfill-toponym-country` |
 | **phase-2 attestations** (`toponym_attestation`) | ❌ L3-only (boundary doc "deferred") | `ingest-toponym-mentions` over `data/mining/phase2/*.jsonl` |
@@ -153,12 +153,12 @@ What it does, in order:
    `_reflexes.jsonl`, `_fantasy_morphemes.jsonl`, `_curation.jsonl`,
    `_collapses.jsonl`.
    Later file order wins on scalar conflicts; glosses/tags union.
-4. Runs the 13-pass `run_full_enrichment` chain (because
+4. Runs the 16-pass `run_full_enrichment` chain (because
    `--with-enrichment`): `normalize-ocr → link-lemmas → [curation /
    gloss-suppress / gloss-add / etymon-splits / collapses / element-glosses /
    tag-additions] → decompose →
    cluster-cognates → classify-stratum → derive-english-shaped →
-   tag-phonological-vectors → project-period-forms`.
+   derive-pronunciation-ipa → tag-phonological-vectors → project-period-forms`.
 
 This is the slow part (hours — it's L1 bulk over ~2.4M etymons plus the
 enrichment passes). Background it / `tee` it and watch the log.
@@ -171,7 +171,7 @@ a typo'd ref; expected post-prune orphans are fine.
 > Step-by-step alternative (if you want to run enrichment separately):
 > ```bash
 > wyrd kenning lexicon rebuild-from-jsonl --jsonl-dir data/mining
-> wyrd kenning lexicon enrich --apply         # the full 13-pass chain
+> wyrd kenning lexicon enrich --apply         # the full 16-pass chain
 > wyrd kenning lexicon enrichment-status       # verify per-pass coverage
 > # re-run one pass with --force, e.g.:
 > wyrd kenning lexicon classify-stratum --apply --force

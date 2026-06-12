@@ -131,6 +131,8 @@ enrichment-status` can report coverage. Order matters where columns
 chain through other columns (link-lemmas needs canonical merged_into_id
 state, project-period-forms needs lemma_id state, etc.).
 
+Listed in `run_full_enrichment` execution order:
+
 | Pass | Writes | Method version | Migrated |
 |------|--------|----------------|-----------|
 | `normalize-ocr` | `merged_into_id` | `cluster-ocr-v1` | ✅ wyrd-ilam |
@@ -138,21 +140,25 @@ state, project-period-forms needs lemma_id state, etc.).
 | `apply-curation` | overrides any of the above per operator decision | `manual-curation-v1` | ✅ wyrd-2jhs |
 | `apply-gloss-suppressions` | DELETEs `etymon_gloss` rows per operator decision | `gloss-suppression-v1` | ✅ wyrd-kutx |
 | `apply-gloss-additions` | INSERT OR IGNOREs `etymon_gloss` rows per operator decision | `gloss-add-v1` | ✅ wyrd-wz82 |
-| `apply-tag-additions` | INSERT OR IGNOREs `etymon_tag` rows from the LLM tag backfill (`data/mining/_tags.jsonl`, gemma4:26b → controlled vocab) | `llm-tags-v1` | ✅ wyrd-xz3g |
 | `apply-etymon-splits` | creates `<form>#<suffix>` child etymons + moves glosses / tags / evidence per operator decision | `etymon-split-v1` | ✅ wyrd-kutx |
+| `apply-collapses` | folds form-of/variant etymons into their lemma (`merged_into_id` + `etymon_variant`); replays `_collapses.jsonl` | `collapse` ledger (wyrd-y651) | ✅ wyrd-hidb |
+| `apply-element-glosses` | INSERT OR IGNOREs `reflex_etymon` links for unglossed surfaces; replays `_element_glosses.jsonl` | `grounded-consensus-v1` | ✅ wyrd-u9k6 |
+| `apply-tag-additions` | INSERT OR IGNOREs `etymon_tag` rows from the LLM tag backfill (`data/mining/_tags.jsonl`, gemma4:26b → controlled vocab) | `llm-tags-v1` | ✅ wyrd-xz3g |
 | `decompose` | (`toponym_decomposition` table) | matcher rules | ✅ wyrd-hidb |
 | `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v2` | ✅ wyrd-hidb |
 | `classify-stratum` | `stratum` | hardcoded heuristics | ✅ wyrd-hidb |
 | `derive-english-shaped` | `english_shaped` | hardcoded rules | ✅ wyrd-hidb |
+| `derive-pronunciation-ipa` | `etymon.pronunciation_ipa` (deterministic G2P fill + replays `_pronunciation.jsonl` LLM tier) | G2P + `llm-ipa-v1` | ✅ wyrd-vm8t |
 | `tag-phonological-vectors` | `phonological_vector` (JSON) | `compute-phon-vector-v1` | ✅ wyrd-kq7w.1 |
 | `project-period-forms` | (`etymon_period_form` table) | hardcoded rules | ✅ wyrd-hidb |
 
-All thirteen passes run via `run_full_enrichment` in canonical order
-(`lexicon enrich` and `lexicon rebuild-from-jsonl --with-enrichment`).
-The three curation-driven appliers (suppression / addition / splits)
-run AFTER auto-curation and BEFORE the L3 derivations so the
-derivations see the cleaned-up gloss + tag inventory. Each pass keeps
-its standalone CLI command for targeted reruns (e.g. with `--force`).
+All sixteen passes run via `run_full_enrichment` in the canonical order
+above (`lexicon enrich` and `lexicon rebuild-from-jsonl --with-enrichment`).
+The curation-slot appliers (curation / gloss-suppressions / gloss-additions /
+etymon-splits / collapses / element-glosses / tag-additions) run AFTER
+auto-curation and BEFORE the L3 derivations so the derivations see the
+cleaned-up gloss + tag inventory. Each pass keeps its standalone CLI command
+for targeted reruns (e.g. with `--force`).
 
 ## Curation event log (wyrd-2jhs)
 
