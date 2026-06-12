@@ -2827,10 +2827,9 @@ def load_proportions(data, meaning_db, tag_db):
     # — the same fold the per-usage filter above applies. The bundle records
     # attestation under the position-forms the corpus walk saw (`-ton`), but
     # meaning_db stores every dash-variant key (the bare `ton`, `Ton-`,
-    # `-ton-`); an
-    # exact-key lookup left those variants un-narrowed, so wrong-language
-    # homographs (welsh `ton` 'wave' in an english request) slipped into the
-    # native pool through the variant keys.
+    # `-ton-`); an exact-key lookup left those variants un-narrowed, so
+    # wrong-language homographs (welsh `ton` 'wave' in an english request)
+    # slipped into the native pool through the variant keys.
     raw_attested = data.get("attested_languages") or {}
     folded_attested: dict[str, frozenset[str]] = {}
     for k, v in raw_attested.items():
