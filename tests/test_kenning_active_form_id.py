@@ -345,14 +345,21 @@ def test_grid_stage_for_inserts_older_stage_in_canonical_order():
     ]
 
     # A defensive unmapped tail stage (per _ordered_stage_langs, unmapped tags
-    # sit at the end) stays the tail: a mapped stage inserts BEFORE it.
-    grid[0]["stages"].append({"language": "zzz-unmapped", "forms": []})
-    _ensure_cell(grid, "old-english", "burh", source="self")  # existing stage, no move
-    assert [st["language"] for st in grid[0]["stages"]][-1] == "zzz-unmapped"
-    del grid[0]["stages"][0]  # drop old-english so the next inject re-creates it
-    _ensure_cell(grid, "old-english", "burh", source="self")
-    assert [st["language"] for st in grid[0]["stages"]] == [
-        "old-english",
+    # sit at the end) stays the tail even for a stage LATER than every mapped
+    # one: modern-english must insert BEFORE zzz-unmapped, which only the
+    # 'other not in order' arm of the insertion condition achieves (the old
+    # 'other in order and ...' condition appended it after the tail).
+    grid2 = [
+        {
+            "family": "english",
+            "stages": [
+                {"language": "middle-english", "forms": []},
+                {"language": "zzz-unmapped", "forms": []},
+            ],
+        }
+    ]
+    _ensure_cell(grid2, "modern-english", "ton", source="self")
+    assert [st["language"] for st in grid2[0]["stages"]] == [
         "middle-english",
         "modern-english",
         "zzz-unmapped",
