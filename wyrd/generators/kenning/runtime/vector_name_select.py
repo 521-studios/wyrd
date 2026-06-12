@@ -326,7 +326,8 @@ def _native_pool(
         # Per-Meaning narrowing set for this surface (wyrd-pfoo); None when
         # the filter is inactive or this surface carried no per-Meaning data.
         # wyrd-c6o1.3: keyed by bare surface (fold-unioned in
-        # ``load_proportions``), so dash-variant keys (`ton` / `Ton-` / `-ton-`)
+        # ``load_proportions``), so every stored dash-variant key (the bare
+        # `ton`, `Ton-`, `-ton-`)
         # get the same narrowing as the position-form the corpus attested
         # (`-ton`) instead of bypassing it and letting wrong-language
         # homographs into the native pool.

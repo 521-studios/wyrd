@@ -13,7 +13,7 @@ compounding causes, both fixed under wyrd-c6o1.3:
   no-data homographs passed through. Open-ended windows now pass every
   morpheme: place names accrete, the present contains all strata.
 * The wyrd-pfoo per-Meaning attested-language narrowing was keyed by
-  exact usage_key, so dash-variant keys (``ton`` / ``Ton-``) bypassed
+  exact usage_key, so dash-variant keys (the bare ``ton``, ``Ton-``) bypassed
   it and the welsh 'wave' homograph absorbed the ``-ton`` picks that
   survived. The map is now bare-surface-keyed (fold-unioned).
 
@@ -60,6 +60,12 @@ def test_present_day_english_keeps_oe_ton_and_excludes_celtic_homograph():
         f"-ton appeared only {len(ton_ids)} times in {N_SEEDS} present-day "
         "english names — the core OE tūn morpheme has been starved out of "
         "default generation again (era gate or eligibility regression)"
+    )
+    missing_id = [i for i in ton_ids if not i]
+    assert not missing_id, (
+        f"{len(missing_id)} `-ton` pick(s) carried no active_form_id — the "
+        "era-grid anchor stamping has regressed (every present-day pick should "
+        "anchor a grid cell); fix that before reading the family assertion"
     )
     wrong_family = [i for i in ton_ids if i.partition(":")[0] not in _ENGLISH_FAMILY_PREFIXES]
     assert not wrong_family, (

@@ -2826,7 +2826,8 @@ def load_proportions(data, meaning_db, tag_db):
     # wyrd-c6o1.3: keyed by bare SURFACE, union-merged across dash-variants
     # — the same fold the per-usage filter above applies. The bundle records
     # attestation under the position-forms the corpus walk saw (`-ton`), but
-    # meaning_db stores every dash-variant key (`ton`, `Ton-`, `-ton-`); an
+    # meaning_db stores every dash-variant key (the bare `ton`, `Ton-`,
+    # `-ton-`); an
     # exact-key lookup left those variants un-narrowed, so wrong-language
     # homographs (welsh `ton` 'wave' in an english request) slipped into the
     # native pool through the variant keys.

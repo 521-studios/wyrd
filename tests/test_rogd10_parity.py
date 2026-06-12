@@ -20,7 +20,14 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
 from wyrd.generators.kenning import CULTURES, Kenning
+
+# Live-bundle parity oracle (runtime DB via the committed seed) — the
+# authoring-lexicon isolation fixtures are irrelevant here; opt out like the
+# other live-bundle files (wyrd-c6o1.3 review round 2).
+pytestmark = pytest.mark.no_lexicon_isolation
 
 # Fixed sample — deterministic seeds across every culture. Count>1 exercises
 # the multi-result sub-seeding path.
