@@ -27,14 +27,12 @@ The gate predicates implemented here:
   union of all cultures. Validation runs ONCE per request in
   ``filter_meanings``, not per Meaning — the per-Meaning hot path
   would otherwise pay the membership-check cost on every iteration.
-* **era**: ``Meaning.attested_in_era_range`` — wraps the existing
-  D5 / D5-3 (wyrd-lyp) era filter under the (era_min, era_max)
-  tuple. Meanings with no attested-year data pass any era filter
-  (the "no data ≠ evidence of absence" rule documented on
-  ``Meaning.attested_in_era_range``).
 * **stratum**: ``Meaning.in_stratum`` — wraps the existing D32
-  (wyrd-lr4 Phase 3) stratum filter. Same "no data → pass"
-  convention as the era filter.
+  (wyrd-lr4 Phase 3) stratum filter ("no data → pass" convention).
+
+Era is deliberately NOT a gate predicate (D44): the morpheme
+inventory is time-invariant — era selects which reflex a morpheme
+RENDERS as, never which morphemes are eligible.
 * **tag-required**: every requested tag must appear in
   ``meaning.tags``. Empty required-set means no constraint.
 * **tag-excluded**: no excluded tag may appear in ``meaning.tags``.
@@ -92,21 +90,6 @@ def passes_culture_gate(culture: str) -> bool:
     if culture not in CULTURES:
         raise UnknownCultureError(f"unknown culture {culture!r}; expected one of {CULTURES}")
     return True
-
-
-def passes_era_gate(meaning: Meaning, era_min: int | None, era_max: int | None) -> bool:
-    """True if the Meaning has at least one attested form in
-    ``[era_min, era_max)``, OR the window is open-ended
-    (``era_max=None`` — the present-day stage passes every morpheme;
-    wyrd-c6o1.3), OR the Meaning has no attested-year data at all (the
-    "no data → pass" rule). All semantics live on
-    ``Meaning.attested_in_era_range``; see D5 / D5-3 (wyrd-lyp + the
-    wyrd-c6o1.3 refinement) for the architectural decision. Both
-    bounds None → no filter.
-    """
-    if era_min is None and era_max is None:
-        return True
-    return meaning.attested_in_era_range((era_min, era_max))
 
 
 def passes_stratum_gate(meaning: Meaning, stratum: str | None) -> bool:
@@ -208,8 +191,8 @@ def admits(
 
     Gate predicates are checked in cheapest-first order so a Meaning
     that fails an early gate doesn't pay the cost of the later ones:
-    tag gates first (set membership), then era + stratum (per-form
-    dict iteration), then pack (stub today).
+    tag gates first (set membership), then stratum (per-form dict
+    iteration), then pack (stub today).
 
     Culture validation is handled ONCE by ``filter_meanings`` before
     the per-Meaning loop, NOT here — putting it inside this hot path
@@ -220,8 +203,6 @@ def admits(
     if not passes_tag_required_gate(meaning, tag_required):
         return False
     if not passes_tag_excluded_gate(meaning, tag_excluded):
-        return False
-    if not passes_era_gate(meaning, gate.era_min, gate.era_max):
         return False
     if not passes_stratum_gate(meaning, gate.stratum):
         return False

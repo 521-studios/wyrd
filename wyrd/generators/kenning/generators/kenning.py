@@ -244,15 +244,16 @@ class Kenning(Generator):
                     # force-modern choice: clean modern spellings throughout.
                     "x-empty-option-label": "Mixed Era",
                     "description": (
-                        "Period of the name. The default, 'Mixed Era', renders each "
-                        "morpheme in its OWN native source-era form (a historical mix). "
-                        "Picking a period does two things (wyrd-lyp + wyrd-6c8x): "
-                        "(1) restricts the morpheme inventory to forms attested in that "
-                        "period, and (2) for a HISTORICAL period, renders each morpheme "
-                        "in its era-appropriate attested form (e.g. 'old-english' → Old "
+                        "Period to RENDER the name at (D44 + wyrd-6c8x). The default, "
+                        "'Mixed Era', renders each morpheme in its OWN native "
+                        "source-era form (a historical mix). Era never changes WHICH "
+                        "morphemes are drawn — town names evolve their spellings over "
+                        "time while their morphemes (and structure) persist, so the "
+                        "same seed yields the same name skeleton at every era. Picking "
+                        "a HISTORICAL period renders each morpheme in its "
+                        "era-appropriate attested form (e.g. 'old-english' → Old "
                         "English 'Tūn', 'Sūþ'; 'middle-english' → 'Toun') instead of "
-                        "the modern spelling — so the name LOOKS period, not just "
-                        "period-eligible. The present-day stage (modern-english) renders "
+                        "the modern spelling. The present-day stage (modern-english) renders "
                         "the modern canonical spelling throughout. The SPA renders this as a "
                         "dropdown of the chosen culture's compressed era STAGES; a stage "
                         "resolves to the union year range of its cells. The culture-"
@@ -456,11 +457,16 @@ class Kenning(Generator):
         original_harshness = harshness
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
-        era_range = _resolve_era_param(params.get("era"), culture)
+        # D44: era never gates or weights the morpheme draw — the inventory is
+        # time-invariant, so the same seed yields the same skeleton at every
+        # era. The call below is kept purely as request VALIDATION (a typo'd
+        # era surfaces as a clean 4xx); its resolved range is deliberately
+        # unused.
+        _resolve_era_param(params.get("era"), culture)
         # wyrd-6c8x (feature A): the target language to RENDER morphemes in for
-        # the requested era (era_range above only FILTERS the inventory). None =
+        # the requested era — under D44 this is era's ONLY effect. None =
         # render the modern canonical form (no era set, or a cell with no
-        # canonical language). Threaded into both scoring paths' render step.
+        # canonical language). Threaded into the render step.
         era_render_language = _resolve_era_render_language(params.get("era"), culture)
         # wyrd-j3gy: _resolve_stratum_param validates against the
         # per-culture allowed-set (with ALL_STRATA fallback for
@@ -491,7 +497,6 @@ class Kenning(Generator):
             tags=list(raw_tags),
             mood=original_moods,
             harshness=original_harshness,
-            era_range=era_range,
             stratum=stratum,
             cohesion=cohesion,
             exclude_tags=exclude_tags,
@@ -629,14 +634,18 @@ def _resolve_vector_inputs(
     tags: list[str],
     mood: tuple[str, ...],
     harshness: float,
-    era_range: tuple[int | None, int | None] | None,
     stratum: str | None,
     priors_path: str | None,
     scoring_weights_raw: dict[str, float] | None = None,
     packs_raw: list[dict[str, Any]] | None = None,
-) -> tuple[RequestVector, EmpiricalPriors, int, dict[str, dict]]:
+) -> tuple[RequestVector, EmpiricalPriors, dict[str, dict]]:
     """Translate per-call knobs into the vector path's shared inputs:
-    ``(request, priors, era_midpoint, pack_meaning_dbs)``.
+    ``(request, priors, pack_meaning_dbs)``.
+
+    Era is deliberately absent (D44): it never reaches the gate NOR the
+    baseline-axis midpoint — the morpheme draw is time-invariant so the
+    same seed yields the same skeleton at every era; era only selects
+    the rendered reflex downstream (era_render_language).
 
     Extracted from :func:`_generate_via_vector` (wyrd-y0lx) so the
     single-slot regeneration endpoint (``kenning-regenerate-morpheme``)
@@ -644,14 +653,8 @@ def _resolve_vector_inputs(
     same resolution as a full generate, instead of duplicating it and
     letting the two copies drift apart."""
 
-    from wyrd.generators.kenning.runtime.vector_kenning_adapter import (
-        build_request_vector,
-        era_midpoint_from_range,
-    )
+    from wyrd.generators.kenning.runtime.vector_kenning_adapter import build_request_vector
     from wyrd.generators.kenning.vectors.schemas import PackOverlay, ScoringWeights
-
-    era_min = era_range[0] if era_range else None
-    era_max = era_range[1] if era_range else None
 
     # wyrd-ecjp.9: build a ScoringWeights from the CLI-supplied dict
     # if present, else fall back to defaults (1.0 across all axes).
@@ -714,8 +717,6 @@ def _resolve_vector_inputs(
         tags=tags,
         harshness=harshness,
         mood=mood,
-        era_min=era_min,
-        era_max=era_max,
         stratum=stratum,
         weights=weights,
         packs=pack_overlays,
@@ -738,9 +739,7 @@ def _resolve_vector_inputs(
 
         priors = _load_empirical_priors()
 
-    era_midpoint = era_midpoint_from_range(era_min, era_max)
-
-    return request, priors, era_midpoint, pack_meaning_dbs
+    return request, priors, pack_meaning_dbs
 
 
 def _generate_via_vector(
@@ -751,7 +750,6 @@ def _generate_via_vector(
     tags: list[str],
     mood: tuple[str, ...],
     harshness: float,
-    era_range: tuple[int | None, int | None] | None,
     stratum: str | None,
     cohesion: float,
     exclude_tags: tuple[str, ...],
@@ -775,12 +773,11 @@ def _generate_via_vector(
     Returns a NewName or None when the vector path's gate / scoring
     filtered every candidate.
     """
-    request, priors, era_midpoint, pack_meaning_dbs = _resolve_vector_inputs(
+    request, priors, pack_meaning_dbs = _resolve_vector_inputs(
         culture=culture,
         tags=tags,
         mood=mood,
         harshness=harshness,
-        era_range=era_range,
         stratum=stratum,
         priors_path=priors_path,
         scoring_weights_raw=scoring_weights_raw,
@@ -791,7 +788,6 @@ def _generate_via_vector(
         rng,
         request=request,
         priors=priors,
-        era_midpoint=era_midpoint,
         cohesion=cohesion,
         exclude_tags=exclude_tags,
         pack_meaning_dbs=pack_meaning_dbs or None,

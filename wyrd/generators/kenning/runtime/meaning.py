@@ -527,48 +527,6 @@ class Meaning:
 
         return respell(form, lang_field)
 
-    def attested_in_era_range(self, era_range: tuple[int | None, int | None] | None) -> bool:
-        """D5-2 era filter: True if this morpheme is admissible under the
-        ``[start, end)`` half-open year range, or has no attestation data
-        at all (treated as 'always include' — see DECISIONS.md D5-2).
-
-        ``era_range`` of ``None`` means 'no filter' → always True.
-
-        The 'no attestation data → pass' rule is deliberate: only ~32% of
-        bundle morphemes carry attested-year data today, so excluding the
-        un-dated 68% would gut the inventory. As mining coverage rises
-        the rule can tighten; for now, missing data is not evidence of
-        absence.
-
-        An OPEN-ENDED window (``end is None`` — the present-day / 'modern'
-        stage of every living family) passes every morpheme regardless of
-        its attestation years (wyrd-c6o1.3). Place names accrete: the
-        present contains every historical stratum, and the scholarly
-        attestations the bundle carries are inherently medieval (etymology
-        dictionaries cite Domesday-era forms), so requiring a year INSIDE
-        ``(1700, None)`` is unsatisfiable-by-construction for the core OE
-        corpus — it silently starved ``tūn``/``-ton`` (and every other
-        well-documented morpheme) out of default present-day generation
-        while thinly-documented homographs passed via the no-data rule.
-        Bounded historical windows keep the year-inside-window semantics
-        (a deliberate period-flavor knob).
-        """
-        if era_range is None:
-            return True
-        if not self.attested_years:
-            return True
-        start, end = era_range
-        if end is None:
-            return True
-        for forms in self.attested_years.values():
-            for _form, year in forms:
-                if start is not None and year < start:
-                    continue
-                if year >= end:
-                    continue
-                return True
-        return False
-
     def in_stratum(self, stratum: str | None) -> bool:
         """wyrd-lr4 Phase 3 stratum filter: True if any of this
         morpheme's per-form stratum tags match ``stratum``, or if the

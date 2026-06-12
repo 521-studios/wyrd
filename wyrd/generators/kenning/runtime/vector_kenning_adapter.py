@@ -161,8 +161,6 @@ def build_request_vector(
     tags: Iterable[str] = (),
     harshness: float = 0.0,
     mood: Iterable[str] = (),
-    era_min: int | None = None,
-    era_max: int | None = None,
     stratum: str | None = None,
     weights: ScoringWeights | None = None,
     packs: tuple[PackOverlay, ...] = (),
@@ -182,8 +180,6 @@ def build_request_vector(
             :func:`_harshness_to_phonological`).
         mood: D6 mood specs (``grim``, ``harsh:0.5``, ...). Expands
             through MOODS to additional tags + harshness.
-        era_min / era_max: era-gate bounds. ``None`` disables either
-            bound; both ``None`` disables the era gate.
         stratum: within-language stratum filter (``native-welsh``,
             ``latin-loan``, etc.). ``None`` disables the filter.
         weights: per-axis scoring weights. Defaults to
@@ -264,10 +260,11 @@ def build_request_vector(
         for tag, weight in effect.semantic_tags.items():
             if weight > 0:
                 mood_tags[tag] = mood_tags.get(tag, 0.0) + weight
+    # Era is deliberately absent from the gate (D44): the morpheme
+    # inventory is time-invariant; era only selects the rendered reflex
+    # downstream (era_render_language / the D33 era-reflex machinery).
     gate = EligibilityGate(
         culture=culture,
-        era_min=era_min,
-        era_max=era_max,
         stratum=stratum,
         required_tags=frozenset(tags),
     )
@@ -279,26 +276,3 @@ def build_request_vector(
         packs=tuple(packs),
         mood_tags=mood_tags,
     )
-
-
-def era_midpoint_from_range(
-    era_min: int | None,
-    era_max: int | None,
-) -> int:
-    """Resolve an era_midpoint integer from the era-range bounds for
-    the baseline-axis lookup (D36.7 baseline_score_native).
-
-    * Both bounds present → midpoint
-    * One bound present → use that bound directly (single-cell
-      request, baseline lookup walks the tag-wildcard fallback)
-    * Neither bound (open request) → 0 (matches the priors-table
-      lookup convention for "no era specified" → hits the
-      hierarchical fallback's tag-wildcard / all-wildcard cells)
-    """
-    if era_min is not None and era_max is not None:
-        return (era_min + era_max) // 2
-    if era_min is not None:
-        return era_min
-    if era_max is not None:
-        return era_max
-    return 0

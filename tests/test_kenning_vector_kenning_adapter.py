@@ -1,17 +1,19 @@
 """Tests for the Kenning vector-scoring knob translator (wyrd-ecjp.5 PR C).
 
 The adapter translates Kenning's existing per-call knobs (culture,
-tags, harshness, mood, era, stratum) into a fully-built RequestVector.
+tags, harshness, mood, stratum) into a fully-built RequestVector.
+(Era is deliberately absent — D44: it renders, never gates.)
 This file pins the translation contract.
 """
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.generators.kenning.runtime.vector_kenning_adapter import (
     _harshness_to_phonological,
     _mood_specs_to_register_effects,
     build_request_vector,
-    era_midpoint_from_range,
 )
 from wyrd.generators.kenning.vectors.schemas import (
     RegisterEffect,
@@ -148,8 +150,6 @@ def test_build_request_vector_minimal():
     rv = build_request_vector(culture="english")
     assert isinstance(rv, RequestVector)
     assert rv.gate.culture == "english"
-    assert rv.gate.era_min is None
-    assert rv.gate.era_max is None
     assert rv.gate.stratum is None
     assert rv.register.phonological == {}
     # No explicit tags + no mood + no harshness → uniform-tag default.
@@ -227,46 +227,24 @@ def test_build_request_vector_with_mood_expansion():
     assert rv.register.phonological["final_fortition"] == 0.25  # 0.5 * 0.5
 
 
-def test_build_request_vector_with_era_and_stratum():
-    rv = build_request_vector(
-        culture="welsh",
-        era_min=1066,
-        era_max=1300,
-        stratum="native-welsh",
-    )
+def test_build_request_vector_with_stratum():
+    rv = build_request_vector(culture="welsh", stratum="native-welsh")
     assert rv.gate.culture == "welsh"
-    assert rv.gate.era_min == 1066
-    assert rv.gate.era_max == 1300
     assert rv.gate.stratum == "native-welsh"
+
+
+def test_build_request_vector_has_no_era_surface():
+    """D44: era renders, never gates — the adapter accepts no era and
+    the gate carries no era fields. Pin so the parameter can't quietly
+    return."""
+    with pytest.raises(TypeError):
+        build_request_vector(culture="english", era_min=800)  # type: ignore[call-arg]
+    rv = build_request_vector(culture="english")
+    assert not hasattr(rv.gate, "era_min")
+    assert not hasattr(rv.gate, "era_max")
 
 
 def test_build_request_vector_custom_weights():
     weights = ScoringWeights(phon_w=2.0, sem_w=0.5, pos_w=0.0, base_w=1.0)
     rv = build_request_vector(culture="english", weights=weights)
     assert rv.weights is weights
-
-
-# ---- era_midpoint_from_range ---------------------------------------------
-
-
-def test_era_midpoint_both_bounds():
-    assert era_midpoint_from_range(1000, 1200) == 1100
-
-
-def test_era_midpoint_only_min():
-    """Single bound → use it directly (no synthetic midpoint)."""
-    assert era_midpoint_from_range(1100, None) == 1100
-
-
-def test_era_midpoint_only_max():
-    assert era_midpoint_from_range(None, 1300) == 1300
-
-
-def test_era_midpoint_both_none():
-    """Open request → 0 (matches the priors-table fallback convention)."""
-    assert era_midpoint_from_range(None, None) == 0
-
-
-def test_era_midpoint_truncates():
-    """Integer division — 1001-1002 midpoint is 1001 not 1001.5."""
-    assert era_midpoint_from_range(1001, 1002) == 1001
