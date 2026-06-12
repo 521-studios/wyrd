@@ -102,14 +102,17 @@ describe('regenerate ↔ swap supersession (wyrd-6p2u)', () => {
   });
 
   it('regenerate → swap → fresh regenerate: the new roll supersedes both', () => {
-    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1, context: {} });
+    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1, context: {}, from: '-ton' });
     const firstId = regenSteps()[0].id;
     pipeline.setSwap({ wordIndex: 0, morphemeIndex: 1, to: '-hām', original: '-ton' });
-    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1, context: {} });
+    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1, context: {}, from: '-hām' });
     expect(swapSteps()).toHaveLength(0);
     expect(regenSteps()).toHaveLength(1);
     // still the same step, re-rolled in place (undo goes straight to original)
     expect(regenSteps()[0].id).toBe(firstId);
+    // ...and the card keeps labeling the ORIGINAL morpheme, not the swapped
+    // intermediate the user happened to be looking at on the second click
+    expect(regenSteps()[0].params.from).toBe('-ton');
   });
 
   it('a swap on a DIFFERENT slot survives a regenerate', () => {
