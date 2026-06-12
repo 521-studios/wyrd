@@ -355,15 +355,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "llan"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "lan"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "llan"
                   ]
                 ]
               ]
@@ -592,15 +592,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "-an"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "an"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "-an"
                   ]
                 ]
               ]
@@ -639,15 +639,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "-in"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "in"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "-in"
                   ]
                 ]
               ]
@@ -668,15 +668,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "llan"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "lan"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "llan"
                   ]
                 ]
               ]
@@ -937,15 +937,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "bó"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "bo"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "bó"
                   ]
                 ]
               ]
@@ -2698,13 +2698,13 @@
               "brythonic",
               [
                 [
-                  "celtic",
+                  "welsh",
                   [
                     "cloon"
                   ]
                 ],
                 [
-                  "welsh",
+                  "celtic",
                   [
                     "cloon"
                   ]
@@ -2720,15 +2720,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "cill"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "kil"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "cill"
                   ]
                 ]
               ]
@@ -2982,15 +2982,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "cill"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Kill"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "cill"
                   ]
                 ]
               ]
@@ -3155,15 +3155,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "claene"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Glen"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "claene"
                   ]
                 ]
               ]
@@ -3193,15 +3193,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "-an"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "an"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "-an"
                   ]
                 ]
               ]
@@ -3222,15 +3222,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "aírd"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Ar"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "aírd"
                   ]
                 ]
               ]
@@ -3274,15 +3274,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "cnoc"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "knock"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "cnoc"
                   ]
                 ]
               ]
@@ -3307,15 +3307,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "garraí"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Garry"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "garraí"
                   ]
                 ]
               ]
@@ -3362,15 +3362,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "gag"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "gan"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "gag"
                   ]
                 ]
               ]
@@ -3616,13 +3616,13 @@
               "brythonic",
               [
                 [
-                  "celtic",
+                  "welsh",
                   [
                     "derry"
                   ]
                 ],
                 [
-                  "welsh",
+                  "celtic",
                   [
                     "derry"
                   ]
@@ -3785,15 +3785,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "ard"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "ar"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "ard"
                   ]
                 ]
               ]
@@ -3864,15 +3864,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "inis"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Inch"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "inis"
                   ]
                 ]
               ]
@@ -4002,15 +4002,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "càrr"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Car"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "càrr"
                   ]
                 ]
               ]
@@ -4083,15 +4083,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "din"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Dun"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "din"
                   ]
                 ]
               ]
@@ -4213,13 +4213,13 @@
               "brythonic",
               [
                 [
-                  "celtic",
+                  "welsh",
                   [
                     "loch"
                   ]
                 ],
                 [
-                  "welsh",
+                  "celtic",
                   [
                     "loch"
                   ]
@@ -4442,15 +4442,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "dun"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Dun"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "dun"
                   ]
                 ]
               ]
@@ -4493,15 +4493,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "ard"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Ar"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "ard"
                   ]
                 ]
               ]
@@ -4935,15 +4935,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "rhos"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Rhos"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "rhos"
                   ]
                 ]
               ]
@@ -4957,15 +4957,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "-yn"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "yn"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "-yn"
                   ]
                 ]
               ]
@@ -5222,15 +5222,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "cwm"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "Cwm"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "cwm"
                   ]
                 ]
               ]
@@ -5402,15 +5402,15 @@
               "brythonic",
               [
                 [
-                  "celtic",
-                  [
-                    "coed"
-                  ]
-                ],
-                [
                   "welsh",
                   [
                     "goed"
+                  ]
+                ],
+                [
+                  "celtic",
+                  [
+                    "coed"
                   ]
                 ]
               ]
@@ -5459,13 +5459,13 @@
               "brythonic",
               [
                 [
-                  "celtic",
+                  "welsh",
                   [
                     "y"
                   ]
                 ],
                 [
-                  "welsh",
+                  "celtic",
                   [
                     "y"
                   ]

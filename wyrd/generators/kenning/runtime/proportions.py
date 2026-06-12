@@ -838,16 +838,32 @@ def _cell_id_in_stage(grid: list[dict], lang: str, surface: str) -> str | None:
     return fold_hit or accent_hit
 
 
+def _grid_section_sort_key(fam: str) -> tuple[int, int, str]:
+    """Section ordering key matching :func:`_era_grid`'s build convention:
+    ``_GRID_FAMILY_ORDER`` families first (in that order), then unknown
+    families alphabetically."""
+    if fam in _GRID_FAMILY_ORDER:
+        return (0, _GRID_FAMILY_ORDER.index(fam), "")
+    return (1, 0, fam)
+
+
 def _grid_stage_for(grid: list[dict], lang: str) -> dict:
     """Find — or create, in canonical oldest→newest stage order — the
     ``{language: lang}`` stage of its family section, returning the stage to append
-    cells to. Creates the family section too if the grid lacks it. ``lang`` must
-    map to an era family (the :func:`_ensure_cell` caller guards this)."""
+    cells to. Creates the family section too if the grid lacks it — inserted at its
+    canonical ``_GRID_FAMILY_ORDER`` position so injection matches the build-path
+    section ordering. ``lang`` must map to an era family (the :func:`_ensure_cell`
+    caller guards this)."""
     fam = language_family(lang)
     section = next((s for s in grid if s.get("family") == fam), None)
     if section is None:
         section = {"family": fam, "stages": []}
-        grid.append(section)
+        key = _grid_section_sort_key(fam)
+        at = next(
+            (i for i, s in enumerate(grid) if _grid_section_sort_key(s.get("family") or "") > key),
+            len(grid),
+        )
+        grid.insert(at, section)
     stage = next((st for st in section["stages"] if st.get("language") == lang), None)
     if stage is not None:
         return stage
@@ -857,7 +873,10 @@ def _grid_stage_for(grid: list[dict], lang: str) -> dict:
     if lang in order:
         for i, st in enumerate(section["stages"]):
             other = st.get("language")
-            if other in order and order.index(other) > order.index(lang):
+            # Insert before a later canonical stage OR an unmapped tail stage —
+            # _ordered_stage_langs puts unmapped tags at the end, so a mapped
+            # stage always sorts before them.
+            if other not in order or order.index(other) > order.index(lang):
                 insert_at = i
                 break
     section["stages"].insert(insert_at, stage)

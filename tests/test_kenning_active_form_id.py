@@ -344,10 +344,26 @@ def test_grid_stage_for_inserts_older_stage_in_canonical_order():
         "modern-english",
     ]
 
+    # A defensive unmapped tail stage (per _ordered_stage_langs, unmapped tags
+    # sit at the end) stays the tail: a mapped stage inserts BEFORE it.
+    grid[0]["stages"].append({"language": "zzz-unmapped", "forms": []})
+    _ensure_cell(grid, "old-english", "burh", source="self")  # existing stage, no move
+    assert [st["language"] for st in grid[0]["stages"]][-1] == "zzz-unmapped"
+    del grid[0]["stages"][0]  # drop old-english so the next inject re-creates it
+    _ensure_cell(grid, "old-english", "burh", source="self")
+    assert [st["language"] for st in grid[0]["stages"]] == [
+        "old-english",
+        "middle-english",
+        "modern-english",
+        "zzz-unmapped",
+    ]
+
 
 def test_ensure_cell_creates_missing_family_section():
     """wyrd-3vju.3: injecting into a family the grid lacks creates a correctly
-    shaped {family, stages} section (here brythonic for a welsh cell)."""
+    shaped {family, stages} section, inserted at its canonical
+    _GRID_FAMILY_ORDER position (matching _era_grid's build ordering), not
+    blindly appended."""
     from wyrd.generators.kenning.runtime.proportions import _ensure_cell
 
     grid = [{"family": "english", "stages": [{"language": "modern-english", "forms": []}]}]
@@ -357,6 +373,12 @@ def test_ensure_cell_creates_missing_family_section():
     assert grid[1]["stages"] == [
         {"language": "welsh", "forms": [{"id": "welsh:tre", "form": "tre", "source": "self"}]}
     ]
+
+    # Canonical position: english sorts BEFORE norse in _GRID_FAMILY_ORDER, so
+    # injecting an english cell into a norse-first grid inserts at the front.
+    grid2 = [{"family": "norse", "stages": [{"language": "old-norse", "forms": []}]}]
+    _ensure_cell(grid2, "modern-english", "ton", source="usage")
+    assert [s["family"] for s in grid2] == ["english", "norse"]
 
 
 def test_ensure_cell_declines_language_without_era_family():
