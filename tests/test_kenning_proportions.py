@@ -163,6 +163,41 @@ def test_diversify_native_collision_falls_back_to_modern():
     assert nn.name == [["biscop"], ["bishop"]]
 
 
+def test_break_native_duplicate_falls_back_first_slot_and_repoints_rseen():
+    """The reversed-role collision: the SECOND slot's modern equals the
+    collision fold ('biscop' — an archaic morpheme whose modern == its
+    native), so _break_native_duplicate falls the FIRST slot back to
+    modern instead. The rseen re-point then matters for three-way
+    collisions: the third collider must pair against the slot that
+    stayed native (slot 2), not the already-broken slot 1 — pinned here
+    by the third slot's render surviving untouched (its candidate pair,
+    slot 2, can't break: modern == fold) while the skeleton never
+    changes (D44 pass 2 is render-only)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m1 = Meaning("bishop", tags=[], meanings=["bishop"], sources={"old_english": ["biscop"]})
+    m2 = Meaning("biscop", tags=[], meanings=["bishop"], sources={"old_english": ["biscop"]})
+    m3 = Meaning("biscop", tags=[], meanings=["bishop"], sources={"old_english": ["biscop"]})
+    nn = NewName(
+        struct=None,
+        meaning_db={"bishop": [m1], "biscop": [m2, m3]},
+        name=[["bishop"], ["biscop"], ["biscop"]],
+        rendered=[["Biscop"], ["Biscop"], ["Biscop"]],  # three-way native collision
+    )
+    rendered_out = str(nn)
+    # Slot 1 (modern 'bishop' != fold 'biscop') is the breakable one — it
+    # fell back to modern; slot 2 stayed native (its modern == the fold).
+    assert nn.rendered[0][0] is None
+    assert rendered_out.split(" ")[0] == "Bishop"
+    # Slots 2 + 3 keep their native renders: both genuinely ARE 'biscop'
+    # (modern == fold → unbreakable), so the dupe between them is left.
+    assert nn.rendered[1][0] == "Biscop"
+    assert nn.rendered[2][0] == "Biscop"
+    # Render-only: the picked morphemes never change.
+    assert nn.name == [["bishop"], ["biscop"], ["biscop"]]
+
+
 def test_diversify_repeats_skips_base_pool_excluded_repick():
     """wyrd-57d8: a base-pool-excluded morpheme (here a synthesized manorial
     subject, same bare position + same language as the dupe) is NOT a valid

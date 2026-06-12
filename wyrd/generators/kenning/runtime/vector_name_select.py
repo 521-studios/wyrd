@@ -687,16 +687,16 @@ def _slot_weighted_pool(
     slot_bucket_key: tuple | None,
     request: RequestVector,
     priors: EmpiricalPriors,
-    # D44: the request's era never drives this — 0 is the priors tables'
-    # wildcard-cell convention. The parameter survives for the scoring
-    # layer (the priors DATA keeps its era cells, D36.7).
-    era_midpoint: int = 0,
     cohesion: float,
     cohesion_table: dict[str, dict[str, float]] | None,
     usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None,
     novelty: float,
     prior_tags: frozenset[str],
     slot_base_scores: dict[tuple, list[tuple[Meaning, float]]] | None,
+    # D44: the request's era never drives this — 0 is the priors tables'
+    # wildcard-cell convention. The parameter survives for the scoring
+    # layer (the priors DATA keeps its era cells, D36.7).
+    era_midpoint: int = 0,
 ) -> list[tuple[Meaning, float]]:
     """The weighted ``(meaning, score)`` pool for one slot: base scores ×
     per-sample cohesion bias, then the novelty blend. Returns an empty list when
