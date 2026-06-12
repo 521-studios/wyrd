@@ -219,14 +219,14 @@ def test_apply_adds_tags(tmp_path: Path):
     _etymon(conn, "old-english", "gar", gloss="spear")
     conn.close()
 
-    db = LexiconDB(db_path)
-    counts = apply_tag_additions(
-        db, {"old-english:gar": {"tags": ["military", "personal-name"]}}, apply=True
-    )
-    assert counts["tags_added"] == 2
-    assert counts["unresolved_etymon"] == 0
-    rows = {r[0] for r in db.conn.execute("SELECT tag FROM etymon_tag").fetchall()}
-    assert rows == {"military", "personal-name"}
+    with LexiconDB(db_path) as db:
+        counts = apply_tag_additions(
+            db, {"old-english:gar": {"tags": ["military", "personal-name"]}}, apply=True
+        )
+        assert counts["tags_added"] == 2
+        assert counts["unresolved_etymon"] == 0
+        rows = {r[0] for r in db.conn.execute("SELECT tag FROM etymon_tag").fetchall()}
+        assert rows == {"military", "personal-name"}
 
 
 def test_apply_idempotent(tmp_path: Path):
@@ -236,13 +236,13 @@ def test_apply_idempotent(tmp_path: Path):
     _etymon(conn, "old-english", "gar", gloss="spear")
     conn.close()
 
-    db = LexiconDB(db_path)
-    state = {"old-english:gar": {"tags": ["military"]}}
-    apply_tag_additions(db, state, apply=True)
-    counts = apply_tag_additions(db, state, apply=True)
-    assert counts["tags_added"] == 0
-    assert counts["tags_already_present"] == 1
-    assert db.conn.execute("SELECT COUNT(*) FROM etymon_tag").fetchone()[0] == 1
+    with LexiconDB(db_path) as db:
+        state = {"old-english:gar": {"tags": ["military"]}}
+        apply_tag_additions(db, state, apply=True)
+        counts = apply_tag_additions(db, state, apply=True)
+        assert counts["tags_added"] == 0
+        assert counts["tags_already_present"] == 1
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_tag").fetchone()[0] == 1
 
 
 def test_apply_dry_run_no_writes(tmp_path: Path):
@@ -252,19 +252,19 @@ def test_apply_dry_run_no_writes(tmp_path: Path):
     _etymon(conn, "old-english", "gar", gloss="spear")
     conn.close()
 
-    db = LexiconDB(db_path)
-    counts = apply_tag_additions(db, {"old-english:gar": {"tags": ["military"]}}, apply=False)
-    assert counts["tags_added"] == 1  # validated/counted
-    assert db.conn.execute("SELECT COUNT(*) FROM etymon_tag").fetchone()[0] == 0
+    with LexiconDB(db_path) as db:
+        counts = apply_tag_additions(db, {"old-english:gar": {"tags": ["military"]}}, apply=False)
+        assert counts["tags_added"] == 1  # validated/counted
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_tag").fetchone()[0] == 0
 
 
 def test_apply_unresolved_ref_counted(tmp_path: Path):
     db_path = tmp_path / "lexicon.db"
     init_schema(db_path)
-    db = LexiconDB(db_path)
-    counts = apply_tag_additions(db, {"old-english:ghost": {"tags": ["water"]}}, apply=True)
-    assert counts["unresolved_etymon"] == 1
-    assert counts["tags_added"] == 0
+    with LexiconDB(db_path) as db:
+        counts = apply_tag_additions(db, {"old-english:ghost": {"tags": ["water"]}}, apply=True)
+        assert counts["unresolved_etymon"] == 1
+        assert counts["tags_added"] == 0
 
 
 def test_run_full_enrichment_wires_tag_slot(tmp_path: Path):
@@ -276,16 +276,16 @@ def test_run_full_enrichment_wires_tag_slot(tmp_path: Path):
     _etymon(conn, "old-english", "gar", gloss="spear")
     conn.close()
 
-    db = LexiconDB(db_path)
-    result = run_full_enrichment(
-        db,
-        apply=True,
-        tag_state={"old-english:gar": {"tags": ["military"]}},
-        skip_l3_derivations=True,  # no bundle needed; slot runs before L3
-    )
-    assert result["tag_additions"]["tags_added"] == 1
-    rows = {r[0] for r in db.conn.execute("SELECT tag FROM etymon_tag").fetchall()}
-    assert rows == {"military"}
+    with LexiconDB(db_path) as db:
+        result = run_full_enrichment(
+            db,
+            apply=True,
+            tag_state={"old-english:gar": {"tags": ["military"]}},
+            skip_l3_derivations=True,  # no bundle needed; slot runs before L3
+        )
+        assert result["tag_additions"]["tags_added"] == 1
+        rows = {r[0] for r in db.conn.execute("SELECT tag FROM etymon_tag").fetchall()}
+        assert rows == {"military"}
 
 
 def test_apply_mixed_resolved_and_unresolved_batch(tmp_path: Path):
@@ -296,14 +296,14 @@ def test_apply_mixed_resolved_and_unresolved_batch(tmp_path: Path):
     conn = sqlite3.connect(db_path)
     _etymon(conn, "old-english", "gar", gloss="spear")
     conn.close()
-    db = LexiconDB(db_path)
-    counts = apply_tag_additions(
-        db,
-        {"old-english:gar": {"tags": ["military"]}, "old-english:ghost": {"tags": ["water"]}},
-        apply=True,
-    )
-    assert counts["tags_added"] == 1 and counts["unresolved_etymon"] == 1
-    assert {r[0] for r in db.conn.execute("SELECT tag FROM etymon_tag")} == {"military"}
+    with LexiconDB(db_path) as db:
+        counts = apply_tag_additions(
+            db,
+            {"old-english:gar": {"tags": ["military"]}, "old-english:ghost": {"tags": ["water"]}},
+            apply=True,
+        )
+        assert counts["tags_added"] == 1 and counts["unresolved_etymon"] == 1
+        assert {r[0] for r in db.conn.execute("SELECT tag FROM etymon_tag")} == {"military"}
 
 
 # ---------------------------------------------------------------------------
@@ -361,9 +361,9 @@ def test_build_from_jsonl_accepts_tags_file(tmp_path: Path):
     )
     db_path = tmp_path / "l.db"
     init_schema(db_path)
-    db = LexiconDB(db_path)
-    # Must not raise (pre-fix: ReplayError 'unknown _type tags').
-    build_from_jsonl(db.conn, jsonl_paths_in(d))
+    with LexiconDB(db_path) as db:
+        # Must not raise (pre-fix: ReplayError 'unknown _type tags').
+        build_from_jsonl(db.conn, jsonl_paths_in(d))
 
 
 def test_collect_tags_tolerates_corrupt_line(tmp_path: Path):
