@@ -459,6 +459,68 @@ def test_ensure_cell_reuses_accented_reflex_for_ascii_surface():
     assert cell["source"] == "cluster"  # provenance preserved
 
 
+def test_cell_id_in_stage_fold_tier_beats_accent_tier():
+    """wyrd-3vju.3: tier precedence across DIFFERENT cells — a case/dash-fold
+    match outranks an accent-insensitive match even when the accent-tier cell
+    comes first in the stage. Pins the exact → fold → accent ordering of
+    _cell_id_in_stage as a cross-cell contract, not just each tier in
+    isolation."""
+    from wyrd.generators.kenning.runtime.proportions import _cell_id_in_stage
+
+    grid = [
+        {
+            "family": "norse",
+            "stages": [
+                {
+                    "language": "old-norse",
+                    "forms": [
+                        # accent-tier candidate listed FIRST so position can't win
+                        {"id": "old-norse:rá", "form": "rá"},  # matches only accent-fold
+                        {"id": "old-norse:Ra", "form": "Ra"},  # matches case/dash fold
+                    ],
+                }
+            ],
+        }
+    ]
+    assert _cell_id_in_stage(grid, "old-norse", "ra") == "old-norse:Ra"
+    # And an exact form match beats both fold tiers.
+    grid[0]["stages"][0]["forms"].append({"id": "old-norse:ra", "form": "ra"})
+    assert _cell_id_in_stage(grid, "old-norse", "ra") == "old-norse:ra"
+
+
+def test_grid_match_key_star_strip_decides_reuse_and_marking():
+    """wyrd-3vju.3: _grid_match_key strips the reconstruction '*' marker (plus
+    NFD combining marks, dashes, case), so a surface matches a reconstructed
+    cell when that cell is the ONLY candidate — the '*'-strip deciding the
+    outcome, not an earlier tier on an attested sibling."""
+    from wyrd.generators.kenning.runtime.proportions import (
+        _ensure_cell,
+        _grid_match_key,
+        _mark_usage_cells,
+    )
+
+    assert _grid_match_key("*Ūr-") == "ur"
+    assert _grid_match_key("-rá") == "ra"
+    assert _grid_match_key("ra") == "ra"
+
+    grid = [
+        {
+            "family": "english",
+            "stages": [
+                {
+                    "language": "old-english",
+                    # the ONLY candidate carries the raw '*' marker in its form
+                    "forms": [{"id": "old-english:*ūr", "form": "*ūr", "source": "cluster"}],
+                }
+            ],
+        }
+    ]
+    assert _ensure_cell(grid, "old-english", "ur", source="usage") == "old-english:*ūr"
+    assert len(grid[0]["stages"][0]["forms"]) == 1  # reused, not duplicated
+    _mark_usage_cells(grid, "ur")
+    assert grid[0]["stages"][0]["forms"][0]["is_usage"] is True
+
+
 def test_late_injected_live_cell_folding_to_usage_is_marked():
     """wyrd-3vju.3: is_usage marking runs AFTER the fallback injections, so a live
     cell injected for an era render whose surface folds to the usage still carries
