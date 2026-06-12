@@ -564,7 +564,7 @@ class Meaning:
             for _form, year in forms:
                 if start is not None and year < start:
                     continue
-                if end is not None and year >= end:
+                if year >= end:
                     continue
                 return True
         return False

@@ -96,10 +96,13 @@ def passes_culture_gate(culture: str) -> bool:
 
 def passes_era_gate(meaning: Meaning, era_min: int | None, era_max: int | None) -> bool:
     """True if the Meaning has at least one attested form in
-    ``[era_min, era_max)``, OR has no attested-year data at all (the
-    "no data → pass" rule documented on
-    ``Meaning.attested_in_era_range``; see D5 / D5-3 (wyrd-lyp) for
-    the architectural decision). Both bounds None → no filter.
+    ``[era_min, era_max)``, OR the window is open-ended
+    (``era_max=None`` — the present-day stage passes every morpheme;
+    wyrd-c6o1.3), OR the Meaning has no attested-year data at all (the
+    "no data → pass" rule). All semantics live on
+    ``Meaning.attested_in_era_range``; see D5 / D5-3 (wyrd-lyp + the
+    wyrd-c6o1.3 refinement) for the architectural decision. Both
+    bounds None → no filter.
     """
     if era_min is None and era_max is None:
         return True

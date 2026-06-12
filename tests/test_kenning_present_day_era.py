@@ -102,7 +102,13 @@ def test_explicit_empty_era_still_means_mixed(monkeypatch):
         # (open-ended windows pass every morpheme), so the two requests now
         # differ only in render — a single seed whose picks are all
         # modern-sourced renders identically under both. Sweep seeds and
-        # require at least one native render to diverge.
+        # require at least one native render to diverge. The failure modes
+        # are asymmetric: a clobbered "" produces identical params, hence
+        # identical results on EVERY seed deterministically (always caught);
+        # a false failure needs all 20 seeds to draw exclusively
+        # modern-sourced morphemes, and english picks are OE-dominated, so
+        # most seeds diverge (the committed seed bundle diverges within the
+        # first few).
         diverged = False
         for seed in range(20):
             mixed = client.post(

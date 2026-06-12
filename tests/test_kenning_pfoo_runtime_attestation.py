@@ -23,6 +23,7 @@ from wyrd.generators.kenning.lexicon.runtime_db_export import (
     select_dev_subset,
 )
 from wyrd.generators.kenning.runtime.meaning import Meaning
+from wyrd.generators.kenning.runtime.proportions import load_proportions
 from wyrd.generators.kenning.runtime.runtime_db_adapter import (
     _read_proportions_attested_languages,
     proportions_dict_for_culture,
@@ -671,24 +672,40 @@ def test_build_eligible_per_meaning_narrowing_covers_dash_variant_keys():
     assert pool == [oe]
 
 
-def test_load_proportions_fold_unions_attested_languages_keys():
-    """wyrd-c6o1.3: ``load_proportions`` folds the bundle's position-form
-    ``attested_languages`` keys to bare surfaces, unioning the language
-    sets across dash variants, so the runtime filter is surface-keyed."""
-    from wyrd.generators.kenning.runtime.proportions import load_proportions
-
-    data = {
+def _proportions_data(attested):
+    return {
         "usages": {},
         "single_usages": {},
         "structures": [],
         "tag_marginal": {},
         "tag_cooccurrence": {},
-        "attested_languages": {
-            "-ton": ["old_english", "modern_english"],
-            "Ton-": ["celtic_mix"],
-        },
+        "attested_languages": attested,
     }
-    gen = load_proportions(data, {}, {})
+
+
+def test_load_proportions_fold_unions_attested_languages_keys():
+    """wyrd-c6o1.3: ``load_proportions`` folds the bundle's position-form
+    ``attested_languages`` keys to bare surfaces, unioning the language
+    sets across dash variants, so the runtime filter is surface-keyed."""
+    gen = load_proportions(
+        _proportions_data(
+            {
+                "-ton": ["old_english", "modern_english"],
+                "Ton-": ["celtic_mix"],
+            }
+        ),
+        {},
+        {},
+    )
     assert gen.culture_attested_meanings == {
         "ton": frozenset({"old_english", "modern_english", "celtic_mix"})
     }
+
+
+def test_load_proportions_empty_attested_languages_disables_filter():
+    """The legacy-bundle fallback: an absent/empty ``attested_languages``
+    map collapses to ``None`` (filter disabled), NOT to an empty dict —
+    an empty dict would be treated as 'filter active, nothing admitted'
+    by downstream ``is not None`` guards."""
+    gen = load_proportions(_proportions_data({}), {}, {})
+    assert gen.culture_attested_meanings is None

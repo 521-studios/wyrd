@@ -325,8 +325,8 @@ def _native_pool(
             continue
         # Per-Meaning narrowing set for this surface (wyrd-pfoo); None when
         # the filter is inactive or this surface carried no per-Meaning data.
-        # wyrd-c6o1.3: keyed by bare surface (fold-unioned at construction —
-        # see proportions.py), so dash-variant keys (`ton` / `Ton-` / `-ton-`)
+        # wyrd-c6o1.3: keyed by bare surface (fold-unioned in
+        # ``load_proportions``), so dash-variant keys (`ton` / `Ton-` / `-ton-`)
         # get the same narrowing as the position-form the corpus attested
         # (`-ton`) instead of bypassing it and letting wrong-language
         # homographs into the native pool.
@@ -408,9 +408,10 @@ def build_non_position_eligible(
     callers that don't carry per-culture data).
 
     ``culture_attested_meanings`` is the per-Meaning narrowing
-    (wyrd-pfoo), keyed by bare SURFACE (dashes folded; the
-    NameGenerator construction site fold-unions the bundle's
-    position-form keys — wyrd-c6o1.3). For each surface, only Meanings
+    (wyrd-pfoo), keyed by bare SURFACE (dashes folded;
+    ``load_proportions`` fold-unions the bundle's position-form keys
+    before constructing the NameGenerator — wyrd-c6o1.3). For each
+    surface, only Meanings
     whose primary source-language is in the attested set are admitted.
     Filters wrong-sense Meanings the per-usage filter let through:
     Celtic ``-ton``→'tone' (music), ``Saint-``→'greed', ``-bridge``

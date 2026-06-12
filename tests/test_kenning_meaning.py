@@ -535,7 +535,10 @@ def test_attested_in_era_range_open_low_endpoint():
 
 
 def test_attested_in_era_range_open_high_endpoint():
-    """end=None means 'open on high side' — any year >= start matches."""
+    """end=None is an OPEN-ENDED window: it passes regardless of the
+    morpheme's years (wyrd-c6o1.3 — see the dedicated open-ended test
+    below). The bounded (None, 1700) window still applies the
+    year-inside-window check."""
     m = _meaning_with_attested_years({"old_english": [("modern", 1900)]})
     assert m.attested_in_era_range((1700, None)) is True
     assert m.attested_in_era_range((None, 1700)) is False

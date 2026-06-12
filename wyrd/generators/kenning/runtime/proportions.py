@@ -1226,10 +1226,11 @@ class NameGenerator:
         # this culture" to "(usage, primary_language) attested in this
         # culture" — preventing wrong-sense picks like Celtic
         # ``-ton``→'tone' or ``Saint-``→'greed' that the per-usage
-        # filter admitted as collateral damage. Keys are usage_keys;
-        # values are frozensets of primary-language bundle-field
-        # names. ``None`` (legacy bundles built pre-wyrd-pfoo) falls
-        # back to the per-usage filter only.
+        # filter admitted as collateral damage. Keys are bare SURFACES
+        # (dash-folded usage_keys, union-merged across dash-variants in
+        # ``load_proportions`` — wyrd-c6o1.3); values are frozensets of
+        # primary-language bundle-field names. ``None`` (legacy bundles
+        # built pre-wyrd-pfoo) falls back to the per-usage filter only.
         self.culture_attested_meanings: dict[str, frozenset[str]] | None = culture_attested_meanings
         # wyrd-i7uy: the vector path's eligibility pool + per-slot base-score map
         # are built FRESH per generate() call (see _build_vector_pools) and never

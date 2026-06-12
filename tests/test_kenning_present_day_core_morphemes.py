@@ -25,12 +25,20 @@ exists to catch "vanished", not to pin a frequency.
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.generators.kenning.generators.kenning import Kenning
 
+# Live-bundle smoke test (runtime DB via the committed seed) — the authoring-
+# lexicon isolation fixtures are irrelevant here; opt out like the sister
+# live-bundle file (tests/test_kenning_present_day_era.py).
+pytestmark = pytest.mark.no_lexicon_isolation
+
 N_SEEDS = 150
-# The celtic-culture language prefixes that must never claim an english
-# request's `ton` pick (the welsh 'wave' / irish homograph leak).
-_CELTIC_PREFIXES = {"welsh", "irish", "celtic", "breton", "scottish-gaelic"}
+# Every `ton` pick in an english request must resolve into the english
+# family. An allowlist (rather than a celtic blocklist) can't go stale as
+# new cultures/stages land: the welsh 'wave' / irish homograph leak — or
+# any future wrong-language attribution — fails this by construction.
 _ENGLISH_FAMILY_PREFIXES = {"old-english", "middle-english", "modern-english"}
 
 
@@ -53,12 +61,9 @@ def test_present_day_english_keeps_oe_ton_and_excludes_celtic_homograph():
         "english names — the core OE tūn morpheme has been starved out of "
         "default generation again (era gate or eligibility regression)"
     )
-    celtic = [i for i in ton_ids if i.partition(":")[0] in _CELTIC_PREFIXES]
-    assert not celtic, (
-        f"english `-ton` picks resolved to celtic homographs: {celtic} — the "
-        "wyrd-pfoo surface-keyed narrowing has regressed (welsh 'wave' ton is "
-        "absorbing the OE tūn surface again)"
-    )
-    assert any(i.partition(":")[0] in _ENGLISH_FAMILY_PREFIXES for i in ton_ids), (
-        f"no `-ton` pick resolved into the english family: {ton_ids[:10]}"
+    wrong_family = [i for i in ton_ids if i.partition(":")[0] not in _ENGLISH_FAMILY_PREFIXES]
+    assert not wrong_family, (
+        f"english `-ton` picks resolved outside the english family: "
+        f"{wrong_family} — the wyrd-pfoo surface-keyed narrowing has regressed "
+        "(a homograph like welsh 'wave' ton is absorbing the OE tūn surface)"
     )
