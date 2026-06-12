@@ -134,18 +134,26 @@ def select_targets(db_path: str) -> list[tuple[str, str, str]]:
     uri = f"{Path(db_path).absolute().as_uri()}?mode=ro"
     conn = sqlite3.connect(uri, uri=True)
     try:
-        # Reachability is an EXISTS check, NOT a JOIN: joining the one-to-many
-        # reflex_etymon AND the one-to-many etymon_gloss would Cartesian-product
-        # and GROUP_CONCAT would duplicate each gloss once per reflex
-        # ('spear || spear'), inflating the prompt + wasting LLM tokens.
+        # Two query shapes matter here:
+        # - Reachability is an EXISTS check, NOT a JOIN: joining the one-to-many
+        #   reflex_etymon AND the one-to-many etymon_gloss would
+        #   Cartesian-product and GROUP_CONCAT would duplicate each gloss once
+        #   per reflex ('spear || spear'), inflating the prompt + wasting tokens.
+        # - Glosses are ORDER BY'd inside a subquery before GROUP_CONCAT so the
+        #   concatenation is DETERMINISTIC (SQLite's GROUP_CONCAT order is
+        #   otherwise unspecified). The mine is meant to be reproducible — a
+        #   stable gloss order ⇒ a stable prompt ⇒ a stable _tags.jsonl.
         return conn.execute(
-            "SELECT e.language, e.canonical_form, "
-            "  GROUP_CONCAT(g.gloss, ' || ') "
-            "FROM etymon e "
-            "JOIN etymon_gloss g ON g.etymon_id = e.id "
-            "WHERE EXISTS (SELECT 1 FROM reflex_etymon re WHERE re.etymon_id = e.id) "
-            "  AND NOT EXISTS (SELECT 1 FROM etymon_tag t WHERE t.etymon_id = e.id) "
-            "GROUP BY e.id ORDER BY e.language, e.canonical_form"
+            "SELECT language, canonical_form, GROUP_CONCAT(gloss, ' || ') "
+            "FROM ("
+            "  SELECT e.id AS id, e.language AS language, "
+            "         e.canonical_form AS canonical_form, g.gloss AS gloss "
+            "  FROM etymon e "
+            "  JOIN etymon_gloss g ON g.etymon_id = e.id "
+            "  WHERE EXISTS (SELECT 1 FROM reflex_etymon re WHERE re.etymon_id = e.id) "
+            "    AND NOT EXISTS (SELECT 1 FROM etymon_tag t WHERE t.etymon_id = e.id) "
+            "  ORDER BY e.id, g.gloss"
+            ") GROUP BY id ORDER BY language, canonical_form"
         ).fetchall()
     finally:
         conn.close()

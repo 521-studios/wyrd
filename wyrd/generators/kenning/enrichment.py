@@ -509,15 +509,22 @@ def apply_tag_additions(
         if etymon_id is None:
             counts["unresolved_etymon"] += 1
             continue
+        # One SELECT per etymon (not per tag): fetch the existing tag set once
+        # and check membership in memory — O(N) queries, not O(N*tags). The
+        # SELECT is only for the added/already-present telemetry split;
+        # db.add_tag is INSERT OR IGNORE, so the write is idempotent regardless.
+        present = {
+            row[0]
+            for row in db.conn.execute(
+                "SELECT tag FROM etymon_tag WHERE etymon_id = ?", (etymon_id,)
+            )
+        }
         for tag in payload.get("tags") or []:
-            existing = db.conn.execute(
-                "SELECT 1 FROM etymon_tag WHERE etymon_id = ? AND tag = ?",
-                (etymon_id, tag),
-            ).fetchone()
-            if existing is not None:
+            if tag in present:
                 counts["tags_already_present"] += 1
                 continue
             counts["tags_added"] += 1
+            present.add(tag)  # a tag repeated within one payload counts once
             if apply:
                 db.add_tag(etymon_id, tag)
 

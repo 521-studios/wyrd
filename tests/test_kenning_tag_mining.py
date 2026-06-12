@@ -405,7 +405,9 @@ def test_select_targets_concatenates_multiple_glosses(tmp_path: Path):
     conn.commit()
     conn.close()
     ((_lang, _form, glosses),) = select_targets(str(db_path))
-    assert "spear" in glosses and "javelin" in glosses and "||" in glosses
+    # Glosses sorted in the subquery → deterministic concat ('javelin' < 'spear')
+    # regardless of insertion order, so the prompt (and _tags.jsonl) is stable.
+    assert glosses == "javelin || spear"
 
 
 def test_select_targets_no_gloss_duplication_with_multiple_reflexes(tmp_path: Path):
