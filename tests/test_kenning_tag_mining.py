@@ -131,16 +131,18 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
             fh.write(json.dumps(r) + "\n")
 
 
-def test_existing_refs_reads_all_refs(tmp_path: Path):
+def test_existing_refs_reads_tag_rows_not_source(tmp_path: Path):
     p = tmp_path / "_tags.jsonl"
     _write_jsonl(
         p,
         [
-            {"ref": "old-english:gar", "tags": ["military"]},
-            {"ref": "old-english:bon", "tags": []},  # 'none' still counts as resolved
+            source_row(),  # the canonical source row must NOT enter the skip-set
+            {"_type": "tags", "ref": "old-english:gar", "tags": ["military"]},
+            {"_type": "tags", "ref": "old-english:bon", "tags": []},  # 'none' = resolved
         ],
     )
     assert existing_refs(str(p)) == {"old-english:gar", "old-english:bon"}
+    assert SOURCE_REF not in existing_refs(str(p))
     assert existing_refs(str(tmp_path / "absent.jsonl")) == set()
 
 
@@ -369,7 +371,9 @@ def test_build_from_jsonl_accepts_tags_file(tmp_path: Path):
 def test_collect_tags_tolerates_corrupt_line(tmp_path: Path):
     p = tmp_path / "_tags.jsonl"
     with open(p, "w", encoding="utf-8") as fh:
-        fh.write(json.dumps({"ref": "old-english:gar", "tags": ["military"]}) + "\n")
+        fh.write(
+            json.dumps({"_type": "tags", "ref": "old-english:gar", "tags": ["military"]}) + "\n"
+        )
         fh.write("{ truncated junk\n")  # crash-interrupted flush
     # skips the bad line rather than aborting the enrichment replay.
     assert collect_tags(str(p)) == {"old-english:gar": {"tags": ["military"]}}
@@ -465,3 +469,39 @@ def test_mine_tags_llm_cli(tmp_path: Path, monkeypatch):
     )
     assert result2.exit_code == 0
     assert "Nothing to do" in result2.output
+
+
+def test_mine_tags_llm_api_failure_not_recorded(tmp_path: Path, monkeypatch):
+    """An API/network failure must NOT write a record (an error row would be
+    skip-resolved next run, permanently dropping the etymon). The ref stays
+    retryable, and the run aborts after _MAX_CONSECUTIVE_FAILS."""
+    from wyrd.generators.kenning.cli.lexicon import mine_tags_llm as mod
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    for n in range(15):
+        _etymon(conn, "old-english", f"e{n}", gloss="spear")
+    conn.close()
+
+    class _Boom:
+        def __init__(self, *a, **k):
+            pass
+
+        def chat_json(self, *a, **k):
+            raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(mod, "OllamaClient", _Boom)
+    monkeypatch.setattr(mod, "_MAX_CONSECUTIVE_FAILS", 3)
+
+    out = tmp_path / "_tags.jsonl"
+    result = CliRunner().invoke(
+        cli_root, ["lexicon", "mine-tags-llm", "--db", str(db_path), "--output", str(out)]
+    )
+    assert result.exit_code == 0
+    assert "Aborting after 3 consecutive API failures" in result.output
+    # Only the source row was written — NO etymon records, so every ref is
+    # still retryable on the next run.
+    lines = [json.loads(ln) for ln in out.read_text().splitlines()]
+    assert [row["_type"] for row in lines] == ["source"]
+    assert existing_refs(str(out)) == set()

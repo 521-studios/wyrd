@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from pathlib import Path
 
 # The controlled vocabulary the LLM may use (45 tags). It is 44 of the repo's
 # 45 existing etymon_tag values — dropping the typo-variant 'topology'
@@ -128,7 +129,10 @@ def select_targets(db_path: str) -> list[tuple[str, str, str]]:
     returns ``[(language, canonical_form, glosses), …]``. The ``reflex_etymon``
     join restricts to morphemes that actually reach a generation surface (the
     same reachability the bundle ships), so we don't pay to tag dead etymons."""
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    # Path.as_uri() handles spaces / '?' / '#' / Windows backslashes robustly
+    # (matches runtime_db.py's read-only open), unlike bare f-string interp.
+    uri = f"{Path(db_path).absolute().as_uri()}?mode=ro"
+    conn = sqlite3.connect(uri, uri=True)
     try:
         # Reachability is an EXISTS check, NOT a JOIN: joining the one-to-many
         # reflex_etymon AND the one-to-many etymon_gloss would Cartesian-product
@@ -262,9 +266,10 @@ def existing_refs(path: str) -> set[str]:
                 # Tolerate a truncated trailing line from a crash-interrupted
                 # flush — skip it rather than abort the resume skip-set.
                 continue
-            ref = row.get("ref") if isinstance(row, dict) else None
-            if ref:
-                refs.add(ref)
+            # Only `tags` rows are resume keys; the canonical `source` row (and
+            # any future non-tags row) is not an etymon ref and is excluded.
+            if isinstance(row, dict) and row.get("_type") == "tags" and row.get("ref"):
+                refs.add(row["ref"])
     return refs
 
 

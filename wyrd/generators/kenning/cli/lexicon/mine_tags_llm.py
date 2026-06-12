@@ -31,6 +31,10 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 _DEFAULT_OUTPUT = Path("data/mining/_tags.jsonl")
 _DEFAULT_MODEL = "gemma4:26b"
+# Abort the run after this many back-to-back API failures — a real outage
+# (Ollama down / wrong URL), not a single flaky call. A successful call resets
+# the counter.
+_MAX_CONSECUTIVE_FAILS = 10
 
 
 @click.command("mine-tags-llm")
@@ -100,21 +104,39 @@ def lexicon_mine_tags_llm(
         else OllamaClient(base_url=ollama_url, model=model)
     )
 
-    tagged = none = err = 0
+    tagged = none = err = api_fail = 0
+    consecutive = 0
+    aborted = False
     t0 = time.time()
     with open(output, "a", encoding="utf-8") as fh:
         for i, (lang, form, gloss) in enumerate(todo, 1):
             system, user = tag_mining.build_messages(gloss or "")
             try:
                 raw = client.chat_json(system, user, {})
-                parsed = tag_mining.parse_response(raw)
-            except Exception as e:  # noqa: BLE001 — one bad call shouldn't kill the run
-                # Record an error row (resumable) AND surface the cause on
-                # stderr — a systematic failure (wrong --ollama-url, model not
-                # loaded, timeout) must be visible, not just a rising err= count.
-                click.echo(f"  [{i}] {lang}:{form} classify failed: {e}", err=True)
-                parsed = None
-            rec = tag_mining.record(lang, form, parsed, model)
+            except Exception as e:  # noqa: BLE001 — API/network failure
+                # Do NOT write a record: an error row carries a `ref` and would
+                # be treated as resolved by --skip-resolved next run, so a
+                # transient/systematic outage (Ollama down, wrong --ollama-url,
+                # model not loaded) would PERMANENTLY skip every remaining
+                # etymon. Leaving it unwritten keeps it retryable. Abort after
+                # _MAX_CONSECUTIVE_FAILS in a row (a real outage, not one bad row).
+                click.echo(f"  [{i}] {lang}:{form} API call failed: {e}", err=True)
+                api_fail += 1
+                consecutive += 1
+                if consecutive >= _MAX_CONSECUTIVE_FAILS:
+                    click.echo(
+                        f"Aborting after {consecutive} consecutive API failures "
+                        "— is Ollama up at the configured URL?",
+                        err=True,
+                    )
+                    aborted = True
+                    break
+                continue
+            consecutive = 0
+            # parse_response returns None only when the call SUCCEEDED but the
+            # model emitted unparseable JSON — a genuine per-item failure, so we
+            # DO record it (an error row, counted, resolved) and move on.
+            rec = tag_mining.record(lang, form, tag_mining.parse_response(raw), model)
             fh.write(json.dumps(rec, ensure_ascii=False, sort_keys=True) + "\n")
             fh.flush()
             if "error" in rec:
@@ -127,11 +149,15 @@ def lexicon_mine_tags_llm(
                 rate = (time.time() - t0) / i
                 click.echo(
                     f"  [{i}/{len(todo)}]  tagged={tagged} none={none} "
-                    f"err={err} ({rate:.2f}s/entry)",
+                    f"err={err} api_fail={api_fail} ({rate:.2f}s/entry)",
                     err=True,
                 )
 
-    click.echo(f"Done. tagged={tagged} none={none} err={err} → {output}", err=True)
+    click.echo(
+        f"{'Aborted' if aborted else 'Done'}. tagged={tagged} none={none} "
+        f"err={err} api_fail={api_fail} (not recorded — retryable) → {output}",
+        err=True,
+    )
 
 
 def add_to(parent: click.Group) -> None:
