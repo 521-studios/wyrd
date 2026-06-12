@@ -404,6 +404,24 @@ def test_select_targets_concatenates_multiple_glosses(tmp_path: Path):
     assert "spear" in glosses and "javelin" in glosses and "||" in glosses
 
 
+def test_select_targets_no_gloss_duplication_with_multiple_reflexes(tmp_path: Path):
+    """An etymon with MULTIPLE reflexes must not Cartesian-product the glosses:
+    reachability is an EXISTS check, not a JOIN, so each gloss appears once."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    eid = _etymon(conn, "old-english", "gar", gloss="spear")  # 1st reflex via helper
+    rid = conn.execute(
+        "INSERT INTO reflex (surface_form, position) VALUES ('gar-', 'pre')"
+    ).lastrowid
+    conn.execute("INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, eid))
+    conn.commit()
+    conn.close()
+    targets = select_targets(str(db_path))
+    assert len(targets) == 1  # one row, not one-per-reflex
+    assert targets[0][2] == "spear"  # gloss NOT duplicated to 'spear || spear'
+
+
 # ---------------------------------------------------------------------------
 # mine-tags-llm CLI — thin test with a stubbed Ollama client (no network)
 # ---------------------------------------------------------------------------

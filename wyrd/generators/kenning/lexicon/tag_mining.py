@@ -130,13 +130,17 @@ def select_targets(db_path: str) -> list[tuple[str, str, str]]:
     same reachability the bundle ships), so we don't pay to tag dead etymons."""
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
+        # Reachability is an EXISTS check, NOT a JOIN: joining the one-to-many
+        # reflex_etymon AND the one-to-many etymon_gloss would Cartesian-product
+        # and GROUP_CONCAT would duplicate each gloss once per reflex
+        # ('spear || spear'), inflating the prompt + wasting LLM tokens.
         return conn.execute(
             "SELECT e.language, e.canonical_form, "
             "  GROUP_CONCAT(g.gloss, ' || ') "
             "FROM etymon e "
-            "JOIN reflex_etymon re ON re.etymon_id = e.id "
             "JOIN etymon_gloss g ON g.etymon_id = e.id "
-            "WHERE NOT EXISTS (SELECT 1 FROM etymon_tag t WHERE t.etymon_id = e.id) "
+            "WHERE EXISTS (SELECT 1 FROM reflex_etymon re WHERE re.etymon_id = e.id) "
+            "  AND NOT EXISTS (SELECT 1 FROM etymon_tag t WHERE t.etymon_id = e.id) "
             "GROUP BY e.id ORDER BY e.language, e.canonical_form"
         ).fetchall()
     finally:
