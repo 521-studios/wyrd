@@ -736,7 +736,7 @@ def test_apply_joiner_insertion_inserts_joiner_when_shared_lang() -> None:
         new_name, joiners, rng, density=1.0
     )
     assert "en" in surface
-    # wyrd-24s6 (D38): the SAME joiner lands in the modern companion too, so the
+    # wyrd-24s6 (D41): the SAME joiner lands in the modern companion too, so the
     # two renderings don't drift apart on joiner placement.
     assert "en" in modern
     assert "+joiner: en" in explanation
@@ -948,7 +948,7 @@ def test_apply_joiner_insertion_uses_rendered_substitutions() -> None:
     assert "brycg" in surface
     assert "en" in surface
     assert "water" in surface
-    # wyrd-24s6 (D38): the modern companion ignores the native `rendered`
+    # wyrd-24s6 (D41): the modern companion ignores the native `rendered`
     # substitution — it shows the modern usage ('bridge', not the 'brycg'
     # variant) — but carries the SAME joiner.
     assert "brycg" not in modern.lower()

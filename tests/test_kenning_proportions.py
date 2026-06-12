@@ -95,7 +95,7 @@ def test_diversify_repeats_repicks_different_morpheme_when_no_synonym():
 
 
 def test_modern_name_uses_override_modern_usage_after_diversification():
-    """wyrd-24s6 (D38): for a cross-language-synonym diversification, the NATIVE
+    """wyrd-24s6 (D41): for a cross-language-synonym diversification, the NATIVE
     render shows the synonym's source form ('Haeth') but the MODERN companion
     shows the override Meaning's OWN modern usage. Here the Norse synonym is
     bucketed under 'hill' (it glosses 'hill'), so its modern usage is 'hill' —
@@ -113,9 +113,9 @@ def test_modern_name_uses_override_modern_usage_after_diversification():
 
 
 def test_diversify_repick_renders_native_form_when_rendered_active():
-    """wyrd-24s6 (D38) Branch A: a re-pick that happens while a native render is
+    """wyrd-24s6 (D41) Branch A: a re-pick that happens while a native render is
     active renders the REPLACEMENT in its own native (source) form, and the
-    modern companion uses the replacement's modern usage. Pre-D38 the re-picked
+    modern companion uses the replacement's modern usage. Pre-D41 the re-picked
     slot's rendered was left None (→ modern surface even in the native render)."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
     from wyrd.generators.kenning.runtime.proportions import NewName
@@ -139,7 +139,7 @@ def test_diversify_repick_renders_native_form_when_rendered_active():
 
 
 def test_diversify_native_collision_falls_back_to_modern():
-    """wyrd-24s6 (D38) Branch B: two DISTINCT morphemes whose NATIVE forms
+    """wyrd-24s6 (D41) Branch B: two DISTINCT morphemes whose NATIVE forms
     collide ('Biscop Biscop') but whose modern usages differ — with no synonym
     and no re-pick available — break the native duplicate by falling one slot
     back to its modern usage. The modern companion (always distinct here) is

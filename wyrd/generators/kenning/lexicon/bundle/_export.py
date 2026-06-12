@@ -25,7 +25,7 @@ from collections.abc import Callable
 from typing import Any
 
 from wyrd.generators.kenning.lexicon.bundle._emit import _orphan_reflex_subjects
-from wyrd.generators.kenning.lexicon.bundle._family import _gather_family
+from wyrd.generators.kenning.lexicon.bundle._family import _bulk_attested_years, _gather_family
 from wyrd.generators.kenning.lexicon.bundle._subject import (
     _group_families_into_subjects,
 )
@@ -479,10 +479,17 @@ def _iterate_families_with_progress(
     n_total = len(root_ids)
     progress_every = max(1, n_total // 50) if n_total else 1
     started = time.monotonic()
+    # wyrd-4zyb: bulk-prefetch attested years for EVERY member up front (one
+    # indexed-temp-table join) instead of re-running the per-family UNION/MIN
+    # query (_fetch_member_attested_years, called by _gather_family) for each of
+    # ~67K roots — that per-root query was ~96% of this loop's wall time
+    # (~13min → ~tens of seconds).
+    all_member_ids = {m for rid in root_ids for m in members_by_root.get(rid, [rid])}
+    attested_years_by_member = _bulk_attested_years(db, all_member_ids)
     families: list[dict[str, Any]] = []
     for i, root_id in enumerate(root_ids, 1):
         member_ids = members_by_root.get(root_id, [root_id])
-        family = _gather_family(db, root_id, member_ids)
+        family = _gather_family(db, root_id, member_ids, attested_years_by_member)
         if family is not None and family["forms_by_lang"]:
             families.append(family)
         if not quiet and (i % progress_every == 0 or i == n_total):

@@ -13,11 +13,6 @@
       "overlaps_with": "pr-test-analyzer",
       "reason": "Different lenses: test-coverage-reviewer enforces hard rules (touched code must be covered; mocking discipline; missing assertions; skip-without-reason). pr-test-analyzer scores behavioral gaps on a criticality 1-10 axis. Both contribute independent signal during review loops."
     }
-  },
-  "independent_validator": {
-    "enabled": true,
-    "skip_for": [],
-    "uncertain_action": "post_with_annotation"
   }
 }
 ```
@@ -216,6 +211,8 @@ Generator data (proportions, meanings, etc.) is bundled inside the Lambda packag
 All work goes through pull requests — never push directly to `main`. Open a feature branch, commit there, push, and open a PR. Merge only after CI passes and review is complete.
 
 ## How the pack runs
+
+**This file is consumed BY the `pr-review-loop` skill — do not run these reviewers directly.** If you've read this file and are about to spawn the agents yourself (outside the skill), stop and invoke `pr-review-loop` instead: the skill owns the parts this file doesn't define — agents posting findings as PR line comments, independent validation of posted findings, per-thread replies, per-agent retirement, CI gating, and exit conditions. Hand-spawning from this file skips all of that and breaks the PR audit trail.
 
 Each reviewer runs independently and reports findings without coordination. A reviewer's silence on something is not an endorsement — it just means that reviewer didn't see anything in its scope.
 

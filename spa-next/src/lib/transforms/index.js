@@ -2,12 +2,14 @@
 // palette + the pipeline engine. New transforms (Swap, Anglicize,
 // Calque, Drift) plug in by adding an entry here.
 
+import { regenerateTransform } from './regenerate.js';
 import { rewindTransform } from './rewind.js';
 import { swapTransform } from './swap.js';
 
 const TRANSFORMS = {
   [rewindTransform.kind]: rewindTransform,
   [swapTransform.kind]: swapTransform,
+  [regenerateTransform.kind]: regenerateTransform,
 };
 
 /** Lookup by kind. Throws if unknown — surfaces transform-kind

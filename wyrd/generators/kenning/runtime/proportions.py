@@ -9,14 +9,16 @@ so generation is reproducible from the seed param.
 from __future__ import annotations
 
 import logging
+import os
 import random
 import re
 import unicodedata
+from collections import Counter
 from collections.abc import Callable, Iterator
 
 from ..era.cells import family_stage_order, language_family
 from .meaning import Meaning, _mimic_case
-from .word import _position_form
+from .word import WORD_POSITION_KEY_PREFIX, _position_form, word_position_for
 
 # wyrd-lftl: family display order for the SPA col-3 reflex grid — English
 # first, then Norse (Danelaw), the Celtic families, French, Latin. Mirrors
@@ -37,6 +39,51 @@ _logger = logging.getLogger(__name__)
 # attempts so each retry picks a different struct deterministically.
 _VECTOR_STRUCT_RETRY_LIMIT = 5
 
+# wyrd-rogd.13: naked↔structured threshold for bare word-sequence placement.
+# A bare word with >= threshold total positional observations (summed across
+# pre/inner/post in the culture's bare_word_positions stats) is "structured" —
+# sampled per its per-word-position weights and eligible only at positions
+# it's attested in. Below the threshold it's "naked" — eligible at ANY bare
+# slot via the general single_usage distribution. Env-tunable per deploy so
+# re-tuning needs no re-export; deliberately NOT a request param and NOT an
+# SPA advanced-panel option (operator posture, user 2026-06-11).
+_BARE_POSITION_THRESHOLD_ENV = "WYRD_BARE_POSITION_THRESHOLD"
+_BARE_POSITION_THRESHOLD_DEFAULT = 3
+
+
+def bare_position_threshold() -> int:
+    """Resolve the wyrd-rogd.13 naked↔structured threshold from the
+    environment (``WYRD_BARE_POSITION_THRESHOLD``), defaulting to 3.
+
+    Clamped to >= 1: at 0 every bare word would count as "structured" —
+    including words with NO positional observations, which would then be
+    eligible at no position at all and silently vanish from the bare
+    pools. Malformed values warn + fall back to the default rather than
+    failing generation over a typo'd env var.
+    """
+    raw = os.environ.get(_BARE_POSITION_THRESHOLD_ENV)
+    if raw is None or not raw.strip():
+        return _BARE_POSITION_THRESHOLD_DEFAULT
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        _logger.warning(
+            "wyrd-rogd.13: %s=%r is not an integer; using default %d",
+            _BARE_POSITION_THRESHOLD_ENV,
+            raw,
+            _BARE_POSITION_THRESHOLD_DEFAULT,
+        )
+        return _BARE_POSITION_THRESHOLD_DEFAULT
+    if value < 1:
+        _logger.warning(
+            "wyrd-rogd.13: %s=%d clamped to 1 (0 would strand "
+            "never-positionally-observed bare words with no eligible slot)",
+            _BARE_POSITION_THRESHOLD_ENV,
+            value,
+        )
+        return 1
+    return value
+
 
 def _flatten_struct_slots(candidate_struct):
     """Flatten a struct (tuple-of-words, each word a tuple-of-keys) into parallel
@@ -44,11 +91,23 @@ def _flatten_struct_slots(candidate_struct):
     element 0 is the position label (per ``word_to_key``); a ``name`` / ``saint``
     flag becomes the qualifier; the FULL key is the bucket key — preserving the
     ``single`` flag ``word_to_key`` adds so the per-slot frequency lookup hits the
-    exact bucket the proportions sample from."""
+    exact bucket the proportions sample from.
+
+    wyrd-rogd.13: a BARE slot in a multi-word struct additionally derives its
+    WORD position from the word's index in the struct (first → ``wp-pre``,
+    interior → ``wp-inner``, last → ``wp-post``) and extends its bucket key
+    with it, so the frequency lookup hits the per-word-position bare pool
+    (``Saint``-style placement stats). The struct already encodes word order;
+    no template change — the label is derived here, never stored. Bundles
+    without the per-word-position stats fall back to the un-extended key
+    (``_resolve_slot_usage_frequency``'s wyrd-rogd.13 fallback), keeping
+    legacy behavior bit-stable."""
     positions: list[str] = []
     qualifiers: list[str | None] = []
     bucket_keys: list[tuple] = []
-    for word in candidate_struct:
+    word_count = len(candidate_struct)
+    for word_index, word in enumerate(candidate_struct):
+        word_position = word_position_for(word_index, word_count)
         for key in word:
             positions.append(key[0])
             if "name" in key:
@@ -57,7 +116,10 @@ def _flatten_struct_slots(candidate_struct):
                 qualifiers.append("saint")
             else:
                 qualifiers.append(None)
-            bucket_keys.append(key)
+            if key[0] == "bare" and word_position is not None:
+                bucket_keys.append((*key, f"{WORD_POSITION_KEY_PREFIX}{word_position}"))
+            else:
+                bucket_keys.append(key)
     return positions, qualifiers, bucket_keys
 
 
@@ -435,6 +497,67 @@ class MeaningGenerator:
                 missing_count,
             )
 
+    def load_bare_word_positions(
+        self,
+        bare_word_positions: dict[str, dict[str, int]],
+        single_usages: dict[str, int],
+        threshold: int,
+    ) -> None:
+        """wyrd-rogd.13: build the per-WORD-position bare pools.
+
+        ``bare_word_positions`` is the raw per-position tally
+        (``{position: {usage: count}}`` over pre/inner/post — the word's
+        slot within the NAME, not the D39 within-word morpheme position).
+        A bare word whose total positional observations reach ``threshold``
+        is "structured": it enters only the word-position buckets it's
+        attested in, at its per-position weight. Every other bare word is
+        "naked": it enters ALL three word-position buckets at its general
+        ``single_usages`` weight, so thin-evidence words keep today's
+        any-slot behavior.
+
+        Buckets are registered via :meth:`load_parts` with the extra
+        ``wp-<position>`` addkey, producing keys like
+        ``('bare', 'single', 'wp-pre')`` / ``('bare', 'saint', 'single',
+        'wp-pre')`` — exactly the keys ``_flatten_struct_slots`` derives
+        for bare slots of multi-word structs. No-op when the stats are
+        absent (legacy bundle): the wp-extended keys then miss and the
+        vector path falls back to the general ``('bare', …, 'single')``
+        bucket, bit-stable with pre-rogd.13 behavior.
+
+        Identity granularity (D40): the naked↔structured decision is per
+        bare SURFACE. The build-side tally already records surfaces, but
+        operator-supplied proportions JSON may carry stored-form keys
+        (``Ghyll`` / ``ghyll`` case twins) — totals are surface-aggregated
+        here so split keys can't dilute the threshold. The naked pool
+        keeps ``single_usages``' form keys as-is: the slot scorer's
+        ``_apply_per_usage_frequency`` sums frequency by surface anyway,
+        so case twins compose exactly as they do in the general bucket.
+        """
+        if not bare_word_positions:
+            return
+
+        def _surface(form: str) -> str:
+            return form.lower().replace("-", "")
+
+        # Totals sum ONLY the three known positions — same set the pool loop
+        # below builds. Summing every key would let a rogue position label in
+        # hand-edited data push a word over the threshold ("structured")
+        # while its observations feed no pool, stranding it with no eligible
+        # slot at all (type-design review, round 1).
+        totals: Counter = Counter()
+        for position in ("pre", "inner", "post"):
+            for usage, count in (bare_word_positions.get(position) or {}).items():
+                totals[_surface(usage)] += count
+        structured = {surface for surface, total in totals.items() if total >= threshold}
+        naked = {u: w for u, w in single_usages.items() if _surface(u) not in structured}
+        for position in ("pre", "inner", "post"):
+            pool = dict(naked)
+            for usage, count in (bare_word_positions.get(position) or {}).items():
+                if _surface(usage) in structured:
+                    pool[usage] = count
+            if pool:
+                self.load_parts(pool, "single", f"{WORD_POSITION_KEY_PREFIX}{position}")
+
     def keep_keys_for_gloss(self, include_unglossed: bool) -> frozenset[str] | None:
         """Resolve the gloss policy to the set of usages eligible for
         GENERATION (wyrd-glos). Glossing is a project pillar — the
@@ -609,7 +732,7 @@ def _native_form_for_morpheme_id(morpheme_id) -> str | None:
 
 
 def _native_form_for_meanings(meanings) -> str | None:
-    """wyrd-24s6 (D38): the morpheme's NATIVE surface — its source-language
+    """wyrd-24s6 (D41): the morpheme's NATIVE surface — its source-language
     headword, taken from the ``morpheme_id`` canonical (``old-english:smiþþe`` →
     ``smiþþe``). This is the form "as selected": for a morpheme sourced in a
     historical language it is that language's form; for a modern-sourced morpheme
@@ -1241,6 +1364,7 @@ class NameGenerator:
         novelty: float = 0.0,
         era_render_language: str | None = None,
         era_requested: bool = False,
+        pool_cache: dict | None = None,
     ):
         """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
 
@@ -1303,12 +1427,26 @@ class NameGenerator:
         # fresh per call and live only for this dispatch (no cross-request state).
         # exclude_tags_fz is also threaded into the per-slot _score below.
         exclude_tags_fz = frozenset(exclude_tags)
-        non_position_eligible, slot_base_scores = self._build_vector_pools(
-            request,
-            exclude_tags_fz,
-            pack_meaning_dbs,
-            include_unglossed,
-        )
+        # wyrd-dag4: build the eligibility pool + base-score map ONCE per request
+        # and reuse across the count loop's names. ``pool_cache`` lives in the
+        # request's ``params`` (one gate per request, the same dict for every
+        # name in the count loop), so a fixed key is correct AND it never
+        # crosses requests — preserving the wyrd-i7uy no-cross-request-state
+        # rule while recovering the per-name rebuild cost (~200ms/req at count=5
+        # on the 1-vCPU Lambda). ``pool_cache is None`` → build fresh (single-
+        # result / non-count callers, tests).
+        cached_pools = pool_cache.get("vector_pools") if pool_cache is not None else None
+        if cached_pools is not None:
+            non_position_eligible, slot_base_scores = cached_pools
+        else:
+            non_position_eligible, slot_base_scores = self._build_vector_pools(
+                request,
+                exclude_tags_fz,
+                pack_meaning_dbs,
+                include_unglossed,
+            )
+            if pool_cache is not None:
+                pool_cache["vector_pools"] = (non_position_eligible, slot_base_scores)
 
         # wyrd-izcr: pick a struct, flatten to positions + qualifier
         # flags, attempt the per-slot score+sample. On failure (empty
@@ -1370,7 +1508,7 @@ class NameGenerator:
         new_name = NewName(struct, self.meaning_db, words, picked_ids=picked_ids)
         # wyrd-nbpw/6c8x: post-pick rendering — era-form (feature A) or the D8
         # inflection / D18 spelling-variant substitution — applied via
-        # _apply_render. wyrd-24s6 (D38): default generation (all knobs 0, no era
+        # _apply_render. wyrd-24s6 (D41): default generation (all knobs 0, no era
         # requested) now renders the NATIVE source-language form into
         # new_name.rendered (the canonical result is native; the modern companion
         # is composed by modern_name()). Only an explicit era="modern-english"
@@ -1539,7 +1677,7 @@ class NameGenerator:
         period spelling, so it supersedes the D18 spelling-variant axis (and D8
         inflection is not combined with era in v1). Otherwise fall back to the
         D8/D18 substitution. Either way the result is written to
-        ``new_name.rendered`` (+ ``inflection_labels`` for D8). wyrd-24s6 (D38):
+        ``new_name.rendered`` (+ ``inflection_labels`` for D8). wyrd-24s6 (D41):
         when no era is set and both substitution knobs are 0 but no era was
         *requested* (the default ``era=""`` path), render each morpheme in its
         NATIVE source-language form (``_render_native_forms``) — the canonical
@@ -1563,11 +1701,11 @@ class NameGenerator:
             new_name.rendered = rendered
             new_name.inflection_labels = labels
         elif not era_requested:
-            # wyrd-24s6 (D38): NO era requested + no substitution → render each
+            # wyrd-24s6 (D41): NO era requested + no substitution → render each
             # morpheme in its NATIVE (source-language) form, so the default
             # (era="") name is "as-selected" rather than coerced to modern. The
             # MODERN companion is composed separately by NewName.modern_name().
-            # (Supersedes the pre-D38 bit-stable "leave rendered None → modern".)
+            # (Supersedes the pre-D41 bit-stable "leave rendered None → modern".)
             # An EXPLICIT era="modern-english" request resolves era_render_language
             # to None (contemporary suppression) but DOES set era_requested, so it
             # falls through here → rendered stays None → modern usage (the explicit
@@ -1619,7 +1757,7 @@ class NameGenerator:
         return rendered
 
     def _render_native_forms(self, name, picked_ids=None) -> list[list[str | None]]:
-        """wyrd-24s6 (D38): render each picked morpheme in its NATIVE
+        """wyrd-24s6 (D41): render each picked morpheme in its NATIVE
         (source-language) form so the default (era="") name is "as selected" —
         a genuinely mixed-era surface — rather than coerced to modern.
 
@@ -1796,8 +1934,8 @@ class NewName:
         # string-derivation in generate, bounded to literal-repeat slots.
         self.picked_ids[wi][ei] = getattr(repl_sibs[0], "morpheme_id", None) if repl_sibs else None
         if self.rendered is not None:
-            # wyrd-24s6 (D38): render the re-picked morpheme in its NATIVE
-            # form so the native render stays consistent (pre-D38 set None →
+            # wyrd-24s6 (D41): render the re-picked morpheme in its NATIVE
+            # form so the native render stays consistent (pre-D41 set None →
             # the modern usage). modern_name() reads the replacement's modern
             # surface from self.name (e) directly.
             native = _native_form_for_meanings(repl_sibs)
@@ -1816,7 +1954,7 @@ class NewName:
         return True
 
     def _break_native_duplicate(self, wi, ei, usage, fold, seen, first_slot) -> None:
-        """wyrd-24s6 (D38) last resort: no synonym + no re-pick. Native rendering
+        """wyrd-24s6 (D41) last resort: no synonym + no re-pick. Native rendering
         can collide where modern doesn't — two morphemes sharing a source-era
         form but differing modern surfaces ('Biscop Biscop'). Break the visual
         native duplicate by falling EITHER colliding slot back to its modern
@@ -2012,7 +2150,7 @@ class NewName:
         return " ".join(w for w in words if w)
 
     def modern_name(self) -> str:
-        """wyrd-24s6 (D38): the MODERN rendering — every morpheme in its
+        """wyrd-24s6 (D41): the MODERN rendering — every morpheme in its
         present-day surface (the ``Meaning.usage`` bucket key, sourced from the
         bundle's ``modern_usage`` field), the always-present secondary beside the
         native ``__str__`` canonical. Honors the later composition
@@ -2610,6 +2748,16 @@ def load_proportions(data, meaning_db, tag_db):
     mg = MeaningGenerator(meaning_db, tag_db, usages)
     single_usages = data["single_usages"]
     mg.load_parts(single_usages, "single")
+    # wyrd-rogd.13: per-word-position bare pools. Raw counts from the
+    # bundle; the naked↔structured threshold resolves from the env here
+    # (load time) so re-tuning needs an env flip + container recycle,
+    # never a re-export. Absent key (legacy bundle) → no wp buckets →
+    # the vector path's fallback keeps today's behavior.
+    mg.load_bare_word_positions(
+        data.get("bare_word_positions") or {},
+        single_usages,
+        bare_position_threshold(),
+    )
     structures = data["structures"]
     struct = {}
     for element in structures:

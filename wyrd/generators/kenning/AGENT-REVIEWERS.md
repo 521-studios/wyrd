@@ -4,6 +4,14 @@ These reviewers compose with the universal `AGENT-REVIEWERS.md` at
 repo root — they don't replace it. Scope: files under
 `wyrd/generators/kenning/` and `tests/test_kenning_*`.
 
+**This file is consumed BY the `pr-review-loop` skill — do not run these
+reviewers directly.** If you've read this file and are about to spawn the
+agents yourself (outside the skill), stop and invoke `pr-review-loop`
+instead: the skill owns agents posting findings as PR line comments,
+independent validation of posted findings, per-thread replies, per-agent
+retirement, CI gating, and exit conditions. Hand-spawning from this file
+skips all of that and breaks the PR audit trail.
+
 # Agents
 
 Each H2 below names a kenning-scoped reviewer. The summary tells the main loop **what the reviewer checks and when to spawn it** — use it to decide whether the PR diff is in scope. The pointer line names the complete spec under `.reviewers/`.

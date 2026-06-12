@@ -21,7 +21,7 @@ from .trie_matcher import (
     build_morpheme_trie,
     canonical_decompositions,
 )
-from .word import Word
+from .word import Word, word_position_for
 
 # Bounded LRU memoization of the trie per word_db identity. Building
 # the trie is O(M) where M is the morpheme count (~4ms on a 2.9K-
@@ -318,6 +318,43 @@ class Name:
             for word in word_list:
                 usage_set = usage_set.union(word.get_lone_samples())
         return usage_set
+
+    def get_bare_word_positions(self) -> set[tuple[str, str]]:
+        """wyrd-rogd.13: ``(word_position, surface)`` pairs for every bare
+        (single-morpheme) word of a MULTI-word name, where word_position is
+        the word's slot in the name's word sequence (first → ``pre``,
+        interior → ``inner``, last → ``post``).
+
+        This is the WITHIN-NAME word-position evidence the bare-placement
+        stats are built from — ``Saint`` is essentially always the first
+        word of ``Saint Albans``, ``Parva`` the last of ``Wigston Parva``.
+        Distinct from the WITHIN-WORD morpheme position (D39/D40 dashes).
+
+        Records the morpheme's IDENTITY — the bare lowercased surface (D40)
+        — not the matched variant's stored form. The bundle routinely
+        stores case twins of one surface (``Ghyll`` / ``ghyll``) that both
+        parse the same word; recording the stored forms would double-count
+        every sighting AND split the count across two keys, diluting the
+        naked↔structured threshold. Set semantics per name: one observation
+        per (word_position, surface) regardless of how many parses or case
+        twins matched.
+
+        Single-word names return the empty set: there is no solo case in
+        the word-sequence model. A word repeated at two positions in one
+        name contributes both positions.
+        """
+        words = self.name.split(" ")
+        out: set[tuple[str, str]] = set()
+        if len(words) < 2:
+            return out
+        for index, word_text in enumerate(words):
+            position = word_position_for(index, len(words))
+            if position is None:  # unreachable: len(words) >= 2; narrows the type
+                continue
+            for parse in self.words.get(word_text, []):
+                for usage in parse.get_lone_samples():
+                    out.add((position, usage.lower().replace("-", "")))
+        return out
 
     def get_structure(self):
         structure = []

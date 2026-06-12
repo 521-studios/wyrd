@@ -642,7 +642,40 @@ def _write_proportions(
         counts["proportions_attested_language"] += _insert_attested_languages(
             conn, culture, data.get("attested_languages") or {}
         )
+        counts["proportions_bare_word_position"] += _insert_bare_word_positions(
+            conn, culture, data.get("bare_word_positions") or {}
+        )
     return dict(counts)
+
+
+def _insert_bare_word_positions(
+    conn: sqlite3.Connection,
+    culture: str,
+    bare_word_positions: dict[str, dict[str, int]],
+) -> int:
+    """wyrd-rogd.13: write per-word-position counts for bare words of
+    multi-word toponyms. One row per (culture, position, usage_key);
+    counts are RAW — the naked↔structured threshold is the runtime's
+    job (WYRD_BARE_POSITION_THRESHOLD at load time), so re-tuning never
+    requires a re-export. Point-lookup table (no cumulative column);
+    the vector path builds its per-word-position pools in Python."""
+    rows = []
+    for position in sorted(bare_word_positions):
+        for usage_key, weight in sorted(bare_word_positions[position].items()):
+            # int() coercion mirrors the int(v) at the _insert_cumulative
+            # call sites: defends operator-supplied --proportions-dir JSON
+            # (floats / numeric strings); annotations aren't enforced there.
+            count = int(weight)
+            if count > 0:
+                rows.append((culture, position, usage_key, count))
+    if not rows:
+        return 0
+    conn.executemany(
+        "INSERT INTO proportions_bare_word_position "
+        "(culture, position, usage_key, weight) VALUES (?, ?, ?, ?)",
+        rows,
+    )
+    return len(rows)
 
 
 def _insert_attested_languages(
@@ -877,6 +910,24 @@ def select_dev_subset(
         trimmed_attested = {
             k: sorted(raw_attested[k]) for k in sorted(raw_attested) if k in culture_keep_keys
         }
+        # wyrd-rogd.13: narrow the per-word-position bare stats to THIS
+        # culture's kept single_usages (the bare pool the runtime samples
+        # from) so the seed's positional rows never reference a usage the
+        # trimmed bare pool can't supply. Same per-culture-set rationale
+        # as attested_languages above. Compared by bare SURFACE: the
+        # positional rows are surface-keyed (D40 identity) while
+        # kept_single carries stored-form keys (case twins like 'Ghyll').
+        kept_single_surfaces = {u.lower().replace("-", "") for u in kept_single}
+        raw_bare_positions = data.get("bare_word_positions") or {}
+        trimmed_bare_positions = {
+            position: {
+                usage: count
+                for usage, count in sorted(raw_bare_positions[position].items())
+                if usage.lower().replace("-", "") in kept_single_surfaces
+            }
+            for position in sorted(raw_bare_positions)
+        }
+        trimmed_bare_positions = {p: m for p, m in trimmed_bare_positions.items() if m}
         trimmed_proportions[culture] = {
             "usages": kept_usages,
             "single_usages": kept_single,
@@ -884,6 +935,7 @@ def select_dev_subset(
             "tag_marginal": dict(sorted((data.get("tag_marginal") or {}).items())),
             "tag_cooccurrence": dict(sorted((data.get("tag_cooccurrence") or {}).items())),
             "attested_languages": trimmed_attested,
+            "bare_word_positions": trimmed_bare_positions,
         }
 
     trimmed_subjects: list[dict[str, Any]] = []

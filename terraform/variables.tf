@@ -46,6 +46,24 @@ variable "enabled_feature_flags" {
   default = ["novelty", "cohesion"]
 }
 
+# wyrd-rogd.13: naked<->structured threshold for bare word-sequence placement
+# (-> WYRD_BARE_POSITION_THRESHOLD). A bare word with >= this many positional
+# observations in the corpus samples per its per-word-position stats and is
+# eligible only at word positions it's attested in; below it, the word stays
+# eligible at any bare slot. Operator tuning knob -- resolved at bundle LOAD
+# time, so changing it needs only an env flip + container recycle (no
+# re-export). Deliberately NOT an SPA advanced-panel option (D43).
+variable "bare_position_threshold" {
+  description = "Bare word-placement naked<->structured threshold (-> WYRD_BARE_POSITION_THRESHOLD); positive integer."
+  type        = string
+  default     = "3"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.bare_position_threshold))
+    error_message = "bare_position_threshold must be a positive integer (the runtime clamps 0 to 1; don't encode that here)."
+  }
+}
+
 # wyrd-0gou: per-environment overrides for option DEFAULT VALUES (not just
 # whether an option shows). Keys are option names (e.g. "culture", "count");
 # each becomes a WYRD_DEFAULT_<OPTION> Lambda env var the SPA seeds from.
@@ -62,5 +80,10 @@ variable "feature_flag_defaults" {
   # clear attested-pair-fidelity effect while keeping full output variety
   # (validated: coherence lifts in 4/5 cultures, ~290/300 distinct names even
   # at 1.0, so 0.6 leaves plenty of wiggle). Schema default stays 0.0.
-  default = { novelty = "0.1", cohesion = "0.6" }
+  # wyrd-kqyf: default era to the culture-agnostic 'present-day' token in both
+  # envs — names default to clean modern spellings (each culture's present-day
+  # stage: modern-english / welsh / irish). Schema default stays "" (Mixed Era)
+  # so CLI / local / tests are bit-stable; per-env override or removal here
+  # flips the deployed default without a code change.
+  default = { novelty = "0.1", cohesion = "0.6", era = "present-day" }
 }

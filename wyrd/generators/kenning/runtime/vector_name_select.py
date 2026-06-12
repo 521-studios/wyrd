@@ -56,6 +56,7 @@ from typing import TYPE_CHECKING
 # is no module-load cycle; this module is itself imported lazily, by which
 # point proportions is fully loaded.
 from wyrd.generators.kenning.runtime.proportions import _gloss_eligible
+from wyrd.generators.kenning.runtime.word import WORD_POSITION_KEY_PREFIX
 from wyrd.generators.kenning.vectors.schemas import (
     EmpiricalPriors,
     PhonologicalVector,
@@ -585,12 +586,32 @@ def _resolve_slot_usage_frequency(
       supplied) — returns ``{}`` so every Meaning looks up to 0
       and is filtered. Matches proportions: a bucket with no rows
       is unreachable. NOT a fall-through to the ``None`` branch.
+
+    wyrd-rogd.13: a bare slot's key may carry a derived ``wp-<position>``
+    word-position element (see ``_flatten_struct_slots``). When that
+    extended key has no bucket — a legacy bundle without the
+    per-word-position stats, or a bucket family (e.g. saint) the stats
+    never observed — fall back to the un-extended key, i.e. the general
+    bare distribution: exactly pre-rogd.13 behavior. When the extended
+    bucket EXISTS it is authoritative (a structured word unattested at
+    this word position is correctly absent from it).
     """
     if usage_frequency_by_bucket is None:
         return None
     if slot_bucket_key is None:
         return {}
-    return usage_frequency_by_bucket.get(slot_bucket_key, {})
+    frequency = usage_frequency_by_bucket.get(slot_bucket_key)
+    # Invariant: a non-None slot_bucket_key is never empty — every key is a
+    # word_to_key element tuple carrying at least the location element. On a
+    # malformed empty key, a loud IndexError here beats a truthiness guard
+    # that would silently read as "bucket missing" → slot unreachable.
+    if (
+        frequency is None
+        and isinstance(slot_bucket_key[-1], str)
+        and slot_bucket_key[-1].startswith(WORD_POSITION_KEY_PREFIX)
+    ):
+        frequency = usage_frequency_by_bucket.get(slot_bucket_key[:-1])
+    return frequency if frequency is not None else {}
 
 
 def _emit_unweighted(

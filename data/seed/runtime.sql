@@ -117,6 +117,29 @@ CREATE TABLE proportions_tag_cooccurrence (
     PRIMARY KEY (culture, tag1, tag2)
 );
 
+-- wyrd-rogd.13: per-WORD-position counts for bare words of multi-word
+-- toponyms. ``position`` is the word's slot in the NAME's word sequence
+-- (pre = first word, inner = interior, post = last word) — distinct from
+-- the within-word morpheme position the dash markers encode (D39/D40).
+-- ``Saint`` is essentially always pre ("Saint Albans"); Latin
+-- postpositives like ``Parva`` are post ("Wigston Parva").
+--
+-- Counts are RAW (no threshold applied at emit). The runtime applies the
+-- naked↔structured threshold at load time (WYRD_BARE_POSITION_THRESHOLD,
+-- default 3): a bare word at/above the threshold of total positional
+-- observations samples per its per-position weights and is eligible only
+-- at positions it's attested in; below it the word is "naked" and stays
+-- eligible at ANY bare slot via the general single_usage distribution.
+-- Point lookups only (the vector path samples in Python) — no cumulative
+-- column. Absent on pre-rogd.13 DBs; the adapter degrades gracefully.
+CREATE TABLE proportions_bare_word_position (
+    culture   TEXT NOT NULL,
+    position  TEXT NOT NULL,                  -- 'pre' | 'inner' | 'post'
+    usage_key TEXT NOT NULL,                  -- bare lowercase SURFACE (D40 identity), not a stored form
+    weight    INTEGER NOT NULL,
+    PRIMARY KEY (culture, position, usage_key)
+);
+
 -- wyrd-pfoo: per-Meaning attestation per culture. Records which
 -- (usage_key, primary_language) Meanings the matcher actually used
 -- when decomposing this culture's place names. The runtime vector

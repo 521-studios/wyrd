@@ -647,6 +647,32 @@ def _coerce_bool(value: Any) -> bool:
     return bool(value)
 
 
+_PRESENT_DAY_ERA = "present-day"
+
+
+def _translate_present_day_era(era: Any, culture: str) -> Any:
+    """wyrd-kqyf: ``present-day`` is the culture-AGNOSTIC era token (the value
+    ``WYRD_DEFAULT_ERA`` is set to, terraform ``feature_flag_defaults``). Era
+    stages are per-culture (``modern-english`` / ``welsh`` / ``irish``), so no
+    literal stage can be a global default — a welsh request defaulting to
+    ``modern-english`` would 4xx. The token translates to the request
+    culture's PRESENT-DAY stage (the last entry of its family's
+    chronologically-ordered ``family_stage_order``) and then resolves exactly
+    like an explicit stage pick: the stage's union year range as the filter +
+    the force-modern render (``_resolve_era_render_language`` returns None for
+    contemporary stages). Any other value passes through untouched."""
+    if era == _PRESENT_DAY_ERA:
+        family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
+        stages = family_stage_order(family)
+        if not stages:
+            # Unreachable for today's families (every ERA_CELLS family has
+            # cells) — the guard turns a future stage-less family edit into
+            # the callers' clean ValueError contract instead of IndexError.
+            raise ValueError(f"no era stages defined for family {family!r}")
+        return stages[-1]
+    return era
+
+
 def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] | None:
     """Resolve the request-side ``era`` value to a half-open year range,
     or None when no era filter applies.
@@ -664,6 +690,7 @@ def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] 
         return None
     era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
     try:
+        era = _translate_present_day_era(era, culture)
         return resolve_era_input(era, default_family=era_family)
     except (KeyError, ValueError) as exc:
         raise ValueError(
@@ -723,6 +750,7 @@ def _resolve_era_render_language(era: Any, culture: str) -> str | None:
         return None
     era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
     try:
+        era = _translate_present_day_era(era, culture)
         family, cell = era_cell_for_input(era, default_family=era_family)
     except (KeyError, ValueError):
         return None
@@ -1197,11 +1225,11 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
         # but BEFORE meaning/tag counts (so 'hyll' beats 'holt'
         # inside OE for the -hill bucket).
         surface_similarity = _max_form_similarity(matcher, usage_norm, m) if matcher else 0.0
-        # wyrd-24s6 (D38): a stable, content-derived final tiebreaker. Without it,
+        # wyrd-24s6 (D41): a stable, content-derived final tiebreaker. Without it,
         # siblings tying on every signal above retain meaning_db LOAD order, which
         # varies across SQLite / Python builds — so `siblings[0]` (the canonical
         # etymon) could differ between environments. That non-determinism was
-        # latent until D38's native render started routing diversification
+        # latent until D41's native render started routing diversification
         # re-picks through the canonical's tags/languages, surfacing as a
         # cross-environment generation drift (the parity test caught it). Keying
         # on the morpheme identity makes the ranking independent of load order.
@@ -1287,7 +1315,7 @@ def _apply_joiner_insertion(
     populated joiner pool.
 
     Returns ``(surface_str, modern_str, explanation, components)`` rebuilt
-    to incorporate the inserted joiners. wyrd-24s6 (D38): both the native
+    to incorporate the inserted joiners. wyrd-24s6 (D41): both the native
     ``surface_str`` and the modern ``modern_str`` are built in this single
     walk so the SAME joiner (drawn once per gap) lands in BOTH renderings at
     the SAME position — otherwise the modern companion would lose the joiners
@@ -1530,6 +1558,7 @@ from wyrd.generators.kenning.generators import (  # noqa: E402
     KenningCreature,
     KenningEraMap,
     KenningExplain,
+    KenningRegenerateMorpheme,
     KenningRender,
     KenningRewind,
 )
@@ -1539,7 +1568,7 @@ def _kenning_runtime_version(self) -> dict[str, str]:
     """Bundle-identity stamp for the API envelope + defect reports
     (wyrd-dsl5). Every kenning generator reads the same L4 bundle, so they
     all report the same version — bound onto each class here rather than
-    duplicated as a method body in six generator modules. Matches this
+    duplicated as a method body in seven generator modules. Matches this
     module's existing pattern of binding shared behavior post-import (see
     ``_load_meanings.cache_clear`` above)."""
     from wyrd.generators.kenning.runtime.runtime_db import bundle_version
@@ -1554,6 +1583,7 @@ for _kenning_cls in (
     KenningRender,
     KenningEraMap,
     KenningCreature,
+    KenningRegenerateMorpheme,
 ):
     _kenning_cls.runtime_version = _kenning_runtime_version  # type: ignore[method-assign]
 
@@ -1563,3 +1593,7 @@ register(KenningRewind())
 register(KenningRender())
 register(KenningEraMap())
 register(KenningCreature())
+# No standalone CLI subcommand — single-morpheme regeneration is the SPA's
+# direct-manipulation ⟳ button (wyrd-y0lx); a batch/offline CLI shape has no
+# meaningful use (the input is an in-flight SPA pipeline state).
+register(KenningRegenerateMorpheme())

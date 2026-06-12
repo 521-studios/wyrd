@@ -5,7 +5,13 @@ from __future__ import annotations
 import logging
 import time
 from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import random
+
+    from wyrd.generators.kenning.runtime.proportions import NameGenerator, NewName
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors, RequestVector
 
 from wyrd.generators.kenning import (
     _FICTION_TAG,
@@ -249,7 +255,11 @@ class Kenning(Generator):
                         "period-eligible. The present-day stage (modern-english) renders "
                         "the modern canonical spelling throughout. The SPA renders this as a "
                         "dropdown of the chosen culture's compressed era STAGES; a stage "
-                        "resolves to the union year range of its cells. CLI/API also "
+                        "resolves to the union year range of its cells. The culture-"
+                        "agnostic token 'present-day' resolves to the chosen culture's "
+                        "present-day stage (modern-english / welsh / irish) — it exists "
+                        "so WYRD_DEFAULT_ERA can set a modern default across every "
+                        "culture (wyrd-kqyf). CLI/API also "
                         "accept a raw cell, a bare year (e.g. '1086' → the cell "
                         "containing 1086 in the culture's era family), or an explicit "
                         "'family/label' pair (e.g. 'english/oe-late'). Morphemes with no attested-year "
@@ -493,10 +503,19 @@ class Kenning(Generator):
             inflection_density=inflection_density,
             novelty=novelty,
             era_render_language=era_render_language,
-            # wyrd-24s6 (D38): True for ANY requested era (incl. "modern-english"),
+            # wyrd-24s6 (D41): True for ANY requested era (incl. "modern-english"),
             # so the renderer can tell era="" (→ native default) from an explicit
             # era that resolves to no render-language (→ modern).
             era_requested=bool(params.get("era")),
+            # wyrd-dag4: a REQUEST-scoped cache for the vector eligibility pool.
+            # It lives in ``params`` — the same dict the app's count loop reuses
+            # across all N names — so the pool is built once per request and
+            # reused across the count loop, then discarded with ``params`` when
+            # the request ends. NOT on the shared per-culture name_gen, so it
+            # never leaks across requests (the wyrd-i7uy rule). Single-result /
+            # test callers pass no count loop → a fresh {} each call (no reuse,
+            # prior behavior).
+            pool_cache=params.setdefault("_vector_pool_cache", {}),
         )
         if new_name is None:
             # Vector path filtered everything (empty register + empty
@@ -512,7 +531,7 @@ class Kenning(Generator):
         t_sample_ms = (time.perf_counter() - t_sample) * 1000
         t_render = time.perf_counter()
         result_str = str(new_name)
-        # wyrd-24s6 (D38): the MODERN companion rendering, surfaced beside the
+        # wyrd-24s6 (D41): the MODERN companion rendering, surfaced beside the
         # canonical native result_str.
         result_modern = new_name.modern_name()
         explanation = new_name.description()
@@ -522,7 +541,7 @@ class Kenning(Generator):
         if joiner_density > 0:
             joiners = _load_joiners()
             if joiners:
-                # wyrd-24s6 (D38): joiner insertion rebuilds BOTH the native
+                # wyrd-24s6 (D41): joiner insertion rebuilds BOTH the native
                 # result_str and the modern result_modern in one walk, so the
                 # same joiners land in both renderings at the same positions.
                 result_str, result_modern, explanation, components = _apply_joiner_insertion(
@@ -604,9 +623,7 @@ def _load_priors_sidecar_cached(priors_path: str):
     return load_empirical_priors_from_json(Path(priors_path))
 
 
-def _generate_via_vector(
-    name_gen,
-    rng,
+def _resolve_vector_inputs(
     *,
     culture: str,
     tags: list[str],
@@ -614,27 +631,18 @@ def _generate_via_vector(
     harshness: float,
     era_range: tuple[int | None, int | None] | None,
     stratum: str | None,
-    cohesion: float,
-    exclude_tags: tuple[str, ...],
     priors_path: str | None,
     scoring_weights_raw: dict[str, float] | None = None,
     packs_raw: list[dict[str, Any]] | None = None,
-    include_unglossed: bool = False,
-    spelling_variety: float = 0.0,
-    inflection_density: float = 0.0,
-    novelty: float = 0.0,
-    era_render_language: str | None = None,
-    era_requested: bool = False,
-):
-    """Dispatch helper for vector scoring (the only scoring path).
+) -> tuple[RequestVector, EmpiricalPriors, int, dict[str, dict]]:
+    """Translate per-call knobs into the vector path's shared inputs:
+    ``(request, priors, era_midpoint, pack_meaning_dbs)``.
 
-    Translates the per-call knobs into a RequestVector via the
-    adapter, loads priors from disk if provided, and calls
-    NameGenerator.select_via_vector.
-
-    Returns a NewName-compatible object or None when the vector
-    path's gate / scoring filtered every candidate.
-    """
+    Extracted from :func:`_generate_via_vector` (wyrd-y0lx) so the
+    single-slot regeneration endpoint (``kenning-regenerate-morpheme``)
+    builds its RequestVector / priors / era-midpoint through the exact
+    same resolution as a full generate, instead of duplicating it and
+    letting the two copies drift apart."""
 
     from wyrd.generators.kenning.runtime.vector_kenning_adapter import (
         build_request_vector,
@@ -732,6 +740,53 @@ def _generate_via_vector(
 
     era_midpoint = era_midpoint_from_range(era_min, era_max)
 
+    return request, priors, era_midpoint, pack_meaning_dbs
+
+
+def _generate_via_vector(
+    name_gen: NameGenerator,
+    rng: random.Random,
+    *,
+    culture: str,
+    tags: list[str],
+    mood: tuple[str, ...],
+    harshness: float,
+    era_range: tuple[int | None, int | None] | None,
+    stratum: str | None,
+    cohesion: float,
+    exclude_tags: tuple[str, ...],
+    priors_path: str | None,
+    scoring_weights_raw: dict[str, float] | None = None,
+    packs_raw: list[dict[str, Any]] | None = None,
+    include_unglossed: bool = False,
+    spelling_variety: float = 0.0,
+    inflection_density: float = 0.0,
+    novelty: float = 0.0,
+    era_render_language: str | None = None,
+    era_requested: bool = False,
+    pool_cache: dict | None = None,
+) -> NewName | None:
+    """Dispatch helper for vector scoring (the only scoring path).
+
+    Translates the per-call knobs into a RequestVector via the
+    adapter (:func:`_resolve_vector_inputs`), loads priors from disk
+    if provided, and calls NameGenerator.select_via_vector.
+
+    Returns a NewName or None when the vector path's gate / scoring
+    filtered every candidate.
+    """
+    request, priors, era_midpoint, pack_meaning_dbs = _resolve_vector_inputs(
+        culture=culture,
+        tags=tags,
+        mood=mood,
+        harshness=harshness,
+        era_range=era_range,
+        stratum=stratum,
+        priors_path=priors_path,
+        scoring_weights_raw=scoring_weights_raw,
+        packs_raw=packs_raw,
+    )
+
     return name_gen.select_via_vector(
         rng,
         request=request,
@@ -746,4 +801,5 @@ def _generate_via_vector(
         novelty=novelty,
         era_render_language=era_render_language,
         era_requested=era_requested,
+        pool_cache=pool_cache,
     )

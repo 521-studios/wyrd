@@ -30,6 +30,7 @@ contend on the lock but don't corrupt state).
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import sqlite3
@@ -232,6 +233,7 @@ def reset_runtime_db_cache() -> None:  # noqa: V103 — test/ops cache-reset hel
     reload (a stat-the-pointer hook in a future PR could rotate
     connections without restarting the container)."""
     global _conn, _bundle_version_cache, _resolved_db_path
+    global _seed_exit_stack, _seed_path
     with _conn_lock:
         if _conn is not None:
             try:
@@ -241,6 +243,13 @@ def reset_runtime_db_cache() -> None:  # noqa: V103 — test/ops cache-reset hel
         _conn = None
         _bundle_version_cache = None
         _resolved_db_path = None
+        # wyrd-5kw0: release any materialized seed (deletes the extracted temp
+        # under zip-loader) AFTER the connection is closed, so the next resolve
+        # re-materializes. No-op when the seed was never used.
+        if _seed_exit_stack is not None:
+            _seed_exit_stack.close()
+            _seed_exit_stack = None
+            _seed_path = None
 
 
 def reset_runtime_db_connection() -> None:
@@ -461,28 +470,52 @@ def _download_matcher_sidecar(s3, bucket: str, version_key: str, cached_db_path:
         tmp.unlink(missing_ok=True)
 
 
+# wyrd-5kw0: the seed materialization is held open for the process. On a normal
+# (unzipped) install ``as_file`` hands back the real on-disk path and the
+# context cleanup is a no-op; under zip-loader packaging (Lambda Layers as zip,
+# zipapp) it EXTRACTS the binary to a temp file that must outlive the cached
+# read-only connection (the seed is read for the container's lifetime). The
+# ExitStack keeps that temp alive until the process exits, the cache is reset,
+# or the seed is re-materialized (which rotates the stack — see
+# _bundled_seed_path — so a vanished temp can't accumulate replacements).
+_seed_exit_stack: contextlib.ExitStack | None = None
+_seed_path: Path | None = None
+
+
 def _bundled_seed_path() -> Path:
     """Return the on-disk path of the committed seed-runtime.db.
 
-    Falls back to the bundled artifact. Raises FileNotFoundError when
-    the seed is missing — the runtime can't do anything without a
-    DB to read.
+    Falls back to the bundled artifact. Raises FileNotFoundError when the seed
+    is missing — the runtime can't do anything without a DB to read.
+
+    wyrd-5kw0: routes through ``importlib.resources.as_file`` so it works under
+    zip-loader packaging (Lambda Layers as zip, future zipapp) — not just normal
+    filesystem installs — materializing the binary on disk before it's opened.
+    Memoized: materialized once and reused (re-entering ``as_file`` per cold
+    resolve would re-extract under zip-loader).
     """
+    global _seed_exit_stack, _seed_path
+    if _seed_path is not None and _seed_path.is_file():
+        return _seed_path
     seed = resources.files("wyrd.generators.kenning.data").joinpath("seed-runtime.db")
-    # resources.files returns a Traversable; on a normal filesystem
-    # install the str() round-trip is fine. Zip-loader installs (where
-    # the package is shipped as a .zip on sys.path — Lambda Layers,
-    # future zipapp packaging) would need resources.as_file() to
-    # materialize the binary on disk. Lambda's default deployment
-    # shape today is unzipped, so this works in production; filed as
-    # bd ticket wyrd-5kw0 for the as_file() refactor when zip
-    # packaging becomes the path.
-    path = Path(str(seed))
+    # Re-materializing (memo missed — first call, OR a prior temp vanished, e.g.
+    # a SnapStart restore wiped /tmp while these globals survived the snapshot).
+    # ROTATE the ExitStack rather than appending: pushing a fresh as_file
+    # context onto a stale stack would pile up extracted temps across restore
+    # cycles. Closing the old stack also drops any now-dead temp. Safe because
+    # the memo only misses once the prior temp is gone (an open connection keeps
+    # _seed_path.is_file() true → early return above), and the SnapStart /
+    # cache-reset paths close _conn before we get here.
+    if _seed_exit_stack is not None:
+        _seed_exit_stack.close()
+    _seed_exit_stack = contextlib.ExitStack()
+    path = _seed_exit_stack.enter_context(resources.as_file(seed))
     if not path.is_file():
         raise FileNotFoundError(
             f"no runtime DB available: seed at {path} is missing AND no "
             f"{ENV_LOCAL_PATH} / {ENV_BUCKET} env var is set"
         )
+    _seed_path = path
     return path
 
 

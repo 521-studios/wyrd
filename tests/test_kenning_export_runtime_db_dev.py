@@ -50,13 +50,20 @@ def _subject(usage: str, language: str = "old_english") -> dict:
     }
 
 
-def _proportions(usages: dict[str, int], single_usages: dict[str, int] | None = None) -> dict:
+def _proportions(
+    usages: dict[str, int],
+    single_usages: dict[str, int] | None = None,
+    bare_word_positions: dict[str, dict[str, int]] | None = None,
+) -> dict:
     return {
         "usages": usages,
         "single_usages": single_usages or {},
         "structures": [{"proportion": 1, "words": [[{"location": "pre"}]]}],
         "tag_marginal": {"water": 1},
         "tag_cooccurrence": {"water|tree": 1},
+        # wyrd-rogd.13: baseline empty so existing emit tests stay green;
+        # pass a dict to exercise the proportions_bare_word_position emit.
+        "bare_word_positions": bare_word_positions or {},
     }
 
 

@@ -153,6 +153,53 @@ class PipelineState {
     if (idx !== -1) this.removeStep(idx);
   }
 
+  /** Direct-manipulation regenerate (wyrd-y0lx): maintain AT MOST ONE
+   *  regenerate step per (wordIndex, morphemeIndex) slot — operator
+   *  decision: a second click on the same morpheme re-rolls IN PLACE
+   *  (a fresh seed on the existing step), so removing the step always
+   *  reverts straight to the pre-regenerate morpheme. `context` is the
+   *  generation-params snapshot the caller takes at click time and is
+   *  refreshed on every click (the caller computes it fresh; silently
+   *  keeping the first click's copy would discard it). `from` is the
+   *  slot's pre-regenerate surface, kept from the FIRST click so the
+   *  step card keeps labeling the original morpheme being re-rolled.
+   *
+   *  wyrd-6p2u supersession rule: a regenerate REPLACES the slot's
+   *  morpheme IDENTITY, so any swap step already targeting the slot is
+   *  meaningless (it picked a form of a morpheme that no longer exists)
+   *  and is dropped here — whether the swap predates the first
+   *  regenerate or was layered on one (a fresh re-roll supersedes a
+   *  regenerate→swap chain too). The reverse never holds: a swap added
+   *  AFTER a regenerate refines the NEW morpheme's form and stacks
+   *  normally (setSwap is deliberately untouched). */
+  setRegenerate({ wordIndex, morphemeIndex, context = {}, from = '' }) {
+    // Number.MAX_SAFE_INTEGER keeps the seed in the JS-safe int range the
+    // server's sub-seed contract already uses (wyrd-aof8).
+    const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+    const sameSlot = (s) =>
+      s.params.wordIndex === wordIndex && s.params.morphemeIndex === morphemeIndex;
+    // Drop superseded swaps + locate the slot's regenerate against ONE new
+    // array, committed in a single assignment (no intermediate reactive
+    // state between the removal and the add/update).
+    const next = this.steps.filter((s) => !(s.kind === 'swap' && sameSlot(s)));
+    const idx = next.findIndex((s) => s.kind === 'regenerate-morpheme' && sameSlot(s));
+    if (idx !== -1) {
+      next[idx] = { ...next[idx], params: { ...next[idx].params, seed, context } };
+      this.steps = next;
+    } else {
+      const t = getTransform('regenerate-morpheme');
+      this.#nextStepId += 1;
+      this.steps = [
+        ...next,
+        {
+          id: this.#nextStepId,
+          kind: 'regenerate-morpheme',
+          params: { ...t.defaultParams, wordIndex, morphemeIndex, seed, context, from },
+        },
+      ];
+    }
+  }
+
   /** Replace step at index i with a new params object (callers
    *  mutate the step's params in-place via bind:value; this
    *  helper is for callers that want explicit replacement). */
