@@ -108,45 +108,17 @@ def test_reconstruct_picked_ids_shape_and_none_degrade():
     assert _reconstruct_picked_ids(struct, picked) == [["old-english:a", None], [None]]
 
 
-def test_active_cell_id_lang_scope_then_fold_then_none():
-    from wyrd.generators.kenning.runtime.proportions import _active_cell_id
-
-    grid = [
-        {
-            "family": "english",
-            "stages": [
-                {"language": "old-english", "forms": [{"id": "old-english:roth", "form": "roth"}]},
-                {
-                    "language": "middle-english",
-                    "forms": [{"id": "middle-english:roth", "form": "roth"}],
-                },
-            ],
-        }
-    ]
-    # exact match inside the requested lang stage wins (both stages fold equal).
-    assert _active_cell_id(grid, "middle-english", "roth") == "middle-english:roth"
-    assert _active_cell_id(grid, "old-english", "roth") == "old-english:roth"
-    # case differs → fold (not exact) match in the lang stage.
-    assert _active_cell_id(grid, "middle-english", "Roth") == "middle-english:roth"
-    # no lang hint → first folding cell anywhere (fold_any).
-    assert _active_cell_id(grid, None, "roth") == "old-english:roth"
-    # no fold match, empty grid, empty surface → None.
-    assert _active_cell_id(grid, "old-english", "zzz") is None
-    assert _active_cell_id([], "old-english", "roth") is None
-    assert _active_cell_id(grid, "old-english", "") is None
-
-
 def test_set_active_form_id_forward_exact_not_reconstructed_sibling():
     """wyrd-3vju.1: the active id is computed FORWARD from the picked morpheme's
     own form, so it lands on the EXACT reflex the generator rendered — not a
     fold-equal sibling. Here the reconstructed ``*west`` cell and the attested
-    ``west`` cell both display form ``west``; the legacy backwards fold-search
-    returned the FIRST folding cell (``*west``), but the render chose the
-    attested ``west`` — the forward id (built from the picked morpheme's own
+    ``west`` cell both display form ``west``; the (since-removed) legacy backwards
+    fold-search returned the FIRST folding cell (``*west``), but the render chose
+    the attested ``west`` — the forward id (built from the picked morpheme's own
     form) picks it exactly, with no fold."""
     from types import SimpleNamespace
 
-    from wyrd.generators.kenning.runtime.proportions import NewName, _active_cell_id
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     grid = [
         {
@@ -162,9 +134,6 @@ def test_set_active_form_id_forward_exact_not_reconstructed_sibling():
             ],
         }
     ]
-    # The legacy backwards search would (wrongly) return the reconstructed sibling.
-    assert _active_cell_id(grid, "old-english", "West") == "old-english:*west"
-
     nn = NewName(struct=None, meaning_db={}, name=[["x"]])
     m = {"usage": "West", "rendered": "West", "era_grid": grid}  # native render
     nn._set_active_form_id(m, SimpleNamespace(morpheme_id=None), grid_mid="old-english:west")
@@ -173,10 +142,11 @@ def test_set_active_form_id_forward_exact_not_reconstructed_sibling():
 
 
 def test_set_active_form_id_falls_back_to_fold_when_surface_not_a_reflex_cell():
-    """wyrd-3vju.1: when the rendered surface is NOT an enumerated reflex of the
-    picked etymon (the genuine data gap — sparse era_reflexes / synthesized
-    surface), the forward id isn't in the grid, so we fall back to the legacy
-    fold so SOMETHING still highlights. No regression vs the pre-3vju.1 path."""
+    """wyrd-3vju.1/.3: when the rendered surface is NOT an enumerated reflex of
+    the picked etymon (the genuine data gap — sparse era_reflexes / synthesized
+    surface), the forward id isn't in the grid, so _ensure_cell resolves it: a
+    fold-equal cell in the render stage is reused (no duplicate) so SOMETHING
+    still highlights. No regression vs the pre-3vju.1 path."""
     from types import SimpleNamespace
 
     from wyrd.generators.kenning.runtime.proportions import NewName
@@ -200,12 +170,12 @@ def test_set_active_form_id_force_modern_prefers_present_day_stage():
     """wyrd-3vju.2: force-modern (era="modern-english") leaves rendered None, so the
     active id is resolved from the usage against each family's PRESENT-DAY stage.
     A same-spelled earlier-era homograph (middle-english "water") must NOT outrank
-    the modern cell — the old lang=None fold returned the FIRST same-spelled cell
-    in grid order (middle-english), the visible mis-highlight in defect 6d808d94
-    (Hesketh Water)."""
+    the modern cell — the (since-removed) lang=None fold returned the FIRST
+    same-spelled cell in grid order (middle-english), the visible mis-highlight in
+    defect 6d808d94 (Hesketh Water)."""
     from types import SimpleNamespace
 
-    from wyrd.generators.kenning.runtime.proportions import NewName, _active_cell_id
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     grid = [
         {
@@ -223,9 +193,6 @@ def test_set_active_form_id_force_modern_prefers_present_day_stage():
             ],
         }
     ]
-    # The old fallback (lang=None) returns the FIRST same-spelled cell — the bug.
-    assert _active_cell_id(grid, None, "water") == "middle-english:water"
-
     nn = NewName(struct=None, meaning_db={}, name=[["x"]])
     # Force-modern: rendered absent/None, usage IS the present-day surface.
     m = {"usage": "water", "era_grid": grid}

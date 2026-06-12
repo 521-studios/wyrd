@@ -732,35 +732,6 @@ def _grid_surface_key(form: str) -> str:
     return form.strip().strip("-").strip().casefold()
 
 
-def _active_cell_id(grid, lang, surface):
-    """wyrd-i4jd: the stable grid-cell ``id`` for a morpheme's ACTIVE (rendered)
-    surface, so the SPA highlights the generated form BY ID instead of
-    re-deriving it with a brittle cross-grid surface fold (which collides on
-    same-spelled forms across eras/etymons). The match is scoped to the
-    morpheme's OWN grid (already built from the picked etymon) and, when known,
-    its render-language stage — so cross-etymon / cross-era collisions can't
-    happen. Prefers an exact form match in ``lang``'s stage, then a case/dash
-    fold there, then the first folding cell anywhere. None when nothing matches
-    (→ frontend falls back to its legacy fold for that morpheme)."""
-    if not grid or not surface:
-        return None
-    folded = _grid_surface_key(surface)
-    exact_lang = fold_lang = fold_any = None
-    for section in grid:
-        for stage in section.get("stages", []):
-            in_lang = lang is not None and stage.get("language") == lang
-            for cell in stage.get("forms", []):
-                form = cell.get("form", "")
-                if in_lang and form == surface and exact_lang is None:
-                    exact_lang = cell.get("id")
-                if _grid_surface_key(form) == folded:
-                    if in_lang and fold_lang is None:
-                        fold_lang = cell.get("id")
-                    elif fold_any is None:
-                        fold_any = cell.get("id")
-    return exact_lang or fold_lang or fold_any
-
-
 def _ensure_cell(grid, lang, surface, source):
     """wyrd-3vju.3: GUARANTEE a clickable cell for ``surface`` in ``lang``'s stage.
     The era grid IS the SPA's swap menu, so the live/identity form MUST be in it
@@ -2262,11 +2233,11 @@ class NewName:
         and the macron Output/Inspect mismatch (the fold disagreeing on combining
         marks) can't happen for the common path.
 
-        The legacy backwards fold-search (:func:`_active_cell_id`) survives only
-        as a fallback for the genuine data gap — when the rendered form is NOT an
+        wyrd-3vju.3: the genuine data gap — the rendered form NOT being an
         enumerated reflex of the picked etymon (sparse era_reflexes / synthesized
-        surface; the era-grid data-quality work, wyrd-3vju). Sparse: omitted when
-        even the fallback finds nothing → frontend falls back to its own fold."""
+        surface) — is closed by :func:`_ensure_cell`: the live form's cell is
+        injected into its render stage so the highlight always has a target.
+        (This replaced the legacy backwards cross-grid fold-search.)"""
         grid = morpheme.get("era_grid")
         if not grid:
             return
