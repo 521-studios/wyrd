@@ -916,6 +916,26 @@ prompting the user toward the explicit `family/label` form. No silent
 cross-family fallback — it's too easy to accidentally route an
 'english' culture's `--era middle-irish` to the goidelic range.
 
+**Refinement (wyrd-c6o1.3, 2026-06-12): open-ended windows pass every
+morpheme.** An era window with `end=None` — the present-day / `modern`
+stage of every living family, and what the culture-agnostic
+`present-day` token (wyrd-kqyf, the deployed `WYRD_DEFAULT_ERA` in both
+envs) resolves to — no longer requires an attestation year inside the
+window. Place names accrete: the present contains every historical
+stratum, and the bundle's scholarly attestations are inherently
+medieval (etymology dictionaries cite Domesday-era forms), so the
+year-inside-window rule was unsatisfiable-by-construction for the core
+OE corpus. The observable failure: once `present-day` became the
+deployed default era, `tūn`/`-ton` (≈20% of real British place names)
+and every other well-documented OE morpheme silently vanished from
+default generation, while thinly-documented homographs (welsh `ton`
+'wave') passed via the no-data rule and absorbed the surface's picks.
+The perverse incentive was structural — the better a morpheme's
+scholarship coverage, the more reliably it was excluded. Bounded
+historical windows (`oe-late`, `me`, …) keep the year-inside-window
+semantics as a deliberate period-flavor knob. Regression gate:
+`tests/test_kenning_present_day_core_morphemes.py`.
+
 ## D17 refinement: cohesion knob (wyrd-mj2, PR #59).
 
 — **SUPERSEDED 2026-05-18 by D36 (vector-driven generator architecture); body archived → `archive/superseded-decisions.md`.** The cohesion math/rationale carry over to the vector scorer's multiplier; the named proportions-era helpers (`Generator.select`, `_cohesion_boost`, `_raw_class_score`) are gone. The tag-co-occurrence data it consumed is still defined by D16.

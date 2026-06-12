@@ -2822,10 +2822,19 @@ def load_proportions(data, meaning_db, tag_db):
     # ``in`` lookups. Legacy bundles built pre-wyrd-pfoo carry no
     # ``attested_languages`` key → None falls back to the per-usage
     # filter only.
+    # wyrd-c6o1.3: keyed by bare SURFACE, union-merged across dash-variants
+    # — the same fold the per-usage filter above applies. The bundle records
+    # attestation under the position-forms the corpus walk saw (`-ton`), but
+    # meaning_db stores every dash-variant key (`ton`, `Ton-`, `-ton-`); an
+    # exact-key lookup left those variants un-narrowed, so wrong-language
+    # homographs (welsh `ton` 'wave' in an english request) slipped into the
+    # native pool through the variant keys.
     raw_attested = data.get("attested_languages") or {}
-    culture_attested_meanings: dict[str, frozenset[str]] | None = {
-        k: frozenset(v) for k, v in raw_attested.items()
-    } or None
+    folded_attested: dict[str, frozenset[str]] = {}
+    for k, v in raw_attested.items():
+        surface = k.lower().replace("-", "")
+        folded_attested[surface] = folded_attested.get(surface, frozenset()) | frozenset(v)
+    culture_attested_meanings: dict[str, frozenset[str]] | None = folded_attested or None
     return NameGenerator(
         meaning_db,
         mg,
