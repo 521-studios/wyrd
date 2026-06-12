@@ -162,23 +162,41 @@ class PipelineState {
    *  refreshed on every click (the caller computes it fresh; silently
    *  keeping the first click's copy would discard it). `from` is the
    *  slot's pre-regenerate surface, kept from the FIRST click so the
-   *  step card keeps labeling the original morpheme being re-rolled. */
+   *  step card keeps labeling the original morpheme being re-rolled.
+   *
+   *  wyrd-6p2u supersession rule: a regenerate REPLACES the slot's
+   *  morpheme IDENTITY, so any swap step already targeting the slot is
+   *  meaningless (it picked a form of a morpheme that no longer exists)
+   *  and is dropped here — whether the swap predates the first
+   *  regenerate or was layered on one (a fresh re-roll supersedes a
+   *  regenerate→swap chain too). The reverse never holds: a swap added
+   *  AFTER a regenerate refines the NEW morpheme's form and stacks
+   *  normally (setSwap is deliberately untouched). */
   setRegenerate({ wordIndex, morphemeIndex, context, from }) {
     // Number.MAX_SAFE_INTEGER keeps the seed in the JS-safe int range the
     // server's sub-seed contract already uses (wyrd-aof8).
     const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
-    const idx = this.steps.findIndex(
-      (s) =>
-        s.kind === 'regenerate-morpheme' &&
-        s.params.wordIndex === wordIndex &&
-        s.params.morphemeIndex === morphemeIndex,
-    );
+    const sameSlot = (s) =>
+      s.params.wordIndex === wordIndex && s.params.morphemeIndex === morphemeIndex;
+    // Drop superseded swaps + locate the slot's regenerate against ONE new
+    // array, committed in a single assignment (no intermediate reactive
+    // state between the removal and the add/update).
+    const next = this.steps.filter((s) => !(s.kind === 'swap' && sameSlot(s)));
+    const idx = next.findIndex((s) => s.kind === 'regenerate-morpheme' && sameSlot(s));
     if (idx !== -1) {
-      const next = [...this.steps];
       next[idx] = { ...next[idx], params: { ...next[idx].params, seed, context } };
       this.steps = next;
     } else {
-      this.addStep('regenerate-morpheme', { wordIndex, morphemeIndex, seed, context, from });
+      const t = getTransform('regenerate-morpheme');
+      this.#nextStepId += 1;
+      this.steps = [
+        ...next,
+        {
+          id: this.#nextStepId,
+          kind: 'regenerate-morpheme',
+          params: { ...t.defaultParams, wordIndex, morphemeIndex, seed, context, from },
+        },
+      ];
     }
   }
 

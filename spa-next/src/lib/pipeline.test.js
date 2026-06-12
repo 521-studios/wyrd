@@ -73,3 +73,49 @@ describe('pipeline.setRegenerate', () => {
     expect(regenSteps()).toHaveLength(0);
   });
 });
+
+// wyrd-6p2u supersession rule: a regenerate replaces the slot's morpheme
+// IDENTITY, so swaps targeting the slot are dropped when a regenerate lands;
+// a swap added AFTER a regenerate refines the NEW morpheme and survives.
+describe('regenerate ↔ swap supersession (wyrd-6p2u)', () => {
+  const swapSteps = () => pipeline.steps.filter((s) => s.kind === 'swap');
+
+  beforeEach(() => {
+    pipeline.clear();
+  });
+
+  it('swap then regenerate on the same slot: the swap is superseded', () => {
+    pipeline.setSwap({ wordIndex: 0, morphemeIndex: 1, to: '-tūn', original: '-ton' });
+    expect(swapSteps()).toHaveLength(1);
+    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1, context: {} });
+    expect(swapSteps()).toHaveLength(0);
+    expect(regenSteps()).toHaveLength(1);
+  });
+
+  it('regenerate then swap: both survive (swap refines the NEW morpheme)', () => {
+    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1, context: {} });
+    pipeline.setSwap({ wordIndex: 0, morphemeIndex: 1, to: '-hām', original: '-ton' });
+    expect(regenSteps()).toHaveLength(1);
+    expect(swapSteps()).toHaveLength(1);
+    // and in stack order: the regenerate precedes the swap it feeds
+    expect(pipeline.steps.map((s) => s.kind)).toEqual(['regenerate-morpheme', 'swap']);
+  });
+
+  it('regenerate → swap → fresh regenerate: the new roll supersedes both', () => {
+    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1, context: {} });
+    const firstId = regenSteps()[0].id;
+    pipeline.setSwap({ wordIndex: 0, morphemeIndex: 1, to: '-hām', original: '-ton' });
+    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1, context: {} });
+    expect(swapSteps()).toHaveLength(0);
+    expect(regenSteps()).toHaveLength(1);
+    // still the same step, re-rolled in place (undo goes straight to original)
+    expect(regenSteps()[0].id).toBe(firstId);
+  });
+
+  it('a swap on a DIFFERENT slot survives a regenerate', () => {
+    pipeline.setSwap({ wordIndex: 0, morphemeIndex: 0, to: 'Stān-', original: 'Stan-' });
+    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1, context: {} });
+    expect(swapSteps()).toHaveLength(1);
+    expect(regenSteps()).toHaveLength(1);
+  });
+});
