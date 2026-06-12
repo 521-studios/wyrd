@@ -2834,7 +2834,7 @@ def load_proportions(data, meaning_db, tag_db):
     folded_attested: dict[str, frozenset[str]] = {}
     for k, v in raw_attested.items():
         surface = k.lower().replace("-", "")
-        folded_attested[surface] = folded_attested.get(surface, frozenset()) | frozenset(v)
+        folded_attested[surface] = folded_attested.get(surface, frozenset()).union(v)
     culture_attested_meanings: dict[str, frozenset[str]] | None = folded_attested or None
     return NameGenerator(
         meaning_db,
