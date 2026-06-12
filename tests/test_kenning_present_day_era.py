@@ -42,7 +42,7 @@ def test_token_renders_force_modern(culture):
     assert _resolve_era_render_language("present-day", culture) is None
 
 
-@pytest.mark.parametrize("culture", ["english", "welsh", "irish"])
+@pytest.mark.parametrize("culture", CULTURES)
 def test_generate_with_token_equals_explicit_stage(culture):
     """Same seed + token vs the explicit present-day stage must produce the
     same name — the token is a pure alias, not a parallel code path."""
@@ -52,6 +52,16 @@ def test_generate_with_token_equals_explicit_stage(culture):
     )
     assert via_token.result == via_stage.result
     assert via_token.result_modern == via_stage.result_modern
+
+
+def test_token_generation_is_deterministic():
+    """Same params + same seed twice must produce the same name — the
+    translation layer must not introduce any per-call variability."""
+    params = {"culture": "welsh", "era": "present-day"}
+    first = Kenning().generate(dict(params), seed=42)
+    second = Kenning().generate(dict(params), seed=42)
+    assert first.result == second.result
+    assert first.result_modern == second.result_modern
 
 
 def test_env_default_applies_to_requests_that_omit_era(monkeypatch):

@@ -663,7 +663,13 @@ def _translate_present_day_era(era: Any, culture: str) -> Any:
     contemporary stages). Any other value passes through untouched."""
     if era == _PRESENT_DAY_ERA:
         family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
-        return family_stage_order(family)[-1]
+        stages = family_stage_order(family)
+        if not stages:
+            # Unreachable for today's families (every ERA_CELLS family has
+            # cells) — the guard turns a future stage-less family edit into
+            # the callers' clean ValueError contract instead of IndexError.
+            raise ValueError(f"no era stages defined for family {family!r}")
+        return stages[-1]
     return era
 
 
@@ -682,9 +688,9 @@ def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] 
     """
     if era is None or era == "":
         return None
-    era = _translate_present_day_era(era, culture)
     era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
     try:
+        era = _translate_present_day_era(era, culture)
         return resolve_era_input(era, default_family=era_family)
     except (KeyError, ValueError) as exc:
         raise ValueError(
@@ -742,9 +748,9 @@ def _resolve_era_render_language(era: Any, culture: str) -> str | None:
     """
     if era is None or era == "":
         return None
-    era = _translate_present_day_era(era, culture)
     era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
     try:
+        era = _translate_present_day_era(era, culture)
         family, cell = era_cell_for_input(era, default_family=era_family)
     except (KeyError, ValueError):
         return None

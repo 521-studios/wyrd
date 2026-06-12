@@ -231,6 +231,21 @@ describe('snapDependentValue (present-day era token)', () => {
     );
   });
 
+  it('stays a pure snapEnumValue for non-token dependent selects (stratum parity)', () => {
+    // Field.svelte routes EVERY dependent select through snapDependentValue;
+    // without a token config default the present-day layer must be inert —
+    // identical to snapEnumValue — so stratum's culture-switch snap can't be
+    // corrupted by a future edit to the token branch.
+    const stratumOptions = ['', 'native-welsh', 'latin-loan'];
+    const stratumProp = { type: 'string', default: '' };
+    const plainConfig = { all: false, flags: {}, defaults: {} };
+    for (const value of [undefined, '', 'native-welsh', 'east-norse']) {
+      expect(snapDependentValue(value, stratumOptions, stratumProp, plainConfig, 'stratum')).toBe(
+        snapEnumValue(value, stratumOptions, stratumProp.default),
+      );
+    }
+  });
+
   it('valid values and unseeded fields are left alone', () => {
     expect(
       snapDependentValue('middle-welsh', welshOptions, eraProp, tokenConfig, 'era'),
