@@ -320,15 +320,18 @@ def _native_pool(
         # proportions side records position-forms); compare this entry's stored
         # variant by surface so a morpheme stored as `Giles-` but recorded as
         # `-giles` isn't silently dropped from the pool.
-        if (
-            culture_attested_usages is not None
-            and usage_key.lower().replace("-", "") not in culture_attested_usages
-        ):
+        surface = usage_key.lower().replace("-", "")
+        if culture_attested_usages is not None and surface not in culture_attested_usages:
             continue
-        # Per-Meaning narrowing set for this usage_key (wyrd-pfoo); None when
-        # the filter is inactive or this usage carried no per-Meaning data.
+        # Per-Meaning narrowing set for this surface (wyrd-pfoo); None when
+        # the filter is inactive or this surface carried no per-Meaning data.
+        # wyrd-c6o1.3: keyed by bare surface (fold-unioned in
+        # ``load_proportions``), so every stored dash-variant key (the bare
+        # `ton`, `Ton-`, `-ton-`) gets the same narrowing as the position-form
+        # the corpus attested (`-ton`) instead of bypassing it and letting
+        # wrong-language homographs into the native pool.
         admitted_langs: frozenset[str] | None = (
-            culture_attested_meanings.get(usage_key)
+            culture_attested_meanings.get(surface)
             if culture_attested_meanings is not None
             else None
         )
@@ -405,8 +408,11 @@ def build_non_position_eligible(
     callers that don't carry per-culture data).
 
     ``culture_attested_meanings`` is the per-Meaning narrowing
-    (wyrd-pfoo). For each usage_key, only Meanings whose primary
-    source-language is in the per-usage attested set are admitted.
+    (wyrd-pfoo), keyed by bare SURFACE (dashes folded;
+    ``load_proportions`` fold-unions the bundle's position-form keys
+    before constructing the NameGenerator — wyrd-c6o1.3). For each
+    surface, only Meanings
+    whose primary source-language is in the attested set are admitted.
     Filters wrong-sense Meanings the per-usage filter let through:
     Celtic ``-ton``→'tone' (music), ``Saint-``→'greed', ``-bridge``
     →'card game'. ``None`` disables this narrower filter and falls

@@ -96,13 +96,37 @@ def test_explicit_empty_era_still_means_mixed(monkeypatch):
     monkeypatch.setenv("WYRD_DEFAULT_ERA", "present-day")
     app = create_app()
     with app.test_client() as client:
-        mixed = client.post(
-            "/api/kenning", json={"culture": "english", "count": 1, "seed": 42, "era": ""}
-        )
-        assert mixed.status_code == 200
         # Mixed-era (native per-morpheme) output differs from the force-modern
-        # default for this seed; equality here would mean the "" was clobbered.
-        defaulted = client.post("/api/kenning", json={"culture": "english", "count": 1, "seed": 42})
-        assert (
-            mixed.get_json()["results"][0]["result"] != defaulted.get_json()["results"][0]["result"]
+        # default; equality on EVERY seed would mean the "" was clobbered.
+        # wyrd-c6o1.3 made the present-day INVENTORY identical to mixed-era
+        # (open-ended windows pass every morpheme), so the two requests now
+        # differ only in render — a single seed whose picks are all
+        # modern-sourced renders identically under both. Sweep seeds and
+        # require at least one native render to diverge. The failure modes
+        # are asymmetric: a clobbered "" produces identical params, hence
+        # identical results on EVERY seed deterministically (always caught);
+        # a false failure needs all 20 seeds to draw exclusively
+        # modern-sourced morphemes, and english picks are OE-dominated, so
+        # most seeds diverge (the committed seed bundle diverges within the
+        # first few).
+        diverged = False
+        for seed in range(20):
+            mixed = client.post(
+                "/api/kenning",
+                json={"culture": "english", "count": 1, "seed": seed, "era": ""},
+            )
+            assert mixed.status_code == 200
+            defaulted = client.post(
+                "/api/kenning", json={"culture": "english", "count": 1, "seed": seed}
+            )
+            assert defaulted.status_code == 200
+            if (
+                mixed.get_json()["results"][0]["result"]
+                != defaulted.get_json()["results"][0]["result"]
+            ):
+                diverged = True
+                break
+        assert diverged, (
+            "era='' output matched the present-day default on every seed — "
+            "the explicit Mixed Era pick is being clobbered by WYRD_DEFAULT_ERA"
         )

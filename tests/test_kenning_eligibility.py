@@ -135,11 +135,19 @@ def test_era_gate_half_open_window():
 
 
 def test_era_gate_only_lower_bound_set():
-    """era_min set, era_max=None → 'attested after start' filter."""
+    """era_min set, era_max=None → an OPEN-ENDED (present-day) window.
+
+    wyrd-c6o1.3: open-ended windows pass EVERY morpheme regardless of
+    attestation years — place names accrete, so the present contains all
+    historical strata. The previous 'attested after start' semantics
+    starved core OE morphemes (tūn → '-ton') out of the SPA's default
+    present-day generation, because scholarly attestations are inherently
+    medieval. See Meaning.attested_in_era_range.
+    """
     m_after = _meaning(attested_years={"old_english": [("a", 1500)]})
     m_before = _meaning(attested_years={"old_english": [("a", 500)]})
     assert passes_era_gate(m_after, 800, None) is True
-    assert passes_era_gate(m_before, 800, None) is False
+    assert passes_era_gate(m_before, 800, None) is True
 
 
 def test_era_gate_only_upper_bound_set():

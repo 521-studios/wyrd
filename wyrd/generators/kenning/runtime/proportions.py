@@ -1226,10 +1226,11 @@ class NameGenerator:
         # this culture" to "(usage, primary_language) attested in this
         # culture" — preventing wrong-sense picks like Celtic
         # ``-ton``→'tone' or ``Saint-``→'greed' that the per-usage
-        # filter admitted as collateral damage. Keys are usage_keys;
-        # values are frozensets of primary-language bundle-field
-        # names. ``None`` (legacy bundles built pre-wyrd-pfoo) falls
-        # back to the per-usage filter only.
+        # filter admitted as collateral damage. Keys are bare SURFACES
+        # (dash-folded usage_keys, union-merged across dash-variants in
+        # ``load_proportions`` — wyrd-c6o1.3); values are frozensets of
+        # primary-language bundle-field names. ``None`` (legacy bundles
+        # built pre-wyrd-pfoo) falls back to the per-usage filter only.
         self.culture_attested_meanings: dict[str, frozenset[str]] | None = culture_attested_meanings
         # wyrd-i7uy: the vector path's eligibility pool + per-slot base-score map
         # are built FRESH per generate() call (see _build_vector_pools) and never
@@ -2822,10 +2823,19 @@ def load_proportions(data, meaning_db, tag_db):
     # ``in`` lookups. Legacy bundles built pre-wyrd-pfoo carry no
     # ``attested_languages`` key → None falls back to the per-usage
     # filter only.
+    # wyrd-c6o1.3: keyed by bare SURFACE, union-merged across dash-variants
+    # — the same fold the per-usage filter above applies. The bundle records
+    # attestation under the position-forms the corpus walk saw (`-ton`), but
+    # meaning_db stores every dash-variant key (the bare `ton`, `Ton-`,
+    # `-ton-`); an exact-key lookup left those variants un-narrowed, so
+    # wrong-language homographs (welsh `ton` 'wave' in an english request)
+    # slipped into the native pool through the variant keys.
     raw_attested = data.get("attested_languages") or {}
-    culture_attested_meanings: dict[str, frozenset[str]] | None = {
-        k: frozenset(v) for k, v in raw_attested.items()
-    } or None
+    folded_attested: dict[str, frozenset[str]] = {}
+    for k, v in raw_attested.items():
+        surface = k.lower().replace("-", "")
+        folded_attested[surface] = folded_attested.get(surface, frozenset()).union(v)
+    culture_attested_meanings: dict[str, frozenset[str]] | None = folded_attested or None
     return NameGenerator(
         meaning_db,
         mg,

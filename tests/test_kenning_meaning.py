@@ -535,10 +535,31 @@ def test_attested_in_era_range_open_low_endpoint():
 
 
 def test_attested_in_era_range_open_high_endpoint():
-    """end=None means 'open on high side' — any year >= start matches."""
+    """end=None is an OPEN-ENDED window: it passes regardless of the
+    morpheme's years (wyrd-c6o1.3 — see the dedicated open-ended test
+    below). The bounded (None, 1700) window still applies the
+    year-inside-window check."""
     m = _meaning_with_attested_years({"old_english": [("modern", 1900)]})
     assert m.attested_in_era_range((1700, None)) is True
     assert m.attested_in_era_range((None, 1700)) is False
+
+
+def test_attested_in_era_range_open_ended_window_passes_historical_morphemes():
+    """wyrd-c6o1.3: an OPEN-ENDED window (end=None — the present-day /
+    'modern' stage of every living family) passes every morpheme
+    regardless of attestation years. Place names accrete: the present
+    contains every historical stratum, and the bundle's scholarly
+    attestations are inherently medieval (etymology dictionaries cite
+    Domesday-era forms), so requiring a year inside ``(1700, None)``
+    silently starved core OE morphemes (tūn → '-ton', ~20% of real
+    English place names) out of default present-day generation while
+    no-data homographs passed through."""
+    tun = _meaning_with_attested_years(
+        {"old_english": [("tun", 709), ("tūn", 1050), ("ton", 1086), ("tona", 1270)]}
+    )
+    assert tun.attested_in_era_range((1700, None)) is True
+    # Bounded historical windows keep the year-inside-window semantics.
+    assert tun.attested_in_era_range((1500, 1700)) is False
 
 
 def test_attested_in_era_range_short_circuits_on_first_match():

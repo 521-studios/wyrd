@@ -23,6 +23,7 @@ from wyrd.generators.kenning.lexicon.runtime_db_export import (
     select_dev_subset,
 )
 from wyrd.generators.kenning.runtime.meaning import Meaning
+from wyrd.generators.kenning.runtime.proportions import load_proportions
 from wyrd.generators.kenning.runtime.runtime_db_adapter import (
     _read_proportions_attested_languages,
     proportions_dict_for_culture,
@@ -343,7 +344,7 @@ def test_build_eligible_per_meaning_narrows_to_admitted_languages():
         packs=(),
         culture_attested_usages=frozenset({"ton"}),
         # Only OE Meanings were the attested sense for this usage.
-        culture_attested_meanings={"-ton": frozenset({"old_english"})},
+        culture_attested_meanings={"ton": frozenset({"old_english"})},
     )
     assert pool == [oe]
 
@@ -365,7 +366,7 @@ def test_build_eligible_missing_usage_key_in_per_meaning_defensive_admit():
         packs=(),
         culture_attested_usages=frozenset({"ton"}),
         # Some OTHER usage attested; -ton missing → defensive admit.
-        culture_attested_meanings={"pen-": frozenset({"celtic_mix"})},
+        culture_attested_meanings={"pen": frozenset({"celtic_mix"})},
     )
     assert set(pool) == {oe, celtic}
 
@@ -387,7 +388,7 @@ def test_build_eligible_empty_admitted_langs_drops_all_meanings():
         packs=(),
         culture_attested_usages=frozenset({"ton"}),
         # Empty frozenset → filter active, nothing admits.
-        culture_attested_meanings={"-ton": frozenset()},
+        culture_attested_meanings={"ton": frozenset()},
     )
     assert pool == []
 
@@ -405,7 +406,7 @@ def test_build_eligible_per_meaning_skips_meanings_with_no_primary_language():
         pack_meaning_dbs=None,
         packs=(),
         culture_attested_usages=frozenset({"orphan"}),
-        culture_attested_meanings={"-orphan": frozenset({"celtic_mix"})},
+        culture_attested_meanings={"orphan": frozenset({"celtic_mix"})},
     )
     assert pool == []
 
@@ -643,3 +644,68 @@ def test_insert_attested_languages_deduplicates_input_lists():
         assert rows == [("celtic_mix",), ("old_english",)]
     finally:
         conn.close()
+
+
+# ---- wyrd-c6o1.3: surface-keyed per-Meaning narrowing ----------------------
+
+
+def test_build_eligible_per_meaning_narrowing_covers_dash_variant_keys():
+    """wyrd-c6o1.3: the per-Meaning map is bare-surface-keyed and the pool
+    walk folds each meaning_db key's dashes before the lookup — so
+    position-variant keys (``ton`` / ``Ton-``) get the SAME narrowing as
+    the position-form the corpus attested (``-ton``). Pre-fix the
+    exact-key lookup returned None for the variants, admitting the welsh
+    'wave' homograph into english generation through them."""
+    oe = _meaning("-ton", "old_english", ["topography"])
+    welsh_bare = _meaning("ton", "celtic_mix", ["topography"])
+    welsh_pre = _meaning("Ton-", "celtic_mix", ["topography"])
+    meaning_db = {"-ton": [oe], "ton": [welsh_bare], "Ton-": [welsh_pre]}
+    pool = build_non_position_eligible(
+        meaning_db,
+        gate=_bare_gate(),
+        exclude_tags=frozenset(),
+        pack_meaning_dbs=None,
+        packs=(),
+        culture_attested_usages=frozenset({"ton"}),
+        culture_attested_meanings={"ton": frozenset({"old_english"})},
+    )
+    assert pool == [oe]
+
+
+def _proportions_data(attested):
+    return {
+        "usages": {},
+        "single_usages": {},
+        "structures": [],
+        "tag_marginal": {},
+        "tag_cooccurrence": {},
+        "attested_languages": attested,
+    }
+
+
+def test_load_proportions_fold_unions_attested_languages_keys():
+    """wyrd-c6o1.3: ``load_proportions`` folds the bundle's position-form
+    ``attested_languages`` keys to bare surfaces, unioning the language
+    sets across dash variants, so the runtime filter is surface-keyed."""
+    gen = load_proportions(
+        _proportions_data(
+            {
+                "-ton": ["old_english", "modern_english"],
+                "Ton-": ["celtic_mix"],
+            }
+        ),
+        {},
+        {},
+    )
+    assert gen.culture_attested_meanings == {
+        "ton": frozenset({"old_english", "modern_english", "celtic_mix"})
+    }
+
+
+def test_load_proportions_empty_attested_languages_disables_filter():
+    """The legacy-bundle fallback: an absent/empty ``attested_languages``
+    map collapses to ``None`` (filter disabled), NOT to an empty dict —
+    an empty dict would be treated as 'filter active, nothing admitted'
+    by downstream ``is not None`` guards."""
+    gen = load_proportions(_proportions_data({}), {}, {})
+    assert gen.culture_attested_meanings is None
