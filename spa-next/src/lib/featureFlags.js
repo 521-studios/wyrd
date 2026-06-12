@@ -150,6 +150,7 @@ export const PRESENT_DAY_ERA = 'present-day';
  *  as snapEnumValue). */
 export function snapDependentValue(value, options, prop, config, fieldKey) {
   if (value === undefined) return undefined;
+  if (!options || options.length === 0) return undefined;
   const presentDay = options[options.length - 1];
   if (value === PRESENT_DAY_ERA) return presentDay;
   const target =

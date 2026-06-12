@@ -89,14 +89,16 @@
     // snaps. wyrd-kqyf: snapDependentValue adds the 'present-day' translation
     // (env-default era token → the culture's present-day stage, incl. on
     // culture switch).
+    const params = appState.currentParams;
+    if (!params) return;
     const snapped = snapDependentValue(
-      appState.currentParams[fieldKey],
+      params[fieldKey],
       dependentOptions,
       prop,
       appState.config,
       fieldKey,
     );
-    if (snapped !== undefined) appState.currentParams[fieldKey] = snapped;
+    if (snapped !== undefined) params[fieldKey] = snapped;
   });
 
   // Tag-grid checkbox toggle: array-of-strings field value.
