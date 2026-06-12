@@ -1917,12 +1917,14 @@ class NewName:
                     rseen[fold] = (wi, ei, usage)
                     continue
                 self._break_native_duplicate(wi, ei, usage, fold, seen, rseen)
-                # Three-way collisions: if the FIRST slot is the one that fell
-                # back to modern, re-point the fold at the slot that stayed
-                # native so a later collider pairs against a live render.
-                first_wi, first_ei, _ = rseen[fold]
-                if self.rendered[first_wi][first_ei] is None:
-                    rseen[fold] = (wi, ei, usage)
+                # Three-way collisions: a stale rseen entry (a slot that has
+                # since been broken to modern) is safe by construction —
+                # _break_native_duplicate skips rendered-None candidates, and
+                # the first-slot-breaks case only happens when the CURRENT
+                # slot is unbreakable (modern == fold), so re-pointing the
+                # fold at it could never change a later collider's outcome.
+                # (A re-point was briefly added on review and removed once a
+                # coverage probe showed the branch is unobservable.)
 
     def _resolve_repeat(self, wi, ei, usage, fold, canon, siblings, seen, name_sig) -> None:
         """Resolve one repeated IDENTITY (wyrd-vd6y / wyrd-72q9 — pass 1 of

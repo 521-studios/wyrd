@@ -163,16 +163,15 @@ def test_diversify_native_collision_falls_back_to_modern():
     assert nn.name == [["biscop"], ["bishop"]]
 
 
-def test_break_native_duplicate_falls_back_first_slot_and_repoints_rseen():
+def test_break_native_duplicate_falls_back_first_slot_and_stale_rseen_is_safe():
     """The reversed-role collision: the SECOND slot's modern equals the
     collision fold ('biscop' — an archaic morpheme whose modern == its
     native), so _break_native_duplicate falls the FIRST slot back to
-    modern instead. The rseen re-point then matters for three-way
-    collisions: the third collider must pair against the slot that
-    stayed native (slot 2), not the already-broken slot 1 — pinned here
-    by the third slot's render surviving untouched (its candidate pair,
-    slot 2, can't break: modern == fold) while the skeleton never
-    changes (D44 pass 2 is render-only)."""
+    modern instead. The three-way tail pins the stale-rseen safety: the
+    third collider pairs against the broken slot 1, which the
+    rendered-None candidate guard skips, and correctly leaves the
+    genuine biscop/biscop dupe — all without the skeleton ever changing
+    (D44 pass 2 is render-only)."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
     from wyrd.generators.kenning.runtime.proportions import NewName
 
