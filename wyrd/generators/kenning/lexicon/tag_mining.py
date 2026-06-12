@@ -24,6 +24,7 @@ IGNORE on ``etymon_tag``) so a from-scratch rebuild never re-pays for the LLM.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 
 # The controlled vocabulary the LLM may use: the 45 EXISTING etymon_tag values
@@ -141,7 +142,7 @@ def parse_response(content) -> tuple[frozenset[str], str] | None:
         return None
     norm = (_TAG_ALIASES.get(t.strip().lower(), t.strip().lower())
             for t in raw if isinstance(t, str))
-    tags = {t for t in norm} & _VOCAB_SET
+    tags = set(norm) & _VOCAB_SET
     for t in list(tags):
         tags.update(TAG_PARENTS.get(t, ()))
     confidence = str(data.get("confidence") or "low").lower()
@@ -170,3 +171,49 @@ def record(
     else:
         rec["error"] = "unparseable"
     return rec
+
+
+def existing_refs(path: str) -> set[str]:
+    """Refs already recorded in ``_tags.jsonl`` — the skip-set that makes
+    ``mine-tags-llm`` resumable without re-paying for classified glosses."""
+    refs: set[str] = set()
+    if not path or not os.path.exists(path):
+        return refs
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            ref = json.loads(line).get("ref")
+            if ref:
+                refs.add(ref)
+    return refs
+
+
+def collect_tags(path: str) -> dict[str, dict[str, list[str]]]:
+    """Load accepted tag assignments from the L2 ``_tags.jsonl`` record into a
+    replay state ``{etymon_ref: {"tags": [...]}}`` for
+    :func:`enrichment.apply_tag_additions`.
+
+    Rows with an empty tag list (the 'none' outcome) or an ``error`` are
+    SKIPPED — they carry no tag to add but stay in the file as the recorded
+    decision (so a re-mine with ``--skip-resolved`` doesn't re-pay for them).
+    Last-write-wins per ref. Mirrors
+    :func:`element_gloss_backfill.collect_element_glosses` (direct read, no
+    replay registry); ``run_full_enrichment`` replays it for FREE on a
+    from-scratch rebuild, so the paid LLM pass never re-runs (D21 / REBUILD.md).
+    """
+    state: dict[str, dict[str, list[str]]] = {}
+    if not path or not os.path.exists(path):
+        return state
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            r = json.loads(line)
+            ref, tags = r.get("ref"), r.get("tags")
+            if not ref or not tags:
+                continue
+            state[ref] = {"tags": sorted({t for t in tags if isinstance(t, str)})}
+    return state

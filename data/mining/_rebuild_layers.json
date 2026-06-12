@@ -32,6 +32,7 @@
     "mine-attestations": "Extracts dated historical forms from toponym_etymology.notes. The canonical rebuild restores toponym_attestation via ingest-toponym-mentions over the committed data/mining/phase2/*.jsonl, not via this path. If the rebuild ever routes attestations through this command, move it to rebuild_step_commands and document it.",
     "mine-fantasy-name": "Paid (Gemini) creature-name research. The usable fantasy_morpheme rows round-trip via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores them. Not a wipe-restore step.",
     "mine-llm": "Paid LLM mining of new OCR sources. Output is dumped to L2 (dump-jsonl) and replayed by rebuild-from-jsonl. Must never be a rebuild step (it costs money).",
+    "mine-tags-llm": "LLM (Ollama, gemma4:26b) classification of untagged-but-glossed generation etymons into the controlled tag vocab (45 existing + kinship; wyrd-xz3g). NON-DETERMINISTIC / PAID, so per the reconstructibility rule its decisions (including the 'none' outcomes) persist to the data/mining/_tags.jsonl ledger and are replayed deterministically by run_full_enrichment's apply-tag-additions pass (collect_tags → apply_tag_additions) into etymon_tag — never a rebuild step.",
     "mine-skeat": "Source-specific parser mine of a new book; output dumped to L2. Not a wipe-restore step.",
     "mine-toponym-mentions": "Source-capture mining that PRODUCES the committed data/mining/phase2/*.jsonl files; the rebuild replays those via ingest-toponym-mentions. The mining itself is source capture, not a wipe-restore step.",
     "mine-toponym-mentions-staged": "Staged variant of mine-toponym-mentions (source capture). Not a wipe-restore step.",
@@ -79,6 +80,13 @@
       "restored_by": "enrichment",
       "cost": "free",
       "runbook_token": "_pronunciation.jsonl"
+    },
+    {
+      "layer": "tag-backfill-llm",
+      "summary": "etymon_tag rows backfilled onto untagged-but-glossed generation morphemes (wyrd-xz3g). run_full_enrichment's apply-tag-additions pass replays the committed data/mining/_tags.jsonl (gemma4:26b decisions classifying a gloss into the 45-existing + kinship controlled vocab) into etymon_tag, so the PAID LLM pass never re-runs on a rebuild. etymon_tag is itself an L2 column; this layer is the LLM-derived subset of it.",
+      "restored_by": "enrichment",
+      "cost": "free",
+      "runbook_token": "_tags.jsonl"
     },
     {
       "layer": "fantasy-morphemes",

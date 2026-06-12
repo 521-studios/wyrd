@@ -69,6 +69,7 @@ CURATION_METHOD_VERSION = "manual-curation-v1"
 # carry their own provenance stamps so audit queries can find them.
 GLOSS_SUPPRESSION_METHOD_VERSION = "gloss-suppression-v1"
 GLOSS_ADD_METHOD_VERSION = "gloss-add-v1"
+TAG_ADD_METHOD_VERSION = "llm-tags-v1"
 ETYMON_SPLIT_METHOD_VERSION = "etymon-split-v1"
 COLLAPSE_METHOD_VERSION = "collapse-v1"
 # Allowed etymon_variant.variant_class values (mirrors the table's CHECK
@@ -464,6 +465,61 @@ def apply_gloss_additions(
                     "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",
                     (etymon_id, gloss),
                 )
+
+    if apply:
+        db.commit()
+    return counts
+
+
+def apply_tag_additions(
+    db: LexiconDB,
+    tag_state: dict[str, dict[str, Any]],
+    *,
+    apply: bool = True,
+) -> dict[str, Any]:
+    """Add LLM-classified semantic tags to untagged etymons (wyrd-xz3g).
+
+    ``tag_state`` is the ``{etymon_ref: {"tags": [...]}}`` dict from
+    :func:`lexicon.tag_mining.collect_tags` — the decisions persisted to L2
+    ``data/mining/_tags.jsonl`` by ``mine-tags-llm`` (gemma4:26b classifying a
+    gloss into the controlled tag vocabulary). Each tag INSERTs a row into
+    ``etymon_tag`` (``INSERT OR IGNORE`` via :meth:`LexiconDB.add_tag` — the
+    (etymon_id, tag) PK absorbs duplicates so re-runs are idempotent). The
+    'none' outcome (empty tag list) is filtered upstream in ``collect_tags``,
+    so every ref here adds ≥1 tag.
+
+    Mirrors :func:`apply_gloss_additions`: paid LLM work persisted to L2 and
+    replayed FREE by :func:`run_full_enrichment` on a from-scratch rebuild
+    (D21 / REBUILD.md), so the LLM pass never re-runs. ``etymon_tag`` is an L2
+    column, so these additions land in the same layer the dump/rebuild
+    round-trips. Validation always runs; DB writes only when ``apply=True``.
+    """
+    counts: dict[str, Any] = {
+        "etymons_touched": len(tag_state),
+        "tags_added": 0,
+        "tags_already_present": 0,
+        "unresolved_etymon": 0,
+        "applied": apply,
+        "method_version": TAG_ADD_METHOD_VERSION,
+    }
+    resolve = _build_ref_resolver(db.conn)
+
+    for etymon_ref, payload in tag_state.items():
+        etymon_id = resolve(etymon_ref)
+        if etymon_id is None:
+            counts["unresolved_etymon"] += 1
+            continue
+        for tag in payload.get("tags") or []:
+            existing = db.conn.execute(
+                "SELECT 1 FROM etymon_tag WHERE etymon_id = ? AND tag = ?",
+                (etymon_id, tag),
+            ).fetchone()
+            if existing is not None:
+                counts["tags_already_present"] += 1
+                continue
+            counts["tags_added"] += 1
+            if apply:
+                db.add_tag(etymon_id, tag)
 
     if apply:
         db.commit()
@@ -1239,6 +1295,7 @@ def _run_curation_slot_passes(
         ("etymon_splits", apply_etymon_splits, "apply-etymon-splits"),
         ("collapses", apply_collapses, "apply-collapses"),
         ("element_glosses", apply_element_glosses, "apply-element-glosses"),
+        ("tag_additions", apply_tag_additions, "apply-tag-additions"),
     ]
     counts: dict[str, Any] = {}
     for key, pass_fn, order_name in passes:
@@ -1261,6 +1318,7 @@ def run_full_enrichment(
     split_state: dict[str, dict[str, Any]] | None = None,
     collapse_state: dict[str, dict[str, Any]] | None = None,
     element_gloss_state: list[dict[str, str]] | None = None,
+    tag_state: dict[str, dict[str, Any]] | None = None,
     pronunciation_state: dict[tuple[str, str], str] | None = None,
     skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
@@ -1334,6 +1392,7 @@ def run_full_enrichment(
         "etymon_splits": split_state,
         "collapses": collapse_state,
         "element_glosses": element_gloss_state,
+        "tag_additions": tag_state,
     }
     slot_counts = _run_curation_slot_passes(db, slot_states, order, apply=apply)
 
@@ -1391,6 +1450,7 @@ def run_full_enrichment(
         "etymon_splits": slot_counts["etymon_splits"],
         "collapses": slot_counts["collapses"],
         "element_glosses": slot_counts["element_glosses"],
+        "tag_additions": slot_counts["tag_additions"],
         "pronunciation_ipa": pronunciation_result,
         "decompose": decompose_result,
         "cognates": cognate_result,
@@ -1618,6 +1678,15 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
             f"- Orphan-reflex surfaces linked to a grounded etymon: "
             f"{eg.get('linked_surfaces', 0)} (links {eg.get('links', 0)}; "
             f"no-reflex {eg.get('no_reflex', 0)}, no-etymon {eg.get('no_etymon', 0)})"
+        )
+    if result.get("tag_additions"):
+        ta = result["tag_additions"]
+        lines.append("")
+        lines.append("### Tag backfill (`" + ta["method_version"] + "`, wyrd-xz3g)")
+        lines.append(
+            f"- Etymons tagged: {ta['etymons_touched']} "
+            f"(tags added {ta['tags_added']}, already-present "
+            f"{ta['tags_already_present']}, unresolved {ta['unresolved_etymon']})"
         )
     if result.get("pronunciation_ipa"):
         from .lexicon.pronunciation_backfill import format_pronunciation_run

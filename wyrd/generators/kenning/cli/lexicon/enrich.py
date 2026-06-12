@@ -102,6 +102,7 @@ def lexicon_enrich(
     from wyrd.generators.kenning.lexicon.element_gloss_backfill import (
         collect_element_glosses,
     )
+    from wyrd.generators.kenning.lexicon.tag_mining import collect_tags
 
     curation_state = None
     suppression_state = None
@@ -109,6 +110,7 @@ def lexicon_enrich(
     split_state = None
     collapse_state = None
     element_gloss_state = None
+    tag_state = None
     if with_curation:
         paths = list(jsonl_paths_in(jsonl_dir))
         curation_state = collect_curation_overrides(paths) or None
@@ -123,6 +125,7 @@ def lexicon_enrich(
             )
             or None
         )
+        tag_state = collect_tags(str(jsonl_dir / "_tags.jsonl")) or None
     from wyrd.generators.kenning.lexicon.pronunciation_backfill import collect_pronunciation
 
     pronunciation_state = collect_pronunciation(str(jsonl_dir / "_pronunciation.jsonl")) or None
@@ -136,6 +139,7 @@ def lexicon_enrich(
             split_state=split_state,
             collapse_state=collapse_state,
             element_gloss_state=element_gloss_state,
+            tag_state=tag_state,
             pronunciation_state=pronunciation_state,
         )
     click.echo(format_enrichment_run(result), err=True)

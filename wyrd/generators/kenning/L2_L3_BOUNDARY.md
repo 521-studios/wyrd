@@ -138,6 +138,7 @@ state, project-period-forms needs lemma_id state, etc.).
 | `apply-curation` | overrides any of the above per operator decision | `manual-curation-v1` | ✅ wyrd-2jhs |
 | `apply-gloss-suppressions` | DELETEs `etymon_gloss` rows per operator decision | `gloss-suppression-v1` | ✅ wyrd-kutx |
 | `apply-gloss-additions` | INSERT OR IGNOREs `etymon_gloss` rows per operator decision | `gloss-add-v1` | ✅ wyrd-wz82 |
+| `apply-tag-additions` | INSERT OR IGNOREs `etymon_tag` rows from the LLM tag backfill (`data/mining/_tags.jsonl`, gemma4:26b → controlled vocab) | `llm-tags-v1` | ✅ wyrd-xz3g |
 | `apply-etymon-splits` | creates `<form>#<suffix>` child etymons + moves glosses / tags / evidence per operator decision | `etymon-split-v1` | ✅ wyrd-kutx |
 | `decompose` | (`toponym_decomposition` table) | matcher rules | ✅ wyrd-hidb |
 | `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v2` | ✅ wyrd-hidb |
@@ -146,7 +147,7 @@ state, project-period-forms needs lemma_id state, etc.).
 | `tag-phonological-vectors` | `phonological_vector` (JSON) | `compute-phon-vector-v1` | ✅ wyrd-kq7w.1 |
 | `project-period-forms` | (`etymon_period_form` table) | hardcoded rules | ✅ wyrd-hidb |
 
-All twelve passes run via `run_full_enrichment` in canonical order
+All thirteen passes run via `run_full_enrichment` in canonical order
 (`lexicon enrich` and `lexicon rebuild-from-jsonl --with-enrichment`).
 The three curation-driven appliers (suppression / addition / splits)
 run AFTER auto-curation and BEFORE the L3 derivations so the
