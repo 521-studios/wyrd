@@ -42,6 +42,12 @@
                   [
                     "bon"
                   ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "bon"
+                  ]
                 ]
               ]
             ]
@@ -71,7 +77,8 @@
                     "vera",
                     "vesa",
                     "vápn",
-                    "bol"
+                    "bol",
+                    "bo"
                   ]
                 ]
               ]
@@ -88,6 +95,12 @@
                   "old-english",
                   [
                     "-ing"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "en"
                   ]
                 ]
               ]
@@ -134,6 +147,12 @@
                   [
                     "ker"
                   ]
+                ],
+                [
+                  "french",
+                  [
+                    "Ker"
+                  ]
                 ]
               ]
             ]
@@ -149,6 +168,12 @@
                   "old-english",
                   [
                     "-ing"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "en"
                   ]
                 ]
               ]
@@ -230,6 +255,12 @@
                   [
                     "-ing"
                   ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "en"
+                  ]
                 ]
               ]
             ]
@@ -265,7 +296,8 @@
                   "welsh",
                   [
                     "gwir",
-                    "gŵr"
+                    "gŵr",
+                    "Gour"
                   ]
                 ],
                 [
@@ -301,7 +333,8 @@
                 [
                   "modern-english",
                   [
-                    "woh"
+                    "woh",
+                    "o"
                   ]
                 ]
               ]
@@ -321,6 +354,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "lan"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -374,7 +413,8 @@
                 [
                   "modern-english",
                   [
-                    "dale"
+                    "dale",
+                    "del"
                   ]
                 ]
               ]
@@ -537,7 +577,8 @@
                 [
                   "modern-english",
                   [
-                    "hoh"
+                    "hoh",
+                    "o"
                   ]
                 ]
               ]
@@ -550,6 +591,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "an"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -592,6 +639,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "in"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "-in"
@@ -614,6 +667,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "lan"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -709,7 +768,8 @@
                   "modern-english",
                   [
                     "roude",
-                    "rude"
+                    "rude",
+                    "Ru"
                   ]
                 ]
               ]
@@ -739,7 +799,8 @@
                 [
                   "modern-english",
                   [
-                    "woh"
+                    "woh",
+                    "o"
                   ]
                 ]
               ]
@@ -825,7 +886,8 @@
                     "vicinal",
                     "vicinity",
                     "villain",
-                    "wrixle"
+                    "wrixle",
+                    "Wig"
                   ]
                 ]
               ]
@@ -850,6 +912,12 @@
                   [
                     "wude"
                   ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "wood"
+                  ]
                 ]
               ]
             ]
@@ -868,6 +936,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "bo"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -888,6 +962,12 @@
                   "old-english",
                   [
                     "-ing"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "ing"
                   ]
                 ]
               ]
@@ -916,7 +996,8 @@
                 [
                   "modern-english",
                   [
-                    "coombe"
+                    "coombe",
+                    "combe"
                   ]
                 ]
               ]
@@ -1081,7 +1162,8 @@
                   [
                     "bitle",
                     "boodle",
-                    "botl"
+                    "botl",
+                    "Bo"
                   ]
                 ]
               ]
@@ -1111,7 +1193,8 @@
                 [
                   "modern-english",
                   [
-                    "stonig"
+                    "stonig",
+                    "stone"
                   ]
                 ]
               ]
@@ -1152,7 +1235,8 @@
                 [
                   "modern-english",
                   [
-                    "cue"
+                    "cue",
+                    "Cow"
                   ]
                 ]
               ]
@@ -1182,7 +1266,8 @@
                 [
                   "modern-english",
                   [
-                    "woh"
+                    "woh",
+                    "o"
                   ]
                 ]
               ]
@@ -1326,7 +1411,8 @@
                 [
                   "modern-english",
                   [
-                    "doufe"
+                    "doufe",
+                    "Dow"
                   ]
                 ]
               ]
@@ -1629,7 +1715,8 @@
                   [
                     "doru",
                     "dory",
-                    "treen"
+                    "treen",
+                    "tre"
                   ]
                 ]
               ]
@@ -1658,7 +1745,8 @@
                 [
                   "modern-english",
                   [
-                    "bi"
+                    "bi",
+                    "by"
                   ]
                 ]
               ]
@@ -1855,6 +1943,12 @@
                   [
                     "seinte"
                   ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "St"
+                  ]
                 ]
               ]
             ]
@@ -1888,7 +1982,8 @@
                 [
                   "modern-english",
                   [
-                    "chield"
+                    "chield",
+                    "Chil"
                   ]
                 ]
               ]
@@ -2366,6 +2461,12 @@
                   [
                     "-ing"
                   ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "ning"
+                  ]
                 ]
               ]
             ]
@@ -2573,7 +2674,8 @@
                     "stoor",
                     "store",
                     "testify",
-                    "verstehen"
+                    "verstehen",
+                    "stead"
                   ]
                 ]
               ]
@@ -2596,6 +2698,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "cloon"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "cloon"
@@ -2611,6 +2719,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "kil"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -2737,7 +2851,8 @@
                 [
                   "modern-english",
                   [
-                    "loch"
+                    "loch",
+                    "lough"
                   ]
                 ]
               ]
@@ -2867,6 +2982,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "Kill"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "cill"
@@ -2912,7 +3033,8 @@
                 [
                   "modern-english",
                   [
-                    "hoh"
+                    "hoh",
+                    "o"
                   ]
                 ]
               ]
@@ -2946,7 +3068,8 @@
                 [
                   "modern-english",
                   [
-                    "ea"
+                    "ea",
+                    "ry"
                   ]
                 ]
               ]
@@ -2981,7 +3104,8 @@
                 [
                   "modern-english",
                   [
-                    "chield"
+                    "chield",
+                    "Kil"
                   ]
                 ]
               ]
@@ -3009,7 +3133,8 @@
                 [
                   "modern-english",
                   [
-                    "rage"
+                    "rage",
+                    "ra"
                   ]
                 ]
               ]
@@ -3029,6 +3154,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "Glen"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -3062,6 +3193,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "an"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "-an"
@@ -3084,6 +3221,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "Ar"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -3131,6 +3274,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "knock"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "cnoc"
@@ -3157,6 +3306,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "Garry"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -3192,7 +3347,8 @@
                 [
                   "modern-english",
                   [
-                    "ro"
+                    "ro",
+                    "ra"
                   ]
                 ]
               ]
@@ -3205,6 +3361,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "gan"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -3250,7 +3412,8 @@
                   [
                     "bitle",
                     "boodle",
-                    "botl"
+                    "botl",
+                    "Bo"
                   ]
                 ]
               ]
@@ -3280,7 +3443,8 @@
                 [
                   "modern-english",
                   [
-                    "woh"
+                    "woh",
+                    "o"
                   ]
                 ]
               ]
@@ -3452,6 +3616,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "derry"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "derry"
@@ -3503,7 +3673,8 @@
                     "betwixt",
                     "twi",
                     "twi-",
-                    "twig"
+                    "twig",
+                    "ti"
                   ]
                 ]
               ]
@@ -3520,6 +3691,12 @@
                   "old-english",
                   [
                     "lael"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "ly"
                   ]
                 ]
               ]
@@ -3583,6 +3760,12 @@
                     "linde",
                     "lynd"
                   ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "lin"
+                  ]
                 ]
               ]
             ]
@@ -3601,6 +3784,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "ar"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -3650,6 +3839,12 @@
                   [
                     "-ing"
                   ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "ing"
+                  ]
                 ]
               ]
             ]
@@ -3668,6 +3863,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "Inch"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -3801,6 +4002,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "Car"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "càrr"
@@ -3832,7 +4039,8 @@
                 [
                   "modern-english",
                   [
-                    "hafer"
+                    "hafer",
+                    "har"
                   ]
                 ]
               ]
@@ -3849,6 +4057,12 @@
                   "old-english",
                   [
                     "edisc"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "ish"
                   ]
                 ]
               ]
@@ -3868,6 +4082,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "Dun"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -3993,6 +4213,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "loch"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "loch"
@@ -4010,6 +4236,12 @@
               [
                 [
                   "old-french",
+                  [
+                    "ker"
+                  ]
+                ],
+                [
+                  "french",
                   [
                     "ker"
                   ]
@@ -4041,7 +4273,8 @@
                   "modern-english",
                   [
                     "hales",
-                    "haugh"
+                    "haugh",
+                    "hall"
                   ]
                 ]
               ]
@@ -4076,7 +4309,8 @@
                 [
                   "modern-english",
                   [
-                    "chield"
+                    "chield",
+                    "kil"
                   ]
                 ]
               ]
@@ -4208,6 +4442,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "Dun"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "dun"
@@ -4225,6 +4465,12 @@
               [
                 [
                   "old-french",
+                  [
+                    "lie"
+                  ]
+                ],
+                [
+                  "french",
                   [
                     "lie"
                   ]
@@ -4246,6 +4492,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "Ar"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -4637,7 +4889,8 @@
                 [
                   "modern-english",
                   [
-                    "wod"
+                    "wod",
+                    "o"
                   ]
                 ]
               ]
@@ -4654,6 +4907,12 @@
                   "old-english",
                   [
                     "lael"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "ly"
                   ]
                 ]
               ]
@@ -4676,6 +4935,12 @@
               "brythonic",
               [
                 [
+                  "welsh",
+                  [
+                    "Rhos"
+                  ]
+                ],
+                [
                   "celtic",
                   [
                     "rhos"
@@ -4691,6 +4956,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "yn"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -4773,7 +5044,8 @@
                     "town",
                     "towne",
                     "tun-moot",
-                    "tuna"
+                    "tuna",
+                    "eston"
                   ]
                 ]
               ]
@@ -4822,7 +5094,8 @@
                   "modern-english",
                   [
                     "hearth-penny",
-                    "pfennig"
+                    "pfennig",
+                    "Pen"
                   ]
                 ]
               ]
@@ -4902,6 +5175,12 @@
                     "henxman",
                     "henxtman"
                   ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "hen"
+                  ]
                 ]
               ]
             ]
@@ -4942,6 +5221,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "Cwm"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -5102,7 +5387,8 @@
                 [
                   "modern-english",
                   [
-                    "hoh"
+                    "hoh",
+                    "o"
                   ]
                 ]
               ]
@@ -5115,6 +5401,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "goed"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -5166,6 +5458,12 @@
             [
               "brythonic",
               [
+                [
+                  "welsh",
+                  [
+                    "y"
+                  ]
+                ],
                 [
                   "celtic",
                   [
@@ -5248,7 +5546,8 @@
                     "unglingr",
                     "ungr",
                     "ynglingr",
-                    "æ"
+                    "æ",
+                    "ney"
                   ]
                 ]
               ]
@@ -5297,7 +5596,8 @@
                   "modern-english",
                   [
                     "hearth-penny",
-                    "pfennig"
+                    "pfennig",
+                    "Pen"
                   ]
                 ]
               ]
@@ -5372,7 +5672,8 @@
                 [
                   "modern-english",
                   [
-                    "woh"
+                    "woh",
+                    "o"
                   ]
                 ]
               ]
@@ -5464,7 +5765,8 @@
                     "enough",
                     "enow",
                     "ge",
-                    "nigh"
+                    "nigh",
+                    "y"
                   ]
                 ]
               ]
