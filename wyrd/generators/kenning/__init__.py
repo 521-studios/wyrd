@@ -647,6 +647,32 @@ def _coerce_bool(value: Any) -> bool:
     return bool(value)
 
 
+_PRESENT_DAY_ERA = "present-day"
+
+
+def _translate_present_day_era(era: Any, culture: str) -> Any:
+    """wyrd-kqyf: ``present-day`` is the culture-AGNOSTIC era token (the value
+    ``WYRD_DEFAULT_ERA`` is set to, terraform ``feature_flag_defaults``). Era
+    stages are per-culture (``modern-english`` / ``welsh`` / ``irish``), so no
+    literal stage can be a global default — a welsh request defaulting to
+    ``modern-english`` would 4xx. The token translates to the request
+    culture's PRESENT-DAY stage (the last entry of its family's
+    chronologically-ordered ``family_stage_order``) and then resolves exactly
+    like an explicit stage pick: the stage's union year range as the filter +
+    the force-modern render (``_resolve_era_render_language`` returns None for
+    contemporary stages). Any other value passes through untouched."""
+    if era == _PRESENT_DAY_ERA:
+        family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
+        stages = family_stage_order(family)
+        if not stages:
+            # Unreachable for today's families (every ERA_CELLS family has
+            # cells) — the guard turns a future stage-less family edit into
+            # the callers' clean ValueError contract instead of IndexError.
+            raise ValueError(f"no era stages defined for family {family!r}")
+        return stages[-1]
+    return era
+
+
 def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] | None:
     """Resolve the request-side ``era`` value to a half-open year range,
     or None when no era filter applies.
@@ -664,6 +690,7 @@ def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] 
         return None
     era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
     try:
+        era = _translate_present_day_era(era, culture)
         return resolve_era_input(era, default_family=era_family)
     except (KeyError, ValueError) as exc:
         raise ValueError(
@@ -723,6 +750,7 @@ def _resolve_era_render_language(era: Any, culture: str) -> str | None:
         return None
     era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
     try:
+        era = _translate_present_day_era(era, culture)
         family, cell = era_cell_for_input(era, default_family=era_family)
     except (KeyError, ValueError):
         return None
