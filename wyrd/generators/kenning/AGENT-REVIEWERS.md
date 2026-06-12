@@ -16,6 +16,15 @@ skips all of that and breaks the PR audit trail.
 
 Each H2 below names a kenning-scoped reviewer. The summary tells the main loop **what the reviewer checks and when to spawn it** — use it to decide whether the PR diff is in scope. The pointer line names the complete spec under `.reviewers/`.
 
+## morpheme-surface-identity-reviewer
+
+**What it checks:** DECISIONS.md D45 — a morpheme's stored identity is its bare surface; dashes are NEVER part of a morpheme name and code NEVER keys off them. Flags new dash-marked identity storage, dash-shaped lookups (the wyrd-c6o1.3 homograph-leak shape), matching/eligibility logic branching on dash markers or `Meaning.location`, and inconsistent folds. Render decoration (D39), raw-source parsing, hyphenated lexical FORMS, and documented legacy-boundary folds are exempt.
+**When to spawn:** PR touches `*.py` under `wyrd/generators/kenning/` that handles morpheme surfaces, usage keys, meaning_db-style maps, bundle/L4 emission, or proportions keys — in practice almost every runtime/bundle/lexicon-export diff. Skip pure-docs diffs, parser/extractor-only diffs (raw-source dash handling is exempt), and terraform/SPA-only changes.
+
+Read `wyrd/generators/kenning/.reviewers/morpheme-surface-identity-reviewer.md` and follow it as your complete review specification.
+
+---
+
 ## lexicon-package-structure-reviewer
 
 **What it checks:** lexicon-DB concerns (SQL DDL, `INSERT INTO`, schema helpers, enrichment/ingest/audit passes) live under `wyrd/generators/kenning/lexicon/`; runtime files outside the package stay DB-free. Per-wyrd-67fv structural rule.

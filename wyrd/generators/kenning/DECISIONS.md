@@ -2480,6 +2480,8 @@ you MUST keep variants + inflections flowing through that same single owner.
 ## D40. Position is a DERIVED label and a SOFT statistic — never a match-time enforcer (wyrd-eyjk, 2026-06-01).
 
 > **READ THIS FIRST — the recurring confusion (corrected 5+ times across sessions).**
+> The storage-layer half of this rule is D45 (no dashes in stored morpheme
+> identity, ever — enforced by `morpheme-surface-identity-reviewer`); read both.
 > Position (`bare` / `pre-` / `-inner-` / `-post`) is an **OUTPUT of decomposition,
 > not an input to it.** A morpheme's identity is its **bare surface** (`giles`);
 > `Giles-` / `-giles` / `giles` are the *same morpheme rendered at a derived
@@ -2849,3 +2851,70 @@ same-day wyrd-c6o1.3 open-ended-window refinement — D44 is that refinement
 generalized to every window: not just "the present contains all strata" but
 "the inventory is era-independent, period". The wyrd-c6o1.3 homograph fix
 (surface-keyed pfoo narrowing) is unaffected and still load-bearing.
+## D45. Dashes are NEVER morpheme identity — position is display-time decoration (2026-06-12).
+
+**The hard rule, verbatim from the product owner (recorded because it has now
+been re-explained 5+ times — D39, D40, wyrd-eyjk, wyrd-zewx, wyrd-c6o1.3):
+we do NOT put `-` in the morpheme name, EVER, and we NEVER key off of it.
+`pre-` / `-inner-` / `-post` is ONLY a function of position, and position is
+ONLY an output of breaking down toponyms (or of using pre-broken-down ones).
+The dash is purely something we decorate the morpheme with AT DISPLAY TIME.**
+
+A morpheme's identity is its bare surface (D40: `ton`, `giles`, `stoke`).
+Position (`bare` / `pre` / `inner` / `post`) is:
+
+1. **derived** at decomposition time from where the morpheme landed in the
+   split (`Word.get_structure`, by index) — an OUTPUT, never a match input;
+2. **carried** as an explicit position FIELD wherever a table genuinely
+   needs the axis — a `(surface, position)` composite key, never a position
+   encoded INTO the surface string;
+3. **applied** as dash decoration (plus positional case) only by the render
+   layer, which is the decoration's single owner (D39).
+
+### Why this keeps coming back (the root cause)
+
+D40 enforced the rule at the MATCHING layer (string-first matching, position
+gates removed) — but the STORAGE layers still carry dash-marked identities:
+L3 `reflex.surface_form`, L4 `meaning.usage_key` / `modern_usage` /
+`proportions_*` keys, and the runtime `meaning_db` keys, with
+`Meaning._set_location` DECODING dashes back out of the stored string. So one
+surface exists as up to four separate stored identities (`ton` / `Ton-` /
+`-ton` / `-ton-`), every consumer needs fold-the-dash compat code (~80
+production sites across the runtime/bundle/lexicon-export layers as of the
+2026-06-12 audit — inventory in epic wyrd-aicu; the raw repo-wide grep is
+~100, the remainder being exempt raw-source handling in parsers/extractors),
+and each new consumer that forgets to fold re-introduces the bug class. The
+latest instance was wyrd-c6o1.3: the per-Meaning attested-language narrowing
+keyed by exact stored usage_key, so the welsh `ton` homograph walked into
+english generation through the un-narrowed dash-variant keys.
+
+### Enforcement
+
+* **Reviewer**: `morpheme-surface-identity-reviewer` (kenning
+  `AGENT-REVIEWERS.md`, spec under `.reviewers/`) runs on every kenning PR
+  and flags new code that stores a dash-marked surface as identity, keys a
+  lookup by dash-shape, or branches on dash markers outside the render
+  layer / documented legacy fold sites.
+* **Refactor epic**: wyrd-aicu de-dashes the storage layers end-to-end
+  (L4 bare-surface keys + explicit position columns → runtime → L3/L2 →
+  delete the ~80 fold sites), finishing with a CI data-gate asserting no
+  stored identity contains decoration. Until it lands, fold-at-the-boundary
+  (`surface.replace("-", "").lower()`) is the REQUIRED compat idiom for any
+  code that must read the legacy dash-marked storage — and is itself
+  deleted by the epic's final sweep.
+
+### Exemptions (the only legitimate dash-handling)
+
+* The RENDER layer applying positional decoration + case (D39's single
+  owner: `Word` / `NewName` / the explainer surface builders).
+* Parsers / extractors / miners reading dashes in RAW SOURCE TEXT
+  (scholarly books hyphenate; that's document syntax, not identity).
+* Genuinely hyphenated lexical forms inside language data (e.g. the OE
+  compound headword `lēac-tūn` as a FORM) — a form's spelling may contain
+  a hyphen; the STORED IDENTITY of a morpheme may not carry positional
+  dash markers.
+
+Composes with D39 (render owns decoration), D40 (position derived, never a
+match gate), D44 (identity is also era-invariant). Together: a morpheme's
+stored identity is a bare surface, timeless and position-free; position and
+era are lenses applied on the way out.
