@@ -1384,7 +1384,9 @@ class NameGenerator:
                 to translate Kenning's per-call knobs).
             priors: loaded :class:`EmpiricalPriors` (the JSON sidecar
                 via :func:`lexicon.empirical_priors.load_empirical_priors_from_json`).
-            era_midpoint: int year for the baseline-axis lookup.
+            era_midpoint: int year for the baseline-axis lookup. D44:
+                always 0 in practice — the request's era never drives
+                scoring (see vector_name_select.select_via_vector_scoring).
             cohesion: D17 cohesion knob in [0, 1]. Threads through
                 to the vector primitive's slot-relative cohesion
                 bias (:func:`_cohesion_raw` + :func:`_cohesion_multipliers`).
@@ -1850,7 +1852,7 @@ class NewName:
         self._diversify_repeats()
 
     def _diversify_repeats(self) -> None:
-        """wyrd-vd6y + wyrd-72q9: when the SAME surface is selected for two+
+        """wyrd-vd6y + wyrd-72q9: when the SAME morpheme is selected for two+
         slots ("Hill Hill"), resolve the later occurrence(s):
           1. prefer a same-meaning synonym in a DIFFERENT language (cf. "Table
              Mesa"): "Hill Hill" → "Hill Haeth" (render override); else
@@ -1859,6 +1861,15 @@ class NewName:
           3. leave the duplicate (nothing else of that position available).
         Deterministic (no rng — synonym pick is ranked, re-pick is a stable
         md5 of the name) so it's seed-stable and only touches repeated names.
+
+        D44 two-pass split: PASS 1 (identity) detects repeats by the
+        era-INVARIANT modern usage fold — never the era render — so the
+        skeleton mutations (synonym override / re-pick) are identical at
+        every requested era and ``modern_name()`` is era-stable. PASS 2
+        (render) then handles era-DEPENDENT visual collisions — distinct
+        identities whose surfaces fold equal only at the requested era's
+        render ('Biscop Biscop' from bishop + bishops natively) — by a
+        render-only fallback that never touches the picked morphemes.
         """
         if not self.meaning_db or not self.name:
             return  # nothing to resolve siblings against (e.g. render-only tests)
@@ -1868,36 +1879,62 @@ class NewName:
         # re-picks (hash the name, NOT the rng, so it stays seed-stable).
         name_sig = "|".join("/".join(c for c in w if c) for w in self.name)
 
-        seen: dict[str, set[str]] = {}  # folded surface -> languages already used
-        first_slot: dict[str, tuple[int, int, str]] = {}  # fold -> first (wi, ei, usage)
+        # PASS 1 — identity repeats (era-invariant; D44).
+        seen: dict[str, set[str]] = {}  # folded usage -> languages already used
         for wi, word in enumerate(self.name):
             for ei, usage in enumerate(word):
                 if usage is None:
                     continue
-                surface = (self.rendered[wi][ei] if self.rendered else None) or usage
-                fold = surface.replace("-", "").lower()
+                fold = usage.replace("-", "").lower()
                 siblings = _rank_siblings(_resolve_surface(self.meaning_db, usage))
                 canon = siblings[0] if siblings else None
                 if fold not in seen:
                     seen[fold] = self._meaning_langs([canon]) if canon else set()
-                    first_slot[fold] = (wi, ei, usage)
                     continue
                 # Repeat: resolve it (cross-language synonym → re-pick → leave).
-                self._resolve_repeat(
-                    wi, ei, usage, fold, canon, siblings, seen, name_sig, first_slot
-                )
+                self._resolve_repeat(wi, ei, usage, fold, canon, siblings, seen, name_sig)
 
-    def _resolve_repeat(
-        self, wi, ei, usage, fold, canon, siblings, seen, name_sig, first_slot=None
-    ) -> None:
-        """Resolve one repeated surface (wyrd-vd6y / wyrd-72q9) by trying, in
-        order: a same-meaning synonym in a DIFFERENT language ("Hill Hill" →
-        "Hill Haeth", a render override); else re-pick a DIFFERENT same-position
-        morpheme ("Park ... Park" → "Park ... <other>", replacing the name key);
-        else break a native-render visual duplicate by falling a slot back to
-        modern; else leave the duplicate. Updates ``seen`` in place with
-        whatever fold / language the resolution introduces. Deterministic — no
-        rng."""
+        # PASS 2 — render collisions (era-dependent, render-only; D44).
+        self._break_render_collisions(seen)
+
+    def _break_render_collisions(self, seen: dict[str, set[str]]) -> None:
+        """D44 pass 2 of ``_diversify_repeats``: distinct identities whose
+        surfaces fold equal only at the requested era's render ('Biscop
+        Biscop' from bishop + bishops natively). Resolved by falling one
+        colliding slot's render back to modern (_break_native_duplicate);
+        the picked morphemes never change, so the skeleton — and
+        modern_name() — stays identical at every era."""
+        if self.rendered is None:
+            return
+        rseen: dict[str, tuple[int, int, str]] = {}  # rendered fold -> first slot
+        for wi, word in enumerate(self.name):
+            for ei, usage in enumerate(word):
+                if usage is None:
+                    continue
+                surface = self.rendered[wi][ei] or usage
+                fold = surface.replace("-", "").lower()
+                if fold not in rseen:
+                    rseen[fold] = (wi, ei, usage)
+                    continue
+                self._break_native_duplicate(wi, ei, usage, fold, seen, rseen)
+                # Three-way collisions: a stale rseen entry (a slot that has
+                # since been broken to modern) is safe by construction —
+                # _break_native_duplicate skips rendered-None candidates, and
+                # the first-slot-breaks case only happens when the CURRENT
+                # slot is unbreakable (modern == fold), so re-pointing the
+                # fold at it could never change a later collider's outcome.
+                # (A re-point was briefly added on review and removed once a
+                # coverage probe showed the branch is unobservable.)
+
+    def _resolve_repeat(self, wi, ei, usage, fold, canon, siblings, seen, name_sig) -> None:
+        """Resolve one repeated IDENTITY (wyrd-vd6y / wyrd-72q9 — pass 1 of
+        ``_diversify_repeats``) by trying, in order: a same-meaning synonym in
+        a DIFFERENT language ("Hill Hill" → "Hill Haeth", a render override);
+        else re-pick a DIFFERENT same-position morpheme ("Park ... Park" →
+        "Park ... <other>", replacing the name key); else leave the duplicate
+        (render-level visual collisions are pass 2's job). Updates ``seen`` in
+        place with whatever fold / language the resolution introduces.
+        Deterministic — no rng."""
         canon_langs = self._meaning_langs([canon]) if canon else set()
         alt = self._cross_lang_synonym(canon, siblings, seen[fold] | canon_langs)
         if alt is not None:
@@ -1912,22 +1949,21 @@ class NewName:
             # wyrd-i4jd: the slot's identity is now the synonym's — keep
             # picked_ids in lockstep so grid/breakdown resolve the override.
             self.picked_ids[wi][ei] = getattr(sib, "morpheme_id", None)
-            seen.setdefault(form.strip("-").lower(), set()).add(lang)
+            seen.setdefault(form.replace("-", "").lower(), set()).add(lang)
             return
-        if self._repick_repeat(wi, ei, usage, seen, name_sig, canon):
-            return
-        self._break_native_duplicate(wi, ei, usage, fold, seen, first_slot)
+        self._repick_repeat(wi, ei, usage, seen, name_sig, canon)
 
-    def _repick_repeat(self, wi, ei, usage, seen, name_sig, canon) -> bool:
+    def _repick_repeat(self, wi, ei, usage, seen, name_sig, canon) -> None:
         """Re-pick a DIFFERENT same-position morpheme for a repeated surface
-        ("Park ... Park" → "Park ... Dale"), replacing the name key. Returns
-        True (and updates name / rendered / inflection_labels / ``seen``) when a
-        non-duplicate replacement exists, else False (caller falls through)."""
+        ("Park ... Park" → "Park ... Dale"), replacing the name key + updating
+        rendered / inflection_labels / ``seen``. When no non-duplicate
+        replacement exists the duplicate is simply left (pass 2 may still
+        break a render-level collision)."""
         from wyrd.generators.kenning import _rank_siblings
 
         repl = self._repick_nondup(usage, set(seen.keys()), name_sig, wi, ei, canon)
         if repl is None:
-            return False
+            return
         self.name[wi][ei] = repl
         repl_sibs = _rank_siblings(_resolve_surface(self.meaning_db, repl))
         # wyrd-i4jd: a re-pick chooses a BUCKET (not a scored Meaning), so the
@@ -1946,23 +1982,25 @@ class NewName:
             # but a distinct morpheme can share a native surface), render it
             # MODERN instead: repl's modern usage is collision-free since it
             # was chosen outside the seen folds.
-            if native_rendered and native_rendered.strip("-").lower() in seen:
+            if native_rendered and native_rendered.replace("-", "").lower() in seen:
                 native_rendered = None
             self.rendered[wi][ei] = native_rendered
         if self.inflection_labels is not None:
             self.inflection_labels[wi][ei] = None
-        seen[repl.strip("-").lower()] = self._meaning_langs([repl_sibs[0]]) if repl_sibs else set()
-        return True
+        seen[repl.replace("-", "").lower()] = (
+            self._meaning_langs([repl_sibs[0]]) if repl_sibs else set()
+        )
 
     def _break_native_duplicate(self, wi, ei, usage, fold, seen, first_slot) -> None:
-        """wyrd-24s6 (D41) last resort: no synonym + no re-pick. Native rendering
-        can collide where modern doesn't — two morphemes sharing a source-era
-        form but differing modern surfaces ('Biscop Biscop'). Break the visual
-        native duplicate by falling EITHER colliding slot back to its modern
-        usage, preferring whichever one's modern surface differs from the
-        collision fold (the OTHER may itself be an archaic morpheme whose modern
-        == its native). Only acts when a native render is active; else leaves the
-        dupe."""
+        """wyrd-24s6 (D41) / D44 pass 2: render-level visual collision. Era
+        rendering can collide where the identities don't repeat — two morphemes
+        sharing a source-era form but differing modern surfaces ('Biscop
+        Biscop'). Break the visual duplicate by falling EITHER colliding slot
+        back to its modern usage, preferring whichever one's modern surface
+        differs from the collision fold (the OTHER may itself be an archaic
+        morpheme whose modern == its native). Render-only by design (D44): the
+        picked morphemes never change, so the skeleton stays era-invariant.
+        Only acts when a render is active; else leaves the dupe."""
         if self.rendered is None:
             return
         candidates = [(wi, ei, usage)]
@@ -1971,7 +2009,7 @@ class NewName:
         for slot_wi, slot_ei, slot_usage in candidates:
             if self.rendered[slot_wi][slot_ei] is None:
                 continue
-            modern_fold = (slot_usage or "").strip("-").lower()
+            modern_fold = (slot_usage or "").replace("-", "").lower()
             if modern_fold and modern_fold != fold:
                 self.rendered[slot_wi][slot_ei] = None  # __str__ → modern for this slot
                 seen.setdefault(modern_fold, set())
@@ -2069,7 +2107,7 @@ class NewName:
         for k, ms in self.meaning_db.items():
             if not isinstance(k, str) or pos_markers(k) != want:
                 continue
-            kf = k.strip("-").lower()
+            kf = k.replace("-", "").lower()
             if not kf or kf in seen_folds:
                 continue
             # Drop keys whose every sense is a base-pool-excluded class

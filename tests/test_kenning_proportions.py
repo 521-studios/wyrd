@@ -158,6 +158,43 @@ def test_diversify_native_collision_falls_back_to_modern():
     assert str(nn) == "Biscop Bishop"  # collision broken — slot 2 fell back to modern
     assert nn.rendered[1][0] is None  # the colliding native render was dropped
     assert nn.modern_name() == "Biscop Bishop"  # modern was always distinct
+    # D44: pass 2 is render-ONLY — a render collision must never rewrite the
+    # picked morphemes (name keys), only fall a slot's render back to modern.
+    assert nn.name == [["biscop"], ["bishop"]]
+
+
+def test_break_native_duplicate_falls_back_first_slot_and_stale_rseen_is_safe():
+    """The reversed-role collision: the SECOND slot's modern equals the
+    collision fold ('biscop' — an archaic morpheme whose modern == its
+    native), so _break_native_duplicate falls the FIRST slot back to
+    modern instead. The three-way tail pins the stale-rseen safety: the
+    third collider pairs against the broken slot 1, which the
+    rendered-None candidate guard skips, and correctly leaves the
+    genuine biscop/biscop dupe — all without the skeleton ever changing
+    (D44 pass 2 is render-only)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m1 = Meaning("bishop", tags=[], meanings=["bishop"], sources={"old_english": ["biscop"]})
+    m2 = Meaning("biscop", tags=[], meanings=["bishop"], sources={"old_english": ["biscop"]})
+    m3 = Meaning("biscop", tags=[], meanings=["bishop"], sources={"old_english": ["biscop"]})
+    nn = NewName(
+        struct=None,
+        meaning_db={"bishop": [m1], "biscop": [m2, m3]},
+        name=[["bishop"], ["biscop"], ["biscop"]],
+        rendered=[["Biscop"], ["Biscop"], ["Biscop"]],  # three-way native collision
+    )
+    rendered_out = str(nn)
+    # Slot 1 (modern 'bishop' != fold 'biscop') is the breakable one — it
+    # fell back to modern; slot 2 stayed native (its modern == the fold).
+    assert nn.rendered[0][0] is None
+    assert rendered_out.split(" ")[0] == "Bishop"
+    # Slots 2 + 3 keep their native renders: both genuinely ARE 'biscop'
+    # (modern == fold → unbreakable), so the dupe between them is left.
+    assert nn.rendered[1][0] == "Biscop"
+    assert nn.rendered[2][0] == "Biscop"
+    # Render-only: the picked morphemes never change.
+    assert nn.name == [["bishop"], ["biscop"], ["biscop"]]
 
 
 def test_diversify_repeats_skips_base_pool_excluded_repick():

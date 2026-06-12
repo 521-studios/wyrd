@@ -197,9 +197,11 @@ def _emit_result(result: Any, culture: str, json_output: bool, describe: bool) -
     type=str,
     default=None,
     help=(
-        "D5-2 era filter (wyrd-lyp). Pass a year (e.g. 1086), a cell label "
-        "('oe-late', 'me', 'middle-irish'), or 'family/label' to "
-        "disambiguate. Morphemes with no attested-year data pass through."
+        "Era to RENDER the name at (D44). Pass a year (e.g. 1086), a cell "
+        "label ('oe-late', 'me', 'middle-irish'), or 'family/label' to "
+        "disambiguate. Era never changes WHICH morphemes are drawn — the "
+        "same seed yields the same name skeleton at every era; only each "
+        "morpheme's surface form (reflex) tracks the requested period."
     ),
 )
 @click.option(

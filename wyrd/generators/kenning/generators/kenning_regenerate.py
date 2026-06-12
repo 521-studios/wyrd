@@ -203,12 +203,11 @@ class KenningRegenerateMorpheme(Generator):
         qualifier = _slot_qualifier(old_meaning, usages[wi][mi])
         bucket_key = _bucket_key(position, qualifier, single=len(usages[wi]) == 1)
 
-        request, priors, era_midpoint, pack_meaning_dbs = _resolve_vector_inputs(
+        request, priors, pack_meaning_dbs = _resolve_vector_inputs(
             culture=knobs["culture"],
             tags=knobs["tags"],
             mood=knobs["mood"],
             harshness=knobs["harshness"],
-            era_range=knobs["era_range"],
             stratum=knobs["stratum"],
             priors_path=knobs["priors_path"],
             scoring_weights_raw=knobs["scoring_weights_raw"],
@@ -236,7 +235,6 @@ class KenningRegenerateMorpheme(Generator):
             bucket_key=bucket_key,
             request=request,
             priors=priors,
-            era_midpoint=era_midpoint,
             knobs=knobs,
             prior_tags=prior_tags,
             slot_base_scores=slot_base_scores,
@@ -354,6 +352,9 @@ def _parse_knobs(params: dict[str, Any]) -> dict[str, Any]:
     if isinstance(moods, str):
         moods = [moods]
     include_fiction = _coerce_bool(params.get("include_fiction", False))
+    # D44: era never gates/weights the draw; this call runs purely as
+    # request validation (a typo'd era surfaces as a clean 4xx).
+    _resolve_era_param(params.get("era"), culture)
     return {
         "culture": culture,
         "tags": list(raw_tags),
@@ -365,7 +366,6 @@ def _parse_knobs(params: dict[str, Any]) -> dict[str, Any]:
         "inflection_density": float(params.get("inflection_density", 0.0) or 0.0),
         "include_unglossed": _coerce_bool(params.get("include_unglossed", False)),
         "exclude_tags": () if include_fiction else (_FICTION_TAG,),
-        "era_range": _resolve_era_param(params.get("era"), culture),
         "era_render_language": _resolve_era_render_language(params.get("era"), culture),
         "era_requested": bool(params.get("era")),
         "stratum": _resolve_stratum_param(params.get("stratum"), culture),
@@ -384,7 +384,6 @@ def _weighted_pool_with_fallback(
     bucket_key: tuple[str, ...],
     request: Any,
     priors: Any,
-    era_midpoint: int,
     knobs: dict[str, Any],
     prior_tags: frozenset[str],
     slot_base_scores: dict[tuple, list[tuple[Any, float]]],
@@ -407,7 +406,6 @@ def _weighted_pool_with_fallback(
         slot_bucket_key=bucket_key,
         request=request,
         priors=priors,
-        era_midpoint=era_midpoint,
         cohesion=knobs["cohesion"],
         cohesion_table=name_gen.cohesion_table or None,
         usage_frequency_by_bucket=name_gen.usage_frequency_by_bucket,
@@ -431,7 +429,6 @@ def _weighted_pool_with_fallback(
         slot_bucket_key=None,
         request=request,
         priors=priors,
-        era_midpoint=era_midpoint,
         cohesion=knobs["cohesion"],
         cohesion_table=name_gen.cohesion_table or None,
         usage_frequency_by_bucket=None,

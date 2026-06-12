@@ -562,9 +562,11 @@ def resolve_era_input(
       family choice; returns the cell's range from the named family.
       Use this when ``default_family`` doesn't define the label.
 
-    The runtime D5-2 filter (``Meaning.attested_in_era_range``) uses
-    the returned range as a half-open interval — a year exactly on
-    ``start`` is included, a year exactly on ``end`` is not.
+    Ranges are half-open intervals — a year exactly on ``start`` is
+    included, a year exactly on ``end`` is not. (The D5-2 inventory
+    filter that consumed these ranges was retired by D44 — era now only
+    selects the rendered reflex; the resolver survives as the era-input
+    VALIDATOR and the render-language anchor.)
     """
     if era is None:
         return None

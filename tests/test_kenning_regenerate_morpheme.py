@@ -287,6 +287,19 @@ def test_bad_inputs_raise_value_error(english_roll):
         rg.generate_all({"words": [[{"usage": ""}]], "word_index": 0, "morpheme_index": 0}, seed=1)
 
 
+def test_bad_era_raises_value_error(english_roll):
+    """D44: era is validation-only in the regenerate path (_parse_knobs calls
+    _resolve_era_param purely for the 4xx contract; the resolved range is
+    deliberately unused). A typo'd era must still surface as ValueError."""
+    words = english_roll.morphemes_by_word
+    rg = KenningRegenerateMorpheme()
+    with pytest.raises(ValueError, match="invalid 'era'"):
+        rg.generate_all(
+            {"words": words, "word_index": 0, "morpheme_index": 0, "era": "victorian"},
+            seed=1,
+        )
+
+
 def test_registered_and_dispatchable_via_api(english_roll):
     """End-to-end through the Flask dispatcher: the generator is registered,
     multi_result short-circuits count, and ValueError maps to 400."""

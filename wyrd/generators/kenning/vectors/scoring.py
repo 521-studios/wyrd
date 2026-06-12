@@ -619,10 +619,10 @@ def score(
     * Resolving the ``slot_position`` label from the slot's index in
       the structure (e.g. 'pre' / 'inner' / 'post' per
       ``Meaning.location``).
-    * Resolving the ``era_midpoint`` from the request's era_min /
-      era_max (typically the midpoint of the requested range, or 0
-      when no era is set — then the baseline lookup hits the
-      hierarchical fallback's tag-wildcard / all-wildcard levels).
+    * Passing ``era_midpoint`` (D44: always 0 — the wildcard-cell
+      convention; the request's era never drives scoring. The
+      parameter and the priors tables' era cells survive for
+      pack-template / future non-request-driven lookups).
     * Looking up ``lemma_phon`` from per-etymon phonological vectors
       (kq7w.1 corpus enrichment). For Meanings without phonological
       vectors yet, pass a default-constructed PhonologicalVector

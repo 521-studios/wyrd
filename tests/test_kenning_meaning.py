@@ -481,112 +481,11 @@ def test_pick_inflection_partial_density_gates_per_call():
     assert 800 < hits < 1200
 
 
-# --- attested_in_era_range (D5-2 / wyrd-lyp) -------------------------------
-
-
-def _meaning_with_attested_years(years_by_lang):
-    return Meaning("cot-", [], [], {}, attested_years=years_by_lang)
-
-
-def test_attested_in_era_range_none_means_no_filter():
-    """era_range=None is the runtime's 'no --era passed' signal — every
-    meaning passes."""
-    m = _meaning_with_attested_years({"old_english": [("cot", 950)]})
-    assert m.attested_in_era_range(None) is True
-
-
-def test_attested_in_era_range_empty_data_passes_through():
-    """Morphemes with no year evidence pass any filter — the bundle's
-    coverage is incomplete and excluding the un-dated majority would
-    gut the inventory. Documented in DECISIONS.md D5-2."""
-    m = _meaning_with_attested_years({})
-    assert m.attested_in_era_range((800, 1100)) is True
-    assert m.attested_in_era_range((1100, 1500)) is True
-
-
-def test_attested_in_era_range_year_inside_window_passes():
-    """A morpheme with a year inside [start, end) is admissible."""
-    m = _meaning_with_attested_years({"old_english": [("cot", 950)]})
-    assert m.attested_in_era_range((800, 1100)) is True
-
-
-def test_attested_in_era_range_year_outside_window_excluded():
-    """A morpheme whose only attestation falls outside the window is
-    dropped — the filter is doing its job."""
-    m = _meaning_with_attested_years({"old_english": [("cot", 950)]})
-    assert m.attested_in_era_range((1100, 1500)) is False
-
-
-def test_attested_in_era_range_half_open_boundary_year_excluded_at_end():
-    """Half-open [start, end): a year exactly on ``end`` is NOT included.
-    Matches era.era_cell's boundary semantics — a 1100 attestation lands
-    in 'me', not 'oe-late'."""
-    m = _meaning_with_attested_years({"old_english": [("cot", 1100)]})
-    assert m.attested_in_era_range((800, 1100)) is False
-    assert m.attested_in_era_range((1100, 1500)) is True
-
-
-def test_attested_in_era_range_open_low_endpoint():
-    """start=None means 'open on low side' — any year below ``end``
-    matches. A 700 attestation passes the oe-early window (None, 800)."""
-    m = _meaning_with_attested_years({"old_english": [("haedan", 700)]})
-    assert m.attested_in_era_range((None, 800)) is True
-    assert m.attested_in_era_range((None, 700)) is False
-
-
-def test_attested_in_era_range_open_high_endpoint():
-    """end=None is an OPEN-ENDED window: it passes regardless of the
-    morpheme's years (wyrd-c6o1.3 — see the dedicated open-ended test
-    below). The bounded (None, 1700) window still applies the
-    year-inside-window check."""
-    m = _meaning_with_attested_years({"old_english": [("modern", 1900)]})
-    assert m.attested_in_era_range((1700, None)) is True
-    assert m.attested_in_era_range((None, 1700)) is False
-
-
-def test_attested_in_era_range_open_ended_window_passes_historical_morphemes():
-    """wyrd-c6o1.3: an OPEN-ENDED window (end=None — the present-day /
-    'modern' stage of every living family) passes every morpheme
-    regardless of attestation years. Place names accrete: the present
-    contains every historical stratum, and the bundle's scholarly
-    attestations are inherently medieval (etymology dictionaries cite
-    Domesday-era forms), so requiring a year inside ``(1700, None)``
-    silently starved core OE morphemes (tūn → '-ton', ~20% of real
-    English place names) out of default present-day generation while
-    no-data homographs passed through."""
-    tun = _meaning_with_attested_years(
-        {"old_english": [("tun", 709), ("tūn", 1050), ("ton", 1086), ("tona", 1270)]}
-    )
-    assert tun.attested_in_era_range((1700, None)) is True
-    # Bounded historical windows keep the year-inside-window semantics.
-    assert tun.attested_in_era_range((1500, 1700)) is False
-
-
-def test_attested_in_era_range_short_circuits_on_first_match():
-    """One in-range year is enough — additional out-of-range entries
-    don't override. Pre-shipped data sorts by year ascending; this
-    exercise pins the OR-across-attestations contract regardless of
-    sort order."""
-    m = _meaning_with_attested_years({"old_english": [("early", 700), ("late", 1500)]})
-    # 700 falls outside oe-late, but 1500 also falls outside (> end).
-    assert m.attested_in_era_range((800, 1100)) is False
-    # 1500 lands at the open-end of early-modern (1500, 1700).
-    assert m.attested_in_era_range((1500, 1700)) is True
-
-
-def test_attested_in_era_range_searches_across_languages():
-    """The OR check spans every language entry — a morpheme with
-    Old English late attestation AND Old Norse classical attestation
-    passes either of those windows."""
-    m = _meaning_with_attested_years(
-        {
-            "old_english": [("brycg", 950)],
-            "old_norse": [("bryggja", 1000)],
-        }
-    )
-    assert m.attested_in_era_range((800, 1100)) is True
-    # No language has a year >= 1500.
-    assert m.attested_in_era_range((1500, 1700)) is False
+# --- attested_in_era_range: REMOVED (D44) ----------------------------------
+# Era renders, never gates: the inventory-filter predicate this block
+# pinned was retired with D44 (the attested-years DATA survives for
+# display). The era-invariance contract is pinned by
+# tests/test_kenning_era_renders_not_gates.py.
 
 
 # --- in_stratum (wyrd-lr4 Phase 3) ----------------------------------------

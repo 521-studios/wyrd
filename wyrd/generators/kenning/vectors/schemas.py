@@ -22,9 +22,10 @@ The canonical composition rule is
                  + pos_w  * pos_score(lemma, request, slot)
                  + base_w * baseline_score(lemma, source, request)
 
-with hard gates (culture / era / stratum / pack-allowlist / pack-tag-
-filter) applied as boolean predicates OUTSIDE the vector space — they
-shrink the eligible pool before any scoring happens.
+with hard gates (culture / stratum / pack-allowlist / pack-tag-filter)
+applied as boolean predicates OUTSIDE the vector space — they shrink
+the eligible pool before any scoring happens. (Era is not a gate —
+D44: it selects the rendered reflex, never the eligible morphemes.)
 
 These dataclasses are the contract between Phase 2 (priors extraction),
 Phase 3 (eligibility-gate runtime), Phase 4 (vector-scoring runtime),
@@ -392,9 +393,10 @@ class EligibilityGate:
     pack lemmas (the pack overlay re-introduces them as a separate
     eligibility set, see PackOverlay below).
 
-    ``era`` filters to lemmas attested in the requested era (D33's
-    era-reflex infrastructure, D5-2 era filter wyrd-lyp). Open-ended
-    bounds (``None``) mean no era constraint on that side.
+    Era is deliberately NOT a gate (D44, wyrd-c6o1.3 follow-up): the
+    morpheme inventory is time-invariant — era selects which REFLEX a
+    morpheme renders as, never which morphemes are eligible. The D5-2
+    era filter that once lived here was retired with D44.
 
     ``stratum`` (D32, wyrd-lr4) filters within-language strata
     (Brittonic in Welsh, Norse-substrate in Northern English, etc.).
@@ -407,8 +409,6 @@ class EligibilityGate:
     """
 
     culture: str
-    era_min: int | None = None
-    era_max: int | None = None
     stratum: str | None = None
     # wyrd-wv85: the operator's ``--tag`` semantic filter as a HARD gate
     # (D36.6). A lemma must carry AT LEAST ONE of these tags to be
@@ -420,19 +420,6 @@ class EligibilityGate:
     required_tags: frozenset[str] = frozenset()
     allowed_pack_tags: frozenset[str] = frozenset()
     excluded_pack_tags: frozenset[str] = frozenset()
-
-    def __post_init__(self) -> None:
-        # Validate the era ordering invariant — inverted ranges
-        # (era_min > era_max) silently produce empty eligibility
-        # pools downstream, which presents as "0 mentions generated"
-        # with no operator-facing diagnostic. Raise loudly here so
-        # the CLI / API layer can surface the mistake at request
-        # construction time, before any scoring runs.
-        if self.era_min is not None and self.era_max is not None and self.era_min > self.era_max:
-            raise ValueError(
-                f"era_min ({self.era_min}) must be <= era_max ({self.era_max}); "
-                "inverted era range produces an empty eligibility pool"
-            )
 
 
 # ---- pack overlay (scenario-pack composition) ---------------------------

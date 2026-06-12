@@ -275,8 +275,9 @@ Renders the same etymon at multiple historical strata. Spans
 authoring (mining + projection) and runtime (CLI + SPA). Three
 generators currently surface the temporal-axis story:
 
-- `kenning` — main town-name generator. `--era` filters the
-  morpheme inventory by attestation period (D5-2 / D5-3).
+- `kenning` — main town-name generator. `--era` renders each
+  morpheme at the requested period's reflex (D44; the D5-2/D5-3
+  inventory filter is retired — era never gates the draw).
 - `kenning-explain` — decompose a name into morphemes, every
   reading.
 - **`kenning-rewind`** (Phase 3.1 / 3.3) — render a name at multiple
@@ -370,16 +371,14 @@ to off / 0 (bit-stable historical behavior):
   carries no tag_cooccurrence data. (The companion `--novelty` knob —
   blend each slot's score distribution toward a uniform marginal — is
   wired onto the vector path, wyrd-fcub.)
-- `--era` (D5-3, wyrd-lyp): restrict morpheme inventory to forms
-  attested in a particular period. Accepts year (`1086`), cell label
-  (`oe-late`), or `family/label` (`english/oe-late`). Active in
-  production as of the 2026-05-04 bundle re-emit (PR #58 / wyrd-j5v):
-  31.9% of bundle words carry `_attested_years` data, and the filter
-  empirically narrows the English keep-set from 2901 → 2327 (oe-early)
-  / 2433 (oe-late) / 2690 (me) / 2323 (early-modern) / 2246 (modern).
-  The keep-set collapses to None when the era covers every usage, so
-  the filter is bit-stable with no-filter on coverage gaps and
-  short-circuits the per-bucket walk back to the historic fast path.
+- `--era` (D44; input grammar from D5-3, wyrd-lyp): the period to
+  RENDER the name at. Accepts year (`1086`), cell label (`oe-late`),
+  or `family/label` (`english/oe-late`). Era never changes WHICH
+  morphemes are drawn — the inventory is time-invariant and the same
+  seed yields the same name skeleton at every era; only each
+  morpheme's surface (reflex, via the D33 era-reflex machinery)
+  tracks the requested period. (The original D5-3 inventory filter
+  was retired by D44.)
 - `--stratum` (D32, wyrd-lr4): restrict morpheme inventory to forms
   classified into a within-language register bucket. Per-family
   vocabularies — Welsh: `native-welsh / latin-loan / english-loan /

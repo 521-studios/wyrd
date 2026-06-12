@@ -14,7 +14,6 @@ from wyrd.generators.kenning.eligibility import (
     admits,
     filter_meanings,
     passes_culture_gate,
-    passes_era_gate,
     passes_pack_gate,
     passes_stratum_gate,
     passes_tag_excluded_gate,
@@ -49,16 +48,12 @@ def _meaning(
 
 def _gate(
     culture: str = "english",
-    era_min: int | None = None,
-    era_max: int | None = None,
     stratum: str | None = None,
     allowed_pack_tags: frozenset[str] = frozenset(),
     excluded_pack_tags: frozenset[str] = frozenset(),
 ) -> EligibilityGate:
     return EligibilityGate(
         culture=culture,
-        era_min=era_min,
-        era_max=era_max,
         stratum=stratum,
         allowed_pack_tags=allowed_pack_tags,
         excluded_pack_tags=excluded_pack_tags,
@@ -96,68 +91,6 @@ def test_culture_gate_error_lists_available_cultures():
         assert culture in msg
 
 
-# ---------- passes_era_gate ---------------------------------------------
-
-
-def test_era_gate_no_filter_passes_everything():
-    """era_min=None AND era_max=None → no filter applied."""
-    m = _meaning(attested_years={"old_english": [("tūn", 950)]})
-    assert passes_era_gate(m, None, None) is True
-
-
-def test_era_gate_meaning_in_window_passes():
-    m = _meaning(attested_years={"old_english": [("tūn", 950)]})
-    assert passes_era_gate(m, 800, 1100) is True
-
-
-def test_era_gate_meaning_outside_window_fails():
-    m = _meaning(attested_years={"old_english": [("tūn", 1500)]})
-    assert passes_era_gate(m, 800, 1100) is False
-
-
-def test_era_gate_meaning_with_no_attested_years_passes():
-    """ "No data → pass" rule (D5 / D5-3 wyrd-lyp): a Meaning with no attested-year
-    data passes any era filter. Most legacy bundle Meanings fall
-    here today; tightening this rule waits on mining coverage rising.
-    """
-    m = _meaning(attested_years={})
-    assert passes_era_gate(m, 800, 1100) is True
-
-
-def test_era_gate_half_open_window():
-    """`[start, end)` half-open semantics matching D5 / D5-3 (wyrd-lyp)."""
-    m_at_start = _meaning(attested_years={"old_english": [("a", 800)]})
-    m_at_end = _meaning(attested_years={"old_english": [("a", 1100)]})
-    m_just_under_end = _meaning(attested_years={"old_english": [("a", 1099)]})
-    assert passes_era_gate(m_at_start, 800, 1100) is True
-    assert passes_era_gate(m_at_end, 800, 1100) is False
-    assert passes_era_gate(m_just_under_end, 800, 1100) is True
-
-
-def test_era_gate_only_lower_bound_set():
-    """era_min set, era_max=None → an OPEN-ENDED (present-day) window.
-
-    wyrd-c6o1.3: open-ended windows pass EVERY morpheme regardless of
-    attestation years — place names accrete, so the present contains all
-    historical strata. The previous 'attested after start' semantics
-    starved core OE morphemes (tūn → '-ton') out of the SPA's default
-    present-day generation, because scholarly attestations are inherently
-    medieval. See Meaning.attested_in_era_range.
-    """
-    m_after = _meaning(attested_years={"old_english": [("a", 1500)]})
-    m_before = _meaning(attested_years={"old_english": [("a", 500)]})
-    assert passes_era_gate(m_after, 800, None) is True
-    assert passes_era_gate(m_before, 800, None) is True
-
-
-def test_era_gate_only_upper_bound_set():
-    """era_min=None, era_max set → 'attested before end' filter."""
-    m_after = _meaning(attested_years={"old_english": [("a", 1500)]})
-    m_before = _meaning(attested_years={"old_english": [("a", 500)]})
-    assert passes_era_gate(m_after, None, 1100) is False
-    assert passes_era_gate(m_before, None, 1100) is True
-
-
 # ---------- passes_stratum_gate ----------------------------------------
 
 
@@ -177,7 +110,7 @@ def test_stratum_gate_meaning_in_different_stratum_fails():
 
 
 def test_stratum_gate_meaning_with_no_stratum_data_passes():
-    """wyrd-lr4 Phase 3 'no data → pass' rule mirrors the era rule.
+    """wyrd-lr4 Phase 3 'no data → pass' rule.
     Only Welsh-family etymons are classified today; routing every
     culture through a strict stratum gate would gut bundles for
     unclassified families."""
@@ -313,22 +246,18 @@ def test_pack_gate_returns_true_with_packs_argument():
 def test_admits_passes_when_all_gates_pass():
     m = _meaning(
         tags=("plant",),
-        attested_years={"old_english": [("a", 950)]},
         stratum={"old_english": {"a": "native-old-english"}},
     )
-    g = _gate(culture="english", era_min=800, era_max=1100, stratum="native-old-english")
+    g = _gate(culture="english", stratum="native-old-english")
     assert (
         admits(m, g, tag_required=frozenset({"plant"}), tag_excluded=frozenset({"fiction"})) is True
     )
 
 
 def test_admits_fails_when_any_one_gate_fails():
-    """Era passes, stratum passes, tag-required fails → admits False."""
-    m = _meaning(
-        tags=("water",),  # missing required 'plant'
-        attested_years={"old_english": [("a", 950)]},
-    )
-    g = _gate(era_min=800, era_max=1100)
+    """Stratum passes, tag-required fails → admits False."""
+    m = _meaning(tags=("water",))  # missing required 'plant'
+    g = _gate()
     assert admits(m, g, tag_required=frozenset({"plant"})) is False
 
 
@@ -347,18 +276,17 @@ def test_admits_does_NOT_validate_culture():
 
 def test_admits_short_circuits_on_first_failing_gate():
     """A Meaning that fails the tag-required gate doesn't pay the
-    cost of the era/stratum/pack predicates. Uses a Mock-like
-    subclass that raises if ``attested_in_era_range`` is ever
-    called — short-circuit semantics are pinned by the absence of
-    the raise."""
+    cost of the stratum/pack predicates. Uses a Mock-like subclass
+    that raises if ``in_stratum`` is ever called — short-circuit
+    semantics are pinned by the absence of the raise."""
 
-    class _MeaningThatRaisesOnEra(Meaning):
-        def attested_in_era_range(self, era_range):  # type: ignore[override]
-            raise AssertionError("era gate should not have been reached — short-circuit failed")
+    class _MeaningThatRaisesOnStratum(Meaning):
+        def in_stratum(self, stratum):  # type: ignore[override]
+            raise AssertionError("stratum gate should not have been reached — short-circuit failed")
 
-    m = _MeaningThatRaisesOnEra(usage="-x", tags=[], meanings=["test"], sources=[])
-    g = _gate(era_min=800, era_max=1100)
-    # tag_required fails first → era predicate never called → no AssertionError.
+    m = _MeaningThatRaisesOnStratum(usage="-x", tags=[], meanings=["test"], sources=[])
+    g = _gate(stratum="native-old-english")
+    # tag_required fails first → stratum predicate never called → no AssertionError.
     assert admits(m, g, tag_required=frozenset({"plant"})) is False
 
 
@@ -373,9 +301,6 @@ def test_admits_each_gate_fails_independently():
     # Tag-excluded failure
     m_excluded = _meaning(tags=("plant", "fiction"))
     assert admits(m_excluded, _gate(), tag_excluded=frozenset({"fiction"})) is False
-    # Era failure (attested data outside window)
-    m_late = _meaning(tags=("plant",), attested_years={"old_english": [("l", 1500)]})
-    assert admits(m_late, _gate(era_min=800, era_max=1100)) is False
     # Stratum failure
     m_wrong_stratum = _meaning(tags=("plant",), stratum={"welsh": {"x": "english-loan"}})
     assert admits(m_wrong_stratum, _gate(stratum="native-welsh")) is False
@@ -445,17 +370,18 @@ def test_filter_meanings_preserves_input_order():
 
 def test_filter_meanings_with_all_gates_simultaneously():
     """Integration test: pool of Meanings with mixed shapes; assert
-    only the one that passes ALL gates makes it through."""
-    # Wins: english culture, era 800-1100, native-old-english,
-    # tag plant, no fiction tag.
+    only the ones that pass ALL gates make it through. Era is
+    deliberately absent (D44): attested-years data never gates — a
+    Meaning attested only outside any period is just as eligible."""
+    # Wins: english culture, native-old-english, tag plant, no fiction tag.
     m_winner = _meaning(
         usage="-winner",
         tags=("plant", "tree"),
         attested_years={"old_english": [("w", 900)]},
         stratum={"old_english": {"w": "native-old-english"}},
     )
-    # Loses on era (year 1500).
-    m_late_era = _meaning(
+    # ALSO wins (D44): attestation year is irrelevant to eligibility.
+    m_late_attested = _meaning(
         usage="-late",
         tags=("plant",),
         attested_years={"old_english": [("l", 1500)]},
@@ -480,39 +406,22 @@ def test_filter_meanings_with_all_gates_simultaneously():
         attested_years={"old_english": [("ld", 900)]},
         stratum={"old_english": {"ld": "norse-loan"}},
     )
-    # Has no era data (passes era via 'no data → pass') BUT has
-    # stratum data that fails the stratum gate. Confirms the two
-    # 'no data → pass' rules don't mask each other: a Meaning that
-    # passes one no-data rule still has to pass other gates that
-    # DO have data.
-    m_no_era_failing_stratum = _meaning(
-        usage="-mixed",
-        tags=("plant",),
-        attested_years={},
-        stratum={"old_english": {"mx": "norse-loan"}},
-    )
 
-    g = _gate(
-        culture="english",
-        era_min=800,
-        era_max=1100,
-        stratum="native-old-english",
-    )
+    g = _gate(culture="english", stratum="native-old-english")
     result = filter_meanings(
         [
             m_winner,
-            m_late_era,
+            m_late_attested,
             m_no_plant,
             m_fiction,
             m_wrong_stratum,
-            m_no_era_failing_stratum,
         ],
         g,
         tag_required=frozenset({"plant"}),
         tag_excluded=frozenset({"fiction"}),
     )
 
-    assert result == [m_winner]
+    assert result == [m_winner, m_late_attested]
 
 
 def test_filter_meanings_no_filters_passes_all():
