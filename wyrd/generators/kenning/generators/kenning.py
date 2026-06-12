@@ -649,7 +649,7 @@ def _resolve_vector_inputs(
 
     Extracted from :func:`_generate_via_vector` (wyrd-y0lx) so the
     single-slot regeneration endpoint (``kenning-regenerate-morpheme``)
-    builds its RequestVector / priors / pack overlays through the exact
+    builds its RequestVector / priors / pack_meaning_dbs through the exact
     same resolution as a full generate, instead of duplicating it and
     letting the two copies drift apart."""
 

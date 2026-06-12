@@ -43,9 +43,10 @@ Era is deliberately NOT a gate predicate (D44): the morpheme
 inventory is time-invariant — era selects which reflex a morpheme
 RENDERS as, never which morphemes are eligible.
 
-Per the D36.7 design (per (culture × position × tag × era) cells),
-the gate produces an output set that the scoring runtime consumes
-directly. Pre-computed bitmap indexes for fast cell-based lookups
+The gate produces an output set that the scoring runtime consumes
+directly (the (culture × position × tag × era) cell vocabulary of
+D36.7 belongs to the PRIORS tables the scorer reads, not to the
+gate's dimensions). Pre-computed bitmap indexes for fast cell-based lookups
 (wyrd-ecjp.3 ticket's "pre-computed indexes" half) belong in the
 bundle-build layer; that work touches lexicon.py / export_meanings
 and is deferred to a follow-up to keep this PR scoped to runtime

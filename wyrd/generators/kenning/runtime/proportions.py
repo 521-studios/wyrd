@@ -1917,6 +1917,12 @@ class NewName:
                     rseen[fold] = (wi, ei, usage)
                     continue
                 self._break_native_duplicate(wi, ei, usage, fold, seen, rseen)
+                # Three-way collisions: if the FIRST slot is the one that fell
+                # back to modern, re-point the fold at the slot that stayed
+                # native so a later collider pairs against a live render.
+                first_wi, first_ei, _ = rseen[fold]
+                if self.rendered[first_wi][first_ei] is None:
+                    rseen[fold] = (wi, ei, usage)
 
     def _resolve_repeat(self, wi, ei, usage, fold, canon, siblings, seen, name_sig) -> None:
         """Resolve one repeated IDENTITY (wyrd-vd6y / wyrd-72q9 — pass 1 of
@@ -2099,7 +2105,7 @@ class NewName:
         for k, ms in self.meaning_db.items():
             if not isinstance(k, str) or pos_markers(k) != want:
                 continue
-            kf = k.strip("-").lower()
+            kf = k.replace("-", "").lower()
             if not kf or kf in seen_folds:
                 continue
             # Drop keys whose every sense is a base-pool-excluded class

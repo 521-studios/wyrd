@@ -27,6 +27,7 @@ from __future__ import annotations
 import pytest
 
 from wyrd.generators.kenning.generators.kenning import Kenning
+from wyrd.registry import GenerationResult
 
 # Live-bundle smoke test (runtime DB via the committed seed) — the authoring-
 # lexicon isolation fixtures are irrelevant here; opt out like the other
@@ -39,7 +40,7 @@ N_SEEDS = 80
 ERAS = ("", "present-day", "oe-late")
 
 
-def _roll(gen: Kenning, era: str, seed: int):
+def _roll(gen: Kenning, era: str, seed: int) -> GenerationResult:
     params: dict = {"culture": "english"}
     if era:
         params["era"] = era
@@ -93,4 +94,11 @@ def test_skeleton_invariant_holds_with_tags_combined():
         moderns = {era: r.result_modern for era, r in results.items()}
         assert len(set(moderns.values())) == 1, (
             f"seed {seed} (tags=water): skeleton differs between eras: {moderns}"
+        )
+        usages = {
+            era: [[m.get("usage") for m in word] for word in r.morphemes_by_word]
+            for era, r in results.items()
+        }
+        assert usages[""] == usages["present-day"] == usages["oe-late"], (
+            f"seed {seed} (tags=water): morpheme stacks differ between eras: {usages}"
         )
