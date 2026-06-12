@@ -46,7 +46,7 @@ def _meaning(usage: str, tags=None, phon=None) -> Meaning:
     )
 
 
-def _request(culture: str = "english", era_min=None, era_max=None) -> RequestVector:
+def _request(culture: str = "english") -> RequestVector:
     """Default RequestVector for testing — equal-weight axes + a non-
     trivial semantic-tag spec so scoring produces non-zero weights.
 
@@ -57,7 +57,7 @@ def _request(culture: str = "english", era_min=None, era_max=None) -> RequestVec
     a uniform 1.0 weight here.
     """
     return RequestVector(
-        gate=EligibilityGate(culture=culture, era_min=era_min, era_max=era_max),
+        gate=EligibilityGate(culture=culture),
         register=RegisterEffect(
             name="test-default",
             semantic_tags={
@@ -708,33 +708,28 @@ def test_cohesion_raw_handles_pair_count_zero():
     assert result == 0.0
 
 
-def test_select_era_gate_filters_out_of_window():
-    """The era gate uses Meaning.attested_in_era_range. Synthetic
-    meaning has no attested_years → method returns True (open) → meaning
-    passes through. This pins the legacy-compatible default."""
+def test_select_ignores_attested_years_entirely():
+    """D44: era never gates — a meaning attested ONLY in one historical
+    period is exactly as eligible as an undated one, and the gate
+    carries no era fields at all (constructing one raises)."""
+    with pytest.raises(TypeError):
+        EligibilityGate(culture="english", era_min=1066)  # type: ignore[call-arg]
+
+    # The behavioral half: a morpheme whose only attestation is medieval
+    # (1086) is selected without complaint — attested_years is inert data
+    # to the eligibility/scoring path.
     rng = random.Random(0)
     m = _meaning("Place-", tags=["x"], phon=PhonologicalVector(cluster_density=0.5))
+    m.attested_years = {"old_english": [("place", 1086)]}
     db = {"Place-": [m]}
-    request = RequestVector(
-        gate=EligibilityGate(culture="english", era_min=1066, era_max=1200),
-        register=RegisterEffect(
-            name="any",
-            semantic_tags={"x": 1.0},
-            phonological={"cluster_density": 1.0},
-        ),
-        weights=ScoringWeights(),
-    )
     result = select_via_vector_scoring(
         rng,
         db,
         structure=["Place-"],
-        request=request,
+        request=_request(),
         priors=EmpiricalPriors(),
     )
-    # Era range applied; m has no attested_years → passes; should
-    # still pick the meaning (non-empty result).
-    assert len(result) == 1
-    assert result[0] is m
+    assert result == [m]
 
 
 def test_select_exclude_tags_filters_pre_score():

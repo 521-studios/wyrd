@@ -16,8 +16,9 @@ computed at request time by the D36.2 composition rule
 Per-slot pipeline:
 
   1. **Gate** — filter the eligible meaning pool by the hard
-     predicates in :class:`EligibilityGate` (culture, era, stratum,
-     position). Lemmas that fail the gate never enter scoring.
+     predicates in :class:`EligibilityGate` (culture, stratum, tags).
+     Lemmas that fail the gate never enter scoring. (Era is NOT a
+     gate — D44: it picks the rendered reflex downstream.)
   2. **Score** — for each eligible meaning, compute the canonical
      composition score using its phonological vector + tags + the
      request's per-axis weights + the empirical priors.
@@ -82,21 +83,6 @@ def _default_empty_phon_vector() -> PhonologicalVector:
 # (`_resolve_slot_usage_frequency`): a morpheme never observed at a position
 # looks up to 0 there and is filtered. `_slot_position_label` survives below —
 # it still labels the slot's position for the D36 position-axis SCORING.
-
-
-def _matches_era(
-    meaning: Meaning,
-    era_min: int | None,
-    era_max: int | None,
-) -> bool:
-    """Era-gate predicate. Delegates to ``Meaning.attested_in_era_range``
-    — open range (None on both sides) is pass-through; meanings with
-    no attested-years evidence also pass through (the same convention
-    as the legacy path).
-    """
-    if era_min is None and era_max is None:
-        return True
-    return meaning.attested_in_era_range((era_min, era_max))
 
 
 def _matches_stratum(meaning: Meaning, stratum: str | None) -> bool:
@@ -224,10 +210,9 @@ def _passes_base_gates(
     include_unglossed: bool,
 ) -> bool:
     """Slot-independent eligibility gates shared by the native and pack pools:
-    era window, stratum, exclude-tags, the --tag HARD gate, and the gloss
-    policy. Returns False on the first failing gate."""
-    if not _matches_era(m, gate.era_min, gate.era_max):
-        return False
+    stratum, exclude-tags, the --tag HARD gate, and the gloss policy.
+    Returns False on the first failing gate. Era is deliberately absent
+    (D44): it selects the rendered reflex, never the eligible morphemes."""
     if not _matches_stratum(m, gate.stratum):
         return False
     # frozenset.isdisjoint runs in C and skips the per-tag generator overhead
@@ -388,7 +373,7 @@ def build_non_position_eligible(
 ) -> list[Meaning]:
     """Pre-compute the non-position-filtered eligibility pool.
 
-    The gate (era / stratum / required_tags / exclude_tags) doesn't depend on the
+    The gate (stratum / required_tags / exclude_tags) doesn't depend on the
     slot — it applies uniformly across every slot in the structure. Pulling this
     out into a free function lets one call build the pool once and reuse it across
     that dispatch's struct retries (the per-call caller is
@@ -702,13 +687,16 @@ def _slot_weighted_pool(
     slot_bucket_key: tuple | None,
     request: RequestVector,
     priors: EmpiricalPriors,
-    era_midpoint: int,
     cohesion: float,
     cohesion_table: dict[str, dict[str, float]] | None,
     usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None,
     novelty: float,
     prior_tags: frozenset[str],
     slot_base_scores: dict[tuple, list[tuple[Meaning, float]]] | None,
+    # D44: the request's era never drives this — 0 is the priors tables'
+    # wildcard-cell convention. The parameter survives for the scoring
+    # layer (the priors DATA keeps its era cells, D36.7).
+    era_midpoint: int = 0,
 ) -> list[tuple[Meaning, float]]:
     """The weighted ``(meaning, score)`` pool for one slot: base scores ×
     per-sample cohesion bias, then the novelty blend. Returns an empty list when
@@ -869,10 +857,10 @@ def select_via_vector_scoring(
             per-pack lemmas come from ``pack_meaning_dbs`` (keyed by
             pack name).
         priors: loaded :class:`EmpiricalPriors` (the JSON sidecar).
-        era_midpoint: int year used by ``baseline_score``'s era axis
-            (typically the midpoint of the requested era_min / era_max
-            range, or 0 when no era is requested → hits the fallback
-            tag-wildcard / all-wildcard cells).
+        era_midpoint: int year used by ``baseline_score``'s era axis.
+            D44: always 0 in practice (the wildcard-cell convention) —
+            the request's era never drives scoring; the parameter
+            survives for the scoring layer (priors era cells, D36.7).
         cohesion: D17 cohesion knob in [0, 1]. 0 = no bias; 1 =
             strongest tag-overlap bias.
         cohesion_table: nested ``{candidate_tag → {prior_tag → prob}}``

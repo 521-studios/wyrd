@@ -916,6 +916,14 @@ prompting the user toward the explicit `family/label` form. No silent
 cross-family fallback — it's too easy to accidentally route an
 'english' culture's `--era middle-irish` to the goidelic range.
 
+> **Filter half SUPERSEDED 2026-06-12 by D44 (same day as the refinement
+> below).** The era INVENTORY filter described in this entry — including the
+> keep-set narrowing numbers and the wyrd-c6o1.3 open-ended-window refinement
+> below — is retired: era never gates (or weights) the morpheme draw at all.
+> What survives from D5-3: the era-input grammar (year / cell label /
+> family-label), the strict bare-label resolution, and the resolver as the
+> request VALIDATOR + render-language anchor. See D44.
+
 **Refinement (wyrd-c6o1.3, 2026-06-12): open-ended windows pass every
 morpheme.** An era window with `end=None` — the present-day / `modern`
 stage of every living family, and what the culture-agnostic
@@ -2756,3 +2764,88 @@ changes for any structure containing bare slots — accepted deliberately
 (pre-launch posture; same contract stance as D41): the placement fix IS the
 product improvement, and legacy DBs keep byte-identical output via the
 fallback.
+
+## D44. Era selects the REFLEX, never the MORPHEME (wyrd-c6o1.3 follow-up, 2026-06-12).
+
+**The decision: the morpheme inventory is time-invariant. A request's era
+changes which SURFACE each morpheme renders as (its era reflex, via the D33
+machinery) — it never changes which morphemes can be drawn, and it never
+re-weights the draw. The guaranteed invariant: the same ``(culture, params,
+seed)`` produces the same name SKELETON (the same picked morphemes, hence the
+same ``modern_name()``) at every era; only the rendering tracks the requested
+period.**
+
+The product model behind it: town names change over time, but their morphemes
+don't. ``Tūn`` → ``-ton`` is one morpheme whose surface evolved; a town
+"founded" by the generator carries its morpheme stack through history and we
+render that stack at whatever period the user asks for. This is what makes
+``kenning-rewind`` / the era-map coherent with plain generation — they were
+already "generate once, render at stops"; D44 makes the main generator agree.
+
+**Recorded assumption (deliberate simplification): a name's STRUCTURE is
+constant over time.** Real toponyms occasionally restructured (folk
+re-etymologization, partial translation, affix accretion like the Norman
+manorial layer); we accept the simplification that the morpheme stack and
+word structure persist, and only surfaces evolve. If a future feature wants
+historically-mutating structure, it composes ON TOP of this invariant (a
+transform), rather than weakening it.
+
+### What was removed
+
+* The D5-2/D5-3 era ELIGIBILITY gate, end to end: ``EligibilityGate.era_min``
+  / ``era_max`` (and the inverted-range validation), ``passes_era_gate``
+  (eligibility.py), ``_matches_era`` (vector_name_select.py), and
+  ``Meaning.attested_in_era_range``. The attested-years DATA stays in the
+  bundle (display / explainer / future analytics); only the gate predicate is
+  gone.
+* The request-era → ``era_midpoint`` coupling into the empirical-priors
+  baseline axis (``era_midpoint_from_range``). Era-weighting the draw would
+  break the same-skeleton-at-every-era invariant just as surely as gating.
+  The scoring layer's ``era_midpoint`` parameter survives at its no-era
+  default (0 → the priors tables' wildcard-cell convention); the priors DATA
+  keeps its era cells (D36.7) for pack-template lookups and future
+  non-request-driven uses.
+
+### What era still does
+
+1. **Render language** (wyrd-6c8x / D41): ``era`` resolves to the stage's
+   canonical language; each morpheme renders its reflex at that stage
+   (``era="present-day"`` → force-modern; ``era=""`` → native per-morpheme
+   mix; historical stages → period forms).
+2. **Request validation**: ``_resolve_era_param`` still parses + validates
+   the era input (year / cell label / family-label, strict bare-label
+   resolution) so a typo'd era is a clean 4xx — its resolved range is
+   otherwise unused.
+
+### Repeat-diversification made era-stable (the subtle half)
+
+The skeleton invariant exposed a hidden era-coupling: ``_diversify_repeats``
+(wyrd-vd6y) detected repeats on the RENDERED surface, so a native render could
+trigger a skeleton mutation (synonym override / re-pick) that the force-modern
+render didn't ('Biscop'×2 collides natively; 'bishop'/'bishops' don't collide
+modern). Split into two passes:
+
+* **Pass 1 — identity repeats (era-invariant)**: detection folds on the
+  modern usage key. Skeleton mutations (cross-language synonym, re-pick)
+  happen identically at every era.
+* **Pass 2 — render collisions (era-dependent, render-only)**: distinct
+  identities whose surfaces collide only at the requested era's render fall
+  one slot back to its modern surface (``_break_native_duplicate``). Never
+  mutates the picked morphemes.
+
+### Bit-stability
+
+``era=None`` requests are unchanged (the gate was already a no-op and the
+midpoint already 0). Era-set requests change output where the old gate or
+midpoint used to bite — accepted deliberately (pre-launch posture, same
+stance as D41/D43): the invariant IS the product improvement. Pinned by
+``tests/test_kenning_era_renders_not_gates.py`` (same skeleton across eras;
+renders actually differ).
+
+### Supersessions
+
+Supersedes D5-3's inventory-filter half (annotated there), including the
+same-day wyrd-c6o1.3 open-ended-window refinement — D44 is that refinement
+generalized to every window: not just "the present contains all strata" but
+"the inventory is era-independent, period". The wyrd-c6o1.3 homograph fix
+(surface-keyed pfoo narrowing) is unaffected and still load-bearing.

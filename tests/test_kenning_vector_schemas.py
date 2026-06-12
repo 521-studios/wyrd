@@ -157,16 +157,20 @@ def test_compose_register_effects_graduation_then_compose():
 def test_eligibility_gate_required_culture_only():
     g = EligibilityGate(culture="english")
     assert g.culture == "english"
-    assert g.era_min is None
-    assert g.era_max is None
     assert g.stratum is None
     assert g.allowed_pack_tags == frozenset()
     assert g.excluded_pack_tags == frozenset()
 
 
-def test_eligibility_gate_carries_era_range():
-    g = EligibilityGate(culture="english", era_min=1066, era_max=1300)
-    assert (g.era_min, g.era_max) == (1066, 1300)
+def test_eligibility_gate_has_no_era_fields():
+    """D44: era renders, never gates — the gate carries no era fields
+    and constructing one with them raises. Pin so they can't quietly
+    return."""
+    with pytest.raises(TypeError):
+        EligibilityGate(culture="english", era_min=1066, era_max=1300)  # type: ignore[call-arg]
+    g = EligibilityGate(culture="english")
+    assert not hasattr(g, "era_min")
+    assert not hasattr(g, "era_max")
 
 
 def test_eligibility_gate_carries_pack_tag_filters():
@@ -307,37 +311,6 @@ def test_empirical_priors_version_carries():
     carry a version identifier that downstream caches key on."""
     p = EmpiricalPriors(version="2026-05-18-corpus-snapshot-v1")
     assert p.version == "2026-05-18-corpus-snapshot-v1"
-
-
-# ---- EligibilityGate era-ordering validation ----------------------------
-
-
-def test_eligibility_gate_inverted_era_range_raises():
-    """The EligibilityGate __post_init__ rejects inverted era
-    ranges. Otherwise an operator typo (era_min=1300, era_max=1066)
-    silently produces an empty eligibility pool downstream, which
-    surfaces as '0 mentions generated' with no diagnostic."""
-
-    with pytest.raises(ValueError, match=r"era_min .* must be <= era_max"):
-        EligibilityGate(culture="english", era_min=1300, era_max=1066)
-
-
-def test_eligibility_gate_equal_era_bounds_accepted():
-    """Single-year range (era_min == era_max) is valid — used to
-    target a specific period (e.g. Domesday-only output)."""
-    g = EligibilityGate(culture="english", era_min=1086, era_max=1086)
-    assert g.era_min == 1086
-    assert g.era_max == 1086
-
-
-def test_eligibility_gate_open_bounds_accepted():
-    """Half-open ranges (only era_min OR only era_max) are valid —
-    they're "no upper bound" / "no lower bound" semantics, not
-    invariant violations."""
-    g_lo = EligibilityGate(culture="english", era_min=1066)
-    assert g_lo.era_min == 1066 and g_lo.era_max is None
-    g_hi = EligibilityGate(culture="english", era_max=1300)
-    assert g_hi.era_min is None and g_hi.era_max == 1300
 
 
 # ---- compose: position_bias + semantic_tags clamping --------------------

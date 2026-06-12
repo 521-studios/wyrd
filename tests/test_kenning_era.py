@@ -298,8 +298,8 @@ def test_era_cell_for_family_raises_for_unknown_family() -> None:
 
 
 def test_resolve_era_input_none_passthrough() -> None:
-    """None input means 'no filter' — caller gets None back, matching
-    the runtime ``Meaning.attested_in_era_range(None) is True`` contract."""
+    """None input means 'no era' — caller gets None back (no render
+    range; D44: era only selects the rendered reflex)."""
     assert era.resolve_era_input(None) is None
 
 
