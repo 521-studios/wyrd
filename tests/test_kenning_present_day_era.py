@@ -119,6 +119,7 @@ def test_explicit_empty_era_still_means_mixed(monkeypatch):
             defaulted = client.post(
                 "/api/kenning", json={"culture": "english", "count": 1, "seed": seed}
             )
+            assert defaulted.status_code == 200
             if (
                 mixed.get_json()["results"][0]["result"]
                 != defaulted.get_json()["results"][0]["result"]
