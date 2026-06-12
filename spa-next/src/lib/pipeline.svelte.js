@@ -172,7 +172,7 @@ class PipelineState {
    *  regenerate→swap chain too). The reverse never holds: a swap added
    *  AFTER a regenerate refines the NEW morpheme's form and stacks
    *  normally (setSwap is deliberately untouched). */
-  setRegenerate({ wordIndex, morphemeIndex, context, from }) {
+  setRegenerate({ wordIndex, morphemeIndex, context = {}, from = '' }) {
     // Number.MAX_SAFE_INTEGER keeps the seed in the JS-safe int range the
     // server's sub-seed contract already uses (wyrd-aof8).
     const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
