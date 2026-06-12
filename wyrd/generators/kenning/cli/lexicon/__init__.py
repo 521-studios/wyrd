@@ -157,6 +157,7 @@ from wyrd.generators.kenning.cli.lexicon import (
     mine_pronunciation_llm as _mine_pronunciation_llm_module,
 )
 from wyrd.generators.kenning.cli.lexicon import mine_skeat as _mine_skeat_module
+from wyrd.generators.kenning.cli.lexicon import mine_tags_llm as _mine_tags_llm_module
 from wyrd.generators.kenning.cli.lexicon import (
     mine_toponym_mentions as _mine_toponym_mentions_module,
 )
@@ -304,6 +305,7 @@ _mine_llm_module.add_to(lexicon)
 _mine_element_glosses_module.add_to(lexicon)
 _adjudicate_element_glosses_module.add_to(lexicon)
 _mine_skeat_module.add_to(lexicon)
+_mine_tags_llm_module.add_to(lexicon)
 _mine_toponym_mentions_module.add_to(lexicon)
 _mine_toponym_mentions_staged_module.add_to(lexicon)
 _mine_toponym_mentions_tiered_module.add_to(lexicon)
