@@ -596,9 +596,7 @@ def test_offered_english_tags_are_actually_placeable():
     k = Kenning()
     unplaceable = []
     for tag in _tags_options_by_culture()["english"]:
-        if not any(
-            _rolls_ok(k, {"culture": "english", "tags": [tag]}, seed) for seed in range(6)
-        ):
+        if not any(_rolls_ok(k, {"culture": "english", "tags": [tag]}, seed) for seed in range(6)):
             unplaceable.append(tag)
     assert not unplaceable, f"offered english tags that never placed: {unplaceable}"
 
