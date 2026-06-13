@@ -108,12 +108,18 @@
   $effect(() => {
     const stepsSnapshot = $state.snapshot(pipeline.steps);
     const idx = appState.currentResultIndex;
+    // pipeline.steps is registered as a dep by the snapshot read above; mark it
+    // used here, BEFORE any early return, so it's never an unreachable statement.
+    void stepsSnapshot;
     const isLoad = untrack(() => {
       const val = appState.isLoadingSavedWorkspace;
       if (val) appState.isLoadingSavedWorkspace = false;
       return val;
     });
-    if (idx !== lastResultIndex) {
+    // untrack the previous-index memo: it's bookkeeping, not a reactive dep, so
+    // writing it below can't re-trigger this effect (avoids a redundant re-run +
+    // its no-op re-commit on a subject switch).
+    if (idx !== untrack(() => lastResultIndex)) {
       lastResultIndex = idx;
       if (!isLoad) pipeline.clear();
       // Re-snapshot the base from the now-current result. untrack: the capture
@@ -137,7 +143,6 @@
     const base = untrack(() => original);
     if (!base) return;
     pipeline.run(base);
-    void stepsSnapshot;
   });
 
   // The working state — post-pipeline if any step ran, else the original.

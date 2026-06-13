@@ -306,7 +306,13 @@ class PipelineState {
     if (r.result !== bottom.name) r.result = bottom.name;
     // Reassign even when content is unchanged on a revert-to-base run, so
     // name + morphemes never disagree (a removed swap must restore both).
-    if (bottom.morphemes_by_word) r.morphemes_by_word = bottom.morphemes_by_word;
+    // $state.snapshot DECOUPLES the canonical store from the transient pipeline
+    // states proxy — committing the live `bottom.morphemes_by_word` (which lives
+    // inside the reactive `states` array) would couple the two trees, so a later
+    // pipeline mutation/clear could bleed into the stored result.
+    if (bottom.morphemes_by_word) {
+      r.morphemes_by_word = $state.snapshot(bottom.morphemes_by_word);
+    }
     // result_modern: transformed states carry none (the original modern reflex
     // no longer describes the edited name) → null hides the stale modern
     // companion; a revert-to-base run carries the base's value → restored.
