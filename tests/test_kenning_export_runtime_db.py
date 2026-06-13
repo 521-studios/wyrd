@@ -1214,3 +1214,76 @@ def test_write_meanings_merges_dash_variants_into_one_bare_row(tmp_path: Path) -
     # the tie breaks alphabetically: celtic_mix.
     assert primary_language == "celtic_mix"
     conn.close()
+
+
+# ---------- D45 (wyrd-aicu.5): dash-guard integration ----------
+
+
+def test_dash_guard_runs_inside_emit_and_cleans_up_on_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The D45 guard is WIRED into write_runtime_db at a point where its raise
+    triggers the partial-DB cleanup. Monkeypatch it to raise → the RuntimeError
+    propagates AND the half-written L4 is unlinked (the BaseException handler).
+    Deleting the guard call site makes this test fail (the patched guard never
+    runs → emit succeeds → no RuntimeError), so the guard can't be silently
+    disarmed — closing the gap that every isolated guard unit test leaves."""
+    from wyrd.generators.kenning.lexicon import (
+        collect_canonical_decompositions,
+        collect_fantasy_morphemes,
+        export_meanings,
+    )
+    from wyrd.generators.kenning.lexicon import runtime_db_export as mod
+
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    def _boom(conn: sqlite3.Connection) -> None:
+        raise RuntimeError("dashed identity!")
+
+    monkeypatch.setattr(mod, "_verify_no_dashed_identity", _boom)
+
+    with LexiconDB(db_path) as db:
+        subjects = export_meanings(db)
+        canonical = collect_canonical_decompositions(db)
+        fantasy = collect_fantasy_morphemes(db)
+
+    with pytest.raises(RuntimeError, match="dashed identity"):
+        mod.write_runtime_db(
+            output_path=out_path,
+            subjects=subjects,
+            fantasy_morphemes=fantasy,
+            canonical_decompositions=canonical,
+            proportions_dir=tmp_path,
+            source_lexicon_db=db_path,
+        )
+    # The guard raised before commit; the BaseException cleanup unlinked the
+    # half-written DB so no corrupt L4 is left for a downstream uploader.
+    assert not out_path.exists()
+
+
+def test_dash_guard_invoked_once_on_successful_emit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A clean emit calls the guard exactly once (before commit) and succeeds —
+    the success-path complement to the raise-path test above."""
+    from wyrd.generators.kenning.lexicon import runtime_db_export as mod
+
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    real = mod._verify_no_dashed_identity
+    calls: list[int] = []
+
+    def _spy(conn: sqlite3.Connection) -> None:
+        calls.append(1)
+        real(conn)
+
+    monkeypatch.setattr(mod, "_verify_no_dashed_identity", _spy)
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+    assert calls == [1]
+    assert out_path.exists()
