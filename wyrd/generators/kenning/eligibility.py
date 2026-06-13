@@ -45,7 +45,7 @@ The gate predicates implemented here:
 
 Era gates only by RECORD ENTRY (D46, refining D44): a bounded
 historical era excludes morphemes whose earliest evidence
-(``Meaning.record_start``) postdates the era's end. Pools accrete —
+(``Meaning.record_start``) is at or after the era's end. Pools accrete —
 a morpheme never expires — and era's render effect stays outside
 the gate.
 
@@ -103,7 +103,7 @@ def passes_record_gate(meaning: Meaning, era_record_cutoff: int | None) -> bool:
     """D46 era accretion gate: True unless the morpheme's earliest
     evidence (``Meaning.record_start`` — the most generous of its
     source-language layers' record-entry years and its earliest
-    attested year) postdates ``era_record_cutoff`` (the requested
+    attested year) is at or after ``era_record_cutoff`` (the requested
     era's END year). ``None`` cutoff (no era / open-ended era) or
     ``None`` record_start (founding stratum / no evidence) → pass.
     """

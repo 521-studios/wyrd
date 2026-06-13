@@ -218,7 +218,7 @@ def _passes_base_gates(
 
     The record-entry gate is the ONLY way era touches eligibility (D46
     refining D44): a bounded era excludes morphemes whose earliest
-    evidence postdates the era's end ("in the record by then" — the
+    evidence is at or after the era's end ("in the record by then" — the
     Silicon rule); pools accrete, nothing expires, and an open cutoff
     (None — no era, or the present-day stage) gates nothing."""
     # frozenset.isdisjoint runs in C and skips the per-tag generator overhead
