@@ -84,6 +84,20 @@ def test_record_start_no_evidence_passes():
     assert Meaning("-x", [], ["x"], []).record_start() is None
 
 
+def test_record_start_empty_form_buckets_do_not_vouch():
+    """A founding-stratum bucket with no usable forms ({'old_english': []}
+    or all-empty entries) must NOT vouch a modern coinage into every era —
+    same non-empty-form semantics as primary_language."""
+    assert _m({"old_english": [], "modern_english": ["silicon"]}).record_start() == 1500
+    assert _m({"old_english": ["", None], "modern_english": ["silicon"]}).record_start() == 1500
+
+
+def test_record_start_dates_only_morpheme_is_gated_by_its_dates():
+    """No source buckets but a dated attestation: the dates ARE the
+    evidence (positively-evidenced age), so they gate."""
+    assert _m({}, attested={"modern_english": [("x", 1817)]}).record_start() == 1817
+
+
 def test_record_start_is_cached():
     m = _m({"modern_english": ["silicon"]})
     assert m.record_start() == 1500
@@ -107,7 +121,8 @@ def test_record_gate_excludes_positively_late_morphemes_only():
     assert passes_record_gate(undated, 1500) is True
     # Open cutoff (no era / present-day stage) gates nothing.
     assert passes_record_gate(silicon, None) is True
-    # Boundary: entered exactly AT the era's end → not "by then" (half-open).
+    # Half-open boundary: record_start == cutoff is NOT "by then" (the 1500
+    # case above); one year past the entry (cutoff 1501) is.
     assert passes_record_gate(silicon, 1501) is True
 
 
@@ -227,3 +242,21 @@ def test_bounded_era_render_actually_changes_the_surface():
         f"oe-late rendered identically to modern on {60 - diverged}/60 seeds — "
         "the era reflex rendering looks broken"
     )
+
+
+def test_mixed_and_present_day_stay_identical_with_tags_combined():
+    """The ungated-pair invariance must hold per-PARAMS, not just for the
+    bare request — an era leak gated behind the --tag hard gate would slip
+    the headline pair test (successor of the D44-era tags-combined sweep)."""
+    gen = Kenning()
+    for seed in range(30):
+        results = []
+        for era in ("", "present-day"):
+            params: dict = {"culture": "english", "tags": ["water"]}
+            if era:
+                params["era"] = era
+            results.append(gen.generate(params, seed))
+        assert results[0].result_modern == results[1].result_modern, (
+            f"seed {seed} (tags=water): {results[0].result_modern!r} != "
+            f"{results[1].result_modern!r}"
+        )

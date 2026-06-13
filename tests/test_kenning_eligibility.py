@@ -407,10 +407,16 @@ def test_filter_meanings_with_all_gates_simultaneously():
         stratum={"old_english": {"w": "native-old-english"}},
     )
     # ALSO wins (D44/D46): a late attestation YEAR on a founding-stratum
-    # morpheme is irrelevant — only record ENTRY gates, and OE is founding.
-    m_late_attested = _meaning(
-        usage="-late",
-        tags=("plant",),
+    # morpheme is irrelevant — only record ENTRY gates, and OE is founding
+    # (the populated old_english bucket vouches; the 1500 date can only
+    # vouch OLDER, never later).
+    from wyrd.generators.kenning.runtime.meaning import Meaning as _M
+
+    m_late_attested = _M(
+        "-late",
+        ["plant"],
+        ["test"],
+        {"old_english": ["late"]},
         attested_years={"old_english": [("l", 1500)]},
         stratum={"old_english": {"l": "native-old-english"}},
     )

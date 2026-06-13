@@ -395,7 +395,7 @@ class EligibilityGate:
 
     Era gates only by RECORD ENTRY (D46 refining D44): a bounded
     historical era excludes morphemes whose earliest evidence
-    (``Meaning.record_start``) is LATER than the era's end — "it has to
+    (``Meaning.record_start``) is at or after the era's end — "it has to
     have appeared in the record by then" — and nothing else. Pools
     accrete monotonically; a morpheme never expires (D44's fix stands),
     and open-ended eras (the present-day stage, ``era_record_cutoff is
@@ -429,6 +429,17 @@ class EligibilityGate:
     required_tags: frozenset[str] = frozenset()
     allowed_pack_tags: frozenset[str] = frozenset()
     excluded_pack_tags: frozenset[str] = frozenset()
+
+    def __post_init__(self) -> None:
+        # D46 guard: cutoffs are era-cell END years (the earliest defined
+        # end is latin/classical at 200); zero or negative would silently
+        # exclude every dated morpheme, presenting as "0 names generated"
+        # with no diagnostic. Raise loudly at construction instead.
+        if self.era_record_cutoff is not None and self.era_record_cutoff <= 0:
+            raise ValueError(
+                f"era_record_cutoff ({self.era_record_cutoff}) must be a "
+                "positive year; None disables the record gate"
+            )
 
 
 # ---- pack overlay (scenario-pack composition) ---------------------------

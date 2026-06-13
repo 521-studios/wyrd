@@ -136,10 +136,6 @@ _PHONOLOGICAL_VECTOR_SUFFIX = "_phonological_vector"
 # Conquest. English stages use their D5 era-cell starts. Languages absent
 # from this map default to None (pass) — thin data errs toward inclusion;
 # the gate's hard exclusions are positively-evidenced late arrivals.
-# Sentinel distinguishing "record_start not computed yet" from a computed
-# None (founding stratum) on the lazy cache.
-_UNSET = object()
-
 _LANG_RECORD_ENTRY: dict[str, int | None] = {
     "old_english": None,
     "celtic_mix": None,
@@ -252,8 +248,6 @@ class Meaning:
         # kept from the bundle; the D5-2 era filter that consumed it was
         # retired by D44 (era renders, never gates).
         self.attested_years = attested_years or {}
-        # D46: lazy cache for record_start() — see the method.
-        self._record_start = _UNSET
         # english_shaped is a dict[lang_field, dict[canonical_form,
         # english_shaped_form]] — wyrd-ha9q Phase 2c. Maps the
         # native-script / diacritic-bearing canonical form to its
@@ -570,37 +564,55 @@ class Meaning:
         the British place-name record — the MOST GENEROUS of two signals:
 
         * the earliest record-entry year among its source-language layers
-          (``_LANG_RECORD_ENTRY``; a founding-stratum layer → None), and
+          (``_LANG_RECORD_ENTRY``; a founding-stratum layer → None). Only
+          layers with at least one non-empty form count — an empty bucket
+          like ``{"old_english": []}`` must not vouch a modern coinage into
+          every era (same non-empty-form semantics as ``primary_language``).
         * its earliest attested year across ``attested_years`` (a date can
           vouch a morpheme is OLDER than its stage suggests — a
-          modern_english bucket with a 1086 Domesday date passes oe-late).
+          modern_english bucket with a 1086 Domesday date passes oe-late;
+          and a sourceless-but-dated morpheme is gated by its dates).
 
-        Returns None when any signal says "founding stratum" or when there
+        Returns None when any populated layer is founding-stratum (or an
+        unmapped language — thin data errs toward inclusion), or when there
         is no evidence on either axis (coverage rule: missing data is not
-        evidence of lateness). Cached after first computation — the inputs
-        are immutable bundle data.
+        evidence of lateness). Cached on first call via the hasattr pattern
+        (the ``primary_language`` idiom) — sources / attested_years are set
+        once at __init__ and never mutated.
         """
-        if self._record_start is not _UNSET:
-            return self._record_start
+        if not hasattr(self, "_record_start_cache"):
+            self._record_start_cache: int | None = self._compute_record_start()
+        return self._record_start_cache
+
+    def _compute_record_start(self) -> int | None:
         years: list[int] = []
-        founding = not self.sources and not self.attested_years
         if isinstance(self.sources, dict):
-            for lang in self.sources:
+            for lang, forms in self.sources.items():
+                if not self._forms_nonempty(forms):
+                    continue
                 entry = _LANG_RECORD_ENTRY.get(lang)
                 if entry is None:
-                    founding = True
-                    break
+                    return None  # founding stratum / unmapped: vouches every era
                 years.append(entry)
-        else:
-            founding = True
-        if not founding:
-            for forms in self.attested_years.values():
-                for _form, year in forms:
-                    years.append(year)
-            if not years:
-                founding = True
-        self._record_start = None if founding else min(years)
-        return self._record_start
+        for attested in self.attested_years.values():
+            years.extend(year for _form, year in attested)
+        return min(years) if years else None
+
+    @staticmethod
+    def _forms_nonempty(forms) -> bool:
+        """At least one usable form (matches ``primary_language`` /
+        ``_lemma_ref_for`` semantics: empty strings / None / form-less dict
+        entries don't count)."""
+        if not forms:
+            return False
+        for form_entry in forms:
+            if isinstance(form_entry, dict):
+                form_str = form_entry.get("form") or form_entry.get("canonical_form") or ""
+            else:
+                form_str = form_entry
+            if form_str:
+                return True
+        return False
 
     def in_stratum(self, stratum: str | None) -> bool:
         """wyrd-lr4 Phase 3 stratum filter: True if any of this
