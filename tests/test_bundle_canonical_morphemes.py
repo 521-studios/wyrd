@@ -92,10 +92,12 @@ _XFAIL_RANKING = {"ley", "wick"}
 
 def _canonical_param(row: tuple[str, str, str, str]):
     marks = (
-        pytest.mark.xfail(
-            reason="wyrd-aicu.7: aicu.1 bare-merge demotes the canonical etymon "
-            "below a thin-gloss variant",
-            strict=True,
+        (
+            pytest.mark.xfail(
+                reason="wyrd-aicu.7: aicu.1 bare-merge demotes the canonical etymon "
+                "below a thin-gloss variant",
+                strict=True,
+            ),
         )
         if row[0] in _XFAIL_RANKING
         else ()
