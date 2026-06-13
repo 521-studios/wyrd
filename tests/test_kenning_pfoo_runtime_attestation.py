@@ -46,11 +46,13 @@ def attestation_schema_conn():
         """
         CREATE TABLE proportions_usage (
             culture TEXT NOT NULL, usage_key TEXT NOT NULL,
+            position TEXT NOT NULL,
             weight INTEGER NOT NULL, cumulative INTEGER NOT NULL,
             PRIMARY KEY (culture, cumulative)
         );
         CREATE TABLE proportions_single_usage (
             culture TEXT NOT NULL, usage_key TEXT NOT NULL,
+            position TEXT NOT NULL,
             weight INTEGER NOT NULL, cumulative INTEGER NOT NULL,
             PRIMARY KEY (culture, cumulative)
         );
@@ -102,10 +104,11 @@ def test_insert_attested_languages_writes_each_pair(attestation_schema_conn):
         "SELECT culture, usage_key, primary_language "
         "FROM proportions_attested_language ORDER BY usage_key, primary_language"
     ).fetchall()
+    # D45: _insert_attested_languages folds keys to bare-lower surface.
     assert rows == [
-        ("welsh", "-bryn", "celtic_mix"),
-        ("welsh", "-bryn", "old_english"),
-        ("welsh", "pen-", "celtic_mix"),
+        ("welsh", "bryn", "celtic_mix"),
+        ("welsh", "bryn", "old_english"),
+        ("welsh", "pen", "celtic_mix"),
     ]
 
 
@@ -130,8 +133,9 @@ def test_read_proportions_attested_languages_round_trips(attestation_schema_conn
 
     welsh = _read_proportions_attested_languages(conn, "welsh")
     english = _read_proportions_attested_languages(conn, "english")
-    assert welsh == {"pen-": ["celtic_mix"]}
-    assert english == {"-ham": ["old_english"]}
+    # D45: keys round-trip as bare-lower surfaces (folded at write time).
+    assert welsh == {"pen": ["celtic_mix"]}
+    assert english == {"ham": ["old_english"]}
 
 
 def test_read_proportions_attested_languages_legacy_bundle_falls_back():
@@ -159,15 +163,39 @@ def test_proportions_dict_for_culture_includes_attested_languages_when_populated
     conn = attestation_schema_conn
     _insert_attested_languages(conn, "welsh", {"pen-": ["celtic_mix"]})
     out = proportions_dict_for_culture(conn, "welsh")
-    assert out["attested_languages"] == {"pen-": ["celtic_mix"]}
+    # D45: attested_languages keyed by bare-lower surface.
+    assert out["attested_languages"] == {"pen": ["celtic_mix"]}
 
 
 # ---- select_dev_subset narrowing ------------------------------------------
 
 
+def _nest_usages(usages: dict[str, int]) -> dict[str, dict[str, int]]:
+    """D45: convert a flat ``{dashed_or_bare: weight}`` test input into the
+    nested ``{bare_surface: {position: weight}}`` shape the proportions dict
+    now carries. Position decoded from the dash-form (``-x-`` inner, ``x-``
+    pre, ``-x`` post, bare); collisions on (surface, position) sum."""
+    nested: dict[str, dict[str, int]] = {}
+    for key, weight in (usages or {}).items():
+        lead = key.startswith("-")
+        trail = key.endswith("-")
+        if lead and trail:
+            position = "inner"
+        elif trail:
+            position = "pre"
+        elif lead:
+            position = "post"
+        else:
+            position = "bare"
+        surface = key.replace("-", "")
+        bucket = nested.setdefault(surface, {})
+        bucket[position] = bucket.get(position, 0) + weight
+    return nested
+
+
 def _props(usages=None, single=None, attested=None, bare_positions=None):
     return {
-        "usages": usages or {},
+        "usages": _nest_usages(usages),
         "single_usages": single or {},
         "structures": [],
         "tag_marginal": {},
@@ -182,13 +210,14 @@ def test_select_dev_subset_narrows_attested_languages_to_kept_usages():
     usage_key fell out of the top-N proportions. Without this the dev
     seed would carry orphan rows that the runtime filter can never
     reach (the per-usage filter rejects them first)."""
+    # D45: usages nested by bare surface; attested keyed by bare surface.
     proportions = {
         "welsh": _props(
-            usages={"-keep": 100, "-also-keep": 50, "-drop": 1},
+            usages={"keep": 100, "alsokeep": 50, "drop": 1},
             attested={
-                "-keep": ["celtic_mix"],
-                "-also-keep": ["celtic_mix", "old_english"],
-                "-drop": ["celtic_mix"],
+                "keep": ["celtic_mix"],
+                "alsokeep": ["celtic_mix", "old_english"],
+                "drop": ["celtic_mix"],
             },
         ),
     }
@@ -201,8 +230,8 @@ def test_select_dev_subset_narrows_attested_languages_to_kept_usages():
     )
     welsh = trimmed["welsh"]
     assert welsh["attested_languages"] == {
-        "-also-keep": ["celtic_mix", "old_english"],
-        "-keep": ["celtic_mix"],
+        "alsokeep": ["celtic_mix", "old_english"],
+        "keep": ["celtic_mix"],
     }
 
 
@@ -211,19 +240,20 @@ def test_select_dev_subset_uses_per_culture_keep_set_no_cross_culture_leak():
     cumulative cross-culture set. A usage attested only in culture A
     must NOT survive in culture B's attestation just because A kept
     it. Pin the per-culture isolation."""
+    # D45: usages nested by bare surface; attested keyed by bare surface.
     proportions = {
         "english": _props(
-            usages={"-ton": 100},
-            attested={"-ton": ["old_english"]},
+            usages={"ton": 100},
+            attested={"ton": ["old_english"]},
         ),
         "welsh": _props(
-            usages={"pen-": 100},
+            usages={"pen": 100},
             attested={
-                "pen-": ["celtic_mix"],
-                # ``-ton`` decomposed against Welsh place names too,
+                "pen": ["celtic_mix"],
+                # ``ton`` decomposed against Welsh place names too,
                 # but isn't in Welsh's top-N this run. Without
                 # per-culture keep_set, the trim would leak it.
-                "-ton": ["old_english"],
+                "ton": ["old_english"],
             },
         ),
     }
@@ -234,8 +264,8 @@ def test_select_dev_subset_uses_per_culture_keep_set_no_cross_culture_leak():
         proportions_by_culture=proportions,
         top_n_per_culture=1,
     )
-    assert trimmed["english"]["attested_languages"] == {"-ton": ["old_english"]}
-    assert trimmed["welsh"]["attested_languages"] == {"pen-": ["celtic_mix"]}
+    assert trimmed["english"]["attested_languages"] == {"ton": ["old_english"]}
+    assert trimmed["welsh"]["attested_languages"] == {"pen": ["celtic_mix"]}
 
 
 def test_select_dev_subset_narrows_bare_positions_to_kept_surfaces():
@@ -433,7 +463,8 @@ def test_write_proportions_inserts_attested_language_rows(attestation_schema_con
     rows = conn.execute(
         "SELECT culture, usage_key, primary_language FROM proportions_attested_language"
     ).fetchall()
-    assert rows == [("welsh", "pen-", "celtic_mix")]
+    # D45: attested usage_key folded to bare-lower surface.
+    assert rows == [("welsh", "pen", "celtic_mix")]
 
 
 # ---- Meaning.primary_language semantics ------------------------------------
@@ -597,11 +628,12 @@ def test_inline_canonical_miss_fallback_uses_fresh_name_for_tiebreaker(tmp_path:
     # attest. Assert presence loudly — without this, a regression in
     # the splitter wiring that drops Pen- from the welsh attestation
     # would silently no-op this test.
-    assert "Pen-" in welsh_attested, (
-        f"Pen- missing from welsh attestation; splitter wiring may be broken. got: {welsh_attested}"
+    # D45: attested_languages keyed by bare-lower surface (Pen- → pen).
+    assert "pen" in welsh_attested, (
+        f"pen missing from welsh attestation; splitter wiring may be broken. got: {welsh_attested}"
     )
-    assert welsh_attested["Pen-"] == ["celtic_mix"], (
-        f"culture tiebreaker no-op'd in canonical-miss fallback; got {welsh_attested['Pen-']}"
+    assert welsh_attested["pen"] == ["celtic_mix"], (
+        f"culture tiebreaker no-op'd in canonical-miss fallback; got {welsh_attested['pen']}"
     )
 
 
@@ -639,7 +671,8 @@ def test_insert_attested_languages_deduplicates_input_lists():
         rows = conn.execute(
             "SELECT primary_language FROM proportions_attested_language "
             "WHERE culture = ? AND usage_key = ? ORDER BY primary_language",
-            ("welsh", "pen-"),
+            # D45: usage_key folded to bare-lower at write time (pen- → pen).
+            ("welsh", "pen"),
         ).fetchall()
         assert rows == [("celtic_mix",), ("old_english",)]
     finally:

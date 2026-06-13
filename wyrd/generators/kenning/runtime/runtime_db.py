@@ -47,7 +47,7 @@ _logger = logging.getLogger(__name__)
 # operator-facing error when the cached / downloaded DB's stamped
 # version doesn't match — way more discoverable than letting a
 # missing-table OperationalError surface inside a sampling query.
-_EXPECTED_SCHEMA_VERSION = "2"
+_EXPECTED_SCHEMA_VERSION = "3"  # D45 (wyrd-aicu)
 
 
 class RuntimeDBVersionMismatch(RuntimeError):

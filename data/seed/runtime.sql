@@ -23,7 +23,7 @@
 -- ===== Meanings (denormalized blob) =====
 
 CREATE TABLE meaning (
-    usage_key        TEXT PRIMARY KEY,        -- modern_usage, e.g. '-ham-'
+    usage_key        TEXT PRIMARY KEY,        -- D45: bare surface, e.g. 'ham' (never '-ham-'); one row per surface
     primary_language TEXT,                    -- 'old-english', 'old-norse', ...; NULL for orphan-reflex entries
     stratum          TEXT,                    -- nullable; some morphemes lack one
     data             BLOB NOT NULL            -- JSON: full Meaning payload (forms, IPA, vectors)
@@ -76,21 +76,23 @@ CREATE TABLE canonical_decomposition (
 
 CREATE TABLE proportions_usage (
     culture    TEXT NOT NULL,
-    usage_key  TEXT NOT NULL,
+    usage_key  TEXT NOT NULL,                 -- D45: bare surface (e.g. 'ton'), never a dash-form
+    position   TEXT NOT NULL,                 -- D45: explicit position axis ('pre'/'inner'/'post'/'bare')
     weight     INTEGER NOT NULL,
     cumulative INTEGER NOT NULL,
     PRIMARY KEY (culture, cumulative)
 );
-CREATE INDEX idx_proportions_usage_by_key ON proportions_usage(culture, usage_key);
+CREATE INDEX idx_proportions_usage_by_key ON proportions_usage(culture, usage_key, position);
 
 CREATE TABLE proportions_single_usage (
     culture    TEXT NOT NULL,
-    usage_key  TEXT NOT NULL,
+    usage_key  TEXT NOT NULL,                 -- D45: bare surface
+    position   TEXT NOT NULL,                 -- D45: always 'bare' here (lone words have no within-word position)
     weight     INTEGER NOT NULL,
     cumulative INTEGER NOT NULL,
     PRIMARY KEY (culture, cumulative)
 );
-CREATE INDEX idx_proportions_single_usage_by_key ON proportions_single_usage(culture, usage_key);
+CREATE INDEX idx_proportions_single_usage_by_key ON proportions_single_usage(culture, usage_key, position);
 
 CREATE TABLE proportions_structure (
     culture    TEXT NOT NULL,

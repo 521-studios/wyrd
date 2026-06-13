@@ -2883,16 +2883,31 @@ Position (`bare` / `pre` / `inner` / `post`) is:
 ### Why this keeps coming back (the root cause)
 
 D40 enforced the rule at the MATCHING layer (string-first matching, position
-gates removed) — but the STORAGE layers still carry dash-marked identities:
+gates removed) — but the STORAGE layers still carried dash-marked identities:
 L3 `reflex.surface_form`, L4 `meaning.usage_key` / `modern_usage` /
 `proportions_*` keys, and the runtime `meaning_db` keys, with
 `Meaning._set_location` DECODING dashes back out of the stored string. So one
-surface exists as up to four separate stored identities (`ton` / `Ton-` /
-`-ton` / `-ton-`), every consumer needs fold-the-dash compat code (~80
+surface existed as up to four separate stored identities (`ton` / `Ton-` /
+`-ton` / `-ton-`), every consumer needed fold-the-dash compat code (~80
 production sites across the runtime/bundle/lexicon-export layers as of the
 2026-06-12 audit — inventory in epic wyrd-aicu; the raw repo-wide grep is
 ~100, the remainder being exempt raw-source handling in parsers/extractors),
-and each new consumer that forgets to fold re-introduces the bug class. The
+and each new consumer that forgot to fold re-introduced the bug class.
+
+**L4 landed (wyrd-aicu.1, 2026-06-13, schema v3).** The L4 runtime DB is now
+fully de-dashed: `meaning.usage_key` is the bare surface (one row per surface,
+the up-to-4 dash-variants merged with entries unioned + primary_language /
+stratum re-picked over the union); the `proportions_usage` /
+`proportions_single_usage` tables carry an explicit `position` column with
+bare-surface keys; `proportions_attested_language` is bare-surface-keyed
+(retiring the wyrd-c6o1.3 load-time fold-union — the leak is fixed at the
+source). The build tally (`Word.get_samples` → `(surface, position)`) and the
+proportions transport (`{surface: {position: weight}}`) carry position as an
+explicit axis end to end; the render (D39) still owns dash decoration + case.
+Deliberate output drift (the weight-merge shifts the draw — parity regen,
+pre-launch posture). Remaining: L3/L2 (wyrd-aicu.3), the runtime
+`Meaning.location` retirement + fold-site sweep (wyrd-aicu.2/.4), and the CI
+data-gate (wyrd-aicu.5). The
 latest instance was wyrd-c6o1.3: the per-Meaning attested-language narrowing
 keyed by exact stored usage_key, so the welsh `ton` homograph walked into
 english generation through the un-narrowed dash-variant keys.

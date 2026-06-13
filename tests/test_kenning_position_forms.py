@@ -34,15 +34,17 @@ def test_compound_records_morphemes_at_derived_positions():
     word-initial ``Stoke`` as the pre form ``Stoke-`` — regardless of which
     dash-variant the matcher fetched (here both are stored pre-shaped)."""
     w = Word([Meaning("Stoke-", [], [], {}), Meaning("Giles-", ["saint"], [], {})])
-    assert w.get_samples() == {"Stoke-", "-giles"}
-    # Gileston: Giles at word-initial → pre; -ton word-final → post.
+    # D45 (wyrd-aicu): (bare_surface, explicit_position) — never a dash-form.
+    assert w.get_samples() == {("Stoke", "pre"), ("Giles", "post")}
+    # Gileston: Giles at word-initial → pre; ton word-final → post.
     w2 = Word([Meaning("Giles-", ["saint"], [], {}), Meaning("-ton", ["settlement"], [], {})])
-    assert w2.get_samples() == {"Giles-", "-ton"}
+    assert w2.get_samples() == {("Giles", "pre"), ("ton", "post")}
 
 
 def test_inner_morpheme_records_at_inner_position():
-    """An interior morpheme records as the inner form (dashes both sides),
-    lowercased per D39."""
+    """An interior morpheme records at the inner position — D45: position is
+    an explicit axis, not dashes folded into the surface (the render lowercases
+    inner/post per D39)."""
     w = Word(
         [
             Meaning("Pre-", [], [], {}),
@@ -50,7 +52,7 @@ def test_inner_morpheme_records_at_inner_position():
             Meaning("-post", [], [], {}),
         ]
     )
-    assert w.get_samples() == {"Pre-", "-mid-", "-post"}
+    assert w.get_samples() == {("Pre", "pre"), ("Mid", "inner"), ("post", "post")}
 
 
 def test_lone_word_records_bare_surface():
@@ -73,11 +75,11 @@ def test_partial_decomposition_positions_account_for_unmatched_fragments():
     so this only bites a partial-decomposition caller; pinned for robustness +
     to keep get_samples / get_structure in lockstep.)"""
     w = Word(["Stoke", Meaning("Giles-", ["saint"], [], {})])
-    assert w.get_samples() == {"-giles"}
+    assert w.get_samples() == {("Giles", "post")}
     assert w.get_structure() == (("post",),)
     # And a leading matched morpheme before an unmatched tail → pre.
     w2 = Word([Meaning("Stoke-", [], [], {}), "giles"])
-    assert w2.get_samples() == {"Stoke-"}
+    assert w2.get_samples() == {("Stoke", "pre")}
     assert w2.get_structure() == (("pre",),)
 
 

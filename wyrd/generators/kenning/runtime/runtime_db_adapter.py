@@ -157,7 +157,14 @@ def proportions_dict_for_culture(conn: sqlite3.Connection, culture: str) -> dict
     """
     return {
         "usages": _read_proportions_usage_map(conn, "proportions_usage", culture),
-        "single_usages": _read_proportions_usage_map(conn, "proportions_single_usage", culture),
+        # D45: single_usages is bare-only (no within-word position axis); flatten
+        # the nested read-back to ``{surface: weight}`` so the bare-only
+        # consumers (``load_bare_word_positions``, which iterates flat
+        # ``{usage: weight}``) get the shape they expect. ``load_parts`` tolerates
+        # both via ``_iter_part_proportions`` either way.
+        "single_usages": _flatten_single_usages(
+            _read_proportions_usage_map(conn, "proportions_single_usage", culture)
+        ),
         "structures": _read_proportions_structures(conn, culture),
         "tag_marginal": _read_proportions_tag_marginal(conn, culture),
         "tag_cooccurrence": _read_proportions_tag_cooccurrence(conn, culture),
@@ -232,19 +239,54 @@ _USAGE_TABLES = frozenset({"proportions_usage", "proportions_single_usage"})
 
 def _read_proportions_usage_map(
     conn: sqlite3.Connection, table: str, culture: str
-) -> dict[str, int]:
-    """Read ``{usage_key: weight}`` from a cumulative-shaped usage
-    table. Iteration order = cumulative ascending = the same order
-    the emitter wrote in."""
+) -> dict[str, Any]:
+    """Read the part/single usage pool from a cumulative-shaped table.
+
+    D45 (wyrd-aicu, schema v3+): the table carries an explicit ``position``
+    column and bare-surface keys, so this returns the nested
+    ``{surface: {position: weight}}`` shape ``load_parts`` consumes (position
+    is an explicit axis, not a dash-encoded form).
+
+    Defensive legacy read (schema v2 DBs, the ``proportions_attested_language``
+    precedent): a ``no such column: position`` error means a pre-D45 bundle —
+    fall back to the flat ``{dashed_usage: weight}`` shape, which ``load_parts``
+    still tolerates via ``_iter_part_proportions``. Iteration order = cumulative
+    ascending = the order the emitter wrote in.
+    """
     if table not in _USAGE_TABLES:
         raise ValueError(
             f"_read_proportions_usage_map target {table!r} not in whitelist {sorted(_USAGE_TABLES)}"
         )
-    cursor = conn.execute(
-        f"SELECT usage_key, weight FROM {table} WHERE culture = ? ORDER BY cumulative",
-        (culture,),
-    )
-    return dict(cursor)
+    try:
+        cursor = conn.execute(
+            f"SELECT usage_key, position, weight FROM {table} "
+            f"WHERE culture = ? ORDER BY cumulative",
+            (culture,),
+        )
+        nested: dict[str, dict[str, int]] = {}
+        for usage_key, position, weight in cursor:
+            nested.setdefault(usage_key, {})[position] = weight
+        return nested
+    except sqlite3.OperationalError as exc:
+        if "no such column" not in str(exc):
+            raise
+        cursor = conn.execute(
+            f"SELECT usage_key, weight FROM {table} WHERE culture = ? ORDER BY cumulative",
+            (culture,),
+        )
+        return dict(cursor)
+
+
+def _flatten_single_usages(single: dict[str, Any]) -> dict[str, int]:
+    """Collapse the single-usage pool to flat ``{surface: weight}``. v3 DBs read
+    back nested ``{surface: {'bare': weight}}`` (single usages are always bare —
+    D45); sum across the (single) position. v2 DBs already return flat ints —
+    pass through. The bare-only consumers (``load_bare_word_positions``) need
+    flat; ``load_parts`` tolerates either."""
+    out: dict[str, int] = {}
+    for surface, value in single.items():
+        out[surface] = sum(value.values()) if isinstance(value, dict) else value
+    return out
 
 
 def _read_proportions_structures(conn: sqlite3.Connection, culture: str) -> list[dict[str, Any]]:

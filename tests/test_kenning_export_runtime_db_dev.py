@@ -50,13 +50,36 @@ def _subject(usage: str, language: str = "old_english") -> dict:
     }
 
 
+def _nest_usages(usages: dict[str, int]) -> dict[str, dict[str, int]]:
+    """D45: convert a flat ``{dashed_or_bare: weight}`` test input into the
+    nested ``{bare_surface: {position: weight}}`` shape select_dev_subset now
+    consumes. Position decoded from the dash-form (``-x-`` inner, ``x-`` pre,
+    ``-x`` post, bare). Preserves each entry's weight; collisions sum."""
+    nested: dict[str, dict[str, int]] = {}
+    for key, weight in usages.items():
+        lead = key.startswith("-")
+        trail = key.endswith("-")
+        if lead and trail:
+            position = "inner"
+        elif trail:
+            position = "pre"
+        elif lead:
+            position = "post"
+        else:
+            position = "bare"
+        surface = key.replace("-", "")
+        bucket = nested.setdefault(surface, {})
+        bucket[position] = bucket.get(position, 0) + weight
+    return nested
+
+
 def _proportions(
     usages: dict[str, int],
     single_usages: dict[str, int] | None = None,
     bare_word_positions: dict[str, dict[str, int]] | None = None,
 ) -> dict:
     return {
-        "usages": usages,
+        "usages": _nest_usages(usages),
         "single_usages": single_usages or {},
         "structures": [{"proportion": 1, "words": [[{"location": "pre"}]]}],
         "tag_marginal": {"water": 1},
@@ -100,7 +123,8 @@ def test_select_dev_subset_drops_unreferenced_meanings() -> None:
         top_n_per_culture=2,
     )
     assert [s["words"][0]["modern_usage"] for s in subs_out] == ["-ham-"]
-    assert set(props_out["english"]["usages"].keys()) == {"-ham-", "-ton-"}
+    # D45: usages keys are BARE surfaces.
+    assert set(props_out["english"]["usages"].keys()) == {"ham", "ton"}
 
 
 def test_select_dev_subset_keeps_words_whose_usage_appears_in_any_culture() -> None:
@@ -149,7 +173,7 @@ def test_select_dev_subset_prunes_unrenderable_structure_after_trim(caplog) -> N
     ]
     proportions = {
         "english": {
-            "usages": {"Aa-": 10},
+            "usages": {"Aa": {"pre": 10}},
             "single_usages": {"Aa-": 5, "Bob": 1},
             "structures": [
                 # partially renderable (pre slot filled by Aa-) — KEEP
@@ -196,7 +220,7 @@ def test_select_dev_subset_keeps_renderable_structures_silently(caplog) -> None:
     ]
     proportions = {
         "english": {
-            "usages": {"Aa-": 10},
+            "usages": {"Aa": {"pre": 10}},
             "single_usages": {"Aa-": 5},
             "structures": [{"proportion": 10, "words": [[{"location": "pre"}]]}],
             "tag_marginal": {},
@@ -253,7 +277,7 @@ def test_select_dev_subset_prune_preserves_order_and_is_per_culture(caplog) -> N
     struct_c = {"proportion": 5, "words": [[{"location": "pre"}]]}
     proportions = {
         "english": {
-            "usages": {"Aa-": 10},
+            "usages": {"Aa": {"pre": 10}},
             "single_usages": {"Aa-": 5, "Bob": 1},  # Bob trimmed at top_n=1
             "structures": [struct_a, struct_b, struct_c],  # B is the orphan
             "tag_marginal": {},
@@ -261,7 +285,7 @@ def test_select_dev_subset_prune_preserves_order_and_is_per_culture(caplog) -> N
             "attested_languages": {},
         },
         "welsh": {
-            "usages": {"caer-": 7},
+            "usages": {"caer": {"pre": 7}},
             "single_usages": {"caer-": 3},
             "structures": [{"proportion": 7, "words": [[{"location": "pre"}]]}],  # renderable
             "tag_marginal": {},
@@ -352,8 +376,9 @@ def test_select_dev_subset_keep_from_single_usages() -> None:
     subjects = [_subject("-castle")]
     proportions = {
         "english": {
-            "usages": {"-other-": 100},
-            "single_usages": {"-castle": 50},
+            "usages": {"other": {"inner": 100}},
+            # D45: single_usages keys are BARE surfaces.
+            "single_usages": {"castle": 50},
             "structures": [],
             "tag_marginal": {},
             "tag_cooccurrence": {},
@@ -367,7 +392,7 @@ def test_select_dev_subset_keep_from_single_usages() -> None:
         top_n_per_culture=5,
     )
     assert [s["words"][0]["modern_usage"] for s in subs_out] == ["-castle"]
-    assert "-castle" in props_out["english"]["single_usages"]
+    assert "castle" in props_out["english"]["single_usages"]
 
 
 def test_select_dev_subset_drops_subject_with_no_surviving_words() -> None:
@@ -541,7 +566,8 @@ def test_select_dev_subset_none_keeps_all_referenced_usages() -> None:
         top_n_per_culture=None,
     )
     assert {s["words"][0]["modern_usage"] for s in subs_out} == {"-ham-", "-ton-"}
-    assert set(props_out["english"]["usages"]) == {"-ham-", "-ton-"}
+    # D45: usages keys are BARE surfaces.
+    assert set(props_out["english"]["usages"]) == {"ham", "ton"}
 
 
 def test_generation_subset_preserves_cohesion_tag_tables() -> None:
