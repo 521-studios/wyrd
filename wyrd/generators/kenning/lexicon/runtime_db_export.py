@@ -264,6 +264,10 @@ def write_runtime_db(
                 ),
                 built_at=DEV_BUILT_AT if dev_subset else None,
             )
+            # D45 (wyrd-aicu.5): refuse to ship a dash-marked stored identity.
+            # Runs on every export so a future regression fails the BUILD loudly
+            # instead of silently re-introducing the bug class D45 forbids.
+            _verify_no_dashed_identity(conn)
             # Populate sqlite_stat tables so the runtime query planner has
             # accurate index statistics for the sampling queries (the L4
             # DB is read-only at runtime; ANALYZE pays off on every cold
@@ -407,6 +411,53 @@ def _init_runtime_schema(conn: sqlite3.Connection) -> None:
     """Run runtime.sql against the freshly-created DB."""
     sql = seed_data_path("runtime.sql").read_text()
     conn.executescript(sql)
+
+
+# D45 (wyrd-aicu.5): the stored-identity surfaces the exporter guards. KEY
+# columns are short bare surfaces, so a SQL ``LIKE '%-%'`` is exact; the BLOB
+# tables need a JSON parse (a greedy ``LIKE`` over the blob false-positives on
+# dashes in OTHER fields). ``morpheme_id`` is deliberately ABSENT — it is the
+# L3-derived content key (``language:form``), still dash-bearing until
+# wyrd-aicu.3 de-dashes the L3 morpheme entity; this gate gains it then.
+_DASH_GUARD_KEY_COLUMNS = (
+    ("meaning", "usage_key"),
+    ("proportions_usage", "usage_key"),
+    ("proportions_single_usage", "usage_key"),
+    ("proportions_attested_language", "usage_key"),
+    ("proportions_bare_word_position", "usage_key"),
+)
+_DASH_GUARD_BLOB_TABLES = ("meaning", "morpheme")
+
+
+def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
+    """D45 (wyrd-aicu.5) exporter guard: raise if any stored morpheme IDENTITY
+    carries a dash — a morpheme's identity is its bare surface; position is an
+    explicit column and dashes are render-time decoration (D39). Checks the
+    bare-keyed usage columns (SQL) + the meaning/morpheme blob ``modern_usage``
+    values (JSON parse). ``morpheme_id`` is exempt (L3-derived; wyrd-aicu.3).
+    Runs on every emit so a regression fails the build, not the operator."""
+    violations: list[str] = []
+    for table, col in _DASH_GUARD_KEY_COLUMNS:
+        n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} LIKE '%-%'").fetchone()[0]
+        if n:
+            violations.append(f"{table}.{col}: {n} dashed")
+    for table in _DASH_GUARD_BLOB_TABLES:
+        dashed = sum(
+            1
+            for (data,) in conn.execute(f"SELECT data FROM {table}")
+            for entry in json.loads(data).get("entries", [])
+            if "-" in (entry.get("word", {}).get("modern_usage") or "")
+        )
+        if dashed:
+            violations.append(f"{table} blob modern_usage: {dashed} dashed")
+    if violations:
+        raise RuntimeError(
+            "D45 (wyrd-aicu.5): refusing to emit dash-marked stored identity — "
+            + "; ".join(violations)
+            + ". A morpheme's stored identity must be its bare surface (position "
+            "is an explicit column; dashes are render-time decoration, D39). "
+            "morpheme_id is exempt (L3-derived, wyrd-aicu.3)."
+        )
 
 
 def _write_meanings(conn: sqlite3.Connection, subjects: list[dict[str, Any]]) -> int:
