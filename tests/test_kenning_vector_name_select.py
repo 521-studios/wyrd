@@ -1382,9 +1382,9 @@ def _tag_request(tags):
     )
 
 
-def _run_tag_names(db, tags, *, structure=("Place-", "-shire"), seeds=range(60)):
+def _run_tag_names(db, tags, *, structure=("Place-", "-shire"), seeds=None):
     names = []
-    for s in seeds:
+    for s in seeds if seeds is not None else range(60):
         picked = select_via_vector_scoring(
             random.Random(s),
             db,
