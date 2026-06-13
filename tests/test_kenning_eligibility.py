@@ -106,8 +106,6 @@ def test_record_gate_excludes_late_arrivals_only():
     """D46: a bounded era excludes morphemes whose earliest evidence
     postdates its end — and nothing else (founding strata and undated
     morphemes pass; pools accrete)."""
-    from wyrd.generators.kenning.runtime.meaning import Meaning
-
     silicon = Meaning("-x", [], ["x"], {"modern_english": ["silicon"]})
     tun = Meaning("-x", [], ["x"], {"old_english": ["tun"]})
     undated = _meaning()
@@ -326,6 +324,9 @@ def test_admits_each_gate_fails_independently():
     # Tag-excluded failure
     m_excluded = _meaning(tags=("plant", "fiction"))
     assert admits(m_excluded, _gate(), tag_excluded=frozenset({"fiction"})) is False
+    # Record-gate failure (D46): a positively-late coinage, everything else open
+    m_coinage = Meaning("-si", ["plant"], ["test"], {"modern_english": ["si"]})
+    assert admits(m_coinage, _gate(era_record_cutoff=1500)) is False
     # Stratum failure
     m_wrong_stratum = _meaning(tags=("plant",), stratum={"welsh": {"x": "english-loan"}})
     assert admits(m_wrong_stratum, _gate(stratum="native-welsh")) is False
@@ -410,9 +411,7 @@ def test_filter_meanings_with_all_gates_simultaneously():
     # morpheme is irrelevant — only record ENTRY gates, and OE is founding
     # (the populated old_english bucket vouches; the 1500 date can only
     # vouch OLDER, never later).
-    from wyrd.generators.kenning.runtime.meaning import Meaning as _M
-
-    m_late_attested = _M(
+    m_late_attested = Meaning(
         "-late",
         ["plant"],
         ["test"],
@@ -440,9 +439,7 @@ def test_filter_meanings_with_all_gates_simultaneously():
         stratum={"old_english": {"ld": "norse-loan"}},
     )
     # Loses on the D46 record gate: modern-only coinage, no vouching date.
-    from wyrd.generators.kenning.runtime.meaning import Meaning as _Meaning
-
-    m_modern_coinage = _Meaning(
+    m_modern_coinage = Meaning(
         "-silicon",
         ["plant"],
         ["silicon"],

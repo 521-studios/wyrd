@@ -61,10 +61,10 @@ _CITATIONS_SUFFIX = "_citations"
 # Suffix used for per-language attested-year metadata (D5-1 / wyrd-bag).
 # Each entry is (form, year) where year is the earliest plausibly-
 # attested year for the form on the production corpus, sorted by year
-# ascending. Display/analytics data: the D5-2 era filter that consumed
-# it was retired by D44 (era renders, never gates), so it has no
-# runtime consumer today — the suffix router must still claim it so
-# the sibling field doesn't mis-route into the language sources.
+# ascending. Runtime consumer: D46's record gate (``record_start`` —
+# the earliest date can vouch a morpheme OLDER than its language stage
+# suggests). The D5-2 attested-inside-window filter that originally
+# consumed it was retired by D44.
 _ATTESTED_YEARS_SUFFIX = "_attested_years"
 
 # Suffix used for per-language english_shaped renderings (wyrd-ha9q
@@ -244,9 +244,9 @@ class Meaning:
         # bundles that pre-date the wyrd-9kh.1 citation field.
         self.citations = citations or {}
         # attested_years is a dict[lang_field, list[(form, year)]] sorted
-        # by ascending year — D5-1 / wyrd-bag. Display/analytics data
-        # kept from the bundle; the D5-2 era filter that consumed it was
-        # retired by D44 (era renders, never gates).
+        # by ascending year — D5-1 / wyrd-bag. Feeds D46's record gate
+        # via record_start (dates vouch age); the original D5-2
+        # attested-inside-window filter was retired by D44.
         self.attested_years = attested_years or {}
         # english_shaped is a dict[lang_field, dict[canonical_form,
         # english_shaped_form]] — wyrd-ha9q Phase 2c. Maps the
@@ -599,7 +599,7 @@ class Meaning:
         return min(years) if years else None
 
     @staticmethod
-    def _forms_nonempty(forms) -> bool:
+    def _forms_nonempty(forms: list | None) -> bool:
         """At least one usable form (matches ``primary_language`` /
         ``_lemma_ref_for`` semantics: empty strings / None / form-less dict
         entries don't count)."""
