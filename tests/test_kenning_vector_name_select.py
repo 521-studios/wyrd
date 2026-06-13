@@ -1332,11 +1332,14 @@ def _eligible(gate):
     }
 
 
-def test_required_tags_hard_gate_keeps_only_tagged():
-    """wyrd-wv85: required_tags drops every Meaning that carries none of
-    the requested tags — the D36.6 hard --tag filter."""
+def test_required_tags_does_not_gate_the_pool():
+    """wyrd-c6o1.4: required_tags is NOT a pool-wide gate (it was, under wv85,
+    which collapsed every slot to tagged lemmas). The non-position pool stays
+    tag-agnostic — the whole pool is eligible regardless of --tag — so the other
+    slots sample freely; the "one tagged morpheme per name" guarantee is enforced
+    by the single reserved slot in select_via_vector_scoring, not here."""
     got = _eligible(EligibilityGate(culture="english", required_tags=frozenset({"water"})))
-    assert got == {"-mere", "-burn"}  # settlement + death lemmas excluded
+    assert got == {"-mere", "-burn", "-ton", "-grim"}  # nothing dropped
 
 
 def test_required_tags_empty_is_noop():
@@ -1345,19 +1348,105 @@ def test_required_tags_empty_is_noop():
     assert got == {"-mere", "-burn", "-ton", "-grim"}
 
 
-def test_required_tags_or_semantics_across_multiple_tags():
-    """Multiple --tag values union (a lemma matching ANY survives) —
-    matches proportions' filter_for_tag."""
+def test_required_tags_multiple_still_does_not_gate_the_pool():
+    """Even with multiple --tag values the pool is unchanged — the OR-across-tags
+    semantics now applies at the reserved tag slot (see the select-level tests),
+    not by pre-filtering the pool."""
     got = _eligible(EligibilityGate(culture="english", required_tags=frozenset({"water", "death"})))
-    assert got == {"-mere", "-burn", "-grim"}  # settlement-only lemma excluded
+    assert got == {"-mere", "-burn", "-ton", "-grim"}
+
+
+# ---------------------------------------------------------------------------
+# wyrd-c6o1.4: --tag reserves ONE slot (hard), the rest sample freely
+# ---------------------------------------------------------------------------
+
+
+def _tag_select_db():
+    """Two morphemes per position (one tagged + one not) so the reserved tag slot
+    has a choice AND a free slot can pick an un-tagged morpheme."""
+    return {
+        "Place-": [_meaning("Place-", tags=["urban"])],
+        "Brook-": [_meaning("Brook-", tags=["water"])],
+        "-shire": [_meaning("-shire", tags=["territory"])],
+        "-ford": [_meaning("-ford", tags=["water"])],
+        "-grave": [_meaning("-grave", tags=["death"])],
+    }
+
+
+def _tag_request(tags):
+    base = _request()
+    return RequestVector(
+        gate=EligibilityGate(culture="english", required_tags=frozenset(tags)),
+        register=base.register,
+        weights=base.weights,
+    )
+
+
+def _run_tag_names(db, tags, *, structure=("Place-", "-shire"), seeds=range(60)):
+    names = []
+    for s in seeds:
+        picked = select_via_vector_scoring(
+            random.Random(s),
+            db,
+            structure=list(structure),
+            request=_tag_request(tags),
+            priors=EmpiricalPriors(),
+        )
+        if picked:
+            names.append([m for m in picked if m is not None])
+    return names
+
+
+def test_tag_guarantees_at_least_one_tagged_morpheme_per_name():
+    """--tag water: every generated name carries >=1 water-tagged morpheme (the
+    reserved tag slot), restoring the historical guarantee."""
+    names = _run_tag_names(_tag_select_db(), ["water"])
+    assert names  # generation succeeded
+    for name in names:
+        assert any("water" in m.tags for m in name), [m.usage for m in name]
+
+
+def test_tag_leaves_the_other_slots_free():
+    """The non-reserved slots are NOT restricted to water — un-tagged morphemes
+    still surface across seeds. Under the old wv85 all-slots gate EVERY slot was
+    forced water, so a non-water morpheme could never appear."""
+    names = _run_tag_names(_tag_select_db(), ["water"])
+    appeared = {m.usage for name in names for m in name}
+    assert appeared & {"Place-", "-shire"}, appeared  # a non-water morpheme surfaced
+    # ...and at least one name is NOT all-water (only the reserved slot is water)
+    assert any(any("water" not in m.tags for m in name) for name in names)
+
+
+def test_tag_or_semantics_across_multiple_tags():
+    """Multiple --tag values union: the reserved slot satisfies water OR death,
+    so every name carries >=1 morpheme tagged water or death."""
+    names = _run_tag_names(_tag_select_db(), ["water", "death"])
+    assert names
+    for name in names:
+        assert any({"water", "death"} & set(m.tags) for m in name), [m.usage for m in name]
+
+
+def test_tag_unsatisfiable_returns_empty():
+    """A --tag no morpheme carries anywhere is unsatisfiable → select returns []
+    so the caller raises 'no eligible name' (preserves the wv85 typo signal,
+    e.g. 'religion' for the real 'religious')."""
+    picked = select_via_vector_scoring(
+        random.Random(0),
+        _tag_select_db(),
+        structure=["Place-", "-shire"],
+        request=_tag_request(["flibbertigibbet"]),
+        priors=EmpiricalPriors(),
+    )
+    assert picked == []
 
 
 def test_build_request_vector_tag_is_hard_gate_mood_is_soft_overlay():
-    """wyrd-4rp8: explicit --tag is the HARD gate (required_tags); a thematic
-    mood is a SOFT preference on RequestVector.mood_tags, NOT a gate. (The old
-    wyrd-wv85 design unioned the mood's tags into required_tags too, which gated
-    the pool so hard that generation fell back to ungated — making moods a
-    no-op. Per D36.6 only --tag is the hard filter.)"""
+    """wyrd-4rp8 / wyrd-c6o1.4: explicit --tag populates required_tags (the carrier
+    the single reserved tag slot reads); a thematic mood is a SOFT preference on
+    RequestVector.mood_tags, NOT a gate. (The old wyrd-wv85 design unioned the
+    mood's tags into required_tags too, AND applied required_tags pool-wide — too
+    hard on both counts. Now --tag reserves one slot, the mood reserves one slot,
+    and neither pre-filters the pool.)"""
     from wyrd.generators.kenning.runtime.vector_kenning_adapter import build_request_vector
 
     # Explicit --tag → hard gate (unchanged).

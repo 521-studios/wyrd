@@ -166,11 +166,36 @@ def test_bucket_key_miss_falls_back_to_unweighted_pool(english_roll, monkeypatch
     assert any("bucket_key_miss" in r.message for r in caplog.records)
 
 
-def test_tag_gate_holds_on_the_replacement():
-    rolled = Kenning().generate({"culture": "english", "tags": ["water"]}, seed=42)
-    words = rolled.morphemes_by_word
-    out = _regen(words, 0, 0, seed=3, culture="english", tags=["water"])
-    assert "water" in out.morphemes_by_word[0][0].get("tags", [])
+def _carriers(words, tag):
+    return [
+        (wi, mi)
+        for wi, word in enumerate(words)
+        for mi, m in enumerate(word)
+        if tag in (m.get("tags") or [])
+    ]
+
+
+def test_reroll_of_sole_tag_carrier_stays_tagged():
+    """wyrd-c6o1.4: a --tag reserves ONE slot (not every slot, the wv85 bug). On
+    a re-roll, only the name's SOLE tag-carrier is restricted to tagged
+    candidates — so re-rolling it can't silently drop the name's >=1-tagged
+    guarantee. (A free slot, with the tag satisfied elsewhere, samples freely.)"""
+    words = carrier_slot = None
+    for s in range(50):
+        rolled = Kenning().generate({"culture": "english", "tags": ["water"]}, seed=s)
+        carriers = _carriers(rolled.morphemes_by_word, "water")
+        assert carriers, f"roll seed={s} must satisfy the --tag guarantee"
+        if len(carriers) == 1:  # an unambiguous sole-carrier name to re-roll
+            words, carrier_slot = rolled.morphemes_by_word, carriers[0]
+            break
+    assert words is not None, "expected a single-water-carrier roll within 50 seeds"
+
+    wi, mi = carrier_slot
+    out = _regen(words, wi, mi, seed=3, culture="english", tags=["water"])
+    # the sole carrier re-rolls to another water morpheme (guarantee preserved)
+    assert "water" in (out.morphemes_by_word[wi][mi].get("tags") or [])
+    # ...and the name as a whole still carries the tag
+    assert _carriers(out.morphemes_by_word, "water")
 
 
 def test_mood_theme_survives_when_target_is_the_only_carrier():

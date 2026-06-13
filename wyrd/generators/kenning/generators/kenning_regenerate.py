@@ -46,9 +46,11 @@ class KenningRegenerateMorpheme(Generator):
     The endpoint re-runs the vector path's gate → score → sample for
     JUST that slot while holding every other slot fixed:
 
-    - **Same hard gates as a fresh roll** (culture / era / stratum /
-      ``--tag`` per-lemma OR-gate, wyrd-wv85) — so a tag-filtered name
-      stays tag-satisfying after the re-roll.
+    - **Same hard gates as a fresh roll** (culture / era / stratum) —
+      EXCEPT ``--tag``, which (wyrd-c6o1.4) is no longer a per-lemma gate:
+      like a fresh roll it reserves a single slot, so a re-roll only forces
+      a tagged replacement when this slot is the name's sole tag-carrier
+      (see Tag-context preservation below).
     - **Position derived from the slot's index** (D40: sole→bare,
       first→pre, last→post, interior→inner — never from stored dashes),
       with the slot's qualifier (name / saint) inferred from the
@@ -60,6 +62,11 @@ class KenningRegenerateMorpheme(Generator):
       is restricted to mood-tagged candidates (the wyrd-4rp8 reserved-
       slot rule, re-derived from the held context) — falling back to
       the unrestricted pool when no mood-tagged candidate exists.
+    - **Tag-context preservation** (wyrd-c6o1.4): the same rule for
+      ``--tag`` — when the slot being replaced is the name's only
+      tag-carrier, the re-roll is restricted to tag-carrying candidates
+      so the >=1-tagged guarantee survives; otherwise the slot samples
+      freely (another slot already satisfies the tag).
     - **No duplicates, ever** (operator decision, 2026-06-11): the
       candidate pool excludes the replaced morpheme and every morpheme
       already in use elsewhere in the name (both by modern-usage fold
@@ -260,6 +267,7 @@ class KenningRegenerateMorpheme(Generator):
             )
 
         weighted = _apply_mood_restriction(weighted, request.mood_tags, prior_tags)
+        weighted = _apply_tag_restriction(weighted, request.gate.required_tags, prior_tags)
 
         rng = rng_for(seed)
         pick = _weighted_choice(rng, weighted)
@@ -465,6 +473,25 @@ def _apply_mood_restriction(
         if mood_tag_set & frozenset(m.tags)
     ]
     return mood_restricted or weighted
+
+
+def _apply_tag_restriction(
+    weighted: list[tuple[Any, float]],
+    required_tags: frozenset[str],
+    prior_tags: frozenset[str],
+) -> list[tuple[Any, float]]:
+    """wyrd-c6o1.4 context rule (the --tag analogue of the mood rule above): a
+    --tag reserves ONE slot per name, not every slot. On a re-roll, restrict the
+    replacement to tag-carrying candidates ONLY when the slot being replaced is
+    the name's sole tag-carrier (no held slot intersects required_tags) — so
+    re-rolling it doesn't silently drop the name's >=1-tagged guarantee. When
+    another slot already satisfies the tag, this slot samples freely (no per-slot
+    tag gate — that was the wv85 over-constraint). Graceful: an empty restriction
+    falls back to the full pool unchanged."""
+    if not required_tags or not required_tags.isdisjoint(prior_tags):
+        return weighted
+    tag_restricted = [(m, w) for m, w in weighted if required_tags & frozenset(m.tags)]
+    return tag_restricted or weighted
 
 
 def _derived_position(word_len: int, index: int) -> str:
