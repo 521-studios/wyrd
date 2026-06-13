@@ -433,7 +433,9 @@ def _location_from_form(usage: str) -> str:
     return "bare"
 
 
-def _iter_part_proportions(proportions):
+def _iter_part_proportions(
+    proportions: dict[str, int | dict[str, int]],
+) -> Iterator[tuple[str, str, str, int]]:
     """Normalize the ``usages`` part pool into
     ``(surface_key, position, item_form, weight)`` tuples, accepting both:
 

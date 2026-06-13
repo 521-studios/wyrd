@@ -1156,3 +1156,50 @@ def test_emit_via_traversable_proportions_dir(tmp_path: Path) -> None:
         assert {"usages", "single_usages", "structures", "tag_marginal", "tag_cooccurrence"} <= set(
             data.keys()
         ), f"culture {culture!r} missing keys"
+
+
+# ---------- D45 (wyrd-aicu.1): meaning merge regroup-then-repick ----------
+
+
+def test_write_meanings_merges_dash_variants_into_one_bare_row(tmp_path: Path) -> None:
+    """D45: the up-to-4 dash-variant subjects for one surface (`-ton`/`Ton-`/
+    `-ton-`/`ton`) collapse into ONE bare `meaning` row, entries UNIONED, with
+    primary_language re-picked over the union (regroup-then-repick). Every
+    existing test seeds one variant per surface, so the merge always collapsed a
+    length-1 list — this is the headline behavior, exercised directly."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import _write_meanings
+
+    # Three dash-variants of one surface 'ton', plus a case twin. The caller
+    # (write_runtime_db) de-dashes modern_usage before _write_meanings, so the
+    # subjects here are already bare — distinct dash-variants fold to 'ton' /
+    # 'Ton' (case twins stay distinct rows; dashes are what merge).
+    subjects = [
+        {"meaning": ["enclosure"], "modifier_tags": ["a"], "words": [
+            {"modern_usage": "ton", "old_english": ["tūn"]}]},
+        {"meaning": ["farmstead"], "modifier_tags": ["b"], "words": [
+            {"modern_usage": "ton", "modern_english": ["ton"]}]},
+        {"meaning": ["wave"], "modifier_tags": ["c"], "words": [
+            {"modern_usage": "ton", "celtic_mix": ["ton"]}]},
+    ]
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE meaning (usage_key TEXT PRIMARY KEY, primary_language TEXT, "
+        "stratum TEXT, data BLOB NOT NULL)"
+    )
+    n = _write_meanings(conn, subjects)
+    assert n == 1  # three subjects → ONE bare 'ton' row
+    rows = conn.execute("SELECT usage_key, primary_language, data FROM meaning").fetchall()
+    assert len(rows) == 1
+    usage_key, primary_language, data = rows[0]
+    assert usage_key == "ton"  # bare, no dash
+    payload = json.loads(data)
+    # All three subjects' entries unioned under the one row.
+    assert len(payload["entries"]) == 3
+    assert {tuple(e["meaning"]) for e in payload["entries"]} == {
+        ("enclosure",), ("farmstead",), ("wave",)
+    }
+    # primary_language re-picked over the UNION (not per-variant) — a real
+    # language wins over None; here three distinct single-language entries, so
+    # the tie breaks alphabetically: celtic_mix.
+    assert primary_language == "celtic_mix"
+    conn.close()

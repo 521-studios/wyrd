@@ -2899,9 +2899,11 @@ fully de-dashed: `meaning.usage_key` is the bare surface (one row per surface,
 the up-to-4 dash-variants merged with entries unioned + primary_language /
 stratum re-picked over the union); the `proportions_usage` /
 `proportions_single_usage` tables carry an explicit `position` column with
-bare-surface keys; `proportions_attested_language` is bare-surface-keyed
-(retiring the wyrd-c6o1.3 load-time fold-union — the leak is fixed at the
-source). The build tally (`Word.get_samples` → `(surface, position)`) and the
+bare-surface keys; `proportions_attested_language` is bare-surface-keyed — fixing the
+wyrd-c6o1.3 homograph leak at the source (the c6o1.3 load-time fold-union
+becomes redundant on v3 bundles but stays as the legacy-v2 compat path until
+the wyrd-aicu.4 fold-site sweep removes it). The build tally
+(`Word.get_samples` → `(surface, position)`) and the
 proportions transport (`{surface: {position: weight}}`) carry position as an
 explicit axis end to end; the render (D39) still owns dash decoration + case.
 Deliberate output drift (the weight-merge shifts the draw — parity regen,

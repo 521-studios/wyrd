@@ -186,7 +186,7 @@ def test_proportions_iteration_order_matches_cumulative(_proportions_db: tuple[P
         out = proportions_dict_for_culture(conn, "english")
     finally:
         conn.close()
-    # Source dict iteration order was -ham- → -ton- → -ford- (highest
+    # Source dict iteration order was ham → ton → ford (highest
     # weight first); cumulative monotonic in that order. D45: keys come
     # back as BARE surfaces, iteration order still cumulative-ascending.
     assert list(out["usages"].keys()) == ["ham", "ton", "ford"]
@@ -327,3 +327,42 @@ def test_bit_equivalent_names_across_backends(
     # just the one seed=42 happens to pick.)
     assert json_gen.structs == sqlite_gen.structs
     assert json_gen.tag_cooccurrence == sqlite_gen.tag_cooccurrence
+
+
+def test_explicit_position_survives_l4_round_trip(tmp_path: Path) -> None:
+    """D45 end-to-end: a surface attested at MULTIPLE positions must keep those
+    positions through write → L4 → read → load_parts → bucket. The regression
+    this guards: if the reader fell back to ``_location_from_form`` on the now-
+    bare keys, every part would bucket as ('bare', …) and the pre/inner/post
+    pools would vanish (the exact collapse that couples aicu.1 + aicu.2)."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import _insert_cumulative
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        _read_proportions_usage_map,
+    )
+
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE proportions_usage (culture TEXT NOT NULL, usage_key TEXT NOT NULL, "
+        "position TEXT NOT NULL, weight INTEGER NOT NULL, cumulative INTEGER NOT NULL, "
+        "PRIMARY KEY (culture, cumulative))"
+    )
+    # 'ton' at three explicit positions (bare surface, never a dash-form).
+    _insert_cumulative(
+        conn,
+        "proportions_usage",
+        "english",
+        [("ton", "pre", 5), ("ton", "post", 100), ("ton", "inner", 3)],
+    )
+    usages = _read_proportions_usage_map(conn, "proportions_usage", "english")
+    # Reader returns nested {surface: {position: weight}} — positions preserved.
+    assert usages == {"ton": {"pre": 5, "post": 100, "inner": 3}}
+
+    meaning_db = {"ton": [Meaning("-ton", ["settlement"], ["enclosure"], {"old_english": ["tūn"]})]}
+    # MeaningGenerator.__init__ runs load_parts over the nested usages.
+    gen = MeaningGenerator(meaning_db, {}, usages)
+    # The three positions each produced their own bucket — NOT all 'bare'.
+    bucket_positions = {key[0] for key in gen.generators}
+    assert bucket_positions == {"pre", "post", "inner"}
+    conn.close()

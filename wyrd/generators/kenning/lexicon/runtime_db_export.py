@@ -238,6 +238,19 @@ def write_runtime_db(
             conn.execute("PRAGMA synchronous = OFF")
             conn.execute("PRAGMA cache_size = 10000")
             _init_runtime_schema(conn)
+            # D45 (wyrd-aicu.1): de-dash every subject word's modern_usage ONCE
+            # so BOTH blob tables (meaning + the dormant morpheme) store the bare
+            # surface — the runtime keys meaning_db off word['modern_usage'], and
+            # the render (D39) owns positional dashes + case. Stored case is kept
+            # (initial-slot front-cap preserves internal name caps like McLeod).
+            # Proportions are already computed above (they tally bare via
+            # get_samples regardless), so this only affects the blob tables; the
+            # mutation is export-local (subjects is not reused after this).
+            for subject in subjects:
+                for word in subject.get("words") or []:
+                    mu = word.get("modern_usage")
+                    if mu:
+                        word["modern_usage"] = mu.replace("-", "")
             n_meanings = _write_meanings(conn, subjects)
             n_morphemes = _write_morphemes(conn, subjects)  # wyrd-rogd.10 (dormant)
             n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
@@ -403,9 +416,13 @@ def _write_meanings(conn: sqlite3.Connection, subjects: list[dict[str, Any]]) ->
     bare surface, with their ``{meaning, modifier_tags, modifier_type, word}``
     entries UNIONED. ``primary_language`` / ``stratum`` are re-picked over the
     unioned entries (regroup-then-repick — divergent values across variants
-    resolve consistently). Each entry's own ``word['modern_usage']`` is also
-    de-dashed so ``load_meanings`` keys the runtime ``meaning_db`` bare and the
-    render (D39) owns positional dashes + case.
+    resolve consistently).
+
+    Each word's ``modern_usage`` is already bare here — the caller
+    (``write_runtime_db``) de-dashes every subject word once before this so the
+    meaning + dormant morpheme blob tables agree. The grouping key is that bare
+    surface; the runtime keys ``meaning_db`` off it and the render (D39) owns
+    positional dashes + case.
     """
     grouped: dict[str, list[dict[str, Any]]] = {}
     for subject in subjects:
@@ -418,14 +435,9 @@ def _write_meanings(conn: sqlite3.Connection, subjects: list[dict[str, Any]]) ->
             usage = word.get("modern_usage")
             if not usage:
                 continue
-            bare = usage.replace("-", "")
-            # De-dash the carried surface too (the runtime keys meaning_db off
-            # word['modern_usage']); keep stored case for the render's
-            # initial-slot front-cap (internal name caps like McLeod survive).
-            word = {**word, "modern_usage": bare}
             entry = dict(subject_meta)
             entry["word"] = word
-            grouped.setdefault(bare, []).append(entry)
+            grouped.setdefault(usage, []).append(entry)
 
     rows = []
     for usage_key, entries in grouped.items():
@@ -702,18 +714,22 @@ def _insert_attested_languages(
 
     D45 (wyrd-aicu): keys are bare SURFACES. ``proportions_from`` already folds
     to bare-lower; this also folds + unions defensively so operator-JSON dashed
-    keys collapse — which is what RETIRES the wyrd-c6o1.3 load-time fold-union
-    workaround (the exact-key narrowing leaked welsh ``ton`` into english
-    through the un-folded dash-variants; folding at write time fixes it at the
-    source)."""
+    keys collapse. This fixes the wyrd-c6o1.3 homograph leak AT THE SOURCE (the
+    exact-key narrowing leaked welsh ``ton`` into english through the un-folded
+    dash-variants). The c6o1.3 load-time fold-union in ``load_proportions`` is
+    now redundant on v3 bundles (the keys arrive bare) but is kept there as the
+    legacy v2-bundle compat path; the aicu fold-site sweep (wyrd-aicu.4) removes
+    it once v2 is gone."""
     folded: dict[str, set[str]] = {}
     for usage_key, langs in attested.items():
         surface = usage_key.replace("-", "").lower()
         folded.setdefault(surface, set()).update(langs)
+    # Sort the outer surface loop too so byte-stability is local to this write
+    # site rather than leaning on the caller's dict insertion order (seed-repro).
     rows = [
         (culture, surface, lang)
-        for surface, langs in folded.items()
-        for lang in sorted(langs)
+        for surface in sorted(folded)
+        for lang in sorted(folded[surface])
     ]
     if not rows:
         return 0
@@ -735,11 +751,14 @@ def _iter_usage_rows(usages: dict[str, Any]) -> Iterable[tuple[str, str, int]]:
     from wyrd.generators.kenning.runtime.proportions import _location_from_form
 
     for key, value in usages.items():
+        # Fold the key defensively on BOTH branches so operator-JSON / legacy
+        # dashed keys can't smuggle a dash into the table (D45).
+        bare = key.replace("-", "")
         if isinstance(value, dict):
             for position, weight in value.items():
-                yield key, position, int(weight)
+                yield bare, position, int(weight)
         else:
-            yield key.replace("-", ""), _location_from_form(key), int(value)
+            yield bare, _location_from_form(key), int(value)
 
 
 def _insert_cumulative(
