@@ -41,7 +41,10 @@ export function removeValue(list, value) {
 export function tagOptionsForCulture(tagSchema, culture) {
   const enumAll = tagSchema?.items?.enum || [];
   const byCulture = tagSchema?.['x-options-by-culture'];
-  if (!byCulture) return enumAll;
+  // No map, or no resolved culture yet (transient init/transition) → the full
+  // union, never another culture's subset. The explicit !culture guard avoids
+  // relying on hasOwnProperty's string-coercion of undefined/null.
+  if (!byCulture || !culture) return enumAll;
   return Object.prototype.hasOwnProperty.call(byCulture, culture) ? byCulture[culture] : enumAll;
 }
 
