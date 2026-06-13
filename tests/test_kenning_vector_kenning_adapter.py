@@ -233,15 +233,17 @@ def test_build_request_vector_with_stratum():
     assert rv.gate.stratum == "native-welsh"
 
 
-def test_build_request_vector_has_no_era_surface():
-    """D44: era renders, never gates — the adapter accepts no era and
-    the gate carries no era fields. Pin so the parameter can't quietly
-    return."""
+def test_build_request_vector_era_surface_is_the_record_cutoff_only():
+    """D44/D46: the adapter's only era input is the record-entry cutoff;
+    the retired attested-inside-window params stay gone."""
     with pytest.raises(TypeError):
         build_request_vector(culture="english", era_min=800)  # type: ignore[call-arg]
     rv = build_request_vector(culture="english")
+    assert rv.gate.era_record_cutoff is None
     assert not hasattr(rv.gate, "era_min")
     assert not hasattr(rv.gate, "era_max")
+    gated = build_request_vector(culture="english", era_record_cutoff=1500)
+    assert gated.gate.era_record_cutoff == 1500
 
 
 def test_build_request_vector_custom_weights():

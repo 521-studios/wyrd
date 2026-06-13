@@ -16,9 +16,10 @@ computed at request time by the D36.2 composition rule
 Per-slot pipeline:
 
   1. **Gate** — filter the eligible meaning pool by the hard
-     predicates in :class:`EligibilityGate` (culture, stratum, tags).
-     Lemmas that fail the gate never enter scoring. (Era is NOT a
-     gate — D44: it picks the rendered reflex downstream.)
+     predicates in :class:`EligibilityGate` (culture, stratum, tags,
+     and the D46 era record-entry cutoff). Lemmas that fail the gate
+     never enter scoring. (Era's RENDER effect — which reflex — stays
+     downstream per D44; the gate half is only "in the record by then".)
   2. **Score** — for each eligible meaning, compute the canonical
      composition score using its phonological vector + tags + the
      request's per-axis weights + the empirical priors.
@@ -209,12 +210,17 @@ def _passes_base_gates(
     exclude_tags: frozenset[str],
     include_unglossed: bool,
 ) -> bool:
-    """Slot-independent eligibility gates shared by the native and pack pools:
-    stratum, exclude-tags, the --tag HARD gate, and the gloss policy.
-    Returns False on the first failing gate. Era is deliberately absent
-    (D44): it selects the rendered reflex, never the eligible morphemes."""
-    if not _matches_stratum(m, gate.stratum):
-        return False
+    """Slot-independent eligibility gates shared by the native and pack pools,
+    cheapest-first (matching ``eligibility.admits``): the tag gates (frozenset
+    membership), the era record-entry gate (D46, a cached int compare), the
+    stratum filter (per-form dict iteration), and the gloss policy. Returns
+    False on the first failing gate.
+
+    The record-entry gate is the ONLY way era touches eligibility (D46
+    refining D44): a bounded era excludes morphemes whose earliest
+    evidence is at or after the era's end ("in the record by then" — the
+    Silicon rule); pools accrete, nothing expires, and an open cutoff
+    (None — no era, or the present-day stage) gates nothing."""
     # frozenset.isdisjoint runs in C and skips the per-tag generator overhead
     # in this O(64k) hot path; equivalent to any(t in <fs> for t in m.tags).
     if exclude_tags and not exclude_tags.isdisjoint(m.tags):
@@ -223,6 +229,12 @@ def _passes_base_gates(
     # requested tags — OR semantics, matching proportions' filter_for_tag.
     # Empty required_tags = no-op.
     if gate.required_tags and gate.required_tags.isdisjoint(m.tags):
+        return False
+    if gate.era_record_cutoff is not None:
+        start = m.record_start()
+        if start is not None and start >= gate.era_record_cutoff:
+            return False
+    if not _matches_stratum(m, gate.stratum):
         return False
     # wyrd-glos: gloss policy — same predicate keep_keys_for_gloss applies, so
     # this filter and the keep-set share the rule.

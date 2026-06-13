@@ -27,6 +27,10 @@ The gate predicates implemented here:
   union of all cultures. Validation runs ONCE per request in
   ``filter_meanings``, not per Meaning — the per-Meaning hot path
   would otherwise pay the membership-check cost on every iteration.
+* **era record-entry** (D46): ``Meaning.record_start`` must be None
+  or earlier than the requested era's end — "in the record by then".
+  ("No evidence → pass" convention; founding-stratum layers are
+  always in the record.)
 * **stratum**: ``Meaning.in_stratum`` — wraps the existing D32
   (wyrd-lr4 Phase 3) stratum filter ("no data → pass" convention).
 * **tag-required**: every requested tag must appear in
@@ -39,9 +43,11 @@ The gate predicates implemented here:
   can wire packs in without disturbing the gate API. See
   wyrd-v2gm for the scenario-pack epic.
 
-Era is deliberately NOT a gate predicate (D44): the morpheme
-inventory is time-invariant — era selects which reflex a morpheme
-RENDERS as, never which morphemes are eligible.
+Era gates only by RECORD ENTRY (D46, refining D44): a bounded
+historical era excludes morphemes whose earliest evidence
+(``Meaning.record_start``) is at or after the era's end. Pools accrete —
+a morpheme never expires — and era's render effect stays outside
+the gate.
 
 The gate produces an output set that the scoring runtime consumes
 directly (the (culture × position × tag × era) cell vocabulary of
@@ -91,6 +97,20 @@ def passes_culture_gate(culture: str) -> bool:
     if culture not in CULTURES:
         raise UnknownCultureError(f"unknown culture {culture!r}; expected one of {CULTURES}")
     return True
+
+
+def passes_record_gate(meaning: Meaning, era_record_cutoff: int | None) -> bool:
+    """D46 era accretion gate: True unless the morpheme's earliest
+    evidence (``Meaning.record_start`` — the most generous of its
+    source-language layers' record-entry years and its earliest
+    attested year) is at or after ``era_record_cutoff`` (the requested
+    era's END year). ``None`` cutoff (no era / open-ended era) or
+    ``None`` record_start (founding stratum / no evidence) → pass.
+    """
+    if era_record_cutoff is None:
+        return True
+    start = meaning.record_start()
+    return start is None or start < era_record_cutoff
 
 
 def passes_stratum_gate(meaning: Meaning, stratum: str | None) -> bool:
@@ -192,8 +212,9 @@ def admits(
 
     Gate predicates are checked in cheapest-first order so a Meaning
     that fails an early gate doesn't pay the cost of the later ones:
-    tag gates first (set membership), then stratum (per-form dict
-    iteration), then pack (stub today).
+    tag gates first (set membership), then the D46 record-entry gate
+    (a cached int compare), then stratum (per-form dict iteration),
+    then pack (stub today).
 
     Culture validation is handled ONCE by ``filter_meanings`` before
     the per-Meaning loop, NOT here — putting it inside this hot path
@@ -204,6 +225,8 @@ def admits(
     if not passes_tag_required_gate(meaning, tag_required):
         return False
     if not passes_tag_excluded_gate(meaning, tag_excluded):
+        return False
+    if not passes_record_gate(meaning, gate.era_record_cutoff):
         return False
     if not passes_stratum_gate(meaning, gate.stratum):
         return False

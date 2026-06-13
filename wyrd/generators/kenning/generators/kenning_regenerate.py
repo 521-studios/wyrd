@@ -208,6 +208,7 @@ class KenningRegenerateMorpheme(Generator):
             tags=knobs["tags"],
             mood=knobs["mood"],
             harshness=knobs["harshness"],
+            era_record_cutoff=knobs["era_record_cutoff"],
             stratum=knobs["stratum"],
             priors_path=knobs["priors_path"],
             scoring_weights_raw=knobs["scoring_weights_raw"],
@@ -352,9 +353,10 @@ def _parse_knobs(params: dict[str, Any]) -> dict[str, Any]:
     if isinstance(moods, str):
         moods = [moods]
     include_fiction = _coerce_bool(params.get("include_fiction", False))
-    # D44: era never gates/weights the draw; this call runs purely as
-    # request validation (a typo'd era surfaces as a clean 4xx).
-    _resolve_era_param(params.get("era"), culture)
+    # D46: the resolved era range's END is the record-entry cutoff (a
+    # bounded era replaces only with morphemes "in the record by then");
+    # the call doubles as request validation (typo'd era → 4xx).
+    era_range = _resolve_era_param(params.get("era"), culture)
     return {
         "culture": culture,
         "tags": list(raw_tags),
@@ -366,6 +368,7 @@ def _parse_knobs(params: dict[str, Any]) -> dict[str, Any]:
         "inflection_density": float(params.get("inflection_density", 0.0) or 0.0),
         "include_unglossed": _coerce_bool(params.get("include_unglossed", False)),
         "exclude_tags": () if include_fiction else (_FICTION_TAG,),
+        "era_record_cutoff": era_range[1] if era_range else None,
         "era_render_language": _resolve_era_render_language(params.get("era"), culture),
         "era_requested": bool(params.get("era")),
         "stratum": _resolve_stratum_param(params.get("stratum"), culture),

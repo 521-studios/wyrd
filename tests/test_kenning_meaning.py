@@ -482,10 +482,9 @@ def test_pick_inflection_partial_density_gates_per_call():
 
 
 # --- attested_in_era_range: REMOVED (D44) ----------------------------------
-# Era renders, never gates: the inventory-filter predicate this block
-# pinned was retired with D44 (the attested-years DATA survives for
-# display). The era-invariance contract is pinned by
-# tests/test_kenning_era_renders_not_gates.py.
+# The attested-inside-WINDOW predicate this block pinned was retired with
+# D44 (the attested-years DATA survives and now feeds D46's record gate).
+# The era contract is pinned by tests/test_kenning_era_accretion.py.
 
 
 # --- in_stratum (wyrd-lr4 Phase 3) ----------------------------------------

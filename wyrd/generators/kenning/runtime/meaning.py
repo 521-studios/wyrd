@@ -61,10 +61,10 @@ _CITATIONS_SUFFIX = "_citations"
 # Suffix used for per-language attested-year metadata (D5-1 / wyrd-bag).
 # Each entry is (form, year) where year is the earliest plausibly-
 # attested year for the form on the production corpus, sorted by year
-# ascending. Display/analytics data: the D5-2 era filter that consumed
-# it was retired by D44 (era renders, never gates), so it has no
-# runtime consumer today — the suffix router must still claim it so
-# the sibling field doesn't mis-route into the language sources.
+# ascending. Runtime consumer: D46's record gate (``record_start`` —
+# the earliest date can vouch a morpheme OLDER than its language stage
+# suggests). The D5-2 attested-inside-window filter that originally
+# consumed it was retired by D44.
 _ATTESTED_YEARS_SUFFIX = "_attested_years"
 
 # Suffix used for per-language english_shaped renderings (wyrd-ha9q
@@ -123,6 +123,39 @@ _STRATUM_SUFFIX = "_stratum"
 # "phonological_vector": {<dim>: <float>, ...}}. Sparse — only forms
 # whose etymons have been kq7w.1-enriched populate this.
 _PHONOLOGICAL_VECTOR_SUFFIX = "_phonological_vector"
+
+# D46 (wyrd-6ah2): the year each source-language LAYER enters the British
+# place-name record — the stage half of the era accretion gate's
+# "in the record by then" rule. None = founding stratum (Celtic substrate,
+# OE, Latin, the ancient pack/fantasy languages): predates every era we
+# model, passes everything. Contact layers carry their historical entry
+# point into BRITISH naming (not the language's own birth — Old Norse and
+# Norman French existed earlier elsewhere; what's gated is when they could
+# plausibly appear in a name on this island): Old Norse with the Danelaw
+# (~865, rounded to the oe-late cell boundary), French layers with the
+# Conquest. English stages use their D5 era-cell starts. Languages absent
+# from this map default to None (pass) — thin data errs toward inclusion;
+# the gate's hard exclusions are positively-evidenced late arrivals.
+_LANG_RECORD_ENTRY: dict[str, int | None] = {
+    "old_english": None,
+    "celtic_mix": None,
+    "latin": None,
+    "germanic": None,
+    "akkadian": None,
+    "biblical": None,
+    "egyptian": None,
+    "hebrew": None,
+    "arabic": None,
+    "persian": None,
+    "sanskrit": None,
+    "aramaic": None,
+    "armenian": None,
+    "old_scandinavian": 800,
+    "old_french": 1066,
+    "norman_french": 1066,
+    "middle_english": 1100,
+    "modern_english": 1500,
+}
 
 
 class Joiner:
@@ -211,9 +244,9 @@ class Meaning:
         # bundles that pre-date the wyrd-9kh.1 citation field.
         self.citations = citations or {}
         # attested_years is a dict[lang_field, list[(form, year)]] sorted
-        # by ascending year — D5-1 / wyrd-bag. Display/analytics data
-        # kept from the bundle; the D5-2 era filter that consumed it was
-        # retired by D44 (era renders, never gates).
+        # by ascending year — D5-1 / wyrd-bag. Feeds D46's record gate
+        # via record_start (dates vouch age); the original D5-2
+        # attested-inside-window filter was retired by D44.
         self.attested_years = attested_years or {}
         # english_shaped is a dict[lang_field, dict[canonical_form,
         # english_shaped_form]] — wyrd-ha9q Phase 2c. Maps the
@@ -525,6 +558,61 @@ class Meaning:
         from .respelling import respell
 
         return respell(form, lang_field)
+
+    def record_start(self) -> int | None:
+        """D46 (wyrd-6ah2): the morpheme's earliest evidence of existence in
+        the British place-name record — the MOST GENEROUS of two signals:
+
+        * the earliest record-entry year among its source-language layers
+          (``_LANG_RECORD_ENTRY``; a founding-stratum layer → None). Only
+          layers with at least one non-empty form count — an empty bucket
+          like ``{"old_english": []}`` must not vouch a modern coinage into
+          every era (same non-empty-form semantics as ``primary_language``).
+        * its earliest attested year across ``attested_years`` (a date can
+          vouch a morpheme is OLDER than its stage suggests — a
+          modern_english bucket with a 1086 Domesday date passes oe-late;
+          and a sourceless-but-dated morpheme is gated by its dates).
+
+        Returns None when any populated layer is founding-stratum (or an
+        unmapped language — thin data errs toward inclusion), or when there
+        is no evidence on either axis (coverage rule: missing data is not
+        evidence of lateness). Cached on first call via the hasattr pattern
+        (the ``primary_language`` idiom) — sources / attested_years are set
+        once at __init__ and never mutated.
+        """
+        if not hasattr(self, "_record_start_cache"):
+            self._record_start_cache: int | None = self._compute_record_start()
+        return self._record_start_cache
+
+    def _compute_record_start(self) -> int | None:
+        years: list[int] = []
+        if isinstance(self.sources, dict):
+            for lang, forms in self.sources.items():
+                if not self._forms_nonempty(forms):
+                    continue
+                entry = _LANG_RECORD_ENTRY.get(lang)
+                if entry is None:
+                    return None  # founding stratum / unmapped: vouches every era
+                years.append(entry)
+        for attested in self.attested_years.values():
+            years.extend(year for _form, year in attested)
+        return min(years) if years else None
+
+    @staticmethod
+    def _forms_nonempty(forms: list | None) -> bool:
+        """At least one usable form (matches ``primary_language`` /
+        ``_lemma_ref_for`` semantics: empty strings / None / form-less dict
+        entries don't count)."""
+        if not forms:
+            return False
+        for form_entry in forms:
+            if isinstance(form_entry, dict):
+                form_str = form_entry.get("form") or form_entry.get("canonical_form") or ""
+            else:
+                form_str = form_entry
+            if form_str:
+                return True
+        return False
 
     def in_stratum(self, stratum: str | None) -> bool:
         """wyrd-lr4 Phase 3 stratum filter: True if any of this

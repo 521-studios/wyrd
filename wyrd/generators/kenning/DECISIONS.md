@@ -2769,6 +2769,15 @@ fallback.
 
 ## D44. Era selects the REFLEX, never the MORPHEME (wyrd-c6o1.3 follow-up, 2026-06-12).
 
+> **Refined same-day by D46 (wyrd-6ah2).** The "never the morpheme" absolute
+> is narrowed: a bounded historical era DOES gate by RECORD ENTRY ("in the
+> record by then" — no Silicon on a 1086 map), and the seed-level
+> same-skeleton-at-every-era invariant narrows to the ungated pair
+> (era="" ↔ present-day) plus the town-level statement (a generated town's
+> structure persists across renderings). Everything else here stands:
+> nothing ever expires, era never re-weights the draw, render is era's
+> primary effect, and the diversify split below remains load-bearing.
+
 **The decision: the morpheme inventory is time-invariant. A request's era
 changes which SURFACE each morpheme renders as (its era reflex, via the D33
 machinery) — it never changes which morphemes can be drawn, and it never
@@ -2840,9 +2849,9 @@ modern). Split into two passes:
 ``era=None`` requests are unchanged (the gate was already a no-op and the
 midpoint already 0). Era-set requests change output where the old gate or
 midpoint used to bite — accepted deliberately (pre-launch posture, same
-stance as D41/D43): the invariant IS the product improvement. Pinned by
-``tests/test_kenning_era_renders_not_gates.py`` (same skeleton across eras;
-renders actually differ).
+stance as D41/D43): the invariant IS the product improvement. (Originally
+pinned by ``tests/test_kenning_era_renders_not_gates.py``; superseded by
+``tests/test_kenning_era_accretion.py`` when D46 narrowed the invariant.)
 
 ### Supersessions
 
@@ -2918,3 +2927,76 @@ Composes with D39 (render owns decoration), D40 (position derived, never a
 match gate), D44 (identity is also era-invariant). Together: a morpheme's
 stored identity is a bare surface, timeless and position-free; position and
 era are lenses applied on the way out.
+
+## D46. Era pools ACCRETE — "in the record by then" (wyrd-6ah2, 2026-06-12, refines D44).
+
+**The decision, in the product owner's framing: a historical era may gate a
+morpheme out if the morpheme has no evidence as old as the period — but never
+if it is as old or older. It has to have appeared in the record by then.**
+The motivating example: *Silicon* (a modern coinage; the element is 1817, the
+toponym pattern 1971+) must not appear on a 1086 map — while ``tūn`` appears
+on every map from OE onward, because old things persist (D44's accretion
+stands; nothing ever expires, so the wyrd-c6o1.3 ``-ton`` starvation remains
+impossible by construction).
+
+### The eligibility rule (most-generous-evidence-of-age)
+
+``Meaning.record_start()`` = the minimum over two signals, either of which may
+vouch the morpheme older:
+
+1. **Source-language record entry** (``_LANG_RECORD_ENTRY``,
+   runtime/meaning.py): the year each language LAYER enters the *British
+   place-name record* — deliberately not the language's own birth (Old Norse
+   and Norman French existed earlier elsewhere; what's gated is when they
+   could plausibly appear in a name on this island). Founding strata
+   (old_english, celtic_mix, latin, germanic, the ancient pack languages) are
+   ``None`` — in the record before every era we model. Contact layers:
+   old_scandinavian → 800 (Danelaw), old_french / norman_french → 1066
+   (Conquest), middle_english → 1100, modern_english → 1500. Unmapped
+   languages default to ``None``.
+2. **Earliest attested year** across the morpheme's ``attested_years`` — a
+   date can vouch a morpheme OLDER than its stage suggests (a
+   ``modern_english``-bucket morpheme with a 1086 Domesday date is in the
+   record by oe-late).
+
+Eligible at era E iff ``record_start`` is ``None``, OR E is open-ended
+(``end is None`` — the present-day stage, the deployed default, and the
+Mixed-Era empty value), OR ``record_start < E.end``. No evidence on either
+axis → pass (the same coverage posture as stratum and the legacy era rule).
+
+**The asymmetric failure mode is the point**: thin data errs toward
+INCLUSION (harmless — an old-looking thing on a period map); the only hard
+exclusions are positively-evidenced late arrivals, the confident case.
+Contrast with the retired D5-2/D5-3 attested-INSIDE-window rule, whose
+failure mode punished exactly the best-documented morphemes (wyrd-c6o1.3).
+
+### What this changes vs D44
+
+* ``EligibilityGate`` regains one era field — ``era_record_cutoff`` (the
+  resolved era range's END) — consumed by ``passes_record_gate`` /
+  ``_passes_base_gates``. The request's era still never re-weights the draw
+  (the priors ``era_midpoint`` stays at the wildcard convention; the optional
+  fashion-weighting follow-up is wyrd-3tvd).
+* Pools are MONOTONE in era: pool(oe-early) ⊆ pool(me) ⊆ pool(present).
+* The D44 seed-level invariant narrows: per-request determinism is untouched
+  and the UNGATED pair (era="" ↔ present-day) stays skeleton-identical per
+  seed — but the same seed at a bounded era may differ from present-day (a
+  smaller pool shifts the weighted draw). The durable, product-level
+  invariant restates at TOWN level: a generated town's structure persists
+  across renderings — rewind / era-map / regenerate carry the morpheme stack
+  and re-render it; they never re-draw from the seed.
+* Render is unchanged (D44's reflex lens).
+
+### Known corner (documented, not solved)
+
+Stage-level vouching is coarse: an 1817 coinage in the ``modern_english``
+stage passes the early-modern (1500–1700) window via the stage's 1500 start.
+Every medieval era excludes it correctly — the corner only opens at the
+youngest bounded window. Per-coinage dating (or finer stage cells) would
+tighten this later; not worth the data work now.
+
+Pinned by ``tests/test_kenning_era_accretion.py`` (evidence rule, gate
+predicate, live-bundle monotonicity, the end-to-end Silicon-rule property on
+era=me picks, the ungated-pair skeleton invariance, and the render check).
+Composes with D40/D45 (the gate keys on Meaning identity and attestation
+data, never on dash-shapes) and D33/D41 (render machinery untouched).

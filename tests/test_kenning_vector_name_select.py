@@ -709,9 +709,10 @@ def test_cohesion_raw_handles_pair_count_zero():
 
 
 def test_select_ignores_attested_years_entirely():
-    """D44: era never gates — a meaning attested ONLY in one historical
-    period is exactly as eligible as an undated one, and the gate
-    carries no era fields at all (constructing one raises)."""
+    """D44/D46: attestation WINDOWS never gate — a meaning attested ONLY
+    in one historical period is exactly as eligible as an undated one
+    (the D46 record gate uses dates solely to vouch a morpheme OLDER).
+    The retired window fields stay gone (constructing one raises)."""
     with pytest.raises(TypeError):
         EligibilityGate(culture="english", era_min=1066)  # type: ignore[call-arg]
 

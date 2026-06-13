@@ -162,10 +162,27 @@ def test_eligibility_gate_required_culture_only():
     assert g.excluded_pack_tags == frozenset()
 
 
+def test_eligibility_gate_carries_record_cutoff():
+    """D46: the one era field the gate carries — the record-entry
+    cutoff (the era's END year). Defaults to None (no gate)."""
+    assert EligibilityGate(culture="english").era_record_cutoff is None
+    g = EligibilityGate(culture="english", era_record_cutoff=1500)
+    assert g.era_record_cutoff == 1500
+
+
+def test_eligibility_gate_rejects_nonpositive_record_cutoff():
+    """A zero/negative cutoff would silently exclude every dated morpheme
+    ('0 names generated', no diagnostic) — raise at construction."""
+    with pytest.raises(ValueError, match="era_record_cutoff"):
+        EligibilityGate(culture="english", era_record_cutoff=0)
+    with pytest.raises(ValueError, match="era_record_cutoff"):
+        EligibilityGate(culture="english", era_record_cutoff=-100)
+
+
 def test_eligibility_gate_has_no_era_fields():
-    """D44: era renders, never gates — the gate carries no era fields
-    and constructing one with them raises. Pin so they can't quietly
-    return."""
+    """D44/D46: the retired attested-inside-WINDOW fields stay gone —
+    the only era surface is the D46 record cutoff. Pin so era_min /
+    era_max can't quietly return."""
     with pytest.raises(TypeError):
         EligibilityGate(culture="english", era_min=1066, era_max=1300)  # type: ignore[call-arg]
     g = EligibilityGate(culture="english")

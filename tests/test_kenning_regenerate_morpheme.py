@@ -287,10 +287,46 @@ def test_bad_inputs_raise_value_error(english_roll):
         rg.generate_all({"words": [[{"usage": ""}]], "word_index": 0, "morpheme_index": 0}, seed=1)
 
 
+def test_bounded_era_regeneration_draws_from_the_record(english_roll):
+    """D46 on the REGENERATE path: replacing a slot under a bounded era
+    must draw only from morphemes in the record by the era's end — the
+    Silicon rule applies to rerolls, not just full generation. Fold-aware
+    sibling check (D40/D45)."""
+    from wyrd.generators.kenning import _load_culture
+    from wyrd.generators.kenning.runtime.proportions import _resolve_surface
+
+    name_gen, _ = _load_culture("english")
+    db = name_gen.meaning_db
+    words = english_roll.morphemes_by_word
+    rg = KenningRegenerateMorpheme()
+    checked = 0
+    for seed in range(25):
+        result = rg.generate_all(
+            {
+                "words": words,
+                "word_index": 0,
+                "morpheme_index": 0,
+                "culture": "english",
+                "era": "me",
+            },
+            seed=seed,
+        )[0]
+        for word in result.morphemes_by_word:
+            for morpheme in word:
+                siblings = _resolve_surface(db, morpheme.get("usage"))
+                starts = [s.record_start() for s in siblings]
+                checked += 1
+                assert not starts or any(s is None or s < 1500 for s in starts), (
+                    f"seed {seed}: {morpheme.get('usage')!r} in an era=me "
+                    f"regeneration but every sibling's record_start >= 1500: {starts}"
+                )
+    assert checked > 20
+
+
 def test_bad_era_raises_value_error(english_roll):
-    """D44: era is validation-only in the regenerate path (_parse_knobs calls
-    _resolve_era_param purely for the 4xx contract; the resolved range is
-    deliberately unused). A typo'd era must still surface as ValueError."""
+    """The era input must surface a typo as ValueError → the dispatcher's
+    400 (D46: the resolved range's END also feeds the record-entry gate;
+    the validation contract is unchanged)."""
     words = english_roll.morphemes_by_word
     rg = KenningRegenerateMorpheme()
     with pytest.raises(ValueError, match="invalid 'era'"):

@@ -393,10 +393,15 @@ class EligibilityGate:
     pack lemmas (the pack overlay re-introduces them as a separate
     eligibility set, see PackOverlay below).
 
-    Era is deliberately NOT a gate (D44, wyrd-c6o1.3 follow-up): the
-    morpheme inventory is time-invariant — era selects which REFLEX a
-    morpheme renders as, never which morphemes are eligible. The D5-2
-    era filter that once lived here was retired with D44.
+    Era gates only by RECORD ENTRY (D46 refining D44): a bounded
+    historical era excludes morphemes whose earliest evidence
+    (``Meaning.record_start``) is at or after the era's end — "it has to
+    have appeared in the record by then" — and nothing else. Pools
+    accrete monotonically; a morpheme never expires (D44's fix stands),
+    and open-ended eras (the present-day stage, ``era_record_cutoff is
+    None``) gate nothing. Era's other effect — which reflex renders —
+    stays outside the gate (D44). The retired D5-2 attested-inside-
+    window filter is NOT this gate; see D46 for the distinction.
 
     ``stratum`` (D32, wyrd-lr4) filters within-language strata
     (Brittonic in Welsh, Norse-substrate in Northern English, etc.).
@@ -410,6 +415,10 @@ class EligibilityGate:
 
     culture: str
     stratum: str | None = None
+    # D46: the requested era's END year; a morpheme is eligible iff its
+    # record_start() is None or < this. None (no era / open-ended era,
+    # incl. the deployed present-day default) disables the gate.
+    era_record_cutoff: int | None = None
     # wyrd-wv85: the operator's ``--tag`` semantic filter as a HARD gate
     # (D36.6). A lemma must carry AT LEAST ONE of these tags to be
     # eligible (OR semantics, matching proportions' ``filter_for_tag``
@@ -420,6 +429,17 @@ class EligibilityGate:
     required_tags: frozenset[str] = frozenset()
     allowed_pack_tags: frozenset[str] = frozenset()
     excluded_pack_tags: frozenset[str] = frozenset()
+
+    def __post_init__(self) -> None:
+        # D46 guard: cutoffs are era-cell END years (the earliest defined
+        # end is latin/classical at 200); zero or negative would silently
+        # exclude every dated morpheme, presenting as "0 names generated"
+        # with no diagnostic. Raise loudly at construction instead.
+        if self.era_record_cutoff is not None and self.era_record_cutoff <= 0:
+            raise ValueError(
+                f"era_record_cutoff ({self.era_record_cutoff}) must be a "
+                "positive year; None disables the record gate"
+            )
 
 
 # ---- pack overlay (scenario-pack composition) ---------------------------
