@@ -281,8 +281,32 @@ class PipelineState {
       this.states = nextStates;
       this.errors = nextErrors;
       this.isRunning = false;
+      this.#commitToStore(nextStates[nextStates.length - 1]);
     }
     return !halted;
+  }
+
+  /** wyrd-c6o1.1: continuously commit the pipeline OUTPUT into the canonical
+   *  store (`appState.results[currentResultIndex]`) so a reroll / reflex-swap
+   *  PERSISTS — it survives blur, a result re-select, save, and is what
+   *  downstream ops (reroll of OTHER slots, transforms) read. Previously the
+   *  transform lived only in the transient pipeline display state and reverted
+   *  whenever the view re-derived from the store.
+   *
+   *  No run-loop: the base this pipeline rebases on is a SNAPSHOT captured at
+   *  subject-select time (InspectorColumn), NOT a live `$derived` of
+   *  `result.result`, so writing `.result`/`.morphemes_by_word` here does not
+   *  re-trigger `run`. The freshness-token guard above means we only commit for
+   *  the still-current subject (a subject switch bumps the token). On the next
+   *  visit the base is re-captured from this edited result → edits compound. */
+  #commitToStore(bottom) {
+    if (!bottom) return;
+    const r = appState.results[appState.currentResultIndex];
+    if (!r) return;
+    if (r.result !== bottom.name) r.result = bottom.name;
+    // Reassign even when content is unchanged on a revert-to-base run, so
+    // name + morphemes never disagree (a removed swap must restore both).
+    if (bottom.morphemes_by_word) r.morphemes_by_word = bottom.morphemes_by_word;
   }
 }
 

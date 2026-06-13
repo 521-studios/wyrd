@@ -94,9 +94,13 @@
   });
 
   // The pre-pipeline result the pipeline runs against + the paragon pins to.
-  let original = $derived(
-    result ? { name: result.result, morphemes_by_word: result.morphemes_by_word || [] } : null,
-  );
+  // wyrd-c6o1.1: this is a SNAPSHOT captured at subject-select time, NOT a live
+  // $derived of result.result. pipeline.run continuously commits its output back
+  // into result.result (so edits persist); deriving the base from that same
+  // field would re-trigger run on every commit (a loop). Re-captured on each
+  // subject switch from the (possibly already-edited) current result, so edits
+  // compound across visits.
+  let original = $state(null);
 
   // Subject-change + pipeline-run effect (engine; carried over from wyrd-kppy):
   // clearing the pipeline on a new result is atomic with kicking off the run.
@@ -112,9 +116,20 @@
     if (idx !== lastResultIndex) {
       lastResultIndex = idx;
       if (!isLoad) pipeline.clear();
+      // Re-snapshot the base from the now-current result. untrack: the capture
+      // is a one-shot per switch, not a reactive dependency (result.result is
+      // mutated by the commit-to-store, which must not re-run this effect).
+      const r = untrack(() => appState.currentResult);
+      original = r
+        ? { name: r.result, morphemes_by_word: $state.snapshot(r.morphemes_by_word) || [] }
+        : null;
     }
-    if (!original) return;
-    pipeline.run(original);
+    // Read the base WITHOUT adding it as a dependency (it's set above as a
+    // side-output). The effect's deps are pipeline.steps + currentResultIndex:
+    // a step edit re-runs the recipe on the stable base; a switch re-captures it.
+    const base = untrack(() => original);
+    if (!base) return;
+    pipeline.run(base);
     void stepsSnapshot;
   });
 
