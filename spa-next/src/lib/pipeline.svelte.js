@@ -281,8 +281,43 @@ class PipelineState {
       this.states = nextStates;
       this.errors = nextErrors;
       this.isRunning = false;
+      this.#commitToStore(nextStates[nextStates.length - 1]);
     }
     return !halted;
+  }
+
+  /** wyrd-c6o1.1: continuously commit the pipeline OUTPUT into the canonical
+   *  store (`appState.results[currentResultIndex]`) so a reroll / reflex-swap
+   *  PERSISTS — it survives blur, a result re-select, save, and is what
+   *  downstream ops (reroll of OTHER slots, transforms) read. Previously the
+   *  transform lived only in the transient pipeline display state and reverted
+   *  whenever the view re-derived from the store.
+   *
+   *  No run-loop: the base this pipeline rebases on is a SNAPSHOT captured at
+   *  subject-select time (InspectorColumn), NOT a live `$derived` of
+   *  `result.result`, so writing `.result`/`.morphemes_by_word` here does not
+   *  re-trigger `run`. The freshness-token guard above means we only commit for
+   *  the still-current subject (a subject switch bumps the token). On the next
+   *  visit the base is re-captured from this edited result → edits compound. */
+  #commitToStore(bottom) {
+    if (!bottom) return;
+    const r = appState.results[appState.currentResultIndex];
+    if (!r) return;
+    if (r.result !== bottom.name) r.result = bottom.name;
+    // Reassign even when content is unchanged on a revert-to-base run, so
+    // name + morphemes never disagree (a removed swap must restore both).
+    // $state.snapshot DECOUPLES the canonical store from the transient pipeline
+    // states proxy — committing the live `bottom.morphemes_by_word` (which lives
+    // inside the reactive `states` array) would couple the two trees, so a later
+    // pipeline mutation/clear could bleed into the stored result.
+    if (bottom.morphemes_by_word) {
+      r.morphemes_by_word = $state.snapshot(bottom.morphemes_by_word);
+    }
+    // result_modern: transformed states carry none (the original modern reflex
+    // no longer describes the edited name) → null hides the stale modern
+    // companion; a revert-to-base run carries the base's value → restored.
+    const modern = bottom.result_modern ?? null;
+    if (r.result_modern !== modern) r.result_modern = modern;
   }
 }
 

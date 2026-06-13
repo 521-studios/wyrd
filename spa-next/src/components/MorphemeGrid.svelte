@@ -42,12 +42,17 @@
   // still shows OE in the OE column, not a lone unlabelled column.
   const eraStages = $derived(appState.selectedGenerator?.era_stages || {});
 
-  // The slot's ORIGINAL generated surface (col-2 result) — the source of the
-  // placement dashes + the revert target for the pipeline swap.
+  // The slot's pre-pipeline surface — the source of the placement dashes + the
+  // revert target for the pipeline swap. wyrd-c6o1.1: read the pipeline BASE
+  // (states[0], the session snapshot the stack rebases on), NOT
+  // appState.currentResult — the latter now holds the COMMITTED (edited) surface
+  // (the pipeline mirrors its output back into the store so edits persist), so
+  // using it would drift the revert/placement reference as edits accumulate.
   let originalUsage = $derived(
-    appState.currentResult?.morphemes_by_word?.[morpheme._wordIndex]?.[
-      morpheme._morphemeIndex
-    ]?.usage || '',
+    pipeline.states[0]?.morphemes_by_word?.[morpheme._wordIndex]?.[morpheme._morphemeIndex]
+      ?.usage ||
+      morpheme.usage ||
+      '',
   );
 
   // The form live in the name right now (era form if rendered, else usage).

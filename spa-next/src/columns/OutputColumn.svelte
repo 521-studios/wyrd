@@ -78,10 +78,13 @@
                 <!-- wyrd-24s6 (D41): the modern companion, in darker secondary
                      lettering to the right. Shown only when it differs from the
                      native canonical (a plain/force-modern roll has native ==
-                     modern, so the companion would be noise). wyrd-y0lx: hidden
-                     once a transform changed the name — the roll's
-                     result_modern no longer describes the transformed state. -->
-                {#if showModernCompanion(r) && (!live || live.name === r.result)}
+                     modern, so the companion would be noise). wyrd-c6o1.1: a
+                     transform nulls result_modern in the committed store (the
+                     original reflex no longer describes the edited name), so
+                     showModernCompanion alone hides it — the prior
+                     live.name===r.result guard is now always true (the pipeline
+                     commits its name into r.result) and was dropped. -->
+                {#if showModernCompanion(r)}
                   <span class="name-modern" title="modern reflex">{r.result_modern}</span>
                 {/if}
               </span>
