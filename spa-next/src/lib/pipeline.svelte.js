@@ -307,6 +307,11 @@ class PipelineState {
     // Reassign even when content is unchanged on a revert-to-base run, so
     // name + morphemes never disagree (a removed swap must restore both).
     if (bottom.morphemes_by_word) r.morphemes_by_word = bottom.morphemes_by_word;
+    // result_modern: transformed states carry none (the original modern reflex
+    // no longer describes the edited name) → null hides the stale modern
+    // companion; a revert-to-base run carries the base's value → restored.
+    const modern = bottom.result_modern ?? null;
+    if (r.result_modern !== modern) r.result_modern = modern;
   }
 }
 

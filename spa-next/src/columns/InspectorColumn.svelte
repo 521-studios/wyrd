@@ -121,7 +121,14 @@
       // mutated by the commit-to-store, which must not re-run this effect).
       const r = untrack(() => appState.currentResult);
       original = r
-        ? { name: r.result, morphemes_by_word: $state.snapshot(r.morphemes_by_word) || [] }
+        ? {
+            name: r.result,
+            morphemes_by_word: $state.snapshot(r.morphemes_by_word) || [],
+            // Carried so a revert-to-base run restores the modern companion;
+            // transformed states drop it (the original reflex no longer
+            // describes the edited name), so the commit nulls it then.
+            result_modern: r.result_modern,
+          }
         : null;
     }
     // Read the base WITHOUT adding it as a dependency (it's set above as a
