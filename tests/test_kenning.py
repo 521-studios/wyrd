@@ -541,6 +541,38 @@ def test_available_tags_excludes_internal():
     assert "saint" not in tags
 
 
+def test_tags_options_by_culture_excludes_culture_empty_tags():
+    """wyrd-ah53: a tag carried by no morpheme in a culture's pool is omitted for
+    that culture (it could never be satisfied — D47), even though it's in the
+    culture-agnostic union. 'monster' is a fantasy/pfsrd2 tag with zero English
+    morphemes."""
+    from wyrd.generators.kenning import _tags_options_by_culture
+
+    by_culture = _tags_options_by_culture()
+    assert set(by_culture) == set(CULTURES)
+    english = by_culture["english"]
+    assert "monster" not in english  # no English monster morpheme
+    assert "water" in english  # a real English tag survives
+    # every per-culture set is a subset of the global union, and non-empty
+    allt = set(available_tags())
+    for culture, tags in by_culture.items():
+        assert set(tags) <= allt, culture
+        assert tags, culture
+
+
+def test_manifest_tags_carry_per_culture_options():
+    """wyrd-ah53: the kenning schema's tags property exposes x-options-by-culture
+    (the SPA filters the composer to the chosen culture's satisfiable tags), while
+    the items.enum stays the culture-agnostic union for CLI/API validation."""
+    app = create_app()
+    body = app.test_client().get("/api/manifest").get_json()
+    kenning = next(g for g in body["generators"] if g["name"] == "kenning")
+    tags_prop = kenning["input_schema"]["properties"]["tags"]
+    by_culture = tags_prop["x-options-by-culture"]
+    assert "monster" not in by_culture["english"]
+    assert "monster" in tags_prop["items"]["enum"]  # union still permissive
+
+
 def test_manifest_lists_kenning():
     app = create_app()
     client = app.test_client()

@@ -610,6 +610,9 @@ def _coupled_cache_clear() -> None:
     _load_empirical_priors.cache_clear()
     _load_packs.cache_clear()
     _runtime_db_bundle_dict.cache_clear()
+    # wyrd-ah53: per-culture tag options derive from the per-culture pools, so
+    # they go stale with the bundle too.
+    _tags_options_by_culture.cache_clear()
     # wyrd-eyjk/D40: the module-level bare-surface index is keyed by
     # id(meaning_db); after a bundle reload the old meaning_db is freed and
     # CPython can reuse its id() for a NEW (different-bundle) meaning_db, which
@@ -627,6 +630,46 @@ def available_tags() -> list[str]:
     """User-visible tags from the meaning DB (excludes internal filtering tags)."""
     _, tag_db = _load_meanings()
     return sorted(t for t in tag_db if t not in _INTERNAL_TAGS)
+
+
+@lru_cache(maxsize=1)
+def _tags_options_by_culture() -> dict[str, list[str]]:
+    """Per-culture user-visible tags for the SPA's dependent select (wyrd-ah53):
+    the tags carried by >=1 morpheme in that culture's eligible pool.
+
+    The tag vocabulary is culture-agnostic (``available_tags`` is the union over
+    every culture), but a tag absent from a culture — e.g. 'monster', a
+    fantasy/pfsrd2 tag with zero English morphemes — can never be satisfied: a
+    ``--tag`` reserves ONE slot drawn from a pool that HAS the tag (D47), so
+    offering it for that culture would only ever raise 'no eligible name' (bare) or
+    silently no-op (combined with a satisfiable tag). The SPA filters the tag
+    composer to the chosen culture's set via ``x-options-by-culture`` — the same
+    dependent-select mechanism as era / stratum.
+
+    Mirrors the generation pool exactly: ``build_non_position_eligible`` with only
+    the culture attestation (no era/stratum/tag), so a tag shows up here iff some
+    real roll for this culture could place it. Cached (cleared with the bundle via
+    ``_coupled_cache_clear``), so tag additions propagate on the next manifest
+    refresh."""
+    from wyrd.generators.kenning.runtime.vector_name_select import (
+        build_non_position_eligible,
+    )
+    from wyrd.generators.kenning.vectors.schemas import EligibilityGate
+
+    out: dict[str, list[str]] = {}
+    for culture in CULTURES:
+        name_gen, _ = _load_culture(culture)
+        pool = build_non_position_eligible(
+            name_gen.meaning_db,
+            gate=EligibilityGate(culture=culture),
+            exclude_tags=frozenset(),
+            pack_meaning_dbs=None,
+            packs=(),
+            culture_attested_usages=name_gen.culture_attested_usages,
+            culture_attested_meanings=name_gen.culture_attested_meanings,
+        )
+        out[culture] = sorted({t for m in pool for t in m.tags if t not in _INTERNAL_TAGS})
+    return out
 
 
 def _coerce_bool(value: Any) -> bool:

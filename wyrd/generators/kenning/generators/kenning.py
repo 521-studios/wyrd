@@ -27,6 +27,7 @@ from wyrd.generators.kenning import (
     _resolve_era_render_language,
     _resolve_stratum_param,
     _stratum_options_by_culture,
+    _tags_options_by_culture,
     available_tags,
 )
 from wyrd.generators.kenning.era.cells import ERA_CELLS, family_stage_order
@@ -91,7 +92,14 @@ class Kenning(Generator):
                 },
                 "tags": {
                     "type": "array",
+                    # The enum is the culture-AGNOSTIC union (CLI/API accept any
+                    # real tag); x-options-by-culture (wyrd-ah53) narrows the SPA
+                    # composer to tags the chosen culture can actually satisfy —
+                    # same dependent-select mechanism as era / stratum, since a
+                    # --tag reserves one slot from a pool that HAS the tag (D47),
+                    # so a culture-empty tag would only 'no eligible name'.
                     "items": {"type": "string", "enum": available_tags()},
+                    "x-options-by-culture": _tags_options_by_culture(),
                     "default": [],
                     "description": (
                         "Optional tag filters. Each tag biases the name toward morphemes "
