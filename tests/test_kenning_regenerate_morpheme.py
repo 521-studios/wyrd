@@ -166,11 +166,72 @@ def test_bucket_key_miss_falls_back_to_unweighted_pool(english_roll, monkeypatch
     assert any("bucket_key_miss" in r.message for r in caplog.records)
 
 
-def test_tag_gate_holds_on_the_replacement():
-    rolled = Kenning().generate({"culture": "english", "tags": ["water"]}, seed=42)
-    words = rolled.morphemes_by_word
-    out = _regen(words, 0, 0, seed=3, culture="english", tags=["water"])
-    assert "water" in out.morphemes_by_word[0][0].get("tags", [])
+def _carriers(words, tag):
+    return [
+        (wi, mi)
+        for wi, word in enumerate(words)
+        for mi, m in enumerate(word)
+        if tag in (m.get("tags") or [])
+    ]
+
+
+def test_reroll_of_sole_tag_carrier_stays_tagged():
+    """wyrd-c6o1.4: a --tag reserves ONE slot (not every slot, the wv85 bug). On
+    a re-roll, only the name's SOLE tag-carrier is restricted to tagged
+    candidates — so re-rolling it can't silently drop the name's >=1-tagged
+    guarantee. (A free slot, with the tag satisfied elsewhere, samples freely.)"""
+    words = carrier_slot = None
+    for s in range(50):
+        rolled = Kenning().generate({"culture": "english", "tags": ["water"]}, seed=s)
+        carriers = _carriers(rolled.morphemes_by_word, "water")
+        assert carriers, f"roll seed={s} must satisfy the --tag guarantee"
+        if len(carriers) == 1:  # an unambiguous sole-carrier name to re-roll
+            words, carrier_slot = rolled.morphemes_by_word, carriers[0]
+            break
+    assert words is not None, "expected a single-water-carrier roll within 50 seeds"
+
+    wi, mi = carrier_slot
+    out = _regen(words, wi, mi, seed=3, culture="english", tags=["water"])
+    # the sole carrier re-rolls to another water morpheme (guarantee preserved)
+    assert "water" in (out.morphemes_by_word[wi][mi].get("tags") or [])
+    # ...and the name as a whole still carries the tag
+    assert _carriers(out.morphemes_by_word, "water")
+
+
+def test_reroll_of_free_slot_under_tag_samples_freely():
+    """wyrd-c6o1.4: re-rolling a NON-sole-carrier slot under --tag is NOT
+    restricted to tagged morphemes (the tag is satisfied by another held slot), so
+    it samples freely — the inverse of the sole-carrier case. Pre-c6o1.4 the
+    pool-wide gate forced EVERY re-roll tagged; this asserts a free slot can yield
+    an un-tagged morpheme."""
+    # Find a multi-morpheme roll with exactly one water carrier, then re-roll a
+    # DIFFERENT (free) slot — the carrier still satisfies the tag.
+    target = None
+    for s in range(50):
+        words = (
+            Kenning().generate({"culture": "english", "tags": ["water"]}, seed=s).morphemes_by_word
+        )
+        flat = [(wi, mi) for wi, w in enumerate(words) for mi, _ in enumerate(w)]
+        carriers = _carriers(words, "water")
+        if len(flat) >= 2 and len(carriers) == 1:
+            free = next(slot for slot in flat if slot != carriers[0])
+            target = (words, free)
+            break
+    if target is None:
+        pytest.skip("no multi-morpheme single-water-carrier roll found in range")
+    words, (wi, mi) = target
+    # Across re-roll seeds the free slot should yield at least one NON-water pick.
+    saw_non_water = any(
+        "water"
+        not in (
+            _regen(words, wi, mi, seed=rs, culture="english", tags=["water"])
+            .morphemes_by_word[wi][mi]
+            .get("tags")
+            or []
+        )
+        for rs in range(12)
+    )
+    assert saw_non_water, "a free slot under --tag must sample freely, not force water"
 
 
 def test_mood_theme_survives_when_target_is_the_only_carrier():
