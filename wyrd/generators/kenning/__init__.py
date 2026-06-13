@@ -646,9 +646,15 @@ def _tags_options_by_culture() -> dict[str, list[str]]:
     composer to the chosen culture's set via ``x-options-by-culture`` — the same
     dependent-select mechanism as era / stratum.
 
-    Mirrors the generation pool exactly: ``build_non_position_eligible`` with only
-    the culture attestation (no era/stratum/tag), so a tag shows up here iff some
-    real roll for this culture could place it. Cached (cleared with the bundle via
+    Derived from the generation pool: ``build_non_position_eligible`` with only the
+    culture attestation (no era / stratum / tag / position / qualifier / pack
+    filtering). So this is a conservative SUPERSET of the strictly-placeable set —
+    a tag is offered ONLY IF some morpheme in the culture's pool carries it, but a
+    tag whose carriers happen to have zero per-position frequency in every slot of
+    every struct could still be offered yet 'no eligible name' at roll time. The
+    direction that matters is guaranteed: this never OMITS a placeable tag (it only
+    ever over-offers, which the runtime degrades safely), so it can't hide a tag a
+    real roll could use. Cached (cleared with the bundle via
     ``_coupled_cache_clear``), so tag additions propagate on the next manifest
     refresh."""
     from wyrd.generators.kenning.runtime.vector_name_select import (

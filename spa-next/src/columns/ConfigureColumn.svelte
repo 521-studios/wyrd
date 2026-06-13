@@ -11,6 +11,7 @@
   import { untrack } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
   import { rollCurrent } from '../lib/roll.js';
+  import { tagOptionsForCulture, pruneTagsToOptions } from '../lib/composerSelection.js';
   import { partitionFields } from '../lib/headlineFields.js';
   import { fieldEnabled, flagOn, visibleCultures } from '../lib/featureFlags.js';
   import Field from '../components/Field.svelte';
@@ -92,18 +93,19 @@
   // snap-to-valid, but for the composed (non-Field) tags array. Without this a
   // 'monster' selected under welsh would survive a switch to english and roll
   // 'no eligible name'. Keyed on culture; the params.tags read/write is untracked
-  // so a tags edit (composer Apply) can't re-trigger it.
+  // so a tags edit (composer Apply) can't re-trigger it. tagOptionsForCulture
+  // falls back to the FULL enum for an undefined/transient culture, so a prune
+  // never drops a valid selection mid-init.
   $effect(() => {
-    const byCulture =
-      appState.selectedGenerator?.input_schema?.properties?.tags?.['x-options-by-culture'];
+    const tagSchema = appState.selectedGenerator?.input_schema?.properties?.tags;
     const culture = appState.currentParams?.culture; // the dependency
-    if (!byCulture) return;
-    const valid = byCulture[culture] || Object.values(byCulture)[0] || [];
+    if (!tagSchema?.['x-options-by-culture']) return;
+    const valid = tagOptionsForCulture(tagSchema, culture);
     untrack(() => {
       const params = appState.currentParams;
       if (!params?.tags?.length) return;
-      const pruned = params.tags.filter((t) => valid.includes(t));
-      if (pruned.length !== params.tags.length) params.tags = pruned;
+      const pruned = pruneTagsToOptions(params.tags, valid);
+      if (pruned !== params.tags) params.tags = pruned;
     });
   });
 

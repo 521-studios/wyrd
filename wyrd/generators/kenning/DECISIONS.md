@@ -3075,10 +3075,13 @@ it is the name's SOLE tag-carrier (else free).
 
 ### Satisfiability is per-culture (the wyrd-ah53 corollary)
 
-A tag is satisfiable for a culture **iff ≥1 morpheme in that culture's pool
-carries it.** The tag vocabulary is culture-agnostic (`available_tags` is the
-union over all cultures), so tags exist that no morpheme in a given culture
-carries — e.g. `monster` (a fantasy/pfsrd2 tag) has zero English morphemes.
+A tag is offered for a culture **iff ≥1 morpheme in that culture's pool
+carries it** — a conservative SUPERSET of the strictly-placeable set (it ignores
+per-position frequency, so it never omits a usable tag but may over-offer one the
+runtime then degrades; see `_tags_options_by_culture`). The tag vocabulary is
+culture-agnostic (`available_tags` is the union over all cultures), so tags exist
+that no morpheme in a given culture carries — e.g. `monster` (a fantasy/pfsrd2 tag)
+has zero English morphemes.
 Offering such a tag for that culture is a UX bug: bare it raises "no eligible
 name", combined it silently no-ops. So the SPA's tag composer is **culture-scoped**
 via `x-options-by-culture` (`_tags_options_by_culture`, the same dependent-select

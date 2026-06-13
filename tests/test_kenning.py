@@ -573,6 +573,43 @@ def test_manifest_tags_carry_per_culture_options():
     assert "monster" in tags_prop["items"]["enum"]  # union still permissive
 
 
+def test_culture_empty_tag_raises_no_eligible_name():
+    """wyrd-ah53 (the motivating behavior): a tag with zero morphemes in the
+    culture's pool — i.e. one OMITTED from x-options-by-culture — actually raises
+    'no eligible name' when forced via the (permissive) CLI/API. This is WHY the
+    composer must not offer it; closes the loop that the omission tracks the real
+    runtime failure, not just an internal map."""
+    from wyrd.generators.kenning import _tags_options_by_culture
+
+    assert "monster" not in _tags_options_by_culture()["english"]
+    with pytest.raises(ValueError, match="no eligible name"):
+        Kenning().generate({"culture": "english", "tags": ["monster"]}, seed=0)
+
+
+def test_offered_english_tags_are_actually_placeable():
+    """wyrd-ah53 (offering↔placer drift guard): every tag the english composer
+    offers yields a successful roll for SOME seed — so the offering map can't
+    silently diverge from what select_via_vector_scoring can place. A few seeds
+    per tag suffices (the guarantee is 'placeable at all', not 'every seed')."""
+    from wyrd.generators.kenning import _tags_options_by_culture
+
+    k = Kenning()
+    unplaceable = []
+    for tag in _tags_options_by_culture()["english"]:
+        if not any(
+            _rolls_ok(k, {"culture": "english", "tags": [tag]}, seed) for seed in range(6)
+        ):
+            unplaceable.append(tag)
+    assert not unplaceable, f"offered english tags that never placed: {unplaceable}"
+
+
+def _rolls_ok(k, params, seed) -> bool:
+    try:
+        return bool(k.generate(params, seed=seed).result)
+    except ValueError:
+        return False
+
+
 def test_manifest_lists_kenning():
     app = create_app()
     client = app.test_client()
