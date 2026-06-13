@@ -416,9 +416,12 @@ def _init_runtime_schema(conn: sqlite3.Connection) -> None:
 # D45 (wyrd-aicu.5): the stored-identity surfaces the exporter guards. KEY
 # columns are short bare surfaces, so a SQL ``LIKE '%-%'`` is exact; the BLOB
 # tables need a JSON parse (a greedy ``LIKE`` over the blob false-positives on
-# dashes in OTHER fields). ``morpheme_id`` is deliberately ABSENT — it is the
-# L3-derived content key (``language:form``), still dash-bearing until
-# wyrd-aicu.3 de-dashes the L3 morpheme entity; this gate gains it then.
+# dashes in OTHER fields). Two columns are deliberately ABSENT:
+#   * ``morpheme_id`` — the L3-derived content key (``language:form``), still
+#     dash-bearing until wyrd-aicu.3 de-dashes the L3 morpheme entity; this
+#     gate gains it then.
+#   * ``fantasy_morpheme.usage_key`` — a whole input-NAME lookup key, never a
+#     positionally dash-decorated morpheme surface, so it's outside D45.
 _DASH_GUARD_KEY_COLUMNS = (
     ("meaning", "usage_key"),
     ("proportions_usage", "usage_key"),
@@ -446,7 +449,7 @@ def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
             1
             for (data,) in conn.execute(f"SELECT data FROM {table}")
             for entry in json.loads(data).get("entries", [])
-            if "-" in (entry.get("word", {}).get("modern_usage") or "")
+            if "-" in ((entry.get("word") or {}).get("modern_usage") or "")
         )
         if dashed:
             violations.append(f"{table} blob modern_usage: {dashed} dashed")

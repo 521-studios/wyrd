@@ -41,7 +41,8 @@ def test_committed_seed_has_no_dashed_identity():
     """The shipped seed-runtime.db carries no dash in any guarded
     stored-identity surface. Catches a stale / hand-edited committed seed
     that skipped a fresh export (the exporter guard only fires on emit)."""
-    conn = sqlite3.connect(f"file:{_bundled_seed_path()}?mode=ro", uri=True)
+    db_uri = f"{_bundled_seed_path().absolute().as_uri()}?mode=ro"
+    conn = sqlite3.connect(db_uri, uri=True)
     try:
         # Key columns — exact (short bare surfaces).
         for table, col in _DASH_GUARD_KEY_COLUMNS:
@@ -51,10 +52,10 @@ def test_committed_seed_has_no_dashed_identity():
         # dashes in other fields, e.g. compound headwords like lēac-tūn).
         for table in _DASH_GUARD_BLOB_TABLES:
             dashed = [
-                entry.get("word", {}).get("modern_usage")
+                (entry.get("word") or {}).get("modern_usage")
                 for (data,) in conn.execute(f"SELECT data FROM {table}")
                 for entry in json.loads(data).get("entries", [])
-                if "-" in (entry.get("word", {}).get("modern_usage") or "")
+                if "-" in ((entry.get("word") or {}).get("modern_usage") or "")
             ]
             assert not dashed, f"{table} blob has dash-marked modern_usage: {dashed[:5]}"
     finally:
