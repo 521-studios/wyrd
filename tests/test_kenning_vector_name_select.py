@@ -19,6 +19,7 @@ from wyrd.generators.kenning.runtime.vector_name_select import (
     _cohesion_raw,
     _lemma_ref_for,
     _slot_position_label,
+    _slot_weighted_pool,
     _weighted_choice,
     build_non_position_eligible,
     select_via_vector_scoring,
@@ -1438,6 +1439,77 @@ def test_tag_unsatisfiable_returns_empty():
         priors=EmpiricalPriors(),
     )
     assert picked == []
+
+
+def test_require_tags_survives_cohesion_drop():
+    """wyrd-c6o1.4 (regression): the reserved --tag slot restricts at the
+    MEMBERSHIP level (``require_tags`` in _slot_weighted_pool), so a cohesion table
+    that would zero a tagged candidate's score cannot break the >=1 guarantee.
+
+    Setup: a 'territory' prior + a cohesion table where 'territory' co-occurs with
+    itself but 'water' has NO co-occurrence. At cohesion=1 the water candidate's
+    multiplier → 0, so it is DROPPED from the un-restricted pool. The tag slot must
+    still surface it (cohesion re-weights WITHIN the tagged subset)."""
+    db = {
+        "-ford": [_meaning("-ford", tags=["water"])],
+        "-shire": [_meaning("-shire", tags=["territory"])],
+    }
+    pool = build_non_position_eligible(
+        db,
+        gate=EligibilityGate(culture="english"),
+        exclude_tags=frozenset(),
+        pack_meaning_dbs=None,
+        packs=(),
+    )
+    ctable = {"territory": {"territory": 1.0}}  # water has no row → raw(water)=0
+    common = {
+        "slot_position": "post",
+        "slot_qualifier": None,
+        "slot_bucket_key": None,
+        "request": _request(),
+        "priors": EmpiricalPriors(),
+        "cohesion": 1.0,
+        "cohesion_table": ctable,
+        "usage_frequency_by_bucket": None,
+        "novelty": 0.0,
+        "prior_tags": frozenset({"territory"}),
+        "slot_base_scores": None,
+    }
+    # un-restricted: cohesion drops the water candidate entirely
+    free = _slot_weighted_pool(pool, **common)
+    assert all("water" not in m.tags for m, _ in free), [m.usage for m, _ in free]
+    # reserved tag slot: restricting first keeps the water candidate
+    restricted = _slot_weighted_pool(pool, require_tags=frozenset({"water"}), **common)
+    assert restricted and all("water" in m.tags for m, _ in restricted)
+
+
+def test_tag_guarantee_survives_a_concurrent_mood():
+    """wyrd-c6o1.4: a HARD --tag and a SOFT mood each reserve a slot. Even when
+    they would collide, the tag is enforced at the pool level, so every name still
+    carries >=1 required-tag morpheme (the mood never steals the tag's slot)."""
+    base = _request()
+    rv = RequestVector(
+        gate=EligibilityGate(culture="english", required_tags=frozenset({"water"})),
+        register=base.register,
+        weights=base.weights,
+        mood_tags={"death": 1.0},  # mood also wants a slot
+    )
+    ok = 0
+    for s in range(40):
+        picked = select_via_vector_scoring(
+            random.Random(s),
+            _tag_select_db(),
+            structure=["Place-", "-shire"],
+            request=rv,
+            priors=EmpiricalPriors(),
+        )
+        if not picked:
+            continue
+        ok += 1
+        assert any("water" in m.tags for m in picked if m is not None), [
+            m.usage for m in picked if m is not None
+        ]
+    assert ok  # generation succeeded
 
 
 def test_build_request_vector_tag_is_hard_gate_mood_is_soft_overlay():

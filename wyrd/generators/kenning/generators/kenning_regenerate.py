@@ -235,6 +235,17 @@ class KenningRegenerateMorpheme(Generator):
             if m is not None and (w, e) != (wi, mi)
             for t in m.tags
         )
+        # wyrd-c6o1.4: a --tag reserves ONE slot per name. On a re-roll, restrict
+        # the candidate pool to tagged morphemes ONLY when this slot is the name's
+        # SOLE tag-carrier (no held slot satisfies the tag) — so re-rolling it
+        # can't drop the name's >=1-tagged guarantee. Restricting at the pool's
+        # membership level (vs a post-hoc filter) keeps it cohesion-drop-safe,
+        # matching the generate path. A free slot (tag satisfied elsewhere) keeps
+        # require_tags empty and samples freely.
+        required_tags = request.gate.required_tags
+        require_tags = (
+            required_tags if required_tags and required_tags.isdisjoint(prior_tags) else frozenset()
+        )
         weighted = _weighted_pool_with_fallback(
             name_gen,
             non_position_eligible,
@@ -246,6 +257,7 @@ class KenningRegenerateMorpheme(Generator):
             knobs=knobs,
             prior_tags=prior_tags,
             slot_base_scores=slot_base_scores,
+            require_tags=require_tags,
         )
 
         # Operator decision (wyrd-y0lx): exclude the replaced morpheme and
@@ -266,8 +278,11 @@ class KenningRegenerateMorpheme(Generator):
                 "generation context (culture / tags / era / stratum)"
             )
 
+        # The hard --tag restriction is applied at the pool's membership level
+        # above (require_tags); the mood is a soft post-hoc re-weight on top, so on
+        # a sole-carrier-of-both slot the hard tag is already enforced and the mood
+        # re-weights within the tagged pool.
         weighted = _apply_mood_restriction(weighted, request.mood_tags, prior_tags)
-        weighted = _apply_tag_restriction(weighted, request.gate.required_tags, prior_tags)
 
         rng = rng_for(seed)
         pick = _weighted_choice(rng, weighted)
@@ -398,6 +413,7 @@ def _weighted_pool_with_fallback(
     knobs: dict[str, Any],
     prior_tags: frozenset[str],
     slot_base_scores: dict[tuple, list[tuple[Any, float]]],
+    require_tags: frozenset[str] = frozenset(),
 ) -> list[tuple[Any, float]]:
     """The weighted candidate pool for the target slot, with the bucket-key
     fallback: when the reconstructed bucket key doesn't exist in this
@@ -405,7 +421,12 @@ def _weighted_pool_with_fallback(
     proportions never recorded — e.g. a post-transform structure), degrade
     to the unweighted score-only pool rather than failing. The degrade is
     logged at WARNING so an operator can see the frequency layer was
-    bypassed (a `dispatch ok` line alone would hide it)."""
+    bypassed (a `dispatch ok` line alone would hide it).
+
+    ``require_tags`` (wyrd-c6o1.4) restricts the pool to tagged morphemes at the
+    membership level — set by the caller for a sole-tag-carrier re-roll so the
+    name's >=1-tagged guarantee survives the re-roll even under cohesion (the same
+    cohesion-drop-safe restriction the generate path uses)."""
     # Lazy import — same wyrd.generators.kenning.__init__ cycle as
     # generate_all's imports (see the comment there).
     from wyrd.generators.kenning.runtime.vector_name_select import _slot_weighted_pool
@@ -423,6 +444,7 @@ def _weighted_pool_with_fallback(
         novelty=knobs["novelty"],
         prior_tags=prior_tags,
         slot_base_scores=slot_base_scores,
+        require_tags=require_tags,
     )
     if weighted:
         return weighted
@@ -446,6 +468,7 @@ def _weighted_pool_with_fallback(
         novelty=knobs["novelty"],
         prior_tags=prior_tags,
         slot_base_scores=None,
+        require_tags=require_tags,
     )
 
 
@@ -470,28 +493,9 @@ def _apply_mood_restriction(
     mood_restricted = [
         (m, w * _mood_morpheme_weight(m, mood_tags))
         for m, w in weighted
-        if mood_tag_set & frozenset(m.tags)
+        if not mood_tag_set.isdisjoint(m.tags)
     ]
     return mood_restricted or weighted
-
-
-def _apply_tag_restriction(
-    weighted: list[tuple[Any, float]],
-    required_tags: frozenset[str],
-    prior_tags: frozenset[str],
-) -> list[tuple[Any, float]]:
-    """wyrd-c6o1.4 context rule (the --tag analogue of the mood rule above): a
-    --tag reserves ONE slot per name, not every slot. On a re-roll, restrict the
-    replacement to tag-carrying candidates ONLY when the slot being replaced is
-    the name's sole tag-carrier (no held slot intersects required_tags) — so
-    re-rolling it doesn't silently drop the name's >=1-tagged guarantee. When
-    another slot already satisfies the tag, this slot samples freely (no per-slot
-    tag gate — that was the wv85 over-constraint). Graceful: an empty restriction
-    falls back to the full pool unchanged."""
-    if not required_tags or not required_tags.isdisjoint(prior_tags):
-        return weighted
-    tag_restricted = [(m, w) for m, w in weighted if required_tags & frozenset(m.tags)]
-    return tag_restricted or weighted
 
 
 def _derived_position(word_len: int, index: int) -> str:

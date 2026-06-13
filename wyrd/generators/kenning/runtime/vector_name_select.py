@@ -388,13 +388,16 @@ def build_non_position_eligible(
 ) -> list[Meaning]:
     """Pre-compute the non-position-filtered eligibility pool.
 
-    The gate (stratum / required_tags / exclude_tags) doesn't depend on the
-    slot — it applies uniformly across every slot in the structure. Pulling this
-    out into a free function lets one call build the pool once and reuse it across
-    that dispatch's struct retries (the per-call caller is
+    The gate (stratum / exclude_tags / era cutoff) doesn't depend on the slot — it
+    applies uniformly across every slot in the structure. (wyrd-c6o1.4: ``--tag`` /
+    ``required_tags`` is NOT applied here — it's a single reserved-slot restriction
+    in ``select_via_vector_scoring``, so the pool is tag-agnostic.) Pulling this out
+    into a free function lets one call build the pool once and reuse it across that
+    dispatch's struct retries (the per-call caller is
     :meth:`NameGenerator._build_vector_pools`; wyrd-i7uy: the pool is built fresh
-    per ``generate()`` call and discarded on return — never cached across
-    requests, because it depends on the request's gate, incl. ``required_tags``).
+    per ``generate()`` call and discarded on return — never cached across requests,
+    because it depends on the request's gate (culture / stratum / exclude_tags /
+    era cutoff)).
     The list is per-meaning order-stable (we walk ``meaning_db.items()``, which is
     insertion-ordered in Python 3.7+), so the weighted-sampling loop can consume it
     directly without re-shuffling.
@@ -708,6 +711,7 @@ def _slot_weighted_pool(
     novelty: float,
     prior_tags: frozenset[str],
     slot_base_scores: dict[tuple, list[tuple[Meaning, float]]] | None,
+    require_tags: frozenset[str] = frozenset(),
     # D44: the request's era never drives this — 0 is the priors tables'
     # wildcard-cell convention. The parameter survives for the scoring
     # layer (the priors DATA keeps its era cells, D36.7).
@@ -717,6 +721,15 @@ def _slot_weighted_pool(
     per-sample cohesion bias, then the novelty blend. Returns an empty list when
     the slot collapses — no eligible meanings, or every score <= 0 after
     cohesion.
+
+    ``require_tags`` (wyrd-c6o1.4): when non-empty, restrict the pool to morphemes
+    carrying one of these tags BEFORE cohesion/novelty — used for the reserved
+    --tag slot so the HARD guarantee survives cohesion. Applying it at membership
+    level (not post-hoc on the final ``weighted``) is load-bearing: cohesion can
+    drive a tagged candidate's ``final_score`` to 0 and drop it, so a post-hoc
+    filter could empty out and silently fall back to an un-tagged pool. Filtering
+    base_scored first means cohesion re-weights WITHIN the tagged subset, which a
+    positive ``mean_raw`` (or the all-zero → all-1.0 no-op) keeps non-empty.
 
     Base scores are request-deterministic (no cohesion / no sampling), so they're
     memoized per ``(slot_position, slot_qualifier, slot_bucket_key)`` on the
@@ -744,6 +757,11 @@ def _slot_weighted_pool(
             slot_base_scores[cache_key] = base_scored
     if not base_scored:
         return []
+    # wyrd-c6o1.4: reserved --tag slot — narrow to tagged morphemes on a LOCAL
+    # copy (the cached base_scored stays tag-agnostic + reusable across structs).
+    # An empty result is caught by the `if not weighted` guard below.
+    if require_tags:
+        base_scored = [(m, bs) for m, bs in base_scored if not require_tags.isdisjoint(m.tags)]
 
     # Cohesion depends on prior_tags, which evolves across slots within a single
     # name, so it's per-sample and NOT cacheable. Score each candidate's raw
@@ -785,40 +803,31 @@ def _mood_morpheme_weight(meaning, mood_tags: dict[str, float]) -> float:
     return max((mood_tags[t] for t in meaning.tags if t in mood_tags), default=0.0)
 
 
-def _restrict_reserved_slot(
+def _restrict_mood_slot(
     weighted: list[tuple[Meaning, float]],
     *,
-    slot_index: int,
-    mood_slot_index: int | None,
+    is_mood_slot: bool,
     mood_tags: dict[str, float],
-    tag_slot_index: int | None,
-    required_tags: frozenset[str],
 ) -> list[tuple[Meaning, float]]:
-    """Apply the reserved-slot overlays to one slot's weighted pool.
+    """wyrd-4rp8 mood overlay (SOFT): on the reserved mood slot, restrict to
+    mood-tagged morphemes, re-weighted by mood fit (× the strongest mood-tag
+    weight) on top of the normal freq×score — so the mood morpheme is still picked
+    by freq × mood-fit even at novelty=1 (the mood slot stays attestation-led while
+    the rest of the name flattens). Graceful: an empty restriction falls back to
+    the full pool (the mood is best-effort, unlike the hard --tag).
 
-    - **Mood slot** (wyrd-4rp8): restrict to mood-tagged morphemes, re-weighted by
-      mood fit (× the strongest mood-tag weight) on top of the normal freq×score —
-      so the mood morpheme is still picked by freq × mood-fit even at novelty=1
-      (the mood slot stays attestation-led while the rest of the name flattens).
-    - **Tag slot** (wyrd-c6o1.4): HARD-restrict to required-tag morphemes (OR
-      semantics across multiple --tags) so each name is guaranteed >=1 tagged
-      morpheme.
-
-    Each ``_choose_tagged_slot`` already verified its slot's pool can satisfy the
-    tag, so the restricted list is non-empty; the ``or weighted`` fallbacks keep us
-    safe if membership shifted (e.g. a forced mood+tag slot collision narrowed the
-    pool past the tag — then the soft semantic bias still leans the free draw)."""
-    if slot_index == mood_slot_index and weighted:
-        mood_restricted = [
-            (m, wt * _mood_morpheme_weight(m, mood_tags))
-            for m, wt in weighted
-            if frozenset(mood_tags) & frozenset(m.tags)
-        ]
-        weighted = mood_restricted or weighted
-    if slot_index == tag_slot_index and weighted:
-        tag_restricted = [(m, wt) for m, wt in weighted if required_tags & frozenset(m.tags)]
-        weighted = tag_restricted or weighted
-    return weighted
+    The hard --tag overlay is NOT here: it restricts the slot's pool at the
+    membership level inside ``_slot_weighted_pool`` (``require_tags``), so cohesion
+    can't drop the only tagged candidate and silently un-guarantee the name."""
+    if not is_mood_slot or not weighted:
+        return weighted
+    mood_tag_set = frozenset(mood_tags)
+    mood_restricted = [
+        (m, wt * _mood_morpheme_weight(m, mood_tags))
+        for m, wt in weighted
+        if not mood_tag_set.isdisjoint(m.tags)
+    ]
+    return mood_restricted or weighted
 
 
 def _choose_tagged_slot(
@@ -837,16 +846,26 @@ def _choose_tagged_slot(
     usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None,
     novelty: float,
     slot_base_scores: dict[tuple, list[tuple[Meaning, float]]] | None,
+    require_tags: frozenset[str] = frozenset(),
     exclude_index: int | None = None,
 ) -> int | None:
     """Pick the slot that will carry a ``target_tags`` morpheme — the single-slot
     overlay shared by the thematic mood (wyrd-4rp8, soft) and the --tag guarantee
-    (wyrd-c6o1.4, hard). Builds each slot's pool (membership only — cohesion/
-    novelty re-weight but never add or drop members, so ``prior_tags`` is
-    irrelevant here) and randomly selects one whose pool contains a target-tagged
-    morpheme. Returns ``None`` when no slot can carry the tag (rare) — then the
-    name comes out un-tagged, no hard failure (parity with the retired
-    proportions path's empty-bucket fallback).
+    (wyrd-c6o1.4, hard). A slot is *capable* when its ``require_tags``-restricted
+    pool is non-empty; one capable slot is chosen at random. Returns ``None`` when
+    no slot can carry the tag — the mood caller then comes out un-themed (soft, no
+    failure); the --tag caller treats ``None`` as a hard struct failure and
+    retries (see select_via_vector_scoring), so the >=1-tagged guarantee holds.
+
+    The HARD --tag caller passes ``require_tags`` so capability is checked with the
+    SAME membership restriction the fill loop uses — a slot reported capable cannot
+    then collapse to empty (the cohesion-drop trap: a post-hoc filter on the
+    un-restricted pool could find the tagged candidate already dropped by
+    cohesion). The SOFT mood caller leaves ``require_tags`` empty and keeps the
+    post-hoc ``target_tags`` membership probe (byte-identical to pre-c6o1.4 — mood
+    degrades gracefully so it needn't survive the cohesion drop).
+    ``prior_tags=frozenset()`` here is only the capability probe; the fill
+    re-applies real priors.
 
     ``exclude_index`` (the already-reserved mood slot) is dropped from the
     candidate set so --tag and a mood land on DIFFERENT slots when possible; it is
@@ -872,8 +891,18 @@ def _choose_tagged_slot(
             novelty=novelty,
             prior_tags=frozenset(),
             slot_base_scores=slot_base_scores,
+            require_tags=require_tags,
         )
-        if weighted and any(target_tags & frozenset(m.tags) for m, _ in weighted):
+        # Hard --tag: the pool is already tag-restricted, so non-empty = capable.
+        # Soft mood: post-hoc membership probe on the un-restricted pool (the
+        # byte-identical pre-c6o1.4 check).
+        if require_tags:
+            capable_here = bool(weighted)
+        else:
+            capable_here = bool(weighted) and any(
+                not target_tags.isdisjoint(m.tags) for m, _ in weighted
+            )
+        if capable_here:
             capable.append(slot_index)
     # Prefer a slot distinct from the reserved mood slot, but fall back to it when
     # it is the only one that can carry the tag (the draw must stay non-empty).
@@ -952,12 +981,19 @@ def select_via_vector_scoring(
             name instead of failing. The caller uses this as a last-resort
             fallback once no struct is fully satisfiable.
 
+            EXCEPTION (wyrd-c6o1.4): a HARD ``--tag`` that no slot in this struct
+            can carry returns ``[]`` EVEN under permissive — the tag is a hard
+            guarantee, not a per-slot collapse to degrade around, so an
+            un-placeable tag must drive a struct retry (and ultimately the
+            caller's "no eligible name") rather than a silently un-tagged name.
+
     Returns:
         list[Meaning | None] — one entry per structural slot, in order.
         Non-permissive: empty list when the gate filters every meaning
         out for any slot (the caller decides whether to retry or fall
-        back). Permissive: always full-length; unsatisfiable slots are
-        ``None``.
+        back). Permissive: always full-length with ``None`` for unsatisfiable
+        slots — EXCEPT an un-placeable ``required_tags`` (above) which returns
+        ``[]`` even here.
     """
     picked: list[Meaning] = []
     prior_tags: set[str] = set()
@@ -1025,6 +1061,7 @@ def select_via_vector_scoring(
             usage_frequency_by_bucket=usage_frequency_by_bucket,
             novelty=novelty,
             slot_base_scores=slot_base_scores,
+            require_tags=required_tags,
             exclude_index=mood_slot_index,
         )
         if required_tags
@@ -1067,16 +1104,19 @@ def select_via_vector_scoring(
             novelty=novelty,
             prior_tags=frozenset(prior_tags),
             slot_base_scores=slot_base_scores,
+            # wyrd-c6o1.4: HARD --tag — restrict the reserved slot's pool to tagged
+            # morphemes at the membership level (before cohesion), so the >=1
+            # guarantee survives cohesion. Other slots stay tag-agnostic.
+            require_tags=required_tags if slot_index == tag_slot_index else frozenset(),
         )
-        # wyrd-4rp8 (mood) + wyrd-c6o1.4 (--tag): restrict the reserved slot(s) to
-        # their overlay tag — see _restrict_reserved_slot.
-        weighted = _restrict_reserved_slot(
+        # wyrd-4rp8: SOFT mood overlay on the reserved mood slot (post-hoc, falls
+        # back to the full pool). The mood + tag slots can coincide only when the
+        # tag's sole capable slot IS the mood slot; then the pool is already
+        # tag-restricted (above) and the mood re-weights within it — hard tag wins.
+        weighted = _restrict_mood_slot(
             weighted,
-            slot_index=slot_index,
-            mood_slot_index=mood_slot_index,
+            is_mood_slot=slot_index == mood_slot_index,
             mood_tags=request.mood_tags,
-            tag_slot_index=tag_slot_index,
-            required_tags=required_tags,
         )
         # wyrd-tbke: permissive degrades an unsatisfiable slot to None and
         # continues (full-length result); non-permissive aborts the whole

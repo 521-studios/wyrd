@@ -198,6 +198,42 @@ def test_reroll_of_sole_tag_carrier_stays_tagged():
     assert _carriers(out.morphemes_by_word, "water")
 
 
+def test_reroll_of_free_slot_under_tag_samples_freely():
+    """wyrd-c6o1.4: re-rolling a NON-sole-carrier slot under --tag is NOT
+    restricted to tagged morphemes (the tag is satisfied by another held slot), so
+    it samples freely — the inverse of the sole-carrier case. Pre-c6o1.4 the
+    pool-wide gate forced EVERY re-roll tagged; this asserts a free slot can yield
+    an un-tagged morpheme."""
+    # Find a multi-morpheme roll with exactly one water carrier, then re-roll a
+    # DIFFERENT (free) slot — the carrier still satisfies the tag.
+    target = None
+    for s in range(50):
+        words = (
+            Kenning().generate({"culture": "english", "tags": ["water"]}, seed=s).morphemes_by_word
+        )
+        flat = [(wi, mi) for wi, w in enumerate(words) for mi, _ in enumerate(w)]
+        carriers = _carriers(words, "water")
+        if len(flat) >= 2 and len(carriers) == 1:
+            free = next(slot for slot in flat if slot != carriers[0])
+            target = (words, free)
+            break
+    if target is None:
+        pytest.skip("no multi-morpheme single-water-carrier roll found in range")
+    words, (wi, mi) = target
+    # Across re-roll seeds the free slot should yield at least one NON-water pick.
+    saw_non_water = any(
+        "water"
+        not in (
+            _regen(words, wi, mi, seed=rs, culture="english", tags=["water"])
+            .morphemes_by_word[wi][mi]
+            .get("tags")
+            or []
+        )
+        for rs in range(12)
+    )
+    assert saw_non_water, "a free slot under --tag must sample freely, not force water"
+
+
 def test_mood_theme_survives_when_target_is_the_only_carrier():
     """wyrd-4rp8 context rule: re-rolling the single mood-carrying slot of a
     mood roll restricts the pool to mood-tagged candidates, so the theme
