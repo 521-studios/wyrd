@@ -276,8 +276,10 @@ authoring (mining + projection) and runtime (CLI + SPA). Three
 generators currently surface the temporal-axis story:
 
 - `kenning` — main town-name generator. `--era` renders each
-  morpheme at the requested period's reflex (D44; the D5-2/D5-3
-  inventory filter is retired — era never gates the draw).
+  morpheme at the requested period's reflex (D44) and gates the
+  draw to morphemes already in the record by the period's end
+  (D46 accretion — pools grow with time, nothing expires; the
+  D5-2/D5-3 attested-inside-window filter is retired).
 - `kenning-explain` — decompose a name into morphemes, every
   reading.
 - **`kenning-rewind`** (Phase 3.1 / 3.3) — render a name at multiple
@@ -371,14 +373,17 @@ to off / 0 (bit-stable historical behavior):
   carries no tag_cooccurrence data. (The companion `--novelty` knob —
   blend each slot's score distribution toward a uniform marginal — is
   wired onto the vector path, wyrd-fcub.)
-- `--era` (D44; input grammar from D5-3, wyrd-lyp): the period to
-  RENDER the name at. Accepts year (`1086`), cell label (`oe-late`),
-  or `family/label` (`english/oe-late`). Era never changes WHICH
-  morphemes are drawn — the inventory is time-invariant and the same
-  seed yields the same name skeleton at every era; only each
-  morpheme's surface (reflex, via the D33 era-reflex machinery)
-  tracks the requested period. (The original D5-3 inventory filter
-  was retired by D44.)
+- `--era` (D44 render + D46 record gate; input grammar from D5-3,
+  wyrd-lyp): the period of the name. Accepts year (`1086`), cell
+  label (`oe-late`), or `family/label` (`english/oe-late`). A
+  bounded historical era draws only from morphemes already in the
+  record by the period's end ("no Silicon on a Domesday map") —
+  pools accrete and nothing ever expires — and renders each
+  morpheme's period reflex (D33 machinery). Open-ended eras
+  (present-day, the deployed default) and Mixed Era draw from the
+  full pool. (The original D5-3 attested-inside-window filter was
+  retired by D44; D46 is the record-entry semantics that replaced
+  it.)
 - `--stratum` (D32, wyrd-lr4): restrict morpheme inventory to forms
   classified into a within-language register bucket. Per-family
   vocabularies — Welsh: `native-welsh / latin-loan / english-loan /

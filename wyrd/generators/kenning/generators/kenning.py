@@ -244,13 +244,15 @@ class Kenning(Generator):
                     # force-modern choice: clean modern spellings throughout.
                     "x-empty-option-label": "Mixed Era",
                     "description": (
-                        "Period to RENDER the name at (D44 + wyrd-6c8x). The default, "
-                        "'Mixed Era', renders each morpheme in its OWN native "
-                        "source-era form (a historical mix). Era never changes WHICH "
-                        "morphemes are drawn — town names evolve their spellings over "
-                        "time while their morphemes (and structure) persist, so the "
-                        "same seed yields the same name skeleton at every era. Picking "
-                        "a HISTORICAL period renders each morpheme in its "
+                        "Period of the name (D44 render + D46 record gate). The "
+                        "default, 'Mixed Era', renders each morpheme in its OWN native "
+                        "source-era form (a historical mix) and draws from the full "
+                        "morpheme pool, as does the present-day stage. A HISTORICAL "
+                        "period draws only from morphemes already IN THE RECORD by the "
+                        "period's end — a modern coinage can't appear on a Domesday "
+                        "map — while everything as old or older stays available "
+                        "forever (pools accrete; nothing expires). It also renders "
+                        "each morpheme in its "
                         "era-appropriate attested form (e.g. 'old-english' → Old "
                         "English 'Tūn', 'Sūþ'; 'middle-english' → 'Toun') instead of "
                         "the modern spelling. The present-day stage (modern-english) renders "
@@ -457,12 +459,13 @@ class Kenning(Generator):
         original_harshness = harshness
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
-        # D44: era never gates or weights the morpheme draw — the inventory is
-        # time-invariant, so the same seed yields the same skeleton at every
-        # era. The call below is kept purely as request VALIDATION (a typo'd
-        # era surfaces as a clean 4xx); its resolved range is deliberately
-        # unused.
-        _resolve_era_param(params.get("era"), culture)
+        # D46 (refining D44): the resolved era range's END is the record-entry
+        # cutoff — a bounded era draws only from morphemes already "in the
+        # record by then"; pools accrete and nothing expires. None (no era, or
+        # an open-ended era like the deployed present-day default) gates
+        # nothing. The call doubles as request validation (typo'd era → 4xx).
+        era_range = _resolve_era_param(params.get("era"), culture)
+        era_record_cutoff = era_range[1] if era_range else None
         # wyrd-6c8x (feature A): the target language to RENDER morphemes in for
         # the requested era — under D44 this is era's ONLY effect. None =
         # render the modern canonical form (no era set, or a cell with no
@@ -497,6 +500,7 @@ class Kenning(Generator):
             tags=list(raw_tags),
             mood=original_moods,
             harshness=original_harshness,
+            era_record_cutoff=era_record_cutoff,
             stratum=stratum,
             cohesion=cohesion,
             exclude_tags=exclude_tags,
@@ -634,6 +638,7 @@ def _resolve_vector_inputs(
     tags: list[str],
     mood: tuple[str, ...],
     harshness: float,
+    era_record_cutoff: int | None,
     stratum: str | None,
     priors_path: str | None,
     scoring_weights_raw: dict[str, float] | None = None,
@@ -642,10 +647,10 @@ def _resolve_vector_inputs(
     """Translate per-call knobs into the vector path's shared inputs:
     ``(request, priors, pack_meaning_dbs)``.
 
-    Era is deliberately absent (D44): it never reaches the gate NOR the
-    baseline-axis midpoint — the morpheme draw is time-invariant so the
-    same seed yields the same skeleton at every era; era only selects
-    the rendered reflex downstream (era_render_language).
+    Era reaches the gate only as ``era_record_cutoff`` — the D46
+    record-entry rule ("in the record by then"); it still never drives
+    the baseline-axis midpoint, and its render effect stays downstream
+    (era_render_language, D44).
 
     Extracted from :func:`_generate_via_vector` (wyrd-y0lx) so the
     single-slot regeneration endpoint (``kenning-regenerate-morpheme``)
@@ -717,6 +722,7 @@ def _resolve_vector_inputs(
         tags=tags,
         harshness=harshness,
         mood=mood,
+        era_record_cutoff=era_record_cutoff,
         stratum=stratum,
         weights=weights,
         packs=pack_overlays,
@@ -750,6 +756,7 @@ def _generate_via_vector(
     tags: list[str],
     mood: tuple[str, ...],
     harshness: float,
+    era_record_cutoff: int | None,
     stratum: str | None,
     cohesion: float,
     exclude_tags: tuple[str, ...],
@@ -778,6 +785,7 @@ def _generate_via_vector(
         tags=tags,
         mood=mood,
         harshness=harshness,
+        era_record_cutoff=era_record_cutoff,
         stratum=stratum,
         priors_path=priors_path,
         scoring_weights_raw=scoring_weights_raw,

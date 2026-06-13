@@ -16,9 +16,10 @@ computed at request time by the D36.2 composition rule
 Per-slot pipeline:
 
   1. **Gate** — filter the eligible meaning pool by the hard
-     predicates in :class:`EligibilityGate` (culture, stratum, tags).
-     Lemmas that fail the gate never enter scoring. (Era is NOT a
-     gate — D44: it picks the rendered reflex downstream.)
+     predicates in :class:`EligibilityGate` (culture, stratum, tags,
+     and the D46 era record-entry cutoff). Lemmas that fail the gate
+     never enter scoring. (Era's RENDER effect — which reflex — stays
+     downstream per D44; the gate half is only "in the record by then".)
   2. **Score** — for each eligible meaning, compute the canonical
      composition score using its phonological vector + tags + the
      request's per-axis weights + the empirical priors.
@@ -210,9 +211,18 @@ def _passes_base_gates(
     include_unglossed: bool,
 ) -> bool:
     """Slot-independent eligibility gates shared by the native and pack pools:
-    stratum, exclude-tags, the --tag HARD gate, and the gloss policy.
-    Returns False on the first failing gate. Era is deliberately absent
-    (D44): it selects the rendered reflex, never the eligible morphemes."""
+    the era record-entry gate (D46), stratum, exclude-tags, the --tag HARD
+    gate, and the gloss policy. Returns False on the first failing gate.
+
+    The record-entry gate is the ONLY way era touches eligibility (D46
+    refining D44): a bounded era excludes morphemes whose earliest
+    evidence postdates the era's end ("in the record by then" — the
+    Silicon rule); pools accrete, nothing expires, and an open cutoff
+    (None — no era, or the present-day stage) gates nothing."""
+    if gate.era_record_cutoff is not None:
+        start = m.record_start()
+        if start is not None and start >= gate.era_record_cutoff:
+            return False
     if not _matches_stratum(m, gate.stratum):
         return False
     # frozenset.isdisjoint runs in C and skips the per-tag generator overhead

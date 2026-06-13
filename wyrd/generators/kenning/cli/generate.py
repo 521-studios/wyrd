@@ -197,11 +197,14 @@ def _emit_result(result: Any, culture: str, json_output: bool, describe: bool) -
     type=str,
     default=None,
     help=(
-        "Era to RENDER the name at (D44). Pass a year (e.g. 1086), a cell "
-        "label ('oe-late', 'me', 'middle-irish'), or 'family/label' to "
-        "disambiguate. Era never changes WHICH morphemes are drawn — the "
-        "same seed yields the same name skeleton at every era; only each "
-        "morpheme's surface form (reflex) tracks the requested period."
+        "Period of the name (D44 render + D46 record gate). Pass a year "
+        "(e.g. 1086), a cell label ('oe-late', 'me', 'middle-irish'), or "
+        "'family/label' to disambiguate. A bounded historical era draws "
+        "only from morphemes already in the record by the period's end "
+        "(no modern coinages on a Domesday map) — everything as old or "
+        "older stays available (pools accrete; nothing expires) — and "
+        "renders each morpheme's period reflex. Open-ended eras "
+        "(present-day) and no era draw from the full pool."
     ),
 )
 @click.option(

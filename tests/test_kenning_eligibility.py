@@ -15,6 +15,7 @@ from wyrd.generators.kenning.eligibility import (
     filter_meanings,
     passes_culture_gate,
     passes_pack_gate,
+    passes_record_gate,
     passes_stratum_gate,
     passes_tag_excluded_gate,
     passes_tag_required_gate,
@@ -49,12 +50,14 @@ def _meaning(
 def _gate(
     culture: str = "english",
     stratum: str | None = None,
+    era_record_cutoff: int | None = None,
     allowed_pack_tags: frozenset[str] = frozenset(),
     excluded_pack_tags: frozenset[str] = frozenset(),
 ) -> EligibilityGate:
     return EligibilityGate(
         culture=culture,
         stratum=stratum,
+        era_record_cutoff=era_record_cutoff,
         allowed_pack_tags=allowed_pack_tags,
         excluded_pack_tags=excluded_pack_tags,
     )
@@ -89,6 +92,28 @@ def test_culture_gate_error_lists_available_cultures():
     msg = str(exc_info.value)
     for culture in ("english", "scottish", "welsh", "irish", "breton"):
         assert culture in msg
+
+
+# ---------- passes_record_gate (D46) ------------------------------------
+
+
+def test_record_gate_none_cutoff_passes_everything():
+    m = _meaning(attested_years={"old_english": [("a", 1500)]})
+    assert passes_record_gate(m, None) is True
+
+
+def test_record_gate_excludes_late_arrivals_only():
+    """D46: a bounded era excludes morphemes whose earliest evidence
+    postdates its end — and nothing else (founding strata and undated
+    morphemes pass; pools accrete)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    silicon = Meaning("-x", [], ["x"], {"modern_english": ["silicon"]})
+    tun = Meaning("-x", [], ["x"], {"old_english": ["tun"]})
+    undated = _meaning()
+    assert passes_record_gate(silicon, 1500) is False
+    assert passes_record_gate(tun, 1500) is True
+    assert passes_record_gate(undated, 1500) is True
 
 
 # ---------- passes_stratum_gate ----------------------------------------
@@ -370,9 +395,10 @@ def test_filter_meanings_preserves_input_order():
 
 def test_filter_meanings_with_all_gates_simultaneously():
     """Integration test: pool of Meanings with mixed shapes; assert
-    only the ones that pass ALL gates make it through. Era is
-    deliberately absent (D44): attested-years data never gates — a
-    Meaning attested only outside any period is just as eligible."""
+    only the ones that pass ALL gates make it through. Era gates by
+    RECORD ENTRY only (D46): a late-ATTESTED but founding-stratum
+    morpheme passes (attestation windows never gate, D44); a
+    positively-late modern coinage fails the cutoff."""
     # Wins: english culture, native-old-english, tag plant, no fiction tag.
     m_winner = _meaning(
         usage="-winner",
@@ -380,7 +406,8 @@ def test_filter_meanings_with_all_gates_simultaneously():
         attested_years={"old_english": [("w", 900)]},
         stratum={"old_english": {"w": "native-old-english"}},
     )
-    # ALSO wins (D44): attestation year is irrelevant to eligibility.
+    # ALSO wins (D44/D46): a late attestation YEAR on a founding-stratum
+    # morpheme is irrelevant — only record ENTRY gates, and OE is founding.
     m_late_attested = _meaning(
         usage="-late",
         tags=("plant",),
@@ -406,8 +433,18 @@ def test_filter_meanings_with_all_gates_simultaneously():
         attested_years={"old_english": [("ld", 900)]},
         stratum={"old_english": {"ld": "norse-loan"}},
     )
+    # Loses on the D46 record gate: modern-only coinage, no vouching date.
+    from wyrd.generators.kenning.runtime.meaning import Meaning as _Meaning
 
-    g = _gate(culture="english", stratum="native-old-english")
+    m_modern_coinage = _Meaning(
+        "-silicon",
+        ["plant"],
+        ["silicon"],
+        {"modern_english": ["silicon"]},
+        stratum={"old_english": {"si": "native-old-english"}},
+    )
+
+    g = _gate(culture="english", stratum="native-old-english", era_record_cutoff=1500)
     result = filter_meanings(
         [
             m_winner,
@@ -415,6 +452,7 @@ def test_filter_meanings_with_all_gates_simultaneously():
             m_no_plant,
             m_fiction,
             m_wrong_stratum,
+            m_modern_coinage,
         ],
         g,
         tag_required=frozenset({"plant"}),

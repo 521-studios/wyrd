@@ -161,6 +161,7 @@ def build_request_vector(
     tags: Iterable[str] = (),
     harshness: float = 0.0,
     mood: Iterable[str] = (),
+    era_record_cutoff: int | None = None,
     stratum: str | None = None,
     weights: ScoringWeights | None = None,
     packs: tuple[PackOverlay, ...] = (),
@@ -180,6 +181,11 @@ def build_request_vector(
             :func:`_harshness_to_phonological`).
         mood: D6 mood specs (``grim``, ``harsh:0.5``, ...). Expands
             through MOODS to additional tags + harshness.
+        era_record_cutoff: the requested era's END year (D46) — a
+            bounded era excludes morphemes whose earliest evidence
+            postdates it ("in the record by then"). ``None`` (no era,
+            or an open-ended era like the present-day stage) disables
+            the gate; pools accrete and nothing expires.
         stratum: within-language stratum filter (``native-welsh``,
             ``latin-loan``, etc.). ``None`` disables the filter.
         weights: per-axis scoring weights. Defaults to
@@ -260,11 +266,12 @@ def build_request_vector(
         for tag, weight in effect.semantic_tags.items():
             if weight > 0:
                 mood_tags[tag] = mood_tags.get(tag, 0.0) + weight
-    # Era is deliberately absent from the gate (D44): the morpheme
-    # inventory is time-invariant; era only selects the rendered reflex
-    # downstream (era_render_language / the D33 era-reflex machinery).
+    # Era reaches the gate ONLY as the D46 record-entry cutoff ("in the
+    # record by then"); its render effect stays downstream
+    # (era_render_language / the D33 era-reflex machinery, D44).
     gate = EligibilityGate(
         culture=culture,
+        era_record_cutoff=era_record_cutoff,
         stratum=stratum,
         required_tags=frozenset(tags),
     )

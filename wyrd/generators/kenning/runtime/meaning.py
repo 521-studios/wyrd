@@ -124,6 +124,43 @@ _STRATUM_SUFFIX = "_stratum"
 # whose etymons have been kq7w.1-enriched populate this.
 _PHONOLOGICAL_VECTOR_SUFFIX = "_phonological_vector"
 
+# D46 (wyrd-6ah2): the year each source-language LAYER enters the British
+# place-name record — the stage half of the era accretion gate's
+# "in the record by then" rule. None = founding stratum (Celtic substrate,
+# OE, Latin, the ancient pack/fantasy languages): predates every era we
+# model, passes everything. Contact layers carry their historical entry
+# point into BRITISH naming (not the language's own birth — Old Norse and
+# Norman French existed earlier elsewhere; what's gated is when they could
+# plausibly appear in a name on this island): Old Norse with the Danelaw
+# (~865, rounded to the oe-late cell boundary), French layers with the
+# Conquest. English stages use their D5 era-cell starts. Languages absent
+# from this map default to None (pass) — thin data errs toward inclusion;
+# the gate's hard exclusions are positively-evidenced late arrivals.
+# Sentinel distinguishing "record_start not computed yet" from a computed
+# None (founding stratum) on the lazy cache.
+_UNSET = object()
+
+_LANG_RECORD_ENTRY: dict[str, int | None] = {
+    "old_english": None,
+    "celtic_mix": None,
+    "latin": None,
+    "germanic": None,
+    "akkadian": None,
+    "biblical": None,
+    "egyptian": None,
+    "hebrew": None,
+    "arabic": None,
+    "persian": None,
+    "sanskrit": None,
+    "aramaic": None,
+    "armenian": None,
+    "old_scandinavian": 800,
+    "old_french": 1066,
+    "norman_french": 1066,
+    "middle_english": 1100,
+    "modern_english": 1500,
+}
+
 
 class Joiner:
     """A consumed phonological joiner (wyrd-q0g6 Phase 1).
@@ -215,6 +252,8 @@ class Meaning:
         # kept from the bundle; the D5-2 era filter that consumed it was
         # retired by D44 (era renders, never gates).
         self.attested_years = attested_years or {}
+        # D46: lazy cache for record_start() — see the method.
+        self._record_start = _UNSET
         # english_shaped is a dict[lang_field, dict[canonical_form,
         # english_shaped_form]] — wyrd-ha9q Phase 2c. Maps the
         # native-script / diacritic-bearing canonical form to its
@@ -525,6 +564,43 @@ class Meaning:
         from .respelling import respell
 
         return respell(form, lang_field)
+
+    def record_start(self) -> int | None:
+        """D46 (wyrd-6ah2): the morpheme's earliest evidence of existence in
+        the British place-name record — the MOST GENEROUS of two signals:
+
+        * the earliest record-entry year among its source-language layers
+          (``_LANG_RECORD_ENTRY``; a founding-stratum layer → None), and
+        * its earliest attested year across ``attested_years`` (a date can
+          vouch a morpheme is OLDER than its stage suggests — a
+          modern_english bucket with a 1086 Domesday date passes oe-late).
+
+        Returns None when any signal says "founding stratum" or when there
+        is no evidence on either axis (coverage rule: missing data is not
+        evidence of lateness). Cached after first computation — the inputs
+        are immutable bundle data.
+        """
+        if self._record_start is not _UNSET:
+            return self._record_start
+        years: list[int] = []
+        founding = not self.sources and not self.attested_years
+        if isinstance(self.sources, dict):
+            for lang in self.sources:
+                entry = _LANG_RECORD_ENTRY.get(lang)
+                if entry is None:
+                    founding = True
+                    break
+                years.append(entry)
+        else:
+            founding = True
+        if not founding:
+            for forms in self.attested_years.values():
+                for _form, year in forms:
+                    years.append(year)
+            if not years:
+                founding = True
+        self._record_start = None if founding else min(years)
+        return self._record_start
 
     def in_stratum(self, stratum: str | None) -> bool:
         """wyrd-lr4 Phase 3 stratum filter: True if any of this
