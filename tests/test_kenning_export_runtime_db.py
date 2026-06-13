@@ -1174,12 +1174,21 @@ def test_write_meanings_merges_dash_variants_into_one_bare_row(tmp_path: Path) -
     # subjects here are already bare — distinct dash-variants fold to 'ton' /
     # 'Ton' (case twins stay distinct rows; dashes are what merge).
     subjects = [
-        {"meaning": ["enclosure"], "modifier_tags": ["a"], "words": [
-            {"modern_usage": "ton", "old_english": ["tūn"]}]},
-        {"meaning": ["farmstead"], "modifier_tags": ["b"], "words": [
-            {"modern_usage": "ton", "modern_english": ["ton"]}]},
-        {"meaning": ["wave"], "modifier_tags": ["c"], "words": [
-            {"modern_usage": "ton", "celtic_mix": ["ton"]}]},
+        {
+            "meaning": ["enclosure"],
+            "modifier_tags": ["a"],
+            "words": [{"modern_usage": "ton", "old_english": ["tūn"]}],
+        },
+        {
+            "meaning": ["farmstead"],
+            "modifier_tags": ["b"],
+            "words": [{"modern_usage": "ton", "modern_english": ["ton"]}],
+        },
+        {
+            "meaning": ["wave"],
+            "modifier_tags": ["c"],
+            "words": [{"modern_usage": "ton", "celtic_mix": ["ton"]}],
+        },
     ]
     conn = sqlite3.connect(":memory:")
     conn.execute(
@@ -1196,7 +1205,9 @@ def test_write_meanings_merges_dash_variants_into_one_bare_row(tmp_path: Path) -
     # All three subjects' entries unioned under the one row.
     assert len(payload["entries"]) == 3
     assert {tuple(e["meaning"]) for e in payload["entries"]} == {
-        ("enclosure",), ("farmstead",), ("wave",)
+        ("enclosure",),
+        ("farmstead",),
+        ("wave",),
     }
     # primary_language re-picked over the UNION (not per-variant) — a real
     # language wins over None; here three distinct single-language entries, so

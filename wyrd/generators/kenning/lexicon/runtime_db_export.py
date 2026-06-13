@@ -652,7 +652,10 @@ def _write_proportions(
             # D45: lone words are bare by construction — position is always 'bare',
             # and the key is the bare surface (fold any dash defensively so
             # operator-JSON / legacy keys can't smuggle a dash into the table).
-            ((k.replace("-", ""), "bare", int(v)) for k, v in (data.get("single_usages") or {}).items()),
+            (
+                (k.replace("-", ""), "bare", int(v))
+                for k, v in (data.get("single_usages") or {}).items()
+            ),
         )
         counts["proportions_structure"] += _insert_structures(
             conn, culture, data.get("structures") or []
@@ -727,9 +730,7 @@ def _insert_attested_languages(
     # Sort the outer surface loop too so byte-stability is local to this write
     # site rather than leaning on the caller's dict insertion order (seed-repro).
     rows = [
-        (culture, surface, lang)
-        for surface in sorted(folded)
-        for lang in sorted(folded[surface])
+        (culture, surface, lang) for surface in sorted(folded) for lang in sorted(folded[surface])
     ]
     if not rows:
         return 0
@@ -968,9 +969,7 @@ def select_dev_subset(
         # set) would leak rows: a usage_key kept in culture A's top-N
         # but absent from culture B's would survive in B's attestation
         # output. Build a per-culture set instead.
-        culture_keep_surfaces = {s.lower() for s in kept_usages} | {
-            s.lower() for s in kept_single
-        }
+        culture_keep_surfaces = {s.lower() for s in kept_usages} | {s.lower() for s in kept_single}
         raw_attested = data.get("attested_languages") or {}
         trimmed_attested = {
             k: sorted(raw_attested[k])
