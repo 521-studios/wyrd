@@ -445,18 +445,20 @@ def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
         if n:
             violations.append(f"{table}.{col}: {n} dashed")
     for table in _DASH_GUARD_BLOB_TABLES:
-        # Full scan + JSON parse. NB the ``data`` column is BLOB and the writers
-        # bind ``.encode("utf-8")`` bytes, so a SQLite ``LIKE`` *prefilter* would
-        # silently match ZERO rows (LIKE with a TEXT pattern never matches the
-        # blob storage class) and neuter this guard — so we don't prefilter. A
-        # build-time O(rows) JSON walk is the right cost for an obviously-correct
-        # safety gate (this already mirrors the de-dash walk above).
-        dashed = sum(
-            1
-            for (data,) in conn.execute(f"SELECT data FROM {table}")
-            for entry in json.loads(data).get("entries", [])
-            if "-" in ((entry.get("word") or {}).get("modern_usage") or "")
-        )
+        # Full scan, but skip the JSON parse on any row whose RAW payload has no
+        # '-' at all — if there's no dash anywhere, modern_usage can't have one.
+        # The prefilter is a Python substring check on the actual fetched value
+        # (bytes for this BLOB column), NOT a SQLite ``LIKE`` — a LIKE with a
+        # TEXT pattern silently matches ZERO blob rows and would neuter the
+        # guard (wyrd-aicu.5 round-3 regression). This check sees the real value
+        # regardless of storage class, so it can't under-match.
+        dashed = 0
+        for (data,) in conn.execute(f"SELECT data FROM {table}"):
+            if (b"-" not in data) if isinstance(data, bytes) else ("-" not in data):
+                continue
+            for entry in json.loads(data).get("entries", []):
+                if "-" in ((entry.get("word") or {}).get("modern_usage") or ""):
+                    dashed += 1
         if dashed:
             violations.append(f"{table} blob modern_usage: {dashed} dashed")
     if violations:
