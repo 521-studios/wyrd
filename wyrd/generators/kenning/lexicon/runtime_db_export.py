@@ -445,9 +445,18 @@ def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
         if n:
             violations.append(f"{table}.{col}: {n} dashed")
     for table in _DASH_GUARD_BLOB_TABLES:
+        # Pre-filter in SQLite so the clean case (the norm) parses ZERO blobs:
+        # only rows whose blob has a '-' somewhere after a "modern_usage" key
+        # reach the Python JSON check. The LIKE may OVER-match (a dash in some
+        # other field after modern_usage) — harmless, the JSON parse below is
+        # the authority — but cannot UNDER-match, since a dashed modern_usage
+        # value always puts a '-' right after its key.
+        candidates = conn.execute(
+            f"SELECT data FROM {table} WHERE data LIKE '%\"modern_usage\"%-%'"
+        )
         dashed = sum(
             1
-            for (data,) in conn.execute(f"SELECT data FROM {table}")
+            for (data,) in candidates
             for entry in json.loads(data).get("entries", [])
             if "-" in ((entry.get("word") or {}).get("modern_usage") or "")
         )
