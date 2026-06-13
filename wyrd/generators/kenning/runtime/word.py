@@ -53,14 +53,24 @@ def word_position_for(word_index: int, word_count: int) -> Literal["pre", "inner
     return "inner"
 
 
+def _bare_surface(meaning: Meaning) -> str:
+    """D45 (wyrd-aicu): a morpheme's STORED IDENTITY is its bare surface —
+    dashes are NEVER part of it. The proportions tally (:meth:`Word.get_samples`)
+    records ``(bare_surface, position)`` with position as an EXPLICIT axis, so
+    nothing dash-encoded ever reaches the L4 tables. Stored case is kept (so an
+    initial name's internal caps survive the render's front-cap, D39)."""
+    return meaning.usage.replace("-", "")
+
+
 def _position_form(meaning: Meaning, position: str) -> str:
-    """wyrd-eyjk/D40: render a morpheme's bare surface at its DERIVED position
-    as the recorded usage form. The morpheme's identity is its dash-stripped
-    surface; the dashes encode position and are applied here from the
-    span/index-derived ``position``, NOT read off whatever variant the matcher
-    happened to fetch. So a word-final ``giles`` records as ``-giles`` even
-    when only ``Giles-`` / ``Giles`` are stored. D39 casing: post/inner are
-    lowercased; pre/bare keep the surface's stored case (name capitals)."""
+    """The TRANSIENT render-key for a slot in ``NewName.name`` — NOT stored
+    identity (that is the bare surface, D45). ``NewName.__str__`` strips these
+    dashes and re-applies positional case from the SLOT (D39), so the dash
+    decoration here is purely a within-generation convenience; the rendered
+    output is identical whether this carries dashes or a bare surface. Kept
+    dashed for continuity with the explainer / grid readers that fold on
+    ``replace("-", "")``. D39 casing: post/inner lowercased; pre/bare keep
+    stored case."""
     surface = meaning.usage.replace("-", "")
     if position == "pre":
         return f"{surface}-"
@@ -117,11 +127,12 @@ class Word:
         return any(isinstance(m, Meaning) and m.is_saint() for m in self.word)
 
     def _positioned_usages(self):
-        """wyrd-eyjk/D40: each morpheme's usage recorded at its DERIVED
-        position (index among the word's morphemes), not the matched variant's
-        stored dash-shape. ``Stokegiles`` → ``Stoke-`` (pre) + ``-giles``
-        (post). This is the (morpheme, derived-position) increment the
-        proportions tally is built from."""
+        """D45 + wyrd-eyjk/D40: each morpheme recorded as a ``(bare_surface,
+        derived_position)`` increment — the morpheme's identity (bare surface)
+        plus the position it occupies among the word's morphemes, as an EXPLICIT
+        axis. ``Stokegiles`` → ``(Stoke, pre)`` + ``(giles, post)``. Position is
+        never folded into the surface string (the pre-D45 dash-form
+        ``-giles``); the proportions tables carry it as its own column."""
         # wyrd-eyjk round 2 (Gemini): derive position over ALL word elements
         # (count = len(self.word)), not just the matched Meanings, so a morpheme
         # in a partially-decomposed word (with unmatched string fragments) gets
@@ -132,23 +143,26 @@ class Word:
         # in lockstep with ``get_structure``.
         count = len(self.word)
         return [
-            _position_form(m, _structural_position(i, count))
+            (_bare_surface(m), _structural_position(i, count))
             for i, m in enumerate(self.word)
             if isinstance(m, Meaning)
         ]
 
     def get_samples(self):
-        # Multi-morpheme words feed the ``usages`` (part) pool.
+        # Multi-morpheme words feed the ``usages`` (part) pool, as
+        # ``(surface, position)`` increments (D45 — position is an explicit
+        # axis, not a dash-encoded form).
         if len(self.word) <= 1:
             return set()
         return set(self._positioned_usages())
 
     def get_lone_samples(self):
-        # Single-morpheme words feed the ``single_usages`` (lone/bare) pool;
-        # by definition the sole morpheme's derived position is ``bare``.
+        # Single-morpheme words feed the ``single_usages`` (lone/bare) pool,
+        # keyed by bare surface (the sole morpheme's derived position is always
+        # ``bare``, so the pool needs no position axis).
         if len(self.word) != 1:
             return set()
-        return set(self._positioned_usages())
+        return {surface for surface, _position in self._positioned_usages()}
 
     def get_structure(self):
         # wyrd-5z5j/D39: a morpheme's structural position comes from WHERE it
@@ -177,7 +191,12 @@ class Word:
             position = _structural_position(index, count)
             if m.is_name():
                 structure.append((position, "name"))
-            elif m.usage == "Saint-":
+            elif m.usage.replace("-", "").lower() == "saint":
+                # The "saint" qualifier is the DEDICATION PARTICLE (the word
+                # "Saint" in "Saint Albans"), identified by SURFACE — not the
+                # saint TAG (which also marks the dedicated name, Mary/Giles).
+                # D45: fold the surface (the pre-D45 ``m.usage == "Saint-"``
+                # literal breaks once usages are bare); matches Meaning.key().
                 structure.append((position, "saint"))
             else:
                 structure.append((position,))

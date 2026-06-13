@@ -102,7 +102,7 @@ def test_bundle_version_cold_does_not_deadlock(tmp_path, monkeypatch):
     conn.executemany(
         "INSERT INTO bundle_metadata VALUES (?, ?)",
         [
-            ("schema_version", "2"),  # must match _EXPECTED_SCHEMA_VERSION
+            ("schema_version", "3"),  # must match _EXPECTED_SCHEMA_VERSION
             ("built_at", "2026-05-30T00:00:00Z"),
             ("emitter_version", "test"),
             ("source_lexicon_db", "test"),
@@ -125,7 +125,7 @@ def test_bundle_version_cold_does_not_deadlock(tmp_path, monkeypatch):
     t.join(timeout=10)
     try:
         assert not t.is_alive(), "bundle_version() deadlocked on a cold connection"
-        assert result["bv"]["schema_version"] == "2"
+        assert result["bv"]["schema_version"] == "3"
     finally:
         runtime_db.reset_runtime_db_cache()
 

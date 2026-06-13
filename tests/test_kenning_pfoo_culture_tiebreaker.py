@@ -145,7 +145,8 @@ def test_culture_tiebreaker_end_to_end_prefers_celtic_tagged_for_welsh():
     # which Meaning won — what matters is the per-Meaning attestation
     # that flows downstream to the vector path's culture filter).
     props = proportions_from([n])
-    assert "pen-" in props["usages"] or "pen-" in props["single_usages"]
+    # D45: usages nested by BARE surface; single_usages flat bare surfaces.
+    assert "pen" in props["usages"] or "pen" in props["single_usages"]
 
 
 def test_culture_tiebreaker_falls_through_when_celtic_meaning_untagged():

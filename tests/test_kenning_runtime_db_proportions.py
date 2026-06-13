@@ -66,7 +66,11 @@ def _proportions_db(tmp_path: Path) -> tuple[Path, Path]:
     proportions_dir = tmp_path / "proportions"
     proportions_dir.mkdir()
     english = {
-        "usages": {"-ham-": 100, "-ton-": 50, "-ford-": 25},
+        # D45: nested {bare_surface: {position: weight}} part pool. The emitter
+        # tolerates this shape directly (its nested branch), and the SQLite
+        # read-back returns the same nested shape — so the JSON and SQLite
+        # usages dicts compare equal in the bit-equivalence test below.
+        "usages": {"ham": {"inner": 100}, "ton": {"inner": 50}, "ford": {"inner": 25}},
         "single_usages": {"-castle": 10, "-bury": 5},
         "structures": [
             {"proportion": 70, "words": [[{"location": "pre"}, {"location": "post"}]]},
@@ -154,8 +158,16 @@ def test_proportions_dict_matches_source_weights(_proportions_db: tuple[Path, Pa
     finally:
         conn.close()
 
-    assert out["usages"] == {"-ham-": 100, "-ton-": 50, "-ford-": 25}
-    assert out["single_usages"] == {"-castle": 10, "-bury": 5}
+    # D45: the adapter returns nested {surface: {position: weight}} from a v3
+    # DB. The flat-dashed source forms decode to bare surfaces + an explicit
+    # position column (-x- → inner), and single_usages carry position 'bare'.
+    assert out["usages"] == {
+        "ham": {"inner": 100},
+        "ton": {"inner": 50},
+        "ford": {"inner": 25},
+    }
+    # D45: single_usages flatten to {bare_surface: weight} at the adapter boundary.
+    assert out["single_usages"] == {"castle": 10, "bury": 5}
     assert len(out["structures"]) == 2
     assert out["structures"][0] == {
         "proportion": 70,
@@ -174,9 +186,10 @@ def test_proportions_iteration_order_matches_cumulative(_proportions_db: tuple[P
         out = proportions_dict_for_culture(conn, "english")
     finally:
         conn.close()
-    # Source dict iteration order was -ham- → -ton- → -ford- (highest
-    # weight first); cumulative monotonic in that order.
-    assert list(out["usages"].keys()) == ["-ham-", "-ton-", "-ford-"]
+    # Source dict iteration order was ham → ton → ford (highest
+    # weight first); cumulative monotonic in that order. D45: keys come
+    # back as BARE surfaces, iteration order still cumulative-ascending.
+    assert list(out["usages"].keys()) == ["ham", "ton", "ford"]
 
 
 def test_proportions_unknown_culture_returns_empty(_proportions_db: tuple[Path, Path]) -> None:
@@ -273,9 +286,17 @@ def test_bit_equivalent_names_across_backends(
     # identical NameGenerators → same RNG seed produces same name.
     # (Iteration order matters for random.choices; verify dict keys
     # come back in the same order.)
+    # D45: the source JSON `usages` is already the nested {surface: {position:
+    # weight}} shape, and the SQLite read-back returns the same shape — so
+    # both keys-order and value-equality hold directly.
     assert list(sqlite_proportions["usages"].keys()) == list(json_proportions["usages"].keys())
     assert sqlite_proportions["usages"] == json_proportions["usages"]
-    assert sqlite_proportions["single_usages"] == json_proportions["single_usages"]
+    # D45: single_usages flatten to {bare_surface: weight} at the adapter
+    # boundary (lone words are bare-only — no within-word position axis). The
+    # writer folds any dash off the source keys, so the read-back is bare-keyed.
+    assert sqlite_proportions["single_usages"] == {
+        k.replace("-", ""): v for k, v in json_proportions["single_usages"].items()
+    }
     assert sqlite_proportions["structures"] == json_proportions["structures"]
     assert sqlite_proportions["tag_marginal"] == json_proportions["tag_marginal"]
     assert sqlite_proportions["tag_cooccurrence"] == json_proportions["tag_cooccurrence"]
@@ -306,3 +327,42 @@ def test_bit_equivalent_names_across_backends(
     # just the one seed=42 happens to pick.)
     assert json_gen.structs == sqlite_gen.structs
     assert json_gen.tag_cooccurrence == sqlite_gen.tag_cooccurrence
+
+
+def test_explicit_position_survives_l4_round_trip(tmp_path: Path) -> None:
+    """D45 end-to-end: a surface attested at MULTIPLE positions must keep those
+    positions through write → L4 → read → load_parts → bucket. The regression
+    this guards: if the reader fell back to ``_location_from_form`` on the now-
+    bare keys, every part would bucket as ('bare', …) and the pre/inner/post
+    pools would vanish (the exact collapse that couples aicu.1 + aicu.2)."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import _insert_cumulative
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        _read_proportions_usage_map,
+    )
+
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE proportions_usage (culture TEXT NOT NULL, usage_key TEXT NOT NULL, "
+        "position TEXT NOT NULL, weight INTEGER NOT NULL, cumulative INTEGER NOT NULL, "
+        "PRIMARY KEY (culture, cumulative))"
+    )
+    # 'ton' at three explicit positions (bare surface, never a dash-form).
+    _insert_cumulative(
+        conn,
+        "proportions_usage",
+        "english",
+        [("ton", "pre", 5), ("ton", "post", 100), ("ton", "inner", 3)],
+    )
+    usages = _read_proportions_usage_map(conn, "proportions_usage", "english")
+    # Reader returns nested {surface: {position: weight}} — positions preserved.
+    assert usages == {"ton": {"pre": 5, "post": 100, "inner": 3}}
+
+    meaning_db = {"ton": [Meaning("-ton", ["settlement"], ["enclosure"], {"old_english": ["tūn"]})]}
+    # MeaningGenerator.__init__ runs load_parts over the nested usages.
+    gen = MeaningGenerator(meaning_db, {}, usages)
+    # The three positions each produced their own bucket — NOT all 'bare'.
+    bucket_positions = {key[0] for key in gen.generators}
+    assert bucket_positions == {"pre", "post", "inner"}
+    conn.close()

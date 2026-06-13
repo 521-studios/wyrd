@@ -417,8 +417,11 @@ def _resolve_morpheme(meaning_db: dict, morpheme_id):
 
 
 def _location_from_form(usage: str) -> str:
-    """The position a position-form usage encodes, from its dashes — mirrors
-    ``Meaning._set_location``: ``-x-`` inner, ``x-`` pre, ``-x`` post, bare."""
+    """LEGACY (pre-D45) decode: the position a dash-encoded position-form usage
+    carries, from its dashes — ``-x-`` inner, ``x-`` pre, ``-x`` post, bare.
+    Only the legacy branch of :func:`_iter_part_proportions` calls this (old v2
+    bundles + test fixtures built in the flat ``{dashed: weight}`` shape); the
+    D45 path carries position as an explicit axis, not in the string."""
     lead = usage.startswith("-")
     trail = usage.endswith("-")
     if lead and trail:
@@ -428,6 +431,31 @@ def _location_from_form(usage: str) -> str:
     if lead:
         return "post"
     return "bare"
+
+
+def _iter_part_proportions(
+    proportions: dict[str, int | dict[str, int]],
+) -> Iterator[tuple[str, str, str, int]]:
+    """Normalize the ``usages`` part pool into
+    ``(surface_key, position, item_form, weight)`` tuples, accepting both:
+
+    * **D45 (wyrd-aicu)** nested ``{surface: {position: weight}}`` — position is
+      an explicit axis; ``item_form`` is the bare surface (stored case kept so
+      the render's initial-slot front-cap preserves internal name caps), and
+      ``surface_key`` is its lowercase fold for the bare-surface index.
+    * **Legacy** flat ``{dashed_usage: weight}`` — old v2 L4 bundles and test
+      fixtures; position is decoded from the dashes (:func:`_location_from_form`)
+      and ``item_form`` is the dashed string (the render strips it anyway).
+
+    The shape is detected per-entry by the value type (dict → nested).
+    """
+    for key, value in proportions.items():
+        if isinstance(value, dict):
+            surface_key = key.lower().replace("-", "")
+            for position, weight in value.items():
+                yield surface_key, position, key, weight
+        else:
+            yield key.lower().replace("-", ""), _location_from_form(key), key, value
 
 
 class MeaningGenerator:
@@ -447,28 +475,25 @@ class MeaningGenerator:
         return _surface_index_for(self.meaning_db)
 
     def load_parts(self, proportions, *addkeys):
-        # wyrd-eyjk/D40: proportions usages are POSITION-FORMS — a morpheme's
-        # bare surface rendered at its DERIVED position (`-giles` post,
-        # `Stoke-` pre, `giles` bare). The morpheme is resolved by its
-        # dash-stripped SURFACE (the bundle may store it only under a different
-        # dash-variant, e.g. saints have `Giles-`/`Giles` but never `-giles`),
-        # and bucketed by the position the FORM encodes plus the morpheme's
-        # name/saint flag. Position is NEVER read off the stored variant's
-        # ``Meaning.location`` — it is carried by the recorded form. This
-        # retires the old per-Meaning-location bucketing and the wyrd-5z5j
-        # ``add_bare`` double-register (the lone pool's forms are already bare).
+        # D45 (wyrd-aicu): the ``usages`` part pool carries each morpheme as
+        # ``(surface, position)`` — bare identity + explicit position axis — not
+        # a dash-encoded position-form. The morpheme is resolved by its bare
+        # SURFACE (the bundle stores it under exactly one bare key now), bucketed
+        # by the EXPLICIT position plus the morpheme's name/saint flag. Position
+        # is never read off ``Meaning.location`` nor decoded from a stored
+        # dash-shape. ``_iter_part_proportions`` also tolerates the legacy flat
+        # ``{dashed: weight}`` shape (old v2 bundles + flat test fixtures).
         #
-        # wyrd-van9: a usage whose surface isn't in meaning_db at all is
-        # skipped + counted (bundle/proportions drift) rather than crashing.
+        # wyrd-van9: a surface that isn't in meaning_db at all is skipped +
+        # counted (bundle/proportions drift) rather than crashing.
         index = self._surface_index()
         missing_count = 0
-        for usage, proportion in proportions.items():
-            meanings = index.get(usage.lower().replace("-", ""))
+        for surface, position, usage, proportion in _iter_part_proportions(proportions):
+            meanings = index.get(surface)
             if meanings is None:
                 missing_count += 1
                 continue
-            position = _location_from_form(usage)
-            # Flags (name/saint) come from the morpheme; position from the form.
+            # Flags (name/saint) come from the morpheme; position is explicit.
             # wyrd-57d8: this per-bucket frequency-weight pool (snapshotted into
             # `usage_frequency_by_bucket` and threaded into the live vector
             # scorer) must apply the SAME base-pool class exclusions as the

@@ -64,7 +64,13 @@ def _accumulate_attested_languages(name, attested_languages: dict[str, set[str]]
                 primary = elem.primary_language()
                 if primary is None:
                     continue
-                attested_languages.setdefault(elem.usage, set()).add(primary)
+                # D45 (wyrd-aicu): key by bare SURFACE, not the dash-marked
+                # usage. This is naturally surface-keyed now, retiring the
+                # wyrd-c6o1.3 load-time fold-union workaround (the exact-key
+                # narrowing leaked welsh `ton` into english through the
+                # un-folded dash-variants).
+                surface = elem.usage.replace("-", "").lower()
+                attested_languages.setdefault(surface, set()).add(primary)
 
 
 def _accumulate_tag_cooccurrence(name, tag_marginal: Counter, tag_cooccurrence: Counter) -> None:
@@ -89,22 +95,26 @@ def proportions_from(names) -> dict[str, Any]:
     called on it; the helpers below pull samples / structure / tag-
     cooccurrence off the resulting decompositions.
 
-    The returned shape matches the historical
-    ``<culture>_proportions.json`` payload exactly: ``{usages,
-    single_usages, structures, tag_marginal, tag_cooccurrence,
-    attested_languages, bare_word_positions}`` with ``structures``
-    already passed through the wyrd-zzli grammatical filter and
-    tag-pair keys serialized as ``"left|right"`` strings.
+    Returned keys: ``{usages, single_usages, structures, tag_marginal,
+    tag_cooccurrence, attested_languages, bare_word_positions}`` with
+    ``structures`` already passed through the wyrd-zzli grammatical
+    filter and tag-pair keys serialized as ``"left|right"`` strings.
+
+    D45 (wyrd-aicu) — morpheme identity is the BARE surface, position an
+    explicit axis (never a dash-encoded form):
+    * ``usages`` is nested ``{surface: {position: count}}``.
+    * ``single_usages`` is ``{surface: count}`` (lone words are bare).
+    * ``attested_languages`` is keyed by bare ``surface``.
 
     ``attested_languages`` (wyrd-pfoo) is the per-Meaning attestation
-    half of the culture filter: for each usage_key, the set of primary
+    half of the culture filter: for each surface, the set of primary
     source-languages of the specific Meanings the matcher used when
     decomposing this culture's place names. The runtime vector path
-    consumes this to narrow its eligibility pool from the per-usage
-    set to a per-(usage, primary_language) set — closing the
-    wrong-sense leakage where ``-ton``'s Welsh Meaning ('tone', music)
-    or ``Saint-``'s Celtic Meaning ('greed') could otherwise be picked
-    for slots a Welsh culture filter admitted at the usage level.
+    consumes this to narrow its eligibility pool from the per-surface
+    set to a per-(surface, primary_language) set — closing the
+    wrong-sense leakage where ``ton``'s Welsh Meaning ('tone', music)
+    or ``saint``'s Celtic Meaning ('greed') could otherwise be picked
+    for slots a Welsh culture filter admitted at the surface level.
     """
     part_proportions: Counter = Counter()
     lone_proportions: Counter = Counter()
@@ -114,8 +124,10 @@ def proportions_from(names) -> dict[str, Any]:
     attested_languages: dict[str, set[str]] = {}
     bare_word_positions: dict[str, Counter] = {}
     for name in names:
-        for u in name.get_samples():
-            part_proportions[u] += 1
+        # D45 (wyrd-aicu): get_samples yields (surface, position) — position is
+        # an explicit axis, never folded into a dash-form usage string.
+        for surface, position in name.get_samples():
+            part_proportions[(surface, position)] += 1
         for u in name.get_lone_samples():
             lone_proportions[u] += 1
         for position, u in name.get_bare_word_positions():
@@ -124,8 +136,17 @@ def proportions_from(names) -> dict[str, Any]:
             struct_proportions[structure] += 1
         _accumulate_attested_languages(name, attested_languages)
         _accumulate_tag_cooccurrence(name, tag_marginal, tag_cooccurrence)
+    # D45: ``usages`` is nested ``{surface: {position: count}}`` — the bare
+    # morpheme identity at top level, the explicit position axis beneath. The
+    # L4 writer flattens to ``(culture, surface, position, weight)`` rows.
+    usages_nested: dict[str, dict[str, int]] = {}
+    for (surface, position), count in part_proportions.items():
+        usages_nested.setdefault(surface, {})[position] = count
     return {
-        "usages": dict(part_proportions),
+        "usages": {
+            surface: dict(sorted(usages_nested[surface].items()))
+            for surface in sorted(usages_nested)
+        },
         "single_usages": dict(lone_proportions),
         "structures": encode_structs(struct_proportions),
         # Serialize tag-pair keys as "left|right" so they survive a JSON

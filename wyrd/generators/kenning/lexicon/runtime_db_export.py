@@ -45,7 +45,7 @@ _logger = logging.getLogger(__name__)
 #
 # v2 (2026-05-25): added empirical_priors singleton blob row so vector-
 # scoring works out of the box without a separate priors.json sidecar.
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"  # D45 (wyrd-aicu): bare-surface keys + explicit position column
 
 # Stamped into bundle_metadata so operators can correlate a deployed DB
 # back to its emitter source.
@@ -238,6 +238,19 @@ def write_runtime_db(
             conn.execute("PRAGMA synchronous = OFF")
             conn.execute("PRAGMA cache_size = 10000")
             _init_runtime_schema(conn)
+            # D45 (wyrd-aicu.1): de-dash every subject word's modern_usage ONCE
+            # so BOTH blob tables (meaning + the dormant morpheme) store the bare
+            # surface — the runtime keys meaning_db off word['modern_usage'], and
+            # the render (D39) owns positional dashes + case. Stored case is kept
+            # (initial-slot front-cap preserves internal name caps like McLeod).
+            # Proportions are already computed above (they tally bare via
+            # get_samples regardless), so this only affects the blob tables; the
+            # mutation is export-local (subjects is not reused after this).
+            for subject in subjects:
+                for word in subject.get("words") or []:
+                    mu = word.get("modern_usage")
+                    if mu:
+                        word["modern_usage"] = mu.replace("-", "")
             n_meanings = _write_meanings(conn, subjects)
             n_morphemes = _write_morphemes(conn, subjects)  # wyrd-rogd.10 (dormant)
             n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
@@ -397,11 +410,19 @@ def _init_runtime_schema(conn: sqlite3.Connection) -> None:
 
 
 def _write_meanings(conn: sqlite3.Connection, subjects: list[dict[str, Any]]) -> int:
-    """Insert per-usage meaning rows. Groups multiple subjects sharing a
-    ``modern_usage`` into one row whose ``data`` blob is a JSON list of
-    ``{meaning, modifier_tags, modifier_type, word}`` entries — matches
-    the per-word iteration ``load_meanings`` does today (each entry
-    becomes one Meaning at load time).
+    """Insert per-surface meaning rows. D45 (wyrd-aicu): a morpheme's stored
+    identity is its BARE surface — the up-to-4 dash-variant rows per surface
+    (``-ton`` / ``Ton-`` / ``-ton-`` / ``ton``) merge into ONE row keyed by the
+    bare surface, with their ``{meaning, modifier_tags, modifier_type, word}``
+    entries UNIONED. ``primary_language`` / ``stratum`` are re-picked over the
+    unioned entries (regroup-then-repick — divergent values across variants
+    resolve consistently).
+
+    Each word's ``modern_usage`` is already bare here — the caller
+    (``write_runtime_db``) de-dashes every subject word once before this so the
+    meaning + dormant morpheme blob tables agree. The grouping key is that bare
+    surface; the runtime keys ``meaning_db`` off it and the render (D39) owns
+    positional dashes + case.
     """
     grouped: dict[str, list[dict[str, Any]]] = {}
     for subject in subjects:
@@ -622,13 +643,19 @@ def _write_proportions(
             conn,
             "proportions_usage",
             culture,
-            ((k, int(v)) for k, v in (data.get("usages") or {}).items()),
+            _iter_usage_rows(data.get("usages") or {}),
         )
         counts["proportions_single_usage"] += _insert_cumulative(
             conn,
             "proportions_single_usage",
             culture,
-            ((k, int(v)) for k, v in (data.get("single_usages") or {}).items()),
+            # D45: lone words are bare by construction — position is always 'bare',
+            # and the key is the bare surface (fold any dash defensively so
+            # operator-JSON / legacy keys can't smuggle a dash into the table).
+            (
+                (k.replace("-", ""), "bare", int(v))
+                for k, v in (data.get("single_usages") or {}).items()
+            ),
         )
         counts["proportions_structure"] += _insert_structures(
             conn, culture, data.get("structures") or []
@@ -683,20 +710,27 @@ def _insert_attested_languages(
     culture: str,
     attested: dict[str, list[str]],
 ) -> int:
-    """wyrd-pfoo: write per-culture per-Meaning attestation rows. One
-    row per (culture, usage_key, primary_language) triple. The runtime
-    vector path's eligibility filter joins against these to admit only
-    Meanings whose primary language was actually attested in this
-    culture's corpus via that usage."""
-    # ``sorted(set(...))`` deduplicates + canonicalizes order. The
-    # producer (``proportions_from``) emits sorted-list values from a
-    # set, so dupes can't reach us through the normal pipeline — but
-    # operator-supplied --proportions-dir JSON can carry hand-edited
-    # duplicates, which would otherwise trip the PK INSERT.
+    """wyrd-pfoo: write per-culture per-Meaning attestation rows. One row per
+    (culture, usage_key, primary_language) triple. The runtime vector path's
+    eligibility filter joins against these to admit only Meanings whose primary
+    language was actually attested in this culture's corpus via that surface.
+
+    D45 (wyrd-aicu): keys are bare SURFACES. ``proportions_from`` already folds
+    to bare-lower; this also folds + unions defensively so operator-JSON dashed
+    keys collapse. This fixes the wyrd-c6o1.3 homograph leak AT THE SOURCE (the
+    exact-key narrowing leaked welsh ``ton`` into english through the un-folded
+    dash-variants). The c6o1.3 load-time fold-union in ``load_proportions`` is
+    now redundant on v3 bundles (the keys arrive bare) but is kept there as the
+    legacy v2-bundle compat path; the aicu fold-site sweep (wyrd-aicu.4) removes
+    it once v2 is gone."""
+    folded: dict[str, set[str]] = {}
+    for usage_key, langs in attested.items():
+        surface = usage_key.replace("-", "").lower()
+        folded.setdefault(surface, set()).update(langs)
+    # Sort the outer surface loop too so byte-stability is local to this write
+    # site rather than leaning on the caller's dict insertion order (seed-repro).
     rows = [
-        (culture, usage_key, lang)
-        for usage_key, langs in attested.items()
-        for lang in sorted(set(langs))
+        (culture, surface, lang) for surface in sorted(folded) for lang in sorted(folded[surface])
     ]
     if not rows:
         return 0
@@ -708,18 +742,38 @@ def _insert_attested_languages(
     return len(rows)
 
 
+def _iter_usage_rows(usages: dict[str, Any]) -> Iterable[tuple[str, str, int]]:
+    """D45 (wyrd-aicu): flatten the nested ``{surface: {position: weight}}``
+    part pool into ``(surface, position, weight)`` rows for the L4 writer. The
+    nested Counter from ``proportions_from`` already SUMS any (surface, position)
+    collisions, so no weight-merge / cumulative-rebuild is needed on a fresh
+    export — each row appears once. Also tolerates the legacy flat
+    ``{dashed: weight}`` operator-JSON shape (position decoded from the dashes)."""
+    from wyrd.generators.kenning.runtime.proportions import _location_from_form
+
+    for key, value in usages.items():
+        # Fold the key defensively on BOTH branches so operator-JSON / legacy
+        # dashed keys can't smuggle a dash into the table (D45).
+        bare = key.replace("-", "")
+        if isinstance(value, dict):
+            for position, weight in value.items():
+                yield bare, position, int(weight)
+        else:
+            yield bare, _location_from_form(key), int(value)
+
+
 def _insert_cumulative(
     conn: sqlite3.Connection,
     table: str,
     culture: str,
-    items: Iterable[tuple[str, int]],
+    items: Iterable[tuple[str, str, int]],
 ) -> int:
     """Insert weighted rows with monotonically-increasing cumulative column.
 
-    Skips zero-or-negative weights — they don't contribute to the sample
-    distribution, and including them would create duplicate cumulative
-    values that the ``PRIMARY KEY (culture, cumulative)`` constraint
-    rejects.
+    Each item is ``(usage_key, position, weight)`` (D45: position is an explicit
+    column). Skips zero-or-negative weights — they don't contribute to the
+    sample distribution, and including them would create duplicate cumulative
+    values that the ``PRIMARY KEY (culture, cumulative)`` constraint rejects.
 
     The table name is f-string-interpolated into the INSERT and the
     whitelist is the load-bearing safety check (SQLite parameter
@@ -732,14 +786,15 @@ def _insert_cumulative(
         )
     rows = []
     cumulative = 0
-    for key, weight in items:
+    for key, position, weight in items:
         if weight <= 0:
             continue
         cumulative += weight
-        rows.append((culture, key, weight, cumulative))
+        rows.append((culture, key, position, weight, cumulative))
     try:
         conn.executemany(
-            f"INSERT INTO {table} (culture, usage_key, weight, cumulative) VALUES (?, ?, ?, ?)",
+            f"INSERT INTO {table} (culture, usage_key, position, weight, cumulative) "
+            f"VALUES (?, ?, ?, ?, ?)",
             rows,
         )
     except sqlite3.IntegrityError as exc:
@@ -870,9 +925,10 @@ def select_dev_subset(
     * **Proportions tag_marginal / tag_cooccurrence**: kept in full
       (a few hundred rows max; the runtime cohesion path relies on full
       tag coverage even at low usage counts).
-    * **Meanings (subjects)**: drop any word whose ``modern_usage`` is
-      not in the kept-usage set across all 5 cultures. Drop any subject
-      that has no surviving words after the filter.
+    * **Meanings (subjects)**: drop any word whose bare surface
+      (``modern_usage`` dash-stripped + lowercased — D45) is not in the
+      kept-surface set across all 5 cultures. Drop any subject that has
+      no surviving words after the filter.
     * **Fantasy morphemes**: kept in full (only ~240 total in the live
       corpus).
     * **Canonical decompositions**: kept in full (modest count; the
@@ -883,32 +939,42 @@ def select_dev_subset(
     proportions_by_culture)`` in the same shape as the inputs, with
     each container trimmed per the rules above.
     """
-    keep_usage_keys: set[str] = set()
+    # D45 (wyrd-aicu): identity/comparison sets are bare-LOWER surfaces (the
+    # build folds attested_languages to bare-lower; usage/single keys keep
+    # stored case for the render). Fold everything to bare-lower when MATCHING
+    # so case-twins (`Ghyll`/`ghyll`) and the attested fold align.
+    keep_surfaces: set[str] = set()
     trimmed_proportions: dict[str, dict[str, Any]] = {}
     # Sort by culture key so the SQL INSERT order is the same across
     # platforms regardless of the source dict's iteration order.
     for culture in sorted(proportions_by_culture):
         data = proportions_by_culture[culture]
+        # D45: ``usages`` is nested {surface: {position: weight}} — rank surfaces
+        # by TOTAL weight across positions, keep the full nested entry.
         usages = data.get("usages") or {}
         single_usages = data.get("single_usages") or {}
-        kept_usages = dict(_top_n_by_weight(usages, top_n_per_culture))
+        usage_totals = {s: sum(by_pos.values()) for s, by_pos in usages.items()}
+        kept_usage_surfaces = [s for s, _w in _top_n_by_weight(usage_totals, top_n_per_culture)]
+        kept_usages = {s: usages[s] for s in kept_usage_surfaces}
         kept_single = dict(_top_n_by_weight(single_usages, top_n_per_culture))
-        keep_usage_keys.update(kept_usages.keys())
-        keep_usage_keys.update(kept_single.keys())
+        keep_surfaces.update(s.lower() for s in kept_usages)
+        keep_surfaces.update(s.lower() for s in kept_single)
         # Sort tag dicts so re-runs against the same data produce the
         # same insertion order — defensive against future ingesters that
         # might emit a different dict order than today's.
         # wyrd-pfoo: narrow attested_languages to THIS culture's kept
         # usage set so the per-Meaning attestation table stays aligned
         # with this culture's per-usage proportions tables in --dev
-        # mode. Using ``keep_usage_keys`` (the cumulative cross-culture
+        # mode. Using ``keep_surfaces`` (the cumulative cross-culture
         # set) would leak rows: a usage_key kept in culture A's top-N
         # but absent from culture B's would survive in B's attestation
         # output. Build a per-culture set instead.
-        culture_keep_keys = set(kept_usages) | set(kept_single)
+        culture_keep_surfaces = {s.lower() for s in kept_usages} | {s.lower() for s in kept_single}
         raw_attested = data.get("attested_languages") or {}
         trimmed_attested = {
-            k: sorted(raw_attested[k]) for k in sorted(raw_attested) if k in culture_keep_keys
+            k: sorted(raw_attested[k])
+            for k in sorted(raw_attested)
+            if k.lower().replace("-", "") in culture_keep_surfaces
         }
         # wyrd-rogd.13: narrow the per-word-position bare stats to THIS
         # culture's kept single_usages (the bare pool the runtime samples
@@ -940,10 +1006,12 @@ def select_dev_subset(
 
     trimmed_subjects: list[dict[str, Any]] = []
     for subject in subjects:
+        # D45: subject modern_usage is still dash-marked here (de-dashed later
+        # in _write_meanings); fold to bare-lower to match keep_surfaces.
         kept_words = [
             word
             for word in (subject.get("words") or [])
-            if word.get("modern_usage") in keep_usage_keys
+            if (word.get("modern_usage") or "").lower().replace("-", "") in keep_surfaces
         ]
         if not kept_words:
             continue
