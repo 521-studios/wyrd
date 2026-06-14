@@ -8,8 +8,10 @@
   // Manifest fetch + initial generator selection still happen here
   // (mounted at app start regardless of which workspace is active),
   // so this is the de-facto bootstrap surface for appState.manifest.
+  import { untrack } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
   import { rollCurrent } from '../lib/roll.js';
+  import { tagOptionsForCulture, pruneTagsToOptions } from '../lib/composerSelection.js';
   import { partitionFields } from '../lib/headlineFields.js';
   import { fieldEnabled, flagOn, visibleCultures } from '../lib/featureFlags.js';
   import Field from '../components/Field.svelte';
@@ -85,6 +87,27 @@
     if (t) parts.push(`${t} tag${t === 1 ? '' : 's'}`);
     return parts.join(' · ');
   }
+
+  // wyrd-ah53: prune selected tags the chosen culture can't satisfy when the
+  // culture changes — the dependent-select analogue of Field.svelte's era/stratum
+  // snap-to-valid, but for the composed (non-Field) tags array. Without this a
+  // 'monster' selected under welsh would survive a switch to english and roll
+  // 'no eligible name'. Keyed on culture; the params.tags read/write is untracked
+  // so a tags edit (composer Apply) can't re-trigger it. tagOptionsForCulture
+  // falls back to the FULL enum for an undefined/transient culture, so a prune
+  // never drops a valid selection mid-init.
+  $effect(() => {
+    const tagSchema = appState.selectedGenerator?.input_schema?.properties?.tags;
+    const culture = appState.currentParams?.culture; // the dependency
+    if (!tagSchema?.['x-options-by-culture']) return;
+    const valid = tagOptionsForCulture(tagSchema, culture);
+    untrack(() => {
+      const params = appState.currentParams;
+      if (!params?.tags?.length) return;
+      const pruned = pruneTagsToOptions(params.tags, valid);
+      if (pruned !== params.tags) params.tags = pruned;
+    });
+  });
 
   let showAdvanced = $state(false);
   let composerOpen = $state(false);

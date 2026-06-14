@@ -18,7 +18,13 @@
 
   import { appState } from '../lib/appState.svelte.js';
   import { flagOn } from '../lib/featureFlags.js';
-  import { selectSingle, toggleMulti, removeValue } from '../lib/composerSelection.js';
+  import {
+    selectSingle,
+    toggleMulti,
+    removeValue,
+    tagOptionsForCulture,
+    pruneTagsToOptions,
+  } from '../lib/composerSelection.js';
 
   let { open = $bindable(false) } = $props();
 
@@ -30,7 +36,12 @@
   const moodSchema = $derived(schemaProps.mood);
   const tagSchema = $derived(schemaProps.tags);
   const moodOptions = $derived(moodSchema?.['x-pick-from'] || []);
-  const tagOptions = $derived(tagSchema?.items?.enum || []);
+  // wyrd-ah53: the catalog offers only tags the CHOSEN CULTURE can satisfy
+  // (x-options-by-culture, the dependent-select mechanism — a --tag reserves one
+  // slot from a pool that HAS the tag, D47, so a culture-empty tag like 'monster'
+  // for english would only 'no eligible name'). See tagOptionsForCulture for the
+  // fallback policy (full enum, never another culture's subset).
+  const tagOptions = $derived(tagOptionsForCulture(tagSchema, appState.currentParams?.culture));
 
   // wyrd-0gou: the moods + tags halves are independently feature-flagged.
   // A section shows only when the schema declares it AND its flag is on
@@ -57,7 +68,10 @@
     // a defensive fallback to {} keeps the initial read safe.
     const params = appState.currentParams || {};
     workingMoods = [...(params.mood || [])];
-    workingTags = [...(params.tags || [])];
+    // wyrd-ah53: drop any seeded tag the current culture can't satisfy (e.g. a
+    // 'monster' carried over from a welsh selection into english), so reopening
+    // after a culture switch cleans up stale chips.
+    workingTags = pruneTagsToOptions([...(params.tags || [])], tagOptions);
 
     const onKey = (e) => {
       if (e.key === 'Escape') {
@@ -139,7 +153,8 @@
       return;
     }
     if (showMoods) params.mood = [...workingMoods];
-    if (showTags) params.tags = [...workingTags];
+    // wyrd-ah53: never write back a tag the current culture can't satisfy.
+    if (showTags) params.tags = [...pruneTagsToOptions(workingTags, tagOptions)];
     open = false;
   }
   function cancel() {

@@ -1949,6 +1949,11 @@ positive-tag filter is a hard gate; lemmas not carrying the
 requested tag are excluded BEFORE scoring. Exclude-tags
 (wyrd-yan) likewise stay as a hard exclusion filter.
 
+> **SUPERSEDED (D47, wyrd-c6o1.4):** the positive `--tag` filter is NO
+> LONGER a pool-wide pre-score gate. It reserves ONE slot per name; the
+> rest sample freely. See D47. (Culture hard-gate + exclude-tags here
+> still stand.)
+
 The vector model's semantic-axis weights provide the SOFT
 version of tag preference (this is the "lean toward death-
 themed names" knob); the existing `--tag` is the HARD version
@@ -3017,3 +3022,69 @@ predicate, live-bundle monotonicity, the end-to-end Silicon-rule property on
 era=me picks, the ungated-pair skeleton invariance, and the render check).
 Composes with D40/D45 (the gate keys on Meaning identity and attestation
 data, never on dash-shapes) and D33/D41 (render machinery untouched).
+
+## D47. `--tag` reserves ONE slot, it does NOT gate every slot (wyrd-c6o1.4 / wyrd-ah53, 2026-06-13).
+
+**Supersedes the "hard gate excludes before scoring / only names with the tag"
+half of D36.6.** (D36.6's culture hard-gate + exclude-tags stand; only the
+positive `--tag` semantics change.)
+
+### The model (the tagged-slot rule)
+
+When one or more `--tag`s are requested, generation:
+
+1. builds each structural slot's candidate pool (the normal per-slot membership);
+2. finds which slots have ≥1 candidate carrying a requested tag (OR across
+   multiple `--tag`s);
+3. randomly **reserves ONE** such slot and HARD-restricts it to tagged candidates;
+4. generates **every other slot normally** — the pool stays tag-agnostic, so the
+   rest of the name samples freely (the soft semantic-axis weight, D36.6's "lean
+   toward death-themed names" knob, still nudges the free slots).
+
+Net effect: a name leans toward *containing* a tagged morpheme, the rest is free —
+the historical proportions-path intent. This is the SAME single-reserved-slot
+overlay a thematic mood uses (wyrd-4rp8), but **hard** (a mood is soft: no capable
+slot → un-themed, no failure).
+
+### Why (the bug it fixes)
+
+wyrd-wv85 implemented D36.6 literally — `--tag` as a POOL-WIDE gate restricting
+EVERY slot to tagged lemmas. That collapsed variety into thematically-saturated
+names (operator-reported: `--tag animal` → every morpheme animal, ~40 distinct
+morphemes vs ~70 free). The one-slot model restores variety while still
+guaranteeing the theme is present.
+
+### Hard guarantee, cohesion-safe
+
+The reserved slot's restriction is applied at the POOL MEMBERSHIP level (filter
+the slot's candidates to the tagged subset BEFORE cohesion re-weighting), NOT
+post-hoc on the final weighted list — because cohesion can drive a tagged
+candidate's score to 0 and drop it, which a post-hoc filter would silently fall
+back around (un-tagged name). Restricting first means cohesion re-weights *within*
+the tagged subset, which stays non-empty. So every name is guaranteed ≥1 tagged
+morpheme even at cohesion=1.
+
+- If no slot in the chosen struct can carry the tag → struct retry (return `[]`).
+- If NO morpheme anywhere carries the tag (a typo, or a tag absent from the
+  culture) → retries exhaust → the caller's "no eligible name" (the typo signal).
+
+Implementation: `select_via_vector_scoring` + `_choose_tagged_slot` +
+`_slot_weighted_pool(require_tags=…)` in `runtime/vector_name_select.py`. Re-rolls
+mirror it: `kenning_regenerate` restricts the re-rolled slot to tagged only when
+it is the name's SOLE tag-carrier (else free).
+
+### Satisfiability is per-culture (the wyrd-ah53 corollary)
+
+A tag is offered for a culture **iff ≥1 morpheme in that culture's pool
+carries it** — a conservative SUPERSET of the strictly-placeable set (it ignores
+per-position frequency, so it never omits a usable tag but may over-offer one the
+runtime then degrades; see `_tags_options_by_culture`). The tag vocabulary is
+culture-agnostic (`available_tags` is the union over all cultures), so tags exist
+that no morpheme in a given culture carries — e.g. `monster` (a fantasy/pfsrd2 tag)
+has zero English morphemes.
+Offering such a tag for that culture is a UX bug: bare it raises "no eligible
+name", combined it silently no-ops. So the SPA's tag composer is **culture-scoped**
+via `x-options-by-culture` (`_tags_options_by_culture`, the same dependent-select
+mechanism as era / stratum); the `items.enum` stays the union for CLI/API
+validation. Pinned by `tests/test_kenning.py` (per-culture options) +
+`tests/test_kenning_vector_name_select.py` (the slot mechanics + cohesion-safety).

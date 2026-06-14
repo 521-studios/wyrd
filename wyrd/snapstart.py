@@ -50,6 +50,7 @@ def preload_runtime() -> None:
             _load_empirical_priors,
             _load_fantasy_morphemes,
             _load_joiners,
+            _tags_options_by_culture,
             available_tags,
         )
         from wyrd.generators.kenning.runtime import runtime_db
@@ -67,6 +68,9 @@ def preload_runtime() -> None:
         _load_empirical_priors()
         for culture in CULTURES:
             _load_culture(culture)  # proportions + NameGenerator per culture
+        # wyrd-ah53: the manifest's per-culture tag options iterate every culture's
+        # eligible pool — warm it so the first post-restore /api/manifest is cheap.
+        _tags_options_by_culture()
         runtime_db.bundle_version()  # cache the per-request version stamp
         _logger.info("snapstart preload complete: bundle + %d cultures warm", len(CULTURES))
     except Exception:

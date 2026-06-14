@@ -33,7 +33,11 @@
   // snap effects below only correct a value invalid for the current options.
 
   function isDependentSelect(prop) {
-    return Boolean(prop['x-options-by-culture']);
+    // wyrd-ah53: a dependent select is a single-string enum (era / stratum). An
+    // ARRAY property may ALSO carry x-options-by-culture (the tags composer, which
+    // ConfigureColumn routes away from <Field> entirely) — guard the type so this
+    // single-select branch never tries to render/snap an array field.
+    return prop.type !== 'array' && Boolean(prop['x-options-by-culture']);
   }
 
   // wyrd-rogd.2: option display label — '' is the 'no filter' sentinel; when
