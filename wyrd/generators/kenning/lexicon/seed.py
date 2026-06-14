@@ -66,8 +66,13 @@ def _link_subject_reflexes(
         modern_usage = word.get("modern_usage")
         if not modern_usage:
             continue
+        # Position is derived from the (dash-decorated) input modern_usage, but
+        # the surface is stored BARE — D45/wyrd-aicu.3: position lives in the
+        # reflex.position column, never dash-encoded in the identity. strip("-")
+        # (not replace) removes only the leading/trailing position markers, so a
+        # legitimate internal hyphen in the form survives.
         position = position_from_usage(modern_usage)
-        reflex_id = db.upsert_reflex(modern_usage, position)
+        reflex_id = db.upsert_reflex(modern_usage.strip("-"), position)
         counts["reflexes"] += 1
         for json_field, lang_code in LANGUAGE_FIELDS.items():
             forms = word.get(json_field) or []

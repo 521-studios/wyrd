@@ -943,6 +943,6 @@ def test_db_to_export_to_load_round_trip_preserves_stratum(tmp_path):
         subjects = export_meanings(db, include_rando=True)
 
     meaning_db, _ = load_meanings(subjects)
-    assert "Caer-" in meaning_db
-    m = meaning_db["Caer-"][0]
+    assert "Caer" in meaning_db  # wyrd-aicu.3: export reads the BARE reflex surface (was 'Caer-')
+    m = meaning_db["Caer"][0]
     assert m.stratum["celtic_mix"]["caer"] == "latin-loan"
