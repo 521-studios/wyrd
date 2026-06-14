@@ -113,7 +113,10 @@ def downgrade() -> None:
     # Best-effort: the dash is recoverable from the position column, but the
     # MERGE is irreversible (loser rows are gone). Re-decorate the surviving
     # surfaces so a downgraded DB at least matches the old dash convention;
-    # the pre-merge row identities cannot be restored.
+    # the pre-merge row identities cannot be restored. NB SQLite's upper() is
+    # ASCII-only, so a non-ASCII pre surface (e.g. 'æcer') keeps its lowercase
+    # initial ('æcer-' not 'Æcer-') — acceptable for this already-lossy
+    # best-effort downgrade (the upgrade path doesn't change case at all).
     op.execute(
         """
         UPDATE reflex SET surface_form = CASE position

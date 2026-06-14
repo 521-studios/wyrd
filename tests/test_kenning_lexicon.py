@@ -367,27 +367,45 @@ def test_migration_0017_merges_and_dedashes_reflexes(tmp_path: Path) -> None:
         r3 = conn.execute(
             "INSERT INTO reflex (surface_form, position) VALUES ('Ton-','pre') RETURNING id"
         ).fetchone()[0]
+        # A post form with a LEGITIMATE internal hyphen: TRIM strips the leading
+        # position marker but must PRESERVE the internal one ('-al-adha' → 'al-adha').
+        r4 = conn.execute(
+            "INSERT INTO reflex (surface_form, position) VALUES ('-al-adha','post') RETURNING id"
+        ).fetchone()[0]
         # Links: r1→e1; r2→e2; r2 ALSO →e1 (shared etymon → exercises INSERT OR
-        # IGNORE PK dedup when repointing onto the survivor); r3→e1.
+        # IGNORE PK dedup when repointing onto the survivor); r3→e1; r4→e1.
         conn.executemany(
             "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?,?)",
-            [(r1, e1), (r2, e2), (r2, e1), (r3, e1)],
+            [(r1, e1), (r2, e2), (r2, e1), (r3, e1), (r4, e1)],
         )
         conn.commit()
 
     upgrade(cfg, "head")  # runs 0017
 
     with sqlite3.connect(db_path) as conn:
-        # No dash survives anywhere.
+        # No LEADING or TRAILING dash survives (the position markers) — but an
+        # internal hyphen is preserved (TRIM, not REPLACE), so a blanket
+        # LIKE '%-%' would wrongly flag the legit 'al-adha'.
         assert (
-            conn.execute("SELECT COUNT(*) FROM reflex WHERE surface_form LIKE '%-%'").fetchone()[0]
+            conn.execute(
+                "SELECT COUNT(*) FROM reflex WHERE surface_form LIKE '-%' OR surface_form LIKE '%-'"
+            ).fetchone()[0]
             == 0
         )
-        # Exactly the survivor + the non-colliding pre-form remain.
+        # The internal hyphen survived; the leading position marker was stripped.
+        assert (
+            conn.execute("SELECT surface_form FROM reflex WHERE id=?", (r4,)).fetchone()[0]
+            == "al-adha"
+        )
+        # Exactly the survivor + the non-colliding pre-form + the internal-hyphen post.
         rows = conn.execute(
             "SELECT id, surface_form, position FROM reflex ORDER BY position, surface_form"
         ).fetchall()
-        assert [tuple(r) for r in rows] == [(r1, "ton", "post"), (r3, "Ton", "pre")]
+        assert [tuple(r) for r in rows] == [
+            (r4, "al-adha", "post"),
+            (r1, "ton", "post"),
+            (r3, "Ton", "pre"),
+        ]
         # Loser r2 is gone, with no orphan links.
         assert conn.execute("SELECT COUNT(*) FROM reflex WHERE id=?", (r2,)).fetchone()[0] == 0
         assert (
