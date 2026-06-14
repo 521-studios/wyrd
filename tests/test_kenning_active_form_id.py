@@ -764,3 +764,108 @@ def test_morpheme_id_for_guard_and_resolve_repeat_lockstep():
     # the repeat slot's identity now follows the synonym override, in lockstep.
     assert nn._morpheme_id_for(1, 0) == "old-scandinavian:haeth"
     assert nn._morpheme_id_for(0, 0) == "old-english:hyll"  # first slot unchanged
+
+
+def test_picked_etymon_tag_not_dropped_from_breakdown():
+    """wyrd-0wpd: when a morpheme's surface is shared by multiple etymons and the
+    generator picks one whose tag the SURFACE-ranked siblings lack (e.g. seed=21
+    'Dūnworth': picked modern-english:worth [topography, water] but '-worth' ranks
+    to old-english:worþ [architecture]), the breakdown's tags MUST still include
+    the picked etymon's tag — the union now includes the pick, so tags stay
+    consistent with the id-first grid / active_form_id instead of showing only a
+    different etymon's tags. Scans seeds for the polysemous-pick scenario so it's
+    not pinned to one seed's bundle behavior."""
+    from wyrd.generators.kenning import _load_culture, _rank_siblings
+    from wyrd.generators.kenning.runtime.proportions import _resolve_morpheme, _resolve_surface
+
+    name_gen, _ = _load_culture("english")
+    mdb = name_gen.meaning_db
+    k = Kenning()
+    exercised = False
+    for seed in range(80):
+        result = k.generate({"culture": "english", "tags": ["water"]}, seed=seed)
+        for word in result.morphemes_by_word:
+            for m in word:
+                afid = m.get("active_form_id")
+                if not afid:
+                    continue
+                picked = _resolve_morpheme(mdb, afid)
+                if picked is None:
+                    continue
+                surface_tags = {
+                    t for s in _rank_siblings(_resolve_surface(mdb, m["usage"])) for t in s.tags
+                }
+                picked_only = set(picked.tags) - surface_tags
+                if not picked_only:
+                    continue  # the pick adds no new tag here — not the bug scenario
+                exercised = True
+                assert picked_only <= set(m.get("tags") or []), (
+                    f"seed={seed} {m['usage']!r} active_form_id={afid}: picked-etymon "
+                    f"tags {sorted(picked_only)} dropped from breakdown {m.get('tags')}"
+                )
+    assert exercised, "no polysemous-pick morpheme found in 80 seeds to exercise wyrd-0wpd"
+
+
+def test_components_stays_surface_union_while_breakdown_augments():
+    """wyrd-0wpd regression guard: to_dict (morphemes_by_word — the SPA inspector)
+    augments a morpheme's tags with the picked etymon, but components (the realism
+    gate's distributional basis) must NOT. Augmenting components would drift the
+    tag_kl_divergence gate against the corpus reference. This pins the divergence
+    so a future 'make them consistent' change can't silently re-break realism: it
+    asserts (a) components tags are always a subset of the breakdown tags (never
+    augmented past them) AND (b) at least one morpheme is strictly augmented — which
+    only holds while components stays surface-union."""
+    k = Kenning()
+    saw_augmentation = False
+    for seed in range(80):
+        r = k.generate({"culture": "english", "tags": ["water"]}, seed=seed)
+        flat = [m for word in r.morphemes_by_word for m in word]
+        comps = r.components or []
+        if len(flat) != len(comps):
+            continue
+        for bw, comp in zip(flat, comps, strict=True):  # length-guarded above
+            if bw.get("usage") != comp.get("usage"):
+                continue
+            bw_tags = set(bw.get("tags") or [])
+            comp_tags = set(comp.get("tags") or [])
+            # components never reports MORE than the breakdown (it isn't augmented)
+            assert comp_tags <= bw_tags, (seed, bw.get("usage"), sorted(comp_tags), sorted(bw_tags))
+            if bw_tags > comp_tags:
+                saw_augmentation = True
+    assert saw_augmentation, (
+        "no morpheme where to_dict augmented beyond components — either the fix "
+        "regressed or components was (wrongly) augmented too"
+    )
+
+
+def test_union_with_picked_branches():
+    """wyrd-0wpd: unit-cover _union_with_picked's four shapes deterministically (no
+    bundle), exercising the grid_mid path the fix actually uses."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    sibling = Meaning(
+        "-worth", tags=["architecture"], meanings=[], sources=[], morpheme_id="old-english:worþ"
+    )
+    picked = Meaning(
+        "Worth",
+        tags=["water", "topography"],
+        meanings=[],
+        sources=[],
+        morpheme_id="modern-english:worth",
+    )
+    mdb = {"-worth": [sibling], "Worth": [picked]}
+    nn = NewName(struct=(), meaning_db=mdb, name=[])
+
+    def tagset(meanings):
+        return {t for m in meanings for t in m.tags}
+
+    # augment: grid_mid is a pick the surface ranker dropped → its tags join the union
+    augmented = nn._union_with_picked([sibling], "modern-english:worth")
+    assert tagset(augmented) == {"architecture", "water", "topography"}
+    # no-op: grid_mid is already a ranked sibling
+    assert nn._union_with_picked([sibling], "old-english:worþ") == [sibling]
+    # no-op: no grid_mid (legacy / rewind-from-json / render-only)
+    assert nn._union_with_picked([sibling], None) == [sibling]
+    # no-op: grid_mid resolves to nothing (unknown id)
+    assert nn._union_with_picked([sibling], "klingon:xyz") == [sibling]
