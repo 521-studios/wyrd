@@ -764,3 +764,43 @@ def test_morpheme_id_for_guard_and_resolve_repeat_lockstep():
     # the repeat slot's identity now follows the synonym override, in lockstep.
     assert nn._morpheme_id_for(1, 0) == "old-scandinavian:haeth"
     assert nn._morpheme_id_for(0, 0) == "old-english:hyll"  # first slot unchanged
+
+
+def test_picked_etymon_tag_not_dropped_from_breakdown():
+    """wyrd-0wpd: when a morpheme's surface is shared by multiple etymons and the
+    generator picks one whose tag the SURFACE-ranked siblings lack (e.g. seed=21
+    'Dūnworth': picked modern-english:worth [topography, water] but '-worth' ranks
+    to old-english:worþ [architecture]), the breakdown's tags MUST still include
+    the picked etymon's tag — the union now includes the pick, so tags stay
+    consistent with the id-first grid / active_form_id instead of showing only a
+    different etymon's tags. Scans seeds for the polysemous-pick scenario so it's
+    not pinned to one seed's bundle behavior."""
+    from wyrd.generators.kenning import _load_culture, _rank_siblings
+    from wyrd.generators.kenning.runtime.proportions import _resolve_morpheme, _resolve_surface
+
+    name_gen, _ = _load_culture("english")
+    mdb = name_gen.meaning_db
+    k = Kenning()
+    exercised = False
+    for seed in range(80):
+        result = k.generate({"culture": "english", "tags": ["water"]}, seed=seed)
+        for word in result.morphemes_by_word:
+            for m in word:
+                afid = m.get("active_form_id")
+                if not afid:
+                    continue
+                picked = _resolve_morpheme(mdb, afid)
+                if picked is None:
+                    continue
+                surface_tags = {
+                    t for s in _rank_siblings(_resolve_surface(mdb, m["usage"])) for t in s.tags
+                }
+                picked_only = set(picked.tags) - surface_tags
+                if not picked_only:
+                    continue  # the pick adds no new tag here — not the bug scenario
+                exercised = True
+                assert picked_only <= set(m.get("tags") or []), (
+                    f"seed={seed} {m['usage']!r} active_form_id={afid}: picked-etymon "
+                    f"tags {sorted(picked_only)} dropped from breakdown {m.get('tags')}"
+                )
+    assert exercised, "no polysemous-pick morpheme found in 80 seeds to exercise wyrd-0wpd"

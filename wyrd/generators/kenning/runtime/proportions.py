@@ -2399,6 +2399,23 @@ class NewName:
         self._set_active_form_id(morpheme, first, grid_mid)
         return morpheme
 
+    def _union_with_picked(self, ranked: list, grid_mid):
+        """wyrd-0wpd: the sibling set for the surface-UNION display fields (tags /
+        meanings / roots), augmented with the PICKED etymon when ``_rank_siblings``
+        dropped it. A surface shared by several etymons (e.g. a modern-english
+        homograph the ranker drops, wyrd-o53o) could otherwise show tags/meanings
+        for an etymon the generator did NOT pick — contradicting the id-first grid
+        + active_form_id, which DO name the pick (e.g. seed=21 'Dūnworth': picked
+        modern-english:worth [water], but '-worth' ranks to old-english:worþ
+        [architecture]). Adding the picked morpheme to the union keeps the rich
+        surface display while guaranteeing the pick's own tags/meanings are
+        present. No-op when the pick is already among the siblings (the common
+        case) or unknown (legacy / rewind-from-json / render-only)."""
+        if not grid_mid or any(getattr(m, "morpheme_id", None) == grid_mid for m in ranked):
+            return ranked
+        picked = _resolve_morpheme(self.meaning_db, grid_mid)
+        return [*ranked, picked] if picked is not None else ranked
+
     def _add_etymology_fields(self, morpheme: dict, ranked: list, first, grid_mid=None) -> None:
         """Add the etymology fields for the top-ranked sibling ``first``. Sources
         stay from ``first`` (the canonical etymon for this surface); tags union
@@ -2418,14 +2435,24 @@ class NewName:
             _split_senses_for_display,
         )
 
+        # wyrd-0wpd: tags + meanings (+ groups) union over the siblings PLUS the
+        # picked etymon, so a pick the surface ranker dropped still shows its own
+        # tags/meanings (matching the id-first grid + active_form_id). sources stay
+        # the surface-canonical `first`; renderings/citations stay the ranked
+        # siblings (cross-script/scholarly, where a modern pick adds only noise).
+        # NOTE: components() deliberately does NOT augment with the pick — it's the
+        # realism gate's distributional basis and must mirror the corpus
+        # reference's surface-union resolution (see the comment there). to_dict
+        # (this) is the SPA inspector's display, so it shows what was picked.
+        union = self._union_with_picked(ranked, grid_mid)
         morpheme["sources"] = {lang: list(forms) for lang, forms in first.sources.items()}
-        morpheme["tags"] = list(dict.fromkeys(t for m in ranked for t in m.tags))
-        primary, derivative = _split_senses_for_display(_all_senses(ranked))
+        morpheme["tags"] = list(dict.fromkeys(t for m in union for t in m.tags))
+        primary, derivative = _split_senses_for_display(_all_senses(union))
         morpheme["meanings"] = primary
         morpheme["derivative_meanings"] = derivative
         # wyrd-0y3k: per-sibling deduped sense groups (the flat `meanings` above
         # stays for back-compat / other consumers).
-        groups = _meaning_groups(ranked)
+        groups = _meaning_groups(union)
         if groups:
             morpheme["meaning_groups"] = groups
         # wyrd-cp2d r3 + wyrd-o53o: cross-script renderings (original_script /
@@ -2594,6 +2621,16 @@ class NewName:
                 if not ranked:
                     continue
                 first = ranked[0]
+                # wyrd-0wpd: components() stays the SURFACE-UNION (no picked-etymon
+                # augmentation, unlike to_dict/_add_etymology_fields). This field is
+                # the realism gate's DISTRIBUTIONAL basis — run_realism_samples
+                # measures sample tags from `components`, and the corpus reference
+                # (realism_reference.compute_corpus_reference) resolves corpus tags
+                # the SAME surface-union way (a corpus usage has no "pick"). The two
+                # MUST use one resolution or the tag_kl_divergence gate breaks. The
+                # picked-etymon fix lives in to_dict (morphemes_by_word), which is
+                # what the SPA inspector renders; components is the API summary /
+                # measurement basis.
                 primary, derivative = _split_senses_for_display(_all_senses(ranked))
                 renderings = _collect_renderings(ranked)
                 morpheme = {
