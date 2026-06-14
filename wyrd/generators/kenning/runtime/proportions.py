@@ -2411,7 +2411,11 @@ class NewName:
         surface display while guaranteeing the pick's own tags/meanings are
         present. No-op when the pick is already among the siblings (the common
         case) or unknown (legacy / rewind-from-json / render-only)."""
-        if not grid_mid or any(getattr(m, "morpheme_id", None) == grid_mid for m in ranked):
+        if (
+            not grid_mid
+            or not self.meaning_db  # render-only / direct calls with no db to resolve against
+            or any(getattr(m, "morpheme_id", None) == grid_mid for m in ranked)
+        ):
             return ranked
         picked = _resolve_morpheme(self.meaning_db, grid_mid)
         return [*ranked, picked] if picked is not None else ranked
