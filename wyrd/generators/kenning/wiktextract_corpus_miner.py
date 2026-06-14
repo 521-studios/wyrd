@@ -1173,8 +1173,8 @@ def _surface_form_for_position(canonical_form: str, position: str) -> str:
     Case mirrors the slot (unchanged from the old dash convention, minus the
     dashes): ``pre`` keeps the front-cap (it leads a name); ``inner`` / ``post``
     lowercase. So ``pre`` → ``Great``, ``inner`` / ``post`` → ``great`` — the
-    same surfaces the 0017 migration's ``REPLACE(surface_form, '-', '')``
-    produces for the pre-existing dashed rows.
+    same surfaces the 0017 migration's ``TRIM(surface_form, '-')`` produces for
+    the pre-existing dashed rows.
     """
     form = canonical_form.lower()
     if position == "pre":
