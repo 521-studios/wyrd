@@ -331,9 +331,85 @@ def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
         row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
     assert row is not None, "alembic_version row missing"
     # Head revision id per the wyrd-67fv layered migrations.
-    assert row[0] == "0016_etymon_citation_attested_form", (
-        f"expected head '0016_etymon_citation_attested_form', got {row[0]!r}"
+    assert row[0] == "0017_dedash_reflex_surface_form", (
+        f"expected head '0017_dedash_reflex_surface_form', got {row[0]!r}"
     )
+
+
+def test_migration_0017_merges_and_dedashes_reflexes(tmp_path: Path) -> None:
+    """wyrd-aicu.3 / D45: migration 0017 strips the position-encoding dash from
+    reflex.surface_form, MERGING the (bare, position) collisions it creates and
+    repointing reflex_etymon FKs onto the surviving (lowest-id) reflex. Stop at
+    0016, seed colliding dashed reflexes, upgrade to head, assert the merge."""
+    from alembic.command import upgrade
+
+    from wyrd.generators.kenning.lexicon.sql._config import alembic_config
+
+    db_path = tmp_path / "lexicon.db"
+    cfg = alembic_config(db_path)
+    upgrade(cfg, "0016_etymon_citation_attested_form")  # stop BEFORE 0017
+
+    with sqlite3.connect(db_path) as conn:
+        e1 = conn.execute(
+            "INSERT INTO etymon (canonical_form, language) VALUES ('tun','old-english') RETURNING id"
+        ).fetchone()[0]
+        e2 = conn.execute(
+            "INSERT INTO etymon (canonical_form, language) VALUES ('dun','old-english') RETURNING id"
+        ).fetchone()[0]
+        # Two post-variants that both de-dash to ('ton', 'post') → must merge.
+        r1 = conn.execute(
+            "INSERT INTO reflex (surface_form, position) VALUES ('-ton','post') RETURNING id"
+        ).fetchone()[0]
+        r2 = conn.execute(
+            "INSERT INTO reflex (surface_form, position) VALUES ('ton','post') RETURNING id"
+        ).fetchone()[0]
+        # A pre-variant that de-dashes to ('Ton','pre') — different position, no collision.
+        r3 = conn.execute(
+            "INSERT INTO reflex (surface_form, position) VALUES ('Ton-','pre') RETURNING id"
+        ).fetchone()[0]
+        # Links: r1→e1; r2→e2; r2 ALSO →e1 (shared etymon → exercises INSERT OR
+        # IGNORE PK dedup when repointing onto the survivor); r3→e1.
+        conn.executemany(
+            "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?,?)",
+            [(r1, e1), (r2, e2), (r2, e1), (r3, e1)],
+        )
+        conn.commit()
+
+    upgrade(cfg, "head")  # runs 0017
+
+    with sqlite3.connect(db_path) as conn:
+        # No dash survives anywhere.
+        assert (
+            conn.execute("SELECT COUNT(*) FROM reflex WHERE surface_form LIKE '%-%'").fetchone()[0]
+            == 0
+        )
+        # Exactly the survivor + the non-colliding pre-form remain.
+        rows = conn.execute(
+            "SELECT id, surface_form, position FROM reflex ORDER BY position, surface_form"
+        ).fetchall()
+        assert [tuple(r) for r in rows] == [(r1, "ton", "post"), (r3, "Ton", "pre")]
+        # Loser r2 is gone, with no orphan links.
+        assert conn.execute("SELECT COUNT(*) FROM reflex WHERE id=?", (r2,)).fetchone()[0] == 0
+        assert (
+            conn.execute("SELECT COUNT(*) FROM reflex_etymon WHERE reflex_id=?", (r2,)).fetchone()[
+                0
+            ]
+            == 0
+        )
+        # Survivor r1 now owns the UNION of both reflexes' etymons (e1 once,
+        # despite r1+r2 both linking it — PK dedup — plus e2 from r2).
+        surv = {
+            row[0]
+            for row in conn.execute("SELECT etymon_id FROM reflex_etymon WHERE reflex_id=?", (r1,))
+        }
+        assert surv == {e1, e2}
+        # r3's link is untouched.
+        assert (
+            conn.execute("SELECT COUNT(*) FROM reflex_etymon WHERE reflex_id=?", (r3,)).fetchone()[
+                0
+            ]
+            == 1
+        )
 
 
 def test_migration_0013_backfills_element_confidence_from_parent(
@@ -1243,7 +1319,7 @@ def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
 
     with sqlite3.connect(fresh_db) as conn:
         version = conn.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert version[0] == "0016_etymon_citation_attested_form"
+    assert version[0] == "0017_dedash_reflex_surface_form"
 
 
 def test_etymon_citation_attested_form_column(fresh_db: Path) -> None:
@@ -1419,7 +1495,9 @@ def test_seed_word_without_modern_usage_seeds_etymon_but_no_reflex(fresh_db: Pat
             row["surface_form"]
             for row in db.conn.execute("SELECT surface_form FROM reflex").fetchall()
         ]
-        assert surfaces == ["-don"]
+        # wyrd-aicu.3: the seed stores the BARE surface; the dashed input
+        # modern_usage only feeds position_from_usage (here: 'post').
+        assert surfaces == ["don"]
 
 
 def test_seed_from_meanings_accepts_dict_shape_bundle(fresh_db: Path) -> None:
@@ -9733,7 +9811,7 @@ def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
     # even though the etymon carried no IPA.
     assert subj["words"] == [
         {
-            "modern_usage": "-ock",
+            "modern_usage": "ock",
             "morpheme_id": "old-english:aecern",  # wyrd-rogd.10: owning morpheme (content id)
             "old_english": ["aecern"],
             "old_english_pronunciation": [{"form": "aecern", "ipa": "/ɑɛkɛrn/", "dialect": None}],
@@ -9742,7 +9820,7 @@ def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
             # stage — surface '-ock' ≠ canonical 'aecern', so without it the SPA
             # grid would show 'aecern' but never match the '-ock' the user sees.
             "era_reflexes": {
-                "modern-english": [{"form": "-ock", "source": "self"}],
+                "modern-english": [{"form": "ock", "source": "self"}],
                 "old-english": [{"form": "aecern", "source": "self"}],
             },
         }
@@ -10386,7 +10464,7 @@ def test_export_meanings_rolls_inflected_variants_into_lemma(fresh_db: Path) -> 
 
     assert len(subjects) == 1
     word = subjects[0]["words"][0]
-    assert word["modern_usage"] == "-cot"
+    assert word["modern_usage"] == "cot"
     # Lemma form leads; variants follow in the same language array.
     assert word["old_english"][0] == "cot"
     assert set(word["old_english"]) == {"cot", "cotan", "cotes"}
@@ -11576,7 +11654,7 @@ def test_export_meanings_drops_concatenation_glosses_in_subjects(
 
     # The mere subject's meaning list should have 'lake' and 'pond' but not
     # 'lake, pond'.
-    found = next(s for s in subjects if any(w["modern_usage"] == "-mere" for w in s["words"]))
+    found = next(s for s in subjects if any(w["modern_usage"] == "mere" for w in s["words"]))
     assert "lake" in found["meaning"]
     assert "pond" in found["meaning"]
     assert "lake, pond" not in found["meaning"]
@@ -12045,7 +12123,7 @@ def test_export_meanings_includes_orphan_reflex_subjects(fresh_db: Path) -> None
         for w in s["words"]
         if not any(k != "modern_usage" for k in w)
     ]
-    assert "Adam-" in orphan_words
+    assert "Adam" in orphan_words
 
 
 def test_export_meanings_orphan_reflexes_skipped_when_include_rando_false(
@@ -12141,7 +12219,7 @@ def test_export_meanings_reflex_linked_to_inflection_only_emits_that_inflection(
     # groups by (modifier_type, glosses, tags); here the seed gave glosses
     # only to cotan, so cot/cotes have no glosses → they form a separate
     # subject (no overlap). Find the subject with the -cotan reflex.
-    word = next(w for s in subjects for w in s["words"] if w["modern_usage"] == "-cotan")
+    word = next(w for s in subjects for w in s["words"] if w["modern_usage"] == "cotan")
     # Reflex linked only to cotan; descendants of cotan = {cotan} (no children
     # below). Lemma 'cot' and sibling 'cotes' must NOT appear here.
     assert word["old_english"] == ["cotan"]
@@ -12172,10 +12250,10 @@ def test_export_meanings_narrows_word_language_to_linked_etymons(
 
     assert len(subjects) == 1
     by_usage = {w["modern_usage"]: w for w in subjects[0]["words"]}
-    assert "celtic_mix" in by_usage["Bre-"]
-    assert "old_english" not in by_usage["Bre-"]
-    assert "old_english" in by_usage["-don"]
-    assert "celtic_mix" not in by_usage["-don"]
+    assert "celtic_mix" in by_usage["Bre"]
+    assert "old_english" not in by_usage["Bre"]
+    assert "old_english" in by_usage["don"]
+    assert "celtic_mix" not in by_usage["don"]
 
 
 def test_export_meanings_round_trips_through_load_meanings(fresh_db: Path) -> None:
@@ -12197,9 +12275,9 @@ def test_export_meanings_round_trips_through_load_meanings(fresh_db: Path) -> No
         subjects = export_meanings(db, include_rando=True)
 
     meaning_db, tag_db = load_meanings(subjects)
-    assert "Bre-" in meaning_db
-    assert "-don" in meaning_db
-    assert any("topography" in m.tags for m in meaning_db["Bre-"])
+    assert "Bre" in meaning_db
+    assert "don" in meaning_db
+    assert any("topography" in m.tags for m in meaning_db["Bre"])
     assert "topography" in tag_db
 
 
@@ -12235,7 +12313,7 @@ def test_export_meanings_cli_writes_file(fresh_db: Path, tmp_path: Path) -> None
     subjects = payload["subjects"]
     assert len(subjects) == 1
     assert subjects[0]["meaning"] == ["Hill"]
-    assert subjects[0]["words"][0]["modern_usage"] == "-hill"
+    assert subjects[0]["words"][0]["modern_usage"] == "hill"
 
 
 def test_export_meanings_cli_emits_to_stdout(fresh_db: Path) -> None:

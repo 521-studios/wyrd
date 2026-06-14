@@ -516,12 +516,13 @@ def test_classify_positions_skips_too_short() -> None:
     assert counts == {"bare": 0, "pre": 0, "post": 0, "inner": 0}
 
 
-def test_surface_form_for_position_emits_dash_conventions() -> None:
-    """Pre = title-case + trailing dash; inner = lowercase wrapped;
-    post = lowercase + leading dash."""
-    assert _surface_form_for_position("great", "pre") == "Great-"
-    assert _surface_form_for_position("great", "inner") == "-great-"
-    assert _surface_form_for_position("great", "post") == "-great"
+def test_surface_form_for_position_emits_bare_surface() -> None:
+    """D45/wyrd-aicu.3: the stored surface is BARE — no position-encoding dash
+    (position lives in reflex.position). Case still mirrors the slot: pre keeps
+    the front-cap, inner/post lowercase."""
+    assert _surface_form_for_position("great", "pre") == "Great"
+    assert _surface_form_for_position("great", "inner") == "great"
+    assert _surface_form_for_position("great", "post") == "great"
 
 
 def test_derive_positions_classifies_standalone_word_as_bare(
@@ -581,9 +582,10 @@ def test_derive_positions_classifies_standalone_word_as_bare(
                 (north_id,),
             )
         ]
-        # bare standalone-word reflex: DASH-LESS surface, stored under 'post'
+        # bare standalone-word reflex stored under 'post'; interior under 'inner'
+        # (D45/aicu.3: surfaces are bare — position is the reflex.position column).
         assert ("north", "post") in north_reflexes
-        assert ("-north-", "inner") in north_reflexes
+        assert ("north", "inner") in north_reflexes
         assert not any(p == "pre" for _, p in north_reflexes)
 
 
@@ -626,10 +628,12 @@ def test_derive_positions_picks_up_name_tagged_etymons(tmp_path: Path, fresh_db:
                 (bid,),
             )
         }
-    assert ("Buna-", "pre") in reflexes  # word-initial cap
-    assert ("-buna", "post") in reflexes  # lowercased
-    assert ("-buna-", "inner") in reflexes  # lowercased
-    assert ("buna", "post") in reflexes  # bare standalone word (dash-less surface)
+    assert ("Buna", "pre") in reflexes  # word-initial cap (was 'Buna-')
+    assert ("buna", "inner") in reflexes  # interior (was '-buna-')
+    # D45/aicu.3: the post-suffix ('-buna') and the bare standalone ('buna') both
+    # de-dash to ('buna', 'post') and MERGE — the dash that distinguished them is
+    # no longer part of the stored identity (position is the reflex.position axis).
+    assert ("buna", "post") in reflexes
 
 
 def test_derive_positions_great_is_bare_and_pre_never_a_suffix(
@@ -670,9 +674,12 @@ def test_derive_positions_great_is_bare_and_pre_never_a_suffix(
                 (gid,),
             )
         }
-    assert ("Great-", "pre") in reflexes  # prefix (in 'Greater')
-    assert ("great", "post") in reflexes  # standalone qualifier word (bare)
-    assert ("-great", "post") not in reflexes  # never a real suffix
+    # prefix (in 'Greater') + standalone qualifier word (bare→post). D45/aicu.3:
+    # a real post-suffix would NOW also store as ('great','post') — the dash no
+    # longer distinguishes a suffix from a bare standalone. 'Great' has no suffix
+    # OCCURRENCE in this corpus, so the only post entry is the standalone; pin
+    # the set is EXACTLY the prefix + standalone (no spurious suffix reflex).
+    assert reflexes == {("Great", "pre"), ("great", "post")}
 
 
 def test_derive_positions_culture_scope_filters_languages(tmp_path: Path, fresh_db: Path) -> None:

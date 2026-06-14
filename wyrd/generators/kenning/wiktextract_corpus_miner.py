@@ -1166,20 +1166,19 @@ def _classify_positions(canonical_form: str, words: list[str]) -> dict[str, int]
 
 
 def _surface_form_for_position(canonical_form: str, position: str) -> str:
-    """Build the dashed bundle ``modern_usage`` surface for a (form, position).
+    """The BARE surface to store in ``reflex.surface_form`` for a (form,
+    position). D45 / wyrd-aicu.3: the stored identity is the bare surface;
+    position lives in the ``reflex.position`` column, never dash-encoded.
 
-    Convention from the existing bundle: pre = title-case + trailing
-    dash; inner = lowercase wrapped in dashes; post = lowercase with
-    leading dash. Matches the dash conventions ``_position_from_usage``
-    parses on the way in.
+    Case mirrors the slot (unchanged from the old dash convention, minus the
+    dashes): ``pre`` keeps the front-cap (it leads a name); ``inner`` / ``post``
+    lowercase. So ``pre`` → ``Great``, ``inner`` / ``post`` → ``great`` — the
+    same surfaces the 0017 migration's ``REPLACE(surface_form, '-', '')``
+    produces for the pre-existing dashed rows.
     """
     form = canonical_form.lower()
     if position == "pre":
-        return f"{form[:1].upper()}{form[1:]}-"
-    if position == "inner":
-        return f"-{form}-"
-    if position == "post":
-        return f"-{form}"
+        return f"{form[:1].upper()}{form[1:]}"
     return form
 
 
