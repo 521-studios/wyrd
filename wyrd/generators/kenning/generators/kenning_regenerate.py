@@ -16,6 +16,10 @@ from wyrd.generators.kenning import (
     _resolve_era_render_language,
     _resolve_stratum_param,
 )
+from wyrd.generators.kenning.runtime.word import (
+    WORD_POSITION_KEY_PREFIX,
+    word_position_for,
+)
 from wyrd.registry import GenerationResult, Generator
 from wyrd.seed import rng_for
 
@@ -209,6 +213,16 @@ class KenningRegenerateMorpheme(Generator):
         position = _derived_position(len(usages[wi]), mi)
         qualifier = _slot_qualifier(old_meaning, usages[wi][mi])
         bucket_key = _bucket_key(position, qualifier, single=len(usages[wi]) == 1)
+        # wyrd-c6o1.2 / wyrd-rogd.13 (D43): a BARE word in a multi-word name draws
+        # from the per-WORD-position bare pool — its bucket key carries wp-pre /
+        # wp-inner / wp-post derived from the word's index. Initial generation adds
+        # this in _flatten_struct_slots; the re-roll must too, or a re-rolled bare
+        # word samples the un-positioned pool and can land at a word-position it's
+        # never attested in ('Parva Wigston' shapes). Single-word names → None → no
+        # extension (no word-sequence evidence), matching the build-side tally.
+        word_position = word_position_for(wi, len(usages))
+        if position == "bare" and word_position is not None:
+            bucket_key = (*bucket_key, f"{WORD_POSITION_KEY_PREFIX}{word_position}")
 
         request, priors, pack_meaning_dbs = _resolve_vector_inputs(
             culture=knobs["culture"],

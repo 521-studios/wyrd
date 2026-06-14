@@ -425,3 +425,61 @@ def test_registered_and_dispatchable_via_api(english_roll):
         )
         assert bad.status_code == 400
         assert bad.get_json()["error"] == "bad_params"
+
+
+def test_reroll_bare_word_carries_word_position_bucket(monkeypatch):
+    """wyrd-c6o1.2 (D43 / wyrd-rogd.13): re-rolling a BARE word in a multi-word name
+    must draw from the per-WORD-position bare pool — its slot bucket key is extended
+    with wp-pre / wp-inner / wp-post from the word's index, mirroring
+    _flatten_struct_slots. Without it a re-rolled bare word samples the un-positioned
+    pool and can land at a word-position it's never attested in ('Parva Wigston'
+    shapes). A NON-bare slot (multi-morpheme word) carries no wp- extension."""
+    from wyrd.generators.kenning.runtime.word import WORD_POSITION_KEY_PREFIX, word_position_for
+
+    captured: list = []
+    real = vector_name_select._slot_weighted_pool
+
+    def capture(*args, **kwargs):
+        captured.append(kwargs.get("slot_bucket_key"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(vector_name_select, "_slot_weighted_pool", capture)
+
+    k = Kenning()
+    bare_target = nonbare_target = None
+    for s in range(60):
+        mbw = k.generate({"culture": "english"}, seed=s).morphemes_by_word
+        if len(mbw) < 2:
+            continue
+        if bare_target is None:
+            wi = next((i for i, w in enumerate(mbw) if len(w) == 1), None)
+            if wi is not None:
+                bare_target = (mbw, wi)
+        if nonbare_target is None:
+            wi = next((i for i, w in enumerate(mbw) if len(w) > 1), None)
+            if wi is not None:
+                nonbare_target = (mbw, wi, len(mbw[wi]) - 1)  # the word's POST slot
+        if bare_target and nonbare_target:
+            break
+    assert bare_target, "no multi-word roll with a bare word found in 60 seeds"
+
+    # BARE word → wp-extended bucket key matching the word's position.
+    words, wi = bare_target
+    expected = word_position_for(wi, len(words))
+    assert expected is not None
+    captured.clear()
+    _regen(words, wi, 0, seed=7, culture="english")
+    keyed = next((bk for bk in captured if bk is not None), None)
+    assert keyed is not None and keyed[0] == "bare", keyed
+    assert keyed[-1] == f"{WORD_POSITION_KEY_PREFIX}{expected}", (keyed, expected)
+
+    # NON-bare slot (multi-morpheme word) → NO wp- extension.
+    if nonbare_target:
+        nb_words, nb_wi, nb_mi = nonbare_target
+        captured.clear()
+        _regen(nb_words, nb_wi, nb_mi, seed=7, culture="english")
+        nb_keyed = next((bk for bk in captured if bk is not None), None)
+        if nb_keyed is not None:
+            assert not any(str(part).startswith(WORD_POSITION_KEY_PREFIX) for part in nb_keyed), (
+                nb_keyed
+            )
