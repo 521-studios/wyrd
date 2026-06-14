@@ -412,6 +412,72 @@ def test_migration_0017_merges_and_dedashes_reflexes(tmp_path: Path) -> None:
         )
 
 
+def test_migration_0017_downgrade_redashes_from_position(tmp_path: Path) -> None:
+    """wyrd-aicu.3: the 0017 downgrade re-decorates bare surfaces from the
+    position column (pre=Title-, inner=-x-, post=-x). It CANNOT un-merge (the
+    merge is destructive), but it must reproduce the old dash convention so a
+    downgraded DB is shaped like the pre-0017 schema."""
+    from alembic.command import downgrade, upgrade
+
+    from wyrd.generators.kenning.lexicon.sql._config import alembic_config
+
+    db_path = tmp_path / "lexicon.db"
+    cfg = alembic_config(db_path)
+    upgrade(cfg, "head")  # at 0017: surfaces stored bare
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO reflex (surface_form, position) VALUES (?, ?)",
+            [("ton", "post"), ("ham", "inner"), ("Great", "pre"), ("aladha", "post")],
+        )
+        conn.commit()
+
+    downgrade(cfg, "0016_etymon_citation_attested_form")
+
+    with sqlite3.connect(db_path) as conn:
+        surfaces = {
+            (row[0], row[1]) for row in conn.execute("SELECT position, surface_form FROM reflex")
+        }
+    # pre re-caps + trailing dash; inner wrapped; post leading dash. 'aladha'
+    # (no internal hyphen to preserve here) round-trips to '-aladha'.
+    assert surfaces == {
+        ("post", "-ton"),
+        ("inner", "-ham-"),
+        ("pre", "Great-"),
+        ("post", "-aladha"),
+    }
+
+
+def test_seed_folds_position_variants_into_one_bare_reflex(fresh_db: Path) -> None:
+    """wyrd-aicu.3: the bare-surface writer + upsert ON CONFLICT(surface_form,
+    position) FOLD two inputs that strip to the same (bare, position) onto ONE
+    reflex, unioning their etymon links — the going-forward equivalent of the
+    0017 migration's merge (so a fresh mine can't reintroduce the dash-variants
+    the migration just collapsed)."""
+    data = [
+        {
+            "meaning": ["Estate"],
+            "modifier_tags": [],
+            "modifier_type": "Topographical",
+            "words": [
+                {"modern_usage": "-ton", "old_english": ["tun"]},  # post suffix → 'ton'/post
+                {"modern_usage": "ton", "celtic_mix": ["ton"]},  # dashless standalone → 'ton'/post
+            ],
+        },
+    ]
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="test-src", title="Test")
+        db.commit()
+        seed_from_meanings(db, data, "test-src")
+        # Both inputs strip to ('ton', 'post') → exactly ONE reflex row.
+        reflexes = [
+            (r["surface_form"], r["position"])
+            for r in db.conn.execute("SELECT surface_form, position FROM reflex").fetchall()
+        ]
+        assert reflexes == [("ton", "post")]
+        # ...owning BOTH etymons' links (OE tun + celtic ton).
+        assert db.conn.execute("SELECT COUNT(*) FROM reflex_etymon").fetchone()[0] == 2
+
+
 def test_migration_0013_backfills_element_confidence_from_parent(
     tmp_path: Path,
 ) -> None:
