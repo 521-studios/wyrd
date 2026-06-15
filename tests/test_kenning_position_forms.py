@@ -236,14 +236,17 @@ def test_is_given_name():
     assert not Meaning("-ton", ["settlement"], [], {}).is_given_name()
 
 
-def test_load_proportions_excludes_single_morpheme_from_generation():
-    """wyrd-g1hj: a single-morpheme structure (whole name = one morpheme) is
-    excluded from the loaded generator's ``structs``, so no generation path can
-    produce it. Multi-morpheme structures survive.
-    (The bundle/proportions still RECORD it — this is a load-time generation
-    filter, not a mining change.)"""
+def test_load_proportions_excludes_single_morpheme_from_generation(monkeypatch):
+    """wyrd-c6o1.5 (migrated from wyrd-g1hj): a lone-dictionary-word structure that
+    the allowlist disables is excluded from the loaded generator's ``structs``, so
+    no generation path can produce it; a multi-morpheme structure survives. The
+    bundle/proportions still RECORD it — this is a load-time generation filter.
+    Controls the allowlist directly (not the shipped structures.yaml) so the
+    assertion tests the MECHANISM, not the shipped file's current contents."""
+    from wyrd.generators.kenning.runtime import structure_allowlist
     from wyrd.generators.kenning.runtime.proportions import load_proportions
 
+    monkeypatch.setattr(structure_allowlist, "_load_bundled_cached", lambda: {"(bare)": False})
     meaning_db = {
         "Stoke-": [Meaning("Stoke-", [], [], {})],
         "-ton": [Meaning("-ton", [], [], {})],

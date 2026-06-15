@@ -63,6 +63,8 @@ def test_load_allowlist_rejects_bad_shapes():
         load_structure_allowlist_from_text("- not\n- a mapping\n")
     with pytest.raises(StructureAllowlistError, match="must be a bool"):
         load_structure_allowlist_from_text('"(bare)": {enabled: nope}\n')
+    with pytest.raises(StructureAllowlistError, match="label must be a string"):
+        load_structure_allowlist_from_text("123: {enabled: false}\n")
     with pytest.raises(StructureAllowlistError, match="duplicate"):
         load_structure_allowlist_from_text(
             '"(bare)": {enabled: false}\n"(bare)": {enabled: true}\n'
@@ -140,3 +142,84 @@ def test_dump_structures_cli_emits_valid_allowlist():
     assert parsed["(pre+post)"]["enabled"] is True
     # round-trips through the allowlist parser
     assert load_structure_allowlist_from_text(result.output)["(bare)"] is False
+
+
+# ---- drift guards + remaining branches ------------------------------------
+
+
+def test_shipped_allowlist_labels_are_all_producible():
+    """Drift guard (the headline coverage gap): every label in the shipped
+    structures.yaml must correspond to a REAL producible struct_key. A corrupted
+    or renamed disable-label would silently become an ABSENT label → default
+    enabled → a structure the operator meant to forbid silently re-enables, with
+    no other failing test. This catches that (and a rebuild that retires a
+    structure leaving a stale entry)."""
+    from wyrd.generators.kenning import CULTURES
+    from wyrd.generators.kenning.runtime.proportions import (
+        is_structurally_grammatical,
+        word_to_key,
+    )
+    from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import proportions_dict_for_culture
+
+    conn = get_runtime_db()
+    producible = set()
+    for culture in CULTURES:
+        for element in proportions_dict_for_culture(conn, culture)["structures"]:
+            words = tuple(word_to_key(w) for w in element["words"])
+            if is_structurally_grammatical(words):
+                producible.add(struct_key_to_label(words))
+    orphans = set(sa._load_bundled_cached()) - producible
+    assert not orphans, f"structures.yaml labels with no producible struct_key: {sorted(orphans)}"
+
+
+def test_load_allowlist_rejects_non_mapping_entry():
+    with pytest.raises(StructureAllowlistError, match="entry must be a mapping"):
+        load_structure_allowlist_from_text('"(bare)": 5\n')
+
+
+def test_missing_file_degrades_to_empty(monkeypatch):
+    """A bundle without structures.yaml → empty allowlist (no filtering), not a
+    crash."""
+
+    class _Missing:
+        def joinpath(self, *_a):
+            return self
+
+        def read_text(self, **_k):
+            raise FileNotFoundError
+
+    monkeypatch.setattr(sa.resources, "files", lambda _pkg: _Missing())
+    sa._load_bundled_cached.cache_clear()
+    try:
+        assert sa._load_bundled_cached() == {}
+    finally:
+        sa._load_bundled_cached.cache_clear()  # don't leak the stub to other tests
+
+
+def test_name_generator_raises_when_allowlist_disables_everything(monkeypatch):
+    """The empty-after-filter guard: if the allowlist disables every structure a
+    culture has, NameGenerator raises an operator-attributable error naming
+    structures.yaml — not a later weighted_choice([]) crash."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NameGenerator
+
+    monkeypatch.setattr(sa, "_load_bundled_cached", lambda: {"(pre+post)": False})
+    with pytest.raises(ValueError, match="structures.yaml"):
+        NameGenerator(
+            meaning_db={"-a": [Meaning("-a", [], [], {})]},
+            meaning_gen=None,
+            structs={((("pre",), ("post",)),): 1},
+        )
+
+
+def test_dump_structures_cli_writes_output_file(tmp_path):
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.dump_structures import dump_structures
+
+    out = tmp_path / "structures.yaml"
+    result = CliRunner().invoke(dump_structures, ["--output", str(out)])
+    assert result.exit_code == 0, result.output
+    written = out.read_text(encoding="utf-8")
+    assert load_structure_allowlist_from_text(written)["(bare)"] is False

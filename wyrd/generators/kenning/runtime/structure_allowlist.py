@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from importlib import resources
+from types import MappingProxyType
 
 import yaml
 
@@ -96,6 +97,13 @@ def load_structure_allowlist_from_text(text: str) -> dict[str, bool]:
         )
     out: dict[str, bool] = {}
     for label, entry in parsed.items():
+        if not isinstance(label, str):
+            # A non-string label (YAML `123:` → int, `true:` → bool) can never
+            # match a struct_key_to_label string, so it'd be a silently-dead entry
+            # — reject it loudly instead.
+            raise StructureAllowlistError(
+                f"structure label must be a string, got {type(label).__name__}: {label!r}"
+            )
         if entry is None:
             out[label] = True
             continue
@@ -113,15 +121,18 @@ def load_structure_allowlist_from_text(text: str) -> dict[str, bool]:
 
 
 @lru_cache(maxsize=1)
-def _load_bundled_cached() -> dict[str, bool]:
+def _load_bundled_cached() -> MappingProxyType:
     """Read + parse the bundled ``structures.yaml`` once per process. A missing
     file → empty allowlist (everything enabled) so a bundle without the file
-    degrades to no-filtering, not a crash."""
+    degrades to no-filtering, not a crash.
+
+    Returned as a read-only ``MappingProxyType`` — this is shared, long-lived
+    cached state, so a caller must not be able to mutate it (wyrd-i7uy discipline)."""
     try:
         text = resources.files(_DATA_PACKAGE).joinpath(_FILENAME).read_text(encoding="utf-8")
     except FileNotFoundError:
-        return {}
-    return load_structure_allowlist_from_text(text)
+        return MappingProxyType({})
+    return MappingProxyType(load_structure_allowlist_from_text(text))
 
 
 def is_structure_enabled(struct_key: tuple) -> bool:

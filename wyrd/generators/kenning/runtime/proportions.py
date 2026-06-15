@@ -1292,15 +1292,20 @@ class NameGenerator:
         # see that their bundle is stale rather than discovering the
         # drift via diverging SPA explainer / share-link output. Silent
         # when the filter is a no-op (clean bundle).
-        dropped = len(structs) - len(self.structs)
-        if dropped:
-            dropped_weight = sum(structs[k] for k in structs if k not in self.structs)
+        # wyrd-c6o1.5: only UNGRAMMATICAL drops are drift worth a "re-emit"
+        # warning. Operator-intended allowlist disables (structures.yaml) are NOT
+        # drift — they're a deliberate config choice — so they must not trip this
+        # warning (else every clean load with a curated allowlist falsely tells the
+        # operator to re-emit the bundle). Count the grammaticality drops directly.
+        ungrammatical = [k for k in structs if not is_structurally_grammatical(k)]
+        if ungrammatical:
+            dropped_weight = sum(structs[k] for k in ungrammatical)
             total_weight = sum(structs.values()) or 1
             _logger.warning(
                 "wyrd-zzli: NameGenerator: filtered %d ungrammatical structure "
                 "templates (%.1f%% of structure weight); re-emit the bundle to "
                 "clear the drift",
-                dropped,
+                len(ungrammatical),
                 100 * dropped_weight / total_weight,
             )
         # wyrd-mj2 (D17 β-term per the ticket reframe): tag-level
@@ -2867,10 +2872,10 @@ def load_proportions(data, meaning_db, tag_db):
         # wyrd-c6o1.5: ALL structures load here; the operator allowlist
         # (data/structures.yaml, applied in NameGenerator) is now the single
         # structure filter. The old wyrd-g1hj single-morpheme exclusion ("<Bare>")
-        # is migrated there — lone-dictionary-word structures ((bare), (bare[name]),
-        # (bare[saint])) ship disabled in structures.yaml. (Its empty-structs guard
-        # moved too: NameGenerator raises if the allowlist + grammaticality gate
-        # leave structs empty.)
+        # is migrated there — the lone-dictionary-word structures present in the
+        # inventory ((bare), (bare[name])) ship disabled in structures.yaml. (Its
+        # empty-structs guard moved too: NameGenerator raises if the allowlist +
+        # grammaticality gate leave structs empty.)
         struct[words] = proportion
     # wyrd-mj2: tag-level co-occurrence — empirical bigram statistics over
     # the (left.tags × right.tags) cartesian product learned from each
