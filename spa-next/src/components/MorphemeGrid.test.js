@@ -50,10 +50,16 @@ describe('MorphemeGrid originalUsage (wyrd-c6o1.1 / wyrd-200v)', () => {
     expect(setSwap).toHaveBeenCalledWith(expect.objectContaining({ original: '-ton' }));
   });
 
-  it('reads the pipeline BASE (states[0]) surface when the stack is populated', async () => {
-    // The base snapshot the stack rebases on — NOT appState.currentResult (which
-    // the pipeline now overwrites with the committed/edited surface).
+  it('reads the pipeline BASE (states[0]), NOT the committed appState.currentResult', async () => {
+    // The discriminating case: the stack BASE and the committed currentResult hold
+    // DIFFERENT surfaces (the pipeline overwrites currentResult with the edited
+    // form so edits persist — wyrd-c6o1.1). originalUsage must track the BASE
+    // (states[0]); the reverted bug read currentResult and would yield 'EDITED-ton'.
+    // Direct `pipeline.states =` assignment seeds the base without driving a real
+    // run — the field is plain $state, so this is the minimal fixture.
     pipeline.states = [{ morphemes_by_word: [[{ usage: 'BASE-ton' }]] }];
+    appState.results = [{ result: 'EDITED', morphemes_by_word: [[{ usage: 'EDITED-ton' }]] }];
+    appState.currentResultIndex = 0;
     const { cell, setSwap } = clickFirstCell();
     await fireEvent.click(cell);
     expect(setSwap).toHaveBeenCalledWith(expect.objectContaining({ original: 'BASE-ton' }));

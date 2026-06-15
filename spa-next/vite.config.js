@@ -50,5 +50,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest-setup.js'],
+    // Auto-restore every vi.spyOn (e.g. the pipeline.run / pipeline.setSwap spies
+    // in the component tests) to its original after each test, so a spy can't leak
+    // across tests — no per-file afterEach(restoreAllMocks) boilerplate needed.
+    restoreMocks: true,
   },
 });
