@@ -30,6 +30,9 @@ from wyrd.generators.kenning.cli import (
     creature as _creature_module,
 )
 from wyrd.generators.kenning.cli import (
+    dump_structures as _dump_structures_module,
+)
+from wyrd.generators.kenning.cli import (
     era_map as _era_map_module,
 )
 from wyrd.generators.kenning.cli import (
@@ -96,6 +99,7 @@ def cli() -> None:
 # Register the extracted top-level subcommands on the @cli group.
 _add_meaning_module.add_to(cli)
 _creature_module.add_to(cli)
+_dump_structures_module.add_to(cli)
 _era_map_module.add_to(cli)
 _explain_module.add_to(cli)
 _generate_module.add_to(cli)

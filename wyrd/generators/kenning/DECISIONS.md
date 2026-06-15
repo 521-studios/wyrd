@@ -3088,3 +3088,42 @@ via `x-options-by-culture` (`_tags_options_by_culture`, the same dependent-selec
 mechanism as era / stratum); the `items.enum` stays the union for CLI/API
 validation. Pinned by `tests/test_kenning.py` (per-culture options) +
 `tests/test_kenning_vector_name_select.py` (the slot mechanics + cohesion-safety).
+
+## D48. Structure allowlist is the single operator filter for which structures generate (wyrd-c6o1.5, 2026-06-15).
+
+Which name STRUCTURES the generator may use is an operator choice, expressed in a
+bundled YAML (`data/structures.yaml`) — one entry per structure, keyed by a
+canonical label (`struct_key_to_label`: `(bare)`, `(pre+post)`, `(bare) (bare)`,
+`(bare[name])`, …). Each defaults to `enabled: true`; the operator opts a
+structure OUT with `enabled: false`. A structure ABSENT from the file is enabled,
+so a bundle rebuild that surfaces a brand-new structure generates by default
+(operator opts out, never in). `wyrd kenning dump-structures` emits the full
+inventory to curate from.
+
+### One filtering path
+
+This is the ONLY operator-facing structure filter, applied once at
+`NameGenerator.__init__` (`runtime.structure_allowlist.is_structure_enabled`,
+AND-ed with the grammaticality gate). The old wyrd-g1hj "`<Bare>`" special-case
+(`_is_single_morpheme_structure`, a hard-coded lone-dictionary-word exclusion in
+`load_proportions`) is DELETED and migrated here: the lone-word structures
+(`(bare)`, `(bare[name])`) ship `enabled: false`. wyrd-zzli
+(`is_structurally_grammatical`) stays a SEPARATE hard grammaticality gate — an
+operator can't `enabled: true` a structure into ungrammaticality.
+
+### Why a sibling YAML (not a runtime-DB table)
+
+Mirrors `register_effects.yaml`: a package-data file shipped via the `data/*.yaml`
+glob, loaded lazily through `importlib.resources`. The structures themselves stay
+in the runtime DB; only the enable/disable overlay is YAML, so curating the
+allowlist needs no DB migration or re-emit. Global (not per-culture): the label is
+a language-agnostic position shape; per-culture overrides could extend the schema
+later without breaking it (absent → all cultures).
+
+### Posture
+
+Disabling a structure changes seeded output across CLI / Lambda / SPA (they all
+generate via NameGenerator) — acceptable pre-launch (bit-stability subordinate to
+product, D41/D43). Empty-after-filter raises an operator-attributable error.
+Pinned by `tests/test_kenning_structure_allowlist.py` + the migrated
+`tests/test_kenning_position_forms.py`.

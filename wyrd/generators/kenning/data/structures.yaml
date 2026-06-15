@@ -1,0 +1,564 @@
+# wyrd-c6o1.5: structure allowlist. One entry per name structure mined from the
+# corpus. Each defaults to `enabled: true`; set `enabled: false` to forbid the
+# generator from using that structure. A structure ABSENT from this file is
+# enabled, so a bundle rebuild's new structures generate by default — re-run
+# `wyrd kenning dump-structures` to diff them in. Regenerated, do not hand-sort.
+#
+# The lone-dictionary-word structures ship disabled (the migrated wyrd-g1hj
+# "<Bare>" special-case). Multi-bare structures like "(bare) (bare) (bare) (bare)"
+# are enabled by default — disable the ones that read poorly.
+
+"(bare)": {enabled: false}
+"(bare) (bare)": {enabled: true}
+"(bare) (bare) (bare)": {enabled: true}
+"(bare) (bare) (bare) (bare)": {enabled: true}
+"(bare) (bare) (bare) (bare) (bare)": {enabled: true}
+"(bare) (bare) (bare) (bare) (bare) (bare)": {enabled: true}
+"(bare) (bare) (bare) (bare) (bare) (bare) (bare)": {enabled: true}
+"(bare) (bare) (bare) (bare) (bare) (bare[name])": {enabled: true}
+"(bare) (bare) (bare) (bare) (bare[name])": {enabled: true}
+"(bare) (bare) (bare) (bare) (bare[name]) (bare)": {enabled: true}
+"(bare) (bare) (bare) (bare) (pre+post)": {enabled: true}
+"(bare) (bare) (bare) (bare) (pre+post[name])": {enabled: true}
+"(bare) (bare) (bare) (bare[name])": {enabled: true}
+"(bare) (bare) (bare) (bare[name]) (bare)": {enabled: true}
+"(bare) (bare) (bare) (bare[name]) (bare) (bare)": {enabled: true}
+"(bare) (bare) (bare) (bare[name]) (bare) (bare[name])": {enabled: true}
+"(bare) (bare) (bare) (pre+inner+post)": {enabled: true}
+"(bare) (bare) (bare) (pre+post)": {enabled: true}
+"(bare) (bare) (bare) (pre+post[name])": {enabled: true}
+"(bare) (bare) (bare) (pre[name]+post)": {enabled: true}
+"(bare) (bare) (bare) (pre[name]+post[name])": {enabled: true}
+"(bare) (bare) (bare[name])": {enabled: true}
+"(bare) (bare) (bare[name]) (bare)": {enabled: true}
+"(bare) (bare) (bare[name]) (bare) (bare)": {enabled: true}
+"(bare) (bare) (bare[name]) (bare) (bare) (bare)": {enabled: true}
+"(bare) (bare) (bare[name]) (bare) (bare) (bare) (bare)": {enabled: true}
+"(bare) (bare) (bare[name]) (bare) (pre+post)": {enabled: true}
+"(bare) (bare) (bare[name]) (bare[name]) (bare) (bare[name])": {enabled: true}
+"(bare) (bare) (bare[name]) (pre+inner+post)": {enabled: true}
+"(bare) (bare) (bare[name]) (pre+post)": {enabled: true}
+"(bare) (bare) (bare[name]) (pre+post[name])": {enabled: true}
+"(bare) (bare) (bare[saint]) (bare[name])": {enabled: true}
+"(bare) (bare) (bare[saint]) (pre+post)": {enabled: true}
+"(bare) (bare) (pre+inner+post)": {enabled: true}
+"(bare) (bare) (pre+inner+post[name])": {enabled: true}
+"(bare) (bare) (pre+inner[name]+post)": {enabled: true}
+"(bare) (bare) (pre+post)": {enabled: true}
+"(bare) (bare) (pre+post) (bare)": {enabled: true}
+"(bare) (bare) (pre+post) (bare[name]) (bare)": {enabled: true}
+"(bare) (bare) (pre+post) (bare[name]) (bare) (bare[name])": {enabled: true}
+"(bare) (bare) (pre+post) (bare[name]) (pre+inner+post)": {enabled: true}
+"(bare) (bare) (pre+post) (bare[name]) (pre+post)": {enabled: true}
+"(bare) (bare) (pre+post) (bare[name]) (pre[name]+post)": {enabled: true}
+"(bare) (bare) (pre+post[name])": {enabled: true}
+"(bare) (bare) (pre+post[name]) (bare[name]) (pre+inner+post)": {enabled: true}
+"(bare) (bare) (pre[name]+inner+post)": {enabled: true}
+"(bare) (bare) (pre[name]+inner[name]+post)": {enabled: true}
+"(bare) (bare) (pre[name]+post)": {enabled: true}
+"(bare) (bare) (pre[name]+post[name])": {enabled: true}
+"(bare) (bare[name])": {enabled: true}
+"(bare) (bare[name]) (bare)": {enabled: true}
+"(bare) (bare[name]) (bare) (bare)": {enabled: true}
+"(bare) (bare[name]) (bare) (bare) (bare)": {enabled: true}
+"(bare) (bare[name]) (bare) (bare) (bare) (bare)": {enabled: true}
+"(bare) (bare[name]) (bare) (bare) (bare[name])": {enabled: true}
+"(bare) (bare[name]) (bare) (bare) (pre+post)": {enabled: true}
+"(bare) (bare[name]) (bare) (bare[name])": {enabled: true}
+"(bare) (bare[name]) (bare) (bare[name]) (bare)": {enabled: true}
+"(bare) (bare[name]) (bare) (pre+inner+inner+post)": {enabled: true}
+"(bare) (bare[name]) (bare) (pre+inner+post)": {enabled: true}
+"(bare) (bare[name]) (bare) (pre+inner+post) (bare) (pre+post)": {enabled: true}
+"(bare) (bare[name]) (bare) (pre+inner+post) (bare) (pre+post) (bare)": {enabled: true}
+"(bare) (bare[name]) (bare) (pre+inner[name]+post)": {enabled: true}
+"(bare) (bare[name]) (bare) (pre+post)": {enabled: true}
+"(bare) (bare[name]) (bare) (pre+post[name])": {enabled: true}
+"(bare) (bare[name]) (bare) (pre[name]+inner+post)": {enabled: true}
+"(bare) (bare[name]) (bare) (pre[name]+inner[name]+post)": {enabled: true}
+"(bare) (bare[name]) (bare) (pre[name]+post)": {enabled: true}
+"(bare) (bare[name]) (bare[name])": {enabled: true}
+"(bare) (bare[name]) (bare[name]) (bare)": {enabled: true}
+"(bare) (bare[name]) (pre+inner+inner+post)": {enabled: true}
+"(bare) (bare[name]) (pre+inner+post)": {enabled: true}
+"(bare) (bare[name]) (pre+inner+post) (bare)": {enabled: true}
+"(bare) (bare[name]) (pre+inner[name]+post)": {enabled: true}
+"(bare) (bare[name]) (pre+post)": {enabled: true}
+"(bare) (bare[name]) (pre+post) (bare)": {enabled: true}
+"(bare) (bare[name]) (pre+post) (bare) (bare)": {enabled: true}
+"(bare) (bare[name]) (pre+post[name])": {enabled: true}
+"(bare) (bare[name]) (pre+post[name]) (bare)": {enabled: true}
+"(bare) (bare[name]) (pre[name]+post)": {enabled: true}
+"(bare) (bare[saint])": {enabled: true}
+"(bare) (bare[saint]) (bare)": {enabled: true}
+"(bare) (bare[saint]) (bare[name])": {enabled: true}
+"(bare) (bare[saint]) (pre+inner+post)": {enabled: true}
+"(bare) (bare[saint]) (pre+inner[name]+post)": {enabled: true}
+"(bare) (bare[saint]) (pre+post)": {enabled: true}
+"(bare) (bare[saint]) (pre+post[name])": {enabled: true}
+"(bare) (bare[saint]) (pre[name]+post)": {enabled: true}
+"(bare) (pre+inner+inner+inner+post)": {enabled: true}
+"(bare) (pre+inner+inner+post)": {enabled: true}
+"(bare) (pre+inner+inner+post[name])": {enabled: true}
+"(bare) (pre+inner+inner+post[name]) (bare)": {enabled: true}
+"(bare) (pre+inner+post)": {enabled: true}
+"(bare) (pre+inner+post) (bare)": {enabled: true}
+"(bare) (pre+inner+post) (bare) (bare[name])": {enabled: true}
+"(bare) (pre+inner+post) (bare) (pre+post) (bare[name]) (pre+post)": {enabled: true}
+"(bare) (pre+inner+post[name])": {enabled: true}
+"(bare) (pre+inner+post[name]) (bare)": {enabled: true}
+"(bare) (pre+inner[name]+inner+post)": {enabled: true}
+"(bare) (pre+inner[name]+inner+post[name]) (bare)": {enabled: true}
+"(bare) (pre+inner[name]+post)": {enabled: true}
+"(bare) (pre+inner[name]+post) (bare)": {enabled: true}
+"(bare) (pre+inner[name]+post) (bare) (bare)": {enabled: true}
+"(bare) (pre+post)": {enabled: true}
+"(bare) (pre+post) (bare)": {enabled: true}
+"(bare) (pre+post) (bare) (bare)": {enabled: true}
+"(bare) (pre+post) (bare) (bare) (bare)": {enabled: true}
+"(bare) (pre+post) (bare) (bare) (bare) (bare)": {enabled: true}
+"(bare) (pre+post) (bare) (bare[name])": {enabled: true}
+"(bare) (pre+post) (bare) (bare[name]) (bare)": {enabled: true}
+"(bare) (pre+post) (bare) (pre+post)": {enabled: true}
+"(bare) (pre+post) (bare[name])": {enabled: true}
+"(bare) (pre+post) (bare[name]) (bare)": {enabled: true}
+"(bare) (pre+post) (bare[name]) (pre+post)": {enabled: true}
+"(bare) (pre+post) (bare[name]) (pre[name]+post)": {enabled: true}
+"(bare) (pre+post) (bare[saint]) (bare)": {enabled: true}
+"(bare) (pre+post) (bare[saint]) (bare[name])": {enabled: true}
+"(bare) (pre+post) (pre+inner+post) (bare[name]) (pre+inner+post)": {enabled: true}
+"(bare) (pre+post) (pre+inner+post[name])": {enabled: true}
+"(bare) (pre+post) (pre+post)": {enabled: true}
+"(bare) (pre+post) (pre+post) (bare[name]) (bare)": {enabled: true}
+"(bare) (pre+post) (pre+post) (bare[name]) (pre+post)": {enabled: true}
+"(bare) (pre+post[name])": {enabled: true}
+"(bare) (pre+post[name]) (bare)": {enabled: true}
+"(bare) (pre+post[name]) (pre+post) (bare[name]) (pre+post)": {enabled: true}
+"(bare) (pre[name]+inner+post)": {enabled: true}
+"(bare) (pre[name]+inner+post[name])": {enabled: true}
+"(bare) (pre[name]+inner+post[name]) (bare) (pre+inner+post)": {enabled: true}
+"(bare) (pre[name]+inner[name]+post)": {enabled: true}
+"(bare) (pre[name]+post)": {enabled: true}
+"(bare) (pre[name]+post) (bare)": {enabled: true}
+"(bare) (pre[name]+post) (bare) (bare) (bare)": {enabled: true}
+"(bare) (pre[name]+post) (bare) (bare[name])": {enabled: true}
+"(bare) (pre[name]+post) (bare[name]) (bare)": {enabled: true}
+"(bare) (pre[name]+post) (pre+post)": {enabled: true}
+"(bare) (pre[name]+post) (pre+post) (bare)": {enabled: true}
+"(bare) (pre[name]+post[name])": {enabled: true}
+"(bare) (pre[name]+post[name]) (bare) (bare[name])": {enabled: true}
+"(bare[name])": {enabled: false}
+"(bare[name]) (bare)": {enabled: true}
+"(bare[name]) (bare) (bare)": {enabled: true}
+"(bare[name]) (bare) (bare) (bare) (bare)": {enabled: true}
+"(bare[name]) (bare) (bare) (bare) (bare) (bare[name])": {enabled: true}
+"(bare[name]) (bare) (bare) (bare[name]) (bare) (bare[name])": {enabled: true}
+"(bare[name]) (bare) (bare[name])": {enabled: true}
+"(bare[name]) (bare) (pre+inner+post)": {enabled: true}
+"(bare[name]) (bare) (pre+post)": {enabled: true}
+"(bare[name]) (bare[name])": {enabled: true}
+"(bare[name]) (bare[name]) (bare) (bare)": {enabled: true}
+"(bare[name]) (bare[name]) (bare) (bare) (bare)": {enabled: true}
+"(bare[name]) (bare[name]) (pre+inner+post)": {enabled: true}
+"(bare[name]) (bare[name]) (pre+post)": {enabled: true}
+"(bare[name]) (bare[name]) (pre+post) (bare)": {enabled: true}
+"(bare[name]) (bare[saint]) (bare[name])": {enabled: true}
+"(bare[name]) (bare[saint]) (pre+inner+post)": {enabled: true}
+"(bare[name]) (bare[saint]) (pre+post)": {enabled: true}
+"(bare[name]) (pre+inner+post)": {enabled: true}
+"(bare[name]) (pre+inner+post[name]) (pre+post)": {enabled: true}
+"(bare[name]) (pre+inner[name]+post)": {enabled: true}
+"(bare[name]) (pre+post)": {enabled: true}
+"(bare[name]) (pre+post[name])": {enabled: true}
+"(bare[name]) (pre[name]+inner+post)": {enabled: true}
+"(bare[name]) (pre[name]+post)": {enabled: true}
+"(bare[saint]) (bare)": {enabled: true}
+"(bare[saint]) (bare) (bare)": {enabled: true}
+"(bare[saint]) (bare) (bare) (bare)": {enabled: true}
+"(bare[saint]) (bare) (bare) (pre+post)": {enabled: true}
+"(bare[saint]) (bare) (pre+inner+post)": {enabled: true}
+"(bare[saint]) (bare[name])": {enabled: true}
+"(bare[saint]) (bare[name]) (bare)": {enabled: true}
+"(bare[saint]) (bare[name]) (bare) (bare)": {enabled: true}
+"(bare[saint]) (bare[name]) (bare) (bare) (bare)": {enabled: true}
+"(bare[saint]) (bare[name]) (bare) (pre+inner+post)": {enabled: true}
+"(bare[saint]) (bare[name]) (bare) (pre+post)": {enabled: true}
+"(bare[saint]) (bare[name]) (pre+post)": {enabled: true}
+"(bare[saint]) (bare[name]) (pre+post) (bare)": {enabled: true}
+"(bare[saint]) (pre+inner+inner+post)": {enabled: true}
+"(bare[saint]) (pre+inner+post)": {enabled: true}
+"(bare[saint]) (pre+inner+post[name])": {enabled: true}
+"(bare[saint]) (pre+inner[name]+inner+post)": {enabled: true}
+"(bare[saint]) (pre+inner[name]+post)": {enabled: true}
+"(bare[saint]) (pre+post)": {enabled: true}
+"(bare[saint]) (pre+post) (bare)": {enabled: true}
+"(bare[saint]) (pre+post) (bare) (bare) (bare)": {enabled: true}
+"(bare[saint]) (pre+post) (pre+post)": {enabled: true}
+"(bare[saint]) (pre+post[name])": {enabled: true}
+"(bare[saint]) (pre[name]+post)": {enabled: true}
+"(bare[saint]) (pre[name]+post) (bare)": {enabled: true}
+"(bare[saint]) (pre[name]+post) (bare) (bare) (bare) (bare[name]) (bare)": {enabled: true}
+"(bare[saint]) (pre[name]+post) (pre+post)": {enabled: true}
+"(bare[saint]) (pre[name]+post) (pre+post) (bare)": {enabled: true}
+"(pre+inner+inner+inner+inner+inner+inner+post)": {enabled: true}
+"(pre+inner+inner+inner+inner+inner+post)": {enabled: true}
+"(pre+inner+inner+inner+inner+post)": {enabled: true}
+"(pre+inner+inner+inner+inner+post) (bare)": {enabled: true}
+"(pre+inner+inner+inner+inner+post) (bare) (bare)": {enabled: true}
+"(pre+inner+inner+inner+inner+post[name])": {enabled: true}
+"(pre+inner+inner+inner+inner+post[name]) (bare)": {enabled: true}
+"(pre+inner+inner+inner+inner[name]+post)": {enabled: true}
+"(pre+inner+inner+inner+inner[name]+post) (bare)": {enabled: true}
+"(pre+inner+inner+inner+inner[name]+post[name])": {enabled: true}
+"(pre+inner+inner+inner+post)": {enabled: true}
+"(pre+inner+inner+inner+post) (bare)": {enabled: true}
+"(pre+inner+inner+inner+post) (bare) (bare)": {enabled: true}
+"(pre+inner+inner+inner+post) (bare) (pre+post)": {enabled: true}
+"(pre+inner+inner+inner+post) (pre+inner+post)": {enabled: true}
+"(pre+inner+inner+inner+post) (pre+post)": {enabled: true}
+"(pre+inner+inner+inner+post[name])": {enabled: true}
+"(pre+inner+inner+inner+post[name]) (bare)": {enabled: true}
+"(pre+inner+inner+inner+post[name]) (bare) (bare)": {enabled: true}
+"(pre+inner+inner+inner[name]+inner+inner+inner+post)": {enabled: true}
+"(pre+inner+inner+inner[name]+inner+post)": {enabled: true}
+"(pre+inner+inner+inner[name]+post)": {enabled: true}
+"(pre+inner+inner+inner[name]+post) (bare)": {enabled: true}
+"(pre+inner+inner+inner[name]+post) (bare) (bare)": {enabled: true}
+"(pre+inner+inner+inner[name]+post[name])": {enabled: true}
+"(pre+inner+inner+post)": {enabled: true}
+"(pre+inner+inner+post) (bare)": {enabled: true}
+"(pre+inner+inner+post) (bare) (bare)": {enabled: true}
+"(pre+inner+inner+post) (bare) (bare[name])": {enabled: true}
+"(pre+inner+inner+post) (bare) (bare[name]) (bare)": {enabled: true}
+"(pre+inner+inner+post) (bare) (bare[name]) (pre+inner+inner+post)": {enabled: true}
+"(pre+inner+inner+post) (bare) (pre+inner+inner+post)": {enabled: true}
+"(pre+inner+inner+post) (bare) (pre+inner+post)": {enabled: true}
+"(pre+inner+inner+post) (bare) (pre+inner+post[name])": {enabled: true}
+"(pre+inner+inner+post) (bare) (pre+post)": {enabled: true}
+"(pre+inner+inner+post) (bare[name])": {enabled: true}
+"(pre+inner+inner+post) (bare[name]) (bare)": {enabled: true}
+"(pre+inner+inner+post) (bare[name]) (pre+inner+inner+post) (bare)": {enabled: true}
+"(pre+inner+inner+post) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+inner+inner+post) (bare[name]) (pre+inner[name]+post)": {enabled: true}
+"(pre+inner+inner+post) (bare[name]) (pre+post)": {enabled: true}
+"(pre+inner+inner+post) (bare[name]) (pre+post[name])": {enabled: true}
+"(pre+inner+inner+post) (bare[saint]) (bare)": {enabled: true}
+"(pre+inner+inner+post) (bare[saint]) (bare[name])": {enabled: true}
+"(pre+inner+inner+post) (pre+inner+inner+post)": {enabled: true}
+"(pre+inner+inner+post) (pre+inner+post)": {enabled: true}
+"(pre+inner+inner+post) (pre+inner+post) (bare)": {enabled: true}
+"(pre+inner+inner+post) (pre+inner+post[name])": {enabled: true}
+"(pre+inner+inner+post) (pre+inner+post[name]) (bare)": {enabled: true}
+"(pre+inner+inner+post) (pre+post)": {enabled: true}
+"(pre+inner+inner+post) (pre+post) (bare)": {enabled: true}
+"(pre+inner+inner+post) (pre+post[name])": {enabled: true}
+"(pre+inner+inner+post[name])": {enabled: true}
+"(pre+inner+inner+post[name]) (bare)": {enabled: true}
+"(pre+inner+inner+post[name]) (bare) (bare)": {enabled: true}
+"(pre+inner+inner+post[name]) (bare) (pre+inner+post)": {enabled: true}
+"(pre+inner+inner+post[name]) (bare[name]) (bare)": {enabled: true}
+"(pre+inner+inner+post[name]) (pre+inner+post)": {enabled: true}
+"(pre+inner+inner+post[name]) (pre+post)": {enabled: true}
+"(pre+inner+inner[name]+inner+inner+post)": {enabled: true}
+"(pre+inner+inner[name]+inner+post)": {enabled: true}
+"(pre+inner+inner[name]+inner+post) (bare)": {enabled: true}
+"(pre+inner+inner[name]+inner+post) (bare) (pre+post)": {enabled: true}
+"(pre+inner+inner[name]+inner+post[name])": {enabled: true}
+"(pre+inner+inner[name]+inner+post[name]) (bare)": {enabled: true}
+"(pre+inner+inner[name]+inner[name]+post)": {enabled: true}
+"(pre+inner+inner[name]+post)": {enabled: true}
+"(pre+inner+inner[name]+post) (bare)": {enabled: true}
+"(pre+inner+inner[name]+post) (bare) (bare)": {enabled: true}
+"(pre+inner+inner[name]+post) (bare) (pre+post)": {enabled: true}
+"(pre+inner+inner[name]+post) (bare[name]) (pre+post)": {enabled: true}
+"(pre+inner+inner[name]+post) (pre+post)": {enabled: true}
+"(pre+inner+inner[name]+post) (pre+post[name])": {enabled: true}
+"(pre+inner+inner[name]+post[name])": {enabled: true}
+"(pre+inner+inner[name]+post[name]) (bare)": {enabled: true}
+"(pre+inner+post)": {enabled: true}
+"(pre+inner+post) (bare)": {enabled: true}
+"(pre+inner+post) (bare) (bare)": {enabled: true}
+"(pre+inner+post) (bare) (bare) (bare)": {enabled: true}
+"(pre+inner+post) (bare) (bare) (pre+inner+post)": {enabled: true}
+"(pre+inner+post) (bare) (bare) (pre[name]+inner+post)": {enabled: true}
+"(pre+inner+post) (bare) (bare[name])": {enabled: true}
+"(pre+inner+post) (bare) (bare[name]) (bare)": {enabled: true}
+"(pre+inner+post) (bare) (bare[name]) (bare) (bare)": {enabled: true}
+"(pre+inner+post) (bare) (bare[name]) (pre+post)": {enabled: true}
+"(pre+inner+post) (bare) (pre+inner+inner+post)": {enabled: true}
+"(pre+inner+post) (bare) (pre+inner+post)": {enabled: true}
+"(pre+inner+post) (bare) (pre+inner+post[name])": {enabled: true}
+"(pre+inner+post) (bare) (pre+post)": {enabled: true}
+"(pre+inner+post) (bare) (pre[name]+post)": {enabled: true}
+"(pre+inner+post) (bare[name])": {enabled: true}
+"(pre+inner+post) (bare[name]) (bare)": {enabled: true}
+"(pre+inner+post) (bare[name]) (bare) (bare)": {enabled: true}
+"(pre+inner+post) (bare[name]) (bare) (bare[name])": {enabled: true}
+"(pre+inner+post) (bare[name]) (bare) (pre+inner+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (bare) (pre+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (bare) (pre+post) (bare) (pre+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (bare) (pre[name]+inner+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (bare) (pre[name]+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (bare[name])": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+inner+inner+inner+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+inner+inner+inner+post[name])": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+inner+inner+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+inner[name]+inner+inner+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+inner[name]+inner+inner+post[name])": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+inner[name]+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+post)": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+post) (bare)": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre+post[name])": {enabled: true}
+"(pre+inner+post) (bare[name]) (pre[name]+post)": {enabled: true}
+"(pre+inner+post) (bare[saint]) (bare[name])": {enabled: true}
+"(pre+inner+post) (bare[saint]) (bare[name]) (bare)": {enabled: true}
+"(pre+inner+post) (bare[saint]) (bare[name]) (bare) (bare)": {enabled: true}
+"(pre+inner+post) (pre+inner+inner+post)": {enabled: true}
+"(pre+inner+post) (pre+inner+post)": {enabled: true}
+"(pre+inner+post) (pre+inner+post) (bare)": {enabled: true}
+"(pre+inner+post) (pre+inner+post[name])": {enabled: true}
+"(pre+inner+post) (pre+inner[name]+post)": {enabled: true}
+"(pre+inner+post) (pre+post)": {enabled: true}
+"(pre+inner+post) (pre+post) (bare)": {enabled: true}
+"(pre+inner+post) (pre+post) (bare) (bare)": {enabled: true}
+"(pre+inner+post) (pre+post) (bare) (pre+post)": {enabled: true}
+"(pre+inner+post) (pre+post) (bare[name]) (bare)": {enabled: true}
+"(pre+inner+post) (pre+post) (pre+post)": {enabled: true}
+"(pre+inner+post) (pre+post[name])": {enabled: true}
+"(pre+inner+post) (pre+post[name]) (bare)": {enabled: true}
+"(pre+inner+post) (pre+post[name]) (bare[name]) (bare) (bare)": {enabled: true}
+"(pre+inner+post) (pre[name]+inner+post)": {enabled: true}
+"(pre+inner+post) (pre[name]+post)": {enabled: true}
+"(pre+inner+post) (pre[name]+post) (bare)": {enabled: true}
+"(pre+inner+post) (pre[name]+post) (bare[name]) (bare)": {enabled: true}
+"(pre+inner+post) (pre[name]+post[name])": {enabled: true}
+"(pre+inner+post) (pre[name]+post[name]) (bare)": {enabled: true}
+"(pre+inner+post[name])": {enabled: true}
+"(pre+inner+post[name]) (bare)": {enabled: true}
+"(pre+inner+post[name]) (bare) (bare)": {enabled: true}
+"(pre+inner+post[name]) (bare) (pre+inner+post)": {enabled: true}
+"(pre+inner+post[name]) (bare) (pre+post)": {enabled: true}
+"(pre+inner+post[name]) (bare[name])": {enabled: true}
+"(pre+inner+post[name]) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+inner+post[name]) (bare[name]) (pre+post)": {enabled: true}
+"(pre+inner+post[name]) (bare[name]) (pre+post) (bare)": {enabled: true}
+"(pre+inner+post[name]) (pre+inner+inner+post)": {enabled: true}
+"(pre+inner+post[name]) (pre+inner+post)": {enabled: true}
+"(pre+inner+post[name]) (pre+inner+post[name])": {enabled: true}
+"(pre+inner+post[name]) (pre+post)": {enabled: true}
+"(pre+inner+post[saint])": {enabled: true}
+"(pre+inner[name]+inner+inner+inner+post)": {enabled: true}
+"(pre+inner[name]+inner+inner+inner+post[name])": {enabled: true}
+"(pre+inner[name]+inner+inner+post)": {enabled: true}
+"(pre+inner[name]+inner+inner+post) (bare)": {enabled: true}
+"(pre+inner[name]+inner+inner+post[name])": {enabled: true}
+"(pre+inner[name]+inner+inner[name]+post)": {enabled: true}
+"(pre+inner[name]+inner+post)": {enabled: true}
+"(pre+inner[name]+inner+post) (bare)": {enabled: true}
+"(pre+inner[name]+inner+post) (pre+inner+post[name])": {enabled: true}
+"(pre+inner[name]+inner+post[name])": {enabled: true}
+"(pre+inner[name]+inner+post[name]) (bare)": {enabled: true}
+"(pre+inner[name]+inner[name]+post)": {enabled: true}
+"(pre+inner[name]+inner[name]+post) (bare)": {enabled: true}
+"(pre+inner[name]+inner[name]+post[name])": {enabled: true}
+"(pre+inner[name]+post)": {enabled: true}
+"(pre+inner[name]+post) (bare)": {enabled: true}
+"(pre+inner[name]+post) (bare) (bare)": {enabled: true}
+"(pre+inner[name]+post) (bare) (bare) (pre+post)": {enabled: true}
+"(pre+inner[name]+post) (bare) (bare[name])": {enabled: true}
+"(pre+inner[name]+post) (bare) (bare[name]) (bare)": {enabled: true}
+"(pre+inner[name]+post) (bare) (pre+inner+post)": {enabled: true}
+"(pre+inner[name]+post) (bare) (pre+post)": {enabled: true}
+"(pre+inner[name]+post) (bare[name])": {enabled: true}
+"(pre+inner[name]+post) (bare[name]) (pre+inner+inner+post)": {enabled: true}
+"(pre+inner[name]+post) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+inner[name]+post) (bare[name]) (pre+post)": {enabled: true}
+"(pre+inner[name]+post) (bare[saint]) (bare[name])": {enabled: true}
+"(pre+inner[name]+post) (pre+inner+post)": {enabled: true}
+"(pre+inner[name]+post) (pre+inner+post[name])": {enabled: true}
+"(pre+inner[name]+post) (pre+post)": {enabled: true}
+"(pre+inner[name]+post[name])": {enabled: true}
+"(pre+inner[name]+post[name]) (bare)": {enabled: true}
+"(pre+inner[saint]+post)": {enabled: true}
+"(pre+post)": {enabled: true}
+"(pre+post) (bare)": {enabled: true}
+"(pre+post) (bare) (bare)": {enabled: true}
+"(pre+post) (bare) (bare) (bare)": {enabled: true}
+"(pre+post) (bare) (bare) (bare) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+post) (bare) (bare) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (bare) (bare) (bare[name]) (bare) (bare[name])": {enabled: true}
+"(pre+post) (bare) (bare) (bare[name]) (pre+inner+inner+inner+post)": {enabled: true}
+"(pre+post) (bare) (bare) (bare[name]) (pre+post[name]) (bare)": {enabled: true}
+"(pre+post) (bare) (bare) (pre+inner+post)": {enabled: true}
+"(pre+post) (bare) (bare) (pre+post)": {enabled: true}
+"(pre+post) (bare) (bare) (pre[name]+post)": {enabled: true}
+"(pre+post) (bare) (bare[name])": {enabled: true}
+"(pre+post) (bare) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (bare) (bare[name]) (bare) (bare)": {enabled: true}
+"(pre+post) (bare) (bare[name]) (bare) (pre+post)": {enabled: true}
+"(pre+post) (bare) (bare[name]) (bare) (pre[name]+post)": {enabled: true}
+"(pre+post) (bare) (bare[name]) (bare[name]) (bare) (bare[name])": {enabled: true}
+"(pre+post) (bare) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+post) (bare) (bare[name]) (pre+post)": {enabled: true}
+"(pre+post) (bare) (bare[name]) (pre+post) (bare)": {enabled: true}
+"(pre+post) (bare) (bare[name]) (pre[name]+post)": {enabled: true}
+"(pre+post) (bare) (pre+inner+post)": {enabled: true}
+"(pre+post) (bare) (pre+inner+post) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (bare) (pre+inner+post[name])": {enabled: true}
+"(pre+post) (bare) (pre+inner[name]+post)": {enabled: true}
+"(pre+post) (bare) (pre+post)": {enabled: true}
+"(pre+post) (bare) (pre+post) (bare)": {enabled: true}
+"(pre+post) (bare) (pre+post) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+post) (bare) (pre[name]+inner+post)": {enabled: true}
+"(pre+post) (bare) (pre[name]+post)": {enabled: true}
+"(pre+post) (bare) (pre[name]+post) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (bare[name])": {enabled: true}
+"(pre+post) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (bare[name]) (bare) (bare)": {enabled: true}
+"(pre+post) (bare[name]) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (bare[name]) (pre+inner+inner+post)": {enabled: true}
+"(pre+post) (bare[name]) (pre+inner+inner[name]+post)": {enabled: true}
+"(pre+post) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+post) (bare[name]) (pre+inner+post) (bare)": {enabled: true}
+"(pre+post) (bare[name]) (pre+inner+post[name])": {enabled: true}
+"(pre+post) (bare[name]) (pre+inner[name]+post)": {enabled: true}
+"(pre+post) (bare[name]) (pre+post)": {enabled: true}
+"(pre+post) (bare[name]) (pre+post) (bare)": {enabled: true}
+"(pre+post) (bare[name]) (pre+post) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (bare[name]) (pre+post) (pre+post)": {enabled: true}
+"(pre+post) (bare[name]) (pre[name]+inner+post)": {enabled: true}
+"(pre+post) (bare[name]) (pre[name]+post)": {enabled: true}
+"(pre+post) (bare[saint]) (bare)": {enabled: true}
+"(pre+post) (bare[saint]) (bare[name])": {enabled: true}
+"(pre+post) (bare[saint]) (bare[name]) (bare) (bare)": {enabled: true}
+"(pre+post) (bare[saint]) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+post) (bare[saint]) (pre+inner+post)": {enabled: true}
+"(pre+post) (bare[saint]) (pre+post)": {enabled: true}
+"(pre+post) (pre+inner+inner+post)": {enabled: true}
+"(pre+post) (pre+inner+inner+post) (pre+post)": {enabled: true}
+"(pre+post) (pre+inner+post)": {enabled: true}
+"(pre+post) (pre+inner+post) (bare)": {enabled: true}
+"(pre+post) (pre+inner+post) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (pre+inner+post[name])": {enabled: true}
+"(pre+post) (pre+inner+post[name]) (bare)": {enabled: true}
+"(pre+post) (pre+inner[name]+post)": {enabled: true}
+"(pre+post) (pre+post)": {enabled: true}
+"(pre+post) (pre+post) (bare)": {enabled: true}
+"(pre+post) (pre+post) (bare[name])": {enabled: true}
+"(pre+post) (pre+post) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (pre+post) (bare[name]) (bare) (bare[name])": {enabled: true}
+"(pre+post) (pre+post) (pre+post) (bare) (bare[name]) (bare) (bare) (bare)": {enabled: true}
+"(pre+post) (pre+post) (pre+post) (bare) (bare[name]) (pre[name]+post)": {enabled: true}
+"(pre+post) (pre+post[name])": {enabled: true}
+"(pre+post) (pre[name]+inner+post)": {enabled: true}
+"(pre+post) (pre[name]+post)": {enabled: true}
+"(pre+post) (pre[name]+post) (bare[name]) (bare)": {enabled: true}
+"(pre+post) (pre[name]+post[name])": {enabled: true}
+"(pre+post[name])": {enabled: true}
+"(pre+post[name]) (bare)": {enabled: true}
+"(pre+post[name]) (bare) (bare)": {enabled: true}
+"(pre+post[name]) (bare) (bare) (bare)": {enabled: true}
+"(pre+post[name]) (bare) (bare[name])": {enabled: true}
+"(pre+post[name]) (bare) (pre+inner+post)": {enabled: true}
+"(pre+post[name]) (bare) (pre+post)": {enabled: true}
+"(pre+post[name]) (bare) (pre+post) (bare)": {enabled: true}
+"(pre+post[name]) (bare[name])": {enabled: true}
+"(pre+post[name]) (bare[name]) (bare)": {enabled: true}
+"(pre+post[name]) (bare[name]) (bare) (bare) (bare)": {enabled: true}
+"(pre+post[name]) (bare[name]) (bare) (pre+inner+post)": {enabled: true}
+"(pre+post[name]) (bare[name]) (bare) (pre+post)": {enabled: true}
+"(pre+post[name]) (bare[name]) (bare) (pre+post) (bare)": {enabled: true}
+"(pre+post[name]) (bare[name]) (bare) (pre[name]+inner+post)": {enabled: true}
+"(pre+post[name]) (bare[name]) (pre+inner+inner+post)": {enabled: true}
+"(pre+post[name]) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre+post[name]) (bare[name]) (pre+inner[name]+post)": {enabled: true}
+"(pre+post[name]) (bare[name]) (pre+post)": {enabled: true}
+"(pre+post[name]) (bare[saint]) (bare[name])": {enabled: true}
+"(pre+post[name]) (bare[saint]) (pre+post)": {enabled: true}
+"(pre+post[name]) (pre+inner+post)": {enabled: true}
+"(pre+post[name]) (pre+inner+post[name])": {enabled: true}
+"(pre+post[name]) (pre+post)": {enabled: true}
+"(pre+post[name]) (pre+post) (bare[name]) (pre+post)": {enabled: true}
+"(pre+post[name]) (pre+post[name])": {enabled: true}
+"(pre+post[name]) (pre[name]+inner+post)": {enabled: true}
+"(pre+post[name]) (pre[name]+post)": {enabled: true}
+"(pre+post[saint])": {enabled: true}
+"(pre[name]+inner+inner+inner+inner+post)": {enabled: true}
+"(pre[name]+inner+inner+inner+post)": {enabled: true}
+"(pre[name]+inner+inner+inner+post) (bare)": {enabled: true}
+"(pre[name]+inner+inner+inner+post[name])": {enabled: true}
+"(pre[name]+inner+inner+inner[name]+post)": {enabled: true}
+"(pre[name]+inner+inner+inner[name]+post) (pre+post)": {enabled: true}
+"(pre[name]+inner+inner+inner[name]+post) (pre+post[name])": {enabled: true}
+"(pre[name]+inner+inner+inner[name]+post[name])": {enabled: true}
+"(pre[name]+inner+inner+post)": {enabled: true}
+"(pre[name]+inner+inner+post) (bare)": {enabled: true}
+"(pre[name]+inner+inner+post) (bare) (bare)": {enabled: true}
+"(pre[name]+inner+inner+post) (bare) (pre+inner+post)": {enabled: true}
+"(pre[name]+inner+inner+post[name])": {enabled: true}
+"(pre[name]+inner+inner[name]+post)": {enabled: true}
+"(pre[name]+inner+inner[name]+post) (pre+post)": {enabled: true}
+"(pre[name]+inner+inner[name]+post[name])": {enabled: true}
+"(pre[name]+inner+post)": {enabled: true}
+"(pre[name]+inner+post) (bare)": {enabled: true}
+"(pre[name]+inner+post) (bare) (bare)": {enabled: true}
+"(pre[name]+inner+post) (bare) (bare) (bare)": {enabled: true}
+"(pre[name]+inner+post) (bare) (bare[name])": {enabled: true}
+"(pre[name]+inner+post) (bare) (pre+post)": {enabled: true}
+"(pre[name]+inner+post) (bare[name])": {enabled: true}
+"(pre[name]+inner+post) (bare[name]) (bare) (bare) (bare)": {enabled: true}
+"(pre[name]+inner+post) (bare[name]) (pre+inner+inner+post)": {enabled: true}
+"(pre[name]+inner+post) (bare[name]) (pre+post)": {enabled: true}
+"(pre[name]+inner+post) (bare[name]) (pre+post) (bare)": {enabled: true}
+"(pre[name]+inner+post) (bare[name]) (pre[name]+post)": {enabled: true}
+"(pre[name]+inner+post) (bare[saint]) (bare[name])": {enabled: true}
+"(pre[name]+inner+post) (pre+inner+post)": {enabled: true}
+"(pre[name]+inner+post) (pre+post)": {enabled: true}
+"(pre[name]+inner+post) (pre+post) (bare[name]) (bare)": {enabled: true}
+"(pre[name]+inner+post) (pre+post[name])": {enabled: true}
+"(pre[name]+inner+post) (pre[name]+post) (bare[name]) (bare)": {enabled: true}
+"(pre[name]+inner+post[name])": {enabled: true}
+"(pre[name]+inner+post[name]) (bare)": {enabled: true}
+"(pre[name]+inner+post[name]) (pre+inner+post)": {enabled: true}
+"(pre[name]+inner[name]+inner+post)": {enabled: true}
+"(pre[name]+inner[name]+inner+post) (bare)": {enabled: true}
+"(pre[name]+inner[name]+inner+post[name])": {enabled: true}
+"(pre[name]+inner[name]+inner[name]+post)": {enabled: true}
+"(pre[name]+inner[name]+post)": {enabled: true}
+"(pre[name]+inner[name]+post) (bare)": {enabled: true}
+"(pre[name]+inner[name]+post) (bare[name]) (pre+post)": {enabled: true}
+"(pre[name]+inner[name]+post[name])": {enabled: true}
+"(pre[name]+post)": {enabled: true}
+"(pre[name]+post) (bare)": {enabled: true}
+"(pre[name]+post) (bare) (bare)": {enabled: true}
+"(pre[name]+post) (bare) (bare) (bare)": {enabled: true}
+"(pre[name]+post) (bare) (bare) (bare[name]) (bare)": {enabled: true}
+"(pre[name]+post) (bare) (bare) (pre+post)": {enabled: true}
+"(pre[name]+post) (bare) (bare) (pre[name]+post)": {enabled: true}
+"(pre[name]+post) (bare) (bare[name]) (bare)": {enabled: true}
+"(pre[name]+post) (bare) (bare[name]) (bare) (pre+post)": {enabled: true}
+"(pre[name]+post) (bare) (bare[name]) (bare) (pre[name]+post)": {enabled: true}
+"(pre[name]+post) (bare) (pre+inner+post)": {enabled: true}
+"(pre[name]+post) (bare) (pre+post)": {enabled: true}
+"(pre[name]+post) (bare[name])": {enabled: true}
+"(pre[name]+post) (bare[name]) (bare)": {enabled: true}
+"(pre[name]+post) (bare[name]) (pre+inner+post)": {enabled: true}
+"(pre[name]+post) (bare[name]) (pre+post)": {enabled: true}
+"(pre[name]+post) (pre+inner+post)": {enabled: true}
+"(pre[name]+post) (pre+inner+post) (pre+inner+post)": {enabled: true}
+"(pre[name]+post) (pre+inner+post[name])": {enabled: true}
+"(pre[name]+post) (pre+inner+post[name]) (bare)": {enabled: true}
+"(pre[name]+post) (pre+post)": {enabled: true}
+"(pre[name]+post) (pre+post) (bare[name]) (bare)": {enabled: true}
+"(pre[name]+post) (pre+post[name])": {enabled: true}
+"(pre[name]+post) (pre[name]+post)": {enabled: true}
+"(pre[name]+post[name])": {enabled: true}
+"(pre[name]+post[name]) (bare)": {enabled: true}
+"(pre[name]+post[name]) (bare) (pre+inner+post)": {enabled: true}
+"(pre[name]+post[name]) (bare) (pre+post)": {enabled: true}
+"(pre[saint]+inner+inner+post)": {enabled: true}
+"(pre[saint]+inner+post)": {enabled: true}
+"(pre[saint]+inner+post[name])": {enabled: true}
+"(pre[saint]+inner[name]+post)": {enabled: true}
+"(pre[saint]+post)": {enabled: true}
+"(pre[saint]+post[name])": {enabled: true}

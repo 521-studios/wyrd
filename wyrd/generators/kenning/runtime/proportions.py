@@ -18,6 +18,7 @@ from collections.abc import Callable, Iterator
 
 from ..era.cells import family_stage_order, language_family
 from .meaning import Meaning, _mimic_case
+from .structure_allowlist import is_structure_enabled
 from .word import WORD_POSITION_KEY_PREFIX, _position_form, word_position_for
 
 # wyrd-lftl: family display order for the SPA col-3 reflex grid — English
@@ -692,24 +693,6 @@ def is_structurally_grammatical(struct_key: tuple) -> bool:
     return not any(_is_ungrammatical_word_template(w) for w in struct_key)
 
 
-def _is_single_morpheme_structure(struct_key: tuple) -> bool:
-    """wyrd-g1hj: True when a structure is a SINGLE MORPHEME total — one word
-    of one morpheme (``((("bare","single"),),)`` / ``((("bare","name","single"),),)``).
-
-    Such a name renders as a lone dictionary word — `Old`, `In`, `St`, `Cum`,
-    `Green`, `Bath`, `Village` — and even the legit single-etymon ones
-    (`Chislehurst`, `Enfield`) read as flat, uninteresting place names. Real
-    interest comes from COMPOSITION: a multi-morpheme word (`Higham` =
-    `High-`+`-ham`) or multiple words (`Green Park`, 2 morphemes). So these are
-    filtered out at LOAD time (``load_proportions``), before the NameGenerator
-    is built — they're absent from ``structs``, so the vector generation path
-    can't emit them. This is a generation-time exclusion, NOT a mining/bundle
-    change: the on-disk proportions still RECORD these structures, so no
-    re-export is needed. A single bare word standing INSIDE a larger structure
-    (`Green` in `Green Park`) is unaffected — that's 2 morphemes total."""
-    return sum(len(word_key) for word_key in struct_key) <= 1
-
-
 def _era_reflex_raw_choice(meanings, era_render_language: str | None) -> str | None:
     """wyrd-3vju.1: the RAW ``era_reflexes`` entry (``*`` reconstruction marker
     PRESERVED) that the era render selects for ``meanings`` at
@@ -1276,18 +1259,31 @@ class NameGenerator:
         # (re-exported as ``_encode_structs`` from ``cli.rebuild_proportions``)
         # prevents future rebuilds from emitting them; this runtime gate
         # defends against bundles built before that data fix lands.
-        self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
+        # Two AND-ed structure gates, both load-time:
+        #   1. is_structurally_grammatical (wyrd-zzli) — a hard grammaticality
+        #      gate (no bare-pre/post/inner standalone words); always on.
+        #   2. is_structure_enabled (wyrd-c6o1.5) — the OPERATOR allowlist from
+        #      data/structures.yaml; this is the single operator-facing filter
+        #      and subsumes the old _is_single_morpheme_structure ("<Bare>")
+        #      special-case (the lone-dictionary-word structures now ship
+        #      disabled in structures.yaml). Absent label → enabled.
+        self.structs = {
+            k: v
+            for k, v in structs.items()
+            if is_structurally_grammatical(k) and is_structure_enabled(k)
+        }
         # Loud-failure guard (generator-contract-reviewer P2, round 1):
-        # if the filter empties an otherwise-non-empty structs dict, the
+        # if the filters empty an otherwise-non-empty structs dict, the
         # vector path would crash on a None struct from weighted_choice(rng,
         # []). Raise here with an operator-attributable message instead.
         if structs and not self.structs:
             raise ValueError(
-                "NameGenerator: every structure was filtered as ungrammatical "
-                "(wyrd-zzli) — bundle has no shipped templates the runtime "
-                "can use. Re-emit the bundle via `wyrd kenning lexicon "
-                "rebuild-proportions` (which also applies the filter at "
-                "emission time)."
+                "NameGenerator: every structure was filtered out — by the "
+                "wyrd-zzli grammaticality gate and/or the data/structures.yaml "
+                "operator allowlist (wyrd-c6o1.5). Check that structures.yaml "
+                "hasn't disabled every structure this culture has, and re-emit "
+                "the bundle via `wyrd kenning lexicon rebuild-proportions` if the "
+                "grammaticality filter dropped them all."
             )
         # Bit-stability drift warning (generator-contract-reviewer P2,
         # round 1): when the filter drops something, seeded callers
@@ -2868,33 +2864,14 @@ def load_proportions(data, meaning_db, tag_db):
     for element in structures:
         proportion = element["proportion"]
         words = tuple(word_to_key(w) for w in element["words"])
-        # wyrd-g1hj: exclude SINGLE-MORPHEME structures from the loaded
-        # generator. A whole name that is one morpheme — `Old`, `In`, `St`,
-        # `Cum`, `Green`, `Bath`, `Village` (even legit single-etymon ones like
-        # `Chislehurst`) — renders as a flat lone dictionary word; real place
-        # names compose (>=2 morphemes: `Higham` = `High-`+`-ham`, or multiple
-        # words `Green Park`). The bundle/proportions STILL RECORD these (mining
-        # keeps them — this is a generation-time exclusion applied at load, so
-        # no re-export is needed); they're simply never loaded into a generator,
-        # so the vector generation path can't produce them. A bare word standing
-        # INSIDE a larger structure (`Green` in `Green Park`) is unaffected —
-        # that structure has 2 morphemes total.
-        if _is_single_morpheme_structure(words):
-            continue
+        # wyrd-c6o1.5: ALL structures load here; the operator allowlist
+        # (data/structures.yaml, applied in NameGenerator) is now the single
+        # structure filter. The old wyrd-g1hj single-morpheme exclusion ("<Bare>")
+        # is migrated there — lone-dictionary-word structures ((bare), (bare[name]),
+        # (bare[saint])) ship disabled in structures.yaml. (Its empty-structs guard
+        # moved too: NameGenerator raises if the allowlist + grammaticality gate
+        # leave structs empty.)
         struct[words] = proportion
-    # wyrd-g1hj loud-failure guard: the single-morpheme filter above runs
-    # BEFORE NameGenerator, so its empty-structs guard (which checks
-    # ``if structs and not self.structs``) can't see this case — a culture
-    # whose structures are ALL single-morpheme would yield an empty ``struct``,
-    # and the vector path would later get a None struct from
-    # weighted_choice([]). Fail loud + attributable here instead.
-    if structures and not struct:
-        raise ValueError(
-            "load_proportions: every structure was a single morpheme (wyrd-g1hj) "
-            "— this culture has no multi-morpheme templates to generate from. "
-            "Re-emit the bundle (the proportions still record them) or relax the "
-            "single-morpheme exclusion."
-        )
     # wyrd-mj2: tag-level co-occurrence — empirical bigram statistics over
     # the (left.tags × right.tags) cartesian product learned from each
     # culture's place-name corpus. Optional: legacy bundles without this

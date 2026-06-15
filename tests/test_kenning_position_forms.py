@@ -214,14 +214,18 @@ def test_manorial_subject_excluded_from_vector_base_pool():
 # ---- wyrd-g1hj: single-morpheme structure exclusion + given-name base-pool --
 
 
-def test_is_single_morpheme_structure():
-    from wyrd.generators.kenning.runtime.proportions import _is_single_morpheme_structure
+def test_single_morpheme_structures_ship_disabled_in_allowlist():
+    """wyrd-c6o1.5 (migrated from wyrd-g1hj): the lone-dictionary-word structures
+    ship disabled in the operator allowlist (data/structures.yaml) — the single
+    structure-filtering path now, replacing the deleted _is_single_morpheme_structure
+    special-case. Multi-morpheme structures stay enabled."""
+    from wyrd.generators.kenning.runtime.structure_allowlist import is_structure_enabled
 
-    assert _is_single_morpheme_structure(((("bare", "single"),),))  # 1 word, 1 morpheme
-    assert _is_single_morpheme_structure(((("bare", "name", "single"),),))
-    assert not _is_single_morpheme_structure(((("pre",), ("post",)),))  # Higham: 2 morphemes
-    # Green Park: 2 words, 2 morphemes total → not single
-    assert not _is_single_morpheme_structure(((("bare", "single"),), (("bare", "single"),)))
+    assert not is_structure_enabled(((("bare", "single"),),))  # 1 word, 1 morpheme
+    assert not is_structure_enabled(((("bare", "name", "single"),),))
+    assert is_structure_enabled(((("pre",), ("post",)),))  # Higham: 2 morphemes
+    # Green Park: 2 words, 2 morphemes total → enabled
+    assert is_structure_enabled(((("bare", "single"),), (("bare", "single"),)))
 
 
 def test_is_given_name():
