@@ -249,7 +249,16 @@ def _find_matches_at(
 # n_positions is ~30 MB even at the cap on a long input — safe vs
 # the 16+ GB pre-fix blowup.
 MAX_DECOMPOSITIONS_PER_POSITION = 10000
-MAX_TIED_DECOMPOSITIONS_PER_POSITION = 100
+# Tied-best cap. Raised 100→256 (wyrd-aicu.3): real toponyms can legitimately
+# tie above 100 ('Tonbridge' = 120 zero-unaccounted 2-morpheme parses), and a
+# 100-cap truncated genuine parses by arbitrary DAG/export order BEFORE the
+# culture tiebreaker could see them — the de-dash reshuffled the export and
+# pushed OE 'tūn' past the cap, leaking the celtic 'wave' homograph into english
+# 'ton' AND starving the OE morpheme. 256 keeps realistic tie sets whole so the
+# tiebreaker works naturally; _cap_tied_decompositions still prefers culture-
+# aligned parses for the rare set that exceeds even 256. Memory is trivial — the
+# load-bearing OOM bound is MAX_DECOMPOSITIONS_PER_POSITION above (~30 MB @10000).
+MAX_TIED_DECOMPOSITIONS_PER_POSITION = 256
 
 
 def _append_capped(
@@ -472,11 +481,7 @@ def canonical_decompositions(
         # yields at least the skip-the-rest path).
         best_score = min(s for s, _ in candidates)
         best_decomps = [d for s, d in candidates if s == best_score]
-        # Defensive cap on the tied-best list. Bit-stable: candidate
-        # iteration order is deterministic, so the kept subset is a
-        # function of the trie + word.
-        if len(best_decomps) > MAX_TIED_DECOMPOSITIONS_PER_POSITION:
-            best_decomps = best_decomps[:MAX_TIED_DECOMPOSITIONS_PER_POSITION]
+        best_decomps = _cap_tied_decompositions(best_decomps, culture_languages)
         cache[pos] = (best_score, best_decomps)
         return cache[pos]
 
@@ -485,6 +490,48 @@ def canonical_decompositions(
     if culture_languages and len(decompositions) > 1:
         decompositions = _prefer_culture_aligned(decompositions, culture_languages)
     return decompositions
+
+
+def _cap_tied_decompositions(
+    best_decomps: list[list[Any]], culture_languages: frozenset[str] | None
+) -> list[list[Any]]:
+    """Cap the per-position tied-best list at ``MAX_TIED_DECOMPOSITIONS_PER_POSITION``
+    (load-bearing: bounds the DAG-walk cache so pathological long Welsh names
+    don't OOM). When a culture is supplied, truncate toward the most
+    culture-aligned parses FIRST so a correct culture parse can't be dropped by
+    arbitrary DAG order — the cap runs BEFORE :func:`_prefer_culture_aligned`,
+    so an order-blind ``[:cap]`` could discard the very parse the tiebreaker
+    wants (wyrd-aicu.3: the de-dash reordered the export, pushing OE ``tūn`` for
+    'Tonbridge' past the cap → the celtic 'wave' homograph leaked into english
+    attestation). Python's sort is stable, so equal-alignment parses keep their
+    deterministic DAG order → still bit-stable.
+    """
+    if len(best_decomps) <= MAX_TIED_DECOMPOSITIONS_PER_POSITION:
+        return best_decomps
+    if culture_languages:
+        best_decomps = sorted(best_decomps, key=lambda d: -_alignment_score(d, culture_languages))
+    return best_decomps[:MAX_TIED_DECOMPOSITIONS_PER_POSITION]
+
+
+def _alignment_score(decomp: list[Any], culture_languages: frozenset[str]) -> int:
+    """wyrd-pfoo culture-alignment: count the decomposition's Meanings whose
+    primary language is in ``culture_languages`` AND carry ≥1 tag (the ≥1-tag
+    gate filters Wiktionary nonsense-senses — Celtic ``ton`` → 'tone', etc.).
+
+    Decomposition elements are ``Meaning | str``; only Meanings carry
+    sources/tags/primary_language. The sources+tags duck-type check is the
+    str-vs-Meaning discriminator; once past it the elem IS a Meaning (the
+    matcher emits no other object kind), so primary_language() is safe.
+    """
+    score = 0
+    for elem in decomp:
+        if not (hasattr(elem, "sources") and hasattr(elem, "tags")):
+            continue
+        if not elem.tags:
+            continue
+        if elem.primary_language() in culture_languages:
+            score += 1
+    return score
 
 
 def _prefer_culture_aligned(
@@ -505,24 +552,7 @@ def _prefer_culture_aligned(
     tiebreaker still applies downstream.
     """
 
-    def alignment_score(decomp: list[Any]) -> int:
-        # Decomposition elements are ``Meaning | str``; only Meanings
-        # carry sources/tags/primary_language. The sources+tags
-        # duck-type check is the str-vs-Meaning discriminator; once
-        # past it the elem IS a Meaning (the matcher emits no other
-        # object kind into decompositions), so primary_language() is
-        # safe to call without further guards.
-        score = 0
-        for elem in decomp:
-            if not (hasattr(elem, "sources") and hasattr(elem, "tags")):
-                continue
-            if not elem.tags:
-                continue
-            if elem.primary_language() in culture_languages:
-                score += 1
-        return score
-
-    scores = [(alignment_score(d), d) for d in decompositions]
+    scores = [(_alignment_score(d, culture_languages), d) for d in decompositions]
     best = max(s for s, _ in scores)
     if best == 0:
         return decompositions
