@@ -50,6 +50,18 @@ bd close <id>         # Complete work
 <!-- END BEADS INTEGRATION -->
 
 
+## Git Worktrees
+
+**Do non-trivial work in a git worktree, not the main checkout.** Create one
+with `git worktree add` and work there. The only exceptions — fine to do in
+place on `main` — are small, self-contained changes: beads
+(`.beads/issues.jsonl`) syncs and small docs edits (a typo, a README/CLAUDE.md
+tweak like this one).
+
+Why: the commit-and-push flow stages with `git add -A`, so working in the main
+checkout risks sweeping unrelated untracked files into a PR. An isolated
+worktree keeps each PR scoped to exactly its own change.
+
 ## Build & Test
 
 _Add your build and test commands here_
