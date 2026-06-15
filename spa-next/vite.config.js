@@ -1,6 +1,11 @@
 import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+// wyrd-200v: the Svelte-5 component-test harness. svelteTesting() wires the
+// `browser` resolve-condition (so Svelte compiles to its CLIENT runtime under
+// vitest, making mount + $effect/$derived actually run) and auto-cleanup between
+// tests. No-op for `vite build`/`dev` — it only engages under vitest.
+import { svelteTesting } from '@testing-library/svelte/vite';
 
 // wyrd-z3lp: Vite + Svelte 5 config for the SPA rewrite.
 //
@@ -24,7 +29,7 @@ function buildSha() {
 }
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [svelte(), svelteTesting()],
   define: {
     'import.meta.env.VITE_BUILD_SHA': JSON.stringify(buildSha()),
   },
@@ -37,5 +42,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+  },
+  // wyrd-200v: jsdom so component tests can mount + assert DOM; the existing
+  // pure-logic unit tests run unchanged under it. setupFiles adds the jest-dom
+  // matchers (toBeInTheDocument, …). `npm test` (vitest run) — already the SPA
+  // CI job's test step — picks these up with no workflow change.
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./vitest-setup.js'],
   },
 });
