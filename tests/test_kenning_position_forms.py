@@ -214,14 +214,18 @@ def test_manorial_subject_excluded_from_vector_base_pool():
 # ---- wyrd-g1hj: single-morpheme structure exclusion + given-name base-pool --
 
 
-def test_is_single_morpheme_structure():
-    from wyrd.generators.kenning.runtime.proportions import _is_single_morpheme_structure
+def test_single_morpheme_structures_ship_disabled_in_allowlist():
+    """wyrd-c6o1.5 (migrated from wyrd-g1hj): the lone-dictionary-word structures
+    ship disabled in the operator allowlist (data/structures.yaml) — the single
+    structure-filtering path now, replacing the deleted _is_single_morpheme_structure
+    special-case. Multi-morpheme structures stay enabled."""
+    from wyrd.generators.kenning.runtime.structure_allowlist import is_structure_enabled
 
-    assert _is_single_morpheme_structure(((("bare", "single"),),))  # 1 word, 1 morpheme
-    assert _is_single_morpheme_structure(((("bare", "name", "single"),),))
-    assert not _is_single_morpheme_structure(((("pre",), ("post",)),))  # Higham: 2 morphemes
-    # Green Park: 2 words, 2 morphemes total → not single
-    assert not _is_single_morpheme_structure(((("bare", "single"),), (("bare", "single"),)))
+    assert not is_structure_enabled(((("bare", "single"),),))  # 1 word, 1 morpheme
+    assert not is_structure_enabled(((("bare", "name", "single"),),))
+    assert is_structure_enabled(((("pre",), ("post",)),))  # Higham: 2 morphemes
+    # Green Park: 2 words, 2 morphemes total → enabled
+    assert is_structure_enabled(((("bare", "single"),), (("bare", "single"),)))
 
 
 def test_is_given_name():
@@ -232,14 +236,17 @@ def test_is_given_name():
     assert not Meaning("-ton", ["settlement"], [], {}).is_given_name()
 
 
-def test_load_proportions_excludes_single_morpheme_from_generation():
-    """wyrd-g1hj: a single-morpheme structure (whole name = one morpheme) is
-    excluded from the loaded generator's ``structs``, so no generation path can
-    produce it. Multi-morpheme structures survive.
-    (The bundle/proportions still RECORD it — this is a load-time generation
-    filter, not a mining change.)"""
+def test_load_proportions_excludes_single_morpheme_from_generation(monkeypatch):
+    """wyrd-c6o1.5 (migrated from wyrd-g1hj): a lone-dictionary-word structure that
+    the allowlist disables is excluded from the loaded generator's ``structs``, so
+    no generation path can produce it; a multi-morpheme structure survives. The
+    bundle/proportions still RECORD it — this is a load-time generation filter.
+    Controls the allowlist directly (not the shipped structures.yaml) so the
+    assertion tests the MECHANISM, not the shipped file's current contents."""
+    from wyrd.generators.kenning.runtime import structure_allowlist
     from wyrd.generators.kenning.runtime.proportions import load_proportions
 
+    monkeypatch.setattr(structure_allowlist, "_load_bundled_cached", lambda: {"(bare)": False})
     meaning_db = {
         "Stoke-": [Meaning("Stoke-", [], [], {})],
         "-ton": [Meaning("-ton", [], [], {})],

@@ -23,6 +23,27 @@ from wyrd.generators.kenning.generators.kenning import Kenning
 from wyrd.seed import MAX_SAFE_INTEGER, rng_for
 
 
+@pytest.fixture(autouse=True)
+def _permissive_structure_allowlist(monkeypatch):
+    """wyrd-c6o1.5: this module builds SYNTHETIC structs directly into
+    NameGenerator (and exercises the un-curated generation path); the operator
+    allowlist (data/structures.yaml, which ships some lone-word structures
+    disabled) is a bundle overlay irrelevant to these selection/rendering tests.
+    Empty it so a synthetic fixture struct (e.g. ``(bare[name])``) isn't filtered
+    out — restoring the pre-allowlist behavior these tests were written against.
+
+    The coupled cache-clear on EXIT is load-bearing: a real-``Kenning()`` test in
+    this module can build + cache a per-culture NameGenerator while the allowlist
+    is empty; without dropping it, that unfiltered generator would leak into a
+    later module (e.g. the rogd10 parity snapshot) and drift seeded output."""
+    from wyrd.generators.kenning import _load_meanings
+    from wyrd.generators.kenning.runtime import structure_allowlist
+
+    monkeypatch.setattr(structure_allowlist, "_load_bundled_cached", lambda: {})
+    yield
+    _load_meanings.cache_clear()  # rebound to the coupled clear → also drops _load_culture
+
+
 def test_kenning_generate_default_runs():
     """wyrd-rt2m: a bare generate (no scoring_mode — the interface is removed)
     runs the default vector path and returns a name without raising."""

@@ -164,7 +164,7 @@ def test_compound_plus_compound_survives():
 def test_name_generator_drops_ungrammatical_structs_on_load():
     """Existing bundles built before the rebuild-side filter still
     work correctly because NameGenerator filters at __init__."""
-    good_struct = (((("pre",), ("post",)),),)  # 1 word, pre+post
+    good_struct = ((("pre",), ("post",)),)  # 1 word, pre+post
     bad_struct = ((("post",),), (("pre",),))  # the bug shape
     structs = {
         good_struct: 100,
@@ -187,7 +187,7 @@ def test_name_generator_drops_single_word_bare_structs_on_load():
     above. Mirrors the actual english bundle weights: 364 for
     bare-post 1-word, 202 for bare-pre 1-word (6.7% combined of
     English 1-word weight pre-fix)."""
-    good_struct = (((("pre",), ("post",)),),)  # 1 word, pre+post
+    good_struct = ((("pre",), ("post",)),)  # 1 word, pre+post
     bad_single_post = ((("post",),),)  # wyrd-80ib bug shape: lone -bridge
     bad_single_pre = ((("pre",),),)  # wyrd-80ib bug shape: lone High-
     structs = {
@@ -230,7 +230,7 @@ def test_name_generator_passes_grammatical_structs_unchanged():
     """No-op when all structs are grammatical — bit-stable for clean
     bundles."""
     structs = {
-        (((("pre",), ("post",)),),): 100,
+        ((("pre",), ("post",)),): 100,
         ((("pre", "name"),), (("pre",), ("post",))): 50,
     }
     name_gen = NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
