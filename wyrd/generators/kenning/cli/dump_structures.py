@@ -47,7 +47,12 @@ _HEADER = """\
 
 def _single_morpheme(struct_key: tuple) -> bool:
     """The migrated wyrd-g1hj default: a structure of one morpheme total renders
-    as a flat lone dictionary word — seed it disabled."""
+    as a flat lone dictionary word — seed it disabled.
+
+    This is the same predicate the deleted runtime ``_is_single_morpheme_structure``
+    used, but it lives HERE as a one-shot default-SEED for the dumped YAML, NOT as a
+    runtime filter — the only runtime structure filter is the allowlist itself
+    (``is_structure_enabled``). So there's still exactly one filtering path."""
     return sum(len(word) for word in struct_key) <= 1
 
 
