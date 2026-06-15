@@ -685,7 +685,11 @@ def test_canonical_decompositions_completes_on_long_input_with_dense_overlap():
     # slow CI runners.
     assert elapsed < 5.0, f"canonical_decompositions took {elapsed:.1f}s (regression?)"
     # Result count is bounded by MAX_TIED_DECOMPOSITIONS_PER_POSITION.
-    assert 0 < len(decomps) <= 100
+    from wyrd.generators.kenning.runtime.trie_matcher import (
+        MAX_TIED_DECOMPOSITIONS_PER_POSITION,
+    )
+
+    assert 0 < len(decomps) <= MAX_TIED_DECOMPOSITIONS_PER_POSITION
 
 
 def test_canonical_decompositions_returns_global_minimum_via_score_pruning():
@@ -891,3 +895,45 @@ def test_canonical_culture_tiebreaker_respects_multi_language_culture():
     # ON aligns with the Scottish culture set; OF doesn't.
     assert len(result) == 1
     assert result[0][0] is on_meaning
+
+
+# ---- wyrd-aicu.3: culture-aware tied-best cap (order-blind-truncation fix) ----
+
+
+def test_cap_tied_decompositions_prefers_culture_aligned_over_dag_order():
+    """When the tied-best set exceeds the cap, truncation must keep the most
+    culture-aligned parses, not the first-N by arbitrary DAG order — else a
+    correct culture parse is silently dropped (the bug that leaked the welsh
+    homograph and starved OE tūn after the de-dash reshuffled export order)."""
+    from wyrd.generators.kenning.runtime.trie_matcher import (
+        MAX_TIED_DECOMPOSITIONS_PER_POSITION as CAP,
+    )
+    from wyrd.generators.kenning.runtime.trie_matcher import _cap_tied_decompositions
+
+    aligned = Meaning("ton", ["settlement"], ["town"], {"old_english": ["tūn"]})
+    plain = Meaning("x", [], [], {})  # no tags → alignment score 0
+    # CAP+50 non-aligned parses FIRST, then 3 aligned at the very end of DAG order.
+    decomps = [[plain] for _ in range(CAP + 50)] + [[aligned] for _ in range(3)]
+    capped = _cap_tied_decompositions(decomps, frozenset({"old_english"}))
+    assert len(capped) == CAP
+    n_aligned = sum(1 for d in capped if d[0].primary_language() == "old_english")
+    assert n_aligned == 3, "culture-aligned parses were truncated by DAG order"
+
+
+def test_cap_tied_decompositions_no_culture_is_stable_prefix():
+    """culture_languages=None → stable first-N truncation (bit-stable, no sort)."""
+    from wyrd.generators.kenning.runtime.trie_matcher import (
+        MAX_TIED_DECOMPOSITIONS_PER_POSITION as CAP,
+    )
+    from wyrd.generators.kenning.runtime.trie_matcher import _cap_tied_decompositions
+
+    decomps = [[Meaning(str(i), [], [], {})] for i in range(CAP + 10)]
+    assert _cap_tied_decompositions(decomps, None) == decomps[:CAP]
+
+
+def test_cap_tied_decompositions_under_limit_unchanged():
+    """At or below the cap, the list is returned untouched (no sort, no copy)."""
+    from wyrd.generators.kenning.runtime.trie_matcher import _cap_tied_decompositions
+
+    decomps = [[Meaning("a", [], [], {})], [Meaning("b", [], [], {})]]
+    assert _cap_tied_decompositions(decomps, frozenset({"old_english"})) is decomps
