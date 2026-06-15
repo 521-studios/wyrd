@@ -64,6 +64,17 @@ _Add your build and test commands here_
 
 _Add a brief overview of your project architecture_
 
+### Working on kenning?
+
+**If the task touches kenning (the place-name generator under
+`wyrd/generators/kenning/`), read [`KENNING_DOCS.md`](KENNING_DOCS.md) first.**
+It's a router that tells you which of the kenning docs are actually worth
+reading for your specific task — don't blindly read all of
+`wyrd/generators/kenning/*.md` (that's ~80KB of prose; `DECISIONS.md` alone is
+~63k tokens). The router also lists the load-bearing invariants (dashes are
+never morpheme identity, the two-layer split, vector-only scoring, era
+accretion, …) that get re-explained every few sessions.
+
 ## SPA Feature Flags
 
 The `spa-next/` config UI gates each advanced option behind a feature flag so
