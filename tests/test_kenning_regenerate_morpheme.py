@@ -19,6 +19,7 @@ none)."""
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -425,3 +426,69 @@ def test_registered_and_dispatchable_via_api(english_roll):
         )
         assert bad.status_code == 400
         assert bad.get_json()["error"] == "bad_params"
+
+
+def test_reroll_bare_word_carries_word_position_bucket(monkeypatch):
+    """wyrd-c6o1.2 (D43 / wyrd-rogd.13): re-rolling a BARE word draws from the
+    per-WORD-position bare pool — its slot bucket key is extended with wp-pre /
+    wp-inner / wp-post by the word's index, mirroring _flatten_struct_slots. Without
+    it a re-rolled bare word samples the un-positioned pool and can land at a
+    word-position it's never attested in ('Parva Wigston' shapes). A NON-bare slot
+    and a SINGLE-word name carry no wp- extension.
+
+    Builds a synthetic multi-word name from real bare morphemes so all three
+    positions + the single-word (word_position None) branch are covered
+    deterministically (not pinned to a particular roll's layout)."""
+    from wyrd.generators.kenning.runtime.word import WORD_POSITION_KEY_PREFIX
+
+    captured: list = []
+    real = vector_name_select._slot_weighted_pool
+
+    def capture(*args, **kwargs):
+        captured.append(kwargs.get("slot_bucket_key"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(vector_name_select, "_slot_weighted_pool", capture)
+
+    # Gather 3 distinct BARE morphemes (single-morpheme words) + one multi-morpheme
+    # word from real rolls — trivially available, so no layout-scan flakiness.
+    k = Kenning()
+    bare: dict[str, dict] = {}
+    multi_word = None
+    for s in range(60):
+        for word in k.generate({"culture": "english"}, seed=s).morphemes_by_word:
+            if len(word) == 1:
+                bare.setdefault(word[0]["usage"], word[0])
+            elif multi_word is None:
+                multi_word = word
+        if len(bare) >= 3 and multi_word is not None:
+            break
+    assert len(bare) >= 3, "expected >=3 distinct bare morphemes from the bundle"
+    a, b, c = list(bare.values())[:3]
+
+    def keyed_for(words, wi, mi):
+        # We assert on the SELECTION bucket key (captured in _slot_weighted_pool,
+        # before any pick) — whether the synthetic name then exhausts candidates
+        # after the in-use exclusions is irrelevant to the key-derivation logic.
+        captured.clear()
+        with contextlib.suppress(NoEligibleReplacementError):
+            _regen(words, wi, mi, seed=7, culture="english")
+        return next((bk for bk in captured if bk is not None), None)
+
+    # A 3-bare-word name → each word's re-roll keys ITS word-position.
+    three = [[a], [b], [c]]
+    for wi, expected in ((0, "pre"), (1, "inner"), (2, "post")):
+        key = keyed_for(three, wi, 0)
+        assert key is not None and key[0] == "bare", (wi, key)
+        assert key[-1] == f"{WORD_POSITION_KEY_PREFIX}{expected}", (wi, key, expected)
+
+    # Single-word bare name → no word-sequence evidence → NO wp- extension.
+    solo = keyed_for([[a]], 0, 0)
+    if solo is not None:
+        assert not any(str(p).startswith(WORD_POSITION_KEY_PREFIX) for p in solo), solo
+
+    # NON-bare slot (multi-morpheme word) → NO wp- extension (gated on position==bare).
+    if multi_word is not None:
+        nb = keyed_for([multi_word], 0, len(multi_word) - 1)
+        if nb is not None:
+            assert not any(str(p).startswith(WORD_POSITION_KEY_PREFIX) for p in nb), nb
