@@ -7,6 +7,7 @@ single-Sussex, the quarantine of merged-volume strings; and the Danelaw
 zone-vs-admin-node split). They read only the committed YAML; they never touch
 the live authoring DB (CI has none).
 """
+
 from importlib import resources
 
 import yaml
@@ -27,7 +28,15 @@ def _load():
 
 def test_parses_with_required_top_level_keys():
     m = _load()
-    for key in ("country", "dedup_stratum", "strata", "nodes", "deferred_zones", "quarantine", "aliases"):
+    for key in (
+        "country",
+        "dedup_stratum",
+        "strata",
+        "nodes",
+        "deferred_zones",
+        "quarantine",
+        "aliases",
+    ):
         assert key in m, f"missing top-level key {key!r}"
     assert m["country"] == "England"
     assert m["dedup_stratum"] in m["strata"], "dedup_stratum must be a declared stratum"
@@ -50,8 +59,12 @@ def test_every_node_well_formed():
     m = _load()
     for n in m["nodes"]:
         assert set(n) == {"canonical", "level", "stratum", "parent"}, f"unexpected node keys: {n}"
-        assert isinstance(n["canonical"], str) and n["canonical"].strip(), f"empty/non-str canonical: {n}"
-        assert n["parent"] is None or (isinstance(n["parent"], str) and n["parent"].strip()), f"bad parent: {n}"
+        assert isinstance(n["canonical"], str) and n["canonical"].strip(), (
+            f"empty/non-str canonical: {n}"
+        )
+        assert n["parent"] is None or (isinstance(n["parent"], str) and n["parent"].strip()), (
+            f"bad parent: {n}"
+        )
         assert n["level"] in VALID_LEVELS, f"bad level on {n['canonical']!r}: {n['level']!r}"
         assert n["stratum"] in VALID_STRATA, f"bad stratum on {n['canonical']!r}: {n['stratum']!r}"
 
@@ -179,8 +192,11 @@ def test_yorkshire_riding_granularity_decision():
     m = _load()
     by_name = {n["canonical"]: n for n in m["nodes"]}
     assert by_name["Yorkshire"]["level"] == "county"
-    ridings = {n["canonical"] for n in m["nodes"]
-               if n["parent"] == "Yorkshire" and n["level"] == "subdivision"}
+    ridings = {
+        n["canonical"]
+        for n in m["nodes"]
+        if n["parent"] == "Yorkshire" and n["level"] == "subdivision"
+    }
     assert ridings == {"North Riding", "East Riding", "West Riding"}, ridings
 
 
