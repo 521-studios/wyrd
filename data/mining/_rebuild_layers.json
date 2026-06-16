@@ -179,6 +179,13 @@
       "restored_by": "import-modern-reflexes (replays data/mining/_modern_reflexes.jsonl; run AFTER enrich so each reflex inherits its morpheme's cognate cluster)",
       "cost": "free",
       "runbook_token": "import-modern-reflexes"
+    },
+    {
+      "layer": "canonicalization-graph",
+      "summary": "canonical_morpheme / canonical_place / canonical_sense nodes + canonical_label + the canonical_*_id binds on etymon/etymon_gloss/toponym/toponym_etymology (Class-B entity resolution, D49/D50, wyrd-u6fn). The SCHEMA is created automatically by alembic migration 0019 like every other table (not a manual step). The DATA (nodes / binds / labels) is PROJECTED from the data/mining/canonicalization/ L2 assertion streams by the canonicalization projection (wyrd-u6fn.3, PENDING), so a from-scratch rebuild leaves these tables/columns EMPTY until that pass ships -- same posture as genitive_split_prior / empirical_priors. The L2 assertion streams are the source of truth and replay for free; the projection itself will be deterministic (re-derivable from L2), never a paid re-mine.",
+      "restored_by": "enrichment",
+      "cost": "free",
+      "runbook_token": "canonical_morpheme"
     }
   ]
 }
