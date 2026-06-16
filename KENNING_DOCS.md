@@ -104,6 +104,18 @@ in this subsystem is one of these getting violated:
    (identity / relational / canonicalization-choice, sorted by the collapsibility
    test), and an append-only assertion record with affirm/refute/retract polarity.
 
+9. **Mine morpheme facts from scholarly breakdowns, NEVER surface segmentation**
+   (D51, the gloss-blind rule). A composite's expansion or a reflex pairing must
+   come from what scholars actually attributed, because segmentation is
+   gloss-blind: `barton` segments to `bar`+`ton` but the scholar's breakdown is
+   `bere`+`tūn` (barley-farm). The `toponym_etymology` corpus is triple-duty —
+   morpheme-admission evidence (wyrd-oth3), the decomposer's labeled test corpus
+   (the grader; the regression list is the overfitting tripwire, and
+   coverage-up-while-agreement-down is a real failure mode), and the gloss-correct
+   mining source for passthroughs (`composed-of`, D50.3) + implied reflexes. A
+   composite morpheme is matched but ATTRIBUTED to its constituents
+   (surface ≠ attribution, like the connective) — never recorded opaque.
+
 ---
 
 ## Don't bother reading (unless you have a specific reason)
