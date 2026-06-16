@@ -50,8 +50,9 @@ def test_parses_with_required_top_level_keys():
 
 
 def test_buckets_are_non_empty():
-    """Guards against a vacuous-pass: an empty ``nodes`` list would make every
-    per-node assertion below pass by iterating zero times."""
+    """Guards against a vacuous-pass: an empty list in any of the three iterated
+    buckets would make the per-entry assertions over it pass by iterating zero
+    times."""
     m = _load()
     assert m["nodes"], "nodes must not be empty"
     assert m["deferred_zones"], "deferred_zones must not be empty"
@@ -84,6 +85,13 @@ def test_deferred_zones_and_quarantine_shapes():
     for q in m["quarantine"]:
         assert isinstance(q, dict), f"quarantine must be a mapping: {q}"
         assert set(q) == {"value", "reason"}, f"unexpected quarantine keys: {q}"
+    # intra-bucket value uniqueness — set-based membership tests elsewhere would
+    # silently dedup a value listed twice within a bucket (nodes get this via
+    # test_canonical_names_unique).
+    for bucket in ("deferred_zones", "quarantine"):
+        values = [e["value"] for e in m[bucket]]
+        dupes = {v for v in values if values.count(v) > 1}
+        assert not dupes, f"duplicate {bucket} values: {dupes}"
         assert all(isinstance(q[k], str) and q[k].strip() for k in q), f"blank/non-str field: {q}"
 
 
@@ -226,9 +234,8 @@ def test_yorkshire_riding_granularity_decision():
 
 
 def test_london_boroughs_is_the_sole_subdivision_of_greater_london():
-    """Round-1 containment fix: 'London Boroughs' is the collective of boroughs
-    WITHIN Greater London, modeled as its sole subdivision child — not a
-    county-level peer of it."""
+    """'London Boroughs' is the collective of boroughs WITHIN Greater London,
+    modeled as its sole subdivision child — not a county-level peer of it."""
     m = _load()
     by_name = {n["canonical"]: n for n in m["nodes"]}
     assert by_name["London Boroughs"]["level"] == "subdivision"
