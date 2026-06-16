@@ -9979,11 +9979,11 @@ def test_export_meanings_includes_toponym_breakdown_etymons(fresh_db: Path) -> N
         )
         db.commit()
 
-        common = dict(
-            include_rando=False,
-            include_wiktionary_empirical=False,
-            include_wave2_enriched=False,
-        )
+        common = {
+            "include_rando": False,
+            "include_wiktionary_empirical": False,
+            "include_wave2_enriched": False,
+        }
         with_breakdown = export_meanings(db, include_toponym_breakdown=True, **common)
         without_breakdown = export_meanings(db, include_toponym_breakdown=False, **common)
 
