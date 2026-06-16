@@ -26,7 +26,7 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from ..jsonl.log import read_jsonl
-from .assertions import Assertion, validate
+from .assertions import Assertion, AssertionValidationError, validate
 
 CANONICALIZATION_DIRNAME = "canonicalization"
 _NODES_FILE = "_canonical_nodes.jsonl"
@@ -78,11 +78,19 @@ def load_assertions(base_dir: str | Path) -> Iterator[Assertion]:
     if not cdir.is_dir():
         return
     for path in sorted(cdir.glob("*.jsonl")):
-        for _line_no, row in read_jsonl(path):
+        for line_no, row in read_jsonl(path):
             if row.get("_type") not in (None, "canonical_assertion"):
                 continue
-            assertion = Assertion.from_row(row)
-            validate(assertion)
+            try:
+                assertion = Assertion.from_row(row)
+                validate(assertion)
+            except (AssertionValidationError, KeyError, TypeError) as exc:
+                # A malformed parse (missing key → KeyError in from_row) or a
+                # spec violation surfaces as ONE located error — the stream is
+                # the source of truth and the offending line must be findable.
+                raise AssertionValidationError(
+                    f"{path.name}:{line_no}: invalid assertion row: {exc}"
+                ) from exc
             yield assertion
 
 

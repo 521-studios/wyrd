@@ -362,3 +362,209 @@ def test_newton_worked_example_round_trips_and_resolves(tmp_path):
     assert rebind.id in live_ids
     assert spurious.id in live_ids
     assert all(a.id for a in written)
+
+
+# --- id covers the full record (review round 1: collision cluster) --------
+
+
+def test_assertion_id_varies_by_confidence_and_actor():
+    base = _bind("671826", "CM-new-oe", source="s")
+    from dataclasses import replace
+
+    assert mint_assertion_id(base) != mint_assertion_id(replace(base, confidence="low"))
+    assert mint_assertion_id(base) != mint_assertion_id(replace(base, actor="someone"))
+    assert mint_assertion_id(base) != mint_assertion_id(replace(base, timestamp="2026"))
+
+
+def test_assertion_id_ignores_qualifier_order():
+    a1 = Assertion(
+        predicate="canonical-label",
+        subject=NodeRef("canonical_place", "CP-x"),
+        qualifiers={"stratum": "domesday", "value": "Neutune"},
+    )
+    a2 = Assertion(
+        predicate="canonical-label",
+        subject=NodeRef("canonical_place", "CP-x"),
+        qualifiers={"value": "Neutune", "stratum": "domesday"},
+    )
+    assert mint_assertion_id(a1) == mint_assertion_id(a2)
+
+
+# --- self-loops rejected for binary predicates ----------------------------
+
+
+def test_self_loop_rejected():
+    with pytest.raises(AssertionValidationError, match="self-loop"):
+        validate(
+            Assertion(
+                predicate="merge-canonical",
+                subject=NodeRef("canonical_morpheme", "CM-x"),
+                object=NodeRef("canonical_morpheme", "CM-x"),
+            )
+        )
+    with pytest.raises(AssertionValidationError, match="self-loop"):
+        validate(
+            Assertion(
+                predicate="means-same-as",
+                subject=NodeRef("etymon", "tun"),
+                object=NodeRef("etymon", "tun"),
+            )
+        )
+
+
+# --- coverage of the under-tested predicates ------------------------------
+
+
+def test_relational_and_identity_predicates_validate():
+    ok = [
+        Assertion(
+            predicate="merge-canonical",
+            subject=NodeRef("canonical_morpheme", "CM-a"),
+            object=NodeRef("canonical_morpheme", "CM-b"),
+        ),
+        Assertion(
+            predicate="means-same-as",
+            subject=NodeRef("etymon", "waeter"),
+            object=NodeRef("etymon", "bekkr"),
+        ),
+        Assertion(
+            predicate="glosses-as",
+            subject=NodeRef("etymon", "tun"),
+            object=NodeRef("sense", "settlement"),
+        ),
+        Assertion(
+            predicate="contains",
+            subject=NodeRef("region_node", "england"),
+            object=NodeRef("region_node", "yorkshire"),
+        ),
+        Assertion(
+            predicate="succeeds",
+            subject=NodeRef("jurisdiction", "cumberland"),
+            object=NodeRef("region_node", "cumbria"),
+        ),
+        Assertion(
+            predicate="located-in",
+            subject=NodeRef("toponym", "1725"),
+            object=NodeRef("region_node", "lancashire"),
+        ),
+        Assertion(
+            predicate="canonical-decomposition",
+            subject=NodeRef("toponym", "1725"),
+            object=NodeRef("decomposition", "671826,377353"),
+            qualifiers={"culture": "english"},
+        ),
+    ]
+    for a in ok:
+        validate(a)  # no raise
+
+
+def test_means_same_as_rejects_canonical_object():
+    with pytest.raises(AssertionValidationError, match="object type"):
+        validate(
+            Assertion(
+                predicate="means-same-as",
+                subject=NodeRef("etymon", "waeter"),
+                object=NodeRef("canonical_morpheme", "CM-x"),
+            )
+        )
+
+
+def test_canonical_label_requires_value():
+    with pytest.raises(AssertionValidationError, match="missing required qualifier"):
+        validate(
+            Assertion(
+                predicate="canonical-label",
+                subject=NodeRef("canonical_place", "CP-x"),
+                qualifiers={"stratum": "domesday"},
+            )
+        )
+
+
+# --- polarity branch + malformed-row handling -----------------------------
+
+
+def test_invalid_polarity_rejected():
+    with pytest.raises(AssertionValidationError, match="polarity"):
+        validate(
+            Assertion(
+                predicate="mint-canonical",
+                subject=NodeRef("canonical_morpheme", "CM-x"),
+                polarity="maybe",
+            )
+        )
+
+
+def test_load_skips_foreign_type_rows(tmp_path):
+    append_assertion(tmp_path, _bind("671826", "CM-new-oe"))
+    # a foreign row in the same dir must be skipped, not parsed as an assertion
+    nodes = tmp_path / "canonicalization" / "_assert_bind.jsonl"
+    with nodes.open("a", encoding="utf-8") as fh:
+        fh.write('{"_type": "source", "ref": "some-source"}\n')
+    loaded = list(load_assertions(tmp_path))
+    assert len(loaded) == 1
+    assert loaded[0].subject.ref == "671826"
+
+
+def test_load_raises_located_error_on_malformed_row(tmp_path):
+    bad = tmp_path / "canonicalization" / "_assert_bind.jsonl"
+    bad.parent.mkdir(parents=True, exist_ok=True)
+    # _type says assertion, but the required 'predicate' field is missing
+    bad.write_text('{"_type": "canonical_assertion", "subject": {"type": "etymon", "ref": "x"}}\n')
+    with pytest.raises(AssertionValidationError, match=r"_assert_bind\.jsonl:1"):
+        list(load_assertions(tmp_path))
+
+
+# --- determinism, retraction edge cases, unicode --------------------------
+
+
+def test_load_is_order_deterministic(tmp_path):
+    for ref in ("671826", "2229070", "4631595"):
+        append_assertion(tmp_path, _bind(ref, "CM-new-oe"))
+    ids_first = [a.id for a in load_assertions(tmp_path)]
+    ids_second = [a.id for a in load_assertions(tmp_path)]
+    assert ids_first == ids_second
+
+
+def test_retract_of_missing_id_is_noop():
+    bind = _bind("671826", "CM-new-oe").with_id()
+    retract = Assertion(
+        predicate="bind",
+        subject=NodeRef("etymon", "671826"),
+        object=NodeRef("canonical_morpheme", "CM-new-oe"),
+        qualifiers={"kind": "same-morpheme"},
+        polarity="retract",
+        retracts="a-does-not-exist",
+    ).with_id()
+    assert effective_assertions([bind, retract]) == [bind]
+
+
+def test_reaffirm_after_retract_is_live(tmp_path):
+    bind = append_assertion(tmp_path, _bind("4631595", "CM-x", rationale="first"))
+    append_assertion(
+        tmp_path,
+        Assertion(
+            predicate="bind",
+            subject=NodeRef("etymon", "4631595"),
+            object=NodeRef("canonical_morpheme", "CM-x"),
+            qualifiers={"kind": "same-morpheme"},
+            confidence="high",
+            polarity="retract",
+            retracts=bind.id,
+        ),
+    )
+    # re-authoring with a distinct rationale is a NEW record → new id → live
+    reaffirm = append_assertion(tmp_path, _bind("4631595", "CM-x", rationale="reconsidered"))
+    assert reaffirm.id != bind.id
+    live_ids = {a.id for a in effective_assertions(list(load_assertions(tmp_path)))}
+    assert bind.id not in live_ids
+    assert reaffirm.id in live_ids
+
+
+def test_unicode_survives_round_trip_and_disk(tmp_path):
+    a = _bind("2229070", "CM-new-oe", rationale="nīwe — macron variant of ne")
+    written = append_assertion(tmp_path, a)
+    [loaded] = list(load_assertions(tmp_path))
+    assert loaded.rationale == "nīwe — macron variant of ne"
+    assert loaded == written
+    raw = (tmp_path / "canonicalization" / "_assert_bind.jsonl").read_text(encoding="utf-8")
+    assert "nīwe" in raw  # ensure_ascii=False keeps it readable in the diff

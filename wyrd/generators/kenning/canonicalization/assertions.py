@@ -32,6 +32,7 @@ L3 projection that consumes these records is the separate ``u6fn.3`` work.
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -189,6 +190,16 @@ PREDICATES: dict[str, PredicateSpec] = {
     ),
 }
 
+# Catalog invariant: every predicate's family must be a known family. Guards
+# future edits to PREDICATES from introducing a typo'd / unknown family string.
+for _ps in PREDICATES.values():
+    if _ps.family not in FAMILIES:
+        raise AssertionValidationError(
+            f"predicate {_ps.name!r} has unknown family {_ps.family!r}; "
+            f"expected one of {sorted(FAMILIES)}"
+        )
+del _ps
+
 
 # --- records --------------------------------------------------------------
 
@@ -216,6 +227,13 @@ class Assertion:
     the identical claim is idempotent. ``qualifiers`` carries the
     predicate-specific axes (ordinal / stratum / edge_type / kind / value /
     culture / reason) — never identity.
+
+    ``frozen=True`` blocks field rebinding but not mutation of the
+    ``qualifiers`` dict; treat it as read-only after construction (codebase
+    convention, cf. ``PhonologicalVector.extras``). The id is derived from
+    ``qualifiers``, so mutating it post-``with_id()`` would desync the cached
+    id and break the D36.9 determinism guarantee — author a fresh record
+    instead.
     """
 
     predicate: str
@@ -284,33 +302,41 @@ class Assertion:
 # --- id minting (deterministic, D36.9) ------------------------------------
 
 
-def _node_key(node: NodeRef | None) -> str:
-    return f"{node.type}:{node.ref}" if node is not None else ""
-
-
 def mint_assertion_id(a: Assertion) -> str:
-    """A stable content hash of the claim + its provenance source.
+    """A stable content hash of the WHOLE record (claim + provenance).
 
-    Re-authoring the identical record (same predicate / endpoints / polarity /
-    qualifiers / source / rationale) yields the same id, so an authoring pass
-    is idempotent and a rebuild is deterministic (D36.9). Distinct sources or
-    rationales for the "same" logical claim get distinct ids — every witness
-    stays on the log.
+    Every identifying and provenance field is hashed via canonical JSON
+    (``sort_keys`` so qualifier / field order is irrelevant), EXCEPT ``id``
+    itself. Consequences:
+
+    - Re-authoring a byte-identical record yields the same id, so an authoring
+      pass is idempotent and a rebuild is deterministic (D36.9).
+    - Any difference — confidence, method, source, actor, timestamp, rationale,
+      qualifiers — yields a distinct id, so every authored witness is preserved
+      on the append-only log (no silent collision drops a row).
+    - Re-affirming a *retracted* claim is therefore a NEW record (distinct
+      timestamp / actor / rationale → distinct id → live again); the original
+      withdrawn id stays withdrawn.
+
+    The JSON encoding is unambiguous (no separator-collision risk from a space
+    appearing inside a rationale or ref).
     """
-    quals = ";".join(f"{k}={a.qualifiers[k]}" for k in sorted(a.qualifiers))
-    content = " ".join(
-        (
-            a.predicate,
-            _node_key(a.subject),
-            _node_key(a.object),
-            a.polarity,
-            a.retracts or "",
-            quals,
-            a.source,
-            a.rationale,
-        )
-    )
-    digest = hashlib.md5(content.encode("utf-8"), usedforsecurity=False).hexdigest()
+    payload = {
+        "predicate": a.predicate,
+        "subject": a.subject.to_row(),
+        "object": a.object.to_row() if a.object is not None else None,
+        "polarity": a.polarity,
+        "retracts": a.retracts,
+        "qualifiers": a.qualifiers,
+        "confidence": a.confidence,
+        "method": a.method,
+        "source": a.source,
+        "actor": a.actor,
+        "rationale": a.rationale,
+        "timestamp": a.timestamp,
+    }
+    blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    digest = hashlib.md5(blob.encode("utf-8"), usedforsecurity=False).hexdigest()
     return f"a-{digest[:16]}"
 
 
@@ -334,7 +360,7 @@ def mint_canonical_id(node_type: str, *parts: str) -> str:
             f"expected one of {sorted(CANONICAL_NODE_TYPES)}"
         )
     prefix = _CANONICAL_PREFIX[node_type]
-    content = " ".join(parts)
+    content = "\x1f".join(parts)  # unit separator — unambiguous across parts
     digest = hashlib.md5(content.encode("utf-8"), usedforsecurity=False).hexdigest()
     return f"{prefix}-{digest[:12]}"
 
@@ -358,6 +384,14 @@ def _check_arity(a: Assertion, spec: PredicateSpec) -> None:
     if a.object is None:
         raise AssertionValidationError(f"{a.predicate!r} requires an object")
     _check_types("object", a.object, spec.object_types)
+    # No binary predicate has a meaningful self-loop (merge-canonical of a node
+    # with itself, an etymon descending from / same-as itself, etc.), so reject
+    # subject == object outright — a degenerate edge the L3 projection would
+    # otherwise have to special-case.
+    if a.subject == a.object:
+        raise AssertionValidationError(
+            f"{a.predicate!r} subject and object must differ (no self-loop): {a.subject!r}"
+        )
 
 
 def _check_qualifiers(a: Assertion, spec: PredicateSpec) -> None:
