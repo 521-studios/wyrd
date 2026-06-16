@@ -15,7 +15,13 @@ from wyrd.generators.kenning.canonicalization import (
     stream_filename,
     validate,
 )
-from wyrd.generators.kenning.canonicalization.assertions import mint_assertion_id
+from wyrd.generators.kenning.canonicalization.assertions import (
+    FAMILIES,
+    PREDICATES,
+    PredicateSpec,
+    _validate_predicate_families,
+    mint_assertion_id,
+)
 
 
 def _bind(etymon_ref: str, canonical: str, **kw) -> Assertion:
@@ -517,12 +523,57 @@ def test_load_raises_located_error_on_malformed_row(tmp_path):
 # --- determinism, retraction edge cases, unicode --------------------------
 
 
-def test_load_is_order_deterministic(tmp_path):
-    for ref in ("671826", "2229070", "4631595"):
-        append_assertion(tmp_path, _bind(ref, "CM-new-oe"))
+def test_load_is_order_deterministic_across_files(tmp_path):
+    # rows land in two different predicate streams; load must yield them in a
+    # stable, sorted-filename order (_assert_bind before _assert_descends_from)
+    # so a rebuild is reproducible (D36.9) — not merely load-against-itself.
+    bind = append_assertion(tmp_path, _bind("671826", "CM-new-oe"))
+    descends = append_assertion(
+        tmp_path,
+        Assertion(
+            predicate="descends-from",
+            subject=NodeRef("etymon", "town"),
+            object=NodeRef("etymon", "tun"),
+            qualifiers={"edge_type": "inheritance"},
+        ),
+    )
     ids_first = [a.id for a in load_assertions(tmp_path)]
     ids_second = [a.id for a in load_assertions(tmp_path)]
     assert ids_first == ids_second
+    # _assert_bind.jsonl sorts before _assert_descends_from.jsonl
+    assert ids_first == [bind.id, descends.id]
+
+
+def test_predicate_family_guard_rejects_unknown_family():
+    bogus = {
+        "x": PredicateSpec("x", "not-a-family", frozenset({"etymon"}), None),
+    }
+    with pytest.raises(AssertionValidationError, match="unknown family"):
+        _validate_predicate_families(bogus, FAMILIES)
+    # the real catalog passes
+    _validate_predicate_families(PREDICATES, FAMILIES)
+
+
+def test_load_rejects_tampered_id(tmp_path):
+    a = append_assertion(tmp_path, _bind("671826", "CM-new-oe"))
+    path = tmp_path / "canonicalization" / "_assert_bind.jsonl"
+    path.write_text(path.read_text().replace(a.id, "a-tampered000000"))
+    with pytest.raises(AssertionValidationError, match="content id"):
+        list(load_assertions(tmp_path))
+
+
+def test_load_rejects_malformed_qualifiers_value(tmp_path):
+    path = tmp_path / "canonicalization" / "_assert_bind.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # qualifiers as a string → dict("oops") raises ValueError inside from_row
+    path.write_text(
+        '{"_type": "canonical_assertion", "predicate": "bind", '
+        '"subject": {"type": "etymon", "ref": "x"}, '
+        '"object": {"type": "canonical_morpheme", "ref": "CM-x"}, '
+        '"qualifiers": "oops"}\n'
+    )
+    with pytest.raises(AssertionValidationError, match=r"_assert_bind\.jsonl:1"):
+        list(load_assertions(tmp_path))
 
 
 def test_retract_of_missing_id_is_noop():

@@ -190,15 +190,26 @@ PREDICATES: dict[str, PredicateSpec] = {
     ),
 }
 
-# Catalog invariant: every predicate's family must be a known family. Guards
-# future edits to PREDICATES from introducing a typo'd / unknown family string.
-for _ps in PREDICATES.values():
-    if _ps.family not in FAMILIES:
-        raise AssertionValidationError(
-            f"predicate {_ps.name!r} has unknown family {_ps.family!r}; "
-            f"expected one of {sorted(FAMILIES)}"
-        )
-del _ps
+
+def _validate_predicate_families(
+    predicates: dict[str, PredicateSpec], families: frozenset[str]
+) -> None:
+    """Guard the catalog invariant: every predicate's family is a known family.
+
+    Extracted (rather than inlined at module scope) so the rejection path is
+    testable with a synthetic bad-family catalog — the real ``PREDICATES``
+    always passes, so an in-place loop could never exercise the raise.
+    """
+    for spec in predicates.values():
+        if spec.family not in families:
+            raise AssertionValidationError(
+                f"predicate {spec.name!r} has unknown family {spec.family!r}; "
+                f"expected one of {sorted(families)}"
+            )
+
+
+# Guards future edits to PREDICATES from introducing a typo'd family string.
+_validate_predicate_families(PREDICATES, FAMILIES)
 
 
 # --- records --------------------------------------------------------------

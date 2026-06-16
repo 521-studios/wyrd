@@ -26,7 +26,12 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from ..jsonl.log import read_jsonl
-from .assertions import Assertion, AssertionValidationError, validate
+from .assertions import (
+    Assertion,
+    AssertionValidationError,
+    mint_assertion_id,
+    validate,
+)
 
 CANONICALIZATION_DIRNAME = "canonicalization"
 _NODES_FILE = "_canonical_nodes.jsonl"
@@ -84,10 +89,18 @@ def load_assertions(base_dir: str | Path) -> Iterator[Assertion]:
             try:
                 assertion = Assertion.from_row(row)
                 validate(assertion)
-            except (AssertionValidationError, KeyError, TypeError) as exc:
-                # A malformed parse (missing key → KeyError in from_row) or a
-                # spec violation surfaces as ONE located error — the stream is
-                # the source of truth and the offending line must be findable.
+                # Content-addressability: a stored id must equal the hash of the
+                # row's content, so a hand-edit / merge-mangle / stale id can't
+                # silently pass (D50.4 — the id IS the content).
+                if assertion.id and assertion.id != mint_assertion_id(assertion):
+                    raise AssertionValidationError(
+                        f"stored id {assertion.id!r} != content id {mint_assertion_id(assertion)!r}"
+                    )
+            except (AssertionValidationError, KeyError, TypeError, ValueError) as exc:
+                # A malformed parse (missing key → KeyError; bad qualifiers →
+                # ValueError/TypeError in from_row) or a spec violation surfaces
+                # as ONE located error — the stream is the source of truth and
+                # the offending line must be findable.
                 raise AssertionValidationError(
                     f"{path.name}:{line_no}: invalid assertion row: {exc}"
                 ) from exc
