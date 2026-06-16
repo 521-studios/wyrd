@@ -380,11 +380,11 @@ def test_detect_historical_genitive_none_without_forms():
 
 
 def test_detect_historical_genitive_defers_on_conflict():
-    # 'staneston' shows BOTH a bound stone stem ('stan') and a genitive town
-    # marker ('es'+'ton') -> ambiguous, defer to the cluster classifier.
+    # One historical form shows a genitive town marker ('es'+'ton'), another ends
+    # in a bound stone stem ('stan') -> the forms disagree, defer to the cluster.
     assert (
         detect_historical_genitive(
-            ["Staneston"], "Whatever", town_stems={"ton"}, stone_stems={"stan"}
+            ["Cyningeston", "Rodestan"], "Whatever", town_stems={"ton"}, stone_stems={"stan"}
         )
         is None
     )
@@ -427,6 +427,43 @@ def test_attestation_modern_echo_stays_skipped(db, ston_world):
     assert ("ston", "ton") not in counts
     assert summary.resolved_by_attestation == 0
     assert summary.skipped_unclassified == 1
+
+
+def test_detect_historical_genitive_consonant_s_arm():
+    # 'wulfricston' = ...c + s + ton : the consonant-`s` arm (no 'e' vowel),
+    # the reason that arm exists. Bare modern 'wolston' would not match it.
+    assert (
+        detect_historical_genitive(
+            ["Wulfricston"], "Wolston", town_stems={"ton"}, stone_stems={"stan"}
+        )
+        == "split"
+    )
+
+
+def test_attestation_resolves_from_attestation_form_source(db, ston_world):
+    w = ston_world
+    # Unclassified breakdown; the genitive signal comes from toponym_attestation
+    # (not historical_form) — exercises that source path end-to-end.
+    t = _toponym(db, "Kingston")
+    _etymology(db, t, [w["bishop"]])
+    _attest(db, t, "Cyningeston")
+    db.commit()
+    counts, summary = extract_genitive_priors(db)
+    assert counts[("ston", "ton")] == PairCounts(split=1, literal=0)
+    assert summary.resolved_by_attestation == 1
+
+
+def test_attestation_resolves_both_cluster_residue(db, ston_world):
+    w = ston_world
+    # Breakdown touches BOTH clusters (normally skipped_both), but a genuine
+    # historical form resolves it — the `both`→attestation branch of _resolve.
+    t = _toponym(db, "Kingston")
+    _etymology(db, t, [w["tun"], w["stan"]], historical_form="Cyningeston")
+    db.commit()
+    counts, summary = extract_genitive_priors(db)
+    assert counts[("ston", "ton")].split == 1
+    assert summary.resolved_by_attestation == 1
+    assert summary.skipped_both == 0
 
 
 # ---------- CLI smoke ----------------------------------------------------

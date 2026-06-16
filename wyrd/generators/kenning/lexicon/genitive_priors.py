@@ -287,6 +287,13 @@ def detect_historical_genitive(
     shows a bound stone stem; ``'literal'`` for the inverse; ``None`` when there
     is no historical form, no marker, or both appear (ambiguous → defer to the
     cluster classifier).
+
+    Both arms are suffix-anchored, so a bound stone stem only counts when it ends
+    the form (avoids matching a ``stan`` buried in a specifier like *Dunstan*).
+    The residual ``-eston`` ambiguity (a genuine stone spelled ``X-eston`` reads
+    as ``es``+``ton``) is why this stays SUBORDINATE: a decisive ``stān`` cluster
+    is never overridden, so only an *unclassified* stone with no ``-stan`` form
+    could be mis-split — a rare residue the cluster prior smooths over.
     """
     modern = _fold(modern_name)
     hist = {f for f in (_fold(x) for x in forms) if f and f != modern}
@@ -296,7 +303,7 @@ def detect_historical_genitive(
         re.compile(rf".+(?:es|[bcdfghjklmnpqrstvwxyz]s){re.escape(t)}$") for t in town_stems
     ]
     saw_town = any(rx.search(f) for f in hist for rx in town_res)
-    saw_stone = any(stem in f for f in hist for stem in stone_stems)
+    saw_stone = any(f.endswith(stem) for f in hist for stem in stone_stems)
     if saw_town and not saw_stone:
         return "split"
     if saw_stone and not saw_town:
