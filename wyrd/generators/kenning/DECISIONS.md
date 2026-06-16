@@ -3549,3 +3549,91 @@ legacy-import binds is wyrd-u6fn.4. The full edge-taxonomy + schema + projection
 first-cut detail live in those tickets' design fields.
 
 Epic: wyrd-u6fn (Class B). Specifies D49's Class-B half.
+
+## D51. Scholarly toponym breakdowns are decomposition substrate — admission evidence, decomposer test corpus, gloss-correct mining source (wyrd-oth3 / wyrd-h5u1 / wyrd-7hbp, 2026-06-16).
+
+The `toponym_etymology` breakdown corpus (~17K toponyms of scholar-attributed
+morpheme decompositions) is not merely reference data — it is the substrate
+three distinct pieces of decomposition machinery stand on. Naming the three
+roles, plus the one rule that governs mining from it, is the through-line of the
+wyrd-aicu.9 / wyrd-oth3 work.
+
+### D51.1. Three roles.
+
+1. **Admission evidence** (wyrd-oth3). A morpheme a scholar used as an element in
+   a real place-name breakdown is admissible to the runtime inventory on that
+   evidence alone — a fifth `export_meanings` admission path
+   (`include_toponym_breakdown`), parallel to rando-port / wiktionary-empirical /
+   wave-2-enriched and bypassing the D4 dictionary-witness gate. It is a
+   place-name-specific evidence channel, distinct from (and for place-name
+   generation arguably stronger than) dictionary witnesses: it recovers the
+   specifiers and heads scholars actually used that the witness gate misses — the
+   absence of which made the matcher junk-tile `Aldermaston` → `Al+Der+Ma+Ston`
+   and dump spurious counts into the proportions.
+
+2. **Labeled test corpus** (the decomposition grader). The breakdowns are ground
+   truth for the decomposer: grade matcher versions against them by cognate-
+   cluster recall / precision / coverage / head agreement — order-robust, because
+   `ordinal` is not reliably surface-order (wyrd-z3me) — and diff configurations
+   head-to-head. Two findings are load-bearing. The **regression list** (parses
+   the new config gets wrong that the old got right) is the **overfitting
+   tripwire**: a decomposer change is acceptable only if net agreement rises AND
+   the regression list is empty or each entry is individually defensible — this
+   keeps the matcher to general rules and out of corpus-fitted special cases. And
+   **coverage-up-while-agreement-down is a real failure mode**: the unfiltered
+   breakdown admit raised coverage but dropped cluster recall/head — a regression
+   coverage alone would have scored a win. Grade against the production inventory
+   (what the proportions train on), not the committed dev seed.
+
+3. **Gloss-correct mining source** (wyrd-h5u1 passthroughs, wyrd-65jh implied
+   reflexes). Relational facts — a composite morpheme's constituents (`ington` →
+   `ing`+`tūn`), a morpheme's modern reflex (`hough` ← `hōh`) — are mined from the
+   breakdowns and modeled as D50 assertions (`composed-of`; `canonical-label`
+   per stratum / reflex rows).
+
+### D51.2. Mine from scholarly evidence, never surface segmentation (the gloss-blind rule).
+
+A composite's expansion or a reflex pairing must come from what scholars actually
+attributed, never from segmenting the surface against the inventory. Surface
+segmentation is **gloss-blind**: it would expand `barton` → `bar`+`ton`, but the
+scholar's breakdown is `bere`+`tūn` (barley-farm). Evidence streams, in order of
+cleanliness: (1) cross-scholar coarse-vs-fine on the same toponym — one breakdown
+coarsens a 2+-element span of another, the rest aligning; intra-toponym, both
+gloss-bearing, zero inference (the "whole-vs-split" disagreements the aicu.9
+cross-region investigation treated as *noise* — `burhtun` == `burh`+`tūn` — are
+reclaimed here as *signal*); (2) matcher-vs-scholar miss (matcher emits the
+composite, scholar is finer; the residual scholar elements are the expansion);
+(3) pooling across toponyms sharing the composite ending. This rule sits
+alongside D40/D45 (identity is bare and derived) as a "don't reintroduce this bug
+class" invariant — extended to the mining boundary.
+
+### D51.3. Composites are passthroughs: surface ≠ attribution.
+
+A composite toponymic morpheme (`ington`) is an acceptable thing for the matcher
+to MATCH — it parses cleanly, survives Occam, carries no junk-tiling risk — but it
+is RECORDED as a **passthrough** that expands to its constituents for attribution
+and rendering: the same surface-vs-attribution divergence as the aicu.9
+connective. Realized as a `composed-of` relational edge (D50.3 Family B). Without
+it, the matcher's Occam tiebreaker (fewer morphemes wins) prefers the coarse
+single composite over the finer correct split (`Ald+ington` beats `Ald+ing+tūn`),
+dropping agreement — so **breakdown admission (D51.1.1) is gated OFF by default**
+until the passthrough lands (wyrd-h5u1) and the grader (D51.1.2) shows a net win.
+The originally-considered fix — a composite-penalty / granularity-weight
+tiebreaker fighting the segmentation-DAG pruning — was rejected in favor of the
+passthrough: the passthrough lets the composite win the parse and expands at
+attribution, needing no scoring surgery and working even when the finer split is
+not independently the best parse.
+
+### Why this shape.
+
+It unifies three previously-separate concerns onto one corpus under one
+provenance discipline, and composes with the existing architecture: admission
+extends the D4 + bypass-path gate; the grader operationalizes "general defensible
+rules only" (D40); the mining lands in D50's assertion layer (`composed-of`); and
+the gloss-blind rule extends the D40/D45 identity discipline to the mining
+boundary. The breakdowns were always ground truth — D51 is the decision to use
+them as such across admission, validation, and enrichment.
+
+Tickets: wyrd-7hbp (uplift epic), wyrd-oth3 (admission), wyrd-myv4
+(occurrence/junk filter), wyrd-h5u1 (`composed-of` passthrough mining), wyrd-65jh
+(implied reflexes).
