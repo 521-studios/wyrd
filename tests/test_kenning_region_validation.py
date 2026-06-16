@@ -16,14 +16,16 @@ from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.ingest import _upsert_toponym
 from wyrd.generators.kenning.lexicon.region_model import (
     RegionValidationError,
+    _build_model,
     canonicalize_region,
 )
 
 # --- pure canonicalizer ------------------------------------------------------
 
 
-def test_none_passes_through():
+def test_none_and_empty_normalize_to_none():
     assert canonicalize_region(None) is None
+    assert canonicalize_region("") is None  # empty region normalizes to NULL
 
 
 def test_canonical_nodes_pass_unchanged():
@@ -57,8 +59,9 @@ def test_aliases_fold_to_canonical():
 
 
 def test_country_root_is_rejected():
-    with pytest.raises(RegionValidationError):
+    with pytest.raises(RegionValidationError) as exc:
         canonicalize_region("England")
+    assert "county" in str(exc.value)
 
 
 def test_deferred_zone_is_rejected():
@@ -73,8 +76,9 @@ def test_quarantined_codings_are_rejected():
         "Cumberland and Westmorland",
         "South-West Yorkshire",
     ):
-        with pytest.raises(RegionValidationError):
+        with pytest.raises(RegionValidationError) as exc:
             canonicalize_region(region)
+        assert "quarantine" in str(exc.value), region
 
 
 def test_unknown_england_region_is_rejected_when_country_is_england():
@@ -107,17 +111,16 @@ def test_explicit_country_is_authoritative_for_scope():
     assert canonicalize_region("SUF", country="England") == "Suffolk"
 
 
-def test_model_recognition_alone_scopes_rejection(monkeypatch):
-    """Forward-protection branch: even if a quarantine value were NOT in the
-    region→country map (today they coincidentally all are), the model's own
-    recognition still England-scopes it so it fails closed. Isolated by stubbing
-    country_for_region to None so recognition is the sole scoping signal."""
-    monkeypatch.setattr(
-        "wyrd.generators.kenning.lexicon.region_model.country_for_region",
-        lambda _region: None,
-    )
+def test_model_recognition_alone_scopes_rejection():
+    """Forward-protection branch: 'The Channel Islands' is quarantined in the
+    model but absent from the region→country map, so the model's own recognition
+    is the SOLE England-scoping signal — and it still fails closed. (Removing
+    `or model.recognizes(region)` from the scope check would break this.)"""
+    from wyrd.generators.kenning.lexicon.regions import country_for_region
+
+    assert country_for_region("The Channel Islands") is None  # genuinely absent from the map
     with pytest.raises(RegionValidationError):
-        canonicalize_region("Northumberland and Durham")  # no country; map stubbed to None
+        canonicalize_region("The Channel Islands")  # no country hint
 
 
 def test_unknown_with_no_england_signal_passes_through():
@@ -125,6 +128,33 @@ def test_unknown_with_no_england_signal_passes_through():
     is not England-scoped, so it is deferred rather than rejected — the guard
     fires only once a value is known to be England's."""
     assert canonicalize_region("Atlantis") == "Atlantis"
+
+
+# --- model load-time validation (fail-loud config guards) -------------------
+
+
+def test_build_model_rejects_non_mapping():
+    with pytest.raises(ValueError, match="did not parse as a mapping"):
+        _build_model([1, 2, 3])
+
+
+def test_build_model_requires_exactly_one_country_node():
+    with pytest.raises(ValueError, match="exactly one country-level node"):
+        _build_model({"nodes": [{"canonical": "Kent", "level": "county"}]})
+
+
+def test_build_model_rejects_alias_target_not_a_node():
+    """The load-bearing guard underwriting canonicalize_region's "alias return is
+    safe" claim: an alias pointed at a non-node fails at model build."""
+    bad = {
+        "nodes": [
+            {"canonical": "England", "level": "country"},
+            {"canonical": "Kent", "level": "county"},
+        ],
+        "aliases": [{"from": "KEN", "to": "Knet", "kind": "code"}],  # typo'd target
+    }
+    with pytest.raises(ValueError, match="alias targets are not valid region nodes"):
+        _build_model(bad)
 
 
 # --- ingest-boundary integration --------------------------------------------

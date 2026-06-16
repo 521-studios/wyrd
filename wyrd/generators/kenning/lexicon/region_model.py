@@ -82,7 +82,15 @@ def _model() -> _EnglandModel:
     otherwise let an invalid region slip through :func:`canonicalize_region`.
     """
     text = resources.files(_DATA_PACKAGE).joinpath(_FILENAME).read_text(encoding="utf-8")
-    m = yaml.safe_load(text)
+    return _build_model(yaml.safe_load(text))
+
+
+def _build_model(m: object) -> _EnglandModel:
+    """Validate a parsed region-model mapping into an immutable ``_EnglandModel``.
+
+    Split out from :func:`_model` as a pure (uncached, no-I/O) function so the
+    fail-loud guards are directly testable without a malformed YAML fixture.
+    """
     if not isinstance(m, dict):
         raise ValueError(f"{_FILENAME} did not parse as a mapping")
     nodes = m.get("nodes") or []
@@ -106,7 +114,7 @@ def canonicalize_region(region: str | None, *, country: str | None = None) -> st
 
     Returns:
 
-    - ``None`` for ``None`` (no region);
+    - ``None`` for ``None`` or an empty string (no region);
     - the canonical node for an alias variant (folded);
     - a canonical region node unchanged;
     - a non-England / out-of-scope value unchanged (passed through);
@@ -126,7 +134,7 @@ def canonicalize_region(region: str | None, *, country: str | None = None) -> st
     region→country map plus the model's own recognition (so a known England
     zone/quarantine value is still caught with no country hint).
     """
-    if region is None:
+    if not region:  # None or "" — normalize a missing region to NULL
         return None
     model = _model()
     if country is not None:
