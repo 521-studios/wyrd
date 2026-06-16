@@ -1,0 +1,141 @@
+# regions_england.yaml — Class-A region classification model for England
+#
+# Ticket: wyrd-3q6m.1  ·  Decision: D49 (Class-A controlled-vocabulary half)
+#
+# WHAT THIS FILE IS
+#   The canonical node vocabulary + within-stratum containment skeleton + axis
+#   typing for England's `region` dimension. Region is NOT a flat county enum —
+#   it is a forest of stratified containment trees (D49 hierarchy section).
+#
+# WHAT IT IS FOR
+#   DEDUP. The canonical node (at `dedup_stratum`) is the `canonical_region`
+#   blocking key the Class-B place-identity pass (wyrd-u6fn.7) uses to decide
+#   "is this Newton and that Niweton the same place?". Granularity is driven by
+#   *what separates places*, not by cultural meaningfulness.
+#
+# WHAT IT IS NOT
+#   - NOT the alias map (code/casing -> canonical). That is wyrd-3q6m.2, which
+#     fills the `aliases:` block below.
+#   - NOT ingest validation. That is wyrd-3q6m.3 (fail-closed on unknown).
+#   - NOT cultural/linguistic zones (Danelaw/Celtic/Roman). That axis is a
+#     deferred generator surface (wyrd-hytz); see `deferred_zones:`.
+#   - NOT cross-stratum succession (Cumbria<->Cumberland+Westmorland) or
+#     ambiguous down-assignment (bare value -> which child?). Those are
+#     evidence-bearing identity assertions on the Class-B side (wyrd-u6fn.9).
+
+country: England
+
+# Which stratum supplies the dedup blocking key. The sources (EPNS, KEPN,
+# Ekwall) work in historic counties, so dedup keys off the historic stratum.
+# Modern-administrative nodes are KNOWN vocabulary but are NOT dedup targets;
+# resolving a modern value back to its historic county is Class-B succession
+# (wyrd-u6fn.9), deliberately out of scope here.
+dedup_stratum: historic
+
+strata:
+  historic: >
+    Pre-1974 historic counties (and the Yorkshire Ridings) — the dedup
+    vocabulary the sources actually use.
+  modern-administrative: >
+    Post-1974 ceremonial / metropolitan areas. Known, but NOT dedup targets;
+    succession to a historic county is a Class-B assertion (wyrd-u6fn.9).
+
+# CANONICAL NODES. `level`: country | county | subdivision. `parent`: the
+# within-stratum containment edge (the only relational data this Class-A file
+# carries; cross-stratum/cross-axis edges are Class-B / deferred).
+nodes:
+  - {canonical: England, level: country, stratum: historic, parent: null}
+
+  # --- historic counties (the dedup vocabulary) ---
+  - {canonical: Bedfordshire,     level: county, stratum: historic, parent: England}
+  - {canonical: Berkshire,        level: county, stratum: historic, parent: England}
+  - {canonical: Buckinghamshire,  level: county, stratum: historic, parent: England}  # aliases: "BUK"
+  - {canonical: Cambridgeshire,   level: county, stratum: historic, parent: England}
+  - {canonical: Cheshire,         level: county, stratum: historic, parent: England}
+  - {canonical: Cornwall,         level: county, stratum: historic, parent: England}
+  - {canonical: Cumberland,       level: county, stratum: historic, parent: England}  # succeeded by modern Cumbria (Class-B, wyrd-u6fn.9)
+  - {canonical: Derbyshire,       level: county, stratum: historic, parent: England}
+  - {canonical: Devon,            level: county, stratum: historic, parent: England}
+  - {canonical: Dorset,           level: county, stratum: historic, parent: England}
+  - {canonical: Durham,           level: county, stratum: historic, parent: England}  # aliases: "County Durham"
+  - {canonical: Essex,            level: county, stratum: historic, parent: England}
+  - {canonical: Gloucestershire,  level: county, stratum: historic, parent: England}
+  - {canonical: Hampshire,        level: county, stratum: historic, parent: England}
+  - {canonical: Herefordshire,    level: county, stratum: historic, parent: England}
+  - {canonical: Hertfordshire,    level: county, stratum: historic, parent: England}
+  - {canonical: Huntingdonshire,  level: county, stratum: historic, parent: England}
+  - {canonical: Isle of Wight,    level: county, stratum: historic, parent: England}  # aliases: "Isle Of Wight" (casing)
+  - {canonical: Kent,             level: county, stratum: historic, parent: England}
+  - {canonical: Lancashire,       level: county, stratum: historic, parent: England}
+  - {canonical: Leicestershire,   level: county, stratum: historic, parent: England}  # aliases: "LEC"
+  - {canonical: Lincolnshire,     level: county, stratum: historic, parent: England}
+  - {canonical: Middlesex,        level: county, stratum: historic, parent: England}
+  - {canonical: Norfolk,          level: county, stratum: historic, parent: England}
+  - {canonical: Northamptonshire, level: county, stratum: historic, parent: England}
+  - {canonical: Northumberland,   level: county, stratum: historic, parent: England}
+  - {canonical: Nottinghamshire,  level: county, stratum: historic, parent: England}
+  - {canonical: Oxfordshire,      level: county, stratum: historic, parent: England}
+  - {canonical: Rutland,          level: county, stratum: historic, parent: England}
+  - {canonical: Shropshire,       level: county, stratum: historic, parent: England}
+  - {canonical: Somerset,         level: county, stratum: historic, parent: England}
+  - {canonical: Staffordshire,    level: county, stratum: historic, parent: England}
+  - {canonical: Suffolk,          level: county, stratum: historic, parent: England}  # aliases: "SUF"
+  - {canonical: Surrey,           level: county, stratum: historic, parent: England}  # aliases: "SUR"
+  - {canonical: Sussex,           level: county, stratum: historic, parent: England}  # aliases: "SUS", and East/West Sussex normalize UP (see note)
+  - {canonical: Warwickshire,     level: county, stratum: historic, parent: England}
+  - {canonical: Westmorland,      level: county, stratum: historic, parent: England}  # succeeded by modern Cumbria (Class-B, wyrd-u6fn.9)
+  - {canonical: Wiltshire,        level: county, stratum: historic, parent: England}
+  - {canonical: Worcestershire,   level: county, stratum: historic, parent: England}
+
+  # --- Yorkshire: county parent + three historic Ridings (the dedup leaves) ---
+  # The 3023 bare "Yorkshire" rows all come from source `kepn`, which carries
+  # the Riding; the flattening is a KEPN-ingest bug, so the Riding is
+  # RECOVERABLE FROM PROVENANCE -> re-coding bare Yorkshire -> correct Riding is
+  # Class-A (wyrd-3q6m.4), not a lossy Class-B guess.
+  - {canonical: Yorkshire,    level: county,      stratum: historic, parent: England}
+  - {canonical: North Riding, level: subdivision, stratum: historic, parent: Yorkshire}
+  - {canonical: East Riding,  level: subdivision, stratum: historic, parent: Yorkshire}
+  - {canonical: West Riding,  level: subdivision, stratum: historic, parent: Yorkshire}  # aliases: "West Riding of Yorkshire"
+
+  # --- modern-administrative (KNOWN, but NOT dedup targets; Class-B succession) ---
+  # Kept in the vocabulary so validation (.3) can distinguish "known-modern,
+  # needs succession" from "unknown -> hard error". Their succession to a
+  # historic county is wyrd-u6fn.9, not an alias.
+  - {canonical: Cumbria,            level: county, stratum: modern-administrative, parent: England}  # = Cumberland + Westmorland (LOSSY; cannot split without per-toponym evidence)
+  - {canonical: Bristol,            level: county, stratum: modern-administrative, parent: England}
+  - {canonical: Greater London,     level: county, stratum: modern-administrative, parent: England}
+  - {canonical: London Boroughs,    level: county, stratum: modern-administrative, parent: England}
+  - {canonical: Greater Manchester, level: county, stratum: modern-administrative, parent: England}
+  - {canonical: Merseyside,         level: county, stratum: modern-administrative, parent: England}
+  - {canonical: Tyne and Wear,      level: county, stratum: modern-administrative, parent: England}
+  - {canonical: West Midlands,      level: county, stratum: modern-administrative, parent: England}
+
+# SUSSEX NOTE (user decision, 2026-06-16): historic "Sussex" is the single
+# canonical dedup node. The modern "East Sussex" / "West Sussex" split is a
+# clean, non-lossy partition of historic Sussex, so those values normalize UP
+# to Sussex for dedup — handled as aliases in wyrd-3q6m.2 (safe Class-A; unlike
+# the lossy Cumbria case, every E/W Sussex place is unambiguously in Sussex).
+
+# CULTURAL / LINGUISTIC ZONES — a cross-cutting axis, NOT administrative nodes.
+# Deferred generator surface (wyrd-hytz). A place is at once in an admin county
+# AND (maybe) in a zone; cramming both into `region` conflates two systems.
+# These values must be stripped from `region` (the place has a real shire).
+deferred_zones:
+  - {value: "England (Danelaw)", zone: Danelaw, migrate_to: wyrd-hytz}
+
+# QUARANTINE — known-bad codings. Validation (.3) must reject these fail-closed;
+# they are re-coded (re-derived from source provenance where possible) in
+# wyrd-3q6m.4. They are NOT aliasable (no single correct canonical target).
+quarantine:
+  - {value: "Northumberland and Durham", reason: "merged-volume string (mawer_1920_northumberland_durham); two counties, no per-row evidence — re-code to one historic county"}
+  - {value: "South-West Yorkshire",       reason: "not a real historic Riding; coding artifact — re-code to the correct Riding from kepn provenance"}
+  - {value: "The Channel Islands",        reason: "not an English county; country-level miscoding — defer to country normalization (wyrd-3q6m.5)"}
+# NOTE: the live value "England" (region == country, ~8 rows) is degenerate, but
+# it is NOT listed here — it is the containment ROOT node above. Validation (.3)
+# rejects it via the leaf rule: a region value must resolve to a county- or
+# subdivision-level node, never the country root. Re-code to a county or null.
+
+# ALIAS MAP (code/casing -> canonical, within-stratum same-level only).
+# Populated by wyrd-3q6m.2. Cross-level / cross-axis / cross-stratum folds do
+# NOT belong here — they are containment/zone/succession edges (Class-B).
+aliases: {}
