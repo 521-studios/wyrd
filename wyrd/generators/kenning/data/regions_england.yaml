@@ -154,7 +154,7 @@ quarantine:
 #   casing      — casing/whitespace only (Isle Of Wight -> Isle of Wight).
 #   long-form   — verbose surface of the same node (West Riding of Yorkshire
 #                 -> West Riding). Historic stratum, subdivision level.
-#   normalize-up— a modern subdivision folded into its UNIQUE historic county.
+#   normalize-up— a modern county folded into its UNIQUE historic county.
 #                 The ONE sanctioned cross-stratum fold, and ONLY because it is
 #                 non-lossy (every East/West Sussex place is unambiguously in
 #                 historic Sussex), per the wyrd-3q6m.1 Sussex decision. Contrast
@@ -174,7 +174,7 @@ aliases:
   - {from: "Isle Of Wight", to: "Isle of Wight", kind: casing}
   # Riding long-form folds (historic stratum, subdivision level)
   - {from: "West Riding of Yorkshire", to: "West Riding", kind: long-form}
-  - {from: "East Riding of Yorkshire", to: "East Riding", kind: long-form}  # in lexicon/regions.py; not yet in live data
-  # normalize-up: non-lossy modern subdivision -> unique historic county (see header)
+  - {from: "East Riding of Yorkshire", to: "East Riding", kind: long-form}  # not in live data (carried for lexicon/regions.py reconciliation)
+  # normalize-up: non-lossy modern county -> unique historic county (see header)
   - {from: "East Sussex", to: Sussex, kind: normalize-up}
   - {from: "West Sussex", to: Sussex, kind: normalize-up}
