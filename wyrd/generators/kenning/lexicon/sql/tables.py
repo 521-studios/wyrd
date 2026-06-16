@@ -549,6 +549,20 @@ Index(
 Index("idx_priors_loan_lemma", empirical_priors_loan.c.lemma_ref)
 
 # ---------------------------------------------------------------------------
+# Genitive-s split prior (wyrd-aicu.9)
+# ---------------------------------------------------------------------------
+
+genitive_split_prior = Table(
+    "genitive_split_prior",
+    metadata,
+    Column("long_form", Text, nullable=False),
+    Column("short_form", Text, nullable=False),
+    Column("split_count", Integer, CheckConstraint("split_count >= 0"), nullable=False),
+    Column("literal_count", Integer, CheckConstraint("literal_count >= 0"), nullable=False),
+    PrimaryKeyConstraint("long_form", "short_form"),
+)
+
+# ---------------------------------------------------------------------------
 # Fantasy-morpheme research log (wyrd-ami / wyrd-rrse 0011)
 # ---------------------------------------------------------------------------
 

@@ -8,6 +8,7 @@
     "mine-wiktextract-corpus",
     "cleanup-wiktionary-empirical",
     "mine-empirical-baselines",
+    "mine-genitive-priors",
     "import-modern-reflexes"
   ],
   "non_rebuild_commands": {
@@ -142,6 +143,14 @@
       "cost": "free",
       "restore_command": "mine-empirical-baselines",
       "runbook_token": "mine-empirical-baselines"
+    },
+    {
+      "layer": "genitive-split-prior",
+      "summary": "genitive_split_prior (per-suffix town/stone split counts, derived from toponym_etymology + historical_form + toponym_attestation + reflex cognate clusters)",
+      "restored_by": "free-mining",
+      "cost": "free",
+      "restore_command": "mine-genitive-priors",
+      "runbook_token": "mine-genitive-priors"
     },
     {
       "layer": "wiktextract-form-variants",

@@ -109,6 +109,20 @@ enrichment commands after rebuild.
   `lexicon mine-empirical-baselines --apply`; the operator-visible
   diff surface is the committed JSON sidecar produced by
   `lexicon dump-empirical-priors --output ...`.
+- `genitive_split_prior` — per-suffix genitive-`s` split counts
+  (`ston`/`ton`, `sley`/`ley`, …): how often a scholarly toponym
+  breakdown ending in the long form `L` is the genitive-split reading
+  (short suffix `S`, tūn → town) vs the literal long form (stān → stone),
+  for the decomposition matcher's homograph disambiguation (wyrd-aicu.9).
+  Classified by the breakdown's **cognate cluster** (the reflex-etymon of
+  `L` vs `S`); the historical `-es-`/`-s-` genitive marker (from
+  `toponym_etymology.historical_form` + genuinely-historical
+  `toponym_attestation.form`, wyrd-aicu.9.1) resolves the cluster-ambiguous /
+  unclassified residue — subordinate, never overriding a decisive cluster
+  verdict. Raw counts only — smoothing + backoff at matcher lookup.
+  Re-derivable by re-running `lexicon mine-genitive-priors --apply`; diff
+  surface is the committed JSON sidecar from `lexicon dump-genitive-priors
+  --output ...`.
 
 ### Views (always derived)
 

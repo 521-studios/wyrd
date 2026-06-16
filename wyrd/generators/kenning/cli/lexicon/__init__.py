@@ -96,6 +96,9 @@ from wyrd.generators.kenning.cli.lexicon import disambiguate_fuzzy as _disambigu
 from wyrd.generators.kenning.cli.lexicon import (
     dump_empirical_priors as _dump_empirical_priors_module,
 )
+from wyrd.generators.kenning.cli.lexicon import (
+    dump_genitive_priors as _dump_genitive_priors_module,
+)
 from wyrd.generators.kenning.cli.lexicon import dump_jsonl as _dump_jsonl_module
 from wyrd.generators.kenning.cli.lexicon import enrich as _enrich_module
 from wyrd.generators.kenning.cli.lexicon import enrichment_status as _enrichment_status_module
@@ -152,6 +155,9 @@ from wyrd.generators.kenning.cli.lexicon import (
     mine_empirical_baselines as _mine_empirical_baselines_module,
 )
 from wyrd.generators.kenning.cli.lexicon import mine_fantasy_name as _mine_fantasy_name_module
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_genitive_priors as _mine_genitive_priors_module,
+)
 from wyrd.generators.kenning.cli.lexicon import mine_llm as _mine_llm_module
 from wyrd.generators.kenning.cli.lexicon import (
     mine_pronunciation_llm as _mine_pronunciation_llm_module,
@@ -259,6 +265,7 @@ _curate_gloss_module.add_to(lexicon)
 _decompose_module.add_to(lexicon)
 _detect_collapses_module.add_to(lexicon)
 _dump_empirical_priors_module.add_to(lexicon)
+_dump_genitive_priors_module.add_to(lexicon)
 _extract_pfsrd2_monsters_module.add_to(lexicon)
 _derive_english_shaped_module.add_to(lexicon)
 _derive_pronunciation_ipa_module.add_to(lexicon)
@@ -300,6 +307,7 @@ _link_reflexes_module.add_to(lexicon)
 _migrate_module.add_to(lexicon)
 _mine_attestations_module.add_to(lexicon)
 _mine_empirical_baselines_module.add_to(lexicon)
+_mine_genitive_priors_module.add_to(lexicon)
 _mine_fantasy_name_module.add_to(lexicon)
 _mine_llm_module.add_to(lexicon)
 _mine_element_glosses_module.add_to(lexicon)
