@@ -11,8 +11,9 @@ uniform synthetic-node model.
 L3 derived artifact: the nodes / binds / labels are PROJECTED from the
 ``data/mining/canonicalization/`` L2 assertion streams by the projection pass
 (wyrd-u6fn.3, pending), so a rebuild creates the schema here but leaves these
-tables / columns empty until the projection runs — same posture as
-``genitive_split_prior`` / ``empirical_priors``. Place binds at
+tables / columns empty until the projection runs — the empty-until-its-pass-
+exists posture of the deferred ``meaning_synset`` / ``etymon_meaning_synset``
+layers (not the populated ``genitive_split_prior``). Place binds at
 ``toponym``-row granularity by default, with ``toponym_etymology``-row overrides
 (D50.6), hence the column on both.
 """
@@ -56,7 +57,9 @@ _UPGRADE = [
     # polymorphic ref (discriminated by canonical_type), so no single FK.
     """
     CREATE TABLE canonical_label (
-      canonical_type   TEXT NOT NULL,
+      canonical_type   TEXT NOT NULL CHECK (canonical_type IN (
+                         'canonical_morpheme', 'canonical_place', 'canonical_sense'
+                       )),
       canonical_id     TEXT NOT NULL,
       stratum          TEXT NOT NULL DEFAULT '',
       value            TEXT NOT NULL,

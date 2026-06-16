@@ -696,7 +696,17 @@ Index("idx_canonical_sense_merged", canonical_sense.c.merged_into)
 canonical_label = Table(
     "canonical_label",
     metadata,
-    Column("canonical_type", Text, nullable=False),
+    # The polymorphic discriminator for canonical_id (no single FK is possible),
+    # so a CHECK is the only schema-level guard against a typo'd / wrong-type
+    # node ref — mirroring the enum CHECKs elsewhere (position_pref, edge_type).
+    Column(
+        "canonical_type",
+        Text,
+        CheckConstraint(
+            "canonical_type IN ('canonical_morpheme', 'canonical_place', 'canonical_sense')"
+        ),
+        nullable=False,
+    ),
     Column("canonical_id", Text, nullable=False),
     Column("stratum", Text, nullable=False, server_default=text("''")),
     Column("value", Text, nullable=False),

@@ -123,6 +123,15 @@ enrichment commands after rebuild.
   Re-derivable by re-running `lexicon mine-genitive-priors --apply`; diff
   surface is the committed JSON sidecar from `lexicon dump-genitive-priors
   --output ...`.
+- `canonical_morpheme` / `canonical_place` / `canonical_sense` /
+  `canonical_label` + the `canonical_*_id` binds on `etymon` / `etymon_gloss`
+  / `toponym` / `toponym_etymology` — the canonicalization graph (D49/D50,
+  wyrd-u6fn). L3-derived but from a **new L2 source**: the
+  `data/mining/canonicalization/` append-only assertion streams (mint /
+  bind / merge-canonical / canonical-label predicates). Re-derivable by
+  re-running the canonicalization projection (wyrd-u6fn.3, **pending**), so
+  these are **empty** until that pass ships. Schema in alembic migration
+  `0019`; the L2 assertion streams are the source of truth and replay for free.
 
 ### Views (always derived)
 
