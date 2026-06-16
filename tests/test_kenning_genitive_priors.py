@@ -18,7 +18,10 @@ from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.genitive_priors import (
     PairCounts,
+    _compile_town_regex,
     _fold,
+    _genitive_ambiguous,
+    detect_historical_genitive,
     discover_candidate_pairs,
     dump_genitive_priors_to_json,
     extract_genitive_priors,
@@ -73,11 +76,11 @@ def _toponym(db, name, country="England"):
     return cur.lastrowid
 
 
-def _etymology(db, toponym_id, elements):
+def _etymology(db, toponym_id, elements, historical_form=None):
     cur = db.conn.execute(
-        "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
-        "VALUES (?, 'test_src', 'high')",
-        (toponym_id,),
+        "INSERT INTO toponym_etymology (toponym_id, source_id, confidence, historical_form) "
+        "VALUES (?, 'test_src', 'high', ?)",
+        (toponym_id, historical_form),
     )
     for ordinal, eid in enumerate(elements):
         db.conn.execute(
@@ -87,10 +90,18 @@ def _etymology(db, toponym_id, elements):
         )
 
 
+def _attest(db, toponym_id, form, year=1086):
+    db.conn.execute(
+        "INSERT INTO toponym_attestation (toponym_id, form, date_year) VALUES (?, ?, ?)",
+        (toponym_id, form, year),
+    )
+
+
 @pytest.fixture
 def ston_world(db):
     """A ston/ton homograph: tūn (town, its own cluster) vs stān (stone, its own
-    cluster). Reflexes stored bare (production de-dashed shape)."""
+    cluster). Reflexes stored bare (production de-dashed shape). ``stan`` is the
+    unambiguous bound stone reflex; ``ston``/``stone`` are genitive-ambiguous."""
     tun = _etymon(db, "tūn", cluster=True)
     stan = _etymon(db, "stān", cluster=True)
     bishop = _etymon(db, "Bishop")
@@ -99,6 +110,7 @@ def ston_world(db):
     _reflex(db, "tone", "post", tun)
     _reflex(db, "ston", "post", stan)
     _reflex(db, "stone", "post", stan)
+    _reflex(db, "stan", "post", stan)
     db.commit()
     return {"tun": tun, "stan": stan, "bishop": bishop, "rud": rud}
 
@@ -319,6 +331,158 @@ def test_split_probability_large_n_approaches_empirical():
     counts = {("ston", "ton"): PairCounts(split=940, literal=60)}
     p = split_probability(counts, "ston", "ton", pseudocount=5.0, backoff=0.5)
     assert p == pytest.approx(0.94, abs=0.01)
+
+
+# ---------- attestation refinement (wyrd-aicu.9.1) -----------------------
+
+
+def test_genitive_ambiguous_drops_s_plus_townstem():
+    # 'ston' = s+ton and 'stone' = s+tone collide with the genitive town
+    # reading; 'stan' (bound stone stem) does not.
+    town = {"ton", "tone"}
+    assert _genitive_ambiguous("ston", town) is True
+    assert _genitive_ambiguous("stone", town) is True
+    assert _genitive_ambiguous("stan", town) is False
+
+
+def test_detect_historical_genitive_town_on_es_marker():
+    # Kingston <- cyninge·s·tun : genuine historical 'es' + town stem.
+    assert (
+        detect_historical_genitive(
+            ["Cyningeston"],
+            "Kingston",
+            town_regex=_compile_town_regex({"ton", "tone"}),
+            stone_stems={"stan"},
+        )
+        == "split"
+    )
+
+
+def test_detect_historical_genitive_stone_on_bound_stem():
+    assert (
+        detect_historical_genitive(
+            ["Rodestan"],
+            "Rudston",
+            town_regex=_compile_town_regex({"ton", "tone"}),
+            stone_stems={"stan"},
+        )
+        == "literal"
+    )
+
+
+def test_detect_historical_genitive_ignores_modern_echo():
+    # The form merely echoes the modern name -> no genuine historical signal.
+    assert (
+        detect_historical_genitive(
+            ["Beeston"],
+            "Beeston",
+            town_regex=_compile_town_regex({"ton", "tone"}),
+            stone_stems={"stan"},
+        )
+        is None
+    )
+
+
+def test_detect_historical_genitive_none_without_forms():
+    assert (
+        detect_historical_genitive(
+            [], "Rudston", town_regex=_compile_town_regex({"ton"}), stone_stems={"stan"}
+        )
+        is None
+    )
+
+
+def test_detect_historical_genitive_defers_on_conflict():
+    # One historical form shows a genitive town marker ('es'+'ton'), another ends
+    # in a bound stone stem ('stan') -> the forms disagree, defer to the cluster.
+    assert (
+        detect_historical_genitive(
+            ["Cyningeston", "Rodestan"],
+            "Whatever",
+            town_regex=_compile_town_regex({"ton"}),
+            stone_stems={"stan"},
+        )
+        is None
+    )
+
+
+def test_attestation_resolves_unclassified_to_town(db, ston_world):
+    w = ston_world
+    # Cluster-UNCLASSIFIED (breakdown is only the specifier), but a genuine
+    # historical form shows the genitive 'es' + town stem -> resolved to split.
+    t = _toponym(db, "Kingston")
+    _etymology(db, t, [w["bishop"]], historical_form="Cyningeston")
+    db.commit()
+    counts, summary = extract_genitive_priors(db)
+    assert counts[("ston", "ton")] == PairCounts(split=1, literal=0)
+    assert summary.resolved_by_attestation == 1
+    assert summary.skipped_unclassified == 0
+
+
+def test_attestation_never_overrides_decisive_cluster(db, ston_world):
+    w = ston_world
+    # Rudston: breakdown is decisively STONE (stān cluster). Even with a
+    # genitive-looking historical form, the decisive cluster verdict wins.
+    s = _toponym(db, "Rudston")
+    _etymology(db, s, [w["rud"], w["stan"]], historical_form="Rodeston")
+    db.commit()
+    counts, summary = extract_genitive_priors(db)
+    assert counts[("ston", "ton")] == PairCounts(split=0, literal=1)
+    assert summary.resolved_by_attestation == 0  # attestation not consulted
+
+
+def test_attestation_modern_echo_stays_skipped(db, ston_world):
+    w = ston_world
+    # Unclassified + the only form echoes the modern name -> stays skipped (the
+    # exact regression the genuine-historical filter prevents).
+    t = _toponym(db, "Beeston")
+    _etymology(db, t, [w["bishop"]])
+    _attest(db, t, "Beeston")
+    db.commit()
+    counts, summary = extract_genitive_priors(db)
+    assert ("ston", "ton") not in counts
+    assert summary.resolved_by_attestation == 0
+    assert summary.skipped_unclassified == 1
+
+
+def test_detect_historical_genitive_consonant_s_arm():
+    # 'wulfricston' = ...c + s + ton : the consonant-`s` arm (no 'e' vowel),
+    # the reason that arm exists. Bare modern 'wolston' would not match it.
+    assert (
+        detect_historical_genitive(
+            ["Wulfricston"],
+            "Wolston",
+            town_regex=_compile_town_regex({"ton"}),
+            stone_stems={"stan"},
+        )
+        == "split"
+    )
+
+
+def test_attestation_resolves_from_attestation_form_source(db, ston_world):
+    w = ston_world
+    # Unclassified breakdown; the genitive signal comes from toponym_attestation
+    # (not historical_form) — exercises that source path end-to-end.
+    t = _toponym(db, "Kingston")
+    _etymology(db, t, [w["bishop"]])
+    _attest(db, t, "Cyningeston")
+    db.commit()
+    counts, summary = extract_genitive_priors(db)
+    assert counts[("ston", "ton")] == PairCounts(split=1, literal=0)
+    assert summary.resolved_by_attestation == 1
+
+
+def test_attestation_resolves_both_cluster_residue(db, ston_world):
+    w = ston_world
+    # Breakdown touches BOTH clusters (normally skipped_both), but a genuine
+    # historical form resolves it — the `both`→attestation branch of _resolve.
+    t = _toponym(db, "Kingston")
+    _etymology(db, t, [w["tun"], w["stan"]], historical_form="Cyningeston")
+    db.commit()
+    counts, summary = extract_genitive_priors(db)
+    assert counts[("ston", "ton")].split == 1
+    assert summary.resolved_by_attestation == 1
+    assert summary.skipped_both == 0
 
 
 # ---------- CLI smoke ----------------------------------------------------

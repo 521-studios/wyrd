@@ -38,13 +38,15 @@ Design (validated against the live corpus, wyrd-aicu.9 investigations 1-3):
   places a name appears (the specifier varies, but that is not what this prior
   models). So every place's breakdown counts.
 
-Per-toponym attestation disambiguation (the ``-es-``/``-s-`` historical genitive
-marker) is **deferred to wyrd-aicu.9.1**: the whole-name ``toponym_attestation``
-forms carry the bare modern surface (``ston`` = ``s``+``ton`` regardless of
-whether the ``s`` is genitive or stem-initial), so a string marker cannot call
-the head for the ``-ston`` family — it mis-split the protected genuine-stone set
-(rudston→town). That needs per-element historical-form decomposition, scoped to
-its own ticket; the cognate-cluster classifier is the reliable signal here.
+* **Attestation refinement (wyrd-aicu.9.1) is SUBORDINATE.** The ``-es-``/``-s-``
+  historical genitive marker (Kingston ← *cyninge·s·tun*) only resolves toponyms
+  the cluster left ``both`` / ``unclassified``; it NEVER overrides a decisive
+  cluster verdict. And it fires only on GENUINELY historical forms (folded form
+  ≠ folded modern name) — ``toponym_attestation`` is ~97% modern-name echo, and
+  the bare modern ``ston`` = ``s``+``ton`` carries no genitive signal (running
+  the marker on it is what mis-split the protected genuine-stone set in the first
+  cut). On real historical spellings the marker is reliable and never reaches the
+  decisive cluster cases, so the protected stone set is safe by construction.
 
 LLM-free, deterministic, idempotent (mirrors ``empirical_priors``). **Raw counts
 are persisted; smoothing + hierarchical backoff happen at LOOKUP time**
@@ -55,6 +57,7 @@ prior sharpens automatically as breakdowns accrue.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 import unicodedata
@@ -67,6 +70,10 @@ from wyrd.generators.kenning.lexicon import LexiconDB
 # Reflex positions that carry a toponymic suffix (a genitive-overlap long form
 # only matters word-finally / internally; pre-position heads are specifiers).
 _SUFFIX_POSITIONS = ("post", "inner")
+
+# Minimum stem length for an attestation genitive-marker anchor. Below this the
+# ``es`` + stem pattern over-fires on short coincidental endings.
+_MIN_STEM = 3
 
 
 # Ligatures NFKD leaves intact (so ASCII-encode would drop them) — expand
@@ -171,6 +178,7 @@ class GenitiveExtractionResult:
     active_pairs: int
     classified_split: int
     classified_literal: int
+    resolved_by_attestation: int
     skipped_both: int
     skipped_unclassified: int
 
@@ -181,6 +189,7 @@ class GenitiveExtractionResult:
             "active_pairs": self.active_pairs,
             "classified_split": self.classified_split,
             "classified_literal": self.classified_literal,
+            "resolved_by_attestation": self.resolved_by_attestation,
             "skipped_both": self.skipped_both,
             "skipped_unclassified": self.skipped_unclassified,
         }
@@ -199,6 +208,129 @@ def _pair_clusters(
         split = data.clusters_for_surface(short) - literal
         out[(long, short)] = (split, literal)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Attestation refinement (wyrd-aicu.9.1) — the historical genitive marker.
+#
+# SUBORDINATE to the cognate-cluster classifier: it ONLY resolves toponyms the
+# cluster left ``both`` / ``unclassified``, never overrides a decisive verdict.
+# And it fires ONLY on GENUINELY HISTORICAL forms (folded form != folded modern
+# name): ``toponym_attestation`` is ~97% modern-name echo, and the bare modern
+# surface ``ston`` = ``s``+``ton`` carries no genitive signal — running the
+# marker on it is what mis-split the protected genuine-stone set in the first
+# (reverted) cut. Restricted to real historical spellings (``cyninge·s·tun``,
+# ``alvrice·s·tone``) the ``-es-`` marker is reliable.
+# ---------------------------------------------------------------------------
+
+
+def _cluster_reflexes(data: ClassifierData) -> dict[str, set[str]]:
+    """cluster key → folded reflex surfaces of its etymons (the historical-stem
+    anchors), inverted from ``surface_etymons`` so ``ClassifierData`` stays the
+    same shape the cluster-only path uses."""
+    out: dict[str, set[str]] = defaultdict(set)
+    for surface, eids in data.surface_etymons.items():
+        for eid in eids:
+            out[data.cluster_of[eid]].add(surface)
+    return out
+
+
+def _genitive_ambiguous(stem: str, town_stems: set[str]) -> bool:
+    """A literal stem like ``ston`` = ``s``+``ton`` collides with the genitive
+    town reading, so it carries no stone evidence; ``stan`` / ``stane`` (bound
+    stone stems) do not. Used to keep only unambiguous stone stems."""
+    return any(
+        len(stem) > len(t) and stem.endswith(t) and stem[-len(t) - 1] == "s" for t in town_stems
+    )
+
+
+def _compile_town_regex(town_stems: set[str]) -> re.Pattern[str] | None:
+    """One genitive-marker regex for ALL town stems (``es`` / consonant-``s``
+    before any town stem, anchored). Longer stems sort first so the alternation
+    prefers the longest match. ``None`` when there are no town stems."""
+    if not town_stems:
+        return None
+    alt = "|".join(re.escape(t) for t in sorted(town_stems, key=len, reverse=True))
+    return re.compile(rf".+(?:es|[bcdfghjklmnpqrstvwxyz]s)(?:{alt})$")
+
+
+def pair_genitive_stems(
+    data: ClassifierData,
+    pair_clusters: dict[tuple[str, str], tuple[set[str], set[str]]],
+) -> dict[tuple[str, str], tuple[re.Pattern[str] | None, set[str]]]:
+    """Per pair, ``(town_regex, stone_stems)`` for the historical-form marker —
+    the town regex compiled ONCE here, not per toponym.
+
+    Town stems = the short suffix ``S`` + its cognate-cluster reflexes (the
+    historical spelling variants, e.g. ``ton`` / ``tone`` / ``tune``), folded
+    into a single alternation regex. ``stone_stems`` = ``L``'s cluster reflexes
+    restricted to the UNAMBIGUOUS bound forms (``stan`` / ``stane``) — the
+    ``s``+town-stem collisions (``ston`` / ``stone``) are dropped so they don't
+    fight the genitive reading.
+    """
+    crefs = _cluster_reflexes(data)
+    out: dict[tuple[str, str], tuple[re.Pattern[str] | None, set[str]]] = {}
+    for (long, short), (split_clusters, literal_clusters) in pair_clusters.items():
+        town = {short} | {
+            s for c in split_clusters for s in crefs.get(c, set()) if len(s) >= _MIN_STEM
+        }
+        stone = {
+            s
+            for c in literal_clusters
+            for s in crefs.get(c, set())
+            if len(s) >= _MIN_STEM and not _genitive_ambiguous(s, town)
+        }
+        out[(long, short)] = (_compile_town_regex(town), stone)
+    return out
+
+
+def detect_historical_genitive(
+    forms: list[str],
+    modern_name: str,
+    town_regex: re.Pattern[str] | None,
+    stone_stems: set[str],
+) -> str | None:
+    """``'split'`` / ``'literal'`` / ``None`` from a toponym's historical forms.
+
+    Considers ONLY genuinely historical spellings (folded form differs from the
+    folded modern name). Returns ``'split'`` when one shows the genitive
+    connective (``es`` / consonant-``s``) before a town-family stem and none
+    shows a bound stone stem; ``'literal'`` for the inverse; ``None`` when there
+    is no historical form, no marker, or both appear (ambiguous → defer to the
+    cluster classifier).
+
+    Both arms are suffix-anchored, so a bound stone stem only counts when it ends
+    the form (avoids matching a ``stan`` buried in a specifier like *Dunstan*).
+    The residual ``-eston`` ambiguity (a genuine stone spelled ``X-eston`` reads
+    as ``es``+``ton``) is why this stays SUBORDINATE: a decisive ``stān`` cluster
+    is never overridden, so only an *unclassified* stone with no ``-stan`` form
+    could be mis-split — a rare residue the cluster prior smooths over.
+    """
+    modern = _fold(modern_name)
+    hist = {f for f in (_fold(x) for x in forms) if f and f != modern}
+    if not hist:
+        return None
+    saw_town = town_regex is not None and any(town_regex.search(f) for f in hist)
+    saw_stone = any(f.endswith(stem) for f in hist for stem in stone_stems)
+    if saw_town and not saw_stone:
+        return "split"
+    if saw_stone and not saw_town:
+        return "literal"
+    return None
+
+
+def _load_historical_forms(db: LexiconDB) -> dict[int, list[str]]:
+    """toponym_id → its historical spellings, from ``toponym_attestation.form``
+    + ``toponym_etymology.historical_form`` (the richer ``-es-`` source)."""
+    forms: dict[int, list[str]] = defaultdict(list)
+    for row in db.conn.execute("SELECT toponym_id, form FROM toponym_attestation"):
+        forms[row["toponym_id"]].append(row["form"])
+    for row in db.conn.execute(
+        "SELECT toponym_id, historical_form FROM toponym_etymology "
+        "WHERE historical_form IS NOT NULL"
+    ):
+        forms[row["toponym_id"]].append(row["historical_form"])
+    return forms
 
 
 def _load_toponyms(
@@ -236,15 +368,43 @@ def _classify(eclusters: set[str], split_clusters: set[str], literal_clusters: s
     return "unclassified"
 
 
+def _resolve(
+    eclusters: set[str],
+    pair_clusters: tuple[set[str], set[str]],
+    pair_stems: tuple[re.Pattern[str] | None, set[str]],
+    forms: list[str],
+    modern_name: str,
+) -> tuple[str | None, bool, str | None]:
+    """``(verdict, via_attestation, skip_reason)`` for one (toponym, pair).
+
+    The cognate-cluster verdict is authoritative when decisive (``split`` /
+    ``literal``). Only when the cluster is ``both`` / ``unclassified`` does the
+    historical genitive marker get a say — and it stays silent unless a real
+    historical form carries the signal. ``verdict is None`` ⇒ skipped."""
+    split_clusters, literal_clusters = pair_clusters
+    verdict = _classify(eclusters, split_clusters, literal_clusters)
+    if verdict in ("split", "literal"):
+        return verdict, False, None
+    town_regex, stone_stems = pair_stems
+    av = detect_historical_genitive(forms, modern_name, town_regex, stone_stems)
+    if av is not None:
+        return av, True, None
+    return None, False, verdict  # "both" / "unclassified"
+
+
 def _tally(
     topo_name: dict[int, str],
     topo_clusters: dict[int, set[str]],
+    topo_forms: dict[int, list[str]],
     pair_clusters: dict[tuple[str, str], tuple[set[str], set[str]]],
+    pair_stems: dict[tuple[str, str], tuple[re.Pattern[str] | None, set[str]]],
     progress_every: int,
 ) -> tuple[dict[tuple[str, str], dict[str, int]], dict[str, int]]:
     """Scan toponyms × pairs, tally per-pair split/literal counts + run stats."""
     counts: dict[tuple[str, str], dict[str, int]] = defaultdict(lambda: {"split": 0, "literal": 0})
-    stats = dict.fromkeys(("scanned", "split", "literal", "both", "unclassified"), 0)
+    stats = dict.fromkeys(
+        ("scanned", "split", "literal", "from_attestation", "both", "unclassified"), 0
+    )
     total = len(topo_name)
     started = time.monotonic()
 
@@ -253,7 +413,7 @@ def _tally(
         rate = (time.monotonic() - started) / n if n else 0.0
         print(
             f"  [{n}/{total}]  split={stats['split']} literal={stats['literal']} "
-            f"({rate:.4f}s/entry)",
+            f"attest={stats['from_attestation']} ({rate:.4f}s/entry)",
             file=sys.stderr,
             flush=True,
         )
@@ -264,13 +424,19 @@ def _tally(
             _progress()
         folded_name = _fold(name)
         eclusters = topo_clusters[tid]
-        for pair, (split_clusters, literal_clusters) in pair_clusters.items():
+        for pair in pair_clusters:
             if not folded_name.endswith(pair[0]):
                 continue
-            verdict = _classify(eclusters, split_clusters, literal_clusters)
-            if verdict in ("split", "literal"):
-                counts[pair][verdict] += 1
+            verdict, via_attestation, skip = _resolve(
+                eclusters, pair_clusters[pair], pair_stems[pair], topo_forms.get(tid, []), name
+            )
+            if verdict is None:
+                stats[skip] += 1
+                continue
+            counts[pair][verdict] += 1
             stats[verdict] += 1
+            if via_attestation:
+                stats["from_attestation"] += 1
 
     if progress_every and stats["scanned"] % progress_every != 0:
         _progress()
@@ -295,8 +461,12 @@ def extract_genitive_priors(
     data = load_classifier_data(db)
     candidates = discover_candidate_pairs(set(data.surface_etymons))
     pair_clusters = _pair_clusters(data, candidates)
+    pair_stems = pair_genitive_stems(data, pair_clusters)
     topo_name, topo_clusters = _load_toponyms(db, data)
-    counts, stats = _tally(topo_name, topo_clusters, pair_clusters, progress_every)
+    topo_forms = _load_historical_forms(db)
+    counts, stats = _tally(
+        topo_name, topo_clusters, topo_forms, pair_clusters, pair_stems, progress_every
+    )
 
     result_counts = {
         pair: PairCounts(split=c["split"], literal=c["literal"]) for pair, c in counts.items()
@@ -307,6 +477,7 @@ def extract_genitive_priors(
         active_pairs=len(result_counts),
         classified_split=stats["split"],
         classified_literal=stats["literal"],
+        resolved_by_attestation=stats["from_attestation"],
         skipped_both=stats["both"],
         skipped_unclassified=stats["unclassified"],
     )

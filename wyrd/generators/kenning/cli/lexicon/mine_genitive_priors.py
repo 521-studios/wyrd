@@ -42,8 +42,10 @@ def lexicon_mine_genitive_priors(db_path: Path, apply_changes: bool, progress_ev
     For each auto-discovered genitive-overlap pair (``ston`` / ``ton`` …), count
     scholarly toponym breakdowns whose final element is the genitive-split
     reading (the short suffix — tūn → town) vs the literal long form (stān →
-    stone), classified by the breakdown's cognate-cluster. (Per-toponym
-    attestation disambiguation is deferred to wyrd-aicu.9.1.)
+    stone), classified by the breakdown's cognate-cluster. The historical
+    ``-es-``/``-s-`` genitive marker (wyrd-aicu.9.1) resolves the residue the
+    cluster left ambiguous/unclassified — subordinate, never overriding a
+    decisive cluster verdict.
 
     LLM-free, deterministic, idempotent. Replace-not-merge each apply run. Raw
     counts only — smoothing + backoff live at matcher lookup time. Pair with
@@ -61,9 +63,10 @@ def lexicon_mine_genitive_priors(db_path: Path, apply_changes: bool, progress_ev
         err=True,
     )
     click.echo(
-        "  classified: split={cs:>5}  literal={cl:>5}".format(
+        "  classified: split={cs:>5}  literal={cl:>5}  (attestation-resolved={ar:>5})".format(
             cs=result["classified_split"],
             cl=result["classified_literal"],
+            ar=result["resolved_by_attestation"],
         ),
         err=True,
     )

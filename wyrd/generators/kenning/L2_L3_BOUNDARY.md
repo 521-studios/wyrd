@@ -115,11 +115,14 @@ enrichment commands after rebuild.
   (short suffix `S`, tūn → town) vs the literal long form (stān → stone),
   for the decomposition matcher's homograph disambiguation (wyrd-aicu.9).
   Classified by the breakdown's **cognate cluster** (the reflex-etymon of
-  `L` vs `S`). Raw counts only — smoothing + backoff at matcher lookup.
+  `L` vs `S`); the historical `-es-`/`-s-` genitive marker (from
+  `toponym_etymology.historical_form` + genuinely-historical
+  `toponym_attestation.form`, wyrd-aicu.9.1) resolves the cluster-ambiguous /
+  unclassified residue — subordinate, never overriding a decisive cluster
+  verdict. Raw counts only — smoothing + backoff at matcher lookup.
   Re-derivable by re-running `lexicon mine-genitive-priors --apply`; diff
   surface is the committed JSON sidecar from `lexicon dump-genitive-priors
-  --output ...`. (Per-toponym attestation `-es-`/`-s-` disambiguation is a
-  deferred follow-up, wyrd-aicu.9.1.)
+  --output ...`.
 
 ### Views (always derived)
 
