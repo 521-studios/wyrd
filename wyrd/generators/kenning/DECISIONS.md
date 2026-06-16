@@ -3198,13 +3198,45 @@ zone axes**, with places linked to nodes by membership edges. The work splits:
 | the **containment skeleton** within a stratum (North Riding ⊂ Yorkshire ⊂ England) | A |
 | **which axis** a value belongs to (Danelaw = zone, not county) | A |
 | **assigning an ambiguous place to a node** (bare "Yorkshire" → which Riding?) | B |
-| **cross-axis / zone membership** (does this vill fall in the Danelaw?) | B |
+| **cross-axis / zone membership** (does this vill fall in the Danelaw?) | deferred — cultural surface, not dedup (see next section) |
 | **succession across strata** (Cumberland + Westmorland → Cumbria; hundreds reorganized) | B |
 
 The Class-A alias map therefore folds **within-stratum, same-axis, same-level
 coding variants only**. Cross-level (`Yorkshire`↔`North Riding`), cross-axis
 (`Danelaw`), cross-stratum (`Cumbria`↔`Cumberland`) are NOT alias entries — they
 are containment/membership/succession edges on the Class-B side.
+
+### Region serves two purposes — DEDUP (now) and CULTURAL COLOR (deferred)
+
+Region's *live* purpose is **deduplication**: deciding whether `Newton` and
+`Niweton` in the same area are the same place, so they collapse to one record.
+For that, region must be **tight and canonical** — precise enough to
+disambiguate places. It is the blocking key for the Class-B place-identity pass,
+and its granularity is driven by *what separates places*, not by what is
+culturally meaningful.
+
+A *separate, deferred* purpose is **cultural color on generated names**:
+linguistic / settlement zones carry different morpheme mixes (the Danelaw is
+ON-heavy; Wales Brittonic; Roman England Latin-flavored), so a future generator
+surface could offer "Danelaw town names" the way `--culture` / `--stratum` (D32)
+/ `--era` (D44) compose today. This axis is **coarse and
+linguistically-defined**, cuts across administrative boundaries, and is a
+generator surface we are not cut to yet.
+
+The two do NOT share a granularity or an axis:
+
+- Administrative subdivisions (Ridings, hundreds) serve **dedup precision** — no
+  one wants "North Riding of Yorkshire" as a name flavor.
+- Linguistic zones (Danelaw / Celtic / Roman) serve **cultural color** — and are
+  useless as a dedup key (too coarse to tell two Newtons apart).
+
+Consequence: `England (Danelaw)` in the `region` field today is a category error
+on both counts — it can't dedup (the place has a real shire) and it isn't wired
+as cultural color. Dedup wants the actual shire; the Danelaw membership, if
+retained, is a tag on a *future* cultural-zone axis (an enrichment
+classification like D32 stratum), not part of the canonical dedup region. The
+Class-A region work below is scoped to the **dedup hierarchy**; the cultural-zone
+axis is explicitly deferred.
 
 ### Class A: normalize controlled vocabulary at the source
 
