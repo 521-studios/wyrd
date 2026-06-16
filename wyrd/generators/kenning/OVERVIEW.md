@@ -120,12 +120,17 @@ Watson, Gillies, etc.) gives us:
   Celtic (Welsh, Gaelic, Irish, Manx, Pictish), Old Norse, Scottish
   Gaelic — different (language × era) cells per D5.
 
-The promotion threshold is **≥3 independent witnesses**. That's when a
-morpheme moves from "trust the legacy data" to "promotion-eligible —
-include in the live inventory." Currently ~114 morphemes are
-promotion-eligible (out of ~1600 rando lemmas + new lemmas surfaced by
-mining). Long-term goal: most of them. Every new mining run nudges that
-number up.
+The scholar-witness promotion threshold is **≥2 independent witnesses**
+(uniform across languages since wyrd-fssn, 2026-05-28; OE was ≥3 before
+that — see `lexicon/bundle/_export.py:RECOMMENDED_LANG_THRESHOLDS` and the
+canonical-config guard in `cli/lexicon/export_runtime_db.py`, which flags
+any run with `--min-witnesses != 2`). That's when a morpheme moves from
+"trust the legacy data" to "promotion-eligible — include in the live
+inventory" on the *dictionary-citation* evidence channel. The witness gate
+is only one of several admission paths (`export_meanings` also admits via
+rando-port seed, wiktionary-empirical, and wave-2 enrichment — each behind
+its own flag). Long-term goal: most morphemes promotion-eligible. Every new
+mining run nudges that number up.
 
 ## Mental model for mining
 
@@ -625,7 +630,10 @@ integration), ecjp.13 (this docs pass).
 `SELECT * FROM mining_run WHERE source_id = 'X' AND mode = 'review'`.
 
 **"What's promotion-eligible?"** — `etymon_consensus` view; rows with
-`witnesses >= 3` are promotion-eligible.
+`witnesses >= 2` clear the scholar-witness gate (uniform ≥2 since
+wyrd-fssn). Note that's only one admission path — `export_meanings` also
+promotes via rando-port / wiktionary-empirical / wave-2-enriched, so the
+bundle's morpheme set is a superset of the `witnesses >= 2` rows.
 
 **"Where's the original FK fix the wyrd-go5 ticket talks about?"** —
 superseded by wyrd-et0; the fix lives at lexicon.py
