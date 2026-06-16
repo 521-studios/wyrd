@@ -146,7 +146,35 @@ quarantine:
 # rejects it via the leaf rule: a region value must resolve to a county- or
 # subdivision-level node, never the country root. Re-code to a county or null.
 
-# ALIAS MAP (code/casing -> canonical, within-stratum same-level only).
-# Populated by wyrd-3q6m.2. Cross-level / cross-axis / cross-stratum folds do
-# NOT belong here — they are containment/zone/succession edges (Class-B).
-aliases: {}
+# ALIAS MAP (wyrd-3q6m.2). Each entry folds a variant region string (`from`)
+# into a canonical node (`to`). The map IS the audit trail (git diff = the why).
+# `kind`:
+#   code        — source abbreviation (SUF -> Suffolk). Same stratum + level.
+#   naming      — naming variant (County Durham -> Durham). Same stratum + level.
+#   casing      — casing/whitespace only (Isle Of Wight -> Isle of Wight).
+#   long-form   — verbose surface of the same node (West Riding of Yorkshire
+#                 -> West Riding). Historic stratum, subdivision level.
+#   normalize-up— a modern subdivision folded into its UNIQUE historic county.
+#                 The ONE sanctioned cross-stratum fold, and ONLY because it is
+#                 non-lossy (every East/West Sussex place is unambiguously in
+#                 historic Sussex), per the wyrd-3q6m.1 Sussex decision. Contrast
+#                 the LOSSY modern areas (Cumbria, the metros) — those map to
+#                 several historic counties and stay Class-B succession
+#                 (wyrd-u6fn.9), never aliased here. The D49 scope guard
+#                 (cross-stratum = Class-B) holds for every lossy case; this is
+#                 the deliberate non-lossy carve-out.
+aliases:
+  # code / naming / casing folds (same stratum + level)
+  - {from: "SUF", to: Suffolk, kind: code}
+  - {from: "LEC", to: Leicestershire, kind: code}
+  - {from: "BUK", to: Buckinghamshire, kind: code}
+  - {from: "SUR", to: Surrey, kind: code}
+  - {from: "SUS", to: Sussex, kind: code}
+  - {from: "County Durham", to: Durham, kind: naming}
+  - {from: "Isle Of Wight", to: "Isle of Wight", kind: casing}
+  # Riding long-form folds (historic stratum, subdivision level)
+  - {from: "West Riding of Yorkshire", to: "West Riding", kind: long-form}
+  - {from: "East Riding of Yorkshire", to: "East Riding", kind: long-form}  # in lexicon/regions.py; not yet in live data
+  # normalize-up: non-lossy modern subdivision -> unique historic county (see header)
+  - {from: "East Sussex", to: Sussex, kind: normalize-up}
+  - {from: "West Sussex", to: Sussex, kind: normalize-up}
