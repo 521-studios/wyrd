@@ -39,18 +39,28 @@ _REGION_TO_COUNTRY: dict[str, str] = {
     "Devon": "England",
     "Dorset": "England",
     "East Riding of Yorkshire": "England",
-    # Canonical region-model node forms. Durham / Isle of Wight / {East,West}
-    # Riding are wyrd-3q6m.2 alias *targets* that canonicalize_region now emits
-    # before country derivation — mapped here so the fold doesn't strand
-    # country=NULL. North Riding is a valid node with no alias today (added for
-    # symmetry with its sibling Ridings). Full regions.py<->model reconciliation
-    # of the remaining nodes (Cheshire, Cornwall, Cumbria, the metros, …) is
-    # wyrd-3q6m.5.
+    # Every canonical England node in regions_england.yaml is mapped here, so
+    # canonicalize_region() never strands country=NULL for a valid England region
+    # (whether reached directly or via an alias fold). Historic counties +
+    # Yorkshire Ridings + the modern-administrative areas (Cumbria, the metros).
+    # The wyrd-3q6m.5 controlled-vocabulary work covers the OTHER dimensions
+    # (the country enum itself, language code, source id, era), not England here.
     "Durham": "England",
     "Isle of Wight": "England",
     "North Riding": "England",
     "East Riding": "England",
     "West Riding": "England",
+    "Cheshire": "England",
+    "Cornwall": "England",
+    "Derbyshire": "England",
+    "Cumbria": "England",
+    "Bristol": "England",
+    "Greater London": "England",
+    "London Boroughs": "England",
+    "Greater Manchester": "England",
+    "Merseyside": "England",
+    "Tyne and Wear": "England",
+    "West Midlands": "England",
     "Essex": "England",
     "Gloucestershire": "England",
     "Hampshire": "England",

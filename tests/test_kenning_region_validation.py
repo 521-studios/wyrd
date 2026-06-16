@@ -157,6 +157,13 @@ def test_build_model_rejects_alias_target_not_a_node():
         _build_model(bad)
 
 
+def test_build_model_rejects_malformed_entry():
+    """A node entry missing an expected key fails with a clear error, not a
+    cryptic KeyError."""
+    with pytest.raises(ValueError, match="malformed entry"):
+        _build_model({"nodes": [{"level": "county"}]})  # missing 'canonical'
+
+
 # --- ingest-boundary integration --------------------------------------------
 
 
@@ -199,6 +206,27 @@ def test_upsert_riding_long_form_keeps_country(tmp_path: Path):
         row = db.conn.execute("SELECT country, region FROM toponym WHERE id = ?", (tid,)).fetchone()
     assert row["region"] == "West Riding"
     assert row["country"] == "England"
+
+
+def test_upsert_canonicalizes_then_self_repairs_legacy_null_country(tmp_path: Path):
+    """Canonicalization composes with the migration-window self-repair: ingesting
+    region='SUF' against a legacy NULL-country 'Suffolk' row upgrades that row in
+    place (country -> England) rather than creating a twin."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        legacy_id = db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES ('Ipswich', NULL, 'Suffolk')"
+        ).lastrowid
+        db.commit()
+        tid = _upsert_toponym(db, "Ipswich", region="SUF")  # SUF -> Suffolk, country -> England
+        db.commit()
+        rows = db.conn.execute(
+            "SELECT id, country FROM toponym WHERE modern_name = 'Ipswich'"
+        ).fetchall()
+    assert tid == legacy_id  # upgraded in place, not duplicated
+    assert len(rows) == 1
+    assert rows[0]["country"] == "England"
 
 
 def test_ingest_parsed_entries_propagates_validation_error(tmp_path: Path):

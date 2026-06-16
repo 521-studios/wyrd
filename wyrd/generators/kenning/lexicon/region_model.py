@@ -93,19 +93,24 @@ def _build_model(m: object) -> _EnglandModel:
     """
     if not isinstance(m, dict):
         raise ValueError(f"{_FILENAME} did not parse as a mapping")
-    nodes = m.get("nodes") or []
-    valid = frozenset(n["canonical"] for n in nodes if n["level"] in _REGION_LEVELS)
-    country_nodes = [n["canonical"] for n in nodes if n["level"] == "country"]
+    try:
+        nodes = m.get("nodes") or []
+        valid = frozenset(n["canonical"] for n in nodes if n["level"] in _REGION_LEVELS)
+        country_nodes = [n["canonical"] for n in nodes if n["level"] == "country"]
+        aliases = {a["from"]: a["to"] for a in (m.get("aliases") or [])}
+        zones = frozenset(z["value"] for z in (m.get("deferred_zones") or []))
+        quarantine = frozenset(q["value"] for q in (m.get("quarantine") or []))
+    except (KeyError, TypeError) as e:
+        # A node/alias/zone/quarantine entry is missing an expected key or isn't
+        # a mapping — surface a clear error instead of a cryptic KeyError.
+        raise ValueError(f"{_FILENAME} has a malformed entry (missing key {e})") from e
     if len(country_nodes) != 1:
         raise ValueError(
             f"{_FILENAME} must have exactly one country-level node, got {country_nodes}"
         )
-    aliases = {a["from"]: a["to"] for a in (m.get("aliases") or [])}
     bad_targets = {frm: to for frm, to in aliases.items() if to not in valid}
     if bad_targets:
         raise ValueError(f"{_FILENAME} alias targets are not valid region nodes: {bad_targets}")
-    zones = frozenset(z["value"] for z in (m.get("deferred_zones") or []))
-    quarantine = frozenset(q["value"] for q in (m.get("quarantine") or []))
     return _EnglandModel(valid, country_nodes[0], MappingProxyType(aliases), zones, quarantine)
 
 
