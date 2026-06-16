@@ -3221,7 +3221,7 @@ ON-heavy; Wales Brittonic; Roman England Latin-flavored), so a future generator
 surface could offer "Danelaw town names" the way `--culture` / `--stratum` (D32)
 / `--era` (D44) compose today. This axis is **coarse and
 linguistically-defined**, cuts across administrative boundaries, and is a
-generator surface we are not cut to yet.
+generator surface we are not building yet.
 
 The two do NOT share a granularity or an axis:
 
@@ -3343,7 +3343,7 @@ pass addresses without weakening D3.
 
 ### Deliberately deferred to the epics (not decided here)
 
-The edge-type taxonomy itself; synthetic canonical nodes vs winner-takes-redirect
+The edge-type taxonomy itself; synthetic canonical nodes vs winner-redirect
 (the D31 UNIQUE-key lesson argues for synthetic, at an indirection cost);
 one assertion stream vs per-predicate JSONL; the exact promotion gate. These are
 the opening tickets of the two epics, not settled by this entry. **The Class-B
