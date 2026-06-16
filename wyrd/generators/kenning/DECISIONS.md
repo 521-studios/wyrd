@@ -3346,10 +3346,166 @@ pass addresses without weakening D3.
 The edge-type taxonomy itself; synthetic canonical nodes vs winner-takes-redirect
 (the D31 UNIQUE-key lesson argues for synthetic, at an indirection cost);
 one assertion stream vs per-predicate JSONL; the exact promotion gate. These are
-the opening tickets of the two epics, not settled by this entry.
+the opening tickets of the two epics, not settled by this entry. **The Class-B
+half of these — the edge taxonomy, the synthetic-node decision, the assertion
+record schema, and the stream layout — is now settled by D50.**
 
 Epics: **wyrd-3q6m** (Class A — controlled-vocabulary normalization at source)
 and **wyrd-u6fn** (Class B — universal canonicalization assertion layer). The
 worked examples above double as regression checks: Class-B cleanup must catch
 the `ne`≈`niwe` duplicate and the `ford+botl` hallucination; Class-A must fold
 the region codes and produce the blocking keys the toponym-ER pass needs.
+
+## D50. Canonicalization assertion layer: synthetic identity nodes + a typed edge taxonomy (wyrd-u6fn, 2026-06-16).
+
+D49 split corpus uncleanness into Class A (controlled-vocabulary coding →
+enum + alias map at the ingest boundary) and Class B (scholarly entity
+resolution → an append-only assertion log projected to a collapse graph). D50
+specifies the **Class-B mechanism** in detail — the node model, the edge-type
+taxonomy, and the assertion record schema. (D49 is the umbrella; D50 is to D49's
+Class-B half what D37 is to D36.)
+
+### D50.1. Synthetic canonical nodes, not winner-redirect.
+
+The existing collapse mechanism (`merged_into_id`, D22) is winner-redirect: a
+loser observation points at a *winner observation*. D50 replaces this with
+**synthetic canonical nodes**: per identity, mint an abstract node
+(`canonical_morpheme` / `canonical_place` / `canonical_sense`) with a **stable id
+declared in L2**, and **bind observations to it**. The canonical node carries no
+source of its own — it is a derived hub.
+
+Why synthetic wins (winner-redirect's three faults, all visible in the live
+Newton data):
+
+1. **It conflates identity with evidence.** The winner row (`niwe` etymon
+   671826, `tūn` 377353) is itself a mined observation with its own source +
+   citations. Making an observation *be* the identity privileges it — exactly
+   what D49 separates.
+2. **The canonical label drifts by stratum, so "the winner" is ill-defined.** A
+   place's canonical surface changes by era (`Neutune`@1086 → `Newton`@modern);
+   no observation is "the place." Winner-redirect would re-point forever (the
+   D31 UNIQUE-key trap).
+3. **Per-stratum labels have no home** on any single observation.
+
+Synthetic nodes fix all three: identity is separate from evidence (observations
+stay as mined, D21); per-stratum labels are asserted *on* the canonical node;
+re-canonicalization is a one-assertion change with no reference rewrites; and the
+model is uniform across entity types (morphemes degenerate to "node + one label"
+— the indirection is paid only where the label actually drifts, i.e. places).
+Cost: an extra indirection layer and a migration of existing `merged_into_id`
+clusters — all L3-rebuildable authoring work; runtime/L4 is the flattened
+projection (D38), so zero runtime cost.
+
+### D50.2. Two tests sort every edge.
+
+The taxonomy is not a list; it is two tests applied to each candidate edge:
+
+1. **Collapsibility:** *"if these two nodes merged into one, would we lose
+   information we still need?"* No → **identity** (collapsible). Yes →
+   **relational** (never collapse). (`ne`≈`niwe` → merge, one morpheme.
+   `town`–descends-from–`tūn` → never; the chain across eras/languages is the
+   point. This is also why `cognate_id` is NOT identity — a cognate cluster is
+   the *closure* of descent edges; `silly`/German `selig` are cognate but mean
+   different things now, D28.)
+2. **Identity is bare and timeless** (D40/D45/D44/D46/D8): identity edges connect
+   *stripped, position-free, era-free, inflection-free* identities. Surface,
+   dash-position, era-reflex, and inflection are per-stratum *lenses* on one
+   identity — never separate identities, never identity keys. (This is what
+   stops the assertion layer from re-spawning the D45 dash-identity bug class.)
+
+Two guardrails: relational axes are **orthogonal** (D28 — descent ≠
+semantic-equivalence ≠ cognate-peer ≠ containment; never a generic `related-to`),
+and everything **projects to SQLite** (no graph engine, D42).
+
+### D50.3. Three edge families.
+
+- **Family A — identity (collapsible).** Realized as `mint-canonical` + `bind`
+  (observation → canonical) + `merge-canonical` (reconcile two minted nodes) +
+  `canonical-label` (per-stratum label on a canonical node). `bind.kind` ∈
+  {same-morpheme, same-place, same-sense, inflection-of}. Generalizes
+  `merged_into_id` (same-morpheme) and `lemma_id` (inflection-of). Region
+  within-stratum coding folds (`SUR`≈`Surrey`) are NOT here — they are Class-A
+  alias-map (D49).
+- **Family B — relational (never collapse; orthogonal axes).** `descends-from`
+  (etymon→etymon, edge_type inh/borrow/cog; generalizes `etymon_descent`) ·
+  `means-same-as` (etymon↔etymon semantic; `meaning_synset`, orthogonal to
+  identity AND cognate, D28) · `glosses-as` (etymon→sense; `etymon_gloss`) ·
+  `decomposes-into` (toponym→ordered etymon; `toponym_etymology_element` — **the
+  only birthplace of position**, derived by index per D40/D43; identity edges
+  never carry position) · `contains` / `succeeds` / `located-in`
+  (region/jurisdiction structure per stratum). `cognate_id` is a *projection* of
+  the `descends-from` closure, not stored identity.
+- **Family C — canonicalization choice (select/flag among Family-B
+  alternatives).** `canonical-decomposition` (which `decomposes-into` parse is
+  canonical, per place[+culture]; `toponym_decomposition.is_canonical`) ·
+  `decomposition-spurious` (flag a contaminated breakdown — the Class-B answer to
+  D3's neighbor-contamination blind spot, e.g. the `ford+botl` row) ·
+  `canonical-label@stratum` (which observed form is canonical at a stratum — the
+  bridge to Class-A labeling).
+
+### D50.4. The assertion record (one uniform shape).
+
+```
+{ id, predicate, subject:{type,ref}, object:{type,ref}|null,
+  polarity: affirm|refute|retract, retracts:<id>|null,
+  qualifiers:{ordinal,stratum,edge_type,kind,value,…},
+  confidence, method, source, actor, rationale, timestamp }
+```
+
+- **Typed refs** keep the orthogonal axes clean (an edge knows its endpoints'
+  types).
+- **Qualifiers** carry the per-predicate axes (ordinal, stratum, edge_type) so
+  position/era stay derived lens axes, never folded into a ref (D40/D45).
+- **Append-only** (D21/D22): `refute` (assert NOT-same / spurious) and `retract`
+  (withdraw a prior assertion by id) are new records, never edits. The Newton
+  trace needs all three polarities — *affirm* `ne`≈`niwe`, *refute* the
+  `ford+botl` breakdown, *retract* the bad `new→ne` legacy merge.
+- Every record carries the full provenance quad (confidence/method/source/actor +
+  rationale, D24). Identity-collapse defaults to **leave-separate** (D46
+  asymmetry): a missed merge is harmless duplication, a wrong merge is corruption
+  — so binds need a high confidence bar + adversarial verification before the
+  projection applies them. A heuristic's pairwise "looks-same" is just a
+  low-confidence `bind`; confidence does the gating, so there is no separate
+  "proposal" type.
+
+### D50.5. L2 streams + L3 projection.
+
+Assertions live in **per-predicate JSONL** under `canonicalization/`
+(`_canonical_nodes.jsonl` for the minted ids; `_assert_<predicate>.jsonl` for
+each predicate), mirroring the existing `_reflexes.jsonl` /
+`_element_glosses.jsonl` sidecars so diffs stay scoped and the
+**rebuild-runbook-currency-reviewer** tracks each as a discrete rebuild input.
+The projection (the rebuildable L3 collapse graph) reads observations (L2) +
+canonical-node declarations + assertions and materializes: canonical entity
+tables with per-stratum labels; `observation.canonical_id` (generalizing
+`merged_into_id`); relational edge tables; rollup views (generalizing the
+`*_canonical` views). **Relational edges as mined point at observations**
+(preserve what was mined, D21); rollup to canonicals flows through the binds.
+Determinism per D36.9: same L2 → byte-identical L3.
+
+### Why this shape.
+
+It is the minimal generalization of patterns already proven in the codebase:
+non-destructive merge (D22), method-stamped reversible enrichment (D22/D24), the
+cognate-vs-synset axis split (D28), and the timeless-identity / per-stratum-lens
+discipline the morpheme axis already runs (D44/D46). It makes the
+partial-but-correct collapse machinery **uniform** (one model for every entity
+type), **reviewable** (every canonicalization is an attributed, dated, reversible
+claim with a rationale — strictly more rigorous than today's scattered
+method-stamp columns), and **agent-augmentable** (an agent's web-researched merge
+is a low-confidence assertion in a quarantined tier, cf. D2/D19, that a gate or
+human promotes). The graph is the working surface; the assertion log is the
+canonical artifact.
+
+### Bounded by / deferred.
+
+Authoring-layer only; runtime/L4 untouched (D38). Open for the implementation
+tickets: **bind granularity** — toponym 1725 conflates three places (separate
+`toponym_etymology` rows 778/779/780) in one toponym row, so binding must operate
+at etymology-row granularity for the inverse (split) to work (wyrd-u6fn.3
+confirms). Gloss cleanup is itself recursively A-vs-B (string-normalization vs
+`same-sense-as`). Concrete L3 DDL + the migration of `merged_into_id` /
+`cognate_id` / `lemma_id` are wyrd-u6fn.3/.4. The full edge-taxonomy + schema
+first-cut detail live in those tickets' design fields.
+
+Epic: wyrd-u6fn (Class B). Specifies D49's Class-B half.

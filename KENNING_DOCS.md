@@ -36,7 +36,7 @@ wyrd kenning lexicon report           # current corpus snapshot
 | Touch era / time-axis / rewind / era-map | `DECISIONS.md` D44 + D46 (+ D33 for the reflex machinery) |
 | Touch scoring / generation knobs / moods | `DECISIONS.md` D36 (vector architecture) + D37 (register catalog); `REGISTERS.md` only if you're tuning per-effect weights against the phonaesthetics literature |
 | Touch rendering / native-vs-modern surface | `DECISIONS.md` D41 + D39 |
-| Clean up / canonicalize the corpus, merge duplicates, normalize region/source dims | **`DECISIONS.md` D49** (the two-class partition), then D22 (the proto-merge pattern) + D21 (evidence sacred) |
+| Clean up / canonicalize the corpus, merge duplicates, normalize region/source dims | **`DECISIONS.md` D49** (the two-class partition) + **D50** (the Class-B assertion layer: synthetic nodes + edge taxonomy), then D22 (the proto-merge pattern) + D21 (evidence sacred) |
 | Do a full DB wipe + rebuild | `REBUILD.md` (read it BEFORE any `rebuild-from-jsonl --with-enrichment` — it lists the L3-only layers a wipe silently drops) |
 | Move a table/column between layers, or wonder "is this rebuildable?" | `L2_L3_BOUNDARY.md` |
 | Wonder where runtime data lives / why it's SQLite-on-S3 | `DECISIONS.md` D38 |
@@ -98,7 +98,11 @@ in this subsystem is one of these getting violated:
    graph, generalizing `merged_into_id`/`cognate_id` — every edge carries
    confidence + rationale, identity-collapse defaults to leave-separate. Don't
    solve a Class-A coding mess with the Class-B machinery, or vice-versa. Still
-   no graph DB engine (D42).
+   no graph DB engine (D42). The Class-B mechanism is specified by **D50**:
+   **synthetic canonical nodes** (mint + bind, NOT winner-redirect — identity is
+   separate from evidence and survives label-drift-by-era), a typed edge taxonomy
+   (identity / relational / canonicalization-choice, sorted by the collapsibility
+   test), and an append-only assertion record with affirm/refute/retract polarity.
 
 ---
 
