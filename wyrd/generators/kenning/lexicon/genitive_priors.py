@@ -382,7 +382,9 @@ def dump_genitive_priors_to_json(
     return {"pairs": len(artifact["pairs"])}
 
 
-def load_genitive_priors_from_json(input_path: Path) -> dict[tuple[str, str], PairCounts]:
+def load_genitive_priors_from_json(  # noqa: V103 — matcher-facing loader (consumed when the prior is wired into the decomposition matcher); pinned by tests
+    input_path: Path,
+) -> dict[tuple[str, str], PairCounts]:
     with input_path.open(encoding="utf-8") as f:
         artifact = json.load(f)
     return load_genitive_priors_from_payload(artifact)
@@ -408,7 +410,7 @@ def global_split_rate(counts: dict[tuple[str, str], PairCounts]) -> float:
     return split / total if total else 0.5
 
 
-def split_probability(
+def split_probability(  # noqa: V103 — matcher-facing lookup (the smoothed prior the decomposition matcher will consume); pinned by tests
     counts: dict[tuple[str, str], PairCounts],
     long_form: str,
     short_form: str,
