@@ -119,7 +119,8 @@ def canonicalize_region(region: str | None, *, country: str | None = None) -> st
 
     Returns:
 
-    - ``None`` for ``None`` or an empty string (no region);
+    - ``None`` for ``None`` / empty / whitespace-only (no region);
+      a non-empty value is whitespace-stripped before lookup;
     - the canonical node for an alias variant (folded);
     - a canonical region node unchanged;
     - a non-England / out-of-scope value unchanged (passed through);
@@ -139,7 +140,9 @@ def canonicalize_region(region: str | None, *, country: str | None = None) -> st
     region→country map plus the model's own recognition (so a known England
     zone/quarantine value is still caught with no country hint).
     """
-    if not region:  # None or "" — normalize a missing region to NULL
+    if region is not None:
+        region = region.strip()  # tolerate stray whitespace from source data
+    if not region:  # None / "" / whitespace-only — normalize a missing region to NULL
         return None
     model = _model()
     if country is not None:

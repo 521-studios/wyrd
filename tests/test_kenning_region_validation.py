@@ -23,9 +23,15 @@ from wyrd.generators.kenning.lexicon.region_model import (
 # --- pure canonicalizer ------------------------------------------------------
 
 
-def test_none_and_empty_normalize_to_none():
+def test_none_empty_and_whitespace_normalize_to_none():
     assert canonicalize_region(None) is None
     assert canonicalize_region("") is None  # empty region normalizes to NULL
+    assert canonicalize_region("   ") is None  # whitespace-only too
+
+
+def test_surrounding_whitespace_is_stripped_before_lookup():
+    assert canonicalize_region("  Suffolk  ") == "Suffolk"
+    assert canonicalize_region(" SUF ") == "Suffolk"  # strip then alias-fold
 
 
 def test_canonical_nodes_pass_unchanged():
