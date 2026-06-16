@@ -43,7 +43,11 @@ _DEFAULT_INCLUDE_RANDO = True
 _DEFAULT_RANDO_MIN_CORROBORATORS = 0
 _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL = True
 _DEFAULT_INCLUDE_WAVE2_ENRICHED = True
-_DEFAULT_INCLUDE_TOPONYM_BREAKDOWN = True
+# wyrd-oth3: default OFF — the grader-validated re-emit (wyrd-aicu.9, 2026-06-16)
+# showed the unfiltered admit regresses scholar agreement (coverage up but
+# cluster recall/head down via composite morphemes). Opt-in until wyrd-myv4 +
+# wyrd-h5u1 + wyrd-7hbp make it a graded net win.
+_DEFAULT_INCLUDE_TOPONYM_BREAKDOWN = False
 
 
 @click.command("export-runtime-db")
@@ -332,7 +336,7 @@ def _reject_non_default_filters_under_dev(
     if include_wave2_enriched != _DEFAULT_INCLUDE_WAVE2_ENRICHED:
         offenders.append("--no-include-wave2-enriched (canonical: --include-wave2-enriched)")
     if include_toponym_breakdown != _DEFAULT_INCLUDE_TOPONYM_BREAKDOWN:
-        offenders.append("--no-include-toponym-breakdown (canonical: --include-toponym-breakdown)")
+        offenders.append("--include-toponym-breakdown (canonical: --no-include-toponym-breakdown)")
     if offenders:
         raise click.UsageError(
             "--dev requires canonical defaults on every upstream filter "

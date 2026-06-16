@@ -80,7 +80,7 @@ def export_meanings(
     rando_min_corroborators: int = 0,
     include_wiktionary_empirical: bool = True,
     include_wave2_enriched: bool = True,
-    include_toponym_breakdown: bool = True,
+    include_toponym_breakdown: bool = False,
 ) -> list[dict[str, Any]]:
     """Walk the lexicon and emit a meanings.json structure.
 
@@ -112,11 +112,17 @@ def export_meanings(
         stronger than dictionary witnesses; admits the specifiers/heads scholars
         used that the witness gate misses, so the matcher stops junk-tiling
         ``Aldermaston`` → ``Al+Der+Ma+Ston``). Bypasses the witness gate like
-        the other empirical-class paths. NOTE: this admits the morpheme on the
-        breakdown signal alone — occurrence-threshold tiering + junk pruning of
-        the one-off mis-extraction tail is wyrd-myv4, validated via the
-        wyrd-aicu.9 decomposition grader; un-clustered admits ride in as their
-        own family until the uplift pass connects them to cognates.
+        the other empirical-class paths.
+
+        DEFAULT OFF (unlike its siblings): the grader-validated re-emit
+        (wyrd-aicu.9, 2026-06-16) showed the UNFILTERED admit is net-negative on
+        scholar agreement — coverage +3.4pts but cluster recall/precision/head
+        all DOWN, because the breakdown corpus carries COMPOSITE forms
+        (``-ington``, ``-erton``, ``-halton``) and the Occam (fewer-morphemes)
+        tiebreaker then prefers the coarse ``Ald+ington`` over the finer correct
+        ``Ald+ing+ton``. Gated off until: occurrence-threshold + composite-form
+        pruning (wyrd-myv4), the matcher granularity tiebreaker (wyrd-h5u1), and
+        the uplift clustering (wyrd-7hbp) make it a graded net win.
 
     ``rando_min_corroborators`` defaults to 0 — admit every rando-cited
     family, matching the pre-wyrd-fssn semantic. The knob is a
@@ -195,7 +201,7 @@ def _collect_families(
     rando_min_corroborators: int = 0,
     include_wiktionary_empirical: bool = True,
     include_wave2_enriched: bool = True,
-    include_toponym_breakdown: bool = True,
+    include_toponym_breakdown: bool = False,
 ) -> list[dict[str, Any]]:
     """Build per-family-root data: forms-by-language, glosses, tags, reflexes.
 
@@ -344,7 +350,7 @@ def _select_promoted_root_ids(
     rando_min_corroborators: int = 0,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
-    include_toponym_breakdown: bool = True,
+    include_toponym_breakdown: bool = False,
     root_of: Callable[[int], int],
     members_by_root: dict[int, list[int]] | None = None,
 ) -> list[int]:
