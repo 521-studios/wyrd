@@ -51,7 +51,7 @@ DB and must be re-run by hand after the rebuild.
 | **empirical layer** (`wiktionary-empirical` citations) | ❌ L3-only | `mine-wiktextract-corpus` + `cleanup-wiktionary-empirical` |
 | **forms-variants** (`etymon_text_match`, D18 spelling pools) | ❌ L3-only ("deferred") | `mine-wiktextract-forms` per slice |
 | **empirical baselines / priors** | ❌ L3-only (derived from the above) | `mine-empirical-baselines` + `dump-empirical-priors` |
-| **genitive split prior** (`genitive_split_prior`, wyrd-aicu.9) | ❌ L3-only (derived from toponym_etymology + reflex cognate clusters) | `mine-genitive-priors` + `dump-genitive-priors` |
+| **genitive split prior** (`genitive_split_prior`, wyrd-aicu.9 + .9.1) | ❌ L3-only (derived from toponym_etymology + historical_form + reflex cognate clusters + toponym_attestation) | `mine-genitive-priors` + `dump-genitive-priors` |
 
 The reflex and fantasy layers were **L3-only at the time of the May
 rebuild** and were the cause of the worst surprises (16 canonical-
