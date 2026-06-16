@@ -95,6 +95,14 @@ etymon = Table(
     Column("english_shaped", Text),
     Column("stratum", Text),
     Column("phonological_vector", Text),
+    # Canonicalization bind (D50.1, wyrd-u6fn): which canonical_morpheme node
+    # this etymon resolves to. Projected from the L2 assertion streams (u6fn.3);
+    # the synthetic-node generalization of merged_into_id / cognate_id.
+    Column(
+        "canonical_morpheme_id",
+        Text,
+        ForeignKey("canonical_morpheme.id", ondelete="SET NULL"),
+    ),
     UniqueConstraint("canonical_form", "language"),
 )
 Index("idx_etymon_lemma", etymon.c.lemma_id)
@@ -102,14 +110,19 @@ Index("idx_etymon_merged_into", etymon.c.merged_into_id)
 Index("idx_etymon_cognate", etymon.c.cognate_id)
 Index("idx_etymon_stratum", etymon.c.stratum)
 Index("idx_etymon_lang", etymon.c.language)
+Index("idx_etymon_canonical_morpheme", etymon.c.canonical_morpheme_id)
 
 etymon_gloss = Table(
     "etymon_gloss",
     metadata,
     Column("etymon_id", Integer, ForeignKey("etymon.id", ondelete="CASCADE"), nullable=False),
     Column("gloss", Text, nullable=False),
+    # Canonicalization bind (D50, wyrd-u6fn): the canonical_sense this gloss
+    # resolves to (same-sense-as dedup of the gloss wall). Projected by u6fn.3.
+    Column("canonical_sense_id", Text, ForeignKey("canonical_sense.id", ondelete="SET NULL")),
     PrimaryKeyConstraint("etymon_id", "gloss"),
 )
+Index("idx_etymon_gloss_canonical_sense", etymon_gloss.c.canonical_sense_id)
 
 etymon_tag = Table(
     "etymon_tag",
@@ -285,6 +298,10 @@ toponym = Table(
     Column("modern_name", Text, nullable=False),
     Column("country", Text),
     Column("region", Text),
+    # Canonicalization bind (D50.6, wyrd-u6fn): the canonical_place this toponym
+    # resolves to (default place-bind granularity; a toponym_etymology-row bind
+    # overrides it for conflated rows). Projected by u6fn.3.
+    Column("canonical_place_id", Text, ForeignKey("canonical_place.id", ondelete="SET NULL")),
 )
 Index(
     "idx_toponym_unique",
@@ -294,6 +311,7 @@ Index(
     unique=True,
 )
 Index("idx_toponym_name", toponym.c.modern_name)
+Index("idx_toponym_canonical_place", toponym.c.canonical_place_id)
 
 toponym_attestation = Table(
     "toponym_attestation",
@@ -350,6 +368,11 @@ toponym_etymology = Table(
     ),
     Column("consensus_size", Integer, nullable=False, server_default=text("1")),
     Column("cluster_key", Text),
+    # Canonicalization bind override (D50.6, wyrd-u6fn): a per-reading
+    # canonical_place bind that takes precedence over the toponym-row default,
+    # so a conflated toponym row (e.g. 3 distinct Newtons) splits into distinct
+    # places. Projected by u6fn.3.
+    Column("canonical_place_id", Text, ForeignKey("canonical_place.id", ondelete="SET NULL")),
 )
 Index("idx_etymology_toponym", toponym_etymology.c.toponym_id)
 Index("idx_etymology_source", toponym_etymology.c.source_id)
@@ -358,6 +381,10 @@ Index(
     "idx_toponym_etymology_canonical",
     toponym_etymology.c.toponym_id,
     sqlite_where=text("is_canonical = 1"),
+)
+Index(
+    "idx_toponym_etymology_canonical_place",
+    toponym_etymology.c.canonical_place_id,
 )
 
 toponym_etymology_element = Table(
@@ -629,3 +656,60 @@ report_metric = Table(
 )
 Index("idx_report_metric_snapshot", report_metric.c.snapshot_label)
 Index("idx_report_metric_cat", report_metric.c.category, report_metric.c.metric)
+
+
+# ---------------------------------------------------------------------------
+# Canonicalization graph (D49 / D50, wyrd-u6fn): synthetic identity nodes that
+# the L2 assertion streams (data/mining/canonicalization/) project onto. The
+# merged_into self-FK carries merge-canonical reconciliation (smallest-id-wins,
+# chain-flattened — the D22 lesson generalized). L3 derived: empty until the
+# projection (wyrd-u6fn.3) runs. See migration 0019_canonicalization_graph.
+# ---------------------------------------------------------------------------
+
+canonical_morpheme = Table(
+    "canonical_morpheme",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("merged_into", Text, ForeignKey("canonical_morpheme.id", ondelete="SET NULL")),
+)
+Index("idx_canonical_morpheme_merged", canonical_morpheme.c.merged_into)
+
+canonical_place = Table(
+    "canonical_place",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("merged_into", Text, ForeignKey("canonical_place.id", ondelete="SET NULL")),
+)
+Index("idx_canonical_place_merged", canonical_place.c.merged_into)
+
+canonical_sense = Table(
+    "canonical_sense",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("merged_into", Text, ForeignKey("canonical_sense.id", ondelete="SET NULL")),
+)
+Index("idx_canonical_sense_merged", canonical_sense.c.merged_into)
+
+# Per-stratum canonical labels (D50.6). ``canonical_id`` is a polymorphic ref
+# discriminated by ``canonical_type`` (no single FK). ``stratum`` is NOT NULL
+# DEFAULT '' — '' is the era-invariant label — so the composite PK stays clean.
+canonical_label = Table(
+    "canonical_label",
+    metadata,
+    # The polymorphic discriminator for canonical_id (no single FK is possible),
+    # so a CHECK is the only schema-level guard against a typo'd / wrong-type
+    # node ref — mirroring the enum CHECKs elsewhere (position_pref, edge_type).
+    Column(
+        "canonical_type",
+        Text,
+        CheckConstraint(
+            "canonical_type IN ('canonical_morpheme', 'canonical_place', 'canonical_sense')"
+        ),
+        nullable=False,
+    ),
+    Column("canonical_id", Text, nullable=False),
+    Column("stratum", Text, nullable=False, server_default=text("''")),
+    Column("value", Text, nullable=False),
+    Column("source_assertion", Text),
+    PrimaryKeyConstraint("canonical_type", "canonical_id", "stratum"),
+)

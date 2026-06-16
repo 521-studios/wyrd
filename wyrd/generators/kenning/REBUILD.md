@@ -78,6 +78,16 @@ here's the obligation:
 - **`personal_name` / `personal_name_toponym_attestation`** (Briggs) —
   the tables no longer exist on the live DB (re-routed into the `etymon`
   schema by PR #380); nothing to restore.
+- **canonicalization graph** (`canonical_morpheme` / `canonical_place` /
+  `canonical_sense` / `canonical_label` + the `canonical_*_id` binds on
+  `etymon` / `etymon_gloss` / `toponym` / `toponym_etymology`, D49/D50,
+  wyrd-u6fn) — the SCHEMA ships in alembic migration `0019` (auto, like every
+  table). The DATA is **projected** from the `data/mining/canonicalization/`
+  L2 assertion streams by the canonicalization projection (wyrd-u6fn.3,
+  **pending**), so a rebuild leaves it **empty** until that pass exists. The
+  L2 assertion streams are the source of truth and replay for free; the
+  projection will be deterministic (re-derivable from L2), never a paid
+  re-mine. When u6fn.3 ships, promote this to a documented rebuild step.
 
 ---
 
