@@ -43,10 +43,9 @@ def lexicon_dump_genitive_priors(db_path: Path, output_path: Path, version: str)
 
     Output shape: a top-level dict with ``version`` (verbatim from --version)
     and a ``pairs`` list of ``{long_form, short_form, split_count,
-    literal_count, attested_split, attested_literal}`` records, ordered by total
-    evidence. Raw counts only — the matcher applies smoothing + backoff at
-    lookup. The committed JSON is the operator-visible diff surface for the
-    prior's evolution as breakdowns accrue.
+    literal_count}`` records, ordered by total evidence. Raw counts only — the
+    matcher applies smoothing + backoff at lookup. The committed JSON is the
+    operator-visible diff surface for the prior's evolution as breakdowns accrue.
     """
     with LexiconDB(db_path) as db:
         result = dump_genitive_priors_to_json(db, output_path, version=version)

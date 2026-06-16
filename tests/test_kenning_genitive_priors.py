@@ -175,6 +175,30 @@ def test_extract_skips_both_and_unclassified(db, ston_world):
     assert summary.skipped_unclassified == 1
 
 
+def test_overlap_cluster_disambiguates_toward_literal(db, ston_world):
+    # An etymon that is a reflex for BOTH 'ton' and 'ston' (a shared cluster):
+    # `_pair_clusters` subtracts it from the SPLIT side, so a breakdown using
+    # only it classifies LITERAL — not skipped-both. Without the subtraction the
+    # shared cluster would be in both classes and the toponym would skip. Guards
+    # the overlap-disambiguation that replaced the removed attestation gate.
+    shared = _etymon(db, "shared", cluster=True)
+    # link `shared` to the EXISTING 'ton' + 'ston' reflex rows (reflex is
+    # UNIQUE(surface_form, position); the many-to-many lives in reflex_etymon).
+    for surf in ("ton", "ston"):
+        rid = db.conn.execute(
+            "SELECT id FROM reflex WHERE surface_form=? AND position='post'", (surf,)
+        ).fetchone()["id"]
+        db.conn.execute(
+            "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, shared)
+        )
+    t = _toponym(db, "Shareston")
+    _etymology(db, t, [shared])
+    db.commit()
+    counts, summary = extract_genitive_priors(db)
+    assert counts[("ston", "ton")] == PairCounts(split=0, literal=1)
+    assert summary.skipped_both == 0
+
+
 def test_extract_empty_db_yields_no_counts(db, ston_world):
     counts, summary = extract_genitive_priors(db)
     assert counts == {}

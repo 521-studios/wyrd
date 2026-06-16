@@ -146,7 +146,7 @@
     },
     {
       "layer": "genitive-split-prior",
-      "summary": "genitive_split_prior (per-suffix town/stone split counts, derived from toponym_etymology + attestations + reflex cognate clusters)",
+      "summary": "genitive_split_prior (per-suffix town/stone split counts, derived from toponym_etymology + reflex cognate clusters)",
       "restored_by": "free-mining",
       "cost": "free",
       "restore_command": "mine-genitive-priors",
