@@ -3483,6 +3483,46 @@ tables with per-stratum labels; `observation.canonical_id` (generalizing
 (preserve what was mined, D21); rollup to canonicals flows through the binds.
 Determinism per D36.9: same L2 → byte-identical L3.
 
+### D50.6. The projection: L2 assertions → L3 collapse graph (wyrd-u6fn.3).
+
+The assertion streams are projected into the rebuildable L3 graph by a
+deterministic stage that runs *after* the existing `rebuild-from-jsonl`
+materializes the observation tables.
+
+**Bind granularity** (the one open parameter D50 left): bind at observation-row
+level — morpheme = `etymon` row, sense = `etymon_gloss` row, **place = `toponym`
+row by default, with per-`toponym_etymology`-row overrides that take
+precedence.** The override-beats-default rule yields both directions with no
+special predicate: merge (Archdeacon Newton's two `toponym` rows → one
+`canonical_place`) and split (toponym 1725's three readings, rows 778/779/780 →
+three places).
+
+**Schema** generalizes the D22 redirect columns: synthetic `canonical_morpheme`
+/ `canonical_place` / `canonical_sense` tables (stable, L2-declared ids; a
+`merged_into` self-FK for `merge-canonical`, smallest-id-wins + chain-flatten per
+D22's two-step lesson); `canonical_*_id` binding columns on the observation
+tables (same style as `merged_into_id`/`cognate_id`); a
+`canonical_label(type, id, stratum, value)` table for per-stratum labels.
+Family-B relational edges mostly already exist (`etymon_descent`,
+`etymon_meaning_synset`, `etymon_gloss`, `toponym_etymology_element`) — the
+projection adds rollup-through-canonical views (replacing the
+`COALESCE(merged_into_id, lemma_id, id)` chains with a clean FK join); new tables
+only for region structure.
+
+**Algorithm** (deterministic, D36.9): mint → bind (keep affirmed, non-retracted,
+non-refuted, `confidence ≥ gate`; place overrides win) → `merge-canonical` →
+per-stratum labels → relational + Family-C flags. **Conflict rule** (D46-faithful):
+an observation bound above-gate to two different canonicals is left **unbound +
+flagged** (observability, D24), never silently resolved — the contradiction is
+the signal a `merge-canonical` is owed. Reversible via
+`clear-enrichment --stage=canonical` (D22); the streams join REBUILD.md's L2
+replay registry (enforced by the rebuild-runbook-currency-reviewer).
+
+Implementation order: `wyrd-u6fn.2` (streams + `canonical_*` DDL) → `.3` (this
+projection) → `.4` (migrate `merged_into_id` / `cognate_id` / `lemma_id` into
+legacy-import binds so the first projection reproduces today's clustering, then
+repairs adjust).
+
 ### Why this shape.
 
 It is the minimal generalization of patterns already proven in the codebase:
@@ -3499,13 +3539,13 @@ canonical artifact.
 
 ### Bounded by / deferred.
 
-Authoring-layer only; runtime/L4 untouched (D38). Open for the implementation
-tickets: **bind granularity** — toponym 1725 conflates three places (separate
-`toponym_etymology` rows 778/779/780) in one toponym row, so binding must operate
-at etymology-row granularity for the inverse (split) to work (wyrd-u6fn.3
-confirms). Gloss cleanup is itself recursively A-vs-B (string-normalization vs
-`same-sense-as`). Concrete L3 DDL + the migration of `merged_into_id` /
-`cognate_id` / `lemma_id` are wyrd-u6fn.3/.4. The full edge-taxonomy + schema
+Authoring-layer only; runtime/L4 untouched (D38). Bind granularity and the
+concrete L3 DDL are settled in D50.6. Still open: gloss cleanup is itself
+recursively A-vs-B (string-normalization vs `same-sense-as`), and the *compressed
+gloss* (a short canonical label per sense — the readable "what does this toponym
+mean" output) rides on the `canonical_sense` nodes here (wyrd-u6fn, separate
+ticket). The migration of `merged_into_id` / `cognate_id` / `lemma_id` into
+legacy-import binds is wyrd-u6fn.4. The full edge-taxonomy + schema + projection
 first-cut detail live in those tickets' design fields.
 
 Epic: wyrd-u6fn (Class B). Specifies D49's Class-B half.
