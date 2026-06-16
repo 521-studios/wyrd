@@ -18,6 +18,7 @@ from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.genitive_priors import (
     PairCounts,
+    _compile_town_regex,
     _fold,
     _genitive_ambiguous,
     detect_historical_genitive,
@@ -348,7 +349,10 @@ def test_detect_historical_genitive_town_on_es_marker():
     # Kingston <- cyninge·s·tun : genuine historical 'es' + town stem.
     assert (
         detect_historical_genitive(
-            ["Cyningeston"], "Kingston", town_stems={"ton", "tone"}, stone_stems={"stan"}
+            ["Cyningeston"],
+            "Kingston",
+            town_regex=_compile_town_regex({"ton", "tone"}),
+            stone_stems={"stan"},
         )
         == "split"
     )
@@ -357,7 +361,10 @@ def test_detect_historical_genitive_town_on_es_marker():
 def test_detect_historical_genitive_stone_on_bound_stem():
     assert (
         detect_historical_genitive(
-            ["Rodestan"], "Rudston", town_stems={"ton", "tone"}, stone_stems={"stan"}
+            ["Rodestan"],
+            "Rudston",
+            town_regex=_compile_town_regex({"ton", "tone"}),
+            stone_stems={"stan"},
         )
         == "literal"
     )
@@ -367,7 +374,10 @@ def test_detect_historical_genitive_ignores_modern_echo():
     # The form merely echoes the modern name -> no genuine historical signal.
     assert (
         detect_historical_genitive(
-            ["Beeston"], "Beeston", town_stems={"ton", "tone"}, stone_stems={"stan"}
+            ["Beeston"],
+            "Beeston",
+            town_regex=_compile_town_regex({"ton", "tone"}),
+            stone_stems={"stan"},
         )
         is None
     )
@@ -375,7 +385,10 @@ def test_detect_historical_genitive_ignores_modern_echo():
 
 def test_detect_historical_genitive_none_without_forms():
     assert (
-        detect_historical_genitive([], "Rudston", town_stems={"ton"}, stone_stems={"stan"}) is None
+        detect_historical_genitive(
+            [], "Rudston", town_regex=_compile_town_regex({"ton"}), stone_stems={"stan"}
+        )
+        is None
     )
 
 
@@ -384,7 +397,10 @@ def test_detect_historical_genitive_defers_on_conflict():
     # in a bound stone stem ('stan') -> the forms disagree, defer to the cluster.
     assert (
         detect_historical_genitive(
-            ["Cyningeston", "Rodestan"], "Whatever", town_stems={"ton"}, stone_stems={"stan"}
+            ["Cyningeston", "Rodestan"],
+            "Whatever",
+            town_regex=_compile_town_regex({"ton"}),
+            stone_stems={"stan"},
         )
         is None
     )
@@ -434,7 +450,10 @@ def test_detect_historical_genitive_consonant_s_arm():
     # the reason that arm exists. Bare modern 'wolston' would not match it.
     assert (
         detect_historical_genitive(
-            ["Wulfricston"], "Wolston", town_stems={"ton"}, stone_stems={"stan"}
+            ["Wulfricston"],
+            "Wolston",
+            town_regex=_compile_town_regex({"ton"}),
+            stone_stems={"stan"},
         )
         == "split"
     )

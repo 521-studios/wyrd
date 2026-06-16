@@ -240,25 +240,36 @@ def _genitive_ambiguous(stem: str, town_stems: set[str]) -> bool:
     town reading, so it carries no stone evidence; ``stan`` / ``stane`` (bound
     stone stems) do not. Used to keep only unambiguous stone stems."""
     return any(
-        len(stem) > len(t) and stem.endswith(t) and stem[-len(t) - 1] == "s"
-        for t in town_stems
+        len(stem) > len(t) and stem.endswith(t) and stem[-len(t) - 1] == "s" for t in town_stems
     )
+
+
+def _compile_town_regex(town_stems: set[str]) -> re.Pattern[str] | None:
+    """One genitive-marker regex for ALL town stems (``es`` / consonant-``s``
+    before any town stem, anchored). Longer stems sort first so the alternation
+    prefers the longest match. ``None`` when there are no town stems."""
+    if not town_stems:
+        return None
+    alt = "|".join(re.escape(t) for t in sorted(town_stems, key=len, reverse=True))
+    return re.compile(rf".+(?:es|[bcdfghjklmnpqrstvwxyz]s)(?:{alt})$")
 
 
 def pair_genitive_stems(
     data: ClassifierData,
     pair_clusters: dict[tuple[str, str], tuple[set[str], set[str]]],
-) -> dict[tuple[str, str], tuple[set[str], set[str]]]:
-    """Per pair, ``(town_stems, stone_stems)`` for the historical-form marker.
+) -> dict[tuple[str, str], tuple[re.Pattern[str] | None, set[str]]]:
+    """Per pair, ``(town_regex, stone_stems)`` for the historical-form marker —
+    the town regex compiled ONCE here, not per toponym.
 
-    ``town_stems`` = the short suffix ``S`` + its cognate-cluster reflexes (the
-    historical spelling variants, e.g. ``ton`` / ``tone`` / ``tune``).
-    ``stone_stems`` = ``L``'s cluster reflexes restricted to the UNAMBIGUOUS
-    bound forms (``stan`` / ``stane``) — the ``s``+town-stem collisions
-    (``ston`` / ``stone``) are dropped so they don't fight the genitive reading.
+    Town stems = the short suffix ``S`` + its cognate-cluster reflexes (the
+    historical spelling variants, e.g. ``ton`` / ``tone`` / ``tune``), folded
+    into a single alternation regex. ``stone_stems`` = ``L``'s cluster reflexes
+    restricted to the UNAMBIGUOUS bound forms (``stan`` / ``stane``) — the
+    ``s``+town-stem collisions (``ston`` / ``stone``) are dropped so they don't
+    fight the genitive reading.
     """
     crefs = _cluster_reflexes(data)
-    out: dict[tuple[str, str], tuple[set[str], set[str]]] = {}
+    out: dict[tuple[str, str], tuple[re.Pattern[str] | None, set[str]]] = {}
     for (long, short), (split_clusters, literal_clusters) in pair_clusters.items():
         town = {short} | {
             s for c in split_clusters for s in crefs.get(c, set()) if len(s) >= _MIN_STEM
@@ -269,14 +280,14 @@ def pair_genitive_stems(
             for s in crefs.get(c, set())
             if len(s) >= _MIN_STEM and not _genitive_ambiguous(s, town)
         }
-        out[(long, short)] = (town, stone)
+        out[(long, short)] = (_compile_town_regex(town), stone)
     return out
 
 
 def detect_historical_genitive(
     forms: list[str],
     modern_name: str,
-    town_stems: set[str],
+    town_regex: re.Pattern[str] | None,
     stone_stems: set[str],
 ) -> str | None:
     """``'split'`` / ``'literal'`` / ``None`` from a toponym's historical forms.
@@ -299,10 +310,7 @@ def detect_historical_genitive(
     hist = {f for f in (_fold(x) for x in forms) if f and f != modern}
     if not hist:
         return None
-    town_res = [
-        re.compile(rf".+(?:es|[bcdfghjklmnpqrstvwxyz]s){re.escape(t)}$") for t in town_stems
-    ]
-    saw_town = any(rx.search(f) for f in hist for rx in town_res)
+    saw_town = town_regex is not None and any(town_regex.search(f) for f in hist)
     saw_stone = any(f.endswith(stem) for f in hist for stem in stone_stems)
     if saw_town and not saw_stone:
         return "split"
@@ -363,7 +371,7 @@ def _classify(eclusters: set[str], split_clusters: set[str], literal_clusters: s
 def _resolve(
     eclusters: set[str],
     pair_clusters: tuple[set[str], set[str]],
-    pair_stems: tuple[set[str], set[str]],
+    pair_stems: tuple[re.Pattern[str] | None, set[str]],
     forms: list[str],
     modern_name: str,
 ) -> tuple[str | None, bool, str | None]:
@@ -377,8 +385,8 @@ def _resolve(
     verdict = _classify(eclusters, split_clusters, literal_clusters)
     if verdict in ("split", "literal"):
         return verdict, False, None
-    town_stems, stone_stems = pair_stems
-    av = detect_historical_genitive(forms, modern_name, town_stems, stone_stems)
+    town_regex, stone_stems = pair_stems
+    av = detect_historical_genitive(forms, modern_name, town_regex, stone_stems)
     if av is not None:
         return av, True, None
     return None, False, verdict  # "both" / "unclassified"
@@ -389,7 +397,7 @@ def _tally(
     topo_clusters: dict[int, set[str]],
     topo_forms: dict[int, list[str]],
     pair_clusters: dict[tuple[str, str], tuple[set[str], set[str]]],
-    pair_stems: dict[tuple[str, str], tuple[set[str], set[str]]],
+    pair_stems: dict[tuple[str, str], tuple[re.Pattern[str] | None, set[str]]],
     progress_every: int,
 ) -> tuple[dict[tuple[str, str], dict[str, int]], dict[str, int]]:
     """Scan toponyms × pairs, tally per-pair split/literal counts + run stats."""
