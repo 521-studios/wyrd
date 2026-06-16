@@ -3127,3 +3127,139 @@ generate via NameGenerator) — acceptable pre-launch (bit-stability subordinate
 product, D41/D43). Empty-after-filter raises an operator-attributable error.
 Pinned by `tests/test_kenning_structure_allowlist.py` + the migrated
 `tests/test_kenning_position_forms.py`.
+
+## D49. Corpus uncleanness splits into two classes; each gets its own mechanism (2026-06-16).
+
+**The decision: stop treating "the corpus is a mess" as one problem. It is two
+problems with two different shapes, two different correct mechanisms, and two
+different failure modes. Conflating them is why cleanup has felt intractable.**
+
+| | **Class A — controlled vocabulary** | **Class B — scholarly identity** |
+|---|---|---|
+| what | a dimension drawn from a *closed external authority* | "are these two things the same thing?" |
+| examples | `region`, `country`, language code, `source_id`, era cell | morpheme≈morpheme, place≈place, gloss≈gloss, "is this breakdown spurious?" |
+| nature | a **coding** problem — same value, many spellings | an **entity-resolution** problem — real evidence, real disagreement |
+| evidence to preserve? | none | yes — every claim has witnesses, sources, a rationale |
+| mechanism | canonical **enum + alias map**, normalized + validated **fail-closed at the ingest / JSONL boundary** | append-only **assertion log** (L2) → projected **collapse graph** (L3) |
+| where the truth lives | the JSONL (L2, git-tracked → the diff IS the provenance) | the assertion stream (L2) + raw observations (L2) |
+| failure mode | unknown value → **hard error** (can't silently accumulate) | low-confidence merge → **leave separate** (asymmetric, per D46) |
+| rationale on each fix? | no — the alias map is the whole audit | yes — confidence + method + source + reason, per edge |
+
+Class A makes Class B *tractable* (clean blocking keys), but never substitutes
+for it. They are complementary, not alternatives.
+
+### Class A: normalize controlled vocabulary at the source
+
+Region is the flagship offender. The live corpus carries `SUF`/`Suffolk`,
+`LEC`/`Leicestershire`, `BUK`/`Buckinghamshire`, `SUR`/`Surrey`, `SUS`/`Sussex`,
+`County Durham`/`Durham` all coexisting (~2,700 England toponyms hidden under
+code-form duplicates), plus country-level `Ireland`/`Republic of Ireland`,
+`Isle of Man`/`The Isle of Man`, `Brittany`-as-country, and 1,078 null
+countries. These are the **same value differently coded** — there is nothing to
+resolve, only to normalize.
+
+The fix:
+1. A canonical **enum** per dimension (`data/regions_england.yaml` first — the
+   historic-county list the sources actually use).
+2. An **alias map** (code → canonical); the map is the audit trail.
+3. Normalize at the **parser / ingest boundary** going forward, and a one-time
+   pass over the committed L2 JSONL. This is safe to do *in place* **because L2
+   is git-tracked** — the original coding is recoverable from history, so
+   normalization is a reviewable commit, not data loss. (Region is provenance
+   metadata, not a D21 etymological *claim*, so D21's "evidence sacred" does not
+   sanctify it. Contrast: the dated historical forms in `toponym_etymology.notes`
+   ARE evidence — you extract them additively, never normalize them away.)
+4. **Validate fail-closed at ingest**: a value neither in the enum nor the alias
+   map is a hard error / quarantine. This is the load-bearing guard — without it
+   the mess re-accumulates on the next source.
+
+**Not everything that looks like a code is Class A.** The enum carries a real
+scholarly choice (historic counties; keep Yorkshire at Riding level since EPNS
+does — bare `Yorkshire` collapses the W/S-W Ridings that exist as separate
+values), and the *lossy* cases are genuinely Class B: `Cumbria` = historic
+`Cumberland` + `Westmorland` cannot be aliased to one value without per-toponym
+evidence. The straddle set (Ridings, Sussex E/W, `Northumberland and Durham`
+merged-volume strings, modern metropolitan non-counties, `England (Danelaw)`)
+falls to the Class-B toponym-ER pass.
+
+### Class B: the universal canonicalization assertion layer
+
+The collapse-with-provenance machinery **already exists and already works** —
+`merged_into_id` (D22) and `cognate_id` (D27/D28) correctly unify `tun`→`tūn`
+and `nīwe`→`niwe`. The problem is it is **partial, inconsistent, and the *why*
+is not on the edge**. From the live Newton trace (2026-06-16):
+
+- OE "new" exists as **two canonical nodes both glossed "new"** — `niwe`
+  (671826, cognate cluster 330032) and `ne` (369498, cluster 369500, an
+  OCR-truncated "new" spelling cluster) — never merged into each other, so
+  "Newton" decomposes differently depending on which dictionary the row came
+  from.
+- Ekwall's `new` (4631595) was merged into `ne` with **2 witnesses and no
+  recorded rationale** — a distinction-collapsing automated merge that nobody
+  can audit because the edge carries no *why*. Had `ne` been the negative
+  particle (its usual sense), this would have silently fused "new" with "not".
+- A high-confidence Ekwall row (toponym 1725, row 780) carries a **hallucinated
+  `ford+botl` breakdown** on a "new tun" entry; it passed form-in-body
+  validation (D3) because those strings appear *elsewhere* in the paragraph
+  (D3's neighbor-contamination blind spot).
+- Toponym 1725 also collapses **three distinct Lancashire Newtons** (a village,
+  an old manor, one S. of Dalton) into one row, and the dated name-path
+  (Neutune → Neuton 1242 …) is stranded in `notes` prose rather than structured.
+
+The fix generalizes `merged_into_id`/`cognate_id` from per-table redirect
+columns into one uniform model: **reified assertion edges** — `(subject,
+predicate, object, confidence, method, source, actor, rationale, timestamp)` —
+living **append-only in L2 JSONL**, projected into the L3 collapse graph. The
+cleaned graph is a **rebuildable L3 projection** of (raw observations L2) +
+(assertions L2); this preserves D21 (evidence additive, never destroyed), D24
+(observable), the four-layer model, and the mining-expensive / enrichment-cheap
+asymmetry. The *assertions* are the treasured new artifact; the graph is their
+queryable shadow.
+
+Three load-bearing constraints:
+
+1. **The edge-type taxonomy is the first and most dangerous design step.**
+   Identity-bearing / collapsible predicates (`same-morpheme-as`,
+   `same-place-as`, `variant-of`, `inflection-of`) are a *different class* from
+   relational / never-collapsible ones (`descends-from`, `glosses-as`,
+   `co-occurs-with`). Conflating axes recreates the D28 `synset_id` collision
+   and the D42 PIE mega-component. `tun ≈ tūn` is an identity collapse;
+   `newton descends-from tun` is emphatically not.
+2. **Merge asymmetry (per D46).** A missed merge is harmless duplication; a wrong
+   identity collapse is corruption. Identity-collapse assertions need high
+   confidence + rationale; the **default failure mode is leave-separate**.
+   Agent-proposed merges face an adversarial skeptic before promotion.
+3. **No graph database engine — D42 stands.** The graph is an L3 SQLite
+   projection. D42 already proved generic graph primitives erase the domain
+   rules (PIE non-bridging, canonical resolution, root-anchoring); a property
+   graph encoded in SQLite keeps those rules explicit. This decision is about a
+   **data model + curation workflow**, not a storage engine.
+
+The agentic cleanup loop the product owner wants — processes that research
+candidate merges/corrections on the internet and emit *proposed* assertions that
+a gate or human promotes — is exactly what this model enables: agent assertions
+are a quarantined tier (cf. D2/D19), never auto-trusted for identity collapse,
+that grind the corpus cleaner over time.
+
+### Relationship to prior decisions
+
+Generalizes D22 (`merged_into_id` is the proto-pattern) and D27/D28 (the cognate
+vs meaning_synset axis split is the taxonomy fork, writ large). Bounded by D21
+(evidence sacred — assertions are additive; Class-A region is not evidence),
+D24 (observability), D38 (runtime / L4 untouched — this is authoring-layer
+work), D42 (no graph engine), D46 (asymmetric failure). Surfaces a D3 gap
+(form-in-body passes neighbor-contaminated breakdowns) that a Class-B cleanup
+pass addresses without weakening D3.
+
+### Deliberately deferred to the epics (not decided here)
+
+The edge-type taxonomy itself; synthetic canonical nodes vs winner-takes-redirect
+(the D31 UNIQUE-key lesson argues for synthetic, at an indirection cost);
+one assertion stream vs per-predicate JSONL; the exact promotion gate. These are
+the opening tickets of the two epics, not settled by this entry.
+
+Epics: **wyrd-3q6m** (Class A — controlled-vocabulary normalization at source)
+and **wyrd-u6fn** (Class B — universal canonicalization assertion layer). The
+worked examples above double as regression checks: Class-B cleanup must catch
+the `ne`≈`niwe` duplicate and the `ford+botl` hallucination; Class-A must fold
+the region codes and produce the blocking keys the toponym-ER pass needs.

@@ -36,6 +36,7 @@ wyrd kenning lexicon report           # current corpus snapshot
 | Touch era / time-axis / rewind / era-map | `DECISIONS.md` D44 + D46 (+ D33 for the reflex machinery) |
 | Touch scoring / generation knobs / moods | `DECISIONS.md` D36 (vector architecture) + D37 (register catalog); `REGISTERS.md` only if you're tuning per-effect weights against the phonaesthetics literature |
 | Touch rendering / native-vs-modern surface | `DECISIONS.md` D41 + D39 |
+| Clean up / canonicalize the corpus, merge duplicates, normalize region/source dims | **`DECISIONS.md` D49** (the two-class partition), then D22 (the proto-merge pattern) + D21 (evidence sacred) |
 | Do a full DB wipe + rebuild | `REBUILD.md` (read it BEFORE any `rebuild-from-jsonl --with-enrichment` — it lists the L3-only layers a wipe silently drops) |
 | Move a table/column between layers, or wonder "is this rebuildable?" | `L2_L3_BOUNDARY.md` |
 | Wonder where runtime data lives / why it's SQLite-on-S3 | `DECISIONS.md` D38 |
@@ -87,6 +88,17 @@ in this subsystem is one of these getting violated:
    bit-stability is subordinate to product correctness (D41/D43/D46 all
    deliberately break seed→name parity). Don't gate a correctness fix on
    "but it changes seeded output."
+
+8. **Corpus uncleanness is TWO problems, not one** (D49). *Class A* —
+   controlled-vocabulary coding (region/country/lang/source): same value, many
+   spellings → canonical enum + alias map, normalized + validated fail-closed at
+   the JSONL boundary (git = provenance), no rationale needed. *Class B* —
+   scholarly entity resolution (morpheme≈morpheme, place≈place, spurious
+   breakdown): an append-only assertion log (L2) projected to the L3 collapse
+   graph, generalizing `merged_into_id`/`cognate_id` — every edge carries
+   confidence + rationale, identity-collapse defaults to leave-separate. Don't
+   solve a Class-A coding mess with the Class-B machinery, or vice-versa. Still
+   no graph DB engine (D42).
 
 ---
 
