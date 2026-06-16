@@ -241,12 +241,13 @@ wyrd kenning lexicon dump-empirical-priors \
 #    the reflex's cognate_id from the already-clustered morpheme).
 wyrd kenning lexicon import-modern-reflexes --apply
 
-# 9. Genitive-s split prior (wyrd-aicu.9) — per-suffix town/stone split counts
-#    for the decomposition matcher's homograph disambiguation. Free +
-#    deterministic; reads toponym_etymology + reflex cognate clusters. Run AFTER
-#    cluster-cognates (step needs the cognate_id classes) AND after step 8 (so
-#    the curated modern reflexes carry their cognate cluster). dump writes the
-#    git-tracked sidecar (the operator-visible diff surface).
+# 9. Genitive-s split prior (wyrd-aicu.9 + .9.1) — per-suffix town/stone split
+#    counts for the decomposition matcher's homograph disambiguation. Free +
+#    deterministic; reads toponym_etymology (+ historical_form) + reflex cognate
+#    clusters + toponym_attestation (the subordinate -es- marker, step 2). Run
+#    AFTER cluster-cognates (needs the cognate_id classes), step 2 (attestations)
+#    AND step 8 (so curated modern reflexes carry their cognate cluster). dump
+#    writes the git-tracked sidecar (the operator-visible diff surface).
 wyrd kenning lexicon mine-genitive-priors --apply
 wyrd kenning lexicon dump-genitive-priors \
     --output data/mining/_genitive_priors.json
