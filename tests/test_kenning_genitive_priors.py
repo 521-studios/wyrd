@@ -231,7 +231,7 @@ def test_mine_apply_writes_and_is_idempotent(db, ston_world):
     mine_genitive_priors(db, apply=True)
     rows = list(
         db.conn.execute(
-            "SELECT long_form, short_form, split_count, literal_count " "FROM genitive_split_prior"
+            "SELECT long_form, short_form, split_count, literal_count FROM genitive_split_prior"
         )
     )
     assert (rows[0]["long_form"], rows[0]["short_form"]) == ("ston", "ton")
