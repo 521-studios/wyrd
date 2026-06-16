@@ -83,13 +83,19 @@ _LIGATURES = str.maketrans(
 )
 
 
-def _fold(surface: str) -> str:
+def _fold(surface: str | None) -> str:
     """Bare-surface fold: expand ligatures, deaccent (NFKD → ASCII), lowercase,
     drop non-letters.
 
     D45 fold (``replace``-style — dashes are never identity). Sanctioned to also
     strip other non-letter noise so surface forms normalize consistently.
+
+    Returns ``""`` for ``None`` / empty input so callers can fold a possibly-NULL
+    DB column (e.g. ``canonical_form``) without a guard — and the result is always
+    a ``str``, so downstream ``.endswith`` / ``"".join`` are safe.
     """
+    if not surface:
+        return ""
     expanded = surface.translate(_LIGATURES)
     ascii_form = unicodedata.normalize("NFKD", expanded).encode("ascii", "ignore").decode()
     return "".join(ch for ch in ascii_form.lower() if ch.isalpha())

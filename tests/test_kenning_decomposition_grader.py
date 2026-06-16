@@ -215,8 +215,12 @@ def test_passthrough_expansion_recovers_constituents(tmp_path):
 
     def grade(passthrough_map):
         return grade_configuration(
-            corpus, trie, index,
-            culture_languages=None, connective_inventory=None, genitive_prior=None,
+            corpus,
+            trie,
+            index,
+            culture_languages=None,
+            connective_inventory=None,
+            genitive_prior=None,
             passthrough_map=passthrough_map,
         )[0]
 

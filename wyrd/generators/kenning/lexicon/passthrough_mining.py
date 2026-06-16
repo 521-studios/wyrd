@@ -43,6 +43,13 @@ from wyrd.generators.kenning.lexicon.genitive_priors import _fold
 
 METHOD = "passthrough-cross-scholar-v1"
 
+# A composite morpheme decomposing into more than this many constituents is
+# implausible (toponymic compounds are 2, occasionally 3); the cap also bounds
+# the ``permutations(fine_only)`` search in ``_segment_order`` (N! — would
+# explode for a large breakdown), so a pathological many-element mismatch is
+# skipped rather than hung on.
+_MAX_CONSTITUENTS = 4
+
 
 def _cluster_surfaces(db: LexiconDB, index: ClusterIndex) -> dict[str, set[str]]:
     """cluster key → folded surfaces it can take (reflex surfaces from the index,
@@ -157,7 +164,7 @@ def _detect_coarse_fine_pair(
     etymon per constituent cluster is the representative observation."""
     fine_only = fine_set - coarse_set
     coarse_only = coarse_set - fine_set
-    if len(coarse_only) != 1 or len(fine_only) < 2:
+    if len(coarse_only) != 1 or not (2 <= len(fine_only) <= _MAX_CONSTITUENTS):
         return None
     composite_cluster = next(iter(coarse_only))
     comp = sorted((f, eid) for cl, f, eid in coarse if cl == composite_cluster and f)
