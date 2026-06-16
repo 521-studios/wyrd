@@ -94,6 +94,32 @@ def test_non_england_regions_pass_through():
     assert canonicalize_region("British Isles", country="Wales") == "British Isles"
 
 
+def test_explicit_country_is_authoritative_for_scope():
+    """An explicit non-England country wins over England-recognition: a caller
+    asserting country='Scotland' gets the value passed through unchanged, even
+    for an England-looking code/quarantine string (the contradiction is the
+    caller's country assertion to own, not this region guard's)."""
+    assert canonicalize_region("SUF", country="Scotland") == "SUF"
+    assert canonicalize_region("Northumberland and Durham", country="Scotland") == (
+        "Northumberland and Durham"
+    )
+    # ...but an explicit England country still folds/validates as normal:
+    assert canonicalize_region("SUF", country="England") == "Suffolk"
+
+
+def test_model_recognition_alone_scopes_rejection(monkeypatch):
+    """Forward-protection branch: even if a quarantine value were NOT in the
+    region→country map (today they coincidentally all are), the model's own
+    recognition still England-scopes it so it fails closed. Isolated by stubbing
+    country_for_region to None so recognition is the sole scoping signal."""
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.lexicon.region_model.country_for_region",
+        lambda _region: None,
+    )
+    with pytest.raises(RegionValidationError):
+        canonicalize_region("Northumberland and Durham")  # no country; map stubbed to None
+
+
 def test_unknown_with_no_england_signal_passes_through():
     """A genuinely unknown value with no England signal (no country, unmapped)
     is not England-scoped, so it is deferred rather than rejected — the guard
@@ -129,3 +155,30 @@ def test_upsert_rejects_zone_region(tmp_path: Path):
     init_schema(db_path)
     with LexiconDB(db_path) as db, pytest.raises(RegionValidationError):
         _upsert_toponym(db, "Somewhere", region="England (Danelaw)")
+
+
+def test_upsert_riding_long_form_keeps_country(tmp_path: Path):
+    """Regression guard: a Riding long-form folds to the short canonical AND
+    still derives country=England (the short forms are in the region→country map,
+    so canonicalize-before-derivation doesn't strand country=NULL)."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        tid = _upsert_toponym(db, "Wakefield", region="West Riding of Yorkshire")
+        db.commit()
+        row = db.conn.execute("SELECT country, region FROM toponym WHERE id = ?", (tid,)).fetchone()
+    assert row["region"] == "West Riding"
+    assert row["country"] == "England"
+
+
+def test_ingest_parsed_entries_propagates_validation_error(tmp_path: Path):
+    """The guard fires through the public ingest entrypoint too (not just the
+    private upsert), and a bad region aborts rather than being swallowed."""
+    from wyrd.generators.kenning.lexicon.ingest import ingest_parsed_entries
+    from wyrd.generators.kenning.parsers.skeat import ParsedEntry
+
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    entries = [ParsedEntry(toponym="Placeholder", section_suffix=None, historical_form=None)]
+    with LexiconDB(db_path) as db, pytest.raises(RegionValidationError):
+        ingest_parsed_entries(db, entries, source_id="test", region="Northumberland and Durham")

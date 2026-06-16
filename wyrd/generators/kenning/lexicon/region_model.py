@@ -15,10 +15,11 @@ deferred zones + quarantine — wyrd-3q6m.1/.2) and exposes
 
 Scope: **England only.** A region that resolves to another country (Scotland,
 Wales, …) or is unknown with no England signal passes through unchanged — those
-dimensions get their own models in wyrd-3q6m.5. England-scoping uses the
-existing region→country map (:func:`country_for_region`) plus recognition by the
-England model itself, so a known England zone/quarantine value is caught even
-when the caller didn't pass ``country``.
+dimensions get their own models in wyrd-3q6m.5. An explicit ``country`` argument
+is authoritative for scope; absent one, England-scope falls back to the existing
+region→country map (:func:`country_for_region`) plus recognition by the England
+model itself, so a known England zone/quarantine value is caught even when the
+caller didn't pass ``country`` (see :func:`canonicalize_region`).
 """
 
 from __future__ import annotations
@@ -51,7 +52,7 @@ class RegionValidationError(ValueError):
 class _EnglandModel:
     valid_nodes: frozenset[str]  # county + subdivision canonicals — valid region values
     country_root: str  # "England"
-    aliases: MappingProxyType  # variant -> canonical node
+    aliases: MappingProxyType[str, str]  # variant -> canonical node
     zones: frozenset[str]  # deferred cultural/linguistic zones (wyrd-hytz)
     quarantine: frozenset[str]  # known-bad codings requiring re-code
 
@@ -69,42 +70,76 @@ class _EnglandModel:
 
 @lru_cache(maxsize=1)
 def _model() -> _EnglandModel:
-    """Parse the bundled England region model once per process. Read-only
-    (immutable dataclass + ``MappingProxyType``): this is shared, long-lived
-    cached static config, never request-derived state."""
+    """Parse + validate the bundled England region model once per process.
+
+    Read-only (immutable dataclass + ``MappingProxyType``): shared, long-lived
+    cached static config, never request-derived state.
+
+    Fails LOUD on a malformed model rather than degrading to a silently-empty
+    (guard-disabled) one: the file must parse as a mapping, carry exactly one
+    country-level node, and every alias target must be a valid region node — a
+    config typo that pointed an alias at a zone/quarantine/missing node would
+    otherwise let an invalid region slip through :func:`canonicalize_region`.
+    """
     text = resources.files(_DATA_PACKAGE).joinpath(_FILENAME).read_text(encoding="utf-8")
     m = yaml.safe_load(text)
-    nodes = m["nodes"]
+    if not isinstance(m, dict):
+        raise ValueError(f"{_FILENAME} did not parse as a mapping")
+    nodes = m.get("nodes") or []
     valid = frozenset(n["canonical"] for n in nodes if n["level"] in _REGION_LEVELS)
-    root = next(n["canonical"] for n in nodes if n["level"] == "country")
-    aliases = MappingProxyType({a["from"]: a["to"] for a in m["aliases"]})
-    zones = frozenset(z["value"] for z in m["deferred_zones"])
-    quarantine = frozenset(q["value"] for q in m["quarantine"])
-    return _EnglandModel(valid, root, aliases, zones, quarantine)
+    country_nodes = [n["canonical"] for n in nodes if n["level"] == "country"]
+    if len(country_nodes) != 1:
+        raise ValueError(
+            f"{_FILENAME} must have exactly one country-level node, got {country_nodes}"
+        )
+    aliases = {a["from"]: a["to"] for a in (m.get("aliases") or [])}
+    bad_targets = {frm: to for frm, to in aliases.items() if to not in valid}
+    if bad_targets:
+        raise ValueError(f"{_FILENAME} alias targets are not valid region nodes: {bad_targets}")
+    zones = frozenset(z["value"] for z in (m.get("deferred_zones") or []))
+    quarantine = frozenset(q["value"] for q in (m.get("quarantine") or []))
+    return _EnglandModel(valid, country_nodes[0], MappingProxyType(aliases), zones, quarantine)
 
 
 def canonicalize_region(region: str | None, *, country: str | None = None) -> str | None:
     """Validate + canonicalize a region value at the ingest boundary.
 
-    Returns the canonical region (an alias variant folded to its node; a
-    canonical node unchanged; a non-England / unknown-unscoped value unchanged),
-    or raises :class:`RegionValidationError` for an England-scoped value that is
-    not a valid region node.
+    Returns:
 
-    ``country`` (the caller's explicit country, if any) helps decide England
-    scope; when omitted it is derived from ``region`` via
-    :func:`country_for_region`.
+    - ``None`` for ``None`` (no region);
+    - the canonical node for an alias variant (folded);
+    - a canonical region node unchanged;
+    - a non-England / out-of-scope value unchanged (passed through);
+
+    or raises :class:`RegionValidationError` for an England-scoped value that is
+    not a valid region node (country root / deferred zone / quarantine / unknown).
+
+    Note the return value does NOT encode provenance: a string came back either
+    because it is a *validated* England node or because it was *deferred* as
+    out-of-scope. The only England-validity signal is "did this raise?". A future
+    multi-country caller must not treat a passed-through value as validated.
+
+    Scope precedence: an explicit ``country`` is authoritative — when it is
+    supplied, the value is England-scoped iff ``country == "England"`` (a caller
+    asserting a non-England country is respected, even for an England-looking
+    string). Only when ``country`` is omitted does England-scope fall back to the
+    region→country map plus the model's own recognition (so a known England
+    zone/quarantine value is still caught with no country hint).
     """
     if region is None:
         return None
     model = _model()
-    effective_country = country or country_for_region(region)
-    england_scoped = effective_country == "England" or model.recognizes(region)
+    if country is not None:
+        england_scoped = country == "England"
+    else:
+        england_scoped = country_for_region(region) == "England" or model.recognizes(region)
     if not england_scoped:
         # Non-England dimension (Scotland/Wales/…) or an unknown with no England
         # signal — out of scope here; its model is wyrd-3q6m.5.
         return region
     if region in model.aliases:
+        # Safe: _model() validates at load that every alias target is a valid
+        # region node, so this can never return a zone/quarantine/root value.
         return model.aliases[region]
     if region in model.valid_nodes:
         return region

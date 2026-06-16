@@ -39,6 +39,15 @@ _REGION_TO_COUNTRY: dict[str, str] = {
     "Devon": "England",
     "Dorset": "England",
     "East Riding of Yorkshire": "England",
+    # Canonical region-model node forms that the wyrd-3q6m.2 alias map folds to
+    # (and which canonicalize_region now emits before country derivation) — kept
+    # here so the fold doesn't strand country=NULL. Full regions.py<->model
+    # reconciliation is wyrd-3q6m.5.
+    "Durham": "England",
+    "Isle of Wight": "England",
+    "North Riding": "England",
+    "East Riding": "England",
+    "West Riding": "England",
     "Essex": "England",
     "Gloucestershire": "England",
     "Hampshire": "England",
