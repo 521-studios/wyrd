@@ -104,6 +104,16 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     "<lang>_english_shaped / _transliteration siblings have no data.",
 )
 @click.option(
+    "--include-toponym-breakdown/--no-include-toponym-breakdown",
+    default=True,
+    show_default=True,
+    help="wyrd-oth3: include families containing any etymon used as an element "
+    "in a scholarly toponym_etymology breakdown, regardless of witness count "
+    "(the place-name evidence channel — recovers the specifiers/heads scholars "
+    "used that the dictionary-witness gate misses). Occurrence-threshold tiering "
+    "+ junk pruning is wyrd-myv4.",
+)
+@click.option(
     "--joiners-from",
     "joiners_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -125,6 +135,7 @@ def lexicon_export_meanings(
     rando_min_corroborators: int,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
+    include_toponym_breakdown: bool,
     joiners_path: Path | None,
 ) -> None:
     """Export the lexicon DB as a meanings.json document for the runtime.
@@ -150,6 +161,7 @@ def lexicon_export_meanings(
             rando_min_corroborators=rando_min_corroborators,
             include_wiktionary_empirical=include_wiktionary_empirical,
             include_wave2_enriched=include_wave2_enriched,
+            include_toponym_breakdown=include_toponym_breakdown,
         )
         canonical_decompositions = collect_canonical_decompositions(db)
         fantasy_morphemes = collect_fantasy_morphemes(db)

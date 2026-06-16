@@ -80,6 +80,7 @@ def export_meanings(
     rando_min_corroborators: int = 0,
     include_wiktionary_empirical: bool = True,
     include_wave2_enriched: bool = True,
+    include_toponym_breakdown: bool = True,
 ) -> list[dict[str, Any]]:
     """Walk the lexicon and emit a meanings.json structure.
 
@@ -103,7 +104,19 @@ def export_meanings(
         ``wiktionary-empirical`` citation, so neither (b) nor (c) admits
         them — without (d) the bundle's user-visible multi-script rendering
         siblings (``<lang>_english_shaped``, ``<lang>_transliteration``)
-        have nowhere to land).
+        have nowhere to land), OR
+    (e) any etymon in the family appears as an element in a scholarly
+        ``toponym_etymology`` breakdown AND ``include_toponym_breakdown`` is
+        true (wyrd-oth3 — a scholar decomposing a real place into this morpheme
+        is a place-name-specific evidence channel, distinct from and arguably
+        stronger than dictionary witnesses; admits the specifiers/heads scholars
+        used that the witness gate misses, so the matcher stops junk-tiling
+        ``Aldermaston`` → ``Al+Der+Ma+Ston``). Bypasses the witness gate like
+        the other empirical-class paths. NOTE: this admits the morpheme on the
+        breakdown signal alone — occurrence-threshold tiering + junk pruning of
+        the one-off mis-extraction tail is wyrd-myv4, validated via the
+        wyrd-aicu.9 decomposition grader; un-clustered admits ride in as their
+        own family until the uplift pass connects them to cognates.
 
     ``rando_min_corroborators`` defaults to 0 — admit every rando-cited
     family, matching the pre-wyrd-fssn semantic. The knob is a
@@ -140,6 +153,7 @@ def export_meanings(
         rando_min_corroborators=rando_min_corroborators,
         include_wiktionary_empirical=include_wiktionary_empirical,
         include_wave2_enriched=include_wave2_enriched,
+        include_toponym_breakdown=include_toponym_breakdown,
     )
     subjects = _group_families_into_subjects(families)
     if include_rando:
@@ -181,21 +195,25 @@ def _collect_families(
     rando_min_corroborators: int = 0,
     include_wiktionary_empirical: bool = True,
     include_wave2_enriched: bool = True,
+    include_toponym_breakdown: bool = True,
 ) -> list[dict[str, Any]]:
     """Build per-family-root data: forms-by-language, glosses, tags, reflexes.
 
-    Four admission paths feed ``promoted``:
+    Five admission paths feed ``promoted``:
       * scholar-witness threshold (``etymon_consensus``)
       * rando-port seed admit (legacy Wikipedia-derived bundle)
       * wiktionary-empirical admit (wyrd-4hx7 corpus-mined gap-fills)
       * wave-2 enrichment admit (wyrd-z3cp — etymons with non-NULL
         english_shaped; covers the wyrd-vsrn Phase 2c non-Latin source
         languages that have no citations)
+      * toponym-breakdown admit (wyrd-oth3 — any etymon used as an element in
+        a scholarly ``toponym_etymology`` breakdown; the place-name evidence
+        channel that recovers the specifiers/heads the witness gate misses)
 
     Each empirical-class admit is gated by its own boolean flag so callers
     can A/B by toggling any branch (e.g. ``--no-include-rando``,
-    ``--no-include-wiktionary-empirical``, ``--no-include-wave2-enriched``)
-    without disturbing the others.
+    ``--no-include-wiktionary-empirical``, ``--no-include-wave2-enriched``,
+    ``--no-include-toponym-breakdown``) without disturbing the others.
     """
     members_by_root, root_of = _build_family_rollup(db)
     root_ids = _select_promoted_root_ids(
@@ -206,6 +224,7 @@ def _collect_families(
         rando_min_corroborators=rando_min_corroborators,
         include_wiktionary_empirical=include_wiktionary_empirical,
         include_wave2_enriched=include_wave2_enriched,
+        include_toponym_breakdown=include_toponym_breakdown,
         root_of=root_of,
         members_by_root=members_by_root,
     )
@@ -325,10 +344,11 @@ def _select_promoted_root_ids(
     rando_min_corroborators: int = 0,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
+    include_toponym_breakdown: bool = True,
     root_of: Callable[[int], int],
     members_by_root: dict[int, list[int]] | None = None,
 ) -> list[int]:
-    """Promoted root_ids come from four sources:
+    """Promoted root_ids come from five sources:
 
     * consensus witness threshold per language (the etymon_consensus view
       keys on lemma_id; rolled up via ``root_of`` so an inheritance reflex
@@ -336,9 +356,11 @@ def _select_promoted_root_ids(
     * any etymon cited by 'rando-port' (legacy seed),
     * any etymon cited by 'wiktionary-empirical' (wyrd-4hx7),
     * any etymon with non-NULL english_shaped (wyrd-z3cp — wave-2
-      enrichment class; covers wyrd-vsrn Phase 2c non-Latin source langs).
+      enrichment class; covers wyrd-vsrn Phase 2c non-Latin source langs),
+    * any etymon used as an element in a scholarly toponym_etymology
+      breakdown (wyrd-oth3 — the place-name evidence channel).
 
-    For the three empirical-class branches we SELECT the source etymon_ids
+    For the four empirical-class branches we SELECT the source etymon_ids
     flat and roll them up via ``root_of`` — much faster than the JOIN-
     based CTE.
     """
@@ -381,27 +403,48 @@ def _select_promoted_root_ids(
             )
             promoted.update(corroborated)
     if include_wiktionary_empirical:
-        for row in db.conn.execute(
-            "SELECT etymon_id FROM etymon_citation WHERE source_id = 'wiktionary-empirical'"
-        ):
-            promoted.add(root_of(row["etymon_id"]))
+        _promote_flat_admit(
+            db,
+            "SELECT etymon_id FROM etymon_citation WHERE source_id = 'wiktionary-empirical'",
+            root_of,
+            promoted,
+        )
     if include_wave2_enriched:
-        # wyrd-z3cp: wave-2 non-Latin etymons (every code in
-        # english_shaping.PHASE2A_NON_LATIN_LANGS — canonical wave-2 plus
-        # precursor / postcursor stack codes) come from the wiktextract
-        # bulk path WITHOUT a wiktionary-empirical citation row, so
-        # neither the consensus nor the citation branches admit them.
-        # ``english_shaped IS NOT NULL`` is the per-row marker that
-        # derive_english_shaped (wyrd-vsrn Phase 2c) produced a usable
-        # rendering — admitting any row with that marker (no language
-        # gate; derive_english_shaped already short-circuited on
-        # Latin-script source langs at ingest time, so non-NULL implies
-        # the row was a wave-2 admit) lets the <lang>_english_shaped
-        # and <lang>_transliteration sibling fields actually appear in
-        # the bundle.
-        for row in db.conn.execute("SELECT id FROM etymon WHERE english_shaped IS NOT NULL"):
-            promoted.add(root_of(row["id"]))
+        # wyrd-z3cp: wave-2 non-Latin etymons (PHASE2A_NON_LATIN_LANGS) come from
+        # the wiktextract bulk path WITHOUT a wiktionary-empirical citation, so
+        # neither consensus nor the citation branches admit them. ``english_shaped
+        # IS NOT NULL`` is the per-row marker derive_english_shaped (wyrd-vsrn
+        # Phase 2c) set (it short-circuits on Latin-script source langs at ingest,
+        # so non-NULL implies a wave-2 admit) — needed so the <lang>_english_shaped
+        # / _transliteration sibling fields land in the bundle.
+        _promote_flat_admit(
+            db, "SELECT id FROM etymon WHERE english_shaped IS NOT NULL", root_of, promoted
+        )
+    if include_toponym_breakdown:
+        # wyrd-oth3: any etymon a scholar used as an element in a toponym_etymology
+        # breakdown — direct place-name evidence that recovers the specifiers/heads
+        # (alder, barlow, ...) the dictionary-witness gate misses, the absence of
+        # which made the matcher junk-tile -ston names. Bypasses the witness gate
+        # like the other empirical-class admits. Admits on the breakdown signal
+        # alone — occurrence-threshold tiering + junk-tail pruning is wyrd-myv4.
+        _promote_flat_admit(
+            db, "SELECT DISTINCT etymon_id FROM toponym_etymology_element", root_of, promoted
+        )
     return sorted(promoted)
+
+
+def _promote_flat_admit(
+    db: LexiconDB,
+    sql: str,
+    root_of: Callable[[int], int],
+    promoted: set[int],
+) -> None:
+    """Roll up the first column of every ``sql`` row to its family root via
+    ``root_of`` and add it to ``promoted``. Shared by the empirical-class admit
+    branches (wiktionary-empirical / wave-2 / toponym-breakdown) — each is a flat
+    SELECT-then-rollup, much faster than a JOIN-based CTE."""
+    for row in db.conn.execute(sql):
+        promoted.add(root_of(row[0]))
 
 
 def _families_with_corroborators(

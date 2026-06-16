@@ -9950,6 +9950,50 @@ def test_export_meanings_includes_wiktionary_empirical_etymons(fresh_db: Path) -
     assert without_empirical == []
 
 
+def test_export_meanings_includes_toponym_breakdown_etymons(fresh_db: Path) -> None:
+    """wyrd-oth3: a family attested ONLY as an element in a scholarly
+    toponym_etymology breakdown (no rando-port, no wiktionary-empirical, no
+    wave-2 english_shaped, no scholar witnesses) must surface in the bundle
+    when ``include_toponym_breakdown=True`` and disappear when False — the
+    fifth admission path. The place-name evidence channel that recovers the
+    specifiers the dictionary-witness gate misses."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="test_src", title="Test")
+        # A morpheme with NO citations (0 witnesses) and no other admit signal.
+        alor_id = db.upsert_etymon("alor", "old-english", modifier_type="Flora")
+        db.add_gloss(alor_id, "alder")
+        db.add_tag(alor_id, "tree")
+        # Its only evidence: a scholar decomposed a real place into it.
+        tid = db.conn.execute(
+            "INSERT INTO toponym (modern_name, country) VALUES ('Alorton', 'England')"
+        ).lastrowid
+        teid = db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+            "VALUES (?, 'test_src', 'high')",
+            (tid,),
+        ).lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, 0, ?)",
+            (teid, alor_id),
+        )
+        db.commit()
+
+        common = dict(
+            include_rando=False,
+            include_wiktionary_empirical=False,
+            include_wave2_enriched=False,
+        )
+        with_breakdown = export_meanings(db, include_toponym_breakdown=True, **common)
+        without_breakdown = export_meanings(db, include_toponym_breakdown=False, **common)
+
+    assert len(with_breakdown) == 1
+    assert with_breakdown[0]["meaning"] == ["alder"]
+    assert "tree" in with_breakdown[0]["modifier_tags"]
+    # Without the breakdown admit branch, the breakdown-only family is dropped.
+    assert without_breakdown == []
+
+
 @pytest.mark.parametrize(
     "etymon_lang,expected_bundle_field",
     [
