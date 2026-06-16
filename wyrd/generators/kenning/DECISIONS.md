@@ -3148,6 +3148,64 @@ different failure modes. Conflating them is why cleanup has felt intractable.**
 Class A makes Class B *tractable* (clean blocking keys), but never substitutes
 for it. They are complementary, not alternatives.
 
+### The partition is over OPERATIONS, not fields — one dimension is usually both
+
+A field like `region` is not wholly Class A or wholly B. Decompose it into
+operations:
+
+- **Label-at-a-stratum (Class A):** for a given (place, period), what is the
+  canonical token for it / its containing region? `SUR` → `Surrey`,
+  `County Durham` → `Durham`. Same value, different coding, picked from a closed
+  vocabulary. Mechanical, no evidence.
+- **Identity-across-change (Class B):** the *same place* persists while its name
+  and jurisdiction change over time. `Cumberland` (historic) and `Cumbria`
+  (modern) are NOT alias variants to fold — they are different strata of a
+  containing-jurisdiction succession, and tying a place's strata together is an
+  evidence-bearing identity assertion.
+
+This is the SAME split the morpheme axis already runs (D44/D46): a morpheme is
+one time-invariant *identity* (`tūn` ≡ `-ton`, Class B) whose canonical *surface*
+is selected per era (the reflex, Class A). D49 generalizes that
+reflex-vs-identity discipline from morphemes to **places and jurisdictions** —
+and, by the same logic, to a toponym's own name-path (`Neutune` → `Neuton` →
+`Newton`): the place is one Class-B identity; the canonical label per stratum is
+Class A. (`modern_name` is therefore just the present-day-stratum label, and the
+historical attested forms are other-stratum labels of the same identity — today
+the schema privileges `modern_name` and strands the rest in `notes`/attestation;
+the principled fix is this same place-identity + per-stratum-label model,
+mirroring D41's native-vs-modern split on the generation side.)
+
+### Region is a stratified, multi-axis containment HIERARCHY, not a flat enum
+
+Two structures hide inside the one `region` string:
+
+1. **Containment depth (one axis, many levels):** `England → Yorkshire →
+   North Riding`. The flat field crams different *levels* of one tree into one
+   slot — which is why `Yorkshire` and `West Riding of Yorkshire` sit as if they
+   were peers when they are parent and child.
+2. **Overlapping axes:** `England (Danelaw)` is NOT a node in the administrative
+   tree — the Danelaw is a historical-linguistic / legal *zone* that cuts across
+   many shires. A place is at once "England → Yorkshire → North Riding" (admin
+   axis) *and* "in the Danelaw" (zone axis). Cramming both into one field
+   conflates two classification systems.
+
+So the model is a **forest of stratified containment trees plus cross-cutting
+zone axes**, with places linked to nodes by membership edges. The work splits:
+
+| thing | class |
+|---|---|
+| canonical **label** of each node per stratum (`SUR`→`Surrey`) | A |
+| the **containment skeleton** within a stratum (North Riding ⊂ Yorkshire ⊂ England) | A |
+| **which axis** a value belongs to (Danelaw = zone, not county) | A |
+| **assigning an ambiguous place to a node** (bare "Yorkshire" → which Riding?) | B |
+| **cross-axis / zone membership** (does this vill fall in the Danelaw?) | B |
+| **succession across strata** (Cumberland + Westmorland → Cumbria; hundreds reorganized) | B |
+
+The Class-A alias map therefore folds **within-stratum, same-axis, same-level
+coding variants only**. Cross-level (`Yorkshire`↔`North Riding`), cross-axis
+(`Danelaw`), cross-stratum (`Cumbria`↔`Cumberland`) are NOT alias entries — they
+are containment/membership/succession edges on the Class-B side.
+
 ### Class A: normalize controlled vocabulary at the source
 
 Region is the flagship offender. The live corpus carries `SUF`/`Suffolk`,
