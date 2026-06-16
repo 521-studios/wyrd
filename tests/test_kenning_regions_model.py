@@ -235,8 +235,8 @@ def test_aliases_are_well_formed_and_valid():
         assert a["from"] not in quar, f"alias from {a['from']!r} collides with quarantine"
     # dedup check after per-alias validation, so a malformed entry fails with a
     # descriptive assertion above rather than a bare KeyError here.
-    froms = [a["from"] for a in aliases]
-    assert len(froms) == len(set(froms)), f"duplicate alias 'from' keys: {froms}"
+    dups = [f for f, c in Counter(a["from"] for a in aliases).items() if c > 1]
+    assert not dups, f"duplicate alias 'from' keys: {dups}"
 
 
 def test_alias_from_set_is_complete():
@@ -270,7 +270,10 @@ def test_normalize_up_aliases_target_a_historic_county():
     assert {a["from"] for a in normalize_up} == {"East Sussex", "West Sussex"}
     for a in normalize_up:
         tgt = by_name[a["to"]]
-        assert tgt["level"] == "county" and tgt["stratum"] == "historic", a
+        assert tgt["level"] == "county" and tgt["stratum"] == "historic", (
+            f"normalize-up {a['from']!r} -> {a['to']!r} is "
+            f"({tgt['level']}, {tgt['stratum']}), expected (county, historic)"
+        )
 
 
 def test_alias_targets_match_their_kind_contract():
