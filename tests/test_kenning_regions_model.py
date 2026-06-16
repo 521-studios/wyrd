@@ -2,10 +2,10 @@
 
 These lock the *shape* of ``regions_england.yaml`` — the node vocabulary,
 containment skeleton, and stratum/axis typing — plus the four decisions the
-user signed off on (the three granularity calls: Yorkshire Ridings,
-single-Sussex, the quarantine of merged-volume strings; and the Danelaw
-zone-vs-admin-node split). They read only the committed YAML; they never touch
-the live authoring DB (CI has none).
+user signed off on: the two granularity calls (Yorkshire Ridings, single-Sussex),
+the quarantine of merged-volume strings (a fail-closed data-quality call), and
+the Danelaw zone-vs-admin-node split. They read only the committed YAML; they
+never touch the live authoring DB (CI has none).
 """
 
 from importlib import resources
@@ -75,8 +75,10 @@ def test_deferred_zones_and_quarantine_shapes():
     m = _load()
     for z in m["deferred_zones"]:
         assert set(z) == {"value", "zone", "migrate_to"}, f"unexpected deferred_zone keys: {z}"
+        assert all(isinstance(z[k], str) and z[k].strip() for k in z), f"blank/non-str field: {z}"
     for q in m["quarantine"]:
         assert set(q) == {"value", "reason"}, f"unexpected quarantine keys: {q}"
+        assert all(isinstance(q[k], str) and q[k].strip() for k in q), f"blank/non-str field: {q}"
 
 
 def test_canonical_names_unique():
@@ -123,6 +125,23 @@ def test_containment_levels_are_sane():
         assert parent_rank == child_rank - 1, (
             f"{n['canonical']!r} ({n['level']}) parents to "
             f"{n['parent']!r} ({by_name[n['parent']]['level']}) — not exactly one level up"
+        )
+
+
+def test_non_root_edges_stay_within_a_stratum():
+    """The load-bearing containment invariant (nodes comment): county/subdivision
+    edges never cross strata; only edges hanging off the country root England may.
+    Catches a modern node reparented under a historic county (or vice-versa) —
+    which would mix strata in one subtree and corrupt the dedup blocking key."""
+    m = _load()
+    by_name = {n["canonical"]: n for n in m["nodes"]}
+    for n in m["nodes"]:
+        if n["parent"] is None or n["parent"] == "England":
+            continue
+        parent_stratum = by_name[n["parent"]]["stratum"]
+        assert parent_stratum == n["stratum"], (
+            f"{n['canonical']!r} ({n['stratum']}) parents to {n['parent']!r} "
+            f"({parent_stratum}) — non-root edge crosses strata"
         )
 
 
@@ -198,6 +217,22 @@ def test_yorkshire_riding_granularity_decision():
         if n["parent"] == "Yorkshire" and n["level"] == "subdivision"
     }
     assert ridings == {"North Riding", "East Riding", "West Riding"}, ridings
+
+
+def test_london_boroughs_is_the_sole_subdivision_of_greater_london():
+    """Round-1 containment fix: 'London Boroughs' is the collective of boroughs
+    WITHIN Greater London, modeled as its sole subdivision child — not a
+    county-level peer of it."""
+    m = _load()
+    by_name = {n["canonical"]: n for n in m["nodes"]}
+    assert by_name["London Boroughs"]["level"] == "subdivision"
+    assert by_name["London Boroughs"]["parent"] == "Greater London"
+    gl_subs = {
+        n["canonical"]
+        for n in m["nodes"]
+        if n["parent"] == "Greater London" and n["level"] == "subdivision"
+    }
+    assert gl_subs == {"London Boroughs"}, gl_subs
 
 
 def test_sussex_is_a_single_historic_node():
