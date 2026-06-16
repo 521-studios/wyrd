@@ -8,6 +8,7 @@ the Danelaw zone-vs-admin-node split. They read only the committed YAML; they
 never touch the live authoring DB (CI has none).
 """
 
+from collections import Counter
 from importlib import resources
 
 import yaml
@@ -23,7 +24,9 @@ _LEVEL_RANK = {"country": 0, "county": 1, "subdivision": 2}
 
 def _load():
     text = resources.files(_DATA_PACKAGE).joinpath(_FILENAME).read_text(encoding="utf-8")
-    return yaml.safe_load(text)
+    data = yaml.safe_load(text)
+    assert isinstance(data, dict), f"{_FILENAME} did not parse as a mapping"
+    return data
 
 
 def test_parses_with_required_top_level_keys():
@@ -58,6 +61,7 @@ def test_buckets_are_non_empty():
 def test_every_node_well_formed():
     m = _load()
     for n in m["nodes"]:
+        assert isinstance(n, dict), f"node must be a mapping: {n}"
         assert set(n) == {"canonical", "level", "stratum", "parent"}, f"unexpected node keys: {n}"
         assert isinstance(n["canonical"], str) and n["canonical"].strip(), (
             f"empty/non-str canonical: {n}"
@@ -74,17 +78,19 @@ def test_deferred_zones_and_quarantine_shapes():
     malformed entry (missing/extra field) is caught, not discovered at use-site."""
     m = _load()
     for z in m["deferred_zones"]:
+        assert isinstance(z, dict), f"deferred_zone must be a mapping: {z}"
         assert set(z) == {"value", "zone", "migrate_to"}, f"unexpected deferred_zone keys: {z}"
         assert all(isinstance(z[k], str) and z[k].strip() for k in z), f"blank/non-str field: {z}"
     for q in m["quarantine"]:
+        assert isinstance(q, dict), f"quarantine must be a mapping: {q}"
         assert set(q) == {"value", "reason"}, f"unexpected quarantine keys: {q}"
         assert all(isinstance(q[k], str) and q[k].strip() for k in q), f"blank/non-str field: {q}"
 
 
 def test_canonical_names_unique():
     m = _load()
-    names = [n["canonical"] for n in m["nodes"]]
-    dupes = {x for x in names if names.count(x) > 1}
+    counts = Counter(n["canonical"] for n in m["nodes"])
+    dupes = {name for name, c in counts.items() if c > 1}
     assert not dupes, f"duplicate canonical node names: {dupes}"
 
 
