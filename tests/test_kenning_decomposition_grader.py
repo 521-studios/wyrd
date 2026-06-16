@@ -186,6 +186,50 @@ def test_connective_coverage_gain_no_prior(world):
     assert on["Grimsworth"].exact
 
 
+def test_passthrough_expansion_recovers_constituents(tmp_path):
+    # wyrd-h5u1/D51.3: the matcher parses Aldington as ald+ington (composite);
+    # without passthrough, ington attributes to its own cluster and misses the
+    # scholar's ing+tūn. The passthrough map expands ington -> (ing, tūn) for
+    # attribution -> recall/head recovered, coverage unchanged.
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    ald = _etymon(db, "Ald")
+    ing = _etymon(db, "ing")
+    tun = _etymon(db, "tūn")
+    ington = _etymon(db, "ington")  # the composite
+    _reflex(db, "ald", ald, position="pre")
+    _reflex(db, "ington", ington)
+    _toponym(db, "Aldington", [ald, ing, tun])  # scholar: the finer breakdown
+    db.commit()
+
+    index = load_cluster_index(db)
+    meaning_db = {  # matcher inventory has the composite, not ing/tūn separately
+        "ald": [Meaning("ald", [], [], {})],
+        "ington": [Meaning("ington", [], [], {})],
+    }
+    trie = build_morpheme_trie(meaning_db)
+    corpus = load_scholar_corpus(db, index)
+    pmap = {index.cluster_of[ington]: (index.cluster_of[ing], index.cluster_of[tun])}
+
+    def grade(passthrough_map):
+        return grade_configuration(
+            corpus, trie, index,
+            culture_languages=None, connective_inventory=None, genitive_prior=None,
+            passthrough_map=passthrough_map,
+        )[0]
+
+    off = grade(None)
+    on = grade(pmap)
+    db.close()
+
+    assert off.morphemes == ("ald", "ington")  # parse identical either way
+    assert off.recall < 1.0 and not off.head_attested  # ington opaque -> misses ing+tūn
+    assert on.recall == 1.0 and on.exact and on.head_attested  # expanded -> recovered
+    assert off.coverage and on.coverage  # passthrough doesn't change the parse/coverage
+
+
 def test_diff_improves_town_regresses_genuine_stone(world):
     db, trie = world
     diff = grade_corpus_diff(

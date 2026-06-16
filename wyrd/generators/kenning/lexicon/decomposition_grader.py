@@ -213,6 +213,28 @@ def _decompose_name(
     return surfaces, unaccounted, head
 
 
+def _attributed_clusters(
+    surfaces: list[str],
+    index: ClusterIndex,
+    passthrough_map: dict[str, tuple[str, ...]] | None,
+) -> list[frozenset[str]]:
+    """Per matched morpheme, the cognate-cluster set it is ATTRIBUTED to —
+    expanding a composite (a passthrough composite cluster) into one virtual
+    morpheme per constituent cluster (D51.3 passthrough: surface ≠ attribution).
+    ``passthrough_map`` (composite_cluster → ordered constituent clusters) None or
+    empty → identity (one cluster set per surface), so the grade is bit-stable
+    with the no-passthrough baseline."""
+    out: list[frozenset[str]] = []
+    for surface in surfaces:
+        clusters = index.clusters_for(surface)
+        hit = sorted(c for c in clusters if c in passthrough_map) if passthrough_map else []
+        if hit:
+            out.extend(frozenset({c}) for c in passthrough_map[hit[0]])
+        else:
+            out.append(clusters)
+    return out
+
+
 def grade_toponym(
     scholar: ScholarToponym,
     trie: MorphemeTrie,
@@ -221,10 +243,14 @@ def grade_toponym(
     culture_languages: frozenset[str] | None,
     connective_inventory: ConnectiveInventory | None,
     genitive_prior: dict[tuple[str, str], float] | None,
+    passthrough_map: dict[str, tuple[str, ...]] | None = None,
 ) -> ToponymGrade:
     """Run the matcher on one labeled toponym and score it against the scholar's
-    pooled cluster set. See the module docstring for the metric rationale."""
-    surfaces, unaccounted, head = _decompose_name(
+    pooled cluster set. See the module docstring for the metric rationale.
+    ``passthrough_map`` expands matched composites to their constituents for
+    attribution (D51.3) — coverage is unaffected (the parse is unchanged); recall
+    / precision / head are scored over the expanded virtual morphemes."""
+    surfaces, unaccounted, _head = _decompose_name(
         scholar.name,
         trie,
         culture_languages=culture_languages,
@@ -232,13 +258,14 @@ def grade_toponym(
         genitive_prior=genitive_prior,
     )
     scholar_clusters = scholar.clusters
-    morph_clusters = [index.clusters_for(s) for s in surfaces]
+    morph_clusters = _attributed_clusters(surfaces, index, passthrough_map)
     recovered = {c for c in scholar_clusters if any(c in mc for mc in morph_clusters)}
     recall = len(recovered) / len(scholar_clusters)
     spurious = sum(1 for mc in morph_clusters if mc.isdisjoint(scholar_clusters))
-    precision = (len(surfaces) - spurious) / len(surfaces) if surfaces else 0.0
-    exact = bool(surfaces) and recall == 1.0 and spurious == 0
-    head_attested = head is not None and not index.clusters_for(head).isdisjoint(scholar_clusters)
+    precision = (len(morph_clusters) - spurious) / len(morph_clusters) if morph_clusters else 0.0
+    exact = bool(morph_clusters) and recall == 1.0 and spurious == 0
+    head_clusters = morph_clusters[-1] if morph_clusters else frozenset()
+    head_attested = bool(morph_clusters) and not head_clusters.isdisjoint(scholar_clusters)
     return ToponymGrade(
         name=scholar.name,
         morphemes=tuple(surfaces),
@@ -331,6 +358,7 @@ def grade_configuration(
     culture_languages: frozenset[str] | None,
     connective_inventory: ConnectiveInventory | None,
     genitive_prior: dict[tuple[str, str], float] | None,
+    passthrough_map: dict[str, tuple[str, ...]] | None = None,
     label: str = "grade",
     progress_every: int = 0,
 ) -> list[ToponymGrade]:
@@ -347,6 +375,7 @@ def grade_configuration(
                 culture_languages=culture_languages,
                 connective_inventory=connective_inventory,
                 genitive_prior=genitive_prior,
+                passthrough_map=passthrough_map,
             )
         )
         if progress_every and i % progress_every == 0:
