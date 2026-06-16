@@ -23,6 +23,13 @@
 #     ambiguous down-assignment (bare value -> which child?). Those are
 #     evidence-bearing identity assertions on the Class-B side (wyrd-u6fn.9).
 
+# RELATED: the existing `lexicon/regions.py` (_REGION_TO_COUNTRY) is the
+# region->country derivation used at mining/ingest/backfill. Its England keys
+# overlap this model but use long Riding forms ("West Riding of Yorkshire") and
+# carry merged-county strings ("Cumberland and Westmorland", "Northumberland and
+# Durham"). wyrd-3q6m.2 (aliases) and .5 (country dimension) reconcile the two;
+# this file is the canonical dedup vocabulary they normalize into.
+
 country: England
 
 # Which stratum supplies the dedup blocking key. The sources (EPNS, KEPN,
@@ -41,15 +48,18 @@ strata:
     succession to a historic county is a Class-B assertion (wyrd-u6fn.9).
 
 # CANONICAL NODES. `level`: country | county | subdivision. `parent`: the
-# within-stratum containment edge (the only relational data this Class-A file
-# carries; cross-stratum/cross-axis edges are Class-B / deferred).
+# containment edge (the only relational data this Class-A file carries;
+# cross-axis/succession edges are Class-B / deferred). County- and
+# subdivision-level edges never cross strata; the ONLY cross-stratum edges hang
+# off the country root `England`, the shared ancestor of every stratum (and
+# itself never a dedup target).
 nodes:
-  - {canonical: England, level: country, stratum: historic, parent: null}
+  - {canonical: England, level: country, stratum: historic, parent: null}  # shared root of all strata; the `historic` tag is nominal — the root is never a dedup target
 
   # --- historic counties (the dedup vocabulary) ---
   - {canonical: Bedfordshire,     level: county, stratum: historic, parent: England}
   - {canonical: Berkshire,        level: county, stratum: historic, parent: England}
-  - {canonical: Buckinghamshire,  level: county, stratum: historic, parent: England}  # aliases: "BUK"
+  - {canonical: Buckinghamshire,  level: county, stratum: historic, parent: England}  # .2 alias: "BUK"
   - {canonical: Cambridgeshire,   level: county, stratum: historic, parent: England}
   - {canonical: Cheshire,         level: county, stratum: historic, parent: England}
   - {canonical: Cornwall,         level: county, stratum: historic, parent: England}
@@ -57,17 +67,17 @@ nodes:
   - {canonical: Derbyshire,       level: county, stratum: historic, parent: England}
   - {canonical: Devon,            level: county, stratum: historic, parent: England}
   - {canonical: Dorset,           level: county, stratum: historic, parent: England}
-  - {canonical: Durham,           level: county, stratum: historic, parent: England}  # aliases: "County Durham"
+  - {canonical: Durham,           level: county, stratum: historic, parent: England}  # .2 alias: "County Durham"
   - {canonical: Essex,            level: county, stratum: historic, parent: England}
   - {canonical: Gloucestershire,  level: county, stratum: historic, parent: England}
   - {canonical: Hampshire,        level: county, stratum: historic, parent: England}
   - {canonical: Herefordshire,    level: county, stratum: historic, parent: England}
   - {canonical: Hertfordshire,    level: county, stratum: historic, parent: England}
   - {canonical: Huntingdonshire,  level: county, stratum: historic, parent: England}
-  - {canonical: Isle of Wight,    level: county, stratum: historic, parent: England}  # aliases: "Isle Of Wight" (casing)
+  - {canonical: Isle of Wight,    level: county, stratum: historic, parent: England}  # .2 alias: "Isle Of Wight" (casing)
   - {canonical: Kent,             level: county, stratum: historic, parent: England}
   - {canonical: Lancashire,       level: county, stratum: historic, parent: England}
-  - {canonical: Leicestershire,   level: county, stratum: historic, parent: England}  # aliases: "LEC"
+  - {canonical: Leicestershire,   level: county, stratum: historic, parent: England}  # .2 alias: "LEC"
   - {canonical: Lincolnshire,     level: county, stratum: historic, parent: England}
   - {canonical: Middlesex,        level: county, stratum: historic, parent: England}
   - {canonical: Norfolk,          level: county, stratum: historic, parent: England}
@@ -79,9 +89,9 @@ nodes:
   - {canonical: Shropshire,       level: county, stratum: historic, parent: England}
   - {canonical: Somerset,         level: county, stratum: historic, parent: England}
   - {canonical: Staffordshire,    level: county, stratum: historic, parent: England}
-  - {canonical: Suffolk,          level: county, stratum: historic, parent: England}  # aliases: "SUF"
-  - {canonical: Surrey,           level: county, stratum: historic, parent: England}  # aliases: "SUR"
-  - {canonical: Sussex,           level: county, stratum: historic, parent: England}  # aliases: "SUS", and East/West Sussex normalize UP (see note)
+  - {canonical: Suffolk,          level: county, stratum: historic, parent: England}  # .2 alias: "SUF"
+  - {canonical: Surrey,           level: county, stratum: historic, parent: England}  # .2 alias: "SUR"
+  - {canonical: Sussex,           level: county, stratum: historic, parent: England}  # .2 alias: "SUS", and East/West Sussex normalize UP (see note)
   - {canonical: Warwickshire,     level: county, stratum: historic, parent: England}
   - {canonical: Westmorland,      level: county, stratum: historic, parent: England}  # succeeded by modern Cumbria (Class-B, wyrd-u6fn.9)
   - {canonical: Wiltshire,        level: county, stratum: historic, parent: England}
@@ -94,8 +104,8 @@ nodes:
   # Class-A (wyrd-3q6m.4), not a lossy Class-B guess.
   - {canonical: Yorkshire,    level: county,      stratum: historic, parent: England}
   - {canonical: North Riding, level: subdivision, stratum: historic, parent: Yorkshire}
-  - {canonical: East Riding,  level: subdivision, stratum: historic, parent: Yorkshire}
-  - {canonical: West Riding,  level: subdivision, stratum: historic, parent: Yorkshire}  # aliases: "West Riding of Yorkshire"
+  - {canonical: East Riding,  level: subdivision, stratum: historic, parent: Yorkshire}  # .2 alias: "East Riding of Yorkshire"
+  - {canonical: West Riding,  level: subdivision, stratum: historic, parent: Yorkshire}  # .2 alias: "West Riding of Yorkshire"
 
   # --- modern-administrative (KNOWN, but NOT dedup targets; Class-B succession) ---
   # Kept in the vocabulary so validation (.3) can distinguish "known-modern,
@@ -104,7 +114,7 @@ nodes:
   - {canonical: Cumbria,            level: county, stratum: modern-administrative, parent: England}  # = Cumberland + Westmorland (LOSSY; cannot split without per-toponym evidence)
   - {canonical: Bristol,            level: county, stratum: modern-administrative, parent: England}
   - {canonical: Greater London,     level: county, stratum: modern-administrative, parent: England}
-  - {canonical: London Boroughs,    level: county, stratum: modern-administrative, parent: England}
+  - {canonical: London Boroughs,    level: subdivision, stratum: modern-administrative, parent: Greater London}  # the 32 boroughs collectively — WITHIN Greater London, not a peer of it
   - {canonical: Greater Manchester, level: county, stratum: modern-administrative, parent: England}
   - {canonical: Merseyside,         level: county, stratum: modern-administrative, parent: England}
   - {canonical: Tyne and Wear,      level: county, stratum: modern-administrative, parent: England}
@@ -128,6 +138,7 @@ deferred_zones:
 # wyrd-3q6m.4. They are NOT aliasable (no single correct canonical target).
 quarantine:
   - {value: "Northumberland and Durham", reason: "merged-volume string (mawer_1920_northumberland_durham); two counties, no per-row evidence — re-code to one historic county"}
+  - {value: "Cumberland and Westmorland", reason: "merged-county string (known in lexicon/regions.py); two historic counties, no per-row evidence — re-code to one (Cumberland or Westmorland)"}
   - {value: "South-West Yorkshire",       reason: "not a real historic Riding; coding artifact — re-code to the correct Riding from kepn provenance"}
   - {value: "The Channel Islands",        reason: "not an English county; country-level miscoding — defer to country normalization (wyrd-3q6m.5)"}
 # NOTE: the live value "England" (region == country, ~8 rows) is degenerate, but
