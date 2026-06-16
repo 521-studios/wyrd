@@ -26,7 +26,7 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     is_flag=True,
     default=False,
     help=(
-        "Replace genitive_split_prior with freshly-extracted counts. Without " "this, dry-run only."
+        "Replace genitive_split_prior with freshly-extracted counts. Without this, dry-run only."
     ),
 )
 @click.option(
