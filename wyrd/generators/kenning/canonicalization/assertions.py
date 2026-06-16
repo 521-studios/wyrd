@@ -12,7 +12,7 @@ valid. The predicate catalog below IS the D50.3 edge taxonomy, enforced:
   edges.
 - **Family B — relational** (never collapse; orthogonal axes, D28):
   ``descends-from``, ``means-same-as``, ``glosses-as``, ``decomposes-into``,
-  ``contains``, ``succeeds``, ``located-in``.
+  ``composed-of``, ``contains``, ``succeeds``, ``located-in``.
 - **Family C — canonicalization choice** (select / flag among Family-B
   alternatives): ``canonical-decomposition``, ``decomposition-spurious``.
 
@@ -149,6 +149,20 @@ PREDICATES: dict[str, PredicateSpec] = {
         "decomposes-into",
         "relational",
         _OBS_PLACE,
+        frozenset({"etymon"}),
+        required=frozenset({"ordinal"}),
+    ),
+    # wyrd-h5u1: a COMPOSITE morpheme is composed of finer constituent morphemes
+    # (ington composed-of ing + tūn). The morpheme-level analog of the
+    # place-level decomposes-into: part-whole at the etymon axis, orthogonal to
+    # descent (a compound is not a descendant of its parts) and to identity (the
+    # composite is never the same node as a part — the self-loop guard enforces
+    # it). Ordered by ``ordinal``. Mined gloss-correctly from scholarly evidence
+    # (cross-scholar coarse-vs-fine breakdowns), never surface segmentation.
+    "composed-of": _spec(
+        "composed-of",
+        "relational",
+        frozenset({"etymon"}),
         frozenset({"etymon"}),
         required=frozenset({"ordinal"}),
     ),

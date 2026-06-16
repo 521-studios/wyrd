@@ -73,6 +73,46 @@ def test_qualifiers_survive_round_trip():
     assert Assertion.from_row(a.to_row()).qualifiers == {"ordinal": 0}
 
 
+def test_composed_of_is_relational_morpheme_part_whole():
+    # wyrd-h5u1: ington composed-of ing + tūn — a Family-B relational edge,
+    # etymon->etymon, ordered by ordinal (the morpheme-level decomposes-into).
+    spec = PREDICATES["composed-of"]
+    assert spec.family == "relational"
+    assert spec.subject_types == frozenset({"etymon"})
+    assert spec.object_types == frozenset({"etymon"})
+    a = Assertion(
+        predicate="composed-of",
+        subject=NodeRef("etymon", "ington"),
+        object=NodeRef("etymon", "ing"),
+        qualifiers={"ordinal": 0},
+    )
+    validate(a)  # no raise
+
+
+def test_composed_of_requires_ordinal():
+    with pytest.raises(AssertionValidationError, match="ordinal"):
+        validate(
+            Assertion(
+                predicate="composed-of",
+                subject=NodeRef("etymon", "ington"),
+                object=NodeRef("etymon", "tun"),
+            )
+        )
+
+
+def test_composed_of_rejects_self_loop():
+    # A composite is never the same node as a part (D50 no-self-loop guard).
+    with pytest.raises(AssertionValidationError, match="self-loop"):
+        validate(
+            Assertion(
+                predicate="composed-of",
+                subject=NodeRef("etymon", "ington"),
+                object=NodeRef("etymon", "ington"),
+                qualifiers={"ordinal": 0},
+            )
+        )
+
+
 def test_assertion_id_is_deterministic():
     assert mint_assertion_id(_bind("671826", "CM-new-oe", source="s1")) == (
         mint_assertion_id(_bind("671826", "CM-new-oe", source="s1"))
