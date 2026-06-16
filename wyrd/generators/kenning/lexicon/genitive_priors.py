@@ -31,17 +31,20 @@ Design (validated against the live corpus, wyrd-aicu.9 investigations 1-3):
   classifying a breakdown's final element by the cognate cluster of ``L``'s vs
   ``S``'s reflex-etymon recovers both classes. Fragmented town clusters leave a
   ``tun``/``ton`` straggler gap that shrinks as ``cluster-cognates`` coverage
-  grows ("improves as the data improves").
-
-* **Attestation is the PRIMARY per-toponym signal** (even one wins). Historical
-  forms often carry the genitive connective explicitly — Alfriston ←
-  *Alvrice·s·tone* (1085) shows ``es`` + a town stem. When a dated form marks the
-  genitive before a town-family stem we trust it over the breakdown machinery;
-  the breakdown's cluster class is the fallback.
+  grows ("improves as the data improves"). A toponym whose pooled breakdown
+  touches BOTH classes, or NEITHER, is skipped (and counted), not guessed.
 
 * **Pooling across regions is sound** — the toponymic HEAD is stable across the
   places a name appears (the specifier varies, but that is not what this prior
   models). So every place's breakdown counts.
+
+Per-toponym attestation disambiguation (the ``-es-``/``-s-`` historical genitive
+marker) is **deferred to wyrd-aicu.9.1**: the whole-name ``toponym_attestation``
+forms carry the bare modern surface (``ston`` = ``s``+``ton`` regardless of
+whether the ``s`` is genitive or stem-initial), so a string marker cannot call
+the head for the ``-ston`` family — it mis-split the protected genuine-stone set
+(rudston→town). That needs per-element historical-form decomposition, scoped to
+its own ticket; the cognate-cluster classifier is the reliable signal here.
 
 LLM-free, deterministic, idempotent (mirrors ``empirical_priors``). **Raw counts
 are persisted; smoothing + hierarchical backoff happen at LOOKUP time**
@@ -52,8 +55,8 @@ prior sharpens automatically as breakdowns accrue.
 from __future__ import annotations
 
 import json
-import re
 import sys
+import time
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
@@ -64,10 +67,6 @@ from wyrd.generators.kenning.lexicon import LexiconDB
 # Reflex positions that carry a toponymic suffix (a genitive-overlap long form
 # only matters word-finally / internally; pre-position heads are specifiers).
 _SUFFIX_POSITIONS = ("post", "inner")
-
-# Minimum stem length for an attestation genitive-marker anchor. Below this the
-# ``es`` + stem pattern over-fires on short coincidental endings.
-_MIN_STEM = 3
 
 
 # Ligatures NFKD leaves intact (so ASCII-encode would drop them) — expand
@@ -82,7 +81,7 @@ def _fold(surface: str) -> str:
     drop non-letters.
 
     D45 fold (``replace``-style — dashes are never identity). Sanctioned to also
-    strip other non-letter noise so historical attestation spellings normalize.
+    strip other non-letter noise so surface forms normalize consistently.
     """
     expanded = surface.translate(_LIGATURES)
     ascii_form = unicodedata.normalize("NFKD", expanded).encode("ascii", "ignore").decode()
@@ -98,27 +97,17 @@ def _fold(surface: str) -> str:
 class ClassifierData:
     """Cluster + reflex indexes used to classify a breakdown's elements.
 
-    ``cluster_of``       : etymon_id → cluster key (``c<cognate_id>`` or the
-                           singleton ``e<id>`` when unclustered).
-    ``surface_etymons``  : folded reflex surface → set of etymon_ids it resolves
-                           to (suffix positions only).
-    ``cluster_reflexes`` : cluster key → folded reflex surfaces of its etymons
-                           (the historical-spelling anchors for the attestation
-                           detector).
+    ``cluster_of``      : etymon_id → cluster key (``c<cognate_id>`` or the
+                          singleton ``e<id>`` when unclustered).
+    ``surface_etymons`` : folded reflex surface → set of etymon_ids it resolves
+                          to (suffix positions only).
     """
 
     cluster_of: dict[int, str]
     surface_etymons: dict[str, set[int]]
-    cluster_reflexes: dict[str, set[str]]
 
     def clusters_for_surface(self, surface: str) -> set[str]:
         return {self.cluster_of[e] for e in self.surface_etymons.get(surface, set())}
-
-    def stems_for_clusters(self, clusters: set[str]) -> set[str]:
-        stems: set[str] = set()
-        for c in clusters:
-            stems |= {s for s in self.cluster_reflexes.get(c, set()) if len(s) >= _MIN_STEM}
-        return stems
 
 
 def load_classifier_data(db: LexiconDB) -> ClassifierData:
@@ -129,7 +118,6 @@ def load_classifier_data(db: LexiconDB) -> ClassifierData:
         cluster_of[row["id"]] = f"c{cid}" if cid is not None else f"e{row['id']}"
 
     surface_etymons: dict[str, set[int]] = defaultdict(set)
-    cluster_reflexes: dict[str, set[str]] = defaultdict(set)
     placeholders = ",".join("?" for _ in _SUFFIX_POSITIONS)
     for row in db.conn.execute(
         "SELECT re.etymon_id AS eid, r.surface_form AS sf "
@@ -141,13 +129,8 @@ def load_classifier_data(db: LexiconDB) -> ClassifierData:
         if not folded:
             continue
         surface_etymons[folded].add(row["eid"])
-        cluster_reflexes[cluster_of[row["eid"]]].add(folded)
 
-    return ClassifierData(
-        cluster_of=cluster_of,
-        surface_etymons=dict(surface_etymons),
-        cluster_reflexes=dict(cluster_reflexes),
-    )
+    return ClassifierData(cluster_of=cluster_of, surface_etymons=dict(surface_etymons))
 
 
 def discover_candidate_pairs(surfaces: set[str]) -> dict[str, str]:
@@ -166,68 +149,17 @@ def discover_candidate_pairs(surfaces: set[str]) -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# Attestation genitive-marker detector (PRIMARY per-toponym signal).
-# ---------------------------------------------------------------------------
-
-
-def attestation_verdict(
-    forms: list[str],
-    *,
-    split_stems: set[str],
-    literal_stems: set[str],
-) -> str | None:
-    """Classify a toponym from its historical attestation forms — but ONLY when
-    the evidence is unambiguous.
-
-    ``'split'`` when a dated form shows the genitive connective (``es`` /
-    consonant-``s``) before a town-family stem (Kingston ← *Chinge·s·tun* → ``es``
-    + ``tun``) and NO form ends in a literal stone stem. ``'literal'`` when a form
-    ends in a stone stem and NO form shows a genitive-marked town stem. ``None``
-    when nothing matches OR both patterns appear — the genitive form
-    ``alvrice·s·tone`` also ends in the stone stem ``stone``, and that string-level
-    ambiguity (``es``+``tone`` town vs ``e``+``stone`` stone) cannot be resolved
-    from the spelling alone, so we DEFER to the breakdown cluster classifier
-    rather than guess. Attestation overrides the breakdown only when it is
-    genuinely decisive ("even one attestation wins" — but only a clear one).
-
-    ``literal_stems`` must NOT contain the ambiguous long form ``L`` itself
-    (every ``X's-ton`` form trivially ends in ``ston``); only the unambiguous
-    stone-family stems belong here. The caller enforces that.
-    """
-    saw_split = saw_literal = False
-    split_res = [
-        re.compile(rf".+(?:es|[bcdfghjklmnpqrstvwxyz]s){re.escape(stem)}$") for stem in split_stems
-    ]
-    for form in forms:
-        folded = _fold(form)
-        if not folded:
-            continue
-        if any(rx.search(folded) for rx in split_res):
-            saw_split = True
-        if any(folded.endswith(stem) for stem in literal_stems):
-            saw_literal = True
-    if saw_split and not saw_literal:
-        return "split"
-    if saw_literal and not saw_split:
-        return "literal"
-    return None
-
-
-# ---------------------------------------------------------------------------
 # Extraction.
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class PairCounts:
-    """Raw per-pair tallies. Split/literal are the aggregate evidence; the
-    ``attested_*`` subset records how much came from the strong attestation
-    signal vs the breakdown-cluster fallback."""
+    """Raw per-pair tallies: scholarly toponym breakdowns that are the
+    genitive-split reading (short suffix ``S``) vs the literal long form ``L``."""
 
     split: int = 0
     literal: int = 0
-    attested_split: int = 0
-    attested_literal: int = 0
 
 
 @dataclass(frozen=True)
@@ -239,8 +171,6 @@ class GenitiveExtractionResult:
     active_pairs: int
     classified_split: int
     classified_literal: int
-    from_attestation: int
-    from_breakdown: int
     skipped_both: int
     skipped_unclassified: int
 
@@ -251,139 +181,99 @@ class GenitiveExtractionResult:
             "active_pairs": self.active_pairs,
             "classified_split": self.classified_split,
             "classified_literal": self.classified_literal,
-            "from_attestation": self.from_attestation,
-            "from_breakdown": self.from_breakdown,
             "skipped_both": self.skipped_both,
             "skipped_unclassified": self.skipped_unclassified,
         }
 
 
-def _build_pair_meta(
+def _pair_clusters(
     data: ClassifierData, candidates: dict[str, str]
-) -> dict[tuple[str, str], dict]:
-    """Per-pair cluster + attestation-stem sets, shared across all toponyms."""
-    pair_meta: dict[tuple[str, str], dict] = {}
+) -> dict[tuple[str, str], tuple[set[str], set[str]]]:
+    """Per pair, the ``(split_clusters, literal_clusters)`` cognate-cluster sets.
+    The literal clusters are ``L``'s reflex-etymon clusters; the split clusters
+    are ``S``'s, minus any that overlap the literal side (disambiguate toward
+    literal so an etymon serving both surfaces never double-counts)."""
+    out: dict[tuple[str, str], tuple[set[str], set[str]]] = {}
     for long, short in candidates.items():
-        literal_clusters = data.clusters_for_surface(long)
-        split_clusters = data.clusters_for_surface(short) - literal_clusters
-        pair_meta[(long, short)] = {
-            "split_clusters": split_clusters,
-            "literal_clusters": literal_clusters,
-            "split_stems": data.stems_for_clusters(split_clusters) | {short},
-            # NB: the ambiguous long form L is deliberately excluded — every
-            # genitive 'X's-S' form ends in L, so it carries no stone evidence.
-            "literal_stems": data.stems_for_clusters(literal_clusters) - {long},
-        }
-    return pair_meta
+        literal = data.clusters_for_surface(long)
+        split = data.clusters_for_surface(short) - literal
+        out[(long, short)] = (split, literal)
+    return out
 
 
-# A scanned toponym/pair observation: (pair, has_split_cluster, has_literal_cluster, attestation).
-_ScanRecord = tuple[tuple[str, str], bool, bool, "str | None"]
+def _load_toponyms(
+    db: LexiconDB, data: ClassifierData
+) -> tuple[dict[int, str], dict[int, set[str]]]:
+    """``(toponym_id → modern_name, toponym_id → pooled element clusters)`` for
+    every toponym that has a scholarly breakdown."""
+    topo_name: dict[int, str] = {}
+    topo_clusters: dict[int, set[str]] = defaultdict(set)
+    for row in db.conn.execute(
+        """
+        SELECT te.toponym_id AS tid, t.modern_name AS name, tee.etymon_id AS eid
+        FROM toponym_etymology te
+        JOIN toponym t ON t.id = te.toponym_id
+        JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
+    """
+    ):
+        topo_name[row["tid"]] = row["name"]
+        topo_clusters[row["tid"]].add(data.cluster_of[row["eid"]])
+    return topo_name, topo_clusters
 
 
-def _scan_toponyms(
+def _classify(eclusters: set[str], split_clusters: set[str], literal_clusters: set[str]) -> str:
+    """Verdict for one (toponym, pair): ``split`` / ``literal`` when the pooled
+    breakdown clusters touch exactly one class; ``both`` / ``unclassified`` (both
+    or neither) are skipped, never guessed."""
+    has_split = bool(eclusters & split_clusters)
+    has_literal = bool(eclusters & literal_clusters)
+    if has_split and has_literal:
+        return "both"
+    if has_split:
+        return "split"
+    if has_literal:
+        return "literal"
+    return "unclassified"
+
+
+def _tally(
     topo_name: dict[int, str],
     topo_clusters: dict[int, set[str]],
-    topo_forms: dict[int, list[str]],
-    pair_meta: dict[tuple[str, str], dict],
+    pair_clusters: dict[tuple[str, str], tuple[set[str], set[str]]],
     progress_every: int,
-) -> tuple[list[_ScanRecord], dict[tuple[str, str], int], dict[tuple[str, str], int], int]:
-    """Pass 1 — per-toponym cluster facts + attestation verdict, plus the
-    per-pair cluster-only split/literal totals used to gate attestation."""
-    records: list[_ScanRecord] = []
-    cluster_split_total: dict[tuple[str, str], int] = defaultdict(int)
-    cluster_literal_total: dict[tuple[str, str], int] = defaultdict(int)
-    scanned = 0
+) -> tuple[dict[tuple[str, str], dict[str, int]], dict[str, int]]:
+    """Scan toponyms × pairs, tally per-pair split/literal counts + run stats."""
+    counts: dict[tuple[str, str], dict[str, int]] = defaultdict(lambda: {"split": 0, "literal": 0})
+    stats = dict.fromkeys(("scanned", "split", "literal", "both", "unclassified"), 0)
+    total = len(topo_name)
+    started = time.monotonic()
+
+    def _progress() -> None:
+        n = stats["scanned"]
+        rate = (time.monotonic() - started) / n if n else 0.0
+        print(
+            f"  [{n}/{total}]  split={stats['split']} literal={stats['literal']} "
+            f"({rate:.4f}s/entry)",
+            file=sys.stderr,
+            flush=True,
+        )
+
     for tid, name in topo_name.items():
-        scanned += 1
-        if progress_every and scanned % progress_every == 0:
-            print(
-                f"  [{scanned}] toponyms scanned  records={len(records)}",
-                file=sys.stderr,
-                flush=True,
-            )
+        stats["scanned"] += 1
+        if progress_every and stats["scanned"] % progress_every == 0:
+            _progress()
         folded_name = _fold(name)
         eclusters = topo_clusters[tid]
-        for pair, meta in pair_meta.items():
+        for pair, (split_clusters, literal_clusters) in pair_clusters.items():
             if not folded_name.endswith(pair[0]):
                 continue
-            has_split = bool(eclusters & meta["split_clusters"])
-            has_literal = bool(eclusters & meta["literal_clusters"])
-            av = attestation_verdict(
-                topo_forms.get(tid, []),
-                split_stems=meta["split_stems"],
-                literal_stems=meta["literal_stems"],
-            )
-            records.append((pair, has_split, has_literal, av))
-            if has_split and not has_literal:
-                cluster_split_total[pair] += 1
-            elif has_literal and not has_split:
-                cluster_literal_total[pair] += 1
-    if progress_every and scanned % progress_every != 0:
-        print(
-            f"  [{scanned}] toponyms scanned  records={len(records)}", file=sys.stderr, flush=True
-        )
-    return records, cluster_split_total, cluster_literal_total, scanned
+            verdict = _classify(eclusters, split_clusters, literal_clusters)
+            if verdict in ("split", "literal"):
+                counts[pair][verdict] += 1
+            stats[verdict] += 1
 
-
-def _classify_record(
-    rec: _ScanRecord,
-    cluster_split_total: dict[tuple[str, str], int],
-    cluster_literal_total: dict[tuple[str, str], int],
-) -> tuple[str | None, bool, str | None]:
-    """``(verdict, via_attestation, skip_reason)``. Attestation is authoritative
-    ONLY for a class the pair genuinely exhibits in breakdowns; otherwise the
-    cluster class decides. ``verdict is None`` ⇒ skipped with ``skip_reason``."""
-    pair, has_split, has_literal, av = rec
-    if av == "split" and cluster_split_total[pair] > 0:
-        return "split", True, None
-    if av == "literal" and cluster_literal_total[pair] > 0:
-        return "literal", True, None
-    if has_split and has_literal:
-        return None, False, "both"
-    if has_split:
-        return "split", False, None
-    if has_literal:
-        return "literal", False, None
-    return None, False, "unclassified"
-
-
-def _tally_records(
-    records: list[_ScanRecord],
-    cluster_split_total: dict[tuple[str, str], int],
-    cluster_literal_total: dict[tuple[str, str], int],
-) -> tuple[dict[tuple[str, str], PairCounts], dict[str, int]]:
-    """Pass 2 — resolve each record to a final verdict and tally per pair."""
-    cells: dict[tuple[str, str], dict[str, int]] = defaultdict(
-        lambda: {"split": 0, "literal": 0, "attested_split": 0, "attested_literal": 0}
-    )
-    stats = dict.fromkeys(
-        ("split", "literal", "attestation", "breakdown", "both", "unclassified"), 0
-    )
-    for rec in records:
-        verdict, via_attestation, skip = _classify_record(
-            rec, cluster_split_total, cluster_literal_total
-        )
-        if verdict is None:
-            stats[skip] += 1
-            continue
-        cell = cells[rec[0]]
-        cell[verdict] += 1
-        if via_attestation:
-            cell[f"attested_{verdict}"] += 1
-            stats["attestation"] += 1
-        else:
-            stats["breakdown"] += 1
-        stats[verdict] += 1
-    counts = {
-        pair: PairCounts(
-            split=c["split"],
-            literal=c["literal"],
-            attested_split=c["attested_split"],
-            attested_literal=c["attested_literal"],
-        )
-        for pair, c in cells.items()
-    }
+    if progress_every and stats["scanned"] % progress_every != 0:
+        _progress()
     return counts, stats
 
 
@@ -397,55 +287,30 @@ def extract_genitive_priors(
 
     Returns ``(counts, summary)`` where ``counts`` is keyed by
     ``(long_form, short_form)`` and sparse (only pairs that classified at least
-    one toponym appear). Per toponym: attestation verdict first (authoritative),
-    breakdown cluster class as fallback. One verdict per toponym (its breakdown
-    elements pooled); every place a name appears counts (pooling-across-regions
-    is sound — wyrd-aicu.9 investigation 3).
+    one toponym appear). One verdict per toponym from its pooled breakdown
+    elements' cognate clusters; every place a name appears counts (pooling-
+    across-regions is sound — wyrd-aicu.9 investigation 3). A toponym whose pool
+    touches both classes, or neither, is skipped (and counted), never guessed.
     """
     data = load_classifier_data(db)
     candidates = discover_candidate_pairs(set(data.surface_etymons))
+    pair_clusters = _pair_clusters(data, candidates)
+    topo_name, topo_clusters = _load_toponyms(db, data)
+    counts, stats = _tally(topo_name, topo_clusters, pair_clusters, progress_every)
 
-    # toponym_id → (folded modern_name, pooled element clusters)
-    topo_name: dict[int, str] = {}
-    topo_clusters: dict[int, set[str]] = defaultdict(set)
-    for row in db.conn.execute(
-        """
-        SELECT te.toponym_id AS tid, t.modern_name AS name, tee.etymon_id AS eid
-        FROM toponym_etymology te
-        JOIN toponym t ON t.id = te.toponym_id
-        JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
-    """
-    ):
-        topo_name[row["tid"]] = row["name"]
-        topo_clusters[row["tid"]].add(data.cluster_of[row["eid"]])
-
-    # toponym_id → historical attestation forms
-    topo_forms: dict[int, list[str]] = defaultdict(list)
-    for row in db.conn.execute("SELECT toponym_id, form FROM toponym_attestation"):
-        topo_forms[row["toponym_id"]].append(row["form"])
-
-    pair_meta = _build_pair_meta(data, candidates)
-    # Pass 1: scan + gate-totals. Pass 2: resolve + tally. The two-pass split
-    # lets attestation gate on a class the breakdowns actually support — it must
-    # not invent a split side no breakdown exhibits (the ``-ster`` false-positive:
-    # modern "Manchester" reads as manche·s·ter but ceaster is never a genitive).
-    records, cluster_split_total, cluster_literal_total, scanned = _scan_toponyms(
-        topo_name, topo_clusters, topo_forms, pair_meta, progress_every
-    )
-    counts, stats = _tally_records(records, cluster_split_total, cluster_literal_total)
-
+    result_counts = {
+        pair: PairCounts(split=c["split"], literal=c["literal"]) for pair, c in counts.items()
+    }
     summary = GenitiveExtractionResult(
-        toponyms_scanned=scanned,
+        toponyms_scanned=stats["scanned"],
         candidate_pairs=len(candidates),
-        active_pairs=len(counts),
+        active_pairs=len(result_counts),
         classified_split=stats["split"],
         classified_literal=stats["literal"],
-        from_attestation=stats["attestation"],
-        from_breakdown=stats["breakdown"],
         skipped_both=stats["both"],
         skipped_unclassified=stats["unclassified"],
     )
-    return counts, summary
+    return result_counts, summary
 
 
 def _replace_priors(db: LexiconDB, counts: dict[tuple[str, str], PairCounts]) -> None:
@@ -455,12 +320,8 @@ def _replace_priors(db: LexiconDB, counts: dict[tuple[str, str], PairCounts]) ->
         db.conn.execute("DELETE FROM genitive_split_prior")
         db.conn.executemany(
             "INSERT INTO genitive_split_prior "
-            "(long_form, short_form, split_count, literal_count, "
-            " attested_split, attested_literal) VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                (long, short, c.split, c.literal, c.attested_split, c.attested_literal)
-                for (long, short), c in counts.items()
-            ),
+            "(long_form, short_form, split_count, literal_count) VALUES (?, ?, ?, ?)",
+            ((long, short, c.split, c.literal) for (long, short), c in counts.items()),
         )
 
 
@@ -488,8 +349,8 @@ def mine_genitive_priors(
 
 def _pairs_payload(db: LexiconDB, *, version: str) -> dict:
     rows = db.conn.execute(
-        "SELECT long_form, short_form, split_count, literal_count, "
-        "attested_split, attested_literal FROM genitive_split_prior "
+        "SELECT long_form, short_form, split_count, literal_count "
+        "FROM genitive_split_prior "
         "ORDER BY split_count + literal_count DESC, long_form, short_form"
     )
     pairs = [
@@ -498,8 +359,6 @@ def _pairs_payload(db: LexiconDB, *, version: str) -> dict:
             "short_form": r["short_form"],
             "split_count": r["split_count"],
             "literal_count": r["literal_count"],
-            "attested_split": r["attested_split"],
-            "attested_literal": r["attested_literal"],
         }
         for r in rows
     ]
@@ -537,8 +396,6 @@ def load_genitive_priors_from_payload(
         out[(p["long_form"], p["short_form"])] = PairCounts(
             split=int(p.get("split_count", 0)),
             literal=int(p.get("literal_count", 0)),
-            attested_split=int(p.get("attested_split", 0)),
-            attested_literal=int(p.get("attested_literal", 0)),
         )
     return out
 
@@ -564,7 +421,7 @@ def split_probability(
     Hierarchical empirical-Bayes smoothing: the per-pair ratio is pulled toward
     the corpus-wide ``backoff`` rate by ``pseudocount`` pseudo-observations, so a
     thin pair leans on the global rate and a well-attested one (``ston``,
-    N≈380) trusts its own ratio. As breakdowns accrue the estimate converges to
+    N≈390) trusts its own ratio. As breakdowns accrue the estimate converges to
     the empirical ratio — the "improves as the data improves" curve. Smoothing
     lives HERE, at lookup, not in the persisted counts.
     """

@@ -51,7 +51,7 @@ DB and must be re-run by hand after the rebuild.
 | **empirical layer** (`wiktionary-empirical` citations) | ❌ L3-only | `mine-wiktextract-corpus` + `cleanup-wiktionary-empirical` |
 | **forms-variants** (`etymon_text_match`, D18 spelling pools) | ❌ L3-only ("deferred") | `mine-wiktextract-forms` per slice |
 | **empirical baselines / priors** | ❌ L3-only (derived from the above) | `mine-empirical-baselines` + `dump-empirical-priors` |
-| **genitive split prior** (`genitive_split_prior`, wyrd-aicu.9) | ❌ L3-only (derived from etymology + attestations + reflex cognate clusters) | `mine-genitive-priors` + `dump-genitive-priors` |
+| **genitive split prior** (`genitive_split_prior`, wyrd-aicu.9) | ❌ L3-only (derived from toponym_etymology + reflex cognate clusters) | `mine-genitive-priors` + `dump-genitive-priors` |
 
 The reflex and fantasy layers were **L3-only at the time of the May
 rebuild** and were the cause of the worst surprises (16 canonical-
@@ -240,6 +240,16 @@ wyrd kenning lexicon dump-empirical-priors \
 #    each new reflex inherits its morpheme's cognate cluster (the importer sets
 #    the reflex's cognate_id from the already-clustered morpheme).
 wyrd kenning lexicon import-modern-reflexes --apply
+
+# 9. Genitive-s split prior (wyrd-aicu.9) — per-suffix town/stone split counts
+#    for the decomposition matcher's homograph disambiguation. Free +
+#    deterministic; reads toponym_etymology + reflex cognate clusters. Run AFTER
+#    cluster-cognates (step needs the cognate_id classes) AND after step 8 (so
+#    the curated modern reflexes carry their cognate cluster). dump writes the
+#    git-tracked sidecar (the operator-visible diff surface).
+wyrd kenning lexicon mine-genitive-priors --apply
+wyrd kenning lexicon dump-genitive-priors \
+    --output data/mining/_genitive_priors.json
 ```
 
 ---

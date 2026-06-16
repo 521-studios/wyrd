@@ -559,20 +559,6 @@ genitive_split_prior = Table(
     Column("short_form", Text, nullable=False),
     Column("split_count", Integer, CheckConstraint("split_count >= 0"), nullable=False),
     Column("literal_count", Integer, CheckConstraint("literal_count >= 0"), nullable=False),
-    Column(
-        "attested_split",
-        Integer,
-        CheckConstraint("attested_split >= 0"),
-        nullable=False,
-        server_default="0",
-    ),
-    Column(
-        "attested_literal",
-        Integer,
-        CheckConstraint("attested_literal >= 0"),
-        nullable=False,
-        server_default="0",
-    ),
     PrimaryKeyConstraint("long_form", "short_form"),
 )
 

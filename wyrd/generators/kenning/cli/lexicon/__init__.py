@@ -154,10 +154,10 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import (
     mine_empirical_baselines as _mine_empirical_baselines_module,
 )
+from wyrd.generators.kenning.cli.lexicon import mine_fantasy_name as _mine_fantasy_name_module
 from wyrd.generators.kenning.cli.lexicon import (
     mine_genitive_priors as _mine_genitive_priors_module,
 )
-from wyrd.generators.kenning.cli.lexicon import mine_fantasy_name as _mine_fantasy_name_module
 from wyrd.generators.kenning.cli.lexicon import mine_llm as _mine_llm_module
 from wyrd.generators.kenning.cli.lexicon import (
     mine_pronunciation_llm as _mine_pronunciation_llm_module,

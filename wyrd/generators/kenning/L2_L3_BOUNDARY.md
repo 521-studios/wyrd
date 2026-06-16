@@ -114,11 +114,12 @@ enrichment commands after rebuild.
   breakdown ending in the long form `L` is the genitive-split reading
   (short suffix `S`, tūn → town) vs the literal long form (stān → stone),
   for the decomposition matcher's homograph disambiguation (wyrd-aicu.9).
-  Attestation `-es-`/`-s-` marker is the primary per-toponym signal, the
-  breakdown's cognate-cluster class the fallback. Raw counts only —
-  smoothing + backoff at matcher lookup. Re-derivable by re-running
-  `lexicon mine-genitive-priors --apply`; diff surface is the committed
-  JSON sidecar from `lexicon dump-genitive-priors --output ...`.
+  Classified by the breakdown's **cognate cluster** (the reflex-etymon of
+  `L` vs `S`). Raw counts only — smoothing + backoff at matcher lookup.
+  Re-derivable by re-running `lexicon mine-genitive-priors --apply`; diff
+  surface is the committed JSON sidecar from `lexicon dump-genitive-priors
+  --output ...`. (Per-toponym attestation `-es-`/`-s-` disambiguation is a
+  deferred follow-up, wyrd-aicu.9.1.)
 
 ### Views (always derived)
 

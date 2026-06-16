@@ -26,8 +26,7 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     is_flag=True,
     default=False,
     help=(
-        "Replace genitive_split_prior with freshly-extracted counts. Without "
-        "this, dry-run only."
+        "Replace genitive_split_prior with freshly-extracted counts. Without " "this, dry-run only."
     ),
 )
 @click.option(
@@ -37,25 +36,21 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     show_default=True,
     help="Emit a stderr progress line every N toponyms scanned. 0 = silent.",
 )
-def lexicon_mine_genitive_priors(
-    db_path: Path, apply_changes: bool, progress_every: int
-) -> None:
+def lexicon_mine_genitive_priors(db_path: Path, apply_changes: bool, progress_every: int) -> None:
     """wyrd-aicu.9: extract per-suffix genitive-``s`` split priors.
 
     For each auto-discovered genitive-overlap pair (``ston`` / ``ton`` …), count
     scholarly toponym breakdowns whose final element is the genitive-split
     reading (the short suffix — tūn → town) vs the literal long form (stān →
-    stone). Attestation ``-es-``/``-s-`` marker is the primary per-toponym
-    signal; the breakdown's cognate-cluster class is the fallback.
+    stone), classified by the breakdown's cognate-cluster. (Per-toponym
+    attestation disambiguation is deferred to wyrd-aicu.9.1.)
 
     LLM-free, deterministic, idempotent. Replace-not-merge each apply run. Raw
     counts only — smoothing + backoff live at matcher lookup time. Pair with
     ``lexicon dump-genitive-priors --output ...`` for a review-friendly sidecar.
     """
     with LexiconDB(db_path) as db:
-        result = mine_genitive_priors(
-            db, apply=apply_changes, progress_every=progress_every
-        )
+        result = mine_genitive_priors(db, apply=apply_changes, progress_every=progress_every)
     click.echo("mine-genitive-priors:", err=True)
     click.echo(
         "  scanned={ts:>6}  candidate_pairs={cp:>4}  active_pairs={ap:>4}".format(
@@ -66,12 +61,9 @@ def lexicon_mine_genitive_priors(
         err=True,
     )
     click.echo(
-        "  classified: split={cs:>5}  literal={cl:>5}  "
-        "(attestation={fa:>5}  breakdown={fb:>5})".format(
+        "  classified: split={cs:>5}  literal={cl:>5}".format(
             cs=result["classified_split"],
             cl=result["classified_literal"],
-            fa=result["from_attestation"],
-            fb=result["from_breakdown"],
         ),
         err=True,
     )
