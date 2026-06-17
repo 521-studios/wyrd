@@ -18,6 +18,19 @@ _FILENAME = "regions_england.yaml"
 
 VALID_LEVELS = {"country", "county", "subdivision"}
 VALID_STRATA = {"historic", "modern-administrative"}
+VALID_ALIAS_KINDS = {"code", "naming", "casing", "long-form", "normalize-up"}
+# Per-kind target contract (the `aliases:` block header in regions_england.yaml
+# documents these): (level, stratum) the `to` node must have. All kinds resolve
+# to the historic dedup stratum;
+# long-form lands on a subdivision (the Ridings), the rest on a county. No kind
+# may target the country root.
+_ALIAS_KIND_TARGET = {
+    "code": ("county", "historic"),
+    "naming": ("county", "historic"),
+    "casing": ("county", "historic"),
+    "long-form": ("subdivision", "historic"),
+    "normalize-up": ("county", "historic"),
+}
 # Containment rank: a parent must sit exactly one level above its child.
 _LEVEL_RANK = {"country": 0, "county": 1, "subdivision": 2}
 
@@ -44,8 +57,8 @@ def test_parses_with_required_top_level_keys():
     assert m["country"] == "England"
     assert m["dedup_stratum"] in m["strata"], "dedup_stratum must be a declared stratum"
     # type shape: the loaders downstream assume these container types.
-    assert isinstance(m["strata"], dict) and isinstance(m["aliases"], dict)
-    for key in ("nodes", "deferred_zones", "quarantine"):
+    assert isinstance(m["strata"], dict)
+    for key in ("nodes", "deferred_zones", "quarantine", "aliases"):
         assert isinstance(m[key], list), f"{key} must be a list"
 
 
@@ -201,22 +214,92 @@ def test_no_value_appears_in_two_buckets():
     assert not (zones & quar), zones & quar
 
 
-def test_aliases_are_valid():
-    """Forward guard for wyrd-3q6m.2: when the alias map is populated, its keys
-    must not collide with any node / zone / quarantine value, and every alias
-    must resolve to a real canonical node. Passes trivially while ``aliases`` is
-    empty, then keeps .2 honest the moment it lands."""
+def test_aliases_are_well_formed_and_valid():
+    """wyrd-3q6m.2: each alias is a {from, to, kind} record; `from` is a variant
+    (never itself a node / zone / quarantine value), `to` resolves to a real
+    node, `kind` is known, and `from` values are unique (no value folding two
+    ways)."""
     m = _load()
     nodes = {n["canonical"] for n in m["nodes"]}
     zones = {z["value"] for z in m["deferred_zones"]}
     quar = {q["value"] for q in m["quarantine"]}
-    aliases = m.get("aliases") or {}
-    keys = set(aliases)
-    assert not (keys & nodes), f"alias keys collide with nodes: {keys & nodes}"
-    assert not (keys & zones), f"alias keys collide with zones: {keys & zones}"
-    assert not (keys & quar), f"alias keys collide with quarantine: {keys & quar}"
-    for alias, canonical in aliases.items():
-        assert canonical in nodes, f"alias {alias!r} points to non-node {canonical!r}"
+    aliases = m["aliases"]
+    assert isinstance(aliases, list) and aliases, "aliases must be a non-empty list"
+    for a in aliases:
+        assert isinstance(a, dict), f"alias must be a mapping: {a}"
+        assert set(a) == {"from", "to", "kind"}, f"unexpected alias keys: {a}"
+        assert isinstance(a["from"], str) and a["from"].strip(), f"bad from: {a}"
+        assert a["kind"] in VALID_ALIAS_KINDS, f"bad alias kind: {a}"
+        assert a["to"] in nodes, f"alias {a['from']!r} -> non-node {a['to']!r}"
+        assert a["from"] not in nodes, f"alias from {a['from']!r} collides with a node"
+        assert a["from"] not in zones, f"alias from {a['from']!r} collides with a zone"
+        assert a["from"] not in quar, f"alias from {a['from']!r} collides with quarantine"
+    # dedup check after per-alias validation, so a malformed entry fails with a
+    # descriptive assertion above rather than a bare KeyError here.
+    dups = [f for f, c in Counter(a["from"] for a in aliases).items() if c > 1]
+    assert not dups, f"duplicate alias 'from' keys: {dups}"
+
+
+def test_alias_kind_target_covers_all_kinds():
+    """_ALIAS_KIND_TARGET must stay in sync with VALID_ALIAS_KINDS, so a new kind
+    can't slip in without a declared (level, stratum) contract (which would make
+    test_alias_targets_match_their_kind_contract raise KeyError, not assert)."""
+    assert set(_ALIAS_KIND_TARGET) == VALID_ALIAS_KINDS
+
+
+def test_alias_mapping_is_complete():
+    """Lock the full alias mapping (from -> to): exactly these variants fold, and
+    each to its specific canonical. Pins the target too, so a wrong-but-plausible
+    target (e.g. SUS -> Suffolk, still county/historic) is caught — not just a
+    stray or dropped `from`."""
+    m = _load()
+    mapping = {a["from"]: a["to"] for a in m["aliases"]}
+    expected = {
+        "SUF": "Suffolk",
+        "LEC": "Leicestershire",
+        "BUK": "Buckinghamshire",
+        "SUR": "Surrey",
+        "SUS": "Sussex",
+        "County Durham": "Durham",
+        "Isle Of Wight": "Isle of Wight",
+        "West Riding of Yorkshire": "West Riding",
+        "East Riding of Yorkshire": "East Riding",
+        "East Sussex": "Sussex",
+        "West Sussex": "Sussex",
+    }
+    assert mapping == expected, mapping
+
+
+def test_normalize_up_aliases_target_a_historic_county():
+    """The sole sanctioned cross-stratum fold: a normalize-up alias must land on
+    a historic county (the dedup stratum). Lossy modern areas (Cumbria, metros)
+    are NOT aliased — they stay Class-B succession."""
+    m = _load()
+    by_name = {n["canonical"]: n for n in m["nodes"]}
+    normalize_up = [a for a in m["aliases"] if a["kind"] == "normalize-up"]
+    assert {a["from"] for a in normalize_up} == {"East Sussex", "West Sussex"}
+    for a in normalize_up:
+        tgt = by_name[a["to"]]
+        assert tgt["level"] == "county" and tgt["stratum"] == "historic", (
+            f"normalize-up {a['from']!r} -> {a['to']!r} is "
+            f"({tgt['level']}, {tgt['stratum']}), expected (county, historic)"
+        )
+
+
+def test_alias_targets_match_their_kind_contract():
+    """Every alias resolves to a node of the (level, stratum) its kind promises:
+    all kinds land on the historic dedup stratum; long-form on a subdivision, the
+    rest on a county; none on the country root. Catches e.g. a `naming` alias
+    pointed at a modern-administrative node (wrong-stratum dedup key) or a
+    `long-form` alias pointed at a county."""
+    m = _load()
+    by_name = {n["canonical"]: n for n in m["nodes"]}
+    for a in m["aliases"]:
+        tgt = by_name[a["to"]]
+        assert (tgt["level"], tgt["stratum"]) == _ALIAS_KIND_TARGET[a["kind"]], (
+            f"alias {a['from']!r} (kind={a['kind']}) -> {a['to']!r} "
+            f"({tgt['level']}, {tgt['stratum']}); expected {_ALIAS_KIND_TARGET[a['kind']]}"
+        )
 
 
 def test_yorkshire_riding_granularity_decision():
