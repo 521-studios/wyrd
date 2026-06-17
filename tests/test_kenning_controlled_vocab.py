@@ -19,6 +19,7 @@ from wyrd.generators.kenning.lexicon.controlled_vocab import (
     canonicalize_language,
 )
 from wyrd.generators.kenning.lexicon.ingest import _upsert_toponym, ingest_parsed_entries
+from wyrd.generators.kenning.lexicon.region_model import RegionValidationError
 from wyrd.generators.kenning.lexicon.regions import _REGION_TO_COUNTRY
 
 # --- country -----------------------------------------------------------------
@@ -132,6 +133,22 @@ def test_ingest_rejects_unknown_etymon_language(tmp_path: Path):
     )
     with LexiconDB(db_path) as db, pytest.raises(LanguageValidationError):
         ingest_parsed_entries(db, [entry], source_id="test", region="Suffolk")
+
+
+def test_country_canonicalized_before_region_scoping(tmp_path: Path, monkeypatch):
+    """wyrd-61p9: country is canonicalized BEFORE region, so the CANONICAL country
+    scopes the region check. With a (hypothetical) alias that folds to England, a
+    bad England region is then caught — whereas the old region-first order would
+    have scoped on the raw alias and let it pass."""
+    import wyrd.generators.kenning.lexicon.controlled_vocab as cv
+
+    monkeypatch.setitem(cv.COUNTRY_ALIASES, "Albion", "England")  # folds to England
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db, pytest.raises(RegionValidationError):
+        # country=Albion → canonical 'England' → 'Borsetshire' is England-scoped
+        # → unknown → raises. (region-first would have passed it through.)
+        _upsert_toponym(db, "Nowhere", region="Borsetshire", country="Albion")
 
 
 def test_upsert_region_derived_country_is_canonical(tmp_path: Path):

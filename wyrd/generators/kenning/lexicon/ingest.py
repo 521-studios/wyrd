@@ -59,12 +59,17 @@ def _upsert_toponym(
     England-scoped value that is neither a node nor an alias raises
     ``RegionValidationError`` rather than silently creating a new bucket.
     """
+    # Fail-closed Class-A guards (wyrd-3q6m.3/.5). COUNTRY FIRST (wyrd-61p9): the
+    # canonical country scopes the region check (canonicalize_region keys its
+    # England-scoping on `country`, so a country alias must be folded before that).
+    # No alias folds to England today, but this keeps the order robust + uniform
+    # across the three ingest guards. An explicit country is folded+validated; when
+    # absent it is derived from the canonical region (regions.py only yields
+    # canonical countries — pinned by test_every_region_derived_country_is_canonical).
+    country = canonicalize_country(country)
     region = canonicalize_region(region, country=country)
     if country is None:
         country = country_for_region(region)
-    # Fail-closed country guard (wyrd-3q6m.5): folds a known alias, validates the
-    # value (explicit or region-derived), raises on an unknown country.
-    country = canonicalize_country(country)
     cur = db.conn.execute(
         """
         SELECT id FROM toponym

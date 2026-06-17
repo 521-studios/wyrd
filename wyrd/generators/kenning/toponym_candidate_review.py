@@ -451,12 +451,13 @@ def _commit_create_row(
     else:
         region = None
     # Fail-closed Class-A guards (wyrd-fxxf): canonicalize the operator-supplied
-    # region + country. A bad value rejects THIS row (record_error) rather than
-    # aborting the whole review commit — the review-tool analogue of the parser
-    # ingest's hard raise (wyrd-3q6m.3/.5).
+    # region + country, COUNTRY FIRST (wyrd-61p9) so the canonical country scopes
+    # the region check (uniform with the other ingest guards). A bad value rejects
+    # THIS row (record_error) rather than aborting the whole review commit — the
+    # review-tool analogue of the parser ingest's hard raise (wyrd-3q6m.3/.5).
     try:
-        region = canonicalize_region(region, country=country)
         country = canonicalize_country(country)
+        region = canonicalize_region(region, country=country)
     except (RegionValidationError, CountryValidationError) as exc:
         report.record_error(ctx.idx, str(exc))
         return
