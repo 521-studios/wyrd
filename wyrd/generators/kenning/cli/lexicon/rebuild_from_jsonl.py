@@ -186,6 +186,7 @@ def lexicon_rebuild_from_jsonl(
                 element_gloss_state=element_gloss_state or None,
                 tag_state=tag_state or None,
                 pronunciation_state=pronunciation_state or None,
+                canonicalization_dir=jsonl_dir,
             )
         click.echo(format_enrichment_run(result), err=True)
 

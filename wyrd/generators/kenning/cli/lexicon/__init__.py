@@ -191,6 +191,9 @@ from wyrd.generators.kenning.cli.lexicon import (
     prepare_toponym_candidates as _prepare_toponym_candidates_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
+    project_canonical as _project_canonical_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
     project_period_forms as _project_period_forms_module,
 )
 from wyrd.generators.kenning.cli.lexicon import prune_etymon as _prune_etymon_module
@@ -331,6 +334,7 @@ _normalize_ocr_module.add_to(lexicon)
 _parse_pages_module.add_to(lexicon)
 _path_module.add_to(lexicon)
 _prepare_toponym_candidates_module.add_to(lexicon)
+_project_canonical_module.add_to(lexicon)
 _project_period_forms_module.add_to(lexicon)
 _prune_etymon_module.add_to(lexicon)
 _prune_toponym_module.add_to(lexicon)
