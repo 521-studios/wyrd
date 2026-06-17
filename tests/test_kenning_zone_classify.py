@@ -76,6 +76,23 @@ def test_place_zones_by_region_and_country():
     assert "celtic" in place_zones(region="Cornwall", country="England")
 
 
+def test_place_zones_breton_departements_are_celtic():
+    """wyrd-9d4f: the Breton départements have country=France but are Brythonic, so
+    they must classify to the celtic zone by region (France itself is NOT a celtic
+    place_country — only these Breton regions are)."""
+    for region in (
+        "Brittany",  # coarse Breton region recognized by regions.py (future-proofing)
+        "Côtes-d'Armor",
+        "Finistère",
+        "Ille-et-Vilaine",
+        "Morbihan",
+        "Loire-Inférieure (Brittany)",
+    ):
+        assert place_zones(region=region, country="France") == frozenset({"celtic"}), region
+    # a non-Breton French region would NOT be celtic (France isn't a celtic country)
+    assert place_zones(region="Provence", country="France") == frozenset()
+
+
 def test_place_zones_unzoned_is_empty():
     # a non-Danelaw English shire is in no zone (the un-zoned majority)
     assert place_zones(region="Devon", country="England") == frozenset()
