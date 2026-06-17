@@ -263,63 +263,63 @@
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "completed_at": "2026-04-30T20:31:17.285Z", "parsed_count": 73, "accepted": 52, "declined": 9, "rejected": 12, "notes": "skeats haiku batch"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T08:26:09.672044+00:00", "completed_at": "2026-05-05T08:30:30.540067+00:00", "parsed_count": 29, "accepted": 13, "declined": 13, "rejected": 3, "by_failure": "{\"attested_form_not_in_body\": 2, \"element_count_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T10:24:25.476629+00:00", "completed_at": "2026-05-05T10:26:29.664441+00:00", "parsed_count": 15, "accepted": 1, "declined": 11, "rejected": 3, "by_failure": "{\"attested_form_not_in_body\": 2, \"element_count_out_of_range\": 1}"}
-{"_type": "toponym", "ref": "Aldreth@Cambridgeshire", "modern_name": "Aldreth", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Balsham@Cambridgeshire", "modern_name": "Balsham", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Barnwell@Cambridgeshire", "modern_name": "Barnwell", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Bartlow@Cambridgeshire", "modern_name": "Bartlow", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Barton@Cambridgeshire", "modern_name": "Barton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Benwick@Cambridgeshire", "modern_name": "Benwick", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Bottisham@Cambridgeshire", "modern_name": "Bottisham", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Bourn@Cambridgeshire", "modern_name": "Bourn", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Boxworth@Cambridgeshire", "modern_name": "Boxworth", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Burwell@Cambridgeshire", "modern_name": "Burwell", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Caldecott@Cambridgeshire", "modern_name": "Caldecott", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Cambridge@Cambridgeshire", "modern_name": "Cambridge", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Carlton@Cambridgeshire", "modern_name": "Carlton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Chesterton@Cambridgeshire", "modern_name": "Chesterton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Chippenham@Cambridgeshire", "modern_name": "Chippenham", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Clopton@Cambridgeshire", "modern_name": "Clopton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Coton@Cambridgeshire", "modern_name": "Coton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Croxton@Cambridgeshire", "modern_name": "Croxton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Downham@Cambridgeshire", "modern_name": "Downham", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Drayton@Cambridgeshire", "modern_name": "Drayton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Dullingham@Cambridgeshire", "modern_name": "Dullingham", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Duxford@Cambridgeshire", "modern_name": "Duxford", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Earith@Cambridgeshire", "modern_name": "Earith", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Elm@Cambridgeshire", "modern_name": "Elm", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Fordham@Cambridgeshire", "modern_name": "Fordham", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Haddenham@Cambridgeshire", "modern_name": "Haddenham", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Harlton@Cambridgeshire", "modern_name": "Harlton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Harston@Cambridgeshire", "modern_name": "Harston", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Hauxton@Cambridgeshire", "modern_name": "Hauxton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Isleham@Cambridgeshire", "modern_name": "Isleham", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Kingston@Cambridgeshire", "modern_name": "Kingston", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Kirtling@Cambridgeshire", "modern_name": "Kirtling", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Knapwell@Cambridgeshire", "modern_name": "Knapwell", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Kneesworth@Cambridgeshire", "modern_name": "Kneesworth", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Linton@Cambridgeshire", "modern_name": "Linton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Lolworth@Cambridgeshire", "modern_name": "Lolworth", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "March@Cambridgeshire", "modern_name": "March", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Milton@Cambridgeshire", "modern_name": "Milton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Newmarket@Cambridgeshire", "modern_name": "Newmarket", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Olmstead@Cambridgeshire", "modern_name": "Olmstead", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Orwell@Cambridgeshire", "modern_name": "Orwell", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Over@Cambridgeshire", "modern_name": "Over", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Papworth@Cambridgeshire", "modern_name": "Papworth", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Rampton@Cambridgeshire", "modern_name": "Rampton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Royston@Cambridgeshire", "modern_name": "Royston", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Saxton@Cambridgeshire", "modern_name": "Saxton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Spinney@Cambridgeshire", "modern_name": "Spinney", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Stane@Cambridgeshire", "modern_name": "Stane", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Staplow@Cambridgeshire", "modern_name": "Staplow", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Sturbridge@Cambridgeshire", "modern_name": "Sturbridge", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Tadlow@Cambridgeshire", "modern_name": "Tadlow", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Toft@Cambridgeshire", "modern_name": "Toft", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Triplow@Cambridgeshire", "modern_name": "Triplow", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Tydd@Cambridgeshire", "modern_name": "Tydd", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Upwell@Cambridgeshire", "modern_name": "Upwell", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Wentworth@Cambridgeshire", "modern_name": "Wentworth", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Wicken@Cambridgeshire", "modern_name": "Wicken", "region": "Cambridgeshire"}
+{"_type": "toponym", "ref": "Aldreth@Cambridgeshire", "modern_name": "Aldreth", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Balsham@Cambridgeshire", "modern_name": "Balsham", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Barnwell@Cambridgeshire", "modern_name": "Barnwell", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Bartlow@Cambridgeshire", "modern_name": "Bartlow", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Barton@Cambridgeshire", "modern_name": "Barton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Benwick@Cambridgeshire", "modern_name": "Benwick", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Bottisham@Cambridgeshire", "modern_name": "Bottisham", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Bourn@Cambridgeshire", "modern_name": "Bourn", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Boxworth@Cambridgeshire", "modern_name": "Boxworth", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Burwell@Cambridgeshire", "modern_name": "Burwell", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Caldecott@Cambridgeshire", "modern_name": "Caldecott", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Cambridge@Cambridgeshire", "modern_name": "Cambridge", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Carlton@Cambridgeshire", "modern_name": "Carlton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Chesterton@Cambridgeshire", "modern_name": "Chesterton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Chippenham@Cambridgeshire", "modern_name": "Chippenham", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Clopton@Cambridgeshire", "modern_name": "Clopton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Coton@Cambridgeshire", "modern_name": "Coton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Croxton@Cambridgeshire", "modern_name": "Croxton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Downham@Cambridgeshire", "modern_name": "Downham", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Drayton@Cambridgeshire", "modern_name": "Drayton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Dullingham@Cambridgeshire", "modern_name": "Dullingham", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Duxford@Cambridgeshire", "modern_name": "Duxford", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Earith@Cambridgeshire", "modern_name": "Earith", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Elm@Cambridgeshire", "modern_name": "Elm", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Fordham@Cambridgeshire", "modern_name": "Fordham", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Haddenham@Cambridgeshire", "modern_name": "Haddenham", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Harlton@Cambridgeshire", "modern_name": "Harlton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Harston@Cambridgeshire", "modern_name": "Harston", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Hauxton@Cambridgeshire", "modern_name": "Hauxton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Isleham@Cambridgeshire", "modern_name": "Isleham", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Kingston@Cambridgeshire", "modern_name": "Kingston", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Kirtling@Cambridgeshire", "modern_name": "Kirtling", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Knapwell@Cambridgeshire", "modern_name": "Knapwell", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Kneesworth@Cambridgeshire", "modern_name": "Kneesworth", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Linton@Cambridgeshire", "modern_name": "Linton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Lolworth@Cambridgeshire", "modern_name": "Lolworth", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "March@Cambridgeshire", "modern_name": "March", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Milton@Cambridgeshire", "modern_name": "Milton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Newmarket@Cambridgeshire", "modern_name": "Newmarket", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Olmstead@Cambridgeshire", "modern_name": "Olmstead", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Orwell@Cambridgeshire", "modern_name": "Orwell", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Over@Cambridgeshire", "modern_name": "Over", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Papworth@Cambridgeshire", "modern_name": "Papworth", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Rampton@Cambridgeshire", "modern_name": "Rampton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Royston@Cambridgeshire", "modern_name": "Royston", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Saxton@Cambridgeshire", "modern_name": "Saxton", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Spinney@Cambridgeshire", "modern_name": "Spinney", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Stane@Cambridgeshire", "modern_name": "Stane", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Staplow@Cambridgeshire", "modern_name": "Staplow", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Sturbridge@Cambridgeshire", "modern_name": "Sturbridge", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Tadlow@Cambridgeshire", "modern_name": "Tadlow", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Toft@Cambridgeshire", "modern_name": "Toft", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Triplow@Cambridgeshire", "modern_name": "Triplow", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Tydd@Cambridgeshire", "modern_name": "Tydd", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Upwell@Cambridgeshire", "modern_name": "Upwell", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Wentworth@Cambridgeshire", "modern_name": "Wentworth", "region": "Cambridgeshire", "country": "England"}
+{"_type": "toponym", "ref": "Wicken@Cambridgeshire", "modern_name": "Wicken", "region": "Cambridgeshire", "country": "England"}
 {"_type": "etymology_element", "toponym_ref": "Aldreth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:alor"}, {"ordinal": 1, "etymon_ref": "old-english:hy§"}], "historical_form": "alor-hy§", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b; Scholar identifies 'alor' as combining form of 'air, alor' (alder-tree) and 'hy§' as A.S. 'hy§' (hithe), noting Latin substitution for suffix. | Aldreth. Aldreth lies to t"}
 {"_type": "etymology_element", "toponym_ref": "Balsham@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:btell", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:ham"}], "historical_form": "Btell-ham", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies Belles/Bales as variants of Beetles, derived from genitive of Btell (Ball), a personal name. Historical forms include Bellesham (97"}
 {"_type": "etymology_element", "toponym_ref": "Balsham@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:btell", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:ham"}], "historical_form": "Btell-ham", "confidence": "medium", "notes": "extracted_by:gemini:gemini-2.5-flash | Balsham. Formerly Balesham, in Henry of Huntingdon ; also Belesham, in 1170 and 1210 (P.R., R.B.), and in Domesday Book. Also Bellesham, in a charter dated 974, and apparently genuine ; Kemble, Cod. Dipl. vi. 104, 1. 20. Belles and Bales are probably variants of Beetles, as in Bcelles wceg, Ball's way ; Kemble, iii. 424, 1. 10. This is the gen. case of Btell, Ball, a personal name; and this form justifies the modern pronuncia- tion.", "attested_year": 974}
@@ -432,8 +432,8 @@
 {"_type": "etymology_element", "toponym_ref": "Wentworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wintan", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:worth"}], "historical_form": "Wintan-wurth", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b | Wentworth. Spelt Wyntewurthe in 1428 (F.A.), Wynte- wortk in 1291 (Taxatio Ecclesiastica) ; and Winteworde in Domesday Book. Winte answers to A.S. Wintan, gen. ", "attested_year": 1291}
 {"_type": "etymology_element", "toponym_ref": "Wentworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:winta"}, {"ordinal": 1, "etymon_ref": "old-english:wintan", "inflection": "genitive"}, {"ordinal": 2, "etymon_ref": "old-english:worth"}], "historical_form": "Winta-worth", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Winta identified as a son of Woden (Odin) in Old English genealogies; the genitive form Wintan appears in Domesday spelling Winteworde. | Wentworth. S"}
 {"_type": "etymology_element", "toponym_ref": "Wicken@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wicxim", "inflection": "dative plural"}], "historical_form": "wicxim", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b; Scholar identifies the form as the dative plural of A.S. wlc (village), noting the suffix -im prevents palatalisation. | Wicken. Apparently the same as Wykes, mentioned in"}
-{"_type": "toponym", "ref": "Ditchburn@Northumberland and Durham", "modern_name": "Ditchburn", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Hall@Northumberland and Durham", "modern_name": "Hall", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Ditchburn@Northumberland and Durham", "modern_name": "Ditchburn", "region": "Northumberland and Durham", "country": "England"}
+{"_type": "toponym", "ref": "Hall@Northumberland and Durham", "modern_name": "Hall", "region": "Northumberland and Durham", "country": "England"}
 {"_type": "toponym", "ref": "Waddon@Dorset", "modern_name": "Waddon", "country": "England", "region": "Dorset"}
 {"_type": "toponym", "ref": "Wrsettincge@England and Wales", "modern_name": "Wrsettincge", "region": "England and Wales"}
 {"_type": "attestation", "toponym_ref": "Balsham@Cambridgeshire", "form": "Belesham", "date_year": 1170, "source_doc": "skeat_1901_cambridgeshire"}

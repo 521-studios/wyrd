@@ -651,387 +651,387 @@
 {"_type": "etymon", "ref": "old-english:eofor", "canonical_form": "eofor", "language": "old-english", "glosses": ["A wild boar."]}
 {"_type": "citation", "etymon_ref": "old-english:eofor"}
 {"_type": "citation", "etymon_ref": "old-english:eofor", "source_id": "kepn_external", "context_snippet": "Mills; The Place-names of the Isle of Wight; Kosterlitz; The Place-names of the Isle of Wight; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "toponym", "ref": "Adgestone@Isle Of Wight", "modern_name": "Adgestone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Adgestone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Æfic"}], "notes": "Aefic's farm/settlement"}
-{"_type": "toponym", "ref": "Afton@Isle Of Wight", "modern_name": "Afton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Afton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Æff"}], "notes": "Aeffa's farm/settlement"}
-{"_type": "toponym", "ref": "Alverstone@Isle Of Wight", "modern_name": "Alverstone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Alverstone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfrēd"}], "notes": "Aelfred's farm/settlement"}
-{"_type": "toponym", "ref": "Alverstone@Isle Of Wight", "modern_name": "Alverstone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Alverstone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfrēd"}], "notes": "Aelfred's farm/settlement"}
-{"_type": "toponym", "ref": "Alvington Manor@Isle Of Wight", "modern_name": "Alvington Manor", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Alvington Manor@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfwynn"}], "notes": "Aelfwynn's farm/settlement"}
-{"_type": "toponym", "ref": "Apes Down@Isle Of Wight", "modern_name": "Apes Down", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Apes Down@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:abbesse"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Abbess' down"}
-{"_type": "toponym", "ref": "Appleford@Isle Of Wight", "modern_name": "Appleford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Appleford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:apuldor"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}], "notes": "Apple-tree ford"}
-{"_type": "toponym", "ref": "Appuldurcombe House@Isle Of Wight", "modern_name": "Appuldurcombe House", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Appuldurcombe House@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:apuldor"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}], "notes": "Apple-tree valley"}
-{"_type": "toponym", "ref": "Apse Manor Farm@Isle Of Wight", "modern_name": "Apse Manor Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Apse Manor Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:æspe"}], "notes": "Aspen-tree"}
-{"_type": "toponym", "ref": "Arreton@Isle Of Wight", "modern_name": "Arreton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Arreton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Eadhere; unresolved personal name(s): (unextracted personal name)"}
-{"_type": "toponym", "ref": "Arreton Down@Isle Of Wight", "modern_name": "Arreton Down", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Arreton Down@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bǣr"}, {"ordinal": 2, "etymon_ref": "old-english:bere"}, {"ordinal": 3, "etymon_ref": "old-english:dūn"}, {"ordinal": 4, "etymon_ref": "unknown:Place-name"}], "notes": "Barley hill' or possibly, 'swine-pasture hill' from the earlier name, 'Beredun"}
-{"_type": "toponym", "ref": "Ashey@Isle Of Wight", "modern_name": "Ashey", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Ashey@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:æsc"}, {"ordinal": 2, "etymon_ref": "old-english:hege"}], "notes": "ash-tree hedge' or 'Aesc's hedge; unresolved personal name(s): Aesc"}
-{"_type": "toponym", "ref": "Atherfield@Isle Of Wight", "modern_name": "Atherfield", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Atherfield@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:feld"}, {"ordinal": 3, "etymon_ref": "old-english:Æthelhere"}], "notes": "Open land of Aethelhere's people"}
-{"_type": "toponym", "ref": "Bagwich@Isle Of Wight", "modern_name": "Bagwich", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Bagwich@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bagga"}, {"ordinal": 2, "etymon_ref": "old-english:wīc"}, {"ordinal": 3, "etymon_ref": "old-english:Bacga"}], "notes": "Bacga's (specialised) farm' or '(specialised) farm at the bag-shaped feature"}
-{"_type": "toponym", "ref": "Barnsley@Isle Of Wight", "modern_name": "Barnsley", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Barnsley@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:Beornfrith"}], "notes": "Beornfrith's wood/clearing"}
-{"_type": "toponym", "ref": "Barton Manor@Isle Of Wight", "modern_name": "Barton Manor", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Barton Manor@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bere-tūn"}, {"ordinal": 2, "etymon_ref": "old-english:burh-tūn"}], "notes": "Fortified farm/settlement'. There may be later confusion with 'barley farm/settlement"}
-{"_type": "toponym", "ref": "Bathingbourne@Isle Of Wight", "modern_name": "Bathingbourne", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Bathingbourne@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:burna"}, {"ordinal": 3, "etymon_ref": "old-english:Beadda"}], "notes": "Stream of *Beadda's people"}
-{"_type": "toponym", "ref": "Beaper@Isle Of Wight", "modern_name": "Beaper", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Beaper@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-french:beau repaire"}], "notes": "Beautiful retreat"}
-{"_type": "toponym", "ref": "Bembridge@Isle Of Wight", "modern_name": "Bembridge", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Bembridge@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:binnan"}, {"ordinal": 2, "etymon_ref": "old-english:brycg"}], "notes": "Within the bridge"}
-{"_type": "toponym", "ref": "Billingham@Isle Of Wight", "modern_name": "Billingham", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Billingham@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:billing"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:hamm"}], "notes": "Hill homestead/village' or 'hill hemmed-in land"}
-{"_type": "toponym", "ref": "Binstead@Isle Of Wight", "modern_name": "Binstead", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Binstead@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bēan"}, {"ordinal": 2, "etymon_ref": "old-english:stede"}], "notes": "Bean place"}
-{"_type": "toponym", "ref": "Birchmore@Isle Of Wight", "modern_name": "Birchmore", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Birchmore@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:birce"}, {"ordinal": 2, "etymon_ref": "old-english:mōr"}], "notes": "Birch-tree moor"}
-{"_type": "toponym", "ref": "Black Pan@Isle Of Wight", "modern_name": "Black Pan", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Black Pan@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:blæc"}, {"ordinal": 2, "etymon_ref": "old-english:penn"}], "notes": "Black fold"}
-{"_type": "toponym", "ref": "Blacklands@Isle Of Wight", "modern_name": "Blacklands", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Blacklands@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:blæc"}, {"ordinal": 2, "etymon_ref": "old-english:land"}], "notes": "Black land"}
-{"_type": "toponym", "ref": "Bleak Down@Isle Of Wight", "modern_name": "Bleak Down", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Bleak Down@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:blāc"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Pale hill' or 'unvegetated hill"}
-{"_type": "toponym", "ref": "Bonchurch@Isle Of Wight", "modern_name": "Bonchurch", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Bonchurch@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cirice"}], "notes": "church' The specific may be an OE personal name either 'Bana', 'Buna' or 'Bona; unresolved personal name(s): (unextracted personal name)"}
-{"_type": "toponym", "ref": "Borthwood Farm@Isle Of Wight", "modern_name": "Borthwood Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Borthwood Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bord"}, {"ordinal": 2, "etymon_ref": "old-english:borda"}, {"ordinal": 3, "etymon_ref": "old-english:wudu"}], "notes": "board wood' or 'border wood"}
-{"_type": "toponym", "ref": "Bouldnor@Isle Of Wight", "modern_name": "Bouldnor", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Bouldnor@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bula"}, {"ordinal": 2, "etymon_ref": "old-english:ōra"}], "notes": "Bull shore"}
-{"_type": "toponym", "ref": "Bowcombe Hundred@Isle Of Wight", "modern_name": "Bowcombe Hundred", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Bowcombe Hundred@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bufan"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}, {"ordinal": 3, "etymon_ref": "old-english:hundred"}, {"ordinal": 4, "etymon_ref": "old-english:Bōfa"}], "notes": "Bofa's valley' or 'above the valley'. A Domesday hundred was named after Bowcombe. The hundred was also known as Swainston hundred or the Liberty of Swainston. It has been suggested that tumuli on Barcombe Down 'above the valley"}
-{"_type": "toponym", "ref": "Brading@Isle Of Wight", "modern_name": "Brading", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Brading@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:brerd"}], "notes": "Hill-side people"}
-{"_type": "toponym", "ref": "Branstone@Isle Of Wight", "modern_name": "Branstone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Branstone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Brand"}], "notes": "Brand's farm/settlement"}
-{"_type": "toponym", "ref": "Briddlesford@Isle Of Wight", "modern_name": "Briddlesford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Briddlesford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brigdels"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}], "notes": "The bridle ford"}
-{"_type": "toponym", "ref": "Bridge Farm@Isle Of Wight", "modern_name": "Bridge Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Bridge Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brycg"}], "notes": "Bridge"}
-{"_type": "toponym", "ref": "Brighstone@Isle Of Wight", "modern_name": "Brighstone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Brighstone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Beorhtwig"}], "notes": "Beorhtwig's farm/settlement"}
-{"_type": "toponym", "ref": "Brook@Isle Of Wight", "modern_name": "Brook", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Brook@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}], "notes": "Brook"}
-{"_type": "toponym", "ref": "Budbridge@Isle Of Wight", "modern_name": "Budbridge", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Budbridge@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brycg"}, {"ordinal": 2, "etymon_ref": "old-english:butt"}, {"ordinal": 3, "etymon_ref": "old-english:Betta"}], "notes": "Log bridge' or '*Butta's bridge"}
-{"_type": "toponym", "ref": "Calbourne@Isle Of Wight", "modern_name": "Calbourne", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Calbourne@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "old-english:cawel"}, {"ordinal": 3, "etymon_ref": "old-english:hundred"}], "notes": "Cole stream"}
-{"_type": "toponym", "ref": "Carisbrooke@Isle Of Wight", "modern_name": "Carisbrooke", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Carisbrooke@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:carr"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}], "notes": "brook'. The specific may be a river-name identical with the River Cary, Somerset. Alternatively it may be 'rock"}
-{"_type": "toponym", "ref": "Chale@Isle Of Wight", "modern_name": "Chale", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Chale@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceole"}], "notes": "Ravine"}
-{"_type": "toponym", "ref": "Chessell@Isle Of Wight", "modern_name": "Chessell", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Chessell@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cest"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Chest hill"}
-{"_type": "toponym", "ref": "Cheverton@Isle Of Wight", "modern_name": "Cheverton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Cheverton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceafor"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "beetle hill"}
-{"_type": "toponym", "ref": "Cheverton@Isle Of Wight", "modern_name": "Cheverton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Cheverton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceafor"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Beetle hill"}
-{"_type": "toponym", "ref": "Chillerton@Isle Of Wight", "modern_name": "Chillerton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Chillerton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceole"}, {"ordinal": 2, "etymon_ref": "old-english:geard"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}, {"ordinal": 4, "etymon_ref": "old-english:Cēolheard"}], "notes": "ravine enclosed farm/settlement' or perhaps, '*Ceoleard's enclosed farm/settlement"}
-{"_type": "toponym", "ref": "Chillingwood@Isle Of Wight", "modern_name": "Chillingwood", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Chillingwood@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:ceole"}, {"ordinal": 4, "etymon_ref": "old-english:wudu"}, {"ordinal": 5, "etymon_ref": "old-english:Ceolla"}], "notes": "Wood at the stream called *Ceoling' or 'wood at the valley called *Ceoling'. Possibly, 'wood at Ceolla's place' or 'wood of Ceolla's people"}
-{"_type": "toponym", "ref": "Chilton Farm@Isle Of Wight", "modern_name": "Chilton Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Chilton Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceole"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-english:Cēola"}], "notes": "Ravine farm/settlement or 'Ceola's farm/settlement"}
-{"_type": "toponym", "ref": "Clatterford@Isle Of Wight", "modern_name": "Clatterford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Clatterford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clater"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}], "notes": "Loose-stone ford"}
-{"_type": "toponym", "ref": "Combley@Isle Of Wight", "modern_name": "Combley", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Combley@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Valley wood/clearing"}
-{"_type": "toponym", "ref": "Compton@Isle Of Wight", "modern_name": "Compton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Compton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
-{"_type": "toponym", "ref": "Coombe@Isle Of Wight", "modern_name": "Coombe", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Coombe@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}], "notes": "Valley"}
-{"_type": "toponym", "ref": "Coppidhall@Isle Of Wight", "modern_name": "Coppidhall", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Coppidhall@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:copped"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Pollarded hill"}
-{"_type": "toponym", "ref": "Cridmore@Isle Of Wight", "modern_name": "Cridmore", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Cridmore@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:crȳde"}, {"ordinal": 2, "etymon_ref": "old-english:mōr"}], "notes": "Weedy moor"}
-{"_type": "toponym", "ref": "Dolcoppice@Isle Of Wight", "modern_name": "Dolcoppice", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Dolcoppice@Isle Of Wight", "elements": [], "notes": "Land of William Dolecope'. This was later shortened to 'Dolcopp's' and confused with 'copse, coppice; unresolved personal name(s): Dolcopp"}
-{"_type": "toponym", "ref": "Down Court@Isle Of Wight", "modern_name": "Down Court", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Down Court@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:court"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Hill"}
-{"_type": "toponym", "ref": "Dukem@Isle Of Wight", "modern_name": "Dukem", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Dukem@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:dēaw"}], "notes": "Dew valley"}
-{"_type": "toponym", "ref": "Dungewood@Isle Of Wight", "modern_name": "Dungewood", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Dungewood@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:dūn"}, {"ordinal": 4, "etymon_ref": "old-english:worð"}, {"ordinal": 5, "etymon_ref": "old-english:Dunna"}], "notes": "Enclosure of Dunna's people, 'enclosure of the Dunningas (= the down people)' or perhaps, 'Dunna"}
-{"_type": "toponym", "ref": "Durton Farm@Isle Of Wight", "modern_name": "Durton Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Durton Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with *Drut; unresolved personal name(s): (unextracted personal name)"}
-{"_type": "toponym", "ref": "East and West Cowes@Isle Of Wight", "modern_name": "East and West Cowes", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "East and West Cowes@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:cou"}], "notes": "Cows"}
-{"_type": "toponym", "ref": "East Medina Hundred@Isle Of Wight", "modern_name": "East Medina Hundred", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "East Medina Hundred@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hundred"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}]}
-{"_type": "toponym", "ref": "Elmsworth@Isle Of Wight", "modern_name": "Elmsworth", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Elmsworth@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ōra"}, {"ordinal": 2, "etymon_ref": "old-english:ulm"}, {"ordinal": 3, "etymon_ref": "old-english:worð"}], "notes": "elm hill-slope' later change in spelling to OE worth, 'elm enclosure"}
-{"_type": "toponym", "ref": "Fairlee@Isle Of Wight", "modern_name": "Fairlee", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Fairlee@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:fæger"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Pleasant wood/clearing"}
-{"_type": "toponym", "ref": "Farringford@Isle Of Wight", "modern_name": "Farringford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Farringford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:fearn"}, {"ordinal": 3, "etymon_ref": "old-english:ford"}, {"ordinal": 4, "etymon_ref": "old-english:Fara"}], "notes": "Ford of *Fera's people' or, perhaps, 'ford of the Fearningas (= dwellers in the ferny place)"}
-{"_type": "toponym", "ref": "Fishbourne@Isle Of Wight", "modern_name": "Fishbourne", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Fishbourne@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "old-english:fisc"}], "notes": "Fish stream"}
-{"_type": "toponym", "ref": "French Mill@Isle Of Wight", "modern_name": "French Mill", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "French Mill@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:Frensche"}, {"ordinal": 2, "etymon_ref": "old-english:myln"}], "notes": "French mill"}
-{"_type": "toponym", "ref": "Freshwater@Isle Of Wight", "modern_name": "Freshwater", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Freshwater@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:fersc"}, {"ordinal": 2, "etymon_ref": "old-english:wæter"}], "notes": "Fresh water"}
-{"_type": "toponym", "ref": "Fulford@Isle Of Wight", "modern_name": "Fulford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Fulford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:fūl"}], "notes": "Dirty ford"}
-{"_type": "toponym", "ref": "Gatcombe@Isle Of Wight", "modern_name": "Gatcombe", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Gatcombe@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:gāt"}], "notes": "Goat valley"}
-{"_type": "toponym", "ref": "Godshill@Isle Of Wight", "modern_name": "Godshill", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Godshill@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:god"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "God's hill"}
-{"_type": "toponym", "ref": "Gotten@Isle Of Wight", "modern_name": "Gotten", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Gotten@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Goda"}], "notes": "Goda's farm/settlement"}
-{"_type": "toponym", "ref": "Great Pan Farm@Isle Of Wight", "modern_name": "Great Pan Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Great Pan Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:penn"}], "notes": "Enclosure"}
-{"_type": "toponym", "ref": "Hale@Isle Of Wight", "modern_name": "Hale", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Hale@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}], "notes": "Nook of land"}
-{"_type": "toponym", "ref": "Hamstead@Isle Of Wight", "modern_name": "Hamstead", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Hamstead@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām-stede"}], "notes": "Homestead"}
-{"_type": "toponym", "ref": "Hardingshute@Isle Of Wight", "modern_name": "Hardingshute", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Hardingshute@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:horte"}, {"ordinal": 3, "etymon_ref": "old-english:scīete"}], "notes": "Strip of land where whortleberries grow"}
-{"_type": "toponym", "ref": "Hardley@Isle Of Wight", "modern_name": "Hardley", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Hardley@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:heard"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Hard wood/clearing"}
-{"_type": "toponym", "ref": "Haven Street@Isle Of Wight", "modern_name": "Haven Street", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Haven Street@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:hǣðen"}, {"ordinal": 3, "etymon_ref": "old-english:hǣðig"}, {"ordinal": 4, "etymon_ref": "old-english:strēt"}], "notes": "Heathen street' or perhaps, 'Hethen's street"}
-{"_type": "toponym", "ref": "Haylands@Isle Of Wight", "modern_name": "Haylands", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Haylands@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:haga"}, {"ordinal": 2, "etymon_ref": "old-english:land"}], "notes": "Enclosed land"}
-{"_type": "toponym", "ref": "Heathfield@Isle Of Wight", "modern_name": "Heathfield", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Heathfield@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hǣð"}, {"ordinal": 2, "etymon_ref": "old-english:land"}], "notes": "Heathy open land"}
-{"_type": "toponym", "ref": "Horringford@Isle Of Wight", "modern_name": "Horringford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Horringford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:ford"}, {"ordinal": 4, "etymon_ref": "old-english:horn"}], "notes": "Ford of the Horningas (= dwellers on a horn-shaped piece of land)' or possibly, 'ford by a horn-shaped piece of land"}
-{"_type": "toponym", "ref": "Huffingford@Isle Of Wight", "modern_name": "Huffingford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Huffingford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}, {"ordinal": 3, "etymon_ref": "old-english:hūfe"}], "notes": "ford at the hill called Hufe (= hood-shaped hill)"}
-{"_type": "toponym", "ref": "Hulverstone@Isle Of Wight", "modern_name": "Hulverstone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Hulverstone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Hunfrið"}], "notes": "Hunfrith's farm/settlement"}
-{"_type": "toponym", "ref": "Kern@Isle Of Wight", "modern_name": "Kern", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Kern@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cweorn"}], "notes": "Quern"}
-{"_type": "toponym", "ref": "Kingston@Isle Of Wight", "modern_name": "Kingston", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Kingston@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cyning"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "King's farm/settlement"}
-{"_type": "toponym", "ref": "Kite Hill@Isle Of Wight", "modern_name": "Kite Hill", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Kite Hill@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cȳta"}, {"ordinal": 2, "etymon_ref": "old-english:cyte"}, {"ordinal": 3, "etymon_ref": "old-english:hyll"}], "notes": "Cottage hill' or perhaps, 'kite hill"}
-{"_type": "toponym", "ref": "Knighton Farm@Isle Of Wight", "modern_name": "Knighton Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Knighton Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cniht"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Knights' farm/settlement"}
-{"_type": "toponym", "ref": "Landguard@Isle Of Wight", "modern_name": "Landguard", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Landguard@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrēod"}, {"ordinal": 2, "etymon_ref": "old-english:lang"}], "notes": "Long reed-bed"}
-{"_type": "toponym", "ref": "Langbridge@Isle Of Wight", "modern_name": "Langbridge", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Langbridge@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brycg"}, {"ordinal": 2, "etymon_ref": "old-english:lang"}], "notes": "Long bridge"}
-{"_type": "toponym", "ref": "Lessland@Isle Of Wight", "modern_name": "Lessland", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Lessland@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land"}, {"ordinal": 2, "etymon_ref": "old-english:lycce"}], "notes": "Enclosed land"}
-{"_type": "toponym", "ref": "Limerstone@Isle Of Wight", "modern_name": "Limerstone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Limerstone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Lēofmær"}], "notes": "Leofmaer's farm/settlement' or 'Leodmaer's farm/settlement"}
-{"_type": "toponym", "ref": "Little Kennerly@Isle Of Wight", "modern_name": "Little Kennerly", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Little Kennerly@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:Cynegeard"}], "notes": "Cyneweard's wood/clearing"}
-{"_type": "toponym", "ref": "Little Span@Isle Of Wight", "modern_name": "Little Span", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Little Span@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:spann"}], "notes": "Span"}
-{"_type": "toponym", "ref": "Loverston@Isle Of Wight", "modern_name": "Loverston", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Loverston@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Lēofgār"}], "notes": "Leofgar's farm/settlement"}
-{"_type": "toponym", "ref": "Luccombe@Isle Of Wight", "modern_name": "Luccombe", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Luccombe@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:lufu"}, {"ordinal": 3, "etymon_ref": "old-english:Lufa"}], "notes": "*Lufa's valley' or 'love valley"}
-{"_type": "toponym", "ref": "Marvell@Isle Of Wight", "modern_name": "Marvell", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Marvell@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "old-english:myrge"}], "notes": "Pleasant open land"}
-{"_type": "toponym", "ref": "Merstone Manor and Merstone@Isle Of Wight", "modern_name": "Merstone Manor and Merstone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Merstone Manor and Merstone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mersc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Marsh farm/settlement"}
-{"_type": "toponym", "ref": "Middleton@Isle Of Wight", "modern_name": "Middleton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Middleton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement"}
-{"_type": "toponym", "ref": "Moor Farm@Isle Of Wight", "modern_name": "Moor Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Moor Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mōr"}], "notes": "Moor farm"}
-{"_type": "toponym", "ref": "Morton@Isle Of Wight", "modern_name": "Morton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Morton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mōr"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Moor farm/settlement"}
-{"_type": "toponym", "ref": "Mottistone@Isle Of Wight", "modern_name": "Mottistone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Mottistone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mōtere"}, {"ordinal": 2, "etymon_ref": "old-english:stān"}], "notes": "Speaker's stone"}
-{"_type": "toponym", "ref": "Munsley@Isle Of Wight", "modern_name": "Munsley", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Munsley@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:mūl"}, {"ordinal": 3, "etymon_ref": "old-english:Mul"}], "notes": "Mul's wood/clearing' or 'wood/clearing at the hill called *Mul (= the muzzle-shaped one)"}
-{"_type": "toponym", "ref": "Nettlecombe@Isle Of Wight", "modern_name": "Nettlecombe", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Nettlecombe@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:netel"}], "notes": "Nettle valley"}
-{"_type": "toponym", "ref": "Nettlestone@Isle Of Wight", "modern_name": "Nettlestone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Nettlestone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hnutu"}, {"ordinal": 2, "etymon_ref": "old-english:lǣs"}, {"ordinal": 3, "etymon_ref": "old-english:lēah"}], "notes": "Nut-tree wood/clearing farm/settlement"}
-{"_type": "toponym", "ref": "Newchurch@Isle Of Wight", "modern_name": "Newchurch", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Newchurch@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cirice"}, {"ordinal": 2, "etymon_ref": "old-english:nīwe"}], "notes": "New church"}
-{"_type": "toponym", "ref": "Newnham@Isle Of Wight", "modern_name": "Newnham", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Newnham@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām"}, {"ordinal": 2, "etymon_ref": "old-english:nīwe"}], "notes": "New homestead/village"}
-{"_type": "toponym", "ref": "Newport@Isle Of Wight", "modern_name": "Newport", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Newport@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:port"}], "notes": "new market town"}
-{"_type": "toponym", "ref": "Newtown@Isle Of Wight", "modern_name": "Newtown", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Newtown@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New town'. Also known as Francheville, 'free town"}
-{"_type": "toponym", "ref": "Ningwood@Isle Of Wight", "modern_name": "Ningwood", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Ningwood@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:niming"}, {"ordinal": 2, "etymon_ref": "old-english:wudu"}], "notes": "Wood taken into cultivation"}
-{"_type": "toponym", "ref": "Ninham@Isle Of Wight", "modern_name": "Ninham", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Ninham@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:nīge"}], "notes": "New homestead/village"}
-{"_type": "toponym", "ref": "Niton@Isle Of Wight", "modern_name": "Niton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Niton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīge"}, {"ordinal": 2, "etymon_ref": "old-english:nīwe"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlement"}
-{"_type": "toponym", "ref": "North Court@Isle Of Wight", "modern_name": "North Court", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "North Court@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:court"}, {"ordinal": 2, "etymon_ref": "old-english:norð"}, {"ordinal": 3, "etymon_ref": "old-english:scora"}, {"ordinal": 4, "etymon_ref": "old-english:wella"}], "notes": "North manor house"}
-{"_type": "toponym", "ref": "Northwood@Isle Of Wight", "modern_name": "Northwood", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Northwood@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:norð"}, {"ordinal": 2, "etymon_ref": "old-english:wudu"}], "notes": "North wood"}
-{"_type": "toponym", "ref": "Nunwell@Isle Of Wight", "modern_name": "Nunwell", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Nunwell@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nunne"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}, {"ordinal": 3, "etymon_ref": "old-english:Nun"}], "notes": "Nun's spring/stream' or 'Nunna's spring/stream"}
-{"_type": "toponym", "ref": "Osborne@Isle Of Wight", "modern_name": "Osborne", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Osborne@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "old-english:eowestre"}], "notes": "sheep-fold stream"}
-{"_type": "toponym", "ref": "Pagham@Isle Of Wight", "modern_name": "Pagham", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Pagham@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}]}
-{"_type": "toponym", "ref": "Pallance Farm and Pallancegate@Isle Of Wight", "modern_name": "Pallance Farm and Pallancegate", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Pallance Farm and Pallancegate@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}], "notes": "palace"}
-{"_type": "toponym", "ref": "Parkhurst and Parkhurst Forest@Isle Of Wight", "modern_name": "Parkhurst and Parkhurst Forest", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Parkhurst and Parkhurst Forest@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyrst"}, {"ordinal": 2, "etymon_ref": "middle-english:park"}, {"ordinal": 3, "etymon_ref": "old-english:pearroc"}], "notes": "Hunting park wooded-hill'. There are a number of adjacent 'park"}
-{"_type": "toponym", "ref": "Perreton Farm@Isle Of Wight", "modern_name": "Perreton Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Perreton Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:pirige"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Pear-tree farm/settlement"}
-{"_type": "toponym", "ref": "Pidford@Isle Of Wight", "modern_name": "Pidford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Pidford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:pide"}], "notes": "Marsh ford"}
-{"_type": "toponym", "ref": "Pitt Place@Isle Of Wight", "modern_name": "Pitt Place", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Pitt Place@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:pytt"}], "notes": "Pit"}
-{"_type": "toponym", "ref": "Presford@Isle Of Wight", "modern_name": "Presford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Presford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:prēost"}], "notes": "Priests' ford"}
-{"_type": "toponym", "ref": "Princelett@Isle Of Wight", "modern_name": "Princelett", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Princelett@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:flōde"}], "notes": "Prim's spring; unresolved personal name(s): Prim"}
-{"_type": "toponym", "ref": "Puckpool House and Point@Isle Of Wight", "modern_name": "Puckpool House and Point", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Puckpool House and Point@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cwicu"}, {"ordinal": 2, "etymon_ref": "old-english:pōl"}, {"ordinal": 3, "etymon_ref": "old-english:pūca"}, {"ordinal": 4, "etymon_ref": "old-english:Cuca"}], "notes": "*Cuca's pool' or, from a river-name 'Cuce (= the lively one) pool"}
-{"_type": "toponym", "ref": "Quarr Abbey@Isle Of Wight", "modern_name": "Quarr Abbey", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Quarr Abbey@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:quarrere"}, {"ordinal": 2, "etymon_ref": "old-french:quarriere"}], "notes": "Quarry"}
-{"_type": "toponym", "ref": "Redway@Isle Of Wight", "modern_name": "Redway", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Redway@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrēod"}, {"ordinal": 2, "etymon_ref": "old-english:rēad"}, {"ordinal": 3, "etymon_ref": "old-english:ryden"}, {"ordinal": 4, "etymon_ref": "old-english:weg"}], "notes": "Cleared road' or 'reed road"}
-{"_type": "toponym", "ref": "Rew Farm@Isle Of Wight", "modern_name": "Rew Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Rew Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:rǣw"}], "notes": "Row"}
-{"_type": "toponym", "ref": "Rill@Isle Of Wight", "modern_name": "Rill", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Rill@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyll"}, {"ordinal": 2, "etymon_ref": "old-english:ryge"}]}
-{"_type": "toponym", "ref": "Rookley@Isle Of Wight", "modern_name": "Rookley", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Rookley@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrōc"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Rook wood/clearing"}
-{"_type": "toponym", "ref": "Roud@Isle Of Wight", "modern_name": "Roud", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Roud@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrēod"}], "notes": "Reed-bed"}
-{"_type": "toponym", "ref": "Rowborough@Isle Of Wight", "modern_name": "Rowborough", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Rowborough@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-english:rūh"}], "notes": "Rough hill"}
-{"_type": "toponym", "ref": "Rowborough@Isle Of Wight", "modern_name": "Rowborough", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Rowborough@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-english:rūh"}], "notes": "Rough hill"}
-{"_type": "toponym", "ref": "Rowridge@Isle Of Wight", "modern_name": "Rowridge", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Rowridge@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrycg"}, {"ordinal": 2, "etymon_ref": "old-english:rūh"}], "notes": "Rough ridge"}
-{"_type": "toponym", "ref": "Ryde@Isle Of Wight", "modern_name": "Ryde", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Ryde@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:rīð"}], "notes": "Small stream"}
-{"_type": "toponym", "ref": "Sandford@Isle Of Wight", "modern_name": "Sandford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Sandford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:sand"}], "notes": "Sandy ford"}
-{"_type": "toponym", "ref": "Sandhills@Isle Of Wight", "modern_name": "Sandhills", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Sandhills@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyll"}, {"ordinal": 2, "etymon_ref": "old-english:sand"}], "notes": "Sandy hill"}
-{"_type": "toponym", "ref": "Sandown@Isle Of Wight", "modern_name": "Sandown", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Sandown@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām"}, {"ordinal": 2, "etymon_ref": "old-english:hamm"}, {"ordinal": 3, "etymon_ref": "old-english:sand"}], "notes": "Sandy homestead/village' or 'hemmed-in land"}
-{"_type": "toponym", "ref": "Sconce Point@Isle Of Wight", "modern_name": "Sconce Point", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Sconce Point@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ord"}, {"ordinal": 2, "etymon_ref": "old-english:scearp"}], "notes": "Sharp point'. The present name refers to a fort or 'sconce"}
-{"_type": "toponym", "ref": "Shalcombe@Isle Of Wight", "modern_name": "Shalcombe", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Shalcombe@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:sceald"}], "notes": "Shallow valley"}
-{"_type": "toponym", "ref": "Shalfleet@Isle Of Wight", "modern_name": "Shalfleet", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Shalfleet@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:flēot"}, {"ordinal": 2, "etymon_ref": "old-english:sceald"}], "notes": "Shallow stream"}
-{"_type": "toponym", "ref": "Shamblers Copse@Isle Of Wight", "modern_name": "Shamblers Copse", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Shamblers Copse@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ord"}, {"ordinal": 2, "etymon_ref": "old-english:sceamol"}], "notes": "shelving spit of land"}
-{"_type": "toponym", "ref": "Shanklin@Isle Of Wight", "modern_name": "Shanklin", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Shanklin@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hlinc"}, {"ordinal": 2, "etymon_ref": "old-english:scenc"}], "notes": "Drinking-cup ledge"}
-{"_type": "toponym", "ref": "Shate@Isle Of Wight", "modern_name": "Shate", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Shate@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scīete"}], "notes": "Strip of land"}
-{"_type": "toponym", "ref": "Sheat@Isle Of Wight", "modern_name": "Sheat", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Sheat@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scīete"}], "notes": "Strip of land"}
-{"_type": "toponym", "ref": "Shide@Isle Of Wight", "modern_name": "Shide", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Shide@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scīd"}], "notes": "Plank"}
-{"_type": "toponym", "ref": "Shorwell@Isle Of Wight", "modern_name": "Shorwell", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Shorwell@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scora"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}], "notes": "Steep-slope spring/stream"}
-{"_type": "toponym", "ref": "Sibdown@Isle Of Wight", "modern_name": "Sibdown", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Sibdown@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-english:sīpe"}], "notes": "hill near the marsh/stream"}
-{"_type": "toponym", "ref": "St Catherine's Down@Isle Of Wight", "modern_name": "St Catherine's Down", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "St Catherine's Down@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceole"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}, {"ordinal": 3, "etymon_ref": "modern-english:saint"}], "notes": "ravine hill"}
-{"_type": "toponym", "ref": "St. Helens@Isle Of Wight", "modern_name": "St. Helens", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "St. Helens@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "farm/settlement connected with Edwynn"}
-{"_type": "toponym", "ref": "St. Lawrence@Isle Of Wight", "modern_name": "St. Lawrence", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "St. Lawrence@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "modern-english:saint"}, {"ordinal": 2, "etymon_ref": "old-english:sūð"}, {"ordinal": 3, "etymon_ref": "old-english:under"}, {"ordinal": 4, "etymon_ref": "old-english:wæd"}], "notes": "ford' and split into two parts: Underwathe, 'lower ford' and Southwathe, 'south ford"}
-{"_type": "toponym", "ref": "St. Martin's Down@Isle Of Wight", "modern_name": "St. Martin's Down", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "St. Martin's Down@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "modern-english:saint"}, {"ordinal": 3, "etymon_ref": "old-english:smeoru"}], "notes": "butter hill'. The present St. Martin"}
-{"_type": "toponym", "ref": "Standen@Isle Of Wight", "modern_name": "Standen", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Standen@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-english:stān"}], "notes": "Stony hill"}
-{"_type": "toponym", "ref": "Staplers@Isle Of Wight", "modern_name": "Staplers", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Staplers@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyrst"}, {"ordinal": 2, "etymon_ref": "old-english:stapol"}], "notes": "Post wooded-hill"}
-{"_type": "toponym", "ref": "Stenbury@Isle Of Wight", "modern_name": "Stenbury", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Stenbury@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:stǣnen"}], "notes": "Stone fortification"}
-{"_type": "toponym", "ref": "Sticelett@Isle Of Wight", "modern_name": "Sticelett", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Sticelett@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:flēot"}, {"ordinal": 2, "etymon_ref": "old-english:Stı̄th"}], "notes": "Stith's shallow stream"}
-{"_type": "toponym", "ref": "Stone@Isle Of Wight", "modern_name": "Stone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Stone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:stān"}], "notes": "Stone"}
-{"_type": "toponym", "ref": "Sullens@Isle Of Wight", "modern_name": "Sullens", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Sullens@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:swelgend"}], "notes": "Deep place'. It is situated in a deep valley emanating from St. George"}
-{"_type": "toponym", "ref": "Summersbury@Isle Of Wight", "modern_name": "Summersbury", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Summersbury@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-english:burh"}, {"ordinal": 3, "etymon_ref": "old-english:sumor"}], "notes": "Sumor's fortification' or 'summer fortification; unresolved personal name(s): Sumor"}
-{"_type": "toponym", "ref": "Sutton@Isle Of Wight", "modern_name": "Sutton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Sutton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:sūðan"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "South farm/settlement"}
-{"_type": "toponym", "ref": "Swainston@Isle Of Wight", "modern_name": "Swainston", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Swainston@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Sveinn"}], "notes": "Sveinn's farm/settlement"}
-{"_type": "toponym", "ref": "Thorley@Isle Of Wight", "modern_name": "Thorley", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Thorley@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree wood/clearing"}
-{"_type": "toponym", "ref": "Thorncross@Isle Of Wight", "modern_name": "Thorncross", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Thorncross@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "modern-english:cross"}, {"ordinal": 2, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree cross"}
-{"_type": "toponym", "ref": "Thorness@Isle Of Wight", "modern_name": "Thorness", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Thorness@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hæg"}, {"ordinal": 2, "etymon_ref": "old-english:hege"}, {"ordinal": 3, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree hedge' or 'thorn-tree enclosure"}
-{"_type": "toponym", "ref": "Totland@Isle Of Wight", "modern_name": "Totland", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Totland@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land"}, {"ordinal": 2, "etymon_ref": "old-english:tōt"}], "notes": "Look-out land"}
-{"_type": "toponym", "ref": "Upper Cockleton@Isle Of Wight", "modern_name": "Upper Cockleton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Upper Cockleton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:coccel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Cockle farm/settlement"}
-{"_type": "toponym", "ref": "Upper Hide@Isle Of Wight", "modern_name": "Upper Hide", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Upper Hide@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hīd"}], "notes": "Hide'. 'Upper"}
-{"_type": "toponym", "ref": "Ventnor@Isle Of Wight", "modern_name": "Ventnor", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Ventnor@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}], "notes": "hollow way"}
-{"_type": "toponym", "ref": "Vittlefield@Isle Of Wight", "modern_name": "Vittlefield", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Vittlefield@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "middle-english:fithelare"}], "notes": "fiddle open land"}
-{"_type": "toponym", "ref": "Wackland@Isle Of Wight", "modern_name": "Wackland", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Wackland@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land"}, {"ordinal": 2, "etymon_ref": "old-english:wacu"}], "notes": "Watch land'. Speed"}
-{"_type": "toponym", "ref": "Walpan@Isle Of Wight", "modern_name": "Walpan", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Walpan@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:penn"}, {"ordinal": 2, "etymon_ref": "old-english:wall"}, {"ordinal": 3, "etymon_ref": "old-english:walu"}, {"ordinal": 4, "etymon_ref": "old-english:wēl"}], "notes": "enclosure'. Perhaps, 'ridge enclosure', 'pool enclosure' or 'wall enclosure"}
-{"_type": "toponym", "ref": "Watchingwell@Isle Of Wight", "modern_name": "Watchingwell", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Watchingwell@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:hwǣte"}, {"ordinal": 3, "etymon_ref": "old-english:wella"}], "notes": "Wheat-place stream"}
-{"_type": "toponym", "ref": "Week Farm@Isle Of Wight", "modern_name": "Week Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Week Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wīc"}], "notes": "(Specialised) farm"}
-{"_type": "toponym", "ref": "Wellow@Isle Of Wight", "modern_name": "Wellow", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Wellow@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wilig"}], "notes": "Willow-tree"}
-{"_type": "toponym", "ref": "Werrar Farm@Isle Of Wight", "modern_name": "Werrar Farm", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Werrar Farm@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ōra"}, {"ordinal": 2, "etymon_ref": "old-english:wer"}], "notes": "Weir bank"}
-{"_type": "toponym", "ref": "West Court@Isle Of Wight", "modern_name": "West Court", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "West Court@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:court"}, {"ordinal": 2, "etymon_ref": "old-english:scora"}, {"ordinal": 3, "etymon_ref": "old-english:sūð"}, {"ordinal": 4, "etymon_ref": "old-english:wella"}], "notes": "West manor house"}
-{"_type": "toponym", "ref": "West Medina Hundred@Isle Of Wight", "modern_name": "West Medina Hundred", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "West Medina Hundred@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hundred"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}]}
-{"_type": "toponym", "ref": "Westbrook House@Isle Of Wight", "modern_name": "Westbrook House", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Westbrook House@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:west"}], "notes": "West brook"}
-{"_type": "toponym", "ref": "Weston Manor@Isle Of Wight", "modern_name": "Weston Manor", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Weston Manor@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:west"}], "notes": "Western farm/settlement"}
-{"_type": "toponym", "ref": "Westridge@Isle Of Wight", "modern_name": "Westridge", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Westridge@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrycg"}, {"ordinal": 2, "etymon_ref": "old-english:west"}], "notes": "West ridge"}
-{"_type": "toponym", "ref": "Whippingham@Isle Of Wight", "modern_name": "Whippingham", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Whippingham@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:hamm"}, {"ordinal": 4, "etymon_ref": "old-english:Cippa"}], "notes": "Homestead/village of *Wippa's people' or 'hemmed-in land"}
-{"_type": "toponym", "ref": "Whitcombe@Isle Of Wight", "modern_name": "Whitcombe", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Whitcombe@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:hwīt"}, {"ordinal": 3, "etymon_ref": "old-english:wīd"}], "notes": "wide valley' or 'white valley"}
-{"_type": "toponym", "ref": "Whitecliff Bay@Isle Of Wight", "modern_name": "Whitecliff Bay", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Whitecliff Bay@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-french:blanche"}, {"ordinal": 2, "etymon_ref": "old-french:faloise"}], "notes": "White cliff"}
-{"_type": "toponym", "ref": "Whitefield@Isle Of Wight", "modern_name": "Whitefield", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Whitefield@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "old-english:hwīt"}], "notes": "White open land"}
-{"_type": "toponym", "ref": "Whitwell@Isle Of Wight", "modern_name": "Whitwell", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Whitwell@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hwīt"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}], "notes": "White spring/stream"}
-{"_type": "toponym", "ref": "Wilmingham@Isle Of Wight", "modern_name": "Wilmingham", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Wilmingham@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:hamm"}, {"ordinal": 4, "etymon_ref": "old-english:Sighelm"}], "notes": "Homestead/village of Wighelm's/Wilhelm's people' or 'hemmed-in land of Wighelm's/Wilhelm's people"}
-{"_type": "toponym", "ref": "Winstone@Isle Of Wight", "modern_name": "Winstone", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Winstone@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}], "notes": "Wynsige's farm/settlement; unresolved personal name(s): Wynsige"}
-{"_type": "toponym", "ref": "Wolverton@Isle Of Wight", "modern_name": "Wolverton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Wolverton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "middle-english:Wulfweard"}], "notes": "Wulfweard's farm/settlement"}
-{"_type": "toponym", "ref": "Wood@Isle Of Wight", "modern_name": "Wood", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Wood@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wudu"}], "notes": "Wood"}
-{"_type": "toponym", "ref": "Woodhouse@Isle Of Wight", "modern_name": "Woodhouse", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Woodhouse@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hūs"}, {"ordinal": 2, "etymon_ref": "old-english:wudu"}], "notes": "Wood house"}
-{"_type": "toponym", "ref": "Wootton@Isle Of Wight", "modern_name": "Wootton", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Wootton@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:wudig"}], "notes": "Wood farm/settlement"}
-{"_type": "toponym", "ref": "Wroxall@Isle Of Wight", "modern_name": "Wroxall", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Wroxall@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}, {"ordinal": 2, "etymon_ref": "old-english:wrocc"}], "notes": "At the buzzard's nook of land"}
-{"_type": "toponym", "ref": "Wydcombe@Isle Of Wight", "modern_name": "Wydcombe", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Wydcombe@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:wīd"}], "notes": "Wide valley"}
-{"_type": "toponym", "ref": "Yafford@Isle Of Wight", "modern_name": "Yafford", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Yafford@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:hæcc"}], "notes": "Hatch ford"}
-{"_type": "toponym", "ref": "Yarbridge@Isle Of Wight", "modern_name": "Yarbridge", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Yarbridge@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brycg"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "Bridge on the River Yar"}
-{"_type": "toponym", "ref": "Yarmouth@Isle Of Wight", "modern_name": "Yarmouth", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Yarmouth@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēaren"}, {"ordinal": 2, "etymon_ref": "old-english:mūða"}], "notes": "Gravelly river-mouth"}
-{"_type": "toponym", "ref": "Yaverland@Isle Of Wight", "modern_name": "Yaverland", "country": "England", "region": "Isle Of Wight"}
-{"_type": "etymology_element", "toponym_ref": "Yaverland@Isle Of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:eofor"}, {"ordinal": 2, "etymon_ref": "old-english:land"}], "notes": "Wild boar land"}
+{"_type": "toponym", "ref": "Adgestone@Isle of Wight", "modern_name": "Adgestone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Adgestone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Æfic"}], "notes": "Aefic's farm/settlement"}
+{"_type": "toponym", "ref": "Afton@Isle of Wight", "modern_name": "Afton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Afton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Æff"}], "notes": "Aeffa's farm/settlement"}
+{"_type": "toponym", "ref": "Alverstone@Isle of Wight", "modern_name": "Alverstone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Alverstone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfrēd"}], "notes": "Aelfred's farm/settlement"}
+{"_type": "toponym", "ref": "Alverstone@Isle of Wight", "modern_name": "Alverstone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Alverstone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfrēd"}], "notes": "Aelfred's farm/settlement"}
+{"_type": "toponym", "ref": "Alvington Manor@Isle of Wight", "modern_name": "Alvington Manor", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Alvington Manor@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfwynn"}], "notes": "Aelfwynn's farm/settlement"}
+{"_type": "toponym", "ref": "Apes Down@Isle of Wight", "modern_name": "Apes Down", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Apes Down@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:abbesse"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Abbess' down"}
+{"_type": "toponym", "ref": "Appleford@Isle of Wight", "modern_name": "Appleford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Appleford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:apuldor"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}], "notes": "Apple-tree ford"}
+{"_type": "toponym", "ref": "Appuldurcombe House@Isle of Wight", "modern_name": "Appuldurcombe House", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Appuldurcombe House@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:apuldor"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}], "notes": "Apple-tree valley"}
+{"_type": "toponym", "ref": "Apse Manor Farm@Isle of Wight", "modern_name": "Apse Manor Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Apse Manor Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:æspe"}], "notes": "Aspen-tree"}
+{"_type": "toponym", "ref": "Arreton@Isle of Wight", "modern_name": "Arreton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Arreton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Eadhere; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "toponym", "ref": "Arreton Down@Isle of Wight", "modern_name": "Arreton Down", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Arreton Down@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bǣr"}, {"ordinal": 2, "etymon_ref": "old-english:bere"}, {"ordinal": 3, "etymon_ref": "old-english:dūn"}, {"ordinal": 4, "etymon_ref": "unknown:Place-name"}], "notes": "Barley hill' or possibly, 'swine-pasture hill' from the earlier name, 'Beredun"}
+{"_type": "toponym", "ref": "Ashey@Isle of Wight", "modern_name": "Ashey", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Ashey@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:æsc"}, {"ordinal": 2, "etymon_ref": "old-english:hege"}], "notes": "ash-tree hedge' or 'Aesc's hedge; unresolved personal name(s): Aesc"}
+{"_type": "toponym", "ref": "Atherfield@Isle of Wight", "modern_name": "Atherfield", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Atherfield@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:feld"}, {"ordinal": 3, "etymon_ref": "old-english:Æthelhere"}], "notes": "Open land of Aethelhere's people"}
+{"_type": "toponym", "ref": "Bagwich@Isle of Wight", "modern_name": "Bagwich", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Bagwich@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bagga"}, {"ordinal": 2, "etymon_ref": "old-english:wīc"}, {"ordinal": 3, "etymon_ref": "old-english:Bacga"}], "notes": "Bacga's (specialised) farm' or '(specialised) farm at the bag-shaped feature"}
+{"_type": "toponym", "ref": "Barnsley@Isle of Wight", "modern_name": "Barnsley", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Barnsley@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:Beornfrith"}], "notes": "Beornfrith's wood/clearing"}
+{"_type": "toponym", "ref": "Barton Manor@Isle of Wight", "modern_name": "Barton Manor", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Barton Manor@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bere-tūn"}, {"ordinal": 2, "etymon_ref": "old-english:burh-tūn"}], "notes": "Fortified farm/settlement'. There may be later confusion with 'barley farm/settlement"}
+{"_type": "toponym", "ref": "Bathingbourne@Isle of Wight", "modern_name": "Bathingbourne", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Bathingbourne@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:burna"}, {"ordinal": 3, "etymon_ref": "old-english:Beadda"}], "notes": "Stream of *Beadda's people"}
+{"_type": "toponym", "ref": "Beaper@Isle of Wight", "modern_name": "Beaper", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Beaper@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-french:beau repaire"}], "notes": "Beautiful retreat"}
+{"_type": "toponym", "ref": "Bembridge@Isle of Wight", "modern_name": "Bembridge", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Bembridge@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:binnan"}, {"ordinal": 2, "etymon_ref": "old-english:brycg"}], "notes": "Within the bridge"}
+{"_type": "toponym", "ref": "Billingham@Isle of Wight", "modern_name": "Billingham", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Billingham@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:billing"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:hamm"}], "notes": "Hill homestead/village' or 'hill hemmed-in land"}
+{"_type": "toponym", "ref": "Binstead@Isle of Wight", "modern_name": "Binstead", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Binstead@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bēan"}, {"ordinal": 2, "etymon_ref": "old-english:stede"}], "notes": "Bean place"}
+{"_type": "toponym", "ref": "Birchmore@Isle of Wight", "modern_name": "Birchmore", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Birchmore@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:birce"}, {"ordinal": 2, "etymon_ref": "old-english:mōr"}], "notes": "Birch-tree moor"}
+{"_type": "toponym", "ref": "Black Pan@Isle of Wight", "modern_name": "Black Pan", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Black Pan@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:blæc"}, {"ordinal": 2, "etymon_ref": "old-english:penn"}], "notes": "Black fold"}
+{"_type": "toponym", "ref": "Blacklands@Isle of Wight", "modern_name": "Blacklands", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Blacklands@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:blæc"}, {"ordinal": 2, "etymon_ref": "old-english:land"}], "notes": "Black land"}
+{"_type": "toponym", "ref": "Bleak Down@Isle of Wight", "modern_name": "Bleak Down", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Bleak Down@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:blāc"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Pale hill' or 'unvegetated hill"}
+{"_type": "toponym", "ref": "Bonchurch@Isle of Wight", "modern_name": "Bonchurch", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Bonchurch@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cirice"}], "notes": "church' The specific may be an OE personal name either 'Bana', 'Buna' or 'Bona; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "toponym", "ref": "Borthwood Farm@Isle of Wight", "modern_name": "Borthwood Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Borthwood Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bord"}, {"ordinal": 2, "etymon_ref": "old-english:borda"}, {"ordinal": 3, "etymon_ref": "old-english:wudu"}], "notes": "board wood' or 'border wood"}
+{"_type": "toponym", "ref": "Bouldnor@Isle of Wight", "modern_name": "Bouldnor", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Bouldnor@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bula"}, {"ordinal": 2, "etymon_ref": "old-english:ōra"}], "notes": "Bull shore"}
+{"_type": "toponym", "ref": "Bowcombe Hundred@Isle of Wight", "modern_name": "Bowcombe Hundred", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Bowcombe Hundred@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bufan"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}, {"ordinal": 3, "etymon_ref": "old-english:hundred"}, {"ordinal": 4, "etymon_ref": "old-english:Bōfa"}], "notes": "Bofa's valley' or 'above the valley'. A Domesday hundred was named after Bowcombe. The hundred was also known as Swainston hundred or the Liberty of Swainston. It has been suggested that tumuli on Barcombe Down 'above the valley"}
+{"_type": "toponym", "ref": "Brading@Isle of Wight", "modern_name": "Brading", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Brading@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:brerd"}], "notes": "Hill-side people"}
+{"_type": "toponym", "ref": "Branstone@Isle of Wight", "modern_name": "Branstone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Branstone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Brand"}], "notes": "Brand's farm/settlement"}
+{"_type": "toponym", "ref": "Briddlesford@Isle of Wight", "modern_name": "Briddlesford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Briddlesford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brigdels"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}], "notes": "The bridle ford"}
+{"_type": "toponym", "ref": "Bridge Farm@Isle of Wight", "modern_name": "Bridge Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Bridge Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brycg"}], "notes": "Bridge"}
+{"_type": "toponym", "ref": "Brighstone@Isle of Wight", "modern_name": "Brighstone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Brighstone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Beorhtwig"}], "notes": "Beorhtwig's farm/settlement"}
+{"_type": "toponym", "ref": "Brook@Isle of Wight", "modern_name": "Brook", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Brook@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}], "notes": "Brook"}
+{"_type": "toponym", "ref": "Budbridge@Isle of Wight", "modern_name": "Budbridge", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Budbridge@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brycg"}, {"ordinal": 2, "etymon_ref": "old-english:butt"}, {"ordinal": 3, "etymon_ref": "old-english:Betta"}], "notes": "Log bridge' or '*Butta's bridge"}
+{"_type": "toponym", "ref": "Calbourne@Isle of Wight", "modern_name": "Calbourne", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Calbourne@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "old-english:cawel"}, {"ordinal": 3, "etymon_ref": "old-english:hundred"}], "notes": "Cole stream"}
+{"_type": "toponym", "ref": "Carisbrooke@Isle of Wight", "modern_name": "Carisbrooke", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Carisbrooke@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:carr"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}], "notes": "brook'. The specific may be a river-name identical with the River Cary, Somerset. Alternatively it may be 'rock"}
+{"_type": "toponym", "ref": "Chale@Isle of Wight", "modern_name": "Chale", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Chale@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceole"}], "notes": "Ravine"}
+{"_type": "toponym", "ref": "Chessell@Isle of Wight", "modern_name": "Chessell", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Chessell@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cest"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Chest hill"}
+{"_type": "toponym", "ref": "Cheverton@Isle of Wight", "modern_name": "Cheverton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Cheverton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceafor"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "beetle hill"}
+{"_type": "toponym", "ref": "Cheverton@Isle of Wight", "modern_name": "Cheverton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Cheverton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceafor"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Beetle hill"}
+{"_type": "toponym", "ref": "Chillerton@Isle of Wight", "modern_name": "Chillerton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Chillerton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceole"}, {"ordinal": 2, "etymon_ref": "old-english:geard"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}, {"ordinal": 4, "etymon_ref": "old-english:Cēolheard"}], "notes": "ravine enclosed farm/settlement' or perhaps, '*Ceoleard's enclosed farm/settlement"}
+{"_type": "toponym", "ref": "Chillingwood@Isle of Wight", "modern_name": "Chillingwood", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Chillingwood@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:ceole"}, {"ordinal": 4, "etymon_ref": "old-english:wudu"}, {"ordinal": 5, "etymon_ref": "old-english:Ceolla"}], "notes": "Wood at the stream called *Ceoling' or 'wood at the valley called *Ceoling'. Possibly, 'wood at Ceolla's place' or 'wood of Ceolla's people"}
+{"_type": "toponym", "ref": "Chilton Farm@Isle of Wight", "modern_name": "Chilton Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Chilton Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceole"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-english:Cēola"}], "notes": "Ravine farm/settlement or 'Ceola's farm/settlement"}
+{"_type": "toponym", "ref": "Clatterford@Isle of Wight", "modern_name": "Clatterford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Clatterford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clater"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}], "notes": "Loose-stone ford"}
+{"_type": "toponym", "ref": "Combley@Isle of Wight", "modern_name": "Combley", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Combley@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Valley wood/clearing"}
+{"_type": "toponym", "ref": "Compton@Isle of Wight", "modern_name": "Compton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Compton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
+{"_type": "toponym", "ref": "Coombe@Isle of Wight", "modern_name": "Coombe", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Coombe@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}], "notes": "Valley"}
+{"_type": "toponym", "ref": "Coppidhall@Isle of Wight", "modern_name": "Coppidhall", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Coppidhall@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:copped"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Pollarded hill"}
+{"_type": "toponym", "ref": "Cridmore@Isle of Wight", "modern_name": "Cridmore", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Cridmore@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:crȳde"}, {"ordinal": 2, "etymon_ref": "old-english:mōr"}], "notes": "Weedy moor"}
+{"_type": "toponym", "ref": "Dolcoppice@Isle of Wight", "modern_name": "Dolcoppice", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Dolcoppice@Isle of Wight", "elements": [], "notes": "Land of William Dolecope'. This was later shortened to 'Dolcopp's' and confused with 'copse, coppice; unresolved personal name(s): Dolcopp"}
+{"_type": "toponym", "ref": "Down Court@Isle of Wight", "modern_name": "Down Court", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Down Court@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:court"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Hill"}
+{"_type": "toponym", "ref": "Dukem@Isle of Wight", "modern_name": "Dukem", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Dukem@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:dēaw"}], "notes": "Dew valley"}
+{"_type": "toponym", "ref": "Dungewood@Isle of Wight", "modern_name": "Dungewood", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Dungewood@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:dūn"}, {"ordinal": 4, "etymon_ref": "old-english:worð"}, {"ordinal": 5, "etymon_ref": "old-english:Dunna"}], "notes": "Enclosure of Dunna's people, 'enclosure of the Dunningas (= the down people)' or perhaps, 'Dunna"}
+{"_type": "toponym", "ref": "Durton Farm@Isle of Wight", "modern_name": "Durton Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Durton Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with *Drut; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "toponym", "ref": "East and West Cowes@Isle of Wight", "modern_name": "East and West Cowes", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "East and West Cowes@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:cou"}], "notes": "Cows"}
+{"_type": "toponym", "ref": "East Medina Hundred@Isle of Wight", "modern_name": "East Medina Hundred", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "East Medina Hundred@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hundred"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}]}
+{"_type": "toponym", "ref": "Elmsworth@Isle of Wight", "modern_name": "Elmsworth", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Elmsworth@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ōra"}, {"ordinal": 2, "etymon_ref": "old-english:ulm"}, {"ordinal": 3, "etymon_ref": "old-english:worð"}], "notes": "elm hill-slope' later change in spelling to OE worth, 'elm enclosure"}
+{"_type": "toponym", "ref": "Fairlee@Isle of Wight", "modern_name": "Fairlee", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Fairlee@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:fæger"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Pleasant wood/clearing"}
+{"_type": "toponym", "ref": "Farringford@Isle of Wight", "modern_name": "Farringford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Farringford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:fearn"}, {"ordinal": 3, "etymon_ref": "old-english:ford"}, {"ordinal": 4, "etymon_ref": "old-english:Fara"}], "notes": "Ford of *Fera's people' or, perhaps, 'ford of the Fearningas (= dwellers in the ferny place)"}
+{"_type": "toponym", "ref": "Fishbourne@Isle of Wight", "modern_name": "Fishbourne", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Fishbourne@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "old-english:fisc"}], "notes": "Fish stream"}
+{"_type": "toponym", "ref": "French Mill@Isle of Wight", "modern_name": "French Mill", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "French Mill@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:Frensche"}, {"ordinal": 2, "etymon_ref": "old-english:myln"}], "notes": "French mill"}
+{"_type": "toponym", "ref": "Freshwater@Isle of Wight", "modern_name": "Freshwater", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Freshwater@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:fersc"}, {"ordinal": 2, "etymon_ref": "old-english:wæter"}], "notes": "Fresh water"}
+{"_type": "toponym", "ref": "Fulford@Isle of Wight", "modern_name": "Fulford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Fulford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:fūl"}], "notes": "Dirty ford"}
+{"_type": "toponym", "ref": "Gatcombe@Isle of Wight", "modern_name": "Gatcombe", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Gatcombe@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:gāt"}], "notes": "Goat valley"}
+{"_type": "toponym", "ref": "Godshill@Isle of Wight", "modern_name": "Godshill", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Godshill@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:god"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "God's hill"}
+{"_type": "toponym", "ref": "Gotten@Isle of Wight", "modern_name": "Gotten", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Gotten@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Goda"}], "notes": "Goda's farm/settlement"}
+{"_type": "toponym", "ref": "Great Pan Farm@Isle of Wight", "modern_name": "Great Pan Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Great Pan Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:penn"}], "notes": "Enclosure"}
+{"_type": "toponym", "ref": "Hale@Isle of Wight", "modern_name": "Hale", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Hale@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}], "notes": "Nook of land"}
+{"_type": "toponym", "ref": "Hamstead@Isle of Wight", "modern_name": "Hamstead", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Hamstead@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām-stede"}], "notes": "Homestead"}
+{"_type": "toponym", "ref": "Hardingshute@Isle of Wight", "modern_name": "Hardingshute", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Hardingshute@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:horte"}, {"ordinal": 3, "etymon_ref": "old-english:scīete"}], "notes": "Strip of land where whortleberries grow"}
+{"_type": "toponym", "ref": "Hardley@Isle of Wight", "modern_name": "Hardley", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Hardley@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:heard"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Hard wood/clearing"}
+{"_type": "toponym", "ref": "Haven Street@Isle of Wight", "modern_name": "Haven Street", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Haven Street@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:hǣðen"}, {"ordinal": 3, "etymon_ref": "old-english:hǣðig"}, {"ordinal": 4, "etymon_ref": "old-english:strēt"}], "notes": "Heathen street' or perhaps, 'Hethen's street"}
+{"_type": "toponym", "ref": "Haylands@Isle of Wight", "modern_name": "Haylands", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Haylands@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:haga"}, {"ordinal": 2, "etymon_ref": "old-english:land"}], "notes": "Enclosed land"}
+{"_type": "toponym", "ref": "Heathfield@Isle of Wight", "modern_name": "Heathfield", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Heathfield@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hǣð"}, {"ordinal": 2, "etymon_ref": "old-english:land"}], "notes": "Heathy open land"}
+{"_type": "toponym", "ref": "Horringford@Isle of Wight", "modern_name": "Horringford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Horringford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:ford"}, {"ordinal": 4, "etymon_ref": "old-english:horn"}], "notes": "Ford of the Horningas (= dwellers on a horn-shaped piece of land)' or possibly, 'ford by a horn-shaped piece of land"}
+{"_type": "toponym", "ref": "Huffingford@Isle of Wight", "modern_name": "Huffingford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Huffingford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}, {"ordinal": 3, "etymon_ref": "old-english:hūfe"}], "notes": "ford at the hill called Hufe (= hood-shaped hill)"}
+{"_type": "toponym", "ref": "Hulverstone@Isle of Wight", "modern_name": "Hulverstone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Hulverstone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Hunfrið"}], "notes": "Hunfrith's farm/settlement"}
+{"_type": "toponym", "ref": "Kern@Isle of Wight", "modern_name": "Kern", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Kern@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cweorn"}], "notes": "Quern"}
+{"_type": "toponym", "ref": "Kingston@Isle of Wight", "modern_name": "Kingston", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Kingston@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cyning"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "King's farm/settlement"}
+{"_type": "toponym", "ref": "Kite Hill@Isle of Wight", "modern_name": "Kite Hill", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Kite Hill@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cȳta"}, {"ordinal": 2, "etymon_ref": "old-english:cyte"}, {"ordinal": 3, "etymon_ref": "old-english:hyll"}], "notes": "Cottage hill' or perhaps, 'kite hill"}
+{"_type": "toponym", "ref": "Knighton Farm@Isle of Wight", "modern_name": "Knighton Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Knighton Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cniht"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Knights' farm/settlement"}
+{"_type": "toponym", "ref": "Landguard@Isle of Wight", "modern_name": "Landguard", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Landguard@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrēod"}, {"ordinal": 2, "etymon_ref": "old-english:lang"}], "notes": "Long reed-bed"}
+{"_type": "toponym", "ref": "Langbridge@Isle of Wight", "modern_name": "Langbridge", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Langbridge@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brycg"}, {"ordinal": 2, "etymon_ref": "old-english:lang"}], "notes": "Long bridge"}
+{"_type": "toponym", "ref": "Lessland@Isle of Wight", "modern_name": "Lessland", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Lessland@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land"}, {"ordinal": 2, "etymon_ref": "old-english:lycce"}], "notes": "Enclosed land"}
+{"_type": "toponym", "ref": "Limerstone@Isle of Wight", "modern_name": "Limerstone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Limerstone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Lēofmær"}], "notes": "Leofmaer's farm/settlement' or 'Leodmaer's farm/settlement"}
+{"_type": "toponym", "ref": "Little Kennerly@Isle of Wight", "modern_name": "Little Kennerly", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Little Kennerly@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:Cynegeard"}], "notes": "Cyneweard's wood/clearing"}
+{"_type": "toponym", "ref": "Little Span@Isle of Wight", "modern_name": "Little Span", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Little Span@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:spann"}], "notes": "Span"}
+{"_type": "toponym", "ref": "Loverston@Isle of Wight", "modern_name": "Loverston", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Loverston@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Lēofgār"}], "notes": "Leofgar's farm/settlement"}
+{"_type": "toponym", "ref": "Luccombe@Isle of Wight", "modern_name": "Luccombe", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Luccombe@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:lufu"}, {"ordinal": 3, "etymon_ref": "old-english:Lufa"}], "notes": "*Lufa's valley' or 'love valley"}
+{"_type": "toponym", "ref": "Marvell@Isle of Wight", "modern_name": "Marvell", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Marvell@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "old-english:myrge"}], "notes": "Pleasant open land"}
+{"_type": "toponym", "ref": "Merstone Manor and Merstone@Isle of Wight", "modern_name": "Merstone Manor and Merstone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Merstone Manor and Merstone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mersc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Marsh farm/settlement"}
+{"_type": "toponym", "ref": "Middleton@Isle of Wight", "modern_name": "Middleton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Middleton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement"}
+{"_type": "toponym", "ref": "Moor Farm@Isle of Wight", "modern_name": "Moor Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Moor Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mōr"}], "notes": "Moor farm"}
+{"_type": "toponym", "ref": "Morton@Isle of Wight", "modern_name": "Morton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Morton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mōr"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Moor farm/settlement"}
+{"_type": "toponym", "ref": "Mottistone@Isle of Wight", "modern_name": "Mottistone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Mottistone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mōtere"}, {"ordinal": 2, "etymon_ref": "old-english:stān"}], "notes": "Speaker's stone"}
+{"_type": "toponym", "ref": "Munsley@Isle of Wight", "modern_name": "Munsley", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Munsley@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:mūl"}, {"ordinal": 3, "etymon_ref": "old-english:Mul"}], "notes": "Mul's wood/clearing' or 'wood/clearing at the hill called *Mul (= the muzzle-shaped one)"}
+{"_type": "toponym", "ref": "Nettlecombe@Isle of Wight", "modern_name": "Nettlecombe", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Nettlecombe@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:netel"}], "notes": "Nettle valley"}
+{"_type": "toponym", "ref": "Nettlestone@Isle of Wight", "modern_name": "Nettlestone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Nettlestone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hnutu"}, {"ordinal": 2, "etymon_ref": "old-english:lǣs"}, {"ordinal": 3, "etymon_ref": "old-english:lēah"}], "notes": "Nut-tree wood/clearing farm/settlement"}
+{"_type": "toponym", "ref": "Newchurch@Isle of Wight", "modern_name": "Newchurch", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Newchurch@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cirice"}, {"ordinal": 2, "etymon_ref": "old-english:nīwe"}], "notes": "New church"}
+{"_type": "toponym", "ref": "Newnham@Isle of Wight", "modern_name": "Newnham", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Newnham@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām"}, {"ordinal": 2, "etymon_ref": "old-english:nīwe"}], "notes": "New homestead/village"}
+{"_type": "toponym", "ref": "Newport@Isle of Wight", "modern_name": "Newport", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Newport@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:port"}], "notes": "new market town"}
+{"_type": "toponym", "ref": "Newtown@Isle of Wight", "modern_name": "Newtown", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Newtown@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New town'. Also known as Francheville, 'free town"}
+{"_type": "toponym", "ref": "Ningwood@Isle of Wight", "modern_name": "Ningwood", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Ningwood@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:niming"}, {"ordinal": 2, "etymon_ref": "old-english:wudu"}], "notes": "Wood taken into cultivation"}
+{"_type": "toponym", "ref": "Ninham@Isle of Wight", "modern_name": "Ninham", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Ninham@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:nīge"}], "notes": "New homestead/village"}
+{"_type": "toponym", "ref": "Niton@Isle of Wight", "modern_name": "Niton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Niton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīge"}, {"ordinal": 2, "etymon_ref": "old-english:nīwe"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlement"}
+{"_type": "toponym", "ref": "North Court@Isle of Wight", "modern_name": "North Court", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "North Court@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:court"}, {"ordinal": 2, "etymon_ref": "old-english:norð"}, {"ordinal": 3, "etymon_ref": "old-english:scora"}, {"ordinal": 4, "etymon_ref": "old-english:wella"}], "notes": "North manor house"}
+{"_type": "toponym", "ref": "Northwood@Isle of Wight", "modern_name": "Northwood", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Northwood@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:norð"}, {"ordinal": 2, "etymon_ref": "old-english:wudu"}], "notes": "North wood"}
+{"_type": "toponym", "ref": "Nunwell@Isle of Wight", "modern_name": "Nunwell", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Nunwell@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nunne"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}, {"ordinal": 3, "etymon_ref": "old-english:Nun"}], "notes": "Nun's spring/stream' or 'Nunna's spring/stream"}
+{"_type": "toponym", "ref": "Osborne@Isle of Wight", "modern_name": "Osborne", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Osborne@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "old-english:eowestre"}], "notes": "sheep-fold stream"}
+{"_type": "toponym", "ref": "Pagham@Isle of Wight", "modern_name": "Pagham", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Pagham@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}]}
+{"_type": "toponym", "ref": "Pallance Farm and Pallancegate@Isle of Wight", "modern_name": "Pallance Farm and Pallancegate", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Pallance Farm and Pallancegate@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}], "notes": "palace"}
+{"_type": "toponym", "ref": "Parkhurst and Parkhurst Forest@Isle of Wight", "modern_name": "Parkhurst and Parkhurst Forest", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Parkhurst and Parkhurst Forest@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyrst"}, {"ordinal": 2, "etymon_ref": "middle-english:park"}, {"ordinal": 3, "etymon_ref": "old-english:pearroc"}], "notes": "Hunting park wooded-hill'. There are a number of adjacent 'park"}
+{"_type": "toponym", "ref": "Perreton Farm@Isle of Wight", "modern_name": "Perreton Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Perreton Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:pirige"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Pear-tree farm/settlement"}
+{"_type": "toponym", "ref": "Pidford@Isle of Wight", "modern_name": "Pidford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Pidford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:pide"}], "notes": "Marsh ford"}
+{"_type": "toponym", "ref": "Pitt Place@Isle of Wight", "modern_name": "Pitt Place", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Pitt Place@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:pytt"}], "notes": "Pit"}
+{"_type": "toponym", "ref": "Presford@Isle of Wight", "modern_name": "Presford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Presford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:prēost"}], "notes": "Priests' ford"}
+{"_type": "toponym", "ref": "Princelett@Isle of Wight", "modern_name": "Princelett", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Princelett@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:flōde"}], "notes": "Prim's spring; unresolved personal name(s): Prim"}
+{"_type": "toponym", "ref": "Puckpool House and Point@Isle of Wight", "modern_name": "Puckpool House and Point", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Puckpool House and Point@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cwicu"}, {"ordinal": 2, "etymon_ref": "old-english:pōl"}, {"ordinal": 3, "etymon_ref": "old-english:pūca"}, {"ordinal": 4, "etymon_ref": "old-english:Cuca"}], "notes": "*Cuca's pool' or, from a river-name 'Cuce (= the lively one) pool"}
+{"_type": "toponym", "ref": "Quarr Abbey@Isle of Wight", "modern_name": "Quarr Abbey", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Quarr Abbey@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:quarrere"}, {"ordinal": 2, "etymon_ref": "old-french:quarriere"}], "notes": "Quarry"}
+{"_type": "toponym", "ref": "Redway@Isle of Wight", "modern_name": "Redway", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Redway@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrēod"}, {"ordinal": 2, "etymon_ref": "old-english:rēad"}, {"ordinal": 3, "etymon_ref": "old-english:ryden"}, {"ordinal": 4, "etymon_ref": "old-english:weg"}], "notes": "Cleared road' or 'reed road"}
+{"_type": "toponym", "ref": "Rew Farm@Isle of Wight", "modern_name": "Rew Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Rew Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:rǣw"}], "notes": "Row"}
+{"_type": "toponym", "ref": "Rill@Isle of Wight", "modern_name": "Rill", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Rill@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyll"}, {"ordinal": 2, "etymon_ref": "old-english:ryge"}]}
+{"_type": "toponym", "ref": "Rookley@Isle of Wight", "modern_name": "Rookley", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Rookley@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrōc"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Rook wood/clearing"}
+{"_type": "toponym", "ref": "Roud@Isle of Wight", "modern_name": "Roud", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Roud@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrēod"}], "notes": "Reed-bed"}
+{"_type": "toponym", "ref": "Rowborough@Isle of Wight", "modern_name": "Rowborough", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Rowborough@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-english:rūh"}], "notes": "Rough hill"}
+{"_type": "toponym", "ref": "Rowborough@Isle of Wight", "modern_name": "Rowborough", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Rowborough@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-english:rūh"}], "notes": "Rough hill"}
+{"_type": "toponym", "ref": "Rowridge@Isle of Wight", "modern_name": "Rowridge", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Rowridge@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrycg"}, {"ordinal": 2, "etymon_ref": "old-english:rūh"}], "notes": "Rough ridge"}
+{"_type": "toponym", "ref": "Ryde@Isle of Wight", "modern_name": "Ryde", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Ryde@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:rīð"}], "notes": "Small stream"}
+{"_type": "toponym", "ref": "Sandford@Isle of Wight", "modern_name": "Sandford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Sandford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:sand"}], "notes": "Sandy ford"}
+{"_type": "toponym", "ref": "Sandhills@Isle of Wight", "modern_name": "Sandhills", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Sandhills@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyll"}, {"ordinal": 2, "etymon_ref": "old-english:sand"}], "notes": "Sandy hill"}
+{"_type": "toponym", "ref": "Sandown@Isle of Wight", "modern_name": "Sandown", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Sandown@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām"}, {"ordinal": 2, "etymon_ref": "old-english:hamm"}, {"ordinal": 3, "etymon_ref": "old-english:sand"}], "notes": "Sandy homestead/village' or 'hemmed-in land"}
+{"_type": "toponym", "ref": "Sconce Point@Isle of Wight", "modern_name": "Sconce Point", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Sconce Point@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ord"}, {"ordinal": 2, "etymon_ref": "old-english:scearp"}], "notes": "Sharp point'. The present name refers to a fort or 'sconce"}
+{"_type": "toponym", "ref": "Shalcombe@Isle of Wight", "modern_name": "Shalcombe", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Shalcombe@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:sceald"}], "notes": "Shallow valley"}
+{"_type": "toponym", "ref": "Shalfleet@Isle of Wight", "modern_name": "Shalfleet", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Shalfleet@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:flēot"}, {"ordinal": 2, "etymon_ref": "old-english:sceald"}], "notes": "Shallow stream"}
+{"_type": "toponym", "ref": "Shamblers Copse@Isle of Wight", "modern_name": "Shamblers Copse", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Shamblers Copse@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ord"}, {"ordinal": 2, "etymon_ref": "old-english:sceamol"}], "notes": "shelving spit of land"}
+{"_type": "toponym", "ref": "Shanklin@Isle of Wight", "modern_name": "Shanklin", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Shanklin@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hlinc"}, {"ordinal": 2, "etymon_ref": "old-english:scenc"}], "notes": "Drinking-cup ledge"}
+{"_type": "toponym", "ref": "Shate@Isle of Wight", "modern_name": "Shate", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Shate@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scīete"}], "notes": "Strip of land"}
+{"_type": "toponym", "ref": "Sheat@Isle of Wight", "modern_name": "Sheat", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Sheat@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scīete"}], "notes": "Strip of land"}
+{"_type": "toponym", "ref": "Shide@Isle of Wight", "modern_name": "Shide", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Shide@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scīd"}], "notes": "Plank"}
+{"_type": "toponym", "ref": "Shorwell@Isle of Wight", "modern_name": "Shorwell", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Shorwell@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scora"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}], "notes": "Steep-slope spring/stream"}
+{"_type": "toponym", "ref": "Sibdown@Isle of Wight", "modern_name": "Sibdown", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Sibdown@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-english:sīpe"}], "notes": "hill near the marsh/stream"}
+{"_type": "toponym", "ref": "St Catherine's Down@Isle of Wight", "modern_name": "St Catherine's Down", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "St Catherine's Down@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceole"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}, {"ordinal": 3, "etymon_ref": "modern-english:saint"}], "notes": "ravine hill"}
+{"_type": "toponym", "ref": "St. Helens@Isle of Wight", "modern_name": "St. Helens", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "St. Helens@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "farm/settlement connected with Edwynn"}
+{"_type": "toponym", "ref": "St. Lawrence@Isle of Wight", "modern_name": "St. Lawrence", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "St. Lawrence@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "modern-english:saint"}, {"ordinal": 2, "etymon_ref": "old-english:sūð"}, {"ordinal": 3, "etymon_ref": "old-english:under"}, {"ordinal": 4, "etymon_ref": "old-english:wæd"}], "notes": "ford' and split into two parts: Underwathe, 'lower ford' and Southwathe, 'south ford"}
+{"_type": "toponym", "ref": "St. Martin's Down@Isle of Wight", "modern_name": "St. Martin's Down", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "St. Martin's Down@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "modern-english:saint"}, {"ordinal": 3, "etymon_ref": "old-english:smeoru"}], "notes": "butter hill'. The present St. Martin"}
+{"_type": "toponym", "ref": "Standen@Isle of Wight", "modern_name": "Standen", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Standen@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-english:stān"}], "notes": "Stony hill"}
+{"_type": "toponym", "ref": "Staplers@Isle of Wight", "modern_name": "Staplers", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Staplers@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyrst"}, {"ordinal": 2, "etymon_ref": "old-english:stapol"}], "notes": "Post wooded-hill"}
+{"_type": "toponym", "ref": "Stenbury@Isle of Wight", "modern_name": "Stenbury", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Stenbury@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:stǣnen"}], "notes": "Stone fortification"}
+{"_type": "toponym", "ref": "Sticelett@Isle of Wight", "modern_name": "Sticelett", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Sticelett@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:flēot"}, {"ordinal": 2, "etymon_ref": "old-english:Stı̄th"}], "notes": "Stith's shallow stream"}
+{"_type": "toponym", "ref": "Stone@Isle of Wight", "modern_name": "Stone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Stone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:stān"}], "notes": "Stone"}
+{"_type": "toponym", "ref": "Sullens@Isle of Wight", "modern_name": "Sullens", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Sullens@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:swelgend"}], "notes": "Deep place'. It is situated in a deep valley emanating from St. George"}
+{"_type": "toponym", "ref": "Summersbury@Isle of Wight", "modern_name": "Summersbury", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Summersbury@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-english:burh"}, {"ordinal": 3, "etymon_ref": "old-english:sumor"}], "notes": "Sumor's fortification' or 'summer fortification; unresolved personal name(s): Sumor"}
+{"_type": "toponym", "ref": "Sutton@Isle of Wight", "modern_name": "Sutton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Sutton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:sūðan"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "South farm/settlement"}
+{"_type": "toponym", "ref": "Swainston@Isle of Wight", "modern_name": "Swainston", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Swainston@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Sveinn"}], "notes": "Sveinn's farm/settlement"}
+{"_type": "toponym", "ref": "Thorley@Isle of Wight", "modern_name": "Thorley", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Thorley@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree wood/clearing"}
+{"_type": "toponym", "ref": "Thorncross@Isle of Wight", "modern_name": "Thorncross", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Thorncross@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "modern-english:cross"}, {"ordinal": 2, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree cross"}
+{"_type": "toponym", "ref": "Thorness@Isle of Wight", "modern_name": "Thorness", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Thorness@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hæg"}, {"ordinal": 2, "etymon_ref": "old-english:hege"}, {"ordinal": 3, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree hedge' or 'thorn-tree enclosure"}
+{"_type": "toponym", "ref": "Totland@Isle of Wight", "modern_name": "Totland", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Totland@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land"}, {"ordinal": 2, "etymon_ref": "old-english:tōt"}], "notes": "Look-out land"}
+{"_type": "toponym", "ref": "Upper Cockleton@Isle of Wight", "modern_name": "Upper Cockleton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Upper Cockleton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:coccel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Cockle farm/settlement"}
+{"_type": "toponym", "ref": "Upper Hide@Isle of Wight", "modern_name": "Upper Hide", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Upper Hide@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hīd"}], "notes": "Hide'. 'Upper"}
+{"_type": "toponym", "ref": "Ventnor@Isle of Wight", "modern_name": "Ventnor", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Ventnor@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}], "notes": "hollow way"}
+{"_type": "toponym", "ref": "Vittlefield@Isle of Wight", "modern_name": "Vittlefield", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Vittlefield@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "middle-english:fithelare"}], "notes": "fiddle open land"}
+{"_type": "toponym", "ref": "Wackland@Isle of Wight", "modern_name": "Wackland", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Wackland@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land"}, {"ordinal": 2, "etymon_ref": "old-english:wacu"}], "notes": "Watch land'. Speed"}
+{"_type": "toponym", "ref": "Walpan@Isle of Wight", "modern_name": "Walpan", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Walpan@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:penn"}, {"ordinal": 2, "etymon_ref": "old-english:wall"}, {"ordinal": 3, "etymon_ref": "old-english:walu"}, {"ordinal": 4, "etymon_ref": "old-english:wēl"}], "notes": "enclosure'. Perhaps, 'ridge enclosure', 'pool enclosure' or 'wall enclosure"}
+{"_type": "toponym", "ref": "Watchingwell@Isle of Wight", "modern_name": "Watchingwell", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Watchingwell@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:hwǣte"}, {"ordinal": 3, "etymon_ref": "old-english:wella"}], "notes": "Wheat-place stream"}
+{"_type": "toponym", "ref": "Week Farm@Isle of Wight", "modern_name": "Week Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Week Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wīc"}], "notes": "(Specialised) farm"}
+{"_type": "toponym", "ref": "Wellow@Isle of Wight", "modern_name": "Wellow", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Wellow@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wilig"}], "notes": "Willow-tree"}
+{"_type": "toponym", "ref": "Werrar Farm@Isle of Wight", "modern_name": "Werrar Farm", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Werrar Farm@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ōra"}, {"ordinal": 2, "etymon_ref": "old-english:wer"}], "notes": "Weir bank"}
+{"_type": "toponym", "ref": "West Court@Isle of Wight", "modern_name": "West Court", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "West Court@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:court"}, {"ordinal": 2, "etymon_ref": "old-english:scora"}, {"ordinal": 3, "etymon_ref": "old-english:sūð"}, {"ordinal": 4, "etymon_ref": "old-english:wella"}], "notes": "West manor house"}
+{"_type": "toponym", "ref": "West Medina Hundred@Isle of Wight", "modern_name": "West Medina Hundred", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "West Medina Hundred@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hundred"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}]}
+{"_type": "toponym", "ref": "Westbrook House@Isle of Wight", "modern_name": "Westbrook House", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Westbrook House@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:west"}], "notes": "West brook"}
+{"_type": "toponym", "ref": "Weston Manor@Isle of Wight", "modern_name": "Weston Manor", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Weston Manor@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:west"}], "notes": "Western farm/settlement"}
+{"_type": "toponym", "ref": "Westridge@Isle of Wight", "modern_name": "Westridge", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Westridge@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrycg"}, {"ordinal": 2, "etymon_ref": "old-english:west"}], "notes": "West ridge"}
+{"_type": "toponym", "ref": "Whippingham@Isle of Wight", "modern_name": "Whippingham", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Whippingham@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:hamm"}, {"ordinal": 4, "etymon_ref": "old-english:Cippa"}], "notes": "Homestead/village of *Wippa's people' or 'hemmed-in land"}
+{"_type": "toponym", "ref": "Whitcombe@Isle of Wight", "modern_name": "Whitcombe", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Whitcombe@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:hwīt"}, {"ordinal": 3, "etymon_ref": "old-english:wīd"}], "notes": "wide valley' or 'white valley"}
+{"_type": "toponym", "ref": "Whitecliff Bay@Isle of Wight", "modern_name": "Whitecliff Bay", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Whitecliff Bay@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-french:blanche"}, {"ordinal": 2, "etymon_ref": "old-french:faloise"}], "notes": "White cliff"}
+{"_type": "toponym", "ref": "Whitefield@Isle of Wight", "modern_name": "Whitefield", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Whitefield@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "old-english:hwīt"}], "notes": "White open land"}
+{"_type": "toponym", "ref": "Whitwell@Isle of Wight", "modern_name": "Whitwell", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Whitwell@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hwīt"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}], "notes": "White spring/stream"}
+{"_type": "toponym", "ref": "Wilmingham@Isle of Wight", "modern_name": "Wilmingham", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Wilmingham@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:hamm"}, {"ordinal": 4, "etymon_ref": "old-english:Sighelm"}], "notes": "Homestead/village of Wighelm's/Wilhelm's people' or 'hemmed-in land of Wighelm's/Wilhelm's people"}
+{"_type": "toponym", "ref": "Winstone@Isle of Wight", "modern_name": "Winstone", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Winstone@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}], "notes": "Wynsige's farm/settlement; unresolved personal name(s): Wynsige"}
+{"_type": "toponym", "ref": "Wolverton@Isle of Wight", "modern_name": "Wolverton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Wolverton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "middle-english:Wulfweard"}], "notes": "Wulfweard's farm/settlement"}
+{"_type": "toponym", "ref": "Wood@Isle of Wight", "modern_name": "Wood", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Wood@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wudu"}], "notes": "Wood"}
+{"_type": "toponym", "ref": "Woodhouse@Isle of Wight", "modern_name": "Woodhouse", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Woodhouse@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hūs"}, {"ordinal": 2, "etymon_ref": "old-english:wudu"}], "notes": "Wood house"}
+{"_type": "toponym", "ref": "Wootton@Isle of Wight", "modern_name": "Wootton", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Wootton@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:wudig"}], "notes": "Wood farm/settlement"}
+{"_type": "toponym", "ref": "Wroxall@Isle of Wight", "modern_name": "Wroxall", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Wroxall@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}, {"ordinal": 2, "etymon_ref": "old-english:wrocc"}], "notes": "At the buzzard's nook of land"}
+{"_type": "toponym", "ref": "Wydcombe@Isle of Wight", "modern_name": "Wydcombe", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Wydcombe@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:wīd"}], "notes": "Wide valley"}
+{"_type": "toponym", "ref": "Yafford@Isle of Wight", "modern_name": "Yafford", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Yafford@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:hæcc"}], "notes": "Hatch ford"}
+{"_type": "toponym", "ref": "Yarbridge@Isle of Wight", "modern_name": "Yarbridge", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Yarbridge@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brycg"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "Bridge on the River Yar"}
+{"_type": "toponym", "ref": "Yarmouth@Isle of Wight", "modern_name": "Yarmouth", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Yarmouth@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēaren"}, {"ordinal": 2, "etymon_ref": "old-english:mūða"}], "notes": "Gravelly river-mouth"}
+{"_type": "toponym", "ref": "Yaverland@Isle of Wight", "modern_name": "Yaverland", "country": "England", "region": "Isle of Wight"}
+{"_type": "etymology_element", "toponym_ref": "Yaverland@Isle of Wight", "elements": [{"ordinal": 1, "etymon_ref": "old-english:eofor"}, {"ordinal": 2, "etymon_ref": "old-english:land"}], "notes": "Wild boar land"}

@@ -158,60 +158,60 @@
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "completed_at": "2026-04-30T23:35:49.031Z", "parsed_count": 3, "accepted": 3, "declined": 0, "rejected": 0, "notes": "celtic-haiku batch (pre celtic-parser fix)"}
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "completed_at": "2026-05-01T00:24:41.964Z", "parsed_count": 78, "accepted": 65, "declined": 13, "rejected": 0, "notes": "celtic-haiku-rerun (post parser fix)"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T15:08:14.913746+00:00", "completed_at": "2026-05-05T15:12:53.233015+00:00", "parsed_count": 29, "accepted": 24, "declined": 4, "rejected": 1, "by_failure": "{\"element_count_out_of_range\": 1}"}
-{"_type": "toponym", "ref": "Ard@Isle of Man", "modern_name": "Ard", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Armyn@Isle of Man", "modern_name": "Armyn", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Awin@Isle of Man", "modern_name": "Awin", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Ballacarmick@Isle of Man", "modern_name": "Ballacarmick", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Ballafreer@Isle of Man", "modern_name": "Ballafreer", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Ballakillowy@Isle of Man", "modern_name": "Ballakillowy", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Ballaqueeney and Ballaquinea@Isle of Man", "modern_name": "Ballaqueeney and Ballaquinea", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Barna-Ellan-renny@Isle of Man", "modern_name": "Barna-Ellan-renny", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Beishteig@Isle of Man", "modern_name": "Beishteig", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Boa@Isle of Man", "modern_name": "Boa", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Cabbag@Isle of Man", "modern_name": "Cabbag", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Cliwe@Isle of Man", "modern_name": "Cliwe", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Close Vark@Isle of Man", "modern_name": "Close Vark", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Coonlagh@Isle of Man", "modern_name": "Coonlagh", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Crane@Isle of Man", "modern_name": "Crane", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Croit Freer@Isle of Man", "modern_name": "Croit Freer", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Eairkan@Isle of Man", "modern_name": "Eairkan", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Edd@Isle of Man", "modern_name": "Edd", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Fannag@Isle of Man", "modern_name": "Fannag", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Farm@Isle of Man", "modern_name": "Farm", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Farrane@Isle of Man", "modern_name": "Farrane", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Fasiiey@Isle of Man", "modern_name": "Fasiiey", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Feeagh@Isle of Man", "modern_name": "Feeagh", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Gcay@Isle of Man", "modern_name": "Gcay", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Glaise@Isle of Man", "modern_name": "Glaise", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Glione Kerrad@Isle of Man", "modern_name": "Glione Kerrad", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Grian@Isle of Man", "modern_name": "Grian", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Holmr@Isle of Man", "modern_name": "Holmr", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "JiARG@Isle of Man", "modern_name": "JiARG", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Kcyll@Isle of Man", "modern_name": "Kcyll", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Keeill@Isle of Man", "modern_name": "Keeill", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Koir@Isle of Man", "modern_name": "Koir", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Laagh@Isle of Man", "modern_name": "Laagh", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Lag@Isle of Man", "modern_name": "Lag", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Lann@Isle of Man", "modern_name": "Lann", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Lonan@Isle of Man", "modern_name": "Lonan", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Maase@Isle of Man", "modern_name": "Maase", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Managh@Isle of Man", "modern_name": "Managh", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Nahbi@Isle of Man", "modern_name": "Nahbi", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Quallian@Isle of Man", "modern_name": "Quallian", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Ree@Isle of Man", "modern_name": "Ree", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Riiillic@Isle of Man", "modern_name": "Riiillic", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Roayrt@Isle of Man", "modern_name": "Roayrt", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Sioyl@Isle of Man", "modern_name": "Sioyl", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Skeddan@Isle of Man", "modern_name": "Skeddan", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Skeeylley Cairbre@Isle of Man", "modern_name": "Skeeylley Cairbre", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Sloat@Isle of Man", "modern_name": "Sloat", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "St@Isle of Man", "modern_name": "St", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Sthowyr@Isle of Man", "modern_name": "Sthowyr", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Traagh@Isle of Man", "modern_name": "Traagh", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Tuar@Isle of Man", "modern_name": "Tuar", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Urley@Isle of Man", "modern_name": "Urley", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "Ushag@Isle of Man", "modern_name": "Ushag", "region": "Isle of Man"}
-{"_type": "toponym", "ref": "YiARN Jerrey@Isle of Man", "modern_name": "YiARN Jerrey", "region": "Isle of Man"}
+{"_type": "toponym", "ref": "Ard@Isle of Man", "modern_name": "Ard", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Armyn@Isle of Man", "modern_name": "Armyn", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Awin@Isle of Man", "modern_name": "Awin", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Ballacarmick@Isle of Man", "modern_name": "Ballacarmick", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Ballafreer@Isle of Man", "modern_name": "Ballafreer", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Ballakillowy@Isle of Man", "modern_name": "Ballakillowy", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Ballaqueeney and Ballaquinea@Isle of Man", "modern_name": "Ballaqueeney and Ballaquinea", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Barna-Ellan-renny@Isle of Man", "modern_name": "Barna-Ellan-renny", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Beishteig@Isle of Man", "modern_name": "Beishteig", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Boa@Isle of Man", "modern_name": "Boa", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Cabbag@Isle of Man", "modern_name": "Cabbag", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Cliwe@Isle of Man", "modern_name": "Cliwe", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Close Vark@Isle of Man", "modern_name": "Close Vark", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Coonlagh@Isle of Man", "modern_name": "Coonlagh", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Crane@Isle of Man", "modern_name": "Crane", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Croit Freer@Isle of Man", "modern_name": "Croit Freer", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Eairkan@Isle of Man", "modern_name": "Eairkan", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Edd@Isle of Man", "modern_name": "Edd", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Fannag@Isle of Man", "modern_name": "Fannag", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Farm@Isle of Man", "modern_name": "Farm", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Farrane@Isle of Man", "modern_name": "Farrane", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Fasiiey@Isle of Man", "modern_name": "Fasiiey", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Feeagh@Isle of Man", "modern_name": "Feeagh", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Gcay@Isle of Man", "modern_name": "Gcay", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Glaise@Isle of Man", "modern_name": "Glaise", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Glione Kerrad@Isle of Man", "modern_name": "Glione Kerrad", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Grian@Isle of Man", "modern_name": "Grian", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Holmr@Isle of Man", "modern_name": "Holmr", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "JiARG@Isle of Man", "modern_name": "JiARG", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Kcyll@Isle of Man", "modern_name": "Kcyll", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Keeill@Isle of Man", "modern_name": "Keeill", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Koir@Isle of Man", "modern_name": "Koir", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Laagh@Isle of Man", "modern_name": "Laagh", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Lag@Isle of Man", "modern_name": "Lag", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Lann@Isle of Man", "modern_name": "Lann", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Lonan@Isle of Man", "modern_name": "Lonan", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Maase@Isle of Man", "modern_name": "Maase", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Managh@Isle of Man", "modern_name": "Managh", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Nahbi@Isle of Man", "modern_name": "Nahbi", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Quallian@Isle of Man", "modern_name": "Quallian", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Ree@Isle of Man", "modern_name": "Ree", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Riiillic@Isle of Man", "modern_name": "Riiillic", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Roayrt@Isle of Man", "modern_name": "Roayrt", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Sioyl@Isle of Man", "modern_name": "Sioyl", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Skeddan@Isle of Man", "modern_name": "Skeddan", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Skeeylley Cairbre@Isle of Man", "modern_name": "Skeeylley Cairbre", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Sloat@Isle of Man", "modern_name": "Sloat", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "St@Isle of Man", "modern_name": "St", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Sthowyr@Isle of Man", "modern_name": "Sthowyr", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Traagh@Isle of Man", "modern_name": "Traagh", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Tuar@Isle of Man", "modern_name": "Tuar", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Urley@Isle of Man", "modern_name": "Urley", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "Ushag@Isle of Man", "modern_name": "Ushag", "region": "Isle of Man", "country": "Isle of Man"}
+{"_type": "toponym", "ref": "YiARN Jerrey@Isle of Man", "modern_name": "YiARN Jerrey", "region": "Isle of Man", "country": "Isle of Man"}
 {"_type": "etymology_element", "toponym_ref": "Ard@Isle of Man", "elements": [{"ordinal": 0, "etymon_ref": "celtic:ard"}], "historical_form": "Ard", "confidence": "high", "notes": "extracted_by:anthropic:claude-sonnet-4-6 | Ard, in Ballanard (yn-ard), and Ballanahard, * Farm of the Height ;' Kerroo-na-ard, ' Quarter of the Height.' Cashtal-yn-ard, ' Castle of the Height ;' and C"}
 {"_type": "etymology_element", "toponym_ref": "Armyn@Isle of Man", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:arm"}, {"ordinal": 1, "etymon_ref": "celtic:yn", "inflection": "plural"}], "historical_form": "Arm-yn", "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Scholar interprets 'Armyn' as a Manx plural of 'arm' meaning 'arms'; used in compound Cronk Armyn ('Arms Hill'), suggesting discovery of weapons or bones. The"}
 {"_type": "etymology_element", "toponym_ref": "Armyn@Isle of Man", "elements": [{"ordinal": 0, "etymon_ref": "modern-english:armyn", "inflection": "plural"}], "historical_form": "Armyn", "confidence": "medium", "notes": "extracted_by:gemini:gemini-2.5-flash; The name 'would seem to commemorate a similar discovery'. | Armyn (plural of arm), * arms ;' in Cronk Armyn, ' Arms' Hill,' a tumulus close by Cronk- y-Cliwe, would seem to commemorate a similar discovery. * Joyce, Irish Names of Places, 2nd ed., p. 431. 12 — 2 t8o Manx I^Iace-Mame^e."}

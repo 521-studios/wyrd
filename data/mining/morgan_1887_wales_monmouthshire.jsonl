@@ -141,43 +141,43 @@
 {"_type": "citation", "etymon_ref": "latin:pyrr", "short_quote": "extracted_by:gemini:gemini-2.5-flash; The 'Man or bear' derivation is dismissed. Other suggested origins for 'Pyrr' include 'Barri' (Norman lord), 'por' (lord), or 'beyr' (Norse for farm-stead), but the text favors 'Pyrrus' via Giraldus Cambrensis. | Manorbier. — Very many of the inhabitants think the name was derived from an expression made by the eye-witnesses of a conflict that took place between a man and a bear. When the combatants met vis-a-vis, the people shouted ** Man or bear,\" hence Ma"}
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "completed_at": "2026-04-30T23:35:40.942Z", "parsed_count": 61, "accepted": 50, "declined": 3, "rejected": 8, "notes": "celtic-haiku batch"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T15:16:02.186139+00:00", "completed_at": "2026-05-05T15:18:24.887265+00:00", "parsed_count": 12, "accepted": 10, "declined": 1, "rejected": 1, "by_failure": "{\"attested_form_not_in_body\": 1}"}
-{"_type": "toponym", "ref": "Abbey Cwm Hir@Wales and Monmouthshire", "modern_name": "Abbey Cwm Hir", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "BovERTON@Wales and Monmouthshire", "modern_name": "BovERTON", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Cefnllys@Wales and Monmouthshire", "modern_name": "Cefnllys", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "CowBRiDGE@Wales and Monmouthshire", "modern_name": "CowBRiDGE", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Cyfeiliog@Wales and Monmouthshire", "modern_name": "Cyfeiliog", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Flatholm@Wales and Monmouthshire", "modern_name": "Flatholm", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Hope@Wales and Monmouthshire", "modern_name": "Hope", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Lantwit-Major@Wales and Monmouthshire", "modern_name": "Lantwit-Major", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Llanasa@Wales and Monmouthshire", "modern_name": "Llanasa", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Llandaff@Wales and Monmouthshire", "modern_name": "Llandaff", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Llandrindod@Wales and Monmouthshire", "modern_name": "Llandrindod", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Llanedeyrn@Wales and Monmouthshire", "modern_name": "Llanedeyrn", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Llangynfarch@Wales and Monmouthshire", "modern_name": "Llangynfarch", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Llanthony@Wales and Monmouthshire", "modern_name": "Llanthony", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Llanymechain@Wales and Monmouthshire", "modern_name": "Llanymechain", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Maesgarmon@Wales and Monmouthshire", "modern_name": "Maesgarmon", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Maesteg@Wales and Monmouthshire", "modern_name": "Maesteg", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Manorbier@Wales and Monmouthshire", "modern_name": "Manorbier", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Margam@Wales and Monmouthshire", "modern_name": "Margam", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Merthyr Tydfil@Wales and Monmouthshire", "modern_name": "Merthyr Tydfil", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "MiDDLEMiLL@Wales and Monmouthshire", "modern_name": "MiDDLEMiLL", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Newtown@Wales and Monmouthshire", "modern_name": "Newtown", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Pen RICE@Wales and Monmouthshire", "modern_name": "Pen RICE", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "PoNTARDAWE@Wales and Monmouthshire", "modern_name": "PoNTARDAWE", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Port Talbot@Wales and Monmouthshire", "modern_name": "Port Talbot", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Port Tennant@Wales and Monmouthshire", "modern_name": "Port Tennant", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Quaker's Yard@Wales and Monmouthshire", "modern_name": "Quaker's Yard", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Rhiw Saeson@Wales and Monmouthshire", "modern_name": "Rhiw Saeson", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Saltney@Wales and Monmouthshire", "modern_name": "Saltney", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Sealand@Wales and Monmouthshire", "modern_name": "Sealand", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "TiNTERK Abbey@Wales and Monmouthshire", "modern_name": "TiNTERK Abbey", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Tredegar@Wales and Monmouthshire", "modern_name": "Tredegar", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Treharris@Wales and Monmouthshire", "modern_name": "Treharris", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Treherbert@Wales and Monmouthshire", "modern_name": "Treherbert", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Tylorstown@Wales and Monmouthshire", "modern_name": "Tylorstown", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "Waun Avon@Wales and Monmouthshire", "modern_name": "Waun Avon", "region": "Wales and Monmouthshire"}
-{"_type": "toponym", "ref": "YsTRAD Owen@Wales and Monmouthshire", "modern_name": "YsTRAD Owen", "region": "Wales and Monmouthshire"}
+{"_type": "toponym", "ref": "Abbey Cwm Hir@Wales and Monmouthshire", "modern_name": "Abbey Cwm Hir", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "BovERTON@Wales and Monmouthshire", "modern_name": "BovERTON", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Cefnllys@Wales and Monmouthshire", "modern_name": "Cefnllys", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "CowBRiDGE@Wales and Monmouthshire", "modern_name": "CowBRiDGE", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Cyfeiliog@Wales and Monmouthshire", "modern_name": "Cyfeiliog", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Flatholm@Wales and Monmouthshire", "modern_name": "Flatholm", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Hope@Wales and Monmouthshire", "modern_name": "Hope", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Lantwit-Major@Wales and Monmouthshire", "modern_name": "Lantwit-Major", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanasa@Wales and Monmouthshire", "modern_name": "Llanasa", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Llandaff@Wales and Monmouthshire", "modern_name": "Llandaff", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Llandrindod@Wales and Monmouthshire", "modern_name": "Llandrindod", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanedeyrn@Wales and Monmouthshire", "modern_name": "Llanedeyrn", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Llangynfarch@Wales and Monmouthshire", "modern_name": "Llangynfarch", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanthony@Wales and Monmouthshire", "modern_name": "Llanthony", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanymechain@Wales and Monmouthshire", "modern_name": "Llanymechain", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Maesgarmon@Wales and Monmouthshire", "modern_name": "Maesgarmon", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Maesteg@Wales and Monmouthshire", "modern_name": "Maesteg", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Manorbier@Wales and Monmouthshire", "modern_name": "Manorbier", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Margam@Wales and Monmouthshire", "modern_name": "Margam", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Merthyr Tydfil@Wales and Monmouthshire", "modern_name": "Merthyr Tydfil", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "MiDDLEMiLL@Wales and Monmouthshire", "modern_name": "MiDDLEMiLL", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Newtown@Wales and Monmouthshire", "modern_name": "Newtown", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Pen RICE@Wales and Monmouthshire", "modern_name": "Pen RICE", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "PoNTARDAWE@Wales and Monmouthshire", "modern_name": "PoNTARDAWE", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Port Talbot@Wales and Monmouthshire", "modern_name": "Port Talbot", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Port Tennant@Wales and Monmouthshire", "modern_name": "Port Tennant", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Quaker's Yard@Wales and Monmouthshire", "modern_name": "Quaker's Yard", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Rhiw Saeson@Wales and Monmouthshire", "modern_name": "Rhiw Saeson", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Saltney@Wales and Monmouthshire", "modern_name": "Saltney", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Sealand@Wales and Monmouthshire", "modern_name": "Sealand", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "TiNTERK Abbey@Wales and Monmouthshire", "modern_name": "TiNTERK Abbey", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Tredegar@Wales and Monmouthshire", "modern_name": "Tredegar", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Treharris@Wales and Monmouthshire", "modern_name": "Treharris", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Treherbert@Wales and Monmouthshire", "modern_name": "Treherbert", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Tylorstown@Wales and Monmouthshire", "modern_name": "Tylorstown", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "Waun Avon@Wales and Monmouthshire", "modern_name": "Waun Avon", "region": "Wales and Monmouthshire", "country": "Wales"}
+{"_type": "toponym", "ref": "YsTRAD Owen@Wales and Monmouthshire", "modern_name": "YsTRAD Owen", "region": "Wales and Monmouthshire", "country": "Wales"}
 {"_type": "etymology_element", "toponym_ref": "Abbey Cwm Hir@Wales and Monmouthshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:cwm"}, {"ordinal": 1, "etymon_ref": "celtic:hir"}], "historical_form": "Cwm-Hir", "confidence": "high", "notes": "extracted_by:anthropic:claude-sonnet-4-6; The 'Abbey' prefix derives from the abbey built by Cadwallon ab Madoc in 1143. The core place-name Cwm Hir means 'long vale' in Welsh. | Abbey Cwm Hir. — Cwm ", "attested_year": 1143}
 {"_type": "etymology_element", "toponym_ref": "BovERTON@Wales and Monmouthshire", "elements": [{"ordinal": 0, "etymon_ref": "latin:bovium"}], "historical_form": "Bovium", "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Scholar describes Boverton as a corruption of the Latin Roman station name Bovium; the addition of '-ton' is implied but not explicitly analysed. | BovERTON. "}
 {"_type": "etymology_element", "toponym_ref": "BovERTON@Wales and Monmouthshire", "elements": [{"ordinal": 0, "etymon_ref": "latin:bovium"}], "historical_form": "Bovium", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | BovERTON. — A corruption oi Bovium, the name of a Roman station which stood near the road called Julia Strata Maritana. There are extensive remains of Roman camps in the vicinity. In 1798 a considerable number of Roman coins were discovered here."}
@@ -225,11 +225,11 @@
 {"_type": "etymology_element", "toponym_ref": "Waun Avon@Wales and Monmouthshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:waun"}, {"ordinal": 1, "etymon_ref": "celtic:afon"}], "historical_form": "waun-afon", "confidence": "high", "notes": "extracted_by:anthropic:claude-sonnet-4-6 | Waun Avon. — A compound of waun, meadow, moor ; and afon, river, from its proximity to the source of the river Llwyd. English name — Rivermoor. MONTGOMERYSHI"}
 {"_type": "etymology_element", "toponym_ref": "YsTRAD Owen@Wales and Monmouthshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:ystrad"}, {"ordinal": 1, "etymon_ref": "celtic:owen"}], "historical_form": "Ystrad-Owen", "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; The scholar explains the name by reference to Prince Owen (son of Morgan Hen, d. 987) taking up his abode here; the Welsh element 'Ystrad' is implied by the p", "attested_year": 987}
 {"_type": "etymology_element", "toponym_ref": "YsTRAD Owen@Wales and Monmouthshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:owen"}], "historical_form": "YsTRAD-Owen", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | YsTRAD Owen. — Prince Owen, the son of Morgan Hen, the king of Glamorgan, took up his abode in this parish, and his remains were consigned to their last resting-place here in the year 987 ; hence the name, English name — Owenston.", "attested_year": 987}
-{"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales"}
-{"_type": "toponym", "ref": "Gelligaer@Wales", "modern_name": "Gelligaer", "region": "Wales"}
-{"_type": "toponym", "ref": "Wales@Yorkshire", "modern_name": "Wales", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Gelligaer@Wales", "modern_name": "Gelligaer", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Wales@West Riding", "modern_name": "Wales", "country": "England", "region": "West Riding"}
 {"_type": "attestation", "toponym_ref": "Abbey Cwm Hir@Wales and Monmouthshire", "form": "Madoc", "date_year": 1143, "source_doc": "morgan_1887_wales_monmouthshire"}
 {"_type": "attestation", "toponym_ref": "Garthen@Wales", "form": "Saxons", "date_year": 1161, "source_doc": "morgan_1887_wales_monmouthshire"}
 {"_type": "attestation", "toponym_ref": "Gelligaer@Wales", "form": "Owen", "date_year": 1140, "source_doc": "morgan_1887_wales_monmouthshire"}
 {"_type": "attestation", "toponym_ref": "Pen RICE@Wales and Monmouthshire", "form": "Normans", "date_year": 1099, "source_doc": "morgan_1887_wales_monmouthshire"}
-{"_type": "attestation", "toponym_ref": "Wales@Yorkshire", "form": "Wales", "date_year": 1283, "source_doc": "morgan_1887_wales_monmouthshire"}
+{"_type": "attestation", "toponym_ref": "Wales@West Riding", "form": "Wales", "date_year": 1283, "source_doc": "morgan_1887_wales_monmouthshire"}

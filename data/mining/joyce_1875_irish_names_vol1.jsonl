@@ -486,153 +486,153 @@
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "completed_at": "2026-04-30T23:35:49.031Z", "parsed_count": 0, "accepted": 0, "declined": 0, "rejected": 0, "notes": "celtic-haiku batch — 0 entries (pre celtic-parser fix)"}
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "completed_at": "2026-05-01T02:18:06.979Z", "parsed_count": 1149, "accepted": 240, "declined": 754, "rejected": 155, "notes": "celtic-haiku-rerun"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T14:36:24.726685+00:00", "completed_at": "2026-05-05T14:53:27.047609+00:00", "parsed_count": 105, "accepted": 59, "declined": 15, "rejected": 31, "by_failure": "{\"element_count_out_of_range\": 30, \"form_not_in_body\": 4}"}
-{"_type": "toponym", "ref": "Ants and Midges@Ireland", "modern_name": "Ants and Midges", "region": "Ireland"}
-{"_type": "toponym", "ref": "Arbutus@Ireland", "modern_name": "Arbutus", "region": "Ireland"}
-{"_type": "toponym", "ref": "Ardrass@Ireland", "modern_name": "Ardrass", "region": "Ireland"}
-{"_type": "toponym", "ref": "Astee@Ireland", "modern_name": "Astee", "region": "Ireland"}
-{"_type": "toponym", "ref": "Bacus@Ireland", "modern_name": "Bacus", "region": "Ireland"}
-{"_type": "toponym", "ref": "BallybogbiU@Ireland", "modern_name": "BallybogbiU", "region": "Ireland"}
-{"_type": "toponym", "ref": "Ballynona@Ireland", "modern_name": "Ballynona", "region": "Ireland"}
-{"_type": "toponym", "ref": "Bealanabrack@Ireland", "modern_name": "Bealanabrack", "region": "Ireland"}
-{"_type": "toponym", "ref": "Beans@Ireland", "modern_name": "Beans", "region": "Ireland"}
-{"_type": "toponym", "ref": "Bencullagh@Ireland", "modern_name": "Bencullagh", "region": "Ireland"}
-{"_type": "toponym", "ref": "Berries@Ireland", "modern_name": "Berries", "region": "Ireland"}
-{"_type": "toponym", "ref": "Blackberry@Ireland", "modern_name": "Blackberry", "region": "Ireland"}
-{"_type": "toponym", "ref": "Bohammer@Ireland", "modern_name": "Bohammer", "region": "Ireland"}
-{"_type": "toponym", "ref": "Breac@Ireland", "modern_name": "Breac", "region": "Ireland"}
-{"_type": "toponym", "ref": "Breadth@Ireland", "modern_name": "Breadth", "region": "Ireland"}
-{"_type": "toponym", "ref": "Brean@Ireland", "modern_name": "Brean", "region": "Ireland"}
-{"_type": "toponym", "ref": "Breandrum@Ireland", "modern_name": "Breandrum", "region": "Ireland"}
-{"_type": "toponym", "ref": "Breast@Ireland", "modern_name": "Breast", "region": "Ireland"}
-{"_type": "toponym", "ref": "Brown@Ireland", "modern_name": "Brown", "region": "Ireland"}
-{"_type": "toponym", "ref": "Bunclody@Ireland", "modern_name": "Bunclody", "region": "Ireland"}
-{"_type": "toponym", "ref": "Bunkey@Ireland", "modern_name": "Bunkey", "region": "Ireland"}
-{"_type": "toponym", "ref": "Caherea@Ireland", "modern_name": "Caherea", "region": "Ireland"}
-{"_type": "toponym", "ref": "Caldron@Ireland", "modern_name": "Caldron", "region": "Ireland"}
-{"_type": "toponym", "ref": "Carrigleigh@Ireland", "modern_name": "Carrigleigh", "region": "Ireland"}
-{"_type": "toponym", "ref": "Carrignagat@Ireland", "modern_name": "Carrignagat", "region": "Ireland"}
-{"_type": "toponym", "ref": "Cashel-oir@Ireland", "modern_name": "Cashel-oir", "region": "Ireland"}
-{"_type": "toponym", "ref": "Castlebeg@Ireland", "modern_name": "Castlebeg", "region": "Ireland"}
-{"_type": "toponym", "ref": "Castleore@Ireland", "modern_name": "Castleore", "region": "Ireland"}
-{"_type": "toponym", "ref": "Ciirragrean@Ireland", "modern_name": "Ciirragrean", "region": "Ireland"}
-{"_type": "toponym", "ref": "Clashbane@Ireland", "modern_name": "Clashbane", "region": "Ireland"}
-{"_type": "toponym", "ref": "Clashgarriff@Ireland", "modern_name": "Clashgarriff", "region": "Ireland"}
-{"_type": "toponym", "ref": "Clonbunny@Ireland", "modern_name": "Clonbunny", "region": "Ireland"}
-{"_type": "toponym", "ref": "Clonegah@Ireland", "modern_name": "Clonegah", "region": "Ireland"}
-{"_type": "toponym", "ref": "Clonmeen@Ireland", "modern_name": "Clonmeen", "region": "Ireland"}
-{"_type": "toponym", "ref": "Clonoura@Ireland", "modern_name": "Clonoura", "region": "Ireland"}
-{"_type": "toponym", "ref": "Cloonbony@Ireland", "modern_name": "Cloonbony", "region": "Ireland"}
-{"_type": "toponym", "ref": "Cloonlayis@Ireland", "modern_name": "Cloonlayis", "region": "Ireland"}
-{"_type": "toponym", "ref": "Coirce@Ireland", "modern_name": "Coirce", "region": "Ireland"}
-{"_type": "toponym", "ref": "Cold@Ireland", "modern_name": "Cold", "region": "Ireland"}
-{"_type": "toponym", "ref": "Colours@Ireland", "modern_name": "Colours", "region": "Ireland"}
-{"_type": "toponym", "ref": "Corcoge Mountain@Ireland", "modern_name": "Corcoge Mountain", "region": "Ireland"}
-{"_type": "toponym", "ref": "Cormorant@Ireland", "modern_name": "Cormorant", "region": "Ireland"}
-{"_type": "toponym", "ref": "Corrower@Ireland", "modern_name": "Corrower", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dandelion@Ireland", "modern_name": "Dandelion", "region": "Ireland"}
-{"_type": "toponym", "ref": "Deisceart@Ireland", "modern_name": "Deisceart", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dergraw@Ireland", "modern_name": "Dergraw", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dernaglug@Ireland", "modern_name": "Dernaglug", "region": "Ireland"}
-{"_type": "toponym", "ref": "Derrygalun@Ireland", "modern_name": "Derrygalun", "region": "Ireland"}
-{"_type": "toponym", "ref": "Derryowen@Ireland", "modern_name": "Derryowen", "region": "Ireland"}
-{"_type": "toponym", "ref": "Diris@Ireland", "modern_name": "Diris", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dooally@Ireland", "modern_name": "Dooally", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dooish@Ireland", "modern_name": "Dooish", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dromdihy@Ireland", "modern_name": "Dromdihy", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dromiskin@Ireland", "modern_name": "Dromiskin", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dromkeen@Ireland", "modern_name": "Dromkeen", "region": "Ireland"}
-{"_type": "toponym", "ref": "Drumantine@Ireland", "modern_name": "Drumantine", "region": "Ireland"}
-{"_type": "toponym", "ref": "Drumcett@Ireland", "modern_name": "Drumcett", "region": "Ireland"}
-{"_type": "toponym", "ref": "Drumcoora@Ireland", "modern_name": "Drumcoora", "region": "Ireland"}
-{"_type": "toponym", "ref": "Drumkeo@Ireland", "modern_name": "Drumkeo", "region": "Ireland"}
-{"_type": "toponym", "ref": "Drumrahan@Ireland", "modern_name": "Drumrahan", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dunbolg@Ireland", "modern_name": "Dunbolg", "region": "Ireland"}
-{"_type": "toponym", "ref": "Dundooan@Ireland", "modern_name": "Dundooan", "region": "Ireland"}
-{"_type": "toponym", "ref": "Ear@Ireland", "modern_name": "Ear", "region": "Ireland"}
-{"_type": "toponym", "ref": "Eel@Ireland", "modern_name": "Eel", "region": "Ireland"}
-{"_type": "toponym", "ref": "Ejincaslough@Ireland", "modern_name": "Ejincaslough", "region": "Ireland"}
-{"_type": "toponym", "ref": "Eorna@Ireland", "modern_name": "Eorna", "region": "Ireland"}
-{"_type": "toponym", "ref": "Fearann@Ireland", "modern_name": "Fearann", "region": "Ireland"}
-{"_type": "toponym", "ref": "Fire-wood@Ireland", "modern_name": "Fire-wood", "region": "Ireland"}
-{"_type": "toponym", "ref": "Flagger@Ireland", "modern_name": "Flagger", "region": "Ireland"}
-{"_type": "toponym", "ref": "Fog@Ireland", "modern_name": "Fog", "region": "Ireland"}
-{"_type": "toponym", "ref": "Fold@Ireland", "modern_name": "Fold", "region": "Ireland"}
-{"_type": "toponym", "ref": "Garbh-cUioire@Ireland", "modern_name": "Garbh-cUioire", "region": "Ireland"}
-{"_type": "toponym", "ref": "Garlic@Ireland", "modern_name": "Garlic", "region": "Ireland"}
-{"_type": "toponym", "ref": "Glancam@Ireland", "modern_name": "Glancam", "region": "Ireland"}
-{"_type": "toponym", "ref": "Glear@Ireland", "modern_name": "Glear", "region": "Ireland"}
-{"_type": "toponym", "ref": "Glenbower@Ireland", "modern_name": "Glenbower", "region": "Ireland"}
-{"_type": "toponym", "ref": "Gold@Ireland", "modern_name": "Gold", "region": "Ireland"}
-{"_type": "toponym", "ref": "Gortnagap@Ireland", "modern_name": "Gortnagap", "region": "Ireland"}
-{"_type": "toponym", "ref": "Gortnagranagher@Ireland", "modern_name": "Gortnagranagher", "region": "Ireland"}
-{"_type": "toponym", "ref": "Gortnalahee@Ireland", "modern_name": "Gortnalahee", "region": "Ireland"}
-{"_type": "toponym", "ref": "Graigavine@Ireland", "modern_name": "Graigavine", "region": "Ireland"}
-{"_type": "toponym", "ref": "Gravel@Ireland", "modern_name": "Gravel", "region": "Ireland"}
-{"_type": "toponym", "ref": "Grouse@Ireland", "modern_name": "Grouse", "region": "Ireland"}
-{"_type": "toponym", "ref": "Head Residence@Ireland", "modern_name": "Head Residence", "region": "Ireland"}
-{"_type": "toponym", "ref": "Hedge@Ireland", "modern_name": "Hedge", "region": "Ireland"}
-{"_type": "toponym", "ref": "Heifer@Ireland", "modern_name": "Heifer", "region": "Ireland"}
-{"_type": "toponym", "ref": "Herb@Ireland", "modern_name": "Herb", "region": "Ireland"}
-{"_type": "toponym", "ref": "Hue@Ireland", "modern_name": "Hue", "region": "Ireland"}
-{"_type": "toponym", "ref": "Iron@Ireland", "modern_name": "Iron", "region": "Ireland"}
-{"_type": "toponym", "ref": "Kilns@Ireland", "modern_name": "Kilns", "region": "Ireland"}
-{"_type": "toponym", "ref": "Knackoura@Ireland", "modern_name": "Knackoura", "region": "Ireland"}
-{"_type": "toponym", "ref": "Leamhnacht@Ireland", "modern_name": "Leamhnacht", "region": "Ireland"}
-{"_type": "toponym", "ref": "Lin@Ireland", "modern_name": "Lin", "region": "Ireland"}
-{"_type": "toponym", "ref": "Lisroe@Ireland", "modern_name": "Lisroe", "region": "Ireland"}
-{"_type": "toponym", "ref": "Meenanimerish@Ireland", "modern_name": "Meenanimerish", "region": "Ireland"}
-{"_type": "toponym", "ref": "Middle@Ireland", "modern_name": "Middle", "region": "Ireland"}
-{"_type": "toponym", "ref": "Monachunna@Ireland", "modern_name": "Monachunna", "region": "Ireland"}
-{"_type": "toponym", "ref": "Monaglian@Ireland", "modern_name": "Monaglian", "region": "Ireland"}
-{"_type": "toponym", "ref": "Monaree@Ireland", "modern_name": "Monaree", "region": "Ireland"}
-{"_type": "toponym", "ref": "Monasteries@Ireland", "modern_name": "Monasteries", "region": "Ireland"}
-{"_type": "toponym", "ref": "Mor@Ireland", "modern_name": "Mor", "region": "Ireland"}
-{"_type": "toponym", "ref": "Moss@Ireland", "modern_name": "Moss", "region": "Ireland"}
-{"_type": "toponym", "ref": "Moy@Ireland", "modern_name": "Moy", "region": "Ireland"}
-{"_type": "toponym", "ref": "Mullaghcroy@Ireland", "modern_name": "Mullaghcroy", "region": "Ireland"}
-{"_type": "toponym", "ref": "NeaF@Ireland", "modern_name": "NeaF", "region": "Ireland"}
-{"_type": "toponym", "ref": "Nook@Ireland", "modern_name": "Nook", "region": "Ireland"}
-{"_type": "toponym", "ref": "Nut@Ireland", "modern_name": "Nut", "region": "Ireland"}
-{"_type": "toponym", "ref": "Oats@Ireland", "modern_name": "Oats", "region": "Ireland"}
-{"_type": "toponym", "ref": "Odhar@Ireland", "modern_name": "Odhar", "region": "Ireland"}
-{"_type": "toponym", "ref": "Oortlahan@Ireland", "modern_name": "Oortlahan", "region": "Ireland"}
-{"_type": "toponym", "ref": "Oreij@Ireland", "modern_name": "Oreij", "region": "Ireland"}
-{"_type": "toponym", "ref": "Pollataggle@Ireland", "modern_name": "Pollataggle", "region": "Ireland"}
-{"_type": "toponym", "ref": "Port@Ireland", "modern_name": "Port", "region": "Ireland"}
-{"_type": "toponym", "ref": "Portland@Ireland", "modern_name": "Portland", "region": "Ireland"}
-{"_type": "toponym", "ref": "Rath-seanaidh@Ireland", "modern_name": "Rath-seanaidh", "region": "Ireland"}
-{"_type": "toponym", "ref": "Rathargid@Ireland", "modern_name": "Rathargid", "region": "Ireland"}
-{"_type": "toponym", "ref": "Rathnarovanagh@Ireland", "modern_name": "Rathnarovanagh", "region": "Ireland"}
-{"_type": "toponym", "ref": "Rattoo@Ireland", "modern_name": "Rattoo", "region": "Ireland"}
-{"_type": "toponym", "ref": "Red@Ireland", "modern_name": "Red", "region": "Ireland"}
-{"_type": "toponym", "ref": "Roads@Ireland", "modern_name": "Roads", "region": "Ireland"}
-{"_type": "toponym", "ref": "Robin Redbreast@Ireland", "modern_name": "Robin Redbreast", "region": "Ireland"}
-{"_type": "toponym", "ref": "Rosmult@Ireland", "modern_name": "Rosmult", "region": "Ireland"}
-{"_type": "toponym", "ref": "Rosslea@Ireland", "modern_name": "Rosslea", "region": "Ireland"}
-{"_type": "toponym", "ref": "Ruadh@Ireland", "modern_name": "Ruadh", "region": "Ireland"}
-{"_type": "toponym", "ref": "Rush@Ireland", "modern_name": "Rush", "region": "Ireland"}
-{"_type": "toponym", "ref": "Sallow@Ireland", "modern_name": "Sallow", "region": "Ireland"}
-{"_type": "toponym", "ref": "Salt@Ireland", "modern_name": "Salt", "region": "Ireland"}
-{"_type": "toponym", "ref": "Short@Ireland", "modern_name": "Short", "region": "Ireland"}
-{"_type": "toponym", "ref": "Shower@Ireland", "modern_name": "Shower", "region": "Ireland"}
-{"_type": "toponym", "ref": "Silver@Ireland", "modern_name": "Silver", "region": "Ireland"}
-{"_type": "toponym", "ref": "Solloghod@Ireland", "modern_name": "Solloghod", "region": "Ireland"}
-{"_type": "toponym", "ref": "Speckled@Ireland", "modern_name": "Speckled", "region": "Ireland"}
-{"_type": "toponym", "ref": "Storm@Ireland", "modern_name": "Storm", "region": "Ireland"}
-{"_type": "toponym", "ref": "Tevmons@Ireland", "modern_name": "Tevmons", "region": "Ireland"}
-{"_type": "toponym", "ref": "Thorn@Ireland", "modern_name": "Thorn", "region": "Ireland"}
-{"_type": "toponym", "ref": "Tirhugh@Ireland", "modern_name": "Tirhugh", "region": "Ireland"}
-{"_type": "toponym", "ref": "Tominearly@Ireland", "modern_name": "Tominearly", "region": "Ireland"}
-{"_type": "toponym", "ref": "Tongue@Ireland", "modern_name": "Tongue", "region": "Ireland"}
-{"_type": "toponym", "ref": "Tray@Ireland", "modern_name": "Tray", "region": "Ireland"}
-{"_type": "toponym", "ref": "Trout@Ireland", "modern_name": "Trout", "region": "Ireland"}
-{"_type": "toponym", "ref": "Tullycorbet@Ireland", "modern_name": "Tullycorbet", "region": "Ireland"}
-{"_type": "toponym", "ref": "Uan@Ireland", "modern_name": "Uan", "region": "Ireland"}
-{"_type": "toponym", "ref": "Various Artificial Works@Ireland", "modern_name": "Various Artificial Works", "region": "Ireland"}
-{"_type": "toponym", "ref": "Vat@Ireland", "modern_name": "Vat", "region": "Ireland"}
-{"_type": "toponym", "ref": "Wagtail@Ireland", "modern_name": "Wagtail", "region": "Ireland"}
-{"_type": "toponym", "ref": "White@Ireland", "modern_name": "White", "region": "Ireland"}
-{"_type": "toponym", "ref": "Wind@Ireland", "modern_name": "Wind", "region": "Ireland"}
+{"_type": "toponym", "ref": "Ants and Midges@Ireland", "modern_name": "Ants and Midges", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Arbutus@Ireland", "modern_name": "Arbutus", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Ardrass@Ireland", "modern_name": "Ardrass", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Astee@Ireland", "modern_name": "Astee", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Bacus@Ireland", "modern_name": "Bacus", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "BallybogbiU@Ireland", "modern_name": "BallybogbiU", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Ballynona@Ireland", "modern_name": "Ballynona", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Bealanabrack@Ireland", "modern_name": "Bealanabrack", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Beans@Ireland", "modern_name": "Beans", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Bencullagh@Ireland", "modern_name": "Bencullagh", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Berries@Ireland", "modern_name": "Berries", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Blackberry@Ireland", "modern_name": "Blackberry", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Bohammer@Ireland", "modern_name": "Bohammer", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Breac@Ireland", "modern_name": "Breac", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Breadth@Ireland", "modern_name": "Breadth", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Brean@Ireland", "modern_name": "Brean", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Breandrum@Ireland", "modern_name": "Breandrum", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Breast@Ireland", "modern_name": "Breast", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Brown@Ireland", "modern_name": "Brown", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Bunclody@Ireland", "modern_name": "Bunclody", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Bunkey@Ireland", "modern_name": "Bunkey", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Caherea@Ireland", "modern_name": "Caherea", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Caldron@Ireland", "modern_name": "Caldron", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Carrigleigh@Ireland", "modern_name": "Carrigleigh", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Carrignagat@Ireland", "modern_name": "Carrignagat", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Cashel-oir@Ireland", "modern_name": "Cashel-oir", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Castlebeg@Ireland", "modern_name": "Castlebeg", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Castleore@Ireland", "modern_name": "Castleore", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Ciirragrean@Ireland", "modern_name": "Ciirragrean", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Clashbane@Ireland", "modern_name": "Clashbane", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Clashgarriff@Ireland", "modern_name": "Clashgarriff", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Clonbunny@Ireland", "modern_name": "Clonbunny", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Clonegah@Ireland", "modern_name": "Clonegah", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Clonmeen@Ireland", "modern_name": "Clonmeen", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Clonoura@Ireland", "modern_name": "Clonoura", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Cloonbony@Ireland", "modern_name": "Cloonbony", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Cloonlayis@Ireland", "modern_name": "Cloonlayis", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Coirce@Ireland", "modern_name": "Coirce", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Cold@Ireland", "modern_name": "Cold", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Colours@Ireland", "modern_name": "Colours", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Corcoge Mountain@Ireland", "modern_name": "Corcoge Mountain", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Cormorant@Ireland", "modern_name": "Cormorant", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Corrower@Ireland", "modern_name": "Corrower", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dandelion@Ireland", "modern_name": "Dandelion", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Deisceart@Ireland", "modern_name": "Deisceart", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dergraw@Ireland", "modern_name": "Dergraw", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dernaglug@Ireland", "modern_name": "Dernaglug", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Derrygalun@Ireland", "modern_name": "Derrygalun", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Derryowen@Ireland", "modern_name": "Derryowen", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Diris@Ireland", "modern_name": "Diris", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dooally@Ireland", "modern_name": "Dooally", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dooish@Ireland", "modern_name": "Dooish", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dromdihy@Ireland", "modern_name": "Dromdihy", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dromiskin@Ireland", "modern_name": "Dromiskin", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dromkeen@Ireland", "modern_name": "Dromkeen", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Drumantine@Ireland", "modern_name": "Drumantine", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Drumcett@Ireland", "modern_name": "Drumcett", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Drumcoora@Ireland", "modern_name": "Drumcoora", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Drumkeo@Ireland", "modern_name": "Drumkeo", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Drumrahan@Ireland", "modern_name": "Drumrahan", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dunbolg@Ireland", "modern_name": "Dunbolg", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Dundooan@Ireland", "modern_name": "Dundooan", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Ear@Ireland", "modern_name": "Ear", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Eel@Ireland", "modern_name": "Eel", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Ejincaslough@Ireland", "modern_name": "Ejincaslough", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Eorna@Ireland", "modern_name": "Eorna", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Fearann@Ireland", "modern_name": "Fearann", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Fire-wood@Ireland", "modern_name": "Fire-wood", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Flagger@Ireland", "modern_name": "Flagger", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Fog@Ireland", "modern_name": "Fog", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Fold@Ireland", "modern_name": "Fold", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Garbh-cUioire@Ireland", "modern_name": "Garbh-cUioire", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Garlic@Ireland", "modern_name": "Garlic", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Glancam@Ireland", "modern_name": "Glancam", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Glear@Ireland", "modern_name": "Glear", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Glenbower@Ireland", "modern_name": "Glenbower", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Gold@Ireland", "modern_name": "Gold", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Gortnagap@Ireland", "modern_name": "Gortnagap", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Gortnagranagher@Ireland", "modern_name": "Gortnagranagher", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Gortnalahee@Ireland", "modern_name": "Gortnalahee", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Graigavine@Ireland", "modern_name": "Graigavine", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Gravel@Ireland", "modern_name": "Gravel", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Grouse@Ireland", "modern_name": "Grouse", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Head Residence@Ireland", "modern_name": "Head Residence", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Hedge@Ireland", "modern_name": "Hedge", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Heifer@Ireland", "modern_name": "Heifer", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Herb@Ireland", "modern_name": "Herb", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Hue@Ireland", "modern_name": "Hue", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Iron@Ireland", "modern_name": "Iron", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Kilns@Ireland", "modern_name": "Kilns", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Knackoura@Ireland", "modern_name": "Knackoura", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Leamhnacht@Ireland", "modern_name": "Leamhnacht", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Lin@Ireland", "modern_name": "Lin", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Lisroe@Ireland", "modern_name": "Lisroe", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Meenanimerish@Ireland", "modern_name": "Meenanimerish", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Middle@Ireland", "modern_name": "Middle", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Monachunna@Ireland", "modern_name": "Monachunna", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Monaglian@Ireland", "modern_name": "Monaglian", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Monaree@Ireland", "modern_name": "Monaree", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Monasteries@Ireland", "modern_name": "Monasteries", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Mor@Ireland", "modern_name": "Mor", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Moss@Ireland", "modern_name": "Moss", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Moy@Ireland", "modern_name": "Moy", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Mullaghcroy@Ireland", "modern_name": "Mullaghcroy", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "NeaF@Ireland", "modern_name": "NeaF", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Nook@Ireland", "modern_name": "Nook", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Nut@Ireland", "modern_name": "Nut", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Oats@Ireland", "modern_name": "Oats", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Odhar@Ireland", "modern_name": "Odhar", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Oortlahan@Ireland", "modern_name": "Oortlahan", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Oreij@Ireland", "modern_name": "Oreij", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Pollataggle@Ireland", "modern_name": "Pollataggle", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Port@Ireland", "modern_name": "Port", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Portland@Ireland", "modern_name": "Portland", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Rath-seanaidh@Ireland", "modern_name": "Rath-seanaidh", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Rathargid@Ireland", "modern_name": "Rathargid", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Rathnarovanagh@Ireland", "modern_name": "Rathnarovanagh", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Rattoo@Ireland", "modern_name": "Rattoo", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Red@Ireland", "modern_name": "Red", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Roads@Ireland", "modern_name": "Roads", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Robin Redbreast@Ireland", "modern_name": "Robin Redbreast", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Rosmult@Ireland", "modern_name": "Rosmult", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Rosslea@Ireland", "modern_name": "Rosslea", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Ruadh@Ireland", "modern_name": "Ruadh", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Rush@Ireland", "modern_name": "Rush", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Sallow@Ireland", "modern_name": "Sallow", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Salt@Ireland", "modern_name": "Salt", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Short@Ireland", "modern_name": "Short", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Shower@Ireland", "modern_name": "Shower", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Silver@Ireland", "modern_name": "Silver", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Solloghod@Ireland", "modern_name": "Solloghod", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Speckled@Ireland", "modern_name": "Speckled", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Storm@Ireland", "modern_name": "Storm", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Tevmons@Ireland", "modern_name": "Tevmons", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Thorn@Ireland", "modern_name": "Thorn", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Tirhugh@Ireland", "modern_name": "Tirhugh", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Tominearly@Ireland", "modern_name": "Tominearly", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Tongue@Ireland", "modern_name": "Tongue", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Tray@Ireland", "modern_name": "Tray", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Trout@Ireland", "modern_name": "Trout", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Tullycorbet@Ireland", "modern_name": "Tullycorbet", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Uan@Ireland", "modern_name": "Uan", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Various Artificial Works@Ireland", "modern_name": "Various Artificial Works", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Vat@Ireland", "modern_name": "Vat", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Wagtail@Ireland", "modern_name": "Wagtail", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "White@Ireland", "modern_name": "White", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Wind@Ireland", "modern_name": "Wind", "region": "Ireland", "country": "Ireland"}
 {"_type": "etymology_element", "toponym_ref": "Ants and Midges@Ireland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:miol"}, {"ordinal": 1, "etymon_ref": "celtic:mioltog"}, {"ordinal": 2, "etymon_ref": "celtic:seangán"}, {"ordinal": 3, "etymon_ref": "celtic:srang"}], "historical_form": "miol / mioltog / seangán", "confidence": "high", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Entry covers a broad thematic group of Irish place-names rather than a single compound; miol (beast/ant/midge), its diminutive mioltog (midge), and seangán (a"}
 {"_type": "etymology_element", "toponym_ref": "Arbutus@Ireland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:caithne"}], "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; The entry is primarily a botanical and toponymic survey of the Irish word 'caithne' (and variant 'cuinche') for arbutus, showing how it appears in place-names"}
 {"_type": "etymology_element", "toponym_ref": "Ardrass@Ireland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:ard"}, {"ordinal": 1, "etymon_ref": "celtic:rass"}], "historical_form": "Ard-rass", "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Scholar gives gloss 'red height' but does not elaborate on the individual elements beyond the compound meaning. | Ardrass, Ardress, . . . 336 Ardroe ; red hei"}
@@ -846,5 +846,5 @@
 {"_type": "etymology_element", "toponym_ref": "White@Ireland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:fionn"}], "historical_form": "fionn", "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Scholar also cites Gaulish 'Vindus' as a cognate form used in personal names; 'fionn' is the primary Celtic etymon given. | White, Finn or fionn., white, is a"}
 {"_type": "etymology_element", "toponym_ref": "White@Ireland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:finn"}, {"ordinal": 1, "etymon_ref": "celtic:fionn"}, {"ordinal": 2, "etymon_ref": "celtic:vindus"}], "historical_form": "Finn", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | White, Finn or fionn., white, is a word of most ancient and extensive use in the Celtic languages. It glosses alhm in the St. Gall manuscript of Zeuss ; and still more ancient is its use in forming part of personal names, both Irish and Gaulish. Vindus, CHAP. XVll.]"}
 {"_type": "etymology_element", "toponym_ref": "Wind@Ireland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:gaeth"}, {"ordinal": 1, "etymon_ref": "celtic:gaeithe", "inflection": "genitive"}], "historical_form": "gaeth", "confidence": "high", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Entry is a thematic survey of Irish place-name elements for 'wind'; gaeth (Irish) and its genitive gaeithe are the primary etymons discussed, with numerous an"}
-{"_type": "toponym", "ref": "Ireland@Scotland", "modern_name": "Ireland", "region": "Scotland"}
+{"_type": "toponym", "ref": "Ireland@Scotland", "modern_name": "Ireland", "region": "Scotland", "country": "Scotland"}
 {"_type": "attestation", "toponym_ref": "Ireland@Scotland", "form": "Ireland", "date_year": 1675, "source_doc": "joyce_1875_irish_names_vol1"}

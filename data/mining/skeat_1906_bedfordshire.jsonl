@@ -120,32 +120,32 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-02T02:55:38.551514+00:00", "completed_at": "2026-05-02T02:56:02.638108+00:00", "parsed_count": 3, "accepted": 2, "declined": 0, "rejected": 1, "by_failure": "{\"form_not_in_body\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T08:30:30.593743+00:00", "completed_at": "2026-05-05T08:31:24.775429+00:00", "parsed_count": 6, "accepted": 1, "declined": 5, "rejected": 0}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T10:26:29.679770+00:00", "completed_at": "2026-05-05T10:27:13.357124+00:00", "parsed_count": 5, "accepted": 0, "declined": 5, "rejected": 0}
-{"_type": "toponym", "ref": "Arlesey@Bedfordshire", "modern_name": "Arlesey", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Astwick@Bedfordshire", "modern_name": "Astwick", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Barford@Bedfordshire", "modern_name": "Barford", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Battlesden@Bedfordshire", "modern_name": "Battlesden", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Bedford@Bedfordshire", "modern_name": "Bedford", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Biddenham@Bedfordshire", "modern_name": "Biddenham", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Biggleswade@Bedfordshire", "modern_name": "Biggleswade", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Biscott@Bedfordshire", "modern_name": "Biscott", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Blunham@Bedfordshire", "modern_name": "Blunham", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Brogborow@Bedfordshire", "modern_name": "Brogborow", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Bromham@Bedfordshire", "modern_name": "Bromham", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Colmworth@Bedfordshire", "modern_name": "Colmworth", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Dean@Bedfordshire", "modern_name": "Dean", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Eddlesborough@Bedfordshire", "modern_name": "Eddlesborough", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Edworth@Bedfordshire", "modern_name": "Edworth", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Hardwick@Bedfordshire", "modern_name": "Hardwick", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Harrold@Bedfordshire", "modern_name": "Harrold", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Hatch@Bedfordshire", "modern_name": "Hatch", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Hinwick@Bedfordshire", "modern_name": "Hinwick", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Limbury@Bedfordshire", "modern_name": "Limbury", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Meppershall@Bedfordshire", "modern_name": "Meppershall", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Polehanger@Bedfordshire", "modern_name": "Polehanger", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Sandy@Bedfordshire", "modern_name": "Sandy", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Sharnbrook@Bedfordshire", "modern_name": "Sharnbrook", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Stotfold@Bedfordshire", "modern_name": "Stotfold", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Tilbrook@Bedfordshire", "modern_name": "Tilbrook", "region": "Bedfordshire"}
+{"_type": "toponym", "ref": "Arlesey@Bedfordshire", "modern_name": "Arlesey", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Astwick@Bedfordshire", "modern_name": "Astwick", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Barford@Bedfordshire", "modern_name": "Barford", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Battlesden@Bedfordshire", "modern_name": "Battlesden", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bedford@Bedfordshire", "modern_name": "Bedford", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Biddenham@Bedfordshire", "modern_name": "Biddenham", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Biggleswade@Bedfordshire", "modern_name": "Biggleswade", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Biscott@Bedfordshire", "modern_name": "Biscott", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Blunham@Bedfordshire", "modern_name": "Blunham", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Brogborow@Bedfordshire", "modern_name": "Brogborow", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bromham@Bedfordshire", "modern_name": "Bromham", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Colmworth@Bedfordshire", "modern_name": "Colmworth", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Dean@Bedfordshire", "modern_name": "Dean", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Eddlesborough@Bedfordshire", "modern_name": "Eddlesborough", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Edworth@Bedfordshire", "modern_name": "Edworth", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Hardwick@Bedfordshire", "modern_name": "Hardwick", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Harrold@Bedfordshire", "modern_name": "Harrold", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Hatch@Bedfordshire", "modern_name": "Hatch", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Hinwick@Bedfordshire", "modern_name": "Hinwick", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Limbury@Bedfordshire", "modern_name": "Limbury", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Meppershall@Bedfordshire", "modern_name": "Meppershall", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Polehanger@Bedfordshire", "modern_name": "Polehanger", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Sandy@Bedfordshire", "modern_name": "Sandy", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Sharnbrook@Bedfordshire", "modern_name": "Sharnbrook", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Stotfold@Bedfordshire", "modern_name": "Stotfold", "region": "Bedfordshire", "country": "England"}
+{"_type": "toponym", "ref": "Tilbrook@Bedfordshire", "modern_name": "Tilbrook", "region": "Bedfordshire", "country": "England"}
 {"_type": "etymology_element", "toponym_ref": "Arlesey@Bedfordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:aylriches"}, {"ordinal": 1, "etymon_ref": "old-english:eye"}], "historical_form": "Aylriches-ey", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b | Arlesey. — Also spelt Arsley (as in Philips' Atlas), but incorrectly, ^^oit Alricesei, Alriceseie,'D.B.; Alrichesey,I.ip.m.; Alricheseye, AylrichesJieye, F.A. T"}
 {"_type": "etymology_element", "toponym_ref": "Astwick@Bedfordshire", "elements": [{"ordinal": 0, "etymon_ref": "modern-english:east"}, {"ordinal": 1, "etymon_ref": "old-english:wīc"}], "historical_form": "East-wic", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b | Astwick. — Spelt Estuuiche, D.B. ; Estwike, F.A. It means * east village.'"}
 {"_type": "etymology_element", "toponym_ref": "Astwick@Bedfordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:east"}, {"ordinal": 1, "etymon_ref": "old-english:wīc"}], "historical_form": "east-wīc", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Astwick. — Spelt Estuuiche, D.B. ; Estwike, F.A. It means * east village.'"}
@@ -193,9 +193,9 @@
 {"_type": "etymology_element", "toponym_ref": "Tilbrook@Bedfordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:tilan", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:brōc"}], "historical_form": "Tilan-broc", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b; Scholar identifies 'Tilan' as a pet-name for Tilbeorht and explicitly states the construction is 'Tila's brook'. | Tilbrook.— Spelt Tilebroc, D.B.; Tylebrok, F.A. Here the"}
 {"_type": "etymology_element", "toponym_ref": "Tilbrook@Bedfordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:tilan", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:broc"}], "historical_form": "Tilan-broc", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Tilbrook.— Spelt Tilebroc, D.B.; Tylebrok, F.A. Here the -e, as usual, represents an A.S. genitive suffix -an ; and Tilebroc answers to A.S. Tilan br"}
 {"_type": "toponym", "ref": "Elstow@Bedfordshire", "modern_name": "Elstow", "country": "England", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Etone@West Riding of Yorkshire", "modern_name": "Etone", "region": "West Riding of Yorkshire"}
+{"_type": "toponym", "ref": "Etone@West Riding", "modern_name": "Etone", "region": "West Riding", "country": "England"}
 {"_type": "toponym", "ref": "Merstone@Hampshire", "modern_name": "Merstone", "country": "England", "region": "Hampshire"}
-{"_type": "toponym", "ref": "Mildentone@West Riding of Yorkshire", "modern_name": "Mildentone", "region": "West Riding of Yorkshire"}
+{"_type": "toponym", "ref": "Mildentone@West Riding", "modern_name": "Mildentone", "region": "West Riding", "country": "England"}
 {"_type": "attestation", "toponym_ref": "Astwick@Bedfordshire", "form": "Estuuiche", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Battlesden@Bedfordshire", "form": "Badelestone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Biddenham@Bedfordshire", "form": "Bidenham", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
@@ -205,10 +205,10 @@
 {"_type": "attestation", "toponym_ref": "Colmworth@Bedfordshire", "form": "Culmeuuorde", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Dean@Bedfordshire", "form": "Dene", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Elstow@Bedfordshire", "form": "Elstow", "date_year": 1078, "source_doc": "skeat_1906_bedfordshire"}
-{"_type": "attestation", "toponym_ref": "Etone@West Riding of Yorkshire", "form": "Etone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
+{"_type": "attestation", "toponym_ref": "Etone@West Riding", "form": "Etone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Meppershall@Bedfordshire", "form": "Malpertesselle", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Merstone@Hampshire", "form": "Merstone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
-{"_type": "attestation", "toponym_ref": "Mildentone@West Riding of Yorkshire", "form": "Mildentone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
+{"_type": "attestation", "toponym_ref": "Mildentone@West Riding", "form": "Mildentone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Sharnbrook@Bedfordshire", "form": "Sernebvoc", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Stotfold@Bedfordshire", "form": "Stotfalt", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Tilbrook@Bedfordshire", "form": "Tilebroc", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}

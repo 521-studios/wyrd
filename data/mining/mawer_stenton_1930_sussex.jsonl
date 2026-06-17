@@ -157,45 +157,45 @@
 {"_type": "etymology_element", "toponym_ref": "Wainway WALL@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:iw"}, {"ordinal": 1, "etymon_ref": "old-english:denn"}], "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Wainway WALL (6”), cf. Waynwaye Chanel 1610 Speed, Wan- way 1823 G. The Wainway was on the earthen wall by the channel. The wall came to be named after it and i", "attested_year": 1610}
 {"_type": "etymology_element", "toponym_ref": "Whatlingetune@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:hwetel"}, {"ordinal": 1, "etymon_ref": "old-english:ing"}, {"ordinal": 2, "etymon_ref": "old-english:tun"}], "historical_form": "Hwetel-ing-tun", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Whatlingetune, -y- 1195 Pens, 1342 Ipm, 1535 VE, Hwat- lington 1320 Misc Whartlington 1724 B Hwet- is a common and early OE pers. name element and Hwetel would ", "attested_year": 1195}
 {"_type": "etymology_element", "toponym_ref": "Ykelesham@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:icel", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:ham"}], "historical_form": "Icel's-ham", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Ykelesham, Ikeles- c. 1197 Pens et passim to 1494 AD vi, -hamme 1379 Ct, Ickelesham 1195 FF Hykelingesham 1288 Ass * Upper Snailham is in Icklesham, Lower in Gu", "attested_year": 1195}
-{"_type": "toponym", "ref": "Bexhill@SUS", "modern_name": "Bexhill", "country": "England", "region": "SUS"}
+{"_type": "toponym", "ref": "Bexhill@Sussex", "modern_name": "Bexhill", "country": "England", "region": "Sussex"}
 {"_type": "toponym", "ref": "Borstall@Kent", "modern_name": "Borstall", "country": "England", "region": "Kent"}
 {"_type": "toponym", "ref": "Buntingford@Hertfordshire", "modern_name": "Buntingford", "country": "England", "region": "Hertfordshire"}
-{"_type": "toponym", "ref": "Chiddingly@SUS", "modern_name": "Chiddingly", "country": "England", "region": "SUS"}
-{"_type": "toponym", "ref": "Common@Northumberland and Durham", "modern_name": "Common", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Farm@Isle of Man", "modern_name": "Farm", "region": "Isle of Man"}
+{"_type": "toponym", "ref": "Chiddingly@Sussex", "modern_name": "Chiddingly", "country": "England", "region": "Sussex"}
+{"_type": "toponym", "ref": "Common@Northumberland and Durham", "modern_name": "Common", "region": "Northumberland and Durham", "country": "England"}
+{"_type": "toponym", "ref": "Farm@Isle of Man", "modern_name": "Farm", "region": "Isle of Man", "country": "Isle of Man"}
 {"_type": "toponym", "ref": "Glynde@-", "modern_name": "Glynde"}
-{"_type": "toponym", "ref": "Hailsham@SUS", "modern_name": "Hailsham", "country": "England", "region": "SUS"}
+{"_type": "toponym", "ref": "Hailsham@Sussex", "modern_name": "Hailsham", "country": "England", "region": "Sussex"}
 {"_type": "toponym", "ref": "Orig@-", "modern_name": "Orig"}
 {"_type": "toponym", "ref": "Patrixbourne@Kent", "modern_name": "Patrixbourne", "country": "England", "region": "Kent"}
 {"_type": "toponym", "ref": "Selborne@Hampshire", "modern_name": "Selborne", "country": "England", "region": "Hampshire"}
 {"_type": "toponym", "ref": "Strete@Devon", "modern_name": "Strete", "country": "England", "region": "Devon"}
-{"_type": "toponym", "ref": "Wales@Yorkshire", "modern_name": "Wales", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Wales@West Riding", "modern_name": "Wales", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Wherfletun@-", "modern_name": "Wherfletun"}
-{"_type": "toponym", "ref": "Willingdon@SUS", "modern_name": "Willingdon", "country": "England", "region": "SUS"}
+{"_type": "toponym", "ref": "Willingdon@Sussex", "modern_name": "Willingdon", "country": "England", "region": "Sussex"}
 {"_type": "attestation", "toponym_ref": "Atmonry@-", "form": "Bello", "date_year": 1107, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Atmonry@-", "form": "Bello", "date_year": 1190, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Atmonry@-", "form": "Bello", "date_year": 1248, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Atmonry@-", "form": "Bello", "date_year": 1279, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Atmonry@-", "form": "Bello", "date_year": 1318, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Beckele@-", "form": "MarL", "date_year": 1617, "source_doc": "mawer_stenton_1930_sussex"}
-{"_type": "attestation", "toponym_ref": "Bexhill@SUS", "form": "Bexhill", "date_year": 1320, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Bexhill@Sussex", "form": "Bexhill", "date_year": 1320, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Borstall@Kent", "form": "Borstall", "date_year": 1337, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Buntingford@Hertfordshire", "form": "Buntingford", "date_year": 1275, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Cc@-", "form": "Pens", "date_year": 1279, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Cc@-", "form": "Norden", "date_year": 1634, "source_doc": "mawer_stenton_1930_sussex"}
-{"_type": "attestation", "toponym_ref": "Chiddingly@SUS", "form": "Chiddingly", "date_year": 1296, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Chiddingly@Sussex", "form": "Chiddingly", "date_year": 1296, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Common@Northumberland and Durham", "form": "Common", "date_year": 1665, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Cross Fm@-", "form": "Knelstone", "date_year": 1509, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Farm@Isle of Man", "form": "Farm", "date_year": 1660, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Glynde@-", "form": "Glynde", "date_year": 1499, "source_doc": "mawer_stenton_1930_sussex"}
-{"_type": "attestation", "toponym_ref": "Hailsham@SUS", "form": "Hailsham", "date_year": 1619, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Hailsham@Sussex", "form": "Hailsham", "date_year": 1619, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Hasting@-", "form": "IpmR", "date_year": 1535, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Orig@-", "form": "Fine", "date_year": 1380, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Patrixbourne@Kent", "form": "Patrixbourne", "date_year": 1276, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "SR Neddresfeld@-", "form": "Misc", "date_year": 1342, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Selborne@Hampshire", "form": "Selborne", "date_year": 1284, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Strete@Devon", "form": "Strete", "date_year": 1290, "source_doc": "mawer_stenton_1930_sussex"}
-{"_type": "attestation", "toponym_ref": "Wales@Yorkshire", "form": "Wales", "date_year": 1597, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Wales@West Riding", "form": "Wales", "date_year": 1597, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Whatlingetune@-", "form": "Pens", "date_year": 1342, "source_doc": "mawer_stenton_1930_sussex"}
 {"_type": "attestation", "toponym_ref": "Wherfletun@-", "form": "Abbr", "date_year": 1204, "source_doc": "mawer_stenton_1930_sussex"}
-{"_type": "attestation", "toponym_ref": "Willingdon@SUS", "form": "Willingdon", "date_year": 1327, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Willingdon@Sussex", "form": "Willingdon", "date_year": 1327, "source_doc": "mawer_stenton_1930_sussex"}
