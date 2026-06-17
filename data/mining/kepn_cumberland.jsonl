@@ -87,9 +87,9 @@
 {"_type": "etymon", "ref": "old-norse:erg", "canonical_form": "erg", "language": "old-norse", "glosses": ["A shieling, a hill-pasture; a summer-pasture camp, a dairy or grazing out-station."]}
 {"_type": "citation", "etymon_ref": "old-norse:erg"}
 {"_type": "citation", "etymon_ref": "old-norse:erg", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:mǭr", "canonical_form": "mǭr", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mǭr"}
-{"_type": "citation", "etymon_ref": "celtic:mǭr", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:mǭr", "canonical_form": "mǭr", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mǭr"}
+{"_type": "citation", "etymon_ref": "brittonic:mǭr", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-norse:vrá", "canonical_form": "vrá", "language": "old-norse", "glosses": ["A nook, a corner of land."]}
 {"_type": "citation", "etymon_ref": "old-norse:vrá"}
 {"_type": "citation", "etymon_ref": "old-norse:vrá", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
@@ -111,12 +111,12 @@
 {"_type": "etymon", "ref": "old-norse:birki", "canonical_form": "birki", "language": "old-norse", "glosses": ["A place overgrown with birch-trees; a birch copse; a birch."]}
 {"_type": "citation", "etymon_ref": "old-norse:birki"}
 {"_type": "citation", "etymon_ref": "old-norse:birki", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:blain", "canonical_form": "blain", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:blain"}
-{"_type": "citation", "etymon_ref": "celtic:blain", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:cog", "canonical_form": "cog", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cog"}
-{"_type": "citation", "etymon_ref": "celtic:cog", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:blain", "canonical_form": "blain", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:blain"}
+{"_type": "citation", "etymon_ref": "brittonic:blain", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:cog", "canonical_form": "cog", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cog"}
+{"_type": "citation", "etymon_ref": "brittonic:cog", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-norse:hey", "canonical_form": "hey", "language": "old-norse", "glosses": ["Hay."]}
 {"_type": "citation", "etymon_ref": "old-norse:hey"}
 {"_type": "citation", "etymon_ref": "old-norse:hey", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -129,24 +129,24 @@
 {"_type": "etymon", "ref": "old-norse:sǽtr", "canonical_form": "sǽtr", "language": "old-norse", "glosses": ["A mountain pasture, a shieling."]}
 {"_type": "citation", "etymon_ref": "old-norse:sǽtr"}
 {"_type": "citation", "etymon_ref": "old-norse:sǽtr", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:treβ", "canonical_form": "treβ", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:treβ"}
-{"_type": "citation", "etymon_ref": "celtic:treβ", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:treβ", "canonical_form": "treβ", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:treβ"}
+{"_type": "citation", "etymon_ref": "brittonic:treβ", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:bōðl", "canonical_form": "bōðl", "language": "old-english", "glosses": ["A dwelling, a dwelling-place, a house."]}
 {"_type": "citation", "etymon_ref": "old-english:bōðl"}
 {"_type": "citation", "etymon_ref": "old-english:bōðl", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:creig", "canonical_form": "creig", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:creig"}
-{"_type": "citation", "etymon_ref": "celtic:creig", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
+{"_type": "etymon", "ref": "brittonic:creig", "canonical_form": "creig", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:creig"}
+{"_type": "citation", "etymon_ref": "brittonic:creig", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
 {"_type": "etymon", "ref": "old-english:halh", "canonical_form": "halh", "language": "old-english", "glosses": ["A nook of land; a small valley; dry ground in marsh; a piece of land projecting from, or detached from, the main area of its administrative unit."]}
 {"_type": "citation", "etymon_ref": "old-english:halh"}
 {"_type": "citation", "etymon_ref": "old-english:halh", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:main", "canonical_form": "main", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:main"}
-{"_type": "citation", "etymon_ref": "celtic:main", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:rïd", "canonical_form": "rïd", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:rïd"}
-{"_type": "citation", "etymon_ref": "celtic:rïd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
+{"_type": "etymon", "ref": "brittonic:main", "canonical_form": "main", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:main"}
+{"_type": "citation", "etymon_ref": "brittonic:main", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
+{"_type": "etymon", "ref": "brittonic:rïd", "canonical_form": "rïd", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:rïd"}
+{"_type": "citation", "etymon_ref": "brittonic:rïd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
 {"_type": "etymon", "ref": "old-english:bōðl-tūn", "canonical_form": "bōðl-tūn", "language": "old-english", "glosses": ["An enclosure with buildings, a collection of buildings."]}
 {"_type": "citation", "etymon_ref": "old-english:bōðl-tūn"}
 {"_type": "citation", "etymon_ref": "old-english:bōðl-tūn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
@@ -240,12 +240,12 @@
 {"_type": "etymon", "ref": "old-english:lēac-tūn", "canonical_form": "lēac-tūn", "language": "old-english", "glosses": ["A leek enclosure; a herb garden."]}
 {"_type": "citation", "etymon_ref": "old-english:lēac-tūn"}
 {"_type": "citation", "etymon_ref": "old-english:lēac-tūn", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:cair", "canonical_form": "cair", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cair"}
-{"_type": "citation", "etymon_ref": "celtic:cair", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Rivet & Smith; Place-names of Roman Britain"}
-{"_type": "etymon", "ref": "celtic:cairōg", "canonical_form": "cairōg", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cairōg"}
-{"_type": "citation", "etymon_ref": "celtic:cairōg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:cair", "canonical_form": "cair", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cair"}
+{"_type": "citation", "etymon_ref": "brittonic:cair", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Rivet & Smith; Place-names of Roman Britain"}
+{"_type": "etymon", "ref": "brittonic:cairōg", "canonical_form": "cairōg", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cairōg"}
+{"_type": "citation", "etymon_ref": "brittonic:cairōg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:castel", "canonical_form": "castel", "language": "old-english", "glosses": ["A defensive building; a village."]}
 {"_type": "citation", "etymon_ref": "old-english:castel"}
 {"_type": "citation", "etymon_ref": "old-english:castel", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
@@ -261,9 +261,9 @@
 {"_type": "etymon", "ref": "old-english:wīðig", "canonical_form": "wīðig", "language": "old-english", "glosses": ["A willow-tree; a withy."]}
 {"_type": "citation", "etymon_ref": "old-english:wīðig"}
 {"_type": "citation", "etymon_ref": "old-english:wīðig", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:cadeir", "canonical_form": "cadeir", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cadeir"}
-{"_type": "citation", "etymon_ref": "celtic:cadeir", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
+{"_type": "etymon", "ref": "brittonic:cadeir", "canonical_form": "cadeir", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cadeir"}
+{"_type": "citation", "etymon_ref": "brittonic:cadeir", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
 {"_type": "etymon", "ref": "old-english:clāte", "canonical_form": "clāte", "language": "old-english", "glosses": ["Burdock, goose-grass."]}
 {"_type": "citation", "etymon_ref": "old-english:clāte"}
 {"_type": "citation", "etymon_ref": "old-english:clāte", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -294,21 +294,21 @@
 {"_type": "etymon", "ref": "middle-english:canoun", "canonical_form": "canoun", "language": "middle-english", "glosses": ["A canon, a member of a community of clerks or of a cathedral chapter."]}
 {"_type": "citation", "etymon_ref": "middle-english:canoun"}
 {"_type": "citation", "etymon_ref": "middle-english:canoun", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:cṻl", "canonical_form": "cṻl", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cṻl"}
-{"_type": "citation", "etymon_ref": "celtic:cṻl", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland"}
+{"_type": "etymon", "ref": "brittonic:cṻl", "canonical_form": "cṻl", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cṻl"}
+{"_type": "citation", "etymon_ref": "brittonic:cṻl", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland"}
 {"_type": "etymon", "ref": "old-english:Cumbre", "canonical_form": "Cumbre", "language": "old-english", "glosses": ["The Cymry, the Welsh, the Cumbrian Britons."]}
 {"_type": "citation", "etymon_ref": "old-english:Cumbre"}
 {"_type": "citation", "etymon_ref": "old-english:Cumbre", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cumm", "canonical_form": "cumm", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cumm"}
-{"_type": "citation", "etymon_ref": "celtic:cumm", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:riu", "canonical_form": "riu", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:riu"}
-{"_type": "citation", "etymon_ref": "celtic:riu", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:cumm", "canonical_form": "cumm", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cumm"}
+{"_type": "citation", "etymon_ref": "brittonic:cumm", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:riu", "canonical_form": "riu", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:riu"}
+{"_type": "citation", "etymon_ref": "brittonic:riu", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:-ingtūn", "canonical_form": "-ingtūn", "language": "old-english", "glosses": ["A settlement called after, or connected with . . ."]}
 {"_type": "citation", "etymon_ref": "old-english:-ingtūn"}
 {"_type": "citation", "etymon_ref": "old-english:-ingtūn", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland"}
@@ -333,9 +333,9 @@
 {"_type": "etymon", "ref": "celtic:drum", "canonical_form": "drum", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:drum"}
 {"_type": "citation", "etymon_ref": "celtic:drum", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:eglẹ̄s", "canonical_form": "eglẹ̄s", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:eglẹ̄s"}
-{"_type": "citation", "etymon_ref": "celtic:eglẹ̄s", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
+{"_type": "etymon", "ref": "brittonic:eglẹ̄s", "canonical_form": "eglẹ̄s", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:eglẹ̄s"}
+{"_type": "citation", "etymon_ref": "brittonic:eglẹ̄s", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
 {"_type": "etymon", "ref": "middle-english:Ecgel", "canonical_form": "Ecgel", "language": "middle-english"}
 {"_type": "citation", "etymon_ref": "middle-english:Ecgel"}
 {"_type": "citation", "etymon_ref": "middle-english:Ecgel", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
@@ -378,12 +378,12 @@
 {"_type": "etymon", "ref": "old-english:dæl", "canonical_form": "dæl", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:dæl"}
 {"_type": "citation", "etymon_ref": "old-english:dæl", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:cil", "canonical_form": "cil", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cil"}
-{"_type": "citation", "etymon_ref": "celtic:cil", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:crṻg", "canonical_form": "crṻg", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:crṻg"}
-{"_type": "citation", "etymon_ref": "celtic:crṻg", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:cil", "canonical_form": "cil", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cil"}
+{"_type": "citation", "etymon_ref": "brittonic:cil", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:crṻg", "canonical_form": "crṻg", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:crṻg"}
+{"_type": "citation", "etymon_ref": "brittonic:crṻg", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Glassan", "canonical_form": "Glassan", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Glassan"}
 {"_type": "citation", "etymon_ref": "old-english:Glassan", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -489,9 +489,9 @@
 {"_type": "etymon", "ref": "celtic:carn", "canonical_form": "carn", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:carn"}
 {"_type": "citation", "etymon_ref": "celtic:carn", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:landā", "canonical_form": "landā", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:landā"}
-{"_type": "citation", "etymon_ref": "celtic:landā", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:landā", "canonical_form": "landā", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:landā"}
+{"_type": "citation", "etymon_ref": "brittonic:landā", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "celtic:nant", "canonical_form": "nant", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:nant"}
 {"_type": "citation", "etymon_ref": "celtic:nant", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names"}
@@ -618,9 +618,9 @@
 {"_type": "etymon", "ref": "old-norse:viðr", "canonical_form": "viðr", "language": "old-norse", "glosses": ["A wood; or a tree, a tree-trunk."]}
 {"_type": "citation", "etymon_ref": "old-norse:viðr"}
 {"_type": "citation", "etymon_ref": "old-norse:viðr", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:perth", "canonical_form": "perth", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:perth"}
-{"_type": "citation", "etymon_ref": "celtic:perth", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:perth", "canonical_form": "perth", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:perth"}
+{"_type": "citation", "etymon_ref": "brittonic:perth", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-norse:kirkju-býr", "canonical_form": "kirkju-býr", "language": "old-norse", "glosses": ["A village with a church."]}
 {"_type": "citation", "etymon_ref": "old-norse:kirkju-býr"}
 {"_type": "citation", "etymon_ref": "old-norse:kirkju-býr", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -648,9 +648,9 @@
 {"_type": "etymon", "ref": "old-english:sundor-land", "canonical_form": "sundor-land", "language": "old-english", "glosses": ["Land set apart for some special purpose, private land, detached land."]}
 {"_type": "citation", "etymon_ref": "old-english:sundor-land"}
 {"_type": "citation", "etymon_ref": "old-english:sundor-land", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:tal", "canonical_form": "tal", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:tal"}
-{"_type": "citation", "etymon_ref": "celtic:tal", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:tal", "canonical_form": "tal", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:tal"}
+{"_type": "citation", "etymon_ref": "brittonic:tal", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-norse:kelda", "canonical_form": "kelda", "language": "old-norse", "glosses": ["A spring."]}
 {"_type": "citation", "etymon_ref": "old-norse:kelda"}
 {"_type": "citation", "etymon_ref": "old-norse:kelda", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names"}
@@ -687,9 +687,9 @@
 {"_type": "etymon", "ref": "modern-english:head", "canonical_form": "head", "language": "modern-english", "glosses": ["Head; the the upper end of something."]}
 {"_type": "citation", "etymon_ref": "modern-english:head"}
 {"_type": "citation", "etymon_ref": "modern-english:head", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Armstrong et al.; Place-names of Cumberland"}
-{"_type": "etymon", "ref": "celtic:mę̄l", "canonical_form": "mę̄l", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mę̄l"}
-{"_type": "citation", "etymon_ref": "celtic:mę̄l", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:mę̄l", "canonical_form": "mę̄l", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mę̄l"}
+{"_type": "citation", "etymon_ref": "brittonic:mę̄l", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:weðer", "canonical_form": "weðer", "language": "old-english", "glosses": ["A castrated ram, a wether."]}
 {"_type": "citation", "etymon_ref": "old-english:weðer"}
 {"_type": "citation", "etymon_ref": "old-english:weðer", "source_id": "kepn_external", "context_snippet": "Armstrong et al.; Place-names of Cumberland; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
@@ -770,7 +770,7 @@
 {"_type": "toponym", "ref": "Bellbank@Cumberland", "modern_name": "Bellbank", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Bellbank@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}]}
 {"_type": "toponym", "ref": "Berrier and Murrah@Cumberland", "modern_name": "Berrier and Murrah", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Berrier and Murrah@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-norse:erg"}, {"ordinal": 3, "etymon_ref": "celtic:mǭr"}, {"ordinal": 4, "etymon_ref": "old-norse:vrá"}], "notes": "Hill shieling/summer pasture"}
+{"_type": "etymology_element", "toponym_ref": "Berrier and Murrah@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-norse:erg"}, {"ordinal": 3, "etymon_ref": "brittonic:mǭr"}, {"ordinal": 4, "etymon_ref": "old-norse:vrá"}], "notes": "Hill shieling/summer pasture"}
 {"_type": "toponym", "ref": "Bewaldeth and Snittlegarth@Cumberland", "modern_name": "Bewaldeth and Snittlegarth", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Bewaldeth and Snittlegarth@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bū"}, {"ordinal": 2, "etymon_ref": "old-norse:garðr"}, {"ordinal": 3, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 4, "etymon_ref": "middle-english:Ealdgyð"}], "notes": "Aldgyth's homestead/settlement"}
 {"_type": "toponym", "ref": "Bewcastle@Cumberland", "modern_name": "Bewcastle", "country": "England", "region": "Cumberland"}
@@ -778,13 +778,13 @@
 {"_type": "toponym", "ref": "Birker and Austhwaite@Cumberland", "modern_name": "Birker and Austhwaite", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Birker and Austhwaite@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:birki"}, {"ordinal": 2, "etymon_ref": "old-norse:erg"}, {"ordinal": 3, "etymon_ref": "old-norse:þveit"}], "notes": "Birch-tree sheiling/hill-pasture; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Blencogo@Cumberland", "modern_name": "Blencogo", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Blencogo@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:blain"}, {"ordinal": 2, "etymon_ref": "celtic:cog"}], "notes": "Cuckoo hill-top"}
+{"_type": "etymology_element", "toponym_ref": "Blencogo@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:blain"}, {"ordinal": 2, "etymon_ref": "brittonic:cog"}], "notes": "Cuckoo hill-top"}
 {"_type": "toponym", "ref": "Blennerhasset and Kirkland@Cumberland", "modern_name": "Blennerhasset and Kirkland", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Blennerhasset and Kirkland@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:blain"}, {"ordinal": 2, "etymon_ref": "old-norse:hey"}, {"ordinal": 3, "etymon_ref": "old-norse:kirkja"}, {"ordinal": 4, "etymon_ref": "old-norse:land"}, {"ordinal": 5, "etymon_ref": "old-norse:sǽtr"}, {"ordinal": 6, "etymon_ref": "celtic:treβ"}], "notes": "hay shieling at Blenner (= probably, hill farm)"}
+{"_type": "etymology_element", "toponym_ref": "Blennerhasset and Kirkland@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:blain"}, {"ordinal": 2, "etymon_ref": "old-norse:hey"}, {"ordinal": 3, "etymon_ref": "old-norse:kirkja"}, {"ordinal": 4, "etymon_ref": "old-norse:land"}, {"ordinal": 5, "etymon_ref": "old-norse:sǽtr"}, {"ordinal": 6, "etymon_ref": "brittonic:treβ"}], "notes": "hay shieling at Blenner (= probably, hill farm)"}
 {"_type": "toponym", "ref": "Blindbothel@Cumberland", "modern_name": "Blindbothel", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Blindbothel@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bōðl"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "Building"}
 {"_type": "toponym", "ref": "Blindcrake, Isel and Redmaine@Cumberland", "modern_name": "Blindcrake, Isel and Redmaine", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Blindcrake, Isel and Redmaine@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:blain"}, {"ordinal": 2, "etymon_ref": "celtic:creig"}, {"ordinal": 3, "etymon_ref": "old-english:halh"}, {"ordinal": 4, "etymon_ref": "celtic:main"}, {"ordinal": 5, "etymon_ref": "celtic:rïd"}], "notes": "Rock summit; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "etymology_element", "toponym_ref": "Blindcrake, Isel and Redmaine@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:blain"}, {"ordinal": 2, "etymon_ref": "brittonic:creig"}, {"ordinal": 3, "etymon_ref": "old-english:halh"}, {"ordinal": 4, "etymon_ref": "brittonic:main"}, {"ordinal": 5, "etymon_ref": "brittonic:rïd"}], "notes": "Rock summit; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Boltons@Cumberland", "modern_name": "Boltons", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Boltons@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bōðl-tūn"}], "notes": "Collection of buildings"}
 {"_type": "toponym", "ref": "Bootle@Cumberland", "modern_name": "Bootle", "country": "England", "region": "Cumberland"}
@@ -822,15 +822,15 @@
 {"_type": "toponym", "ref": "Carlatton@Cumberland", "modern_name": "Carlatton", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Carlatton@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:karl"}, {"ordinal": 2, "etymon_ref": "old-english:lād"}, {"ordinal": 3, "etymon_ref": "old-english:lēac-tūn"}, {"ordinal": 4, "etymon_ref": "unknown:River-name"}, {"ordinal": 5, "etymon_ref": "old-english:tūn"}], "notes": "leek enclosure/herb/garden' or 'stream farm/settlement' with an early form of the name of Cairn Beck prefixed. Alternatively, 'free peasants' farm/settlement"}
 {"_type": "toponym", "ref": "Carlisle@Cumberland", "modern_name": "Carlisle", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Carlisle@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cair"}], "notes": "Fortification called Luguvalium'. The second element is a Celtic personal name meaning 'strong as (the god) Lugus; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "etymology_element", "toponym_ref": "Carlisle@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cair"}], "notes": "Fortification called Luguvalium'. The second element is a Celtic personal name meaning 'strong as (the god) Lugus; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Castle Carrock@Cumberland", "modern_name": "Castle Carrock", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Castle Carrock@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cairōg"}, {"ordinal": 2, "etymon_ref": "old-english:castel"}], "notes": "Fortified castle"}
+{"_type": "etymology_element", "toponym_ref": "Castle Carrock@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cairōg"}, {"ordinal": 2, "etymon_ref": "old-english:castel"}], "notes": "Fortified castle"}
 {"_type": "toponym", "ref": "Castle Sowerby@Cumberland", "modern_name": "Castle Sowerby", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Castle Sowerby@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:saurr"}], "notes": "Farm/settlement on muddy/sour ground"}
 {"_type": "toponym", "ref": "Castlerigg St John's and Wythburn@Cumberland", "modern_name": "Castlerigg St John's and Wythburn", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Castlerigg St John's and Wythburn@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:botm"}, {"ordinal": 2, "etymon_ref": "old-english:castel"}, {"ordinal": 3, "etymon_ref": "old-english:hrycg"}, {"ordinal": 4, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 5, "etymon_ref": "old-english:wīðig"}], "notes": "Castle ridge"}
 {"_type": "toponym", "ref": "Catterlen@Cumberland", "modern_name": "Catterlen", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Catterlen@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cadeir"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "chair"}
+{"_type": "etymology_element", "toponym_ref": "Catterlen@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cadeir"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "chair"}
 {"_type": "toponym", "ref": "Cleator@Cumberland", "modern_name": "Cleator", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Cleator@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clāte"}, {"ordinal": 2, "etymon_ref": "old-norse:erg"}], "notes": "Burdock shieling/hill-pasture"}
 {"_type": "toponym", "ref": "Cloffocks@Cumberland", "modern_name": "Cloffocks", "country": "England", "region": "Cumberland"}
@@ -846,13 +846,13 @@
 {"_type": "toponym", "ref": "Crosscanonby@Cumberland", "modern_name": "Crosscanonby", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Crosscanonby@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:canoun"}, {"ordinal": 2, "etymon_ref": "old-norse:kross-bý"}], "notes": "Cross farm/settlement'. The insertion of ME 'canon"}
 {"_type": "toponym", "ref": "Culgaith@Cumberland", "modern_name": "Culgaith", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Culgaith@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:cṻl"}], "notes": "Nook of woodland"}
+{"_type": "etymology_element", "toponym_ref": "Culgaith@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "brittonic:cṻl"}], "notes": "Nook of woodland"}
 {"_type": "toponym", "ref": "Cummersdale@Cumberland", "modern_name": "Cummersdale", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Cummersdale@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:Cumbre"}, {"ordinal": 2, "etymon_ref": "old-norse:dalr"}], "notes": "Valley of the Cumbrian Britons"}
 {"_type": "toponym", "ref": "Cumrew@Cumberland", "modern_name": "Cumrew", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Cumrew@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cumm"}, {"ordinal": 2, "etymon_ref": "celtic:riu"}], "notes": "Valley by the hill-slope"}
+{"_type": "etymology_element", "toponym_ref": "Cumrew@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cumm"}, {"ordinal": 2, "etymon_ref": "brittonic:riu"}], "notes": "Valley by the hill-slope"}
 {"_type": "toponym", "ref": "Cumwhitton@Cumberland", "modern_name": "Cumwhitton", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Cumwhitton@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}, {"ordinal": 2, "etymon_ref": "celtic:cumm"}, {"ordinal": 3, "etymon_ref": "old-english:Hwita"}], "notes": "Hwitingtun (= Hwita's farm/settlement) valley"}
+{"_type": "etymology_element", "toponym_ref": "Cumwhitton@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}, {"ordinal": 2, "etymon_ref": "brittonic:cumm"}, {"ordinal": 3, "etymon_ref": "old-english:Hwita"}], "notes": "Hwitingtun (= Hwita's farm/settlement) valley"}
 {"_type": "toponym", "ref": "Dacre@Cumberland", "modern_name": "Dacre", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Dacre@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Dalston@Cumberland", "modern_name": "Dalston", "country": "England", "region": "Cumberland"}
@@ -870,7 +870,7 @@
 {"_type": "toponym", "ref": "Dundraw@Cumberland", "modern_name": "Dundraw", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Dundraw@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:drag"}, {"ordinal": 2, "etymon_ref": "celtic:drum"}], "notes": "Ridge with a gentle slope"}
 {"_type": "toponym", "ref": "Eaglesfield@Cumberland", "modern_name": "Eaglesfield", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Eaglesfield@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:feld"}, {"ordinal": 3, "etymon_ref": "middle-english:Ecgel"}], "notes": "Church open land', although 'Ecgel's open land"}
+{"_type": "etymology_element", "toponym_ref": "Eaglesfield@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:feld"}, {"ordinal": 3, "etymon_ref": "middle-english:Ecgel"}], "notes": "Church open land', although 'Ecgel's open land"}
 {"_type": "toponym", "ref": "Edenhall@Cumberland", "modern_name": "Edenhall", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Edenhall@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "River Eden nook of land"}
 {"_type": "toponym", "ref": "Egremont@Cumberland", "modern_name": "Egremont", "country": "England", "region": "Cumberland"}
@@ -892,7 +892,7 @@
 {"_type": "toponym", "ref": "Geltsdale@Cumberland", "modern_name": "Geltsdale", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Geltsdale@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "Valley of the River Gelt"}
 {"_type": "toponym", "ref": "Gilcrux@Cumberland", "modern_name": "Gilcrux", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Gilcrux@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cil"}, {"ordinal": 2, "etymon_ref": "celtic:crṻg"}], "notes": "Hill retreat"}
+{"_type": "etymology_element", "toponym_ref": "Gilcrux@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cil"}, {"ordinal": 2, "etymon_ref": "brittonic:crṻg"}], "notes": "Hill retreat"}
 {"_type": "toponym", "ref": "Glassonby@Cumberland", "modern_name": "Glassonby", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Glassonby@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Glassan"}], "notes": "Glassan's farm/settlement"}
 {"_type": "toponym", "ref": "Gosforth@Cumberland", "modern_name": "Gosforth", "country": "England", "region": "Cumberland"}
@@ -904,9 +904,9 @@
 {"_type": "toponym", "ref": "Great and Little Salkeld@Cumberland", "modern_name": "Great and Little Salkeld", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Great and Little Salkeld@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hylte"}, {"ordinal": 2, "etymon_ref": "old-english:salh"}], "notes": "Willow wood'. Later, there was confusion of the second element with OA helde, 'slope' or ON kelde, 'spring/stream"}
 {"_type": "toponym", "ref": "Greysouthen@Cumberland", "modern_name": "Greysouthen", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Greysouthen@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:creig"}, {"ordinal": 2, "etymon_ref": "old-english:Suthán"}], "notes": "Suthan's cliff"}
+{"_type": "etymology_element", "toponym_ref": "Greysouthen@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:creig"}, {"ordinal": 2, "etymon_ref": "old-english:Suthán"}], "notes": "Suthan's cliff"}
 {"_type": "toponym", "ref": "Greystoke@Cumberland", "modern_name": "Greystoke", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Greystoke@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:creig"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}, {"ordinal": 3, "etymon_ref": "old-english:stoc"}], "notes": "Outlying farm/settlement at Creic (= the crag)', later influenced by ME grei, 'grei'. It has also been suggested that the specific is a lost river name, 'Cray"}
+{"_type": "etymology_element", "toponym_ref": "Greystoke@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:creig"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}, {"ordinal": 3, "etymon_ref": "old-english:stoc"}], "notes": "Outlying farm/settlement at Creic (= the crag)', later influenced by ME grei, 'grei'. It has also been suggested that the specific is a lost river name, 'Cray"}
 {"_type": "toponym", "ref": "Grinsdale@Cumberland", "modern_name": "Grinsdale", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Grinsdale@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:dalr"}, {"ordinal": 2, "etymon_ref": "old-english:grēne"}, {"ordinal": 3, "etymon_ref": "old-english:næss"}], "notes": "green-promontory valley"}
 {"_type": "toponym", "ref": "Haile@Cumberland", "modern_name": "Haile", "country": "England", "region": "Cumberland"}
@@ -926,7 +926,7 @@
 {"_type": "toponym", "ref": "High and Low Ireby@Cumberland", "modern_name": "High and Low Ireby", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "High and Low Ireby@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:Íri"}], "notes": "Irish farm/settlement"}
 {"_type": "toponym", "ref": "Holme Abbey@Cumberland", "modern_name": "Holme Abbey", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Holme Abbey@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cṻl"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-norse:holmr"}, {"ordinal": 4, "etymon_ref": "celtic:tir"}], "notes": "Island'. Originally, 'narrow land', to which was affixed OE 'ham', followed by prefix of ON holmr in the 12th century. 'Abbey"}
+{"_type": "etymology_element", "toponym_ref": "Holme Abbey@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cṻl"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-norse:holmr"}, {"ordinal": 4, "etymon_ref": "celtic:tir"}], "notes": "Island'. Originally, 'narrow land', to which was affixed OE 'ham', followed by prefix of ON holmr in the 12th century. 'Abbey"}
 {"_type": "toponym", "ref": "Holme East Waver@Cumberland", "modern_name": "Holme East Waver", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Holme East Waver@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:holmr"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "Island"}
 {"_type": "toponym", "ref": "Holme Low@Cumberland", "modern_name": "Holme Low", "country": "England", "region": "Cumberland"}
@@ -964,13 +964,13 @@
 {"_type": "toponym", "ref": "Kirkbride@Cumberland", "modern_name": "Kirkbride", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Kirkbride@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:kirkja"}, {"ordinal": 2, "etymon_ref": "modern-english:saint"}], "notes": "Church of St. Bride"}
 {"_type": "toponym", "ref": "Kirkland and Blencarn@Cumberland", "modern_name": "Kirkland and Blencarn", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Kirkland and Blencarn@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:blain"}, {"ordinal": 2, "etymon_ref": "celtic:carn"}, {"ordinal": 3, "etymon_ref": "old-norse:kirkja"}, {"ordinal": 4, "etymon_ref": "old-english:land"}], "notes": "Church farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Kirkland and Blencarn@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:blain"}, {"ordinal": 2, "etymon_ref": "celtic:carn"}, {"ordinal": 3, "etymon_ref": "old-norse:kirkja"}, {"ordinal": 4, "etymon_ref": "old-english:land"}], "notes": "Church farm/settlement"}
 {"_type": "toponym", "ref": "Kirklinton Middle@Cumberland", "modern_name": "Kirklinton Middle", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Kirklinton Middle@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:kirkja"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement on the River Lyne' with later addition of 'church"}
 {"_type": "toponym", "ref": "Kirkoswald@Cumberland", "modern_name": "Kirkoswald", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Kirkoswald@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:kirkja"}, {"ordinal": 2, "etymon_ref": "modern-english:saint"}], "notes": "Church of St Oswald's"}
 {"_type": "toponym", "ref": "Lamplugh@Cumberland", "modern_name": "Lamplugh", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Lamplugh@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:landā"}, {"ordinal": 2, "etymon_ref": "celtic:nant"}, {"ordinal": 3, "etymon_ref": "unknown:Obscure element"}], "notes": "Enclosure"}
+{"_type": "etymology_element", "toponym_ref": "Lamplugh@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:landā"}, {"ordinal": 2, "etymon_ref": "celtic:nant"}, {"ordinal": 3, "etymon_ref": "unknown:Obscure element"}], "notes": "Enclosure"}
 {"_type": "toponym", "ref": "Langrigg and Mealrigg@Cumberland", "modern_name": "Langrigg and Mealrigg", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Langrigg and Mealrigg@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrycg"}, {"ordinal": 2, "etymon_ref": "old-norse:hryggr"}, {"ordinal": 3, "etymon_ref": "old-norse:langr"}, {"ordinal": 4, "etymon_ref": "old-english:middel"}], "notes": "Long ridge"}
 {"_type": "toponym", "ref": "Langwathby@Cumberland", "modern_name": "Langwathby", "country": "England", "region": "Cumberland"}
@@ -1022,7 +1022,7 @@
 {"_type": "toponym", "ref": "Papcastle@Cumberland", "modern_name": "Papcastle", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Papcastle@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "old-norse:papi"}], "notes": "Hermit's Roman site'. This is one of several Roman sites which were known as 'Derventio"}
 {"_type": "toponym", "ref": "Penrith@Cumberland", "modern_name": "Penrith", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Penrith@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:penn"}, {"ordinal": 2, "etymon_ref": "celtic:rïd"}], "notes": "head ford', probably in the sense of 'principal' rather than 'hill"}
+{"_type": "etymology_element", "toponym_ref": "Penrith@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:penn"}, {"ordinal": 2, "etymon_ref": "brittonic:rïd"}], "notes": "head ford', probably in the sense of 'principal' rather than 'hill"}
 {"_type": "toponym", "ref": "Plumbland@Cumberland", "modern_name": "Plumbland", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Plumbland@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:lundr"}, {"ordinal": 2, "etymon_ref": "old-english:plūme"}], "notes": "Plum-tree grove"}
 {"_type": "toponym", "ref": "Plumpton Wall@Cumberland", "modern_name": "Plumpton Wall", "country": "England", "region": "Cumberland"}
@@ -1062,7 +1062,7 @@
 {"_type": "toponym", "ref": "Skirwith@Cumberland", "modern_name": "Skirwith", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Skirwith@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scīr"}, {"ordinal": 2, "etymon_ref": "old-norse:viðr"}], "notes": "District wood"}
 {"_type": "toponym", "ref": "Solport@Cumberland", "modern_name": "Solport", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Solport@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 2, "etymon_ref": "celtic:perth"}], "notes": "thicket"}
+{"_type": "etymology_element", "toponym_ref": "Solport@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 2, "etymon_ref": "brittonic:perth"}], "notes": "thicket"}
 {"_type": "toponym", "ref": "St. Bees@Cumberland", "modern_name": "St. Bees", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "St. Bees@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:kirkju-býr"}, {"ordinal": 2, "etymon_ref": "modern-english:saint"}], "notes": "Saint Bega'. Originally, 'church farm/settlement"}
 {"_type": "toponym", "ref": "Staffield@Cumberland", "modern_name": "Staffield", "country": "England", "region": "Cumberland"}
@@ -1076,7 +1076,7 @@
 {"_type": "toponym", "ref": "Sunderland@Cumberland", "modern_name": "Sunderland", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Sunderland@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:sundor-land"}], "notes": "Detached land"}
 {"_type": "toponym", "ref": "Tallantire@Cumberland", "modern_name": "Tallantire", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Tallantire@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:tal"}, {"ordinal": 2, "etymon_ref": "celtic:tir"}], "notes": "Land's end"}
+{"_type": "etymology_element", "toponym_ref": "Tallantire@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:tal"}, {"ordinal": 2, "etymon_ref": "celtic:tir"}], "notes": "Land's end"}
 {"_type": "toponym", "ref": "Threlkeld@Cumberland", "modern_name": "Threlkeld", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Threlkeld@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:kelda"}, {"ordinal": 2, "etymon_ref": "old-norse:þrǽll"}], "notes": "Serfs' spring/stream"}
 {"_type": "toponym", "ref": "Thursby@Cumberland", "modern_name": "Thursby", "country": "England", "region": "Cumberland"}
@@ -1100,7 +1100,7 @@
 {"_type": "toponym", "ref": "Waterhead@Cumberland", "modern_name": "Waterhead", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Waterhead@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "modern-english:head"}, {"ordinal": 2, "etymon_ref": "modern-english:water"}], "notes": "Lake head"}
 {"_type": "toponym", "ref": "Watermillock@Cumberland", "modern_name": "Watermillock", "country": "England", "region": "Cumberland"}
-{"_type": "etymology_element", "toponym_ref": "Watermillock@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:mę̄l"}, {"ordinal": 2, "etymon_ref": "old-english:weðer"}], "notes": "Wether Maelog (= little bare hill)"}
+{"_type": "etymology_element", "toponym_ref": "Watermillock@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:mę̄l"}, {"ordinal": 2, "etymon_ref": "old-english:weðer"}], "notes": "Wether Maelog (= little bare hill)"}
 {"_type": "toponym", "ref": "Waverton@Cumberland", "modern_name": "Waverton", "country": "England", "region": "Cumberland"}
 {"_type": "etymology_element", "toponym_ref": "Waverton@Cumberland", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement on the River Waver"}
 {"_type": "toponym", "ref": "Weddicar@Cumberland", "modern_name": "Weddicar", "country": "England", "region": "Cumberland"}

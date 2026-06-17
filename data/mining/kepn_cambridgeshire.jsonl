@@ -123,9 +123,9 @@
 {"_type": "etymon", "ref": "old-norse:Kakkr", "canonical_form": "Kakkr", "language": "old-norse"}
 {"_type": "citation", "etymon_ref": "old-norse:Kakkr"}
 {"_type": "citation", "etymon_ref": "old-norse:Kakkr", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Reaney; Place-names of Cambridgeshire and the Isle of Ely"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Reaney; Place-names of Cambridgeshire and the Isle of Ely; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Reaney; Place-names of Cambridgeshire and the Isle of Ely; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:ric", "canonical_form": "ric", "language": "old-english", "glosses": ["A raised straight strip. (Uncertain)"]}
 {"_type": "citation", "etymon_ref": "old-english:ric"}
 {"_type": "citation", "etymon_ref": "old-english:ric", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Reaney; Place-names of Cambridgeshire and the Isle of Ely; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -625,7 +625,7 @@
 {"_type": "toponym", "ref": "Caxton@Cambridgeshire", "modern_name": "Caxton", "country": "England", "region": "Cambridgeshire"}
 {"_type": "etymology_element", "toponym_ref": "Caxton@Cambridgeshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-norse:Kakkr"}], "notes": "*Kakkr's farm/settlement"}
 {"_type": "toponym", "ref": "Chatteris@Cambridgeshire", "modern_name": "Chatteris", "country": "England", "region": "Cambridgeshire"}
-{"_type": "etymology_element", "toponym_ref": "Chatteris@Cambridgeshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:ric"}, {"ordinal": 3, "etymon_ref": "old-english:Catta"}], "notes": "Ceatta's narrow strip of land' but perhaps, 'narrow strip of woodland"}
+{"_type": "etymology_element", "toponym_ref": "Chatteris@Cambridgeshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:ric"}, {"ordinal": 3, "etymon_ref": "old-english:Catta"}], "notes": "Ceatta's narrow strip of land' but perhaps, 'narrow strip of woodland"}
 {"_type": "toponym", "ref": "Cherry Hinton@Cambridgeshire", "modern_name": "Cherry Hinton", "country": "England", "region": "Cambridgeshire"}
 {"_type": "etymology_element", "toponym_ref": "Cherry Hinton@Cambridgeshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hīwan"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "community's farm/settlement'. 'Cherry"}
 {"_type": "toponym", "ref": "Chesterton@Cambridgeshire", "modern_name": "Chesterton", "country": "England", "region": "Cambridgeshire"}

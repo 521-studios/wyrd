@@ -267,9 +267,9 @@
 {"_type": "etymon", "ref": "old-english:hīd", "canonical_form": "hīd", "language": "old-english", "glosses": ["A hide of land; an amount of land for the support of one free family and its dependants; a unit of valuation."]}
 {"_type": "citation", "etymon_ref": "old-english:hīd"}
 {"_type": "citation", "etymon_ref": "old-english:hīd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mawer & Stenton; Place-names of Bedfordshire and Huntingdonshire"}
-{"_type": "etymon", "ref": "celtic:camm", "canonical_form": "camm", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:camm"}
-{"_type": "citation", "etymon_ref": "celtic:camm", "source_id": "kepn_external", "context_snippet": "Mawer & Stenton; Place-names of Bedfordshire and Huntingdonshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:camm", "canonical_form": "camm", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:camm"}
+{"_type": "citation", "etymon_ref": "brittonic:camm", "source_id": "kepn_external", "context_snippet": "Mawer & Stenton; Place-names of Bedfordshire and Huntingdonshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:cǣg", "canonical_form": "cǣg", "language": "old-english", "glosses": ["A key; perhaps used topographically of hills."]}
 {"_type": "citation", "etymon_ref": "old-english:cǣg"}
 {"_type": "citation", "etymon_ref": "old-english:cǣg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Mawer & Stenton; Place-names of Bedfordshire and Huntingdonshire; E. Ekwall; Dictionary of English Place-Names; The Vocabulary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -678,7 +678,7 @@
 {"_type": "toponym", "ref": "Hyde@Bedfordshire", "modern_name": "Hyde", "country": "England", "region": "Bedfordshire"}
 {"_type": "etymology_element", "toponym_ref": "Hyde@Bedfordshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hīd"}], "notes": "Hide of land"}
 {"_type": "toponym", "ref": "Kempston@Bedfordshire", "modern_name": "Kempston", "country": "England", "region": "Bedfordshire"}
-{"_type": "etymology_element", "toponym_ref": "Kempston@Bedfordshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:camm"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Crook farm/settlement' or perhaps, 'farm/settlement at Caembes (= the crook)"}
+{"_type": "etymology_element", "toponym_ref": "Kempston@Bedfordshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:camm"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Crook farm/settlement' or perhaps, 'farm/settlement at Caembes (= the crook)"}
 {"_type": "toponym", "ref": "Kensworth@Bedfordshire", "modern_name": "Kensworth", "country": "England", "region": "Bedfordshire"}
 {"_type": "etymology_element", "toponym_ref": "Kensworth@Bedfordshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:worð"}], "notes": "*Caegin's enclosure; unresolved personal name(s): Caegin"}
 {"_type": "toponym", "ref": "Keysoe@Bedfordshire", "modern_name": "Keysoe", "country": "England", "region": "Bedfordshire"}

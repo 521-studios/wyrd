@@ -282,8 +282,8 @@
 {"_type": "etymon", "ref": "old-english:Betti", "canonical_form": "Betti", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Betti"}
 {"_type": "citation", "etymon_ref": "old-english:Betti", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
-{"_type": "etymon", "ref": "celtic:Frome", "canonical_form": "Frome", "language": "celtic", "glosses": ["River-name meaning 'fair, fine, brisk'."]}
-{"_type": "citation", "etymon_ref": "celtic:Frome"}
+{"_type": "etymon", "ref": "brittonic:Frome", "canonical_form": "Frome", "language": "brittonic", "glosses": ["River-name meaning 'fair, fine, brisk'."]}
+{"_type": "citation", "etymon_ref": "brittonic:Frome"}
 {"_type": "etymon", "ref": "old-english:Bitta", "canonical_form": "Bitta", "language": "old-english", "glosses": ["Masculine personal name."]}
 {"_type": "citation", "etymon_ref": "old-english:Bitta"}
 {"_type": "etymon", "ref": "old-english:Buttel", "canonical_form": "Buttel", "language": "old-english", "glosses": ["Masculine personal name."]}
@@ -315,9 +315,9 @@
 {"_type": "citation", "etymon_ref": "old-english:biscop", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "latin:episcopus", "canonical_form": "episcopus", "language": "latin", "glosses": ["A bishop."]}
 {"_type": "citation", "etymon_ref": "latin:episcopus"}
-{"_type": "etymon", "ref": "celtic:canto-", "canonical_form": "canto-", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:canto-"}
-{"_type": "citation", "etymon_ref": "celtic:canto-", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:canto-", "canonical_form": "canto-", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:canto-"}
+{"_type": "citation", "etymon_ref": "brittonic:canto-", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Byttel", "canonical_form": "Byttel", "language": "old-english", "glosses": ["Masculine personal name."]}
 {"_type": "citation", "etymon_ref": "old-english:Byttel"}
 {"_type": "etymon", "ref": "old-english:lȳtel", "canonical_form": "lȳtel", "language": "old-english", "glosses": ["Little, small."]}
@@ -428,9 +428,9 @@
 {"_type": "citation", "etymon_ref": "old-english:dēop"}
 {"_type": "etymon", "ref": "old-english:sceort", "canonical_form": "sceort", "language": "old-english", "glosses": ["Short."]}
 {"_type": "citation", "etymon_ref": "old-english:sceort"}
-{"_type": "etymon", "ref": "celtic:main", "canonical_form": "main", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:main"}
-{"_type": "citation", "etymon_ref": "celtic:main", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:main", "canonical_form": "main", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:main"}
+{"_type": "citation", "etymon_ref": "brittonic:main", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Wey", "canonical_form": "Wey", "language": "old-english", "glosses": ["A river-name."]}
 {"_type": "citation", "etymon_ref": "old-english:Wey"}
 {"_type": "etymon", "ref": "old-english:ōra", "canonical_form": "ōra", "language": "old-english", "glosses": ["A shore, hill-slope; possibly also the foot of a slope.  (Used in place-names only in the parts of southern England where Jutish and West Saxon dialects were operative.)"]}
@@ -576,11 +576,11 @@
 {"_type": "etymon", "ref": "old-english:Catta", "canonical_form": "Catta", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Catta"}
 {"_type": "citation", "etymon_ref": "old-english:Catta", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Mills; Place-names of Dorset; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
-{"_type": "etymon", "ref": "celtic:rïd", "canonical_form": "rïd", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:rïd"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
+{"_type": "etymon", "ref": "brittonic:rïd", "canonical_form": "rïd", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:rïd"}
 {"_type": "etymon", "ref": "old-english:rīð", "canonical_form": "rīð", "language": "old-english", "glosses": ["A small stream."]}
 {"_type": "citation", "etymon_ref": "old-english:rīð"}
 {"_type": "etymon", "ref": "old-english:cetel", "canonical_form": "cetel", "language": "old-english"}
@@ -588,9 +588,9 @@
 {"_type": "citation", "etymon_ref": "old-english:cetel", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:hēafod", "canonical_form": "hēafod", "language": "old-english", "glosses": ["A head; an end or source; headland in a field-system; a projecting piece of ground; a hill (often small)."]}
 {"_type": "citation", "etymon_ref": "old-english:hēafod"}
-{"_type": "etymon", "ref": "celtic:-ǭg", "canonical_form": "-ǭg", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:-ǭg"}
-{"_type": "citation", "etymon_ref": "celtic:-ǭg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
+{"_type": "etymon", "ref": "brittonic:-ǭg", "canonical_form": "-ǭg", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:-ǭg"}
+{"_type": "citation", "etymon_ref": "brittonic:-ǭg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
 {"_type": "etymon", "ref": "old-english:celte", "canonical_form": "celte", "language": "old-english", "glosses": ["Meaning and origin unknown."]}
 {"_type": "citation", "etymon_ref": "old-english:celte"}
 {"_type": "citation", "etymon_ref": "old-english:celte", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -649,8 +649,8 @@
 {"_type": "citation", "etymon_ref": "old-french:molin"}
 {"_type": "etymon", "ref": "old-english:cweorn", "canonical_form": "cweorn", "language": "old-english", "glosses": ["A quern, a hand-mill; possibly also used of any mill."]}
 {"_type": "citation", "etymon_ref": "old-english:cweorn"}
-{"_type": "etymon", "ref": "celtic:cors", "canonical_form": "cors", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cors"}
+{"_type": "etymon", "ref": "brittonic:cors", "canonical_form": "cors", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cors"}
 {"_type": "etymon", "ref": "old-english:cū", "canonical_form": "cū", "language": "old-english", "glosses": ["A cow."]}
 {"_type": "citation", "etymon_ref": "old-english:cū"}
 {"_type": "etymon", "ref": "old-english:cran", "canonical_form": "cran", "language": "old-english", "glosses": ["A crane; probably also a heron or similar bird."]}
@@ -696,14 +696,14 @@
 {"_type": "etymon", "ref": "old-english:ceaster", "canonical_form": "ceaster", "language": "old-english", "glosses": ["A city; an old fortification; a Roman site."]}
 {"_type": "citation", "etymon_ref": "old-english:ceaster"}
 {"_type": "citation", "etymon_ref": "old-english:ceaster", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:durn", "canonical_form": "durn", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:durn"}
-{"_type": "etymon", "ref": "celtic:durno-", "canonical_form": "durno-", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:durno-"}
-{"_type": "citation", "etymon_ref": "celtic:durno-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:u̯ariā", "canonical_form": "u̯ariā", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:u̯ariā"}
-{"_type": "citation", "etymon_ref": "celtic:u̯ariā", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:durn", "canonical_form": "durn", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:durn"}
+{"_type": "etymon", "ref": "brittonic:durno-", "canonical_form": "durno-", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:durno-"}
+{"_type": "citation", "etymon_ref": "brittonic:durno-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:u̯ariā", "canonical_form": "u̯ariā", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:u̯ariā"}
+{"_type": "citation", "etymon_ref": "brittonic:u̯ariā", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:þrop", "canonical_form": "þrop", "language": "old-english", "glosses": ["A hamlet, an outlying farm."]}
 {"_type": "citation", "etymon_ref": "old-english:þrop"}
 {"_type": "etymon", "ref": "old-english:Dudd", "canonical_form": "Dudd", "language": "old-english", "glosses": ["Masculine personal name."]}
@@ -744,9 +744,9 @@
 {"_type": "etymon", "ref": "celtic:ar", "canonical_form": "ar", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:ar"}
 {"_type": "citation", "etymon_ref": "celtic:ar", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:crṻg", "canonical_form": "crṻg", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:crṻg"}
-{"_type": "citation", "etymon_ref": "celtic:crṻg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:crṻg", "canonical_form": "crṻg", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:crṻg"}
+{"_type": "citation", "etymon_ref": "brittonic:crṻg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:eorl", "canonical_form": "eorl", "language": "old-english", "glosses": ["A hero, a nobleman; (later) a high-ranking officer of state."]}
 {"_type": "citation", "etymon_ref": "old-english:eorl"}
 {"_type": "etymon", "ref": "old-english:holegn", "canonical_form": "holegn", "language": "old-english", "glosses": ["Holly."]}
@@ -772,8 +772,8 @@
 {"_type": "etymon", "ref": "old-english:Ēadmōd", "canonical_form": "Ēadmōd", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Ēadmōd"}
 {"_type": "citation", "etymon_ref": "old-english:Ēadmōd", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
-{"_type": "etymon", "ref": "celtic:eglẹ̄s", "canonical_form": "eglẹ̄s", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:eglẹ̄s"}
+{"_type": "etymon", "ref": "brittonic:eglẹ̄s", "canonical_form": "eglẹ̄s", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:eglẹ̄s"}
 {"_type": "etymon", "ref": "old-english:hǣl", "canonical_form": "hǣl", "language": "old-english", "glosses": ["An omen, good fortune."]}
 {"_type": "citation", "etymon_ref": "old-english:hǣl"}
 {"_type": "etymon", "ref": "old-english:hǣle", "canonical_form": "hǣle", "language": "old-english", "glosses": ["Hale, safe."]}
@@ -1027,8 +1027,8 @@
 {"_type": "citation", "etymon_ref": "unknown:Chur"}
 {"_type": "etymon", "ref": "old-english:cærse", "canonical_form": "cærse", "language": "old-english", "glosses": ["Cress, water-cress.; Carey"]}
 {"_type": "citation", "etymon_ref": "old-english:cærse"}
-{"_type": "etymon", "ref": "celtic:Carey", "canonical_form": "Carey", "language": "celtic", "glosses": ["River-name of uncertain meaning."]}
-{"_type": "citation", "etymon_ref": "celtic:Carey"}
+{"_type": "etymon", "ref": "brittonic:Carey", "canonical_form": "Carey", "language": "brittonic", "glosses": ["River-name of uncertain meaning."]}
+{"_type": "citation", "etymon_ref": "brittonic:Carey"}
 {"_type": "etymon", "ref": "middle-english:kiken", "canonical_form": "kiken", "language": "middle-english", "glosses": ["To watch, peep."]}
 {"_type": "citation", "etymon_ref": "middle-english:kiken"}
 {"_type": "etymon", "ref": "old-english:Cȳma", "canonical_form": "Cȳma", "language": "old-english", "glosses": ["Masculine personal name."]}
@@ -1097,15 +1097,15 @@
 {"_type": "citation", "etymon_ref": "old-english:hlȳde", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:lorte", "canonical_form": "lorte", "language": "old-english", "glosses": ["Dirt, mud, a muddy place, a swamp."]}
 {"_type": "citation", "etymon_ref": "old-english:lorte"}
-{"_type": "etymon", "ref": "celtic:dour", "canonical_form": "dour", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:dour"}
-{"_type": "citation", "etymon_ref": "celtic:dour", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:lo-dre", "canonical_form": "lo-dre", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:lo-dre"}
-{"_type": "citation", "etymon_ref": "celtic:lo-dre", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:logh", "canonical_form": "logh", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:logh"}
-{"_type": "citation", "etymon_ref": "celtic:logh", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:dour", "canonical_form": "dour", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:dour"}
+{"_type": "citation", "etymon_ref": "brittonic:dour", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:lo-dre", "canonical_form": "lo-dre", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:lo-dre"}
+{"_type": "citation", "etymon_ref": "brittonic:lo-dre", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:logh", "canonical_form": "logh", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:logh"}
+{"_type": "citation", "etymon_ref": "brittonic:logh", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Lodda", "canonical_form": "Lodda", "language": "old-english", "glosses": ["Masculine personal name."]}
 {"_type": "citation", "etymon_ref": "old-english:Lodda"}
 {"_type": "etymon", "ref": "old-english:Bodda", "canonical_form": "Bodda", "language": "old-english"}
@@ -1143,9 +1143,9 @@
 {"_type": "citation", "etymon_ref": "old-english:lind"}
 {"_type": "etymon", "ref": "old-english:lisc", "canonical_form": "lisc", "language": "old-english", "glosses": ["Reeds, a reedy marsh."]}
 {"_type": "citation", "etymon_ref": "old-english:lisc"}
-{"_type": "etymon", "ref": "celtic:lẹ̄d", "canonical_form": "lẹ̄d", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:lẹ̄d"}
-{"_type": "citation", "etymon_ref": "celtic:lẹ̄d", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:lẹ̄d", "canonical_form": "lẹ̄d", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:lẹ̄d"}
+{"_type": "citation", "etymon_ref": "brittonic:lẹ̄d", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "continental-germanic:Madalgar", "canonical_form": "Madalgar", "language": "continental-germanic", "glosses": ["Masculine personal name."]}
 {"_type": "citation", "etymon_ref": "continental-germanic:Madalgar"}
 {"_type": "etymon", "ref": "continental-germanic:Personal-name", "canonical_form": "Personal-name", "language": "continental-germanic", "glosses": ["A personal-name."]}
@@ -1240,9 +1240,9 @@
 {"_type": "citation", "etymon_ref": "old-english:Ōsmund"}
 {"_type": "etymon", "ref": "old-english:ofer", "canonical_form": "ofer", "language": "old-english", "glosses": ["The tip of a promontory, a flat-topped ridge."]}
 {"_type": "citation", "etymon_ref": "old-english:ofer"}
-{"_type": "etymon", "ref": "celtic:oerddrws", "canonical_form": "oerddrws", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:oerddrws"}
-{"_type": "citation", "etymon_ref": "celtic:oerddrws", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Coates and Breeze, Celtic Voices English Places; A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
+{"_type": "etymon", "ref": "brittonic:oerddrws", "canonical_form": "oerddrws", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:oerddrws"}
+{"_type": "citation", "etymon_ref": "brittonic:oerddrws", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Coates and Breeze, Celtic Voices English Places; A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
 {"_type": "etymon", "ref": "old-english:pall", "canonical_form": "pall", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:pall"}
 {"_type": "etymon", "ref": "old-english:Pælli", "canonical_form": "Pælli", "language": "old-english", "glosses": ["Masculine personal name."]}
@@ -1252,9 +1252,9 @@
 {"_type": "etymon", "ref": "celtic:penn", "canonical_form": "penn", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:penn"}
 {"_type": "citation", "etymon_ref": "celtic:penn", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:twrch", "canonical_form": "twrch", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:twrch"}
-{"_type": "citation", "etymon_ref": "celtic:twrch", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:twrch", "canonical_form": "twrch", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:twrch"}
+{"_type": "citation", "etymon_ref": "brittonic:twrch", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Mills; Place-names of Dorset; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:pirige", "canonical_form": "pirige", "language": "old-english", "glosses": ["A pear-tree."]}
 {"_type": "citation", "etymon_ref": "old-english:pirige"}
 {"_type": "etymon", "ref": "old-english:Peohtrı̄c", "canonical_form": "Peohtrı̄c", "language": "old-english"}
@@ -1274,10 +1274,10 @@
 {"_type": "etymon", "ref": "old-english:pimpern", "canonical_form": "pimpern", "language": "old-english", "glosses": ["Group of hills."]}
 {"_type": "citation", "etymon_ref": "old-english:pimpern"}
 {"_type": "citation", "etymon_ref": "old-english:pimpern", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
-{"_type": "etymon", "ref": "celtic:pren", "canonical_form": "pren", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:pren"}
-{"_type": "etymon", "ref": "celtic:pump", "canonical_form": "pump", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:pump"}
+{"_type": "etymon", "ref": "brittonic:pren", "canonical_form": "pren", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:pren"}
+{"_type": "etymon", "ref": "brittonic:pump", "canonical_form": "pump", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:pump"}
 {"_type": "etymon", "ref": "old-english:pinc", "canonical_form": "pinc", "language": "old-english", "glosses": ["A minnow."]}
 {"_type": "citation", "etymon_ref": "old-english:pinc"}
 {"_type": "etymon", "ref": "old-english:pīn", "canonical_form": "pīn", "language": "old-english", "glosses": ["A pine-tree."]}
@@ -1529,8 +1529,8 @@
 {"_type": "citation", "etymon_ref": "old-english:Bola", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:trendel", "canonical_form": "trendel", "language": "old-english", "glosses": ["A circle, a ring; something circular in shape."]}
 {"_type": "citation", "etymon_ref": "old-english:trendel"}
-{"_type": "etymon", "ref": "celtic:Trent", "canonical_form": "Trent", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:Trent"}
+{"_type": "etymon", "ref": "brittonic:Trent", "canonical_form": "Trent", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:Trent"}
 {"_type": "etymon", "ref": "old-english:tyrl", "canonical_form": "tyrl", "language": "old-english", "glosses": ["That which turns, rolls, or trundles along."]}
 {"_type": "citation", "etymon_ref": "old-english:tyrl"}
 {"_type": "etymon", "ref": "old-english:twī-", "canonical_form": "twī-", "language": "old-english", "glosses": ["Double, two."]}
@@ -1617,11 +1617,11 @@
 {"_type": "etymon", "ref": "old-english:winn", "canonical_form": "winn", "language": "old-english", "glosses": ["A pasture."]}
 {"_type": "citation", "etymon_ref": "old-english:winn"}
 {"_type": "citation", "etymon_ref": "old-english:winn", "source_id": "kepn_external", "context_snippet": "Mills; Place-names of Dorset; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:frud", "canonical_form": "frud", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:frud"}
-{"_type": "citation", "etymon_ref": "celtic:frud", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
-{"_type": "etymon", "ref": "celtic:wïnn", "canonical_form": "wïnn", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:wïnn"}
+{"_type": "etymon", "ref": "brittonic:frud", "canonical_form": "frud", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:frud"}
+{"_type": "citation", "etymon_ref": "brittonic:frud", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
+{"_type": "etymon", "ref": "brittonic:wïnn", "canonical_form": "wïnn", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:wïnn"}
 {"_type": "etymon", "ref": "old-english:winter", "canonical_form": "winter", "language": "old-english", "glosses": ["Winter."]}
 {"_type": "citation", "etymon_ref": "old-english:winter"}
 {"_type": "citation", "etymon_ref": "old-english:winter", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mills; Place-names of Dorset"}
@@ -1839,7 +1839,7 @@
 {"_type": "toponym", "ref": "Bettiscombe@Dorset", "modern_name": "Bettiscombe", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Bettiscombe@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:Betti"}], "notes": "Betti's valley"}
 {"_type": "toponym", "ref": "Bhompston Cottages and Farm@Dorset", "modern_name": "Bhompston Cottages and Farm", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Bhompston Cottages and Farm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:Frome"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "unresolved personal name(s): Boneville"}
+{"_type": "etymology_element", "toponym_ref": "Bhompston Cottages and Farm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:Frome"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "unresolved personal name(s): Boneville"}
 {"_type": "toponym", "ref": "Bidcombe Mill@Dorset", "modern_name": "Bidcombe Mill", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Bidcombe Mill@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:Bitta"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}, {"ordinal": 3, "etymon_ref": "old-english:Bitta"}]}
 {"_type": "toponym", "ref": "Biddlesgate@Dorset", "modern_name": "Biddlesgate", "country": "England", "region": "Dorset"}
@@ -1861,7 +1861,7 @@
 {"_type": "toponym", "ref": "Bishop's Down@Dorset", "modern_name": "Bishop's Down", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Bishop's Down@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:biscop"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}, {"ordinal": 3, "etymon_ref": "latin:episcopus"}], "notes": "s"}
 {"_type": "toponym", "ref": "Bishops Caundle@Dorset", "modern_name": "Bishops Caundle", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Bishops Caundle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:biscop"}, {"ordinal": 2, "etymon_ref": "celtic:canto-"}]}
+{"_type": "etymology_element", "toponym_ref": "Bishops Caundle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:biscop"}, {"ordinal": 2, "etymon_ref": "brittonic:canto-"}]}
 {"_type": "toponym", "ref": "Bittlesmore@Dorset", "modern_name": "Bittlesmore", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Bittlesmore@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:Byttel"}, {"ordinal": 2, "etymon_ref": "old-english:lȳtel"}, {"ordinal": 3, "etymon_ref": "old-english:middel"}, {"ordinal": 4, "etymon_ref": "old-english:mōr"}], "notes": "unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Black Venn@Dorset", "modern_name": "Black Venn", "country": "England", "region": "Dorset"}
@@ -1949,9 +1949,9 @@
 {"_type": "toponym", "ref": "Broadley Ctg, Plant, & Wd@Dorset", "modern_name": "Broadley Ctg, Plant, & Wd", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Broadley Ctg, Plant, & Wd@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brād"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}, {"ordinal": 3, "etymon_ref": "old-english:lēah"}]}
 {"_type": "toponym", "ref": "Broadmayne@Dorset", "modern_name": "Broadmayne", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Broadmayne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brād"}, {"ordinal": 2, "etymon_ref": "celtic:main"}]}
+{"_type": "etymology_element", "toponym_ref": "Broadmayne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brād"}, {"ordinal": 2, "etymon_ref": "brittonic:main"}]}
 {"_type": "toponym", "ref": "Broadmayne@Dorset", "modern_name": "Broadmayne", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Broadmayne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brād"}, {"ordinal": 2, "etymon_ref": "celtic:main"}], "notes": "Rock' with the later addition of 'broad"}
+{"_type": "etymology_element", "toponym_ref": "Broadmayne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brād"}, {"ordinal": 2, "etymon_ref": "brittonic:main"}], "notes": "Rock' with the later addition of 'broad"}
 {"_type": "toponym", "ref": "Broadway@Dorset", "modern_name": "Broadway", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Broadway@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brād"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "Broad' referring to the river"}
 {"_type": "toponym", "ref": "Broadwey@Dorset", "modern_name": "Broadwey", "country": "England", "region": "Dorset"}
@@ -2059,7 +2059,7 @@
 {"_type": "toponym", "ref": "Caundle Marsh@Dorset", "modern_name": "Caundle Marsh", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Caundle Marsh@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:mareis"}, {"ordinal": 2, "etymon_ref": "old-english:mersc"}, {"ordinal": 3, "etymon_ref": "unknown:Place-name"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}]}
 {"_type": "toponym", "ref": "Caundle Marsh@Dorset", "modern_name": "Caundle Marsh", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Caundle Marsh@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:canto-"}, {"ordinal": 2, "etymon_ref": "old-english:mersc"}]}
+{"_type": "etymology_element", "toponym_ref": "Caundle Marsh@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:canto-"}, {"ordinal": 2, "etymon_ref": "old-english:mersc"}]}
 {"_type": "toponym", "ref": "Caundle Wake@Dorset", "modern_name": "Caundle Wake", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Caundle Wake@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Place-name"}]}
 {"_type": "toponym", "ref": "Causeway Farm@Dorset", "modern_name": "Causeway Farm", "country": "England", "region": "Dorset"}
@@ -2119,7 +2119,7 @@
 {"_type": "toponym", "ref": "Chetnole@Dorset", "modern_name": "Chetnole", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Chetnole@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cnoll"}, {"ordinal": 2, "etymon_ref": "old-english:Catta"}], "notes": "Ceatta's hillock"}
 {"_type": "toponym", "ref": "Chetterwood@Dorset", "modern_name": "Chetterwood", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Chetterwood@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:rïd"}, {"ordinal": 3, "etymon_ref": "old-english:rīð"}]}
+{"_type": "etymology_element", "toponym_ref": "Chetterwood@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "brittonic:rïd"}, {"ordinal": 3, "etymon_ref": "old-english:rīð"}]}
 {"_type": "toponym", "ref": "Chettle@Dorset", "modern_name": "Chettle", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Chettle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cetel"}]}
 {"_type": "toponym", "ref": "Chettle@Dorset", "modern_name": "Chettle", "country": "England", "region": "Dorset"}
@@ -2131,7 +2131,7 @@
 {"_type": "toponym", "ref": "Chickerell@Dorset", "modern_name": "Chickerell", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Chickerell@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}]}
 {"_type": "toponym", "ref": "Chideock@Dorset", "modern_name": "Chideock", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Chideock@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-ǭg"}, {"ordinal": 2, "etymon_ref": "celtic:cē¸d"}], "notes": "Wooded place"}
+{"_type": "etymology_element", "toponym_ref": "Chideock@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-ǭg"}, {"ordinal": 2, "etymon_ref": "brittonic:cē¸d"}], "notes": "Wooded place"}
 {"_type": "toponym", "ref": "Chilcombe@Dorset", "modern_name": "Chilcombe", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Chilcombe@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:celte"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}], "notes": "*Cilte (=steep slope valley)"}
 {"_type": "toponym", "ref": "Child Okeford@Dorset", "modern_name": "Child Okeford", "country": "England", "region": "Dorset"}
@@ -2163,7 +2163,7 @@
 {"_type": "toponym", "ref": "Cogdean Elms@Dorset", "modern_name": "Cogdean Elms", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Cogdean Elms@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cocc"}, {"ordinal": 2, "etymon_ref": "old-english:denu"}, {"ordinal": 3, "etymon_ref": "old-english:elm"}]}
 {"_type": "toponym", "ref": "Coker's Frome@Dorset", "modern_name": "Coker's Frome", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Coker's Frome@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "celtic:Frome"}]}
+{"_type": "etymology_element", "toponym_ref": "Coker's Frome@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "brittonic:Frome"}]}
 {"_type": "toponym", "ref": "Coking Fm@Dorset", "modern_name": "Coking Fm", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Coking Fm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:cokaygne"}, {"ordinal": 2, "etymon_ref": "old-english:croft"}]}
 {"_type": "toponym", "ref": "Colber Crib House@Dorset", "modern_name": "Colber Crib House", "country": "England", "region": "Dorset"}
@@ -2211,7 +2211,7 @@
 {"_type": "toponym", "ref": "Corscombe@Dorset", "modern_name": "Corscombe", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Corscombe@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:corf"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}, {"ordinal": 4, "etymon_ref": "old-english:weg"}], "notes": "valley'. The first is perhaps a lost stream-name identical with Curry, Somerset or, less likely, a reduction of OE corf-weg, 'pass road"}
 {"_type": "toponym", "ref": "Cosmore@Dorset", "modern_name": "Cosmore", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Cosmore@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cors"}, {"ordinal": 2, "etymon_ref": "old-english:mōr"}], "notes": "and OE mor `marshy ground"}
+{"_type": "etymology_element", "toponym_ref": "Cosmore@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cors"}, {"ordinal": 2, "etymon_ref": "old-english:mōr"}], "notes": "and OE mor `marshy ground"}
 {"_type": "toponym", "ref": "Cowgrove@Dorset", "modern_name": "Cowgrove", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Cowgrove@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cū"}, {"ordinal": 2, "etymon_ref": "old-english:grāf"}]}
 {"_type": "toponym", "ref": "Cowridge Copse@Dorset", "modern_name": "Cowridge Copse", "country": "England", "region": "Dorset"}
@@ -2259,9 +2259,9 @@
 {"_type": "toponym", "ref": "Dodding's Brick Yard@Dorset", "modern_name": "Dodding's Brick Yard", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Dodding's Brick Yard@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:Dodda"}, {"ordinal": 3, "etymon_ref": "middle-english:dodde"}, {"ordinal": 4, "etymon_ref": "unknown:Place-name"}, {"ordinal": 5, "etymon_ref": "old-english:tūn"}, {"ordinal": 6, "etymon_ref": "old-english:wīc"}, {"ordinal": 7, "etymon_ref": "old-english:Dodda"}]}
 {"_type": "toponym", "ref": "Dorchester@Dorset", "modern_name": "Dorchester", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Dorchester@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ware"}, {"ordinal": 2, "etymon_ref": "old-english:ceaster"}, {"ordinal": 3, "etymon_ref": "celtic:durn"}, {"ordinal": 4, "etymon_ref": "unknown:Obscure element"}]}
+{"_type": "etymology_element", "toponym_ref": "Dorchester@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ware"}, {"ordinal": 2, "etymon_ref": "old-english:ceaster"}, {"ordinal": 3, "etymon_ref": "brittonic:durn"}, {"ordinal": 4, "etymon_ref": "unknown:Obscure element"}]}
 {"_type": "toponym", "ref": "Dorchester@Dorset", "modern_name": "Dorchester", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Dorchester@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "celtic:durno-"}, {"ordinal": 3, "etymon_ref": "celtic:u̯ariā"}], "notes": "Roman site of Dorn'. The Romano-British name is a compound of 'fist"}
+{"_type": "etymology_element", "toponym_ref": "Dorchester@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "brittonic:durno-"}, {"ordinal": 3, "etymon_ref": "brittonic:u̯ariā"}], "notes": "Roman site of Dorn'. The Romano-British name is a compound of 'fist"}
 {"_type": "toponym", "ref": "Droop@Dorset", "modern_name": "Droop", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Droop@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:þrop"}]}
 {"_type": "toponym", "ref": "Druce Farm@Dorset", "modern_name": "Druce Farm", "country": "England", "region": "Dorset"}
@@ -2297,11 +2297,11 @@
 {"_type": "toponym", "ref": "East and West Lulworth@Dorset", "modern_name": "East and West Lulworth", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "East and West Lulworth@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:worð"}, {"ordinal": 2, "etymon_ref": "middle-english:Lulla"}], "notes": "Lulla's enclosure"}
 {"_type": "toponym", "ref": "East and West Orchard@Dorset", "modern_name": "East and West Orchard", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "East and West Orchard@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ar"}, {"ordinal": 2, "etymon_ref": "celtic:cē¸d"}], "notes": "Near the wood"}
+{"_type": "etymology_element", "toponym_ref": "East and West Orchard@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ar"}, {"ordinal": 2, "etymon_ref": "brittonic:cē¸d"}], "notes": "Near the wood"}
 {"_type": "toponym", "ref": "East Brook@Dorset", "modern_name": "East Brook", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "East Brook@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bī"}, {"ordinal": 2, "etymon_ref": "old-english:brōc"}, {"ordinal": 3, "etymon_ref": "old-english:ēastan"}]}
 {"_type": "toponym", "ref": "East Creech@Dorset", "modern_name": "East Creech", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "East Creech@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:ēast"}, {"ordinal": 3, "etymon_ref": "old-english:eorl"}], "notes": "East"}
+{"_type": "etymology_element", "toponym_ref": "East Creech@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:ēast"}, {"ordinal": 3, "etymon_ref": "old-english:eorl"}], "notes": "East"}
 {"_type": "toponym", "ref": "East Fossil Dairy and Farm@Dorset", "modern_name": "East Fossil Dairy and Farm", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "East Fossil Dairy and Farm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēast"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}]}
 {"_type": "toponym", "ref": "East Holme@Dorset", "modern_name": "East Holme", "country": "England", "region": "Dorset"}
@@ -2339,7 +2339,7 @@
 {"_type": "toponym", "ref": "Edmondsham@Dorset", "modern_name": "Edmondsham", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Edmondsham@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām"}, {"ordinal": 2, "etymon_ref": "old-english:hamm"}, {"ordinal": 3, "etymon_ref": "old-english:Ēadmōd"}], "notes": "*Eadmod's homestead/village' or *Eadmod's hemmed-in land"}
 {"_type": "toponym", "ref": "Eglysham@Dorset", "modern_name": "Eglysham", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Eglysham@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:hamm"}]}
+{"_type": "etymology_element", "toponym_ref": "Eglysham@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:hamm"}]}
 {"_type": "toponym", "ref": "Elwell@Dorset", "modern_name": "Elwell", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Elwell@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hǣl"}, {"ordinal": 2, "etymon_ref": "old-english:hǣle"}, {"ordinal": 3, "etymon_ref": "old-english:hǣlu"}, {"ordinal": 4, "etymon_ref": "old-english:wella"}]}
 {"_type": "toponym", "ref": "Encombe Farm@Dorset", "modern_name": "Encombe Farm", "country": "England", "region": "Dorset"}
@@ -2415,13 +2415,13 @@
 {"_type": "toponym", "ref": "Frogmore Fm@Dorset", "modern_name": "Frogmore Fm", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Frogmore Fm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:frogga"}, {"ordinal": 2, "etymon_ref": "old-english:mere"}]}
 {"_type": "toponym", "ref": "Frome Mead@Dorset", "modern_name": "Frome Mead", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Frome Mead@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:Frome"}, {"ordinal": 2, "etymon_ref": "old-english:mǣd"}, {"ordinal": 3, "etymon_ref": "old-english:stæð"}, {"ordinal": 4, "etymon_ref": "old-english:waroð"}]}
+{"_type": "etymology_element", "toponym_ref": "Frome Mead@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:Frome"}, {"ordinal": 2, "etymon_ref": "old-english:mǣd"}, {"ordinal": 3, "etymon_ref": "old-english:stæð"}, {"ordinal": 4, "etymon_ref": "old-english:waroð"}]}
 {"_type": "toponym", "ref": "Frome St. Quentin@Dorset", "modern_name": "Frome St. Quentin", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Frome St. Quentin@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Frome Vauchurch@Dorset", "modern_name": "Frome Vauchurch", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Frome Vauchurch@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cirice"}, {"ordinal": 2, "etymon_ref": "old-english:fāg"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}], "notes": "multi-coloured church"}
 {"_type": "toponym", "ref": "Frome Whitfield@Dorset", "modern_name": "Frome Whitfield", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Frome Whitfield@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "celtic:Frome"}]}
+{"_type": "etymology_element", "toponym_ref": "Frome Whitfield@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "brittonic:Frome"}]}
 {"_type": "toponym", "ref": "Fryer Mayne@Dorset", "modern_name": "Fryer Mayne", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Fryer Mayne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:frere"}, {"ordinal": 2, "etymon_ref": "middle-english:hospital"}, {"ordinal": 3, "etymon_ref": "unknown:Place-name"}]}
 {"_type": "toponym", "ref": "Furzey Island@Dorset", "modern_name": "Furzey Island", "country": "England", "region": "Dorset"}
@@ -2455,7 +2455,7 @@
 {"_type": "toponym", "ref": "Grange Farm@Dorset", "modern_name": "Grange Farm", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Grange Farm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:grange"}]}
 {"_type": "toponym", "ref": "Green Island Lake@Dorset", "modern_name": "Green Island Lake", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Green Island Lake@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēg"}, {"ordinal": 2, "etymon_ref": "old-english:ēg-land"}, {"ordinal": 3, "etymon_ref": "celtic:Frome"}, {"ordinal": 4, "etymon_ref": "old-english:grēne"}, {"ordinal": 5, "etymon_ref": "old-english:lacu"}, {"ordinal": 6, "etymon_ref": "old-english:mūða"}, {"ordinal": 7, "etymon_ref": "unknown:Saint's Name"}]}
+{"_type": "etymology_element", "toponym_ref": "Green Island Lake@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēg"}, {"ordinal": 2, "etymon_ref": "old-english:ēg-land"}, {"ordinal": 3, "etymon_ref": "brittonic:Frome"}, {"ordinal": 4, "etymon_ref": "old-english:grēne"}, {"ordinal": 5, "etymon_ref": "old-english:lacu"}, {"ordinal": 6, "etymon_ref": "old-english:mūða"}, {"ordinal": 7, "etymon_ref": "unknown:Saint's Name"}]}
 {"_type": "toponym", "ref": "Grimstone@Dorset", "modern_name": "Grimstone", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Grimstone@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:Grímr"}, {"ordinal": 2, "etymon_ref": "old-english:stān"}, {"ordinal": 3, "etymon_ref": "old-english:stede"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}, {"ordinal": 5, "etymon_ref": "old-english:Grimm"}]}
 {"_type": "toponym", "ref": "Grove@Dorset", "modern_name": "Grove", "country": "England", "region": "Dorset"}
@@ -2667,7 +2667,7 @@
 {"_type": "toponym", "ref": "Jordan Hill@Dorset", "modern_name": "Jordan Hill", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Jordan Hill@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cerr"}, {"ordinal": 2, "etymon_ref": "unknown:Chur"}, {"ordinal": 3, "etymon_ref": "old-english:dūn"}]}
 {"_type": "toponym", "ref": "Keysworth Farm@Dorset", "modern_name": "Keysworth Farm", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Keysworth Farm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cærse"}, {"ordinal": 2, "etymon_ref": "celtic:Carey"}, {"ordinal": 3, "etymon_ref": "unknown:Place-name"}, {"ordinal": 4, "etymon_ref": "old-english:worð"}]}
+{"_type": "etymology_element", "toponym_ref": "Keysworth Farm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cærse"}, {"ordinal": 2, "etymon_ref": "brittonic:Carey"}, {"ordinal": 3, "etymon_ref": "unknown:Place-name"}, {"ordinal": 4, "etymon_ref": "old-english:worð"}]}
 {"_type": "toponym", "ref": "Kick Hill Coppice@Dorset", "modern_name": "Kick Hill Coppice", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Kick Hill Coppice@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyll"}, {"ordinal": 2, "etymon_ref": "middle-english:kiken"}]}
 {"_type": "toponym", "ref": "Kimbert's End@Dorset", "modern_name": "Kimbert's End", "country": "England", "region": "Dorset"}
@@ -2793,7 +2793,7 @@
 {"_type": "toponym", "ref": "Lodbourn@Dorset", "modern_name": "Lodbourn", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Lodbourn@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "old-english:lorte"}]}
 {"_type": "toponym", "ref": "Loders@Dorset", "modern_name": "Loders", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Loders@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:dour"}, {"ordinal": 2, "etymon_ref": "celtic:lo-dre"}, {"ordinal": 3, "etymon_ref": "celtic:logh"}], "notes": "habitation' or 'pool water"}
+{"_type": "etymology_element", "toponym_ref": "Loders@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:dour"}, {"ordinal": 2, "etymon_ref": "brittonic:lo-dre"}, {"ordinal": 3, "etymon_ref": "brittonic:logh"}], "notes": "habitation' or 'pool water"}
 {"_type": "toponym", "ref": "Lodmoor@Dorset", "modern_name": "Lodmoor", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Lodmoor@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dīc"}, {"ordinal": 2, "etymon_ref": "old-english:lacu"}, {"ordinal": 3, "etymon_ref": "old-english:Lodda"}, {"ordinal": 4, "etymon_ref": "old-english:mǣd"}, {"ordinal": 5, "etymon_ref": "old-english:mōr"}, {"ordinal": 6, "etymon_ref": "unknown:River-name"}, {"ordinal": 7, "etymon_ref": "old-english:Bodda"}], "notes": "]. OR: Lodda"}
 {"_type": "toponym", "ref": "Long Bredy@Dorset", "modern_name": "Long Bredy", "country": "England", "region": "Dorset"}
@@ -2803,9 +2803,9 @@
 {"_type": "toponym", "ref": "Long Burton@Dorset", "modern_name": "Long Burton", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Long Burton@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh-tūn"}], "notes": "Fortification farm/settlement"}
 {"_type": "toponym", "ref": "Long Crichel@Dorset", "modern_name": "Long Crichel", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Long Crichel@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}, {"ordinal": 3, "etymon_ref": "old-english:hyll"}, {"ordinal": 4, "etymon_ref": "old-english:lang"}], "notes": "`mound, hill, barrow', with explanatory OE `hyll' `hill'. `Long"}
+{"_type": "etymology_element", "toponym_ref": "Long Crichel@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}, {"ordinal": 3, "etymon_ref": "old-english:hyll"}, {"ordinal": 4, "etymon_ref": "old-english:lang"}], "notes": "`mound, hill, barrow', with explanatory OE `hyll' `hill'. `Long"}
 {"_type": "toponym", "ref": "Long Crichel@Dorset", "modern_name": "Long Crichel", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Long Crichel@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Crug hill'. The Celtic 'crug' may have been adopted as a proper name to which 'hyll' was added by way of explanation. 'Long"}
+{"_type": "etymology_element", "toponym_ref": "Long Crichel@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Crug hill'. The Celtic 'crug' may have been adopted as a proper name to which 'hyll' was added by way of explanation. 'Long"}
 {"_type": "toponym", "ref": "Longcombe Bottom@Dorset", "modern_name": "Longcombe Bottom", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Longcombe Bottom@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:hēafod"}, {"ordinal": 3, "etymon_ref": "old-english:lang"}]}
 {"_type": "toponym", "ref": "Longfleet@Dorset", "modern_name": "Longfleet", "country": "England", "region": "Dorset"}
@@ -2845,13 +2845,13 @@
 {"_type": "toponym", "ref": "Lyscombe Bottom@Dorset", "modern_name": "Lyscombe Bottom", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Lyscombe Bottom@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:lisc"}]}
 {"_type": "toponym", "ref": "Lytchett Matravers@Dorset", "modern_name": "Lytchett Matravers", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Lytchett Matravers@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "celtic:lẹ̄d"}]}
+{"_type": "etymology_element", "toponym_ref": "Lytchett Matravers@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "brittonic:lẹ̄d"}]}
 {"_type": "toponym", "ref": "Lytchett Matravers@Dorset", "modern_name": "Lytchett Matravers", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Lytchett Matravers@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "celtic:lẹ̄d"}], "notes": "Grey wood"}
+{"_type": "etymology_element", "toponym_ref": "Lytchett Matravers@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "brittonic:lẹ̄d"}], "notes": "Grey wood"}
 {"_type": "toponym", "ref": "Lytchett Minster@Dorset", "modern_name": "Lytchett Minster", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Lytchett Minster@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mynster"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}, {"ordinal": 3, "etymon_ref": "old-english:sūð"}]}
 {"_type": "toponym", "ref": "Lytchett Minster@Dorset", "modern_name": "Lytchett Minster", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Lytchett Minster@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:lẹ̄d"}, {"ordinal": 3, "etymon_ref": "old-english:mynster"}], "notes": "Grey wood"}
+{"_type": "etymology_element", "toponym_ref": "Lytchett Minster@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "brittonic:lẹ̄d"}, {"ordinal": 3, "etymon_ref": "old-english:mynster"}], "notes": "Grey wood"}
 {"_type": "toponym", "ref": "Madjeston@Dorset", "modern_name": "Madjeston", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Madjeston@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "continental-germanic:Madalgar"}, {"ordinal": 2, "etymon_ref": "continental-germanic:Personal-name"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "s or Malger"}
 {"_type": "toponym", "ref": "Maiden Newton@Dorset", "modern_name": "Maiden Newton", "country": "England", "region": "Dorset"}
@@ -2955,7 +2955,7 @@
 {"_type": "toponym", "ref": "More Crichel@Dorset", "modern_name": "More Crichel", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "More Crichel@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "latin:magna"}, {"ordinal": 2, "etymon_ref": "old-english:mōr"}, {"ordinal": 3, "etymon_ref": "unknown:Place-name"}]}
 {"_type": "toponym", "ref": "More Crichel@Dorset", "modern_name": "More Crichel", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "More Crichel@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}, {"ordinal": 3, "etymon_ref": "old-english:mōr"}], "notes": "Crug hill'. The Celtic 'crug' may have been adopted as a proper name to which 'hyll' was added by way of explanation. 'Moor"}
+{"_type": "etymology_element", "toponym_ref": "More Crichel@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}, {"ordinal": 3, "etymon_ref": "old-english:mōr"}], "notes": "Crug hill'. The Celtic 'crug' may have been adopted as a proper name to which 'hyll' was added by way of explanation. 'Moor"}
 {"_type": "toponym", "ref": "Moreton@Dorset", "modern_name": "Moreton", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Moreton@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mōr"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}]}
 {"_type": "toponym", "ref": "Moreton@Dorset", "modern_name": "Moreton", "country": "England", "region": "Dorset"}
@@ -3043,7 +3043,7 @@
 {"_type": "toponym", "ref": "Old Barford@Dorset", "modern_name": "Old Barford", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Old Barford@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bǣr"}, {"ordinal": 2, "etymon_ref": "old-english:bearu"}, {"ordinal": 3, "etymon_ref": "old-english:ford"}, {"ordinal": 4, "etymon_ref": "old-english:hamm"}, {"ordinal": 5, "etymon_ref": "old-english:mǣd"}, {"ordinal": 6, "etymon_ref": "unknown:Place-name"}]}
 {"_type": "toponym", "ref": "Orchard, East and West@Dorset", "modern_name": "Orchard, East and West", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Orchard, East and West@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ar"}, {"ordinal": 2, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 3, "etymon_ref": "old-english:ēast"}, {"ordinal": 4, "etymon_ref": "old-english:west"}]}
+{"_type": "etymology_element", "toponym_ref": "Orchard, East and West@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ar"}, {"ordinal": 2, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 3, "etymon_ref": "old-english:ēast"}, {"ordinal": 4, "etymon_ref": "old-english:west"}]}
 {"_type": "toponym", "ref": "Organ Ford@Dorset", "modern_name": "Organ Ford", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Organ Ford@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}]}
 {"_type": "toponym", "ref": "Osehill Green@Dorset", "modern_name": "Osehill Green", "country": "England", "region": "Dorset"}
@@ -3061,7 +3061,7 @@
 {"_type": "toponym", "ref": "Owermoigne@Dorset", "modern_name": "Owermoigne", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Owermoigne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:ofer"}]}
 {"_type": "toponym", "ref": "Owermoigne@Dorset", "modern_name": "Owermoigne", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Owermoigne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "celtic:oerddrws"}], "notes": "wind-gap"}
+{"_type": "etymology_element", "toponym_ref": "Owermoigne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "brittonic:oerddrws"}], "notes": "wind-gap"}
 {"_type": "toponym", "ref": "Palbroke or Parbrook@Dorset", "modern_name": "Palbroke or Parbrook", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Palbroke or Parbrook@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:pall"}]}
 {"_type": "toponym", "ref": "Pallington@Dorset", "modern_name": "Pallington", "country": "England", "region": "Dorset"}
@@ -3083,9 +3083,9 @@
 {"_type": "toponym", "ref": "Penmore Rd@Dorset", "modern_name": "Penmore Rd", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Penmore Rd@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mere"}, {"ordinal": 2, "etymon_ref": "old-english:mōr"}, {"ordinal": 3, "etymon_ref": "old-english:pēo"}]}
 {"_type": "toponym", "ref": "Pentridge@Dorset", "modern_name": "Pentridge", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Pentridge@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "celtic:penn"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}, {"ordinal": 4, "etymon_ref": "celtic:twrch"}]}
+{"_type": "etymology_element", "toponym_ref": "Pentridge@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "celtic:penn"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}, {"ordinal": 4, "etymon_ref": "brittonic:twrch"}]}
 {"_type": "toponym", "ref": "Pentridge@Dorset", "modern_name": "Pentridge", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Pentridge@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:penn"}, {"ordinal": 2, "etymon_ref": "celtic:twrch"}], "notes": "Boar hill"}
+{"_type": "etymology_element", "toponym_ref": "Pentridge@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:penn"}, {"ordinal": 2, "etymon_ref": "brittonic:twrch"}], "notes": "Boar hill"}
 {"_type": "toponym", "ref": "Perry Farm@Dorset", "modern_name": "Perry Farm", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Perry Farm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:atten"}, {"ordinal": 2, "etymon_ref": "old-english:pirige"}]}
 {"_type": "toponym", "ref": "Petersham Fm@Dorset", "modern_name": "Petersham Fm", "country": "England", "region": "Dorset"}
@@ -3109,7 +3109,7 @@
 {"_type": "toponym", "ref": "Pilsdon@Dorset", "modern_name": "Pilsdon", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Pilsdon@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-english:pīl"}], "notes": "hill'. The first element may be 'shaft' or 'spike', either in the sense of a 'pointed hill' or 'hill marked by a shaft; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Pimperne@Dorset", "modern_name": "Pimperne", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Pimperne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:pimpern"}, {"ordinal": 2, "etymon_ref": "celtic:pren"}, {"ordinal": 3, "etymon_ref": "celtic:pump"}]}
+{"_type": "etymology_element", "toponym_ref": "Pimperne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:pimpern"}, {"ordinal": 2, "etymon_ref": "brittonic:pren"}, {"ordinal": 3, "etymon_ref": "brittonic:pump"}]}
 {"_type": "toponym", "ref": "Pimperne@Dorset", "modern_name": "Pimperne", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Pimperne@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:pimpern"}], "notes": "hills'. An alternative suggestion is 'five trees' from British *pimp, 'five' and *pren, 'tree"}
 {"_type": "toponym", "ref": "Pin Bridge@Dorset", "modern_name": "Pin Bridge", "country": "England", "region": "Dorset"}
@@ -3175,7 +3175,7 @@
 {"_type": "toponym", "ref": "Purse Caundle@Dorset", "modern_name": "Purse Caundle", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Purse Caundle@Dorset", "elements": []}
 {"_type": "toponym", "ref": "Purse Caundle@Dorset", "modern_name": "Purse Caundle", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Purse Caundle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:canto-"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}]}
+{"_type": "etymology_element", "toponym_ref": "Purse Caundle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:canto-"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}]}
 {"_type": "toponym", "ref": "Putton@Dorset", "modern_name": "Putton", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Putton@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}, {"ordinal": 2, "etymon_ref": "old-english:Puda"}], "notes": "unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Quarleston Fm@Dorset", "modern_name": "Quarleston Fm", "country": "England", "region": "Dorset"}
@@ -3399,9 +3399,9 @@
 {"_type": "toponym", "ref": "Stourpaine@Dorset", "modern_name": "Stourpaine", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Stourpaine@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Stourton Caundle@Dorset", "modern_name": "Stourton Caundle", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Stourton Caundle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:canto-"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}]}
+{"_type": "etymology_element", "toponym_ref": "Stourton Caundle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:canto-"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}]}
 {"_type": "toponym", "ref": "Stourton Caundle@Dorset", "modern_name": "Stourton Caundle", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Stourton Caundle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:canto-"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}]}
+{"_type": "etymology_element", "toponym_ref": "Stourton Caundle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:canto-"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}]}
 {"_type": "toponym", "ref": "Stratton@Dorset", "modern_name": "Stratton", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Stratton@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:strēt"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}]}
 {"_type": "toponym", "ref": "Stratton@Dorset", "modern_name": "Stratton", "country": "England", "region": "Dorset"}
@@ -3541,7 +3541,7 @@
 {"_type": "toponym", "ref": "Trendlecombe@Dorset", "modern_name": "Trendlecombe", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Trendlecombe@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}, {"ordinal": 3, "etymon_ref": "old-english:trendel"}]}
 {"_type": "toponym", "ref": "Trent@Dorset", "modern_name": "Trent", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Trent@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:Trent"}]}
+{"_type": "etymology_element", "toponym_ref": "Trent@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:Trent"}]}
 {"_type": "toponym", "ref": "Trent@Dorset", "modern_name": "Trent", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Trent@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Trill Farm and House@Dorset", "modern_name": "Trill Farm and House", "country": "England", "region": "Dorset"}
@@ -3719,7 +3719,7 @@
 {"_type": "toponym", "ref": "Wimborne St. Giles@Dorset", "modern_name": "Wimborne St. Giles", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Wimborne St. Giles@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "old-english:winn"}], "notes": "Pasture stream"}
 {"_type": "toponym", "ref": "Winfrith Newburgh@Dorset", "modern_name": "Winfrith Newburgh", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Winfrith Newburgh@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "celtic:frud"}, {"ordinal": 3, "etymon_ref": "celtic:wïnn"}]}
+{"_type": "etymology_element", "toponym_ref": "Winfrith Newburgh@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "brittonic:frud"}, {"ordinal": 3, "etymon_ref": "brittonic:wïnn"}]}
 {"_type": "toponym", "ref": "Winfrith Newburgh@Dorset", "modern_name": "Winfrith Newburgh", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Winfrith Newburgh@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Winterborne Came@Dorset", "modern_name": "Winterborne Came", "country": "England", "region": "Dorset"}
@@ -3855,7 +3855,7 @@
 {"_type": "toponym", "ref": "Wyndlam Fm@Dorset", "modern_name": "Wyndlam Fm", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Wyndlam Fm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hamm"}, {"ordinal": 2, "etymon_ref": "old-english:Windel"}, {"ordinal": 3, "etymon_ref": "old-english:windels"}, {"ordinal": 4, "etymon_ref": "old-english:Windel"}]}
 {"_type": "toponym", "ref": "Wynford Eagle@Dorset", "modern_name": "Wynford Eagle", "country": "England", "region": "Dorset"}
-{"_type": "etymology_element", "toponym_ref": "Wynford Eagle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "celtic:frud"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}]}
+{"_type": "etymology_element", "toponym_ref": "Wynford Eagle@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "brittonic:frud"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Wytch Farm@Dorset", "modern_name": "Wytch Farm", "country": "England", "region": "Dorset"}
 {"_type": "etymology_element", "toponym_ref": "Wytch Farm@Dorset", "elements": [{"ordinal": 1, "etymon_ref": "modern-english:Farm"}, {"ordinal": 2, "etymon_ref": "old-english:Wych"}]}
 {"_type": "toponym", "ref": "Yardgrove Farm@Dorset", "modern_name": "Yardgrove Farm", "country": "England", "region": "Dorset"}

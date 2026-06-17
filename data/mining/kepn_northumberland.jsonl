@@ -807,12 +807,12 @@
 {"_type": "etymon", "ref": "old-english:myln", "canonical_form": "myln", "language": "old-english", "glosses": ["A mill."]}
 {"_type": "citation", "etymon_ref": "old-english:myln"}
 {"_type": "citation", "etymon_ref": "old-english:myln", "source_id": "kepn_external", "context_snippet": "Mawer; Place-names of Northumberland and Durham.; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:mę̄l", "canonical_form": "mę̄l", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mę̄l"}
-{"_type": "citation", "etymon_ref": "celtic:mę̄l", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
-{"_type": "etymon", "ref": "celtic:mönið", "canonical_form": "mönið", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mönið"}
-{"_type": "citation", "etymon_ref": "celtic:mönið", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
+{"_type": "etymon", "ref": "brittonic:mę̄l", "canonical_form": "mę̄l", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mę̄l"}
+{"_type": "citation", "etymon_ref": "brittonic:mę̄l", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
+{"_type": "etymon", "ref": "brittonic:mönið", "canonical_form": "mönið", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mönið"}
+{"_type": "citation", "etymon_ref": "brittonic:mönið", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
 {"_type": "etymon", "ref": "old-english:mid", "canonical_form": "mid", "language": "old-english", "glosses": ["Among, amidst."]}
 {"_type": "citation", "etymon_ref": "old-english:mid"}
 {"_type": "citation", "etymon_ref": "old-english:mid", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham.; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
@@ -939,12 +939,12 @@
 {"_type": "etymon", "ref": "old-english:Pica", "canonical_form": "Pica", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Pica"}
 {"_type": "citation", "etymon_ref": "old-english:Pica", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Mawer; Place-names of Northumberland and Durham."}
-{"_type": "etymon", "ref": "celtic:blain", "canonical_form": "blain", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:blain"}
-{"_type": "citation", "etymon_ref": "celtic:blain", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
-{"_type": "etymon", "ref": "celtic:breg", "canonical_form": "breg", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:breg"}
-{"_type": "citation", "etymon_ref": "celtic:breg", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
+{"_type": "etymon", "ref": "brittonic:blain", "canonical_form": "blain", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:blain"}
+{"_type": "citation", "etymon_ref": "brittonic:blain", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
+{"_type": "etymon", "ref": "brittonic:breg", "canonical_form": "breg", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:breg"}
+{"_type": "citation", "etymon_ref": "brittonic:breg", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
 {"_type": "etymon", "ref": "old-english:mēl", "canonical_form": "mēl", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:mēl"}
 {"_type": "citation", "etymon_ref": "old-english:mēl", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
@@ -1152,12 +1152,12 @@
 {"_type": "etymon", "ref": "old-english:trēow", "canonical_form": "trēow", "language": "old-english", "glosses": ["A tree; a large piece of wood, a post, a beam."]}
 {"_type": "citation", "etymon_ref": "old-english:trēow"}
 {"_type": "citation", "etymon_ref": "old-english:trēow", "source_id": "kepn_external", "context_snippet": "Mawer; Place-names of Northumberland and Durham.; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:treβ", "canonical_form": "treβ", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:treβ"}
-{"_type": "citation", "etymon_ref": "celtic:treβ", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham.; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:wïnn", "canonical_form": "wïnn", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:wïnn"}
-{"_type": "citation", "etymon_ref": "celtic:wïnn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham.; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:treβ", "canonical_form": "treβ", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:treβ"}
+{"_type": "citation", "etymon_ref": "brittonic:treβ", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham.; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:wïnn", "canonical_form": "wïnn", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:wïnn"}
+{"_type": "citation", "etymon_ref": "brittonic:wïnn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham.; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Tucga", "canonical_form": "Tucga", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Tucga"}
 {"_type": "citation", "etymon_ref": "old-english:Tucga", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham.; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
@@ -1221,12 +1221,12 @@
 {"_type": "etymon", "ref": "old-english:wīl", "canonical_form": "wīl", "language": "old-english", "glosses": ["A wile, a trick; used of a gin, a trap, a snare."]}
 {"_type": "citation", "etymon_ref": "old-english:wīl"}
 {"_type": "citation", "etymon_ref": "old-english:wīl", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
-{"_type": "etymon", "ref": "celtic:brïnn", "canonical_form": "brïnn", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:brïnn"}
-{"_type": "citation", "etymon_ref": "celtic:brïnn", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
-{"_type": "etymon", "ref": "celtic:gavr", "canonical_form": "gavr", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:gavr"}
-{"_type": "citation", "etymon_ref": "celtic:gavr", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
+{"_type": "etymon", "ref": "brittonic:brïnn", "canonical_form": "brïnn", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:brïnn"}
+{"_type": "citation", "etymon_ref": "brittonic:brïnn", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
+{"_type": "etymon", "ref": "brittonic:gavr", "canonical_form": "gavr", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:gavr"}
+{"_type": "citation", "etymon_ref": "brittonic:gavr", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mawer; Place-names of Northumberland and Durham."}
 {"_type": "toponym", "ref": "Abberwick@Northumberland", "modern_name": "Abberwick", "country": "England", "region": "Northumberland"}
 {"_type": "etymology_element", "toponym_ref": "Abberwick@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wīc"}, {"ordinal": 2, "etymon_ref": "old-english:Ēadbeorht"}], "notes": "Eadbeorht's specialised-farm' or perhaps, 'Alu(h)burg's specialised-farm"}
 {"_type": "toponym", "ref": "Acklington@Northumberland", "modern_name": "Acklington", "country": "England", "region": "Northumberland"}
@@ -1808,7 +1808,7 @@
 {"_type": "toponym", "ref": "Milbourne Grange@Northumberland", "modern_name": "Milbourne Grange", "country": "England", "region": "Northumberland"}
 {"_type": "etymology_element", "toponym_ref": "Milbourne Grange@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:grange"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}], "notes": "s 'outlying grain farm"}
 {"_type": "toponym", "ref": "Milfield@Northumberland", "modern_name": "Milfield", "country": "England", "region": "Northumberland"}
-{"_type": "etymology_element", "toponym_ref": "Milfield@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:mę̄l"}, {"ordinal": 2, "etymon_ref": "celtic:mönið"}], "notes": "Bald hill"}
+{"_type": "etymology_element", "toponym_ref": "Milfield@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:mę̄l"}, {"ordinal": 2, "etymon_ref": "brittonic:mönið"}], "notes": "Bald hill"}
 {"_type": "toponym", "ref": "Mitford@Northumberland", "modern_name": "Mitford", "country": "England", "region": "Northumberland"}
 {"_type": "etymology_element", "toponym_ref": "Mitford@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:mid"}, {"ordinal": 3, "etymon_ref": "old-english:mȳðe"}], "notes": "confluence ford' or 'middle ford"}
 {"_type": "toponym", "ref": "Molesdon@Northumberland", "modern_name": "Molesdon", "country": "England", "region": "Northumberland"}
@@ -1922,7 +1922,7 @@
 {"_type": "toponym", "ref": "Plashetts and Tynehead@Northumberland", "modern_name": "Plashetts and Tynehead", "country": "England", "region": "Northumberland"}
 {"_type": "etymology_element", "toponym_ref": "Plashetts and Tynehead@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}]}
 {"_type": "toponym", "ref": "Plenmeller@Northumberland", "modern_name": "Plenmeller", "country": "England", "region": "Northumberland"}
-{"_type": "etymology_element", "toponym_ref": "Plenmeller@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:blain"}, {"ordinal": 2, "etymon_ref": "celtic:breg"}, {"ordinal": 3, "etymon_ref": "old-english:mēl"}], "notes": "Bare hill top"}
+{"_type": "etymology_element", "toponym_ref": "Plenmeller@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:blain"}, {"ordinal": 2, "etymon_ref": "brittonic:breg"}, {"ordinal": 3, "etymon_ref": "old-english:mēl"}], "notes": "Bare hill top"}
 {"_type": "toponym", "ref": "Ponteland@Northumberland", "modern_name": "Ponteland", "country": "England", "region": "Northumberland"}
 {"_type": "etymology_element", "toponym_ref": "Ponteland@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēa-land"}, {"ordinal": 2, "etymon_ref": "old-english:land"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}], "notes": "River Pont island' or perhaps, 'River Pont land"}
 {"_type": "toponym", "ref": "Portgate@Northumberland", "modern_name": "Portgate", "country": "England", "region": "Northumberland"}
@@ -2076,7 +2076,7 @@
 {"_type": "toponym", "ref": "Tritlington@Northumberland", "modern_name": "Tritlington", "country": "England", "region": "Northumberland"}
 {"_type": "etymology_element", "toponym_ref": "Tritlington@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Tyrhtel; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Troughend@Northumberland", "modern_name": "Troughend", "country": "England", "region": "Northumberland"}
-{"_type": "etymology_element", "toponym_ref": "Troughend@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:treβ"}, {"ordinal": 2, "etymon_ref": "celtic:wïnn"}], "notes": "white farm"}
+{"_type": "etymology_element", "toponym_ref": "Troughend@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:treβ"}, {"ordinal": 2, "etymon_ref": "brittonic:wïnn"}], "notes": "white farm"}
 {"_type": "toponym", "ref": "Tughall@Northumberland", "modern_name": "Tughall", "country": "England", "region": "Northumberland"}
 {"_type": "etymology_element", "toponym_ref": "Tughall@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}, {"ordinal": 2, "etymon_ref": "old-english:Tucga"}], "notes": "Tucga's nook of land"}
 {"_type": "toponym", "ref": "Tweedmouth@Northumberland", "modern_name": "Tweedmouth", "country": "England", "region": "Northumberland"}
@@ -2168,4 +2168,4 @@
 {"_type": "toponym", "ref": "Wylam@Northumberland", "modern_name": "Wylam", "country": "England", "region": "Northumberland"}
 {"_type": "etymology_element", "toponym_ref": "Wylam@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wīl"}], "notes": "At the traps"}
 {"_type": "toponym", "ref": "Yeavering@Northumberland", "modern_name": "Yeavering", "country": "England", "region": "Northumberland"}
-{"_type": "etymology_element", "toponym_ref": "Yeavering@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:brïnn"}, {"ordinal": 2, "etymon_ref": "celtic:gavr"}], "notes": "Goat hill"}
+{"_type": "etymology_element", "toponym_ref": "Yeavering@Northumberland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:brïnn"}, {"ordinal": 2, "etymon_ref": "brittonic:gavr"}], "notes": "Goat hill"}

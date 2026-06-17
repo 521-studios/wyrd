@@ -96,12 +96,12 @@
 {"_type": "etymon", "ref": "old-english:halh", "canonical_form": "halh", "language": "old-english", "glosses": ["A nook of land; a small valley; dry ground in marsh; a piece of land projecting from, or detached from, the main area of its administrative unit."]}
 {"_type": "citation", "etymon_ref": "old-english:halh"}
 {"_type": "citation", "etymon_ref": "old-english:halh", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:bettws", "canonical_form": "bettws", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:bettws"}
-{"_type": "citation", "etymon_ref": "celtic:bettws", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:crowyn", "canonical_form": "crowyn", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:crowyn"}
-{"_type": "citation", "etymon_ref": "celtic:crowyn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:bettws", "canonical_form": "bettws", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:bettws"}
+{"_type": "citation", "etymon_ref": "brittonic:bettws", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:crowyn", "canonical_form": "crowyn", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:crowyn"}
+{"_type": "citation", "etymon_ref": "brittonic:crowyn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:bīc", "canonical_form": "bīc", "language": "old-english", "glosses": ["A point; a bees-nest."]}
 {"_type": "citation", "etymon_ref": "old-english:bīc"}
 {"_type": "citation", "etymon_ref": "old-english:bīc", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names"}
@@ -357,9 +357,9 @@
 {"_type": "etymon", "ref": "old-english:stoc", "canonical_form": "stoc", "language": "old-english", "glosses": ["A place, a secondary settlement."]}
 {"_type": "citation", "etymon_ref": "old-english:stoc"}
 {"_type": "citation", "etymon_ref": "old-english:stoc", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:hawdd", "canonical_form": "hawdd", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:hawdd"}
-{"_type": "citation", "etymon_ref": "celtic:hawdd", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:hawdd", "canonical_form": "hawdd", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:hawdd"}
+{"_type": "citation", "etymon_ref": "brittonic:hawdd", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "celtic:nant", "canonical_form": "nant", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:nant"}
 {"_type": "citation", "etymon_ref": "celtic:nant", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -384,9 +384,9 @@
 {"_type": "etymon", "ref": "old-english:Cyneheard", "canonical_form": "Cyneheard", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Cyneheard"}
 {"_type": "citation", "etymon_ref": "old-english:Cyneheard", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cnocc", "canonical_form": "cnocc", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cnocc"}
-{"_type": "citation", "etymon_ref": "celtic:cnocc", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:cnocc", "canonical_form": "cnocc", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cnocc"}
+{"_type": "citation", "etymon_ref": "brittonic:cnocc", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:cnocc", "canonical_form": "cnocc", "language": "old-english", "glosses": ["A hillock."]}
 {"_type": "citation", "etymon_ref": "old-english:cnocc"}
 {"_type": "citation", "etymon_ref": "old-english:cnocc", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -474,18 +474,18 @@
 {"_type": "etymon", "ref": "old-english:māna", "canonical_form": "māna", "language": "old-english", "glosses": ["A community."]}
 {"_type": "citation", "etymon_ref": "old-english:māna"}
 {"_type": "citation", "etymon_ref": "old-english:māna", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:mamm", "canonical_form": "mamm", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mamm"}
-{"_type": "citation", "etymon_ref": "celtic:mamm", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:wïnn", "canonical_form": "wïnn", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:wïnn"}
-{"_type": "citation", "etymon_ref": "celtic:wïnn", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:mamm", "canonical_form": "mamm", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mamm"}
+{"_type": "citation", "etymon_ref": "brittonic:mamm", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:wïnn", "canonical_form": "wïnn", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:wïnn"}
+{"_type": "citation", "etymon_ref": "brittonic:wïnn", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:mȳðel", "canonical_form": "mȳðel", "language": "old-english", "glosses": ["Small confluence."]}
 {"_type": "citation", "etymon_ref": "old-english:mȳðel"}
 {"_type": "citation", "etymon_ref": "old-english:mȳðel", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:mönið", "canonical_form": "mönið", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mönið"}
-{"_type": "citation", "etymon_ref": "celtic:mönið", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:mönið", "canonical_form": "mönið", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mönið"}
+{"_type": "citation", "etymon_ref": "brittonic:mönið", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:nīwe", "canonical_form": "nīwe", "language": "old-english", "glosses": ["New."]}
 {"_type": "citation", "etymon_ref": "old-english:nīwe"}
 {"_type": "citation", "etymon_ref": "old-english:nīwe", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names"}
@@ -516,9 +516,9 @@
 {"_type": "etymon", "ref": "old-english:pusa", "canonical_form": "pusa", "language": "old-english", "glosses": ["Bag."]}
 {"_type": "citation", "etymon_ref": "old-english:pusa"}
 {"_type": "citation", "etymon_ref": "old-english:pusa", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:pres", "canonical_form": "pres", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:pres"}
-{"_type": "citation", "etymon_ref": "celtic:pres", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified)"}
+{"_type": "etymon", "ref": "brittonic:pres", "canonical_form": "pres", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:pres"}
+{"_type": "citation", "etymon_ref": "brittonic:pres", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified)"}
 {"_type": "etymon", "ref": "old-english:prēost", "canonical_form": "prēost", "language": "old-english", "glosses": ["A priest."]}
 {"_type": "citation", "etymon_ref": "old-english:prēost"}
 {"_type": "citation", "etymon_ref": "old-english:prēost", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified)"}
@@ -587,9 +587,9 @@
 {"_type": "etymon", "ref": "old-english:scrubb", "canonical_form": "scrubb", "language": "old-english", "glosses": ["A shrub, brushwood, a place overgrown with brushwood."]}
 {"_type": "citation", "etymon_ref": "old-english:scrubb"}
 {"_type": "citation", "etymon_ref": "old-english:scrubb", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:carreg", "canonical_form": "carreg", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:carreg"}
-{"_type": "citation", "etymon_ref": "celtic:carreg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:carreg", "canonical_form": "carreg", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:carreg"}
+{"_type": "citation", "etymon_ref": "brittonic:carreg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Sibba", "canonical_form": "Sibba", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Sibba"}
 {"_type": "citation", "etymon_ref": "old-english:Sibba", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -746,7 +746,7 @@
 {"_type": "toponym", "ref": "Berrington@Shropshire", "modern_name": "Berrington", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Berrington@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at the fortification"}
 {"_type": "toponym", "ref": "Bettws-y-Crwyn@Shropshire", "modern_name": "Bettws-y-Crwyn", "country": "England", "region": "Shropshire"}
-{"_type": "etymology_element", "toponym_ref": "Bettws-y-Crwyn@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:bettws"}, {"ordinal": 2, "etymon_ref": "celtic:crowyn"}], "notes": "Prayer house' referring to a medieval chapel. It may be distnguished by 'pigsty"}
+{"_type": "etymology_element", "toponym_ref": "Bettws-y-Crwyn@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:bettws"}, {"ordinal": 2, "etymon_ref": "brittonic:crowyn"}], "notes": "Prayer house' referring to a medieval chapel. It may be distnguished by 'pigsty"}
 {"_type": "toponym", "ref": "Bicton@Shropshire", "modern_name": "Bicton", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Bicton@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bīc"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Beak hill"}
 {"_type": "toponym", "ref": "Billingsley@Shropshire", "modern_name": "Billingsley", "country": "England", "region": "Shropshire"}
@@ -908,7 +908,7 @@
 {"_type": "toponym", "ref": "Hinstock@Shropshire", "modern_name": "Hinstock", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Hinstock@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:hine"}, {"ordinal": 2, "etymon_ref": "old-english:stoc"}], "notes": "Servants' outlying farm/settlement"}
 {"_type": "toponym", "ref": "Hodnet@Shropshire", "modern_name": "Hodnet", "country": "England", "region": "Shropshire"}
-{"_type": "etymology_element", "toponym_ref": "Hodnet@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:hawdd"}, {"ordinal": 2, "etymon_ref": "celtic:nant"}], "notes": "Pleasant valley"}
+{"_type": "etymology_element", "toponym_ref": "Hodnet@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:hawdd"}, {"ordinal": 2, "etymon_ref": "celtic:nant"}], "notes": "Pleasant valley"}
 {"_type": "toponym", "ref": "Holdgate@Shropshire", "modern_name": "Holdgate", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Holdgate@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "latin:castrum"}, {"ordinal": 2, "etymon_ref": "old-english:Helgot"}], "notes": "Helgot's castle', but the 'castle' has been lost. Helgot was the name of the tenant in 1086. In Domesday Book, the place is called Stantune, from OE stan and tun, 'stone farm/settlement"}
 {"_type": "toponym", "ref": "Hope Bagot@Shropshire", "modern_name": "Hope Bagot", "country": "England", "region": "Shropshire"}
@@ -942,7 +942,7 @@
 {"_type": "toponym", "ref": "Kinnersley@Shropshire", "modern_name": "Kinnersley", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Kinnersley@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:Cyneheard"}], "notes": "Cyneheard's wood/clearing'. The original final element was OE eg, 'island', subsequently replaced by OE heag, 'enclosure"}
 {"_type": "toponym", "ref": "Knockin@Shropshire", "modern_name": "Knockin", "country": "England", "region": "Shropshire"}
-{"_type": "etymology_element", "toponym_ref": "Knockin@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cnocc"}, {"ordinal": 2, "etymon_ref": "old-english:cnocc"}], "notes": "hillock"}
+{"_type": "etymology_element", "toponym_ref": "Knockin@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cnocc"}, {"ordinal": 2, "etymon_ref": "old-english:cnocc"}], "notes": "hillock"}
 {"_type": "toponym", "ref": "Lee Brockhurst@Shropshire", "modern_name": "Lee Brockhurst", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Lee Brockhurst@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}], "notes": "Wood/clearing by Brockhurst (= badger's wooded hill, from OE brocc and hyrst)"}
 {"_type": "toponym", "ref": "Leebotwood@Shropshire", "modern_name": "Leebotwood", "country": "England", "region": "Shropshire"}
@@ -1002,15 +1002,15 @@
 {"_type": "toponym", "ref": "Moreton Say@Shropshire", "modern_name": "Moreton Say", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Moreton Say@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mōr"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Marsh farm/settlement"}
 {"_type": "toponym", "ref": "Morville@Shropshire", "modern_name": "Morville", "country": "England", "region": "Shropshire"}
-{"_type": "etymology_element", "toponym_ref": "Morville@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "celtic:mamm"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}], "notes": "open land'. Both a river-name and a hill-name, the latter derived from Celtic *mamm, 'hill"}
+{"_type": "etymology_element", "toponym_ref": "Morville@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "brittonic:mamm"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}], "notes": "open land'. Both a river-name and a hill-name, the latter derived from Celtic *mamm, 'hill"}
 {"_type": "toponym", "ref": "Much Wenlock@Shropshire", "modern_name": "Much Wenlock", "country": "England", "region": "Shropshire"}
-{"_type": "etymology_element", "toponym_ref": "Much Wenlock@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:loca"}, {"ordinal": 2, "etymon_ref": "latin:magna"}, {"ordinal": 3, "etymon_ref": "celtic:wïnn"}], "notes": "white enclosed place"}
+{"_type": "etymology_element", "toponym_ref": "Much Wenlock@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:loca"}, {"ordinal": 2, "etymon_ref": "latin:magna"}, {"ordinal": 3, "etymon_ref": "brittonic:wïnn"}], "notes": "white enclosed place"}
 {"_type": "toponym", "ref": "Munslow@Shropshire", "modern_name": "Munslow", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Munslow@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hlāw"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}], "notes": "Mound/hill', with an obscure specific, possibly a personal or place name, '*Munse' or '*Munsel; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Myddle@Shropshire", "modern_name": "Myddle", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Myddle@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mȳðel"}], "notes": "small confluence"}
 {"_type": "toponym", "ref": "Myndtown@Shropshire", "modern_name": "Myndtown", "country": "England", "region": "Shropshire"}
-{"_type": "etymology_element", "toponym_ref": "Myndtown@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:mönið"}], "notes": "Mountain' with the modern addition of 'town"}
+{"_type": "etymology_element", "toponym_ref": "Myndtown@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:mönið"}], "notes": "Mountain' with the modern addition of 'town"}
 {"_type": "toponym", "ref": "Nash@Shropshire", "modern_name": "Nash", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Nash@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:æsc"}], "notes": "At the ash-tree'. The earliest available spellings, 12th century, are Latin, 'Fraxinus"}
 {"_type": "toponym", "ref": "Neen Savage@Shropshire", "modern_name": "Neen Savage", "country": "England", "region": "Shropshire"}
@@ -1040,7 +1040,7 @@
 {"_type": "toponym", "ref": "Posenhall@Shropshire", "modern_name": "Posenhall", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Posenhall@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}, {"ordinal": 2, "etymon_ref": "old-english:pisen"}, {"ordinal": 3, "etymon_ref": "old-english:pusa"}], "notes": "bag-shaped nook of land' but perhaps, less likely, is 'nook of land growing with peas"}
 {"_type": "toponym", "ref": "Prees@Shropshire", "modern_name": "Prees", "country": "England", "region": "Shropshire"}
-{"_type": "etymology_element", "toponym_ref": "Prees@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:pres"}], "notes": "Brushwood"}
+{"_type": "etymology_element", "toponym_ref": "Prees@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:pres"}], "notes": "Brushwood"}
 {"_type": "toponym", "ref": "Preston Gubbals@Shropshire", "modern_name": "Preston Gubbals", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Preston Gubbals@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:prēost"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-english:Aldmund"}], "notes": "Priests' farm/settlement'. It was held in 1086 by a priest name Godebold who was a tenant of St. Alkmund"}
 {"_type": "toponym", "ref": "Preston upon the Weald Moors@Shropshire", "modern_name": "Preston upon the Weald Moors", "country": "England", "region": "Shropshire"}
@@ -1098,7 +1098,7 @@
 {"_type": "toponym", "ref": "Shrewsbury@Shropshire", "modern_name": "Shrewsbury", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Shrewsbury@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:scrubb"}], "notes": "Scrub-land fortification'. Two Welsh appellations are known, Amwythig (14th century) and Moythink (16th century). A third name. Pengwern, 'head of the alder-swamp"}
 {"_type": "toponym", "ref": "Sibdon Carwood@Shropshire", "modern_name": "Sibdon Carwood", "country": "England", "region": "Shropshire"}
-{"_type": "etymology_element", "toponym_ref": "Sibdon Carwood@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:carreg"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-english:wudu"}, {"ordinal": 4, "etymon_ref": "old-english:Sibba"}], "notes": "Sibba's farm/settlement'. The affix is perhaps the name of a wood which lay to the north. There are few records of the name, but it appears to be 'rock wood"}
+{"_type": "etymology_element", "toponym_ref": "Sibdon Carwood@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:carreg"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-english:wudu"}, {"ordinal": 4, "etymon_ref": "old-english:Sibba"}], "notes": "Sibba's farm/settlement'. The affix is perhaps the name of a wood which lay to the north. There are few records of the name, but it appears to be 'rock wood"}
 {"_type": "toponym", "ref": "Sidbury@Shropshire", "modern_name": "Sidbury", "country": "England", "region": "Shropshire"}
 {"_type": "etymology_element", "toponym_ref": "Sidbury@Shropshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:sūð"}], "notes": "South fortification"}
 {"_type": "toponym", "ref": "Silvington@Shropshire", "modern_name": "Silvington", "country": "England", "region": "Shropshire"}

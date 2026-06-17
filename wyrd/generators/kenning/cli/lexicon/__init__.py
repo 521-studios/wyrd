@@ -219,6 +219,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import (
     report_wikipedia_backfill as _report_wikipedia_backfill_module,
 )
+from wyrd.generators.kenning.cli.lexicon import (
+    retag_celtic_branch as _retag_celtic_branch_module,
+)
 from wyrd.generators.kenning.cli.lexicon import reverse_search as _reverse_search_module
 from wyrd.generators.kenning.cli.lexicon import (
     reverse_search_toponyms as _reverse_search_toponyms_module,
@@ -310,6 +313,7 @@ _ingest_wiktionary_module.add_to(lexicon)
 _import_mining_log_module.add_to(lexicon)
 _import_modern_reflexes_module.add_to(lexicon)
 _language_report_module.add_to(lexicon)
+_retag_celtic_branch_module.add_to(lexicon)
 _link_lemmas_module.add_to(lexicon)
 _lookup_attested_years_module.add_to(lexicon)
 _fold_variants_module.add_to(lexicon)

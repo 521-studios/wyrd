@@ -46,9 +46,9 @@
 {"_type": "etymon", "ref": "celtic:dubro-", "canonical_form": "dubro-", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:dubro-"}
 {"_type": "citation", "etymon_ref": "celtic:dubro-", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:onn", "canonical_form": "onn", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:onn"}
-{"_type": "citation", "etymon_ref": "celtic:onn", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:onn", "canonical_form": "onn", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:onn"}
+{"_type": "citation", "etymon_ref": "brittonic:onn", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:ened", "canonical_form": "ened", "language": "old-english", "glosses": ["A duck."]}
 {"_type": "citation", "etymon_ref": "old-english:ened"}
 {"_type": "citation", "etymon_ref": "old-english:ened", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names"}
@@ -199,18 +199,18 @@
 {"_type": "etymon", "ref": "old-english:Bula", "canonical_form": "Bula", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Bula"}
 {"_type": "citation", "etymon_ref": "old-english:Bula", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:clear", "canonical_form": "clear", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:clear"}
-{"_type": "citation", "etymon_ref": "celtic:clear", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:clear", "canonical_form": "clear", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:clear"}
+{"_type": "citation", "etymon_ref": "brittonic:clear", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:burh-tūn", "canonical_form": "burh-tūn", "language": "old-english", "glosses": ["A fort enclosure; a farm with a palisade; a farm at, or belonging to, or which is, a fortification, fortified house, or manorhouse."]}
 {"_type": "citation", "etymon_ref": "old-english:burh-tūn"}
 {"_type": "citation", "etymon_ref": "old-english:burh-tūn", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-norse:Beorhtsige", "canonical_form": "Beorhtsige", "language": "old-norse"}
 {"_type": "citation", "etymon_ref": "old-norse:Beorhtsige"}
 {"_type": "citation", "etymon_ref": "old-norse:Beorhtsige", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Coates; Hampshire Place-names"}
-{"_type": "etymon", "ref": "celtic:cadeir", "canonical_form": "cadeir", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cadeir"}
-{"_type": "citation", "etymon_ref": "celtic:cadeir", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:cadeir", "canonical_form": "cadeir", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cadeir"}
+{"_type": "citation", "etymon_ref": "brittonic:cadeir", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:calc", "canonical_form": "calc", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:calc"}
 {"_type": "citation", "etymon_ref": "old-english:calc", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
@@ -223,9 +223,9 @@
 {"_type": "etymon", "ref": "old-english:-ing-", "canonical_form": "-ing-", "language": "old-english", "glosses": ["Connective particle, linking a first element to a final element."]}
 {"_type": "citation", "etymon_ref": "old-english:-ing-"}
 {"_type": "citation", "etymon_ref": "old-english:-ing-", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:ciltā", "canonical_form": "ciltā", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:ciltā"}
-{"_type": "citation", "etymon_ref": "celtic:ciltā", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:ciltā", "canonical_form": "ciltā", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:ciltā"}
+{"_type": "citation", "etymon_ref": "brittonic:ciltā", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:cumb", "canonical_form": "cumb", "language": "old-english", "glosses": ["A coomb, a valley.  Possibly derived from Welsh \"cumm\"; but possibly derived from OE \"cumb\" a vessel, cup, a small measure."]}
 {"_type": "citation", "etymon_ref": "old-english:cumb"}
 {"_type": "citation", "etymon_ref": "old-english:cumb", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
@@ -389,9 +389,9 @@
 {"_type": "etymon", "ref": "old-english:Eohere", "canonical_form": "Eohere", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Eohere"}
 {"_type": "citation", "etymon_ref": "old-english:Eohere", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Coates; Hampshire Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:Saxones", "canonical_form": "Saxones", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:Saxones"}
-{"_type": "citation", "etymon_ref": "celtic:Saxones", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Coates; Hampshire Place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:Saxones", "canonical_form": "Saxones", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:Saxones"}
+{"_type": "citation", "etymon_ref": "brittonic:Saxones", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Coates; Hampshire Place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:fearn", "canonical_form": "fearn", "language": "old-english", "glosses": ["A fern; ferns; a ferny place."]}
 {"_type": "citation", "etymon_ref": "old-english:fearn"}
 {"_type": "citation", "etymon_ref": "old-english:fearn", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -485,9 +485,9 @@
 {"_type": "etymon", "ref": "old-english:hecg", "canonical_form": "hecg", "language": "old-english", "glosses": ["A hedge."]}
 {"_type": "citation", "etymon_ref": "old-english:hecg"}
 {"_type": "citation", "etymon_ref": "old-english:hecg", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Coates; Hampshire Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:garth", "canonical_form": "garth", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:garth"}
-{"_type": "citation", "etymon_ref": "celtic:garth", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:garth", "canonical_form": "garth", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:garth"}
+{"_type": "citation", "etymon_ref": "brittonic:garth", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:geard", "canonical_form": "geard", "language": "old-english", "glosses": ["A fence; an enclosure; a yard; a court-yard."]}
 {"_type": "citation", "etymon_ref": "old-english:geard"}
 {"_type": "citation", "etymon_ref": "old-english:geard", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -497,9 +497,9 @@
 {"_type": "etymon", "ref": "old-english:here", "canonical_form": "here", "language": "old-english", "glosses": ["An army."]}
 {"_type": "citation", "etymon_ref": "old-english:here"}
 {"_type": "citation", "etymon_ref": "old-english:here", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:hir", "canonical_form": "hir", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:hir"}
-{"_type": "citation", "etymon_ref": "celtic:hir", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:hir", "canonical_form": "hir", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:hir"}
+{"_type": "citation", "etymon_ref": "brittonic:hir", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "latin:altus", "canonical_form": "altus", "language": "latin", "glosses": ["High."]}
 {"_type": "citation", "etymon_ref": "latin:altus"}
 {"_type": "citation", "etymon_ref": "latin:altus", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names"}
@@ -592,9 +592,9 @@
 {"_type": "etymon", "ref": "old-english:hlinc", "canonical_form": "hlinc", "language": "old-english", "glosses": ["A bank, a ledge; a terrace; a ledge of ploughland on a hillside; an unploughed strip between fields."]}
 {"_type": "citation", "etymon_ref": "old-english:hlinc"}
 {"_type": "citation", "etymon_ref": "old-english:hlinc", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:lïs", "canonical_form": "lïs", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:lïs"}
-{"_type": "citation", "etymon_ref": "celtic:lïs", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:lïs", "canonical_form": "lïs", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:lïs"}
+{"_type": "citation", "etymon_ref": "brittonic:lïs", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:hlid", "canonical_form": "hlid", "language": "old-english", "glosses": ["A slope."]}
 {"_type": "citation", "etymon_ref": "old-english:hlid"}
 {"_type": "citation", "etymon_ref": "old-english:hlid", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names"}
@@ -640,12 +640,12 @@
 {"_type": "etymon", "ref": "old-english:Mede", "canonical_form": "Mede", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Mede"}
 {"_type": "citation", "etymon_ref": "old-english:Mede", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Coates; Hampshire Place-names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:mę̄l", "canonical_form": "mę̄l", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mę̄l"}
-{"_type": "citation", "etymon_ref": "celtic:mę̄l", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:mę̄l", "canonical_form": "mę̄l", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mę̄l"}
+{"_type": "citation", "etymon_ref": "brittonic:mę̄l", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:micel", "canonical_form": "micel", "language": "old-english", "glosses": ["Big, great."]}
 {"_type": "citation", "etymon_ref": "old-english:micel"}
 {"_type": "citation", "etymon_ref": "old-english:micel", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
@@ -818,9 +818,9 @@
 {"_type": "etymon", "ref": "old-english:scēp", "canonical_form": "scēp", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:scēp"}
 {"_type": "citation", "etymon_ref": "old-english:scēp", "source_id": "kepn_external", "context_snippet": "Coates; Hampshire Place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:celli", "canonical_form": "celli", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:celli"}
-{"_type": "citation", "etymon_ref": "celtic:celli", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Rivet & Smith; Place-names of Roman Britain; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names"}
+{"_type": "etymon", "ref": "brittonic:celli", "canonical_form": "celli", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:celli"}
+{"_type": "citation", "etymon_ref": "brittonic:celli", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Rivet & Smith; Place-names of Roman Britain; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names"}
 {"_type": "etymon", "ref": "old-english:sīeling", "canonical_form": "sīeling", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:sīeling"}
 {"_type": "citation", "etymon_ref": "old-english:sīeling", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Rivet & Smith; Place-names of Roman Britain; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names"}
@@ -917,9 +917,9 @@
 {"_type": "etymon", "ref": "old-english:wīc-hām", "canonical_form": "wīc-hām", "language": "old-english", "glosses": ["A settlement associated with a Roman 'vicus'."]}
 {"_type": "citation", "etymon_ref": "old-english:wīc-hām"}
 {"_type": "citation", "etymon_ref": "old-english:wīc-hām", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:u̥entā", "canonical_form": "u̥entā", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:u̥entā"}
-{"_type": "citation", "etymon_ref": "celtic:u̥entā", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Rivet & Smith; Place-names of Roman Britain; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names"}
+{"_type": "etymon", "ref": "brittonic:u̥entā", "canonical_form": "u̥entā", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:u̥entā"}
+{"_type": "citation", "etymon_ref": "brittonic:u̥entā", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Rivet & Smith; Place-names of Roman Britain; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Coates; Hampshire Place-names"}
 {"_type": "etymon", "ref": "old-english:wincel", "canonical_form": "wincel", "language": "old-english", "glosses": ["A nook, a corner."]}
 {"_type": "citation", "etymon_ref": "old-english:wincel"}
 {"_type": "citation", "etymon_ref": "old-english:wincel", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Coates; Hampshire Place-names; A.D. Mills; Dictionary of English Place-Names"}
@@ -962,7 +962,7 @@
 {"_type": "toponym", "ref": "Amport@Hampshire", "modern_name": "Amport", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Amport@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Andover@Hampshire", "modern_name": "Andover", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Andover@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:dubro-"}, {"ordinal": 2, "etymon_ref": "celtic:onn"}], "notes": "Ash-tree waters' or perhaps, 'waters at a place called Onn (= ash-tree)"}
+{"_type": "etymology_element", "toponym_ref": "Andover@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:dubro-"}, {"ordinal": 2, "etymon_ref": "brittonic:onn"}], "notes": "Ash-tree waters' or perhaps, 'waters at a place called Onn (= ash-tree)"}
 {"_type": "toponym", "ref": "Andwell@Hampshire", "modern_name": "Andwell", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Andwell@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ened"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}], "notes": "Duck stream"}
 {"_type": "toponym", "ref": "Appleshaw@Hampshire", "modern_name": "Appleshaw", "country": "England", "region": "Hampshire"}
@@ -1044,7 +1044,7 @@
 {"_type": "toponym", "ref": "Bullington@Hampshire", "modern_name": "Bullington", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Bullington@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bula"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}, {"ordinal": 3, "etymon_ref": "old-english:Bula"}], "notes": "Bula's hill' or perhaps, 'bulls hill"}
 {"_type": "toponym", "ref": "Burghclere@Hampshire", "modern_name": "Burghclere", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Burghclere@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "celtic:clear"}], "notes": "Fortified Clere' or perhaps, 'Clere with a fortification'. Clere is a name of unknown origins, possibly PrW, meaning 'bright"}
+{"_type": "etymology_element", "toponym_ref": "Burghclere@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "brittonic:clear"}], "notes": "Fortified Clere' or perhaps, 'Clere with a fortification'. Clere is a name of unknown origins, possibly PrW, meaning 'bright"}
 {"_type": "toponym", "ref": "Buriton@Hampshire", "modern_name": "Buriton", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Buriton@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh-tūn"}], "notes": "Fortified farm/settlement"}
 {"_type": "toponym", "ref": "Burley@Hampshire", "modern_name": "Burley", "country": "England", "region": "Hampshire"}
@@ -1052,7 +1052,7 @@
 {"_type": "toponym", "ref": "Bursledon@Hampshire", "modern_name": "Bursledon", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Bursledon@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-norse:Beorhtsige"}], "notes": "Beorhtsige's hill', alternating with the hypocoristic form of the personal name, 'Beorsa"}
 {"_type": "toponym", "ref": "Catherington@Hampshire", "modern_name": "Catherington", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Catherington@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "celtic:cadeir"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "farm/settlement of the people at the hill called *Cadeir (= the chair)' or possibly, 'farm/settlement of Cat(t)or's people; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "etymology_element", "toponym_ref": "Catherington@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "brittonic:cadeir"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "farm/settlement of the people at the hill called *Cadeir (= the chair)' or possibly, 'farm/settlement of Cat(t)or's people; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Chalton@Hampshire", "modern_name": "Chalton", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Chalton@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:calc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Chalk farm/settlement"}
 {"_type": "toponym", "ref": "Chawton@Hampshire", "modern_name": "Chawton", "country": "England", "region": "Hampshire"}
@@ -1062,9 +1062,9 @@
 {"_type": "toponym", "ref": "Chilbolton@Hampshire", "modern_name": "Chilbolton", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Chilbolton@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement connected with Ceobeald; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Chilcomb@Hampshire", "modern_name": "Chilcomb", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Chilcomb@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ciltā"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}], "notes": "Valley below the steep slope"}
+{"_type": "etymology_element", "toponym_ref": "Chilcomb@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:ciltā"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}], "notes": "Valley below the steep slope"}
 {"_type": "toponym", "ref": "Chilton Candover@Hampshire", "modern_name": "Chilton Candover", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Chilton Candover@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cild"}, {"ordinal": 2, "etymon_ref": "celtic:ciltā"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "steep-slope farm/settlement' or perhaps, 'children's farm/settlement. Alternatively, 'Candover at Chilte (= the steep slope)"}
+{"_type": "etymology_element", "toponym_ref": "Chilton Candover@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cild"}, {"ordinal": 2, "etymon_ref": "brittonic:ciltā"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "steep-slope farm/settlement' or perhaps, 'children's farm/settlement. Alternatively, 'Candover at Chilte (= the steep slope)"}
 {"_type": "toponym", "ref": "Chilworth@Hampshire", "modern_name": "Chilworth", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Chilworth@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceole"}, {"ordinal": 2, "etymon_ref": "old-english:worð"}, {"ordinal": 3, "etymon_ref": "old-english:Cēola"}], "notes": "Ceola's enclosure' or perhaps, 'throat-like enclosure"}
 {"_type": "toponym", "ref": "Cholderton@Hampshire", "modern_name": "Cholderton", "country": "England", "region": "Hampshire"}
@@ -1160,7 +1160,7 @@
 {"_type": "toponym", "ref": "Exbury@Hampshire", "modern_name": "Exbury", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Exbury@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:Eohere"}], "notes": "*Eohere's fortification' or '*Iecere's fortification"}
 {"_type": "toponym", "ref": "Exton@Hampshire", "modern_name": "Exton", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Exton@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēast"}, {"ordinal": 2, "etymon_ref": "celtic:Saxones"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "East Saxon's farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Exton@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēast"}, {"ordinal": 2, "etymon_ref": "brittonic:Saxones"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "East Saxon's farm/settlement"}
 {"_type": "toponym", "ref": "Faccombe@Hampshire", "modern_name": "Faccombe", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Faccombe@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:Baca"}], "notes": "*Faca's valley"}
 {"_type": "toponym", "ref": "Fareham@Hampshire", "modern_name": "Fareham", "country": "England", "region": "Hampshire"}
@@ -1230,9 +1230,9 @@
 {"_type": "toponym", "ref": "Heckfield@Hampshire", "modern_name": "Heckfield", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Heckfield@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "old-english:hēah"}, {"ordinal": 3, "etymon_ref": "old-english:hecen"}, {"ordinal": 4, "etymon_ref": "old-english:hecg"}], "notes": "high open land', but perhaps, 'hedge open land' or 'hatch open land"}
 {"_type": "toponym", "ref": "Herriard@Hampshire", "modern_name": "Herriard", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Herriard@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:garth"}, {"ordinal": 2, "etymon_ref": "old-english:geard"}, {"ordinal": 3, "etymon_ref": "old-english:hærg"}, {"ordinal": 4, "etymon_ref": "old-english:here"}, {"ordinal": 5, "etymon_ref": "celtic:hir"}], "notes": "army enclosure', but 'heathen enclosure' has also also been suggested. Perhaps the site of the Danish encampment before or after Aethelwulf's victory over them at Acleah (possibly Oakley) in 851, or after the Danes"}
+{"_type": "etymology_element", "toponym_ref": "Herriard@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:garth"}, {"ordinal": 2, "etymon_ref": "old-english:geard"}, {"ordinal": 3, "etymon_ref": "old-english:hærg"}, {"ordinal": 4, "etymon_ref": "old-english:here"}, {"ordinal": 5, "etymon_ref": "brittonic:hir"}], "notes": "army enclosure', but 'heathen enclosure' has also also been suggested. Perhaps the site of the Danish encampment before or after Aethelwulf's victory over them at Acleah (possibly Oakley) in 851, or after the Danes"}
 {"_type": "toponym", "ref": "Highclere@Hampshire", "modern_name": "Highclere", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Highclere@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "latin:altus"}, {"ordinal": 2, "etymon_ref": "celtic:clear"}], "notes": "High Clere'. Clere is a name of unknown origins, possibly PrW, meaning 'bright"}
+{"_type": "etymology_element", "toponym_ref": "Highclere@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "latin:altus"}, {"ordinal": 2, "etymon_ref": "brittonic:clear"}], "notes": "High Clere'. Clere is a name of unknown origins, possibly PrW, meaning 'bright"}
 {"_type": "toponym", "ref": "Hilsea@Hampshire", "modern_name": "Hilsea", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Hilsea@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyles"}, {"ordinal": 2, "etymon_ref": "old-english:īeg"}], "notes": "holly island"}
 {"_type": "toponym", "ref": "Hinton Ampner@Hampshire", "modern_name": "Hinton Ampner", "country": "England", "region": "Hampshire"}
@@ -1272,7 +1272,7 @@
 {"_type": "toponym", "ref": "Kings Worthy@Hampshire", "modern_name": "Kings Worthy", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Kings Worthy@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cyning"}, {"ordinal": 2, "etymon_ref": "old-english:worðig"}], "notes": "Enclosure"}
 {"_type": "toponym", "ref": "Kingsclere@Hampshire", "modern_name": "Kingsclere", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Kingsclere@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:clear"}, {"ordinal": 2, "etymon_ref": "old-english:cyning"}], "notes": "King's Clere'. Clere is a name of unknown origins, possibly PrW, meaning 'bright"}
+{"_type": "etymology_element", "toponym_ref": "Kingsclere@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:clear"}, {"ordinal": 2, "etymon_ref": "old-english:cyning"}], "notes": "King's Clere'. Clere is a name of unknown origins, possibly PrW, meaning 'bright"}
 {"_type": "toponym", "ref": "Kingsley@Hampshire", "modern_name": "Kingsley", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Kingsley@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cyning"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "King's wood/clearing"}
 {"_type": "toponym", "ref": "Kinson@Hampshire", "modern_name": "Kinson", "country": "England", "region": "Hampshire"}
@@ -1290,7 +1290,7 @@
 {"_type": "toponym", "ref": "Linkenholt@Hampshire", "modern_name": "Linkenholt", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Linkenholt@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hlinc"}, {"ordinal": 2, "etymon_ref": "old-english:holt"}], "notes": "Bank wood"}
 {"_type": "toponym", "ref": "Liss@Hampshire", "modern_name": "Liss", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Liss@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lïs"}], "notes": "Hall"}
+{"_type": "etymology_element", "toponym_ref": "Liss@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:lïs"}], "notes": "Hall"}
 {"_type": "toponym", "ref": "Litchfield@Hampshire", "modern_name": "Litchfield", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Litchfield@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hlid"}, {"ordinal": 2, "etymon_ref": "old-english:hlīf"}, {"ordinal": 3, "etymon_ref": "old-english:scelf"}], "notes": "shelf'. 'Shelter', 'protection', 'slope' and 'gate"}
 {"_type": "toponym", "ref": "Little Somborne@Hampshire", "modern_name": "Little Somborne", "country": "England", "region": "Hampshire"}
@@ -1320,7 +1320,7 @@
 {"_type": "toponym", "ref": "Medstead@Hampshire", "modern_name": "Medstead", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Medstead@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mǣd"}, {"ordinal": 2, "etymon_ref": "old-english:stede"}, {"ordinal": 3, "etymon_ref": "old-english:Mede"}], "notes": "Meadow place' or perhaps, '*Mede's place"}
 {"_type": "toponym", "ref": "Melchet Park@Hampshire", "modern_name": "Melchet Park", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Melchet Park@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:mę̄l"}], "notes": "Bare wood"}
+{"_type": "etymology_element", "toponym_ref": "Melchet Park@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "brittonic:mę̄l"}], "notes": "Bare wood"}
 {"_type": "toponym", "ref": "Meonstoke@Hampshire", "modern_name": "Meonstoke", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Meonstoke@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Place-name"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}, {"ordinal": 3, "etymon_ref": "old-english:stoc"}], "notes": "Meon's outlying farm/settlement' or"}
 {"_type": "toponym", "ref": "Micheldever@Hampshire", "modern_name": "Micheldever", "country": "England", "region": "Hampshire"}
@@ -1448,7 +1448,7 @@
 {"_type": "toponym", "ref": "Shipton Bellinger@Hampshire", "modern_name": "Shipton Bellinger", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Shipton Bellinger@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:scēp"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Sheep farm/settlement"}
 {"_type": "toponym", "ref": "Silchester@Hampshire", "modern_name": "Silchester", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Silchester@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "celtic:celli"}, {"ordinal": 3, "etymon_ref": "old-english:sīeling"}], "notes": "willow-copse Roman site', although this is generally disagreed with on ecological grounds. More likely, perhaps, is 'Roman site called Calleva (= wood)"}
+{"_type": "etymology_element", "toponym_ref": "Silchester@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "brittonic:celli"}, {"ordinal": 3, "etymon_ref": "old-english:sīeling"}], "notes": "willow-copse Roman site', although this is generally disagreed with on ecological grounds. More likely, perhaps, is 'Roman site called Calleva (= wood)"}
 {"_type": "toponym", "ref": "Soberton@Hampshire", "modern_name": "Soberton", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Soberton@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bere-tūn"}, {"ordinal": 2, "etymon_ref": "old-english:sūð"}], "notes": "South barley farm/settlement"}
 {"_type": "toponym", "ref": "Sopley@Hampshire", "modern_name": "Sopley", "country": "England", "region": "Hampshire"}
@@ -1542,7 +1542,7 @@
 {"_type": "toponym", "ref": "Wield@Hampshire", "modern_name": "Wield", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Wield@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wald"}], "notes": "Forest"}
 {"_type": "toponym", "ref": "Winchester@Hampshire", "modern_name": "Winchester", "country": "England", "region": "Hampshire"}
-{"_type": "etymology_element", "toponym_ref": "Winchester@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "celtic:u̥entā"}], "notes": "Roman site called Venta'. Identified with Ptolemy's Venta Belgarum ('Venta of the Belgae"}
+{"_type": "etymology_element", "toponym_ref": "Winchester@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "brittonic:u̥entā"}], "notes": "Roman site called Venta'. Identified with Ptolemy's Venta Belgarum ('Venta of the Belgae"}
 {"_type": "toponym", "ref": "Winchfield@Hampshire", "modern_name": "Winchfield", "country": "England", "region": "Hampshire"}
 {"_type": "etymology_element", "toponym_ref": "Winchfield@Hampshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "old-english:wincel"}], "notes": "Nook of open land' or 'corner of open land"}
 {"_type": "toponym", "ref": "Winnal@Hampshire", "modern_name": "Winnal", "country": "England", "region": "Hampshire"}

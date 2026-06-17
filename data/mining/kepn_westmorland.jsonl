@@ -297,12 +297,12 @@
 {"_type": "etymon", "ref": "old-english:slæd", "canonical_form": "slæd", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:slæd"}
 {"_type": "citation", "etymon_ref": "old-english:slæd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Smith; Place-names of Westmorland; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:brig", "canonical_form": "brig", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:brig"}
-{"_type": "citation", "etymon_ref": "celtic:brig", "source_id": "kepn_external", "context_snippet": "Smith; Place-names of Westmorland; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:mailo-", "canonical_form": "mailo-", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mailo-"}
-{"_type": "citation", "etymon_ref": "celtic:mailo-", "source_id": "kepn_external", "context_snippet": "Smith; Place-names of Westmorland; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:brig", "canonical_form": "brig", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:brig"}
+{"_type": "citation", "etymon_ref": "brittonic:brig", "source_id": "kepn_external", "context_snippet": "Smith; Place-names of Westmorland; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:mailo-", "canonical_form": "mailo-", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mailo-"}
+{"_type": "citation", "etymon_ref": "brittonic:mailo-", "source_id": "kepn_external", "context_snippet": "Smith; Place-names of Westmorland; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-norse:stǫng", "canonical_form": "stǫng", "language": "old-norse", "glosses": ["A pole, a stave; also used as a standard of measure."]}
 {"_type": "citation", "etymon_ref": "old-norse:stǫng"}
 {"_type": "citation", "etymon_ref": "old-norse:stǫng", "source_id": "kepn_external", "context_snippet": "Smith; Place-names of Westmorland; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -612,7 +612,7 @@
 {"_type": "toponym", "ref": "Lupton@Westmorland", "modern_name": "Lupton", "country": "England", "region": "Westmorland"}
 {"_type": "etymology_element", "toponym_ref": "Lupton@Westmorland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}], "notes": "Hluppa's farm/settlement; unresolved personal name(s): Hluppa"}
 {"_type": "toponym", "ref": "Mallerstang@Westmorland", "modern_name": "Mallerstang", "country": "England", "region": "Westmorland"}
-{"_type": "etymology_element", "toponym_ref": "Mallerstang@Westmorland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:brig"}, {"ordinal": 2, "etymon_ref": "celtic:mailo-"}, {"ordinal": 3, "etymon_ref": "old-norse:stǫng"}], "notes": "bare-hill pole"}
+{"_type": "etymology_element", "toponym_ref": "Mallerstang@Westmorland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:brig"}, {"ordinal": 2, "etymon_ref": "brittonic:mailo-"}, {"ordinal": 3, "etymon_ref": "old-norse:stǫng"}], "notes": "bare-hill pole"}
 {"_type": "toponym", "ref": "Mansergh@Westmorland", "modern_name": "Mansergh", "country": "England", "region": "Westmorland"}
 {"_type": "etymology_element", "toponym_ref": "Mansergh@Westmorland", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:erg"}, {"ordinal": 2, "etymon_ref": "old-english:Mann"}], "notes": "Mann's shieling/hill-pasture"}
 {"_type": "toponym", "ref": "Martindale@Westmorland", "modern_name": "Martindale", "country": "England", "region": "Westmorland"}

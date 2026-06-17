@@ -258,9 +258,9 @@
 {"_type": "etymon", "ref": "celtic:carn", "canonical_form": "carn", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:carn"}
 {"_type": "citation", "etymon_ref": "celtic:carn", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:lïs", "canonical_form": "lïs", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:lïs"}
-{"_type": "citation", "etymon_ref": "celtic:lïs", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:lïs", "canonical_form": "lïs", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:lïs"}
+{"_type": "citation", "etymon_ref": "brittonic:lïs", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:ceorl", "canonical_form": "ceorl", "language": "old-english", "glosses": ["A freeman of the lower class, a peasant."]}
 {"_type": "citation", "etymon_ref": "old-english:ceorl"}
 {"_type": "citation", "etymon_ref": "old-english:ceorl", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon"}
@@ -318,9 +318,9 @@
 {"_type": "etymon", "ref": "old-english:hēg", "canonical_form": "hēg", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:hēg"}
 {"_type": "citation", "etymon_ref": "old-english:hēg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon"}
-{"_type": "etymon", "ref": "celtic:cleath", "canonical_form": "cleath", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cleath"}
-{"_type": "citation", "etymon_ref": "celtic:cleath", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:cleath", "canonical_form": "cleath", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cleath"}
+{"_type": "citation", "etymon_ref": "brittonic:cleath", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:clof", "canonical_form": "clof", "language": "old-english", "glosses": ["Something cut; a crevice, a valley."]}
 {"_type": "citation", "etymon_ref": "old-english:clof"}
 {"_type": "citation", "etymon_ref": "old-english:clof", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
@@ -354,18 +354,18 @@
 {"_type": "etymon", "ref": "old-english:Cotta", "canonical_form": "Cotta", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Cotta"}
 {"_type": "citation", "etymon_ref": "old-english:Cotta", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon"}
-{"_type": "etymon", "ref": "celtic:cunẹ̄ti̥ū", "canonical_form": "cunẹ̄ti̥ū", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cunẹ̄ti̥ū"}
-{"_type": "citation", "etymon_ref": "celtic:cunẹ̄ti̥ū", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:cunẹ̄ti̥ū", "canonical_form": "cunẹ̄ti̥ū", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cunẹ̄ti̥ū"}
+{"_type": "citation", "etymon_ref": "brittonic:cunẹ̄ti̥ū", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:crāwe", "canonical_form": "crāwe", "language": "old-english", "glosses": ["A crow."]}
 {"_type": "citation", "etymon_ref": "old-english:crāwe"}
 {"_type": "citation", "etymon_ref": "old-english:crāwe", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:mǭr", "canonical_form": "mǭr", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mǭr"}
-{"_type": "citation", "etymon_ref": "celtic:mǭr", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:mǭr", "canonical_form": "mǭr", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mǭr"}
+{"_type": "citation", "etymon_ref": "brittonic:mǭr", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:stoc", "canonical_form": "stoc", "language": "old-english", "glosses": ["A place, a secondary settlement."]}
 {"_type": "citation", "etymon_ref": "old-english:stoc"}
 {"_type": "citation", "etymon_ref": "old-english:stoc", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
@@ -396,18 +396,18 @@
 {"_type": "etymon", "ref": "old-english:dūfe", "canonical_form": "dūfe", "language": "old-english", "glosses": ["A dove, a pigeon."]}
 {"_type": "citation", "etymon_ref": "old-english:dūfe"}
 {"_type": "citation", "etymon_ref": "old-english:dūfe", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:duβ", "canonical_form": "duβ", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:duβ"}
-{"_type": "citation", "etymon_ref": "celtic:duβ", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:duβ", "canonical_form": "duβ", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:duβ"}
+{"_type": "citation", "etymon_ref": "brittonic:duβ", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:feld", "canonical_form": "feld", "language": "old-english", "glosses": ["Open country, unencumbered ground (eg. land without trees as opposed to forest, level ground as opposed to hills, land without buildings); arable land (from late tenth century)."]}
 {"_type": "citation", "etymon_ref": "old-english:feld"}
 {"_type": "citation", "etymon_ref": "old-english:feld", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:land", "canonical_form": "land", "language": "old-english", "glosses": ["Land (as part of earth's surface); an estate; possibly also new arable area.  In minor and field names: strip in a field-system."]}
 {"_type": "citation", "etymon_ref": "old-english:land"}
 {"_type": "citation", "etymon_ref": "old-english:land", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:-āco-", "canonical_form": "-āco-", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:-āco-"}
-{"_type": "citation", "etymon_ref": "celtic:-āco-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon"}
+{"_type": "etymon", "ref": "brittonic:-āco-", "canonical_form": "-āco-", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:-āco-"}
+{"_type": "citation", "etymon_ref": "brittonic:-āco-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon"}
 {"_type": "etymon", "ref": "celtic:din", "canonical_form": "din", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:din"}
 {"_type": "citation", "etymon_ref": "celtic:din", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon"}
@@ -417,9 +417,9 @@
 {"_type": "etymon", "ref": "old-english:Deduc", "canonical_form": "Deduc", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Deduc"}
 {"_type": "citation", "etymon_ref": "old-english:Deduc", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon"}
-{"_type": "etymon", "ref": "celtic:treβ", "canonical_form": "treβ", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:treβ"}
-{"_type": "citation", "etymon_ref": "celtic:treβ", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:treβ", "canonical_form": "treβ", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:treβ"}
+{"_type": "citation", "etymon_ref": "brittonic:treβ", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:ān-stiga", "canonical_form": "ān-stiga", "language": "old-english", "glosses": ["A short ascending road, usually forking at either end."]}
 {"_type": "citation", "etymon_ref": "old-english:ān-stiga"}
 {"_type": "citation", "etymon_ref": "old-english:ān-stiga", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
@@ -435,15 +435,15 @@
 {"_type": "etymon", "ref": "old-english:Focga", "canonical_form": "Focga", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Focga"}
 {"_type": "citation", "etymon_ref": "old-english:Focga", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon"}
-{"_type": "etymon", "ref": "celtic:heyl", "canonical_form": "heyl", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:heyl"}
-{"_type": "citation", "etymon_ref": "celtic:heyl", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:heyl", "canonical_form": "heyl", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:heyl"}
+{"_type": "citation", "etymon_ref": "brittonic:heyl", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:port", "canonical_form": "port", "language": "old-english", "glosses": ["A haven, a harbour."]}
 {"_type": "citation", "etymon_ref": "old-english:port"}
 {"_type": "citation", "etymon_ref": "old-english:port", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:porth", "canonical_form": "porth", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:porth"}
-{"_type": "citation", "etymon_ref": "celtic:porth", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:porth", "canonical_form": "porth", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:porth"}
+{"_type": "citation", "etymon_ref": "brittonic:porth", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:putta", "canonical_form": "putta", "language": "old-english", "glosses": ["A hawk, a kite."]}
 {"_type": "citation", "etymon_ref": "old-english:putta"}
 {"_type": "citation", "etymon_ref": "old-english:putta", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names"}
@@ -537,9 +537,9 @@
 {"_type": "etymon", "ref": "old-english:brægen", "canonical_form": "brægen", "language": "old-english", "glosses": ["A brain, the crown of the head; topographically a hill."]}
 {"_type": "citation", "etymon_ref": "old-english:brægen"}
 {"_type": "citation", "etymon_ref": "old-english:brægen", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:breg", "canonical_form": "breg", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:breg"}
-{"_type": "citation", "etymon_ref": "celtic:breg", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:breg", "canonical_form": "breg", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:breg"}
+{"_type": "citation", "etymon_ref": "brittonic:breg", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "middle-english:heȝ", "canonical_form": "heȝ", "language": "middle-english", "glosses": ["High."]}
 {"_type": "citation", "etymon_ref": "middle-english:heȝ"}
 {"_type": "citation", "etymon_ref": "middle-english:heȝ", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
@@ -591,15 +591,15 @@
 {"_type": "etymon", "ref": "old-english:Ipela", "canonical_form": "Ipela", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Ipela"}
 {"_type": "citation", "etymon_ref": "old-english:Ipela", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover et al.: Place-names of Devon"}
-{"_type": "etymon", "ref": "celtic:celli", "canonical_form": "celli", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:celli"}
-{"_type": "citation", "etymon_ref": "celtic:celli", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon"}
+{"_type": "etymon", "ref": "brittonic:celli", "canonical_form": "celli", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:celli"}
+{"_type": "citation", "etymon_ref": "brittonic:celli", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon"}
 {"_type": "etymon", "ref": "old-english:Cynegeard", "canonical_form": "Cynegeard", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Cynegeard"}
 {"_type": "citation", "etymon_ref": "old-english:Cynegeard", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:canto-", "canonical_form": "canto-", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:canto-"}
-{"_type": "citation", "etymon_ref": "celtic:canto-", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:canto-", "canonical_form": "canto-", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:canto-"}
+{"_type": "citation", "etymon_ref": "brittonic:canto-", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Cetel", "canonical_form": "Cetel", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Cetel"}
 {"_type": "citation", "etymon_ref": "old-english:Cetel", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
@@ -630,9 +630,9 @@
 {"_type": "etymon", "ref": "celtic:lann", "canonical_form": "lann", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:lann"}
 {"_type": "citation", "etymon_ref": "celtic:lann", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon"}
-{"_type": "etymon", "ref": "celtic:to-", "canonical_form": "to-", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:to-"}
-{"_type": "citation", "etymon_ref": "celtic:to-", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:to-", "canonical_form": "to-", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:to-"}
+{"_type": "citation", "etymon_ref": "brittonic:to-", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:lang", "canonical_form": "lang", "language": "old-english", "glosses": ["Long, tall."]}
 {"_type": "citation", "etymon_ref": "old-english:lang"}
 {"_type": "citation", "etymon_ref": "old-english:lang", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
@@ -675,9 +675,9 @@
 {"_type": "etymon", "ref": "old-english:Bǣrla", "canonical_form": "Bǣrla", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Bǣrla"}
 {"_type": "citation", "etymon_ref": "old-english:Bǣrla", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:mamm", "canonical_form": "mamm", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mamm"}
-{"_type": "citation", "etymon_ref": "celtic:mamm", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:mamm", "canonical_form": "mamm", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mamm"}
+{"_type": "citation", "etymon_ref": "brittonic:mamm", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:mǣne", "canonical_form": "mǣne", "language": "old-english", "glosses": ["Common; communal (land)."]}
 {"_type": "citation", "etymon_ref": "old-english:mǣne"}
 {"_type": "citation", "etymon_ref": "old-english:mǣne", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon"}
@@ -699,9 +699,9 @@
 {"_type": "etymon", "ref": "old-english:mȳðe", "canonical_form": "mȳðe", "language": "old-english", "glosses": ["The mouth of a river where it runs into another; a confluence of rivers."]}
 {"_type": "citation", "etymon_ref": "old-english:mȳðe"}
 {"_type": "citation", "etymon_ref": "old-english:mȳðe", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:main", "canonical_form": "main", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:main"}
-{"_type": "citation", "etymon_ref": "celtic:main", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "etymon", "ref": "brittonic:main", "canonical_form": "main", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:main"}
+{"_type": "citation", "etymon_ref": "brittonic:main", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:mere", "canonical_form": "mere", "language": "old-english", "glosses": ["A pond, a pool, a lake."]}
 {"_type": "citation", "etymon_ref": "old-english:mere"}
 {"_type": "citation", "etymon_ref": "old-english:mere", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -741,9 +741,9 @@
 {"_type": "etymon", "ref": "old-english:norð", "canonical_form": "norð", "language": "old-english", "glosses": ["Northern, north."]}
 {"_type": "citation", "etymon_ref": "old-english:norð"}
 {"_type": "citation", "etymon_ref": "old-english:norð", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:nïṽed", "canonical_form": "nïṽed", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:nïṽed"}
-{"_type": "citation", "etymon_ref": "celtic:nïṽed", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "etymon", "ref": "brittonic:nïṽed", "canonical_form": "nïṽed", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:nïṽed"}
+{"_type": "citation", "etymon_ref": "brittonic:nïṽed", "source_id": "kepn_external", "context_snippet": "Gover et al.: Place-names of Devon; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Affa", "canonical_form": "Affa", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Affa"}
 {"_type": "citation", "etymon_ref": "old-english:Affa", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.: Place-names of Devon"}
@@ -1192,7 +1192,7 @@
 {"_type": "toponym", "ref": "Chardstock@Devon", "modern_name": "Chardstock", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Chardstock@Devon", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Place-name"}], "notes": "Chard's outlying farm/settlement"}
 {"_type": "toponym", "ref": "Charles@Devon", "modern_name": "Charles", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Charles@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:carn"}, {"ordinal": 2, "etymon_ref": "celtic:lïs"}], "notes": "rock court"}
+{"_type": "etymology_element", "toponym_ref": "Charles@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:carn"}, {"ordinal": 2, "etymon_ref": "brittonic:lïs"}], "notes": "rock court"}
 {"_type": "toponym", "ref": "Charleton@Devon", "modern_name": "Charleton", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Charleton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceorl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
 {"_type": "toponym", "ref": "Chawleigh@Devon", "modern_name": "Chawleigh", "country": "England", "region": "Devon"}
@@ -1230,7 +1230,7 @@
 {"_type": "toponym", "ref": "Clayhidon@Devon", "modern_name": "Clayhidon", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Clayhidon@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clǣg"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}, {"ordinal": 3, "etymon_ref": "old-english:hēg"}], "notes": "Hay hill' with the later addition of 'clay"}
 {"_type": "toponym", "ref": "Clovelly@Devon", "modern_name": "Clovelly", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Clovelly@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cleath"}, {"ordinal": 2, "etymon_ref": "old-english:clof"}, {"ordinal": 3, "etymon_ref": "old-english:clōh"}, {"ordinal": 4, "etymon_ref": "old-english:felg"}], "notes": "ravine at Velly (= the wheel-rim)' or possibly, 'Felec's dyke; unresolved personal name(s): Felec"}
+{"_type": "etymology_element", "toponym_ref": "Clovelly@Devon", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cleath"}, {"ordinal": 2, "etymon_ref": "old-english:clof"}, {"ordinal": 3, "etymon_ref": "old-english:clōh"}, {"ordinal": 4, "etymon_ref": "old-english:felg"}], "notes": "ravine at Velly (= the wheel-rim)' or possibly, 'Felec's dyke; unresolved personal name(s): Felec"}
 {"_type": "toponym", "ref": "Clyst Honiton@Devon", "modern_name": "Clyst Honiton", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Clyst Honiton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hīwan"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Community's farm/settlement"}
 {"_type": "toponym", "ref": "Clyst Hydon@Devon", "modern_name": "Clyst Hydon", "country": "England", "region": "Devon"}
@@ -1272,13 +1272,13 @@
 {"_type": "toponym", "ref": "Cotleigh@Devon", "modern_name": "Cotleigh", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Cotleigh@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:Cotta"}], "notes": "Cotta"}
 {"_type": "toponym", "ref": "Countisbury@Devon", "modern_name": "Countisbury", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Countisbury@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "celtic:cunẹ̄ti̥ū"}], "notes": "fortification called/at *Cunet', a Celtic place-name of unknown meaning. Alternatively, it has been suggested that the first element is a Celtic personal name, 'Cynuit; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "etymology_element", "toponym_ref": "Countisbury@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "brittonic:cunẹ̄ti̥ū"}], "notes": "fortification called/at *Cunet', a Celtic place-name of unknown meaning. Alternatively, it has been suggested that the first element is a Celtic personal name, 'Cynuit; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Creacombe@Devon", "modern_name": "Creacombe", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Creacombe@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:crāwe"}, {"ordinal": 2, "etymon_ref": "old-english:cumb"}], "notes": "Crow valley"}
 {"_type": "toponym", "ref": "Crediton@Devon", "modern_name": "Crediton", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Crediton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "River Creedy farm/settlement"}
 {"_type": "toponym", "ref": "Cruwys Morchard@Devon", "modern_name": "Cruwys Morchard", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Cruwys Morchard@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "celtic:mǭr"}], "notes": "Great wood"}
+{"_type": "etymology_element", "toponym_ref": "Cruwys Morchard@Devon", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "brittonic:mǭr"}], "notes": "Great wood"}
 {"_type": "toponym", "ref": "Cullompton@Devon", "modern_name": "Cullompton", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Cullompton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "River Culm farm/settlement"}
 {"_type": "toponym", "ref": "Culmstock@Devon", "modern_name": "Culmstock", "country": "England", "region": "Devon"}
@@ -1306,21 +1306,21 @@
 {"_type": "toponym", "ref": "Doddiscombsleigh@Devon", "modern_name": "Doddiscombsleigh", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Doddiscombsleigh@Devon", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Wood/clearing"}
 {"_type": "toponym", "ref": "Dolton@Devon", "modern_name": "Dolton", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Dolton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūfe"}, {"ordinal": 2, "etymon_ref": "celtic:duβ"}, {"ordinal": 3, "etymon_ref": "old-english:feld"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "*Duffield (dove open land) farm/settlement' or perhaps, 'black farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Dolton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūfe"}, {"ordinal": 2, "etymon_ref": "brittonic:duβ"}, {"ordinal": 3, "etymon_ref": "old-english:feld"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "*Duffield (dove open land) farm/settlement' or perhaps, 'black farm/settlement"}
 {"_type": "toponym", "ref": "Dowland@Devon", "modern_name": "Dowland", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Dowland@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūfe"}, {"ordinal": 2, "etymon_ref": "celtic:duβ"}, {"ordinal": 3, "etymon_ref": "old-english:feld"}, {"ordinal": 4, "etymon_ref": "old-english:land"}], "notes": "*Duffield (dove open land) farm/settlement' or perhaps, 'black farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Dowland@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūfe"}, {"ordinal": 2, "etymon_ref": "brittonic:duβ"}, {"ordinal": 3, "etymon_ref": "old-english:feld"}, {"ordinal": 4, "etymon_ref": "old-english:land"}], "notes": "*Duffield (dove open land) farm/settlement' or perhaps, 'black farm/settlement"}
 {"_type": "toponym", "ref": "Down St Mary@Devon", "modern_name": "Down St Mary", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Down St Mary@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Hill"}
 {"_type": "toponym", "ref": "Drewsteignton@Devon", "modern_name": "Drewsteignton", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Drewsteignton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "River Teign farm/settlement; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Dunchideock@Devon", "modern_name": "Dunchideock", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Dunchideock@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-āco-"}, {"ordinal": 2, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 3, "etymon_ref": "celtic:din"}], "notes": "Wooded fortification"}
+{"_type": "etymology_element", "toponym_ref": "Dunchideock@Devon", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-āco-"}, {"ordinal": 2, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 3, "etymon_ref": "celtic:din"}], "notes": "Wooded fortification"}
 {"_type": "toponym", "ref": "Dunkeswell@Devon", "modern_name": "Dunkeswell", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Dunkeswell@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dunnoc"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}, {"ordinal": 3, "etymon_ref": "old-english:Deduc"}], "notes": "Duduc's/*Dunnuc's spring/stream'. Alternatively, perhaps 'hedge-sparrow spring/stream"}
 {"_type": "toponym", "ref": "Dunsford@Devon", "modern_name": "Dunsford", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Dunsford@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}], "notes": "Ford of a man called Dun(n); unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Dunterton@Devon", "modern_name": "Dunterton", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Dunterton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:din"}, {"ordinal": 2, "etymon_ref": "celtic:treβ"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "fort-village' to which was later added OE 'farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Dunterton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:din"}, {"ordinal": 2, "etymon_ref": "brittonic:treβ"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "fort-village' to which was later added OE 'farm/settlement"}
 {"_type": "toponym", "ref": "East Allington@Devon", "modern_name": "East Allington", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "East Allington@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Aella/Aelle'. 'East; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "East and West Buckland@Devon", "modern_name": "East and West Buckland", "country": "England", "region": "Devon"}
@@ -1336,7 +1336,7 @@
 {"_type": "toponym", "ref": "East Ogwell@Devon", "modern_name": "East Ogwell", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "East Ogwell@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:wella"}, {"ordinal": 2, "etymon_ref": "old-english:Focga"}], "notes": "*Wocga's spring/stream' 'East"}
 {"_type": "toponym", "ref": "East Portlemouth@Devon", "modern_name": "East Portlemouth", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "East Portlemouth@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:heyl"}, {"ordinal": 2, "etymon_ref": "old-english:mūða"}, {"ordinal": 3, "etymon_ref": "old-english:port"}, {"ordinal": 4, "etymon_ref": "celtic:porth"}, {"ordinal": 5, "etymon_ref": "old-english:wella"}], "notes": "harbour estuary'. Alternatively, perhaps 'mouth of the harbour stream"}
+{"_type": "etymology_element", "toponym_ref": "East Portlemouth@Devon", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:heyl"}, {"ordinal": 2, "etymon_ref": "old-english:mūða"}, {"ordinal": 3, "etymon_ref": "old-english:port"}, {"ordinal": 4, "etymon_ref": "brittonic:porth"}, {"ordinal": 5, "etymon_ref": "old-english:wella"}], "notes": "harbour estuary'. Alternatively, perhaps 'mouth of the harbour stream"}
 {"_type": "toponym", "ref": "East Putford@Devon", "modern_name": "East Putford", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "East Putford@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:putta"}, {"ordinal": 3, "etymon_ref": "old-english:Hutta"}], "notes": "Putta's ford' or 'hawk ford"}
 {"_type": "toponym", "ref": "Egg Buckland@Devon", "modern_name": "Egg Buckland", "country": "England", "region": "Devon"}
@@ -1408,7 +1408,7 @@
 {"_type": "toponym", "ref": "High Bickington@Devon", "modern_name": "High Bickington", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "High Bickington@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Beocca/Bica; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "High Bray@Devon", "modern_name": "High Bray", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "High Bray@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brægen"}, {"ordinal": 2, "etymon_ref": "celtic:breg"}], "notes": "hill' or perhaps, 'hill-brow"}
+{"_type": "etymology_element", "toponym_ref": "High Bray@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brægen"}, {"ordinal": 2, "etymon_ref": "brittonic:breg"}], "notes": "hill' or perhaps, 'hill-brow"}
 {"_type": "toponym", "ref": "Highampton@Devon", "modern_name": "Highampton", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Highampton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēah"}, {"ordinal": 2, "etymon_ref": "middle-english:heȝ"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "High farmstead'. With later addition of ME 'heghe"}
 {"_type": "toponym", "ref": "Highleigh@Devon", "modern_name": "Highleigh", "country": "England", "region": "Devon"}
@@ -1464,13 +1464,13 @@
 {"_type": "toponym", "ref": "Jacobstowe@Devon", "modern_name": "Jacobstowe", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Jacobstowe@Devon", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. James place"}
 {"_type": "toponym", "ref": "Kelly@Devon", "modern_name": "Kelly", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Kelly@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:celli"}], "notes": "Wood"}
+{"_type": "etymology_element", "toponym_ref": "Kelly@Devon", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:celli"}], "notes": "Wood"}
 {"_type": "toponym", "ref": "Kenn@Devon", "modern_name": "Kenn", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Kenn@Devon", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Kennerleigh@Devon", "modern_name": "Kennerleigh", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Kennerleigh@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:Cynegeard"}], "notes": "Cyneweard's wood/clearing"}
 {"_type": "toponym", "ref": "Kentisbeare@Devon", "modern_name": "Kentisbeare", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Kentisbeare@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bearu"}, {"ordinal": 2, "etymon_ref": "celtic:canto-"}, {"ordinal": 3, "etymon_ref": "old-english:Cetel"}], "notes": "Centel's grove' or perhaps, 'district/border wood"}
+{"_type": "etymology_element", "toponym_ref": "Kentisbeare@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bearu"}, {"ordinal": 2, "etymon_ref": "brittonic:canto-"}, {"ordinal": 3, "etymon_ref": "old-english:Cetel"}], "notes": "Centel's grove' or perhaps, 'district/border wood"}
 {"_type": "toponym", "ref": "Kentisbury@Devon", "modern_name": "Kentisbury", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Kentisbury@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:Cetel"}], "notes": "district fortification' or 'border fortification.' Alternatively, *Centel's fortification"}
 {"_type": "toponym", "ref": "Kenton@Devon", "modern_name": "Kenton", "country": "England", "region": "Devon"}
@@ -1496,7 +1496,7 @@
 {"_type": "toponym", "ref": "Landcross@Devon", "modern_name": "Landcross", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Landcross@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hlanc"}, {"ordinal": 2, "etymon_ref": "celtic:lann"}], "notes": "long hill'. Alternatively, it may be OCo lann, 'church"}
 {"_type": "toponym", "ref": "Landkey@Devon", "modern_name": "Landkey", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Landkey@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "celtic:to-"}], "notes": "St. Ke's church'. The saint"}
+{"_type": "etymology_element", "toponym_ref": "Landkey@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "brittonic:to-"}], "notes": "St. Ke's church'. The saint"}
 {"_type": "toponym", "ref": "Langtree@Devon", "modern_name": "Langtree", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Langtree@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lang"}, {"ordinal": 2, "etymon_ref": "old-english:trēow"}], "notes": "Tall tree"}
 {"_type": "toponym", "ref": "Lapford@Devon", "modern_name": "Lapford", "country": "England", "region": "Devon"}
@@ -1534,7 +1534,7 @@
 {"_type": "toponym", "ref": "Malborough@Devon", "modern_name": "Malborough", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Malborough@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-english:meargealla"}, {"ordinal": 3, "etymon_ref": "old-english:Bǣrla"}], "notes": "*Maerla's hill' or perhaps, 'gentian hill"}
 {"_type": "toponym", "ref": "Mamhead@Devon", "modern_name": "Mamhead", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Mamhead@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēafod"}, {"ordinal": 2, "etymon_ref": "celtic:mamm"}], "notes": "Breast-shaped hill"}
+{"_type": "etymology_element", "toponym_ref": "Mamhead@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēafod"}, {"ordinal": 2, "etymon_ref": "brittonic:mamm"}], "notes": "Breast-shaped hill"}
 {"_type": "toponym", "ref": "Manaton@Devon", "modern_name": "Manaton", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Manaton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mǣne"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-english:Mana"}], "notes": "Communal farm/settlement' or perhaps, 'Mana's farm/settlement"}
 {"_type": "toponym", "ref": "Mariansleigh@Devon", "modern_name": "Mariansleigh", "country": "England", "region": "Devon"}
@@ -1554,7 +1554,7 @@
 {"_type": "toponym", "ref": "Meeth@Devon", "modern_name": "Meeth", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Meeth@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mǣð"}, {"ordinal": 2, "etymon_ref": "old-english:mȳðe"}], "notes": "Confluence' or perhaps, 'hay pasture/cornfield"}
 {"_type": "toponym", "ref": "Membury@Devon", "modern_name": "Membury", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Membury@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:mǣne"}, {"ordinal": 3, "etymon_ref": "celtic:main"}], "notes": "stone fortification' or possibly, 'communal fortification"}
+{"_type": "etymology_element", "toponym_ref": "Membury@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:mǣne"}, {"ordinal": 3, "etymon_ref": "brittonic:main"}], "notes": "stone fortification' or possibly, 'communal fortification"}
 {"_type": "toponym", "ref": "Merton@Devon", "modern_name": "Merton", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Merton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mere"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Pool farm/settlement"}
 {"_type": "toponym", "ref": "Meshaw@Devon", "modern_name": "Meshaw", "country": "England", "region": "Devon"}
@@ -1574,7 +1574,7 @@
 {"_type": "toponym", "ref": "Monkton@Devon", "modern_name": "Monkton", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Monkton@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:munuc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Monks' farm/settlement"}
 {"_type": "toponym", "ref": "Morchard Bishop@Devon", "modern_name": "Morchard Bishop", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Morchard Bishop@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "latin:episcopus"}, {"ordinal": 3, "etymon_ref": "celtic:mǭr"}], "notes": "Great wood"}
+{"_type": "etymology_element", "toponym_ref": "Morchard Bishop@Devon", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "latin:episcopus"}, {"ordinal": 3, "etymon_ref": "brittonic:mǭr"}], "notes": "Great wood"}
 {"_type": "toponym", "ref": "Morebath@Devon", "modern_name": "Morebath", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Morebath@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bæð"}, {"ordinal": 2, "etymon_ref": "old-english:mōr"}], "notes": "Bathing-place in marshy ground"}
 {"_type": "toponym", "ref": "Moreleigh@Devon", "modern_name": "Moreleigh", "country": "England", "region": "Devon"}
@@ -1618,7 +1618,7 @@
 {"_type": "toponym", "ref": "Northlew@Devon", "modern_name": "Northlew", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Northlew@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:norð"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Nymet Rowland@Devon", "modern_name": "Nymet Rowland", "country": "England", "region": "Devon"}
-{"_type": "etymology_element", "toponym_ref": "Nymet Rowland@Devon", "elements": [{"ordinal": 1, "etymon_ref": "celtic:nïṽed"}], "notes": "Holy place'. It was held by one 'Roland; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "etymology_element", "toponym_ref": "Nymet Rowland@Devon", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:nïṽed"}], "notes": "Holy place'. It was held by one 'Roland; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Oakford@Devon", "modern_name": "Oakford", "country": "England", "region": "Devon"}
 {"_type": "etymology_element", "toponym_ref": "Oakford@Devon", "elements": [{"ordinal": 1, "etymon_ref": "old-english:āc"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}], "notes": "Oak-tree ford"}
 {"_type": "toponym", "ref": "Offwell@Devon", "modern_name": "Offwell", "country": "England", "region": "Devon"}

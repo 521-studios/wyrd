@@ -321,9 +321,9 @@
 {"_type": "etymon", "ref": "old-english:cran", "canonical_form": "cran", "language": "old-english", "glosses": ["A crane; probably also a heron or similar bird."]}
 {"_type": "citation", "etymon_ref": "old-english:cran"}
 {"_type": "citation", "etymon_ref": "old-english:cran", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover; Mawer and Stenton, The Place-Names of Northamptonshire (Cambridge, 1933); A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:creig", "canonical_form": "creig", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:creig"}
-{"_type": "citation", "etymon_ref": "celtic:creig", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover; Mawer and Stenton, The Place-Names of Northamptonshire (Cambridge, 1933)"}
+{"_type": "etymon", "ref": "brittonic:creig", "canonical_form": "creig", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:creig"}
+{"_type": "citation", "etymon_ref": "brittonic:creig", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover; Mawer and Stenton, The Place-Names of Northamptonshire (Cambridge, 1933)"}
 {"_type": "etymon", "ref": "old-english:crūc", "canonical_form": "crūc", "language": "old-english", "glosses": ["A hill, a barrow, a mound."]}
 {"_type": "citation", "etymon_ref": "old-english:crūc"}
 {"_type": "citation", "etymon_ref": "old-english:crūc", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover; Mawer and Stenton, The Place-Names of Northamptonshire (Cambridge, 1933)"}
@@ -1156,7 +1156,7 @@
 {"_type": "toponym", "ref": "Cranford St. Andrew and St. John@Northamptonshire", "modern_name": "Cranford St. Andrew and St. John", "country": "England", "region": "Northamptonshire"}
 {"_type": "etymology_element", "toponym_ref": "Cranford St. Andrew and St. John@Northamptonshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cran"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "Crane/heron ford"}
 {"_type": "toponym", "ref": "Crick@Northamptonshire", "modern_name": "Crick", "country": "England", "region": "Northamptonshire"}
-{"_type": "etymology_element", "toponym_ref": "Crick@Northamptonshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:creig"}, {"ordinal": 2, "etymon_ref": "old-english:crūc"}], "notes": "cliff"}
+{"_type": "etymology_element", "toponym_ref": "Crick@Northamptonshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:creig"}, {"ordinal": 2, "etymon_ref": "old-english:crūc"}], "notes": "cliff"}
 {"_type": "toponym", "ref": "Croughton@Northamptonshire", "modern_name": "Croughton", "country": "England", "region": "Northamptonshire"}
 {"_type": "etymology_element", "toponym_ref": "Croughton@Northamptonshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:creowel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at the fork in the river"}
 {"_type": "toponym", "ref": "Culworth@Northamptonshire", "modern_name": "Culworth", "country": "England", "region": "Northamptonshire"}
@@ -1252,7 +1252,7 @@
 {"_type": "toponym", "ref": "Great and Little Billing@Northamptonshire", "modern_name": "Great and Little Billing", "country": "England", "region": "Northamptonshire"}
 {"_type": "etymology_element", "toponym_ref": "Great and Little Billing@Northamptonshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:belle"}, {"ordinal": 4, "etymon_ref": "old-english:bill"}, {"ordinal": 5, "etymon_ref": "old-english:Bill"}], "notes": "Bill's/Billa's people"}
 {"_type": "toponym", "ref": "Great and Little Creaton@Northamptonshire", "modern_name": "Great and Little Creaton", "country": "England", "region": "Northamptonshire"}
-{"_type": "etymology_element", "toponym_ref": "Great and Little Creaton@Northamptonshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:creig"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Cliff farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Great and Little Creaton@Northamptonshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:creig"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Cliff farm/settlement"}
 {"_type": "toponym", "ref": "Great and Little Harrowden@Northamptonshire", "modern_name": "Great and Little Harrowden", "country": "England", "region": "Northamptonshire"}
 {"_type": "etymology_element", "toponym_ref": "Great and Little Harrowden@Northamptonshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-english:hearg"}, {"ordinal": 3, "etymon_ref": "latin:magna"}, {"ordinal": 4, "etymon_ref": "latin:parva"}], "notes": "Heathen temple hill"}
 {"_type": "toponym", "ref": "Great and Little Houghton@Northamptonshire", "modern_name": "Great and Little Houghton", "country": "England", "region": "Northamptonshire"}

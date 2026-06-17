@@ -4,12 +4,12 @@
 {"_type": "etymon", "ref": "biblical:mary", "canonical_form": "mary", "language": "biblical", "modifier_type": "Habitative", "glosses": ["Mary (Name)"], "tags": ["female name", "saint"]}
 {"_type": "etymon", "ref": "celtic:aber", "canonical_form": "aber", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Estuary", "River confluence", "River mouth", "confluence", "junction, confluence", "mouth", "mouth (of a river)", "mouth of a river", "mouth of river", "mouth, confluence", "river mouth, confluence", "river mouth; confluence"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:abh", "canonical_form": "abh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brook", "River", "Stream"], "tags": ["topography", "water"]}
-{"_type": "etymon", "ref": "celtic:achadh", "canonical_form": "achadh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Field", "Open land", "field"], "tags": ["topography"]}
-{"_type": "etymon", "ref": "celtic:aill", "canonical_form": "aill", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Cliff", "Edge", "Ledge", "Shelf", "cliff"], "tags": ["geology"]}
-{"_type": "etymon", "ref": "celtic:air", "canonical_form": "air", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Slaughter", "on", "on, near", "over"], "tags": ["action", "death", "profession"]}
+{"_type": "etymon", "ref": "goidelic:achadh", "canonical_form": "achadh", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Field", "Open land", "field"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "goidelic:aill", "canonical_form": "aill", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Cliff", "Edge", "Ledge", "Shelf", "cliff"], "tags": ["geology"]}
+{"_type": "etymon", "ref": "goidelic:air", "canonical_form": "air", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Slaughter", "on", "on, near", "over"], "tags": ["action", "death", "profession"]}
 {"_type": "etymon", "ref": "celtic:airc", "canonical_form": "airc", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Hardship"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:airgid", "canonical_form": "airgid", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Silver"], "tags": ["color", "descriptive", "economic", "material"]}
-{"_type": "etymon", "ref": "celtic:airne", "canonical_form": "airne", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Blackthorn tree", "Sloe", "sloes"], "tags": ["plant", "tree"]}
+{"_type": "etymon", "ref": "goidelic:airne", "canonical_form": "airne", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Blackthorn tree", "Sloe", "sloes"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:allmhagh", "canonical_form": "allmhagh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Rocky plain"], "tags": ["topology"]}
 {"_type": "etymon", "ref": "celtic:allt", "canonical_form": "allt", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brook", "Hill slope", "Hillside", "River", "Stream", "a cliff", "burn", "glen or shore", "streams"], "tags": ["geology", "topography", "water"]}
 {"_type": "etymon", "ref": "celtic:alt", "canonical_form": "alt", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill slope", "Hillside", "height, later a burn"], "tags": ["geology", "topography"]}
@@ -20,15 +20,15 @@
 {"_type": "etymon", "ref": "celtic:austel", "canonical_form": "austel", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Austell (Name)", "Austol (Name)"], "tags": ["female name", "male name", "saint"]}
 {"_type": "etymon", "ref": "celtic:avon", "canonical_form": "avon", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brook", "River", "Stream"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:aírd", "canonical_form": "aírd", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Height", "Top of something"], "tags": ["descriptive", "measurement"]}
-{"_type": "etymon", "ref": "celtic:baile", "canonical_form": "baile", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Estate", "Farmstead", "Homestead", "Manor", "Village", "hamlet", "town"], "tags": ["architecture", "social"]}
-{"_type": "etymon", "ref": "celtic:bainne", "canonical_form": "bainne", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Milk", "milk"], "tags": ["food"]}
+{"_type": "etymon", "ref": "goidelic:baile", "canonical_form": "baile", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Estate", "Farmstead", "Homestead", "Manor", "Village", "hamlet", "town"], "tags": ["architecture", "social"]}
+{"_type": "etymon", "ref": "goidelic:bainne", "canonical_form": "bainne", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Milk", "milk"], "tags": ["food"]}
 {"_type": "etymon", "ref": "celtic:bard", "canonical_form": "bard", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bard"], "tags": ["profession"]}
 {"_type": "etymon", "ref": "celtic:beaga", "canonical_form": "beaga", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Little", "Small"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:bechan", "canonical_form": "bechan", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Little", "Small"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:bedd", "canonical_form": "bedd", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Grave", "Pit", "Quarry"], "tags": ["death", "geology"]}
-{"_type": "etymon", "ref": "celtic:bedh", "canonical_form": "bedh", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Grave", "Pit", "Quarry"], "tags": ["death", "geology"]}
-{"_type": "etymon", "ref": "celtic:beinn", "canonical_form": "beinn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Mountain", "Peak", "Summit", "hill", "mountain"], "tags": ["geology", "topography"]}
-{"_type": "etymon", "ref": "celtic:beithe", "canonical_form": "beithe", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Birch tree", "birch"], "tags": ["plant", "tree"]}
+{"_type": "etymon", "ref": "brittonic:bedh", "canonical_form": "bedh", "language": "brittonic", "modifier_type": "Habitative", "glosses": ["Grave", "Pit", "Quarry"], "tags": ["death", "geology"]}
+{"_type": "etymon", "ref": "goidelic:beinn", "canonical_form": "beinn", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Mountain", "Peak", "Summit", "hill", "mountain"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "goidelic:beithe", "canonical_form": "beithe", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Birch tree", "birch"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:belach", "canonical_form": "belach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Mountain pass", "Pass"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:bhaile", "canonical_form": "bhaile", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Estate", "Farmstead", "Homestead", "Manor", "Village"], "tags": ["architecture", "social"]}
 {"_type": "etymon", "ref": "celtic:bharr", "canonical_form": "bharr", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Height", "Top of something"], "tags": ["descriptive", "measurement"]}
@@ -40,13 +40,13 @@
 {"_type": "etymon", "ref": "celtic:bhràghaid", "canonical_form": "bhràghaid", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Brea", "Upland"], "tags": ["descriptive", "topography"]}
 {"_type": "etymon", "ref": "celtic:bhrúin", "canonical_form": "bhrúin", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fairy hill"], "tags": ["magic", "monster", "topography"]}
 {"_type": "etymon", "ref": "celtic:bhóthair", "canonical_form": "bhóthair", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Lane", "Path", "Road", "Street", "Track", "Way"], "tags": ["architecture", "geography"]}
-{"_type": "etymon", "ref": "celtic:blain", "canonical_form": "blain", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Mountain", "Peak", "Summit"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "brittonic:blain", "canonical_form": "blain", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Mountain", "Peak", "Summit"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:blátha", "canonical_form": "blátha", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Flowers"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:boc", "canonical_form": "boc", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Buck"], "tags": ["animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:bogach", "canonical_form": "bogach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp"], "tags": ["topography", "water"]}
-{"_type": "etymon", "ref": "celtic:bolg", "canonical_form": "bolg", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bag", "paunch"], "tags": ["item"]}
+{"_type": "etymon", "ref": "brittonic:bolg", "canonical_form": "bolg", "language": "brittonic", "modifier_type": "Habitative", "glosses": ["Bag", "paunch"], "tags": ["item"]}
 {"_type": "etymon", "ref": "celtic:bosells", "canonical_form": "bosells", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Boswells (Name)"], "tags": ["male name", "saint"]}
-{"_type": "etymon", "ref": "celtic:both", "canonical_form": "both", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cottage", "Dwelling", "House", "Hut", "house"], "tags": ["architecture"]}
+{"_type": "etymon", "ref": "goidelic:both", "canonical_form": "both", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Cottage", "Dwelling", "House", "Hut", "house"], "tags": ["architecture"]}
 {"_type": "etymon", "ref": "celtic:breac", "canonical_form": "breac", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Dapled", "Speckled", "speckled", "speckled or parti-coloured", "speckled, mottled", "trout (also: speckled)"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:breacach", "canonical_form": "breacach", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Dapled", "Speckled"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:bref", "canonical_form": "bref", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Loud", "Noisy"], "tags": ["descriptive"]}
@@ -57,28 +57,28 @@
 {"_type": "etymon", "ref": "celtic:brog", "canonical_form": "brog", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Area", "District", "Domain", "Land", "Market", "Merchant", "Precinct", "Quarter", "Trading area", "Ward"], "tags": ["architecture", "economic", "geography", "social"]}
 {"_type": "etymon", "ref": "celtic:bruic", "canonical_form": "bruic", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Badger"], "tags": ["animal", "mammal"]}
 {"_type": "etymon", "ref": "celtic:bruinsech", "canonical_form": "bruinsech", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Buryan (Name)"], "tags": ["female name", "saint"]}
-{"_type": "etymon", "ref": "celtic:bryn", "canonical_form": "bryn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill", "hill"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "brittonic:bryn", "canonical_form": "bryn", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Hill", "hill"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:bun", "canonical_form": "bun", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Base", "Estuary", "Foot", "River mouth", "end", "land-end", "river-mouth"], "tags": ["descriptive", "topography", "water"]}
 {"_type": "etymon", "ref": "celtic:buí", "canonical_form": "buí", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Yellow"], "tags": ["color", "descriptive"]}
-{"_type": "etymon", "ref": "celtic:byghan", "canonical_form": "byghan", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Little", "Small"], "tags": ["descriptive", "measurement"]}
+{"_type": "etymon", "ref": "brittonic:byghan", "canonical_form": "byghan", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Little", "Small"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:bàine", "canonical_form": "bàine", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
 {"_type": "etymon", "ref": "celtic:bàn", "canonical_form": "bàn", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
 {"_type": "etymon", "ref": "celtic:bán", "canonical_form": "bán", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
-{"_type": "etymon", "ref": "celtic:béal", "canonical_form": "béal", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Estuary", "River mouth", "ford-mouth"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:béal", "canonical_form": "béal", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Estuary", "River mouth", "ford-mouth"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:bó", "canonical_form": "bó", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bull", "Calf", "Cattle", "Cow", "Heifer", "Steer"], "tags": ["agriculture", "animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:caer", "canonical_form": "caer", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fortified town", "Walled town", "berry", "fort", "fortress", "military station", "stronghold"], "tags": ["architecture"]}
 {"_type": "etymon", "ref": "celtic:caillighe", "canonical_form": "caillighe", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Hag"], "tags": ["descriptive", "profession", "social"]}
 {"_type": "etymon", "ref": "celtic:caillí", "canonical_form": "caillí", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Hag"], "tags": ["descriptive", "profession", "social"]}
-{"_type": "etymon", "ref": "celtic:cair", "canonical_form": "cair", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fort", "Fortress mound", "Stronghold", "camp"], "tags": ["architecture", "geography", "military"]}
+{"_type": "etymon", "ref": "brittonic:cair", "canonical_form": "cair", "language": "brittonic", "modifier_type": "Habitative", "glosses": ["Fort", "Fortress mound", "Stronghold", "camp"], "tags": ["architecture", "geography", "military"]}
 {"_type": "etymon", "ref": "celtic:caisteal", "canonical_form": "caisteal", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Castle", "Fortress"], "tags": ["architecture", "military"]}
 {"_type": "etymon", "ref": "celtic:cam", "canonical_form": "cam", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bend", "Bent", "Crooked", "bent or roundly crooked", "earn or monumental pile of stones", "little", "pile of stones raised over a grave", "quarry"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:canto", "canonical_form": "canto", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Area", "District", "Domain", "Land", "Market", "Merchant", "Precinct", "Quarter", "Trading area", "Ward"], "tags": ["architecture", "economic", "geography", "social"]}
-{"_type": "etymon", "ref": "celtic:caoin", "canonical_form": "caoin", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Beautiful", "gentle"], "tags": ["descriptive"]}
-{"_type": "etymon", "ref": "celtic:caol", "canonical_form": "caol", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Narrows", "narrow"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:caoin", "canonical_form": "caoin", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Beautiful", "gentle"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "goidelic:caol", "canonical_form": "caol", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Narrows", "narrow"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:caolas", "canonical_form": "caolas", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Narrows"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:caorthainn", "canonical_form": "caorthainn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Rowan tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:capel", "canonical_form": "capel", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple"], "tags": ["architecture", "religious"]}
-{"_type": "etymon", "ref": "celtic:cara", "canonical_form": "cara", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Weir (fishing enclosure)", "fort"], "tags": ["agriculture"]}
+{"_type": "etymon", "ref": "goidelic:cara", "canonical_form": "cara", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Weir (fishing enclosure)", "fort"], "tags": ["agriculture"]}
 {"_type": "etymon", "ref": "celtic:carden", "canonical_form": "carden", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Copse", "Grove", "Hill slope", "Hillside"], "tags": ["geology", "plant", "topography"]}
 {"_type": "etymon", "ref": "celtic:carn", "canonical_form": "carn", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Burial mound", "Cairn", "cairn"], "tags": ["architecture", "death", "religious", "undead"]}
 {"_type": "etymon", "ref": "celtic:carrach", "canonical_form": "carrach", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Rough"], "tags": ["descriptive"]}
@@ -86,7 +86,7 @@
 {"_type": "etymon", "ref": "celtic:cattwg", "canonical_form": "cattwg", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cadocs (Name)"], "tags": ["male name", "saint"]}
 {"_type": "etymon", "ref": "celtic:cau", "canonical_form": "cau", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Dale", "Hollow", "Vale", "Valley"], "tags": ["topology"]}
 {"_type": "etymon", "ref": "celtic:cdathrú", "canonical_form": "cdathrú", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Area", "District", "Domain", "Land", "Market", "Merchant", "Precinct", "Quarter", "Trading area", "Ward"], "tags": ["architecture", "economic", "geography", "social"]}
-{"_type": "etymon", "ref": "celtic:ceann", "canonical_form": "ceann", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Beginning", "Head", "Start", "head"], "tags": ["descriptive", "measurement"]}
+{"_type": "etymon", "ref": "goidelic:ceann", "canonical_form": "ceann", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Beginning", "Head", "Start", "head"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:cearr", "canonical_form": "cearr", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bend", "Bent", "Crooked"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:cevn", "canonical_form": "cevn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:chairce", "canonical_form": "chairce", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Oats"], "tags": ["agriculture", "food", "grain", "plant"]}
@@ -96,7 +96,7 @@
 {"_type": "etymon", "ref": "celtic:cheo", "canonical_form": "cheo", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Mist"], "tags": ["weather"]}
 {"_type": "etymon", "ref": "celtic:chladaigh", "canonical_form": "chladaigh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bank", "Shore", "Strand"], "tags": ["topology", "water"]}
 {"_type": "etymon", "ref": "celtic:chléithe", "canonical_form": "chléithe", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Wattle"], "tags": ["material"]}
-{"_type": "etymon", "ref": "celtic:choill", "canonical_form": "choill", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood", "hazel", "hazel wood", "wood"], "tags": ["plant", "topography"]}
+{"_type": "etymon", "ref": "goidelic:choill", "canonical_form": "choill", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood", "hazel", "hazel wood", "wood"], "tags": ["plant", "topography"]}
 {"_type": "etymon", "ref": "celtic:choilleadh", "canonical_form": "choilleadh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
 {"_type": "etymon", "ref": "celtic:choire", "canonical_form": "choire", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cauldron"], "tags": ["possession"]}
 {"_type": "etymon", "ref": "celtic:choll", "canonical_form": "choll", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hazel tree"], "tags": ["plant", "tree"]}
@@ -104,35 +104,35 @@
 {"_type": "etymon", "ref": "celtic:chraosaigh", "canonical_form": "chraosaigh", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Glutton"], "tags": ["social"]}
 {"_type": "etymon", "ref": "celtic:chuillinn", "canonical_form": "chuillinn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill slope", "Hillside"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:chéir", "canonical_form": "chéir", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Candle"], "tags": ["possession"]}
-{"_type": "etymon", "ref": "celtic:cil", "canonical_form": "cil", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Refuge", "Retreat", "Sanctuary", "Shelter", "a sequestered place", "sequestered place, place of retreat, nook"], "tags": ["descriptive", "social"]}
+{"_type": "etymon", "ref": "brittonic:cil", "canonical_form": "cil", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Refuge", "Retreat", "Sanctuary", "Shelter", "a sequestered place", "sequestered place, place of retreat, nook"], "tags": ["descriptive", "social"]}
 {"_type": "etymon", "ref": "celtic:cill", "canonical_form": "cill", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple", "cell belonging to a hermit or monastery, small church", "church", "church or wood", "church, cell"], "tags": ["architecture", "religious"]}
-{"_type": "etymon", "ref": "celtic:cinn", "canonical_form": "cinn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Beginning", "Head", "Start", "head", "head; end"], "tags": ["descriptive", "measurement"]}
+{"_type": "etymon", "ref": "goidelic:cinn", "canonical_form": "cinn", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Beginning", "Head", "Start", "head", "head; end"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:claene", "canonical_form": "claene", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Clean", "Clear", "Pure"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:clais", "canonical_form": "clais", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Deep valley", "Gully", "Ravine", "trench, deep furrow, dry ditch, pit"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:clarus", "canonical_form": "clarus", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cleer (Name)]"], "tags": ["male name", "saint"]}
 {"_type": "etymon", "ref": "celtic:cleacán", "canonical_form": "cleacán", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Plain"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:cliora", "canonical_form": "cliora", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Pasture"], "tags": ["agriculture", "topography"]}
 {"_type": "etymon", "ref": "celtic:clochog", "canonical_form": "clochog", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Marking stone", "Rock", "Stone", "Stony"], "tags": ["element", "geology", "material"]}
-{"_type": "etymon", "ref": "celtic:cluain", "canonical_form": "cluain", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Beautiful", "Pasture", "meadow"], "tags": ["agriculture", "descriptive", "topography"]}
-{"_type": "etymon", "ref": "celtic:cluana", "canonical_form": "cluana", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Pasture", "meadow"], "tags": ["agriculture", "topography"]}
-{"_type": "etymon", "ref": "celtic:cnoc", "canonical_form": "cnoc", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill", "hill"], "tags": ["geology", "topography"]}
-{"_type": "etymon", "ref": "celtic:coed", "canonical_form": "coed", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood", "wood"], "tags": ["plant", "topography"]}
-{"_type": "etymon", "ref": "celtic:cog", "canonical_form": "cog", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cuckoo"], "tags": ["animal", "bird"]}
+{"_type": "etymon", "ref": "goidelic:cluain", "canonical_form": "cluain", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Beautiful", "Pasture", "meadow"], "tags": ["agriculture", "descriptive", "topography"]}
+{"_type": "etymon", "ref": "goidelic:cluana", "canonical_form": "cluana", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Pasture", "meadow"], "tags": ["agriculture", "topography"]}
+{"_type": "etymon", "ref": "goidelic:cnoc", "canonical_form": "cnoc", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Hill", "hill"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "brittonic:coed", "canonical_form": "coed", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood", "wood"], "tags": ["plant", "topography"]}
+{"_type": "etymon", "ref": "brittonic:cog", "canonical_form": "cog", "language": "brittonic", "modifier_type": "Habitative", "glosses": ["Cuckoo"], "tags": ["animal", "bird"]}
 {"_type": "etymon", "ref": "celtic:cogaidh", "canonical_form": "cogaidh", "language": "celtic", "modifier_type": "Modifier", "glosses": ["War"], "tags": ["military"]}
-{"_type": "etymon", "ref": "celtic:coille", "canonical_form": "coille", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood", "holt, woods", "wood"], "tags": ["plant", "topography"]}
+{"_type": "etymon", "ref": "goidelic:coille", "canonical_form": "coille", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood", "holt, woods", "wood"], "tags": ["plant", "topography"]}
 {"_type": "etymon", "ref": "celtic:collachair", "canonical_form": "collachair", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hazel tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:colm cille", "canonical_form": "colm cille", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Columb (Name)"], "tags": ["male name", "saint"]}
 {"_type": "etymon", "ref": "celtic:con", "canonical_form": "con", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Dog", "Hound", "collection", "high", "hounds", "together"], "tags": ["animal", "mammal"]}
 {"_type": "etymon", "ref": "celtic:conarta", "canonical_form": "conarta", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Dog", "Hound"], "tags": ["animal", "mammal"]}
 {"_type": "etymon", "ref": "celtic:cora", "canonical_form": "cora", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Weir (fishing enclosure)"], "tags": ["agriculture"]}
-{"_type": "etymon", "ref": "celtic:corr", "canonical_form": "corr", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill", "cranes", "round hill", "taper, peaked, rounded to a point"], "tags": ["geology", "topography"]}
-{"_type": "etymon", "ref": "celtic:craoibhe", "canonical_form": "craoibhe", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Tree (unspecified)", "branch or branchy tree"], "tags": ["plant", "tree"]}
-{"_type": "etymon", "ref": "celtic:creig", "canonical_form": "creig", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Cliff", "Edge", "Ledge", "Shelf"], "tags": ["geology"]}
+{"_type": "etymon", "ref": "goidelic:corr", "canonical_form": "corr", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Hill", "cranes", "round hill", "taper, peaked, rounded to a point"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "goidelic:craoibhe", "canonical_form": "craoibhe", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Tree (unspecified)", "branch or branchy tree"], "tags": ["plant", "tree"]}
+{"_type": "etymon", "ref": "brittonic:creig", "canonical_form": "creig", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Cliff", "Edge", "Ledge", "Shelf"], "tags": ["geology"]}
 {"_type": "etymon", "ref": "celtic:critheann", "canonical_form": "critheann", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Aspen tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:croabh", "canonical_form": "croabh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Tree (unspecified)"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:croes", "canonical_form": "croes", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cross (holy symbol)", "Cross roads"], "tags": ["architecture", "possession", "religious"]}
 {"_type": "etymon", "ref": "celtic:crois", "canonical_form": "crois", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cross (holy symbol)", "Cross roads"], "tags": ["architecture", "possession", "religious"]}
-{"_type": "etymon", "ref": "celtic:crom", "canonical_form": "crom", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bend", "Bent", "Crooked", "bent"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "goidelic:crom", "canonical_form": "crom", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Bend", "Bent", "Crooked", "bent"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:crosa", "canonical_form": "crosa", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cross (holy symbol)", "Cross roads"], "tags": ["architecture", "possession", "religious"]}
 {"_type": "etymon", "ref": "celtic:crug", "canonical_form": "crug", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:crüg", "canonical_form": "crüg", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Barrow", "Tumulus"], "tags": ["architecture", "death", "religious"]}
@@ -142,33 +142,33 @@
 {"_type": "etymon", "ref": "celtic:cuinge", "canonical_form": "cuinge", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Yoke"], "tags": ["item"]}
 {"_type": "etymon", "ref": "celtic:currach", "canonical_form": "currach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:cuíl", "canonical_form": "cuíl", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Nook of land"], "tags": ["topography"]}
-{"_type": "etymon", "ref": "celtic:cwm", "canonical_form": "cwm", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Dale", "Hollow", "Vale", "Valley", "vale", "valley"], "tags": ["topology"]}
+{"_type": "etymon", "ref": "brittonic:cwm", "canonical_form": "cwm", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Dale", "Hollow", "Vale", "Valley", "vale", "valley"], "tags": ["topology"]}
 {"_type": "etymon", "ref": "celtic:càrr", "canonical_form": "càrr", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Marking stone", "Rock", "Stone", "Stony"], "tags": ["element", "geology", "material"]}
 {"_type": "etymon", "ref": "celtic:cēd", "canonical_form": "cēd", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
-{"_type": "etymon", "ref": "celtic:dail", "canonical_form": "dail", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing", "dale", "field", "meadow"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "goidelic:dail", "canonical_form": "dail", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing", "dale", "field", "meadow"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:dara", "canonical_form": "dara", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Oak grove", "Oak tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:darach", "canonical_form": "darach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Oak grove", "Oak tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:dealga", "canonical_form": "dealga", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Thorn tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:derg", "canonical_form": "derg", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Red", "red", "red, deep scarlet"], "tags": ["color", "descriptive"]}
-{"_type": "etymon", "ref": "celtic:dew", "canonical_form": "dew", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Two"], "tags": ["number"]}
+{"_type": "etymon", "ref": "brittonic:dew", "canonical_form": "dew", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Two"], "tags": ["number"]}
 {"_type": "etymon", "ref": "celtic:dhubh", "canonical_form": "dhubh", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Black", "Dark"], "tags": ["color", "descriptive"]}
 {"_type": "etymon", "ref": "celtic:dierne", "canonical_form": "dierne", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Hidden"], "tags": ["descriptive"]}
-{"_type": "etymon", "ref": "celtic:dinas", "canonical_form": "dinas", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Town"], "tags": ["architecture", "social"]}
-{"_type": "etymon", "ref": "celtic:doire", "canonical_form": "doire", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Oak grove", "Oak tree", "grove", "oak grove", "oak wood"], "tags": ["plant", "tree"]}
+{"_type": "etymon", "ref": "brittonic:dinas", "canonical_form": "dinas", "language": "brittonic", "modifier_type": "Habitative", "glosses": ["Town"], "tags": ["architecture", "social"]}
+{"_type": "etymon", "ref": "goidelic:doire", "canonical_form": "doire", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Oak grove", "Oak tree", "grove", "oak grove", "oak wood"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:domhnach", "canonical_form": "domhnach", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple"], "tags": ["architecture", "religious"]}
 {"_type": "etymon", "ref": "celtic:dorais", "canonical_form": "dorais", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Door"], "tags": ["architecture"]}
 {"_type": "etymon", "ref": "celtic:draigneach", "canonical_form": "draigneach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Blackthorn tree", "Sloe"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:driseog", "canonical_form": "driseog", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brambles", "Brush", "Brush wood", "Bush land", "Heath", "Shrubbery"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:droichead", "canonical_form": "droichead", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bridge"], "tags": ["architecture"]}
 {"_type": "etymon", "ref": "celtic:droim", "canonical_form": "droim", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge"], "tags": ["topography"]}
-{"_type": "etymon", "ref": "celtic:droma", "canonical_form": "droma", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge", "ridge"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "goidelic:droma", "canonical_form": "droma", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge", "ridge"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:druim", "canonical_form": "druim", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge", "back, ridge", "hill-back or ridge", "hill-ridge", "ridge", "the back; a hill ridge"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:drïs", "canonical_form": "drïs", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Thorn tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:dtarbh", "canonical_form": "dtarbh", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bull", "Calf", "Cattle", "Cow", "Heifer", "Steer"], "tags": ["agriculture", "animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:dtorc", "canonical_form": "dtorc", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Boar", "Hog", "Pig", "Pig sty"], "tags": ["agriculture", "animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:dubro", "canonical_form": "dubro", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brook", "River", "Stream", "water, stream"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:duibhinn", "canonical_form": "duibhinn", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Chief", "Jarl"], "tags": ["social"]}
-{"_type": "etymon", "ref": "celtic:duin", "canonical_form": "duin", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fort", "Fortress mound", "Stronghold", "fort"], "tags": ["architecture", "geography", "military"]}
+{"_type": "etymon", "ref": "goidelic:duin", "canonical_form": "duin", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Fort", "Fortress mound", "Stronghold", "fort"], "tags": ["architecture", "geography", "military"]}
 {"_type": "etymon", "ref": "celtic:dumbel", "canonical_form": "dumbel", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Dale", "Hollow", "Vale", "Valley"], "tags": ["topology"]}
 {"_type": "etymon", "ref": "celtic:dumha", "canonical_form": "dumha", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Burial mound", "Cairn"], "tags": ["architecture", "death", "religious", "undead"]}
 {"_type": "etymon", "ref": "celtic:dwy", "canonical_form": "dwy", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Two"], "tags": ["number"]}
@@ -179,26 +179,26 @@
 {"_type": "etymon", "ref": "celtic:dùbhlaidh", "canonical_form": "dùbhlaidh", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Black", "Dark"], "tags": ["color", "descriptive"]}
 {"_type": "etymon", "ref": "celtic:dīn", "canonical_form": "dīn", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fort", "Fortress mound", "Stronghold", "Town"], "tags": ["architecture", "geography", "military", "social"]}
 {"_type": "etymon", "ref": "celtic:dūn", "canonical_form": "dūn", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fort", "Fortress mound", "Stronghold", "Town"], "tags": ["architecture", "geography", "military", "social"]}
-{"_type": "etymon", "ref": "celtic:eanach", "canonical_form": "eanach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "marsh"], "tags": ["topography", "water"]}
-{"_type": "etymon", "ref": "celtic:easa", "canonical_form": "easa", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Waterfall", "cataract"], "tags": ["topology", "water"]}
+{"_type": "etymon", "ref": "goidelic:eanach", "canonical_form": "eanach", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "marsh"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:easa", "canonical_form": "easa", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Waterfall", "cataract"], "tags": ["topology", "water"]}
 {"_type": "etymon", "ref": "celtic:eglos", "canonical_form": "eglos", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple"], "tags": ["architecture", "religious"]}
 {"_type": "etymon", "ref": "celtic:eich", "canonical_form": "eich", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Foal", "Horse", "Stud"], "tags": ["agriculture", "animal", "mammal", "military"]}
 {"_type": "etymon", "ref": "celtic:eidhneach", "canonical_form": "eidhneach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Ivy"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:eilean", "canonical_form": "eilean", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Island"], "tags": ["geography", "geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:eisc", "canonical_form": "eisc", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Gravel", "Gravelly"], "tags": ["descriptive", "geology", "material"]}
 {"_type": "etymon", "ref": "celtic:elri", "canonical_form": "elri", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Alder tree"], "tags": ["plant", "tree"]}
-{"_type": "etymon", "ref": "celtic:eo", "canonical_form": "eo", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Yew tree", "yew"], "tags": ["plant", "tree"]}
+{"_type": "etymon", "ref": "goidelic:eo", "canonical_form": "eo", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Yew tree", "yew"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:etisc", "canonical_form": "etisc", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Pasture"], "tags": ["agriculture", "topography"]}
 {"_type": "etymon", "ref": "celtic:faiche", "canonical_form": "faiche", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Green", "Village green"], "tags": ["color", "descriptive", "topography"]}
-{"_type": "etymon", "ref": "celtic:faire", "canonical_form": "faire", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Guard", "watching", "watching, guarding"], "tags": ["military", "profession"]}
+{"_type": "etymon", "ref": "goidelic:faire", "canonical_form": "faire", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Guard", "watching", "watching, guarding"], "tags": ["military", "profession"]}
 {"_type": "etymon", "ref": "celtic:feadag", "canonical_form": "feadag", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Plover"], "tags": ["animal", "bird"]}
-{"_type": "etymon", "ref": "celtic:fearna", "canonical_form": "fearna", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Alder tree", "alder or alder-wood"], "tags": ["plant", "tree"]}
+{"_type": "etymon", "ref": "goidelic:fearna", "canonical_form": "fearna", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Alder tree", "alder or alder-wood"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:fearnáin", "canonical_form": "fearnáin", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Alder tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:fearsad", "canonical_form": "fearsad", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Sandbank"], "tags": ["topography", "water"]}
-{"_type": "etymon", "ref": "celtic:ferann", "canonical_form": "ferann", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Area", "District", "Domain", "Land", "Market", "Merchant", "Precinct", "Quarter", "Trading area", "Ward", "land"], "tags": ["architecture", "economic", "geography", "social"]}
+{"_type": "etymon", "ref": "goidelic:ferann", "canonical_form": "ferann", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Area", "District", "Domain", "Land", "Market", "Merchant", "Precinct", "Quarter", "Trading area", "Ward", "land"], "tags": ["architecture", "economic", "geography", "social"]}
 {"_type": "etymon", "ref": "celtic:feàrna", "canonical_form": "feàrna", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Alder tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:fforest", "canonical_form": "fforest", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
-{"_type": "etymon", "ref": "celtic:fhada", "canonical_form": "fhada", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Long", "long"], "tags": ["descriptive", "measurement"]}
+{"_type": "etymon", "ref": "goidelic:fhada", "canonical_form": "fhada", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Long", "long"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:fhia", "canonical_form": "fhia", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Deer", "Hind", "Stag"], "tags": ["animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:fhiaidh", "canonical_form": "fhiaidh", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Deer", "Hind", "Stag"], "tags": ["animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:fhir mhoír", "canonical_form": "fhir mhoír", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Big man", "Giant"], "tags": ["descriptive", "measurement", "monster"]}
@@ -207,21 +207,21 @@
 {"_type": "etymon", "ref": "celtic:fionn", "canonical_form": "fionn", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "White", "clear, white", "fair", "white", "whitish, fair", "whitish, fair, bright"], "tags": ["color", "descriptive", "religious"]}
 {"_type": "etymon", "ref": "celtic:firth", "canonical_form": "firth", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bay", "Cove", "Fjord", "Harbor", "Sea inlet"], "tags": ["geography", "topography", "water"]}
 {"_type": "etymon", "ref": "celtic:fliuch", "canonical_form": "fliuch", "language": "celtic", "modifier_type": "Modifier", "glosses": ["West"], "tags": ["direction"]}
-{"_type": "etymon", "ref": "celtic:fo", "canonical_form": "fo", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Lower", "Under", "beneath", "low", "under"], "tags": ["descriptive", "measurement"]}
+{"_type": "etymon", "ref": "goidelic:fo", "canonical_form": "fo", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Lower", "Under", "beneath", "low", "under"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:foithir", "canonical_form": "foithir", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Thicket"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:fola", "canonical_form": "fola", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Blood"], "tags": ["anatomy"]}
 {"_type": "etymon", "ref": "celtic:fosgadh", "canonical_form": "fosgadh", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Refuge", "Retreat", "Sanctuary", "Shelter"], "tags": ["descriptive", "social"]}
 {"_type": "etymon", "ref": "celtic:foter", "canonical_form": "foter", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Lower", "Under", "beneath"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:fraoigh", "canonical_form": "fraoigh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Heather"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:frome", "canonical_form": "frome", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Beneficial", "Fair", "Good"], "tags": ["descriptive", "social"]}
-{"_type": "etymon", "ref": "celtic:frud", "canonical_form": "frud", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brook", "River", "Stream"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "brittonic:frud", "canonical_form": "frud", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Brook", "River", "Stream"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:fuar", "canonical_form": "fuar", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Cold", "Cool", "cold"], "tags": ["descriptive", "temperature", "weather"]}
 {"_type": "etymon", "ref": "celtic:fáoda", "canonical_form": "fáoda", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
 {"_type": "etymon", "ref": "celtic:gabhra", "canonical_form": "gabhra", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Goat"], "tags": ["agriculture", "animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:gall", "canonical_form": "gall", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Marking stone", "Rock", "Stone", "Stony", "Stranger"], "tags": ["element", "geology", "material", "social"]}
 {"_type": "etymon", "ref": "celtic:gamh", "canonical_form": "gamh", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Storm", "winter; cold wintry storm"], "tags": ["weather"]}
-{"_type": "etymon", "ref": "celtic:gaoithe", "canonical_form": "gaoithe", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Wind", "Windy", "wind"], "tags": ["weather"]}
-{"_type": "etymon", "ref": "celtic:garbh", "canonical_form": "garbh", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Rough", "rough"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "goidelic:gaoithe", "canonical_form": "gaoithe", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Wind", "Windy", "wind"], "tags": ["weather"]}
+{"_type": "etymon", "ref": "goidelic:garbh", "canonical_form": "garbh", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Rough", "rough"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:garraí", "canonical_form": "garraí", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Garden"], "tags": ["agriculture"]}
 {"_type": "etymon", "ref": "celtic:garrán", "canonical_form": "garrán", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
 {"_type": "etymon", "ref": "celtic:gcadhan", "canonical_form": "gcadhan", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Duck"], "tags": ["animal", "bird"]}
@@ -232,29 +232,29 @@
 {"_type": "etymon", "ref": "celtic:gceall", "canonical_form": "gceall", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple"], "tags": ["architecture", "religious"]}
 {"_type": "etymon", "ref": "celtic:gcnámh", "canonical_form": "gcnámh", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bone"], "tags": ["anatomy"]}
 {"_type": "etymon", "ref": "celtic:gcorp", "canonical_form": "gcorp", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Corpse"], "tags": ["anatomy", "death", "undead"]}
-{"_type": "etymon", "ref": "celtic:gcorr", "canonical_form": "gcorr", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Crane", "Heron", "sand-eels"], "tags": ["animal", "bird"]}
-{"_type": "etymon", "ref": "celtic:geal", "canonical_form": "geal", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "White", "white"], "tags": ["color", "descriptive", "religious"]}
+{"_type": "etymon", "ref": "goidelic:gcorr", "canonical_form": "gcorr", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Crane", "Heron", "sand-eels"], "tags": ["animal", "bird"]}
+{"_type": "etymon", "ref": "goidelic:geal", "canonical_form": "geal", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Holy", "White", "white"], "tags": ["color", "descriptive", "religious"]}
 {"_type": "etymon", "ref": "celtic:gearr", "canonical_form": "gearr", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Beginning", "Head", "Start", "short"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:geata", "canonical_form": "geata", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Gap", "Gate"], "tags": ["architecture"]}
 {"_type": "etymon", "ref": "celtic:ghairr", "canonical_form": "ghairr", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Offal"], "tags": ["food"]}
 {"_type": "etymon", "ref": "celtic:gheise", "canonical_form": "gheise", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Taboo"], "tags": ["social"]}
 {"_type": "etymon", "ref": "celtic:ghil", "canonical_form": "ghil", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
-{"_type": "etymon", "ref": "celtic:ghlais", "canonical_form": "ghlais", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Green", "Village green", "stream"], "tags": ["color", "descriptive", "topography"]}
+{"_type": "etymon", "ref": "goidelic:ghlais", "canonical_form": "ghlais", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Green", "Village green", "stream"], "tags": ["color", "descriptive", "topography"]}
 {"_type": "etymon", "ref": "celtic:ghlas", "canonical_form": "ghlas", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:ghlasaich", "canonical_form": "ghlasaich", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:ghobair", "canonical_form": "ghobair", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Spring", "Well"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:giuthsach", "canonical_form": "giuthsach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Pine tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:glan", "canonical_form": "glan", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bank", "Shore", "Strand"], "tags": ["topology", "water"]}
 {"_type": "etymon", "ref": "celtic:glas", "canonical_form": "glas", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Green", "Village green", "green", "green or greyish-green", "stream"], "tags": ["color", "descriptive", "topography"]}
-{"_type": "etymon", "ref": "celtic:gleann", "canonical_form": "gleann", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Dale", "Hollow", "Vale", "Valley", "glen", "glen, valley", "valley"], "tags": ["topology"]}
+{"_type": "etymon", "ref": "goidelic:gleann", "canonical_form": "gleann", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Dale", "Hollow", "Vale", "Valley", "glen", "glen, valley", "valley"], "tags": ["topology"]}
 {"_type": "etymon", "ref": "celtic:glente", "canonical_form": "glente", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bird of prey", "Buzzard", "Hawk"], "tags": ["animal", "bird"]}
 {"_type": "etymon", "ref": "celtic:glind", "canonical_form": "glind", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fence", "Fenced"], "tags": ["agriculture", "architecture"]}
 {"_type": "etymon", "ref": "celtic:glinne", "canonical_form": "glinne", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Dale", "Hollow", "Vale", "Valley"], "tags": ["topology"]}
 {"_type": "etymon", "ref": "celtic:glo", "canonical_form": "glo", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Charcoal", "Coal"], "tags": ["geology"]}
 {"_type": "etymon", "ref": "celtic:gobhan", "canonical_form": "gobhan", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Furnace", "Smith"], "tags": ["architecture", "possession"]}
-{"_type": "etymon", "ref": "celtic:gof", "canonical_form": "gof", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
+{"_type": "etymon", "ref": "brittonic:gof", "canonical_form": "gof", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
 {"_type": "etymon", "ref": "celtic:gorm", "canonical_form": "gorm", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Blue", "blue"], "tags": ["color", "descriptive"]}
-{"_type": "etymon", "ref": "celtic:gorn", "canonical_form": "gorn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "bog"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:gorn", "canonical_form": "gorn", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "bog"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:gort", "canonical_form": "gort", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cultivated land", "Ploughed or tilled land", "enclosed field", "field"], "tags": ["agriculture", "topography"]}
 {"_type": "etymon", "ref": "celtic:greanach", "canonical_form": "greanach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Gravel", "Gravelly"], "tags": ["descriptive", "geology", "material"]}
 {"_type": "etymon", "ref": "celtic:grianán", "canonical_form": "grianán", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bright", "Shining", "Sunny"], "tags": ["descriptive"]}
@@ -265,59 +265,59 @@
 {"_type": "etymon", "ref": "celtic:gulip", "canonical_form": "gulip", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Damp", "Wet"], "tags": ["descriptive", "water"]}
 {"_type": "etymon", "ref": "celtic:gwaun", "canonical_form": "gwaun", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing", "marshy land, moor, meadow"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:gwydhyel", "canonical_form": "gwydhyel", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
-{"_type": "etymon", "ref": "celtic:gwynn", "canonical_form": "gwynn", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
+{"_type": "etymon", "ref": "brittonic:gwynn", "canonical_form": "gwynn", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
 {"_type": "etymon", "ref": "celtic:gwyr", "canonical_form": "gwyr", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Peninsula"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:haut", "canonical_form": "haut", "language": "celtic", "modifier_type": "Modifier", "glosses": ["High", "Important", "Noble"], "tags": ["social"]}
-{"_type": "etymon", "ref": "celtic:hawdd", "canonical_form": "hawdd", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Pleasant"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "brittonic:hawdd", "canonical_form": "hawdd", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Pleasant"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:hearg", "canonical_form": "hearg", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple"], "tags": ["architecture", "religious"]}
 {"_type": "etymon", "ref": "celtic:helygen", "canonical_form": "helygen", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Osier", "Sallow Tree", "Willow tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:heorna", "canonical_form": "heorna", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Barley"], "tags": ["agriculture", "food", "grain"]}
-{"_type": "etymon", "ref": "celtic:heyl", "canonical_form": "heyl", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Estuary", "River mouth"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "brittonic:heyl", "canonical_form": "heyl", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Estuary", "River mouth"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:homna", "canonical_form": "homna", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Oak grove", "Oak tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:hrycg", "canonical_form": "hrycg", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:huamha", "canonical_form": "huamha", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Cave"], "tags": ["geology"]}
-{"_type": "etymon", "ref": "celtic:hynt", "canonical_form": "hynt", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Lane", "Path", "Road", "Street", "Track", "Way", "a way, a course"], "tags": ["architecture", "geography"]}
+{"_type": "etymon", "ref": "brittonic:hynt", "canonical_form": "hynt", "language": "brittonic", "modifier_type": "Habitative", "glosses": ["Lane", "Path", "Road", "Street", "Track", "Way", "a way, a course"], "tags": ["architecture", "geography"]}
 {"_type": "etymon", "ref": "celtic:háithe", "canonical_form": "háithe", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Kiln"], "tags": ["possession"]}
 {"_type": "etymon", "ref": "celtic:iarainn", "canonical_form": "iarainn", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Iron"], "tags": ["geology", "material"]}
 {"_type": "etymon", "ref": "celtic:iarla", "canonical_form": "iarla", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Nobleman"], "tags": ["social"]}
 {"_type": "etymon", "ref": "celtic:iasc", "canonical_form": "iasc", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fish", "Fishermen"], "tags": ["animal", "fish", "profession"]}
 {"_type": "etymon", "ref": "celtic:imleach", "canonical_form": "imleach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Border", "Borderland", "Edge"], "tags": ["geography"]}
-{"_type": "etymon", "ref": "celtic:inbhir", "canonical_form": "inbhir", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Estuary", "River mouth", "confluence", "confluence, mouth (of river)", "mouth, confluence"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:inbhir", "canonical_form": "inbhir", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Estuary", "River mouth", "confluence", "confluence, mouth (of river)", "mouth, confluence"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:inis", "canonical_form": "inis", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Dry patch of ground in a marsh", "Island", "island", "isle"], "tags": ["geography", "geology", "topography", "water"]}
-{"_type": "etymon", "ref": "celtic:innis", "canonical_form": "innis", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing", "haugh", "island", "isle", "meadow", "pasture ground, sheltered valley"], "tags": ["topography"]}
-{"_type": "etymon", "ref": "celtic:inse", "canonical_form": "inse", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Dry patch of ground in a marsh", "Island", "inch", "inch, island", "meadow, haugh"], "tags": ["geography", "geology", "topography", "water"]}
-{"_type": "etymon", "ref": "celtic:iomaire", "canonical_form": "iomaire", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge", "ridge of cultivated land"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "goidelic:innis", "canonical_form": "innis", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing", "haugh", "island", "isle", "meadow", "pasture ground, sheltered valley"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "goidelic:inse", "canonical_form": "inse", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Dry patch of ground in a marsh", "Island", "inch", "inch, island", "meadow, haugh"], "tags": ["geography", "geology", "topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:iomaire", "canonical_form": "iomaire", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge", "ridge of cultivated land"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:isca", "canonical_form": "isca", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Water"], "tags": ["topology", "water"]}
 {"_type": "etymon", "ref": "celtic:iubhar", "canonical_form": "iubhar", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Yew tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:iuir", "canonical_form": "iuir", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Yew tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:iúir", "canonical_form": "iúir", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Tower"], "tags": ["architecture"]}
 {"_type": "etymon", "ref": "celtic:kelk", "canonical_form": "kelk", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Circle", "Ring"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:kelli", "canonical_form": "kelli", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
-{"_type": "etymon", "ref": "celtic:keyn", "canonical_form": "keyn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "brittonic:keyn", "canonical_form": "keyn", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Brow", "Ridge"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:labhar", "canonical_form": "labhar", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Loud", "Noisy"], "tags": ["descriptive"]}
-{"_type": "etymon", "ref": "celtic:lag", "canonical_form": "lag", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Dale", "Hollow", "Vale", "Valley", "hollow", "hollows"], "tags": ["descriptive", "topology"]}
+{"_type": "etymon", "ref": "goidelic:lag", "canonical_form": "lag", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Dale", "Hollow", "Vale", "Valley", "hollow", "hollows"], "tags": ["descriptive", "topology"]}
 {"_type": "etymon", "ref": "celtic:laggan", "canonical_form": "laggan", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Dale", "Hollow", "Vale", "Valley"], "tags": ["topology"]}
 {"_type": "etymon", "ref": "celtic:laig", "canonical_form": "laig", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Dale", "Hollow", "Vale", "Valley"], "tags": ["descriptive", "topology"]}
 {"_type": "etymon", "ref": "celtic:lathaigh", "canonical_form": "lathaigh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:lathaí", "canonical_form": "lathaí", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:leaba", "canonical_form": "leaba", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Grave", "Pit", "Quarry"], "tags": ["death", "geology"]}
 {"_type": "etymon", "ref": "celtic:leabhar", "canonical_form": "leabhar", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Book"], "tags": ["possession"]}
-{"_type": "etymon", "ref": "celtic:leac", "canonical_form": "leac", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Flagstone", "cheek or face", "flagstone"], "tags": ["architecture", "geology", "material"]}
+{"_type": "etymon", "ref": "goidelic:leac", "canonical_form": "leac", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Flagstone", "cheek or face", "flagstone"], "tags": ["architecture", "geology", "material"]}
 {"_type": "etymon", "ref": "celtic:leacach", "canonical_form": "leacach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Flagstone"], "tags": ["architecture", "geology", "material"]}
 {"_type": "etymon", "ref": "celtic:leacan", "canonical_form": "leacan", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill slope", "Hillside"], "tags": ["geology", "topography"]}
-{"_type": "etymon", "ref": "celtic:leacht", "canonical_form": "leacht", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Grave", "Pit", "Quarry", "heap of stones over a grave", "heap of stones over a grave; monument"], "tags": ["death", "geology"]}
+{"_type": "etymon", "ref": "goidelic:leacht", "canonical_form": "leacht", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Grave", "Pit", "Quarry", "heap of stones over a grave", "heap of stones over a grave; monument"], "tags": ["death", "geology"]}
 {"_type": "etymon", "ref": "celtic:leamháin", "canonical_form": "leamháin", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Elm tree"], "tags": ["plant", "tree"]}
-{"_type": "etymon", "ref": "celtic:learg", "canonical_form": "learg", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill slope", "Hillside", "slope"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "goidelic:learg", "canonical_form": "learg", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Hill slope", "Hillside", "slope"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:leathan", "canonical_form": "leathan", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Broad", "Wide"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:leathoir", "canonical_form": "leathoir", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Slant", "Slope"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:lefant", "canonical_form": "lefant", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hole"], "tags": ["descriptive", "topography"]}
-{"_type": "etymon", "ref": "celtic:leithid", "canonical_form": "leithid", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill slope", "Hillside", "breadth"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "goidelic:leithid", "canonical_form": "leithid", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Hill slope", "Hillside", "breadth"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:lethan", "canonical_form": "lethan", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Broad"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:liag, liagán", "canonical_form": "liag, liagán", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Pillar stone"], "tags": ["architecture"]}
 {"_type": "etymon", "ref": "celtic:liagach", "canonical_form": "liagach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Marking stone", "Rock", "Stone", "Stony"], "tags": ["element", "geology", "material"]}
 {"_type": "etymon", "ref": "celtic:liath", "canonical_form": "liath", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Gray", "grey", "hoary, gray"], "tags": ["color", "descriptive"]}
-{"_type": "etymon", "ref": "celtic:linn", "canonical_form": "linn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Pond", "Pool", "lake", "pool"], "tags": ["topography", "water"]}
-{"_type": "etymon", "ref": "celtic:lios", "canonical_form": "lios", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fort", "Fortress mound", "Stronghold", "ancient fort", "circular fort", "fort", "lis, circular fort"], "tags": ["architecture", "geography", "military"]}
+{"_type": "etymon", "ref": "goidelic:linn", "canonical_form": "linn", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Pond", "Pool", "lake", "pool"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:lios", "canonical_form": "lios", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Fort", "Fortress mound", "Stronghold", "ancient fort", "circular fort", "fort", "lis, circular fort"], "tags": ["architecture", "geography", "military"]}
 {"_type": "etymon", "ref": "celtic:llan", "canonical_form": "llan", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple", "chapel or church", "church", "enclosure", "religious enclosure / church"], "tags": ["architecture", "religious"]}
 {"_type": "etymon", "ref": "celtic:llannerch", "canonical_form": "llannerch", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:llech", "canonical_form": "llech", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Marking stone", "Rock", "Stone", "Stony"], "tags": ["element", "geology", "material"]}
@@ -325,41 +325,41 @@
 {"_type": "etymon", "ref": "celtic:lobh", "canonical_form": "lobh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:loch", "canonical_form": "loch", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bay", "Cove", "Fjord", "Harbor", "Lake", "Sea inlet", "dark", "inlet of water, pool, pond, standing water", "lake", "loch"], "tags": ["geography", "topography", "water"]}
 {"_type": "etymon", "ref": "celtic:log", "canonical_form": "log", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple", "hollow"], "tags": ["architecture", "religious"]}
-{"_type": "etymon", "ref": "celtic:logh", "canonical_form": "logh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Pond", "Pool"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "brittonic:logh", "canonical_form": "logh", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Pond", "Pool"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:loinge", "canonical_form": "loinge", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Boat", "Ship"], "tags": ["possession"]}
 {"_type": "etymon", "ref": "celtic:long", "canonical_form": "long", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Boat", "Ship"], "tags": ["possession"]}
-{"_type": "etymon", "ref": "celtic:losad", "canonical_form": "losad", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cultivated land", "Ploughed or tilled land", "kneading-trough", "kneading-trough, fertile well-tilled field"], "tags": ["agriculture", "topography"]}
+{"_type": "etymon", "ref": "goidelic:losad", "canonical_form": "losad", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Cultivated land", "Ploughed or tilled land", "kneading-trough", "kneading-trough, fertile well-tilled field"], "tags": ["agriculture", "topography"]}
 {"_type": "etymon", "ref": "celtic:luachar", "canonical_form": "luachar", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Rushes"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:luachrois", "canonical_form": "luachrois", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Rushes"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:luimneach", "canonical_form": "luimneach", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Bald", "Bare", "Dilapidated", "Empty"], "tags": ["descriptive"]}
-{"_type": "etymon", "ref": "celtic:lys", "canonical_form": "lys", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Chief house", "Court", "Hall"], "tags": ["architecture", "social"]}
+{"_type": "etymon", "ref": "brittonic:lys", "canonical_form": "lys", "language": "brittonic", "modifier_type": "Habitative", "glosses": ["Chief house", "Court", "Hall"], "tags": ["architecture", "social"]}
 {"_type": "etymon", "ref": "celtic:lára", "canonical_form": "lára", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Foal", "Horse", "Stud"], "tags": ["agriculture", "animal", "mammal", "military"]}
 {"_type": "etymon", "ref": "celtic:léim", "canonical_form": "léim", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Leap", "Leaping"], "tags": ["action", "topography"]}
 {"_type": "etymon", "ref": "celtic:léith", "canonical_form": "léith", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Gray"], "tags": ["color", "descriptive"]}
 {"_type": "etymon", "ref": "celtic:lïss", "canonical_form": "lïss", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Chief house", "Court", "Hall"], "tags": ["architecture", "social"]}
 {"_type": "etymon", "ref": "celtic:lôn", "canonical_form": "lôn", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Lane", "Path", "Road", "Street", "Track", "Way"], "tags": ["architecture", "geography"]}
 {"_type": "etymon", "ref": "celtic:lúan", "canonical_form": "lúan", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Lamb", "Ram", "Sheep"], "tags": ["agriculture", "animal", "mammal"]}
-{"_type": "etymon", "ref": "celtic:līn", "canonical_form": "līn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Flax", "pool or stream"], "tags": ["agriculture", "plant"]}
-{"_type": "etymon", "ref": "celtic:machaire", "canonical_form": "machaire", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Plain", "plain"], "tags": ["topography"]}
-{"_type": "etymon", "ref": "celtic:madadh", "canonical_form": "madadh", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Dog", "Hound", "dog"], "tags": ["animal", "mammal"]}
+{"_type": "etymon", "ref": "brittonic:līn", "canonical_form": "līn", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Flax", "pool or stream"], "tags": ["agriculture", "plant"]}
+{"_type": "etymon", "ref": "goidelic:machaire", "canonical_form": "machaire", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Plain", "plain"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "goidelic:madadh", "canonical_form": "madadh", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Dog", "Hound", "dog"], "tags": ["animal", "mammal"]}
 {"_type": "etymon", "ref": "celtic:maegthe", "canonical_form": "maegthe", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Mayweed"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:maen", "canonical_form": "maen", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bell", "Place"], "tags": ["geography", "possession", "topography"]}
 {"_type": "etymon", "ref": "celtic:maenor", "canonical_form": "maenor", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Estate", "Farmstead", "Homestead", "Manor", "Village", "manor", "the stone-built residence of the chief of a district"], "tags": ["architecture", "social"]}
-{"_type": "etymon", "ref": "celtic:maes", "canonical_form": "maes", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Field", "Open land", "field"], "tags": ["topography"]}
-{"_type": "etymon", "ref": "celtic:magh", "canonical_form": "magh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Plain", "field, level stretch of land", "plain"], "tags": ["topography"]}
-{"_type": "etymon", "ref": "celtic:maigh", "canonical_form": "maigh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Plain", "a plain"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "brittonic:maes", "canonical_form": "maes", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Field", "Open land", "field"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "goidelic:magh", "canonical_form": "magh", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Plain", "field, level stretch of land", "plain"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "goidelic:maigh", "canonical_form": "maigh", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Plain", "a plain"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:maighean", "canonical_form": "maighean", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Area", "District", "Domain", "Land", "Precinct", "Quarter", "Ward"], "tags": ["geography"]}
 {"_type": "etymon", "ref": "celtic:mainistir", "canonical_form": "mainistir", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple"], "tags": ["architecture", "religious"]}
-{"_type": "etymon", "ref": "celtic:manach", "canonical_form": "manach", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Monk", "monks"], "tags": ["profession", "religious"]}
-{"_type": "etymon", "ref": "celtic:maol", "canonical_form": "maol", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Bald", "Bare", "Dilapidated", "Empty", "bald", "bald or bare", "bare", "bare, bald", "bare; round bare hill", "blunt, bare", "hornless cows", "servant"], "tags": ["descriptive"]}
-{"_type": "etymon", "ref": "celtic:marc", "canonical_form": "marc", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Foal", "Horse", "Stud", "horse"], "tags": ["agriculture", "animal", "mammal", "military"]}
-{"_type": "etymon", "ref": "celtic:marghas", "canonical_form": "marghas", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Market", "Merchant", "Trading area"], "tags": ["architecture", "economic", "social"]}
+{"_type": "etymon", "ref": "goidelic:manach", "canonical_form": "manach", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Monk", "monks"], "tags": ["profession", "religious"]}
+{"_type": "etymon", "ref": "goidelic:maol", "canonical_form": "maol", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Bald", "Bare", "Dilapidated", "Empty", "bald", "bald or bare", "bare", "bare, bald", "bare; round bare hill", "blunt, bare", "hornless cows", "servant"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "goidelic:marc", "canonical_form": "marc", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Foal", "Horse", "Stud", "horse"], "tags": ["agriculture", "animal", "mammal", "military"]}
+{"_type": "etymon", "ref": "brittonic:marghas", "canonical_form": "marghas", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Market", "Merchant", "Trading area"], "tags": ["architecture", "economic", "social"]}
 {"_type": "etymon", "ref": "celtic:mawr", "canonical_form": "mawr", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Big", "Great", "Large"], "tags": ["descriptive", "measurement"]}
-{"_type": "etymon", "ref": "celtic:mban", "canonical_form": "mban", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Woman", "women"], "tags": ["anatomy", "gender"]}
+{"_type": "etymon", "ref": "goidelic:mban", "canonical_form": "mban", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Woman", "women"], "tags": ["anatomy", "gender"]}
 {"_type": "etymon", "ref": "celtic:mbarc", "canonical_form": "mbarc", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Boat", "Ship"], "tags": ["possession"]}
 {"_type": "etymon", "ref": "celtic:mbard", "canonical_form": "mbard", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bard"], "tags": ["profession"]}
 {"_type": "etymon", "ref": "celtic:meal", "canonical_form": "meal", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Knoll"], "tags": ["topography"]}
-{"_type": "etymon", "ref": "celtic:meall", "canonical_form": "meall", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Mountain pass", "Pass", "hill", "knoll or little hill"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "goidelic:meall", "canonical_form": "meall", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Mountain pass", "Pass", "hill", "knoll or little hill"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:medd", "canonical_form": "medd", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Mead"], "tags": ["food"]}
 {"_type": "etymon", "ref": "celtic:medon", "canonical_form": "medon", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Middle"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:meáin", "canonical_form": "meáin", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Middle"], "tags": ["descriptive", "measurement"]}
@@ -375,15 +375,15 @@
 {"_type": "etymon", "ref": "celtic:migh", "canonical_form": "migh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:mocc", "canonical_form": "mocc", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Boar", "Hog", "Pig", "Pig sty"], "tags": ["agriculture", "animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:moel", "canonical_form": "moel", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Middle", "bare; bare hill"], "tags": ["descriptive", "measurement"]}
-{"_type": "etymon", "ref": "celtic:moin", "canonical_form": "moin", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "bog"], "tags": ["topography", "water"]}
-{"_type": "etymon", "ref": "celtic:monadh", "canonical_form": "monadh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "hill"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:moin", "canonical_form": "moin", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "bog"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:monadh", "canonical_form": "monadh", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "hill"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:mor", "canonical_form": "mor", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Salt water", "Sea", "big", "great", "sea"], "tags": ["geography", "topography", "water"]}
-{"_type": "etymon", "ref": "celtic:muc", "canonical_form": "muc", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Boar", "Hog", "Pig", "Pig sty", "pig", "pigs"], "tags": ["agriculture", "animal", "food", "mammal"]}
+{"_type": "etymon", "ref": "goidelic:muc", "canonical_form": "muc", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Boar", "Hog", "Pig", "Pig sty", "pig", "pigs"], "tags": ["agriculture", "animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:muclaí", "canonical_form": "muclaí", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Boar", "Hog", "Pig", "Pig sty"], "tags": ["agriculture", "animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:muileann", "canonical_form": "muileann", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Mill", "Quern", "Water-wheel", "Windmill"], "tags": ["architecture", "economic"]}
-{"_type": "etymon", "ref": "celtic:muine", "canonical_form": "muine", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Thicket", "shrubbery"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "goidelic:muine", "canonical_form": "muine", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Thicket", "shrubbery"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:muiríoch", "canonical_form": "muiríoch", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Beach"], "tags": ["geology", "water"]}
-{"_type": "etymon", "ref": "celtic:mullach", "canonical_form": "mullach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Mountain", "Peak", "Summit", "hill-summit", "summit"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "goidelic:mullach", "canonical_form": "mullach", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Mountain", "Peak", "Summit", "hill-summit", "summit"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:murúch", "canonical_form": "murúch", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Beach"], "tags": ["geology", "water"]}
 {"_type": "etymon", "ref": "celtic:mynach", "canonical_form": "mynach", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Monk"], "tags": ["profession", "religious"]}
 {"_type": "etymon", "ref": "celtic:mynydd", "canonical_form": "mynydd", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Mountain", "Peak", "Summit", "a mountain", "mountain", "upland"], "tags": ["geology", "topography"]}
@@ -409,16 +409,16 @@
 {"_type": "etymon", "ref": "celtic:pen", "canonical_form": "pen", "language": "celtic", "modifier_type": "Modifier", "glosses": ["End", "Last", "Tail end", "end", "head", "head or end", "head, chief, end", "head, end", "head, extremity, or upper part", "head; end", "the highest part, the extreme end"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:penn", "canonical_form": "penn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Headland", "Hill", "Point", "Promontory", "head, hillock"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:perta", "canonical_form": "perta", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Thicket"], "tags": ["descriptive"]}
-{"_type": "etymon", "ref": "celtic:perth", "canonical_form": "perth", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brambles", "Brush", "Brush wood", "Bush land", "Heath", "Shrubbery", "bush"], "tags": ["plant"]}
-{"_type": "etymon", "ref": "celtic:pett", "canonical_form": "pett", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Portion", "croft, farm"], "tags": ["descriptive", "measurement"]}
+{"_type": "etymon", "ref": "brittonic:perth", "canonical_form": "perth", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Brambles", "Brush", "Brush wood", "Bush land", "Heath", "Shrubbery", "bush"], "tags": ["plant"]}
+{"_type": "etymon", "ref": "goidelic:pett", "canonical_form": "pett", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Portion", "croft, farm"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:phoill", "canonical_form": "phoill", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Pond", "Pool"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:phraisce", "canonical_form": "phraisce", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Kale"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:phúca", "canonical_form": "phúca", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Elf", "Fairy", "Sprite"], "tags": ["magic", "monster"]}
-{"_type": "etymon", "ref": "celtic:poll", "canonical_form": "poll", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hole", "Pond", "Pool", "hole", "pool", "pool, hollow place", "stream", "stream or pool"], "tags": ["descriptive", "topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:poll", "canonical_form": "poll", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Hole", "Pond", "Pool", "hole", "pool", "pool, hollow place", "stream", "stream or pool"], "tags": ["descriptive", "topography", "water"]}
 {"_type": "etymon", "ref": "celtic:pollach", "canonical_form": "pollach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hole"], "tags": ["descriptive", "topography"]}
-{"_type": "etymon", "ref": "celtic:porth", "canonical_form": "porth", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bay", "Cove", "Fjord", "Harbor", "Sea inlet"], "tags": ["geography", "topography", "water"]}
-{"_type": "etymon", "ref": "celtic:preas", "canonical_form": "preas", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Thicket", "bush", "copse"], "tags": ["descriptive"]}
-{"_type": "etymon", "ref": "celtic:pres", "canonical_form": "pres", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brambles", "Brush", "Brush wood", "Bush land", "Heath", "Shrubbery", "brushwood, fuel", "district"], "tags": ["plant"]}
+{"_type": "etymon", "ref": "brittonic:porth", "canonical_form": "porth", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Bay", "Cove", "Fjord", "Harbor", "Sea inlet"], "tags": ["geography", "topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:preas", "canonical_form": "preas", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Thicket", "bush", "copse"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "brittonic:pres", "canonical_form": "pres", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Brambles", "Brush", "Brush wood", "Bush land", "Heath", "Shrubbery", "brushwood, fuel", "district"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:prys", "canonical_form": "prys", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
 {"_type": "etymon", "ref": "celtic:pum", "canonical_form": "pum", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Five"], "tags": ["number"]}
 {"_type": "etymon", "ref": "celtic:rae", "canonical_form": "rae", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Even", "Flat", "Level"], "tags": ["descriptive", "measurement"]}
@@ -433,7 +433,7 @@
 {"_type": "etymon", "ref": "celtic:riach", "canonical_form": "riach", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Gray"], "tags": ["color", "descriptive"]}
 {"_type": "etymon", "ref": "celtic:riascadh", "canonical_form": "riascadh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:rid", "canonical_form": "rid", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Red"], "tags": ["color", "descriptive"]}
-{"_type": "etymon", "ref": "celtic:rinn", "canonical_form": "rinn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Headland", "Point", "Promontory", "point", "point of land or hill", "point, headland, top"], "tags": ["topography"]}
+{"_type": "etymon", "ref": "goidelic:rinn", "canonical_form": "rinn", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Headland", "Point", "Promontory", "point", "point of land or hill", "point, headland, top"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:rma", "canonical_form": "rma", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Arms (weapons)"], "tags": ["military"]}
 {"_type": "etymon", "ref": "celtic:rois", "canonical_form": "rois", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
 {"_type": "etymon", "ref": "celtic:ros", "canonical_form": "ros", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Headland", "Point", "Promontory", "a thing forthstanding, a projection; promontory; cape", "cape", "cape or promontory", "heath, or moor", "moor, heath", "point (of land)", "point, wood", "promontory; wood; wood-covered promontory", "wood", "wood or point", "wood, or point of land or headland", "wood, point of land, or headland"], "tags": ["topography"]}
@@ -444,32 +444,32 @@
 {"_type": "etymon", "ref": "celtic:réamainn", "canonical_form": "réamainn", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Striped"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:rí", "canonical_form": "rí", "language": "celtic", "modifier_type": "Habitative", "glosses": ["King", "Royal"], "tags": ["social"]}
 {"_type": "etymon", "ref": "celtic:sabhall", "canonical_form": "sabhall", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Barn"], "tags": ["agriculture", "architecture"]}
-{"_type": "etymon", "ref": "celtic:saighead", "canonical_form": "saighead", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Arrow", "arrow"], "tags": ["military"]}
+{"_type": "etymon", "ref": "goidelic:saighead", "canonical_form": "saighead", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Arrow", "arrow"], "tags": ["military"]}
 {"_type": "etymon", "ref": "celtic:saileáin", "canonical_form": "saileáin", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Osier", "Sallow Tree", "Willow tree"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:salach", "canonical_form": "salach", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Dirty", "Foul", "Muddy"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:samhaisce", "canonical_form": "samhaisce", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bull", "Calf", "Cattle", "Cow", "Heifer", "Steer"], "tags": ["agriculture", "animal", "food", "mammal"]}
-{"_type": "etymon", "ref": "celtic:sans", "canonical_form": "sans", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "Sacred"], "tags": ["religious", "social"]}
-{"_type": "etymon", "ref": "celtic:sarn", "canonical_form": "sarn", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Causeway", "Roman road"], "tags": ["architecture"]}
-{"_type": "etymon", "ref": "celtic:scaw", "canonical_form": "scaw", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Elder tree"], "tags": ["plant", "tree"]}
-{"_type": "etymon", "ref": "celtic:sceach", "canonical_form": "sceach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hawthorn tree", "bush"], "tags": ["plant", "tree"]}
+{"_type": "etymon", "ref": "brittonic:sans", "canonical_form": "sans", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Holy", "Sacred"], "tags": ["religious", "social"]}
+{"_type": "etymon", "ref": "brittonic:sarn", "canonical_form": "sarn", "language": "brittonic", "modifier_type": "Habitative", "glosses": ["Causeway", "Roman road"], "tags": ["architecture"]}
+{"_type": "etymon", "ref": "brittonic:scaw", "canonical_form": "scaw", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Elder tree"], "tags": ["plant", "tree"]}
+{"_type": "etymon", "ref": "goidelic:sceach", "canonical_form": "sceach", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Hawthorn tree", "bush"], "tags": ["plant", "tree"]}
 {"_type": "etymon", "ref": "celtic:scine", "canonical_form": "scine", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Knife"], "tags": ["possession"]}
 {"_type": "etymon", "ref": "celtic:screathan", "canonical_form": "screathan", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Scree"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:scrib", "canonical_form": "scrib", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Furrow"], "tags": ["agriculture", "topography"]}
 {"_type": "etymon", "ref": "celtic:scrín", "canonical_form": "scrín", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Shrine"], "tags": ["architecture", "religious"]}
 {"_type": "etymon", "ref": "celtic:scuir", "canonical_form": "scuir", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Camp"], "tags": ["social"]}
 {"_type": "etymon", "ref": "celtic:scáil", "canonical_form": "scáil", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Demon", "Evil spirit", "Phantom", "Spectre"], "tags": ["death", "monster", "undead"]}
-{"_type": "etymon", "ref": "celtic:sean", "canonical_form": "sean", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Old", "old", "shining, lightsome"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "goidelic:sean", "canonical_form": "sean", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Old", "old", "shining, lightsome"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:searbhóg", "canonical_form": "searbhóg", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Bitter"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:sidh", "canonical_form": "sidh", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Elf", "Fairy", "Sprite"], "tags": ["magic", "monster"]}
 {"_type": "etymon", "ref": "celtic:siesceann", "canonical_form": "siesceann", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:siúr", "canonical_form": "siúr", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Sister"], "tags": ["gender", "social"]}
 {"_type": "etymon", "ref": "celtic:sleamhain", "canonical_form": "sleamhain", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Sleek", "Smooth"], "tags": ["descriptive"]}
-{"_type": "etymon", "ref": "celtic:sliabh", "canonical_form": "sliabh", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Mountain", "Peak", "Summit", "hill or moor", "moor, hill-face", "mountain"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "goidelic:sliabh", "canonical_form": "sliabh", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Mountain", "Peak", "Summit", "hill or moor", "moor, hill-face", "mountain"], "tags": ["geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:smóil", "canonical_form": "smóil", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Thrush"], "tags": ["animal", "bird"]}
 {"_type": "etymon", "ref": "celtic:sneachta", "canonical_form": "sneachta", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Snow"], "tags": ["weather"]}
-{"_type": "etymon", "ref": "celtic:sorn", "canonical_form": "sorn", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Furnace", "Kiln", "Smith", "furnace, kiln, or oven", "vent, furnace, vent-like windy pass or opening"], "tags": ["architecture", "possession"]}
+{"_type": "etymon", "ref": "goidelic:sorn", "canonical_form": "sorn", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Furnace", "Kiln", "Smith", "furnace, kiln, or oven", "vent, furnace, vent-like windy pass or opening"], "tags": ["architecture", "possession"]}
 {"_type": "etymon", "ref": "celtic:spidéal", "canonical_form": "spidéal", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Hospital"], "tags": ["architecture", "social"]}
-{"_type": "etymon", "ref": "celtic:srath", "canonical_form": "srath", "language": "celtic", "modifier_type": "Topographical", "glosses": ["River meadow", "glen", "holm, river-meadow, strath", "river-holm", "strath, river valley"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:srath", "canonical_form": "srath", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["River meadow", "glen", "holm, river-meadow, strath", "river-holm", "strath, river valley"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:sròn", "canonical_form": "sròn", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Broad"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:srón", "canonical_form": "srón", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Estuary", "River mouth"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:steach", "canonical_form": "steach", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cottage", "Dwelling", "House", "Hut"], "tags": ["architecture"]}
@@ -481,20 +481,20 @@
 {"_type": "etymon", "ref": "celtic:tairbeart", "canonical_form": "tairbeart", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Drayage", "Ford", "Portage"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:tam", "canonical_form": "tam", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Black", "Dark"], "tags": ["color", "descriptive"]}
 {"_type": "etymon", "ref": "celtic:tamhnaigh", "canonical_form": "tamhnaigh", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cultivated land", "Ploughed or tilled land"], "tags": ["agriculture", "topography"]}
-{"_type": "etymon", "ref": "celtic:tan", "canonical_form": "tan", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Becon fire", "Fire", "fire"], "tags": ["element", "possession"]}
+{"_type": "etymon", "ref": "goidelic:tan", "canonical_form": "tan", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Becon fire", "Fire", "fire"], "tags": ["element", "possession"]}
 {"_type": "etymon", "ref": "celtic:taonach", "canonical_form": "taonach", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Assembly", "Council", "Meeting place"], "tags": ["social"]}
 {"_type": "etymon", "ref": "celtic:tathan", "canonical_form": "tathan", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Athan (Name)"], "tags": ["male name", "saint"]}
 {"_type": "etymon", "ref": "celtic:teach", "canonical_form": "teach", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cottage", "Dwelling", "House", "Hut", "great house", "house"], "tags": ["architecture"]}
 {"_type": "etymon", "ref": "celtic:teampall", "canonical_form": "teampall", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple"], "tags": ["architecture", "religious"]}
-{"_type": "etymon", "ref": "celtic:tearmann", "canonical_form": "tearmann", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Refuge", "Retreat", "Sanctuary", "Shelter", "sanctuary", "sanctuary, asylum, church lands, boundary"], "tags": ["descriptive", "social"]}
-{"_type": "etymon", "ref": "celtic:teg", "canonical_form": "teg", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Beneficial", "Fair", "Good", "fair"], "tags": ["descriptive", "social"]}
+{"_type": "etymon", "ref": "goidelic:tearmann", "canonical_form": "tearmann", "language": "goidelic", "modifier_type": "Modifier", "glosses": ["Refuge", "Retreat", "Sanctuary", "Shelter", "sanctuary", "sanctuary, asylum, church lands, boundary"], "tags": ["descriptive", "social"]}
+{"_type": "etymon", "ref": "brittonic:teg", "canonical_form": "teg", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Beneficial", "Fair", "Good", "fair"], "tags": ["descriptive", "social"]}
 {"_type": "etymon", "ref": "celtic:teine", "canonical_form": "teine", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Becon fire", "Fire"], "tags": ["element", "possession"]}
-{"_type": "etymon", "ref": "celtic:teyrn", "canonical_form": "teyrn", "language": "celtic", "modifier_type": "Habitative", "glosses": ["King", "Royal", "king, a supreme ruler"], "tags": ["social"]}
-{"_type": "etymon", "ref": "celtic:thairbh", "canonical_form": "thairbh", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bull", "Calf", "Cattle", "Cow", "Heifer", "Steer", "bull's"], "tags": ["agriculture", "animal", "food", "mammal"]}
+{"_type": "etymon", "ref": "brittonic:teyrn", "canonical_form": "teyrn", "language": "brittonic", "modifier_type": "Habitative", "glosses": ["King", "Royal", "king, a supreme ruler"], "tags": ["social"]}
+{"_type": "etymon", "ref": "goidelic:thairbh", "canonical_form": "thairbh", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Bull", "Calf", "Cattle", "Cow", "Heifer", "Steer", "bull's"], "tags": ["agriculture", "animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:ti", "canonical_form": "ti", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cottage", "Dwelling", "House", "Hut"], "tags": ["architecture"]}
-{"_type": "etymon", "ref": "celtic:tigh", "canonical_form": "tigh", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Cottage", "Dwelling", "House", "Hut", "house"], "tags": ["architecture"]}
-{"_type": "etymon", "ref": "celtic:tobair", "canonical_form": "tobair", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Spring", "Well", "well"], "tags": ["descriptive"]}
-{"_type": "etymon", "ref": "celtic:tobar", "canonical_form": "tobar", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Spring", "Well", "well"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "goidelic:tigh", "canonical_form": "tigh", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Cottage", "Dwelling", "House", "Hut", "house"], "tags": ["architecture"]}
+{"_type": "etymon", "ref": "goidelic:tobair", "canonical_form": "tobair", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Spring", "Well", "well"], "tags": ["descriptive"]}
+{"_type": "etymon", "ref": "goidelic:tobar", "canonical_form": "tobar", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Spring", "Well", "well"], "tags": ["descriptive"]}
 {"_type": "etymon", "ref": "celtic:toirc", "canonical_form": "toirc", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Boar", "Hog", "Pig", "Pig sty"], "tags": ["agriculture", "animal", "food", "mammal"]}
 {"_type": "etymon", "ref": "celtic:tomach", "canonical_form": "tomach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Knoll"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:toman", "canonical_form": "toman", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Knoll"], "tags": ["topography"]}
@@ -514,12 +514,12 @@
 {"_type": "etymon", "ref": "celtic:tsudáire", "canonical_form": "tsudáire", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Tanner"], "tags": ["profession"]}
 {"_type": "etymon", "ref": "celtic:tsáile", "canonical_form": "tsáile", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Salt water", "Sea"], "tags": ["geography", "topography", "water"]}
 {"_type": "etymon", "ref": "celtic:tuaidh", "canonical_form": "tuaidh", "language": "celtic", "modifier_type": "Modifier", "glosses": ["North"], "tags": ["direction"]}
-{"_type": "etymon", "ref": "celtic:tuaim", "canonical_form": "tuaim", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Burial mound", "Cairn", "burial-mound, tumulus", "tumulus, burial-mound"], "tags": ["architecture", "death", "religious", "undead"]}
+{"_type": "etymon", "ref": "goidelic:tuaim", "canonical_form": "tuaim", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Burial mound", "Cairn", "burial-mound, tumulus", "tumulus, burial-mound"], "tags": ["architecture", "death", "religious", "undead"]}
 {"_type": "etymon", "ref": "celtic:tuaisceart", "canonical_form": "tuaisceart", "language": "celtic", "modifier_type": "Modifier", "glosses": ["North"], "tags": ["direction"]}
 {"_type": "etymon", "ref": "celtic:tuama", "canonical_form": "tuama", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Barrow", "Tumulus"], "tags": ["architecture", "death", "religious"]}
-{"_type": "etymon", "ref": "celtic:tuar", "canonical_form": "tuar", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Bleach green", "Green for drying and bleaching linen", "a bleach-green", "bleach-green", "bleach-green; field where things are spread out to dry; home field where cows graze and are fed and milked", "feeding-place"], "tags": ["social", "topography"]}
-{"_type": "etymon", "ref": "celtic:tulach", "canonical_form": "tulach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Hill", "a hill, a mound", "hill, mound", "hillock"], "tags": ["geology", "topography"]}
-{"_type": "etymon", "ref": "celtic:turlach", "canonical_form": "turlach", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "lake that dries up or nearly dries up in summer"], "tags": ["topography", "water"]}
+{"_type": "etymon", "ref": "goidelic:tuar", "canonical_form": "tuar", "language": "goidelic", "modifier_type": "Habitative", "glosses": ["Bleach green", "Green for drying and bleaching linen", "a bleach-green", "bleach-green", "bleach-green; field where things are spread out to dry; home field where cows graze and are fed and milked", "feeding-place"], "tags": ["social", "topography"]}
+{"_type": "etymon", "ref": "goidelic:tulach", "canonical_form": "tulach", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Hill", "a hill, a mound", "hill, mound", "hillock"], "tags": ["geology", "topography"]}
+{"_type": "etymon", "ref": "goidelic:turlach", "canonical_form": "turlach", "language": "goidelic", "modifier_type": "Topographical", "glosses": ["Bog", "Marsh", "Marshy", "Mire", "Moor", "Quagmire", "Swamp", "lake that dries up or nearly dries up in summer"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:tâl", "canonical_form": "tâl", "language": "celtic", "modifier_type": "Modifier", "glosses": ["End", "Last", "Tail end"], "tags": ["descriptive", "measurement"]}
 {"_type": "etymon", "ref": "celtic:tír", "canonical_form": "tír", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Area", "District", "Domain", "Land", "Precinct", "Quarter", "Ward"], "tags": ["geography"]}
 {"_type": "etymon", "ref": "celtic:tóchar", "canonical_form": "tóchar", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Causeway"], "tags": ["architecture"]}
@@ -535,11 +535,11 @@
 {"_type": "etymon", "ref": "celtic:whin", "canonical_form": "whin", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Gorse"], "tags": ["plant"]}
 {"_type": "etymon", "ref": "celtic:wig", "canonical_form": "wig", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Forest", "Grove", "Wood"], "tags": ["plant", "topography"]}
 {"_type": "etymon", "ref": "celtic:wisc", "canonical_form": "wisc", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing"], "tags": ["topography"]}
-{"_type": "etymon", "ref": "celtic:wlïb", "canonical_form": "wlïb", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Damp", "Wet"], "tags": ["descriptive", "water"]}
+{"_type": "etymon", "ref": "brittonic:wlïb", "canonical_form": "wlïb", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Damp", "Wet"], "tags": ["descriptive", "water"]}
 {"_type": "etymon", "ref": "celtic:wïg", "canonical_form": "wïg", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Heathen"], "tags": ["profession", "religious"]}
-{"_type": "etymon", "ref": "celtic:wïnn", "canonical_form": "wïnn", "language": "celtic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
+{"_type": "etymon", "ref": "brittonic:wïnn", "canonical_form": "wïnn", "language": "brittonic", "modifier_type": "Modifier", "glosses": ["Holy", "White"], "tags": ["color", "descriptive", "religious"]}
 {"_type": "etymon", "ref": "celtic:y", "canonical_form": "y", "language": "celtic", "modifier_type": "Modifier", "glosses": ["\"at the\"", "\"of the\"", "Possessive indication"], "tags": ["social"]}
-{"_type": "etymon", "ref": "celtic:ynys", "canonical_form": "ynys", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Island", "an island", "island"], "tags": ["geography", "geology", "topography"]}
+{"_type": "etymon", "ref": "brittonic:ynys", "canonical_form": "ynys", "language": "brittonic", "modifier_type": "Topographical", "glosses": ["Island", "an island", "island"], "tags": ["geography", "geology", "topography"]}
 {"_type": "etymon", "ref": "celtic:ysgor", "canonical_form": "ysgor", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fort", "Fortress mound", "Stronghold"], "tags": ["architecture", "geography", "military"]}
 {"_type": "etymon", "ref": "celtic:àilean", "canonical_form": "àilean", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Glade", "Meadow", "Woodland clearing"], "tags": ["topography"]}
 {"_type": "etymon", "ref": "celtic:álainn", "canonical_form": "álainn", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Beautiful"], "tags": ["descriptive"]}
@@ -1601,7 +1601,7 @@
 {"_type": "citation", "etymon_ref": "old-english:aecern"}
 {"_type": "citation", "etymon_ref": "old-english:alor"}
 {"_type": "citation", "etymon_ref": "celtic:elri"}
-{"_type": "citation", "etymon_ref": "celtic:fearna"}
+{"_type": "citation", "etymon_ref": "goidelic:fearna"}
 {"_type": "citation", "etymon_ref": "celtic:fearnáin"}
 {"_type": "citation", "etymon_ref": "celtic:feàrna"}
 {"_type": "citation", "etymon_ref": "old-english:waesse"}
@@ -1615,7 +1615,7 @@
 {"_type": "citation", "etymon_ref": "celtic:rma"}
 {"_type": "citation", "etymon_ref": "old-english:here"}
 {"_type": "citation", "etymon_ref": "old-english:fyrd"}
-{"_type": "citation", "etymon_ref": "celtic:saighead"}
+{"_type": "citation", "etymon_ref": "goidelic:saighead"}
 {"_type": "citation", "etymon_ref": "old-english:aesc"}
 {"_type": "citation", "etymon_ref": "old-norse:eski"}
 {"_type": "citation", "etymon_ref": "old-english:aespe"}
@@ -1635,7 +1635,7 @@
 {"_type": "citation", "etymon_ref": "old-english:bagga"}
 {"_type": "citation", "etymon_ref": "old-english:brocc"}
 {"_type": "citation", "etymon_ref": "celtic:bruic"}
-{"_type": "citation", "etymon_ref": "celtic:bolg"}
+{"_type": "citation", "etymon_ref": "brittonic:bolg"}
 {"_type": "citation", "etymon_ref": "modern-english:baker"}
 {"_type": "citation", "etymon_ref": "celtic:mbard"}
 {"_type": "citation", "etymon_ref": "celtic:bard"}
@@ -1656,8 +1656,8 @@
 {"_type": "citation", "etymon_ref": "old-english:bara"}
 {"_type": "citation", "etymon_ref": "norman-french:beau"}
 {"_type": "citation", "etymon_ref": "old-english:scēne"}
-{"_type": "citation", "etymon_ref": "celtic:cluain"}
-{"_type": "citation", "etymon_ref": "celtic:caoin"}
+{"_type": "citation", "etymon_ref": "goidelic:cluain"}
+{"_type": "citation", "etymon_ref": "goidelic:caoin"}
 {"_type": "citation", "etymon_ref": "celtic:álainn"}
 {"_type": "citation", "etymon_ref": "old-english:bēo"}
 {"_type": "citation", "etymon_ref": "old-english:imbe"}
@@ -1665,7 +1665,7 @@
 {"_type": "citation", "etymon_ref": "old-english:loddere"}
 {"_type": "citation", "etymon_ref": "celtic:maen"}
 {"_type": "citation", "etymon_ref": "old-english:beile"}
-{"_type": "citation", "etymon_ref": "celtic:crom"}
+{"_type": "citation", "etymon_ref": "goidelic:crom"}
 {"_type": "citation", "etymon_ref": "celtic:cam"}
 {"_type": "citation", "etymon_ref": "old-english:hammel"}
 {"_type": "citation", "etymon_ref": "old-english:wōh"}
@@ -1684,7 +1684,7 @@
 {"_type": "citation", "etymon_ref": "old-norse:megin"}
 {"_type": "citation", "etymon_ref": "celtic:mhòr"}
 {"_type": "citation", "etymon_ref": "old-english:beorc"}
-{"_type": "citation", "etymon_ref": "celtic:beithe"}
+{"_type": "citation", "etymon_ref": "goidelic:beithe"}
 {"_type": "citation", "etymon_ref": "old-english:fugol"}
 {"_type": "citation", "etymon_ref": "old-norse:fugl"}
 {"_type": "citation", "etymon_ref": "old-english:hana"}
@@ -1700,7 +1700,7 @@
 {"_type": "citation", "etymon_ref": "celtic:dùbhlaidh"}
 {"_type": "citation", "etymon_ref": "old-english:ōsle"}
 {"_type": "citation", "etymon_ref": "old-english:slōh"}
-{"_type": "citation", "etymon_ref": "celtic:airne"}
+{"_type": "citation", "etymon_ref": "goidelic:airne"}
 {"_type": "citation", "etymon_ref": "celtic:draigneach"}
 {"_type": "citation", "etymon_ref": "celtic:fola"}
 {"_type": "citation", "etymon_ref": "celtic:gorm"}
@@ -1759,7 +1759,7 @@
 {"_type": "citation", "etymon_ref": "old-english:hlāw"}
 {"_type": "citation", "etymon_ref": "old-norse:haugr"}
 {"_type": "citation", "etymon_ref": "old-norse:horgr"}
-{"_type": "citation", "etymon_ref": "celtic:tuaim"}
+{"_type": "citation", "etymon_ref": "goidelic:tuaim"}
 {"_type": "citation", "etymon_ref": "celtic:gcarn"}
 {"_type": "citation", "etymon_ref": "celtic:scuir"}
 {"_type": "citation", "etymon_ref": "celtic:chéir"}
@@ -1780,9 +1780,9 @@
 {"_type": "citation", "etymon_ref": "old-english:weorf"}
 {"_type": "citation", "etymon_ref": "celtic:samhaisce"}
 {"_type": "citation", "etymon_ref": "celtic:dtarbh"}
-{"_type": "citation", "etymon_ref": "celtic:thairbh"}
+{"_type": "citation", "etymon_ref": "goidelic:thairbh"}
 {"_type": "citation", "etymon_ref": "celtic:choire"}
-{"_type": "citation", "etymon_ref": "celtic:sarn"}
+{"_type": "citation", "etymon_ref": "brittonic:sarn"}
 {"_type": "citation", "etymon_ref": "celtic:tóchar"}
 {"_type": "citation", "etymon_ref": "celtic:huamha"}
 {"_type": "citation", "etymon_ref": "celtic:uaimh"}
@@ -1819,9 +1819,9 @@
 {"_type": "citation", "etymon_ref": "old-english:clif"}
 {"_type": "citation", "etymon_ref": "old-norse:klif"}
 {"_type": "citation", "etymon_ref": "old-english:ecg"}
-{"_type": "citation", "etymon_ref": "celtic:creig"}
+{"_type": "citation", "etymon_ref": "brittonic:creig"}
 {"_type": "citation", "etymon_ref": "old-norse:hjalla"}
-{"_type": "citation", "etymon_ref": "celtic:aill"}
+{"_type": "citation", "etymon_ref": "goidelic:aill"}
 {"_type": "citation", "etymon_ref": "old-english:scamol"}
 {"_type": "citation", "etymon_ref": "old-english:scelf"}
 {"_type": "citation", "etymon_ref": "old-norse:skjalf"}
@@ -1832,23 +1832,23 @@
 {"_type": "citation", "etymon_ref": "celtic:fhuar"}
 {"_type": "citation", "etymon_ref": "old-norse:skarfr"}
 {"_type": "citation", "etymon_ref": "celtic:gcorp"}
-{"_type": "citation", "etymon_ref": "celtic:both"}
+{"_type": "citation", "etymon_ref": "goidelic:both"}
 {"_type": "citation", "etymon_ref": "old-english:cot"}
 {"_type": "citation", "etymon_ref": "old-english:cofa"}
 {"_type": "citation", "etymon_ref": "old-english:haus"}
 {"_type": "citation", "etymon_ref": "old-norse:hús"}
 {"_type": "citation", "etymon_ref": "celtic:steach"}
 {"_type": "citation", "etymon_ref": "celtic:teach"}
-{"_type": "citation", "etymon_ref": "celtic:tigh"}
+{"_type": "citation", "etymon_ref": "goidelic:tigh"}
 {"_type": "citation", "etymon_ref": "celtic:tŷ"}
 {"_type": "citation", "etymon_ref": "celtic:ti"}
 {"_type": "citation", "etymon_ref": "old-english:schele"}
 {"_type": "citation", "etymon_ref": "old-norse:skálli"}
 {"_type": "citation", "etymon_ref": "celtic:lïss"}
-{"_type": "citation", "etymon_ref": "celtic:lys"}
+{"_type": "citation", "etymon_ref": "brittonic:lys"}
 {"_type": "citation", "etymon_ref": "old-english:corn"}
 {"_type": "citation", "etymon_ref": "old-english:cran"}
-{"_type": "citation", "etymon_ref": "celtic:gcorr"}
+{"_type": "citation", "etymon_ref": "goidelic:gcorr"}
 {"_type": "citation", "etymon_ref": "old-norse:hrāgra"}
 {"_type": "citation", "etymon_ref": "celtic:trani"}
 {"_type": "citation", "etymon_ref": "old-english:cros"}
@@ -1865,7 +1865,7 @@
 {"_type": "citation", "etymon_ref": "old-english:cucu"}
 {"_type": "citation", "etymon_ref": "old-english:gēac"}
 {"_type": "citation", "etymon_ref": "celtic:cuach"}
-{"_type": "citation", "etymon_ref": "celtic:cog"}
+{"_type": "citation", "etymon_ref": "brittonic:cog"}
 {"_type": "citation", "etymon_ref": "old-norse:straumr"}
 {"_type": "citation", "etymon_ref": "old-english:faer"}
 {"_type": "citation", "etymon_ref": "old-english:sculd"}
@@ -1898,7 +1898,7 @@
 {"_type": "citation", "etymon_ref": "old-english:scearu"}
 {"_type": "citation", "etymon_ref": "celtic:canto"}
 {"_type": "citation", "etymon_ref": "celtic:cdathrú"}
-{"_type": "citation", "etymon_ref": "celtic:ferann"}
+{"_type": "citation", "etymon_ref": "goidelic:ferann"}
 {"_type": "citation", "etymon_ref": "old-norse:herath"}
 {"_type": "citation", "etymon_ref": "celtic:maighean"}
 {"_type": "citation", "etymon_ref": "celtic:tír"}
@@ -1917,7 +1917,7 @@
 {"_type": "citation", "etymon_ref": "old-english:freht"}
 {"_type": "citation", "etymon_ref": "celtic:tafol"}
 {"_type": "citation", "etymon_ref": "old-english:hund"}
-{"_type": "citation", "etymon_ref": "celtic:madadh"}
+{"_type": "citation", "etymon_ref": "goidelic:madadh"}
 {"_type": "citation", "etymon_ref": "celtic:con"}
 {"_type": "citation", "etymon_ref": "celtic:conarta"}
 {"_type": "citation", "etymon_ref": "modern-english:dog"}
@@ -1929,7 +1929,7 @@
 {"_type": "citation", "etymon_ref": "old-english:dryge"}
 {"_type": "citation", "etymon_ref": "old-norse:holmr"}
 {"_type": "citation", "etymon_ref": "celtic:inis"}
-{"_type": "citation", "etymon_ref": "celtic:inse"}
+{"_type": "citation", "etymon_ref": "goidelic:inse"}
 {"_type": "citation", "etymon_ref": "old-english:dūce"}
 {"_type": "citation", "etymon_ref": "old-english:dūcena"}
 {"_type": "citation", "etymon_ref": "old-english:ened"}
@@ -1944,7 +1944,7 @@
 {"_type": "citation", "etymon_ref": "old-english:cwappa"}
 {"_type": "citation", "etymon_ref": "old-english:ellen"}
 {"_type": "citation", "etymon_ref": "old-english:hyldre"}
-{"_type": "citation", "etymon_ref": "celtic:scaw"}
+{"_type": "citation", "etymon_ref": "brittonic:scaw"}
 {"_type": "citation", "etymon_ref": "old-english:elf"}
 {"_type": "citation", "etymon_ref": "old-english:elfa"}
 {"_type": "citation", "etymon_ref": "celtic:sidh"}
@@ -1955,7 +1955,7 @@
 {"_type": "citation", "etymon_ref": "celtic:leamháin"}
 {"_type": "citation", "etymon_ref": "old-english:īdel"}
 {"_type": "citation", "etymon_ref": "celtic:luimneach"}
-{"_type": "citation", "etymon_ref": "celtic:maol"}
+{"_type": "citation", "etymon_ref": "goidelic:maol"}
 {"_type": "citation", "etymon_ref": "celtic:mhaol"}
 {"_type": "citation", "etymon_ref": "old-english:geard"}
 {"_type": "citation", "etymon_ref": "old-norse:garthr"}
@@ -1998,15 +1998,15 @@
 {"_type": "citation", "etymon_ref": "old-english:fearn"}
 {"_type": "citation", "etymon_ref": "celtic:raithne"}
 {"_type": "citation", "etymon_ref": "celtic:raithean"}
-{"_type": "citation", "etymon_ref": "celtic:achadh"}
-{"_type": "citation", "etymon_ref": "celtic:maes"}
+{"_type": "citation", "etymon_ref": "goidelic:achadh"}
+{"_type": "citation", "etymon_ref": "brittonic:maes"}
 {"_type": "citation", "etymon_ref": "old-english:turf"}
 {"_type": "citation", "etymon_ref": "old-norse:vengi"}
 {"_type": "citation", "etymon_ref": "old-english:feld"}
 {"_type": "citation", "etymon_ref": "old-english:finc"}
 {"_type": "citation", "etymon_ref": "old-english:saeppe"}
 {"_type": "citation", "etymon_ref": "old-english:lēg"}
-{"_type": "citation", "etymon_ref": "celtic:tan"}
+{"_type": "citation", "etymon_ref": "goidelic:tan"}
 {"_type": "citation", "etymon_ref": "celtic:teine"}
 {"_type": "citation", "etymon_ref": "old-english:fisc"}
 {"_type": "citation", "etymon_ref": "old-english:fiscere"}
@@ -2014,11 +2014,11 @@
 {"_type": "citation", "etymon_ref": "celtic:iasc"}
 {"_type": "citation", "etymon_ref": "old-english:fīf"}
 {"_type": "citation", "etymon_ref": "celtic:pum"}
-{"_type": "citation", "etymon_ref": "celtic:leac"}
+{"_type": "citation", "etymon_ref": "goidelic:leac"}
 {"_type": "citation", "etymon_ref": "celtic:leacach"}
 {"_type": "citation", "etymon_ref": "old-english:fleax"}
 {"_type": "citation", "etymon_ref": "old-english:lin"}
-{"_type": "citation", "etymon_ref": "celtic:līn"}
+{"_type": "citation", "etymon_ref": "brittonic:līn"}
 {"_type": "citation", "etymon_ref": "old-english:flint"}
 {"_type": "citation", "etymon_ref": "norman-french:fflynt"}
 {"_type": "citation", "etymon_ref": "celtic:blátha"}
@@ -2035,15 +2035,15 @@
 {"_type": "citation", "etymon_ref": "old-english:fyrde"}
 {"_type": "citation", "etymon_ref": "old-english:fyrhth"}
 {"_type": "citation", "etymon_ref": "celtic:cēd"}
-{"_type": "citation", "etymon_ref": "celtic:coed"}
+{"_type": "citation", "etymon_ref": "brittonic:coed"}
 {"_type": "citation", "etymon_ref": "celtic:fáoda"}
 {"_type": "citation", "etymon_ref": "celtic:fforest"}
 {"_type": "citation", "etymon_ref": "old-english:grāf"}
 {"_type": "citation", "etymon_ref": "old-english:graefe"}
 {"_type": "citation", "etymon_ref": "old-english:roth"}
 {"_type": "citation", "etymon_ref": "old-english:holt"}
-{"_type": "citation", "etymon_ref": "celtic:coille"}
-{"_type": "citation", "etymon_ref": "celtic:choill"}
+{"_type": "citation", "etymon_ref": "goidelic:coille"}
+{"_type": "citation", "etymon_ref": "goidelic:choill"}
 {"_type": "citation", "etymon_ref": "celtic:kelli"}
 {"_type": "citation", "etymon_ref": "celtic:choilleadh"}
 {"_type": "citation", "etymon_ref": "old-english:wald"}
@@ -2061,11 +2061,11 @@
 {"_type": "citation", "etymon_ref": "celtic:gwydhyel"}
 {"_type": "citation", "etymon_ref": "old-english:burh"}
 {"_type": "citation", "etymon_ref": "old-english:byrig"}
-{"_type": "citation", "etymon_ref": "celtic:cair"}
-{"_type": "citation", "etymon_ref": "celtic:duin"}
+{"_type": "citation", "etymon_ref": "brittonic:cair"}
+{"_type": "citation", "etymon_ref": "goidelic:duin"}
 {"_type": "citation", "etymon_ref": "celtic:dūn"}
 {"_type": "citation", "etymon_ref": "old-english:mōt"}
-{"_type": "citation", "etymon_ref": "celtic:lios"}
+{"_type": "citation", "etymon_ref": "goidelic:lios"}
 {"_type": "citation", "etymon_ref": "celtic:ràth"}
 {"_type": "citation", "etymon_ref": "celtic:dīn"}
 {"_type": "citation", "etymon_ref": "celtic:ysgor"}
@@ -2124,7 +2124,7 @@
 {"_type": "citation", "etymon_ref": "old-norse:fang"}
 {"_type": "citation", "etymon_ref": "celtic:frome"}
 {"_type": "citation", "etymon_ref": "old-english:gēoc"}
-{"_type": "citation", "etymon_ref": "celtic:teg"}
+{"_type": "citation", "etymon_ref": "brittonic:teg"}
 {"_type": "citation", "etymon_ref": "old-norse:gás"}
 {"_type": "citation", "etymon_ref": "celtic:ngédh"}
 {"_type": "citation", "etymon_ref": "old-english:gōs"}
@@ -2135,9 +2135,9 @@
 {"_type": "citation", "etymon_ref": "old-english:beonet"}
 {"_type": "citation", "etymon_ref": "old-english:gefeaxe"}
 {"_type": "citation", "etymon_ref": "celtic:bedd"}
-{"_type": "citation", "etymon_ref": "celtic:bedh"}
+{"_type": "citation", "etymon_ref": "brittonic:bedh"}
 {"_type": "citation", "etymon_ref": "celtic:leaba"}
-{"_type": "citation", "etymon_ref": "celtic:leacht"}
+{"_type": "citation", "etymon_ref": "goidelic:leacht"}
 {"_type": "citation", "etymon_ref": "old-english:pytt"}
 {"_type": "citation", "etymon_ref": "old-english:graef"}
 {"_type": "citation", "etymon_ref": "old-norse:gryfja"}
@@ -2156,13 +2156,13 @@
 {"_type": "citation", "etymon_ref": "celtic:léith"}
 {"_type": "citation", "etymon_ref": "celtic:riach"}
 {"_type": "citation", "etymon_ref": "celtic:riabhach"}
-{"_type": "citation", "etymon_ref": "celtic:tuar"}
+{"_type": "citation", "etymon_ref": "goidelic:tuar"}
 {"_type": "citation", "etymon_ref": "old-english:grēne"}
 {"_type": "citation", "etymon_ref": "celtic:faiche"}
 {"_type": "citation", "etymon_ref": "celtic:glas"}
-{"_type": "citation", "etymon_ref": "celtic:ghlais"}
+{"_type": "citation", "etymon_ref": "goidelic:ghlais"}
 {"_type": "citation", "etymon_ref": "celtic:carden"}
-{"_type": "citation", "etymon_ref": "celtic:faire"}
+{"_type": "citation", "etymon_ref": "goidelic:faire"}
 {"_type": "citation", "etymon_ref": "old-english:garde"}
 {"_type": "citation", "etymon_ref": "old-english:garder"}
 {"_type": "citation", "etymon_ref": "old-english:guarder"}
@@ -2183,7 +2183,7 @@
 {"_type": "citation", "etymon_ref": "old-english:haefen"}
 {"_type": "citation", "etymon_ref": "old-norse:hafn"}
 {"_type": "citation", "etymon_ref": "celtic:loch"}
-{"_type": "citation", "etymon_ref": "celtic:porth"}
+{"_type": "citation", "etymon_ref": "brittonic:porth"}
 {"_type": "citation", "etymon_ref": "celtic:ùig"}
 {"_type": "citation", "etymon_ref": "old-norse:vágr"}
 {"_type": "citation", "etymon_ref": "old-norse:vík"}
@@ -2198,7 +2198,7 @@
 {"_type": "citation", "etymon_ref": "old-english:putta"}
 {"_type": "citation", "etymon_ref": "old-english:wrocc"}
 {"_type": "citation", "etymon_ref": "old-english:hagu-thyrne"}
-{"_type": "citation", "etymon_ref": "celtic:sceach"}
+{"_type": "citation", "etymon_ref": "goidelic:sceach"}
 {"_type": "citation", "etymon_ref": "old-english:filethe"}
 {"_type": "citation", "etymon_ref": "old-english:hēg"}
 {"_type": "citation", "etymon_ref": "old-english:hīg"}
@@ -2207,15 +2207,15 @@
 {"_type": "citation", "etymon_ref": "celtic:choll"}
 {"_type": "citation", "etymon_ref": "celtic:gearr"}
 {"_type": "citation", "etymon_ref": "old-english:hēafod"}
-{"_type": "citation", "etymon_ref": "celtic:ceann"}
-{"_type": "citation", "etymon_ref": "celtic:cinn"}
+{"_type": "citation", "etymon_ref": "goidelic:ceann"}
+{"_type": "citation", "etymon_ref": "goidelic:cinn"}
 {"_type": "citation", "etymon_ref": "old-english:hāth"}
 {"_type": "citation", "etymon_ref": "old-english:haeth"}
 {"_type": "citation", "etymon_ref": "old-english:haes"}
 {"_type": "citation", "etymon_ref": "old-english:hengest"}
 {"_type": "citation", "etymon_ref": "old-english:lael"}
-{"_type": "citation", "etymon_ref": "celtic:pres"}
-{"_type": "citation", "etymon_ref": "celtic:perth"}
+{"_type": "citation", "etymon_ref": "brittonic:pres"}
+{"_type": "citation", "etymon_ref": "brittonic:perth"}
 {"_type": "citation", "etymon_ref": "old-english:hrīs"}
 {"_type": "citation", "etymon_ref": "old-english:spearca"}
 {"_type": "citation", "etymon_ref": "old-english:hwippe"}
@@ -2248,11 +2248,11 @@
 {"_type": "citation", "etymon_ref": "old-english:hēa "}
 {"_type": "citation", "etymon_ref": "old-english:cloppa"}
 {"_type": "citation", "etymon_ref": "old-norse:klakkr"}
-{"_type": "citation", "etymon_ref": "celtic:corr"}
+{"_type": "citation", "etymon_ref": "goidelic:corr"}
 {"_type": "citation", "etymon_ref": "old-english:dūn"}
 {"_type": "citation", "etymon_ref": "old-english:billing"}
-{"_type": "citation", "etymon_ref": "celtic:bryn"}
-{"_type": "citation", "etymon_ref": "celtic:cnoc"}
+{"_type": "citation", "etymon_ref": "brittonic:bryn"}
+{"_type": "citation", "etymon_ref": "goidelic:cnoc"}
 {"_type": "citation", "etymon_ref": "old-english:cnoll"}
 {"_type": "citation", "etymon_ref": "norman-french:mont"}
 {"_type": "citation", "etymon_ref": "old-english:molda"}
@@ -2262,13 +2262,13 @@
 {"_type": "citation", "etymon_ref": "old-english:hyll"}
 {"_type": "citation", "etymon_ref": "old-norse:haeth"}
 {"_type": "citation", "etymon_ref": "celtic:crug"}
-{"_type": "citation", "etymon_ref": "celtic:tulach"}
+{"_type": "citation", "etymon_ref": "goidelic:tulach"}
 {"_type": "citation", "etymon_ref": "celtic:òrd"}
 {"_type": "citation", "etymon_ref": "celtic:alt"}
 {"_type": "citation", "etymon_ref": "celtic:allt"}
 {"_type": "citation", "etymon_ref": "old-english:helde"}
-{"_type": "citation", "etymon_ref": "celtic:learg"}
-{"_type": "citation", "etymon_ref": "celtic:leithid"}
+{"_type": "citation", "etymon_ref": "goidelic:learg"}
+{"_type": "citation", "etymon_ref": "goidelic:leithid"}
 {"_type": "citation", "etymon_ref": "old-english:slinu"}
 {"_type": "citation", "etymon_ref": "old-english:sīde"}
 {"_type": "citation", "etymon_ref": "old-norse:brekka"}
@@ -2292,18 +2292,18 @@
 {"_type": "citation", "etymon_ref": "old-english:topp"}
 {"_type": "citation", "etymon_ref": "old-english:hyra"}
 {"_type": "citation", "etymon_ref": "old-english:hūne"}
-{"_type": "citation", "etymon_ref": "celtic:poll"}
+{"_type": "citation", "etymon_ref": "goidelic:poll"}
 {"_type": "citation", "etymon_ref": "celtic:pollach"}
 {"_type": "citation", "etymon_ref": "celtic:lefant"}
 {"_type": "citation", "etymon_ref": "old-english:hol"}
 {"_type": "citation", "etymon_ref": "celtic:laig"}
-{"_type": "citation", "etymon_ref": "celtic:lag"}
+{"_type": "citation", "etymon_ref": "goidelic:lag"}
 {"_type": "citation", "etymon_ref": "celtic:cuileann"}
 {"_type": "citation", "etymon_ref": "celtic:cuilinn"}
 {"_type": "citation", "etymon_ref": "old-english:holegn"}
 {"_type": "citation", "etymon_ref": "old-english:hālig"}
-{"_type": "citation", "etymon_ref": "celtic:sans"}
-{"_type": "citation", "etymon_ref": "celtic:baile"}
+{"_type": "citation", "etymon_ref": "brittonic:sans"}
+{"_type": "citation", "etymon_ref": "goidelic:baile"}
 {"_type": "citation", "etymon_ref": "celtic:bhaile"}
 {"_type": "citation", "etymon_ref": "celtic:maenor"}
 {"_type": "citation", "etymon_ref": "celtic:tref"}
@@ -2328,7 +2328,7 @@
 {"_type": "citation", "etymon_ref": "old-norse:hestr"}
 {"_type": "citation", "etymon_ref": "old-english:hors"}
 {"_type": "citation", "etymon_ref": "old-english:hross"}
-{"_type": "citation", "etymon_ref": "celtic:marc"}
+{"_type": "citation", "etymon_ref": "goidelic:marc"}
 {"_type": "citation", "etymon_ref": "old-english:stōd"}
 {"_type": "citation", "etymon_ref": "celtic:gcapall"}
 {"_type": "citation", "etymon_ref": "celtic:eich"}
@@ -2340,7 +2340,7 @@
 {"_type": "citation", "etymon_ref": "old-english:wāth"}
 {"_type": "citation", "etymon_ref": "old-english:waethe-mann"}
 {"_type": "citation", "etymon_ref": "celtic:iarainn"}
-{"_type": "citation", "etymon_ref": "celtic:ynys"}
+{"_type": "citation", "etymon_ref": "brittonic:ynys"}
 {"_type": "citation", "etymon_ref": "old-norse:ey"}
 {"_type": "citation", "etymon_ref": "celtic:eilean"}
 {"_type": "citation", "etymon_ref": "old-english:ēg"}
@@ -2354,13 +2354,13 @@
 {"_type": "citation", "etymon_ref": "old-english:caeg"}
 {"_type": "citation", "etymon_ref": "old-english:cyln"}
 {"_type": "citation", "etymon_ref": "celtic:odn"}
-{"_type": "citation", "etymon_ref": "celtic:sorn"}
+{"_type": "citation", "etymon_ref": "goidelic:sorn"}
 {"_type": "citation", "etymon_ref": "celtic:háithe"}
 {"_type": "citation", "etymon_ref": "old-english:cyne"}
 {"_type": "citation", "etymon_ref": "old-english:cyning"}
 {"_type": "citation", "etymon_ref": "old-norse:konungr"}
 {"_type": "citation", "etymon_ref": "celtic:rí"}
-{"_type": "citation", "etymon_ref": "celtic:teyrn"}
+{"_type": "citation", "etymon_ref": "brittonic:teyrn"}
 {"_type": "citation", "etymon_ref": "norman-french:roial"}
 {"_type": "citation", "etymon_ref": "celtic:scine"}
 {"_type": "citation", "etymon_ref": "old-english:mael"}
@@ -2402,7 +2402,7 @@
 {"_type": "citation", "etymon_ref": "old-english:hlanc"}
 {"_type": "citation", "etymon_ref": "old-english:langan"}
 {"_type": "citation", "etymon_ref": "old-norse:langr"}
-{"_type": "citation", "etymon_ref": "celtic:fhada"}
+{"_type": "citation", "etymon_ref": "goidelic:fhada"}
 {"_type": "citation", "etymon_ref": "old-english:prāw"}
 {"_type": "citation", "etymon_ref": "old-english:tōt"}
 {"_type": "citation", "etymon_ref": "old-english:weard"}
@@ -2413,7 +2413,7 @@
 {"_type": "citation", "etymon_ref": "celtic:bref"}
 {"_type": "citation", "etymon_ref": "celtic:labhar"}
 {"_type": "citation", "etymon_ref": "old-english:lūs"}
-{"_type": "citation", "etymon_ref": "celtic:fo"}
+{"_type": "citation", "etymon_ref": "goidelic:fo"}
 {"_type": "citation", "etymon_ref": "celtic:foter"}
 {"_type": "citation", "etymon_ref": "old-english:neotherra"}
 {"_type": "citation", "etymon_ref": "old-english:under"}
@@ -2425,7 +2425,7 @@
 {"_type": "citation", "etymon_ref": "old-english:mapuldor"}
 {"_type": "citation", "etymon_ref": "old-norse:mapel"}
 {"_type": "citation", "etymon_ref": "old-english:golde"}
-{"_type": "citation", "etymon_ref": "celtic:marghas"}
+{"_type": "citation", "etymon_ref": "brittonic:marghas"}
 {"_type": "citation", "etymon_ref": "celtic:mharga"}
 {"_type": "citation", "etymon_ref": "old-english:wīc"}
 {"_type": "citation", "etymon_ref": "celtic:bogach"}
@@ -2438,7 +2438,7 @@
 {"_type": "citation", "etymon_ref": "old-english:mos"}
 {"_type": "citation", "etymon_ref": "old-norse:mosi"}
 {"_type": "citation", "etymon_ref": "celtic:migh"}
-{"_type": "citation", "etymon_ref": "celtic:monadh"}
+{"_type": "citation", "etymon_ref": "goidelic:monadh"}
 {"_type": "citation", "etymon_ref": "old-norse:myrr"}
 {"_type": "citation", "etymon_ref": "celtic:rhos"}
 {"_type": "citation", "etymon_ref": "celtic:siesceann"}
@@ -2446,7 +2446,7 @@
 {"_type": "citation", "etymon_ref": "old-english:saege"}
 {"_type": "citation", "etymon_ref": "old-english:sumpt"}
 {"_type": "citation", "etymon_ref": "celtic:tonnach"}
-{"_type": "citation", "etymon_ref": "celtic:turlach"}
+{"_type": "citation", "etymon_ref": "goidelic:turlach"}
 {"_type": "citation", "etymon_ref": "old-english:wagen"}
 {"_type": "citation", "etymon_ref": "old-english:waefre"}
 {"_type": "citation", "etymon_ref": "old-english:wisc"}
@@ -2454,9 +2454,9 @@
 {"_type": "citation", "etymon_ref": "old-english:mōr"}
 {"_type": "citation", "etymon_ref": "old-norse:kjarr"}
 {"_type": "citation", "etymon_ref": "celtic:riascadh"}
-{"_type": "citation", "etymon_ref": "celtic:eanach"}
-{"_type": "citation", "etymon_ref": "celtic:gorn"}
-{"_type": "citation", "etymon_ref": "celtic:moin"}
+{"_type": "citation", "etymon_ref": "goidelic:eanach"}
+{"_type": "citation", "etymon_ref": "goidelic:gorn"}
+{"_type": "citation", "etymon_ref": "goidelic:moin"}
 {"_type": "citation", "etymon_ref": "celtic:maegthe"}
 {"_type": "citation", "etymon_ref": "celtic:medd"}
 {"_type": "citation", "etymon_ref": "old-english:myrge"}
@@ -2467,7 +2467,7 @@
 {"_type": "citation", "etymon_ref": "celtic:meáin"}
 {"_type": "citation", "etymon_ref": "old-english:mycg"}
 {"_type": "citation", "etymon_ref": "old-english:melce"}
-{"_type": "citation", "etymon_ref": "celtic:bainne"}
+{"_type": "citation", "etymon_ref": "goidelic:bainne"}
 {"_type": "citation", "etymon_ref": "old-english:cweorn"}
 {"_type": "citation", "etymon_ref": "old-english:melde"}
 {"_type": "citation", "etymon_ref": "norman-french:molin"}
@@ -2477,17 +2477,17 @@
 {"_type": "citation", "etymon_ref": "old-english:minte"}
 {"_type": "citation", "etymon_ref": "celtic:cheo"}
 {"_type": "citation", "etymon_ref": "old-english:munuc"}
-{"_type": "citation", "etymon_ref": "celtic:manach"}
+{"_type": "citation", "etymon_ref": "goidelic:manach"}
 {"_type": "citation", "etymon_ref": "celtic:mynach"}
 {"_type": "citation", "etymon_ref": "old-english:ragu"}
 {"_type": "citation", "etymon_ref": "celtic:chaonaigh"}
-{"_type": "citation", "etymon_ref": "celtic:beinn"}
-{"_type": "citation", "etymon_ref": "celtic:blain"}
+{"_type": "citation", "etymon_ref": "goidelic:beinn"}
+{"_type": "citation", "etymon_ref": "brittonic:blain"}
 {"_type": "citation", "etymon_ref": "old-norse:gnípa"}
-{"_type": "citation", "etymon_ref": "celtic:mullach"}
+{"_type": "citation", "etymon_ref": "goidelic:mullach"}
 {"_type": "citation", "etymon_ref": "celtic:mönïth"}
 {"_type": "citation", "etymon_ref": "celtic:mynydd"}
-{"_type": "citation", "etymon_ref": "celtic:sliabh"}
+{"_type": "citation", "etymon_ref": "goidelic:sliabh"}
 {"_type": "citation", "etymon_ref": "celtic:tsléibhe"}
 {"_type": "citation", "etymon_ref": "celtic:trasna"}
 {"_type": "citation", "etymon_ref": "old-english:mūs"}
@@ -2500,7 +2500,7 @@
 {"_type": "citation", "etymon_ref": "old-norse:mjór"}
 {"_type": "citation", "etymon_ref": "old-english:naru"}
 {"_type": "citation", "etymon_ref": "old-english:smael"}
-{"_type": "citation", "etymon_ref": "celtic:caol"}
+{"_type": "citation", "etymon_ref": "goidelic:caol"}
 {"_type": "citation", "etymon_ref": "celtic:caolas"}
 {"_type": "citation", "etymon_ref": "norman-french:lès"}
 {"_type": "citation", "etymon_ref": "old-english:hals"}
@@ -2530,7 +2530,7 @@
 {"_type": "citation", "etymon_ref": "old-english:āc"}
 {"_type": "citation", "etymon_ref": "old-english:ācen"}
 {"_type": "citation", "etymon_ref": "celtic:darach"}
-{"_type": "citation", "etymon_ref": "celtic:doire"}
+{"_type": "citation", "etymon_ref": "goidelic:doire"}
 {"_type": "citation", "etymon_ref": "celtic:dara"}
 {"_type": "citation", "etymon_ref": "old-norse:eik"}
 {"_type": "citation", "etymon_ref": "celtic:homna"}
@@ -2541,7 +2541,7 @@
 {"_type": "citation", "etymon_ref": "celtic:ghairr"}
 {"_type": "citation", "etymon_ref": "old-english:eald"}
 {"_type": "citation", "etymon_ref": "old-english:ald"}
-{"_type": "citation", "etymon_ref": "celtic:sean"}
+{"_type": "citation", "etymon_ref": "goidelic:sean"}
 {"_type": "citation", "etymon_ref": "old-norse:vogn"}
 {"_type": "citation", "etymon_ref": "old-english:orceard"}
 {"_type": "citation", "etymon_ref": "celtic:tabhallort"}
@@ -2555,11 +2555,11 @@
 {"_type": "citation", "etymon_ref": "old-english:panne"}
 {"_type": "citation", "etymon_ref": "celtic:belach"}
 {"_type": "citation", "etymon_ref": "celtic:mám"}
-{"_type": "citation", "etymon_ref": "celtic:meall"}
+{"_type": "citation", "etymon_ref": "goidelic:meall"}
 {"_type": "citation", "etymon_ref": "norman-french:pas"}
 {"_type": "citation", "etymon_ref": "old-english:butere"}
 {"_type": "citation", "etymon_ref": "old-norse:saetr"}
-{"_type": "citation", "etymon_ref": "celtic:cluana"}
+{"_type": "citation", "etymon_ref": "goidelic:cluana"}
 {"_type": "citation", "etymon_ref": "old-english:winn"}
 {"_type": "citation", "etymon_ref": "celtic:etisc"}
 {"_type": "citation", "etymon_ref": "celtic:cliora"}
@@ -2588,7 +2588,7 @@
 {"_type": "citation", "etymon_ref": "old-english:fōr"}
 {"_type": "citation", "etymon_ref": "old-norse:gríss"}
 {"_type": "citation", "etymon_ref": "old-english:hlōse"}
-{"_type": "citation", "etymon_ref": "celtic:muc"}
+{"_type": "citation", "etymon_ref": "goidelic:muc"}
 {"_type": "citation", "etymon_ref": "celtic:mocc"}
 {"_type": "citation", "etymon_ref": "old-english:sulig"}
 {"_type": "citation", "etymon_ref": "old-english:swīn"}
@@ -2605,17 +2605,17 @@
 {"_type": "citation", "etymon_ref": "old-english:pīpere"}
 {"_type": "citation", "etymon_ref": "old-english:wīcinga"}
 {"_type": "citation", "etymon_ref": "celtic:cleacán"}
-{"_type": "citation", "etymon_ref": "celtic:machaire"}
-{"_type": "citation", "etymon_ref": "celtic:maigh"}
-{"_type": "citation", "etymon_ref": "celtic:magh"}
+{"_type": "citation", "etymon_ref": "goidelic:machaire"}
+{"_type": "citation", "etymon_ref": "goidelic:maigh"}
+{"_type": "citation", "etymon_ref": "goidelic:magh"}
 {"_type": "citation", "etymon_ref": "old-english:thel"}
 {"_type": "citation", "etymon_ref": "old-english:hēore"}
-{"_type": "citation", "etymon_ref": "celtic:hawdd"}
+{"_type": "citation", "etymon_ref": "brittonic:hawdd"}
 {"_type": "citation", "etymon_ref": "old-english:erth"}
 {"_type": "citation", "etymon_ref": "old-english:eorth"}
 {"_type": "citation", "etymon_ref": "celtic:gort"}
 {"_type": "citation", "etymon_ref": "old-english:lām"}
-{"_type": "citation", "etymon_ref": "celtic:losad"}
+{"_type": "citation", "etymon_ref": "goidelic:losad"}
 {"_type": "citation", "etymon_ref": "old-norse:hreysi"}
 {"_type": "citation", "etymon_ref": "old-english:swaer"}
 {"_type": "citation", "etymon_ref": "celtic:tamhnaigh"}
@@ -2638,17 +2638,17 @@
 {"_type": "citation", "etymon_ref": "old-english:gyrd"}
 {"_type": "citation", "etymon_ref": "old-english:pūl"}
 {"_type": "citation", "etymon_ref": "old-english:pyll"}
-{"_type": "citation", "etymon_ref": "celtic:logh"}
+{"_type": "citation", "etymon_ref": "brittonic:logh"}
 {"_type": "citation", "etymon_ref": "old-english:luh"}
 {"_type": "citation", "etymon_ref": "old-english:lumm"}
-{"_type": "citation", "etymon_ref": "celtic:linn"}
+{"_type": "citation", "etymon_ref": "goidelic:linn"}
 {"_type": "citation", "etymon_ref": "old-english:mere"}
 {"_type": "citation", "etymon_ref": "old-english:stall"}
 {"_type": "citation", "etymon_ref": "celtic:phoill"}
 {"_type": "citation", "etymon_ref": "old-english:plaesc"}
 {"_type": "citation", "etymon_ref": "old-norse:tjorn"}
 {"_type": "citation", "etymon_ref": "old-english:nēd"}
-{"_type": "citation", "etymon_ref": "celtic:pett"}
+{"_type": "citation", "etymon_ref": "goidelic:pett"}
 {"_type": "citation", "etymon_ref": "old-english:ingas"}
 {"_type": "citation", "etymon_ref": "celtic:y"}
 {"_type": "citation", "etymon_ref": "old-english:pott"}
@@ -2660,7 +2660,7 @@
 {"_type": "citation", "etymon_ref": "old-english:naess"}
 {"_type": "citation", "etymon_ref": "old-norse:nes"}
 {"_type": "citation", "etymon_ref": "old-english:neosu"}
-{"_type": "citation", "etymon_ref": "celtic:rinn"}
+{"_type": "citation", "etymon_ref": "goidelic:rinn"}
 {"_type": "citation", "etymon_ref": "celtic:ros"}
 {"_type": "citation", "etymon_ref": "old-english:steort"}
 {"_type": "citation", "etymon_ref": "old-english:hofuth"}
@@ -2695,22 +2695,22 @@
 {"_type": "citation", "etymon_ref": "old-english:rēfa"}
 {"_type": "citation", "etymon_ref": "old-english:flēam"}
 {"_type": "citation", "etymon_ref": "old-english:frithen"}
-{"_type": "citation", "etymon_ref": "celtic:cil"}
+{"_type": "citation", "etymon_ref": "brittonic:cil"}
 {"_type": "citation", "etymon_ref": "old-english:hald"}
 {"_type": "citation", "etymon_ref": "old-english:hlēg"}
 {"_type": "citation", "etymon_ref": "old-english:hlēo"}
 {"_type": "citation", "etymon_ref": "old-english:scēo"}
-{"_type": "citation", "etymon_ref": "celtic:tearmann"}
+{"_type": "citation", "etymon_ref": "goidelic:tearmann"}
 {"_type": "citation", "etymon_ref": "celtic:fosgadh"}
 {"_type": "citation", "etymon_ref": "old-english:cniht"}
 {"_type": "citation", "etymon_ref": "old-english:thegn"}
 {"_type": "citation", "etymon_ref": "old-english:ribbe"}
 {"_type": "citation", "etymon_ref": "celtic:droim"}
 {"_type": "citation", "etymon_ref": "celtic:druim"}
-{"_type": "citation", "etymon_ref": "celtic:droma"}
-{"_type": "citation", "etymon_ref": "celtic:keyn"}
+{"_type": "citation", "etymon_ref": "goidelic:droma"}
+{"_type": "citation", "etymon_ref": "brittonic:keyn"}
 {"_type": "citation", "etymon_ref": "celtic:cevn"}
-{"_type": "citation", "etymon_ref": "celtic:iomaire"}
+{"_type": "citation", "etymon_ref": "goidelic:iomaire"}
 {"_type": "citation", "etymon_ref": "celtic:málainn"}
 {"_type": "citation", "etymon_ref": "old-english:ord"}
 {"_type": "citation", "etymon_ref": "old-english:ofer"}
@@ -2732,14 +2732,14 @@
 {"_type": "citation", "etymon_ref": "old-english:mythe"}
 {"_type": "citation", "etymon_ref": "celtic:aber"}
 {"_type": "citation", "etymon_ref": "old-english:twisla"}
-{"_type": "citation", "etymon_ref": "celtic:srath"}
-{"_type": "citation", "etymon_ref": "celtic:inbhir"}
-{"_type": "citation", "etymon_ref": "celtic:béal"}
+{"_type": "citation", "etymon_ref": "goidelic:srath"}
+{"_type": "citation", "etymon_ref": "goidelic:inbhir"}
+{"_type": "citation", "etymon_ref": "goidelic:béal"}
 {"_type": "citation", "etymon_ref": "celtic:srón"}
 {"_type": "citation", "etymon_ref": "old-norse:súl"}
 {"_type": "citation", "etymon_ref": "old-norse:mynni"}
 {"_type": "citation", "etymon_ref": "old-english:mūtha"}
-{"_type": "citation", "etymon_ref": "celtic:heyl"}
+{"_type": "citation", "etymon_ref": "brittonic:heyl"}
 {"_type": "citation", "etymon_ref": "old-norse:á"}
 {"_type": "citation", "etymon_ref": "celtic:avon"}
 {"_type": "citation", "etymon_ref": "celtic:abh"}
@@ -2754,11 +2754,11 @@
 {"_type": "citation", "etymon_ref": "old-english:brōc"}
 {"_type": "citation", "etymon_ref": "celtic:dín"}
 {"_type": "citation", "etymon_ref": "celtic:nant"}
-{"_type": "citation", "etymon_ref": "celtic:frud"}
+{"_type": "citation", "etymon_ref": "brittonic:frud"}
 {"_type": "citation", "etymon_ref": "old-english:racu"}
 {"_type": "citation", "etymon_ref": "celtic:bhóthair"}
 {"_type": "citation", "etymon_ref": "old-norse:gata"}
-{"_type": "citation", "etymon_ref": "celtic:hynt"}
+{"_type": "citation", "etymon_ref": "brittonic:hynt"}
 {"_type": "citation", "etymon_ref": "old-english:lanu"}
 {"_type": "citation", "etymon_ref": "old-english:paeth"}
 {"_type": "citation", "etymon_ref": "old-english:straet"}
@@ -2772,7 +2772,7 @@
 {"_type": "citation", "etymon_ref": "old-norse:stafr"}
 {"_type": "citation", "etymon_ref": "celtic:allmhagh"}
 {"_type": "citation", "etymon_ref": "old-english:heópe"}
-{"_type": "citation", "etymon_ref": "celtic:garbh"}
+{"_type": "citation", "etymon_ref": "goidelic:garbh"}
 {"_type": "citation", "etymon_ref": "old-english:hraun"}
 {"_type": "citation", "etymon_ref": "old-english:hrēof"}
 {"_type": "citation", "etymon_ref": "old-english:rūh"}
@@ -2856,12 +2856,12 @@
 {"_type": "citation", "etymon_ref": "celtic:airgid"}
 {"_type": "citation", "etymon_ref": "celtic:siúr"}
 {"_type": "citation", "etymon_ref": "old-norse:skinnari"}
-{"_type": "citation", "etymon_ref": "celtic:air"}
+{"_type": "citation", "etymon_ref": "goidelic:air"}
 {"_type": "citation", "etymon_ref": "celtic:leathoir"}
 {"_type": "citation", "etymon_ref": "old-english:lytel"}
 {"_type": "citation", "etymon_ref": "celtic:beaga"}
 {"_type": "citation", "etymon_ref": "celtic:bechan"}
-{"_type": "citation", "etymon_ref": "celtic:byghan"}
+{"_type": "citation", "etymon_ref": "brittonic:byghan"}
 {"_type": "citation", "etymon_ref": "norman-french:ette"}
 {"_type": "citation", "etymon_ref": "old-english:merece"}
 {"_type": "citation", "etymon_ref": "old-english:faefer"}
@@ -2901,8 +2901,8 @@
 {"_type": "citation", "etymon_ref": "old-english:plaga"}
 {"_type": "citation", "etymon_ref": "old-norse:leikr"}
 {"_type": "citation", "etymon_ref": "old-english:cilla"}
-{"_type": "citation", "etymon_ref": "celtic:tobair"}
-{"_type": "citation", "etymon_ref": "celtic:tobar"}
+{"_type": "citation", "etymon_ref": "goidelic:tobair"}
+{"_type": "citation", "etymon_ref": "goidelic:tobar"}
 {"_type": "citation", "etymon_ref": "old-english:wealm"}
 {"_type": "citation", "etymon_ref": "old-english:wapol"}
 {"_type": "citation", "etymon_ref": "old-english:wella"}
@@ -2953,8 +2953,8 @@
 {"_type": "citation", "etymon_ref": "old-english:thaecce"}
 {"_type": "citation", "etymon_ref": "celtic:foithir"}
 {"_type": "citation", "etymon_ref": "celtic:mhuine"}
-{"_type": "citation", "etymon_ref": "celtic:muine"}
-{"_type": "citation", "etymon_ref": "celtic:preas"}
+{"_type": "citation", "etymon_ref": "goidelic:muine"}
+{"_type": "citation", "etymon_ref": "goidelic:preas"}
 {"_type": "citation", "etymon_ref": "celtic:perta"}
 {"_type": "citation", "etymon_ref": "old-english:wrīdels"}
 {"_type": "citation", "etymon_ref": "old-english:chardon"}
@@ -2975,7 +2975,7 @@
 {"_type": "citation", "etymon_ref": "old-english:hlynn"}
 {"_type": "citation", "etymon_ref": "celtic:iúir"}
 {"_type": "citation", "etymon_ref": "celtic:mòr"}
-{"_type": "citation", "etymon_ref": "celtic:dinas"}
+{"_type": "citation", "etymon_ref": "brittonic:dinas"}
 {"_type": "citation", "etymon_ref": "germanic:tunaz"}
 {"_type": "citation", "etymon_ref": "germanic:tunan"}
 {"_type": "citation", "etymon_ref": "germanic:zun"}
@@ -2989,7 +2989,7 @@
 {"_type": "citation", "etymon_ref": "old-norse:bolr"}
 {"_type": "citation", "etymon_ref": "old-english:trēow"}
 {"_type": "citation", "etymon_ref": "celtic:croabh"}
-{"_type": "citation", "etymon_ref": "celtic:craoibhe"}
+{"_type": "citation", "etymon_ref": "goidelic:craoibhe"}
 {"_type": "citation", "etymon_ref": "old-english:bēam-"}
 {"_type": "citation", "etymon_ref": "old-english:stybb"}
 {"_type": "citation", "etymon_ref": "old-english:styfic"}
@@ -3003,7 +3003,7 @@
 {"_type": "citation", "etymon_ref": "celtic:tuama"}
 {"_type": "citation", "etymon_ref": "celtic:crüg"}
 {"_type": "citation", "etymon_ref": "old-english:twinn"}
-{"_type": "citation", "etymon_ref": "celtic:dew"}
+{"_type": "citation", "etymon_ref": "brittonic:dew"}
 {"_type": "citation", "etymon_ref": "celtic:dá"}
 {"_type": "citation", "etymon_ref": "celtic:dwy"}
 {"_type": "citation", "etymon_ref": "old-english:twī"}
@@ -3020,9 +3020,9 @@
 {"_type": "citation", "etymon_ref": "old-english:cinu"}
 {"_type": "citation", "etymon_ref": "old-english:comb"}
 {"_type": "citation", "etymon_ref": "old-english:cumb"}
-{"_type": "citation", "etymon_ref": "celtic:cwm"}
+{"_type": "citation", "etymon_ref": "brittonic:cwm"}
 {"_type": "citation", "etymon_ref": "celtic:dumbel"}
-{"_type": "citation", "etymon_ref": "celtic:gleann"}
+{"_type": "citation", "etymon_ref": "goidelic:gleann"}
 {"_type": "citation", "etymon_ref": "celtic:glinne"}
 {"_type": "citation", "etymon_ref": "old-norse:kjóss"}
 {"_type": "citation", "etymon_ref": "celtic:laggan"}
@@ -3046,7 +3046,7 @@
 {"_type": "citation", "etymon_ref": "old-english:caers"}
 {"_type": "citation", "etymon_ref": "old-english:caerse"}
 {"_type": "citation", "etymon_ref": "old-english:scenc"}
-{"_type": "citation", "etymon_ref": "celtic:easa"}
+{"_type": "citation", "etymon_ref": "goidelic:easa"}
 {"_type": "citation", "etymon_ref": "old-english:thēote"}
 {"_type": "citation", "etymon_ref": "celtic:chléithe"}
 {"_type": "citation", "etymon_ref": "old-norse:strjón"}
@@ -3054,7 +3054,7 @@
 {"_type": "citation", "etymon_ref": "old-english:wifel"}
 {"_type": "citation", "etymon_ref": "old-english:wer"}
 {"_type": "citation", "etymon_ref": "old-english:gear"}
-{"_type": "citation", "etymon_ref": "celtic:cara"}
+{"_type": "citation", "etymon_ref": "goidelic:cara"}
 {"_type": "citation", "etymon_ref": "celtic:cora"}
 {"_type": "citation", "etymon_ref": "old-english:west"}
 {"_type": "citation", "etymon_ref": "old-norse:vestr"}
@@ -3063,22 +3063,22 @@
 {"_type": "citation", "etymon_ref": "celtic:fliuch"}
 {"_type": "citation", "etymon_ref": "old-english:wēt"}
 {"_type": "citation", "etymon_ref": "old-english:wētan"}
-{"_type": "citation", "etymon_ref": "celtic:wlïb"}
+{"_type": "citation", "etymon_ref": "brittonic:wlïb"}
 {"_type": "citation", "etymon_ref": "celtic:gulip"}
 {"_type": "citation", "etymon_ref": "old-norse:hvalr"}
 {"_type": "citation", "etymon_ref": "old-english:hwaete"}
 {"_type": "citation", "etymon_ref": "norman-french:blanche"}
 {"_type": "citation", "etymon_ref": "celtic:fionn"}
 {"_type": "citation", "etymon_ref": "celtic:ghil"}
-{"_type": "citation", "etymon_ref": "celtic:gof"}
-{"_type": "citation", "etymon_ref": "celtic:gwynn"}
+{"_type": "citation", "etymon_ref": "brittonic:gof"}
+{"_type": "citation", "etymon_ref": "brittonic:gwynn"}
 {"_type": "citation", "etymon_ref": "old-english:hwīt"}
 {"_type": "citation", "etymon_ref": "old-norse:hvit"}
-{"_type": "citation", "etymon_ref": "celtic:wïnn"}
+{"_type": "citation", "etymon_ref": "brittonic:wïnn"}
 {"_type": "citation", "etymon_ref": "celtic:bán"}
 {"_type": "citation", "etymon_ref": "celtic:bàn"}
 {"_type": "citation", "etymon_ref": "celtic:bàine"}
-{"_type": "citation", "etymon_ref": "celtic:geal"}
+{"_type": "citation", "etymon_ref": "goidelic:geal"}
 {"_type": "citation", "etymon_ref": "old-english:rūm"}
 {"_type": "citation", "etymon_ref": "old-english:wīd"}
 {"_type": "citation", "etymon_ref": "celtic:helygen"}
@@ -3096,7 +3096,7 @@
 {"_type": "citation", "etymon_ref": "old-english:wincen"}
 {"_type": "citation", "etymon_ref": "old-english:windels"}
 {"_type": "citation", "etymon_ref": "old-english:wind"}
-{"_type": "citation", "etymon_ref": "celtic:gaoithe"}
+{"_type": "citation", "etymon_ref": "goidelic:gaoithe"}
 {"_type": "citation", "etymon_ref": "old-english:wōn"}
 {"_type": "citation", "etymon_ref": "old-english:wēfer"}
 {"_type": "citation", "etymon_ref": "old-english:winter"}
@@ -3108,12 +3108,12 @@
 {"_type": "citation", "etymon_ref": "old-english:wīf"}
 {"_type": "citation", "etymon_ref": "old-norse:kona"}
 {"_type": "citation", "etymon_ref": "old-norse:kvenna"}
-{"_type": "citation", "etymon_ref": "celtic:mban"}
+{"_type": "citation", "etymon_ref": "goidelic:mban"}
 {"_type": "citation", "etymon_ref": "old-english:spēne"}
 {"_type": "citation", "etymon_ref": "old-english:speld"}
 {"_type": "citation", "etymon_ref": "old-english:hyrst"}
 {"_type": "citation", "etymon_ref": "old-english:wōr"}
-{"_type": "citation", "etymon_ref": "celtic:dail"}
+{"_type": "citation", "etymon_ref": "goidelic:dail"}
 {"_type": "citation", "etymon_ref": "celtic:dôl"}
 {"_type": "citation", "etymon_ref": "celtic:gwaun"}
 {"_type": "citation", "etymon_ref": "old-english:lēah"}
@@ -3126,7 +3126,7 @@
 {"_type": "citation", "etymon_ref": "norman-french:launde"}
 {"_type": "citation", "etymon_ref": "old-norse:lō"}
 {"_type": "citation", "etymon_ref": "celtic:māwe"}
-{"_type": "citation", "etymon_ref": "celtic:innis"}
+{"_type": "citation", "etymon_ref": "goidelic:innis"}
 {"_type": "citation", "etymon_ref": "celtic:ghlasaich"}
 {"_type": "citation", "etymon_ref": "celtic:ghlas"}
 {"_type": "citation", "etymon_ref": "norman-french:assart"}
@@ -3143,7 +3143,7 @@
 {"_type": "citation", "etymon_ref": "old-english:īg"}
 {"_type": "citation", "etymon_ref": "celtic:núir"}
 {"_type": "citation", "etymon_ref": "celtic:iuir"}
-{"_type": "citation", "etymon_ref": "celtic:eo"}
+{"_type": "citation", "etymon_ref": "goidelic:eo"}
 {"_type": "citation", "etymon_ref": "celtic:iubhar"}
 {"_type": "citation", "etymon_ref": "celtic:cuinge"}
 {"_type": "citation", "etymon_ref": "germanic:ahknes"}

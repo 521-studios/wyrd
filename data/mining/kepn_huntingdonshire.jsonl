@@ -300,9 +300,9 @@
 {"_type": "etymon", "ref": "old-english:burna", "canonical_form": "burna", "language": "old-english", "glosses": ["A stream."]}
 {"_type": "citation", "etymon_ref": "old-english:burna"}
 {"_type": "citation", "etymon_ref": "old-english:burna", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mawer & Stenton; Place-names of Bedfordshire and Huntingdonshire"}
-{"_type": "etymon", "ref": "celtic:mǭr", "canonical_form": "mǭr", "language": "celtic"}
-{"_type": "citation", "etymon_ref": "celtic:mǭr"}
-{"_type": "citation", "etymon_ref": "celtic:mǭr", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mawer & Stenton; Place-names of Bedfordshire and Huntingdonshire"}
+{"_type": "etymon", "ref": "brittonic:mǭr", "canonical_form": "mǭr", "language": "brittonic"}
+{"_type": "citation", "etymon_ref": "brittonic:mǭr"}
+{"_type": "citation", "etymon_ref": "brittonic:mǭr", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Mawer & Stenton; Place-names of Bedfordshire and Huntingdonshire"}
 {"_type": "etymon", "ref": "old-english:nīwe", "canonical_form": "nīwe", "language": "old-english", "glosses": ["New."]}
 {"_type": "citation", "etymon_ref": "old-english:nīwe"}
 {"_type": "citation", "etymon_ref": "old-english:nīwe", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Gover; Mawer and Stenton, The Place-Names of Northamptonshire (Cambridge, 1933); Watts; Cambridge Dictionary of English Place-names"}
@@ -621,7 +621,7 @@
 {"_type": "toponym", "ref": "Molesworth@Huntingdonshire", "modern_name": "Molesworth", "country": "England", "region": "Huntingdonshire"}
 {"_type": "etymology_element", "toponym_ref": "Molesworth@Huntingdonshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:worð"}, {"ordinal": 2, "etymon_ref": "old-english:Mul"}], "notes": "Mul's enclosure"}
 {"_type": "toponym", "ref": "Morborne@Huntingdonshire", "modern_name": "Morborne", "country": "England", "region": "Huntingdonshire"}
-{"_type": "etymology_element", "toponym_ref": "Morborne@Huntingdonshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "celtic:mǭr"}], "notes": "Moor stream"}
+{"_type": "etymology_element", "toponym_ref": "Morborne@Huntingdonshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "brittonic:mǭr"}], "notes": "Moor stream"}
 {"_type": "toponym", "ref": "Newborough@Huntingdonshire", "modern_name": "Newborough", "country": "England", "region": "Huntingdonshire"}
 {"_type": "etymology_element", "toponym_ref": "Newborough@Huntingdonshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:nīwe"}], "notes": "New fortification"}
 {"_type": "toponym", "ref": "Normancross Hundred@Huntingdonshire", "modern_name": "Normancross Hundred", "country": "England", "region": "Huntingdonshire"}
