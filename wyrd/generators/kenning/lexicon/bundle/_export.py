@@ -400,6 +400,11 @@ def _build_canonical_rollup(
         # the projection (the rebuild --with-enrichment terminal pass), so the fallback
         # is a dev/test convenience — surfaced via a warning (not silent), never a raise
         # that would make the export unusable on any unprojected DB (wyrd-b2mf).
+        #
+        # KNOWN DEBT (wyrd-yopl): this soft contract — export correctness gated on an
+        # out-of-band projection step, enforced only by a warning — is gross but correct.
+        # Long-term: have the build guarantee/assert the projection ran so this branch
+        # is unreachable in real builds.
         if any(len(m) > 1 for m in legacy_members.values()):
             warnings.warn(
                 "canonical_morpheme_id is unpopulated — falling back to the legacy "
