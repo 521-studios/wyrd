@@ -22,7 +22,7 @@ trade-off without touching the SQL.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 
 from wyrd.generators.kenning.lexicon.bundle._emit import _orphan_reflex_subjects
 from wyrd.generators.kenning.lexicon.bundle._family import _bulk_attested_years, _gather_family
@@ -30,6 +30,11 @@ from wyrd.generators.kenning.lexicon.bundle._subject import (
     _group_families_into_subjects,
 )
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+
+# A canonical family key: a canonical-hub id (TEXT) for a bound etymon, or a
+# ``("legacy", <legacy root etymon id>)`` tag for an unbound one (a legacy
+# singleton). The tag keeps the hub-string and legacy-int namespaces disjoint.
+FamilyKey = str | tuple[Literal["legacy"], int]
 
 # Per-language witness thresholds calibrated against corpus availability and
 # spot-checked quality at w=2 (analysis 2026-05-02; OE relaxed to 2 in
@@ -384,7 +389,11 @@ def _build_canonical_rollup(
     bound = db.conn.execute(
         "SELECT id, canonical_morpheme_id FROM etymon WHERE canonical_morpheme_id IS NOT NULL"
     ).fetchall()
-    if not bound:
+    # Guard only when there's something that SHOULD be bound but isn't — i.e. a
+    # multi-member legacy family with no binds means the projection never ran
+    # (silent under-cluster risk). An empty / all-singleton DB has nothing to
+    # cluster, so it legitimately returns the singleton rollup (no false raise).
+    if not bound and any(len(m) > 1 for m in legacy_members.values()):
         raise RuntimeError(
             "canonical_morpheme_id is unpopulated — run `project-canonical --apply` "
             "(or `rebuild-from-jsonl --with-enrichment`) before exporting. The canonical "
@@ -393,30 +402,36 @@ def _build_canonical_rollup(
         )
     hub_of: dict[int, str] = {r["id"]: _hub_root(r["canonical_morpheme_id"]) for r in bound}
 
-    # Each etymon's canonical family key: its hub (bound) or its own legacy root
-    # (unbound == legacy singleton). Group etymons by it.
-    members_by_family: dict[object, list[int]] = {}
-    for members in legacy_members.values():
+    # Group by canonical family, tracking which LEGACY roots land in each. Iterate
+    # legacy_members (already keyed by legacy root from _build_family_rollup) so we
+    # never re-walk legacy_root_of per etymon. ``eid in hub_of`` (not truthiness):
+    # a bound etymon's hub id is non-empty, but membership is the precise test.
+    members_by_family: dict[FamilyKey, list[int]] = {}
+    family_legacy_roots: dict[FamilyKey, set[int]] = {}
+    for legacy_root, members in legacy_members.items():
         for eid in members:
-            key: object = hub_of.get(eid) or ("legacy", legacy_root_of(eid))
+            # .get (membership, not truthiness): a bound etymon keeps its hub even
+            # if the hub id were empty — never silently falls through to legacy.
+            key: FamilyKey = hub_of.get(eid, ("legacy", legacy_root))
             members_by_family.setdefault(key, []).append(eid)
+            family_legacy_roots.setdefault(key, set()).add(legacy_root)
 
-    # Representative per family: the smallest-content-key legacy root among members.
-    legacy_roots = {
-        legacy_root_of(eid) for members in members_by_family.values() for eid in members
-    }
-    form_key = _content_keys(db, legacy_roots)
+    # Representative per family: the smallest-content-key legacy root (deterministic
+    # survivor when 1a binds merge several legacy families onto one hub).
+    all_roots = {r for roots in family_legacy_roots.values() for r in roots}
+    form_key = _content_keys(db, all_roots)
 
     members_by_root: dict[int, list[int]] = {}
-    rep_by_family: dict[object, int] = {}
-    for key, members in members_by_family.items():
-        roots = {legacy_root_of(eid) for eid in members}
+    rep_of_etymon: dict[int, int] = {}
+    for key, roots in family_legacy_roots.items():
         rep = min(roots, key=lambda r: (form_key.get(r, ("", "")), r))
-        rep_by_family[key] = rep
+        members = members_by_family[key]
         members_by_root[rep] = members
+        for eid in members:
+            rep_of_etymon[eid] = rep
 
     def root_of(eid: int) -> int:
-        return rep_by_family[hub_of.get(eid) or ("legacy", legacy_root_of(eid))]
+        return rep_of_etymon[eid]
 
     return members_by_root, root_of
 
