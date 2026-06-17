@@ -75,13 +75,16 @@ def build_riding_map(yorkshire_csv: Path) -> dict[str, str]:
     A place citing zero or more-than-one distinct Riding is omitted, so it stays
     at the ``Yorkshire`` county node rather than being assigned a guessed Riding.
     """
-    out: dict[str, str] = {}
+    # Accumulate the Ridings cited for each place across ALL its rows, so a name
+    # appearing in two rows with different Ridings is detected as ambiguous (not
+    # silently last-write-wins) and omitted.
+    seen: dict[str, set[str]] = {}
     with open(yorkshire_csv, encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
             ridings = {m.group(1) for m in _RIDING_RE.finditer(row.get("ReferenceTitle") or "")}
-            if len(ridings) == 1:
-                out[row["PlaceName"]] = f"{next(iter(ridings))} Riding"
-    return out
+            if ridings:
+                seen.setdefault(row["PlaceName"], set()).update(ridings)
+    return {name: f"{next(iter(rs))} Riding" for name, rs in seen.items() if len(rs) == 1}
 
 
 def _split_ref(ref: str) -> tuple[str, str]:
@@ -105,7 +108,9 @@ def _new_region(
     try:
         return canonicalize_region(region, country=country)
     except RegionValidationError:
-        report.unfoldable[region] = report.unfoldable.get(region or "", 0) + 1
+        # region is a truthy str here (canonicalize_region only raises for an
+        # England-scoped non-empty value).
+        report.unfoldable[region] = report.unfoldable.get(region, 0) + 1
         return region
 
 
@@ -184,6 +189,8 @@ def _rewrite_ref(
     else:
         return
     ref = row[field_name]
+    if not isinstance(ref, str):
+        return
     name, region = _split_ref(ref)
     key = (name, region if region != "-" else None)
     if key not in remap:

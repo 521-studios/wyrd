@@ -49,10 +49,14 @@ def test_build_riding_map_omits_multi_riding(tmp_path: Path):
     csv = tmp_path / "yorkshire.csv"
     csv.write_text(
         "PlaceName,Etymology,Derivation,ReferenceTitle\n"
-        'Ambiguous,x,y,"West Riding of Yorkshire; North Riding of Yorkshire"\n',
+        'Ambiguous,x,y,"West Riding of Yorkshire; North Riding of Yorkshire"\n'
+        # same name across TWO rows with different Ridings → still omitted
+        # (accumulate-across-rows, not last-write-wins).
+        'Aldbrough,x,y,"East Riding of Yorkshire"\n'
+        'Aldbrough,x,y,"North Riding of Yorkshire"\n',
         encoding="utf-8",
     )
-    assert build_riding_map(csv) == {}  # cited in 2 Ridings → left at Yorkshire
+    assert build_riding_map(csv) == {}
 
 
 # --- normalize_rows: region --------------------------------------------------
@@ -78,8 +82,26 @@ def test_yorkshire_recode_updates_toponym_and_etymology_ref():
 
 def test_yorkshire_without_riding_mapping_stays_yorkshire():
     rows = [_topo("Mystery", "Yorkshire")]
-    normalize_rows(rows, riding_map={}, report=NormReport())
+    normalize_rows(rows, riding_map={}, report=(rep := NormReport()))
     assert rows[0]["region"] == "Yorkshire"  # valid county node, left as-is
+    assert rep.yorkshire_left_county == 1  # counted for observability
+
+
+def test_region_fold_rewrites_etymology_ref():
+    """The common case: a plain region fold (not Yorkshire) must also follow the
+    rename on the etymology cross-ref."""
+    rows = [_topo("Ipswich", "SUF"), _etym("Ipswich", "SUF")]
+    normalize_rows(rows, report=NormReport())
+    assert rows[1]["toponym_ref"] == "Ipswich@Suffolk"
+
+
+def test_non_england_null_country_derived_from_region():
+    """A null country on a non-England region is filled from the region→country
+    map (Argyll→Scotland) — the region itself stays as-is (deferred to .5)."""
+    rows = [_topo("Oban", "Argyll", country=None)]
+    normalize_rows(rows, report=NormReport())
+    assert rows[0]["region"] == "Argyll"
+    assert rows[0]["country"] == "Scotland"
 
 
 def test_unfoldable_region_left_unchanged_and_reported():

@@ -170,7 +170,7 @@
 {"_type": "toponym", "ref": "Aldborough@Norfolk", "modern_name": "Aldborough", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Aldborough@West Riding", "modern_name": "Aldborough", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Aldbourne@Wiltshire", "modern_name": "Aldbourne", "country": "England", "region": "Wiltshire"}
-{"_type": "toponym", "ref": "Aldbrough@East Riding", "modern_name": "Aldbrough", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Aldbrough@Yorkshire", "modern_name": "Aldbrough", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Aldbrough Saint John@Yorkshire", "modern_name": "Aldbrough Saint John", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Aldbrough St John@Yorkshire", "modern_name": "Aldbrough St John", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Aldbury@Hertfordshire", "modern_name": "Aldbury", "country": "England", "region": "Hertfordshire"}
@@ -870,7 +870,7 @@
 {"_type": "toponym", "ref": "Barcheston@Warwickshire", "modern_name": "Barcheston", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Barcombe@Sussex", "modern_name": "Barcombe", "country": "England", "region": "Sussex"}
 {"_type": "toponym", "ref": "Barcote@Berkshire", "modern_name": "Barcote", "country": "England", "region": "Berkshire"}
-{"_type": "toponym", "ref": "Barden@West Riding", "modern_name": "Barden", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Barden@Yorkshire", "modern_name": "Barden", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Bardfield@Essex", "modern_name": "Bardfield", "country": "England", "region": "Essex"}
 {"_type": "toponym", "ref": "Bardney@Lincolnshire", "modern_name": "Bardney", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Bardolfeston@Dorset", "modern_name": "Bardolfeston", "country": "England", "region": "Dorset"}
@@ -1490,7 +1490,7 @@
 {"_type": "toponym", "ref": "Bilston@Staffordshire", "modern_name": "Bilston", "country": "England", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Bilstone@Leicestershire", "modern_name": "Bilstone", "country": "England", "region": "Leicestershire"}
 {"_type": "toponym", "ref": "Bilton@Warwickshire", "modern_name": "Bilton", "country": "England", "region": "Warwickshire"}
-{"_type": "toponym", "ref": "Bilton@West Riding", "modern_name": "Bilton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Bilton@Yorkshire", "modern_name": "Bilton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Binbrook@Lincolnshire", "modern_name": "Binbrook", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Bincknoll@Wiltshire", "modern_name": "Bincknoll", "country": "England", "region": "Wiltshire"}
 {"_type": "toponym", "ref": "Bincombe@Dorset", "modern_name": "Bincombe", "country": "England", "region": "Dorset"}
@@ -1727,7 +1727,7 @@
 {"_type": "toponym", "ref": "Bolnhurst@Bedfordshire", "modern_name": "Bolnhurst", "country": "England", "region": "Bedfordshire"}
 {"_type": "toponym", "ref": "Bolsover@Derbyshire", "modern_name": "Bolsover", "country": "England", "region": "Derbyshire"}
 {"_type": "toponym", "ref": "Boltby@North Riding", "modern_name": "Boltby", "country": "England", "region": "North Riding"}
-{"_type": "toponym", "ref": "Bolton@West Riding", "modern_name": "Bolton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Bolton@Yorkshire", "modern_name": "Bolton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Bolton Abbey@West Riding", "modern_name": "Bolton Abbey", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Bolton Farm@Yorkshire", "modern_name": "Bolton Farm", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Bolton Percy@West Riding", "modern_name": "Bolton Percy", "country": "England", "region": "West Riding"}
@@ -2293,7 +2293,7 @@
 {"_type": "toponym", "ref": "Broughton@Staffordshire", "modern_name": "Broughton", "country": "England", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Broughton@Wiltshire", "modern_name": "Broughton", "country": "England", "region": "Wiltshire"}
 {"_type": "toponym", "ref": "Broughton@Worcestershire", "modern_name": "Broughton", "country": "England", "region": "Worcestershire"}
-{"_type": "toponym", "ref": "Broughton@West Riding", "modern_name": "Broughton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Broughton@Yorkshire", "modern_name": "Broughton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Broughton Astley@Leicestershire", "modern_name": "Broughton Astley", "country": "England", "region": "Leicestershire"}
 {"_type": "toponym", "ref": "Broughton Gifford@Wiltshire", "modern_name": "Broughton Gifford", "country": "England", "region": "Wiltshire"}
 {"_type": "toponym", "ref": "Broughton Hackett@Worcestershire", "modern_name": "Broughton Hackett", "country": "England", "region": "Worcestershire"}
@@ -2595,7 +2595,7 @@
 {"_type": "toponym", "ref": "Butterley@Herefordshire", "modern_name": "Butterley", "country": "England", "region": "Herefordshire"}
 {"_type": "toponym", "ref": "Buttermere@Wiltshire", "modern_name": "Buttermere", "country": "England", "region": "Wiltshire"}
 {"_type": "toponym", "ref": "Butterwick@Lincolnshire", "modern_name": "Butterwick", "country": "England", "region": "Lincolnshire"}
-{"_type": "toponym", "ref": "Butterwick@East Riding", "modern_name": "Butterwick", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Butterwick@Yorkshire", "modern_name": "Butterwick", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Buttery@Shropshire", "modern_name": "Buttery", "country": "England", "region": "Shropshire"}
 {"_type": "toponym", "ref": "Buttsbear@Cornwall", "modern_name": "Buttsbear", "country": "England", "region": "Cornwall"}
 {"_type": "toponym", "ref": "Buttsbury@Essex", "modern_name": "Buttsbury", "country": "England", "region": "Essex"}
@@ -2773,7 +2773,7 @@
 {"_type": "toponym", "ref": "Carlton@Northamptonshire", "modern_name": "Carlton", "country": "England", "region": "Northamptonshire"}
 {"_type": "toponym", "ref": "Carlton@Nottinghamshire", "modern_name": "Carlton", "country": "England", "region": "Nottinghamshire"}
 {"_type": "toponym", "ref": "Carlton@Suffolk", "modern_name": "Carlton", "country": "England", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Carlton@West Riding", "modern_name": "Carlton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Carlton@Yorkshire", "modern_name": "Carlton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Carlton Colville@Suffolk", "modern_name": "Carlton Colville", "country": "England", "region": "Suffolk"}
 {"_type": "toponym", "ref": "Carlton Curlieu@Leicestershire", "modern_name": "Carlton Curlieu", "country": "England", "region": "Leicestershire"}
 {"_type": "toponym", "ref": "Carlton Farm@Yorkshire", "modern_name": "Carlton Farm", "country": "England", "region": "Yorkshire"}
@@ -3428,7 +3428,7 @@
 {"_type": "toponym", "ref": "Clifton@Staffordshire", "modern_name": "Clifton", "country": "England", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Clifton@Warwickshire", "modern_name": "Clifton", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Clifton@Worcestershire", "modern_name": "Clifton", "country": "England", "region": "Worcestershire"}
-{"_type": "toponym", "ref": "Clifton@West Riding", "modern_name": "Clifton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Clifton@Yorkshire", "modern_name": "Clifton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Clifton Campville@Derbyshire", "modern_name": "Clifton Campville", "country": "England", "region": "Derbyshire"}
 {"_type": "toponym", "ref": "Clifton Campville@Staffordshire", "modern_name": "Clifton Campville", "country": "England", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Clifton Maybank@Dorset", "modern_name": "Clifton Maybank", "country": "England", "region": "Dorset"}
@@ -4148,7 +4148,7 @@
 {"_type": "toponym", "ref": "Dallington@Nottinghamshire", "modern_name": "Dallington", "country": "England", "region": "Nottinghamshire"}
 {"_type": "toponym", "ref": "Dallington@Sussex", "modern_name": "Dallington", "country": "England", "region": "Sussex"}
 {"_type": "toponym", "ref": "Dalton@Cheshire", "modern_name": "Dalton", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Dalton@West Riding", "modern_name": "Dalton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Dalton@Yorkshire", "modern_name": "Dalton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Dalton in Furness@Yorkshire", "modern_name": "Dalton in Furness", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Dalton-in-Furness@Yorkshire", "modern_name": "Dalton-in-Furness", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Damerham@Wiltshire", "modern_name": "Damerham", "country": "England", "region": "Wiltshire"}
@@ -4217,7 +4217,7 @@
 {"_type": "toponym", "ref": "Deerhurst@Warwickshire", "modern_name": "Deerhurst", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Deerhurst Walton@Gloucestershire", "modern_name": "Deerhurst Walton", "country": "England", "region": "Gloucestershire"}
 {"_type": "toponym", "ref": "Defford@Worcestershire", "modern_name": "Defford", "country": "England", "region": "Worcestershire"}
-{"_type": "toponym", "ref": "Deighton@East Riding", "modern_name": "Deighton", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Deighton@Yorkshire", "modern_name": "Deighton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Deightonby@Yorkshire", "modern_name": "Deightonby", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Deightonby Fields@Yorkshire", "modern_name": "Deightonby Fields", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Delabole@Cornwall", "modern_name": "Delabole", "country": "England", "region": "Cornwall"}
@@ -4635,7 +4635,7 @@
 {"_type": "toponym", "ref": "Easby@North Riding", "modern_name": "Easby", "country": "England", "region": "North Riding"}
 {"_type": "toponym", "ref": "Easington@Buckinghamshire", "modern_name": "Easington", "country": "England", "region": "Buckinghamshire"}
 {"_type": "toponym", "ref": "Easington@Oxfordshire", "modern_name": "Easington", "country": "England", "region": "Oxfordshire"}
-{"_type": "toponym", "ref": "Easington@West Riding", "modern_name": "Easington", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Easington@Yorkshire", "modern_name": "Easington", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Easingwold@North Riding", "modern_name": "Easingwold", "country": "England", "region": "North Riding"}
 {"_type": "toponym", "ref": "Easole@Kent", "modern_name": "Easole", "country": "England", "region": "Kent"}
 {"_type": "toponym", "ref": "East Allington@Devon", "modern_name": "East Allington", "country": "England", "region": "Devon"}
@@ -5017,7 +5017,7 @@
 {"_type": "toponym", "ref": "Ellenthorpe Hall@Yorkshire", "modern_name": "Ellenthorpe Hall", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Ellerbeck@North Riding", "modern_name": "Ellerbeck", "country": "England", "region": "North Riding"}
 {"_type": "toponym", "ref": "Ellerburn@Yorkshire", "modern_name": "Ellerburn", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Ellerby@East Riding", "modern_name": "Ellerby", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Ellerby@Yorkshire", "modern_name": "Ellerby", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Ellerdine@Shropshire", "modern_name": "Ellerdine", "country": "England", "region": "Shropshire"}
 {"_type": "toponym", "ref": "Ellerker@East Riding", "modern_name": "Ellerker", "country": "England", "region": "East Riding"}
 {"_type": "toponym", "ref": "Ellerton@East Riding", "modern_name": "Ellerton", "country": "England", "region": "East Riding"}
@@ -5458,7 +5458,7 @@
 {"_type": "toponym", "ref": "Finmere@Oxfordshire", "modern_name": "Finmere", "country": "England", "region": "Oxfordshire"}
 {"_type": "toponym", "ref": "Finningham@Suffolk", "modern_name": "Finningham", "country": "England", "region": "Suffolk"}
 {"_type": "toponym", "ref": "Finningley@Nottinghamshire", "modern_name": "Finningley", "country": "England", "region": "Nottinghamshire"}
-{"_type": "toponym", "ref": "Firby@East Riding", "modern_name": "Firby", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Firby@Yorkshire", "modern_name": "Firby", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Firle@Sussex", "modern_name": "Firle", "country": "England", "region": "Sussex"}
 {"_type": "toponym", "ref": "Firsby@Lincolnshire", "modern_name": "Firsby", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Fishbourne@Sussex", "modern_name": "Fishbourne", "country": "England", "region": "Sussex"}
@@ -6298,7 +6298,7 @@
 {"_type": "toponym", "ref": "Grimston@Norfolk", "modern_name": "Grimston", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Grimston@Nottinghamshire", "modern_name": "Grimston", "country": "England", "region": "Nottinghamshire"}
 {"_type": "toponym", "ref": "Grimston@Suffolk", "modern_name": "Grimston", "country": "England", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Grimston@West Riding", "modern_name": "Grimston", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Grimston@Yorkshire", "modern_name": "Grimston", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Grimston Grange@Yorkshire", "modern_name": "Grimston Grange", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Grimston Hall@Suffolk", "modern_name": "Grimston Hall", "country": "England", "region": "Suffolk"}
 {"_type": "toponym", "ref": "Grimston Hill@Leicestershire", "modern_name": "Grimston Hill", "country": "England", "region": "Leicestershire"}
@@ -7000,7 +7000,7 @@
 {"_type": "toponym", "ref": "Hessay@West Riding", "modern_name": "Hessay", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Hesselton@Yorkshire", "modern_name": "Hesselton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Hesset@Suffolk", "modern_name": "Hesset", "country": "England", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Hessle@West Riding", "modern_name": "Hessle", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Hessle@Yorkshire", "modern_name": "Hessle", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Hestley@Suffolk", "modern_name": "Hestley", "country": "England", "region": "Suffolk"}
 {"_type": "toponym", "ref": "Heswall@Cheshire", "modern_name": "Heswall", "country": "England", "region": "Cheshire"}
 {"_type": "toponym", "ref": "Hethe@Northamptonshire", "modern_name": "Hethe", "country": "England", "region": "Northamptonshire"}
@@ -7324,7 +7324,7 @@
 {"_type": "toponym", "ref": "Holme@Norfolk", "modern_name": "Holme", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Holme@Nottinghamshire", "modern_name": "Holme", "country": "England", "region": "Nottinghamshire"}
 {"_type": "toponym", "ref": "Holme@Warwickshire", "modern_name": "Holme", "country": "England", "region": "Warwickshire"}
-{"_type": "toponym", "ref": "Holme@West Riding", "modern_name": "Holme", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Holme@Yorkshire", "modern_name": "Holme", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Holme Hale@Norfolk", "modern_name": "Holme Hale", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Holme House@Yorkshire", "modern_name": "Holme House", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Holme Lacy@Herefordshire", "modern_name": "Holme Lacy", "country": "England", "region": "Herefordshire"}
@@ -9001,7 +9001,7 @@
 {"_type": "toponym", "ref": "Little Shelford@Cambridgeshire", "modern_name": "Little Shelford", "country": "England", "region": "Cambridgeshire"}
 {"_type": "toponym", "ref": "Little Shoddesden@Hampshire", "modern_name": "Little Shoddesden", "country": "England", "region": "Hampshire"}
 {"_type": "toponym", "ref": "Little Singleton@Yorkshire", "modern_name": "Little Singleton", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Little Smeaton@West Riding", "modern_name": "Little Smeaton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Little Smeaton@Yorkshire", "modern_name": "Little Smeaton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Little Smithcot@Wiltshire", "modern_name": "Little Smithcot", "country": "England", "region": "Wiltshire"}
 {"_type": "toponym", "ref": "Little Snarehill@Norfolk", "modern_name": "Little Snarehill", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Little Snoring@Norfolk", "modern_name": "Little Snoring", "country": "England", "region": "Norfolk"}
@@ -9608,7 +9608,7 @@
 {"_type": "toponym", "ref": "Malsanger@Hampshire", "modern_name": "Malsanger", "country": "England", "region": "Hampshire"}
 {"_type": "toponym", "ref": "Malston@Devon", "modern_name": "Malston", "country": "England", "region": "Devon"}
 {"_type": "toponym", "ref": "Maltby@Lincolnshire", "modern_name": "Maltby", "country": "England", "region": "Lincolnshire"}
-{"_type": "toponym", "ref": "Maltby@West Riding", "modern_name": "Maltby", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Maltby@Yorkshire", "modern_name": "Maltby", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Maltby le Marsh@Lincolnshire", "modern_name": "Maltby le Marsh", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Maltby-le-Marsh@Lincolnshire", "modern_name": "Maltby-le-Marsh", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Malton@Yorkshire", "modern_name": "Malton", "country": "England", "region": "Yorkshire"}
@@ -9799,7 +9799,7 @@
 {"_type": "toponym", "ref": "Marton@Lincolnshire", "modern_name": "Marton", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Marton@Shropshire", "modern_name": "Marton", "country": "England", "region": "Shropshire"}
 {"_type": "toponym", "ref": "Marton@Warwickshire", "modern_name": "Marton", "country": "England", "region": "Warwickshire"}
-{"_type": "toponym", "ref": "Marton@West Riding", "modern_name": "Marton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Marton@Yorkshire", "modern_name": "Marton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Marton in Cleveland@North Riding", "modern_name": "Marton in Cleveland", "country": "England", "region": "North Riding"}
 {"_type": "toponym", "ref": "Marton in the Forest@Yorkshire", "modern_name": "Marton in the Forest", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Marton-in-Cleveland@Yorkshire", "modern_name": "Marton-in-Cleveland", "country": "England", "region": "Yorkshire"}
@@ -10008,7 +10008,7 @@
 {"_type": "toponym", "ref": "Middleton@Shropshire", "modern_name": "Middleton", "country": "England", "region": "Shropshire"}
 {"_type": "toponym", "ref": "Middleton@Warwickshire", "modern_name": "Middleton", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Middleton@Wiltshire", "modern_name": "Middleton", "country": "England", "region": "Wiltshire"}
-{"_type": "toponym", "ref": "Middleton@West Riding", "modern_name": "Middleton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Middleton@Yorkshire", "modern_name": "Middleton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Middleton Cheney@Northamptonshire", "modern_name": "Middleton Cheney", "country": "England", "region": "Northamptonshire"}
 {"_type": "toponym", "ref": "Middleton Hall@Yorkshire", "modern_name": "Middleton Hall", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Middleton Quernhow@North Riding", "modern_name": "Middleton Quernhow", "country": "England", "region": "North Riding"}
@@ -10622,7 +10622,7 @@
 {"_type": "toponym", "ref": "Newton@Staffordshire", "modern_name": "Newton", "country": "England", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Newton@Warwickshire", "modern_name": "Newton", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Newton@Wiltshire", "modern_name": "Newton", "country": "England", "region": "Wiltshire"}
-{"_type": "toponym", "ref": "Newton@West Riding", "modern_name": "Newton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Newton@Yorkshire", "modern_name": "Newton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Newton Bromswold@Bedfordshire", "modern_name": "Newton Bromswold", "country": "England", "region": "Bedfordshire"}
 {"_type": "toponym", "ref": "Newton Bromswold@Northamptonshire", "modern_name": "Newton Bromswold", "country": "England", "region": "Northamptonshire"}
 {"_type": "toponym", "ref": "Newton Burgoland@Leicestershire", "modern_name": "Newton Burgoland", "country": "England", "region": "Leicestershire"}
@@ -10895,7 +10895,7 @@
 {"_type": "toponym", "ref": "Norton@Warwickshire", "modern_name": "Norton", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Norton@Wiltshire", "modern_name": "Norton", "country": "England", "region": "Wiltshire"}
 {"_type": "toponym", "ref": "Norton@Worcestershire", "modern_name": "Norton", "country": "England", "region": "Worcestershire"}
-{"_type": "toponym", "ref": "Norton@West Riding", "modern_name": "Norton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Norton@Yorkshire", "modern_name": "Norton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Norton Bavant@Wiltshire", "modern_name": "Norton Bavant", "country": "England", "region": "Wiltshire"}
 {"_type": "toponym", "ref": "Norton Canes@Staffordshire", "modern_name": "Norton Canes", "country": "England", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Norton Canon@Herefordshire", "modern_name": "Norton Canon", "country": "England", "region": "Herefordshire"}
@@ -12036,7 +12036,7 @@
 {"_type": "toponym", "ref": "Raventhorpe@Yorkshire", "modern_name": "Raventhorpe", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Rawcliff@Yorkshire", "modern_name": "Rawcliff", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Rawcliff Banks@Yorkshire", "modern_name": "Rawcliff Banks", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Rawcliffe@West Riding", "modern_name": "Rawcliffe", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Rawcliffe@Yorkshire", "modern_name": "Rawcliffe", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Rawcliffe Hall@Yorkshire", "modern_name": "Rawcliffe Hall", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Rawdon@West Riding", "modern_name": "Rawdon", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Rawmarsh@West Riding", "modern_name": "Rawmarsh", "country": "England", "region": "West Riding"}
@@ -12644,7 +12644,7 @@
 {"_type": "toponym", "ref": "Scagestorp@Yorkshire", "modern_name": "Scagestorp", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Scagetorp@Yorkshire", "modern_name": "Scagetorp", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Scagglethorpe@East Riding", "modern_name": "Scagglethorpe", "country": "England", "region": "East Riding"}
-{"_type": "toponym", "ref": "Scalby@East Riding", "modern_name": "Scalby", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Scalby@Yorkshire", "modern_name": "Scalby", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Scaldwell@Northamptonshire", "modern_name": "Scaldwell", "country": "England", "region": "Northamptonshire"}
 {"_type": "toponym", "ref": "Scalford@Leicestershire", "modern_name": "Scalford", "country": "England", "region": "Leicestershire"}
 {"_type": "toponym", "ref": "Scamblesby@Lincolnshire", "modern_name": "Scamblesby", "country": "England", "region": "Lincolnshire"}
@@ -12686,7 +12686,7 @@
 {"_type": "toponym", "ref": "Scotterthorpe@Lincolnshire", "modern_name": "Scotterthorpe", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Scottlethorpe@Lincolnshire", "modern_name": "Scottlethorpe", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Scotton@Lincolnshire", "modern_name": "Scotton", "country": "England", "region": "Lincolnshire"}
-{"_type": "toponym", "ref": "Scotton@West Riding", "modern_name": "Scotton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Scotton@Yorkshire", "modern_name": "Scotton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Scotton Thorpe@Yorkshire", "modern_name": "Scotton Thorpe", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Scottow@Norfolk", "modern_name": "Scottow", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Scoulton@Norfolk", "modern_name": "Scoulton", "country": "England", "region": "Norfolk"}
@@ -12973,7 +12973,7 @@
 {"_type": "toponym", "ref": "Shipton@Northamptonshire", "modern_name": "Shipton", "country": "England", "region": "Northamptonshire"}
 {"_type": "toponym", "ref": "Shipton@Oxfordshire", "modern_name": "Shipton", "country": "England", "region": "Oxfordshire"}
 {"_type": "toponym", "ref": "Shipton@Shropshire", "modern_name": "Shipton", "country": "England", "region": "Shropshire"}
-{"_type": "toponym", "ref": "Shipton@East Riding", "modern_name": "Shipton", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Shipton@Yorkshire", "modern_name": "Shipton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Shipton Bellinger@Hampshire", "modern_name": "Shipton Bellinger", "country": "England", "region": "Hampshire"}
 {"_type": "toponym", "ref": "Shipton Chamflurs@Gloucestershire", "modern_name": "Shipton Chamflurs", "country": "England", "region": "Gloucestershire"}
 {"_type": "toponym", "ref": "Shipton Dovel@Gloucestershire", "modern_name": "Shipton Dovel", "country": "England", "region": "Gloucestershire"}
@@ -13127,7 +13127,7 @@
 {"_type": "toponym", "ref": "Skellow@West Riding", "modern_name": "Skellow", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Skelmanthorpe@Yorkshire", "modern_name": "Skelmanthorpe", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Skelmersdale@Cheshire", "modern_name": "Skelmersdale", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Skelton@West Riding", "modern_name": "Skelton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Skelton@Yorkshire", "modern_name": "Skelton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Skelton Grange@Yorkshire", "modern_name": "Skelton Grange", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Skendleby@Lincolnshire", "modern_name": "Skendleby", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Skerne@East Riding", "modern_name": "Skerne", "country": "England", "region": "East Riding"}
@@ -13457,7 +13457,7 @@
 {"_type": "toponym", "ref": "Southwold@Suffolk", "modern_name": "Southwold", "country": "England", "region": "Suffolk"}
 {"_type": "toponym", "ref": "Southwood@Norfolk", "modern_name": "Southwood", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Sowe@Warwickshire", "modern_name": "Sowe", "country": "England", "region": "Warwickshire"}
-{"_type": "toponym", "ref": "Sowerby@West Riding", "modern_name": "Sowerby", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Sowerby@Yorkshire", "modern_name": "Sowerby", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Sowerby Hall@Yorkshire", "modern_name": "Sowerby Hall", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Sowerby under Cotcliffe@North Riding", "modern_name": "Sowerby under Cotcliffe", "country": "England", "region": "North Riding"}
 {"_type": "toponym", "ref": "Sowerby-under-Cotcliffe@Yorkshire", "modern_name": "Sowerby-under-Cotcliffe", "country": "England", "region": "Yorkshire"}
@@ -13584,7 +13584,7 @@
 {"_type": "toponym", "ref": "Stainsby@Yorkshire", "modern_name": "Stainsby", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Stainsby Hall@Yorkshire", "modern_name": "Stainsby Hall", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Stainton@Lincolnshire", "modern_name": "Stainton", "country": "England", "region": "Lincolnshire"}
-{"_type": "toponym", "ref": "Stainton@West Riding", "modern_name": "Stainton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Stainton@Yorkshire", "modern_name": "Stainton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Stainton by Langworth@Lincolnshire", "modern_name": "Stainton by Langworth", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Stainton le Vale@Lincolnshire", "modern_name": "Stainton le Vale", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Stainton-by-Langworth@Lincolnshire", "modern_name": "Stainton-by-Langworth", "country": "England", "region": "Lincolnshire"}
@@ -14379,7 +14379,7 @@
 {"_type": "toponym", "ref": "Swinhope@Lincolnshire", "modern_name": "Swinhope", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Swinstead@Lincolnshire", "modern_name": "Swinstead", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Swinthorpe@Lincolnshire", "modern_name": "Swinthorpe", "country": "England", "region": "Lincolnshire"}
-{"_type": "toponym", "ref": "Swinton@West Riding", "modern_name": "Swinton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Swinton@Yorkshire", "modern_name": "Swinton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Swynchurch@Staffordshire", "modern_name": "Swynchurch", "country": "England", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Swyncombe@Oxfordshire", "modern_name": "Swyncombe", "country": "England", "region": "Oxfordshire"}
 {"_type": "toponym", "ref": "Swynnerton@Staffordshire", "modern_name": "Swynnerton", "country": "England", "region": "Staffordshire"}
@@ -14601,7 +14601,7 @@
 {"_type": "toponym", "ref": "Thimbleby@North Riding", "modern_name": "Thimbleby", "country": "England", "region": "North Riding"}
 {"_type": "toponym", "ref": "Thinghill@Herefordshire", "modern_name": "Thinghill", "country": "England", "region": "Herefordshire"}
 {"_type": "toponym", "ref": "Thingwall@Cheshire", "modern_name": "Thingwall", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Thirkleby@East Riding", "modern_name": "Thirkleby", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Thirkleby@Yorkshire", "modern_name": "Thirkleby", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Thirkleby Manor@Yorkshire", "modern_name": "Thirkleby Manor", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Thirley@Yorkshire", "modern_name": "Thirley", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Thirley Cotes@Yorkshire", "modern_name": "Thirley Cotes", "country": "England", "region": "Yorkshire"}
@@ -14684,7 +14684,7 @@
 {"_type": "toponym", "ref": "Thornton@Cheshire", "modern_name": "Thornton", "country": "England", "region": "Cheshire"}
 {"_type": "toponym", "ref": "Thornton@Dorset", "modern_name": "Thornton", "country": "England", "region": "Dorset"}
 {"_type": "toponym", "ref": "Thornton@Lincolnshire", "modern_name": "Thornton", "country": "England", "region": "Lincolnshire"}
-{"_type": "toponym", "ref": "Thornton@West Riding", "modern_name": "Thornton", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Thornton@Yorkshire", "modern_name": "Thornton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Thornton Bridge@North Riding", "modern_name": "Thornton Bridge", "country": "England", "region": "North Riding"}
 {"_type": "toponym", "ref": "Thornton Curtis@Lincolnshire", "modern_name": "Thornton Curtis", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Thornton Dale@North Riding", "modern_name": "Thornton Dale", "country": "England", "region": "North Riding"}
@@ -15068,7 +15068,7 @@
 {"_type": "toponym", "ref": "Towersey@Buckinghamshire", "modern_name": "Towersey", "country": "England", "region": "Buckinghamshire"}
 {"_type": "toponym", "ref": "Townstall@Devon", "modern_name": "Townstall", "country": "England", "region": "Devon"}
 {"_type": "toponym", "ref": "Towthorpe@Lincolnshire", "modern_name": "Towthorpe", "country": "England", "region": "Lincolnshire"}
-{"_type": "toponym", "ref": "Towthorpe@East Riding", "modern_name": "Towthorpe", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Towthorpe@Yorkshire", "modern_name": "Towthorpe", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Towton@West Riding", "modern_name": "Towton", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Toxenai@Derbyshire", "modern_name": "Toxenai", "country": "England", "region": "Derbyshire"}
 {"_type": "toponym", "ref": "Toxteth@Cheshire", "modern_name": "Toxteth", "country": "England", "region": "Cheshire"}
@@ -15232,7 +15232,7 @@
 {"_type": "toponym", "ref": "Tunstall@Norfolk", "modern_name": "Tunstall", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Tunstall@Suffolk", "modern_name": "Tunstall", "country": "England", "region": "Suffolk"}
 {"_type": "toponym", "ref": "Tunstall@Staffordshire", "modern_name": "Tunstall", "country": "England", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Tunstall@East Riding", "modern_name": "Tunstall", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Tunstall@Yorkshire", "modern_name": "Tunstall", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Tunstall Farm@Yorkshire", "modern_name": "Tunstall Farm", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Tunstead@Norfolk", "modern_name": "Tunstead", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Tunworth@Hampshire", "modern_name": "Tunworth", "country": "England", "region": "Hampshire"}
@@ -17523,8 +17523,8 @@
 {"_type": "attestation", "toponym_ref": "Aldborough@Norfolk", "form": "Aldborough", "date_year": 1086, "source_doc": "Phillimore 8,130. 9,87;146;151; Hundred=North Erpingham; OS=TG1834"}
 {"_type": "attestation", "toponym_ref": "Aldborough@West Riding", "form": "Aldborough", "date_year": 1086, "source_doc": "Phillimore 1Y18. 1W30. 21W3. 24W10. 25W27. 28W36. SW,Bu13; Hundred=`Burghshire'; OS=SE4066"}
 {"_type": "attestation", "toponym_ref": "Aldbourne@Wiltshire", "form": "Aldbourne", "date_year": 1086, "source_doc": "Phillimore 1,10; Hundred=`Selkley'; OS=SU2675"}
-{"_type": "attestation", "toponym_ref": "Aldbrough@East Riding", "form": "Aldbrough", "date_year": 1086, "source_doc": "Phillimore 14E11. SE,Hol14; Hundred=Holderness [Middle Hundred]; OS=TA2438"}
-{"_type": "attestation", "toponym_ref": "Aldbrough@East Riding", "form": "Aldbrough", "date_year": 1086, "source_doc": "Phillimore 6N13-14. SN,CtA10; Hundred=Land of Count Alan; OS=NZ2011"}
+{"_type": "attestation", "toponym_ref": "Aldbrough@Yorkshire", "form": "Aldbrough", "date_year": 1086, "source_doc": "Phillimore 14E11. SE,Hol14; Hundred=Holderness [Middle Hundred]; OS=TA2438"}
+{"_type": "attestation", "toponym_ref": "Aldbrough@Yorkshire", "form": "Aldbrough", "date_year": 1086, "source_doc": "Phillimore 6N13-14. SN,CtA10; Hundred=Land of Count Alan; OS=NZ2011"}
 {"_type": "attestation", "toponym_ref": "Aldbrough Saint John@Yorkshire", "form": "Aldbrough Saint John", "date_year": 1086, "source_doc": "Phillimore 6N13-14. SN,CtA10; Hundred=Land of Count Alan"}
 {"_type": "attestation", "toponym_ref": "Aldbrough St John@Yorkshire", "form": "Aldbrough St John", "date_year": 1086, "source_doc": "Phillimore 6N13-14. SN,CtA10; Hundred=Land of Count Alan"}
 {"_type": "attestation", "toponym_ref": "Aldbury@Hertfordshire", "form": "Aldbury", "date_year": 1086, "source_doc": "Phillimore 15,3; Hundred=Tring; OS=SP9612"}
@@ -18353,7 +18353,7 @@
 {"_type": "attestation", "toponym_ref": "Barcheston@Warwickshire", "form": "Barcheston", "date_year": 1086, "source_doc": "Phillimore 28,10. 44,9; Hundred=Barcheston; OS=SP2639"}
 {"_type": "attestation", "toponym_ref": "Barcombe@Sussex", "form": "Barcombe", "date_year": 1086, "source_doc": "Phillimore 12,48; Hundred=Barcombe; OS=TQ4214"}
 {"_type": "attestation", "toponym_ref": "Barcote@Berkshire", "form": "Barcote", "date_year": 1086, "source_doc": "Phillimore 65,7; Hundred=Gainfield; OS=SU3197"}
-{"_type": "attestation", "toponym_ref": "Barden@West Riding", "form": "Barden", "date_year": 1086, "source_doc": "Phillimore 6N105. SN,CtA31; Hundred=Land of Count Alan; OS=SE1493"}
+{"_type": "attestation", "toponym_ref": "Barden@Yorkshire", "form": "Barden", "date_year": 1086, "source_doc": "Phillimore 6N105. SN,CtA31; Hundred=Land of Count Alan; OS=SE1493"}
 {"_type": "attestation", "toponym_ref": "Bardfield@Essex", "form": "Bardfield", "date_year": 1086, "source_doc": "Phillimore 20,79. 23,39;42 90,65; Hundred=`Freshwell'"}
 {"_type": "attestation", "toponym_ref": "Bardney@Lincolnshire", "form": "Bardney", "date_year": 1086, "source_doc": "Phillimore 24,17(-18);45(-53). CS36-37; Hundred=`Wraggoe'; OS=TF1169"}
 {"_type": "attestation", "toponym_ref": "Bardolfeston@Dorset", "form": "Bardolfeston", "date_year": 1086, "source_doc": "Phillimore 3,15; Hundred=Puddletown; OS=SY7694"}
@@ -19050,9 +19050,9 @@
 {"_type": "attestation", "toponym_ref": "Bilstone@Leicestershire", "form": "Bilstone", "date_year": 1086, "source_doc": "Phillimore 11,3; Hundred=Guthlaxton; OS=SK3605"}
 {"_type": "attestation", "toponym_ref": "Bilton@Warwickshire", "form": "Bilton", "date_year": 1086, "source_doc": "Phillimore 17,36; Hundred=Marton"}
 {"_type": "attestation", "toponym_ref": "Bilton@Warwickshire", "form": "Bilton", "date_year": 1086, "source_doc": "Phillimore 12,6; Hundred=Marton; OS=SP4873"}
-{"_type": "attestation", "toponym_ref": "Bilton@West Riding", "form": "Bilton", "date_year": 1086, "source_doc": "Phillimore 2E27. 14E47. SE,Mid1. SE,Hol25; Hundred=Holderness [Middle Hundred]; OS=TA1532"}
-{"_type": "attestation", "toponym_ref": "Bilton@West Riding", "form": "Bilton", "date_year": 1086, "source_doc": "Phillimore 21W11. 29W38. SW,Bu39; Hundred=`Burghshire'; OS=SE3157"}
-{"_type": "attestation", "toponym_ref": "Bilton@West Riding", "form": "Bilton", "date_year": 1086, "source_doc": "Phillimore 25W10. SW,An10; Hundred=Ainsty; OS=SE4750"}
+{"_type": "attestation", "toponym_ref": "Bilton@Yorkshire", "form": "Bilton", "date_year": 1086, "source_doc": "Phillimore 2E27. 14E47. SE,Mid1. SE,Hol25; Hundred=Holderness [Middle Hundred]; OS=TA1532"}
+{"_type": "attestation", "toponym_ref": "Bilton@Yorkshire", "form": "Bilton", "date_year": 1086, "source_doc": "Phillimore 21W11. 29W38. SW,Bu39; Hundred=`Burghshire'; OS=SE3157"}
+{"_type": "attestation", "toponym_ref": "Bilton@Yorkshire", "form": "Bilton", "date_year": 1086, "source_doc": "Phillimore 25W10. SW,An10; Hundred=Ainsty; OS=SE4750"}
 {"_type": "attestation", "toponym_ref": "Binbrook@Lincolnshire", "form": "Binbrook", "date_year": 1086, "source_doc": "Phillimore 18,7(-10). 53,2. 57,6; Hundred=`Walshcroft'; OS=TF2193"}
 {"_type": "attestation", "toponym_ref": "Bincknoll@Wiltshire", "form": "Bincknoll", "date_year": 1086, "source_doc": "Phillimore 29,2(-4); Hundred=`Selkley'; OS=SU1079"}
 {"_type": "attestation", "toponym_ref": "Bincombe@Dorset", "form": "Bincombe", "date_year": 1086, "source_doc": "Phillimore 17,2; Hundred=Cullifordtree; OS=SY6884"}
@@ -19314,17 +19314,17 @@
 {"_type": "attestation", "toponym_ref": "Bolnhurst@Bedfordshire", "form": "Bolnhurst", "date_year": 1086, "source_doc": "Phillimore 2,4(-5). 3,8. 10,1. 53,6. (57,16); Hundred=`Stodden'; OS=TL0859"}
 {"_type": "attestation", "toponym_ref": "Bolsover@Derbyshire", "form": "Bolsover", "date_year": 1086, "source_doc": "Phillimore 7,1; Hundred=`Scarsdale'; OS=SK4770"}
 {"_type": "attestation", "toponym_ref": "Boltby@North Riding", "form": "Boltby", "date_year": 1086, "source_doc": "Phillimore 23N13-14; Hundred=`Yarlestre'; OS=SE4986"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 2B11. 29E5. SE,P7; Hundred=Pocklington; OS=SE7752"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 9W131 and note. SW,M6 and note; Hundred=Morley; OS=SE1635"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 1W73. SW,Cr1(-4);5; Hundred=Craven"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 13W40; Hundred=Craven"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 6N87 and note. SN,CtA27; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 1L8 and note. See also CHS Y9; Hundred=Amounderness"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 1L2. See also CHS Y3; Hundred=Amounderness"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 13W7 note. 13W12. CW33;35;40. SW,An4; Hundred=Ainsty"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 10W26. 13W7 and note. SW,Sf19; Hundred=Strafforth"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 6N24 and note. SN,CtA12; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Bolton@West Riding", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 6N88. SN,CtA27; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 2B11. 29E5. SE,P7; Hundred=Pocklington; OS=SE7752"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 9W131 and note. SW,M6 and note; Hundred=Morley; OS=SE1635"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 1W73. SW,Cr1(-4);5; Hundred=Craven"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 13W40; Hundred=Craven"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 6N87 and note. SN,CtA27; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 1L8 and note. See also CHS Y9; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 1L2. See also CHS Y3; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 13W7 note. 13W12. CW33;35;40. SW,An4; Hundred=Ainsty"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 10W26. 13W7 and note. SW,Sf19; Hundred=Strafforth"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 6N24 and note. SN,CtA12; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Bolton@Yorkshire", "form": "Bolton", "date_year": 1086, "source_doc": "Phillimore 6N88. SN,CtA27; Hundred=Land of Count Alan"}
 {"_type": "attestation", "toponym_ref": "Bolton Abbey@West Riding", "form": "Bolton Abbey", "date_year": 1086, "source_doc": "Phillimore 1W73. SW,Cr1(-4);5; Hundred=Craven; OS=SE0753"}
 {"_type": "attestation", "toponym_ref": "Bolton Farm@Yorkshire", "form": "Bolton Farm", "date_year": 1086, "source_doc": "Phillimore 1L8 and note. See also CHS Y9; Hundred=Amounderness; OS=SD2572"}
 {"_type": "attestation", "toponym_ref": "Bolton Percy@West Riding", "form": "Bolton Percy", "date_year": 1086, "source_doc": "Phillimore 13W7 note. 13W12. CW33;35;40. SW,An4; Hundred=Ainsty; OS=SE5341"}
@@ -19968,13 +19968,13 @@
 {"_type": "attestation", "toponym_ref": "Broughton@Wiltshire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 27,1. 67,97; Hundred=Bradford"}
 {"_type": "attestation", "toponym_ref": "Broughton@Worcestershire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 9,1a;1c; Hundred=Pershore"}
 {"_type": "attestation", "toponym_ref": "Broughton@Worcestershire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 8,24; Hundred=Pershore"}
-{"_type": "attestation", "toponym_ref": "Broughton@West Riding", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 8W2. 30W17; Hundred=Craven; OS=SD9451"}
-{"_type": "attestation", "toponym_ref": "Broughton@West Riding", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 1N67. 8N17. 23N24. SN,L41 note. SN,Ma6; Hundred={Maneshou}; OS=SE7673"}
-{"_type": "attestation", "toponym_ref": "Broughton@West Riding", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness; OS=SD5234"}
-{"_type": "attestation", "toponym_ref": "Broughton@West Riding", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 1N36 and note. 5N30. 23N18. SN,L41 and note;(42); Hundred=Langbaurgh"}
-{"_type": "attestation", "toponym_ref": "Broughton@West Riding", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 6N45 and note. SN,CtA17; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Broughton@West Riding", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 1L6 and note. See also CHS Y7; Hundred=Amounderness"}
-{"_type": "attestation", "toponym_ref": "Broughton@West Riding", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 29N9 and note. SN,L41 and note; Hundred=Langbaurgh"}
+{"_type": "attestation", "toponym_ref": "Broughton@Yorkshire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 8W2. 30W17; Hundred=Craven; OS=SD9451"}
+{"_type": "attestation", "toponym_ref": "Broughton@Yorkshire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 1N67. 8N17. 23N24. SN,L41 note. SN,Ma6; Hundred={Maneshou}; OS=SE7673"}
+{"_type": "attestation", "toponym_ref": "Broughton@Yorkshire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness; OS=SD5234"}
+{"_type": "attestation", "toponym_ref": "Broughton@Yorkshire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 1N36 and note. 5N30. 23N18. SN,L41 and note;(42); Hundred=Langbaurgh"}
+{"_type": "attestation", "toponym_ref": "Broughton@Yorkshire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 6N45 and note. SN,CtA17; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Broughton@Yorkshire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 1L6 and note. See also CHS Y7; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Broughton@Yorkshire", "form": "Broughton", "date_year": 1086, "source_doc": "Phillimore 29N9 and note. SN,L41 and note; Hundred=Langbaurgh"}
 {"_type": "attestation", "toponym_ref": "Broughton Astley@Leicestershire", "form": "Broughton Astley", "date_year": 1086, "source_doc": "Phillimore C11. 10,7. 13,38. 40,8; Hundred=Guthlaxton; OS=SP5292"}
 {"_type": "attestation", "toponym_ref": "Broughton Gifford@Wiltshire", "form": "Broughton Gifford", "date_year": 1086, "source_doc": "Phillimore 27,1. 67,97; Hundred=Bradford; OS=ST8763"}
 {"_type": "attestation", "toponym_ref": "Broughton Hackett@Worcestershire", "form": "Broughton Hackett", "date_year": 1086, "source_doc": "Phillimore 8,24; Hundred=Pershore; OS=SO9254"}
@@ -20343,7 +20343,7 @@
 {"_type": "attestation", "toponym_ref": "Buttermere@Wiltshire", "form": "Buttermere", "date_year": 1086, "source_doc": "Phillimore 25,10. 37,3. 68,17; Hundred=Kinwardstone; OS=SU3461"}
 {"_type": "attestation", "toponym_ref": "Butterwick@Lincolnshire", "form": "Butterwick", "date_year": 1086, "source_doc": "Phillimore 57,38(-39); Hundred=`Wolmersty'; OS=TF3845"}
 {"_type": "attestation", "toponym_ref": "Butterwick@Lincolnshire", "form": "Butterwick", "date_year": 1086, "source_doc": "Phillimore 63,22; Hundred=Epworth"}
-{"_type": "attestation", "toponym_ref": "Butterwick@East Riding", "form": "Butterwick", "date_year": 1086, "source_doc": "Phillimore 23N24. SE,Bt7 and note; Hundred=Burton"}
+{"_type": "attestation", "toponym_ref": "Butterwick@Yorkshire", "form": "Butterwick", "date_year": 1086, "source_doc": "Phillimore 23N24. SE,Bt7 and note; Hundred=Burton"}
 {"_type": "attestation", "toponym_ref": "Buttery@Shropshire", "form": "Buttery", "date_year": 1086, "source_doc": "Phillimore 4,14,17; Hundred=Wrockwardine; OS=SJ6817"}
 {"_type": "attestation", "toponym_ref": "Buttsbear@Cornwall", "form": "Buttsbear", "date_year": 1086, "source_doc": "Phillimore 5,11,3; Hundred=Stratton; OS=SS2604"}
 {"_type": "attestation", "toponym_ref": "Buttsbury@Essex", "form": "Buttsbury", "date_year": 1086, "source_doc": "Phillimore 29,5; Hundred=Chelmsford; OS=TQ6698"}
@@ -20551,17 +20551,17 @@
 {"_type": "attestation", "toponym_ref": "Carlton@Nottinghamshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 1,21;24. 2,5. 9,61. 12,10;23. 30,2; Hundred=`Lythe'"}
 {"_type": "attestation", "toponym_ref": "Carlton@Suffolk", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 3,49(-50);94. 6,69; Hundred=`Plomesgate'; OS=TM3864"}
 {"_type": "attestation", "toponym_ref": "Carlton@Suffolk", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 4,38. 31,32; Hundred=Lothing"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 9W76 and note. SW,St7; Hundred=Staincross; OS=SE3610"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 9W119 and note. SW,M2; Hundred=Morley; OS=SE3327"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 6N93 and note. SN,CtA29; Hundred=Land of Count Alan; OS=SE0684"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 29W1. 31W5. SW,Sk16 note. SW,BA7; Hundred=Barkston; OS=SE6424"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 6N1 and note. 6N14. SN,CtA4;10; Hundred=Land of Count Alan; OS=NZ1912"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 5N28. SN,L43; Hundred=Langbaurgh; OS=NZ5004"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 11W1 and note. SW,Sk16 and note; Hundred=`Skyrack'"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 2N19 and note. SN,B14; Hundred=`Bulford'"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 2N14. SN,Bi2 and note; Hundred=`Yarlestre'"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 1N109. 23N8. SN,Bi2 note;6; Hundred=`Yarlestre'"}
-{"_type": "attestation", "toponym_ref": "Carlton@West Riding", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 14E50. SE,Hol26; Hundred=Holderness [Middle Hundred]"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 9W76 and note. SW,St7; Hundred=Staincross; OS=SE3610"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 9W119 and note. SW,M2; Hundred=Morley; OS=SE3327"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 6N93 and note. SN,CtA29; Hundred=Land of Count Alan; OS=SE0684"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 29W1. 31W5. SW,Sk16 note. SW,BA7; Hundred=Barkston; OS=SE6424"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 6N1 and note. 6N14. SN,CtA4;10; Hundred=Land of Count Alan; OS=NZ1912"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 5N28. SN,L43; Hundred=Langbaurgh; OS=NZ5004"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 11W1 and note. SW,Sk16 and note; Hundred=`Skyrack'"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 2N19 and note. SN,B14; Hundred=`Bulford'"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 2N14. SN,Bi2 and note; Hundred=`Yarlestre'"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 1N109. 23N8. SN,Bi2 note;6; Hundred=`Yarlestre'"}
+{"_type": "attestation", "toponym_ref": "Carlton@Yorkshire", "form": "Carlton", "date_year": 1086, "source_doc": "Phillimore 14E50. SE,Hol26; Hundred=Holderness [Middle Hundred]"}
 {"_type": "attestation", "toponym_ref": "Carlton Colville@Suffolk", "form": "Carlton Colville", "date_year": 1086, "source_doc": "Phillimore 4,38. 31,32; Hundred=Lothing; OS=TM5190"}
 {"_type": "attestation", "toponym_ref": "Carlton Curlieu@Leicestershire", "form": "Carlton Curlieu", "date_year": 1086, "source_doc": "Phillimore 1,4. 13,17; Hundred=Gartree; OS=SP6997"}
 {"_type": "attestation", "toponym_ref": "Carlton Farm@Yorkshire", "form": "Carlton Farm", "date_year": 1086, "source_doc": "Phillimore 2N19 and note. SN,B14; Hundred=`Bulford'; OS=SE6756"}
@@ -21300,13 +21300,13 @@
 {"_type": "attestation", "toponym_ref": "Clifton@Staffordshire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 1,29. 16,1; Hundred=Offlow"}
 {"_type": "attestation", "toponym_ref": "Clifton@Warwickshire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 6,9. 14,2; Hundred=Marton"}
 {"_type": "attestation", "toponym_ref": "Clifton@Worcestershire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 19,3. E35; Hundred=`Doddingtree'"}
-{"_type": "attestation", "toponym_ref": "Clifton@West Riding", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 12W1;3. CW7-8; Hundred=Strafforth; OS=SK5196"}
-{"_type": "attestation", "toponym_ref": "Clifton@West Riding", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness; OS=SD4630"}
-{"_type": "attestation", "toponym_ref": "Clifton@West Riding", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 9W137. SW,M9; Hundred=Morley; OS=SE1622"}
-{"_type": "attestation", "toponym_ref": "Clifton@West Riding", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 2W4 and note. SW,Sk2; Hundred=`Skyrack'; OS=SE1948"}
-{"_type": "attestation", "toponym_ref": "Clifton@West Riding", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 1Y18 and note. SW,Bu29; Hundred=`Burghshire'; OS=SE2053"}
-{"_type": "attestation", "toponym_ref": "Clifton@West Riding", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore C30. 6W6. 6E1. 13E6 and note. CE30. SN,Y5; Hundred=York; OS=SE5953"}
-{"_type": "attestation", "toponym_ref": "Clifton@West Riding", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 6N119 and note. SN,CtA34; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Clifton@Yorkshire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 12W1;3. CW7-8; Hundred=Strafforth; OS=SK5196"}
+{"_type": "attestation", "toponym_ref": "Clifton@Yorkshire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness; OS=SD4630"}
+{"_type": "attestation", "toponym_ref": "Clifton@Yorkshire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 9W137. SW,M9; Hundred=Morley; OS=SE1622"}
+{"_type": "attestation", "toponym_ref": "Clifton@Yorkshire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 2W4 and note. SW,Sk2; Hundred=`Skyrack'; OS=SE1948"}
+{"_type": "attestation", "toponym_ref": "Clifton@Yorkshire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 1Y18 and note. SW,Bu29; Hundred=`Burghshire'; OS=SE2053"}
+{"_type": "attestation", "toponym_ref": "Clifton@Yorkshire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore C30. 6W6. 6E1. 13E6 and note. CE30. SN,Y5; Hundred=York; OS=SE5953"}
+{"_type": "attestation", "toponym_ref": "Clifton@Yorkshire", "form": "Clifton", "date_year": 1086, "source_doc": "Phillimore 6N119 and note. SN,CtA34; Hundred=Land of Count Alan"}
 {"_type": "attestation", "toponym_ref": "Clifton Campville@Derbyshire", "form": "Clifton Campville", "date_year": 1086, "source_doc": "Phillimore 1,25; Hundred=Offlow; OS=SK2510"}
 {"_type": "attestation", "toponym_ref": "Clifton Campville@Staffordshire", "form": "Clifton Campville", "date_year": 1086, "source_doc": "Phillimore 1,29. 16,1; Hundred=Offlow; OS=SK2510"}
 {"_type": "attestation", "toponym_ref": "Clifton Maybank@Dorset", "form": "Clifton Maybank", "date_year": 1086, "source_doc": "Phillimore 27,6; Hundred=Yetminster; OS=ST5713"}
@@ -22148,14 +22148,14 @@
 {"_type": "attestation", "toponym_ref": "Dallington@Nottinghamshire", "form": "Dallington", "date_year": 1086, "source_doc": "Phillimore 11,3; Hundred=Newark; OS=SK7743"}
 {"_type": "attestation", "toponym_ref": "Dallington@Sussex", "form": "Dallington", "date_year": 1086, "source_doc": "Phillimore 9,32; Hundred={Hailesaltede}; OS=TQ6519"}
 {"_type": "attestation", "toponym_ref": "Dalton@Cheshire", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore R1,26; Hundred=[West] Derby; OS=SD4908"}
-{"_type": "attestation", "toponym_ref": "Dalton@West Riding", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 1L7 and note. See also CHS Y8; Hundred=Amounderness; OS=SD5476"}
-{"_type": "attestation", "toponym_ref": "Dalton@West Riding", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 9W104;117. SW,Ag7; Hundred=Agbrigg; OS=SE1716"}
-{"_type": "attestation", "toponym_ref": "Dalton@West Riding", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 6N47 note;48. SN,CtA17; Hundred=Land of Count Alan; OS=NZ1108"}
-{"_type": "attestation", "toponym_ref": "Dalton@West Riding", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 12W1;10. 13W11. SW,Sf26; Hundred=Strafforth; OS=SK4594"}
-{"_type": "attestation", "toponym_ref": "Dalton@West Riding", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 13N17 and note; Hundred=`Yarlestre'; OS=SE4376"}
-{"_type": "attestation", "toponym_ref": "Dalton@West Riding", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 1L6. See also CHS Y7-8; Hundred=Amounderness"}
-{"_type": "attestation", "toponym_ref": "Dalton@West Riding", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 5E43. 7E1. 29E3. CE8. SE,Wa2; Hundred=Warter"}
-{"_type": "attestation", "toponym_ref": "Dalton@West Riding", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 2E2. SE,Sn8; Hundred={Sneculfcros}"}
+{"_type": "attestation", "toponym_ref": "Dalton@Yorkshire", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 1L7 and note. See also CHS Y8; Hundred=Amounderness; OS=SD5476"}
+{"_type": "attestation", "toponym_ref": "Dalton@Yorkshire", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 9W104;117. SW,Ag7; Hundred=Agbrigg; OS=SE1716"}
+{"_type": "attestation", "toponym_ref": "Dalton@Yorkshire", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 6N47 note;48. SN,CtA17; Hundred=Land of Count Alan; OS=NZ1108"}
+{"_type": "attestation", "toponym_ref": "Dalton@Yorkshire", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 12W1;10. 13W11. SW,Sf26; Hundred=Strafforth; OS=SK4594"}
+{"_type": "attestation", "toponym_ref": "Dalton@Yorkshire", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 13N17 and note; Hundred=`Yarlestre'; OS=SE4376"}
+{"_type": "attestation", "toponym_ref": "Dalton@Yorkshire", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 1L6. See also CHS Y7-8; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Dalton@Yorkshire", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 5E43. 7E1. 29E3. CE8. SE,Wa2; Hundred=Warter"}
+{"_type": "attestation", "toponym_ref": "Dalton@Yorkshire", "form": "Dalton", "date_year": 1086, "source_doc": "Phillimore 2E2. SE,Sn8; Hundred={Sneculfcros}"}
 {"_type": "attestation", "toponym_ref": "Dalton in Furness@Yorkshire", "form": "Dalton in Furness", "date_year": 1086, "source_doc": "Phillimore 1L6. See also CHS Y7-8; Hundred=Amounderness; OS=SD2374"}
 {"_type": "attestation", "toponym_ref": "Dalton-in-Furness@Yorkshire", "form": "Dalton-in-Furness", "date_year": 1086, "source_doc": "Phillimore 1L6. See also CHS Y7-8; Hundred=Amounderness"}
 {"_type": "attestation", "toponym_ref": "Damerham@Wiltshire", "form": "Damerham", "date_year": 1086, "source_doc": "Phillimore 7,1. 11,2; Hundred=Damerham; OS=SU1015"}
@@ -22237,9 +22237,9 @@
 {"_type": "attestation", "toponym_ref": "Deerhurst@Warwickshire", "form": "Deerhurst", "date_year": 1086, "source_doc": "Phillimore EG8; Hundred=Deerhurst; OS=SO8729"}
 {"_type": "attestation", "toponym_ref": "Deerhurst Walton@Gloucestershire", "form": "Deerhurst Walton", "date_year": 1086, "source_doc": "Phillimore 20,1; Hundred=Deerhurst; OS=SO8828"}
 {"_type": "attestation", "toponym_ref": "Defford@Worcestershire", "form": "Defford", "date_year": 1086, "source_doc": "Phillimore 8,6; Hundred=Pershore; OS=SO9143"}
-{"_type": "attestation", "toponym_ref": "Deighton@East Riding", "form": "Deighton", "date_year": 1086, "source_doc": "Phillimore 6E1. SE,P6; Hundred=Pocklington; OS=SE6244"}
-{"_type": "attestation", "toponym_ref": "Deighton@East Riding", "form": "Deighton", "date_year": 1086, "source_doc": "Phillimore 3Y17. SN,A6; Hundred=Allerton; OS=NZ3801"}
-{"_type": "attestation", "toponym_ref": "Deighton@East Riding", "form": "Deighton", "date_year": 1086, "source_doc": "Phillimore 16W5 and note. 24W20. SW,Bu43; Hundred=`Burghshire'"}
+{"_type": "attestation", "toponym_ref": "Deighton@Yorkshire", "form": "Deighton", "date_year": 1086, "source_doc": "Phillimore 6E1. SE,P6; Hundred=Pocklington; OS=SE6244"}
+{"_type": "attestation", "toponym_ref": "Deighton@Yorkshire", "form": "Deighton", "date_year": 1086, "source_doc": "Phillimore 3Y17. SN,A6; Hundred=Allerton; OS=NZ3801"}
+{"_type": "attestation", "toponym_ref": "Deighton@Yorkshire", "form": "Deighton", "date_year": 1086, "source_doc": "Phillimore 16W5 and note. 24W20. SW,Bu43; Hundred=`Burghshire'"}
 {"_type": "attestation", "toponym_ref": "Deightonby@Yorkshire", "form": "Deightonby", "date_year": 1086, "source_doc": "Phillimore 5W18 and note. SW,Sf30; Hundred=Strafforth"}
 {"_type": "attestation", "toponym_ref": "Deightonby Fields@Yorkshire", "form": "Deightonby Fields", "date_year": 1086, "source_doc": "Phillimore 5W18 and note. SW,Sf30; Hundred=Strafforth; OS=SE4606"}
 {"_type": "attestation", "toponym_ref": "Delabole@Cornwall", "form": "Delabole", "date_year": 1086, "source_doc": "Phillimore 5,26,2; Hundred=Stratton; OS=SX0683"}
@@ -22720,9 +22720,9 @@
 {"_type": "attestation", "toponym_ref": "Easby@North Riding", "form": "Easby", "date_year": 1086, "source_doc": "Phillimore 6N20 and note. SN,CtA11; Hundred=Land of Count Alan; OS=NZ1800"}
 {"_type": "attestation", "toponym_ref": "Easington@Buckinghamshire", "form": "Easington", "date_year": 1086, "source_doc": "Phillimore 14,8; Hundred=Ixhill; OS=SP6810"}
 {"_type": "attestation", "toponym_ref": "Easington@Oxfordshire", "form": "Easington", "date_year": 1086, "source_doc": "Phillimore 58,9; Hundred=Benson; OS=SU6697"}
-{"_type": "attestation", "toponym_ref": "Easington@West Riding", "form": "Easington", "date_year": 1086, "source_doc": "Phillimore 14E9-10. SE,Hol14; Hundred=Holderness [South Hundred]; OS=TA3919"}
-{"_type": "attestation", "toponym_ref": "Easington@West Riding", "form": "Easington", "date_year": 1086, "source_doc": "Phillimore 4N2. SN,L13; Hundred=Langbaurgh; OS=NZ7418"}
-{"_type": "attestation", "toponym_ref": "Easington@West Riding", "form": "Easington", "date_year": 1086, "source_doc": "Phillimore 30W37; Hundred=Craven; OS=SD7050"}
+{"_type": "attestation", "toponym_ref": "Easington@Yorkshire", "form": "Easington", "date_year": 1086, "source_doc": "Phillimore 14E9-10. SE,Hol14; Hundred=Holderness [South Hundred]; OS=TA3919"}
+{"_type": "attestation", "toponym_ref": "Easington@Yorkshire", "form": "Easington", "date_year": 1086, "source_doc": "Phillimore 4N2. SN,L13; Hundred=Langbaurgh; OS=NZ7418"}
+{"_type": "attestation", "toponym_ref": "Easington@Yorkshire", "form": "Easington", "date_year": 1086, "source_doc": "Phillimore 30W37; Hundred=Craven; OS=SD7050"}
 {"_type": "attestation", "toponym_ref": "Easingwold@North Riding", "form": "Easingwold", "date_year": 1086, "source_doc": "Phillimore 1Y1. SN,B21; Hundred=`Bulford'; OS=SE5269"}
 {"_type": "attestation", "toponym_ref": "Easole@Kent", "form": "Easole", "date_year": 1086, "source_doc": "Phillimore 5,134;217; Hundred=Eastry; OS=TR2552"}
 {"_type": "attestation", "toponym_ref": "East Allington@Devon", "form": "East Allington", "date_year": 1086, "source_doc": "Phillimore 30,3; Hundred=Diptford; OS=SX7748"}
@@ -23146,8 +23146,8 @@
 {"_type": "attestation", "toponym_ref": "Ellenthorpe Hall@Yorkshire", "form": "Ellenthorpe Hall", "date_year": 1086, "source_doc": "Phillimore 1Y18 and note. SW,H7; Hundred=Hallikeld; OS=SE4167"}
 {"_type": "attestation", "toponym_ref": "Ellerbeck@North Riding", "form": "Ellerbeck", "date_year": 1086, "source_doc": "Phillimore 1N130. 23N16. SN,A8; Hundred=Allerton; OS=SE4396"}
 {"_type": "attestation", "toponym_ref": "Ellerburn@Yorkshire", "form": "Ellerburn", "date_year": 1086, "source_doc": "Phillimore 1Y4. 1N49. SN,D16; Hundred={Dic}; OS=SE8484"}
-{"_type": "attestation", "toponym_ref": "Ellerby@East Riding", "form": "Ellerby", "date_year": 1086, "source_doc": "Phillimore 14E43. CE41. SE,Hol24; Hundred=Holderness [Middle Hundred]; OS=TA1637"}
-{"_type": "attestation", "toponym_ref": "Ellerby@East Riding", "form": "Ellerby", "date_year": 1086, "source_doc": "Phillimore 5N6. SN,L8; Hundred=Langbaurgh; OS=NZ7914"}
+{"_type": "attestation", "toponym_ref": "Ellerby@Yorkshire", "form": "Ellerby", "date_year": 1086, "source_doc": "Phillimore 14E43. CE41. SE,Hol24; Hundred=Holderness [Middle Hundred]; OS=TA1637"}
+{"_type": "attestation", "toponym_ref": "Ellerby@Yorkshire", "form": "Ellerby", "date_year": 1086, "source_doc": "Phillimore 5N6. SN,L8; Hundred=Langbaurgh; OS=NZ7914"}
 {"_type": "attestation", "toponym_ref": "Ellerdine@Shropshire", "form": "Ellerdine", "date_year": 1086, "source_doc": "Phillimore 4,23,7; Hundred=Hodnet; OS=SJ6020"}
 {"_type": "attestation", "toponym_ref": "Ellerker@East Riding", "form": "Ellerker", "date_year": 1086, "source_doc": "Phillimore 3Y1; Hundred=Welton; OS=SE9229"}
 {"_type": "attestation", "toponym_ref": "Ellerton@East Riding", "form": "Ellerton", "date_year": 1086, "source_doc": "Phillimore 5E24. CE2. SE,C8; Hundred=Cave; OS=SE7039"}
@@ -23624,8 +23624,8 @@
 {"_type": "attestation", "toponym_ref": "Finmere@Oxfordshire", "form": "Finmere", "date_year": 1086, "source_doc": "Phillimore 7,16. EN1; Hundred=Kirtlington; OS=SP6333"}
 {"_type": "attestation", "toponym_ref": "Finningham@Suffolk", "form": "Finningham", "date_year": 1086, "source_doc": "Phillimore 6,59;209;231. 14,131;133. 66,15; Hundred=`Hartismere'; OS=TM0669"}
 {"_type": "attestation", "toponym_ref": "Finningley@Nottinghamshire", "form": "Finningley", "date_year": 1086, "source_doc": "Phillimore 18,3; Hundred=`Bassetlaw'; OS=SK6799"}
-{"_type": "attestation", "toponym_ref": "Firby@East Riding", "form": "Firby", "date_year": 1086, "source_doc": "Phillimore 31E8 and note; Hundred=Acklam; OS=SE7466"}
-{"_type": "attestation", "toponym_ref": "Firby@East Riding", "form": "Firby", "date_year": 1086, "source_doc": "Phillimore 6N121 and note. SN,CtA35; Hundred=Land of Count Alan; OS=SE2686"}
+{"_type": "attestation", "toponym_ref": "Firby@Yorkshire", "form": "Firby", "date_year": 1086, "source_doc": "Phillimore 31E8 and note; Hundred=Acklam; OS=SE7466"}
+{"_type": "attestation", "toponym_ref": "Firby@Yorkshire", "form": "Firby", "date_year": 1086, "source_doc": "Phillimore 6N121 and note. SN,CtA35; Hundred=Land of Count Alan; OS=SE2686"}
 {"_type": "attestation", "toponym_ref": "Firle@Sussex", "form": "Firle", "date_year": 1086, "source_doc": "Phillimore 10,44(-46);49. 12,10; Hundred=`Flexborough'"}
 {"_type": "attestation", "toponym_ref": "Firle@Sussex", "form": "Firle", "date_year": 1086, "source_doc": "Phillimore 9,38;56;71;75;91;102. 10,22; Hundred=`Totnore'"}
 {"_type": "attestation", "toponym_ref": "Firsby@Lincolnshire", "form": "Firsby", "date_year": 1086, "source_doc": "Phillimore 4,11-12; Hundred=`Aslacoe'"}
@@ -24524,12 +24524,12 @@
 {"_type": "attestation", "toponym_ref": "Grimston@Norfolk", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 2,2. 8,25;27. 9,116. 51,1; Hundred=`Freebridge'; OS=TF7221"}
 {"_type": "attestation", "toponym_ref": "Grimston@Nottinghamshire", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 1,17(-21);24;27; Hundred=`Bassetlaw'; OS=SK6865"}
 {"_type": "attestation", "toponym_ref": "Grimston@Suffolk", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 2,20. 7,99; Hundred=`Colnes'"}
-{"_type": "attestation", "toponym_ref": "Grimston@West Riding", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 23N24 and note; Hundred={Maneshou}; OS=SE6074"}
-{"_type": "attestation", "toponym_ref": "Grimston@West Riding", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 5E38. 13E8. CE27. SE,Sn10; Hundred={Sneculfcros}; OS=SE6451"}
-{"_type": "attestation", "toponym_ref": "Grimston@West Riding", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 2E24 and note. 14E4. SE,Sc5 note. SE,So2. SE,Hol8; Hundred=Holderness [South Hundred]; OS=TA2935"}
-{"_type": "attestation", "toponym_ref": "Grimston@West Riding", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 9W29 and note. SW,BA5;8; Hundred=Barkston"}
-{"_type": "attestation", "toponym_ref": "Grimston@West Riding", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 26E11. 29E16. SE,Sc5 note. SE,Ac3; Hundred=Acklam"}
-{"_type": "attestation", "toponym_ref": "Grimston@West Riding", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 1E53. 2B18. 23E17. 31E8. SE,Sc5 and note;(6); Hundred={Scard}"}
+{"_type": "attestation", "toponym_ref": "Grimston@Yorkshire", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 23N24 and note; Hundred={Maneshou}; OS=SE6074"}
+{"_type": "attestation", "toponym_ref": "Grimston@Yorkshire", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 5E38. 13E8. CE27. SE,Sn10; Hundred={Sneculfcros}; OS=SE6451"}
+{"_type": "attestation", "toponym_ref": "Grimston@Yorkshire", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 2E24 and note. 14E4. SE,Sc5 note. SE,So2. SE,Hol8; Hundred=Holderness [South Hundred]; OS=TA2935"}
+{"_type": "attestation", "toponym_ref": "Grimston@Yorkshire", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 9W29 and note. SW,BA5;8; Hundred=Barkston"}
+{"_type": "attestation", "toponym_ref": "Grimston@Yorkshire", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 26E11. 29E16. SE,Sc5 note. SE,Ac3; Hundred=Acklam"}
+{"_type": "attestation", "toponym_ref": "Grimston@Yorkshire", "form": "Grimston", "date_year": 1086, "source_doc": "Phillimore 1E53. 2B18. 23E17. 31E8. SE,Sc5 and note;(6); Hundred={Scard}"}
 {"_type": "attestation", "toponym_ref": "Grimston Grange@Yorkshire", "form": "Grimston Grange", "date_year": 1086, "source_doc": "Phillimore 9W29 and note. SW,BA5;8; Hundred=Barkston; OS=SE4841"}
 {"_type": "attestation", "toponym_ref": "Grimston Hall@Suffolk", "form": "Grimston Hall", "date_year": 1086, "source_doc": "Phillimore 2,20. 7,99; Hundred=`Colnes'; OS=TM2636"}
 {"_type": "attestation", "toponym_ref": "Grimston Hill@Leicestershire", "form": "Grimston Hill", "date_year": 1086, "source_doc": "Phillimore 1,3. 17,22; Hundred=`Goscote'"}
@@ -25306,8 +25306,8 @@
 {"_type": "attestation", "toponym_ref": "Hessay@West Riding", "form": "Hessay", "date_year": 1086, "source_doc": "Phillimore 22W4. 25W17. SW,An13(-14); Hundred=Ainsty; OS=SE5253"}
 {"_type": "attestation", "toponym_ref": "Hesselton@Yorkshire", "form": "Hesselton", "date_year": 1086, "source_doc": "Phillimore 6N136. SN,CtA38; Hundred=Land of Count Alan; OS=SE1991"}
 {"_type": "attestation", "toponym_ref": "Hesset@Suffolk", "form": "Hesset", "date_year": 1086, "source_doc": "Phillimore 12,2. 14,57; Hundred=Thedwastre; OS=TL9361"}
-{"_type": "attestation", "toponym_ref": "Hessle@West Riding", "form": "Hessle", "date_year": 1086, "source_doc": "Phillimore 15E2. 21E2. SE,He1; Hundred=Hessle; OS=TA0326"}
-{"_type": "attestation", "toponym_ref": "Hessle@West Riding", "form": "Hessle", "date_year": 1086, "source_doc": "Phillimore 9W53. SW,O9; Hundred=`Osgodcross'; OS=SE4317"}
+{"_type": "attestation", "toponym_ref": "Hessle@Yorkshire", "form": "Hessle", "date_year": 1086, "source_doc": "Phillimore 15E2. 21E2. SE,He1; Hundred=Hessle; OS=TA0326"}
+{"_type": "attestation", "toponym_ref": "Hessle@Yorkshire", "form": "Hessle", "date_year": 1086, "source_doc": "Phillimore 9W53. SW,O9; Hundred=`Osgodcross'; OS=SE4317"}
 {"_type": "attestation", "toponym_ref": "Hestley@Suffolk", "form": "Hestley", "date_year": 1086, "source_doc": "Phillimore 43,8; Hundred=`Hartismere'; OS=TM1468"}
 {"_type": "attestation", "toponym_ref": "Heswall@Cheshire", "form": "Heswall", "date_year": 1086, "source_doc": "Phillimore 3,6; Hundred=Willaston; OS=SJ2682"}
 {"_type": "attestation", "toponym_ref": "Hethe@Northamptonshire", "form": "Hethe", "date_year": 1086, "source_doc": "Phillimore 4,31; Hundred=Kirtlington; OS=SP5929"}
@@ -25667,16 +25667,16 @@
 {"_type": "attestation", "toponym_ref": "Holme@Norfolk", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 1,134. 19,10; Hundred=`Smethdon'"}
 {"_type": "attestation", "toponym_ref": "Holme@Nottinghamshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 9,80-81; Hundred=Rushcliffe"}
 {"_type": "attestation", "toponym_ref": "Holme@Warwickshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 17,44-45; Hundred=`Bumbelowe'"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 1L4 and note. See also CHS Y5; Hundred=Amounderness; OS=SD5278"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 13W40 and note; Hundred=Craven; OS=SD7752"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 1Y15. 1W26(-28). SW,Ag12; Hundred=Agbrigg; OS=SE1005"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 3Y9. SW,H5; Hundred=Hallikeld; OS=SE3582"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 1W73 and note. SW,Cr3; Hundred=Craven"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 1N72 and note. 8N18. SN,Ma10 and note; Hundred={Maneshou}"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 3Y8. SE,Sn9; Hundred={Sneculfcros}"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 14E1. SE,Hol1;3; Hundred=Holderness [South Hundred]"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 16N1. 23N24. SN,Ma10 note;22; Hundred={Maneshou}"}
-{"_type": "attestation", "toponym_ref": "Holme@West Riding", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 21E9 and note. SE,Wei2; Hundred=Weighton"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 1L4 and note. See also CHS Y5; Hundred=Amounderness; OS=SD5278"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 13W40 and note; Hundred=Craven; OS=SD7752"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 1Y15. 1W26(-28). SW,Ag12; Hundred=Agbrigg; OS=SE1005"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 3Y9. SW,H5; Hundred=Hallikeld; OS=SE3582"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 1W73 and note. SW,Cr3; Hundred=Craven"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 1N72 and note. 8N18. SN,Ma10 and note; Hundred={Maneshou}"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 3Y8. SE,Sn9; Hundred={Sneculfcros}"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 14E1. SE,Hol1;3; Hundred=Holderness [South Hundred]"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 16N1. 23N24. SN,Ma10 note;22; Hundred={Maneshou}"}
+{"_type": "attestation", "toponym_ref": "Holme@Yorkshire", "form": "Holme", "date_year": 1086, "source_doc": "Phillimore 21E9 and note. SE,Wei2; Hundred=Weighton"}
 {"_type": "attestation", "toponym_ref": "Holme Hale@Norfolk", "form": "Holme Hale", "date_year": 1086, "source_doc": "Phillimore 1,74. 66,70; Hundred=`[South] Greenhoe'; OS=TF8807"}
 {"_type": "attestation", "toponym_ref": "Holme House@Yorkshire", "form": "Holme House", "date_year": 1086, "source_doc": "Phillimore 1W73 and note. SW,Cr3; Hundred=Craven; OS=SD9454"}
 {"_type": "attestation", "toponym_ref": "Holme House@Yorkshire", "form": "Holme House", "date_year": 1086, "source_doc": "Phillimore 1N72 and note. 8N18. SN,Ma10 and note; Hundred={Maneshou}"}
@@ -27590,8 +27590,8 @@
 {"_type": "attestation", "toponym_ref": "Little Shelford@Cambridgeshire", "form": "Little Shelford", "date_year": 1086, "source_doc": "Phillimore 1,17. 5,25(-27). 14,22. 26,18. EE2; Hundred=Thriplow; OS=TL4551"}
 {"_type": "attestation", "toponym_ref": "Little Shoddesden@Hampshire", "form": "Little Shoddesden", "date_year": 1086, "source_doc": "Phillimore 69,26; Hundred=Andover"}
 {"_type": "attestation", "toponym_ref": "Little Singleton@Yorkshire", "form": "Little Singleton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness; OS=SD3739"}
-{"_type": "attestation", "toponym_ref": "Little Smeaton@West Riding", "form": "Little Smeaton", "date_year": 1086, "source_doc": "Phillimore 9W47 and note;48. SW,O8; Hundred=`Osgodcross'; OS=SE5216"}
-{"_type": "attestation", "toponym_ref": "Little Smeaton@West Riding", "form": "Little Smeaton", "date_year": 1086, "source_doc": "Phillimore 1Y2 and note. 1N116. SN,A1;3; Hundred=Allerton; OS=NZ3403"}
+{"_type": "attestation", "toponym_ref": "Little Smeaton@Yorkshire", "form": "Little Smeaton", "date_year": 1086, "source_doc": "Phillimore 9W47 and note;48. SW,O8; Hundred=`Osgodcross'; OS=SE5216"}
+{"_type": "attestation", "toponym_ref": "Little Smeaton@Yorkshire", "form": "Little Smeaton", "date_year": 1086, "source_doc": "Phillimore 1Y2 and note. 1N116. SN,A1;3; Hundred=Allerton; OS=NZ3403"}
 {"_type": "attestation", "toponym_ref": "Little Smithcot@Wiltshire", "form": "Little Smithcot", "date_year": 1086, "source_doc": "Phillimore 27,11; Hundred=Startley; OS=ST9982"}
 {"_type": "attestation", "toponym_ref": "Little Snarehill@Norfolk", "form": "Little Snarehill", "date_year": 1086, "source_doc": "Phillimore 9,75; Hundred=`Guiltcross'; OS=TL8881"}
 {"_type": "attestation", "toponym_ref": "Little Snoring@Norfolk", "form": "Little Snoring", "date_year": 1086, "source_doc": "Phillimore 1,16. 8,101. 34,7; Hundred=`Gallow'; OS=TF9532"}
@@ -28238,8 +28238,8 @@
 {"_type": "attestation", "toponym_ref": "Malston@Devon", "form": "Malston", "date_year": 1086, "source_doc": "Phillimore 17,55; Hundred=Chillington; OS=SX7745"}
 {"_type": "attestation", "toponym_ref": "Maltby@Lincolnshire", "form": "Maltby", "date_year": 1086, "source_doc": "Phillimore 13,29; Hundred=`Louthesk'; OS=TF3184"}
 {"_type": "attestation", "toponym_ref": "Maltby@Lincolnshire", "form": "Maltby", "date_year": 1086, "source_doc": "Phillimore 12,86. 24,64. 25,22. 28,32; Hundred=`Calcewath'"}
-{"_type": "attestation", "toponym_ref": "Maltby@West Riding", "form": "Maltby", "date_year": 1086, "source_doc": "Phillimore 4N3. SN,L35; Hundred=Langbaurgh; OS=NZ4613"}
-{"_type": "attestation", "toponym_ref": "Maltby@West Riding", "form": "Maltby", "date_year": 1086, "source_doc": "Phillimore 10W4;12. SW,Sf5; Hundred=Strafforth; OS=SK5291"}
+{"_type": "attestation", "toponym_ref": "Maltby@Yorkshire", "form": "Maltby", "date_year": 1086, "source_doc": "Phillimore 4N3. SN,L35; Hundred=Langbaurgh; OS=NZ4613"}
+{"_type": "attestation", "toponym_ref": "Maltby@Yorkshire", "form": "Maltby", "date_year": 1086, "source_doc": "Phillimore 10W4;12. SW,Sf5; Hundred=Strafforth; OS=SK5291"}
 {"_type": "attestation", "toponym_ref": "Maltby le Marsh@Lincolnshire", "form": "Maltby le Marsh", "date_year": 1086, "source_doc": "Phillimore 12,86. 24,64. 25,22. 28,32; Hundred=`Calcewath'"}
 {"_type": "attestation", "toponym_ref": "Maltby-le-Marsh@Lincolnshire", "form": "Maltby-le-Marsh", "date_year": 1086, "source_doc": "Phillimore 12,86. 24,64. 25,22. 28,32; Hundred=`Calcewath'; OS=TF4681"}
 {"_type": "attestation", "toponym_ref": "Malton@Yorkshire", "form": "Malton", "date_year": 1086, "source_doc": "Phillimore 1N65-66. 2N7. 5N37. SN,Ma5(-6); Hundred={Maneshou}"}
@@ -28464,14 +28464,14 @@
 {"_type": "attestation", "toponym_ref": "Marton@Shropshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 3f,2; Hundred=Wittery; OS=SJ2802"}
 {"_type": "attestation", "toponym_ref": "Marton@Warwickshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 16,35-37. 18,1. 44,5; Hundred=Marton; OS=SP4068"}
 {"_type": "attestation", "toponym_ref": "Marton@Warwickshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 16,35 note; Hundred=Marton; OS=SP4068"}
-{"_type": "attestation", "toponym_ref": "Marton@West Riding", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 14E11;51. SE,Hol16;26; Hundred=Holderness [Middle Hundred]; OS=TA1839"}
-{"_type": "attestation", "toponym_ref": "Marton@West Riding", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 28W1. SW,Bu4; Hundred=`Burghshire'; OS=SE4162"}
-{"_type": "attestation", "toponym_ref": "Marton@West Riding", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 1Y11. 2N20. 5E46. 29E8. SE,Hu2; Hundred=Hunthow; OS=TA2069"}
-{"_type": "attestation", "toponym_ref": "Marton@West Riding", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 8N16. 23N21. SN,L31 note. SN,D21; Hundred={Dic}; OS=SE7383"}
-{"_type": "attestation", "toponym_ref": "Marton@West Riding", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 30W26 and note; Hundred=Craven"}
-{"_type": "attestation", "toponym_ref": "Marton@West Riding", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness"}
-{"_type": "attestation", "toponym_ref": "Marton@West Riding", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 1N25 and note. 11N6;8. 29N6-7. 31N5. SN,L31 and note; Hundred=Langbaurgh"}
-{"_type": "attestation", "toponym_ref": "Marton@West Riding", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 5N58. SN,B7; Hundred=`Bulford'"}
+{"_type": "attestation", "toponym_ref": "Marton@Yorkshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 14E11;51. SE,Hol16;26; Hundred=Holderness [Middle Hundred]; OS=TA1839"}
+{"_type": "attestation", "toponym_ref": "Marton@Yorkshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 28W1. SW,Bu4; Hundred=`Burghshire'; OS=SE4162"}
+{"_type": "attestation", "toponym_ref": "Marton@Yorkshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 1Y11. 2N20. 5E46. 29E8. SE,Hu2; Hundred=Hunthow; OS=TA2069"}
+{"_type": "attestation", "toponym_ref": "Marton@Yorkshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 8N16. 23N21. SN,L31 note. SN,D21; Hundred={Dic}; OS=SE7383"}
+{"_type": "attestation", "toponym_ref": "Marton@Yorkshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 30W26 and note; Hundred=Craven"}
+{"_type": "attestation", "toponym_ref": "Marton@Yorkshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Marton@Yorkshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 1N25 and note. 11N6;8. 29N6-7. 31N5. SN,L31 and note; Hundred=Langbaurgh"}
+{"_type": "attestation", "toponym_ref": "Marton@Yorkshire", "form": "Marton", "date_year": 1086, "source_doc": "Phillimore 5N58. SN,B7; Hundred=`Bulford'"}
 {"_type": "attestation", "toponym_ref": "Marton in Cleveland@North Riding", "form": "Marton in Cleveland", "date_year": 1086, "source_doc": "Phillimore 1N25 and note. 11N6;8. 29N6-7. 31N5. SN,L31 and note; Hundred=Langbaurgh; OS=NZ5115"}
 {"_type": "attestation", "toponym_ref": "Marton in the Forest@Yorkshire", "form": "Marton in the Forest", "date_year": 1086, "source_doc": "Phillimore 5N58. SN,B7; Hundred=`Bulford'; OS=SE6068"}
 {"_type": "attestation", "toponym_ref": "Marton-in-Cleveland@Yorkshire", "form": "Marton-in-Cleveland", "date_year": 1086, "source_doc": "Phillimore 1N25 and note. 11N6;8. 29N6-7. 31N5. SN,L31 and note; Hundred=Langbaurgh"}
@@ -28707,17 +28707,17 @@
 {"_type": "attestation", "toponym_ref": "Middleton@Shropshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 4,3,65; Hundred={Alnodestreu}"}
 {"_type": "attestation", "toponym_ref": "Middleton@Warwickshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 18,4. 45,1; Hundred=Coleshill; OS=SP1798"}
 {"_type": "attestation", "toponym_ref": "Middleton@Wiltshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 24,29. 48,5; Hundred=Warminster; OS=ST9044"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 1L2. See also CHS Y3; Hundred=Amounderness; OS=SD4258"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 28W39 and note; Hundred=Langbaurgh; OS=NZ3804"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 5N19 and note. SN,L18; Hundred=Langbaurgh; OS=NZ6116"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 2W4. SW,Sk2; Hundred=`Skyrack'; OS=SE1249"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 9W119 and note. SW,M2; Hundred=Morley; OS=SE3028"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 1Y4. SN,L39 note. SN,D18; Hundred={Dic}; OS=SE7885"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 1L4 and note. See also CHS Y5; Hundred=Amounderness"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 2E12(-13). 5E21(-22);27(-28). CE3(-7). SE,Sn1; Hundred={Sneculfcros}"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 6N146. SN,CtA40; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 6N3(-4). SN,CtA8; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Middleton@West Riding", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 5N28. SN,L39 and note; Hundred=Langbaurgh"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 1L2. See also CHS Y3; Hundred=Amounderness; OS=SD4258"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 28W39 and note; Hundred=Langbaurgh; OS=NZ3804"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 5N19 and note. SN,L18; Hundred=Langbaurgh; OS=NZ6116"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 2W4. SW,Sk2; Hundred=`Skyrack'; OS=SE1249"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 9W119 and note. SW,M2; Hundred=Morley; OS=SE3028"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 1Y4. SN,L39 note. SN,D18; Hundred={Dic}; OS=SE7885"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 1L4 and note. See also CHS Y5; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 2E12(-13). 5E21(-22);27(-28). CE3(-7). SE,Sn1; Hundred={Sneculfcros}"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 6N146. SN,CtA40; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 6N3(-4). SN,CtA8; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Middleton@Yorkshire", "form": "Middleton", "date_year": 1086, "source_doc": "Phillimore 5N28. SN,L39 and note; Hundred=Langbaurgh"}
 {"_type": "attestation", "toponym_ref": "Middleton Cheney@Northamptonshire", "form": "Middleton Cheney", "date_year": 1086, "source_doc": "Phillimore 18,37. 22,6. 23,10; Hundred=Sutton; OS=SP4942"}
 {"_type": "attestation", "toponym_ref": "Middleton Hall@Yorkshire", "form": "Middleton Hall", "date_year": 1086, "source_doc": "Phillimore 1L4 and note. See also CHS Y5; Hundred=Amounderness; OS=SD6287"}
 {"_type": "attestation", "toponym_ref": "Middleton Quernhow@North Riding", "form": "Middleton Quernhow", "date_year": 1086, "source_doc": "Phillimore 6N146. SN,CtA40; Hundred=Land of Count Alan; OS=SE3378"}
@@ -29452,31 +29452,31 @@
 {"_type": "attestation", "toponym_ref": "Newton@Warwickshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 17,41-43; Hundred=`Bumbelowe'; OS=SP5378"}
 {"_type": "attestation", "toponym_ref": "Newton@Wiltshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 13,10; Hundred=`Branchbury'"}
 {"_type": "attestation", "toponym_ref": "Newton@Wiltshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 26,5; Hundred=Amesbury"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 3Y1 and note. 3Y7 and note. CE24. SE,Sn8; Hundred={Sneculfcros}"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1N18. 31N6 and note. SN,L28; Hundred=Langbaurgh; OS=NZ5613"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1Y4. 8N12. SN,D10-11; Hundred={Dic}; OS=SE8190"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 30W37 and note; Hundred=Craven; OS=SD6950"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness; OS=SD4430"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1Y3 and note. SN,D7; Hundred={Dic}; OS=SE9884"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1L3. See also CHS Y4; Hundred=Amounderness; OS=SD5974"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 16E4 and note. SE,Tu2 note;3 note. SE,Th1; Hundred={Toreshou}; OS=SE8872"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 8W2. 30W23; Hundred=Craven"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 14E11. SE,Hol15;17; Hundred=Holderness [Middle Hundred]"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1N76. 2N5. 23N24. SN,Ma15; Hundred={Maneshou}"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 14E1. SE,Hol2 and note; Hundred=Holderness [South Hundred]"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1L6 and note. See also CHS Y7; Hundred=Amounderness; OS=SD2271"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 5W7. 25W29-30. CW3. SW,BA3;8;13; Hundred=Barkston"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 6N134. SN,B22 note. SN,CtA37; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 30W7; Hundred=Craven"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 6N1. SN,B22 note. SN,CtA1; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 5N8. SN,L8; Hundred=Langbaurgh"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 14E20. SE,Hol12 note;20; Hundred=Holderness [South Hundred]"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 6N151 and note. SN,CtA42; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 16N2. 16W6. SN,B22 and note; Hundred=`Bulford'"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 9W27 and note. SW,BA8; Hundred=Barkston"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 2E29. SE,Mid1; Hundred=Holderness [Middle Hundred]"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1N75 and note. SN,Ma16; Hundred={Maneshou}"}
-{"_type": "attestation", "toponym_ref": "Newton@West Riding", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1E20(-21). 20E4. SE,Tu2 and note;3; Hundred={Torbar}"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 3Y1 and note. 3Y7 and note. CE24. SE,Sn8; Hundred={Sneculfcros}"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1N18. 31N6 and note. SN,L28; Hundred=Langbaurgh; OS=NZ5613"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1Y4. 8N12. SN,D10-11; Hundred={Dic}; OS=SE8190"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 30W37 and note; Hundred=Craven; OS=SD6950"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness; OS=SD4430"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1Y3 and note. SN,D7; Hundred={Dic}; OS=SE9884"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1L3. See also CHS Y4; Hundred=Amounderness; OS=SD5974"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 16E4 and note. SE,Tu2 note;3 note. SE,Th1; Hundred={Toreshou}; OS=SE8872"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 8W2. 30W23; Hundred=Craven"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 14E11. SE,Hol15;17; Hundred=Holderness [Middle Hundred]"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1N76. 2N5. 23N24. SN,Ma15; Hundred={Maneshou}"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 14E1. SE,Hol2 and note; Hundred=Holderness [South Hundred]"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1L6 and note. See also CHS Y7; Hundred=Amounderness; OS=SD2271"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 5W7. 25W29-30. CW3. SW,BA3;8;13; Hundred=Barkston"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 6N134. SN,B22 note. SN,CtA37; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 30W7; Hundred=Craven"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 6N1. SN,B22 note. SN,CtA1; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 5N8. SN,L8; Hundred=Langbaurgh"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 14E20. SE,Hol12 note;20; Hundred=Holderness [South Hundred]"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 6N151 and note. SN,CtA42; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 16N2. 16W6. SN,B22 and note; Hundred=`Bulford'"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 9W27 and note. SW,BA8; Hundred=Barkston"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 2E29. SE,Mid1; Hundred=Holderness [Middle Hundred]"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1N75 and note. SN,Ma16; Hundred={Maneshou}"}
+{"_type": "attestation", "toponym_ref": "Newton@Yorkshire", "form": "Newton", "date_year": 1086, "source_doc": "Phillimore 1E20(-21). 20E4. SE,Tu2 and note;3; Hundred={Torbar}"}
 {"_type": "attestation", "toponym_ref": "Newton Bromswold@Bedfordshire", "form": "Newton Bromswold", "date_year": 1086, "source_doc": "Phillimore 3,9; Hundred=`Stodden'; OS=SP9965"}
 {"_type": "attestation", "toponym_ref": "Newton Bromswold@Northamptonshire", "form": "Newton Bromswold", "date_year": 1086, "source_doc": "Phillimore 4,20. EB1; Hundred=Higham; OS=SP9965"}
 {"_type": "attestation", "toponym_ref": "Newton Burgoland@Leicestershire", "form": "Newton Burgoland", "date_year": 1086, "source_doc": "Phillimore 14,24(-25); Hundred=`Goscote'; OS=SK3709"}
@@ -29793,10 +29793,10 @@
 {"_type": "attestation", "toponym_ref": "Norton@Worcestershire", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 10,3; Hundred=`Fishborough'; OS=SP0447"}
 {"_type": "attestation", "toponym_ref": "Norton@Worcestershire", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 2,29; Hundred=`Oswaldslow'"}
 {"_type": "attestation", "toponym_ref": "Norton@Worcestershire", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 1,1a; Hundred=`Came'"}
-{"_type": "attestation", "toponym_ref": "Norton@West Riding", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 1E38-39. 15E11. 23E15. SE,Sc3(-4); Hundred={Scard}; OS=SE7971"}
-{"_type": "attestation", "toponym_ref": "Norton@West Riding", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 9W35. SW,O2; Hundred=`Osgodcross'; OS=SE5415"}
-{"_type": "attestation", "toponym_ref": "Norton@West Riding", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 3Y9 and note. SW,H4; Hundred=Hallikeld"}
-{"_type": "attestation", "toponym_ref": "Norton@West Riding", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 5W38. SW,H8; Hundred=Hallikeld"}
+{"_type": "attestation", "toponym_ref": "Norton@Yorkshire", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 1E38-39. 15E11. 23E15. SE,Sc3(-4); Hundred={Scard}; OS=SE7971"}
+{"_type": "attestation", "toponym_ref": "Norton@Yorkshire", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 9W35. SW,O2; Hundred=`Osgodcross'; OS=SE5415"}
+{"_type": "attestation", "toponym_ref": "Norton@Yorkshire", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 3Y9 and note. SW,H4; Hundred=Hallikeld"}
+{"_type": "attestation", "toponym_ref": "Norton@Yorkshire", "form": "Norton", "date_year": 1086, "source_doc": "Phillimore 5W38. SW,H8; Hundred=Hallikeld"}
 {"_type": "attestation", "toponym_ref": "Norton Bavant@Wiltshire", "form": "Norton Bavant", "date_year": 1086, "source_doc": "Phillimore 26,12; Hundred=Warminster; OS=ST9043"}
 {"_type": "attestation", "toponym_ref": "Norton Canes@Staffordshire", "form": "Norton Canes", "date_year": 1086, "source_doc": "Phillimore 2,16; Hundred=Offlow; OS=SK0208"}
 {"_type": "attestation", "toponym_ref": "Norton Canon@Herefordshire", "form": "Norton Canon", "date_year": 1086, "source_doc": "Phillimore 2,45; Hundred={Stepleset}; OS=SO3847"}
@@ -31057,8 +31057,8 @@
 {"_type": "attestation", "toponym_ref": "Raventhorpe@Yorkshire", "form": "Raventhorpe", "date_year": 1086, "source_doc": "Phillimore 2E7 and note. 5E36. SE,Sn7; Hundred={Sneculfcros}; OS=TA0042"}
 {"_type": "attestation", "toponym_ref": "Rawcliff@Yorkshire", "form": "Rawcliff", "date_year": 1086, "source_doc": "Phillimore 4N2 and note. SN,L19; Hundred=Langbaurgh"}
 {"_type": "attestation", "toponym_ref": "Rawcliff Banks@Yorkshire", "form": "Rawcliff Banks", "date_year": 1086, "source_doc": "Phillimore 4N2 and note. SN,L19; Hundred=Langbaurgh; OS=NZ6316"}
-{"_type": "attestation", "toponym_ref": "Rawcliffe@West Riding", "form": "Rawcliffe", "date_year": 1086, "source_doc": "Phillimore C31. 1W1 and note. SN,Y6; Hundred=`Bulford'; OS=SE5855"}
-{"_type": "attestation", "toponym_ref": "Rawcliffe@West Riding", "form": "Rawcliffe", "date_year": 1086, "source_doc": "Phillimore 1L1 and note. See also CHS Y2; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Rawcliffe@Yorkshire", "form": "Rawcliffe", "date_year": 1086, "source_doc": "Phillimore C31. 1W1 and note. SN,Y6; Hundred=`Bulford'; OS=SE5855"}
+{"_type": "attestation", "toponym_ref": "Rawcliffe@Yorkshire", "form": "Rawcliffe", "date_year": 1086, "source_doc": "Phillimore 1L1 and note. See also CHS Y2; Hundred=Amounderness"}
 {"_type": "attestation", "toponym_ref": "Rawcliffe Hall@Yorkshire", "form": "Rawcliffe Hall", "date_year": 1086, "source_doc": "Phillimore 1L1 and note. See also CHS Y2; Hundred=Amounderness; OS=SD4141"}
 {"_type": "attestation", "toponym_ref": "Rawdon@West Riding", "form": "Rawdon", "date_year": 1086, "source_doc": "Phillimore 1W18. 31W4. SW,Sk17; Hundred=`Skyrack'; OS=SE2139"}
 {"_type": "attestation", "toponym_ref": "Rawmarsh@West Riding", "form": "Rawmarsh", "date_year": 1086, "source_doc": "Phillimore 19W3. SW,Sf12; Hundred=Strafforth; OS=SK4396"}
@@ -31731,7 +31731,7 @@
 {"_type": "attestation", "toponym_ref": "Scagetorp@Yorkshire", "form": "Scagetorp", "date_year": 1086, "source_doc": "Phillimore 1Y3 and note. SN,D4; Hundred={Dic}"}
 {"_type": "attestation", "toponym_ref": "Scagglethorpe@East Riding", "form": "Scagglethorpe", "date_year": 1086, "source_doc": "Phillimore 5E61. SE,Sc10; Hundred={Scard}; OS=SE8372"}
 {"_type": "attestation", "toponym_ref": "Scagglethorpe@East Riding", "form": "Scagglethorpe", "date_year": 1086, "source_doc": "Phillimore 25W16 and note. CW32. SW,An12; Hundred=Ainsty; OS=SE5455"}
-{"_type": "attestation", "toponym_ref": "Scalby@East Riding", "form": "Scalby", "date_year": 1086, "source_doc": "Phillimore 1Y3. SN,D2; Hundred={Dic}; OS=TA0090"}
+{"_type": "attestation", "toponym_ref": "Scalby@Yorkshire", "form": "Scalby", "date_year": 1086, "source_doc": "Phillimore 1Y3. SN,D2; Hundred={Dic}; OS=TA0090"}
 {"_type": "attestation", "toponym_ref": "Scaldwell@Northamptonshire", "form": "Scaldwell", "date_year": 1086, "source_doc": "Phillimore 4,3. 8,4. 56,41; Hundred=Mawsley; OS=SP7672"}
 {"_type": "attestation", "toponym_ref": "Scalford@Leicestershire", "form": "Scalford", "date_year": 1086, "source_doc": "Phillimore 17,33. 40,23; Hundred=Framland; OS=SK7624"}
 {"_type": "attestation", "toponym_ref": "Scamblesby@Lincolnshire", "form": "Scamblesby", "date_year": 1086, "source_doc": "Phillimore 14,49; Hundred=`Gartree'; OS=TF2778"}
@@ -31777,8 +31777,8 @@
 {"_type": "attestation", "toponym_ref": "Scotterthorpe@Lincolnshire", "form": "Scotterthorpe", "date_year": 1086, "source_doc": "Phillimore 8,18; Hundred=Corringham; OS=SE8701"}
 {"_type": "attestation", "toponym_ref": "Scottlethorpe@Lincolnshire", "form": "Scottlethorpe", "date_year": 1086, "source_doc": "Phillimore 18,18. 57,14; Hundred=`Beltisloe'; OS=TF0520"}
 {"_type": "attestation", "toponym_ref": "Scotton@Lincolnshire", "form": "Scotton", "date_year": 1086, "source_doc": "Phillimore 8,15(-16). 14,25. 16,29. 57,9. CW16; Hundred=Corringham; OS=SK8899"}
-{"_type": "attestation", "toponym_ref": "Scotton@West Riding", "form": "Scotton", "date_year": 1086, "source_doc": "Phillimore 6N67. SN,CtA23; Hundred=Land of Count Alan; OS=SE1995"}
-{"_type": "attestation", "toponym_ref": "Scotton@West Riding", "form": "Scotton", "date_year": 1086, "source_doc": "Phillimore 21W3. 29W18. 31W3. SW,Bu17; Hundred=`Burghshire'; OS=SE3259"}
+{"_type": "attestation", "toponym_ref": "Scotton@Yorkshire", "form": "Scotton", "date_year": 1086, "source_doc": "Phillimore 6N67. SN,CtA23; Hundred=Land of Count Alan; OS=SE1995"}
+{"_type": "attestation", "toponym_ref": "Scotton@Yorkshire", "form": "Scotton", "date_year": 1086, "source_doc": "Phillimore 21W3. 29W18. 31W3. SW,Bu17; Hundred=`Burghshire'; OS=SE3259"}
 {"_type": "attestation", "toponym_ref": "Scotton Thorpe@Yorkshire", "form": "Scotton Thorpe", "date_year": 1086, "source_doc": "Phillimore 29W19 and note. 31W3. SW,Bu15 and note; Hundred=`Burghshire'; OS=SE3529"}
 {"_type": "attestation", "toponym_ref": "Scottow@Norfolk", "form": "Scottow", "date_year": 1086, "source_doc": "Phillimore 1,194. 4,36. 17,23;45. 20,31-32. 21,32;36; Hundred=South Erpingham; OS=TG2623"}
 {"_type": "attestation", "toponym_ref": "Scoulton@Norfolk", "form": "Scoulton", "date_year": 1086, "source_doc": "Phillimore 8,53. 50,5. 51,6; Hundred=Wayland; OS=TF9700"}
@@ -32092,8 +32092,8 @@
 {"_type": "attestation", "toponym_ref": "Shipton@Oxfordshire", "form": "Shipton", "date_year": 1086, "source_doc": "Phillimore 7,26. EN10; Hundred=Wootton"}
 {"_type": "attestation", "toponym_ref": "Shipton@Oxfordshire", "form": "Shipton", "date_year": 1086, "source_doc": "Phillimore B5. 1,5;9. 58,15;29; Hundred=Shipton"}
 {"_type": "attestation", "toponym_ref": "Shipton@Shropshire", "form": "Shipton", "date_year": 1086, "source_doc": "Phillimore 3c,6; Hundred=Patton; OS=SO5691"}
-{"_type": "attestation", "toponym_ref": "Shipton@East Riding", "form": "Shipton", "date_year": 1086, "source_doc": "Phillimore SN,B27 and note; Hundred=`Bulford'; OS=SE5558"}
-{"_type": "attestation", "toponym_ref": "Shipton@East Riding", "form": "Shipton", "date_year": 1086, "source_doc": "Phillimore 1Y6 and note. SE,Wei1; Hundred=Weighton"}
+{"_type": "attestation", "toponym_ref": "Shipton@Yorkshire", "form": "Shipton", "date_year": 1086, "source_doc": "Phillimore SN,B27 and note; Hundred=`Bulford'; OS=SE5558"}
+{"_type": "attestation", "toponym_ref": "Shipton@Yorkshire", "form": "Shipton", "date_year": 1086, "source_doc": "Phillimore 1Y6 and note. SE,Wei1; Hundred=Weighton"}
 {"_type": "attestation", "toponym_ref": "Shipton Bellinger@Hampshire", "form": "Shipton Bellinger", "date_year": 1086, "source_doc": "Phillimore 28,4. 36,1; Hundred=Broughton; OS=SU2345"}
 {"_type": "attestation", "toponym_ref": "Shipton Chamflurs@Gloucestershire", "form": "Shipton Chamflurs", "date_year": 1086, "source_doc": "Phillimore 63,2; Hundred={Wacrescumbe}; OS=SP0318"}
 {"_type": "attestation", "toponym_ref": "Shipton Dovel@Gloucestershire", "form": "Shipton Dovel", "date_year": 1086, "source_doc": "Phillimore 31,9; Hundred=Longtree; OS=ST8991"}
@@ -32266,11 +32266,11 @@
 {"_type": "attestation", "toponym_ref": "Skellow@West Riding", "form": "Skellow", "date_year": 1086, "source_doc": "Phillimore 9W39 and note. SW,O4; Hundred=`Osgodcross'; OS=SE5310"}
 {"_type": "attestation", "toponym_ref": "Skelmanthorpe@Yorkshire", "form": "Skelmanthorpe", "date_year": 1086, "source_doc": "Phillimore 9W86 and note. SW,St12; Hundred=Staincross; OS=SE2310"}
 {"_type": "attestation", "toponym_ref": "Skelmersdale@Cheshire", "form": "Skelmersdale", "date_year": 1086, "source_doc": "Phillimore R1,27; Hundred=[West] Derby; OS=SD4606"}
-{"_type": "attestation", "toponym_ref": "Skelton@West Riding", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore 2W12 and note. 28W24. SW,H2;6; Hundred=Hallikeld; OS=SE3667"}
-{"_type": "attestation", "toponym_ref": "Skelton@West Riding", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore 3Y4. SE,How3; Hundred=Howden; OS=SE7625"}
-{"_type": "attestation", "toponym_ref": "Skelton@West Riding", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore 5N18. SN,L17; Hundred=Langbaurgh; OS=NZ6518"}
-{"_type": "attestation", "toponym_ref": "Skelton@West Riding", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore C33 and note. 1W2 and note. 6W2 and note. SN,Y7; Hundred=`Bulford'; OS=SE5656"}
-{"_type": "attestation", "toponym_ref": "Skelton@West Riding", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore 9W1 and note. SW,Sk4; Hundred=`Skyrack'"}
+{"_type": "attestation", "toponym_ref": "Skelton@Yorkshire", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore 2W12 and note. 28W24. SW,H2;6; Hundred=Hallikeld; OS=SE3667"}
+{"_type": "attestation", "toponym_ref": "Skelton@Yorkshire", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore 3Y4. SE,How3; Hundred=Howden; OS=SE7625"}
+{"_type": "attestation", "toponym_ref": "Skelton@Yorkshire", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore 5N18. SN,L17; Hundred=Langbaurgh; OS=NZ6518"}
+{"_type": "attestation", "toponym_ref": "Skelton@Yorkshire", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore C33 and note. 1W2 and note. 6W2 and note. SN,Y7; Hundred=`Bulford'; OS=SE5656"}
+{"_type": "attestation", "toponym_ref": "Skelton@Yorkshire", "form": "Skelton", "date_year": 1086, "source_doc": "Phillimore 9W1 and note. SW,Sk4; Hundred=`Skyrack'"}
 {"_type": "attestation", "toponym_ref": "Skelton Grange@Yorkshire", "form": "Skelton Grange", "date_year": 1086, "source_doc": "Phillimore 9W1 and note. SW,Sk4; Hundred=`Skyrack'; OS=SE3331"}
 {"_type": "attestation", "toponym_ref": "Skendleby@Lincolnshire", "form": "Skendleby", "date_year": 1086, "source_doc": "Phillimore 24,46; Hundred=`Candleshoe'; OS=TF4371"}
 {"_type": "attestation", "toponym_ref": "Skerne@East Riding", "form": "Skerne", "date_year": 1086, "source_doc": "Phillimore 1Y8. 23E8. SE,Dr3-4; Hundred=Driffield; OS=TA0455"}
@@ -32627,12 +32627,12 @@
 {"_type": "attestation", "toponym_ref": "Southwold@Suffolk", "form": "Southwold", "date_year": 1086, "source_doc": "Phillimore 14,162-163; Hundred=`Blything'; OS=TM5076"}
 {"_type": "attestation", "toponym_ref": "Southwood@Norfolk", "form": "Southwood", "date_year": 1086, "source_doc": "Phillimore 12,45. 19,29. 31,11. 66,102; Hundred=Blofield; OS=TG3905"}
 {"_type": "attestation", "toponym_ref": "Sowe@Warwickshire", "form": "Sowe", "date_year": 1086, "source_doc": "Phillimore 6,10. 44,7; Hundred=Stoneleigh"}
-{"_type": "attestation", "toponym_ref": "Sowerby@West Riding", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1Y15; Hundred=Morley; OS=SE0423"}
-{"_type": "attestation", "toponym_ref": "Sowerby@West Riding", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1Y1. 1N111. SN,Bi7; Hundred=`Yarlestre'; OS=SE4381"}
-{"_type": "attestation", "toponym_ref": "Sowerby@West Riding", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 4N1 and note. SN,L4; Hundred=Langbaurgh; OS=NZ9011"}
-{"_type": "attestation", "toponym_ref": "Sowerby@West Riding", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1L6 and note. See also CHS Y7; Hundred=Amounderness"}
-{"_type": "attestation", "toponym_ref": "Sowerby@West Riding", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1L1 and note. See also CHS Y2; Hundred=Amounderness"}
-{"_type": "attestation", "toponym_ref": "Sowerby@West Riding", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1Y2 and note. 1N133. SN,A1;9; Hundred=Allerton"}
+{"_type": "attestation", "toponym_ref": "Sowerby@Yorkshire", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1Y15; Hundred=Morley; OS=SE0423"}
+{"_type": "attestation", "toponym_ref": "Sowerby@Yorkshire", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1Y1. 1N111. SN,Bi7; Hundred=`Yarlestre'; OS=SE4381"}
+{"_type": "attestation", "toponym_ref": "Sowerby@Yorkshire", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 4N1 and note. SN,L4; Hundred=Langbaurgh; OS=NZ9011"}
+{"_type": "attestation", "toponym_ref": "Sowerby@Yorkshire", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1L6 and note. See also CHS Y7; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Sowerby@Yorkshire", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1L1 and note. See also CHS Y2; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Sowerby@Yorkshire", "form": "Sowerby", "date_year": 1086, "source_doc": "Phillimore 1Y2 and note. 1N133. SN,A1;9; Hundred=Allerton"}
 {"_type": "attestation", "toponym_ref": "Sowerby Hall@Yorkshire", "form": "Sowerby Hall", "date_year": 1086, "source_doc": "Phillimore 1L6 and note. See also CHS Y7; Hundred=Amounderness; OS=SD1972"}
 {"_type": "attestation", "toponym_ref": "Sowerby Hall@Yorkshire", "form": "Sowerby Hall", "date_year": 1086, "source_doc": "Phillimore 1L1 and note. See also CHS Y2; Hundred=Amounderness; OS=SD4738"}
 {"_type": "attestation", "toponym_ref": "Sowerby under Cotcliffe@North Riding", "form": "Sowerby under Cotcliffe", "date_year": 1086, "source_doc": "Phillimore 1Y2 and note. 1N133. SN,A1;9; Hundred=Allerton; OS=SE4193"}
@@ -32775,13 +32775,13 @@
 {"_type": "attestation", "toponym_ref": "Stainton@Lincolnshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 13,24(-25); Hundred=`Wraggoe'"}
 {"_type": "attestation", "toponym_ref": "Stainton@Lincolnshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 22,32. 25,8. 30,17. 40,5; Hundred=`Walshcroft'"}
 {"_type": "attestation", "toponym_ref": "Stainton@Lincolnshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 43,3; Hundred=`Gartree'"}
-{"_type": "attestation", "toponym_ref": "Stainton@West Riding", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 10W3;5. SW,Sf3-4; Hundred=Strafforth; OS=SE5593"}
-{"_type": "attestation", "toponym_ref": "Stainton@West Riding", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1L6. See also CHS Y7; Hundred=Amounderness; OS=SD2472"}
-{"_type": "attestation", "toponym_ref": "Stainton@West Riding", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1L7. See also CHS Y8; Hundred=Amounderness; OS=SD5285"}
-{"_type": "attestation", "toponym_ref": "Stainton@West Riding", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1N6 and note. 5N12. 31N8. SN,L15 and note; Hundred=Langbaurgh; OS=NZ6713"}
-{"_type": "attestation", "toponym_ref": "Stainton@West Riding", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 4N3. 11N10;12. SN,L15 note;34; Hundred=Langbaurgh; OS=NZ4814"}
-{"_type": "attestation", "toponym_ref": "Stainton@West Riding", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1W73 and note. 30W25. SW,Cr4; Hundred=Craven"}
-{"_type": "attestation", "toponym_ref": "Stainton@West Riding", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1Y3 and note. SN,L15 note. SN,D2; Hundred={Dic}"}
+{"_type": "attestation", "toponym_ref": "Stainton@Yorkshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 10W3;5. SW,Sf3-4; Hundred=Strafforth; OS=SE5593"}
+{"_type": "attestation", "toponym_ref": "Stainton@Yorkshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1L6. See also CHS Y7; Hundred=Amounderness; OS=SD2472"}
+{"_type": "attestation", "toponym_ref": "Stainton@Yorkshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1L7. See also CHS Y8; Hundred=Amounderness; OS=SD5285"}
+{"_type": "attestation", "toponym_ref": "Stainton@Yorkshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1N6 and note. 5N12. 31N8. SN,L15 and note; Hundred=Langbaurgh; OS=NZ6713"}
+{"_type": "attestation", "toponym_ref": "Stainton@Yorkshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 4N3. 11N10;12. SN,L15 note;34; Hundred=Langbaurgh; OS=NZ4814"}
+{"_type": "attestation", "toponym_ref": "Stainton@Yorkshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1W73 and note. 30W25. SW,Cr4; Hundred=Craven"}
+{"_type": "attestation", "toponym_ref": "Stainton@Yorkshire", "form": "Stainton", "date_year": 1086, "source_doc": "Phillimore 1Y3 and note. SN,L15 note. SN,D2; Hundred={Dic}"}
 {"_type": "attestation", "toponym_ref": "Stainton by Langworth@Lincolnshire", "form": "Stainton by Langworth", "date_year": 1086, "source_doc": "Phillimore 13,24(-25); Hundred=`Wraggoe'"}
 {"_type": "attestation", "toponym_ref": "Stainton le Vale@Lincolnshire", "form": "Stainton le Vale", "date_year": 1086, "source_doc": "Phillimore 22,32. 25,8. 30,17. 40,5; Hundred=`Walshcroft'"}
 {"_type": "attestation", "toponym_ref": "Stainton-by-Langworth@Lincolnshire", "form": "Stainton-by-Langworth", "date_year": 1086, "source_doc": "Phillimore 13,24(-25); Hundred=`Wraggoe'; OS=TF0677"}
@@ -33749,9 +33749,9 @@
 {"_type": "attestation", "toponym_ref": "Swinhope@Lincolnshire", "form": "Swinhope", "date_year": 1086, "source_doc": "Phillimore 12,33. 32,10. 48,4; Hundred=`Haverstoe'; OS=TF2196"}
 {"_type": "attestation", "toponym_ref": "Swinstead@Lincolnshire", "form": "Swinstead", "date_year": 1086, "source_doc": "Phillimore 7,42. 31,8. 35,12. 56,3. 68,17; Hundred=`Beltisloe'; OS=TF0122"}
 {"_type": "attestation", "toponym_ref": "Swinthorpe@Lincolnshire", "form": "Swinthorpe", "date_year": 1086, "source_doc": "Phillimore 1,37. 2,12. 28,27; Hundred=`Wraggoe'; OS=TF0581"}
-{"_type": "attestation", "toponym_ref": "Swinton@West Riding", "form": "Swinton", "date_year": 1086, "source_doc": "Phillimore 10W17. 21W2;(4). SW,Sf10;27; Hundred=Strafforth; OS=SK4599"}
-{"_type": "attestation", "toponym_ref": "Swinton@West Riding", "form": "Swinton", "date_year": 1086, "source_doc": "Phillimore 1N68. SN,Ma7; Hundred={Maneshou}; OS=SE7573"}
-{"_type": "attestation", "toponym_ref": "Swinton@West Riding", "form": "Swinton", "date_year": 1086, "source_doc": "Phillimore 6N118. SN,CtA34; Hundred=Land of Count Alan; OS=SE2179"}
+{"_type": "attestation", "toponym_ref": "Swinton@Yorkshire", "form": "Swinton", "date_year": 1086, "source_doc": "Phillimore 10W17. 21W2;(4). SW,Sf10;27; Hundred=Strafforth; OS=SK4599"}
+{"_type": "attestation", "toponym_ref": "Swinton@Yorkshire", "form": "Swinton", "date_year": 1086, "source_doc": "Phillimore 1N68. SN,Ma7; Hundred={Maneshou}; OS=SE7573"}
+{"_type": "attestation", "toponym_ref": "Swinton@Yorkshire", "form": "Swinton", "date_year": 1086, "source_doc": "Phillimore 6N118. SN,CtA34; Hundred=Land of Count Alan; OS=SE2179"}
 {"_type": "attestation", "toponym_ref": "Swynchurch@Staffordshire", "form": "Swynchurch", "date_year": 1086, "source_doc": "Phillimore 2,20; Hundred=Pirehill"}
 {"_type": "attestation", "toponym_ref": "Swyncombe@Oxfordshire", "form": "Swyncombe", "date_year": 1086, "source_doc": "Phillimore 35,33; Hundred=Benson; OS=SU6890"}
 {"_type": "attestation", "toponym_ref": "Swynnerton@Staffordshire", "form": "Swynnerton", "date_year": 1086, "source_doc": "Phillimore 11,18; Hundred=Pirehill; OS=SJ8535"}
@@ -33996,8 +33996,8 @@
 {"_type": "attestation", "toponym_ref": "Thimbleby@North Riding", "form": "Thimbleby", "date_year": 1086, "source_doc": "Phillimore 1Y2. SN,A1; Hundred=Allerton; OS=SE4495"}
 {"_type": "attestation", "toponym_ref": "Thinghill@Herefordshire", "form": "Thinghill", "date_year": 1086, "source_doc": "Phillimore 6,4. 7,6; Hundred={Tornelaus}; OS=SO5644"}
 {"_type": "attestation", "toponym_ref": "Thingwall@Cheshire", "form": "Thingwall", "date_year": 1086, "source_doc": "Phillimore 8,9; Hundred=Willaston; OS=SJ2784"}
-{"_type": "attestation", "toponym_ref": "Thirkleby@East Riding", "form": "Thirkleby", "date_year": 1086, "source_doc": "Phillimore 23N1; Hundred=`Yarlestre'; OS=SE4778"}
-{"_type": "attestation", "toponym_ref": "Thirkleby@East Riding", "form": "Thirkleby", "date_year": 1086, "source_doc": "Phillimore 2B18 and note. 15E15. SE,Th5 and note; Hundred={Toreshou}"}
+{"_type": "attestation", "toponym_ref": "Thirkleby@Yorkshire", "form": "Thirkleby", "date_year": 1086, "source_doc": "Phillimore 23N1; Hundred=`Yarlestre'; OS=SE4778"}
+{"_type": "attestation", "toponym_ref": "Thirkleby@Yorkshire", "form": "Thirkleby", "date_year": 1086, "source_doc": "Phillimore 2B18 and note. 15E15. SE,Th5 and note; Hundred={Toreshou}"}
 {"_type": "attestation", "toponym_ref": "Thirkleby Manor@Yorkshire", "form": "Thirkleby Manor", "date_year": 1086, "source_doc": "Phillimore 2B18 and note. 15E15. SE,Th5 and note; Hundred={Toreshou}; OS=SE9268"}
 {"_type": "attestation", "toponym_ref": "Thirley@Yorkshire", "form": "Thirley", "date_year": 1086, "source_doc": "Phillimore 1Y3. SN,D2; Hundred={Dic}"}
 {"_type": "attestation", "toponym_ref": "Thirley Cotes@Yorkshire", "form": "Thirley Cotes", "date_year": 1086, "source_doc": "Phillimore 1Y3. SN,D2; Hundred={Dic}; OS=SE9795"}
@@ -34091,25 +34091,25 @@
 {"_type": "attestation", "toponym_ref": "Thornton@Lincolnshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 38,1(-2); Hundred=Horncastle; OS=TF2467"}
 {"_type": "attestation", "toponym_ref": "Thornton@Lincolnshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 34,5. 36,2; Hundred=Yarborough"}
 {"_type": "attestation", "toponym_ref": "Thornton@Lincolnshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 16,5(-6). 22,5-6; Hundred=`Walshcroft'"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 6N128 and note. SN,CtA36; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness; OS=SD3342"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 15E9. SE,C10; Hundred=Cave; OS=SE7545"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 4N3. 11N12. SN,L34 and note; Hundred=Langbaurgh; OS=NZ4713"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 9W131;144. SW,M7; Hundred=Morley; OS=SE1032"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 2W7. SW,Bu46; Hundred=`Burghshire'"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 28W32 and note. SW,H6; Hundred=Hallikeld"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1Y4. 1N48. 8N15. 31N8. SN,L34 note. SN,D15(-16); Hundred={Dic}"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1N11. SN,L20; Hundred=Langbaurgh"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 13W43. 30W19; Hundred=Craven"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1W72; Hundred=Amounderness"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1Y2. SN,A1; Hundred=Allerton"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 5N61. 6N162. 11N15. SN,B9 and note;(10); Hundred=`Bulford'"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 11N20. SN,A9; Hundred=Allerton"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1Y2. SN,B9 note. SN,A1; Hundred=Allerton"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1N58 and note. SN,Ma1; Hundred={Maneshou}"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 6N81. SN,CtA26; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 6N110(-111);112. SN,CtA32; Hundred=Land of Count Alan"}
-{"_type": "attestation", "toponym_ref": "Thornton@West Riding", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 6N125 and note;126 and note. SN,CtA36; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 6N128 and note. SN,CtA36; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1L1. See also CHS Y2; Hundred=Amounderness; OS=SD3342"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 15E9. SE,C10; Hundred=Cave; OS=SE7545"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 4N3. 11N12. SN,L34 and note; Hundred=Langbaurgh; OS=NZ4713"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 9W131;144. SW,M7; Hundred=Morley; OS=SE1032"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 2W7. SW,Bu46; Hundred=`Burghshire'"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 28W32 and note. SW,H6; Hundred=Hallikeld"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1Y4. 1N48. 8N15. 31N8. SN,L34 note. SN,D15(-16); Hundred={Dic}"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1N11. SN,L20; Hundred=Langbaurgh"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 13W43. 30W19; Hundred=Craven"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1W72; Hundred=Amounderness"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1Y2. SN,A1; Hundred=Allerton"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 5N61. 6N162. 11N15. SN,B9 and note;(10); Hundred=`Bulford'"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 11N20. SN,A9; Hundred=Allerton"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1Y2. SN,B9 note. SN,A1; Hundred=Allerton"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 1N58 and note. SN,Ma1; Hundred={Maneshou}"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 6N81. SN,CtA26; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 6N110(-111);112. SN,CtA32; Hundred=Land of Count Alan"}
+{"_type": "attestation", "toponym_ref": "Thornton@Yorkshire", "form": "Thornton", "date_year": 1086, "source_doc": "Phillimore 6N125 and note;126 and note. SN,CtA36; Hundred=Land of Count Alan"}
 {"_type": "attestation", "toponym_ref": "Thornton Bridge@North Riding", "form": "Thornton Bridge", "date_year": 1086, "source_doc": "Phillimore 28W32 and note. SW,H6; Hundred=Hallikeld; OS=SE4371"}
 {"_type": "attestation", "toponym_ref": "Thornton Curtis@Lincolnshire", "form": "Thornton Curtis", "date_year": 1086, "source_doc": "Phillimore 34,5. 36,2; Hundred=Yarborough; OS=TA0817"}
 {"_type": "attestation", "toponym_ref": "Thornton Dale@North Riding", "form": "Thornton Dale", "date_year": 1086, "source_doc": "Phillimore 1Y4. 1N48. 8N15. 31N8. SN,L34 note. SN,D15(-16); Hundred={Dic}; OS=SE8383"}
@@ -34618,9 +34618,9 @@
 {"_type": "attestation", "toponym_ref": "Towersey@Buckinghamshire", "form": "Towersey", "date_year": 1086, "source_doc": "Phillimore 39,2 and note; Hundred=Ixhill; OS=SP7305"}
 {"_type": "attestation", "toponym_ref": "Townstall@Devon", "form": "Townstall", "date_year": 1086, "source_doc": "Phillimore 23,26; Hundred=Chillington; OS=SX8651"}
 {"_type": "attestation", "toponym_ref": "Towthorpe@Lincolnshire", "form": "Towthorpe", "date_year": 1086, "source_doc": "Phillimore 57,24(-26);49. 67,14. CK60; Hundred=`Threo'; OS=SK9238"}
-{"_type": "attestation", "toponym_ref": "Towthorpe@East Riding", "form": "Towthorpe", "date_year": 1086, "source_doc": "Phillimore 2N28. SN,B15; Hundred=`Bulford'; OS=SE6258"}
-{"_type": "attestation", "toponym_ref": "Towthorpe@East Riding", "form": "Towthorpe", "date_year": 1086, "source_doc": "Phillimore 1E40 and note;(41-42). 5E60. SE,Sc7; Hundred={Scard}; OS=SE9062"}
-{"_type": "attestation", "toponym_ref": "Towthorpe@East Riding", "form": "Towthorpe", "date_year": 1086, "source_doc": "Phillimore 2B9 and note. SE,Wei6; Hundred=Weighton; OS=SE8643"}
+{"_type": "attestation", "toponym_ref": "Towthorpe@Yorkshire", "form": "Towthorpe", "date_year": 1086, "source_doc": "Phillimore 2N28. SN,B15; Hundred=`Bulford'; OS=SE6258"}
+{"_type": "attestation", "toponym_ref": "Towthorpe@Yorkshire", "form": "Towthorpe", "date_year": 1086, "source_doc": "Phillimore 1E40 and note;(41-42). 5E60. SE,Sc7; Hundred={Scard}; OS=SE9062"}
+{"_type": "attestation", "toponym_ref": "Towthorpe@Yorkshire", "form": "Towthorpe", "date_year": 1086, "source_doc": "Phillimore 2B9 and note. SE,Wei6; Hundred=Weighton; OS=SE8643"}
 {"_type": "attestation", "toponym_ref": "Towton@West Riding", "form": "Towton", "date_year": 1086, "source_doc": "Phillimore SW,BA5 and note; Hundred=Barkston; OS=SE4839"}
 {"_type": "attestation", "toponym_ref": "Toxenai@Derbyshire", "form": "Toxenai", "date_year": 1086, "source_doc": "Phillimore 6,38; Hundred=`Appletree'"}
 {"_type": "attestation", "toponym_ref": "Toxteth@Cheshire", "form": "Toxteth", "date_year": 1086, "source_doc": "Phillimore R1,4-5; Hundred=[West] Derby; OS=SJ3588"}
@@ -34794,10 +34794,10 @@
 {"_type": "attestation", "toponym_ref": "Tunstall@Suffolk", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 8,55;58. 26,6; Hundred=Bosmere; OS=TM0849"}
 {"_type": "attestation", "toponym_ref": "Tunstall@Suffolk", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 6,36; Hundred=Parham; OS=TM3655"}
 {"_type": "attestation", "toponym_ref": "Tunstall@Staffordshire", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 2,20; Hundred=Pirehill; OS=SJ7727"}
-{"_type": "attestation", "toponym_ref": "Tunstall@East Riding", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 1L5. See also CHS Y6; Hundred=Amounderness; OS=SD6073"}
-{"_type": "attestation", "toponym_ref": "Tunstall@East Riding", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 6N52;54. SN,CtA19-20; Hundred=Land of Count Alan; OS=SE2195"}
-{"_type": "attestation", "toponym_ref": "Tunstall@East Riding", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 14E2;4. SE,Hol4;9; Hundred=Holderness [South Hundred]; OS=TA3031"}
-{"_type": "attestation", "toponym_ref": "Tunstall@East Riding", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 1N29 and note. SN,L37; Hundred=Langbaurgh"}
+{"_type": "attestation", "toponym_ref": "Tunstall@Yorkshire", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 1L5. See also CHS Y6; Hundred=Amounderness; OS=SD6073"}
+{"_type": "attestation", "toponym_ref": "Tunstall@Yorkshire", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 6N52;54. SN,CtA19-20; Hundred=Land of Count Alan; OS=SE2195"}
+{"_type": "attestation", "toponym_ref": "Tunstall@Yorkshire", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 14E2;4. SE,Hol4;9; Hundred=Holderness [South Hundred]; OS=TA3031"}
+{"_type": "attestation", "toponym_ref": "Tunstall@Yorkshire", "form": "Tunstall", "date_year": 1086, "source_doc": "Phillimore 1N29 and note. SN,L37; Hundred=Langbaurgh"}
 {"_type": "attestation", "toponym_ref": "Tunstall Farm@Yorkshire", "form": "Tunstall Farm", "date_year": 1086, "source_doc": "Phillimore 1N29 and note. SN,L37; Hundred=Langbaurgh; OS=NZ5212"}
 {"_type": "attestation", "toponym_ref": "Tunstead@Norfolk", "form": "Tunstead", "date_year": 1086, "source_doc": "Phillimore 26,5; Hundred=Tunstead; OS=TG3022"}
 {"_type": "attestation", "toponym_ref": "Tunworth@Hampshire", "form": "Tunworth", "date_year": 1086, "source_doc": "Phillimore 23,7; Hundred=Basingstoke; OS=SU6748"}

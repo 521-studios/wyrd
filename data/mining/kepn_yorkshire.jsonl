@@ -3357,10 +3357,10 @@
 {"_type": "etymology_element", "toponym_ref": "Aismunderby with Bondgate@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bóndi"}, {"ordinal": 2, "etymon_ref": "old-norse:gata"}, {"ordinal": 3, "etymon_ref": "old-norse:þorp"}, {"ordinal": 4, "etymon_ref": "old-norse:Asmund"}], "notes": "Asmund's farm/settlement'. 'Peasant landowners' street"}
 {"_type": "toponym", "ref": "Aldborough@West Riding", "modern_name": "Aldborough", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Aldborough@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ald"}, {"ordinal": 2, "etymon_ref": "old-english:burh"}], "notes": "The old fortification"}
-{"_type": "toponym", "ref": "Aldbrough@East Riding", "modern_name": "Aldbrough", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Aldbrough@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ald"}, {"ordinal": 2, "etymon_ref": "old-english:burh"}], "notes": "Old fortification"}
-{"_type": "toponym", "ref": "Aldbrough@East Riding", "modern_name": "Aldbrough", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Aldbrough@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ald"}, {"ordinal": 2, "etymon_ref": "old-english:burh"}], "notes": "Old fortification"}
+{"_type": "toponym", "ref": "Aldbrough@Yorkshire", "modern_name": "Aldbrough", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Aldbrough@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ald"}, {"ordinal": 2, "etymon_ref": "old-english:burh"}], "notes": "Old fortification"}
+{"_type": "toponym", "ref": "Aldbrough@Yorkshire", "modern_name": "Aldbrough", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Aldbrough@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ald"}, {"ordinal": 2, "etymon_ref": "old-english:burh"}], "notes": "Old fortification"}
 {"_type": "toponym", "ref": "Aldfield@West Riding", "modern_name": "Aldfield", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Aldfield@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ald"}, {"ordinal": 2, "etymon_ref": "old-english:feld"}], "notes": "Old open country"}
 {"_type": "toponym", "ref": "Aldwark@North Riding", "modern_name": "Aldwark", "country": "England", "region": "North Riding"}
@@ -3485,10 +3485,10 @@
 {"_type": "etymology_element", "toponym_ref": "Balne@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:balne"}, {"ordinal": 2, "etymon_ref": "latin:balneum"}], "notes": "bathing place"}
 {"_type": "toponym", "ref": "Bank Newton@West Riding", "modern_name": "Bank Newton", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Bank Newton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlement"}
-{"_type": "toponym", "ref": "Barden@West Riding", "modern_name": "Barden", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Barden@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bere"}, {"ordinal": 2, "etymon_ref": "old-english:beren"}, {"ordinal": 3, "etymon_ref": "old-english:denu"}, {"ordinal": 4, "etymon_ref": "old-english:Beorna"}], "notes": "barley valley' or 'Beorna's valley"}
-{"_type": "toponym", "ref": "Barden@West Riding", "modern_name": "Barden", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Barden@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bere"}, {"ordinal": 2, "etymon_ref": "old-english:denu"}], "notes": "Barley valley"}
+{"_type": "toponym", "ref": "Barden@Yorkshire", "modern_name": "Barden", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Barden@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bere"}, {"ordinal": 2, "etymon_ref": "old-english:beren"}, {"ordinal": 3, "etymon_ref": "old-english:denu"}, {"ordinal": 4, "etymon_ref": "old-english:Beorna"}], "notes": "barley valley' or 'Beorna's valley"}
+{"_type": "toponym", "ref": "Barden@Yorkshire", "modern_name": "Barden", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Barden@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bere"}, {"ordinal": 2, "etymon_ref": "old-english:denu"}], "notes": "Barley valley"}
 {"_type": "toponym", "ref": "Bardsey@West Riding", "modern_name": "Bardsey", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Bardsey@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēg"}, {"ordinal": 2, "etymon_ref": "old-english:Beornrǣd"}], "notes": "Beornraed's island"}
 {"_type": "toponym", "ref": "Barkisland@West Riding", "modern_name": "Barkisland", "country": "England", "region": "West Riding"}
@@ -3589,10 +3589,10 @@
 {"_type": "etymology_element", "toponym_ref": "Bilsdale@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:Bild"}], "notes": "Bild's valley"}
 {"_type": "toponym", "ref": "Bilsdale Westside@North Riding", "modern_name": "Bilsdale Westside", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Bilsdale Westside@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:Bild"}], "notes": "Bild's valley"}
-{"_type": "toponym", "ref": "Bilton@West Riding", "modern_name": "Bilton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Bilton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Bill"}], "notes": "Bill's/*Billa's farm/settlement"}
-{"_type": "toponym", "ref": "Bilton@West Riding", "modern_name": "Bilton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Bilton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Bila"}], "notes": "*Bila's/*Bill's farm/settlement"}
+{"_type": "toponym", "ref": "Bilton@Yorkshire", "modern_name": "Bilton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Bilton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Bill"}], "notes": "Bill's/*Billa's farm/settlement"}
+{"_type": "toponym", "ref": "Bilton@Yorkshire", "modern_name": "Bilton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Bilton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Bila"}], "notes": "*Bila's/*Bill's farm/settlement"}
 {"_type": "toponym", "ref": "Bilton Park with Harrogate@West Riding", "modern_name": "Bilton Park with Harrogate", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Bilton Park with Harrogate@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:gata"}, {"ordinal": 2, "etymon_ref": "old-norse:hǫrgr"}, {"ordinal": 3, "etymon_ref": "middle-english:park"}, {"ordinal": 4, "etymon_ref": "unknown:Place-name"}], "notes": "s 'park', a track of land enclosed for hunting. 'Cairn road"}
 {"_type": "toponym", "ref": "Bingley@West Riding", "modern_name": "Bingley", "country": "England", "region": "West Riding"}
@@ -3633,10 +3633,10 @@
 {"_type": "etymology_element", "toponym_ref": "Boldron@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:boli"}, {"ordinal": 2, "etymon_ref": "old-norse:rúm"}], "notes": "Bull clearing"}
 {"_type": "toponym", "ref": "Boltby@North Riding", "modern_name": "Boltby", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Boltby@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:Boli"}], "notes": "Bolti's farm/settlement"}
-{"_type": "toponym", "ref": "Bolton@West Riding", "modern_name": "Bolton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Bolton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bōðl-tūn"}], "notes": "Collection of buildings"}
-{"_type": "toponym", "ref": "Bolton@West Riding", "modern_name": "Bolton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Bolton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bōðl-tūn"}], "notes": "Collection of buildings"}
+{"_type": "toponym", "ref": "Bolton@Yorkshire", "modern_name": "Bolton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Bolton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bōðl-tūn"}], "notes": "Collection of buildings"}
+{"_type": "toponym", "ref": "Bolton@Yorkshire", "modern_name": "Bolton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Bolton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bōðl-tūn"}], "notes": "Collection of buildings"}
 {"_type": "toponym", "ref": "Bolton Abbey@West Riding", "modern_name": "Bolton Abbey", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Bolton Abbey@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:abbaye"}, {"ordinal": 2, "etymon_ref": "old-english:bōðl-tūn"}], "notes": "Collection of buildings'. 'Abbey"}
 {"_type": "toponym", "ref": "Bolton by Bowland@West Riding", "modern_name": "Bolton by Bowland", "country": "England", "region": "West Riding"}
@@ -3743,10 +3743,10 @@
 {"_type": "etymology_element", "toponym_ref": "Brotton@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Brook farm/settlement"}
 {"_type": "toponym", "ref": "Brough Hall@North Riding", "modern_name": "Brough Hall", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Brough Hall@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}], "notes": "Fortification"}
-{"_type": "toponym", "ref": "Broughton@West Riding", "modern_name": "Broughton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Broughton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Brook farm/settlement"}
-{"_type": "toponym", "ref": "Broughton@West Riding", "modern_name": "Broughton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Broughton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Brook farm/settlement"}
+{"_type": "toponym", "ref": "Broughton@Yorkshire", "modern_name": "Broughton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Broughton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Brook farm/settlement"}
+{"_type": "toponym", "ref": "Broughton@Yorkshire", "modern_name": "Broughton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Broughton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Brook farm/settlement"}
 {"_type": "toponym", "ref": "Broxa@North Riding", "modern_name": "Broxa", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Broxa@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hæg"}, {"ordinal": 2, "etymon_ref": "old-english:Brioc"}], "notes": "Broc's enclosure"}
 {"_type": "toponym", "ref": "Bubwith@East Riding", "modern_name": "Bubwith", "country": "England", "region": "East Riding"}
@@ -3793,10 +3793,10 @@
 {"_type": "etymology_element", "toponym_ref": "Burton Salmon@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:Brettas"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Britons' farm/settlement; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Burythorpe@East Riding", "modern_name": "Burythorpe", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Burythorpe@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:þorp"}], "notes": "Bjorg's outlying farm/settlement; unresolved personal name(s): Bjorg"}
-{"_type": "toponym", "ref": "Butterwick@East Riding", "modern_name": "Butterwick", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Butterwick@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:butere"}, {"ordinal": 2, "etymon_ref": "old-english:wīc"}], "notes": "Butter (specialised) farm"}
-{"_type": "toponym", "ref": "Butterwick@East Riding", "modern_name": "Butterwick", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Butterwick@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:butere"}, {"ordinal": 2, "etymon_ref": "old-english:wīc"}], "notes": "Butter specialised-farm"}
+{"_type": "toponym", "ref": "Butterwick@Yorkshire", "modern_name": "Butterwick", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Butterwick@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:butere"}, {"ordinal": 2, "etymon_ref": "old-english:wīc"}], "notes": "Butter (specialised) farm"}
+{"_type": "toponym", "ref": "Butterwick@Yorkshire", "modern_name": "Butterwick", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Butterwick@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:butere"}, {"ordinal": 2, "etymon_ref": "old-english:wīc"}], "notes": "Butter specialised-farm"}
 {"_type": "toponym", "ref": "Byland with Wass@North Riding", "modern_name": "Byland with Wass", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Byland with Wass@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land"}, {"ordinal": 2, "etymon_ref": "middle-english:wath"}, {"ordinal": 3, "etymon_ref": "old-english:Bēga"}], "notes": "Bega's land'. There was a Cistercian monastery here in 1177. Probably, 'fords"}
 {"_type": "toponym", "ref": "Byram cum Poole@West Riding", "modern_name": "Byram cum Poole", "country": "England", "region": "West Riding"}
@@ -3821,14 +3821,14 @@
 {"_type": "etymology_element", "toponym_ref": "Carleton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:karl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
 {"_type": "toponym", "ref": "Carleton@West Riding", "modern_name": "Carleton", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Carleton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceorl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
-{"_type": "toponym", "ref": "Carlton@West Riding", "modern_name": "Carlton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Carlton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:karl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Peasants' farm/settlement"}
-{"_type": "toponym", "ref": "Carlton@West Riding", "modern_name": "Carlton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Carlton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:karl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
-{"_type": "toponym", "ref": "Carlton@West Riding", "modern_name": "Carlton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Carlton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceorl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
-{"_type": "toponym", "ref": "Carlton@West Riding", "modern_name": "Carlton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Carlton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceorl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
+{"_type": "toponym", "ref": "Carlton@Yorkshire", "modern_name": "Carlton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Carlton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:karl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Peasants' farm/settlement"}
+{"_type": "toponym", "ref": "Carlton@Yorkshire", "modern_name": "Carlton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Carlton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:karl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
+{"_type": "toponym", "ref": "Carlton@Yorkshire", "modern_name": "Carlton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Carlton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceorl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
+{"_type": "toponym", "ref": "Carlton@Yorkshire", "modern_name": "Carlton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Carlton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceorl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
 {"_type": "toponym", "ref": "Carlton Husthwaite@North Riding", "modern_name": "Carlton Husthwaite", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Carlton Husthwaite@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:karl"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}, {"ordinal": 3, "etymon_ref": "old-norse:tún"}], "notes": "Peasants' farm/settlement"}
 {"_type": "toponym", "ref": "Carlton in Coverdale@North Riding", "modern_name": "Carlton in Coverdale", "country": "England", "region": "North Riding"}
@@ -3909,10 +3909,10 @@
 {"_type": "etymology_element", "toponym_ref": "Cliffe cum Lund@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clif"}, {"ordinal": 2, "etymon_ref": "old-norse:lundr"}], "notes": "River-bank'. There are apparently no features which would imply a 'cliff', but before it was diverted, the course of the River Ouse passed below the village. 'Grove"}
 {"_type": "toponym", "ref": "Clifford with Boston Spa@West Riding", "modern_name": "Clifford with Boston Spa", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Clifford with Boston Spa@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clif"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "old-english:ford"}, {"ordinal": 4, "etymon_ref": "modern-english:spa"}], "notes": "Cliff ford'. A famous mineral spring was discovered here in 1744. The village was constructed in an open field in 1753 and called Thorpe Spaw, a name taken from nearby Thorpe Arch. It is uncertain how the name 'Boston"}
-{"_type": "toponym", "ref": "Clifton@West Riding", "modern_name": "Clifton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Clifton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clif"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Cliff farm/settlement"}
-{"_type": "toponym", "ref": "Clifton@West Riding", "modern_name": "Clifton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Clifton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clif"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Cliff farm/settlement"}
+{"_type": "toponym", "ref": "Clifton@Yorkshire", "modern_name": "Clifton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Clifton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clif"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Cliff farm/settlement"}
+{"_type": "toponym", "ref": "Clifton@Yorkshire", "modern_name": "Clifton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Clifton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clif"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Cliff farm/settlement"}
 {"_type": "toponym", "ref": "Clifton on Ure@North Riding", "modern_name": "Clifton on Ure", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Clifton on Ure@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clif"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Cliff farm/settlement"}
 {"_type": "toponym", "ref": "Clifton with Norwood@West Riding", "modern_name": "Clifton with Norwood", "country": "England", "region": "West Riding"}
@@ -4011,14 +4011,14 @@
 {"_type": "etymology_element", "toponym_ref": "Dalby cum Skewsby@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:dalr"}, {"ordinal": 3, "etymon_ref": "old-norse:skógr"}, {"ordinal": 4, "etymon_ref": "old-english:Skógr"}], "notes": "Valley farm/settlement'. 'Wood farm/settlement' or possibly, 'Skogr's farm/settlement"}
 {"_type": "toponym", "ref": "Dale Town@North Riding", "modern_name": "Dale Town", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Dale Town@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}], "notes": "Valley"}
-{"_type": "toponym", "ref": "Dalton@West Riding", "modern_name": "Dalton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Dalton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
-{"_type": "toponym", "ref": "Dalton@West Riding", "modern_name": "Dalton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Dalton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
-{"_type": "toponym", "ref": "Dalton@West Riding", "modern_name": "Dalton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Dalton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
-{"_type": "toponym", "ref": "Dalton@West Riding", "modern_name": "Dalton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Dalton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
+{"_type": "toponym", "ref": "Dalton@Yorkshire", "modern_name": "Dalton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Dalton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
+{"_type": "toponym", "ref": "Dalton@Yorkshire", "modern_name": "Dalton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Dalton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
+{"_type": "toponym", "ref": "Dalton@Yorkshire", "modern_name": "Dalton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Dalton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
+{"_type": "toponym", "ref": "Dalton@Yorkshire", "modern_name": "Dalton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Dalton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
 {"_type": "toponym", "ref": "Dalton upon Tees@North Riding", "modern_name": "Dalton upon Tees", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Dalton upon Tees@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
 {"_type": "toponym", "ref": "Danby@North Riding", "modern_name": "Danby", "country": "England", "region": "North Riding"}
@@ -4033,10 +4033,10 @@
 {"_type": "etymology_element", "toponym_ref": "Darrington@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Deornoth; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Darton@West Riding", "modern_name": "Darton", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Darton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dēor-tūn"}], "notes": "Deer park"}
-{"_type": "toponym", "ref": "Deighton@East Riding", "modern_name": "Deighton", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Deighton@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dīc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Ditch farm/settlement"}
-{"_type": "toponym", "ref": "Deighton@East Riding", "modern_name": "Deighton", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Deighton@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dīc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Ditch farm/settlement"}
+{"_type": "toponym", "ref": "Deighton@Yorkshire", "modern_name": "Deighton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Deighton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dīc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Ditch farm/settlement"}
+{"_type": "toponym", "ref": "Deighton@Yorkshire", "modern_name": "Deighton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Deighton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dīc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Ditch farm/settlement"}
 {"_type": "toponym", "ref": "Denaby@West Riding", "modern_name": "Denaby", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Denaby@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Dene"}], "notes": "Danes' farm/settlement"}
 {"_type": "toponym", "ref": "Denby@West Riding", "modern_name": "Denby", "country": "England", "region": "West Riding"}
@@ -4087,12 +4087,12 @@
 {"_type": "etymology_element", "toponym_ref": "Easby@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:Ēsi"}], "notes": "Esi's farm/settlement"}
 {"_type": "toponym", "ref": "Easby@North Riding", "modern_name": "Easby", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Easby@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:Ēsi"}], "notes": "Esi's farm/settlement"}
-{"_type": "toponym", "ref": "Easington@West Riding", "modern_name": "Easington", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Easington@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Esa; unresolved personal name(s): (unextracted personal name)"}
-{"_type": "toponym", "ref": "Easington@West Riding", "modern_name": "Easington", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Easington@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Esa/Esi; unresolved personal name(s): (unextracted personal name)"}
-{"_type": "toponym", "ref": "Easington@West Riding", "modern_name": "Easington", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Easington@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Esa; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "toponym", "ref": "Easington@Yorkshire", "modern_name": "Easington", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Easington@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Esa; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "toponym", "ref": "Easington@Yorkshire", "modern_name": "Easington", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Easington@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Esa/Esi; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "toponym", "ref": "Easington@Yorkshire", "modern_name": "Easington", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Easington@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Esa; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Easingwold@North Riding", "modern_name": "Easingwold", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Easingwold@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:wald"}, {"ordinal": 3, "etymon_ref": "old-english:Ēsa"}], "notes": "Forest of Esa's people"}
 {"_type": "toponym", "ref": "East and West Ardsley@West Riding", "modern_name": "East and West Ardsley", "country": "England", "region": "West Riding"}
@@ -4163,10 +4163,10 @@
 {"_type": "etymology_element", "toponym_ref": "Ellenthorpe@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:æðeling"}, {"ordinal": 2, "etymon_ref": "old-norse:þorp"}, {"ordinal": 3, "etymon_ref": "old-english:Athelina"}], "notes": "Atheling's outlying farm/settlement' or perhaps, 'prince's outlying settlement"}
 {"_type": "toponym", "ref": "Ellerbeck@North Riding", "modern_name": "Ellerbeck", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Ellerbeck@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bekkr"}, {"ordinal": 2, "etymon_ref": "old-norse:elri"}], "notes": "Alder stream"}
-{"_type": "toponym", "ref": "Ellerby@East Riding", "modern_name": "Ellerby", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Ellerby@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfweard"}], "notes": "Aelfweard's farm/settlement"}
-{"_type": "toponym", "ref": "Ellerby@East Riding", "modern_name": "Ellerby", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Ellerby@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfweard"}], "notes": "Aelfweard's farm/settlement"}
+{"_type": "toponym", "ref": "Ellerby@Yorkshire", "modern_name": "Ellerby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Ellerby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfweard"}], "notes": "Aelfweard's farm/settlement"}
+{"_type": "toponym", "ref": "Ellerby@Yorkshire", "modern_name": "Ellerby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Ellerby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Ælfweard"}], "notes": "Aelfweard's farm/settlement"}
 {"_type": "toponym", "ref": "Ellerker@East Riding", "modern_name": "Ellerker", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Ellerker@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:elri"}, {"ordinal": 2, "etymon_ref": "old-norse:kjarr"}], "notes": "Alder marsh"}
 {"_type": "toponym", "ref": "Ellerton@East Riding", "modern_name": "Ellerton", "country": "England", "region": "East Riding"}
@@ -4267,10 +4267,10 @@
 {"_type": "etymology_element", "toponym_ref": "Finghall@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:fīn"}, {"ordinal": 4, "etymon_ref": "old-english:halh"}], "notes": "nook of land at Fining (= the wood-pile)'. Less likely, perhaps, is 'nook of land of *Fin(a)'s people; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Firbeck@West Riding", "modern_name": "Firbeck", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Firbeck@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bekkr"}, {"ordinal": 2, "etymon_ref": "old-english:fyrhð"}, {"ordinal": 3, "etymon_ref": "old-english:Frithi"}], "notes": "Woodland stream' or perhaps, 'Frithi's stream"}
-{"_type": "toponym", "ref": "Firby@East Riding", "modern_name": "Firby", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Firby@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}], "notes": "Frith(i)'s farm/settlement; unresolved personal name(s): (unextracted personal name)"}
-{"_type": "toponym", "ref": "Firby@East Riding", "modern_name": "Firby", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Firby@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Frithi"}], "notes": "Frithi's farm/settlement"}
+{"_type": "toponym", "ref": "Firby@Yorkshire", "modern_name": "Firby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Firby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}], "notes": "Frith(i)'s farm/settlement; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "toponym", "ref": "Firby@Yorkshire", "modern_name": "Firby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Firby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Frithi"}], "notes": "Frithi's farm/settlement"}
 {"_type": "toponym", "ref": "Fishlake@West Riding", "modern_name": "Fishlake", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Fishlake@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:fisc"}, {"ordinal": 2, "etymon_ref": "old-english:lacu"}], "notes": "Fish stream"}
 {"_type": "toponym", "ref": "Fitling@East Riding", "modern_name": "Fitling", "country": "England", "region": "East Riding"}
@@ -4461,12 +4461,12 @@
 {"_type": "etymology_element", "toponym_ref": "Grewelthorpe@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-norse:þorp"}], "notes": "Outlying farm/settlement"}
 {"_type": "toponym", "ref": "Gribthorpe@East Riding", "modern_name": "Gribthorpe", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Gribthorpe@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:þorp"}, {"ordinal": 2, "etymon_ref": "old-english:Grip"}], "notes": "Grip's outlying farm/settlement"}
-{"_type": "toponym", "ref": "Grimston@West Riding", "modern_name": "Grimston", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Grimston@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Grimr"}], "notes": "Grimr's farm/settlement"}
-{"_type": "toponym", "ref": "Grimston@West Riding", "modern_name": "Grimston", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Grimston@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Grimr"}], "notes": "Grimr's farm/settlement'. Grimr is a common Norse personal name, but Grimr, 'masked one"}
-{"_type": "toponym", "ref": "Grimston@West Riding", "modern_name": "Grimston", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Grimston@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Grimr"}], "notes": "Grimr"}
+{"_type": "toponym", "ref": "Grimston@Yorkshire", "modern_name": "Grimston", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Grimston@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Grimr"}], "notes": "Grimr's farm/settlement"}
+{"_type": "toponym", "ref": "Grimston@Yorkshire", "modern_name": "Grimston", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Grimston@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Grimr"}], "notes": "Grimr's farm/settlement'. Grimr is a common Norse personal name, but Grimr, 'masked one"}
+{"_type": "toponym", "ref": "Grimston@Yorkshire", "modern_name": "Grimston", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Grimston@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Grimr"}], "notes": "Grimr"}
 {"_type": "toponym", "ref": "Grindale@East Riding", "modern_name": "Grindale", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Grindale@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:grēne"}], "notes": "Green valley"}
 {"_type": "toponym", "ref": "Grindleton@West Riding", "modern_name": "Grindleton", "country": "England", "region": "West Riding"}
@@ -4611,10 +4611,10 @@
 {"_type": "etymology_element", "toponym_ref": "Heslington@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hæsling"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement growing with hazel"}
 {"_type": "toponym", "ref": "Hessay@West Riding", "modern_name": "Hessay", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Hessay@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēg"}, {"ordinal": 2, "etymon_ref": "old-english:hæsel"}], "notes": "Hazel-tree island"}
-{"_type": "toponym", "ref": "Hessle@West Riding", "modern_name": "Hessle", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Hessle@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hæsel"}], "notes": "Hazel-tree"}
-{"_type": "toponym", "ref": "Hessle@West Riding", "modern_name": "Hessle", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Hessle@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hæsel"}], "notes": "Hazel-tree"}
+{"_type": "toponym", "ref": "Hessle@Yorkshire", "modern_name": "Hessle", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Hessle@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hæsel"}], "notes": "Hazel-tree"}
+{"_type": "toponym", "ref": "Hessle@Yorkshire", "modern_name": "Hessle", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Hessle@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hæsel"}], "notes": "Hazel-tree"}
 {"_type": "toponym", "ref": "Hetton@West Riding", "modern_name": "Hetton", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Hetton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hǣð"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Heath farm/settlement"}
 {"_type": "toponym", "ref": "Heworth@North Riding", "modern_name": "Heworth", "country": "England", "region": "North Riding"}
@@ -4659,10 +4659,10 @@
 {"_type": "etymology_element", "toponym_ref": "Holbeck@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bæc"}, {"ordinal": 2, "etymon_ref": "old-english:hol"}], "notes": "Hollow stream"}
 {"_type": "toponym", "ref": "Hollym@East Riding", "modern_name": "Hollym", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Hollym@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām"}, {"ordinal": 2, "etymon_ref": "old-english:hamm"}, {"ordinal": 3, "etymon_ref": "old-english:hol"}, {"ordinal": 4, "etymon_ref": "old-norse:holr"}], "notes": "at the hollows', but perhaps, 'hollow homestead/village"}
-{"_type": "toponym", "ref": "Holme@West Riding", "modern_name": "Holme", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Holme@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:holmr"}], "notes": "Island"}
-{"_type": "toponym", "ref": "Holme@West Riding", "modern_name": "Holme", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Holme@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:holegn"}], "notes": "Holly-tree"}
+{"_type": "toponym", "ref": "Holme@Yorkshire", "modern_name": "Holme", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Holme@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:holmr"}], "notes": "Island"}
+{"_type": "toponym", "ref": "Holme@Yorkshire", "modern_name": "Holme", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Holme@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:holegn"}], "notes": "Holly-tree"}
 {"_type": "toponym", "ref": "Holme on the Wolds@East Riding", "modern_name": "Holme on the Wolds", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Holme on the Wolds@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:haugr"}, {"ordinal": 2, "etymon_ref": "old-english:hōh"}], "notes": "At burial-mounds/hills' or 'at the hill-spurs"}
 {"_type": "toponym", "ref": "Holme upon Spalding Moor@East Riding", "modern_name": "Holme upon Spalding Moor", "country": "England", "region": "East Riding"}
@@ -5015,10 +5015,10 @@
 {"_type": "etymology_element", "toponym_ref": "Little Ouseburn@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "latin:parva"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}], "notes": "River Ouse stream'. 'Little"}
 {"_type": "toponym", "ref": "Little Ribston@West Riding", "modern_name": "Little Ribston", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Little Ribston@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ribbe"}, {"ordinal": 2, "etymon_ref": "old-english:stān"}], "notes": "Ribwort/hound's-tongue stone"}
-{"_type": "toponym", "ref": "Little Smeaton@West Riding", "modern_name": "Little Smeaton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Little Smeaton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:smið"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Smiths' farm/settlement"}
-{"_type": "toponym", "ref": "Little Smeaton@West Riding", "modern_name": "Little Smeaton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Little Smeaton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "latin:parva"}, {"ordinal": 2, "etymon_ref": "old-english:smið"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Smiths' farm/settlement'. 'Little"}
+{"_type": "toponym", "ref": "Little Smeaton@Yorkshire", "modern_name": "Little Smeaton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Little Smeaton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:smið"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Smiths' farm/settlement"}
+{"_type": "toponym", "ref": "Little Smeaton@Yorkshire", "modern_name": "Little Smeaton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Little Smeaton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "latin:parva"}, {"ordinal": 2, "etymon_ref": "old-english:smið"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Smiths' farm/settlement'. 'Little"}
 {"_type": "toponym", "ref": "Litton@West Riding", "modern_name": "Litton", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Litton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:hlíð"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Slope farm/settlement"}
 {"_type": "toponym", "ref": "Liversedge@West Riding", "modern_name": "Liversedge", "country": "England", "region": "West Riding"}
@@ -5077,10 +5077,10 @@
 {"_type": "etymology_element", "toponym_ref": "Malham@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:malgi"}, {"ordinal": 2, "etymon_ref": "old-norse:malr"}, {"ordinal": 3, "etymon_ref": "old-norse:melr"}], "notes": "at the gravelly/stony places'. Alternatively,'at the hollows"}
 {"_type": "toponym", "ref": "Malham Moor@West Riding", "modern_name": "Malham Moor", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Malham Moor@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:mór"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}], "notes": "Malham's moor"}
-{"_type": "toponym", "ref": "Maltby@West Riding", "modern_name": "Maltby", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Maltby@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:malt"}, {"ordinal": 3, "etymon_ref": "old-english:Malti"}], "notes": "*Malti's farm/settlement' or 'malt farm/settlement"}
-{"_type": "toponym", "ref": "Maltby@West Riding", "modern_name": "Maltby", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Maltby@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:malt"}, {"ordinal": 3, "etymon_ref": "old-english:Malti"}], "notes": "Malti's farm/settlement' or 'malt farm/settlement"}
+{"_type": "toponym", "ref": "Maltby@Yorkshire", "modern_name": "Maltby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Maltby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:malt"}, {"ordinal": 3, "etymon_ref": "old-english:Malti"}], "notes": "*Malti's farm/settlement' or 'malt farm/settlement"}
+{"_type": "toponym", "ref": "Maltby@Yorkshire", "modern_name": "Maltby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Maltby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:malt"}, {"ordinal": 3, "etymon_ref": "old-english:Malti"}], "notes": "Malti's farm/settlement' or 'malt farm/settlement"}
 {"_type": "toponym", "ref": "Manfield@North Riding", "modern_name": "Manfield", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Manfield@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "old-english:mǣne"}, {"ordinal": 3, "etymon_ref": "old-english:Manna"}], "notes": "*Manna's open land', or perhaps, 'communal open land"}
 {"_type": "toponym", "ref": "Manningham@West Riding", "modern_name": "Manningham", "country": "England", "region": "West Riding"}
@@ -5107,12 +5107,12 @@
 {"_type": "etymology_element", "toponym_ref": "Marske@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mersc"}], "notes": "Marsh"}
 {"_type": "toponym", "ref": "Marske@North Riding", "modern_name": "Marske", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Marske@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mersc"}], "notes": "Marsh"}
-{"_type": "toponym", "ref": "Marton@West Riding", "modern_name": "Marton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Marton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:marr"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Marsh farm/settlement"}
-{"_type": "toponym", "ref": "Marton@West Riding", "modern_name": "Marton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Marton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mere"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Pond farm/settlement"}
-{"_type": "toponym", "ref": "Marton@West Riding", "modern_name": "Marton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Marton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mere"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Pool farm/settlement"}
+{"_type": "toponym", "ref": "Marton@Yorkshire", "modern_name": "Marton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Marton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:marr"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Marsh farm/settlement"}
+{"_type": "toponym", "ref": "Marton@Yorkshire", "modern_name": "Marton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Marton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mere"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Pond farm/settlement"}
+{"_type": "toponym", "ref": "Marton@Yorkshire", "modern_name": "Marton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Marton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mere"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Pool farm/settlement"}
 {"_type": "toponym", "ref": "Marton in Cleveland@North Riding", "modern_name": "Marton in Cleveland", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Marton in Cleveland@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clif"}, {"ordinal": 2, "etymon_ref": "old-english:land"}, {"ordinal": 3, "etymon_ref": "old-norse:marr"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Marsh farm/settlement' in 'hilly land"}
 {"_type": "toponym", "ref": "Marton le Forest cum Moxby@North Riding", "modern_name": "Marton le Forest cum Moxby", "country": "England", "region": "North Riding"}
@@ -5169,12 +5169,12 @@
 {"_type": "etymology_element", "toponym_ref": "Middlesbrough@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:middel"}, {"ordinal": 3, "etymon_ref": "old-english:Midele"}], "notes": "Middlemost fortification' or perhaps, '*Midele's fortification"}
 {"_type": "toponym", "ref": "Middlethorpe@West Riding", "modern_name": "Middlethorpe", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Middlethorpe@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-norse:þorp"}], "notes": "Outlying farm/settlement'. Various affixes, including 'middle"}
-{"_type": "toponym", "ref": "Middleton@West Riding", "modern_name": "Middleton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Middleton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement"}
-{"_type": "toponym", "ref": "Middleton@West Riding", "modern_name": "Middleton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Middleton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement"}
-{"_type": "toponym", "ref": "Middleton@West Riding", "modern_name": "Middleton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Middleton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement"}
+{"_type": "toponym", "ref": "Middleton@Yorkshire", "modern_name": "Middleton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Middleton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement"}
+{"_type": "toponym", "ref": "Middleton@Yorkshire", "modern_name": "Middleton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Middleton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement"}
+{"_type": "toponym", "ref": "Middleton@Yorkshire", "modern_name": "Middleton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Middleton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement"}
 {"_type": "toponym", "ref": "Middleton on the Wolds@East Riding", "modern_name": "Middleton on the Wolds", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Middleton on the Wolds@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement' in the 'forest"}
 {"_type": "toponym", "ref": "Middleton Quernhow@North Riding", "modern_name": "Middleton Quernhow", "country": "England", "region": "North Riding"}
@@ -5279,12 +5279,12 @@
 {"_type": "etymology_element", "toponym_ref": "Newsholme@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hūs"}, {"ordinal": 2, "etymon_ref": "old-english:nīwe"}], "notes": "At the new houses"}
 {"_type": "toponym", "ref": "Newthorpe@West Riding", "modern_name": "Newthorpe", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Newthorpe@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-norse:þorp"}], "notes": "At the new outlying farm/settlement"}
-{"_type": "toponym", "ref": "Newton@West Riding", "modern_name": "Newton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Newton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlement"}
-{"_type": "toponym", "ref": "Newton@West Riding", "modern_name": "Newton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Newton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlement"}
-{"_type": "toponym", "ref": "Newton@West Riding", "modern_name": "Newton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Newton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlement"}
+{"_type": "toponym", "ref": "Newton@Yorkshire", "modern_name": "Newton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Newton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlement"}
+{"_type": "toponym", "ref": "Newton@Yorkshire", "modern_name": "Newton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Newton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlement"}
+{"_type": "toponym", "ref": "Newton@Yorkshire", "modern_name": "Newton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Newton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlement"}
 {"_type": "toponym", "ref": "Newton Kyme cum Toulston@West Riding", "modern_name": "Newton Kyme cum Toulston", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Newton Kyme cum Toulston@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:nīwe"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "New farm/settlemenmt'. Affix from the Kyme family who held land here from the 13th century. 'Toglos' farm/settlement; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Newton le Willows@North Riding", "modern_name": "Newton le Willows", "country": "England", "region": "North Riding"}
@@ -5349,10 +5349,10 @@
 {"_type": "etymology_element", "toponym_ref": "Northallerton@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:norð"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-norse:vápnatak"}, {"ordinal": 4, "etymon_ref": "old-english:Ælfhere"}], "notes": "Aelfhere's farm/settlement'. 'North"}
 {"_type": "toponym", "ref": "Northowram@West Riding", "modern_name": "Northowram", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Northowram@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:norð"}, {"ordinal": 2, "etymon_ref": "old-english:ofer"}], "notes": "At the ridges'. 'North"}
-{"_type": "toponym", "ref": "Norton@West Riding", "modern_name": "Norton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Norton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:norð"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "North farm/settlement"}
-{"_type": "toponym", "ref": "Norton@West Riding", "modern_name": "Norton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Norton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:norð"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "North farm/settlement"}
+{"_type": "toponym", "ref": "Norton@Yorkshire", "modern_name": "Norton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Norton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:norð"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "North farm/settlement"}
+{"_type": "toponym", "ref": "Norton@Yorkshire", "modern_name": "Norton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Norton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:norð"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "North farm/settlement"}
 {"_type": "toponym", "ref": "Norton Conyers@North Riding", "modern_name": "Norton Conyers", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Norton Conyers@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:norð"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "North farm/settlement"}
 {"_type": "toponym", "ref": "Norton le Clay@North Riding", "modern_name": "Norton le Clay", "country": "England", "region": "North Riding"}
@@ -5491,10 +5491,10 @@
 {"_type": "etymology_element", "toponym_ref": "Ravenfield@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "old-english:hræfn"}, {"ordinal": 3, "etymon_ref": "old-english:Hræfn"}], "notes": "*Hraefn's open land' or 'raven open land"}
 {"_type": "toponym", "ref": "Ravensworth@North Riding", "modern_name": "Ravensworth", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Ravensworth@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:hrafn"}, {"ordinal": 2, "etymon_ref": "old-norse:vað"}, {"ordinal": 3, "etymon_ref": "old-english:Hræfn"}], "notes": "Hrafn's ford' or 'raven's ford"}
-{"_type": "toponym", "ref": "Rawcliffe@West Riding", "modern_name": "Rawcliffe", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Rawcliffe@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:klif"}, {"ordinal": 2, "etymon_ref": "old-norse:rauðr"}], "notes": "Red cliff"}
-{"_type": "toponym", "ref": "Rawcliffe@West Riding", "modern_name": "Rawcliffe", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Rawcliffe@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:klif"}, {"ordinal": 2, "etymon_ref": "old-norse:rauðr"}], "notes": "Red cliff"}
+{"_type": "toponym", "ref": "Rawcliffe@Yorkshire", "modern_name": "Rawcliffe", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Rawcliffe@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:klif"}, {"ordinal": 2, "etymon_ref": "old-norse:rauðr"}], "notes": "Red cliff"}
+{"_type": "toponym", "ref": "Rawcliffe@Yorkshire", "modern_name": "Rawcliffe", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Rawcliffe@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:klif"}, {"ordinal": 2, "etymon_ref": "old-norse:rauðr"}], "notes": "Red cliff"}
 {"_type": "toponym", "ref": "Rawdon@West Riding", "modern_name": "Rawdon", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Rawdon@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-norse:rauðr"}], "notes": "Red hill"}
 {"_type": "toponym", "ref": "Rawmarsh@West Riding", "modern_name": "Rawmarsh", "country": "England", "region": "West Riding"}
@@ -5611,10 +5611,10 @@
 {"_type": "etymology_element", "toponym_ref": "Scackleton@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:sceacol"}], "notes": "shackle valley' although the exact sense is uncertain. It has been suggested that the reference is to a 'pole' to which shackles are attached and may be 'pole valley' or 'pointed-land valley"}
 {"_type": "toponym", "ref": "Scagglethorpe@East Riding", "modern_name": "Scagglethorpe", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Scagglethorpe@East Riding", "elements": [], "notes": "Skakull's/Skakli's outlying farm/settlement; unresolved personal name(s): Skakull"}
-{"_type": "toponym", "ref": "Scalby@East Riding", "modern_name": "Scalby", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Scalby@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Skalli"}], "notes": "Skalli's farm/settlement"}
-{"_type": "toponym", "ref": "Scalby@East Riding", "modern_name": "Scalby", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Scalby@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Skalli"}], "notes": "Skalli's farm/settlement"}
+{"_type": "toponym", "ref": "Scalby@Yorkshire", "modern_name": "Scalby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Scalby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Skalli"}], "notes": "Skalli's farm/settlement"}
+{"_type": "toponym", "ref": "Scalby@Yorkshire", "modern_name": "Scalby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Scalby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Skalli"}], "notes": "Skalli's farm/settlement"}
 {"_type": "toponym", "ref": "Scammonden@West Riding", "modern_name": "Scammonden", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Scammonden@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:Skammbeinn"}], "notes": "Skammbein's valley"}
 {"_type": "toponym", "ref": "Scampston@East Riding", "modern_name": "Scampston", "country": "England", "region": "East Riding"}
@@ -5633,10 +5633,10 @@
 {"_type": "etymology_element", "toponym_ref": "Scorton@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:skor"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Ravine farm/settlement"}
 {"_type": "toponym", "ref": "Scosthrop@West Riding", "modern_name": "Scosthrop", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Scosthrop@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:þorp"}, {"ordinal": 2, "etymon_ref": "old-english:Scott"}], "notes": "Skott's outlying farm/settlement'. This is the ON by-name, Skottr, 'the Scot"}
-{"_type": "toponym", "ref": "Scotton@West Riding", "modern_name": "Scotton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Scotton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:Scott"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Scots' farm/settlement"}
-{"_type": "toponym", "ref": "Scotton@West Riding", "modern_name": "Scotton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Scotton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:Scott"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Scots' farm/settlement"}
+{"_type": "toponym", "ref": "Scotton@Yorkshire", "modern_name": "Scotton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Scotton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:Scott"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Scots' farm/settlement"}
+{"_type": "toponym", "ref": "Scotton@Yorkshire", "modern_name": "Scotton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Scotton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:Scott"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Scots' farm/settlement"}
 {"_type": "toponym", "ref": "Scrayingham@East Riding", "modern_name": "Scrayingham", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Scrayingham@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:hām"}, {"ordinal": 4, "etymon_ref": "old-norse:Skrápi"}], "notes": "Homestead/village of *Scirheah's people' or 'homestead/village of Skrati's people'. Alternatively, 'homestead/village at/called *Scraeging (= structure of made of poles); unresolved personal name(s): Scirheah"}
 {"_type": "toponym", "ref": "Scriven@West Riding", "modern_name": "Scriven", "country": "England", "region": "West Riding"}
@@ -5693,10 +5693,10 @@
 {"_type": "etymology_element", "toponym_ref": "Sheriff Hutton with Cornbrough@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:corn"}, {"ordinal": 3, "etymon_ref": "old-english:hōh"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Hill-spur farm/settlement'. The Sheriff of York held this manor from the mid-12th century. Perhaps, 'crane/heron fortification"}
 {"_type": "toponym", "ref": "Shipley@West Riding", "modern_name": "Shipley", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Shipley@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:scēp"}], "notes": "Sheep wood/clearing"}
-{"_type": "toponym", "ref": "Shipton@East Riding", "modern_name": "Shipton", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Shipton@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēope"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Rose-hip farm/settlement"}
-{"_type": "toponym", "ref": "Shipton@East Riding", "modern_name": "Shipton", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Shipton@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēope"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Briar farm/settlement"}
+{"_type": "toponym", "ref": "Shipton@Yorkshire", "modern_name": "Shipton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Shipton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēope"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Rose-hip farm/settlement"}
+{"_type": "toponym", "ref": "Shipton@Yorkshire", "modern_name": "Shipton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Shipton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēope"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Briar farm/settlement"}
 {"_type": "toponym", "ref": "Shitlington@West Riding", "modern_name": "Shitlington", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Shitlington@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:scyttels"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "farm/settlement connected with *Scyttel'. Alternatively, 'steep-slope farm/settlement'. Over time, the village became known by its present name of 'Sitlington; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Sicklinghall@West Riding", "modern_name": "Sicklinghall", "country": "England", "region": "West Riding"}
@@ -5723,14 +5723,14 @@
 {"_type": "etymology_element", "toponym_ref": "Skelding@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:hēafod"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}], "notes": "Head of the River Skell valley'. 'Head"}
 {"_type": "toponym", "ref": "Skellow@West Riding", "modern_name": "Skellow", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Skellow@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}, {"ordinal": 2, "etymon_ref": "old-english:scēla"}, {"ordinal": 3, "etymon_ref": "old-norse:skáli"}], "notes": "Shieling nook of land"}
-{"_type": "toponym", "ref": "Skelton@West Riding", "modern_name": "Skelton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Skelton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}, {"ordinal": 2, "etymon_ref": "old-english:scelf"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "farm/settlement on the River Skell (ON skellr= 'to clatter)', a lost river name, or perhaps, 'shelf farm/settlement"}
-{"_type": "toponym", "ref": "Skelton@West Riding", "modern_name": "Skelton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Skelton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scelf"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Shelf farm/settlement"}
-{"_type": "toponym", "ref": "Skelton@West Riding", "modern_name": "Skelton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Skelton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scelf"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Shelf farm/settlement"}
-{"_type": "toponym", "ref": "Skelton@West Riding", "modern_name": "Skelton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Skelton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scelf"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement on shelving ground"}
+{"_type": "toponym", "ref": "Skelton@Yorkshire", "modern_name": "Skelton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Skelton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}, {"ordinal": 2, "etymon_ref": "old-english:scelf"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "farm/settlement on the River Skell (ON skellr= 'to clatter)', a lost river name, or perhaps, 'shelf farm/settlement"}
+{"_type": "toponym", "ref": "Skelton@Yorkshire", "modern_name": "Skelton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Skelton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scelf"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Shelf farm/settlement"}
+{"_type": "toponym", "ref": "Skelton@Yorkshire", "modern_name": "Skelton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Skelton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scelf"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Shelf farm/settlement"}
+{"_type": "toponym", "ref": "Skelton@Yorkshire", "modern_name": "Skelton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Skelton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scelf"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement on shelving ground"}
 {"_type": "toponym", "ref": "Skerne@East Riding", "modern_name": "Skerne", "country": "England", "region": "East Riding"}
 {"_type": "etymology_element", "toponym_ref": "Skerne@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Stream-Name"}]}
 {"_type": "toponym", "ref": "Skidby@East Riding", "modern_name": "Skidby", "country": "England", "region": "East Riding"}
@@ -5801,10 +5801,10 @@
 {"_type": "etymology_element", "toponym_ref": "Southcoates@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cot"}, {"ordinal": 2, "etymon_ref": "old-english:Sóti"}], "notes": "Soti's cottages"}
 {"_type": "toponym", "ref": "Southowram@West Riding", "modern_name": "Southowram", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Southowram@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ofer"}, {"ordinal": 2, "etymon_ref": "old-english:sūð"}], "notes": "At the ridges'. 'South"}
-{"_type": "toponym", "ref": "Sowerby@West Riding", "modern_name": "Sowerby", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Sowerby@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:saurr"}], "notes": "Sour/muddy farm/settlement"}
-{"_type": "toponym", "ref": "Sowerby@West Riding", "modern_name": "Sowerby", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Sowerby@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:saurr"}], "notes": "Sour ground farm/settlement"}
+{"_type": "toponym", "ref": "Sowerby@Yorkshire", "modern_name": "Sowerby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Sowerby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:saurr"}], "notes": "Sour/muddy farm/settlement"}
+{"_type": "toponym", "ref": "Sowerby@Yorkshire", "modern_name": "Sowerby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Sowerby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:saurr"}], "notes": "Sour ground farm/settlement"}
 {"_type": "toponym", "ref": "Sowerby under Cotcliffe@North Riding", "modern_name": "Sowerby under Cotcliffe", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Sowerby under Cotcliffe@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}, {"ordinal": 3, "etymon_ref": "old-norse:saurr"}], "notes": "Muddy/sour farm/settlement' below Cotcliffe, 'cliff cottage"}
 {"_type": "toponym", "ref": "Soyland@West Riding", "modern_name": "Soyland", "country": "England", "region": "West Riding"}
@@ -5837,12 +5837,12 @@
 {"_type": "etymology_element", "toponym_ref": "Stainforth@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:stān"}], "notes": "Stone ford"}
 {"_type": "toponym", "ref": "Stainland with Old Lindley@West Riding", "modern_name": "Stainland with Old Lindley", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Stainland with Old Lindley@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}, {"ordinal": 3, "etymon_ref": "old-english:līn"}, {"ordinal": 4, "etymon_ref": "old-english:stān"}], "notes": "Stone land'. The original OE first element was later replaced by ON steinn. 'Flax wood/clearing'. 'Old"}
-{"_type": "toponym", "ref": "Stainton@West Riding", "modern_name": "Stainton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Stainton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:stān"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Stony farm/settlement"}
-{"_type": "toponym", "ref": "Stainton@West Riding", "modern_name": "Stainton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Stainton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:stān"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Stony farm/settlement"}
-{"_type": "toponym", "ref": "Stainton@West Riding", "modern_name": "Stainton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Stainton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:stān"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Stone farm/settlement"}
+{"_type": "toponym", "ref": "Stainton@Yorkshire", "modern_name": "Stainton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Stainton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:stān"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Stony farm/settlement"}
+{"_type": "toponym", "ref": "Stainton@Yorkshire", "modern_name": "Stainton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Stainton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:stān"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Stony farm/settlement"}
+{"_type": "toponym", "ref": "Stainton@Yorkshire", "modern_name": "Stainton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Stainton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:stān"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Stone farm/settlement"}
 {"_type": "toponym", "ref": "Staintondale@North Riding", "modern_name": "Staintondale", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Staintondale@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:stān"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Stony farm/settlement valley"}
 {"_type": "toponym", "ref": "Stancill Wellingley and Wilsic@West Riding", "modern_name": "Stancill Wellingley and Wilsic", "country": "England", "region": "West Riding"}
@@ -5931,10 +5931,10 @@
 {"_type": "etymology_element", "toponym_ref": "Swine@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:swin"}], "notes": "Creek"}
 {"_type": "toponym", "ref": "Swinefleet@West Riding", "modern_name": "Swinefleet", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Swinefleet@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:flēot"}, {"ordinal": 2, "etymon_ref": "old-english:swīn"}], "notes": "Stream called *Swin (= the channel)"}
-{"_type": "toponym", "ref": "Swinton@West Riding", "modern_name": "Swinton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Swinton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:swīn"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Pig farm/settlement"}
-{"_type": "toponym", "ref": "Swinton@West Riding", "modern_name": "Swinton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Swinton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:swīn"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Swine farm/settlement"}
+{"_type": "toponym", "ref": "Swinton@Yorkshire", "modern_name": "Swinton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Swinton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:swīn"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Pig farm/settlement"}
+{"_type": "toponym", "ref": "Swinton@Yorkshire", "modern_name": "Swinton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Swinton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:swīn"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Swine farm/settlement"}
 {"_type": "toponym", "ref": "Swinton with Warthermarske@North Riding", "modern_name": "Swinton with Warthermarske", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Swinton with Warthermarske@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-english:mersc"}, {"ordinal": 3, "etymon_ref": "old-english:swīn"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}, {"ordinal": 5, "etymon_ref": "old-english:weard"}], "notes": "Pig farm/settlement'. 'Watch-hill marsh"}
 {"_type": "toponym", "ref": "Sykehouse@West Riding", "modern_name": "Sykehouse", "country": "England", "region": "West Riding"}
@@ -5959,10 +5959,10 @@
 {"_type": "etymology_element", "toponym_ref": "Thearne@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree"}
 {"_type": "toponym", "ref": "Thimbleby@North Riding", "modern_name": "Thimbleby", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Thimbleby@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}], "notes": "*Thymill's farm/settlement; unresolved personal name(s): Thymill"}
-{"_type": "toponym", "ref": "Thirkleby@East Riding", "modern_name": "Thirkleby", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Thirkleby@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Thorkell"}], "notes": "Thorkell's farm/settlement"}
-{"_type": "toponym", "ref": "Thirkleby@East Riding", "modern_name": "Thirkleby", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Thirkleby@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Thorkell"}], "notes": "Thorkell's farm/settlement"}
+{"_type": "toponym", "ref": "Thirkleby@Yorkshire", "modern_name": "Thirkleby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Thirkleby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Thorkell"}], "notes": "Thorkell's farm/settlement"}
+{"_type": "toponym", "ref": "Thirkleby@Yorkshire", "modern_name": "Thirkleby", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Thirkleby@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:Thorkell"}], "notes": "Thorkell's farm/settlement"}
 {"_type": "toponym", "ref": "Thirlby@North Riding", "modern_name": "Thirlby", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Thirlby@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:þrǽll"}, {"ordinal": 3, "etymon_ref": "old-english:Þrylli"}], "notes": "thrall's farm/settlement' or '*Thrylli's farm/settlement"}
 {"_type": "toponym", "ref": "Thirn@North Riding", "modern_name": "Thirn", "country": "England", "region": "North Riding"}
@@ -5997,10 +5997,10 @@
 {"_type": "etymology_element", "toponym_ref": "Thornholme@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:þyrne"}], "notes": "At the thorn-trees"}
 {"_type": "toponym", "ref": "Thornthwaite@West Riding", "modern_name": "Thornthwaite", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Thornthwaite@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:þorn"}, {"ordinal": 2, "etymon_ref": "old-norse:þveit"}], "notes": "Thorn-tree clearing"}
-{"_type": "toponym", "ref": "Thornton@West Riding", "modern_name": "Thornton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Thornton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:þorn"}], "notes": "Hawthorn-tree farm/settlement"}
-{"_type": "toponym", "ref": "Thornton@West Riding", "modern_name": "Thornton", "country": "England", "region": "West Riding"}
-{"_type": "etymology_element", "toponym_ref": "Thornton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree farm/settlement"}
+{"_type": "toponym", "ref": "Thornton@Yorkshire", "modern_name": "Thornton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Thornton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:þorn"}], "notes": "Hawthorn-tree farm/settlement"}
+{"_type": "toponym", "ref": "Thornton@Yorkshire", "modern_name": "Thornton", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Thornton@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree farm/settlement"}
 {"_type": "toponym", "ref": "Thornton Bridge@North Riding", "modern_name": "Thornton Bridge", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Thornton Bridge@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:þorn"}], "notes": "Thorn-tree farm/settlement'. 'Bridge"}
 {"_type": "toponym", "ref": "Thornton Dale@North Riding", "modern_name": "Thornton Dale", "country": "England", "region": "North Riding"}
@@ -6097,20 +6097,20 @@
 {"_type": "etymology_element", "toponym_ref": "Topcliffe@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clif"}, {"ordinal": 2, "etymon_ref": "old-english:topp"}], "notes": "Top of the cliff"}
 {"_type": "toponym", "ref": "Tosside@West Riding", "modern_name": "Tosside", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Tosside@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:set"}, {"ordinal": 2, "etymon_ref": "old-english:sīde"}, {"ordinal": 3, "etymon_ref": "old-norse:Thórir"}], "notes": "Thorir's hill-side' or 'Thorir's hill-pasture"}
-{"_type": "toponym", "ref": "Towthorpe@East Riding", "modern_name": "Towthorpe", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Towthorpe@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:þorp"}, {"ordinal": 2, "etymon_ref": "old-english:Tori"}], "notes": "Tofi's outlying farm/settlement"}
-{"_type": "toponym", "ref": "Towthorpe@East Riding", "modern_name": "Towthorpe", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Towthorpe@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:þorp"}, {"ordinal": 2, "etymon_ref": "old-english:Tove"}], "notes": "Tove's/Tofi's outlying farm/settlement"}
+{"_type": "toponym", "ref": "Towthorpe@Yorkshire", "modern_name": "Towthorpe", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Towthorpe@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:þorp"}, {"ordinal": 2, "etymon_ref": "old-english:Tori"}], "notes": "Tofi's outlying farm/settlement"}
+{"_type": "toponym", "ref": "Towthorpe@Yorkshire", "modern_name": "Towthorpe", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Towthorpe@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:þorp"}, {"ordinal": 2, "etymon_ref": "old-english:Tove"}], "notes": "Tove's/Tofi's outlying farm/settlement"}
 {"_type": "toponym", "ref": "Towton@West Riding", "modern_name": "Towton", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Towton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Tori"}], "notes": "Tofi's farm/settlement"}
 {"_type": "toponym", "ref": "Treeton@West Riding", "modern_name": "Treeton", "country": "England", "region": "West Riding"}
 {"_type": "etymology_element", "toponym_ref": "Treeton@West Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:trēow"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Tree farm/settlement"}
 {"_type": "toponym", "ref": "Trouts Dale@North Riding", "modern_name": "Trouts Dale", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Trouts Dale@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dæl"}, {"ordinal": 2, "etymon_ref": "old-english:stall"}, {"ordinal": 3, "etymon_ref": "old-english:truht"}, {"ordinal": 4, "etymon_ref": "old-english:Trute"}], "notes": "trout place' or 'Trut's valley"}
-{"_type": "toponym", "ref": "Tunstall@East Riding", "modern_name": "Tunstall", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Tunstall@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn-stall"}], "notes": "Farmstead"}
-{"_type": "toponym", "ref": "Tunstall@East Riding", "modern_name": "Tunstall", "country": "England", "region": "East Riding"}
-{"_type": "etymology_element", "toponym_ref": "Tunstall@East Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn-stall"}], "notes": "Farmstead"}
+{"_type": "toponym", "ref": "Tunstall@Yorkshire", "modern_name": "Tunstall", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Tunstall@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn-stall"}], "notes": "Farmstead"}
+{"_type": "toponym", "ref": "Tunstall@Yorkshire", "modern_name": "Tunstall", "country": "England", "region": "Yorkshire"}
+{"_type": "etymology_element", "toponym_ref": "Tunstall@Yorkshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn-stall"}], "notes": "Farmstead"}
 {"_type": "toponym", "ref": "Uckerby@North Riding", "modern_name": "Uckerby", "country": "England", "region": "North Riding"}
 {"_type": "etymology_element", "toponym_ref": "Uckerby@North Riding", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}], "notes": "*Ukyrri's/*Utkari's farm/settlement; unresolved personal name(s): Ukyrri"}
 {"_type": "toponym", "ref": "Ugthorpe@North Riding", "modern_name": "Ugthorpe", "country": "England", "region": "North Riding"}

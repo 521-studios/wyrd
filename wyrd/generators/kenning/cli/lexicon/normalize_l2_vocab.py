@@ -57,20 +57,30 @@ def lexicon_normalize_l2_vocab(data_dir: Path, kepn_source: Path, dry_run: bool)
     report = NormReport()
     files = sorted(data_dir.glob("*.jsonl"))
     changed_files = 0
+
+    def _change_sig() -> tuple[int, ...]:
+        # the mutation-bearing counters (yorkshire_left_county is a no-change tally)
+        return (
+            report.region_folded,
+            report.yorkshire_recoded,
+            report.country_aliased,
+            report.country_derived,
+            report.refs_rewritten,
+        )
+
     for i, path in enumerate(files, start=1):
         rows = [
             json.loads(line)
             for line in path.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
-        before = [json.dumps(r, ensure_ascii=False, sort_keys=False) for r in rows]
+        before = _change_sig()
         normalize_rows(rows, riding_map=riding_map, report=report)
-        after = [json.dumps(r, ensure_ascii=False, sort_keys=False) for r in rows]
-        if before != after:
+        if _change_sig() != before:  # this file produced a mutation
             changed_files += 1
             if not dry_run:
                 write_jsonl(path, rows)
-        if i % 25 == 0 or i == len(files):
+        if i % 10 == 0 or i == len(files):
             click.echo(
                 f"  [{i}/{len(files)}]  toponyms={report.toponyms_seen} "
                 f"folded={report.region_folded} ridings={report.yorkshire_recoded} "
