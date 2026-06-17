@@ -19,8 +19,9 @@ _FILENAME = "regions_england.yaml"
 VALID_LEVELS = {"country", "county", "subdivision"}
 VALID_STRATA = {"historic", "modern-administrative"}
 VALID_ALIAS_KINDS = {"code", "naming", "casing", "long-form", "normalize-up"}
-# Per-kind target contract (the alias header documents these): (level, stratum)
-# the `to` node must have. All kinds resolve to the historic dedup stratum;
+# Per-kind target contract (the `aliases:` block header in regions_england.yaml
+# documents these): (level, stratum) the `to` node must have. All kinds resolve
+# to the historic dedup stratum;
 # long-form lands on a subdivision (the Ridings), the rest on a county. No kind
 # may target the country root.
 _ALIAS_KIND_TARGET = {
@@ -231,25 +232,34 @@ def test_aliases_are_well_formed_and_valid():
     assert not dups, f"duplicate alias 'from' keys: {dups}"
 
 
-def test_alias_from_set_is_complete():
-    """Lock the alias vocabulary: exactly the live/known coding variants fold,
-    nothing more (a stray addition or a dropped fold is caught)."""
+def test_alias_kind_target_covers_all_kinds():
+    """_ALIAS_KIND_TARGET must stay in sync with VALID_ALIAS_KINDS, so a new kind
+    can't slip in without a declared (level, stratum) contract (which would make
+    test_alias_targets_match_their_kind_contract raise KeyError, not assert)."""
+    assert set(_ALIAS_KIND_TARGET) == VALID_ALIAS_KINDS
+
+
+def test_alias_mapping_is_complete():
+    """Lock the full alias mapping (from -> to): exactly these variants fold, and
+    each to its specific canonical. Pins the target too, so a wrong-but-plausible
+    target (e.g. SUS -> Suffolk, still county/historic) is caught — not just a
+    stray or dropped `from`."""
     m = _load()
-    froms = {a["from"] for a in m["aliases"]}
+    mapping = {a["from"]: a["to"] for a in m["aliases"]}
     expected = {
-        "SUF",
-        "LEC",
-        "BUK",
-        "SUR",
-        "SUS",
-        "County Durham",
-        "Isle Of Wight",
-        "West Riding of Yorkshire",
-        "East Riding of Yorkshire",
-        "East Sussex",
-        "West Sussex",
+        "SUF": "Suffolk",
+        "LEC": "Leicestershire",
+        "BUK": "Buckinghamshire",
+        "SUR": "Surrey",
+        "SUS": "Sussex",
+        "County Durham": "Durham",
+        "Isle Of Wight": "Isle of Wight",
+        "West Riding of Yorkshire": "West Riding",
+        "East Riding of Yorkshire": "East Riding",
+        "East Sussex": "Sussex",
+        "West Sussex": "Sussex",
     }
-    assert froms == expected, froms
+    assert mapping == expected, mapping
 
 
 def test_normalize_up_aliases_target_a_historic_county():

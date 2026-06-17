@@ -152,7 +152,7 @@ quarantine:
 #   code        — source abbreviation (SUF -> Suffolk). Same stratum + level.
 #   naming      — naming variant (County Durham -> Durham). Same stratum + level.
 #   casing      — casing/whitespace only (Isle Of Wight -> Isle of Wight).
-#   long-form   — verbose surface of the same node (West Riding of Yorkshire
+#   long-form   — verbose surface of the same canonical (West Riding of Yorkshire
 #                 -> West Riding). Historic stratum, subdivision level.
 #   normalize-up— a modern county folded into its UNIQUE historic county.
 #                 The ONE sanctioned cross-stratum fold, and ONLY because it is
