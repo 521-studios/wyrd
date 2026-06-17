@@ -91,7 +91,10 @@ def _rows(conn: sqlite3.Connection, sql: str) -> list[tuple]:
     and can't be broken by, however the caller configured the connection (Gemini)."""
     cur = conn.cursor()
     cur.row_factory = None
-    return cur.execute(sql).fetchall()
+    try:
+        return cur.execute(sql).fetchall()
+    finally:
+        cur.close()
 
 
 def scan_countries(conn: sqlite3.Connection) -> list[VocabFinding]:

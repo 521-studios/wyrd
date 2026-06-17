@@ -52,7 +52,7 @@ def lexicon_vocab_health(db_path: Path, strict: bool, show_all: bool, top: int) 
     _emit(findings, show_all=show_all, top=top)
     bad = violations(findings)
     if strict and bad:
-        raise SystemExit(1)
+        raise click.exceptions.Exit(1)
 
 
 def _emit(findings, *, show_all: bool, top: int) -> None:
