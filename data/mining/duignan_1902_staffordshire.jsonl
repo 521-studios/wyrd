@@ -261,65 +261,65 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T04:58:11.252579+00:00", "completed_at": "2026-05-05T05:04:20.990804+00:00", "parsed_count": 34, "accepted": 7, "declined": 22, "rejected": 5, "by_failure": "{\"attested_form_not_in_body\": 3, \"element_count_out_of_range\": 1, \"form_not_in_body\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T06:50:53.487432+00:00", "completed_at": "2026-05-05T06:55:38.434979+00:00", "parsed_count": 27, "accepted": 0, "declined": 23, "rejected": 4, "by_failure": "{\"attested_form_not_in_body\": 3, \"form_not_in_body\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T08:55:22.944742+00:00", "completed_at": "2026-05-05T09:01:28.437497+00:00", "parsed_count": 27, "accepted": 1, "declined": 23, "rejected": 3, "by_failure": "{\"attested_form_not_in_body\": 3}"}
-{"_type": "toponym", "ref": "Ashbourne@Staffordshire", "modern_name": "Ashbourne", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Brewood@Staffordshire", "modern_name": "Brewood", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Burton-on-Trent@Staffordshire", "modern_name": "Burton-on-Trent", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Buxton@Staffordshire", "modern_name": "Buxton", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Cannock@Staffordshire", "modern_name": "Cannock", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Dip@Staffordshire", "modern_name": "Dip", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Keele@Staffordshire", "modern_name": "Keele", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Kingswinford@Staffordshire", "modern_name": "Kingswinford", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Leek@Staffordshire", "modern_name": "Leek", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Lichfield@Staffordshire", "modern_name": "Lichfield", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Longnor@Staffordshire", "modern_name": "Longnor", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Low@Staffordshire", "modern_name": "Low", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Mitton@Staffordshire", "modern_name": "Mitton", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Morfe@Staffordshire", "modern_name": "Morfe", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Nechells@Staffordshire", "modern_name": "Nechells", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Newborough@Staffordshire", "modern_name": "Newborough", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Newecastle-under-Lyme@Staffordshire", "modern_name": "Newecastle-under-Lyme", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Normacott@Staffordshire", "modern_name": "Normacott", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Norton Bridge@Staffordshire", "modern_name": "Norton Bridge", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Oaken@Staffordshire", "modern_name": "Oaken", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Offiow@Staffordshire", "modern_name": "Offiow", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Ogley Hay@Staffordshire", "modern_name": "Ogley Hay", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Penkridge@Staffordshire", "modern_name": "Penkridge", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Picards@Staffordshire", "modern_name": "Picards", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Prestwood@Staffordshire", "modern_name": "Prestwood", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Rugeley@Staffordshire", "modern_name": "Rugeley", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Salters Bridge@Staffordshire", "modern_name": "Salters Bridge", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Saredon@Staffordshire", "modern_name": "Saredon", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Sax@Staffordshire", "modern_name": "Sax", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Shatterford@Staffordshire", "modern_name": "Shatterford", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Showells@Staffordshire", "modern_name": "Showells", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Silkmore@Staffordshire", "modern_name": "Silkmore", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Sow@Staffordshire", "modern_name": "Sow", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Stafford@Staffordshire", "modern_name": "Stafford", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Statfold@Staffordshire", "modern_name": "Statfold", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Stitchbrook@Staffordshire", "modern_name": "Stitchbrook", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Stoneywell@Staffordshire", "modern_name": "Stoneywell", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Stourbridge@Staffordshire", "modern_name": "Stourbridge", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Stourton@Staffordshire", "modern_name": "Stourton", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Swindon@Staffordshire", "modern_name": "Swindon", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Swinfen@Staffordshire", "modern_name": "Swinfen", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Tatenhill@Staffordshire", "modern_name": "Tatenhill", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Teddesley@Staffordshire", "modern_name": "Teddesley", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Tettenhall@Staffordshire", "modern_name": "Tettenhall", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Throwley@Staffordshire", "modern_name": "Throwley", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Tixall@Staffordshire", "modern_name": "Tixall", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Tromelowe@Staffordshire", "modern_name": "Tromelowe", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Tutbury@Staffordshire", "modern_name": "Tutbury", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Underhill@Staffordshire", "modern_name": "Underhill", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Uttoxeter@Staffordshire", "modern_name": "Uttoxeter", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Wall@Staffordshire", "modern_name": "Wall", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Wall Heath@Staffordshire", "modern_name": "Wall Heath", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Walsall@Staffordshire", "modern_name": "Walsall", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Walton@Staffordshire", "modern_name": "Walton", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Warslow@Staffordshire", "modern_name": "Warslow", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Watford Gap@Staffordshire", "modern_name": "Watford Gap", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Wergs@Staffordshire", "modern_name": "Wergs", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Wigginton@Staffordshire", "modern_name": "Wigginton", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Wolverhampton@Staffordshire", "modern_name": "Wolverhampton", "region": "Staffordshire"}
+{"_type": "toponym", "ref": "Ashbourne@Staffordshire", "modern_name": "Ashbourne", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Brewood@Staffordshire", "modern_name": "Brewood", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Burton-on-Trent@Staffordshire", "modern_name": "Burton-on-Trent", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Buxton@Staffordshire", "modern_name": "Buxton", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Cannock@Staffordshire", "modern_name": "Cannock", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Dip@Staffordshire", "modern_name": "Dip", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Keele@Staffordshire", "modern_name": "Keele", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Kingswinford@Staffordshire", "modern_name": "Kingswinford", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Leek@Staffordshire", "modern_name": "Leek", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Lichfield@Staffordshire", "modern_name": "Lichfield", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Longnor@Staffordshire", "modern_name": "Longnor", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Low@Staffordshire", "modern_name": "Low", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Mitton@Staffordshire", "modern_name": "Mitton", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Morfe@Staffordshire", "modern_name": "Morfe", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Nechells@Staffordshire", "modern_name": "Nechells", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Newborough@Staffordshire", "modern_name": "Newborough", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Newecastle-under-Lyme@Staffordshire", "modern_name": "Newecastle-under-Lyme", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Normacott@Staffordshire", "modern_name": "Normacott", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Norton Bridge@Staffordshire", "modern_name": "Norton Bridge", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Oaken@Staffordshire", "modern_name": "Oaken", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Offiow@Staffordshire", "modern_name": "Offiow", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Ogley Hay@Staffordshire", "modern_name": "Ogley Hay", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Penkridge@Staffordshire", "modern_name": "Penkridge", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Picards@Staffordshire", "modern_name": "Picards", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Prestwood@Staffordshire", "modern_name": "Prestwood", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Rugeley@Staffordshire", "modern_name": "Rugeley", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Salters Bridge@Staffordshire", "modern_name": "Salters Bridge", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Saredon@Staffordshire", "modern_name": "Saredon", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Sax@Staffordshire", "modern_name": "Sax", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Shatterford@Staffordshire", "modern_name": "Shatterford", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Showells@Staffordshire", "modern_name": "Showells", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Silkmore@Staffordshire", "modern_name": "Silkmore", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Sow@Staffordshire", "modern_name": "Sow", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Stafford@Staffordshire", "modern_name": "Stafford", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Statfold@Staffordshire", "modern_name": "Statfold", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Stitchbrook@Staffordshire", "modern_name": "Stitchbrook", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Stoneywell@Staffordshire", "modern_name": "Stoneywell", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Stourbridge@Staffordshire", "modern_name": "Stourbridge", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Stourton@Staffordshire", "modern_name": "Stourton", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Swindon@Staffordshire", "modern_name": "Swindon", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Swinfen@Staffordshire", "modern_name": "Swinfen", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Tatenhill@Staffordshire", "modern_name": "Tatenhill", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Teddesley@Staffordshire", "modern_name": "Teddesley", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Tettenhall@Staffordshire", "modern_name": "Tettenhall", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Throwley@Staffordshire", "modern_name": "Throwley", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Tixall@Staffordshire", "modern_name": "Tixall", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Tromelowe@Staffordshire", "modern_name": "Tromelowe", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Tutbury@Staffordshire", "modern_name": "Tutbury", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Underhill@Staffordshire", "modern_name": "Underhill", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Uttoxeter@Staffordshire", "modern_name": "Uttoxeter", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Wall@Staffordshire", "modern_name": "Wall", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Wall Heath@Staffordshire", "modern_name": "Wall Heath", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Walsall@Staffordshire", "modern_name": "Walsall", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Walton@Staffordshire", "modern_name": "Walton", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Warslow@Staffordshire", "modern_name": "Warslow", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Watford Gap@Staffordshire", "modern_name": "Watford Gap", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Wergs@Staffordshire", "modern_name": "Wergs", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Wigginton@Staffordshire", "modern_name": "Wigginton", "region": "Staffordshire", "country": "England"}
+{"_type": "toponym", "ref": "Wolverhampton@Staffordshire", "modern_name": "Wolverhampton", "region": "Staffordshire", "country": "England"}
 {"_type": "etymology_element", "toponym_ref": "Ashbourne@Staffordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:ac"}, {"ordinal": 1, "etymon_ref": "old-english:ofer"}], "historical_form": "ac-ofer", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Ashbourne. 1004 Acofre; D. Acovere; 13 c. Acovere, Acoure (u = Vv); 14 c. Ockover. A.S. dc, oak, dfer, ofre, a bank, margin, border—the oak bank (or ", "attested_year": 1004}
 {"_type": "etymology_element", "toponym_ref": "Brewood@Staffordshire", "elements": [{"ordinal": 0, "etymon_ref": "modern-english:strangle"}, {"ordinal": 1, "etymon_ref": "old-english:ford"}], "historical_form": "Strangle-ford", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar notes 'Birch is a later addition'; the 1327 form 'Sirangleford' suggests 'Strangle-ford' as the original compound, with 'Strangle' referring t", "attested_year": 1327}
 {"_type": "etymology_element", "toponym_ref": "Burton-on-Trent@Staffordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:hrothwulf", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "Hrothwulf-tun", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Burton-on-Trent. 942 Roshulfes- ton; 1004 Rolfestun; D. Rolvestune; later Rolvestone. This is Hrothwulfs town. The form of 1004 shows how early corru", "attested_year": 942}
@@ -406,7 +406,7 @@
 {"_type": "etymology_element", "toponym_ref": "Wolverhampton@Staffordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:northan"}, {"ordinal": 1, "etymon_ref": "old-english:cot"}], "historical_form": "northan-cot", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Wolverhampton. 1255 Worthincote; 1271 Northicote; 1327 Nordicote. This is ‘Northern cot’; the z is the remains of the terminal in A.S. northan. The h", "attested_year": 1255}
 {"_type": "etymology_element", "toponym_ref": "Wolverhampton@Staffordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:secg"}, {"ordinal": 1, "etymon_ref": "old-english:leah"}], "historical_form": "Secg-es-leah", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Secg identified as a personal name attested in charters; genitive es marks possessive construction. | Wolverhampton. c. 1006 Secges lea; D. Segleslei;", "attested_year": 1006}
 {"_type": "etymology_element", "toponym_ref": "Wolverhampton@Staffordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wodnes", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:feld"}], "historical_form": "Wodnes-feld", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar marks as uncertain with '?' — 'Woden's field?' | Wolverhampton. 994 Wodnes- Seid; D. Wodnesfeld. ‘Woden’s field? V.Wednesbury. In gio a battle", "attested_year": 994}
-{"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales"}
+{"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales", "country": "Wales"}
 {"_type": "toponym", "ref": "Hunts@Essex", "modern_name": "Hunts", "country": "England", "region": "Essex"}
 {"_type": "toponym", "ref": "Lowe@Shropshire", "modern_name": "Lowe", "country": "England", "region": "Shropshire"}
 {"_type": "toponym", "ref": "Sedgley@Staffordshire", "modern_name": "Sedgley", "country": "England", "region": "Staffordshire"}

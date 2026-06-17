@@ -12,6 +12,7 @@
     "import-modern-reflexes"
   ],
   "non_rebuild_commands": {
+    "normalize-l2-vocab": "One-time idempotent Class-A region/country normalization of the committed L2 JSONL in place (wyrd-3q6m.4). Its output IS L2, so rebuild-from-jsonl replays the already-canonical data — not a wipe-restore step. Safe to re-run (a re-run is a no-op).",
     "backfill-fantasy-tags": "Backfills tags on fantasy_morpheme rows; the fantasy layer round-trips via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores it. Not a wipe-restore step.",
     "audit-merges": "LLM (Ollama) audit of merge decisions (folds / OCR-cluster tombstones / lemma links) that reverts wrongly-merged homographs (wyrd-6hbv). NON-DETERMINISTIC, so per the reconstructibility rule its reverts persist to the L2 ledgers — collapse-fold reverts to data/mining/_collapses.jsonl (into: ''), OCR/lemma reverts to data/mining/_curation.jsonl (merged_into_ref/lemma_ref cleared) — and are replayed deterministically by run_full_enrichment's collapse + curation passes; the verdict log data/mining/_merge_audit.jsonl is idempotency/audit only. The auditor itself is never re-run on rebuild.",
     "backfill-pages": "Backfills citation page numbers from source-specific data; one-off enrichment, not part of a from-scratch rebuild.",

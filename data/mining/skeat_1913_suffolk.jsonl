@@ -250,55 +250,55 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-02T02:51:56.303812+00:00", "completed_at": "2026-05-02T02:53:07.081501+00:00", "parsed_count": 8, "accepted": 7, "declined": 1, "rejected": 0}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T08:31:24.853809+00:00", "completed_at": "2026-05-05T08:34:08.405428+00:00", "parsed_count": 14, "accepted": 6, "declined": 7, "rejected": 1, "by_failure": "{\"element_count_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T10:27:13.385104+00:00", "completed_at": "2026-05-05T10:28:47.957042+00:00", "parsed_count": 8, "accepted": 1, "declined": 6, "rejected": 1, "by_failure": "{\"element_count_out_of_range\": 1}"}
-{"_type": "toponym", "ref": "Acton@Suffolk", "modern_name": "Acton", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Aldborough@Suffolk", "modern_name": "Aldborough", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Alderton@Suffolk", "modern_name": "Alderton", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Aldham@Suffolk", "modern_name": "Aldham", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Aldringham@Suffolk", "modern_name": "Aldringham", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Ampton@Suffolk", "modern_name": "Ampton", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Aspall@Suffolk", "modern_name": "Aspall", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Badley@Suffolk", "modern_name": "Badley", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Ballingdon@Suffolk", "modern_name": "Ballingdon", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Bardwell@Suffolk", "modern_name": "Bardwell", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Barrow@Suffolk", "modern_name": "Barrow", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Bawdsey@Suffolk", "modern_name": "Bawdsey", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Beccles@Suffolk", "modern_name": "Beccles", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Bedingfield@Suffolk", "modern_name": "Bedingfield", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Benacre@Suffolk", "modern_name": "Benacre", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Benhall@Suffolk", "modern_name": "Benhall", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Blaxhall@Suffolk", "modern_name": "Blaxhall", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Blythford@Suffolk", "modern_name": "Blythford", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Bosmere@Suffolk", "modern_name": "Bosmere", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Bradfield@Suffolk", "modern_name": "Bradfield", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Bradley@Suffolk", "modern_name": "Bradley", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Brandon@Suffolk", "modern_name": "Brandon", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Bricett@Suffolk", "modern_name": "Bricett", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Brockley@Suffolk", "modern_name": "Brockley", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Bruisyard@Suffolk", "modern_name": "Bruisyard", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Brundish@Suffolk", "modern_name": "Brundish", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Bungay@Suffolk", "modern_name": "Bungay", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Chelsworth@Suffolk", "modern_name": "Chelsworth", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Claydon@Suffolk", "modern_name": "Claydon", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Cornard@Suffolk", "modern_name": "Cornard", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Depden@Suffolk", "modern_name": "Depden", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Dunwich@Suffolk", "modern_name": "Dunwich", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Elmsett@Suffolk", "modern_name": "Elmsett", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Eye@Suffolk", "modern_name": "Eye", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Finborough@Suffolk", "modern_name": "Finborough", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Framsden@Suffolk", "modern_name": "Framsden", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Gedgrave@Suffolk", "modern_name": "Gedgrave", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Hargrave@Suffolk", "modern_name": "Hargrave", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Hartest@Suffolk", "modern_name": "Hartest", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Hengrave@Suffolk", "modern_name": "Hengrave", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Holbrook@Suffolk", "modern_name": "Holbrook", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Kessingland@Suffolk", "modern_name": "Kessingland", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Occold@Suffolk", "modern_name": "Occold", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Pettistree@Suffolk", "modern_name": "Pettistree", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Risbridge@Suffolk", "modern_name": "Risbridge", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Rushbrooke@Suffolk", "modern_name": "Rushbrooke", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Shipmeadow@Suffolk", "modern_name": "Shipmeadow", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Stow@Suffolk", "modern_name": "Stow", "region": "Suffolk"}
-{"_type": "toponym", "ref": "Thorpe@Suffolk", "modern_name": "Thorpe", "region": "Suffolk"}
+{"_type": "toponym", "ref": "Acton@Suffolk", "modern_name": "Acton", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Aldborough@Suffolk", "modern_name": "Aldborough", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Alderton@Suffolk", "modern_name": "Alderton", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Aldham@Suffolk", "modern_name": "Aldham", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Aldringham@Suffolk", "modern_name": "Aldringham", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Ampton@Suffolk", "modern_name": "Ampton", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Aspall@Suffolk", "modern_name": "Aspall", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Badley@Suffolk", "modern_name": "Badley", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Ballingdon@Suffolk", "modern_name": "Ballingdon", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Bardwell@Suffolk", "modern_name": "Bardwell", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Barrow@Suffolk", "modern_name": "Barrow", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Bawdsey@Suffolk", "modern_name": "Bawdsey", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Beccles@Suffolk", "modern_name": "Beccles", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Bedingfield@Suffolk", "modern_name": "Bedingfield", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Benacre@Suffolk", "modern_name": "Benacre", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Benhall@Suffolk", "modern_name": "Benhall", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Blaxhall@Suffolk", "modern_name": "Blaxhall", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Blythford@Suffolk", "modern_name": "Blythford", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Bosmere@Suffolk", "modern_name": "Bosmere", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Bradfield@Suffolk", "modern_name": "Bradfield", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Bradley@Suffolk", "modern_name": "Bradley", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Brandon@Suffolk", "modern_name": "Brandon", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Bricett@Suffolk", "modern_name": "Bricett", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Brockley@Suffolk", "modern_name": "Brockley", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Bruisyard@Suffolk", "modern_name": "Bruisyard", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Brundish@Suffolk", "modern_name": "Brundish", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Bungay@Suffolk", "modern_name": "Bungay", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Chelsworth@Suffolk", "modern_name": "Chelsworth", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Claydon@Suffolk", "modern_name": "Claydon", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Cornard@Suffolk", "modern_name": "Cornard", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Depden@Suffolk", "modern_name": "Depden", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Dunwich@Suffolk", "modern_name": "Dunwich", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Elmsett@Suffolk", "modern_name": "Elmsett", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Eye@Suffolk", "modern_name": "Eye", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Finborough@Suffolk", "modern_name": "Finborough", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Framsden@Suffolk", "modern_name": "Framsden", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Gedgrave@Suffolk", "modern_name": "Gedgrave", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Hargrave@Suffolk", "modern_name": "Hargrave", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Hartest@Suffolk", "modern_name": "Hartest", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Hengrave@Suffolk", "modern_name": "Hengrave", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Holbrook@Suffolk", "modern_name": "Holbrook", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Kessingland@Suffolk", "modern_name": "Kessingland", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Occold@Suffolk", "modern_name": "Occold", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Pettistree@Suffolk", "modern_name": "Pettistree", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Risbridge@Suffolk", "modern_name": "Risbridge", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Rushbrooke@Suffolk", "modern_name": "Rushbrooke", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Shipmeadow@Suffolk", "modern_name": "Shipmeadow", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Stow@Suffolk", "modern_name": "Stow", "region": "Suffolk", "country": "England"}
+{"_type": "toponym", "ref": "Thorpe@Suffolk", "modern_name": "Thorpe", "region": "Suffolk", "country": "England"}
 {"_type": "etymology_element", "toponym_ref": "Acton@Suffolk", "elements": [{"ordinal": 0, "etymon_ref": "old-english:aca"}, {"ordinal": 1, "etymon_ref": "old-english:tūn"}], "historical_form": "Aca-tun", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b; Scholar distinguishes this from 'oak-town' (ac-tun) based on spelling evidence, identifying 'Aca' as a personal name. | Acton. N. by E. from Sudbury. Spelt A ketona, D.B.,"}
 {"_type": "etymology_element", "toponym_ref": "Acton@Suffolk", "elements": [{"ordinal": 0, "etymon_ref": "old-english:aca", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "Aca-tun", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar explicitly rejects 'ac-tun' (oak-town) interpretation based on vowel evidence (e before t) and cites Old English form Acantun from boundary li"}
 {"_type": "etymology_element", "toponym_ref": "Aldborough@Suffolk", "elements": [{"ordinal": 0, "etymon_ref": "old-english:ealde"}, {"ordinal": 1, "etymon_ref": "old-english:burh"}], "historical_form": "ealde-burh", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b | Aldborough, or (in Kelly's Directory) Aldeburgh. Spelt Aldeburc in D.B., p. 71. The e may be explained as the termination of the Aveak feminine snffix of the no"}
@@ -395,11 +395,11 @@
 {"_type": "etymology_element", "toponym_ref": "Stow@Suffolk", "elements": [{"ordinal": 0, "etymon_ref": "old-english:stow"}], "historical_form": "stow", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Stow is the A.S. stow, a place ; whence the phrase to stow aiuay. There is a hundred named Stow ; West Stow, two and a half miles W. of Ingham (N. of"}
 {"_type": "etymology_element", "toponym_ref": "Thorpe@Suffolk", "elements": [{"ordinal": 0, "etymon_ref": "old-english:thorp"}], "historical_form": "thorp", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Thorpe, more correctly thorp, is the O. Frisian and A.S. thorp, 'a village'; cognate with Du. dorp, G. dorf. We find (in Suffolk) Thorpe-Morieux, a h"}
 {"_type": "toponym", "ref": "Barnaby@Yorkshire", "modern_name": "Barnaby", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Leiston@SUF", "modern_name": "Leiston", "country": "England", "region": "SUF"}
+{"_type": "toponym", "ref": "Leiston@Suffolk", "modern_name": "Leiston", "country": "England", "region": "Suffolk"}
 {"_type": "toponym", "ref": "Meltuna@England and Wales", "modern_name": "Meltuna", "region": "England and Wales"}
-{"_type": "toponym", "ref": "Old and New@Northumberland and Durham", "modern_name": "Old and New", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Saxham@SUF", "modern_name": "Saxham", "country": "England", "region": "SUF"}
-{"_type": "toponym", "ref": "Wortham@SUF", "modern_name": "Wortham", "country": "England", "region": "SUF"}
+{"_type": "toponym", "ref": "Old and New@Northumberland and Durham", "modern_name": "Old and New", "region": "Northumberland and Durham", "country": "England"}
+{"_type": "toponym", "ref": "Saxham@Suffolk", "modern_name": "Saxham", "country": "England", "region": "Suffolk"}
+{"_type": "toponym", "ref": "Wortham@Suffolk", "modern_name": "Wortham", "country": "England", "region": "Suffolk"}
 {"_type": "attestation", "toponym_ref": "Aldham@Suffolk", "form": "Aldeham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Aspall@Suffolk", "form": "Aspala", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Aspall@Suffolk", "form": "Aspella", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
@@ -423,10 +423,10 @@
 {"_type": "attestation", "toponym_ref": "Hargrave@Suffolk", "form": "Haragraua", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Hartest@Suffolk", "form": "Herterst", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Hartest@Suffolk", "form": "Hertest", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Leiston@SUF", "form": "Leiston", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
+{"_type": "attestation", "toponym_ref": "Leiston@Suffolk", "form": "Leiston", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Meltuna@England and Wales", "form": "Meltuna", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Occold@Suffolk", "form": "Acolt", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Old and New@Northumberland and Durham", "form": "Vetus", "date_year": 1278, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Saxham@SUF", "form": "Saxham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
+{"_type": "attestation", "toponym_ref": "Saxham@Suffolk", "form": "Saxham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Shipmeadow@Suffolk", "form": "Scipmedu", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Wortham@SUF", "form": "Wortham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
+{"_type": "attestation", "toponym_ref": "Wortham@Suffolk", "form": "Wortham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}

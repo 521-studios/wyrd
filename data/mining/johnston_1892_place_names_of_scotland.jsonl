@@ -136,43 +136,43 @@
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "completed_at": "2026-04-30T23:35:54.299Z", "parsed_count": 2, "accepted": 0, "declined": 2, "rejected": 0, "notes": "celtic-haiku batch (pre celtic-parser fix)"}
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "completed_at": "2026-05-01T00:35:06.467Z", "parsed_count": 195, "accepted": 81, "declined": 102, "rejected": 12, "notes": "celtic-haiku-rerun (post parser fix)"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T15:12:53.616794+00:00", "completed_at": "2026-05-05T15:16:02.013962+00:00", "parsed_count": 20, "accepted": 12, "declined": 5, "rejected": 3, "by_failure": "{\"attested_form_not_in_body\": 1, \"element_count_out_of_range\": 1, \"form_not_in_body\": 1}"}
-{"_type": "toponym", "ref": "ABBOTSGRANGE and ABBOTSHAUGH@Scotland", "modern_name": "ABBOTSGRANGE and ABBOTSHAUGH", "region": "Scotland"}
-{"_type": "toponym", "ref": "AcHLtf ACHRACH@Scotland", "modern_name": "AcHLtf ACHRACH", "region": "Scotland"}
-{"_type": "toponym", "ref": "Arg@Scotland", "modern_name": "Arg", "region": "Scotland"}
-{"_type": "toponym", "ref": "Ass OP THE GILL@Scotland", "modern_name": "Ass OP THE GILL", "region": "Scotland"}
-{"_type": "toponym", "ref": "BARRHEAD and BARRHILL@Scotland", "modern_name": "BARRHEAD and BARRHILL", "region": "Scotland"}
-{"_type": "toponym", "ref": "BIRKET'S Hill@Scotland", "modern_name": "BIRKET'S Hill", "region": "Scotland"}
-{"_type": "toponym", "ref": "Bow OF FIFE@Scotland", "modern_name": "Bow OF FIFE", "region": "Scotland"}
-{"_type": "toponym", "ref": "COULBEG and COULMORE@Scotland", "modern_name": "COULBEG and COULMORE", "region": "Scotland"}
-{"_type": "toponym", "ref": "Culmore@Scotland", "modern_name": "Culmore", "region": "Scotland"}
-{"_type": "toponym", "ref": "DENBURN and DENHEAD@Scotland", "modern_name": "DENBURN and DENHEAD", "region": "Scotland"}
-{"_type": "toponym", "ref": "EWES and EWESDALE@Scotland", "modern_name": "EWES and EWESDALE", "region": "Scotland"}
-{"_type": "toponym", "ref": "GfLMERTON@Scotland", "modern_name": "GfLMERTON", "region": "Scotland"}
-{"_type": "toponym", "ref": "HABBIE'S How@Scotland", "modern_name": "HABBIE'S How", "region": "Scotland"}
-{"_type": "toponym", "ref": "Ham@Scotland", "modern_name": "Ham", "region": "Scotland"}
-{"_type": "toponym", "ref": "Hartside@Scotland", "modern_name": "Hartside", "region": "Scotland"}
-{"_type": "toponym", "ref": "JEDBURGH and JEDFOOT@Scotland", "modern_name": "JEDBURGH and JEDFOOT", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kessok@Scotland", "modern_name": "Kessok", "region": "Scotland"}
-{"_type": "toponym", "ref": "KiRKPATRiCK-DuRHAM@Scotland", "modern_name": "KiRKPATRiCK-DuRHAM", "region": "Scotland"}
-{"_type": "toponym", "ref": "KlNLOCHARD@Scotland", "modern_name": "KlNLOCHARD", "region": "Scotland"}
-{"_type": "toponym", "ref": "LARGO and LARGO WARD@Scotland", "modern_name": "LARGO and LARGO WARD", "region": "Scotland"}
-{"_type": "toponym", "ref": "Lemannonius of Ptolemy@Scotland", "modern_name": "Lemannonius of Ptolemy", "region": "Scotland"}
-{"_type": "toponym", "ref": "Louchinvar@Scotland", "modern_name": "Louchinvar", "region": "Scotland"}
-{"_type": "toponym", "ref": "Luss@Scotland", "modern_name": "Luss", "region": "Scotland"}
-{"_type": "toponym", "ref": "PITCAIEN and PITCAIRNGREEN@Scotland", "modern_name": "PITCAIEN and PITCAIRNGREEN", "region": "Scotland"}
-{"_type": "toponym", "ref": "POLLOKSHAWS and POLLOKSHIELDS@Scotland", "modern_name": "POLLOKSHAWS and POLLOKSHIELDS", "region": "Scotland"}
-{"_type": "toponym", "ref": "ROOE and ROOENESS VOE@Scotland", "modern_name": "ROOE and ROOENESS VOE", "region": "Scotland"}
-{"_type": "toponym", "ref": "St@Scotland", "modern_name": "St", "region": "Scotland"}
-{"_type": "toponym", "ref": "St Maurus@Scotland", "modern_name": "St Maurus", "region": "Scotland"}
-{"_type": "toponym", "ref": "Stanismare@Scotland", "modern_name": "Stanismare", "region": "Scotland"}
-{"_type": "toponym", "ref": "Stornbay@Scotland", "modern_name": "Stornbay", "region": "Scotland"}
-{"_type": "toponym", "ref": "Straven@Scotland", "modern_name": "Straven", "region": "Scotland"}
-{"_type": "toponym", "ref": "Teampul-na-Trianaide@Scotland", "modern_name": "Teampul-na-Trianaide", "region": "Scotland"}
-{"_type": "toponym", "ref": "Tigliearna@Scotland", "modern_name": "Tigliearna", "region": "Scotland"}
-{"_type": "toponym", "ref": "Toogh@Scotland", "modern_name": "Toogh", "region": "Scotland"}
-{"_type": "toponym", "ref": "WESTRAY and PAPA WESTRAY@Scotland", "modern_name": "WESTRAY and PAPA WESTRAY", "region": "Scotland"}
-{"_type": "toponym", "ref": "WriDEWALL@Scotland", "modern_name": "WriDEWALL", "region": "Scotland"}
-{"_type": "toponym", "ref": "WriNDY GOUL@Scotland", "modern_name": "WriNDY GOUL", "region": "Scotland"}
+{"_type": "toponym", "ref": "ABBOTSGRANGE and ABBOTSHAUGH@Scotland", "modern_name": "ABBOTSGRANGE and ABBOTSHAUGH", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "AcHLtf ACHRACH@Scotland", "modern_name": "AcHLtf ACHRACH", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Arg@Scotland", "modern_name": "Arg", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ass OP THE GILL@Scotland", "modern_name": "Ass OP THE GILL", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "BARRHEAD and BARRHILL@Scotland", "modern_name": "BARRHEAD and BARRHILL", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "BIRKET'S Hill@Scotland", "modern_name": "BIRKET'S Hill", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Bow OF FIFE@Scotland", "modern_name": "Bow OF FIFE", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "COULBEG and COULMORE@Scotland", "modern_name": "COULBEG and COULMORE", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Culmore@Scotland", "modern_name": "Culmore", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "DENBURN and DENHEAD@Scotland", "modern_name": "DENBURN and DENHEAD", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "EWES and EWESDALE@Scotland", "modern_name": "EWES and EWESDALE", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "GfLMERTON@Scotland", "modern_name": "GfLMERTON", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "HABBIE'S How@Scotland", "modern_name": "HABBIE'S How", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ham@Scotland", "modern_name": "Ham", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Hartside@Scotland", "modern_name": "Hartside", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "JEDBURGH and JEDFOOT@Scotland", "modern_name": "JEDBURGH and JEDFOOT", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kessok@Scotland", "modern_name": "Kessok", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "KiRKPATRiCK-DuRHAM@Scotland", "modern_name": "KiRKPATRiCK-DuRHAM", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "KlNLOCHARD@Scotland", "modern_name": "KlNLOCHARD", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "LARGO and LARGO WARD@Scotland", "modern_name": "LARGO and LARGO WARD", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Lemannonius of Ptolemy@Scotland", "modern_name": "Lemannonius of Ptolemy", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Louchinvar@Scotland", "modern_name": "Louchinvar", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Luss@Scotland", "modern_name": "Luss", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "PITCAIEN and PITCAIRNGREEN@Scotland", "modern_name": "PITCAIEN and PITCAIRNGREEN", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "POLLOKSHAWS and POLLOKSHIELDS@Scotland", "modern_name": "POLLOKSHAWS and POLLOKSHIELDS", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "ROOE and ROOENESS VOE@Scotland", "modern_name": "ROOE and ROOENESS VOE", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "St@Scotland", "modern_name": "St", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "St Maurus@Scotland", "modern_name": "St Maurus", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stanismare@Scotland", "modern_name": "Stanismare", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stornbay@Scotland", "modern_name": "Stornbay", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Straven@Scotland", "modern_name": "Straven", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Teampul-na-Trianaide@Scotland", "modern_name": "Teampul-na-Trianaide", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tigliearna@Scotland", "modern_name": "Tigliearna", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Toogh@Scotland", "modern_name": "Toogh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "WESTRAY and PAPA WESTRAY@Scotland", "modern_name": "WESTRAY and PAPA WESTRAY", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "WriDEWALL@Scotland", "modern_name": "WriDEWALL", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "WriNDY GOUL@Scotland", "modern_name": "WriNDY GOUL", "region": "Scotland", "country": "Scotland"}
 {"_type": "etymology_element", "toponym_ref": "ABBOTSGRANGE and ABBOTSHAUGH@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "latin:granagium"}, {"ordinal": 1, "etymon_ref": "latin:granum"}, {"ordinal": 2, "etymon_ref": "old-norse:liagi"}], "historical_form": "Abbots-grange / Abbots-haugh", "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Scholar notes 'prob. fr. Icel. liagi' for haugh, indicating some hedging. The 'Abbots-' prefix is explained by former ownership by Newbattle Abbey but no spec"}
 {"_type": "etymology_element", "toponym_ref": "AcHLtf ACHRACH@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:luachair"}], "historical_form": "luach-rach", "confidence": "high", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Scholar glosses Achrach as 'Rushy field' from G. luachrach, fr. luachair, rushes. | AcHLtf ACHRACH (Fort \"William). * Rushy field; ' G. luachrach, fr. luachai"}
 {"_type": "etymology_element", "toponym_ref": "Arg@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:leamhan"}], "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Entry is for 'Leven' (a river/loch name), not 'Arg'. The scholar derives the name from Gaelic 'leamhan' meaning elm, citing historical forms Glenlemnae and Le"}
@@ -222,16 +222,16 @@
 {"_type": "etymology_element", "toponym_ref": "WriDEWALL@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:yidi"}, {"ordinal": 1, "etymon_ref": "old-norse:vagr"}], "historical_form": "Yidi-vagr", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | WriDEWALL (S. Eonaldsay). c. 1225, Orkney. Sag., Yidi- vag(r), i.e., 'beacon voe ' or 'bay.' WIESDALE, WEIS- (Voe, Shetland). Perh. ' hissing valley ; ' Icel. hvaesa, Dan. hvaese, to hiss, the Eng. wheeze. Cf. Glen LOY. Perh. = WTEDALE. 248 PLACE-NAMES OF SCOTLAND. WIGTOWN. 1283, Wyggeton ; c. 1565, Wigston. 'Dwelling, village on the bay;' O.E. wic, O.IST. vigr. See ton, p. Ixxiv, and cf. Wigg, Whithorn. WILKIESTON (Ratho). The name Willtie is fr. G. guilca", "attested_year": 1225}
 {"_type": "etymology_element", "toponym_ref": "WriNDY GOUL@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:gablial"}], "historical_form": "gablial", "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Scholar gives Gaelic and Irish 'gablial' as the source; 'Windy' portion of the name is not etymologically analysed in this entry — only 'Goul' is explained. |"}
 {"_type": "etymology_element", "toponym_ref": "WriNDY GOUL@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:gablial"}], "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | WriNDY GOUL (Queen's Park, Edinburgh). G. and Ir. gablial, a fork, a pass. Cf. Ardgoul, Ireland. WINTON (Ormiston). c. 1 1 60, Wynton ; 1 2 1 0, Winton. Prob. ' windy abode, village ;' O.E.?mi<i,wmd,in Sc. ivm\\wun'. WIRRAN (hill, Lethnot, Eorfarsh.). G. fhuaran, a spring of water. WISHAW (Lanark). Prob. as next ; * Wice ' or ' Wisclie's wood ' or SHAW. WISTON (Biggar). c. 1155, Ecclesia de Wicestun; 1159, Ecclesia ville Withce; c. 1190, Ecclesia de Wische; ", "attested_year": 1155}
-{"_type": "toponym", "ref": "Aros@Argyll", "modern_name": "Aros", "region": "Argyll"}
-{"_type": "toponym", "ref": "Bewley@Northumberland and Durham", "modern_name": "Bewley", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Aros@Argyll", "modern_name": "Aros", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Bewley@Northumberland and Durham", "modern_name": "Bewley", "region": "Northumberland and Durham", "country": "England"}
 {"_type": "toponym", "ref": "Burghill@Herefordshire", "modern_name": "Burghill", "country": "England", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Crostorfin@Scotland", "modern_name": "Crostorfin", "region": "Scotland"}
-{"_type": "toponym", "ref": "Douglas@Argyll", "modern_name": "Douglas", "region": "Argyll"}
-{"_type": "toponym", "ref": "Falkirk@Scotland", "modern_name": "Falkirk", "region": "Scotland"}
-{"_type": "toponym", "ref": "Lennoxtown@Stirlingshire", "modern_name": "Lennoxtown", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Perth@Scotland", "modern_name": "Perth", "region": "Scotland"}
+{"_type": "toponym", "ref": "Crostorfin@Scotland", "modern_name": "Crostorfin", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Douglas@Argyll", "modern_name": "Douglas", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Falkirk@Scotland", "modern_name": "Falkirk", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Lennoxtown@Stirlingshire", "modern_name": "Lennoxtown", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Perth@Scotland", "modern_name": "Perth", "region": "Scotland", "country": "Scotland"}
 {"_type": "toponym", "ref": "Sand@-", "modern_name": "Sand"}
-{"_type": "toponym", "ref": "Stirling@Stirlingshire", "modern_name": "Stirling", "region": "Stirlingshire"}
+{"_type": "toponym", "ref": "Stirling@Stirlingshire", "modern_name": "Stirling", "region": "Stirlingshire", "country": "Scotland"}
 {"_type": "attestation", "toponym_ref": "Aros@Argyll", "form": "Aros", "date_year": 1449, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Bewley@Northumberland and Durham", "form": "Beaulieu", "date_year": 1497, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Burghill@Herefordshire", "form": "Burghill", "date_year": 1574, "source_doc": "johnston_1892_place_names_of_scotland"}

@@ -8,15 +8,15 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T10:17:08.695721+00:00", "completed_at": "2026-05-05T10:17:12.047083+00:00", "parsed_count": 1, "accepted": 0, "declined": 1, "rejected": 0}
 {"_type": "toponym", "ref": "Kindle@British Isles", "modern_name": "Kindle", "region": "British Isles"}
 {"_type": "etymology_element", "toponym_ref": "Kindle@British Isles", "elements": [{"ordinal": 0, "etymon_ref": "old-english:lceck-r"}], "historical_form": "Lceck-r", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Scholar notes cognates and Latin equivalent 'lacu' for 'lake'. | Kindle. Law; Lceck-r (= brook: in northern place-names, as Leek: the cognate English Leach, Lech, Let"}
-{"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales"}
+{"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales", "country": "Wales"}
 {"_type": "toponym", "ref": "Glastonbury@Somerset", "modern_name": "Glastonbury", "country": "England", "region": "Somerset"}
-{"_type": "toponym", "ref": "Kimble@BUK", "modern_name": "Kimble", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Kimble@Buckinghamshire", "modern_name": "Kimble", "country": "England", "region": "Buckinghamshire"}
 {"_type": "toponym", "ref": "Ludham@Norfolk", "modern_name": "Ludham", "country": "England", "region": "Norfolk"}
-{"_type": "toponym", "ref": "Tanshelf@Yorkshire", "modern_name": "Tanshelf", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Wales@Yorkshire", "modern_name": "Wales", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Tanshelf@West Riding", "modern_name": "Tanshelf", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Wales@West Riding", "modern_name": "Wales", "country": "England", "region": "West Riding"}
 {"_type": "attestation", "toponym_ref": "Garthen@Wales", "form": "Saxons", "date_year": 711, "source_doc": "mcclure_1910_british_place_names"}
 {"_type": "attestation", "toponym_ref": "Glastonbury@Somerset", "form": "Glastonbury", "date_year": 971, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "Kimble@BUK", "form": "Kimble", "date_year": 1086, "source_doc": "mcclure_1910_british_place_names"}
+{"_type": "attestation", "toponym_ref": "Kimble@Buckinghamshire", "form": "Kimble", "date_year": 1086, "source_doc": "mcclure_1910_british_place_names"}
 {"_type": "attestation", "toponym_ref": "Ludham@Norfolk", "form": "Ludham", "date_year": 1086, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "Tanshelf@Yorkshire", "form": "Tanshelf", "date_year": 1257, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "Wales@Yorkshire", "form": "Wales", "date_year": 1062, "source_doc": "mcclure_1910_british_place_names"}
+{"_type": "attestation", "toponym_ref": "Tanshelf@West Riding", "form": "Tanshelf", "date_year": 1257, "source_doc": "mcclure_1910_british_place_names"}
+{"_type": "attestation", "toponym_ref": "Wales@West Riding", "form": "Wales", "date_year": 1062, "source_doc": "mcclure_1910_british_place_names"}

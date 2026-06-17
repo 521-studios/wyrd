@@ -180,6 +180,7 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import (
     mine_wiktextract_forms as _mine_wiktextract_forms_module,
 )
+from wyrd.generators.kenning.cli.lexicon import normalize_l2_vocab as _normalize_l2_vocab_module
 from wyrd.generators.kenning.cli.lexicon import normalize_ocr as _normalize_ocr_module
 from wyrd.generators.kenning.cli.lexicon import parse_pages as _parse_pages_module
 from wyrd.generators.kenning.cli.lexicon import path as _path_module
@@ -321,6 +322,7 @@ _mine_toponym_mentions_staged_module.add_to(lexicon)
 _mine_toponym_mentions_tiered_module.add_to(lexicon)
 _mine_wiktextract_corpus_module.add_to(lexicon)
 _mine_wiktextract_forms_module.add_to(lexicon)
+_normalize_l2_vocab_module.add_to(lexicon)
 _normalize_ocr_module.add_to(lexicon)
 _parse_pages_module.add_to(lexicon)
 _path_module.add_to(lexicon)

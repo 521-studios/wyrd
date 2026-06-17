@@ -547,176 +547,176 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T06:03:31.914157+00:00", "completed_at": "2026-05-05T06:16:18.831614+00:00", "parsed_count": 66, "accepted": 14, "declined": 48, "rejected": 4, "by_failure": "{\"attested_form_not_in_body\": 3, \"element_count_out_of_range\": 1, \"form_not_in_body\": 2}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T08:36:09.478800+00:00", "completed_at": "2026-05-05T08:46:10.446718+00:00", "parsed_count": 52, "accepted": 1, "declined": 47, "rejected": 4, "by_failure": "{\"attested_form_not_in_body\": 1, \"element_count_out_of_range\": 2, \"form_not_in_body\": 2}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T10:31:53.985662+00:00", "completed_at": "2026-05-05T10:41:35.732805+00:00", "parsed_count": 51, "accepted": 1, "declined": 46, "rejected": 4, "by_failure": "{\"attested_form_not_in_body\": 2, \"element_count_out_of_range\": 1, \"form_not_in_body\": 1}"}
-{"_type": "toponym", "ref": "Aber-@Scotland", "modern_name": "Aber-", "region": "Scotland"}
-{"_type": "toponym", "ref": "Aberbuthnot@Scotland", "modern_name": "Aberbuthnot", "region": "Scotland"}
-{"_type": "toponym", "ref": "Abercairney@Scotland", "modern_name": "Abercairney", "region": "Scotland"}
-{"_type": "toponym", "ref": "Abercairnie in Glen Ogilvie@Scotland", "modern_name": "Abercairnie in Glen Ogilvie", "region": "Scotland"}
-{"_type": "toponym", "ref": "Aberchirder@Scotland", "modern_name": "Aberchirder", "region": "Scotland"}
-{"_type": "toponym", "ref": "Aberdona@Scotland", "modern_name": "Aberdona", "region": "Scotland"}
-{"_type": "toponym", "ref": "Aberlessic@Scotland", "modern_name": "Aberlessic", "region": "Scotland"}
-{"_type": "toponym", "ref": "Aberluthnot@Scotland", "modern_name": "Aberluthnot", "region": "Scotland"}
-{"_type": "toponym", "ref": "Aberruthven in Auchterarder@Scotland", "modern_name": "Aberruthven in Auchterarder", "region": "Scotland"}
-{"_type": "toponym", "ref": "Abertarff@Scotland", "modern_name": "Abertarff", "region": "Scotland"}
-{"_type": "toponym", "ref": "Abhainn Teilt@Scotland", "modern_name": "Abhainn Teilt", "region": "Scotland"}
-{"_type": "toponym", "ref": "Abhainn and Gleann Duibhailigh@Scotland", "modern_name": "Abhainn and Gleann Duibhailigh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Abhartach@Scotland", "modern_name": "Abhartach", "region": "Scotland"}
-{"_type": "toponym", "ref": "Abriachan@Scotland", "modern_name": "Abriachan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Aibind@Scotland", "modern_name": "Aibind", "region": "Scotland"}
-{"_type": "toponym", "ref": "Airbhe@Scotland", "modern_name": "Airbhe", "region": "Scotland"}
-{"_type": "toponym", "ref": "Alpe@Scotland", "modern_name": "Alpe", "region": "Scotland"}
-{"_type": "toponym", "ref": "Altrive@Scotland", "modern_name": "Altrive", "region": "Scotland"}
-{"_type": "toponym", "ref": "Andoit@Scotland", "modern_name": "Andoit", "region": "Scotland"}
-{"_type": "toponym", "ref": "Another Allan@Scotland", "modern_name": "Another Allan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Ath Mo-Ghriam@Scotland", "modern_name": "Ath Mo-Ghriam", "region": "Scotland"}
-{"_type": "toponym", "ref": "Athaigh@Scotland", "modern_name": "Athaigh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Auchencorth@Scotland", "modern_name": "Auchencorth", "region": "Scotland"}
-{"_type": "toponym", "ref": "Bachall@Scotland", "modern_name": "Bachall", "region": "Scotland"}
-{"_type": "toponym", "ref": "Bad@Scotland", "modern_name": "Bad", "region": "Scotland"}
-{"_type": "toponym", "ref": "Baetan@Scotland", "modern_name": "Baetan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Baithen@Scotland", "modern_name": "Baithen", "region": "Scotland"}
-{"_type": "toponym", "ref": "Balmadity@Scotland", "modern_name": "Balmadity", "region": "Scotland"}
-{"_type": "toponym", "ref": "Balmokessaik@Scotland", "modern_name": "Balmokessaik", "region": "Scotland"}
-{"_type": "toponym", "ref": "Barre@Scotland", "modern_name": "Barre", "region": "Scotland"}
-{"_type": "toponym", "ref": "Bealach@Scotland", "modern_name": "Bealach", "region": "Scotland"}
-{"_type": "toponym", "ref": "Bhoid@Scotland", "modern_name": "Bhoid", "region": "Scotland"}
-{"_type": "toponym", "ref": "Bonjedward@Scotland", "modern_name": "Bonjedward", "region": "Scotland"}
-{"_type": "toponym", "ref": "Boyne in Banffshire@Scotland", "modern_name": "Boyne in Banffshire", "region": "Scotland"}
-{"_type": "toponym", "ref": "Caddon Water@Scotland", "modern_name": "Caddon Water", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cairntable@Scotland", "modern_name": "Cairntable", "region": "Scotland"}
-{"_type": "toponym", "ref": "Carn Droma@Scotland", "modern_name": "Carn Droma", "region": "Scotland"}
-{"_type": "toponym", "ref": "Carse-regale in Wigtownshire@Scotland", "modern_name": "Carse-regale in Wigtownshire", "region": "Scotland"}
-{"_type": "toponym", "ref": "Chomraich Abrach@Scotland", "modern_name": "Chomraich Abrach", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cill@Scotland", "modern_name": "Cill", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cill Chaomhaidh@Scotland", "modern_name": "Cill Chaomhaidh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cill Chaomhdin@Scotland", "modern_name": "Cill Chaomhdin", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cill Chonaid@Scotland", "modern_name": "Cill Chonaid", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cill Eathain@Scotland", "modern_name": "Cill Eathain", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cill Fhinn@Scotland", "modern_name": "Cill Fhinn", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cill Mhic Eoghain@Scotland", "modern_name": "Cill Mhic Eoghain", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cill Mo-Chumdig@Scotland", "modern_name": "Cill Mo-Chumdig", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cill Mo-Naoimhin@Scotland", "modern_name": "Cill Mo-Naoimhin", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cladh Mo-Bhrigh@Scotland", "modern_name": "Cladh Mo-Bhrigh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Closeburn in Dumfriesshire@Scotland", "modern_name": "Closeburn in Dumfriesshire", "region": "Scotland"}
-{"_type": "toponym", "ref": "Clota@Scotland", "modern_name": "Clota", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cockleroy@Scotland", "modern_name": "Cockleroy", "region": "Scotland"}
-{"_type": "toponym", "ref": "Colanica@Scotland", "modern_name": "Colanica", "region": "Scotland"}
-{"_type": "toponym", "ref": "Colman@Scotland", "modern_name": "Colman", "region": "Scotland"}
-{"_type": "toponym", "ref": "Colum Cille@Scotland", "modern_name": "Colum Cille", "region": "Scotland"}
-{"_type": "toponym", "ref": "Comar@Scotland", "modern_name": "Comar", "region": "Scotland"}
-{"_type": "toponym", "ref": "Comhdhail@Scotland", "modern_name": "Comhdhail", "region": "Scotland"}
-{"_type": "toponym", "ref": "Corran@Scotland", "modern_name": "Corran", "region": "Scotland"}
-{"_type": "toponym", "ref": "Corsbasket@Scotland", "modern_name": "Corsbasket", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cramond@Scotland", "modern_name": "Cramond", "region": "Scotland"}
-{"_type": "toponym", "ref": "Crasg@Scotland", "modern_name": "Crasg", "region": "Scotland"}
-{"_type": "toponym", "ref": "Creag Mhigeachaidh@Scotland", "modern_name": "Creag Mhigeachaidh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Creag Neimhidh@Scotland", "modern_name": "Creag Neimhidh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cromdol@Scotland", "modern_name": "Cromdol", "region": "Scotland"}
-{"_type": "toponym", "ref": "Crostorfin@Scotland", "modern_name": "Crostorfin", "region": "Scotland"}
-{"_type": "toponym", "ref": "Cull Chasaidh@Scotland", "modern_name": "Cull Chasaidh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dalmeny@Scotland", "modern_name": "Dalmeny", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dalry@Scotland", "modern_name": "Dalry", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dat@Scotland", "modern_name": "Dat", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dechmont and Dechmont Hill@Scotland", "modern_name": "Dechmont and Dechmont Hill", "region": "Scotland"}
-{"_type": "toponym", "ref": "Din Monaidh@Scotland", "modern_name": "Din Monaidh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dobhar@Scotland", "modern_name": "Dobhar", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dobhar and Iardhobhar@Scotland", "modern_name": "Dobhar and Iardhobhar", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dol@Scotland", "modern_name": "Dol", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dolcorachy@Scotland", "modern_name": "Dolcorachy", "region": "Scotland"}
-{"_type": "toponym", "ref": "Drostan@Scotland", "modern_name": "Drostan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Druim Muighe@Scotland", "modern_name": "Druim Muighe", "region": "Scotland"}
-{"_type": "toponym", "ref": "Drumhendrie@Scotland", "modern_name": "Drumhendrie", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dubhghlais@Scotland", "modern_name": "Dubhghlais", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dulchreg@Scotland", "modern_name": "Dulchreg", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dulsie on Findhorn@Scotland", "modern_name": "Dulsie on Findhorn", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dumna@Scotland", "modern_name": "Dumna", "region": "Scotland"}
-{"_type": "toponym", "ref": "Dunollie@Scotland", "modern_name": "Dunollie", "region": "Scotland"}
-{"_type": "toponym", "ref": "Duntroon@Scotland", "modern_name": "Duntroon", "region": "Scotland"}
-{"_type": "toponym", "ref": "Echline@Scotland", "modern_name": "Echline", "region": "Scotland"}
-{"_type": "toponym", "ref": "Eden of Wales@Scotland", "modern_name": "Eden of Wales", "region": "Scotland"}
-{"_type": "toponym", "ref": "Eglesgreig@Scotland", "modern_name": "Eglesgreig", "region": "Scotland"}
-{"_type": "toponym", "ref": "Eileag@Scotland", "modern_name": "Eileag", "region": "Scotland"}
-{"_type": "toponym", "ref": "Eilginn@Scotland", "modern_name": "Eilginn", "region": "Scotland"}
-{"_type": "toponym", "ref": "Eoa in Ann@Scotland", "modern_name": "Eoa in Ann", "region": "Scotland"}
-{"_type": "toponym", "ref": "Erchard@Scotland", "modern_name": "Erchard", "region": "Scotland"}
-{"_type": "toponym", "ref": "Faelan@Scotland", "modern_name": "Faelan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Falkirk@Scotland", "modern_name": "Falkirk", "region": "Scotland"}
-{"_type": "toponym", "ref": "Formartin@Scotland", "modern_name": "Formartin", "region": "Scotland"}
-{"_type": "toponym", "ref": "Fothirletir@Scotland", "modern_name": "Fothirletir", "region": "Scotland"}
-{"_type": "toponym", "ref": "Galdenoch@Scotland", "modern_name": "Galdenoch", "region": "Scotland"}
-{"_type": "toponym", "ref": "Gaoth@Scotland", "modern_name": "Gaoth", "region": "Scotland"}
-{"_type": "toponym", "ref": "Gleann Sasunn@Scotland", "modern_name": "Gleann Sasunn", "region": "Scotland"}
-{"_type": "toponym", "ref": "Glentenmont@Scotland", "modern_name": "Glentenmont", "region": "Scotland"}
-{"_type": "toponym", "ref": "Groam@Scotland", "modern_name": "Groam", "region": "Scotland"}
-{"_type": "toponym", "ref": "Guaul@Scotland", "modern_name": "Guaul", "region": "Scotland"}
-{"_type": "toponym", "ref": "Hostages@Scotland", "modern_name": "Hostages", "region": "Scotland"}
-{"_type": "toponym", "ref": "IV@Scotland", "modern_name": "IV", "region": "Scotland"}
-{"_type": "toponym", "ref": "Inbhir Fhinn@Scotland", "modern_name": "Inbhir Fhinn", "region": "Scotland"}
-{"_type": "toponym", "ref": "Inchmacbany@Scotland", "modern_name": "Inchmacbany", "region": "Scotland"}
-{"_type": "toponym", "ref": "Innis@Scotland", "modern_name": "Innis", "region": "Scotland"}
-{"_type": "toponym", "ref": "Ireland@Scotland", "modern_name": "Ireland", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kast of Dalnaspidal@Scotland", "modern_name": "Kast of Dalnaspidal", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kcclefechan@Scotland", "modern_name": "Kcclefechan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kildalwin@Scotland", "modern_name": "Kildalwin", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kilfinnichen@Scotland", "modern_name": "Kilfinnichen", "region": "Scotland"}
-{"_type": "toponym", "ref": "Killochan@Scotland", "modern_name": "Killochan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kilmarnock@Scotland", "modern_name": "Kilmarnock", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kilphillan@Scotland", "modern_name": "Kilphillan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kincraig@Scotland", "modern_name": "Kincraig", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kinghorn@Scotland", "modern_name": "Kinghorn", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kinmont in Annandale@Scotland", "modern_name": "Kinmont in Annandale", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kirkcowan@Scotland", "modern_name": "Kirkcowan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kirkgunzeon in Kirkcudbright@Scotland", "modern_name": "Kirkgunzeon in Kirkcudbright", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kirkmadrine@Scotland", "modern_name": "Kirkmadrine", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kirkmahoe@Scotland", "modern_name": "Kirkmahoe", "region": "Scotland"}
-{"_type": "toponym", "ref": "Labhar@Scotland", "modern_name": "Labhar", "region": "Scotland"}
-{"_type": "toponym", "ref": "Lairig@Scotland", "modern_name": "Lairig", "region": "Scotland"}
-{"_type": "toponym", "ref": "Langnudre@Scotland", "modern_name": "Langnudre", "region": "Scotland"}
-{"_type": "toponym", "ref": "Llanerch@Scotland", "modern_name": "Llanerch", "region": "Scotland"}
-{"_type": "toponym", "ref": "Lleon@Scotland", "modern_name": "Lleon", "region": "Scotland"}
-{"_type": "toponym", "ref": "Loch-aber@Scotland", "modern_name": "Loch-aber", "region": "Scotland"}
-{"_type": "toponym", "ref": "Logie Pert@Scotland", "modern_name": "Logie Pert", "region": "Scotland"}
-{"_type": "toponym", "ref": "Luggie@Scotland", "modern_name": "Luggie", "region": "Scotland"}
-{"_type": "toponym", "ref": "Mac Gille Hoin@Scotland", "modern_name": "Mac Gille Hoin", "region": "Scotland"}
-{"_type": "toponym", "ref": "Magh@Scotland", "modern_name": "Magh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Manor@Scotland", "modern_name": "Manor", "region": "Scotland"}
-{"_type": "toponym", "ref": "Maol-domhnaich@Scotland", "modern_name": "Maol-domhnaich", "region": "Scotland"}
-{"_type": "toponym", "ref": "Melrose in Gamrie@Scotland", "modern_name": "Melrose in Gamrie", "region": "Scotland"}
-{"_type": "toponym", "ref": "Mendick@Scotland", "modern_name": "Mendick", "region": "Scotland"}
-{"_type": "toponym", "ref": "Migger in Strathearn@Scotland", "modern_name": "Migger in Strathearn", "region": "Scotland"}
-{"_type": "toponym", "ref": "Minit Eidin@Scotland", "modern_name": "Minit Eidin", "region": "Scotland"}
-{"_type": "toponym", "ref": "Mo-Laisse@Scotland", "modern_name": "Mo-Laisse", "region": "Scotland"}
-{"_type": "toponym", "ref": "Mr@Scotland", "modern_name": "Mr", "region": "Scotland"}
-{"_type": "toponym", "ref": "Nemet@Scotland", "modern_name": "Nemet", "region": "Scotland"}
-{"_type": "toponym", "ref": "Orrea@Scotland", "modern_name": "Orrea", "region": "Scotland"}
-{"_type": "toponym", "ref": "Oykel@Scotland", "modern_name": "Oykel", "region": "Scotland"}
-{"_type": "toponym", "ref": "Pencraig@Scotland", "modern_name": "Pencraig", "region": "Scotland"}
-{"_type": "toponym", "ref": "Penpont@Scotland", "modern_name": "Penpont", "region": "Scotland"}
-{"_type": "toponym", "ref": "Perdovingishill in Renfrewshire@Scotland", "modern_name": "Perdovingishill in Renfrewshire", "region": "Scotland"}
-{"_type": "toponym", "ref": "Perth@Scotland", "modern_name": "Perth", "region": "Scotland"}
-{"_type": "toponym", "ref": "Perwinnes@Scotland", "modern_name": "Perwinnes", "region": "Scotland"}
-{"_type": "toponym", "ref": "Petblane@Scotland", "modern_name": "Petblane", "region": "Scotland"}
-{"_type": "toponym", "ref": "Pettr@Scotland", "modern_name": "Pettr", "region": "Scotland"}
-{"_type": "toponym", "ref": "Pitliver in Fife@Scotland", "modern_name": "Pitliver in Fife", "region": "Scotland"}
-{"_type": "toponym", "ref": "Polmont@Scotland", "modern_name": "Polmont", "region": "Scotland"}
-{"_type": "toponym", "ref": "Pourie@Scotland", "modern_name": "Pourie", "region": "Scotland"}
-{"_type": "toponym", "ref": "Preas Ma-Ruibhe@Scotland", "modern_name": "Preas Ma-Ruibhe", "region": "Scotland"}
-{"_type": "toponym", "ref": "Prescoly@Scotland", "modern_name": "Prescoly", "region": "Scotland"}
-{"_type": "toponym", "ref": "Province of Cirech@Scotland", "modern_name": "Province of Cirech", "region": "Scotland"}
-{"_type": "toponym", "ref": "Rattray@Scotland", "modern_name": "Rattray", "region": "Scotland"}
-{"_type": "toponym", "ref": "Rinn@Scotland", "modern_name": "Rinn", "region": "Scotland"}
-{"_type": "toponym", "ref": "Romanno@Scotland", "modern_name": "Romanno", "region": "Scotland"}
-{"_type": "toponym", "ref": "Ros@Scotland", "modern_name": "Ros", "region": "Scotland"}
-{"_type": "toponym", "ref": "Sea-sins@Scotland", "modern_name": "Sea-sins", "region": "Scotland"}
-{"_type": "toponym", "ref": "Siaghaidh@Scotland", "modern_name": "Siaghaidh", "region": "Scotland"}
-{"_type": "toponym", "ref": "Sruth@Scotland", "modern_name": "Sruth", "region": "Scotland"}
-{"_type": "toponym", "ref": "St@Scotland", "modern_name": "St", "region": "Scotland"}
-{"_type": "toponym", "ref": "Suidhe@Scotland", "modern_name": "Suidhe", "region": "Scotland"}
-{"_type": "toponym", "ref": "Suidhe Mheircheird@Scotland", "modern_name": "Suidhe Mheircheird", "region": "Scotland"}
-{"_type": "toponym", "ref": "Suidheachan Fhinn@Scotland", "modern_name": "Suidheachan Fhinn", "region": "Scotland"}
-{"_type": "toponym", "ref": "Tarbet@Scotland", "modern_name": "Tarbet", "region": "Scotland"}
-{"_type": "toponym", "ref": "Teamhair@Scotland", "modern_name": "Teamhair", "region": "Scotland"}
-{"_type": "toponym", "ref": "Tillymorgan@Scotland", "modern_name": "Tillymorgan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Virvedrum@Scotland", "modern_name": "Virvedrum", "region": "Scotland"}
+{"_type": "toponym", "ref": "Aber-@Scotland", "modern_name": "Aber-", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aberbuthnot@Scotland", "modern_name": "Aberbuthnot", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Abercairney@Scotland", "modern_name": "Abercairney", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Abercairnie in Glen Ogilvie@Scotland", "modern_name": "Abercairnie in Glen Ogilvie", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aberchirder@Scotland", "modern_name": "Aberchirder", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aberdona@Scotland", "modern_name": "Aberdona", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aberlessic@Scotland", "modern_name": "Aberlessic", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aberluthnot@Scotland", "modern_name": "Aberluthnot", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aberruthven in Auchterarder@Scotland", "modern_name": "Aberruthven in Auchterarder", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Abertarff@Scotland", "modern_name": "Abertarff", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Abhainn Teilt@Scotland", "modern_name": "Abhainn Teilt", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Abhainn and Gleann Duibhailigh@Scotland", "modern_name": "Abhainn and Gleann Duibhailigh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Abhartach@Scotland", "modern_name": "Abhartach", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Abriachan@Scotland", "modern_name": "Abriachan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aibind@Scotland", "modern_name": "Aibind", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Airbhe@Scotland", "modern_name": "Airbhe", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Alpe@Scotland", "modern_name": "Alpe", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Altrive@Scotland", "modern_name": "Altrive", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Andoit@Scotland", "modern_name": "Andoit", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Another Allan@Scotland", "modern_name": "Another Allan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ath Mo-Ghriam@Scotland", "modern_name": "Ath Mo-Ghriam", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Athaigh@Scotland", "modern_name": "Athaigh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Auchencorth@Scotland", "modern_name": "Auchencorth", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Bachall@Scotland", "modern_name": "Bachall", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Bad@Scotland", "modern_name": "Bad", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Baetan@Scotland", "modern_name": "Baetan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Baithen@Scotland", "modern_name": "Baithen", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Balmadity@Scotland", "modern_name": "Balmadity", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Balmokessaik@Scotland", "modern_name": "Balmokessaik", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Barre@Scotland", "modern_name": "Barre", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Bealach@Scotland", "modern_name": "Bealach", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Bhoid@Scotland", "modern_name": "Bhoid", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Bonjedward@Scotland", "modern_name": "Bonjedward", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Boyne in Banffshire@Scotland", "modern_name": "Boyne in Banffshire", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Caddon Water@Scotland", "modern_name": "Caddon Water", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cairntable@Scotland", "modern_name": "Cairntable", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Carn Droma@Scotland", "modern_name": "Carn Droma", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Carse-regale in Wigtownshire@Scotland", "modern_name": "Carse-regale in Wigtownshire", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Chomraich Abrach@Scotland", "modern_name": "Chomraich Abrach", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cill@Scotland", "modern_name": "Cill", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cill Chaomhaidh@Scotland", "modern_name": "Cill Chaomhaidh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cill Chaomhdin@Scotland", "modern_name": "Cill Chaomhdin", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cill Chonaid@Scotland", "modern_name": "Cill Chonaid", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cill Eathain@Scotland", "modern_name": "Cill Eathain", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cill Fhinn@Scotland", "modern_name": "Cill Fhinn", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cill Mhic Eoghain@Scotland", "modern_name": "Cill Mhic Eoghain", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cill Mo-Chumdig@Scotland", "modern_name": "Cill Mo-Chumdig", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cill Mo-Naoimhin@Scotland", "modern_name": "Cill Mo-Naoimhin", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cladh Mo-Bhrigh@Scotland", "modern_name": "Cladh Mo-Bhrigh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Closeburn in Dumfriesshire@Scotland", "modern_name": "Closeburn in Dumfriesshire", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Clota@Scotland", "modern_name": "Clota", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cockleroy@Scotland", "modern_name": "Cockleroy", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Colanica@Scotland", "modern_name": "Colanica", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Colman@Scotland", "modern_name": "Colman", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Colum Cille@Scotland", "modern_name": "Colum Cille", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Comar@Scotland", "modern_name": "Comar", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Comhdhail@Scotland", "modern_name": "Comhdhail", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Corran@Scotland", "modern_name": "Corran", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Corsbasket@Scotland", "modern_name": "Corsbasket", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cramond@Scotland", "modern_name": "Cramond", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Crasg@Scotland", "modern_name": "Crasg", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Creag Mhigeachaidh@Scotland", "modern_name": "Creag Mhigeachaidh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Creag Neimhidh@Scotland", "modern_name": "Creag Neimhidh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cromdol@Scotland", "modern_name": "Cromdol", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Crostorfin@Scotland", "modern_name": "Crostorfin", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cull Chasaidh@Scotland", "modern_name": "Cull Chasaidh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dalmeny@Scotland", "modern_name": "Dalmeny", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dalry@Scotland", "modern_name": "Dalry", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dat@Scotland", "modern_name": "Dat", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dechmont and Dechmont Hill@Scotland", "modern_name": "Dechmont and Dechmont Hill", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Din Monaidh@Scotland", "modern_name": "Din Monaidh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dobhar@Scotland", "modern_name": "Dobhar", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dobhar and Iardhobhar@Scotland", "modern_name": "Dobhar and Iardhobhar", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dol@Scotland", "modern_name": "Dol", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dolcorachy@Scotland", "modern_name": "Dolcorachy", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Drostan@Scotland", "modern_name": "Drostan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Druim Muighe@Scotland", "modern_name": "Druim Muighe", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Drumhendrie@Scotland", "modern_name": "Drumhendrie", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dubhghlais@Scotland", "modern_name": "Dubhghlais", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dulchreg@Scotland", "modern_name": "Dulchreg", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dulsie on Findhorn@Scotland", "modern_name": "Dulsie on Findhorn", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dumna@Scotland", "modern_name": "Dumna", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dunollie@Scotland", "modern_name": "Dunollie", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Duntroon@Scotland", "modern_name": "Duntroon", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Echline@Scotland", "modern_name": "Echline", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Eden of Wales@Scotland", "modern_name": "Eden of Wales", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Eglesgreig@Scotland", "modern_name": "Eglesgreig", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Eileag@Scotland", "modern_name": "Eileag", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Eilginn@Scotland", "modern_name": "Eilginn", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Eoa in Ann@Scotland", "modern_name": "Eoa in Ann", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Erchard@Scotland", "modern_name": "Erchard", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Faelan@Scotland", "modern_name": "Faelan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Falkirk@Scotland", "modern_name": "Falkirk", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Formartin@Scotland", "modern_name": "Formartin", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Fothirletir@Scotland", "modern_name": "Fothirletir", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Galdenoch@Scotland", "modern_name": "Galdenoch", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gaoth@Scotland", "modern_name": "Gaoth", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gleann Sasunn@Scotland", "modern_name": "Gleann Sasunn", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Glentenmont@Scotland", "modern_name": "Glentenmont", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Groam@Scotland", "modern_name": "Groam", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Guaul@Scotland", "modern_name": "Guaul", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Hostages@Scotland", "modern_name": "Hostages", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "IV@Scotland", "modern_name": "IV", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Inbhir Fhinn@Scotland", "modern_name": "Inbhir Fhinn", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Inchmacbany@Scotland", "modern_name": "Inchmacbany", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Innis@Scotland", "modern_name": "Innis", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ireland@Scotland", "modern_name": "Ireland", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kast of Dalnaspidal@Scotland", "modern_name": "Kast of Dalnaspidal", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kcclefechan@Scotland", "modern_name": "Kcclefechan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kildalwin@Scotland", "modern_name": "Kildalwin", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kilfinnichen@Scotland", "modern_name": "Kilfinnichen", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Killochan@Scotland", "modern_name": "Killochan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kilmarnock@Scotland", "modern_name": "Kilmarnock", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kilphillan@Scotland", "modern_name": "Kilphillan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kincraig@Scotland", "modern_name": "Kincraig", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kinghorn@Scotland", "modern_name": "Kinghorn", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kinmont in Annandale@Scotland", "modern_name": "Kinmont in Annandale", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kirkcowan@Scotland", "modern_name": "Kirkcowan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kirkgunzeon in Kirkcudbright@Scotland", "modern_name": "Kirkgunzeon in Kirkcudbright", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kirkmadrine@Scotland", "modern_name": "Kirkmadrine", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kirkmahoe@Scotland", "modern_name": "Kirkmahoe", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Labhar@Scotland", "modern_name": "Labhar", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Lairig@Scotland", "modern_name": "Lairig", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Langnudre@Scotland", "modern_name": "Langnudre", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Llanerch@Scotland", "modern_name": "Llanerch", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Lleon@Scotland", "modern_name": "Lleon", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Loch-aber@Scotland", "modern_name": "Loch-aber", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Logie Pert@Scotland", "modern_name": "Logie Pert", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Luggie@Scotland", "modern_name": "Luggie", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Mac Gille Hoin@Scotland", "modern_name": "Mac Gille Hoin", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Magh@Scotland", "modern_name": "Magh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Manor@Scotland", "modern_name": "Manor", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Maol-domhnaich@Scotland", "modern_name": "Maol-domhnaich", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Melrose in Gamrie@Scotland", "modern_name": "Melrose in Gamrie", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Mendick@Scotland", "modern_name": "Mendick", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Migger in Strathearn@Scotland", "modern_name": "Migger in Strathearn", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Minit Eidin@Scotland", "modern_name": "Minit Eidin", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Mo-Laisse@Scotland", "modern_name": "Mo-Laisse", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Mr@Scotland", "modern_name": "Mr", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Nemet@Scotland", "modern_name": "Nemet", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Orrea@Scotland", "modern_name": "Orrea", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Oykel@Scotland", "modern_name": "Oykel", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Pencraig@Scotland", "modern_name": "Pencraig", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Penpont@Scotland", "modern_name": "Penpont", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Perdovingishill in Renfrewshire@Scotland", "modern_name": "Perdovingishill in Renfrewshire", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Perth@Scotland", "modern_name": "Perth", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Perwinnes@Scotland", "modern_name": "Perwinnes", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Petblane@Scotland", "modern_name": "Petblane", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Pettr@Scotland", "modern_name": "Pettr", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Pitliver in Fife@Scotland", "modern_name": "Pitliver in Fife", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Polmont@Scotland", "modern_name": "Polmont", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Pourie@Scotland", "modern_name": "Pourie", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Preas Ma-Ruibhe@Scotland", "modern_name": "Preas Ma-Ruibhe", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Prescoly@Scotland", "modern_name": "Prescoly", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Province of Cirech@Scotland", "modern_name": "Province of Cirech", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Rattray@Scotland", "modern_name": "Rattray", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Rinn@Scotland", "modern_name": "Rinn", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Romanno@Scotland", "modern_name": "Romanno", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ros@Scotland", "modern_name": "Ros", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sea-sins@Scotland", "modern_name": "Sea-sins", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Siaghaidh@Scotland", "modern_name": "Siaghaidh", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sruth@Scotland", "modern_name": "Sruth", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "St@Scotland", "modern_name": "St", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Suidhe@Scotland", "modern_name": "Suidhe", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Suidhe Mheircheird@Scotland", "modern_name": "Suidhe Mheircheird", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Suidheachan Fhinn@Scotland", "modern_name": "Suidheachan Fhinn", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tarbet@Scotland", "modern_name": "Tarbet", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Teamhair@Scotland", "modern_name": "Teamhair", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tillymorgan@Scotland", "modern_name": "Tillymorgan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Virvedrum@Scotland", "modern_name": "Virvedrum", "region": "Scotland", "country": "Scotland"}
 {"_type": "etymology_element", "toponym_ref": "Aber-@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:aber"}], "historical_form": "aber-", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Aber- is a productive Celtic prefix appearing in numerous Scottish place-names (Aberdeeen, Aberdour, Abertay, etc.). The entry is a comprehensive inde"}
 {"_type": "etymology_element", "toponym_ref": "Aberbuthnot@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:aber"}, {"ordinal": 1, "etymon_ref": "celtic:buadhnat", "inflection": "genitive"}], "historical_form": "Aber-Buadhnat", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies Bothenoth as genitive of Buadhnat, a Celtic personal name or appellative meaning 'little one of virtue'; the stream was considered "}
 {"_type": "etymology_element", "toponym_ref": "Abercairney@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:aber"}, {"ordinal": 1, "etymon_ref": "celtic:carnach", "inflection": "genitive"}], "historical_form": "Aber-cairnie", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar presents two alternatives: 'cardnie' (gloomy mouth) or 'carnaigh, genitive of carnach' (place of cairns). The carnach etymology is preferred h"}
@@ -905,13 +905,13 @@
 {"_type": "etymology_element", "toponym_ref": "Tillymorgan@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:rath"}, {"ordinal": 1, "etymon_ref": "celtic:morganaigh", "inflection": "genitive"}], "historical_form": "Rath-Morganaigh", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Tillymorgan, Aberdeen; Ramornie, Ramorgany 1512 (RMS), in Fife, seems to be for Rath Morganaigh, ‘rath of (the) Morganach,’ i.e. of a man of Clan Mor", "attested_year": 1512}
 {"_type": "etymology_element", "toponym_ref": "Virvedrum@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:ver"}, {"ordinal": 1, "etymon_ref": "celtic:vedros", "inflection": "neuter"}], "historical_form": "Ver-vedron", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar divides as Vir-vedron; vedron is neuter of E.Celt. *vedros; feminine form Vedra attested in Ptolemy's Wear; meaning 'very clear (cape)' based "}
 {"_type": "toponym", "ref": "Acre@Norfolk", "modern_name": "Acre", "country": "England", "region": "Norfolk"}
-{"_type": "toponym", "ref": "Alwent@Northumberland and Durham", "modern_name": "Alwent", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Buchan@Scotland", "modern_name": "Buchan", "region": "Scotland"}
-{"_type": "toponym", "ref": "Carrick@Northumberland and Durham", "modern_name": "Carrick", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Glack@Ireland", "modern_name": "Glack", "region": "Ireland"}
-{"_type": "toponym", "ref": "Nennius@Stirlingshire", "modern_name": "Nennius", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Slamannan@Stirlingshire", "modern_name": "Slamannan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Stirling@Stirlingshire", "modern_name": "Stirling", "region": "Stirlingshire"}
+{"_type": "toponym", "ref": "Alwent@Northumberland and Durham", "modern_name": "Alwent", "region": "Northumberland and Durham", "country": "England"}
+{"_type": "toponym", "ref": "Buchan@Scotland", "modern_name": "Buchan", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Carrick@Northumberland and Durham", "modern_name": "Carrick", "region": "Northumberland and Durham", "country": "England"}
+{"_type": "toponym", "ref": "Glack@Ireland", "modern_name": "Glack", "region": "Ireland", "country": "Ireland"}
+{"_type": "toponym", "ref": "Nennius@Stirlingshire", "modern_name": "Nennius", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Slamannan@Stirlingshire", "modern_name": "Slamannan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stirling@Stirlingshire", "modern_name": "Stirling", "region": "Stirlingshire", "country": "Scotland"}
 {"_type": "attestation", "toponym_ref": "Aberchirder@Scotland", "form": "Aberchirder", "date_year": 1493, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Abertarff@Scotland", "form": "Abirtarf", "date_year": 1208, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Acre@Norfolk", "form": "Acre", "date_year": 1567, "source_doc": "watson_1926_celtic_place_names_of_scotland"}

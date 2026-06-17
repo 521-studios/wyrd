@@ -197,61 +197,61 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T05:47:35.054727+00:00", "completed_at": "2026-05-05T05:51:11.947688+00:00", "parsed_count": 22, "accepted": 8, "declined": 12, "rejected": 2, "by_failure": "{\"attested_form_not_in_body\": 1, \"form_not_in_body\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T07:15:13.535929+00:00", "completed_at": "2026-05-05T07:17:35.286922+00:00", "parsed_count": 14, "accepted": 0, "declined": 12, "rejected": 2, "by_failure": "{\"attested_form_not_in_body\": 1, \"form_not_in_body\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T09:19:43.204140+00:00", "completed_at": "2026-05-05T09:21:52.794003+00:00", "parsed_count": 14, "accepted": 1, "declined": 13, "rejected": 0}
-{"_type": "toponym", "ref": "Allerton@Lancashire", "modern_name": "Allerton", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Altcar@Lancashire", "modern_name": "Altcar", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Anfield@Lancashire", "modern_name": "Anfield", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Arbury@Lancashire", "modern_name": "Arbury", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Aughton@Lancashire", "modern_name": "Aughton", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Bamfurlong@Lancashire", "modern_name": "Bamfurlong", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Barton@Lancashire", "modern_name": "Barton", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Bedford@Lancashire", "modern_name": "Bedford", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Birkdale@Lancashire", "modern_name": "Birkdale", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Birkenhead@Lancashire", "modern_name": "Birkenhead", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Bold@Lancashire", "modern_name": "Bold", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Bromborough@Lancashire", "modern_name": "Bromborough", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Cuerdley@Lancashire", "modern_name": "Cuerdley", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Cunscough@Lancashire", "modern_name": "Cunscough", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Dee@Lancashire", "modern_name": "Dee", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Downholland@Lancashire", "modern_name": "Downholland", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Ellesmere@Lancashire", "modern_name": "Ellesmere", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Fazakerley@Lancashire", "modern_name": "Fazakerley", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Frankby@Lancashire", "modern_name": "Frankby", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Golborne@Lancashire", "modern_name": "Golborne", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Greasby@Lancashire", "modern_name": "Greasby", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Hargrave@Lancashire", "modern_name": "Hargrave", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Hulme@Lancashire", "modern_name": "Hulme", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Irby@Lancashire", "modern_name": "Irby", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Kirkdale@Lancashire", "modern_name": "Kirkdale", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Lathom@Lancashire", "modern_name": "Lathom", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Liscard@Lancashire", "modern_name": "Liscard", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Maghull@Lancashire", "modern_name": "Maghull", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Makerfield@Lancashire", "modern_name": "Makerfield", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Meols@Lancashire", "modern_name": "Meols", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Ness@Lancashire", "modern_name": "Ness", "region": "Lancashire"}
-{"_type": "toponym", "ref": "New Brighton@Lancashire", "modern_name": "New Brighton", "region": "Lancashire"}
-{"_type": "toponym", "ref": "North Meols@Lancashire", "modern_name": "North Meols", "region": "Lancashire"}
-{"_type": "toponym", "ref": "OY Ow@Lancashire", "modern_name": "OY Ow", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Orford@Lancashire", "modern_name": "Orford", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Parr@Lancashire", "modern_name": "Parr", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Pensby@Lancashire", "modern_name": "Pensby", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Prescot@Lancashire", "modern_name": "Prescot", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Proceedings Archeol@Lancashire", "modern_name": "Proceedings Archeol", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Raby@Lancashire", "modern_name": "Raby", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Roby@Lancashire", "modern_name": "Roby", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Shotwick@Lancashire", "modern_name": "Shotwick", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Tarbock@Lancashire", "modern_name": "Tarbock", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Thingwall@Lancashire", "modern_name": "Thingwall", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Thornton@Lancashire", "modern_name": "Thornton", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Toxteth@Lancashire", "modern_name": "Toxteth", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Upholland@Lancashire", "modern_name": "Upholland", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Wallasey@Lancashire", "modern_name": "Wallasey", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Warrington@Lancashire", "modern_name": "Warrington", "region": "Lancashire"}
-{"_type": "toponym", "ref": "West Derby@Lancashire", "modern_name": "West Derby", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Widnes@Lancashire", "modern_name": "Widnes", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Wigan@Lancashire", "modern_name": "Wigan", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Winstanley@Lancashire", "modern_name": "Winstanley", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Wirral@Lancashire", "modern_name": "Wirral", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Woolton@Lancashire", "modern_name": "Woolton", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Allerton@Lancashire", "modern_name": "Allerton", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Altcar@Lancashire", "modern_name": "Altcar", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Anfield@Lancashire", "modern_name": "Anfield", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Arbury@Lancashire", "modern_name": "Arbury", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Aughton@Lancashire", "modern_name": "Aughton", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Bamfurlong@Lancashire", "modern_name": "Bamfurlong", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Barton@Lancashire", "modern_name": "Barton", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Bedford@Lancashire", "modern_name": "Bedford", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Birkdale@Lancashire", "modern_name": "Birkdale", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Birkenhead@Lancashire", "modern_name": "Birkenhead", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Bold@Lancashire", "modern_name": "Bold", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Bromborough@Lancashire", "modern_name": "Bromborough", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Cuerdley@Lancashire", "modern_name": "Cuerdley", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Cunscough@Lancashire", "modern_name": "Cunscough", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Dee@Lancashire", "modern_name": "Dee", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Downholland@Lancashire", "modern_name": "Downholland", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Ellesmere@Lancashire", "modern_name": "Ellesmere", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Fazakerley@Lancashire", "modern_name": "Fazakerley", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Frankby@Lancashire", "modern_name": "Frankby", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Golborne@Lancashire", "modern_name": "Golborne", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Greasby@Lancashire", "modern_name": "Greasby", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Hargrave@Lancashire", "modern_name": "Hargrave", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Hulme@Lancashire", "modern_name": "Hulme", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Irby@Lancashire", "modern_name": "Irby", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Kirkdale@Lancashire", "modern_name": "Kirkdale", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Lathom@Lancashire", "modern_name": "Lathom", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Liscard@Lancashire", "modern_name": "Liscard", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Maghull@Lancashire", "modern_name": "Maghull", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Makerfield@Lancashire", "modern_name": "Makerfield", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Meols@Lancashire", "modern_name": "Meols", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Ness@Lancashire", "modern_name": "Ness", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "New Brighton@Lancashire", "modern_name": "New Brighton", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "North Meols@Lancashire", "modern_name": "North Meols", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "OY Ow@Lancashire", "modern_name": "OY Ow", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Orford@Lancashire", "modern_name": "Orford", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Parr@Lancashire", "modern_name": "Parr", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Pensby@Lancashire", "modern_name": "Pensby", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Prescot@Lancashire", "modern_name": "Prescot", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Proceedings Archeol@Lancashire", "modern_name": "Proceedings Archeol", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Raby@Lancashire", "modern_name": "Raby", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Roby@Lancashire", "modern_name": "Roby", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Shotwick@Lancashire", "modern_name": "Shotwick", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Tarbock@Lancashire", "modern_name": "Tarbock", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Thingwall@Lancashire", "modern_name": "Thingwall", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Thornton@Lancashire", "modern_name": "Thornton", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Toxteth@Lancashire", "modern_name": "Toxteth", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Upholland@Lancashire", "modern_name": "Upholland", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Wallasey@Lancashire", "modern_name": "Wallasey", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Warrington@Lancashire", "modern_name": "Warrington", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "West Derby@Lancashire", "modern_name": "West Derby", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Widnes@Lancashire", "modern_name": "Widnes", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Wigan@Lancashire", "modern_name": "Wigan", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Winstanley@Lancashire", "modern_name": "Winstanley", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Wirral@Lancashire", "modern_name": "Wirral", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Woolton@Lancashire", "modern_name": "Woolton", "region": "Lancashire", "country": "England"}
 {"_type": "etymology_element", "toponym_ref": "Allerton@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:alr"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "alr-tun", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Allerton.—This is a common English place-name, meaning ‘the alder enclosure or farmstead’—A.-Sax. alr, ‘alder,’ combined with the usual “#7. The Alle"}
 {"_type": "etymology_element", "toponym_ref": "Altcar@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:alt"}, {"ordinal": 1, "etymon_ref": "old-norse:kiarr"}], "historical_form": "Alt-car", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Altcar, near Formby, is enclosed on three sides by the waters of the Alt and its affluents ; and car is a common word in this part of Lancashire for "}
 {"_type": "etymology_element", "toponym_ref": "Anfield@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:hang"}, {"ordinal": 1, "etymon_ref": "old-english:field"}], "historical_form": "Hang-field", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Syers provides documentary evidence from 1488 inquisition and 1810 advertisement as 'Hanging-fields'; the modern form Anfield represents phonetic redu", "attested_year": 1488}

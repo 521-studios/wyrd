@@ -485,136 +485,136 @@
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "started_at": "2026-05-02T06:08:08.597628+00:00", "completed_at": "2026-05-02T06:23:49.677854+00:00", "parsed_count": 721, "accepted": 155, "declined": 490, "rejected": 76, "by_failure": "{\"bad_language\": 5, \"element_count_out_of_range\": 1, \"form_not_in_body\": 82}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T07:32:15.921744+00:00", "completed_at": "2026-05-05T07:49:38.821802+00:00", "parsed_count": 85, "accepted": 13, "declined": 66, "rejected": 6, "by_failure": "{\"attested_form_not_in_body\": 5, \"element_count_out_of_range\": 4}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T09:35:14.155028+00:00", "completed_at": "2026-05-05T09:49:51.330461+00:00", "parsed_count": 72, "accepted": 1, "declined": 66, "rejected": 5, "by_failure": "{\"attested_form_not_in_body\": 2, \"element_count_out_of_range\": 3, \"form_not_in_body\": 1}"}
-{"_type": "toponym", "ref": "Abi Li@England (Danelaw)", "modern_name": "Abi Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Alabei@England (Danelaw)", "modern_name": "Alabei", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Alatorp Norf@England (Danelaw)", "modern_name": "Alatorp Norf", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Applethivayt Wm@England (Danelaw)", "modern_name": "Applethivayt Wm", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Aschilebi Yo@England (Danelaw)", "modern_name": "Aschilebi Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Asebi@England (Danelaw)", "modern_name": "Asebi", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Aseby Li@England (Danelaw)", "modern_name": "Aseby Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Asewardby@England (Danelaw)", "modern_name": "Asewardby", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Asfordeby Li@England (Danelaw)", "modern_name": "Asfordeby Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Astorp Li@England (Danelaw)", "modern_name": "Astorp Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Asuluesby@England (Danelaw)", "modern_name": "Asuluesby", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Asuuardebi Li@England (Danelaw)", "modern_name": "Asuuardebi Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Aswardetierne Li@England (Danelaw)", "modern_name": "Aswardetierne Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Blaberimorgate Yo@England (Danelaw)", "modern_name": "Blaberimorgate Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Blafelda@England (Danelaw)", "modern_name": "Blafelda", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Blaterne AVm@England (Danelaw)", "modern_name": "Blaterne AVm", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Bramthweit Cumb@England (Danelaw)", "modern_name": "Bramthweit Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Branzthoft Li@England (Danelaw)", "modern_name": "Branzthoft Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Braythawayt Cumb@England (Danelaw)", "modern_name": "Braythawayt Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Brochelesbi Li@England (Danelaw)", "modern_name": "Brochelesbi Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "CD@England (Danelaw)", "modern_name": "CD", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Cal@England (Danelaw)", "modern_name": "Cal", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Calatorp@England (Danelaw)", "modern_name": "Calatorp", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Caupalandia@England (Danelaw)", "modern_name": "Caupalandia", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Ch@England (Danelaw)", "modern_name": "Ch", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Chatwait Yo@England (Danelaw)", "modern_name": "Chatwait Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Chepemanescumha Som@England (Danelaw)", "modern_name": "Chepemanescumha Som", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Cokainscalis Lane@England (Danelaw)", "modern_name": "Cokainscalis Lane", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Copeman Torp Yo@England (Danelaw)", "modern_name": "Copeman Torp Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Copemaneforde Hunt@England (Danelaw)", "modern_name": "Copemaneforde Hunt", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Cruntethwayt Cumb@England (Danelaw)", "modern_name": "Cruntethwayt Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Cumb@England (Danelaw)", "modern_name": "Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Duuestorp Yo@England (Danelaw)", "modern_name": "Duuestorp Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Elvinetoft Li@England (Danelaw)", "modern_name": "Elvinetoft Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Engmyre Lane@England (Danelaw)", "modern_name": "Engmyre Lane", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Estrebi Li DoB@England (Danelaw)", "modern_name": "Estrebi Li DoB", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Fareburne Yo@England (Danelaw)", "modern_name": "Fareburne Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Faremannebi Cumb@England (Danelaw)", "modern_name": "Faremannebi Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Folyfait Yo@England (Danelaw)", "modern_name": "Folyfait Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Gawxholm@England (Danelaw)", "modern_name": "Gawxholm", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Germayntoft Li@England (Danelaw)", "modern_name": "Germayntoft Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Grisethwayth Yo@England (Danelaw)", "modern_name": "Grisethwayth Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Haburne Li@England (Danelaw)", "modern_name": "Haburne Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Hacunesbi@England (Danelaw)", "modern_name": "Hacunesbi", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Hafketelestofta Norf@England (Danelaw)", "modern_name": "Hafketelestofta Norf", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Harald Lindkvisl@England (Danelaw)", "modern_name": "Harald Lindkvisl", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Harald Lindkvist@England (Danelaw)", "modern_name": "Harald Lindkvist", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Harald Lmdkvist@England (Danelaw)", "modern_name": "Harald Lmdkvist", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Hardemetetoft Li@England (Danelaw)", "modern_name": "Hardemetetoft Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Hochesuorde Nott@England (Danelaw)", "modern_name": "Hochesuorde Nott", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Hotweit Cumb@England (Danelaw)", "modern_name": "Hotweit Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Houkesgarth@England (Danelaw)", "modern_name": "Houkesgarth", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Hunt@England (Danelaw)", "modern_name": "Hunt", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Ingulvestvet Yo@England (Danelaw)", "modern_name": "Ingulvestvet Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Introd@England (Danelaw)", "modern_name": "Introd", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Kirkethwait Cumb@England (Danelaw)", "modern_name": "Kirkethwait Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Lane@England (Danelaw)", "modern_name": "Lane", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Langetouet@England (Danelaw)", "modern_name": "Langetouet", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Langthwayt Cumb@England (Danelaw)", "modern_name": "Langthwayt Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Leisingbi@England (Danelaw)", "modern_name": "Leisingbi", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Li@England (Danelaw)", "modern_name": "Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "LouMandes Yo@England (Danelaw)", "modern_name": "LouMandes Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Michelethweit Cumb@England (Danelaw)", "modern_name": "Michelethweit Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Morethuait Cumb@England (Danelaw)", "modern_name": "Morethuait Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Nadfartone Yo@England (Danelaw)", "modern_name": "Nadfartone Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Nathwait Cumb@England (Danelaw)", "modern_name": "Nathwait Cumb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Nott@England (Danelaw)", "modern_name": "Nott", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Odenebi Li@England (Danelaw)", "modern_name": "Odenebi Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Odulfesmare Yo@England (Danelaw)", "modern_name": "Odulfesmare Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Oldebi Le@England (Danelaw)", "modern_name": "Oldebi Le", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Oresbi Li@England (Danelaw)", "modern_name": "Oresbi Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Osferdebie@England (Danelaw)", "modern_name": "Osferdebie", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Osgodtorp Le@England (Danelaw)", "modern_name": "Osgodtorp Le", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Othebei@England (Danelaw)", "modern_name": "Othebei", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Ounesbi Li@England (Danelaw)", "modern_name": "Ounesbi Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Oustredinc@England (Danelaw)", "modern_name": "Oustredinc", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Outheslund Nott@England (Danelaw)", "modern_name": "Outheslund Nott", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Oxenethweyt Lanc@England (Danelaw)", "modern_name": "Oxenethweyt Lanc", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Rabie Chs@England (Danelaw)", "modern_name": "Rabie Chs", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Raysland Nhb@England (Danelaw)", "modern_name": "Raysland Nhb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Rodemele Yo@England (Danelaw)", "modern_name": "Rodemele Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Rosthwayt Lane@England (Danelaw)", "modern_name": "Rosthwayt Lane", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Rothewelle North@England (Danelaw)", "modern_name": "Rothewelle North", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Rozebi@England (Danelaw)", "modern_name": "Rozebi", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Saningthuet Yo@England (Danelaw)", "modern_name": "Saningthuet Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Sibertod North@England (Danelaw)", "modern_name": "Sibertod North", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Smatuaites Wm@England (Danelaw)", "modern_name": "Smatuaites Wm", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Somergang Yo@England (Danelaw)", "modern_name": "Somergang Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Staincros Yo@England (Danelaw)", "modern_name": "Staincros Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Stainton Li@England (Danelaw)", "modern_name": "Stainton Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Staintune Li@England (Danelaw)", "modern_name": "Staintune Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Staupe Yo@England (Danelaw)", "modern_name": "Staupe Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Staynrayse Yo@England (Danelaw)", "modern_name": "Staynrayse Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Steingate Yo@England (Danelaw)", "modern_name": "Steingate Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Steintona@England (Danelaw)", "modern_name": "Steintona", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Steintun@England (Danelaw)", "modern_name": "Steintun", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Steintun Wm@England (Danelaw)", "modern_name": "Steintun Wm", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Steinueges@England (Danelaw)", "modern_name": "Steinueges", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Stofftam@England (Danelaw)", "modern_name": "Stofftam", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Strathwait Li@England (Danelaw)", "modern_name": "Strathwait Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Suanebi Yo@England (Danelaw)", "modern_name": "Suanebi Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Suenelund Yo@England (Danelaw)", "modern_name": "Suenelund Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Suenesat Lane@England (Danelaw)", "modern_name": "Suenesat Lane", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Sueningatuna Norf@England (Danelaw)", "modern_name": "Sueningatuna Norf", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Suff@England (Danelaw)", "modern_name": "Suff", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Swaynsby Yo@England (Danelaw)", "modern_name": "Swaynsby Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Sweinesbrig Li@England (Danelaw)", "modern_name": "Sweinesbrig Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Swengulf Suff@England (Danelaw)", "modern_name": "Swengulf Suff", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Thurstaneswatter Lane@England (Danelaw)", "modern_name": "Thurstaneswatter Lane", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Tirnetofte@England (Danelaw)", "modern_name": "Tirnetofte", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Tofftes Norf@England (Danelaw)", "modern_name": "Tofftes Norf", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Toft Norf@England (Danelaw)", "modern_name": "Toft Norf", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Tofth Cambr@England (Danelaw)", "modern_name": "Tofth Cambr", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Tostenland Yo@England (Danelaw)", "modern_name": "Tostenland Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Turgesland Yo@England (Danelaw)", "modern_name": "Turgesland Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Turstanestone Le@England (Danelaw)", "modern_name": "Turstanestone Le", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Turstanestuna Suff@England (Danelaw)", "modern_name": "Turstanestuna Suff", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Wadles Yo@England (Danelaw)", "modern_name": "Wadles Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Walmyre Yo@England (Danelaw)", "modern_name": "Walmyre Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Warw@England (Danelaw)", "modern_name": "Warw", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Westgayl@England (Danelaw)", "modern_name": "Westgayl", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Wilgetot Yo@England (Danelaw)", "modern_name": "Wilgetot Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Wm@England (Danelaw)", "modern_name": "Wm", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Wra Lane@England (Danelaw)", "modern_name": "Wra Lane", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Wrauby Li@England (Danelaw)", "modern_name": "Wrauby Li", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Wynandenner Wm@England (Danelaw)", "modern_name": "Wynandenner Wm", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Wythewayth@England (Danelaw)", "modern_name": "Wythewayth", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Xhb@England (Danelaw)", "modern_name": "Xhb", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Yo@England (Danelaw)", "modern_name": "Yo", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Yoghannetheit Yo@England (Danelaw)", "modern_name": "Yoghannetheit Yo", "region": "England (Danelaw)"}
+{"_type": "toponym", "ref": "Abi Li@England (Danelaw)", "modern_name": "Abi Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Alabei@England (Danelaw)", "modern_name": "Alabei", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Alatorp Norf@England (Danelaw)", "modern_name": "Alatorp Norf", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Applethivayt Wm@England (Danelaw)", "modern_name": "Applethivayt Wm", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Aschilebi Yo@England (Danelaw)", "modern_name": "Aschilebi Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Asebi@England (Danelaw)", "modern_name": "Asebi", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Aseby Li@England (Danelaw)", "modern_name": "Aseby Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Asewardby@England (Danelaw)", "modern_name": "Asewardby", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Asfordeby Li@England (Danelaw)", "modern_name": "Asfordeby Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Astorp Li@England (Danelaw)", "modern_name": "Astorp Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Asuluesby@England (Danelaw)", "modern_name": "Asuluesby", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Asuuardebi Li@England (Danelaw)", "modern_name": "Asuuardebi Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Aswardetierne Li@England (Danelaw)", "modern_name": "Aswardetierne Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Blaberimorgate Yo@England (Danelaw)", "modern_name": "Blaberimorgate Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Blafelda@England (Danelaw)", "modern_name": "Blafelda", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Blaterne AVm@England (Danelaw)", "modern_name": "Blaterne AVm", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Bramthweit Cumb@England (Danelaw)", "modern_name": "Bramthweit Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Branzthoft Li@England (Danelaw)", "modern_name": "Branzthoft Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Braythawayt Cumb@England (Danelaw)", "modern_name": "Braythawayt Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Brochelesbi Li@England (Danelaw)", "modern_name": "Brochelesbi Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "CD@England (Danelaw)", "modern_name": "CD", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Cal@England (Danelaw)", "modern_name": "Cal", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Calatorp@England (Danelaw)", "modern_name": "Calatorp", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Caupalandia@England (Danelaw)", "modern_name": "Caupalandia", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Ch@England (Danelaw)", "modern_name": "Ch", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Chatwait Yo@England (Danelaw)", "modern_name": "Chatwait Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Chepemanescumha Som@England (Danelaw)", "modern_name": "Chepemanescumha Som", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Cokainscalis Lane@England (Danelaw)", "modern_name": "Cokainscalis Lane", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Copeman Torp Yo@England (Danelaw)", "modern_name": "Copeman Torp Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Copemaneforde Hunt@England (Danelaw)", "modern_name": "Copemaneforde Hunt", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Cruntethwayt Cumb@England (Danelaw)", "modern_name": "Cruntethwayt Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Cumb@England (Danelaw)", "modern_name": "Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Duuestorp Yo@England (Danelaw)", "modern_name": "Duuestorp Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Elvinetoft Li@England (Danelaw)", "modern_name": "Elvinetoft Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Engmyre Lane@England (Danelaw)", "modern_name": "Engmyre Lane", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Estrebi Li DoB@England (Danelaw)", "modern_name": "Estrebi Li DoB", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Fareburne Yo@England (Danelaw)", "modern_name": "Fareburne Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Faremannebi Cumb@England (Danelaw)", "modern_name": "Faremannebi Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Folyfait Yo@England (Danelaw)", "modern_name": "Folyfait Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Gawxholm@England (Danelaw)", "modern_name": "Gawxholm", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Germayntoft Li@England (Danelaw)", "modern_name": "Germayntoft Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Grisethwayth Yo@England (Danelaw)", "modern_name": "Grisethwayth Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Haburne Li@England (Danelaw)", "modern_name": "Haburne Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Hacunesbi@England (Danelaw)", "modern_name": "Hacunesbi", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Hafketelestofta Norf@England (Danelaw)", "modern_name": "Hafketelestofta Norf", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Harald Lindkvisl@England (Danelaw)", "modern_name": "Harald Lindkvisl", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Harald Lindkvist@England (Danelaw)", "modern_name": "Harald Lindkvist", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Harald Lmdkvist@England (Danelaw)", "modern_name": "Harald Lmdkvist", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Hardemetetoft Li@England (Danelaw)", "modern_name": "Hardemetetoft Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Hochesuorde Nott@England (Danelaw)", "modern_name": "Hochesuorde Nott", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Hotweit Cumb@England (Danelaw)", "modern_name": "Hotweit Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Houkesgarth@England (Danelaw)", "modern_name": "Houkesgarth", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Hunt@England (Danelaw)", "modern_name": "Hunt", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Ingulvestvet Yo@England (Danelaw)", "modern_name": "Ingulvestvet Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Introd@England (Danelaw)", "modern_name": "Introd", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Kirkethwait Cumb@England (Danelaw)", "modern_name": "Kirkethwait Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Lane@England (Danelaw)", "modern_name": "Lane", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Langetouet@England (Danelaw)", "modern_name": "Langetouet", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Langthwayt Cumb@England (Danelaw)", "modern_name": "Langthwayt Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Leisingbi@England (Danelaw)", "modern_name": "Leisingbi", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Li@England (Danelaw)", "modern_name": "Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "LouMandes Yo@England (Danelaw)", "modern_name": "LouMandes Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Michelethweit Cumb@England (Danelaw)", "modern_name": "Michelethweit Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Morethuait Cumb@England (Danelaw)", "modern_name": "Morethuait Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Nadfartone Yo@England (Danelaw)", "modern_name": "Nadfartone Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Nathwait Cumb@England (Danelaw)", "modern_name": "Nathwait Cumb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Nott@England (Danelaw)", "modern_name": "Nott", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Odenebi Li@England (Danelaw)", "modern_name": "Odenebi Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Odulfesmare Yo@England (Danelaw)", "modern_name": "Odulfesmare Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Oldebi Le@England (Danelaw)", "modern_name": "Oldebi Le", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Oresbi Li@England (Danelaw)", "modern_name": "Oresbi Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Osferdebie@England (Danelaw)", "modern_name": "Osferdebie", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Osgodtorp Le@England (Danelaw)", "modern_name": "Osgodtorp Le", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Othebei@England (Danelaw)", "modern_name": "Othebei", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Ounesbi Li@England (Danelaw)", "modern_name": "Ounesbi Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Oustredinc@England (Danelaw)", "modern_name": "Oustredinc", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Outheslund Nott@England (Danelaw)", "modern_name": "Outheslund Nott", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Oxenethweyt Lanc@England (Danelaw)", "modern_name": "Oxenethweyt Lanc", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Rabie Chs@England (Danelaw)", "modern_name": "Rabie Chs", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Raysland Nhb@England (Danelaw)", "modern_name": "Raysland Nhb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Rodemele Yo@England (Danelaw)", "modern_name": "Rodemele Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Rosthwayt Lane@England (Danelaw)", "modern_name": "Rosthwayt Lane", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Rothewelle North@England (Danelaw)", "modern_name": "Rothewelle North", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Rozebi@England (Danelaw)", "modern_name": "Rozebi", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Saningthuet Yo@England (Danelaw)", "modern_name": "Saningthuet Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Sibertod North@England (Danelaw)", "modern_name": "Sibertod North", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Smatuaites Wm@England (Danelaw)", "modern_name": "Smatuaites Wm", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Somergang Yo@England (Danelaw)", "modern_name": "Somergang Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Staincros Yo@England (Danelaw)", "modern_name": "Staincros Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Stainton Li@England (Danelaw)", "modern_name": "Stainton Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Staintune Li@England (Danelaw)", "modern_name": "Staintune Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Staupe Yo@England (Danelaw)", "modern_name": "Staupe Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Staynrayse Yo@England (Danelaw)", "modern_name": "Staynrayse Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Steingate Yo@England (Danelaw)", "modern_name": "Steingate Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Steintona@England (Danelaw)", "modern_name": "Steintona", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Steintun@England (Danelaw)", "modern_name": "Steintun", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Steintun Wm@England (Danelaw)", "modern_name": "Steintun Wm", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Steinueges@England (Danelaw)", "modern_name": "Steinueges", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Stofftam@England (Danelaw)", "modern_name": "Stofftam", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Strathwait Li@England (Danelaw)", "modern_name": "Strathwait Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Suanebi Yo@England (Danelaw)", "modern_name": "Suanebi Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Suenelund Yo@England (Danelaw)", "modern_name": "Suenelund Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Suenesat Lane@England (Danelaw)", "modern_name": "Suenesat Lane", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Sueningatuna Norf@England (Danelaw)", "modern_name": "Sueningatuna Norf", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Suff@England (Danelaw)", "modern_name": "Suff", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Swaynsby Yo@England (Danelaw)", "modern_name": "Swaynsby Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Sweinesbrig Li@England (Danelaw)", "modern_name": "Sweinesbrig Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Swengulf Suff@England (Danelaw)", "modern_name": "Swengulf Suff", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Thurstaneswatter Lane@England (Danelaw)", "modern_name": "Thurstaneswatter Lane", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Tirnetofte@England (Danelaw)", "modern_name": "Tirnetofte", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Tofftes Norf@England (Danelaw)", "modern_name": "Tofftes Norf", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Toft Norf@England (Danelaw)", "modern_name": "Toft Norf", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Tofth Cambr@England (Danelaw)", "modern_name": "Tofth Cambr", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Tostenland Yo@England (Danelaw)", "modern_name": "Tostenland Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Turgesland Yo@England (Danelaw)", "modern_name": "Turgesland Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Turstanestone Le@England (Danelaw)", "modern_name": "Turstanestone Le", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Turstanestuna Suff@England (Danelaw)", "modern_name": "Turstanestuna Suff", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Wadles Yo@England (Danelaw)", "modern_name": "Wadles Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Walmyre Yo@England (Danelaw)", "modern_name": "Walmyre Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Warw@England (Danelaw)", "modern_name": "Warw", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Westgayl@England (Danelaw)", "modern_name": "Westgayl", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Wilgetot Yo@England (Danelaw)", "modern_name": "Wilgetot Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Wm@England (Danelaw)", "modern_name": "Wm", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Wra Lane@England (Danelaw)", "modern_name": "Wra Lane", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Wrauby Li@England (Danelaw)", "modern_name": "Wrauby Li", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Wynandenner Wm@England (Danelaw)", "modern_name": "Wynandenner Wm", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Wythewayth@England (Danelaw)", "modern_name": "Wythewayth", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Xhb@England (Danelaw)", "modern_name": "Xhb", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Yo@England (Danelaw)", "modern_name": "Yo", "region": "England (Danelaw)", "country": "England"}
+{"_type": "toponym", "ref": "Yoghannetheit Yo@England (Danelaw)", "modern_name": "Yoghannetheit Yo", "region": "England (Danelaw)", "country": "England"}
 {"_type": "etymology_element", "toponym_ref": "Abi Li@England (Danelaw)", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:aby"}], "historical_form": "aby", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Abi Li. DoB., c. 1150 f. Br.Mus., 1154-58 (Inspex. 13 14) Ch.R.; Hahy 1254 Pat.R., t. Edw. I Br.Mus.; Ahy 1226 Li. rec, 1251 Ch.R., Rot.H., T.N., Tax. eccl., 13", "attested_year": 1150}
 {"_type": "etymology_element", "toponym_ref": "Alabei@England (Danelaw)", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:ali", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-norse:by"}], "historical_form": "Ali-by", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; First element identified as genitive of O.W.Scand. man's name Ali (O.Swed. Ale); stem-vowel underwent compensatory lengthening after loss of nasal bef"}
 {"_type": "etymology_element", "toponym_ref": "Alatorp Norf@England (Danelaw)", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:alá"}, {"ordinal": 1, "etymon_ref": "old-norse:þorp"}], "historical_form": "Alá-þorp", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Alá appears to be a personal name element; the entry shows forms Aletorp, Alethovp suggesting Old Norse þorp 'village' as the second element. The refe"}
@@ -830,19 +830,19 @@
 {"_type": "toponym", "ref": "Aslacton@Norfolk", "modern_name": "Aslacton", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Austhorp@Rutland", "modern_name": "Austhorp", "country": "England", "region": "Rutland"}
 {"_type": "toponym", "ref": "Braceby@Lincolnshire", "modern_name": "Braceby", "country": "England", "region": "Lincolnshire"}
-{"_type": "toponym", "ref": "Braithwell@Yorkshire", "modern_name": "Braithwell", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Copeland House@Northumberland and Durham", "modern_name": "Copeland House", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Crake@Lancashire", "modern_name": "Crake", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Braithwell@West Riding", "modern_name": "Braithwell", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Copeland House@Northumberland and Durham", "modern_name": "Copeland House", "region": "Northumberland and Durham", "country": "England"}
+{"_type": "toponym", "ref": "Crake@Lancashire", "modern_name": "Crake", "region": "Lancashire", "country": "England"}
 {"_type": "toponym", "ref": "Garstang@Yorkshire", "modern_name": "Garstang", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Groby@LEC", "modern_name": "Groby", "country": "England", "region": "LEC"}
+{"_type": "toponym", "ref": "Groby@Leicestershire", "modern_name": "Groby", "country": "England", "region": "Leicestershire"}
 {"_type": "toponym", "ref": "Horningtoft@Norfolk", "modern_name": "Horningtoft", "country": "England", "region": "Norfolk"}
-{"_type": "toponym", "ref": "Huby@Yorkshire", "modern_name": "Huby", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Huby@North Riding", "modern_name": "Huby", "country": "England", "region": "North Riding"}
 {"_type": "toponym", "ref": "Loistoft@England and Wales", "modern_name": "Loistoft", "region": "England and Wales"}
 {"_type": "toponym", "ref": "Manchester@Cheshire", "modern_name": "Manchester", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Maureholme@Lancashire", "modern_name": "Maureholme", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Nafferton@Northumberland and Durham", "modern_name": "Nafferton", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Maureholme@Lancashire", "modern_name": "Maureholme", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Nafferton@Northumberland and Durham", "modern_name": "Nafferton", "region": "Northumberland and Durham", "country": "England"}
 {"_type": "toponym", "ref": "Ouston@Yorkshire", "modern_name": "Ouston", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Ripon@Yorkshire", "modern_name": "Ripon", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Ripon@West Riding", "modern_name": "Ripon", "country": "England", "region": "West Riding"}
 {"_type": "attestation", "toponym_ref": "Abi Li@England (Danelaw)", "form": "Hahy", "date_year": 1254, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Argarmeles@Cheshire", "form": "Argarmeles", "date_year": 1254, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Aschilebi Yo@England (Danelaw)", "form": "EsJdIby", "date_year": 1198, "source_doc": "lindkvist_1912_scandinavian_place_names"}
@@ -859,8 +859,8 @@
 {"_type": "attestation", "toponym_ref": "Asuuardebi Li@England (Danelaw)", "form": "Asivardeby", "date_year": 1328, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Austhorp@Rutland", "form": "Austhorp", "date_year": 1302, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Braceby@Lincolnshire", "form": "Braceby", "date_year": 1391, "source_doc": "lindkvist_1912_scandinavian_place_names"}
-{"_type": "attestation", "toponym_ref": "Braithwell@Yorkshire", "form": "Braithwell", "date_year": 1232, "source_doc": "lindkvist_1912_scandinavian_place_names"}
-{"_type": "attestation", "toponym_ref": "Braithwell@Yorkshire", "form": "Braithwell", "date_year": 1338, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Braithwell@West Riding", "form": "Braithwell", "date_year": 1232, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Braithwell@West Riding", "form": "Braithwell", "date_year": 1338, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Calatorp@England (Danelaw)", "form": "Caiiuda", "date_year": 1189, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Calatorp@England (Danelaw)", "form": "Gaivude", "date_year": 1201, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Calatorp@England (Danelaw)", "form": "Cane", "date_year": 1230, "source_doc": "lindkvist_1912_scandinavian_place_names"}
@@ -876,10 +876,10 @@
 {"_type": "attestation", "toponym_ref": "Crake@Lancashire", "form": "Crake", "date_year": 1470, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Estrebi Li DoB@England (Danelaw)", "form": "Esterhy", "date_year": 1294, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Garstang@Yorkshire", "form": "Garstang", "date_year": 1340, "source_doc": "lindkvist_1912_scandinavian_place_names"}
-{"_type": "attestation", "toponym_ref": "Groby@LEC", "form": "Groby", "date_year": 1483, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Groby@Leicestershire", "form": "Groby", "date_year": 1483, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Hardemetetoft Li@England (Danelaw)", "form": "Hertestofte", "date_year": 1287, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Horningtoft@Norfolk", "form": "Horningtoft", "date_year": 1290, "source_doc": "lindkvist_1912_scandinavian_place_names"}
-{"_type": "attestation", "toponym_ref": "Huby@Yorkshire", "form": "Huby", "date_year": 1398, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Huby@North Riding", "form": "Huby", "date_year": 1398, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Lane@England (Danelaw)", "form": "Coupmanneswra", "date_year": 1229, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Lane@England (Danelaw)", "form": "Sueneshurst", "date_year": 1261, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Lane@England (Danelaw)", "form": "MaurJiolm", "date_year": 1334, "source_doc": "lindkvist_1912_scandinavian_place_names"}
@@ -899,7 +899,7 @@
 {"_type": "attestation", "toponym_ref": "Ouston@Yorkshire", "form": "Ouston", "date_year": 1285, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Oustredinc@England (Danelaw)", "form": "Austriding", "date_year": 1135, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Rabie Chs@England (Danelaw)", "form": "Rahy", "date_year": 1277, "source_doc": "lindkvist_1912_scandinavian_place_names"}
-{"_type": "attestation", "toponym_ref": "Ripon@Yorkshire", "form": "Ripon", "date_year": 1452, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Ripon@West Riding", "form": "Ripon", "date_year": 1452, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Rodemele Yo@England (Danelaw)", "form": "Bouthemell", "date_year": 1302, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Rodemele Yo@England (Danelaw)", "form": "Bouthmel", "date_year": 1307, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Rothewelle North@England (Danelaw)", "form": "Rowell", "date_year": 1208, "source_doc": "lindkvist_1912_scandinavian_place_names"}

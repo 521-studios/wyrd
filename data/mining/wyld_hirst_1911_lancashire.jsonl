@@ -167,40 +167,40 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T10:41:35.870944+00:00", "completed_at": "2026-05-05T10:42:39.895172+00:00", "parsed_count": 9, "accepted": 0, "declined": 9, "rejected": 0}
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "started_at": "2026-05-05T17:09:50.483636+00:00", "completed_at": "2026-05-05T17:10:42.879535+00:00", "parsed_count": 84, "accepted": 14, "declined": 50, "rejected": 20, "by_failure": "{\"attested_form_not_in_body\": 2, \"attested_year_not_int\": 6, \"element_count_out_of_range\": 1, \"form_not_in_body\": 14, \"transport_error\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T18:36:34.054551+00:00", "completed_at": "2026-05-05T18:38:56.394931+00:00", "parsed_count": 15, "accepted": 1, "declined": 14, "rejected": 0}
-{"_type": "toponym", "ref": "Ayre@Lancashire", "modern_name": "Ayre", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Beechy@Lancashire", "modern_name": "Beechy", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Berwyk@Lancashire", "modern_name": "Berwyk", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Copmanford@Lancashire", "modern_name": "Copmanford", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Coule@Lancashire", "modern_name": "Coule", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Crimbles@Lancashire", "modern_name": "Crimbles", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Crossefeld@Lancashire", "modern_name": "Crossefeld", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Croston@Lancashire", "modern_name": "Croston", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Ft@Lancashire", "modern_name": "Ft", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Graikerlith@Lancashire", "modern_name": "Graikerlith", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Harwood@Lancashire", "modern_name": "Harwood", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Haughton@Lancashire", "modern_name": "Haughton", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Hen@Lancashire", "modern_name": "Hen", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Holme@Lancashire", "modern_name": "Holme", "region": "Lancashire"}
-{"_type": "toponym", "ref": "II@Lancashire", "modern_name": "II", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Ingelbrecdale@Lancashire", "modern_name": "Ingelbrecdale", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Ip@Lancashire", "modern_name": "Ip", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Lansd@Lancashire", "modern_name": "Lansd", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Leyrebrec@Lancashire", "modern_name": "Leyrebrec", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Lt@Lancashire", "modern_name": "Lt", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Meols@Lancashire", "modern_name": "Meols", "region": "Lancashire"}
-{"_type": "toponym", "ref": "NevU@Lancashire", "modern_name": "NevU", "region": "Lancashire"}
-{"_type": "toponym", "ref": "No@Lancashire", "modern_name": "No", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Note Hachelintone@Lancashire", "modern_name": "Note Hachelintone", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Professor Skeat@Lancashire", "modern_name": "Professor Skeat", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Pt@Lancashire", "modern_name": "Pt", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Rich@Lancashire", "modern_name": "Rich", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Stolze@Lancashire", "modern_name": "Stolze", "region": "Lancashire"}
-{"_type": "toponym", "ref": "SvMon in Ch@Lancashire", "modern_name": "SvMon in Ch", "region": "Lancashire"}
-{"_type": "toponym", "ref": "TDunkythele@Lancashire", "modern_name": "TDunkythele", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Type II@Lancashire", "modern_name": "Type II", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Type III@Lancashire", "modern_name": "Type III", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Type IV@Lancashire", "modern_name": "Type IV", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Wardle@Lancashire", "modern_name": "Wardle", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Ayre@Lancashire", "modern_name": "Ayre", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Beechy@Lancashire", "modern_name": "Beechy", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Berwyk@Lancashire", "modern_name": "Berwyk", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Copmanford@Lancashire", "modern_name": "Copmanford", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Coule@Lancashire", "modern_name": "Coule", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Crimbles@Lancashire", "modern_name": "Crimbles", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Crossefeld@Lancashire", "modern_name": "Crossefeld", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Croston@Lancashire", "modern_name": "Croston", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Ft@Lancashire", "modern_name": "Ft", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Graikerlith@Lancashire", "modern_name": "Graikerlith", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Harwood@Lancashire", "modern_name": "Harwood", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Haughton@Lancashire", "modern_name": "Haughton", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Hen@Lancashire", "modern_name": "Hen", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Holme@Lancashire", "modern_name": "Holme", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "II@Lancashire", "modern_name": "II", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Ingelbrecdale@Lancashire", "modern_name": "Ingelbrecdale", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Ip@Lancashire", "modern_name": "Ip", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Lansd@Lancashire", "modern_name": "Lansd", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Leyrebrec@Lancashire", "modern_name": "Leyrebrec", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Lt@Lancashire", "modern_name": "Lt", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Meols@Lancashire", "modern_name": "Meols", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "NevU@Lancashire", "modern_name": "NevU", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "No@Lancashire", "modern_name": "No", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Note Hachelintone@Lancashire", "modern_name": "Note Hachelintone", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Professor Skeat@Lancashire", "modern_name": "Professor Skeat", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Pt@Lancashire", "modern_name": "Pt", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Rich@Lancashire", "modern_name": "Rich", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Stolze@Lancashire", "modern_name": "Stolze", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "SvMon in Ch@Lancashire", "modern_name": "SvMon in Ch", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "TDunkythele@Lancashire", "modern_name": "TDunkythele", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Type II@Lancashire", "modern_name": "Type II", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Type III@Lancashire", "modern_name": "Type III", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Type IV@Lancashire", "modern_name": "Type IV", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Wardle@Lancashire", "modern_name": "Wardle", "region": "Lancashire", "country": "England"}
 {"_type": "etymology_element", "toponym_ref": "Ayre@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:aik"}, {"ordinal": 1, "etymon_ref": "old-english:heued"}], "historical_form": "Aik-heued", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar notes Aik may be either a personal name or mean 'oak tree'; paralleled by Aysgarth (Aykescarth). The -heued element is replaced by -side in later forms. | Ayre (Green), Lancaster 1271-72. Eyre : Cat. Anc. Dds., ii. p. 462, C. 1912. Ayside (Cartmel) 1272. Aykesheued : L. P., i. p. 156. ^^^9- JEaslde ^*^''' ^^^ '']^^^- ^'\"^' P- 21- If the first form really refers to Ayside there is no difficulty. The Yorks. Aysgarth, which appears as Aykesc", "attested_year": 1271}
 {"_type": "etymology_element", "toponym_ref": "Beechy@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:beacnes", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:hoh"}], "historical_form": "beacnes-hoh", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Scholar notes confusion with M.E. shawe and calls the modern form an innovation. | Beechy:. (Head) from Belchef as compared with Beaulieu (bjuli.) Both types are foun"}
 {"_type": "etymology_element", "toponym_ref": "Berwyk@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:here"}, {"ordinal": 1, "etymon_ref": "old-english:wic"}], "historical_form": "here-wic", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies here-wic but notes inability to account satisfactorily for the development of e to o in the modern form; proposes a phonetic explanation involving rounding before r. | Berwyk: \"\\Lanc. Ch., 159. S\" ^^*^ ''■JBerewyke : fLanc. Ch., 157 and 161. 1316. Berwicke : Wap. Lons., 82. 1522. Barwyk : Due. Lane, i. p. 64. 1597. Borwicke, Robt. Kytson of : Rich. Wills, p. 179. ;^jHBarwicke,Hv^^?r*' f JRi^h Wills, p. 179. 1623. J t Alice Kyts", "attested_year": 1316}
@@ -253,15 +253,15 @@
 {"_type": "etymology_element", "toponym_ref": "Type IV@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:clac"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "Clac-tun", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar notes 'no evidence produced by B. for believing this to be a Scand. name' despite Bjorkman's suggestion. The entry conflates multiple place-names (Clatton, Clegg, Cleveley, Clifton, Clitheroe, Cliviger); the etymology given ('tun of Clac') applies specifically to Clatton/Clayton. | Type IV. Clatton : T. de N., 404. Type V. Ante 1372. Cloghtona : Fum. Ch., p. 225. The ' tun of Clac,\" on which pers. n. see Bjorkman, p. 81. There is, however", "attested_year": 1372}
 {"_type": "etymology_element", "toponym_ref": "Wardle@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weard"}, {"ordinal": 1, "etymon_ref": "old-english:hyll"}], "historical_form": "weard-hyll", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Wardle, Wuerdle-with- (Rochdale) [widl, E. A. H.] ? 13th. \"I „ , , „ f^. „ ^, /T. iv. p. 157. o 1 -lA^i. r Wordehull : ■{ Whall. Ch., ■{„ . ,«« ? early 14th. J "}
 {"_type": "toponym", "ref": "Babraham@Cambridgeshire", "modern_name": "Babraham", "country": "England", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Berks@Lancashire", "modern_name": "Berks", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Huddersfield@Yorkshire", "modern_name": "Huddersfield", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Berks@Lancashire", "modern_name": "Berks", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Huddersfield@West Riding", "modern_name": "Huddersfield", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Lancaster@Yorkshire", "modern_name": "Lancaster", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Ricstorp@Yorkshire", "modern_name": "Ricstorp", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Wagneia@England and Wales", "modern_name": "Wagneia", "region": "England and Wales"}
 {"_type": "toponym", "ref": "Will@Hampshire", "modern_name": "Will", "country": "England", "region": "Hampshire"}
 {"_type": "attestation", "toponym_ref": "Babraham@Cambridgeshire", "form": "Babraham", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
 {"_type": "attestation", "toponym_ref": "Berks@Lancashire", "form": "Berks", "date_year": 952, "source_doc": "wyld_hirst_1911_lancashire"}
-{"_type": "attestation", "toponym_ref": "Huddersfield@Yorkshire", "form": "Huddersfield", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
+{"_type": "attestation", "toponym_ref": "Huddersfield@West Riding", "form": "Huddersfield", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
 {"_type": "attestation", "toponym_ref": "Lancaster@Yorkshire", "form": "Lancaster", "date_year": 1509, "source_doc": "wyld_hirst_1911_lancashire"}
 {"_type": "attestation", "toponym_ref": "Ricstorp@Yorkshire", "form": "Ricstorp", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
 {"_type": "attestation", "toponym_ref": "Wagneia@England and Wales", "form": "Wagneia", "date_year": 1127, "source_doc": "wyld_hirst_1911_lancashire"}

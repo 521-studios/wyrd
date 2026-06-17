@@ -55,6 +55,7 @@ _EXTRA_DATA_POPULATION_COMMANDS = frozenset(
         "merge-collapses",  # non-deterministic LLM (Ollama) merge judgment → _collapses.jsonl (wyrd-6xzs)
         "audit-merges",  # LLM merge-decision audit → reverts in _collapses.jsonl/_curation.jsonl (wyrd-6hbv)
         "adjudicate-element-glosses",  # LLM weak-tail pick → _element_gloss_adjudications.jsonl (wyrd-u9k6)
+        "normalize-l2-vocab",  # one-time Class-A region/country normalization of L2 in place (wyrd-3q6m.4)
     }
 )
 

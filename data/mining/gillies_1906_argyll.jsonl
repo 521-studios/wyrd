@@ -269,85 +269,85 @@
 {"_type": "mining_run", "provider": "anthropic", "model": "claude-haiku-4-5-20251001", "mode": "mine", "completed_at": "2026-05-01T00:47:22.854Z", "parsed_count": 258, "accepted": 132, "declined": 105, "rejected": 21, "notes": "celtic-haiku-rerun (post parser fix)"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T07:11:58.916277+00:00", "completed_at": "2026-05-05T07:13:32.939912+00:00", "parsed_count": 9, "accepted": 7, "declined": 2, "rejected": 0}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T09:17:28.241534+00:00", "completed_at": "2026-05-05T09:18:04.235651+00:00", "parsed_count": 2, "accepted": 0, "declined": 2, "rejected": 0}
-{"_type": "toponym", "ref": "Aoirinn@Argyll", "modern_name": "Aoirinn", "region": "Argyll"}
-{"_type": "toponym", "ref": "Aros@Argyll", "modern_name": "Aros", "region": "Argyll"}
-{"_type": "toponym", "ref": "Badd@Argyll", "modern_name": "Badd", "region": "Argyll"}
-{"_type": "toponym", "ref": "Balloch@Argyll", "modern_name": "Balloch", "region": "Argyll"}
-{"_type": "toponym", "ref": "Bhruichlinn@Argyll", "modern_name": "Bhruichlinn", "region": "Argyll"}
-{"_type": "toponym", "ref": "Biolaireach@Argyll", "modern_name": "Biolaireach", "region": "Argyll"}
-{"_type": "toponym", "ref": "Braibruich@Argyll", "modern_name": "Braibruich", "region": "Argyll"}
-{"_type": "toponym", "ref": "Braighunasary@Argyll", "modern_name": "Braighunasary", "region": "Argyll"}
-{"_type": "toponym", "ref": "Buidhe@Argyll", "modern_name": "Buidhe", "region": "Argyll"}
-{"_type": "toponym", "ref": "Camus@Argyll", "modern_name": "Camus", "region": "Argyll"}
-{"_type": "toponym", "ref": "Cathan@Argyll", "modern_name": "Cathan", "region": "Argyll"}
-{"_type": "toponym", "ref": "Christlach@Argyll", "modern_name": "Christlach", "region": "Argyll"}
-{"_type": "toponym", "ref": "CiARAN of Saighir@Argyll", "modern_name": "CiARAN of Saighir", "region": "Argyll"}
-{"_type": "toponym", "ref": "Clachan@Argyll", "modern_name": "Clachan", "region": "Argyll"}
-{"_type": "toponym", "ref": "Cleit@Argyll", "modern_name": "Cleit", "region": "Argyll"}
-{"_type": "toponym", "ref": "Corrynahera@Argyll", "modern_name": "Corrynahera", "region": "Argyll"}
-{"_type": "toponym", "ref": "Dan@Argyll", "modern_name": "Dan", "region": "Argyll"}
-{"_type": "toponym", "ref": "Diollaid@Argyll", "modern_name": "Diollaid", "region": "Argyll"}
-{"_type": "toponym", "ref": "Doire@Argyll", "modern_name": "Doire", "region": "Argyll"}
-{"_type": "toponym", "ref": "DomhnaiU@Argyll", "modern_name": "DomhnaiU", "region": "Argyll"}
-{"_type": "toponym", "ref": "Douglas@Argyll", "modern_name": "Douglas", "region": "Argyll"}
-{"_type": "toponym", "ref": "Dubh-lighe and Fionn-lighe@Argyll", "modern_name": "Dubh-lighe and Fionn-lighe", "region": "Argyll"}
-{"_type": "toponym", "ref": "Dubhaig@Argyll", "modern_name": "Dubhaig", "region": "Argyll"}
-{"_type": "toponym", "ref": "Dun-i@Argyll", "modern_name": "Dun-i", "region": "Argyll"}
-{"_type": "toponym", "ref": "Eararach@Argyll", "modern_name": "Eararach", "region": "Argyll"}
-{"_type": "toponym", "ref": "Eilde@Argyll", "modern_name": "Eilde", "region": "Argyll"}
-{"_type": "toponym", "ref": "Faire@Argyll", "modern_name": "Faire", "region": "Argyll"}
-{"_type": "toponym", "ref": "Fhionnlaigh@Argyll", "modern_name": "Fhionnlaigh", "region": "Argyll"}
-{"_type": "toponym", "ref": "FiNDCHAN@Argyll", "modern_name": "FiNDCHAN", "region": "Argyll"}
-{"_type": "toponym", "ref": "Fiadh-innis@Argyll", "modern_name": "Fiadh-innis", "region": "Argyll"}
-{"_type": "toponym", "ref": "Frith-allt@Argyll", "modern_name": "Frith-allt", "region": "Argyll"}
-{"_type": "toponym", "ref": "Gaoirean@Argyll", "modern_name": "Gaoirean", "region": "Argyll"}
-{"_type": "toponym", "ref": "Gart@Argyll", "modern_name": "Gart", "region": "Argyll"}
-{"_type": "toponym", "ref": "Gathair Mhic Dhiarmaid@Argyll", "modern_name": "Gathair Mhic Dhiarmaid", "region": "Argyll"}
-{"_type": "toponym", "ref": "Ghaorach@Argyll", "modern_name": "Ghaorach", "region": "Argyll"}
-{"_type": "toponym", "ref": "Ghartain@Argyll", "modern_name": "Ghartain", "region": "Argyll"}
-{"_type": "toponym", "ref": "Ghlamraidh@Argyll", "modern_name": "Ghlamraidh", "region": "Argyll"}
-{"_type": "toponym", "ref": "Glenastle@Argyll", "modern_name": "Glenastle", "region": "Argyll"}
-{"_type": "toponym", "ref": "Gomhal@Argyll", "modern_name": "Gomhal", "region": "Argyll"}
-{"_type": "toponym", "ref": "Grnagaich@Argyll", "modern_name": "Grnagaich", "region": "Argyll"}
-{"_type": "toponym", "ref": "Guaraig@Argyll", "modern_name": "Guaraig", "region": "Argyll"}
-{"_type": "toponym", "ref": "Inverlochy@Argyll", "modern_name": "Inverlochy", "region": "Argyll"}
-{"_type": "toponym", "ref": "Laimhrig and Fearann Laimhrige@Argyll", "modern_name": "Laimhrig and Fearann Laimhrige", "region": "Argyll"}
-{"_type": "toponym", "ref": "Laisren@Argyll", "modern_name": "Laisren", "region": "Argyll"}
-{"_type": "toponym", "ref": "Lassair@Argyll", "modern_name": "Lassair", "region": "Argyll"}
-{"_type": "toponym", "ref": "Leanamore@Argyll", "modern_name": "Leanamore", "region": "Argyll"}
-{"_type": "toponym", "ref": "Lurgann@Argyll", "modern_name": "Lurgann", "region": "Argyll"}
-{"_type": "toponym", "ref": "Machair@Argyll", "modern_name": "Machair", "region": "Argyll"}
-{"_type": "toponym", "ref": "Maol@Argyll", "modern_name": "Maol", "region": "Argyll"}
-{"_type": "toponym", "ref": "Maol-buidhe@Argyll", "modern_name": "Maol-buidhe", "region": "Argyll"}
-{"_type": "toponym", "ref": "Mhenuis@Argyll", "modern_name": "Mhenuis", "region": "Argyll"}
-{"_type": "toponym", "ref": "Mhucaig@Argyll", "modern_name": "Mhucaig", "region": "Argyll"}
-{"_type": "toponym", "ref": "Miiirne-meall@Argyll", "modern_name": "Miiirne-meall", "region": "Argyll"}
-{"_type": "toponym", "ref": "Morbhach@Argyll", "modern_name": "Morbhach", "region": "Argyll"}
-{"_type": "toponym", "ref": "Nant@Argyll", "modern_name": "Nant", "region": "Argyll"}
-{"_type": "toponym", "ref": "Nechtain@Argyll", "modern_name": "Nechtain", "region": "Argyll"}
-{"_type": "toponym", "ref": "Ohirnie@Argyll", "modern_name": "Ohirnie", "region": "Argyll"}
-{"_type": "toponym", "ref": "Oighrige@Argyll", "modern_name": "Oighrige", "region": "Argyll"}
-{"_type": "toponym", "ref": "Peighinn@Argyll", "modern_name": "Peighinn", "region": "Argyll"}
-{"_type": "toponym", "ref": "Portwick@Argyll", "modern_name": "Portwick", "region": "Argyll"}
-{"_type": "toponym", "ref": "Ros@Argyll", "modern_name": "Ros", "region": "Argyll"}
-{"_type": "toponym", "ref": "Saighde@Argyll", "modern_name": "Saighde", "region": "Argyll"}
-{"_type": "toponym", "ref": "Sanish@Argyll", "modern_name": "Sanish", "region": "Argyll"}
-{"_type": "toponym", "ref": "Sgarail@Argyll", "modern_name": "Sgarail", "region": "Argyll"}
-{"_type": "toponym", "ref": "Sheannlep@Argyll", "modern_name": "Sheannlep", "region": "Argyll"}
-{"_type": "toponym", "ref": "Shugain@Argyll", "modern_name": "Shugain", "region": "Argyll"}
-{"_type": "toponym", "ref": "Skerrols@Argyll", "modern_name": "Skerrols", "region": "Argyll"}
-{"_type": "toponym", "ref": "Sligneach@Argyll", "modern_name": "Sligneach", "region": "Argyll"}
-{"_type": "toponym", "ref": "Sornaich@Argyll", "modern_name": "Sornaich", "region": "Argyll"}
-{"_type": "toponym", "ref": "Stalla@Argyll", "modern_name": "Stalla", "region": "Argyll"}
-{"_type": "toponym", "ref": "Stalli@Argyll", "modern_name": "Stalli", "region": "Argyll"}
-{"_type": "toponym", "ref": "Strathdugh@Argyll", "modern_name": "Strathdugh", "region": "Argyll"}
-{"_type": "toponym", "ref": "Tachree@Argyll", "modern_name": "Tachree", "region": "Argyll"}
-{"_type": "toponym", "ref": "Tairbeart@Argyll", "modern_name": "Tairbeart", "region": "Argyll"}
-{"_type": "toponym", "ref": "Thdrr@Argyll", "modern_name": "Thdrr", "region": "Argyll"}
-{"_type": "toponym", "ref": "Ton@Argyll", "modern_name": "Ton", "region": "Argyll"}
-{"_type": "toponym", "ref": "Triochadain@Argyll", "modern_name": "Triochadain", "region": "Argyll"}
-{"_type": "toponym", "ref": "VI@Argyll", "modern_name": "VI", "region": "Argyll"}
-{"_type": "toponym", "ref": "Vegain@Argyll", "modern_name": "Vegain", "region": "Argyll"}
+{"_type": "toponym", "ref": "Aoirinn@Argyll", "modern_name": "Aoirinn", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aros@Argyll", "modern_name": "Aros", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Badd@Argyll", "modern_name": "Badd", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Balloch@Argyll", "modern_name": "Balloch", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Bhruichlinn@Argyll", "modern_name": "Bhruichlinn", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Biolaireach@Argyll", "modern_name": "Biolaireach", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Braibruich@Argyll", "modern_name": "Braibruich", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Braighunasary@Argyll", "modern_name": "Braighunasary", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Buidhe@Argyll", "modern_name": "Buidhe", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Camus@Argyll", "modern_name": "Camus", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cathan@Argyll", "modern_name": "Cathan", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Christlach@Argyll", "modern_name": "Christlach", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "CiARAN of Saighir@Argyll", "modern_name": "CiARAN of Saighir", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Clachan@Argyll", "modern_name": "Clachan", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cleit@Argyll", "modern_name": "Cleit", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Corrynahera@Argyll", "modern_name": "Corrynahera", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dan@Argyll", "modern_name": "Dan", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Diollaid@Argyll", "modern_name": "Diollaid", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Doire@Argyll", "modern_name": "Doire", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "DomhnaiU@Argyll", "modern_name": "DomhnaiU", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Douglas@Argyll", "modern_name": "Douglas", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dubh-lighe and Fionn-lighe@Argyll", "modern_name": "Dubh-lighe and Fionn-lighe", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dubhaig@Argyll", "modern_name": "Dubhaig", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dun-i@Argyll", "modern_name": "Dun-i", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Eararach@Argyll", "modern_name": "Eararach", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Eilde@Argyll", "modern_name": "Eilde", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Faire@Argyll", "modern_name": "Faire", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Fhionnlaigh@Argyll", "modern_name": "Fhionnlaigh", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "FiNDCHAN@Argyll", "modern_name": "FiNDCHAN", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Fiadh-innis@Argyll", "modern_name": "Fiadh-innis", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Frith-allt@Argyll", "modern_name": "Frith-allt", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gaoirean@Argyll", "modern_name": "Gaoirean", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gart@Argyll", "modern_name": "Gart", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gathair Mhic Dhiarmaid@Argyll", "modern_name": "Gathair Mhic Dhiarmaid", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ghaorach@Argyll", "modern_name": "Ghaorach", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ghartain@Argyll", "modern_name": "Ghartain", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ghlamraidh@Argyll", "modern_name": "Ghlamraidh", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Glenastle@Argyll", "modern_name": "Glenastle", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gomhal@Argyll", "modern_name": "Gomhal", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Grnagaich@Argyll", "modern_name": "Grnagaich", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Guaraig@Argyll", "modern_name": "Guaraig", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Inverlochy@Argyll", "modern_name": "Inverlochy", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Laimhrig and Fearann Laimhrige@Argyll", "modern_name": "Laimhrig and Fearann Laimhrige", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Laisren@Argyll", "modern_name": "Laisren", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Lassair@Argyll", "modern_name": "Lassair", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Leanamore@Argyll", "modern_name": "Leanamore", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Lurgann@Argyll", "modern_name": "Lurgann", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Machair@Argyll", "modern_name": "Machair", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Maol@Argyll", "modern_name": "Maol", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Maol-buidhe@Argyll", "modern_name": "Maol-buidhe", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Mhenuis@Argyll", "modern_name": "Mhenuis", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Mhucaig@Argyll", "modern_name": "Mhucaig", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Miiirne-meall@Argyll", "modern_name": "Miiirne-meall", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Morbhach@Argyll", "modern_name": "Morbhach", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Nant@Argyll", "modern_name": "Nant", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Nechtain@Argyll", "modern_name": "Nechtain", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ohirnie@Argyll", "modern_name": "Ohirnie", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Oighrige@Argyll", "modern_name": "Oighrige", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Peighinn@Argyll", "modern_name": "Peighinn", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Portwick@Argyll", "modern_name": "Portwick", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ros@Argyll", "modern_name": "Ros", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Saighde@Argyll", "modern_name": "Saighde", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sanish@Argyll", "modern_name": "Sanish", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sgarail@Argyll", "modern_name": "Sgarail", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sheannlep@Argyll", "modern_name": "Sheannlep", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Shugain@Argyll", "modern_name": "Shugain", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Skerrols@Argyll", "modern_name": "Skerrols", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sligneach@Argyll", "modern_name": "Sligneach", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sornaich@Argyll", "modern_name": "Sornaich", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stalla@Argyll", "modern_name": "Stalla", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stalli@Argyll", "modern_name": "Stalli", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Strathdugh@Argyll", "modern_name": "Strathdugh", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tachree@Argyll", "modern_name": "Tachree", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tairbeart@Argyll", "modern_name": "Tairbeart", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Thdrr@Argyll", "modern_name": "Thdrr", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ton@Argyll", "modern_name": "Ton", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Triochadain@Argyll", "modern_name": "Triochadain", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "VI@Argyll", "modern_name": "VI", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Vegain@Argyll", "modern_name": "Vegain", "region": "Argyll", "country": "Scotland"}
 {"_type": "etymology_element", "toponym_ref": "Aoirinn@Argyll", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:eyr-r", "inflection": "genitive"}], "historical_form": "eyr-r", "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; The form is Old Norse eyrr with a Gaelic genitive construction (Eilean na h-Aoirinn = 'island of the sandbank'). | Aoirinn (Eilean na h-), from N. eyr-r, with"}
 {"_type": "etymology_element", "toponym_ref": "Aros@Argyll", "elements": [{"ordinal": 0, "etymon_ref": "celtic:aros"}], "historical_form": "aros", "confidence": "medium", "notes": "extracted_by:anthropic:claude-sonnet-4-6; Scholar identifies this as Gaelic 'aros' (a dwelling), explicitly rejecting the Old Norse 'ár-os' (river-mouth) interpretation. | Aros (an). This is the Gaeli"}
 {"_type": "etymology_element", "toponym_ref": "Badd@Argyll", "elements": [{"ordinal": 0, "etymon_ref": "celtic:bad"}], "historical_form": "bad", "confidence": "high", "notes": "extracted_by:anthropic:claude-sonnet-4-6 | Badd (The), a Hill-name from Gael, bad, a thicket. Beach = beitheach, the birch-wood. Blairmore is the blar m6r, the great field, or moss."}
