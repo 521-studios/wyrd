@@ -54,7 +54,9 @@ def lexicon_mine_same_morpheme_binds(
     skipped).
 
     DORMANT until wyrd-u6fn.3 projects the L2 binds into the L3 collapse graph.
-    Run after ``mine-genitive-priors``-style passes against the de-dashed L3.
+    Reads the lexicon DB directly (etymon / etymon_gloss / toponym_etymology_element
+    + the export promotion gate); the family rollup + cognate clustering should be
+    current for the shipped/cluster signals to be accurate.
     """
     click.echo("mine-same-morpheme-binds: building family rollup + scanning…", err=True)
     with LexiconDB(db_path) as db:

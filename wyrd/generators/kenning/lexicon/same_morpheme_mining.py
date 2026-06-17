@@ -34,6 +34,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import Literal
 
 from wyrd.generators.kenning.canonicalization import Assertion, NodeRef, mint_canonical_id
 from wyrd.generators.kenning.lexicon.bundle._export import (
@@ -45,6 +46,10 @@ from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.genitive_priors import _fold
 
 METHOD = "same-morpheme-uplift-v1"
+
+# Confidence tiers a bind can carry: high = shared cognate cluster (a near-certain
+# duplicate); medium = same surface + gloss overlap only.
+Confidence = Literal["high", "medium"]
 
 
 @dataclass(frozen=True)
@@ -78,6 +83,12 @@ def _load_rows(db: LexiconDB) -> list[EtymonRow]:
             members_by_root=members_by_root,
         )
     )
+    # Flatten root_of into an O(1) lookup (members_by_root already covers every
+    # etymon) — root_of() is a cycle-walking loop, and calling it per etymon over
+    # the ~700k-row table is the dominant cost (Gemini perf finding).
+    member_to_root = {
+        member: root for root, members in members_by_root.items() for member in members
+    }
     breakdown = {
         r["etymon_id"]
         for r in db.conn.execute("SELECT DISTINCT etymon_id FROM toponym_etymology_element")
@@ -101,7 +112,7 @@ def _load_rows(db: LexiconDB) -> list[EtymonRow]:
                 canonical_form=r["canonical_form"] or "",
                 folded=folded,
                 glosses=frozenset(glosses.get(r["id"], ())),
-                is_shipped=root_of(r["id"]) in shipped_roots,
+                is_shipped=member_to_root.get(r["id"], r["id"]) in shipped_roots,
                 is_breakdown=r["id"] in breakdown,
             )
         )
@@ -115,10 +126,10 @@ class BindGroup:
     minted node; ``confidence`` is ``high`` (shared cluster) or ``medium`` (gloss-
     only). ``member_etymons`` are all observations bound to the canonical node."""
 
-    canonical_parts: tuple[str, ...]
+    canonical_parts: tuple[str, str]
     shipped_etymon: int
     breakdown_etymons: tuple[int, ...]
-    confidence: str
+    confidence: Confidence
     rep_form: str
 
     @property
@@ -126,7 +137,7 @@ class BindGroup:
         return (self.shipped_etymon, *self.breakdown_etymons)
 
 
-def _match_shipped(x: EtymonRow, shipped: list[EtymonRow]) -> tuple[EtymonRow, str] | None:
+def _match_shipped(x: EtymonRow, shipped: list[EtymonRow]) -> tuple[EtymonRow, Confidence] | None:
     """The UNIQUE shipped same-morpheme match for breakdown-only ``x`` within its
     folded-surface group, plus the confidence. Same cluster → high; else gloss
     overlap → medium. More than one candidate (ambiguous) → ``None`` (D46
@@ -152,7 +163,7 @@ def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:
         by_surface[row.folded].append(row)
 
     # shipped_etymon_id -> (confidence, [breakdown etymon ids])
-    matched: dict[int, tuple[str, list[int]]] = {}
+    matched: dict[int, tuple[Confidence, list[int]]] = {}
     rep: dict[int, EtymonRow] = {}
     for group in by_surface.values():
         shipped = [r for r in group if r.is_shipped]
@@ -176,14 +187,19 @@ def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:
         y = rep[shipped_id]
         out.append(
             BindGroup(
-                canonical_parts=(y.language, y.folded),
+                # Key the canonical node by the shipped morpheme's UNIQUE, rebuild-
+                # stable (language, canonical_form) — folded surface is not unique
+                # (two same-language etymons can fold alike), which would collide
+                # two distinct shipped morphemes onto one node.
+                canonical_parts=(y.language, y.canonical_form),
                 shipped_etymon=shipped_id,
                 breakdown_etymons=tuple(sorted(set(breakdown_ids))),
                 confidence=confidence,
                 rep_form=y.canonical_form,
             )
         )
-    out.sort(key=lambda g: g.canonical_parts)
+    # shipped_etymon in the key gives a total order (canonical_parts alone can tie).
+    out.sort(key=lambda g: (g.canonical_parts, g.shipped_etymon))
     return out
 
 
