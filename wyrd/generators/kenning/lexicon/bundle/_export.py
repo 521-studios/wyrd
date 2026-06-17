@@ -221,7 +221,12 @@ def _collect_families(
     ``--no-include-wiktionary-empirical``, ``--no-include-wave2-enriched``,
     ``--no-include-toponym-breakdown``) without disturbing the others.
     """
-    members_by_root, root_of = _build_family_rollup(db)
+    # wyrd-b2mf: the export reads the AUTHORITATIVE canonical identity layer, not
+    # the legacy COALESCE(merged_into_id, lemma_id, id) columns — byte-equivalent
+    # today (the u6fn.4 fidelity gate), and reflects 1a's binds once applied. (The
+    # fold, the 1a miner, and the fidelity verifier keep using _build_family_rollup
+    # — the fold BUILDS canonical_morpheme_id from it, so it can't read it back.)
+    members_by_root, root_of = _build_canonical_rollup(db)
     root_ids = _select_promoted_root_ids(
         db,
         lang_thresholds=lang_thresholds,
