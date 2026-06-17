@@ -43,6 +43,7 @@ from wyrd.generators.kenning.lexicon.region_model import (
     RegionValidationError,
     canonicalize_region,
 )
+from wyrd.generators.kenning.lexicon.regions import country_for_region
 
 from .toponym_reverse_search import _normalize_for_match
 
@@ -458,6 +459,12 @@ def _commit_create_row(
     try:
         country = canonicalize_country(country)
         region = canonicalize_region(region, country=country)
+        if country is None and region is not None:
+            # derive the country from the canonical region, same as the parser
+            # ingest's _upsert_toponym — so an operator CREATE with a region but no
+            # country doesn't insert a NULL country (wyrd-61p9; regions.py yields
+            # canonical countries, so no re-canonicalization is needed).
+            country = country_for_region(region)
     except (RegionValidationError, CountryValidationError) as exc:
         report.record_error(ctx.idx, str(exc))
         return
