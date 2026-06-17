@@ -343,10 +343,11 @@ def _ingest_one_placeform(
     region = COUNTY_CODE_TO_NAME.get(county_code, county_code)
     country = COUNTY_CODE_TO_COUNTRY.get(county_code, "England")
     # Fail-closed Class-A guards (wyrd-fxxf): canonicalize region + country before
-    # insert, so this bulk path can't re-dirty the controlled vocabularies the way
-    # the parser ingest is already guarded (wyrd-3q6m.3/.5). All current Domesday
-    # county codes map to canonical values, so this is a no-op safety net today;
-    # an unmapped/non-canonical region raises rather than silently inserting.
+    # insert, closing for this bulk path the same gap wyrd-3q6m.3/.5 already closed
+    # for the parser ingest — so it likewise can't re-dirty the controlled
+    # vocabularies. All current Domesday county codes map to canonical values, so
+    # this is a no-op safety net today; an unmapped/non-canonical region raises
+    # rather than silently inserting.
     region = canonicalize_region(region, country=country)
     country = canonicalize_country(country)
     source_doc = _compute_source_doc(phillimore_by_idx.get(idx), hundred, os_ref)

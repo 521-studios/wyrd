@@ -197,7 +197,7 @@ def test_ingest_resolves_county_code_to_full_name() -> None:
     regions = [r[0] for r in conn.execute("SELECT region FROM toponym ORDER BY id")]
     assert "Worcestershire" in regions
     assert "Essex" in regions
-    # Unmapped code passes through unchanged (degrades gracefully).
+    # COUNTY_CODE_TO_NAME is the source of truth for the code→name resolution.
     assert COUNTY_CODE_TO_NAME["WOR"] == "Worcestershire"
 
 
