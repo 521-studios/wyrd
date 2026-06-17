@@ -2019,3 +2019,11 @@ def test_celtic_branches_wired_into_report_and_era() -> None:
     # data lives until xdam.4)
     for kept in ("welsh", "irish", "celtic"):
         assert kept in DEFAULT_LANGUAGES
+    # each branch's era-chain younger list holds only that branch's languages:
+    # every member present in LANGUAGE_TO_FAMILY must map to the branch's family
+    # (modern-welsh is era-chain-only, not in the family map → tolerated)
+    for branch, family in (("brittonic", "brythonic"), ("goidelic", "goidelic")):
+        for member in ERA_CHAINS[branch]["younger"]:
+            if member in LANGUAGE_TO_FAMILY:
+                assert LANGUAGE_TO_FAMILY[member] == family, (branch, member)
+    assert "goidelic" not in ERA_CHAINS["brittonic"]["younger"]  # no cross-branch leak

@@ -105,7 +105,16 @@ ERA_CHAINS: dict[str, dict[str, list[str]]] = {
     # re-tagged in wyrd-xdam.2 carry these; they populate the report after a rebuild.
     "brittonic": {
         "older": [],
-        "younger": ["welsh", "old-welsh", "middle-welsh", "modern-welsh", "cornish", "breton"],
+        "younger": [
+            "welsh",
+            "old-welsh",
+            "middle-welsh",
+            "modern-welsh",
+            "cornish",
+            "breton",
+            "old-breton",
+            "middle-breton",
+        ],
     },
     "goidelic": {
         "older": [],
@@ -121,9 +130,10 @@ DEFAULT_LANGUAGES: tuple[str, ...] = (
     "modern-english",
     "middle-english",
     "old-english",
-    # Celtic branch-level (wyrd-xdam.3) — populate after an L3 rebuild from the
-    # branch-tagged L2; the fine-grained welsh/irish/… below stay until the
-    # wiktextract reconciliation (wyrd-xdam.4).
+    # Celtic branch-level (wyrd-xdam.3) — wired in now; their report DATA (etymon
+    # counts) populates after an L3 rebuild from the branch-tagged L2. The
+    # fine-grained welsh/irish/… below stay until the wiktextract reconciliation
+    # (wyrd-xdam.4).
     "brittonic",
     "goidelic",
     "modern-welsh",
