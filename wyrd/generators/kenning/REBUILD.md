@@ -90,14 +90,15 @@ here's the obligation:
   never a paid re-mine). (The pass runs only when a `canonicalization_dir` is
   supplied, which `rebuild-from-jsonl` passes; a bare `lexicon enrich` leaves
   the canonical graph untouched — the wipe-and-rebuild path is what matters
-  here.) It is currently sparse only because few assertions
-  are authored yet, not because the pass is missing; it fills as the
-  assertion streams accrue. **Additive** (wyrd-u6fn.3/u6fn.4 split): the pass
-  populates the canonical graph but does **not** yet migrate the legacy
-  `merged_into_id` / `cognate_id` / `lemma_id` readers onto the canonical FK
-  join — that cutover (and the legacy-import binds that make the projection
-  reproduce today's clustering) is **wyrd-u6fn.4**. Reverse with
-  `clear-enrichment --stage=canonical`.
+  here.) By default it **folds today's deterministic identity clustering**
+  (`merged_into_id` OCR variants + `lemma_id` inflections) into the graph
+  (wyrd-u6fn.4), so the rebuilt graph **reproduces today's identity clustering**
+  from the columns the deterministic passes already produce — no committed
+  snapshot. (`cognate_id` is NOT folded — it's relational, D50.2, re-derived
+  from `etymon_descent`.) **Additive**: it populates the canonical graph but does
+  **not** yet migrate the legacy `merged_into_id` / `cognate_id` / `lemma_id`
+  **readers** onto the canonical FK join — that reader cutover is **wyrd-b2mf**.
+  Reverse with `clear-enrichment --stage=canonical`.
 
 ---
 

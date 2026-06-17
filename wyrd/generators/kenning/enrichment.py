@@ -1443,9 +1443,12 @@ def run_full_enrichment(
         period_form_result = project_period_forms(db, apply=apply)
         order.append("project-period-forms")
         # Terminal pass: project the L2 canonicalization assertions into the L3
-        # collapse graph (wyrd-u6fn.3, D50.6). Additive — does not touch the legacy
-        # merged_into_id/cognate_id/lemma_id readers (that cutover is u6fn.4). Only
-        # runs when a mining dir is supplied (rebuild-from-jsonl passes it).
+        # collapse graph (wyrd-u6fn.3, D50.6), folding today's deterministic
+        # merged_into_id/lemma_id identity clustering by default (wyrd-u6fn.4) so
+        # the canonical graph reproduces it. Additive — it populates canonical_*
+        # but does NOT yet change the legacy merged_into_id/cognate_id/lemma_id
+        # READERS (that cutover is wyrd-b2mf). Only runs when a mining dir is
+        # supplied (rebuild-from-jsonl passes it).
         if canonicalization_dir is not None:
             canonical_projection = project_canonical(
                 db, mining_dir=canonicalization_dir, apply=apply

@@ -16,6 +16,7 @@ from wyrd.generators.kenning.canonicalization import (
 )
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+    ProjectionResult,
     clear_canonical_graph,
     project_canonical,
 )
@@ -643,7 +644,7 @@ def test_legacy_bind_kinds(tmp_path):
     db.commit()
     kinds = {
         a.subject.ref: a.qualifiers["kind"]
-        for a in _legacy_identity_assertions(db)
+        for a in _legacy_identity_assertions(db, ProjectionResult())
         if a.predicate == "bind"
     }
     db.close()
@@ -666,9 +667,9 @@ def test_identity_fidelity_gate(tmp_path):
     project_canonical(db, mining_dir=tmp_path, apply=True)
     rep = assess_identity_fidelity(db)
     db.close()
-    assert rep["legacy_families"] == 2
-    assert rep["faithful"] == 2
-    assert rep["violations"] == 0
+    assert rep.legacy_families == 2
+    assert rep.faithful == 2
+    assert rep.violations == 0
 
 
 def test_fold_composes_with_authored_bind(tmp_path):
@@ -702,3 +703,100 @@ def test_fold_legacy_off_is_pure_assertion(tmp_path):
     assert _morpheme_id(db, root) is None  # not folded
     assert _morpheme_id(db, ocr) is None
     db.close()
+
+
+def test_fidelity_detects_violation(tmp_path):
+    # If a legacy family's members do NOT all share a canonical group, the gate
+    # must report a violation + sample it (not silently pass).
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        assess_identity_fidelity,
+    )
+
+    db = _db(tmp_path)
+    r, v = _etymon(db, "tun"), _etymon(db, "tvn")
+    _set_merged(db, v, r)
+    db.commit()
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    # Break the binding for one member after the fact -> a split family.
+    db.conn.execute("UPDATE etymon SET canonical_morpheme_id = NULL WHERE id = ?", (v,))
+    db.commit()
+    rep = assess_identity_fidelity(db)
+    db.close()
+    assert rep.violations == 1
+    assert rep.faithful == 0
+    assert len(rep.sample_violations) == 1
+    assert rep.sample_violations[0].legacy_root == r
+
+
+def test_fidelity_holds_when_log_merge_joins_families(tmp_path):
+    # A logged merge-canonical may JOIN two legacy families onto one hub; fidelity
+    # must still pass (canonical may join, never split) — exercises canonical_root.
+    from wyrd.generators.kenning.canonicalization import mint_canonical_id
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        assess_identity_fidelity,
+    )
+
+    db = _db(tmp_path)
+    r1, v1 = _etymon(db, "tun"), _etymon(db, "tvn")
+    _set_merged(db, v1, r1)
+    r2, v2 = _etymon(db, "ham"), _etymon(db, "hvm")
+    _set_merged(db, v2, r2)
+    db.commit()
+    n1 = mint_canonical_id("canonical_morpheme", "old-english", "tun")
+    n2 = mint_canonical_id("canonical_morpheme", "old-english", "ham")
+    _author(
+        tmp_path,
+        Assertion(
+            predicate="merge-canonical",
+            subject=NodeRef("canonical_morpheme", n2),
+            object=NodeRef("canonical_morpheme", n1),
+        ),
+    )
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    rep = assess_identity_fidelity(db)
+    db.close()
+    assert rep.violations == 0  # both families still each map to one (joined) group
+    assert rep.faithful == 2
+
+
+def test_fold_member_with_both_merge_and_lemma_is_same_morpheme(tmp_path):
+    # A member carrying BOTH merged_into_id and lemma_id is an OCR variant first
+    # (same-morpheme), not an inflection — pin the precedence.
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        _legacy_identity_assertions,
+    )
+
+    db = _db(tmp_path)
+    root = _etymon(db, "wic")
+    both = _etymon(db, "wicc")
+    _set_merged(db, both, root)
+    _set_lemma(db, both, root)
+    db.commit()
+    res = ProjectionResult()
+    kinds = {
+        a.subject.ref: a.qualifiers["kind"]
+        for a in _legacy_identity_assertions(db, res)
+        if a.predicate == "bind"
+    }
+    db.close()
+    assert kinds[str(both)] == "same-morpheme"
+
+
+def test_fold_root_without_canonical_form_warns(tmp_path):
+    # A multi-member family whose root has an empty canonical_form is skipped, but
+    # observably (a warning), not silently.
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        _legacy_identity_assertions,
+    )
+
+    db = _db(tmp_path)
+    root = _etymon(db, "x")
+    ocr = _etymon(db, "x2")
+    _set_merged(db, ocr, root)
+    db.conn.execute("UPDATE etymon SET canonical_form = '' WHERE id = ?", (root,))
+    db.commit()
+    res = ProjectionResult()
+    out = _legacy_identity_assertions(db, res)
+    db.close()
+    assert out == []  # family dropped
+    assert any("no canonical_form" in w for w in res.warnings)  # but observably

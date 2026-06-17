@@ -133,10 +133,14 @@ enrichment commands after rebuild.
   in `run_full_enrichment` — so `rebuild-from-jsonl --with-enrichment` rebuilds
   them for free (deterministic + idempotent, reversible via `clear-enrichment
   --stage=canonical`). Schema in alembic migration `0019`; the L2 assertion
-  streams are the source of truth and replay for free. **Additive** until
-  wyrd-u6fn.4: the projection populates this graph but does not yet migrate the
-  legacy `merged_into_id` / `cognate_id` / `lemma_id` readers onto the canonical
-  FK join, so it is currently sparse only because few assertions are authored yet.
+  streams are the source of truth and replay for free. The pass also **folds
+  today's deterministic identity clustering** (`merged_into_id`/`lemma_id`) into
+  the graph by default (wyrd-u6fn.4), so the rebuilt graph reproduces today's
+  identity clustering from the columns — no committed snapshot. (`cognate_id`
+  stays relational, D50.2 — re-derived from `etymon_descent`, not folded.)
+  **Additive**: it populates the graph but does not yet migrate the legacy
+  `merged_into_id` / `cognate_id` / `lemma_id` **readers** onto the canonical FK
+  join — that reader cutover is **wyrd-b2mf**.
 
 ### Views (always derived)
 

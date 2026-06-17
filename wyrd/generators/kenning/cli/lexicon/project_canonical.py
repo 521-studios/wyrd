@@ -85,6 +85,13 @@ def lexicon_project_canonical(
         )
         fidelity = assess_identity_fidelity(db) if (assess_fidelity and apply) else None
 
+    if assess_fidelity and not apply:
+        click.echo(
+            "  (--assess-fidelity needs --apply: it reads the projected graph, "
+            "skipped on a dry-run)",
+            err=True,
+        )
+
     verb = "wrote" if apply else "would write"
     minted = ", ".join(f"{t}={n}" for t, n in sorted(res.minted.items())) or "none"
     bound = ", ".join(f"{t}={n}" for t, n in sorted(res.bound.items())) or "none"
@@ -101,15 +108,17 @@ def lexicon_project_canonical(
     if res.warnings:
         click.echo(f"  warnings: {len(res.warnings)} (e.g. {res.warnings[0]})", err=True)
     if fidelity is not None:
-        v = fidelity["violations"]
-        marker = "OK" if v == 0 else "MISMATCH"
+        marker = "OK" if fidelity.violations == 0 else "MISMATCH"
         click.echo(
-            f"  fidelity [{marker}]: {fidelity['faithful']}/{fidelity['legacy_families']} "
-            f"legacy families map to one canonical group; {v} violations",
+            f"  fidelity [{marker}]: {fidelity.faithful}/{fidelity.legacy_families} "
+            f"legacy families map to one canonical group; {fidelity.violations} violations",
             err=True,
         )
-        for root, members, roots in fidelity["sample_violations"]:
-            click.echo(f"    legacy root {root}: members {members} -> canonical {roots}", err=True)
+        for s in fidelity.sample_violations:
+            click.echo(
+                f"    legacy root {s.legacy_root}: members {s.members} -> canonical {s.canonical_roots}",
+                err=True,
+            )
     if not apply:
         click.echo("  dry-run — nothing written (pass --apply to project).", err=True)
 
