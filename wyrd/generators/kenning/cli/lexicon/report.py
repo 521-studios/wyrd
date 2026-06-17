@@ -111,6 +111,7 @@ def _mark(severity: str) -> str:
 
 
 def _section_languages(conn, top: int) -> None:
+    top = max(0, top)  # a negative --top would otherwise slice from the end
     findings = scan_languages(conn)
     noncanon = sum(1 for f in findings if f.severity in ("stale", "dirty"))
     click.echo(
@@ -130,6 +131,7 @@ def _section_countries(conn) -> None:
 
 
 def _section_regions(conn, top: int) -> None:
+    top = max(0, top)  # a negative --top would otherwise slice from the end
     findings = scan_regions(conn)
     noncanon = sum(1 for f in findings if f.severity in ("stale", "dirty"))
     click.echo(

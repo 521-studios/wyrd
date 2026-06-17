@@ -16705,8 +16705,10 @@ def test_cli_lexicon_report_runs_against_seeded_db(fresh_db: Path) -> None:
         "=== totals ===",
         "=== consensus ===",
         "=== top",  # top {N} etymons by witnesses ===
-        "=== languages of mined etymons ===",
+        "languages of mined etymons",  # now "=== top {N} languages of mined etymons (...) ==="
         "=== confidence distribution",
+        "=== toponym countries ===",  # wyrd-c95y
+        "toponym regions",  # "=== top {N} toponym regions (...) ===" — wyrd-c95y
         "=== toponyms per source ===",
         "=== disagreements ===",
     ):

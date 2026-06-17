@@ -61,6 +61,37 @@ def test_section_regions_shows_country_context_and_marks(capsys):
     assert "non-canonical" in out  # the header summary
 
 
+def test_section_regions_caps_to_top(capsys):
+    conn = _conn(
+        toponyms=[
+            ("A", "England", "Kent"),
+            ("B", "England", "Kent"),  # Kent x2 — highest count
+            ("C", "England", "Surrey"),
+            ("D", "England", "Devon"),
+        ]
+    )
+    _section_regions(conn, top=2)
+    out = capsys.readouterr().out
+    value_lines = [line for line in out.splitlines() if line.startswith("  ")]
+    assert len(value_lines) == 2  # only the top 2 of 3 distinct regions
+    assert "3 distinct" in out
+
+
+def test_section_countries_renders_null(capsys):
+    conn = _conn(toponyms=[("A", None, None)])
+    _section_countries(conn)
+    out = capsys.readouterr().out
+    assert "(null)" in out
+
+
+def test_section_negative_top_shows_none_not_tail(capsys):
+    conn = _conn(etymons=[("a", "old-english"), ("b", "klingon")])
+    _section_languages(conn, top=-1)  # must not slice from the end
+    out = capsys.readouterr().out
+    value_lines = [line for line in out.splitlines() if line.startswith("  ")]
+    assert value_lines == []
+
+
 def test_section_languages_caps_and_flags_noncanonical(capsys):
     conn = _conn(
         etymons=[("a", "old-english"), ("b", "klingon"), ("c", "dothraki"), ("d", "celtic")]
