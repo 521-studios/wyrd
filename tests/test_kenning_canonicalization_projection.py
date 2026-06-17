@@ -410,6 +410,10 @@ def test_confidence_gate_validation(tmp_path):
         project_canonical(db, mining_dir=tmp_path, confidence_gate="hgih")
     with pytest.raises(ValueError, match=r"\[0, 1\]"):
         project_canonical(db, mining_dir=tmp_path, confidence_gate=1.5)
+    # A float gate arriving as a string (the CLI path) must be parsed, not rejected.
+    project_canonical(db, mining_dir=tmp_path, confidence_gate="0.8")  # no raise
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        project_canonical(db, mining_dir=tmp_path, confidence_gate="1.5")
     db.close()
 
 
@@ -430,10 +434,19 @@ def test_non_integer_ref_skipped_not_fatal(tmp_path):
             qualifiers={"kind": "same-morpheme"},
             confidence="high",
         ),
+        # '²' is str.isdigit()==True but int('²') raises — the guard must catch
+        # it too (isascii() + isdigit()), or it crashes at the int() in the write.
+        Assertion(
+            predicate="bind",
+            subject=NodeRef("etymon", "²"),
+            object=NodeRef("canonical_morpheme", "CM-stan"),
+            qualifiers={"kind": "same-morpheme"},
+            confidence="high",
+        ),
     )
     res = project_canonical(db, mining_dir=tmp_path, apply=True)  # must not raise
     assert _morpheme_id(db, a) == "CM-stan"  # the valid bind still applied
-    assert any("non-integer" in w for w in res.warnings)
+    assert sum("non-integer" in w for w in res.warnings) == 2  # both bad refs skipped
     db.close()
 
 

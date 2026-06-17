@@ -116,12 +116,17 @@ def _resolve_gate(confidence_gate: str | float) -> float:
     """Validate + score the gate. A typo'd label or out-of-range float would
     otherwise silently collapse the leave-separate gate, so reject it loudly."""
     if isinstance(confidence_gate, str):
-        if confidence_gate not in _LABEL_SCORE:
+        if confidence_gate in _LABEL_SCORE:
+            return _LABEL_SCORE[confidence_gate]
+        # A CLI option arrives as a string, so a float gate like "0.8" comes
+        # through as text — parse it before rejecting as an unknown label.
+        try:
+            confidence_gate = float(confidence_gate)
+        except ValueError:
             raise ValueError(
                 f"unknown confidence_gate {confidence_gate!r}; "
                 f"expected one of {sorted(_LABEL_SCORE)} or a float in [0, 1]"
-            )
-        return _LABEL_SCORE[confidence_gate]
+            ) from None
     gate = float(confidence_gate)
     if not 0.0 <= gate <= 1.0:
         raise ValueError(f"confidence_gate float must be in [0, 1], got {gate}")
@@ -242,7 +247,10 @@ def _group_binds(
             continue
         if _score(a.confidence) < gate:
             continue
-        if not a.subject.ref.isdigit():
+        # isascii() guards the gap between str.isdigit() and int(): Unicode
+        # numerics like '²' / Devanagari digits are isdigit()==True but raise in
+        # int(), which would defeat this skip-don't-crash guard.
+        if not (a.subject.ref.isascii() and a.subject.ref.isdigit()):
             result.warnings.append(
                 f"bind {a.subject.type}:{a.subject.ref} has a non-integer observation ref; skipped"
             )
