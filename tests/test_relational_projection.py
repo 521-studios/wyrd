@@ -37,10 +37,11 @@ def _etymon(db, form, *, language="old-english"):
 
 
 def _breakdown(db, eid):
+    # toponym_etymology_id = eid keeps (toponym_etymology_id, ordinal) unique per call.
     db.conn.execute(
         "INSERT INTO toponym_etymology_element (toponym_etymology_id, ordinal, etymon_id) "
-        "VALUES (1, 0, ?)",
-        (eid,),
+        "VALUES (?, 0, ?)",
+        (eid, eid),
     )
 
 
@@ -48,12 +49,12 @@ def _gloss(db, eid, gloss):
     db.conn.execute("INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)", (eid, gloss))
 
 
-def _descends(child, parent, *, confidence="medium", polarity="affirm"):
+def _descends(child, parent, *, confidence="medium", polarity="affirm", edge_type="inheritance"):
     return Assertion(
         predicate="descends-from",
         subject=NodeRef("etymon", str(child)),
         object=NodeRef("etymon", str(parent)),
-        qualifiers={"edge_type": "inheritance"},
+        qualifiers={"edge_type": edge_type},
         confidence=confidence,
         polarity=polarity,
         method="test",
@@ -186,4 +187,64 @@ def test_end_to_end_mine_project_cluster(tmp_path):
         0
     ]
     assert x_cog == member_cog == root
+    db.close()
+
+
+def test_refute_with_different_edge_type_does_not_drop_affirm(tmp_path):
+    # The refute match key includes edge_type — a borrowing-refute must NOT drop an
+    # inheritance-affirm of the same pair.
+    db = _db(tmp_path)
+    root, child = _etymon(db, "r"), _etymon(db, "c")
+    append_assertion(tmp_path, _descends(child, root, edge_type="inheritance"))
+    append_assertion(tmp_path, _descends(child, root, edge_type="borrowing", polarity="refute"))
+    db.commit()
+
+    result = project_descent_assertions(db, mining_dir=tmp_path, apply=True)
+    assert result.inserted == 1 and result.refuted == 0
+    assert _edges(db) == {(root, child, "inheritance")}
+    db.close()
+
+
+def test_float_confidence_respects_gate(tmp_path):
+    db = _db(tmp_path)
+    root, hi, lo = _etymon(db, "r"), _etymon(db, "h"), _etymon(db, "l")
+    append_assertion(tmp_path, _descends(hi, root, confidence=0.7))  # >= medium (0.6)
+    append_assertion(tmp_path, _descends(lo, root, confidence=0.5))  # < 0.6
+    db.commit()
+
+    result = project_descent_assertions(db, mining_dir=tmp_path, apply=True)
+    assert result.inserted == 1 and result.gated_out == 1
+    assert _edges(db) == {(root, hi, "inheritance")}
+    db.close()
+
+
+def test_bad_gate_rejected(tmp_path):
+    import pytest
+
+    db = _db(tmp_path)
+    with pytest.raises(ValueError, match="unknown confidence_gate"):
+        project_descent_assertions(db, mining_dir=tmp_path, apply=False, confidence_gate="bogus")
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        project_descent_assertions(db, mining_dir=tmp_path, apply=False, confidence_gate=1.5)
+    db.close()
+
+
+def test_run_full_enrichment_wires_descent_before_cluster(tmp_path):
+    # The stage-level proof: run_full_enrichment runs project-descent BEFORE
+    # cluster_cognates, so an authored descends-from edge materializes AND clusters
+    # in one orchestrated run (the production path, via rebuild-from-jsonl).
+    from wyrd.generators.kenning.enrichment import run_full_enrichment
+
+    db = _db(tmp_path)
+    root = _etymon(db, "tunaz", language="proto-germanic")
+    x = _etymon(db, "tun", language="old-english")
+    db.commit()
+    append_assertion(tmp_path, _descends(x, root, confidence="medium"))
+
+    result = run_full_enrichment(db, apply=True, canonicalization_dir=tmp_path)
+    order = result["order"]
+    assert order.index("project-descent") < order.index("cluster-cognates")
+    assert result["descent"]["inserted"] >= 1
+    # The materialized edge fed cluster_cognates in the same run.
+    assert db.conn.execute("SELECT cognate_id FROM etymon WHERE id=?", (x,)).fetchone()[0] == root
     db.close()

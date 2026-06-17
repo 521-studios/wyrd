@@ -57,6 +57,8 @@ from wyrd.generators.kenning.canonicalization import (
     effective_assertions,
     load_assertions,
     mint_canonical_id,
+    resolve_confidence_gate,
+    score_confidence,
 )
 from wyrd.generators.kenning.lexicon.bundle._export import _build_family_rollup
 from wyrd.generators.kenning.lexicon.db import LexiconDB
@@ -71,9 +73,6 @@ METHOD_LEGACY = "legacy-import"
 
 # Leave-separate confidence gate (D46 asymmetry): a missed merge is harmless
 # duplication, a wrong merge is corruption — so binds apply only at/above the gate.
-# Labels map to a score; a bare float in [0,1] compares directly. Default 'high';
-# tunable per environment.
-_LABEL_SCORE = {"low": 0.3, "medium": 0.6, "high": 0.9}
 
 # Observation subject type -> (table, canonical FK column, minted-node type). Only
 # the kinds with an established integer-id ref convention (Newton fixture) + an L3
@@ -149,32 +148,10 @@ def _bind_key(a: Assertion) -> _BindKey:
     return (a.subject.type, a.subject.ref, a.object.ref, a.qualifiers.get("kind"))
 
 
-def _score(confidence: str | float) -> float:
-    """A comparable confidence score: labels via the table, floats as-is."""
-    if isinstance(confidence, str):
-        return _LABEL_SCORE.get(confidence, 0.0)
-    return float(confidence)
-
-
-def _resolve_gate(confidence_gate: str | float) -> float:
-    """Validate + score the gate. A typo'd label or out-of-range float would
-    otherwise silently collapse the leave-separate gate, so reject it loudly."""
-    if isinstance(confidence_gate, str):
-        if confidence_gate in _LABEL_SCORE:
-            return _LABEL_SCORE[confidence_gate]
-        # A CLI option arrives as a string, so a float gate like "0.8" comes
-        # through as text — parse it before rejecting as an unknown label.
-        try:
-            confidence_gate = float(confidence_gate)
-        except ValueError:
-            raise ValueError(
-                f"unknown confidence_gate {confidence_gate!r}; "
-                f"expected one of {sorted(_LABEL_SCORE)} or a float in [0, 1]"
-            ) from None
-    gate = float(confidence_gate)
-    if not 0.0 <= gate <= 1.0:
-        raise ValueError(f"confidence_gate float must be in [0, 1], got {gate}")
-    return gate
+# Identity and relational projections score + gate confidence via the SAME shared
+# helpers (canonicalization.assertions) so the two can never drift apart silently.
+_score = score_confidence
+_resolve_gate = resolve_confidence_gate
 
 
 @dataclass

@@ -21,6 +21,8 @@ from __future__ import annotations
 from .assertions import (
     BIND_KINDS,
     CANONICAL_NODE_TYPES,
+    CONFIDENCE_LABELS,
+    CONFIDENCE_SCORES,
     EDGE_TYPES,
     FAMILIES,
     POLARITIES,
@@ -30,6 +32,8 @@ from .assertions import (
     NodeRef,
     PredicateSpec,
     mint_canonical_id,
+    resolve_confidence_gate,
+    score_confidence,
     validate,
 )
 from .streams import (
@@ -44,6 +48,8 @@ __all__ = [
     "AssertionValidationError",
     "BIND_KINDS",
     "CANONICAL_NODE_TYPES",
+    "CONFIDENCE_LABELS",
+    "CONFIDENCE_SCORES",
     "EDGE_TYPES",
     "FAMILIES",
     "NodeRef",
@@ -54,6 +60,8 @@ __all__ = [
     "effective_assertions",
     "load_assertions",
     "mint_canonical_id",
+    "resolve_confidence_gate",
+    "score_confidence",
     "stream_filename",
     "validate",
 ]

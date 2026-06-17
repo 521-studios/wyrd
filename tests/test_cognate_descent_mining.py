@@ -36,10 +36,11 @@ def _etymon(db, form, *, language="old-english", cognate_id=None):
 
 
 def _breakdown(db, eid):
+    # toponym_etymology_id = eid keeps (toponym_etymology_id, ordinal) unique per call.
     db.conn.execute(
         "INSERT INTO toponym_etymology_element (toponym_etymology_id, ordinal, etymon_id) "
-        "VALUES (1, 0, ?)",
-        (eid,),
+        "VALUES (?, 0, ?)",
+        (eid, eid),
     )
 
 
@@ -169,4 +170,65 @@ def test_deterministic_ids(tmp_path):
     first = [a.id for a in descent_assertions(mine_cognate_descents(db), source="test")]
     second = [a.id for a in descent_assertions(mine_cognate_descents(db), source="test")]
     assert first == second  # no timestamp in the id (D36.9 idempotent re-mining)
+    db.close()
+
+
+def test_clustered_or_merged_morphemes_excluded_from_cohort(tmp_path):
+    # The cohort is unclustered (cognate_id NULL) + non-merged breakdown morphemes.
+    # A breakdown morpheme that is already clustered, or a tombstoned duplicate, must
+    # not be re-placed (the latter is the D22 corruption guard).
+    db = _db(tmp_path)
+    root, _ = _cluster(db, "tunaz", "tún", gloss="enclosure")
+    already = _etymon(db, "tun", language="old-english")  # folds to the cluster…
+    db.conn.execute(
+        "UPDATE etymon SET cognate_id = ? WHERE id = ?", (root, already)
+    )  # …but clustered
+    _breakdown(db, already)
+    tomb = _etymon(db, "tun", language="middle-english")  # folds too…
+    db.conn.execute(
+        "UPDATE etymon SET merged_into_id = ? WHERE id = ?", (root, tomb)
+    )  # …but merged away
+    _breakdown(db, tomb)
+    db.commit()
+    assert mine_cognate_descents(db) == []
+    db.close()
+
+
+def test_multiple_edges_sorted_by_child(tmp_path):
+    db = _db(tmp_path)
+    root, _ = _cluster(db, "tunaz", "tún", gloss="enclosure")
+    # Insert cohort out of fold order; edges must come back sorted by child_etymon.
+    b = _etymon(db, "tun", language="old-english")
+    _breakdown(db, b)
+    _gloss(db, b, "enclosure")
+    a = _etymon(db, "tūn", language="mercian")  # also folds to "tun"
+    _breakdown(db, a)
+    _gloss(db, a, "enclosure")
+    db.commit()
+    edges = mine_cognate_descents(db)
+    assert [e.child_etymon for e in edges] == sorted(e.child_etymon for e in edges)
+    assert {e.child_etymon for e in edges} == {a, b}
+    assert all(e.cluster_root == root for e in edges)
+    db.close()
+
+
+def test_same_cluster_multiple_members_one_edge(tmp_path):
+    # A cohort morpheme folding to TWO members of the SAME cluster → one edge to the
+    # shared root (grouped by cluster, not by matched member).
+    db = _db(tmp_path)
+    root = _etymon(db, "tunaz", language="proto-germanic")
+    db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (root, root))
+    m1 = _etymon(db, "tún", language="old-norse", cognate_id=root)
+    _gloss(db, m1, "enclosure")
+    m2 = _etymon(
+        db, "tun", language="icelandic", cognate_id=root
+    )  # second member, same fold+cluster
+    _gloss(db, m2, "enclosure")
+    x = _etymon(db, "tun", language="old-english")
+    _breakdown(db, x)
+    _gloss(db, x, "enclosure")
+    db.commit()
+    edges = mine_cognate_descents(db)
+    assert len(edges) == 1
+    assert edges[0].child_etymon == x and edges[0].cluster_root == root
     db.close()

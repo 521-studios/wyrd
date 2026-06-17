@@ -27,7 +27,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from wyrd.generators.kenning.canonicalization import effective_assertions, load_assertions
+from wyrd.generators.kenning.canonicalization import (
+    Assertion,
+    effective_assertions,
+    load_assertions,
+    resolve_confidence_gate,
+    score_confidence,
+)
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
 # Attribution for the edges this projection materializes (kept distinct from
@@ -35,35 +41,14 @@ from wyrd.generators.kenning.lexicon.db import LexiconDB
 DESCENT_SOURCE_ID = "cognate-descent-uplift"
 _DESCENT_SOURCE_TITLE = "Cognate-descent uplift (wyrd-zrce.1, D50 Family B)"
 
-# Mirrors canonicalization_projection._LABEL_SCORE / _resolve_gate — relational has a
-# different default gate, but the same label→score scale (kept tiny + local rather
-# than importing a private symbol across modules).
-_LABEL_SCORE = {"low": 0.3, "medium": 0.6, "high": 0.9}
+# An edge as the (parent_ref, child_ref, edge_type) string triple an assertion
+# describes — descends-from(subject=child, object=parent). One shape for both the
+# refute set and the affirm lookup; int conversion is confined to the INSERT boundary.
+_EdgeKey = tuple[str, str, str | None]
 
 
-def _score(confidence: str | float) -> float:
-    if isinstance(confidence, str):
-        return _LABEL_SCORE.get(confidence, 0.0)
-    return float(confidence)
-
-
-def _resolve_gate(confidence_gate: str | float) -> float:
-    """Validate + score the gate; reject a typo'd label / out-of-range float loudly
-    (a silent collapse to 0.0 would admit every low-confidence edge)."""
-    if isinstance(confidence_gate, str):
-        if confidence_gate in _LABEL_SCORE:
-            return _LABEL_SCORE[confidence_gate]
-        try:
-            confidence_gate = float(confidence_gate)
-        except ValueError:
-            raise ValueError(
-                f"unknown confidence_gate {confidence_gate!r}; "
-                f"expected one of {sorted(_LABEL_SCORE)} or a float in [0, 1]"
-            ) from None
-    gate = float(confidence_gate)
-    if not 0.0 <= gate <= 1.0:
-        raise ValueError(f"confidence_gate float must be in [0, 1], got {gate}")
-    return gate
+def _edge_key(a: Assertion) -> _EdgeKey:
+    return (a.object.ref, a.subject.ref, a.qualifiers.get("edge_type"))
 
 
 @dataclass
@@ -91,7 +76,7 @@ def project_descent_assertions(
     subject (child) descends from object (parent), so the row is
     ``(parent_id=object, child_id=subject, edge_type)``.
     """
-    gate = _resolve_gate(confidence_gate)
+    gate = resolve_confidence_gate(confidence_gate)
     result = DescentProjectionResult(applied=apply)
     live = [
         a
@@ -100,23 +85,28 @@ def project_descent_assertions(
     ]
 
     # A refute asserts NOT-descends for an edge; drop a matching affirm (D50.4).
-    refuted = {
-        (a.object.ref, a.subject.ref, a.qualifiers.get("edge_type"))
-        for a in live
-        if a.polarity == "refute" and a.object is not None
-    }
+    refuted = {_edge_key(a) for a in live if a.polarity == "refute" and a.object is not None}
 
     edges: set[tuple[int, int, str]] = set()
     for a in live:
         if a.polarity != "affirm" or a.object is None:
             continue
-        if (a.object.ref, a.subject.ref, a.qualifiers.get("edge_type")) in refuted:
+        key = _edge_key(a)
+        if key in refuted:
             result.refuted += 1
             continue
-        if _score(a.confidence) < gate:
+        if score_confidence(a.confidence) < gate:
             result.gated_out += 1
             continue
-        edges.add((int(a.object.ref), int(a.subject.ref), a.qualifiers["edge_type"]))
+        parent_ref, child_ref, edge_type = key
+        # int conversion is confined here (the INSERT boundary); a hand-edited stream
+        # with a non-integer etymon ref surfaces as ONE located error, not a bare crash.
+        try:
+            edges.add((int(parent_ref), int(child_ref), edge_type))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"descends-from {a.id}: non-integer etymon ref {child_ref!r} -> {parent_ref!r}"
+            ) from exc
 
     result.inserted = len(edges)
     if apply:
