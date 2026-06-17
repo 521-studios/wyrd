@@ -428,12 +428,19 @@ def _legacy_identity_assertions(db: LexiconDB, result: ProjectionResult) -> list
     multi = {r: members for r, members in members_by_root.items() if len(members) > 1}
     if not multi:
         return []
-    needed = set(multi) | {m for members in multi.values() for m in members}
+    needed = sorted(set(multi) | {m for members in multi.values() for m in members})
+    # Fetch only the family members by PK in chunks (SQLite param-limit-safe),
+    # not a full 2.4M-row scan — this pass runs on every rebuild, and the rest of
+    # the fold already pays one full scan inside _build_family_rollup.
     info: dict[int, _EtymonInfo] = {}
-    for r in db.conn.execute(
-        "SELECT id, language, canonical_form, merged_into_id, lemma_id FROM etymon"
-    ):
-        if r["id"] in needed:
+    for i in range(0, len(needed), 900):
+        chunk = needed[i : i + 900]
+        qmarks = ",".join("?" * len(chunk))
+        for r in db.conn.execute(
+            f"SELECT id, language, canonical_form, merged_into_id, lemma_id "  # noqa: S608 — ? placeholders
+            f"FROM etymon WHERE id IN ({qmarks})",
+            chunk,
+        ):
             info[r["id"]] = _EtymonInfo(
                 r["language"] or "",
                 r["canonical_form"] or "",
