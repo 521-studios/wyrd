@@ -35,6 +35,15 @@ import sqlite3
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
+from wyrd.generators.kenning.lexicon.controlled_vocab import (
+    CountryValidationError,
+    canonicalize_country,
+)
+from wyrd.generators.kenning.lexicon.region_model import (
+    RegionValidationError,
+    canonicalize_region,
+)
+
 from .toponym_reverse_search import _normalize_for_match
 
 # Top-N fuzzy match suggestions per candidate. Three is a good
@@ -441,6 +450,16 @@ def _commit_create_row(
         region = region.strip() or None
     else:
         region = None
+    # Fail-closed Class-A guards (wyrd-fxxf): canonicalize the operator-supplied
+    # region + country. A bad value rejects THIS row (record_error) rather than
+    # aborting the whole review commit — the review-tool analogue of the parser
+    # ingest's hard raise (wyrd-3q6m.3/.5).
+    try:
+        region = canonicalize_region(region, country=country)
+        country = canonicalize_country(country)
+    except (RegionValidationError, CountryValidationError) as exc:
+        report.record_error(ctx.idx, str(exc))
+        return
     # Collision detect — if a toponym with this (name, country, region)
     # already exists, treat as map-to-existing. The UNIQUE index would
     # silently no-op under INSERT OR IGNORE, but we count the demotion

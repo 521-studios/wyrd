@@ -435,6 +435,45 @@ def test_commit_create_inserts_toponym_and_attestation():
     assert ares[0]["form"] == "Suttone"
 
 
+def test_commit_create_folds_country_alias():
+    """wyrd-fxxf: an operator-supplied country alias is canonicalized on create."""
+    conn = _make_conn()
+    rows = [
+        {
+            "source_id": "s",
+            "form": "Baile",
+            "date_year": 1200,
+            "action": "create",
+            "create_modern_name": "Somewhere",
+            "create_country": "Republic of Ireland",
+            "create_region": None,
+        }
+    ]
+    report = commit_triage_decisions(conn, rows, apply=True)
+    assert report.created == 1 and report.errors == 0
+    assert conn.execute("SELECT country FROM toponym").fetchone()["country"] == "Ireland"
+
+
+def test_commit_create_rejects_unknown_region_as_row_error():
+    """wyrd-fxxf: a bad operator-supplied England region rejects THAT row
+    (record_error) without aborting the commit or inserting a toponym."""
+    conn = _make_conn()
+    rows = [
+        {
+            "source_id": "s",
+            "form": "X",
+            "date_year": 1200,
+            "action": "create",
+            "create_modern_name": "Nowhere",
+            "create_country": "England",
+            "create_region": "Borsetshire",  # not a canonical England region
+        }
+    ]
+    report = commit_triage_decisions(conn, rows, apply=True)
+    assert report.created == 0 and report.errors == 1
+    assert conn.execute("SELECT count(*) c FROM toponym").fetchone()["c"] == 0
+
+
 def test_commit_create_unique_collision_demotes_to_map():
     """If an existing toponym already has (modern_name, country,
     region), CREATE converts to MAP — prevents accidental duplicate
