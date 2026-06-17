@@ -45,6 +45,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from wyrd.generators.kenning.lexicon.controlled_vocab import canonicalize_country
+from wyrd.generators.kenning.lexicon.region_model import canonicalize_region
+
 # Standard Domesday 3-letter county codes → modern county / shire names.
 # Sourced from Hull's General metadata + cross-referenced with
 # Williams-Erskine. Used as the ``country='England'`` /
@@ -339,6 +342,14 @@ def _ingest_one_placeform(
 
     region = COUNTY_CODE_TO_NAME.get(county_code, county_code)
     country = COUNTY_CODE_TO_COUNTRY.get(county_code, "England")
+    # Fail-closed Class-A guards (wyrd-fxxf): canonicalize region + country before
+    # insert, closing for this bulk path the same gap wyrd-3q6m.3/.5 already closed
+    # for the parser ingest — so it likewise can't re-dirty the controlled
+    # vocabularies. All current Domesday county codes map to canonical values, so
+    # this is a no-op safety net today; an unmapped/non-canonical region raises
+    # rather than silently inserting.
+    region = canonicalize_region(region, country=country)
+    country = canonicalize_country(country)
     source_doc = _compute_source_doc(phillimore_by_idx.get(idx), hundred, os_ref)
     toponym_id = _resolve_domesday_toponym(conn, state, modern_name, country, region)
     _record_domesday_attestation(conn, state, toponym_id, modern_name, source_doc)

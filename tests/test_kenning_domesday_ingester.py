@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import sqlite3
 
+import pytest
+
 from wyrd.generators.kenning.ingesters.domesday import (
     COUNTY_CODE_TO_NAME,
     DOMESDAY_SOURCE_ID,
@@ -195,7 +197,7 @@ def test_ingest_resolves_county_code_to_full_name() -> None:
     regions = [r[0] for r in conn.execute("SELECT region FROM toponym ORDER BY id")]
     assert "Worcestershire" in regions
     assert "Essex" in regions
-    # Unmapped code passes through unchanged (degrades gracefully).
+    # COUNTY_CODE_TO_NAME is the source of truth for the code→name resolution.
     assert COUNTY_CODE_TO_NAME["WOR"] == "Worcestershire"
 
 
@@ -316,10 +318,14 @@ def test_ingest_dry_run_reports_existing_db_state() -> None:
     assert counts["attestation_inserted"] == 1
 
 
-def test_ingest_passes_through_unmapped_county_code() -> None:
-    """An unknown county code (not in COUNTY_CODE_TO_NAME) passes
-    through unchanged rather than raising KeyError. Defensive against
-    Hull adding a new code in a future dataset version."""
+def test_ingest_rejects_unmapped_county_code() -> None:
+    """An unknown county code (not in COUNTY_CODE_TO_NAME) falls back to the raw
+    code as region, which the fail-closed Class-A guard rejects (wyrd-fxxf) —
+    surfacing the unmapped code instead of silently inserting a dirty region.
+    A new Hull code is a conscious one-line addition to COUNTY_CODE_TO_NAME.
+    (Was: passed through dirty — the anti-pattern D49 removes.)"""
+    from wyrd.generators.kenning.lexicon.region_model import RegionValidationError
+
     conn = _build_fixture_db()
     places = {
         "PlacesIdx": [1],
@@ -341,9 +347,8 @@ def test_ingest_passes_through_unmapped_county_code() -> None:
         "OSref": [None],
         "OScodes": [None],
     }
-    _ingest_from_tables(conn, places, placeforms, apply=True)
-    region = conn.execute("SELECT region FROM toponym").fetchone()["region"]
-    assert region == "ZZZ"  # unmapped code passes through
+    with pytest.raises(RegionValidationError):
+        _ingest_from_tables(conn, places, placeforms, apply=True)
 
 
 def test_ingest_dry_run_matches_apply_with_duplicate_vill_county_pairs() -> None:
