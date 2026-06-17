@@ -22,6 +22,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from wyrd.generators.kenning.lexicon.controlled_vocab import (
+    canonicalize_country,
+    canonicalize_language,
+)
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.region_model import canonicalize_region
 from wyrd.generators.kenning.lexicon.regions import country_for_region
@@ -58,6 +62,9 @@ def _upsert_toponym(
     region = canonicalize_region(region, country=country)
     if country is None:
         country = country_for_region(region)
+    # Fail-closed country guard (wyrd-3q6m.5): folds a known alias, validates the
+    # value (explicit or region-derived), raises on an unknown country.
+    country = canonicalize_country(country)
     cur = db.conn.execute(
         """
         SELECT id FROM toponym
@@ -135,6 +142,12 @@ def ingest_parsed_entries(
         if entry.confidence == "low" or not entry.elements:
             continue
 
+        # Fail-closed language guard (wyrd-3q6m.5) — validate every element's
+        # language BEFORE any etymology write, so a bad language fails the whole
+        # entry atomically (curated path only; bulk wiktextract uses ISO codes
+        # and never reaches here).
+        elem_languages = [canonicalize_language(elem.language) for elem in entry.elements]
+
         confidence = entry.confidence if entry.confidence in ("high", "medium", "low") else "low"
         cur = db.conn.execute(
             """
@@ -154,7 +167,7 @@ def ingest_parsed_entries(
         counts["etymologies"] += 1
 
         for ordinal, elem in enumerate(entry.elements):
-            etymon_id = db.upsert_etymon(elem.form, elem.language)
+            etymon_id = db.upsert_etymon(elem.form, elem_languages[ordinal])
             counts["etymons_touched"] += 1
             if elem.gloss:
                 db.add_gloss(etymon_id, elem.gloss)
