@@ -1,0 +1,49 @@
+# zones.yaml — cultural/linguistic-zone axis (wyrd-hytz, D52). SPIKE / data model.
+#
+# A COARSE, linguistically-defined axis that cuts ACROSS administrative
+# boundaries — distinct from (and must NOT contaminate) the dedup region
+# hierarchy in regions_england.yaml. Backs a future generator surface
+# ("Danelaw town names") composing with --culture / --stratum (D32) / --era (D44).
+#
+# Two classifications, both rule-based / derived from existing signals (no mining
+# — see D52 for why rule-based was chosen over an LLM/enrichment classifier):
+#   - morpheme -> zone  (by etymon `language`): the GENERATION-relevant one — a
+#     zone's flavor is its characteristic morpheme mix.
+#   - place -> zone     (by `region` / `country`): SECONDARY — for analysis and
+#     empirical priors; a place can fall in more than one zone.
+#
+# NOT in this spike: the generator --zone knob, runtime bundle, SPA (deferred —
+# see D52 "deferred"). This file + zone_classify.py are the data model only.
+
+default_zone: anglo-saxon  # the un-zoned native majority (Old English morphemes)
+
+zones:
+  - name: danelaw
+    description: >
+      Area under Norse law (878/886 treaty + the Five Boroughs + East Anglia).
+      Old Norse-heavy morpheme mix (-by, -thorpe, -toft, -thwaite).
+    morpheme_languages: [old-norse, east-norse]
+    # The historic Danelaw shires (post-3q6m.4 canonical region names). Coarse by
+    # design — zone membership is linguistic/legal, not the dedup shire.
+    place_regions:
+      [Yorkshire, North Riding, East Riding, West Riding, Lincolnshire,
+       Nottinghamshire, Derbyshire, Leicestershire, Rutland, Northamptonshire,
+       Bedfordshire, Cambridgeshire, Huntingdonshire, Norfolk, Suffolk, Essex]
+    place_countries: []
+
+  - name: celtic
+    description: >
+      Brittonic / Goidelic substrate (-pen, -tre, -caer, river names). Cuts across
+      Wales, Cornwall, and Celtic substrate names elsewhere in England.
+    morpheme_languages: [celtic, brittonic, welsh, cornish, cumbric, gaelic, irish, pictish]
+    place_regions: [Cornwall]
+    place_countries: [Wales, Ireland, Scotland]
+
+  - name: roman
+    description: >
+      Romano-British / Latin-flavored (the ceaster/-chester/-caster fort + road
+      stations). Morpheme-flavor; place-membership by name-pattern is deferred
+      (Roman sites are scattered, not a region set).
+    morpheme_languages: [latin, medieval-latin]
+    place_regions: []
+    place_countries: []
