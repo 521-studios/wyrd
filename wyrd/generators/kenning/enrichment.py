@@ -45,6 +45,7 @@ from .lexicon import (
     link_lemmas,
     project_period_forms,
 )
+from .lexicon.canonicalization_projection import project_canonical
 from .lexicon.english_shaping import derive_english_shaped_all
 from .lexicon.phonological_vector_enrichment import (
     tag_phonological_vectors_all,
@@ -1446,10 +1447,6 @@ def run_full_enrichment(
         # merged_into_id/cognate_id/lemma_id readers (that cutover is u6fn.4). Only
         # runs when a mining dir is supplied (rebuild-from-jsonl passes it).
         if canonicalization_dir is not None:
-            from wyrd.generators.kenning.lexicon.canonicalization_projection import (
-                project_canonical,
-            )
-
             canonical_projection = project_canonical(
                 db, mining_dir=canonicalization_dir, apply=apply
             )

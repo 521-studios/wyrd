@@ -87,7 +87,10 @@ here's the obligation:
   D50.6), which now runs as the terminal L3 derivation inside
   `run_full_enrichment` — so `rebuild-from-jsonl --with-enrichment` populates
   it **for free** (deterministic + idempotent, same L2 → byte-identical L3;
-  never a paid re-mine). It is currently sparse only because few assertions
+  never a paid re-mine). (The pass runs only when a `canonicalization_dir` is
+  supplied, which `rebuild-from-jsonl` passes; a bare `lexicon enrich` leaves
+  the canonical graph untouched — the wipe-and-rebuild path is what matters
+  here.) It is currently sparse only because few assertions
   are authored yet, not because the pass is missing; it fills as the
   assertion streams accrue. **Additive** (wyrd-u6fn.3/u6fn.4 split): the pass
   populates the canonical graph but does **not** yet migrate the legacy

@@ -17,11 +17,19 @@ canonical FK join — and authoring legacy-import binds so the projection reprod
 today's clustering — is wyrd-u6fn.4. Until then the canonical graph is built
 alongside the legacy columns, regression-free by construction.
 
-Determinism (D36.9): assertions are processed sorted by their stable id, so the
-same L2 streams yield a byte-identical L3 graph. Idempotent + reversible: an
-``apply`` run clears the canonical graph (the ``clear-enrichment --stage=canonical``
-logic) before rebuilding, so re-running reflects the current assertion set exactly
-and a retracted/refuted bind cleanly disappears.
+Determinism (D36.9): assertions are processed sorted by their stable content-hash
+id, so the same L2 streams yield a byte-identical L3 graph. (The id is a 64-bit
+content hash; a collision between two distinct assertions is astronomically
+unlikely — were it ever to happen, the sort would fall back to append order for
+that pair.) Idempotent + reversible: an ``apply`` run clears the canonical graph
+(the ``clear-enrichment --stage=canonical`` logic) before rebuilding, inside one
+transaction (rolled back on any error), so re-running reflects the current
+assertion set exactly and a retracted/refuted bind cleanly disappears.
+
+Robustness: every observation/node a bind or label references is validated before
+the destructive clear — non-integer observation refs, binds/labels to unminted
+nodes, and cross-type merges are skipped with an observable warning (D24), never
+fatal. The leave-separate confidence gate is validated at entry.
 
 Scope (deferred, by design):
   - ``same-sense`` binds (``etymon_gloss``, composite PK) — no ref convention is
@@ -38,6 +46,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import NamedTuple
 
 from wyrd.generators.kenning.canonicalization import (
     Assertion,
@@ -49,7 +59,7 @@ from wyrd.generators.kenning.lexicon.db import LexiconDB
 # Leave-separate confidence gate (D46 asymmetry): a missed merge is harmless
 # duplication, a wrong merge is corruption — so binds apply only at/above the gate.
 # Labels map to a score; a bare float in [0,1] compares directly. Default 'high';
-# env-tunable later per the D43 threshold precedent.
+# tunable per environment.
 _LABEL_SCORE = {"low": 0.3, "medium": 0.6, "high": 0.9}
 
 # Observation subject type -> (table, canonical FK column, minted-node type). Only
@@ -66,6 +76,34 @@ _SUBJECT_TARGET: dict[str, tuple[str, str, str]] = {
 # Minted-node type -> its table (for mint + merge-canonical).
 _NODE_TABLES = ("canonical_morpheme", "canonical_place", "canonical_sense")
 
+# The identity of a bind for affirm/refute matching: (subject type, subject ref,
+# object ref, kind). Built in one place so the refute set and the affirm lookup
+# can't drift out of shape.
+_BindKey = tuple[str, str, str, str | None]
+
+
+class BindWrite(NamedTuple):
+    """One resolved bind to apply: set ``<table>.<column> = node_id`` for the
+    observation row ``obs_id``. (Named so a field transposition is a type error.)"""
+
+    table: str
+    column: str
+    node_id: str
+    obs_id: int
+
+
+class Conflict(NamedTuple):
+    """An observation bound above-gate to >1 distinct canonical (post-merge),
+    left UNBOUND + reported (D46 conflict rule, D24 observability)."""
+
+    subject_type: str
+    ref: str
+    nodes: list[str]
+
+
+def _bind_key(a: Assertion) -> _BindKey:
+    return (a.subject.type, a.subject.ref, a.object.ref, a.qualifiers.get("kind"))
+
 
 def _score(confidence: str | float) -> float:
     """A comparable confidence score: labels via the table, floats as-is."""
@@ -74,22 +112,41 @@ def _score(confidence: str | float) -> float:
     return float(confidence)
 
 
+def _resolve_gate(confidence_gate: str | float) -> float:
+    """Validate + score the gate. A typo'd label or out-of-range float would
+    otherwise silently collapse the leave-separate gate, so reject it loudly."""
+    if isinstance(confidence_gate, str):
+        if confidence_gate not in _LABEL_SCORE:
+            raise ValueError(
+                f"unknown confidence_gate {confidence_gate!r}; "
+                f"expected one of {sorted(_LABEL_SCORE)} or a float in [0, 1]"
+            )
+        return _LABEL_SCORE[confidence_gate]
+    gate = float(confidence_gate)
+    if not 0.0 <= gate <= 1.0:
+        raise ValueError(f"confidence_gate float must be in [0, 1], got {gate}")
+    return gate
+
+
 @dataclass
 class ProjectionResult:
     """What the projection did (or would do, in dry-run). Counts + the observable
-    list of conflicts/skips (D24) so nothing is resolved silently."""
+    lists of conflicts/warnings/skips (D24) so nothing is resolved silently."""
 
     applied: bool = False
     minted: dict[str, int] = field(default_factory=dict)  # node type -> count
     bound: dict[str, int] = field(default_factory=dict)  # subject type -> count
     merged: int = 0
     labels: int = 0
-    # An observation bound above-gate to >1 distinct canonical (post-merge): left
-    # UNBOUND + flagged (D46 conflict rule). (subject_type, ref, [node ids]).
-    conflicts: list[tuple[str, str, list[str]]] = field(default_factory=list)
+    conflicts: list[Conflict] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     # bind.kind values seen but not yet projectable (e.g. same-sense): count by kind.
     skipped_unsupported: dict[str, int] = field(default_factory=dict)
+
+
+def _node_types(minted: dict[str, set[str]]) -> dict[str, str]:
+    """node id -> its minted node type (canonical_morpheme/place/sense)."""
+    return {nid: node_type for node_type, ids in minted.items() for nid in ids}
 
 
 def clear_canonical_graph(db: LexiconDB) -> None:
@@ -127,7 +184,9 @@ def _merge_roots(
 ) -> dict[str, str]:
     """Union the ``merge-canonical`` pairs and return node id -> root id
     (lexicographic-min per component, D22 smallest-id-wins). Chain-flatten is
-    automatic: every node in a component points at the single root."""
+    automatic. A merge to an unminted node, or one that crosses node types (a
+    morpheme hub into a place hub), is skipped with a warning."""
+    node_type = _node_types(minted)
     parent: dict[str, str] = {}
 
     def find(x: str) -> str:
@@ -145,11 +204,16 @@ def _merge_roots(
         lo, hi = (ra, rb) if ra < rb else (rb, ra)  # smallest id is the root
         parent[hi] = lo
 
-    all_minted = {nid for ids in minted.values() for nid in ids}
     for a in merges:
         s, o = a.subject.ref, a.object.ref
-        if s not in all_minted or o not in all_minted:
+        st, ot = node_type.get(s), node_type.get(o)
+        if st is None or ot is None:
             result.warnings.append(f"merge-canonical references unminted node ({s} / {o}); skipped")
+            continue
+        if st != ot:
+            result.warnings.append(
+                f"merge-canonical crosses node types ({st}:{s} / {ot}:{o}); skipped"
+            )
             continue
         parent.setdefault(s, s)
         parent.setdefault(o, o)
@@ -157,21 +221,14 @@ def _merge_roots(
     return {node: find(node) for node in parent if find(node) != node}
 
 
-def _refuted_binds(binds: list[Assertion]) -> set[tuple]:
-    """(subject, object, kind) tuples carrying a refute — these binds don't apply."""
-    return {
-        (a.subject.type, a.subject.ref, a.object.ref, a.qualifiers.get("kind"))
-        for a in binds
-        if a.polarity == "refute" and a.object is not None
-    }
-
-
 def _group_binds(
     binds: list[Assertion], gate: float, result: ProjectionResult
 ) -> dict[tuple[str, str], list[Assertion]]:
     """Affirmed, non-refuted, above-gate binds grouped by observation subject.
-    Records unsupported kinds (e.g. same-sense) as observable skips."""
-    refuted = _refuted_binds(binds)
+    Records unsupported kinds (e.g. same-sense) and non-integer observation refs as
+    observable skips — validated HERE, before the destructive write, so a bad ref
+    can never abort the projection mid-rebuild."""
+    refuted = {_bind_key(a) for a in binds if a.polarity == "refute" and a.object is not None}
     grouped: dict[tuple[str, str], list[Assertion]] = defaultdict(list)
     for a in binds:
         if a.polarity != "affirm" or a.object is None:
@@ -181,9 +238,14 @@ def _group_binds(
             key = kind or a.subject.type
             result.skipped_unsupported[key] = result.skipped_unsupported.get(key, 0) + 1
             continue
-        if (a.subject.type, a.subject.ref, a.object.ref, kind) in refuted:
+        if _bind_key(a) in refuted:
             continue
         if _score(a.confidence) < gate:
+            continue
+        if not a.subject.ref.isdigit():
+            result.warnings.append(
+                f"bind {a.subject.type}:{a.subject.ref} has a non-integer observation ref; skipped"
+            )
             continue
         grouped[(a.subject.type, a.subject.ref)].append(a)
     return grouped
@@ -195,16 +257,18 @@ def _resolve_binds(
     root_of: dict[str, str],
     gate: float,
     result: ProjectionResult,
-) -> list[tuple[str, str, str, str]]:
-    """Resolve each observation's binds to a single hub, flagging conflicts (D46).
-    Returns (table, column, node_id, obs_ref) writes."""
-    writes: list[tuple[str, str, str, str]] = []
+) -> list[BindWrite]:
+    """Resolve each observation's binds to a single hub, flagging conflicts (D46)."""
+    writes: list[BindWrite] = []
     bound: dict[str, int] = defaultdict(int)
     for (subj_type, subj_ref), group in _group_binds(binds, gate, result).items():
         table, column, node_type = _SUBJECT_TARGET[subj_type]
-        valid = [b for b in group if b.object.ref in minted.get(node_type, set())]
+        minted_nodes = minted.get(node_type, set())
+        valid: list[Assertion] = []
         for b in group:
-            if b.object.ref not in minted.get(node_type, set()):
+            if b.object.ref in minted_nodes:
+                valid.append(b)
+            else:
                 result.warnings.append(
                     f"bind {subj_type}:{subj_ref} -> unminted {b.object.ref}; skipped"
                 )
@@ -213,21 +277,30 @@ def _resolve_binds(
         roots = {root_of.get(b.object.ref, b.object.ref) for b in valid}
         if len(roots) > 1:
             # Bound above-gate to >1 distinct identity: leave UNBOUND + flag (D46).
-            result.conflicts.append((subj_type, subj_ref, sorted(roots)))
+            result.conflicts.append(Conflict(subj_type, subj_ref, sorted(roots)))
             continue
         # Deterministic pick among equivalent binds: highest score, tie lowest id.
         winner = min(valid, key=lambda b: (-_score(b.confidence), b.id))
-        writes.append((table, column, winner.object.ref, subj_ref))
+        writes.append(BindWrite(table, column, winner.object.ref, int(subj_ref)))
         bound[subj_type] += 1
     result.bound = dict(bound)
     return writes
 
 
-def _pick_labels(by_pred: dict[str, list[Assertion]]) -> dict[tuple[str, str, str], Assertion]:
-    """Highest-confidence canonical-label per (node, stratum); tie -> lowest id."""
+def _pick_labels(
+    by_pred: dict[str, list[Assertion]], minted: dict[str, set[str]], result: ProjectionResult
+) -> dict[tuple[str, str, str], Assertion]:
+    """Highest-confidence canonical-label per (node, stratum); tie -> lowest id.
+    A label for an unminted node is skipped with a warning (it has no hub to sit
+    on, and ``canonical_label`` carries no FK to enforce it)."""
     pick: dict[tuple[str, str, str], Assertion] = {}
     for a in by_pred.get("canonical-label", ()):
         if a.polarity != "affirm":
+            continue
+        if a.subject.ref not in minted.get(a.subject.type, set()):
+            result.warnings.append(
+                f"canonical-label for unminted {a.subject.type}:{a.subject.ref}; skipped"
+            )
             continue
         key = (a.subject.type, a.subject.ref, a.qualifiers.get("stratum", ""))
         cur = pick.get(key)
@@ -240,52 +313,55 @@ def _pick_labels(by_pred: dict[str, list[Assertion]]) -> dict[tuple[str, str, st
     return pick
 
 
-def _node_type_of(node_id: str, minted: dict[str, set[str]]) -> str | None:
-    for node_type, ids in minted.items():
-        if node_id in ids:
-            return node_type
-    return None
-
-
 def _write_projection(
     db: LexiconDB,
     minted: dict[str, set[str]],
     root_of: dict[str, str],
-    bind_writes: list[tuple[str, str, str, str]],
+    bind_writes: list[BindWrite],
     label_pick: dict[tuple[str, str, str], Assertion],
 ) -> None:
-    """Clear + rebuild the canonical graph from the resolved projection."""
-    clear_canonical_graph(db)
-    for node_type, ids in minted.items():
-        for nid in sorted(ids):
+    """Clear + rebuild the canonical graph in one transaction (rolled back on any
+    error, so a failure never leaves a half-projected graph)."""
+    node_type = _node_types(minted)
+    try:
+        clear_canonical_graph(db)
+        for nt, ids in minted.items():
+            for nid in sorted(ids):
+                db.conn.execute(
+                    f"INSERT INTO {nt} (id, merged_into) VALUES (?, NULL)",  # noqa: S608 — fixed tuple
+                    (nid,),
+                )
+        for node, root in root_of.items():
+            nt = node_type.get(node)
+            if nt:
+                db.conn.execute(
+                    f"UPDATE {nt} SET merged_into = ? WHERE id = ?",  # noqa: S608 — fixed tuple
+                    (root, node),
+                )
+        for w in bind_writes:
             db.conn.execute(
-                f"INSERT INTO {node_type} (id, merged_into) VALUES (?, NULL)",  # noqa: S608 — fixed tuple
-                (nid,),
+                f"UPDATE {w.table} SET {w.column} = ? WHERE id = ?",  # noqa: S608 — from a fixed map
+                (w.node_id, w.obs_id),
             )
-    for node, root in root_of.items():
-        node_type = _node_type_of(node, minted)
-        if node_type:
+        for (canonical_type, canonical_id, stratum), a in label_pick.items():
             db.conn.execute(
-                f"UPDATE {node_type} SET merged_into = ? WHERE id = ?",  # noqa: S608 — fixed tuple
-                (root, node),
+                "INSERT INTO canonical_label "
+                "(canonical_type, canonical_id, stratum, value, source_assertion) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (canonical_type, canonical_id, stratum, a.qualifiers.get("value", ""), a.id),
             )
-    for table, column, node_id, obs_ref in bind_writes:
-        db.conn.execute(
-            f"UPDATE {table} SET {column} = ? WHERE id = ?",  # noqa: S608 — table/column from a fixed map
-            (node_id, int(obs_ref)),
-        )
-    for (canonical_type, canonical_id, stratum), a in label_pick.items():
-        db.conn.execute(
-            "INSERT INTO canonical_label "
-            "(canonical_type, canonical_id, stratum, value, source_assertion) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (canonical_type, canonical_id, stratum, a.qualifiers.get("value", ""), a.id),
-        )
-    db.commit()
+        db.commit()
+    except Exception:
+        db.conn.rollback()
+        raise
 
 
 def project_canonical(
-    db: LexiconDB, *, mining_dir, apply: bool = False, confidence_gate: str | float = "high"
+    db: LexiconDB,
+    *,
+    mining_dir: Path,
+    apply: bool = False,
+    confidence_gate: str | float = "high",
 ) -> ProjectionResult:
     """Project the L2 canonicalization assertions into the L3 collapse graph.
 
@@ -293,7 +369,7 @@ def project_canonical(
     clears the existing canonical graph then rebuilds it from the live assertion
     set, so the result is a deterministic, idempotent function of the L2 streams.
     """
-    gate = _score(confidence_gate)
+    gate = _resolve_gate(confidence_gate)
     assertions = sorted(effective_assertions(list(load_assertions(mining_dir))), key=lambda a: a.id)
     by_pred: dict[str, list[Assertion]] = defaultdict(list)
     for a in assertions:
@@ -307,7 +383,7 @@ def project_canonical(
     )
     result.merged = len(root_of)
     bind_writes = _resolve_binds(by_pred.get("bind", []), minted, root_of, gate, result)
-    label_pick = _pick_labels(by_pred)
+    label_pick = _pick_labels(by_pred, minted, result)
     result.labels = len(label_pick)
 
     if apply:

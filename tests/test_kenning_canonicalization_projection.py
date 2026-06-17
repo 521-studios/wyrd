@@ -400,3 +400,177 @@ def test_run_full_enrichment_runs_projection(tmp_path):
     assert result["canonical"]["bound"] == {"etymon": 1}
     assert _morpheme_id(db, a) == "CM-halh"
     db.close()
+
+
+def test_confidence_gate_validation(tmp_path):
+    import pytest
+
+    db = _db(tmp_path)
+    with pytest.raises(ValueError, match="unknown confidence_gate"):
+        project_canonical(db, mining_dir=tmp_path, confidence_gate="hgih")
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        project_canonical(db, mining_dir=tmp_path, confidence_gate=1.5)
+    db.close()
+
+
+def test_non_integer_ref_skipped_not_fatal(tmp_path):
+    # A bind whose (supported-type) subject ref isn't an integer must be skipped
+    # with a warning BEFORE the destructive write — never abort the projection.
+    db = _db(tmp_path)
+    a = _etymon(db, "stan")
+    db.commit()
+    _author(
+        tmp_path,
+        _mint("CM-stan"),
+        _bind(a, "CM-stan"),  # valid
+        Assertion(
+            predicate="bind",
+            subject=NodeRef("etymon", "not-an-int"),
+            object=NodeRef("canonical_morpheme", "CM-stan"),
+            qualifiers={"kind": "same-morpheme"},
+            confidence="high",
+        ),
+    )
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)  # must not raise
+    assert _morpheme_id(db, a) == "CM-stan"  # the valid bind still applied
+    assert any("non-integer" in w for w in res.warnings)
+    db.close()
+
+
+def test_float_confidence_gating(tmp_path):
+    db = _db(tmp_path)
+    a = _etymon(db, "wella")
+    db.commit()
+    _author(
+        tmp_path,
+        _mint("CM-wella"),
+        _bind(a, "CM-wella", confidence=0.7),
+    )
+    project_canonical(db, mining_dir=tmp_path, apply=True, confidence_gate=0.9)
+    assert _morpheme_id(db, a) is None  # 0.7 < 0.9 gate
+    project_canonical(db, mining_dir=tmp_path, apply=True, confidence_gate=0.6)
+    assert _morpheme_id(db, a) == "CM-wella"  # 0.7 >= 0.6 gate
+    db.close()
+
+
+def test_merge_to_unminted_node_skipped(tmp_path):
+    db = _db(tmp_path)
+    _author(
+        tmp_path,
+        _mint("CM-1"),
+        Assertion(
+            predicate="merge-canonical",
+            subject=NodeRef("canonical_morpheme", "CM-1"),
+            object=NodeRef("canonical_morpheme", "CM-never"),
+        ),
+    )
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert res.merged == 0
+    assert any("unminted" in w for w in res.warnings)
+    db.close()
+
+
+def test_cross_type_merge_skipped(tmp_path):
+    db = _db(tmp_path)
+    _author(
+        tmp_path,
+        _mint("CM-1", "canonical_morpheme"),
+        _mint("CP-1", "canonical_place"),
+        Assertion(
+            predicate="merge-canonical",
+            subject=NodeRef("canonical_morpheme", "CM-1"),
+            object=NodeRef("canonical_place", "CP-1"),
+        ),
+    )
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert res.merged == 0
+    assert any("crosses node types" in w for w in res.warnings)
+    db.close()
+
+
+def test_orphan_label_skipped(tmp_path):
+    db = _db(tmp_path)
+    _author(
+        tmp_path,
+        Assertion(
+            predicate="canonical-label",
+            subject=NodeRef("canonical_place", "CP-never-minted"),
+            qualifiers={"stratum": "modern", "value": "Nowhere"},
+        ),
+    )
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert res.labels == 0
+    assert db.conn.execute("SELECT COUNT(*) n FROM canonical_label").fetchone()["n"] == 0
+    assert any("unminted" in w for w in res.warnings)
+    db.close()
+
+
+def test_retract_of_winning_label_reverts_to_runner_up(tmp_path):
+    db = _db(tmp_path)
+    [_, label_hi, _] = _author(
+        tmp_path,
+        _mint("CP-x", "canonical_place"),
+        Assertion(
+            predicate="canonical-label",
+            subject=NodeRef("canonical_place", "CP-x"),
+            qualifiers={"stratum": "modern", "value": "Hightown"},
+            confidence="high",
+        ),
+        Assertion(
+            predicate="canonical-label",
+            subject=NodeRef("canonical_place", "CP-x"),
+            qualifiers={"stratum": "modern", "value": "Midtown"},
+            confidence="medium",
+        ),
+    )
+    _author(
+        tmp_path,
+        Assertion(
+            predicate="canonical-label",
+            subject=NodeRef("canonical_place", "CP-x"),
+            qualifiers={"stratum": "modern", "value": "Hightown"},
+            confidence="high",
+            polarity="retract",
+            retracts=label_hi.id,
+        ),
+    )
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    row = db.conn.execute(
+        "SELECT value FROM canonical_label WHERE canonical_id='CP-x' AND stratum='modern'"
+    ).fetchone()
+    assert row["value"] == "Midtown"  # the high label retracted -> medium runner-up wins
+    db.close()
+
+
+def test_merge_order_invariance_multi_component(tmp_path):
+    # Two independent merge components, authored in opposite orders, must yield
+    # the same merged_into graph (union-find is order-invariant; D36.9).
+    def run(order):
+        d = tmp_path / order
+        d.mkdir()
+        db = _db(d)
+        merges = [
+            ("CM-c", "CM-b"),
+            ("CM-b", "CM-a"),
+            ("CM-y", "CM-x"),
+        ]
+        if order == "rev":
+            merges = list(reversed(merges))
+        asserts = [_mint(n) for n in ("CM-a", "CM-b", "CM-c", "CM-x", "CM-y")]
+        asserts += [
+            Assertion(
+                predicate="merge-canonical",
+                subject=NodeRef("canonical_morpheme", s),
+                object=NodeRef("canonical_morpheme", o),
+            )
+            for s, o in merges
+        ]
+        _author(d, *asserts)
+        project_canonical(db, mining_dir=d, apply=True)
+        snap = sorted(
+            tuple(r) for r in db.conn.execute("SELECT id, merged_into FROM canonical_morpheme")
+        )
+        db.close()
+        return snap
+
+    assert run("fwd") == run("rev")
