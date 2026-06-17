@@ -115,13 +115,16 @@ class Conflict(NamedTuple):
 
 
 class _EtymonInfo(NamedTuple):
-    """The per-etymon facts the legacy fold needs: surface for the node key, and
-    whether the row is an OCR variant (merged_into_id set) — which picks the bind
-    kind (same-morpheme vs inflection-of)."""
+    """The per-etymon facts the legacy fold needs: surface for the node key, plus
+    the two flags that pick the bind kind. ``is_ocr_variant`` (merged_into_id set)
+    and ``is_inflection`` (lemma_id points at ANOTHER etymon) — a member that is
+    neither (e.g. joined via a curated reflex-link inheritance edge, a cross-era
+    SAME morpheme per wyrd-rogd.9) is same-morpheme, not an inflection."""
 
     language: str
     canonical_form: str
     is_ocr_variant: bool
+    is_inflection: bool
 
 
 class FidelitySample(NamedTuple):
@@ -427,14 +430,20 @@ def _legacy_identity_assertions(db: LexiconDB, result: ProjectionResult) -> list
         return []
     needed = set(multi) | {m for members in multi.values() for m in members}
     info: dict[int, _EtymonInfo] = {}
-    for r in db.conn.execute("SELECT id, language, canonical_form, merged_into_id FROM etymon"):
+    for r in db.conn.execute(
+        "SELECT id, language, canonical_form, merged_into_id, lemma_id FROM etymon"
+    ):
         if r["id"] in needed:
             info[r["id"]] = _EtymonInfo(
-                r["language"] or "", r["canonical_form"] or "", r["merged_into_id"] is not None
+                r["language"] or "",
+                r["canonical_form"] or "",
+                r["merged_into_id"] is not None,
+                r["lemma_id"] is not None and r["lemma_id"] != r["id"],
             )
 
     out: list[Assertion] = []
-    for root, members in multi.items():
+    for root in sorted(multi):  # sorted -> deterministic warning order (D24 diagnostics)
+        members = multi[root]
         ri = info.get(root)
         if ri is None or not ri.canonical_form:
             # No stable surface to content-key the node on (canonical_form is
@@ -458,12 +467,13 @@ def _legacy_identity_assertions(db: LexiconDB, result: ProjectionResult) -> list
             ).with_id()
         )
         for m in members:
-            # An OCR variant (merged_into_id set), or the root itself, is the SAME
-            # morpheme; a member in the family only via lemma_id is an inflection-of.
+            # inflection-of ONLY for a genuine inflection (lemma_id -> another
+            # etymon, and not also an OCR variant). The root, OCR variants, and
+            # reflex-link members (cross-era SAME morpheme, wyrd-rogd.9) are all
+            # same-morpheme.
+            mi = info.get(m, _EtymonInfo("", "", False, False))
             kind = (
-                "same-morpheme"
-                if (m == root or info.get(m, _EtymonInfo("", "", False)).is_ocr_variant)
-                else "inflection-of"
+                "inflection-of" if (mi.is_inflection and not mi.is_ocr_variant) else "same-morpheme"
             )
             out.append(
                 Assertion(
@@ -505,7 +515,8 @@ def assess_identity_fidelity(db: LexiconDB) -> FidelityReport:
 
     faithful = 0
     samples: list[FidelitySample] = []
-    for root, members in legacy_families.items():
+    for root in sorted(legacy_families):  # sorted -> deterministic sampled violations
+        members = legacy_families[root]
         roots = {canon.get(m) for m in members}
         if len(roots) == 1 and None not in roots:
             faithful += 1  # all members on one canonical group => faithful

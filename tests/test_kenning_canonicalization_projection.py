@@ -800,3 +800,52 @@ def test_fold_root_without_canonical_form_warns(tmp_path):
     db.close()
     assert out == []  # family dropped
     assert any("no canonical_form" in w for w in res.warnings)  # but observably
+
+
+def _reflex_link(db, parent, child):
+    # A curated reflex-link inheritance edge (COLLAPSE_VARIANT_SOURCE_ID) — the
+    # third family mechanism _build_family_rollup follows (cross-era same morpheme).
+    db.conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('collapse', 'collapse')")
+    db.conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id, confidence) "
+        "VALUES (?, ?, 'inheritance', 'collapse', 'high')",
+        (parent, child),
+    )
+
+
+def test_reflex_link_member_is_same_morpheme(tmp_path):
+    # A member pulled into the family only via a reflex-link edge (no merged_into,
+    # no lemma_id) is a cross-era SAME morpheme — bind kind must be same-morpheme,
+    # not inflection-of.
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        _legacy_identity_assertions,
+    )
+
+    db = _db(tmp_path)
+    root = _etymon(db, "burh")
+    reflex = _etymon(db, "borough", language="modern-english")
+    _reflex_link(db, root, reflex)
+    db.commit()
+    res = ProjectionResult()
+    kinds = {
+        a.subject.ref: a.qualifiers["kind"]
+        for a in _legacy_identity_assertions(db, res)
+        if a.predicate == "bind"
+    }
+    db.close()
+    assert kinds[str(reflex)] == "same-morpheme"  # reflex, not inflection
+    assert kinds[str(root)] == "same-morpheme"
+
+
+def test_skip_warning_surfaces_through_project_canonical(tmp_path):
+    # The empty-canonical_form warning must reach project_canonical's
+    # ProjectionResult.warnings (the seam the CLI echoes), not just the helper.
+    db = _db(tmp_path)
+    root = _etymon(db, "z")
+    ocr = _etymon(db, "z2")
+    _set_merged(db, ocr, root)
+    db.conn.execute("UPDATE etymon SET canonical_form = '' WHERE id = ?", (root,))
+    db.commit()
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    db.close()
+    assert any("no canonical_form" in w for w in res.warnings)
