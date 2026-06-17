@@ -54,14 +54,14 @@ Kenning has two strict layers, and they're easy to confuse.
 │                    │                     │
 └────────────────────┼─────────────────────┘
                      │
-              export-meanings
+             export-runtime-db
                      │
                      ▼
 ┌──────────────────────────────────────────┐
 │             RUNTIME LAYER                │
 │       (what users hit; Lambda)           │
 │                                          │
-│      data/meanings.json (bundled)        │
+│   L4 SQLite runtime DB (bundled, D38)    │
 │      + per-culture proportions JSONs     │
 │      + Generator subclass                │
 │                                          │
@@ -77,15 +77,18 @@ disagreement, normalizing OCR. The SQLite DB at `~/.wyrd/lexicon.db`
 prints the resolved location. Never committed; regenerable from
 sources + mining.
 
-**Runtime layer** is what users hit. The Lambda generator imports a
-bundled `meanings.json` (and per-culture proportions) via
-`importlib.resources`, never touches a database, and runs in
-milliseconds. Adding a generator should require zero schema changes; the
-schema lives in the authoring layer only.
+**Runtime layer** is what users hit. The Lambda generator reads a bundled
+**L4 SQLite DB** (the runtime bundle, D38; plus per-culture proportions)
+via `importlib.resources`, never touches the authoring database, and runs
+in milliseconds. Adding a generator should require zero schema changes;
+the authoring schema lives in the authoring layer only.
 
-The two are connected by `wyrd kenning lexicon export-meanings`, which
-regenerates `meanings.json` from the lexicon. You run it only when you
-want a new bundle to ship to production.
+The two are connected by `wyrd kenning lexicon export-runtime-db`, which
+regenerates the L4 SQLite bundle from the lexicon (the `export_meanings`
+pipeline builds the `subjects` payload, which `write_runtime_db` serializes
+into SQLite — the old `data/meanings.json` file was retired in the d90t
+cutover, PR #357). You run it only when you want a new bundle to ship to
+production.
 
 This split means: **the authoring DB can be aggressively re-shaped
 without touching production.** Most of the schema gymnastics in this
@@ -95,8 +98,9 @@ sees nothing of them until export.
 
 ## Why we're mining
 
-The base data is `data/meanings.json` inherited from the Rando port (a
-Wikipedia-derived seed). It gives broad lemma coverage — about 1600
+The base data was inherited from the Rando port (a Wikipedia-derived seed,
+originally a `meanings.json` file; that file was retired in PR #357 and the
+data now lives in the lexicon). It gives broad lemma coverage — about 1600
 morphemes — but unverified per entry. There's no record of which scholar
 proposed which etymology, no count of independent witnesses, no
 distinction between high-confidence forms and "maybe-from-Old-English-X."
@@ -359,7 +363,7 @@ via Gemini Flash 2.5 as Tier-1 (501 acc, 714 etymons, independent 3rd-
 model witness layer). Net: +644 acc rows / +960 etymons touched / +3
 new lemmas crossing the D4 ≥3-witness promotion threshold.
 
-The bundled `meanings.json` is now exported from the lexicon (D1
+The bundled L4 runtime DB is now exported from the lexicon (D1
 follow-through), so all the mining + per-reflex narrowing + per-language
 thresholds work reaches the runtime. Current bundle (post-2026-05-04
 re-emit, PR #58): **1697 subjects**, **3807 words**, with **298 morphemes
@@ -593,8 +597,8 @@ integration), ecjp.13 (this docs pass).
   smoke-test the parser, pick a tier, run mining, run the post-mining
   chain, verify, ship. You only need it when actually mining.
 - **`README.md`** (in this directory) — short generator-side overview
-  for the runtime perspective: how the Lambda generator works, what
-  `meanings.json` contains, how proportions are computed. Lighter than
+  for the runtime perspective: how the Lambda generator works, what the
+  L4 runtime bundle contains, how proportions are computed. Lighter than
   this doc and oriented at the runtime layer rather than authoring.
 - **`COVERAGE.md`** — rolling log of place-name decomposition rate
   per culture. Append a snapshot after every bundle re-emit so the

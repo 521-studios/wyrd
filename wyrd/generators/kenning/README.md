@@ -3,8 +3,10 @@
 This generator started as a port of Rando's morpheme-statistics name maker
 and has grown into a small etymology pipeline: scrape scholarly place-name
 dictionaries, normalize them, store them, and use the result to drive
-generation. The runtime hasn't changed shape — it still reads
-`data/meanings.json` — but the authoring pipeline behind it is now richer.
+generation. The runtime reads a bundled **L4 SQLite DB** (the `export-runtime-db`
+output, D38; the old `data/meanings.json` file was retired in PR #357, though the
+in-memory bundle *shape* it described is unchanged) — but the authoring pipeline
+behind it is now richer.
 
 ## Data model
 
@@ -103,10 +105,13 @@ Key invariants:
 | `cli/` | All `wyrd kenning lexicon …` commands (split into per-subcommand modules via wyrd-g143). |
 
 Generator runtime (`__init__.py`, `runtime/name.py`, `runtime/word.py`, `runtime/meaning.py`,
-`runtime/proportions.py`) reads the bundled `meanings.json`, which is now exported
-from the lexicon DB by `wyrd kenning lexicon export-meanings` (closes
-the D1 loop). The runtime keeps the historical "load JSON, sample" shape
-— the lexicon DB is invisible to the runtime. (`runtime/proportions.py` is a
+`runtime/proportions.py`) reads the bundled **L4 SQLite runtime DB**, exported
+from the lexicon DB by `wyrd kenning lexicon export-runtime-db` (closes
+the D1 loop; the `export_meanings` pipeline builds the bundle payload, which
+`write_runtime_db` serializes into SQLite — the old `meanings.json` file was
+retired in PR #357). A `runtime_db_adapter` loads it into the same in-memory
+bundle shape, so the runtime keeps the historical "load bundle, sample" shape
+— the authoring lexicon DB is invisible to the runtime. (`runtime/proportions.py` is a
 historically-named module: it now houses the **vector** `NameGenerator`. The
 "proportions" data it loads — slot structures + tag co-occurrence — is the
 vector scorer's empirical input, not a separate scoring mode; vector is the
@@ -140,7 +145,7 @@ seed-stable behavior preserved bit-for-bit.
 | `--priors-path` | D36.3 / ecjp.5 PR A | Filesystem path to a JSON empirical-priors sidecar (emitted by `wyrd kenning lexicon dump-empirical-priors`). The sidecar carries per-(culture × position × tag × era) + per-(donor × recipient × position × tag × era) empirical frequency tables; the vector path's baseline axis reads from this. |
 | `--baseline-weight` / `--phonological-weight` / `--semantic-weight` / `--position-weight` | D36.2 / ecjp.9 | Per-axis weight scalars on the canonical vector composition (`score = phon_w·phon + sem_w·sem + pos_w·pos + base_w·baseline`). Each defaults to 1.0 (balanced). 0 disables the axis; >1 over-weights it relative to others. |
 
-## Bundle schema (meanings.json)
+## Bundle schema (the in-memory shape, historically `meanings.json`)
 
 The runtime reads a JSON file whose top-level shape is a list of subjects:
 
@@ -169,7 +174,8 @@ routes them into `Meaning.variants` / `Meaning.inflections` attributes.
 ## CLI cheatsheet
 
 ```bash
-# Build the authoring DB from meanings.json, attributed to 'rando-port'.
+# (Legacy) seed the authoring DB from the old meanings.json — superseded by
+# `rebuild-from-jsonl` (the L2-replay rebuild); kept only for historical context.
 wyrd kenning lexicon build
 
 # Mine a public-domain etymology book via local Ollama (default).
@@ -181,8 +187,8 @@ wyrd kenning lexicon mine-llm sources/mawer_1920_northumberland_durham.txt --pro
 # Cluster OCR-variant etymons (Hædan / Hcsdan / Haedan → one row).
 wyrd kenning lexicon normalize-ocr --apply
 
-# Export the lexicon as a runtime-shaped meanings.json (D1 / D26).
-wyrd kenning lexicon export-meanings --output wyrd/generators/kenning/data/meanings.json
+# Export the lexicon as the L4 SQLite runtime bundle shipped to the SPA (D1 / D26 / D38).
+wyrd kenning lexicon export-runtime-db --output <runtime-db-path>
 
 # Read-only summary of what's in the lexicon.
 wyrd kenning lexicon report

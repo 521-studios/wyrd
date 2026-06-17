@@ -1,9 +1,10 @@
 """The kenning ``runtime/`` subpackage — request-time generation surface.
 
 Owns the bundle-side files the kenning Generator subclasses consume
-at request time (Lambda + SPA generation path). NO lexicon DB access
-— every module here reads only the deploy bundle (meanings.json +
-sidecars) and stdlib primitives.
+at request time (Lambda + SPA generation path). NO authoring-lexicon DB
+access — every module here reads only the deploy bundle (the L4 SQLite
+runtime DB, loaded into the in-memory bundle shape by
+``runtime_db_adapter``; plus sidecars) and stdlib primitives.
 
 This is the explicit complement to ``lexicon/`` (authoring side) and
 ``bundle/`` (developer-facing reports). The runtime/ vs bundle/ vs
@@ -14,8 +15,10 @@ lexicon/ split:
 * ``bundle/`` — developer-facing reports; READS the lexicon DB to
   surface coverage / readiness / browse info.
 * ``runtime/`` — request-time generation; reads ONLY the deploy
-  bundle (meanings.json), no DB access. The Lambda has no DB
-  connection — only this subpackage runs there.
+  bundle (the L4 SQLite runtime DB + sidecars), no authoring-DB access.
+  The Lambda reads that bundled read-only SQLite file (shipped via
+  importlib.resources), never the authoring lexicon — only this
+  subpackage runs there.
 
 Modules:
 
