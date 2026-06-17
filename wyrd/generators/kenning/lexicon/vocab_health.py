@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from typing import Literal
 
 from wyrd.generators.kenning.lexicon.controlled_vocab import (
     CountryValidationError,
@@ -29,10 +30,16 @@ from wyrd.generators.kenning.lexicon.controlled_vocab import (
     canonicalize_country,
     canonicalize_language,
 )
-from wyrd.generators.kenning.lexicon.region_model import classify_region
+from wyrd.generators.kenning.lexicon.region_model import RegionStatus, classify_region
 
-# region-classification status -> severity bucket
-_REGION_SEVERITY = {
+# The closed set of severities. Declared once here; the CLI sort order + the
+# stale/dirty violation filter both reference these same four.
+Severity = Literal["ok", "stale", "dirty", "info"]
+
+# region-classification status -> severity. Total over RegionStatus; the lookup
+# below defaults to "dirty" so a future classify_region bucket surfaces as a
+# violation rather than crashing the canary.
+_REGION_SEVERITY: dict[RegionStatus, Severity] = {
     "node": "ok",
     "alias": "stale",
     "zone": "info",  # deferred cultural zone — expected (wyrd-hytz)
@@ -50,10 +57,10 @@ class VocabFinding:
     value: str | None
     count: int  # rows carrying this value
     status: str  # dimension-specific classification
-    severity: str  # ok | stale | dirty | info
+    severity: Severity
 
 
-def _classify_country(value: str | None) -> tuple[str, str]:
+def _classify_country(value: str | None) -> tuple[str, Severity]:
     if value is None:
         return "null", "info"
     try:
@@ -63,7 +70,7 @@ def _classify_country(value: str | None) -> tuple[str, str]:
     return ("ok", "ok") if canon == value else ("alias", "stale")
 
 
-def _classify_language(value: str | None) -> tuple[str, str]:
+def _classify_language(value: str | None) -> tuple[str, Severity]:
     if value is None or not value.strip():
         return "null", "info"
     try:
@@ -74,36 +81,35 @@ def _classify_language(value: str | None) -> tuple[str, str]:
 
 
 def scan_countries(conn: sqlite3.Connection) -> list[VocabFinding]:
-    rows = conn.execute(
-        "SELECT country AS v, COUNT(*) AS n FROM toponym GROUP BY country ORDER BY n DESC"
-    ).fetchall()
+    # tuple-unpack the SELECT columns positionally so the function doesn't depend
+    # on the caller's row_factory (Gemini).
     out = []
-    for r in rows:
-        status, severity = _classify_country(r["v"])
-        out.append(VocabFinding("country", r["v"], r["n"], status, severity))
+    for value, n in conn.execute(
+        "SELECT country, COUNT(*) FROM toponym GROUP BY country ORDER BY COUNT(*) DESC"
+    ):
+        status, severity = _classify_country(value)
+        out.append(VocabFinding("country", value, n, status, severity))
     return out
 
 
 def scan_regions(conn: sqlite3.Connection) -> list[VocabFinding]:
-    rows = conn.execute(
-        "SELECT region AS v, country AS c, COUNT(*) AS n "
-        "FROM toponym GROUP BY region, country ORDER BY n DESC"
-    ).fetchall()
     out = []
-    for r in rows:
-        status = classify_region(r["v"], country=r["c"])
-        out.append(VocabFinding("region", r["v"], r["n"], status, _REGION_SEVERITY[status]))
+    for value, country, n in conn.execute(
+        "SELECT region, country, COUNT(*) FROM toponym "
+        "GROUP BY region, country ORDER BY COUNT(*) DESC"
+    ):
+        status = classify_region(value, country=country)
+        out.append(VocabFinding("region", value, n, status, _REGION_SEVERITY.get(status, "dirty")))
     return out
 
 
 def scan_languages(conn: sqlite3.Connection) -> list[VocabFinding]:
-    rows = conn.execute(
-        "SELECT language AS v, COUNT(*) AS n FROM etymon GROUP BY language ORDER BY n DESC"
-    ).fetchall()
     out = []
-    for r in rows:
-        status, severity = _classify_language(r["v"])
-        out.append(VocabFinding("language", r["v"], r["n"], status, severity))
+    for value, n in conn.execute(
+        "SELECT language, COUNT(*) FROM etymon GROUP BY language ORDER BY COUNT(*) DESC"
+    ):
+        status, severity = _classify_language(value)
+        out.append(VocabFinding("language", value, n, status, severity))
     return out
 
 

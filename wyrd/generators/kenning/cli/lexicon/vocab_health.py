@@ -16,7 +16,7 @@ from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_l
 from wyrd.generators.kenning.lexicon.vocab_health import scan, violations
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
-_SEVERITY_ORDER = {"dirty": 0, "stale": 1, "info": 2, "ok": 3}
+_SEVERITY_ORDER = {"dirty": 0, "stale": 1, "info": 2, "ok": 3}  # display sort; unknown → last
 
 
 @click.command("vocab-health")
@@ -60,7 +60,7 @@ def _emit(findings, *, show_all: bool, top: int) -> None:
     for dimension, items in findings.items():
         shown = sorted(
             (f for f in items if show_all or f.severity in ("stale", "dirty")),
-            key=lambda f: (_SEVERITY_ORDER[f.severity], -f.count),
+            key=lambda f: (_SEVERITY_ORDER.get(f.severity, 99), -f.count),
         )
         bad = sum(f.count for f in items if f.severity in ("stale", "dirty"))
         distinct_bad = sum(1 for f in items if f.severity in ("stale", "dirty"))

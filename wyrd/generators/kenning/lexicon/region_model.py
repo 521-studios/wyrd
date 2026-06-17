@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from importlib import resources
 from types import MappingProxyType
+from typing import Literal
 
 import yaml
 
@@ -36,6 +37,11 @@ from wyrd.generators.kenning.lexicon.regions import country_for_region
 _DATA_PACKAGE = "wyrd.generators.kenning.data"
 _FILENAME = "regions_england.yaml"
 _REGION_LEVELS = ("county", "subdivision")
+
+# The closed set of buckets classify_region sorts a value into.
+RegionStatus = Literal[
+    "empty", "non-england", "node", "alias", "zone", "quarantine", "country-root", "unknown"
+]
 
 
 class RegionValidationError(ValueError):
@@ -190,7 +196,7 @@ def canonicalize_region(region: str | None, *, country: str | None = None) -> st
     raise RegionValidationError(region, reason)
 
 
-def classify_region(region: str | None, *, country: str | None = None) -> str:
+def classify_region(region: str | None, *, country: str | None = None) -> RegionStatus:
     """Read-only counterpart to :func:`canonicalize_region` — classify a region
     value against the England model WITHOUT raising, for health reports (wyrd-cgl4).
 
