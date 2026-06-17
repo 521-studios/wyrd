@@ -101,6 +101,15 @@ def test_section_negative_top_shows_none_not_tail(capsys):
     assert value_lines == []
 
 
+def test_section_regions_negative_top_shows_none(capsys):
+    # same max(0, top) guard as _section_languages — pin it for regions too
+    conn = _conn(toponyms=[("A", "England", "Kent"), ("B", "England", "Surrey")])
+    _section_regions(conn, top=-1)
+    out = capsys.readouterr().out
+    value_lines = [line for line in out.splitlines() if line.startswith("  ")]
+    assert value_lines == []
+
+
 def test_section_languages_caps_and_flags_noncanonical(capsys):
     conn = _conn(
         etymons=[("a", "old-english"), ("b", "klingon"), ("c", "dothraki"), ("d", "celtic")]
