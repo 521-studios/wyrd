@@ -21,8 +21,9 @@ trade-off without touching the SQL.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 
 from wyrd.generators.kenning.lexicon.bundle._emit import _orphan_reflex_subjects
 from wyrd.generators.kenning.lexicon.bundle._family import _bulk_attested_years, _gather_family
@@ -30,6 +31,11 @@ from wyrd.generators.kenning.lexicon.bundle._subject import (
     _group_families_into_subjects,
 )
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+
+# A canonical family key: a canonical-hub id (TEXT) for a bound etymon, or a
+# ``("legacy", <legacy root etymon id>)`` tag for an unbound one (a legacy
+# singleton). The tag keeps the hub-string and legacy-int namespaces disjoint.
+FamilyKey = str | tuple[Literal["legacy"], int]
 
 # Per-language witness thresholds calibrated against corpus availability and
 # spot-checked quality at w=2 (analysis 2026-05-02; OE relaxed to 2 in
@@ -221,7 +227,12 @@ def _collect_families(
     ``--no-include-wiktionary-empirical``, ``--no-include-wave2-enriched``,
     ``--no-include-toponym-breakdown``) without disturbing the others.
     """
-    members_by_root, root_of = _build_family_rollup(db)
+    # wyrd-b2mf: the export reads the AUTHORITATIVE canonical identity layer, not
+    # the legacy COALESCE(merged_into_id, lemma_id, id) columns — byte-equivalent
+    # today (the u6fn.4 fidelity gate), and reflects 1a's binds once applied. (The
+    # fold, the 1a miner, and the fidelity verifier keep using _build_family_rollup
+    # — the fold BUILDS canonical_morpheme_id from it, so it can't read it back.)
+    members_by_root, root_of = _build_canonical_rollup(db)
     root_ids = _select_promoted_root_ids(
         db,
         lang_thresholds=lang_thresholds,
@@ -341,6 +352,123 @@ def _build_family_rollup(
     return members_by_root, root_of
 
 
+def _build_canonical_rollup(
+    db: LexiconDB,
+) -> tuple[dict[int, list[int]], Callable[[int], int]]:
+    """The identity rollup read from the AUTHORITATIVE ``canonical_morpheme``
+    layer — the cutover target (wyrd-b2mf), the canonical analog of
+    ``_build_family_rollup``. Same contract: ``(members_by_root, root_of)`` with
+    an etymon-id representative.
+
+    Partition: an etymon's family is its ``canonical_morpheme_id`` rolled through
+    ``canonical_morpheme.merged_into``; an UNBOUND etymon (``canonical_morpheme_id``
+    NULL — a singleton, exactly like ``merged_into_id IS NULL`` legacy, since the
+    fold binds every multi-member family) is its own family. The REPRESENTATIVE is
+    reused from the legacy rollup (``_build_family_rollup``) so the subtle
+    lemma/inheritance-hop root logic isn't re-implemented: a family's root is the
+    smallest-``(language, canonical_form, id)`` among the legacy roots of its
+    members (one legacy root per family today → identical to legacy; once 1a's
+    binds merge families, the deterministic min picks the survivor).
+
+    Equivalent to ``_build_family_rollup`` TODAY (``canonical_morpheme_id``
+    reproduces the legacy rollup — the u6fn.4 fidelity gate, 0 violations); the
+    point of switching is that once 1a's dormant binds apply, this reflects the
+    new merges and the legacy rollup does not. When the canonical graph is
+    UNPOPULATED (the projection hasn't run) it falls back to the legacy rollup
+    with a warning — legacy is full clustering, so the fallback never
+    under-clusters; production always projects (rebuild --with-enrichment).
+    """
+    legacy_members, legacy_root_of = _build_family_rollup(db)
+
+    merged_into = dict(db.conn.execute("SELECT id, merged_into FROM canonical_morpheme").fetchall())
+
+    def _hub_root(node_id: str) -> str:
+        seen: set[str] = set()
+        while merged_into.get(node_id) and node_id not in seen:
+            seen.add(node_id)
+            node_id = merged_into[node_id]
+        return node_id
+
+    bound = db.conn.execute(
+        "SELECT id, canonical_morpheme_id FROM etymon WHERE canonical_morpheme_id IS NOT NULL"
+    ).fetchall()
+    if not bound:
+        # The canonical graph isn't populated (the projection hasn't run). Fall back
+        # to the legacy rollup — which is FULL clustering (byte-identical to canonical
+        # today), so this never under-clusters; it only fails to reflect any not-yet-
+        # applied 1a binds, of which an unprojected DB has none. Production always runs
+        # the projection (the rebuild --with-enrichment terminal pass), so the fallback
+        # is a dev/test convenience — surfaced via a warning (not silent), never a raise
+        # that would make the export unusable on any unprojected DB (wyrd-b2mf).
+        #
+        # KNOWN DEBT (wyrd-yopl): this soft contract — export correctness gated on an
+        # out-of-band projection step, enforced only by a warning — is gross but correct.
+        # Long-term: have the build guarantee/assert the projection ran so this branch
+        # is unreachable in real builds.
+        if any(len(m) > 1 for m in legacy_members.values()):
+            warnings.warn(
+                "canonical_morpheme_id is unpopulated — falling back to the legacy "
+                "merged_into_id/lemma_id rollup. Run `project-canonical --apply` (or "
+                "`rebuild-from-jsonl --with-enrichment`) to export off the authoritative "
+                "canonical layer (wyrd-b2mf).",
+                stacklevel=2,
+            )
+        return legacy_members, legacy_root_of
+    hub_of: dict[int, str] = {r["id"]: _hub_root(r["canonical_morpheme_id"]) for r in bound}
+
+    # Group by canonical family, tracking which LEGACY roots land in each. Iterate
+    # legacy_members (already keyed by legacy root from _build_family_rollup) so we
+    # never re-walk legacy_root_of per etymon. ``eid in hub_of`` (not truthiness):
+    # a bound etymon's hub id is non-empty, but membership is the precise test.
+    members_by_family: dict[FamilyKey, list[int]] = {}
+    family_legacy_roots: dict[FamilyKey, set[int]] = {}
+    for legacy_root, members in legacy_members.items():
+        for eid in members:
+            # .get (membership, not truthiness): a bound etymon keeps its hub even
+            # if the hub id were empty — never silently falls through to legacy.
+            key: FamilyKey = hub_of.get(eid, ("legacy", legacy_root))
+            members_by_family.setdefault(key, []).append(eid)
+            family_legacy_roots.setdefault(key, set()).add(legacy_root)
+
+    # Representative per family: the smallest-content-key legacy root (deterministic
+    # survivor when 1a binds merge several legacy families onto one hub).
+    all_roots = {r for roots in family_legacy_roots.values() for r in roots}
+    form_key = _content_keys(db, all_roots)
+
+    members_by_root: dict[int, list[int]] = {}
+    rep_of_etymon: dict[int, int] = {}
+    for key, roots in family_legacy_roots.items():
+        rep = min(roots, key=lambda r: (form_key.get(r, ("", "")), r))
+        members = members_by_family[key]
+        # .extend, not assign: if a legacy family were split across hubs (members
+        # bound to different canonical families), both halves share the same legacy
+        # root as rep — a plain assign would drop one half. Union under the rep
+        # instead (degrades a split to the legacy grouping; no member is ever lost).
+        members_by_root.setdefault(rep, []).extend(members)
+        for eid in members:
+            rep_of_etymon[eid] = rep
+
+    def root_of(eid: int) -> int:
+        return rep_of_etymon[eid]
+
+    return members_by_root, root_of
+
+
+def _content_keys(db: LexiconDB, ids: set[int]) -> dict[int, tuple[str, str]]:
+    """``(language, canonical_form)`` per etymon id, fetched in param-safe chunks."""
+    out: dict[int, tuple[str, str]] = {}
+    id_list = list(ids)
+    for i in range(0, len(id_list), 900):
+        chunk = id_list[i : i + 900]
+        qmarks = ",".join("?" * len(chunk))
+        for r in db.conn.execute(
+            f"SELECT id, language, canonical_form FROM etymon WHERE id IN ({qmarks})",  # noqa: S608 — ? placeholders
+            tuple(chunk),
+        ):
+            out[r["id"]] = (r["language"] or "", r["canonical_form"] or "")
+    return out
+
+
 def _select_promoted_root_ids(
     db: LexiconDB,
     *,
@@ -376,13 +504,18 @@ def _select_promoted_root_ids(
         f"SELECT lemma_id AS root_id FROM etymon_consensus WHERE {witness_sql}",
         witness_params,
     ):
-        # wyrd-rogd.9: the consensus view keys on lemma_id, which IS the root
-        # under the merged_into/lemma rollup — but NOT under the inheritance
-        # rollup. A consensus reflex that is its own lemma (e.g. ``bishop``)
-        # must promote its ANCESTOR's root (``biscop``), or it gets promoted
-        # standalone AND rolled into the ancestor's family → emitted twice.
-        # root_of is the identity for any non-reflex lemma, so this is a no-op
-        # until reflex-link edges exist.
+        # wyrd-b2mf: ``etymon_consensus`` stays the LEGACY lemma-rollup witness
+        # view (it emits an etymon-id root + per-family witness count; a canonical
+        # hub is a string, so the view can't emit one without breaking this
+        # ``root_of(int)`` consumer). It is NOT rewritten — instead the
+        # legacy-keyed root_id is rolled through the now-CANONICAL ``root_of`` here,
+        # so a family is promoted at its canonical root. A canonical family
+        # promotes iff any of its legacy sub-families meets the witness gate
+        # (post-1a; identical to legacy today — the byte-identical bundle proof).
+        #
+        # wyrd-rogd.9: root_of also folds an inheritance reflex (``bishop``) onto
+        # its ancestor's root (``biscop``), so the reflex isn't promoted standalone
+        # AND rolled into the ancestor's family → emitted twice.
         promoted.add(root_of(row["root_id"]))
     if include_rando:
         rando_root_ids: set[int] = set()
