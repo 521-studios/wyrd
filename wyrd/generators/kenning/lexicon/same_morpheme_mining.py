@@ -143,10 +143,16 @@ class BindGroup:
 
     canonical_parts: tuple[str, str]
     shipped_etymon: int
-    breakdown_etymons: tuple[int, ...]
     breakdown_confidences: dict[int, Confidence]
     confidence: Confidence
     rep_form: str
+
+    @property
+    def breakdown_etymons(self) -> tuple[int, ...]:
+        """The bound breakdown variants, sorted — derived from
+        ``breakdown_confidences`` (the single source of truth) so the two
+        can never disagree."""
+        return tuple(sorted(self.breakdown_confidences))
 
     @property
     def member_etymons(self) -> tuple[int, ...]:
@@ -213,7 +219,6 @@ def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:
                 # two distinct shipped morphemes onto one node.
                 canonical_parts=(y.language, y.canonical_form),
                 shipped_etymon=shipped_id,
-                breakdown_etymons=tuple(sorted(breakdown_confidences)),
                 breakdown_confidences=dict(breakdown_confidences),
                 confidence="high" if "high" in breakdown_confidences.values() else "medium",
                 rep_form=y.canonical_form,
