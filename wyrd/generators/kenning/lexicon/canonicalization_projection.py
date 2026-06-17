@@ -51,10 +51,21 @@ from typing import NamedTuple
 
 from wyrd.generators.kenning.canonicalization import (
     Assertion,
+    NodeRef,
     effective_assertions,
     load_assertions,
+    mint_canonical_id,
 )
+from wyrd.generators.kenning.lexicon.bundle._export import _build_family_rollup
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+
+# Legacy deterministic clustering (merged_into_id OCR variants + lemma_id
+# inflections) is folded into in-memory assertions stamped with this method, so
+# the canonical graph reproduces today's identity clustering WITHOUT a committed
+# snapshot (it re-derives free on rebuild from the columns the deterministic
+# passes already produce). cognate_id is NOT folded — it is relational (D50.2),
+# re-derived from etymon_descent by the rollup (the reader-cutover ticket).
+METHOD_LEGACY = "legacy-import"
 
 # Leave-separate confidence gate (D46 asymmetry): a missed merge is harmless
 # duplication, a wrong merge is corruption — so binds apply only at/above the gate.
@@ -364,21 +375,139 @@ def _write_projection(
         raise
 
 
+def _legacy_identity_assertions(db: LexiconDB) -> list[Assertion]:
+    """Fold today's deterministic IDENTITY clustering (merged_into_id OCR variants
+    + lemma_id inflections) into in-memory canonical assertions, so the projection
+    reproduces it with no committed snapshot — it re-derives free on rebuild from
+    the columns the deterministic passes already produce.
+
+    Reuses the same two-step rollup (``_build_family_rollup``) the 1a miner used, so
+    legacy node ids content-key on the family root's ``(language, canonical_form)``
+    and compose cleanly with authored binds (same node id => same hub, not a
+    conflict). Only multi-member families produce assertions; a singleton is its
+    own identity (``canonical_morpheme_id`` stays NULL, exactly like
+    ``merged_into_id IS NULL`` today). Deterministic: ids are content hashes.
+
+    cognate_id is NOT folded here — it is relational (D50.2: a cognate cluster is
+    the closure of descent edges, not one identity), re-derived from
+    ``etymon_descent`` by the rollup view in the reader-cutover ticket."""
+    members_by_root, _root_of = _build_family_rollup(db)
+    multi = {r: members for r, members in members_by_root.items() if len(members) > 1}
+    if not multi:
+        return []
+    needed = set(multi) | {m for members in multi.values() for m in members}
+    # id -> (language, canonical_form, is_ocr_variant). The OCR flag picks the
+    # bind kind: an OCR variant (merged_into_id set) is the SAME morpheme; a member
+    # in the family by lemma_id only is an inflection-of.
+    info: dict[int, tuple[str, str, bool]] = {}
+    for r in db.conn.execute("SELECT id, language, canonical_form, merged_into_id FROM etymon"):
+        if r["id"] in needed:
+            info[r["id"]] = (
+                r["language"] or "",
+                r["canonical_form"] or "",
+                r["merged_into_id"] is not None,
+            )
+
+    out: list[Assertion] = []
+    for root, members in multi.items():
+        lang, form, _ = info.get(root, ("", "", False))
+        if not form:
+            continue  # no stable surface to content-key the node on
+        node = NodeRef("canonical_morpheme", mint_canonical_id("canonical_morpheme", lang, form))
+        out.append(
+            Assertion(
+                predicate="mint-canonical",
+                subject=node,
+                confidence="high",
+                method=METHOD_LEGACY,
+                rationale=f"legacy identity rollup of '{form}' (merged_into_id/lemma_id)",
+            ).with_id()
+        )
+        for m in members:
+            kind = (
+                "same-morpheme"
+                if (m == root or info.get(m, ("", "", False))[2])
+                else "inflection-of"
+            )
+            out.append(
+                Assertion(
+                    predicate="bind",
+                    subject=NodeRef("etymon", str(m)),
+                    object=node,
+                    qualifiers={"kind": kind},
+                    confidence="high",
+                    method=METHOD_LEGACY,
+                    rationale=f"legacy {kind} import (rollup root '{form}')",
+                ).with_id()
+            )
+    return out
+
+
+def assess_identity_fidelity(db: LexiconDB) -> dict:
+    """Compare the projected ``canonical_morpheme_id`` partition against the legacy
+    ``COALESCE(merged_into_id, lemma_id, id)`` rollup. Each legacy multi-member
+    family must map to exactly one canonical group (rolled through ``merged_into``)
+    — the canonical partition may JOIN legacy families via logged merges, but must
+    never SPLIT one. Returns the gate counts + a sample of any violations."""
+    members_by_root, _root_of = _build_family_rollup(db)
+    legacy_families = {r: ms for r, ms in members_by_root.items() if len(ms) > 1}
+
+    merged_into = dict(db.conn.execute("SELECT id, merged_into FROM canonical_morpheme").fetchall())
+
+    def canonical_root(node_id: str | None) -> str | None:
+        seen: set[str] = set()
+        while node_id is not None and merged_into.get(node_id) and node_id not in seen:
+            seen.add(node_id)
+            node_id = merged_into[node_id]
+        return node_id
+
+    canon: dict[int, str | None] = {}
+    for r in db.conn.execute(
+        "SELECT id, canonical_morpheme_id FROM etymon WHERE canonical_morpheme_id IS NOT NULL"
+    ):
+        canon[r["id"]] = canonical_root(r["canonical_morpheme_id"])
+
+    faithful = 0
+    violations: list[tuple[int, list[int], list[str]]] = []
+    for root, members in legacy_families.items():
+        roots = {canon.get(m) for m in members}
+        if len(roots) == 1 and None not in roots:
+            faithful += 1
+        elif len(violations) < 10:
+            violations.append((root, sorted(members)[:5], sorted(str(x) for x in roots)[:5]))
+        elif None in roots or len(roots) > 1:
+            violations.append((-1, [], []))  # counted, not sampled
+    return {
+        "legacy_families": len(legacy_families),
+        "faithful": faithful,
+        "violations": len(legacy_families) - faithful,
+        "sample_violations": [v for v in violations if v[0] != -1],
+    }
+
+
 def project_canonical(
     db: LexiconDB,
     *,
     mining_dir: Path,
     apply: bool = False,
     confidence_gate: str | float = "high",
+    fold_legacy: bool = True,
 ) -> ProjectionResult:
     """Project the L2 canonicalization assertions into the L3 collapse graph.
 
     ``apply=False`` (default) reports what would change without writing. ``apply``
     clears the existing canonical graph then rebuilds it from the live assertion
     set, so the result is a deterministic, idempotent function of the L2 streams.
+
+    ``fold_legacy`` (default True) additionally folds today's deterministic
+    identity clustering (``merged_into_id``/``lemma_id``) into in-memory assertions
+    so the canonical graph reproduces it — see ``_legacy_identity_assertions``.
     """
     gate = _resolve_gate(confidence_gate)
-    assertions = sorted(effective_assertions(list(load_assertions(mining_dir))), key=lambda a: a.id)
+    assertions = list(effective_assertions(list(load_assertions(mining_dir))))
+    if fold_legacy:
+        assertions += _legacy_identity_assertions(db)
+    assertions.sort(key=lambda a: a.id)
     by_pred: dict[str, list[Assertion]] = defaultdict(list)
     for a in assertions:
         by_pred[a.predicate].append(a)

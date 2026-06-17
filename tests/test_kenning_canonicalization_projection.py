@@ -587,3 +587,118 @@ def test_merge_order_invariance_multi_component(tmp_path):
         return snap
 
     assert run("fwd") == run("rev")
+
+
+# --- wyrd-u6fn.4: folding the deterministic legacy identity clustering ---
+
+
+def _set_merged(db, loser, winner):
+    db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (winner, loser))
+
+
+def _set_lemma(db, inflection, lemma):
+    db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (lemma, inflection))
+
+
+def test_fold_legacy_identity_family(tmp_path):
+    # An OCR variant (merged_into_id) and an inflection (lemma_id) of a root must
+    # all land on one canonical_morpheme hub — reproducing today's clustering with
+    # no committed assertions on disk (fold_legacy default True).
+    db = _db(tmp_path)
+    root = _etymon(db, "tun")
+    ocr = _etymon(db, "tvn")
+    _set_merged(db, ocr, root)
+    infl = _etymon(db, "tuns")
+    _set_lemma(db, infl, root)
+    db.commit()
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    cm = _morpheme_id(db, root)
+    assert cm is not None
+    assert _morpheme_id(db, ocr) == cm  # OCR variant shares the hub
+    assert _morpheme_id(db, infl) == cm  # inflection shares the hub
+    assert res.bound == {"etymon": 3}
+    db.close()
+
+
+def test_fold_singleton_left_unbound(tmp_path):
+    db = _db(tmp_path)
+    a = _etymon(db, "ford")  # no merge / lemma -> its own identity
+    db.commit()
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert _morpheme_id(db, a) is None  # NULL, exactly like merged_into_id IS NULL today
+    db.close()
+
+
+def test_legacy_bind_kinds(tmp_path):
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        _legacy_identity_assertions,
+    )
+
+    db = _db(tmp_path)
+    root = _etymon(db, "burh")
+    ocr = _etymon(db, "buruh")
+    _set_merged(db, ocr, root)
+    infl = _etymon(db, "burhs")
+    _set_lemma(db, infl, root)
+    db.commit()
+    kinds = {
+        a.subject.ref: a.qualifiers["kind"]
+        for a in _legacy_identity_assertions(db)
+        if a.predicate == "bind"
+    }
+    db.close()
+    assert kinds[str(root)] == "same-morpheme"
+    assert kinds[str(ocr)] == "same-morpheme"  # OCR variant = same morpheme
+    assert kinds[str(infl)] == "inflection-of"  # inflection of the lemma
+
+
+def test_identity_fidelity_gate(tmp_path):
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        assess_identity_fidelity,
+    )
+
+    db = _db(tmp_path)
+    r1, v1 = _etymon(db, "tun"), _etymon(db, "tvn")
+    _set_merged(db, v1, r1)
+    r2, i2 = _etymon(db, "ham"), _etymon(db, "hams")
+    _set_lemma(db, i2, r2)
+    db.commit()
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    rep = assess_identity_fidelity(db)
+    db.close()
+    assert rep["legacy_families"] == 2
+    assert rep["faithful"] == 2
+    assert rep["violations"] == 0
+
+
+def test_fold_composes_with_authored_bind(tmp_path):
+    # An authored bind (1a-style) to the SAME content-keyed node id as the legacy
+    # fold composes onto one hub — not a conflict (same node id => same identity).
+    from wyrd.generators.kenning.canonicalization import mint_canonical_id
+
+    db = _db(tmp_path)
+    root = _etymon(db, "tun")
+    ocr = _etymon(db, "tvn")
+    _set_merged(db, ocr, root)
+    extra = _etymon(db, "Tun")  # singleton, but authored-bound below
+    db.commit()
+    node_id = mint_canonical_id("canonical_morpheme", "old-english", "tun")  # root's key
+    _author(tmp_path, _mint(node_id), _bind(extra, node_id))
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert _morpheme_id(db, root) == node_id
+    assert _morpheme_id(db, ocr) == node_id
+    assert _morpheme_id(db, extra) == node_id  # authored bind landed on the legacy hub
+    db.close()
+
+
+def test_fold_legacy_off_is_pure_assertion(tmp_path):
+    # fold_legacy=False ignores the columns — only authored assertions apply.
+    db = _db(tmp_path)
+    root = _etymon(db, "tun")
+    ocr = _etymon(db, "tvn")
+    _set_merged(db, ocr, root)
+    db.commit()
+    project_canonical(db, mining_dir=tmp_path, apply=True, fold_legacy=False)
+    assert _morpheme_id(db, root) is None  # not folded
+    assert _morpheme_id(db, ocr) is None
+    db.close()
