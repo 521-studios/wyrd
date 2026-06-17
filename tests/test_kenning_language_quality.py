@@ -2001,3 +2001,29 @@ def test_default_languages_within_canonical_or_transitional():
         "is no longer a non-canonical DEFAULT_LANGUAGES entry — remove it from the "
         "transitional set (it was either made canonical or dropped from the dashboard)."
     )
+
+
+def test_celtic_branches_wired_into_report_and_era() -> None:
+    """wyrd-xdam.3: the branch-level Celtic languages are wired into every report
+    + era structure additively (the fine-grained welsh/irish stay until xdam.4)."""
+    from wyrd.generators.kenning.era.cells import LANGUAGE_TO_FAMILY
+
+    for branch in ("brittonic", "goidelic"):
+        assert branch in DEFAULT_LANGUAGES
+        assert branch in ERA_CHAINS  # satisfies the DEFAULT⊆ERA_CHAINS tripwire
+        assert _BUNDLE_LANG_KEY[branch] == "celtic_mix"
+    # era family resolution (the deferred wyrd-xdam.1 wiring)
+    assert LANGUAGE_TO_FAMILY["brittonic"] == "brythonic"
+    assert LANGUAGE_TO_FAMILY["goidelic"] == "goidelic"
+    # additive: the fine-grained Celtic + umbrella are NOT removed (wiktextract L3
+    # data lives until xdam.4)
+    for kept in ("welsh", "irish", "celtic"):
+        assert kept in DEFAULT_LANGUAGES
+    # each branch's era-chain younger list holds only that branch's languages:
+    # every member present in LANGUAGE_TO_FAMILY must map to the branch's family
+    # (modern-welsh is era-chain-only, not in the family map → tolerated)
+    for branch, family in (("brittonic", "brythonic"), ("goidelic", "goidelic")):
+        for member in ERA_CHAINS[branch]["younger"]:
+            if member in LANGUAGE_TO_FAMILY:
+                assert LANGUAGE_TO_FAMILY[member] == family, (branch, member)
+    assert "goidelic" not in ERA_CHAINS["brittonic"]["younger"]  # no cross-branch leak

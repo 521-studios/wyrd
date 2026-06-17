@@ -125,6 +125,11 @@ LANGUAGE_TO_FAMILY: dict[str, str] = {
     # since most Celtic British place names are Brythonic-derived.
     "celtic": "brythonic",
     "celtic_mix": "brythonic",
+    # Celtic BRANCH-level languages (wyrd-xdam.3) — resolve to their own era
+    # family. brittonic→the brythonic cells (old/middle/modern → Welsh lineage,
+    # the dominant Brythonic in the corpus); goidelic→the goidelic cells.
+    "brittonic": "brythonic",
+    "goidelic": "goidelic",
     # Greek + Hebrew + general non-British classical languages don't
     # have era cells defined yet; let them resolve to None.
 }

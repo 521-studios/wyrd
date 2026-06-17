@@ -250,11 +250,14 @@ def test_all_families_returns_full_set_alphabetically_sorted() -> None:
         # Pseudo-language used in runtime bundle
         ("celtic", "brythonic"),
         ("celtic_mix", "brythonic"),
+        # Celtic branch-level languages (wyrd-xdam.3)
+        ("brittonic", "brythonic"),
+        ("goidelic", "goidelic"),
     ],
 )
 def test_language_family_covers_every_entry_in_map(language: str, expected_family: str) -> None:
     """Exercise every key in LANGUAGE_TO_FAMILY so a typo or accidental
-    drop surfaces here. Parametrised across all 31 mapped languages."""
+    drop surfaces here. Parametrised across all 33 mapped languages."""
     assert era.language_family(language) == expected_family
 
 

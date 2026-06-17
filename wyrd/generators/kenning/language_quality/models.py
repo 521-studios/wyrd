@@ -100,6 +100,26 @@ ERA_CHAINS: dict[str, dict[str, list[str]]] = {
         "older": [],
         "younger": ["welsh", "irish", "scottish-gaelic", "breton"],
     },
+    # Celtic BRANCH umbrellas (wyrd-xdam): branch-level languages whose younger
+    # forms are the fine-grained members of that branch. The L2 'celtic' etymons
+    # re-tagged in wyrd-xdam.2 carry these; they populate the report after a rebuild.
+    "brittonic": {
+        "older": [],
+        "younger": [
+            "welsh",
+            "old-welsh",
+            "middle-welsh",
+            "modern-welsh",
+            "cornish",
+            "breton",
+            "old-breton",
+            "middle-breton",
+        ],
+    },
+    "goidelic": {
+        "older": [],
+        "younger": ["irish", "old-irish", "middle-irish", "scottish-gaelic", "manx"],
+    },
 }
 
 
@@ -110,6 +130,12 @@ DEFAULT_LANGUAGES: tuple[str, ...] = (
     "modern-english",
     "middle-english",
     "old-english",
+    # Celtic branch-level (wyrd-xdam.3) — wired in now; their report DATA (etymon
+    # counts) populates after an L3 rebuild from the branch-tagged L2. The
+    # fine-grained welsh/irish/… below stay until the wiktextract reconciliation
+    # (wyrd-xdam.4).
+    "brittonic",
+    "goidelic",
     "modern-welsh",
     "welsh",
     "old-welsh",
@@ -357,6 +383,8 @@ _BUNDLE_LANG_KEY: dict[str, str | None] = {
     "early-modern-english": "modern_english",
     "modern-english": "modern_english",
     "scots": "modern_english",
+    "brittonic": "celtic_mix",
+    "goidelic": "celtic_mix",
     "old-welsh": "celtic_mix",
     "welsh": "celtic_mix",
     "modern-welsh": "celtic_mix",
@@ -388,6 +416,8 @@ _BUNDLE_LANG_KEY: dict[str, str | None] = {
 # (Welsh AND Irish AND Breton all see the same celtic_mix count).
 _SHARED_BUNDLE_SIBLINGS: dict[str, list[str]] = {
     "celtic_mix": [
+        "brittonic",
+        "goidelic",
         "welsh",
         "old-welsh",
         "modern-welsh",
