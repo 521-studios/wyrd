@@ -35,6 +35,7 @@ wyrd kenning lexicon report           # current corpus snapshot
 | Touch the matcher / decomposition / morpheme keys / bundle export | **`DECISIONS.md` D40 + D45** (non-negotiable — see below), then the specific D-entry you're changing |
 | Touch era / time-axis / rewind / era-map | `DECISIONS.md` D44 + D46 (+ D33 for the reflex machinery) |
 | Touch scoring / generation knobs / moods | `DECISIONS.md` D36 (vector architecture) + D37 (register catalog); `REGISTERS.md` only if you're tuning per-effect weights against the phonaesthetics literature |
+| Touch the cultural-zone axis (Danelaw / Celtic / Roman) | `DECISIONS.md` D52 (rule-based zone axis, distinct from the dedup region hierarchy) + D32 (stratum, the sibling axis) + D49 (two-purposes split). Data model: `data/zones.yaml` + `lexicon/zone_classify.py` (generator knob / runtime / SPA still deferred) |
 | Touch rendering / native-vs-modern surface | `DECISIONS.md` D41 + D39 |
 | Clean up / canonicalize the corpus, merge duplicates, normalize region/source dims | **`DECISIONS.md` D49** (the two-class partition) + **D50** (the Class-B assertion layer: synthetic nodes + edge taxonomy), then D22 (the proto-merge pattern) + D21 (evidence sacred) |
 | Do a full DB wipe + rebuild | `REBUILD.md` (read it BEFORE any `rebuild-from-jsonl --with-enrichment` — it lists the L3-only layers a wipe silently drops) |

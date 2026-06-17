@@ -3641,3 +3641,68 @@ them as such across admission, validation, and enrichment.
 Tickets: wyrd-7hbp (uplift epic), wyrd-oth3 (admission), wyrd-myv4
 (occurrence/junk filter), wyrd-h5u1 (`composed-of` passthrough mining), wyrd-65jh
 (implied reflexes).
+
+## D52. Cultural/linguistic-zone axis — rule-based, distinct from the dedup region hierarchy (2026-06-17).
+
+**The decision: model "cultural zones" (Danelaw / Celtic / Roman) as a separate,
+coarse, linguistically-defined generator axis — NOT a level of the dedup region
+hierarchy — and derive zone membership rule-based from existing signals rather
+than mining a classifier.** This is the home D49 promised for the
+`England (Danelaw)` region rows (a category error in the dedup field, migrated
+out by wyrd-3q6m.1/.4) and the backing for a future "Danelaw town names"
+generator surface. Filed/built as the wyrd-hytz design + data-model spike; the
+generator knob, runtime bundle, and SPA are deferred (below).
+
+### Why a separate axis (not a region level)
+
+Per D49's "two purposes" split: the region hierarchy serves **dedup** (tight,
+admin, place-disambiguating); zones serve **cultural color** (coarse,
+linguistic, cuts across shires). A place is at once "England → Yorkshire" (admin)
+*and* "in the Danelaw" (zone). Cramming both into `region` conflated two
+classification systems (the `England (Danelaw)` mess). Zones are their own axis,
+composing with `--culture` / `--stratum` (D32) / `--era` (D44) the way those
+already compose — never contaminating the dedup blocking key.
+
+### Two classifications
+
+- **morpheme → zone (by etymon `language`) — generation-relevant.** A zone's
+  flavor IS its characteristic morpheme mix. `old-norse/east-norse → danelaw`,
+  `celtic/brittonic/welsh/cornish/… → celtic`, `latin/medieval-latin → roman`;
+  everything else (Old/Middle/Modern English, `unknown`) is the un-zoned
+  `anglo-saxon` default.
+- **place → zone (by `region` / `country`) — secondary.** For analysis /
+  empirical priors; multi-membership allowed. Danelaw = the historic Danelaw
+  shires; Celtic = Wales/Cornwall/Ireland/Scotland. Roman place-membership
+  (scattered Roman sites) is name-pattern work (`ceaster`), deferred.
+
+### Rule-based, not an LLM/enrichment classifier (the spike's finding)
+
+The ticket gestured at a D32-stratum-style mined classifier. The spike measured
+the existing signals and found they map to zones cleanly enough that mining is
+unnecessary for a first axis:
+
+- morpheme→zone (by `language`): danelaw 2,061 / celtic 3,269 / roman 461
+  etymons, vs ~22,342 native old-english — a clean, deterministic partition.
+- place→zone (by `region`/`country`): the Danelaw shires cover 20,158 / 53,647
+  England toponyms (37%); Wales 2,164.
+
+So the recommendation is **rule-based** (deterministic, no cost, reversible),
+captured in `data/zones.yaml` + `lexicon/zone_classify.py`. A mined classifier
+remains an option later for the genuinely-ambiguous tail (a substrate Celtic name
+in an English shire, Roman-by-name-pattern), but is not the first cut.
+
+### Deliberately NOT in this slice
+
+The generator `--zone` knob, its vector-scoring integration (weight morphemes by
+zone, like `--stratum`), the bundle export, and the SPA. Those are the actual
+feature; this slice is the design + the rule-based data model that de-risks it.
+Zone definitions are a `zones.yaml` edit (no code change) the way register
+effects (D37) and structures are.
+
+### Relationship to prior decisions
+
+Realizes D49's deferred zone axis. Mirrors D32 (within-language stratum) as a
+sibling generator axis and D44 (`--era`) / `--culture` in how it will compose.
+Bounded by wyrd-3q6m.1 (must not contaminate the dedup region hierarchy) and the
+Class-A guards (zones are an enrichment classification, not an ingest-gated
+controlled vocabulary). Ticket: wyrd-hytz.
