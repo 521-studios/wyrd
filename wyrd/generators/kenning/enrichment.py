@@ -51,6 +51,7 @@ from .lexicon.phonological_vector_enrichment import (
     tag_phonological_vectors_all,
 )
 from .lexicon.pronunciation_backfill import derive_pronunciation_ipa
+from .lexicon.relational_projection import project_descent_assertions
 from .lexicon.strata import classify_stratum_all
 from .runtime.decomposition import decompose_all
 
@@ -1409,6 +1410,7 @@ def run_full_enrichment(
     slot_counts = _run_curation_slot_passes(db, slot_states, order, apply=apply)
 
     decompose_result: dict[str, Any] | None = None
+    descent_result: dict[str, Any] | None = None
     cognate_result: dict[str, Any] | None = None
     stratum_result: dict[str, Any] | None = None
     english_shaped_result: dict[str, Any] | None = None
@@ -1420,6 +1422,22 @@ def run_full_enrichment(
     if not skip_l3_derivations:
         decompose_result = decompose_all(db, apply=apply)
         order.append("decompose")
+        # wyrd-zrce.1: project Family-B descends-from assertions into etymon_descent
+        # BEFORE cluster_cognates, so mined cognate-descent edges (uplift 1b) feed the
+        # cognate_id rollup in this same run. Relational + EARLY (unlike the terminal
+        # identity project_canonical). Only when a mining dir is supplied (rebuild
+        # passes it); medium-gated by default (D50.4 — relational, never-collapse).
+        if canonicalization_dir is not None:
+            descent_projection = project_descent_assertions(
+                db, mining_dir=canonicalization_dir, apply=apply
+            )
+            descent_result = {
+                "inserted": descent_projection.inserted,
+                "cleared": descent_projection.cleared,
+                "gated_out": descent_projection.gated_out,
+                "refuted": descent_projection.refuted,
+            }
+            order.append("project-descent")
         cognate_result = cluster_cognates(db, apply=apply)
         order.append("cluster-cognates")
         stratum_result = classify_stratum_all(db, apply=apply)
@@ -1486,6 +1504,7 @@ def run_full_enrichment(
         "tag_additions": slot_counts["tag_additions"],
         "pronunciation_ipa": pronunciation_result,
         "decompose": decompose_result,
+        "descent": descent_result,
         "cognates": cognate_result,
         "stratum": stratum_result,
         "english_shaped": english_shaped_result,

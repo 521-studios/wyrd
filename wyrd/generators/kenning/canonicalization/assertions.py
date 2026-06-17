@@ -64,6 +64,39 @@ EDGE_TYPES = frozenset(
 # Confidence labels accepted alongside a bare 0..1 float.
 CONFIDENCE_LABELS = frozenset({"high", "medium", "low"})
 
+# Numeric scores for the labels — the shared scale a projection's leave-separate gate
+# compares against. Lives here (with CONFIDENCE_LABELS) so the identity and relational
+# projections score + gate confidence identically, never drifting apart silently.
+CONFIDENCE_SCORES = {"low": 0.3, "medium": 0.6, "high": 0.9}
+
+
+def score_confidence(confidence: str | float) -> float:
+    """A comparable confidence score: labels via the table, floats as-is, unknown → 0.0."""
+    if isinstance(confidence, str):
+        return CONFIDENCE_SCORES.get(confidence, 0.0)
+    return float(confidence)
+
+
+def resolve_confidence_gate(confidence_gate: str | float) -> float:
+    """Validate + score a confidence gate. A typo'd label or out-of-range float would
+    otherwise silently collapse the leave-separate gate to 0.0, so reject it loudly."""
+    if isinstance(confidence_gate, str):
+        if confidence_gate in CONFIDENCE_SCORES:
+            return CONFIDENCE_SCORES[confidence_gate]
+        # A CLI option arrives as a string, so a float gate like "0.8" comes through as
+        # text — parse it before rejecting as an unknown label.
+        try:
+            confidence_gate = float(confidence_gate)
+        except ValueError:
+            raise ValueError(
+                f"unknown confidence_gate {confidence_gate!r}; "
+                f"expected one of {sorted(CONFIDENCE_SCORES)} or a float in [0, 1]"
+            ) from None
+    gate = float(confidence_gate)
+    if not 0.0 <= gate <= 1.0:
+        raise ValueError(f"confidence_gate float must be in [0, 1], got {gate}")
+    return gate
+
 
 class AssertionValidationError(ValueError):
     """Raised when an assertion violates its predicate's spec."""

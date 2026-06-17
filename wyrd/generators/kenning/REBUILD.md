@@ -99,6 +99,17 @@ here's the obligation:
   **not** yet migrate the legacy `merged_into_id` / `cognate_id` / `lemma_id`
   **readers** onto the canonical FK join — that reader cutover is **wyrd-b2mf**.
   Reverse with `clear-enrichment --stage=canonical`.
+- **cognate-descent edges** (`etymon_descent` rows under
+  `source_id='cognate-descent-uplift'`, D50 Family B, wyrd-zrce.1) — mined cognate
+  descents that place unclustered breakdown morphemes into existing clusters live
+  ONLY in the `data/mining/canonicalization/_assert_descends_from.jsonl` L2 stream;
+  they are **projected** into `etymon_descent` by the **`project-descent`** pass,
+  which runs EARLY in `run_full_enrichment` (before `cluster-cognates`, so the new
+  edges feed the `cognate_id` rollup in the same run). Deterministic + idempotent
+  (clears its own `source_id` then re-inserts from the live assertion set; Wiktionary
+  edges untouched). Like `project-canonical`, runs only when a `canonicalization_dir`
+  is supplied (which `rebuild-from-jsonl` passes). Reverse by appending a `retract`
+  (append-only, D21).
 
 ---
 
@@ -181,6 +192,10 @@ What it does, in order:
    tag-additions] → decompose →
    cluster-cognates → classify-stratum → derive-english-shaped →
    derive-pronunciation-ipa → tag-phonological-vectors → project-period-forms`.
+   When the canonicalization streams are supplied (which `rebuild-from-jsonl`
+   does), two more **conditional** passes run: **`project-descent`** right before
+   `cluster-cognates` (so mined cognate-descent edges feed the `cognate_id` rollup
+   in the same run) and the terminal **`project-canonical`**.
 
 This is the slow part (hours — it's L1 bulk over ~2.4M etymons plus the
 enrichment passes). Background it / `tee` it and watch the log.
@@ -193,7 +208,7 @@ a typo'd ref; expected post-prune orphans are fine.
 > Step-by-step alternative (if you want to run enrichment separately):
 > ```bash
 > wyrd kenning lexicon rebuild-from-jsonl --jsonl-dir data/mining
-> wyrd kenning lexicon enrich --apply         # the full 16-pass chain
+> wyrd kenning lexicon enrich --apply         # the 16-pass base chain (no canonicalization projections)
 > wyrd kenning lexicon enrichment-status       # verify per-pass coverage
 > # re-run one pass with --force, e.g.:
 > wyrd kenning lexicon classify-stratum --apply --force
