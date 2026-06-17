@@ -83,12 +83,14 @@ LANGUAGE_CANONICAL = frozenset(
         "norman-french",
         "latin",
         "medieval-latin",
-        # Celtic is modeled at BRANCH level (wyrd-xdam): 'brittonic' (Welsh,
-        # Cornish, Breton, Cumbric, Pictish) and 'goidelic' (Irish, Scottish-
-        # Gaelic, Manx) never share place-name morphemes, so they must not pool.
-        # 'celtic' is retained as the transitional umbrella / unspecified-Celtic
-        # fallback — L2 etymons are still tagged 'celtic' until wyrd-xdam.2 re-tags
-        # them to a branch (after which 'celtic' can be retired).
+        # Celtic is modeled at BRANCH level (wyrd-xdam): the 'brittonic' branch
+        # (Welsh/Cornish/Breton/Cumbric/Pictish) and the 'goidelic' branch (Irish/
+        # Scottish-Gaelic/Manx) never share place-name morphemes, so they must not
+        # pool. Only the two branch names + 'celtic' are canonical here; the finer
+        # per-language names are classification tokens in zones.yaml, not canonical
+        # values. 'celtic' is retained as the transitional umbrella / unspecified-
+        # Celtic fallback — L2 etymons are still tagged 'celtic' until wyrd-xdam.2
+        # re-tags them to a branch (after which 'celtic' can be retired).
         "celtic",
         "brittonic",
         "goidelic",

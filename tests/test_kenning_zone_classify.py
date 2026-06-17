@@ -45,6 +45,23 @@ def test_morpheme_zone_celtic_branches():
     assert morpheme_zone("goidelic") == "celtic"
 
 
+def test_morpheme_zone_celtic_period_variants():
+    # the fine-grained Celtic period variants (in ERA_CHAINS / DEFAULT_LANGUAGES)
+    # must NOT fall through to the anglo-saxon default (wyrd-xdam.1)
+    for lang in (
+        "welsh",
+        "old-welsh",
+        "middle-welsh",
+        "modern-welsh",
+        "irish",
+        "old-irish",
+        "middle-irish",
+        "scottish-gaelic",
+        "breton",
+    ):
+        assert morpheme_zone(lang) == "celtic", lang
+
+
 def test_morpheme_zone_defaults_to_anglo_saxon():
     # native + unclaimed languages fall to the un-zoned default
     for lang in ("old-english", "middle-english", "modern-english", "unknown", None):

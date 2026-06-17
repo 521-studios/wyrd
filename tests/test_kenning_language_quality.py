@@ -29,7 +29,6 @@ from wyrd.generators.kenning.language_quality import (
     DEFAULT_LANGUAGES,
     ERA_CHAINS,
     FALLBACK_REFERENCE_TAGS,
-    TRANSITIONAL_NONCANONICAL_LANGUAGES,
     LanguageQualityReport,
     LanguageScorecard,
     _bundle_attestation_breakdown,
@@ -48,6 +47,8 @@ from wyrd.generators.kenning.language_quality import (
     report_to_json,
     report_to_markdown,
 )
+from wyrd.generators.kenning.language_quality.models import TRANSITIONAL_NONCANONICAL_LANGUAGES
+from wyrd.generators.kenning.lexicon.controlled_vocab import LANGUAGE_CANONICAL
 
 
 def _build_fixture_db() -> sqlite3.Connection:
@@ -1976,13 +1977,24 @@ def test_default_languages_within_canonical_or_transitional():
     canonical language (controlled_vocab) or one of the documented transitional
     fine-grained Celtic names. Pins the exact gap so a NEW non-canonical language
     can't drift into the dashboard list unnoticed; wyrd-xdam.3 empties the
-    transitional set when DEFAULT_LANGUAGES moves to the branch model."""
-    from wyrd.generators.kenning.lexicon.controlled_vocab import LANGUAGE_CANONICAL
+    transitional set when DEFAULT_LANGUAGES moves to the branch model.
 
+    Two directional checks so the failure message points the right way — notably
+    at wyrd-xdam.2, when 'celtic' is retired from LANGUAGE_CANONICAL it becomes
+    non-canonical and must be either dropped from DEFAULT_LANGUAGES or added to
+    TRANSITIONAL_NONCANONICAL_LANGUAGES (the second assertion will name it)."""
     noncanonical = set(DEFAULT_LANGUAGES) - set(LANGUAGE_CANONICAL)
-    assert noncanonical == set(TRANSITIONAL_NONCANONICAL_LANGUAGES), (
-        "DEFAULT_LANGUAGES drifted from LANGUAGE_CANONICAL beyond the documented "
-        "transitional fine-grained Celtic set. Either add the new language to "
-        "LANGUAGE_CANONICAL, or update TRANSITIONAL_NONCANONICAL_LANGUAGES "
-        f"(unexpected: {noncanonical ^ set(TRANSITIONAL_NONCANONICAL_LANGUAGES)})."
+    transitional = set(TRANSITIONAL_NONCANONICAL_LANGUAGES)
+
+    sneaked_in = noncanonical - transitional
+    assert not sneaked_in, (
+        f"New non-canonical language(s) in DEFAULT_LANGUAGES: {sorted(sneaked_in)}. "
+        "Add each to LANGUAGE_CANONICAL, or (if intentionally transitional) to "
+        "TRANSITIONAL_NONCANONICAL_LANGUAGES."
+    )
+    stale_transitional = transitional - noncanonical
+    assert not stale_transitional, (
+        f"TRANSITIONAL_NONCANONICAL_LANGUAGES is stale: {sorted(stale_transitional)} "
+        "is no longer a non-canonical DEFAULT_LANGUAGES entry — remove it from the "
+        "transitional set (it was either made canonical or dropped from the dashboard)."
     )

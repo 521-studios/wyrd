@@ -66,7 +66,6 @@ from .models import (  # noqa: F401
     ERA_CHAINS,
     FALLBACK_REFERENCE_TAGS,
     REFERENCE_TAG_COUNT,
-    TRANSITIONAL_NONCANONICAL_LANGUAGES,
     LanguageQualityReport,
     LanguageScorecard,
 )

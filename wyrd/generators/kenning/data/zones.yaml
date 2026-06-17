@@ -35,10 +35,15 @@ zones:
     description: >
       Brittonic / Goidelic substrate (-pen, -tre, -caer, river names). Cuts across
       Wales, Cornwall, and Celtic substrate names elsewhere in England.
-    # Canonical Celtic languages first (umbrella + both branches, wyrd-xdam), then
-    # the fine-grained members kept for classifying wiktextract-tagged etymons.
+    # Every Celtic language token that can tag an etymon classifies to this zone —
+    # the canonical umbrella + both branches (wyrd-xdam), plus the fine-grained
+    # period / wiktextract variants. Kept in sync with ERA_CHAINS / DEFAULT_LANGUAGES
+    # so morpheme_zone never drops a Celtic morpheme through to the anglo-saxon
+    # default (wyrd-xdam.1).
     morpheme_languages:
-      [celtic, brittonic, goidelic, welsh, cornish, cumbric, gaelic, irish, pictish]
+      [celtic, brittonic, goidelic,
+       welsh, old-welsh, middle-welsh, modern-welsh, cornish, cumbric, breton, pictish,
+       irish, old-irish, middle-irish, gaelic, scottish-gaelic]
     place_regions: [Cornwall]
     place_countries: [Wales, Ireland, Scotland]
 
