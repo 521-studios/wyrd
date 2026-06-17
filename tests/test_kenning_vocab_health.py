@@ -61,6 +61,8 @@ def test_scan_country_severities():
             ("B", "Republic of Ireland", None),  # stale alias → Ireland
             ("C", "Freedonia", None),  # dirty unknown
             ("D", None, None),  # info NULL
+            ("E", " England ", None),  # padded canonical → ok (not a spurious alias)
+            ("F", "   ", None),  # whitespace-only → info (missing)
         ],
         [],
     )
@@ -69,6 +71,18 @@ def test_scan_country_severities():
     assert _find(f, "country", "Republic of Ireland").severity == "stale"
     assert _find(f, "country", "Freedonia").severity == "dirty"
     assert _find(f, "country", None).severity == "info"
+    assert _find(f, "country", " England ").severity == "ok"
+    assert _find(f, "country", "   ").severity == "info"
+
+
+def test_scan_independent_of_row_factory():
+    """_rows forces plain tuples, so a connection with a custom (dict) row_factory
+    — which would break naive tuple-unpacking — still scans correctly."""
+    conn = _conn([("A", "Republic of Ireland", None)], [("x", "klingon")])
+    conn.row_factory = lambda cur, row: {d[0]: row[i] for i, d in enumerate(cur.description)}
+    f = scan(conn)
+    assert _find(f, "country", "Republic of Ireland").severity == "stale"
+    assert _find(f, "language", "klingon").severity == "dirty"
 
 
 def test_scan_region_severities():

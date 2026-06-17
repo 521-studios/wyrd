@@ -61,31 +61,42 @@ class VocabFinding:
 
 
 def _classify_country(value: str | None) -> tuple[str, Severity]:
-    if value is None:
-        return "null", "info"
+    if value is None or not value.strip():
+        return "null", "info"  # whitespace-only treated as missing (cf. region/language)
+    stripped = value.strip()
     try:
-        canon = canonicalize_country(value)
+        canon = canonicalize_country(stripped)
     except CountryValidationError:
         return "unknown", "dirty"
-    return ("ok", "ok") if canon == value else ("alias", "stale")
+    # compare against the stripped value: padded-but-canonical (" England ") is ok,
+    # not a spurious alias — canonicalize_* strips internally.
+    return ("ok", "ok") if canon == stripped else ("alias", "stale")
 
 
 def _classify_language(value: str | None) -> tuple[str, Severity]:
     if value is None or not value.strip():
         return "null", "info"
+    stripped = value.strip()
     try:
-        canon = canonicalize_language(value)
+        canon = canonicalize_language(stripped)
     except LanguageValidationError:
         return "non-canonical", "dirty"
-    return ("ok", "ok") if canon == value else ("alias", "stale")
+    return ("ok", "ok") if canon == stripped else ("alias", "stale")
+
+
+def _rows(conn: sqlite3.Connection, sql: str) -> list[tuple]:
+    """Execute ``sql`` returning plain tuples regardless of the connection's
+    ``row_factory`` (forced off on a local cursor) — so the scans don't depend on,
+    and can't be broken by, however the caller configured the connection (Gemini)."""
+    cur = conn.cursor()
+    cur.row_factory = None
+    return cur.execute(sql).fetchall()
 
 
 def scan_countries(conn: sqlite3.Connection) -> list[VocabFinding]:
-    # tuple-unpack the SELECT columns positionally so the function doesn't depend
-    # on the caller's row_factory (Gemini).
     out = []
-    for value, n in conn.execute(
-        "SELECT country, COUNT(*) FROM toponym GROUP BY country ORDER BY COUNT(*) DESC"
+    for value, n in _rows(
+        conn, "SELECT country, COUNT(*) FROM toponym GROUP BY country ORDER BY COUNT(*) DESC"
     ):
         status, severity = _classify_country(value)
         out.append(VocabFinding("country", value, n, status, severity))
@@ -94,9 +105,10 @@ def scan_countries(conn: sqlite3.Connection) -> list[VocabFinding]:
 
 def scan_regions(conn: sqlite3.Connection) -> list[VocabFinding]:
     out = []
-    for value, country, n in conn.execute(
+    for value, country, n in _rows(
+        conn,
         "SELECT region, country, COUNT(*) FROM toponym "
-        "GROUP BY region, country ORDER BY COUNT(*) DESC"
+        "GROUP BY region, country ORDER BY COUNT(*) DESC",
     ):
         status = classify_region(value, country=country)
         out.append(VocabFinding("region", value, n, status, _REGION_SEVERITY.get(status, "dirty")))
@@ -105,8 +117,8 @@ def scan_regions(conn: sqlite3.Connection) -> list[VocabFinding]:
 
 def scan_languages(conn: sqlite3.Connection) -> list[VocabFinding]:
     out = []
-    for value, n in conn.execute(
-        "SELECT language, COUNT(*) FROM etymon GROUP BY language ORDER BY COUNT(*) DESC"
+    for value, n in _rows(
+        conn, "SELECT language, COUNT(*) FROM etymon GROUP BY language ORDER BY COUNT(*) DESC"
     ):
         status, severity = _classify_language(value)
         out.append(VocabFinding("language", value, n, status, severity))
