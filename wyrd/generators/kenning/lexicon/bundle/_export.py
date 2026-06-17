@@ -341,6 +341,96 @@ def _build_family_rollup(
     return members_by_root, root_of
 
 
+def _build_canonical_rollup(
+    db: LexiconDB,
+) -> tuple[dict[int, list[int]], Callable[[int], int]]:
+    """The identity rollup read from the AUTHORITATIVE ``canonical_morpheme``
+    layer — the cutover target (wyrd-b2mf), the canonical analog of
+    ``_build_family_rollup``. Same contract: ``(members_by_root, root_of)`` with
+    an etymon-id representative.
+
+    Partition: an etymon's family is its ``canonical_morpheme_id`` rolled through
+    ``canonical_morpheme.merged_into``; an UNBOUND etymon (``canonical_morpheme_id``
+    NULL — a singleton, exactly like ``merged_into_id IS NULL`` legacy, since the
+    fold binds every multi-member family) is its own family. The REPRESENTATIVE is
+    reused from the legacy rollup (``_build_family_rollup``) so the subtle
+    lemma/inheritance-hop root logic isn't re-implemented: a family's root is the
+    smallest-``(language, canonical_form, id)`` among the legacy roots of its
+    members (one legacy root per family today → identical to legacy; once 1a's
+    binds merge families, the deterministic min picks the survivor).
+
+    Equivalent to ``_build_family_rollup`` TODAY (``canonical_morpheme_id``
+    reproduces the legacy rollup — the u6fn.4 fidelity gate, 0 violations); the
+    point of switching is that once 1a's dormant binds apply, this reflects the
+    new merges and the legacy rollup does not. GUARDS against an unpopulated graph
+    (the projection must have run) rather than silently under-clustering.
+    """
+    legacy_members, legacy_root_of = _build_family_rollup(db)
+
+    merged_into = dict(db.conn.execute("SELECT id, merged_into FROM canonical_morpheme").fetchall())
+
+    def _hub_root(node_id: str) -> str:
+        seen: set[str] = set()
+        while merged_into.get(node_id) and node_id not in seen:
+            seen.add(node_id)
+            node_id = merged_into[node_id]
+        return node_id
+
+    bound = db.conn.execute(
+        "SELECT id, canonical_morpheme_id FROM etymon WHERE canonical_morpheme_id IS NOT NULL"
+    ).fetchall()
+    if not bound:
+        raise RuntimeError(
+            "canonical_morpheme_id is unpopulated — run `project-canonical --apply` "
+            "(or `rebuild-from-jsonl --with-enrichment`) before exporting. The canonical "
+            "rollup is the authoritative identity source (wyrd-b2mf); exporting off an "
+            "empty canonical graph would silently under-cluster."
+        )
+    hub_of: dict[int, str] = {r["id"]: _hub_root(r["canonical_morpheme_id"]) for r in bound}
+
+    # Each etymon's canonical family key: its hub (bound) or its own legacy root
+    # (unbound == legacy singleton). Group etymons by it.
+    members_by_family: dict[object, list[int]] = {}
+    for members in legacy_members.values():
+        for eid in members:
+            key: object = hub_of.get(eid) or ("legacy", legacy_root_of(eid))
+            members_by_family.setdefault(key, []).append(eid)
+
+    # Representative per family: the smallest-content-key legacy root among members.
+    legacy_roots = {
+        legacy_root_of(eid) for members in members_by_family.values() for eid in members
+    }
+    form_key = _content_keys(db, legacy_roots)
+
+    members_by_root: dict[int, list[int]] = {}
+    rep_by_family: dict[object, int] = {}
+    for key, members in members_by_family.items():
+        roots = {legacy_root_of(eid) for eid in members}
+        rep = min(roots, key=lambda r: (form_key.get(r, ("", "")), r))
+        rep_by_family[key] = rep
+        members_by_root[rep] = members
+
+    def root_of(eid: int) -> int:
+        return rep_by_family[hub_of.get(eid) or ("legacy", legacy_root_of(eid))]
+
+    return members_by_root, root_of
+
+
+def _content_keys(db: LexiconDB, ids: set[int]) -> dict[int, tuple[str, str]]:
+    """``(language, canonical_form)`` per etymon id, fetched in param-safe chunks."""
+    out: dict[int, tuple[str, str]] = {}
+    id_list = list(ids)
+    for i in range(0, len(id_list), 900):
+        chunk = id_list[i : i + 900]
+        qmarks = ",".join("?" * len(chunk))
+        for r in db.conn.execute(
+            f"SELECT id, language, canonical_form FROM etymon WHERE id IN ({qmarks})",  # noqa: S608 — ? placeholders
+            tuple(chunk),
+        ):
+            out[r["id"]] = (r["language"] or "", r["canonical_form"] or "")
+    return out
+
+
 def _select_promoted_root_ids(
     db: LexiconDB,
     *,
