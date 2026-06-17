@@ -471,13 +471,18 @@ def _select_promoted_root_ids(
         f"SELECT lemma_id AS root_id FROM etymon_consensus WHERE {witness_sql}",
         witness_params,
     ):
-        # wyrd-rogd.9: the consensus view keys on lemma_id, which IS the root
-        # under the merged_into/lemma rollup — but NOT under the inheritance
-        # rollup. A consensus reflex that is its own lemma (e.g. ``bishop``)
-        # must promote its ANCESTOR's root (``biscop``), or it gets promoted
-        # standalone AND rolled into the ancestor's family → emitted twice.
-        # root_of is the identity for any non-reflex lemma, so this is a no-op
-        # until reflex-link edges exist.
+        # wyrd-b2mf: ``etymon_consensus`` stays the LEGACY lemma-rollup witness
+        # view (it emits an etymon-id root + per-family witness count; a canonical
+        # hub is a string, so the view can't emit one without breaking this
+        # ``root_of(int)`` consumer). It is NOT rewritten — instead the
+        # legacy-keyed root_id is rolled through the now-CANONICAL ``root_of`` here,
+        # so a family is promoted at its canonical root. A canonical family
+        # promotes iff any of its legacy sub-families meets the witness gate
+        # (post-1a; identical to legacy today — the byte-identical bundle proof).
+        #
+        # wyrd-rogd.9: root_of also folds an inheritance reflex (``bishop``) onto
+        # its ancestor's root (``biscop``), so the reflex isn't promoted standalone
+        # AND rolled into the ancestor's family → emitted twice.
         promoted.add(root_of(row["root_id"]))
     if include_rando:
         rando_root_ids: set[int] = set()
