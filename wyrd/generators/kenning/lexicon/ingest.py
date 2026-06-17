@@ -136,17 +136,22 @@ def ingest_parsed_entries(
         "etymons_touched": 0,
     }
     for entry in parsed_entries:
+        has_breakdown = entry.confidence != "low" and bool(entry.elements)
+        # Fail-closed language guard (wyrd-3q6m.5): validate every element's
+        # language BEFORE any write for this entry — including the toponym upsert
+        # below — so a bad language rejects the whole entry without persisting a
+        # partial toponym/etymology. Curated path only; bulk wiktextract uses ISO
+        # codes and never reaches here.
+        elem_languages = (
+            [canonicalize_language(elem.language) for elem in entry.elements]
+            if has_breakdown
+            else []
+        )
+
         toponym_id = _upsert_toponym(db, entry.toponym, region, country)
         counts["toponyms"] += 1
-
-        if entry.confidence == "low" or not entry.elements:
+        if not has_breakdown:
             continue
-
-        # Fail-closed language guard (wyrd-3q6m.5) — validate every element's
-        # language BEFORE any etymology write, so a bad language fails the whole
-        # entry atomically (curated path only; bulk wiktextract uses ISO codes
-        # and never reaches here).
-        elem_languages = [canonicalize_language(elem.language) for elem in entry.elements]
 
         confidence = entry.confidence if entry.confidence in ("high", "medium", "low") else "low"
         cur = db.conn.execute(

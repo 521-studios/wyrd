@@ -34,6 +34,13 @@ COUNTRY_ALIASES = {
     "Brittany": "France",
 }
 
+# Invariant: every alias must resolve to a canonical country, else a typo'd
+# target would silently bypass the guard (alias is resolved before the
+# canonical check). Enforced at import so it can't drift.
+assert set(COUNTRY_ALIASES.values()) <= COUNTRY_CANONICAL, (
+    f"alias targets not canonical: {set(COUNTRY_ALIASES.values()) - COUNTRY_CANONICAL}"
+)
+
 
 class CountryValidationError(ValueError):
     """Raised at the ingest boundary for a country value that is neither
@@ -47,8 +54,10 @@ class CountryValidationError(ValueError):
 
 
 def canonicalize_country(country: str | None) -> str | None:
-    """Fold a known alias, pass a canonical value, ``None``/empty → ``None``;
-    raise :class:`CountryValidationError` on anything else."""
+    """Fold a known alias, pass a canonical value, ``None``/empty/whitespace →
+    ``None``; raise :class:`CountryValidationError` on anything else. Surrounding
+    whitespace is stripped before lookup."""
+    country = (country or "").strip()
     if not country:
         return None
     if country in COUNTRY_ALIASES:
@@ -98,13 +107,16 @@ class LanguageValidationError(ValueError):
         )
 
 
-def canonicalize_language(language: str | None) -> str | None:
-    """Validate a curated place-name etymon language. ``None``/empty → ``None``;
-    a canonical value passes; anything else raises
-    :class:`LanguageValidationError`. (Bulk wiktextract ingest does NOT call this
-    — see the module docstring.)"""
-    if not language:
-        return None
-    if language in LANGUAGE_CANONICAL:
-        return language
-    raise LanguageValidationError(language)
+def canonicalize_language(language: str | None) -> str:
+    """Validate a curated place-name etymon language → a canonical, non-empty
+    ``str`` (surrounding whitespace stripped). Anything not in the canonical set
+    — including ``None``/empty — raises :class:`LanguageValidationError`.
+
+    Unlike country, language is NEVER ``None``: it is part of the etymon dedup key
+    ``(canonical_form, language)``, where a SQLite NULL would defeat the unique
+    constraint. A genuinely-unknown etymology uses the canonical ``"unknown"``,
+    not a null. (Bulk wiktextract ingest does NOT call this — see module docstring.)"""
+    candidate = (language or "").strip()
+    if candidate in LANGUAGE_CANONICAL:
+        return candidate
+    raise LanguageValidationError(candidate)

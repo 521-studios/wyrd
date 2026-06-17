@@ -11,6 +11,7 @@ import pytest
 
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.controlled_vocab import (
+    COUNTRY_ALIASES,
     COUNTRY_CANONICAL,
     CountryValidationError,
     LanguageValidationError,
@@ -42,14 +43,26 @@ def test_country_canonical_passes():
         assert canonicalize_country(c) == c
 
 
-def test_country_none_and_empty_to_none():
+def test_country_none_empty_whitespace_to_none():
     assert canonicalize_country(None) is None
     assert canonicalize_country("") is None
+    assert canonicalize_country("   ") is None
+
+
+def test_country_strips_whitespace():
+    assert canonicalize_country("  England  ") == "England"
+    assert canonicalize_country(" Republic of Ireland ") == "Ireland"
 
 
 def test_country_unknown_is_rejected():
     with pytest.raises(CountryValidationError):
         canonicalize_country("Atlantis")
+
+
+def test_country_alias_targets_are_canonical():
+    """Every alias must resolve to a canonical country — else a typo'd target
+    would bypass the guard (alias resolved before the canonical check)."""
+    assert set(COUNTRY_ALIASES.values()) <= COUNTRY_CANONICAL
 
 
 def test_every_region_derived_country_is_canonical():
@@ -67,9 +80,15 @@ def test_language_canonical_passes():
         assert canonicalize_language(lang) == lang
 
 
-def test_language_none_to_none():
-    assert canonicalize_language(None) is None
-    assert canonicalize_language("") is None
+def test_language_strips_whitespace():
+    assert canonicalize_language("  old-english  ") == "old-english"
+
+
+def test_language_none_or_empty_raises():
+    # language is part of the etymon dedup key — never None; empty fails closed.
+    for bad in (None, "", "   "):
+        with pytest.raises(LanguageValidationError):
+            canonicalize_language(bad)
 
 
 def test_language_unknown_is_rejected():
@@ -113,3 +132,71 @@ def test_ingest_rejects_unknown_etymon_language(tmp_path: Path):
     )
     with LexiconDB(db_path) as db, pytest.raises(LanguageValidationError):
         ingest_parsed_entries(db, [entry], source_id="test", region="Suffolk")
+
+
+def test_upsert_region_derived_country_is_canonical(tmp_path: Path):
+    """The region→country_for_region→canonicalize_country path (country=None)
+    stores a canonical country end-to-end."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        tid = _upsert_toponym(db, "Ipswich", region="Suffolk")  # no country → derive
+        db.commit()
+        row = db.conn.execute("SELECT country FROM toponym WHERE id = ?", (tid,)).fetchone()
+    assert row["country"] == "England"
+
+
+def _entry(toponym, elems):
+    from wyrd.generators.kenning.parsers.skeat import ParsedElement, ParsedEntry
+
+    return ParsedEntry(
+        toponym=toponym,
+        section_suffix=None,
+        historical_form=None,
+        elements=[ParsedElement(form=f, language=lang) for f, lang in elems],
+        confidence="high",
+    )
+
+
+def test_ingest_happy_path_multi_element(tmp_path: Path):
+    """A valid multi-element entry writes the rows, counts correctly, and maps
+    each element to its (ordinal-correct) canonical language."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    entry = _entry("Aberford", [("ford", "old-english"), ("á", "old-norse")])
+    with LexiconDB(db_path) as db:
+        db.conn.execute("INSERT INTO source (id, title) VALUES ('test', 'T')")
+        counts = ingest_parsed_entries(db, [entry], source_id="test", region="Suffolk")
+        db.commit()
+        langs = {r["language"] for r in db.conn.execute("SELECT language FROM etymon").fetchall()}
+    assert counts["etymologies"] == 1 and counts["elements"] == 2
+    assert {"old-english", "old-norse"} <= langs
+
+
+def test_ingest_bad_language_is_atomic(tmp_path: Path):
+    """A bad language on the SECOND element rejects the whole entry before any
+    write — no toponym, no etymology row persists."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    entry = _entry("Aberford", [("ford", "old-english"), ("x", "gmw-cfr")])
+    with LexiconDB(db_path) as db:
+        db.conn.execute("INSERT INTO source (id, title) VALUES ('test', 'T')")
+        with pytest.raises(LanguageValidationError):
+            ingest_parsed_entries(db, [entry], source_id="test", region="Suffolk")
+        db.commit()
+        assert db.conn.execute("SELECT count(*) c FROM toponym").fetchone()["c"] == 0
+        assert db.conn.execute("SELECT count(*) c FROM toponym_etymology").fetchone()["c"] == 0
+
+
+def test_ingest_low_confidence_writes_toponym_only(tmp_path: Path):
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    from wyrd.generators.kenning.parsers.skeat import ParsedEntry
+
+    entry = ParsedEntry(
+        toponym="Placeholder", section_suffix=None, historical_form=None, confidence="low"
+    )
+    with LexiconDB(db_path) as db:
+        counts = ingest_parsed_entries(db, [entry], source_id="test", region="Suffolk")
+        db.commit()
+    assert counts["toponyms"] == 1 and counts["etymologies"] == 0 and counts["elements"] == 0
