@@ -125,6 +125,19 @@ DEFAULT_LANGUAGES: tuple[str, ...] = (
 )
 
 
+# Fine-grained Celtic languages the dashboard still walks for wiktextract-tagged
+# data. They are deliberately NOT in controlled_vocab.LANGUAGE_CANONICAL — Celtic
+# is modeled at BRANCH level there (brittonic/goidelic, wyrd-xdam). This set is
+# TRANSITIONAL: wyrd-xdam.2 re-tags the L2 'celtic' etymons to a branch and .3
+# swaps DEFAULT_LANGUAGES to the branch model, after which it empties. The
+# consistency tripwire (test_default_languages_within_canonical_or_transitional)
+# pins exactly this gap, so a NEW non-canonical language can't drift into
+# DEFAULT_LANGUAGES unnoticed.
+TRANSITIONAL_NONCANONICAL_LANGUAGES: frozenset[str] = frozenset(
+    {"modern-welsh", "welsh", "old-welsh", "irish", "old-irish", "scottish-gaelic", "breton"}
+)
+
+
 # Number of top English tags to use as the reference semantic profile.
 # Read from english_proportions.json's tag_marginal at runtime; this is
 # a fallback if the proportions file isn't reachable.

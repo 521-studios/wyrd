@@ -39,6 +39,30 @@ def test_morpheme_zone_by_language():
     assert morpheme_zone("medieval-latin") == "roman"
 
 
+def test_morpheme_zone_celtic_branches():
+    # both branch-level Celtic languages map to the celtic zone (wyrd-xdam.1)
+    assert morpheme_zone("brittonic") == "celtic"
+    assert morpheme_zone("goidelic") == "celtic"
+
+
+def test_celtic_languages_classify_to_celtic_zone():
+    """wyrd-xdam.1 sync tripwire: EVERY brythonic/goidelic language in the era
+    source-of-truth (cells.LANGUAGE_TO_FAMILY) must classify to the celtic zone —
+    otherwise morpheme_zone silently drops it to the anglo-saxon default. Pins the
+    zones.yaml morpheme_languages list against LANGUAGE_TO_FAMILY so the two can't
+    drift (this would have caught the missing manx / old-breton / middle-breton)."""
+    from wyrd.generators.kenning.era.cells import LANGUAGE_TO_FAMILY
+
+    celtic_langs = {
+        lang
+        for lang, family in LANGUAGE_TO_FAMILY.items()
+        if family in ("brythonic", "goidelic") and lang != "celtic_mix"
+    }
+    assert celtic_langs, "expected some brythonic/goidelic languages"
+    for lang in celtic_langs:
+        assert morpheme_zone(lang) == "celtic", lang
+
+
 def test_morpheme_zone_defaults_to_anglo_saxon():
     # native + unclaimed languages fall to the un-zoned default
     for lang in ("old-english", "middle-english", "modern-english", "unknown", None):

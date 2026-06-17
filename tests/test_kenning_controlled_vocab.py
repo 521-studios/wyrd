@@ -13,6 +13,7 @@ from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.controlled_vocab import (
     COUNTRY_ALIASES,
     COUNTRY_CANONICAL,
+    LANGUAGE_CANONICAL,
     CountryValidationError,
     LanguageValidationError,
     canonicalize_country,
@@ -78,6 +79,14 @@ def test_every_region_derived_country_is_canonical():
 
 def test_language_canonical_passes():
     for lang in ("old-english", "celtic", "old-norse", "norman-french", "unknown"):
+        assert canonicalize_language(lang) == lang
+
+
+def test_celtic_branches_are_canonical():
+    # wyrd-xdam.1: brittonic/goidelic are canonical languages; celtic is retained
+    # as the transitional umbrella until the .2 re-tag.
+    for lang in ("brittonic", "goidelic", "celtic"):
+        assert lang in LANGUAGE_CANONICAL
         assert canonicalize_language(lang) == lang
 
 
