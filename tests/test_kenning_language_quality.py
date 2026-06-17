@@ -48,8 +48,8 @@ from wyrd.generators.kenning.language_quality import (
     report_to_markdown,
 )
 
-# TRANSITIONAL_NONCANONICAL_LANGUAGES is a transitional internal (removed at
-# wyrd-xdam.3), intentionally NOT re-exported from the package — import direct.
+# TRANSITIONAL_NONCANONICAL_LANGUAGES is a drift-tripwire internal (emptied at
+# wyrd-xdam.4), intentionally NOT re-exported from the package — import direct.
 from wyrd.generators.kenning.language_quality.models import TRANSITIONAL_NONCANONICAL_LANGUAGES
 from wyrd.generators.kenning.lexicon.controlled_vocab import LANGUAGE_CANONICAL
 

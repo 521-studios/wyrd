@@ -152,7 +152,7 @@ DEFAULT_LANGUAGES: tuple[str, ...] = (
 )
 
 
-# Fine-grained Celtic languages that are in DEFAULT_LANGUAGES but NOT canonical.
+# Drift tripwire: DEFAULT_LANGUAGES entries that are NOT in LANGUAGE_CANONICAL.
 # EMPTY as of wyrd-xdam.4: the fine-grained Celtic names (welsh/irish/etc.) are now
 # first-class canonical in controlled_vocab.LANGUAGE_CANONICAL — they are the real
 # cultural-boundary data, rolling up to a branch only for display

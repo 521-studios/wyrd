@@ -90,10 +90,11 @@ LANGUAGE_CANONICAL = frozenset(
         # PRESENTATION ROLLUP tokens — the generation-pool boundary is the BRANCH
         # (brittonic morphemes never pool with goidelic), and the rollup is derived
         # for display via era.cells.LANGUAGE_TO_FAMILY (wyrd-xdam.3). A rollup token
-        # is used as an etymon's own language only when the finer grain isn't known
-        # (e.g. wyrd-xdam.2 assigned a branch to flat 'celtic' L2 etymons because
-        # the toponym's country only YIELDS a branch — not because curated data must
-        # be coarse). 'celtic' is the coarsest rollup (branch unknown).
+        # is used as an etymon's own language only when the finer grain isn't known.
+        # That's not a rule that curated data must be coarse: e.g. wyrd-xdam.2 tagged
+        # flat 'celtic' L2 etymons with a branch only because the toponym's country
+        # yields a branch and nothing finer. 'celtic' is the coarsest rollup (branch
+        # unknown).
         "celtic",
         "brittonic",
         "goidelic",
