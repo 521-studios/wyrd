@@ -34,7 +34,8 @@ zones:
   - name: celtic
     description: >
       Brittonic / Goidelic substrate (-pen, -tre, -caer, river names). Cuts across
-      Wales, Cornwall, and Celtic substrate names elsewhere in England.
+      Wales, Cornwall, the Breton départements (country=France, but Brythonic),
+      and Celtic substrate names elsewhere in England.
     # Every Celtic language token that can tag an etymon classifies to this zone —
     # the canonical umbrella + both branches (wyrd-xdam) + the fine-grained period
     # variants. Must cover every brythonic/goidelic member of era.cells
@@ -46,7 +47,12 @@ zones:
        welsh, old-welsh, middle-welsh, modern-welsh, cornish, cumbric, pictish,
        breton, old-breton, middle-breton,
        irish, old-irish, middle-irish, gaelic, scottish-gaelic, manx]
-    place_regions: [Cornwall]
+    # Cornwall (England) + the Breton départements (France): place→zone for the
+    # Brythonic regions whose modern country isn't a Celtic nation (wyrd-9d4f).
+    place_regions:
+      ["Cornwall",
+       "Brittany", "Côtes-d'Armor", "Finistère", "Ille-et-Vilaine", "Morbihan",
+       "Loire-Inférieure (Brittany)"]
     place_countries: [Wales, Ireland, Scotland]
 
   - name: roman
