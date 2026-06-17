@@ -142,7 +142,7 @@ def _match_shipped(x: EtymonRow, shipped: list[EtymonRow]) -> tuple[EtymonRow, s
     return None
 
 
-def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:  # noqa: V103 — uplift-1a entry point; consumed by the same-morpheme-uplift CLI that appends binds to the L2 stream (wired next)
+def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:
     """Find breakdown-only etymons that are the same morpheme as a unique shipped
     etymon (shared folded surface + cluster-or-gloss), grouped by the shipped
     target. Deterministic; sorted by the canonical content key."""
@@ -187,9 +187,7 @@ def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:  # noqa: V103 �
     return out
 
 
-def bind_assertions(  # noqa: V103 — emits the mint-canonical + bind assertions the uplift CLI appends to the L2 stream (wired next)
-    groups: list[BindGroup], *, source: str, actor: str = ""
-) -> list[Assertion]:
+def bind_assertions(groups: list[BindGroup], *, source: str, actor: str = "") -> list[Assertion]:
     """Author the D50 assertions for each bind group: one ``mint-canonical``
     declaration of the ``canonical_morpheme`` node, then a same-morpheme ``bind``
     for every member observation (shipped + breakdown variants). Deterministic ids
