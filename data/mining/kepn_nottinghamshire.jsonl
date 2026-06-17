@@ -199,11 +199,11 @@
 {"_type": "citation", "etymon_ref": "old-english:Kola"}
 {"_type": "citation", "etymon_ref": "old-english:Kola", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:Britton", "canonical_form": "Britton", "language": "brittonic", "glosses": ["Briton"]}
-{"_type": "citation", "etymon_ref": "celtic:Britton"}
-{"_type": "citation", "etymon_ref": "celtic:Britton", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.; The Place-Names of Nottinghamshire; Coates and Breeze, Celtic Voices English Places; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:Britton"}
+{"_type": "citation", "etymon_ref": "brittonic:Britton", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.; The Place-Names of Nottinghamshire; Coates and Breeze, Celtic Voices English Places; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:cair", "canonical_form": "cair", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:cair"}
-{"_type": "citation", "etymon_ref": "celtic:cair", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.; The Place-Names of Nottinghamshire; Coates and Breeze, Celtic Voices English Places; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:cair"}
+{"_type": "citation", "etymon_ref": "brittonic:cair", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover et al.; The Place-Names of Nottinghamshire; Coates and Breeze, Celtic Voices English Places; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:ceorl", "canonical_form": "ceorl", "language": "old-english", "glosses": ["A freeman of the lower class, a peasant."]}
 {"_type": "citation", "etymon_ref": "old-english:ceorl"}
 {"_type": "citation", "etymon_ref": "old-english:ceorl", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -493,11 +493,11 @@
 {"_type": "citation", "etymon_ref": "old-english:Landa"}
 {"_type": "citation", "etymon_ref": "old-english:Landa", "source_id": "kepn_external", "context_snippet": "Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:lei-", "canonical_form": "lei-", "language": "brittonic", "glosses": ["Root, meaning \"to flow\"."]}
-{"_type": "citation", "etymon_ref": "celtic:lei-"}
-{"_type": "citation", "etymon_ref": "celtic:lei-", "source_id": "kepn_external", "context_snippet": "Gover et al.; The Place-Names of Nottinghamshire; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:lei-"}
+{"_type": "citation", "etymon_ref": "brittonic:lei-", "source_id": "kepn_external", "context_snippet": "Gover et al.; The Place-Names of Nottinghamshire; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:Leen", "canonical_form": "Leen", "language": "brittonic", "glosses": ["River-name."]}
-{"_type": "citation", "etymon_ref": "celtic:Leen"}
-{"_type": "citation", "etymon_ref": "celtic:Leen", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover et al.; The Place-Names of Nottinghamshire"}
+{"_type": "citation", "etymon_ref": "brittonic:Leen"}
+{"_type": "citation", "etymon_ref": "brittonic:Leen", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover et al.; The Place-Names of Nottinghamshire"}
 {"_type": "etymon", "ref": "old-norse:lind", "canonical_form": "lind", "language": "old-norse", "glosses": ["A lime-tree."]}
 {"_type": "citation", "etymon_ref": "old-norse:lind"}
 {"_type": "citation", "etymon_ref": "old-norse:lind", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover et al.; The Place-Names of Nottinghamshire"}
@@ -610,8 +610,8 @@
 {"_type": "citation", "etymon_ref": "old-english:plūm-trēow"}
 {"_type": "citation", "etymon_ref": "old-english:plūm-trēow", "source_id": "kepn_external", "context_snippet": "Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:Trent", "canonical_form": "Trent", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:Trent"}
-{"_type": "citation", "etymon_ref": "celtic:Trent", "source_id": "kepn_external", "context_snippet": "Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:Trent"}
+{"_type": "citation", "etymon_ref": "brittonic:Trent", "source_id": "kepn_external", "context_snippet": "Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Ragni", "canonical_form": "Ragni", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Ragni"}
 {"_type": "citation", "etymon_ref": "old-english:Ragni", "source_id": "kepn_external", "context_snippet": "Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names; E. Ekwall; Dictionary of English Place-Names"}
@@ -628,8 +628,8 @@
 {"_type": "citation", "etymon_ref": "old-english:Hræfn"}
 {"_type": "citation", "etymon_ref": "old-english:Hræfn", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names"}
 {"_type": "etymon", "ref": "brittonic:Soar", "canonical_form": "Soar", "language": "brittonic", "glosses": ["A river-name probably meaning 'flowing one'."]}
-{"_type": "citation", "etymon_ref": "celtic:Soar"}
-{"_type": "citation", "etymon_ref": "celtic:Soar", "source_id": "kepn_external", "context_snippet": "Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:Soar"}
+{"_type": "citation", "etymon_ref": "brittonic:Soar", "source_id": "kepn_external", "context_snippet": "Gover et al.; The Place-Names of Nottinghamshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Hróaldr", "canonical_form": "Hróaldr", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Hróaldr"}
 {"_type": "citation", "etymon_ref": "old-english:Hróaldr", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover et al.; The Place-Names of Nottinghamshire"}

@@ -2,17 +2,20 @@
 (wyrd-xdam.2, part of the wyrd-xdam branch-level Celtic model).
 
 Branch is derived from the COUNTRIES of the toponyms that actually use each
-``celtic`` etymon (via ``etymology_element`` → toponym country):
+``celtic`` etymon (via ``etymology_element`` → toponym country; when a toponym row
+isn't present, the country is derived from the region in its ``name@region`` ref
+via ``country_for_region``):
 
 - used only in Goidelic nations (Ireland / Northern Ireland / Scotland / Isle of
   Man) → ``goidelic``
 - used only in Brittonic territory (Wales, the English Brythonic substrate,
   Breton France) → ``brittonic``
 
-An etymon used across BOTH branches, used in any unknown-country toponym
-(e.g. Gaulish France with no region), or used by no toponym at all STAYS
-``celtic`` — the umbrella wyrd-xdam.1 deliberately retained. Branch is never
-guessed; only clean, single-branch evidence re-tags.
+An etymon used across BOTH branches, used by any toponym whose country is unknown
+or unrecognized (None / no derivable country — e.g. a general-France record with
+no region), or used by no toponym at all STAYS ``celtic`` — the umbrella
+wyrd-xdam.1 deliberately retained. Branch is never guessed; only clean,
+single-branch evidence re-tags.
 
 This operates ONLY on the curated scholarly-gazetteer L2 (Joyce, Watson, Morgan,
 KEPN, …). The fine-grained wiktextract Celtic is L3-only and out of scope here.
@@ -25,13 +28,17 @@ re-tag is a reviewable diff, not data loss.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from wyrd.generators.kenning.lexicon.regions import country_for_region
 
 # country → branch. England is included as Brittonic: the pre-Anglo-Saxon Celtic
 # substrate of England is Brythonic (wyrd-xdam.2 decision).
+Branch = Literal["goidelic", "brittonic"]
+
 _GOIDELIC_COUNTRIES = frozenset({"Ireland", "Northern Ireland", "Scotland", "Isle of Man"})
 _BRITTONIC_COUNTRIES = frozenset({"Wales", "England", "France"})
+_BRANCHES = frozenset({"goidelic", "brittonic"})
 
 _CELTIC_PREFIX = "celtic:"
 
@@ -45,18 +52,40 @@ class RetagReport:
     records_rewritten: int = 0  # JSONL records mutated (etymon + ref-bearing rows)
 
 
-def _country_branch(country: str | None) -> str | None:
+def _country_branch(country: str | None) -> Branch | None:
     if country in _GOIDELIC_COUNTRIES:
         return "goidelic"
     if country in _BRITTONIC_COUNTRIES:
         return "brittonic"
-    return None  # unknown / out-of-scope (Gaulish France, None, …)
+    return None  # unknown / out-of-scope (None or unrecognized country)
 
 
 def _rebranch(ref: str, branch: str) -> str:
     """``celtic:carn`` + ``goidelic`` → ``goidelic:carn``."""
     _, _, form = ref.partition(":")
     return f"{branch}:{form}"
+
+
+def _rebranch_refs(obj: object, branch_map: dict[str, str]) -> int:
+    """Recursively rewrite EVERY string anywhere in ``obj`` that is a clean
+    ``celtic:<form>`` ref (a ``branch_map`` key) to ``<branch>:<form>``, returning
+    the count rewritten. A recursive walk (not an enumerated field list) so it
+    catches every ref-bearing field — etymon ``ref``, ``etymology_element``
+    ``etymon_ref``, ``citation.etymon_ref``, ``collapse.into``, reflex refs, etc.
+    Exact-match against the map keys, so prose fields (glosses/notes) can't be
+    touched (a clean ``celtic:<form>`` ref never appears as free text)."""
+    n = 0
+    items = (
+        obj.items() if isinstance(obj, dict) else enumerate(obj) if isinstance(obj, list) else ()
+    )
+    for key, value in items:
+        if isinstance(value, str):
+            if value in branch_map:
+                obj[key] = _rebranch(value, branch_map[value])  # type: ignore[index]
+                n += 1
+        elif isinstance(value, (dict, list)):
+            n += _rebranch_refs(value, branch_map)
+    return n
 
 
 def _scan(
@@ -130,28 +159,20 @@ def summarize(branch_map: dict[str, str], distinct_celtic: int, report: RetagRep
 
 
 def retag_rows(rows: list[dict], branch_map: dict[str, str], report: RetagReport) -> bool:
-    """Rewrite one file's rows IN PLACE: re-tag clean ``celtic`` etymon records to
-    their branch and cascade every ``celtic:<form>`` ref (etymon ``ref``, element
-    ``etymon_ref``, and any other ref-bearing record like tags/reflexes) to
-    ``<branch>:<form>``. Returns True if anything in this file changed."""
+    """Rewrite one file's rows IN PLACE: cascade every ``celtic:<form>`` ref to its
+    branch (recursively, wherever it appears — etymon ``ref``, element
+    ``etymon_ref``, ``citation.etymon_ref``, ``collapse.into``, reflex refs, …) and,
+    for a record whose own identity ``ref`` was thereby re-branched, flip its
+    ``language`` celtic→branch. Returns True if anything in this file changed."""
     changed = False
     for r in rows:
-        t = r.get("_type")
-        if t == "etymology_element":
-            for e in r.get("elements") or []:
-                er = e.get("etymon_ref")
-                if isinstance(er, str) and er.startswith(_CELTIC_PREFIX) and er in branch_map:
-                    e["etymon_ref"] = _rebranch(er, branch_map[er])
-                    report.records_rewritten += 1
-                    changed = True
-            continue
-        # etymon records + any ref-bearing record (tags, reflexes, …)
-        ref = r.get("ref")
-        if isinstance(ref, str) and ref.startswith(_CELTIC_PREFIX) and ref in branch_map:
-            branch = branch_map[ref]
-            r["ref"] = _rebranch(ref, branch)
-            if r.get("language") == "celtic":
-                r["language"] = branch
+        if _rebranch_refs(r, branch_map):
+            # if this record's own identity ref was re-branched, flip its language
+            ref = r.get("ref")
+            if isinstance(ref, str) and r.get("language") == "celtic":
+                branch = ref.partition(":")[0]
+                if branch in _BRANCHES:
+                    r["language"] = branch
             report.records_rewritten += 1
             changed = True
     return changed

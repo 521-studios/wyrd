@@ -28,6 +28,8 @@ def lexicon_retag_celtic_branch(data_dir: Path, dry_run: bool) -> None:
     rewrite each file (etymon language + ref, and every cascading celtic:<form>
     ref). Idempotent; only files with a change are rewritten.
     """
+    # Lazy imports (keep the CLI module import-light at registration time) —
+    # matches the normalize-l2-vocab CLI pattern.
     from wyrd.generators.kenning.jsonl.log import write_jsonl
     from wyrd.generators.kenning.lexicon.celtic_retag import (
         RetagReport,

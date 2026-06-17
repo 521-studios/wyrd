@@ -97,11 +97,11 @@
 {"_type": "citation", "etymon_ref": "old-english:halh"}
 {"_type": "citation", "etymon_ref": "old-english:halh", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:bettws", "canonical_form": "bettws", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:bettws"}
-{"_type": "citation", "etymon_ref": "celtic:bettws", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:bettws"}
+{"_type": "citation", "etymon_ref": "brittonic:bettws", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:crowyn", "canonical_form": "crowyn", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:crowyn"}
-{"_type": "citation", "etymon_ref": "celtic:crowyn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:crowyn"}
+{"_type": "citation", "etymon_ref": "brittonic:crowyn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:bīc", "canonical_form": "bīc", "language": "old-english", "glosses": ["A point; a bees-nest."]}
 {"_type": "citation", "etymon_ref": "old-english:bīc"}
 {"_type": "citation", "etymon_ref": "old-english:bīc", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names"}
@@ -358,8 +358,8 @@
 {"_type": "citation", "etymon_ref": "old-english:stoc"}
 {"_type": "citation", "etymon_ref": "old-english:stoc", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:hawdd", "canonical_form": "hawdd", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:hawdd"}
-{"_type": "citation", "etymon_ref": "celtic:hawdd", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:hawdd"}
+{"_type": "citation", "etymon_ref": "brittonic:hawdd", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "celtic:nant", "canonical_form": "nant", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:nant"}
 {"_type": "citation", "etymon_ref": "celtic:nant", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -385,8 +385,8 @@
 {"_type": "citation", "etymon_ref": "old-english:Cyneheard"}
 {"_type": "citation", "etymon_ref": "old-english:Cyneheard", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:cnocc", "canonical_form": "cnocc", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:cnocc"}
-{"_type": "citation", "etymon_ref": "celtic:cnocc", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:cnocc"}
+{"_type": "citation", "etymon_ref": "brittonic:cnocc", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:cnocc", "canonical_form": "cnocc", "language": "old-english", "glosses": ["A hillock."]}
 {"_type": "citation", "etymon_ref": "old-english:cnocc"}
 {"_type": "citation", "etymon_ref": "old-english:cnocc", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -475,17 +475,17 @@
 {"_type": "citation", "etymon_ref": "old-english:māna"}
 {"_type": "citation", "etymon_ref": "old-english:māna", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:mamm", "canonical_form": "mamm", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:mamm"}
-{"_type": "citation", "etymon_ref": "celtic:mamm", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:mamm"}
+{"_type": "citation", "etymon_ref": "brittonic:mamm", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:wïnn", "canonical_form": "wïnn", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:wïnn"}
-{"_type": "citation", "etymon_ref": "celtic:wïnn", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:wïnn"}
+{"_type": "citation", "etymon_ref": "brittonic:wïnn", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:mȳðel", "canonical_form": "mȳðel", "language": "old-english", "glosses": ["Small confluence."]}
 {"_type": "citation", "etymon_ref": "old-english:mȳðel"}
 {"_type": "citation", "etymon_ref": "old-english:mȳðel", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:mönið", "canonical_form": "mönið", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:mönið"}
-{"_type": "citation", "etymon_ref": "celtic:mönið", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:mönið"}
+{"_type": "citation", "etymon_ref": "brittonic:mönið", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:nīwe", "canonical_form": "nīwe", "language": "old-english", "glosses": ["New."]}
 {"_type": "citation", "etymon_ref": "old-english:nīwe"}
 {"_type": "citation", "etymon_ref": "old-english:nīwe", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names"}
@@ -517,8 +517,8 @@
 {"_type": "citation", "etymon_ref": "old-english:pusa"}
 {"_type": "citation", "etymon_ref": "old-english:pusa", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:pres", "canonical_form": "pres", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:pres"}
-{"_type": "citation", "etymon_ref": "celtic:pres", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified)"}
+{"_type": "citation", "etymon_ref": "brittonic:pres"}
+{"_type": "citation", "etymon_ref": "brittonic:pres", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified)"}
 {"_type": "etymon", "ref": "old-english:prēost", "canonical_form": "prēost", "language": "old-english", "glosses": ["A priest."]}
 {"_type": "citation", "etymon_ref": "old-english:prēost"}
 {"_type": "citation", "etymon_ref": "old-english:prēost", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Place-names of Sheffield (unspecified)"}
@@ -588,8 +588,8 @@
 {"_type": "citation", "etymon_ref": "old-english:scrubb"}
 {"_type": "citation", "etymon_ref": "old-english:scrubb", "source_id": "kepn_external", "context_snippet": "Place-names of Sheffield (unspecified); E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:carreg", "canonical_form": "carreg", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:carreg"}
-{"_type": "citation", "etymon_ref": "celtic:carreg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:carreg"}
+{"_type": "citation", "etymon_ref": "brittonic:carreg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Sibba", "canonical_form": "Sibba", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Sibba"}
 {"_type": "citation", "etymon_ref": "old-english:Sibba", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Sheffield (unspecified); A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}

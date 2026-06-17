@@ -67,11 +67,11 @@
 {"_type": "citation", "etymon_ref": "old-english:Ealdwulf"}
 {"_type": "citation", "etymon_ref": "old-english:Ealdwulf", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:dervā", "canonical_form": "dervā", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:dervā"}
-{"_type": "citation", "etymon_ref": "celtic:dervā", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:dervā"}
+{"_type": "citation", "etymon_ref": "brittonic:dervā", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:-ing-", "canonical_form": "-ing-", "language": "old-english", "glosses": ["Connective particle, linking a first element to a final element."]}
 {"_type": "citation", "etymon_ref": "old-english:-ing-"}
 {"_type": "citation", "etymon_ref": "old-english:-ing-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover et al.; Place-names of Warwickshire"}
@@ -190,14 +190,14 @@
 {"_type": "citation", "etymon_ref": "old-english:Dunna"}
 {"_type": "citation", "etymon_ref": "old-english:Dunna", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Gover et al.; Place-names of Warwickshire; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:breg", "canonical_form": "breg", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:breg"}
-{"_type": "citation", "etymon_ref": "celtic:breg", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:breg"}
+{"_type": "citation", "etymon_ref": "brittonic:breg", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:byrgels", "canonical_form": "byrgels", "language": "old-english", "glosses": ["A burial place, a tumulus."]}
 {"_type": "citation", "etymon_ref": "old-english:byrgels"}
 {"_type": "citation", "etymon_ref": "old-english:byrgels", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:lïs", "canonical_form": "lïs", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:lïs"}
-{"_type": "citation", "etymon_ref": "celtic:lïs", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:lïs"}
+{"_type": "citation", "etymon_ref": "brittonic:lïs", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:bred", "canonical_form": "bred", "language": "old-english", "glosses": ["A plank, a board."]}
 {"_type": "citation", "etymon_ref": "old-english:bred"}
 {"_type": "citation", "etymon_ref": "old-english:bred", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -325,8 +325,8 @@
 {"_type": "citation", "etymon_ref": "old-english:elm"}
 {"_type": "citation", "etymon_ref": "old-english:elm", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover et al.; Place-names of Warwickshire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:eglẹ̄s", "canonical_form": "eglẹ̄s", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:eglẹ̄s"}
-{"_type": "citation", "etymon_ref": "celtic:eglẹ̄s", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover et al.; Place-names of Warwickshire; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:eglẹ̄s"}
+{"_type": "citation", "etymon_ref": "brittonic:eglẹ̄s", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover et al.; Place-names of Warwickshire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:berg", "canonical_form": "berg", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:berg"}
 {"_type": "citation", "etymon_ref": "old-english:berg", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.; Place-names of Warwickshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
@@ -475,11 +475,11 @@
 {"_type": "citation", "etymon_ref": "old-english:Blocc"}
 {"_type": "citation", "etymon_ref": "old-english:Blocc", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:essedum", "canonical_form": "essedum", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:essedum"}
-{"_type": "citation", "etymon_ref": "celtic:essedum", "source_id": "kepn_external", "context_snippet": "Rivet & Smith; Place-names of Roman Britain; Watts; Cambridge Dictionary of English Place-names; Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:essedum"}
+{"_type": "citation", "etymon_ref": "brittonic:essedum", "source_id": "kepn_external", "context_snippet": "Rivet & Smith; Place-names of Roman Britain; Watts; Cambridge Dictionary of English Place-names; Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:mandu", "canonical_form": "mandu", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:mandu"}
-{"_type": "citation", "etymon_ref": "celtic:mandu", "source_id": "kepn_external", "context_snippet": "Rivet & Smith; Place-names of Roman Britain; Watts; Cambridge Dictionary of English Place-names; Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:mandu"}
+{"_type": "citation", "etymon_ref": "brittonic:mandu", "source_id": "kepn_external", "context_snippet": "Rivet & Smith; Place-names of Roman Britain; Watts; Cambridge Dictionary of English Place-names; Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:mǣre", "canonical_form": "mǣre", "language": "old-english", "glosses": ["A boundary, a border; (in field names) the balk of a ploughland."]}
 {"_type": "citation", "etymon_ref": "old-english:mǣre"}
 {"_type": "citation", "etymon_ref": "old-english:mǣre", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Anderson (unspecified work); Gover et al.; Place-names of Warwickshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
@@ -508,8 +508,8 @@
 {"_type": "citation", "etymon_ref": "middle-english:monke"}
 {"_type": "citation", "etymon_ref": "middle-english:monke", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:mǭr", "canonical_form": "mǭr", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:mǭr"}
-{"_type": "citation", "etymon_ref": "celtic:mǭr", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:mǭr"}
+{"_type": "citation", "etymon_ref": "brittonic:mǭr", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover et al.; Place-names of Warwickshire; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:cnæpp", "canonical_form": "cnæpp", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:cnæpp"}
 {"_type": "citation", "etymon_ref": "old-english:cnæpp", "source_id": "kepn_external", "context_snippet": "Gover et al.; Place-names of Warwickshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}

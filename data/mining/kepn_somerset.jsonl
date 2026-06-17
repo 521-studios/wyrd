@@ -163,11 +163,11 @@
 {"_type": "citation", "etymon_ref": "latin:episcopus"}
 {"_type": "citation", "etymon_ref": "latin:episcopus", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:garth", "canonical_form": "garth", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:garth"}
-{"_type": "citation", "etymon_ref": "celtic:garth", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:garth"}
+{"_type": "citation", "etymon_ref": "brittonic:garth", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:lẹ̄d", "canonical_form": "lẹ̄d", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:lẹ̄d"}
-{"_type": "citation", "etymon_ref": "celtic:lẹ̄d", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:lẹ̄d"}
+{"_type": "citation", "etymon_ref": "brittonic:lẹ̄d", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:blæc", "canonical_form": "blæc", "language": "old-english", "glosses": ["Black, dark-coloured, dark."]}
 {"_type": "citation", "etymon_ref": "old-english:blæc"}
 {"_type": "citation", "etymon_ref": "old-english:blæc", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -184,8 +184,8 @@
 {"_type": "citation", "etymon_ref": "old-english:brōc"}
 {"_type": "citation", "etymon_ref": "old-english:brōc", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:breg", "canonical_form": "breg", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:breg"}
-{"_type": "citation", "etymon_ref": "celtic:breg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:breg"}
+{"_type": "citation", "etymon_ref": "brittonic:breg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "unknown:Obscure element", "canonical_form": "Obscure element", "language": "unknown", "glosses": ["Obscure element"]}
 {"_type": "citation", "etymon_ref": "unknown:Obscure element"}
 {"_type": "citation", "etymon_ref": "unknown:Obscure element", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
@@ -277,14 +277,14 @@
 {"_type": "citation", "etymon_ref": "old-english:cēod"}
 {"_type": "citation", "etymon_ref": "old-english:cēod", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:ceunant", "canonical_form": "ceunant", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:ceunant"}
-{"_type": "citation", "etymon_ref": "celtic:ceunant", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:ceunant"}
+{"_type": "citation", "etymon_ref": "brittonic:ceunant", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:dor", "canonical_form": "dor", "language": "old-english", "glosses": ["A large door, a gate; the entrance to a pass between hills."]}
 {"_type": "citation", "etymon_ref": "old-english:dor"}
 {"_type": "citation", "etymon_ref": "old-english:dor", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:cyte", "canonical_form": "cyte", "language": "old-english", "glosses": ["A cottage; a hermit's or monk's cell."]}
 {"_type": "citation", "etymon_ref": "old-english:cyte"}
 {"_type": "citation", "etymon_ref": "old-english:cyte", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -310,8 +310,8 @@
 {"_type": "citation", "etymon_ref": "old-english:cild"}
 {"_type": "citation", "etymon_ref": "old-english:cild", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:ciltā", "canonical_form": "ciltā", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:ciltā"}
-{"_type": "citation", "etymon_ref": "celtic:ciltā", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:ciltā"}
+{"_type": "citation", "etymon_ref": "brittonic:ciltā", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:calc", "canonical_form": "calc", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:calc"}
 {"_type": "citation", "etymon_ref": "old-english:calc", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
@@ -325,8 +325,8 @@
 {"_type": "citation", "etymon_ref": "old-english:cisel"}
 {"_type": "citation", "etymon_ref": "old-english:cisel", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:crṻg", "canonical_form": "crṻg", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:crṻg"}
-{"_type": "citation", "etymon_ref": "celtic:crṻg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:crṻg"}
+{"_type": "citation", "etymon_ref": "brittonic:crṻg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:cirice", "canonical_form": "cirice", "language": "old-english", "glosses": ["A church."]}
 {"_type": "citation", "etymon_ref": "old-english:cirice"}
 {"_type": "citation", "etymon_ref": "old-english:cirice", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
@@ -391,8 +391,8 @@
 {"_type": "citation", "etymon_ref": "old-english:dīgol"}
 {"_type": "citation", "etymon_ref": "old-english:dīgol", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:creig", "canonical_form": "creig", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:creig"}
-{"_type": "citation", "etymon_ref": "celtic:creig", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:creig"}
+{"_type": "citation", "etymon_ref": "brittonic:creig", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:torr", "canonical_form": "torr", "language": "old-english", "glosses": ["A rock, a rocky outcrop, a rocky peak."]}
 {"_type": "citation", "etymon_ref": "old-english:torr"}
 {"_type": "citation", "etymon_ref": "old-english:torr", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -421,8 +421,8 @@
 {"_type": "citation", "etymon_ref": "old-english:hlȳde"}
 {"_type": "citation", "etymon_ref": "old-english:hlȳde", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:ardd", "canonical_form": "ardd", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:ardd"}
-{"_type": "citation", "etymon_ref": "celtic:ardd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:ardd"}
+{"_type": "citation", "etymon_ref": "brittonic:ardd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "celtic:penn", "canonical_form": "penn", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:penn"}
 {"_type": "citation", "etymon_ref": "celtic:penn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -634,8 +634,8 @@
 {"_type": "citation", "etymon_ref": "old-english:norð"}
 {"_type": "citation", "etymon_ref": "old-english:norð", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:mönið", "canonical_form": "mönið", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:mönið"}
-{"_type": "citation", "etymon_ref": "celtic:mönið", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:mönið"}
+{"_type": "citation", "etymon_ref": "brittonic:mönið", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:munuc", "canonical_form": "munuc", "language": "old-english", "glosses": ["A monk."]}
 {"_type": "citation", "etymon_ref": "old-english:munuc"}
 {"_type": "citation", "etymon_ref": "old-english:munuc", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -739,14 +739,14 @@
 {"_type": "citation", "etymon_ref": "old-english:prēost"}
 {"_type": "citation", "etymon_ref": "old-english:prēost", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:prið", "canonical_form": "prið", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:prið"}
-{"_type": "citation", "etymon_ref": "celtic:prið", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:prið"}
+{"_type": "citation", "etymon_ref": "brittonic:prið", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:tïg", "canonical_form": "tïg", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:tïg"}
-{"_type": "citation", "etymon_ref": "celtic:tïg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:tïg"}
+{"_type": "citation", "etymon_ref": "brittonic:tïg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:prisc", "canonical_form": "prisc", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:prisc"}
-{"_type": "citation", "etymon_ref": "celtic:prisc", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:prisc"}
+{"_type": "citation", "etymon_ref": "brittonic:prisc", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:hlāw", "canonical_form": "hlāw", "language": "old-english", "glosses": ["A tumulus; a hill."]}
 {"_type": "citation", "etymon_ref": "old-english:hlāw"}
 {"_type": "citation", "etymon_ref": "old-english:hlāw", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -757,11 +757,11 @@
 {"_type": "citation", "etymon_ref": "old-english:pirige"}
 {"_type": "citation", "etymon_ref": "old-english:pirige", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:canto-", "canonical_form": "canto-", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:canto-"}
-{"_type": "citation", "etymon_ref": "celtic:canto-", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:canto-"}
+{"_type": "citation", "etymon_ref": "brittonic:canto-", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:mę̄l", "canonical_form": "mę̄l", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:mę̄l"}
-{"_type": "citation", "etymon_ref": "celtic:mę̄l", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:mę̄l"}
+{"_type": "citation", "etymon_ref": "brittonic:mę̄l", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:rād", "canonical_form": "rād", "language": "old-english", "glosses": ["The act of riding on horseback; a riding-way (as distinct from a foot-path), a road."]}
 {"_type": "citation", "etymon_ref": "old-english:rād"}
 {"_type": "citation", "etymon_ref": "old-english:rād", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}

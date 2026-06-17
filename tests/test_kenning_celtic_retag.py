@@ -70,15 +70,40 @@ def _rows():
             "toponym_ref": "Gaul@-",
             "elements": [{"ordinal": 0, "etymon_ref": "celtic:unk"}],
         },
+        # celtic:reg — its toponym is NOT in the rows; country derives from the
+        # region in the name@region ref (Yorkshire → England → brittonic)
+        {"_type": "etymon", "ref": "celtic:reg", "language": "celtic"},
+        {
+            "_type": "etymology_element",
+            "toponym_ref": "Notinrows@Yorkshire",
+            "elements": [{"ordinal": 0, "etymon_ref": "celtic:reg"}],
+        },
+        # ref-bearing records that must ALSO cascade (the bug the recursive walk fixes):
+        {"_type": "citation", "etymon_ref": "celtic:gee", "quote": "…", "source_doc": "joyce"},
+        {"_type": "collapse", "ref": "celtic:wee", "into": "celtic:bee"},  # both brittonic
+        # a reflex carries its OWN language — ref must flip, language must NOT
+        {"_type": "reflex", "ref": "celtic:gee", "language": "modern-english", "form": "gee"},
     ]
 
 
 def test_build_branch_map_clean_single_branch_only():
     m = build_branch_map(_rows())
-    assert m == {"celtic:gee": "goidelic", "celtic:bee": "brittonic", "celtic:wee": "brittonic"}
+    assert m == {
+        "celtic:gee": "goidelic",
+        "celtic:bee": "brittonic",
+        "celtic:wee": "brittonic",
+        "celtic:reg": "brittonic",  # via region-derived country (Yorkshire→England)
+    }
     # mix (both), unk (unknown-tainted), orphan (unattached) are NOT mapped → stay celtic
     for stay in ("celtic:mix", "celtic:unk", "celtic:orphan"):
         assert stay not in m
+
+
+def test_country_derived_from_region_when_toponym_absent():
+    # celtic:reg's toponym (Notinrows@Yorkshire) has no row; country_for_region
+    # derives England → brittonic. Exercises the name@region fallback path.
+    m = build_branch_map(_rows())
+    assert m["celtic:reg"] == "brittonic"
 
 
 def test_england_substrate_is_brittonic():
@@ -115,6 +140,35 @@ def test_retag_rows_rewrites_etymon_language_ref_and_cascades():
     # mixed/unknown stay celtic (untouched)
     assert by[("etymon", "celtic:mix")]["language"] == "celtic"
     assert "celtic:mix" in elem_refs
+
+
+def test_cascade_covers_citation_collapse_and_reflex():
+    """The recursive walk must rewrite refs in EVERY field, not just etymon ref +
+    element etymon_ref — the citation.etymon_ref / collapse.into gap that would
+    otherwise dangle and silently drop rows on rebuild."""
+    rows = _rows()
+    m = build_branch_map(rows)
+    retag_rows(rows, m, RetagReport())
+    citation = next(r for r in rows if r["_type"] == "citation")
+    assert citation["etymon_ref"] == "goidelic:gee"  # citation.etymon_ref cascaded
+    collapse = next(r for r in rows if r["_type"] == "collapse")
+    assert collapse["ref"] == "brittonic:wee" and collapse["into"] == "brittonic:bee"  # both
+    reflex = next(r for r in rows if r["_type"] == "reflex")
+    assert reflex["ref"] == "goidelic:gee"  # ref flips...
+    assert reflex["language"] == "modern-english"  # ...but the reflex's OWN language does NOT
+
+
+def test_summarize_fills_distinct_counts():
+    from wyrd.generators.kenning.lexicon.celtic_retag import summarize
+
+    m = build_branch_map(_rows())
+    report = RetagReport()
+    # 7 distinct celtic etymons in the fixture: gee, bee, wee, reg, mix, unk, orphan
+    summarize(m, distinct_celtic=7, report=report)
+    assert report.to_goidelic == 1  # gee
+    assert report.to_brittonic == 3  # bee, wee, reg
+    assert report.distinct_celtic == 7
+    assert report.stayed_celtic == 3  # mix, unk, orphan (= 7 - 4 mapped)
 
 
 def test_retag_is_idempotent():

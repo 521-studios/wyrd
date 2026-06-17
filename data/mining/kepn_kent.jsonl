@@ -199,8 +199,8 @@
 {"_type": "citation", "etymon_ref": "unknown:Place-name"}
 {"_type": "citation", "etymon_ref": "unknown:Place-name", "source_id": "kepn_external", "context_snippet": "Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Ekwall; Studies1; Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names; Wallenberg; Kentish Place-Names; E. Ekwall; Dictionary of English Place-Names; Coates and Breeze, Celtic Voices English Places; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d", "source_id": "kepn_external", "context_snippet": "Ekwall; Studies1; Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names; Wallenberg; Kentish Place-Names; E. Ekwall; Dictionary of English Place-Names; Coates and Breeze, Celtic Voices English Places; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Cēol", "canonical_form": "Cēol", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Cēol"}
 {"_type": "citation", "etymon_ref": "old-english:Cēol", "source_id": "kepn_external", "context_snippet": "Wallenberg; The Place-Names of Kent; Cameron; Dictionary of Lincolnshire Place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Mills; Dictionary of London Place-Names"}
@@ -208,8 +208,8 @@
 {"_type": "citation", "etymon_ref": "old-english:cirice"}
 {"_type": "citation", "etymon_ref": "old-english:cirice", "source_id": "kepn_external", "context_snippet": "Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent; Watts; Cambridge Dictionary of English Place-names; Ekwall; Studies1; Wallenberg; The Place-Names of Kent; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:cev˜n", "canonical_form": "cev˜n", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:cev˜n"}
-{"_type": "citation", "etymon_ref": "celtic:cev˜n", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Coates and Breeze, Celtic Voices English Places; E. Ekwall; Dictionary of English Place-Names; Ekwall; English place-names in -ing (2nd ed.); Wallenberg; The Place-Names of Kent; Winifred D. Abbott; Thesis on Kent; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:cev˜n"}
+{"_type": "citation", "etymon_ref": "brittonic:cev˜n", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Coates and Breeze, Celtic Voices English Places; E. Ekwall; Dictionary of English Place-Names; Ekwall; English place-names in -ing (2nd ed.); Wallenberg; The Place-Names of Kent; Winifred D. Abbott; Thesis on Kent; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:stān", "canonical_form": "stān", "language": "old-english", "glosses": ["A stone, stone, rock."]}
 {"_type": "citation", "etymon_ref": "old-english:stān"}
 {"_type": "citation", "etymon_ref": "old-english:stān", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names"}
@@ -529,8 +529,8 @@
 {"_type": "citation", "etymon_ref": "old-english:hlēo"}
 {"_type": "citation", "etymon_ref": "old-english:hlēo", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Cameron; Dictionary of Lincolnshire Place-names; A.D. Mills; Dictionary of English Place-Names; Wallenberg; The Place-Names of Kent; Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent"}
 {"_type": "etymon", "ref": "brittonic:lemo-", "canonical_form": "lemo-", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:lemo-"}
-{"_type": "citation", "etymon_ref": "celtic:lemo-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent; E. Ekwall; Dictionary of English Place-Names; Ekwall; English River-Names; Wallenberg; Kentish Place-Names; Wallenberg; The Place-Names of Kent; Gelling; Signposts to the Past; Forsberg 1950; Contribution (L)"}
+{"_type": "citation", "etymon_ref": "brittonic:lemo-"}
+{"_type": "citation", "etymon_ref": "brittonic:lemo-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent; E. Ekwall; Dictionary of English Place-Names; Ekwall; English River-Names; Wallenberg; Kentish Place-Names; Wallenberg; The Place-Names of Kent; Gelling; Signposts to the Past; Forsberg 1950; Contribution (L)"}
 {"_type": "etymon", "ref": "old-english:lind", "canonical_form": "lind", "language": "old-english", "glosses": ["A lime-tree."]}
 {"_type": "citation", "etymon_ref": "old-english:lind"}
 {"_type": "citation", "etymon_ref": "old-english:lind", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names"}
@@ -667,8 +667,8 @@
 {"_type": "citation", "etymon_ref": "old-english:ceaster"}
 {"_type": "citation", "etymon_ref": "old-english:ceaster", "source_id": "kepn_external", "context_snippet": "Coates and Breeze, Celtic Voices English Places; Gelling; Signposts to the Past; Anderson; English Hundred-Names; E. Ekwall; Dictionary of English Place-Names; The Vocabulary of English Place-Names; Forsberg 1950; Contribution (L); Wallenberg; The Place-Names of Kent; Wallenberg; Kentish Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:duro-", "canonical_form": "duro-", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:duro-"}
-{"_type": "citation", "etymon_ref": "celtic:duro-", "source_id": "kepn_external", "context_snippet": "Coates and Breeze, Celtic Voices English Places; Gelling; Signposts to the Past; Anderson; English Hundred-Names; E. Ekwall; Dictionary of English Place-Names; The Vocabulary of English Place-Names; Forsberg 1950; Contribution (L); Wallenberg; The Place-Names of Kent; Wallenberg; Kentish Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:duro-"}
+{"_type": "citation", "etymon_ref": "brittonic:duro-", "source_id": "kepn_external", "context_snippet": "Coates and Breeze, Celtic Voices English Places; Gelling; Signposts to the Past; Anderson; English Hundred-Names; E. Ekwall; Dictionary of English Place-Names; The Vocabulary of English Place-Names; Forsberg 1950; Contribution (L); Wallenberg; The Place-Names of Kent; Wallenberg; Kentish Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-french:roial", "canonical_form": "roial", "language": "old-french", "glosses": ["Royal"]}
 {"_type": "citation", "etymon_ref": "old-french:roial"}
 {"_type": "citation", "etymon_ref": "old-french:roial", "source_id": "kepn_external", "context_snippet": "Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -694,8 +694,8 @@
 {"_type": "citation", "etymon_ref": "old-english:sand"}
 {"_type": "citation", "etymon_ref": "old-english:sand", "source_id": "kepn_external", "context_snippet": "Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names; Wallenberg; Kentish Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:sarn", "canonical_form": "sarn", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:sarn"}
-{"_type": "citation", "etymon_ref": "celtic:sarn", "source_id": "kepn_external", "context_snippet": "Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Wallenberg; The Place-Names of Kent; Coates and Breeze, Celtic Voices English Places; Wallenberg; Kentish Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:sarn"}
+{"_type": "citation", "etymon_ref": "brittonic:sarn", "source_id": "kepn_external", "context_snippet": "Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Wallenberg; The Place-Names of Kent; Coates and Breeze, Celtic Voices English Places; Wallenberg; Kentish Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:sele", "canonical_form": "sele", "language": "old-english", "glosses": ["A dwelling, a house, a hall."]}
 {"_type": "citation", "etymon_ref": "old-english:sele"}
 {"_type": "citation", "etymon_ref": "old-english:sele", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}

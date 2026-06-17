@@ -217,11 +217,11 @@
 {"_type": "citation", "etymon_ref": "old-english:ceorl"}
 {"_type": "citation", "etymon_ref": "old-english:ceorl", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:ial", "canonical_form": "ial", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:ial"}
-{"_type": "citation", "etymon_ref": "celtic:ial", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire"}
+{"_type": "citation", "etymon_ref": "brittonic:ial"}
+{"_type": "citation", "etymon_ref": "brittonic:ial", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire"}
 {"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d"}
-{"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d"}
+{"_type": "citation", "etymon_ref": "brittonic:cē¸d", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:gelād", "canonical_form": "gelād", "language": "old-english", "glosses": ["A difficult river-crossing; possibly also a ferry."]}
 {"_type": "citation", "etymon_ref": "old-english:gelād"}
 {"_type": "citation", "etymon_ref": "old-english:gelād", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
@@ -256,8 +256,8 @@
 {"_type": "citation", "etymon_ref": "old-english:cyte"}
 {"_type": "citation", "etymon_ref": "old-english:cyte", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:treβ", "canonical_form": "treβ", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:treβ"}
-{"_type": "citation", "etymon_ref": "celtic:treβ", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:treβ"}
+{"_type": "citation", "etymon_ref": "brittonic:treβ", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:cristel-mǣl", "canonical_form": "cristel-mǣl", "language": "old-english", "glosses": ["A cross, a crucifix."]}
 {"_type": "citation", "etymon_ref": "old-english:cristel-mǣl"}
 {"_type": "citation", "etymon_ref": "old-english:cristel-mǣl", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire"}
@@ -292,17 +292,17 @@
 {"_type": "citation", "etymon_ref": "old-english:Cosa"}
 {"_type": "citation", "etymon_ref": "old-english:Cosa", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:cors", "canonical_form": "cors", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:cors"}
-{"_type": "citation", "etymon_ref": "celtic:cors", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:cors"}
+{"_type": "citation", "etymon_ref": "brittonic:cors", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:lēah", "canonical_form": "lēah", "language": "old-english", "glosses": ["A forest, wood, glade, clearing; (later) a pasture, meadow."]}
 {"_type": "citation", "etymon_ref": "old-english:lēah"}
 {"_type": "citation", "etymon_ref": "old-english:lēah", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:creig", "canonical_form": "creig", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:creig"}
-{"_type": "citation", "etymon_ref": "celtic:creig", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:creig"}
+{"_type": "citation", "etymon_ref": "brittonic:creig", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:crṻg", "canonical_form": "crṻg", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:crṻg"}
-{"_type": "citation", "etymon_ref": "celtic:crṻg", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:crṻg"}
+{"_type": "citation", "etymon_ref": "brittonic:crṻg", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:wella", "canonical_form": "wella", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:wella"}
 {"_type": "citation", "etymon_ref": "old-english:wella", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names"}
@@ -406,8 +406,8 @@
 {"_type": "citation", "etymon_ref": "old-english:funta"}
 {"_type": "citation", "etymon_ref": "old-english:funta", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:funt", "canonical_form": "funt", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:funt"}
-{"_type": "citation", "etymon_ref": "celtic:funt", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:funt"}
+{"_type": "citation", "etymon_ref": "brittonic:funt", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Fobba", "canonical_form": "Fobba", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Fobba"}
 {"_type": "citation", "etymon_ref": "old-english:Fobba", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names"}
@@ -439,11 +439,11 @@
 {"_type": "citation", "etymon_ref": "old-english:bedwinde"}
 {"_type": "citation", "etymon_ref": "old-english:bedwinde", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:-el", "canonical_form": "-el", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:-el"}
-{"_type": "citation", "etymon_ref": "celtic:-el", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:-el"}
+{"_type": "citation", "etymon_ref": "brittonic:-el", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:kevar", "canonical_form": "kevar", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:kevar"}
-{"_type": "citation", "etymon_ref": "celtic:kevar", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:kevar"}
+{"_type": "citation", "etymon_ref": "brittonic:kevar", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:sumor", "canonical_form": "sumor", "language": "old-english", "glosses": ["Summer."]}
 {"_type": "citation", "etymon_ref": "old-english:sumor"}
 {"_type": "citation", "etymon_ref": "old-english:sumor", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire"}
@@ -505,8 +505,8 @@
 {"_type": "citation", "etymon_ref": "old-english:lang"}
 {"_type": "citation", "etymon_ref": "old-english:lang", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:cnocc", "canonical_form": "cnocc", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:cnocc"}
-{"_type": "citation", "etymon_ref": "celtic:cnocc", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:cnocc"}
+{"_type": "citation", "etymon_ref": "brittonic:cnocc", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:lacuc", "canonical_form": "lacuc", "language": "old-english", "glosses": ["A small stream."]}
 {"_type": "citation", "etymon_ref": "old-english:lacuc"}
 {"_type": "citation", "etymon_ref": "old-english:lacuc", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
@@ -541,11 +541,11 @@
 {"_type": "citation", "etymon_ref": "old-english:lūte-gār"}
 {"_type": "citation", "etymon_ref": "old-english:lūte-gār", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:garth", "canonical_form": "garth", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:garth"}
-{"_type": "citation", "etymon_ref": "celtic:garth", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:garth"}
+{"_type": "citation", "etymon_ref": "brittonic:garth", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:lẹ̄d", "canonical_form": "lẹ̄d", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:lẹ̄d"}
-{"_type": "citation", "etymon_ref": "celtic:lẹ̄d", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
+{"_type": "citation", "etymon_ref": "brittonic:lẹ̄d"}
+{"_type": "citation", "etymon_ref": "brittonic:lẹ̄d", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:līn", "canonical_form": "līn", "language": "old-english", "glosses": ["Flax."]}
 {"_type": "citation", "etymon_ref": "old-english:līn"}
 {"_type": "citation", "etymon_ref": "old-english:līn", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
@@ -628,8 +628,8 @@
 {"_type": "citation", "etymon_ref": "old-english:nīwe"}
 {"_type": "citation", "etymon_ref": "old-english:nīwe", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire"}
 {"_type": "etymon", "ref": "brittonic:-āco-", "canonical_form": "-āco-", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:-āco-"}
-{"_type": "citation", "etymon_ref": "celtic:-āco-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire"}
+{"_type": "citation", "etymon_ref": "brittonic:-āco-"}
+{"_type": "citation", "etymon_ref": "brittonic:-āco-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire"}
 {"_type": "etymon", "ref": "old-english:Tuda", "canonical_form": "Tuda", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Tuda"}
 {"_type": "citation", "etymon_ref": "old-english:Tuda", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
@@ -781,17 +781,17 @@
 {"_type": "citation", "etymon_ref": "old-english:Þēodwulf"}
 {"_type": "citation", "etymon_ref": "old-english:Þēodwulf", "source_id": "kepn_external", "context_snippet": "Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "brittonic:ardd", "canonical_form": "ardd", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:ardd"}
-{"_type": "citation", "etymon_ref": "celtic:ardd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:ardd"}
+{"_type": "citation", "etymon_ref": "brittonic:ardd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:tull", "canonical_form": "tull", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:tull"}
-{"_type": "citation", "etymon_ref": "celtic:tull", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:tull"}
+{"_type": "citation", "etymon_ref": "brittonic:tull", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:upp", "canonical_form": "upp", "language": "old-english", "glosses": ["Up, higher up, upon."]}
 {"_type": "citation", "etymon_ref": "old-english:upp"}
 {"_type": "citation", "etymon_ref": "old-english:upp", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire"}
 {"_type": "etymon", "ref": "brittonic:perth", "canonical_form": "perth", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:perth"}
-{"_type": "citation", "etymon_ref": "celtic:perth", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:perth"}
+{"_type": "citation", "etymon_ref": "brittonic:perth", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Pearta", "canonical_form": "Pearta", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Pearta"}
 {"_type": "citation", "etymon_ref": "old-english:Pearta", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gover, Mawer and Stenton, The Place-Names of Wiltshire; A.D. Mills; Dictionary of English Place-Names"}

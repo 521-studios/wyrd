@@ -1122,8 +1122,8 @@
 {"_type": "citation", "etymon_ref": "latin:colonia"}
 {"_type": "citation", "etymon_ref": "latin:colonia", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Cameron; Dictionary of Lincolnshire Place-names; Rivet & Smith; Place-names of Roman Britain; Cameon et al.; Place-names of Lincolnshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "brittonic:lindo-", "canonical_form": "lindo-", "language": "brittonic"}
-{"_type": "citation", "etymon_ref": "celtic:lindo-"}
-{"_type": "citation", "etymon_ref": "celtic:lindo-", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Cameron; Dictionary of Lincolnshire Place-names; Rivet & Smith; Place-names of Roman Britain; Cameon et al.; Place-names of Lincolnshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
+{"_type": "citation", "etymon_ref": "brittonic:lindo-"}
+{"_type": "citation", "etymon_ref": "brittonic:lindo-", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Cameron; Dictionary of Lincolnshire Place-names; Rivet & Smith; Place-names of Roman Britain; Cameon et al.; Place-names of Lincolnshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:lȳtel", "canonical_form": "lȳtel", "language": "old-english", "glosses": ["Little, small."]}
 {"_type": "citation", "etymon_ref": "old-english:lȳtel"}
 {"_type": "etymon", "ref": "old-norse:lundr", "canonical_form": "lundr", "language": "old-norse", "glosses": ["A small wood."]}

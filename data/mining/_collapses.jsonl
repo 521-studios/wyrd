@@ -1,6 +1,6 @@
 {"_type": "source", "ref": "collapse", "title": "Etymon collapse ledger (wyrd-y651)", "notes": "Form-of / variant etymons folded into their lemma. Replayed by run_full_enrichment's curation slot. Deterministic rows from detect-collapses; LLM rows from the merge pass. Revert with into: ''."}
 {"_type": "collapse", "ref": "breton:béd", "into": "breton:bed", "variant_class": "alternative", "method": "deterministic-pointer-parse"}
-{"_type": "collapse", "ref": "brittonic:wen", "into": "celtic:gwyn", "variant_class": "alternative", "method": "deterministic-pointer-parse"}
+{"_type": "collapse", "ref": "brittonic:wen", "into": "brittonic:gwyn", "variant_class": "alternative", "method": "deterministic-pointer-parse"}
 {"_type": "collapse", "ref": "irish:luim", "into": "irish:loim", "variant_class": "alternative", "method": "deterministic-pointer-parse"}
 {"_type": "collapse", "ref": "middle-english:Johan", "into": "middle-english:John", "variant_class": "alternative", "method": "deterministic-variant-gloss-overlap"}
 {"_type": "collapse", "ref": "middle-english:Johannes", "into": "middle-english:John", "variant_class": "alternative", "method": "deterministic-variant-gloss-overlap"}
