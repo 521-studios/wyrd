@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from importlib import resources
 from types import MappingProxyType
+from typing import Literal
 
 import yaml
 
@@ -36,6 +37,11 @@ from wyrd.generators.kenning.lexicon.regions import country_for_region
 _DATA_PACKAGE = "wyrd.generators.kenning.data"
 _FILENAME = "regions_england.yaml"
 _REGION_LEVELS = ("county", "subdivision")
+
+# The closed set of buckets classify_region sorts a value into.
+RegionStatus = Literal[
+    "empty", "non-england", "node", "alias", "zone", "quarantine", "country-root", "unknown"
+]
 
 
 class RegionValidationError(ValueError):
@@ -133,6 +139,20 @@ def _build_model(m: object) -> _EnglandModel:
     return _EnglandModel(valid, country_nodes[0], MappingProxyType(aliases), zones, quarantine)
 
 
+def _england_scoped(region: str, country: str | None) -> bool:
+    """Whether ``region`` is England-scoped (so the England model governs it).
+
+    An explicit ``country`` is authoritative and whitespace-tolerant (a padded
+    ``" England "`` still scopes as England); a blank/whitespace-only country
+    counts as absent. With no country, fall back to the region→country map plus
+    the model's own recognition. Shared by :func:`canonicalize_region` (the gate)
+    and :func:`classify_region` (the report) so the two can't disagree on scope.
+    """
+    if country and country.strip():
+        return country.strip() == "England"
+    return country_for_region(region) == "England" or _model().recognizes(region)
+
+
 def canonicalize_region(region: str | None, *, country: str | None = None) -> str | None:
     """Validate + canonicalize a region value at the ingest boundary.
 
@@ -164,11 +184,7 @@ def canonicalize_region(region: str | None, *, country: str | None = None) -> st
     if not region:  # None / "" / whitespace-only — normalize a missing region to NULL
         return None
     model = _model()
-    if country is not None:
-        england_scoped = country == "England"
-    else:
-        england_scoped = country_for_region(region) == "England" or model.recognizes(region)
-    if not england_scoped:
+    if not _england_scoped(region, country):
         # Non-England dimension (Scotland/Wales/…) or an unknown with no England
         # signal — out of scope here; its model is wyrd-3q6m.5.
         return region
@@ -188,3 +204,37 @@ def canonicalize_region(region: str | None, *, country: str | None = None) -> st
     else:
         reason = "unknown England region; add it to regions_england.yaml as a node or alias"
     raise RegionValidationError(region, reason)
+
+
+def classify_region(region: str | None, *, country: str | None = None) -> RegionStatus:
+    """Read-only counterpart to :func:`canonicalize_region` — classify a region
+    value against the England model WITHOUT raising, for health reports (wyrd-cgl4).
+
+    Returns one of: ``empty`` (None/blank), ``non-england`` (out of scope, passed
+    through), ``node`` (valid canonical), ``alias`` (variant that *would fold* —
+    its presence in stored data means it was never normalized), ``zone`` (a
+    deferred cultural/linguistic zone — expected, awaits wyrd-hytz), ``quarantine``
+    (a known-bad coding needing re-code), ``country-root`` (the country used as a
+    region), or ``unknown`` (England-scoped but not modeled at all).
+
+    Shares the scope logic + the model's buckets with :func:`canonicalize_region`,
+    so the gate and the report can't disagree on what a value is.
+    """
+    if region is not None:
+        region = region.strip()
+    if not region:
+        return "empty"
+    model = _model()
+    if not _england_scoped(region, country):
+        return "non-england"
+    if region in model.aliases:
+        return "alias"
+    if region in model.valid_nodes:
+        return "node"
+    if region == model.country_root:
+        return "country-root"
+    if region in model.zones:
+        return "zone"
+    if region in model.quarantine:
+        return "quarantine"
+    return "unknown"
