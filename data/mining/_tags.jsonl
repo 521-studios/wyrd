@@ -58,41 +58,41 @@
 {"_type": "tags", "confidence": "high", "form": "unan", "language": "breton", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "breton:unan", "tags": ["number"]}
 {"_type": "tags", "confidence": "high", "form": "yen", "language": "breton", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "breton:yen", "tags": ["temperature"]}
 {"_type": "tags", "confidence": "medium", "form": "boher", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:boher", "tags": ["item"]}
-{"_type": "tags", "confidence": "high", "form": "brack", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:brack", "tags": ["material"]}
+{"_type": "tags", "confidence": "high", "form": "brack", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:brack", "tags": ["material"]}
 {"_type": "tags", "confidence": "high", "form": "clody", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:clody", "tags": ["topography"]}
-{"_type": "tags", "confidence": "high", "form": "crane", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:crane", "tags": ["anatomy"]}
-{"_type": "tags", "confidence": "high", "form": "creag", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:creag", "tags": ["geology", "topography"]}
-{"_type": "tags", "confidence": "high", "form": "cymmer", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:cymmer", "tags": ["water"]}
+{"_type": "tags", "confidence": "high", "form": "crane", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:crane", "tags": ["anatomy"]}
+{"_type": "tags", "confidence": "high", "form": "creag", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:creag", "tags": ["geology", "topography"]}
+{"_type": "tags", "confidence": "high", "form": "cymmer", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:cymmer", "tags": ["water"]}
 {"_type": "tags", "confidence": "high", "form": "donn", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:donn", "tags": ["color"]}
 {"_type": "tags", "confidence": "high", "form": "drom", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:drom", "tags": ["topography"]}
 {"_type": "tags", "confidence": "high", "form": "dubh", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:dubh", "tags": ["color"]}
-{"_type": "tags", "confidence": "high", "form": "eas", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:eas", "tags": ["topography", "water"]}
+{"_type": "tags", "confidence": "high", "form": "eas", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:eas", "tags": ["topography", "water"]}
 {"_type": "tags", "confidence": "high", "form": "eudan", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:eudan", "tags": ["anatomy"]}
 {"_type": "tags", "confidence": "high", "form": "farris", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:farris", "tags": ["weather"]}
 {"_type": "tags", "confidence": "high", "form": "fearann", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:fearann", "tags": ["social"]}
-{"_type": "tags", "confidence": "high", "form": "freamh", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:freamh", "tags": ["plant"]}
-{"_type": "tags", "confidence": "high", "form": "glasa", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:glasa", "tags": ["color"]}
+{"_type": "tags", "confidence": "high", "form": "freamh", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:freamh", "tags": ["plant"]}
+{"_type": "tags", "confidence": "high", "form": "glasa", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:glasa", "tags": ["color"]}
 {"_type": "tags", "confidence": "high", "form": "glenn", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:glenn", "tags": ["topography"]}
-{"_type": "tags", "confidence": "high", "form": "gomhal", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:gomhal", "tags": ["action"]}
+{"_type": "tags", "confidence": "high", "form": "gomhal", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:gomhal", "tags": ["action"]}
 {"_type": "tags", "confidence": "high", "form": "grean", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:grean", "tags": ["color", "geology"]}
-{"_type": "tags", "confidence": "high", "form": "guaire", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:guaire", "tags": ["social"]}
+{"_type": "tags", "confidence": "high", "form": "guaire", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:guaire", "tags": ["social"]}
 {"_type": "tags", "confidence": "high", "form": "humber", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:humber", "tags": ["water"]}
 {"_type": "tags", "confidence": "high", "form": "iskin", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:iskin", "tags": ["size"]}
-{"_type": "tags", "confidence": "high", "form": "labara", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:labara", "tags": ["descriptive"]}
-{"_type": "tags", "confidence": "high", "form": "lahassery", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:lahassery", "tags": ["agriculture", "measurement", "number"]}
+{"_type": "tags", "confidence": "high", "form": "labara", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:labara", "tags": ["descriptive"]}
+{"_type": "tags", "confidence": "high", "form": "lahassery", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:lahassery", "tags": ["agriculture", "measurement", "number"]}
 {"_type": "tags", "confidence": "medium", "form": "lann", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:lann", "tags": ["topography"]}
-{"_type": "tags", "confidence": "high", "form": "lasair", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:lasair", "tags": ["element"]}
-{"_type": "tags", "confidence": "high", "form": "lodan", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:lodan", "tags": ["topography", "water"]}
-{"_type": "tags", "confidence": "high", "form": "lurga", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:lurga", "tags": ["anatomy", "topography"]}
-{"_type": "tags", "confidence": "high", "form": "oilean", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:oilean", "tags": ["geography"]}
+{"_type": "tags", "confidence": "high", "form": "lasair", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:lasair", "tags": ["element"]}
+{"_type": "tags", "confidence": "high", "form": "lodan", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:lodan", "tags": ["topography", "water"]}
+{"_type": "tags", "confidence": "high", "form": "lurga", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:lurga", "tags": ["anatomy", "topography"]}
+{"_type": "tags", "confidence": "high", "form": "oilean", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:oilean", "tags": ["geography"]}
 {"_type": "tags", "confidence": "high", "form": "raw", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:raw", "tags": ["topography"]}
-{"_type": "tags", "confidence": "high", "form": "rian", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:rian", "tags": []}
-{"_type": "tags", "confidence": "high", "form": "shangan", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:shangan", "tags": ["animal", "insect"]}
+{"_type": "tags", "confidence": "high", "form": "rian", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:rian", "tags": []}
+{"_type": "tags", "confidence": "high", "form": "shangan", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:shangan", "tags": ["animal", "insect"]}
 {"_type": "tags", "confidence": "medium", "form": "tre", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:tre", "tags": ["agriculture", "social"]}
 {"_type": "tags", "confidence": "high", "form": "tren", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:tren", "tags": ["descriptive"]}
-{"_type": "tags", "confidence": "high", "form": "trén", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:trén", "tags": ["descriptive"]}
-{"_type": "tags", "confidence": "high", "form": "uggool", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:uggool", "tags": ["topography"]}
-{"_type": "tags", "confidence": "high", "form": "ystre", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:ystre", "tags": ["architecture"]}
+{"_type": "tags", "confidence": "high", "form": "trén", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:trén", "tags": ["descriptive"]}
+{"_type": "tags", "confidence": "high", "form": "uggool", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:uggool", "tags": ["topography"]}
+{"_type": "tags", "confidence": "high", "form": "ystre", "language": "goidelic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "goidelic:ystre", "tags": ["architecture"]}
 {"_type": "tags", "confidence": "high", "form": "hubreht", "language": "germanic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "germanic:hubreht", "tags": []}
 {"_type": "tags", "confidence": "high", "form": "Colm", "language": "irish", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "irish:Colm", "tags": ["male name"]}
 {"_type": "tags", "confidence": "high", "form": "Conn", "language": "irish", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "irish:Conn", "tags": ["male name"]}

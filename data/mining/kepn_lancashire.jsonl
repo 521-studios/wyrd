@@ -114,7 +114,7 @@
 {"_type": "etymon", "ref": "old-english:feld", "canonical_form": "feld", "language": "old-english", "glosses": ["Open country, unencumbered ground (eg. land without trees as opposed to forest, level ground as opposed to hills, land without buildings); arable land (from late tenth century)."]}
 {"_type": "citation", "etymon_ref": "old-english:feld"}
 {"_type": "citation", "etymon_ref": "old-english:feld", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:maguïr", "canonical_form": "maguïr", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:maguïr", "canonical_form": "maguïr", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:maguïr"}
 {"_type": "citation", "etymon_ref": "celtic:maguïr", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:haga", "canonical_form": "haga", "language": "old-english", "glosses": ["A hedge; an enclosure; later a messuage, property."]}
@@ -357,16 +357,16 @@
 {"_type": "etymon", "ref": "old-norse:kattar", "canonical_form": "kattar", "language": "old-norse", "glosses": ["Cat."]}
 {"_type": "citation", "etymon_ref": "old-norse:kattar"}
 {"_type": "citation", "etymon_ref": "old-norse:kattar", "source_id": "kepn_external", "context_snippet": "Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cadeir", "canonical_form": "cadeir", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cadeir", "canonical_form": "cadeir", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cadeir"}
 {"_type": "citation", "etymon_ref": "celtic:cadeir", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:-āco-", "canonical_form": "-āco-", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:-āco-", "canonical_form": "-āco-", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:-āco-"}
 {"_type": "citation", "etymon_ref": "celtic:-āco-", "source_id": "kepn_external", "context_snippet": "Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Catta", "canonical_form": "Catta", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Catta"}
 {"_type": "citation", "etymon_ref": "old-english:Catta", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:cild", "canonical_form": "cild", "language": "old-english", "glosses": ["A child, a young person, a boy, a son."]}
@@ -471,13 +471,13 @@
 {"_type": "etymon", "ref": "old-norse:kofri", "canonical_form": "kofri", "language": "old-norse", "glosses": ["A hood, a cap; used of a hill."]}
 {"_type": "citation", "etymon_ref": "old-norse:kofri"}
 {"_type": "citation", "etymon_ref": "old-norse:kofri", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:kerden", "canonical_form": "kerden", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:kerden", "canonical_form": "kerden", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:kerden"}
 {"_type": "citation", "etymon_ref": "celtic:kerden", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Cylferð", "canonical_form": "Cylferð", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Cylferð"}
 {"_type": "citation", "etymon_ref": "old-english:Cylferð", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:cṻl", "canonical_form": "cṻl", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cṻl", "canonical_form": "cṻl", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cṻl"}
 {"_type": "citation", "etymon_ref": "celtic:cṻl", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire"}
 {"_type": "etymon", "ref": "old-english:dǣl", "canonical_form": "dǣl", "language": "old-english", "glosses": ["A share of land, a district."]}
@@ -528,7 +528,7 @@
 {"_type": "etymon", "ref": "old-english:Budda", "canonical_form": "Budda", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Budda"}
 {"_type": "citation", "etymon_ref": "old-english:Budda", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:eglẹ̄s", "canonical_form": "eglẹ̄s", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:eglẹ̄s", "canonical_form": "eglẹ̄s", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:eglẹ̄s"}
 {"_type": "citation", "etymon_ref": "celtic:eglẹ̄s", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Ecga", "canonical_form": "Ecga", "language": "old-english"}
@@ -699,10 +699,10 @@
 {"_type": "etymon", "ref": "old-english:Hákr", "canonical_form": "Hákr", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Hákr"}
 {"_type": "citation", "etymon_ref": "old-english:Hákr", "source_id": "kepn_external", "context_snippet": "Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:-ǭg", "canonical_form": "-ǭg", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:-ǭg", "canonical_form": "-ǭg", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:-ǭg"}
 {"_type": "citation", "etymon_ref": "celtic:-ǭg", "source_id": "kepn_external", "context_snippet": "Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:haidd", "canonical_form": "haidd", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:haidd", "canonical_form": "haidd", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:haidd"}
 {"_type": "citation", "etymon_ref": "celtic:haidd", "source_id": "kepn_external", "context_snippet": "Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:hēope", "canonical_form": "hēope", "language": "old-english", "glosses": ["The fruit of the wild rose, a hip."]}
@@ -729,7 +729,7 @@
 {"_type": "etymon", "ref": "old-english:Bekan", "canonical_form": "Bekan", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Bekan"}
 {"_type": "citation", "etymon_ref": "old-english:Bekan", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:heschen", "canonical_form": "heschen", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:heschen", "canonical_form": "heschen", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:heschen"}
 {"_type": "citation", "etymon_ref": "celtic:heschen", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:hēg", "canonical_form": "hēg", "language": "old-english"}
@@ -795,10 +795,10 @@
 {"_type": "etymon", "ref": "old-english:hīd", "canonical_form": "hīd", "language": "old-english", "glosses": ["A hide of land; an amount of land for the support of one free family and its dependants; a unit of valuation."]}
 {"_type": "citation", "etymon_ref": "old-english:hīd"}
 {"_type": "citation", "etymon_ref": "old-english:hīd", "source_id": "kepn_external", "context_snippet": "Dodgson; Place-names of Cheshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:eithin", "canonical_form": "eithin", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:eithin", "canonical_form": "eithin", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:eithin"}
 {"_type": "citation", "etymon_ref": "celtic:eithin", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:ïnïs", "canonical_form": "ïnïs", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:ïnïs", "canonical_form": "ïnïs", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:ïnïs"}
 {"_type": "citation", "etymon_ref": "celtic:ïnïs", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:cȳpe", "canonical_form": "cȳpe", "language": "old-english", "glosses": ["An osier-basket (especially for catching fish)."]}
@@ -813,7 +813,7 @@
 {"_type": "etymon", "ref": "old-english:cærse", "canonical_form": "cærse", "language": "old-english", "glosses": ["Cress, water-cress."]}
 {"_type": "citation", "etymon_ref": "old-english:cærse"}
 {"_type": "citation", "etymon_ref": "old-english:cærse", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:crṻg", "canonical_form": "crṻg", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:crṻg", "canonical_form": "crṻg", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:crṻg"}
 {"_type": "citation", "etymon_ref": "celtic:crṻg", "source_id": "kepn_external", "context_snippet": "Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-norse:kirkju-býr", "canonical_form": "kirkju-býr", "language": "old-norse", "glosses": ["A village with a church."]}
@@ -927,13 +927,13 @@
 {"_type": "etymon", "ref": "old-english:mægðe", "canonical_form": "mægðe", "language": "old-english", "glosses": ["May-weed."]}
 {"_type": "citation", "etymon_ref": "old-english:mægðe"}
 {"_type": "citation", "etymon_ref": "old-english:mægðe", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire"}
-{"_type": "etymon", "ref": "celtic:mages", "canonical_form": "mages", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:mages", "canonical_form": "mages", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:mages"}
 {"_type": "citation", "etymon_ref": "celtic:mages", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire"}
 {"_type": "etymon", "ref": "middle-english:Baga", "canonical_form": "Baga", "language": "middle-english"}
 {"_type": "citation", "etymon_ref": "middle-english:Baga"}
 {"_type": "citation", "etymon_ref": "middle-english:Baga", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire"}
-{"_type": "etymon", "ref": "celtic:mamm", "canonical_form": "mamm", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:mamm", "canonical_form": "mamm", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:mamm"}
 {"_type": "citation", "etymon_ref": "celtic:mamm", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-norse:hryggr", "canonical_form": "hryggr", "language": "old-norse", "glosses": ["A ridge."]}
@@ -960,10 +960,10 @@
 {"_type": "etymon", "ref": "old-norse:vrá", "canonical_form": "vrá", "language": "old-norse", "glosses": ["A nook, a corner of land."]}
 {"_type": "citation", "etymon_ref": "old-norse:vrá"}
 {"_type": "citation", "etymon_ref": "old-norse:vrá", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:breg", "canonical_form": "breg", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:breg", "canonical_form": "breg", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:breg"}
 {"_type": "citation", "etymon_ref": "celtic:breg", "source_id": "kepn_external", "context_snippet": "Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:mę̄l", "canonical_form": "mę̄l", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:mę̄l", "canonical_form": "mę̄l", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:mę̄l"}
 {"_type": "citation", "etymon_ref": "celtic:mę̄l", "source_id": "kepn_external", "context_snippet": "Ekwall; Place-names of Lancashire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:mos", "canonical_form": "mos", "language": "old-english", "glosses": ["A bog, a swamp; presumably also moss.  Only recorded once, in charter boundaries dating from 975."]}
@@ -1065,7 +1065,7 @@
 {"_type": "etymon", "ref": "old-english:Þóraldr", "canonical_form": "Þóraldr", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Þóraldr"}
 {"_type": "citation", "etymon_ref": "old-english:Þóraldr", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:pres", "canonical_form": "pres", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:pres", "canonical_form": "pres", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:pres"}
 {"_type": "citation", "etymon_ref": "celtic:pres", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-norse:Hákon", "canonical_form": "Hákon", "language": "old-norse"}
@@ -1137,7 +1137,7 @@
 {"_type": "etymon", "ref": "old-english:scearp", "canonical_form": "scearp", "language": "old-english", "glosses": ["Sharp, pointed; perhaps also steep."]}
 {"_type": "citation", "etymon_ref": "old-english:scearp"}
 {"_type": "citation", "etymon_ref": "old-english:scearp", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:cev˜n", "canonical_form": "cev˜n", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cev˜n", "canonical_form": "cev˜n", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cev˜n"}
 {"_type": "citation", "etymon_ref": "celtic:cev˜n", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:seolfor", "canonical_form": "seolfor", "language": "old-english", "glosses": ["Silver; in place-names, most likely to refer to colour."]}
@@ -1230,10 +1230,10 @@
 {"_type": "etymon", "ref": "old-english:hwerfel", "canonical_form": "hwerfel", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:hwerfel"}
 {"_type": "citation", "etymon_ref": "old-english:hwerfel", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:lïs", "canonical_form": "lïs", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:lïs", "canonical_form": "lïs", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:lïs"}
 {"_type": "citation", "etymon_ref": "celtic:lïs", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:treβ", "canonical_form": "treβ", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:treβ", "canonical_form": "treβ", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:treβ"}
 {"_type": "citation", "etymon_ref": "celtic:treβ", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:tūn-stall", "canonical_form": "tūn-stall", "language": "old-english", "glosses": ["The site of a farm, a farmstead."]}
@@ -1317,7 +1317,7 @@
 {"_type": "etymon", "ref": "old-english:scīr", "canonical_form": "scīr", "language": "old-english", "glosses": ["A shire, a jurisdiction, an administrative district, a county."]}
 {"_type": "citation", "etymon_ref": "old-english:scīr"}
 {"_type": "citation", "etymon_ref": "old-english:scīr", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:wlïb", "canonical_form": "wlïb", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:wlïb", "canonical_form": "wlïb", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:wlïb"}
 {"_type": "citation", "etymon_ref": "celtic:wlïb", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Ekwall; Place-names of Lancashire; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Clip", "canonical_form": "Clip", "language": "old-english"}
@@ -1413,7 +1413,7 @@
 {"_type": "toponym", "ref": "Arkholme with Cawood@Lancashire", "modern_name": "Arkholme with Cawood", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Arkholme with Cawood@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cā"}, {"ordinal": 2, "etymon_ref": "old-norse:erg"}, {"ordinal": 3, "etymon_ref": "old-english:wudu"}], "notes": "At the shielings'. 'Jackdaw wood"}
 {"_type": "toponym", "ref": "Ashton in Makerfield@Lancashire", "modern_name": "Ashton in Makerfield", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Ashton in Makerfield@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:æsc"}, {"ordinal": 2, "etymon_ref": "old-english:feld"}, {"ordinal": 3, "etymon_ref": "celtic:maguïr"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Ash-tree farm/settlement'. Makerfield is an ancient district name formed from a pre-English name *Macer, 'wall', probably referring to ruins and a later OE feld, 'open land"}
+{"_type": "etymology_element", "toponym_ref": "Ashton in Makerfield@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:æsc"}, {"ordinal": 2, "etymon_ref": "old-english:feld"}, {"ordinal": 3, "etymon_ref": "brittonic:maguïr"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Ash-tree farm/settlement'. Makerfield is an ancient district name formed from a pre-English name *Macer, 'wall', probably referring to ruins and a later OE feld, 'open land"}
 {"_type": "toponym", "ref": "Ashton under Lyne@Lancashire", "modern_name": "Ashton under Lyne", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Ashton under Lyne@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:æsc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Ash-tree farm/settlement"}
 {"_type": "toponym", "ref": "Ashton with Stodday@Lancashire", "modern_name": "Ashton with Stodday", "country": "England", "region": "Lancashire"}
@@ -1539,13 +1539,13 @@
 {"_type": "toponym", "ref": "Catterall@Lancashire", "modern_name": "Catterall", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Catterall@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}, {"ordinal": 2, "etymon_ref": "old-norse:hali"}, {"ordinal": 3, "etymon_ref": "old-norse:kattar"}, {"ordinal": 4, "etymon_ref": "unknown:Obscure element"}], "notes": "Cat's tail' with reference to some feature. Alternatively, the second element is 'nook of land"}
 {"_type": "toponym", "ref": "Chadderton@Lancashire", "modern_name": "Chadderton", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Chadderton@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cadeir"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at the hill called *Cadeir (= the chair)'"}
+{"_type": "etymology_element", "toponym_ref": "Chadderton@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cadeir"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at the hill called *Cadeir (= the chair)'"}
 {"_type": "toponym", "ref": "Charnock Richard@Lancashire", "modern_name": "Charnock Richard", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Charnock Richard@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-āco-"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "unresolved personal name(s): (unextracted personal name)"}
+{"_type": "etymology_element", "toponym_ref": "Charnock Richard@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-āco-"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Chatburn@Lancashire", "modern_name": "Chatburn", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Chatburn@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burna"}, {"ordinal": 2, "etymon_ref": "old-english:Catta"}], "notes": "*Ceatta's stream"}
 {"_type": "toponym", "ref": "Cheetham@Lancashire", "modern_name": "Cheetham", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Cheetham@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}], "notes": "Homestead/village at *Chet (= the wood)"}
+{"_type": "etymology_element", "toponym_ref": "Cheetham@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}], "notes": "Homestead/village at *Chet (= the wood)"}
 {"_type": "toponym", "ref": "Childwall@Lancashire", "modern_name": "Childwall", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Childwall@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cild"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}], "notes": "Children's spring/stream"}
 {"_type": "toponym", "ref": "Chipping@Lancashire", "modern_name": "Chipping", "country": "England", "region": "Lancashire"}
@@ -1607,11 +1607,11 @@
 {"_type": "toponym", "ref": "Cuerdale@Lancashire", "modern_name": "Cuerdale", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Cuerdale@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:haugr"}, {"ordinal": 2, "etymon_ref": "old-norse:kofri"}], "notes": "Rounded hill"}
 {"_type": "toponym", "ref": "Cuerden@Lancashire", "modern_name": "Cuerden", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Cuerden@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:kerden"}], "notes": "Ash-tree"}
+{"_type": "etymology_element", "toponym_ref": "Cuerden@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:kerden"}], "notes": "Ash-tree"}
 {"_type": "toponym", "ref": "Cuerdley@Lancashire", "modern_name": "Cuerdley", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Cuerdley@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:Cylferð"}], "notes": "Cynferth's wood/clearing"}
 {"_type": "toponym", "ref": "Culcheth@Lancashire", "modern_name": "Culcheth", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Culcheth@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:cṻl"}], "notes": "Narrow wood"}
+{"_type": "etymology_element", "toponym_ref": "Culcheth@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "brittonic:cṻl"}], "notes": "Narrow wood"}
 {"_type": "toponym", "ref": "Dalton@Lancashire", "modern_name": "Dalton", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Dalton@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dǣl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Valley farm/settlement"}
 {"_type": "toponym", "ref": "Dalton in Furness@Lancashire", "modern_name": "Dalton in Furness", "country": "England", "region": "Lancashire"}
@@ -1625,7 +1625,7 @@
 {"_type": "toponym", "ref": "Dilworth@Lancashire", "modern_name": "Dilworth", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Dilworth@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dile"}, {"ordinal": 2, "etymon_ref": "old-english:worð"}], "notes": "Dill enclosure"}
 {"_type": "toponym", "ref": "Dinckley@Lancashire", "modern_name": "Dinckley", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Dinckley@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:din"}, {"ordinal": 3, "etymon_ref": "old-english:lēah"}, {"ordinal": 4, "etymon_ref": "old-english:Dincat"}], "notes": "wood fortification' with the later addition of 'wood/clearing'. Alternatively, perhaps 'Dincat's wood/clearing"}
+{"_type": "etymology_element", "toponym_ref": "Dinckley@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:din"}, {"ordinal": 3, "etymon_ref": "old-english:lēah"}, {"ordinal": 4, "etymon_ref": "old-english:Dincat"}], "notes": "wood fortification' with the later addition of 'wood/clearing'. Alternatively, perhaps 'Dincat's wood/clearing"}
 {"_type": "toponym", "ref": "Ditton@Lancashire", "modern_name": "Ditton", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Ditton@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dīc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Ditch farm/settlement"}
 {"_type": "toponym", "ref": "Downham@Lancashire", "modern_name": "Downham", "country": "England", "region": "Lancashire"}
@@ -1643,11 +1643,11 @@
 {"_type": "toponym", "ref": "Duxbury@Lancashire", "modern_name": "Duxbury", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Duxbury@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}], "notes": "Duc's fortification; unresolved personal name(s): Duc"}
 {"_type": "toponym", "ref": "Eccleshill@Lancashire", "modern_name": "Eccleshill", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Eccleshill@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Church hill"}
+{"_type": "etymology_element", "toponym_ref": "Eccleshill@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Church hill"}
 {"_type": "toponym", "ref": "Eccleston@Lancashire", "modern_name": "Eccleston", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Eccleston@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Church farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Eccleston@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Church farm/settlement"}
 {"_type": "toponym", "ref": "Eccleston@Lancashire", "modern_name": "Eccleston", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Eccleston@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Church farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Eccleston@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Church farm/settlement"}
 {"_type": "toponym", "ref": "Edgworth@Lancashire", "modern_name": "Edgworth", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Edgworth@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ecg"}, {"ordinal": 2, "etymon_ref": "old-english:worð"}], "notes": "Edge enclosure"}
 {"_type": "toponym", "ref": "Egton with Newland@Lancashire", "modern_name": "Egton with Newland", "country": "England", "region": "Lancashire"}
@@ -1711,7 +1711,7 @@
 {"_type": "toponym", "ref": "Great and Little Marsden@Lancashire", "modern_name": "Great and Little Marsden", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Great and Little Marsden@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:mercels"}], "notes": "Boundary valley"}
 {"_type": "toponym", "ref": "Great Ecclestone@Lancashire", "modern_name": "Great Ecclestone", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Great Ecclestone@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:halh"}], "notes": "Church farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Great Ecclestone@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglẹ̄s"}, {"ordinal": 2, "etymon_ref": "old-english:halh"}], "notes": "Church farm/settlement"}
 {"_type": "toponym", "ref": "Great Harwood@Lancashire", "modern_name": "Great Harwood", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Great Harwood@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hær"}, {"ordinal": 2, "etymon_ref": "old-english:hār"}, {"ordinal": 3, "etymon_ref": "old-english:hara"}, {"ordinal": 4, "etymon_ref": "old-english:wudu"}], "notes": "Grey wood', 'rock wood ' or 'hare wood"}
 {"_type": "toponym", "ref": "Great Sankey@Lancashire", "modern_name": "Great Sankey", "country": "England", "region": "Lancashire"}
@@ -1755,13 +1755,13 @@
 {"_type": "toponym", "ref": "Hawkshead and Monk Coniston with Skelwith@Lancashire", "modern_name": "Hawkshead and Monk Coniston with Skelwith", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Hawkshead and Monk Coniston with Skelwith@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:kunung"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}, {"ordinal": 3, "etymon_ref": "old-norse:sǽtr"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}, {"ordinal": 5, "etymon_ref": "old-norse:við"}, {"ordinal": 6, "etymon_ref": "old-english:Hákr"}], "notes": "Haukr's mountain pasture'. 'King's farm/settlement'. It was held by the monks of Furness. 'Ford by Skelwith Force"}
 {"_type": "toponym", "ref": "Haydock@Lancashire", "modern_name": "Haydock", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Haydock@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-ǭg"}, {"ordinal": 2, "etymon_ref": "celtic:haidd"}], "notes": "Barley place"}
+{"_type": "etymology_element", "toponym_ref": "Haydock@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-ǭg"}, {"ordinal": 2, "etymon_ref": "brittonic:haidd"}], "notes": "Barley place"}
 {"_type": "toponym", "ref": "Heap@Lancashire", "modern_name": "Heap", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Heap@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēap"}], "notes": "Heap"}
 {"_type": "toponym", "ref": "Heapey@Lancashire", "modern_name": "Heapey", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Heapey@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hege"}, {"ordinal": 2, "etymon_ref": "old-english:hēope"}], "notes": "Rose-hip hedge"}
 {"_type": "toponym", "ref": "Heath Charnock@Lancashire", "modern_name": "Heath Charnock", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Heath Charnock@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-āco-"}, {"ordinal": 2, "etymon_ref": "old-english:hǣð"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}]}
+{"_type": "etymology_element", "toponym_ref": "Heath Charnock@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-āco-"}, {"ordinal": 2, "etymon_ref": "old-english:hǣð"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "Heaton@Lancashire", "modern_name": "Heaton", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Heaton@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēah"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "High farm/settlement"}
 {"_type": "toponym", "ref": "Heaton with Oxcliffe@Lancashire", "modern_name": "Heaton with Oxcliffe", "country": "England", "region": "Lancashire"}
@@ -1771,7 +1771,7 @@
 {"_type": "toponym", "ref": "Hesketh with Becconsall@Lancashire", "modern_name": "Hesketh with Becconsall", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Hesketh with Becconsall@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:haugr"}, {"ordinal": 2, "etymon_ref": "old-norse:hestr"}, {"ordinal": 3, "etymon_ref": "old-norse:skeið"}, {"ordinal": 4, "etymon_ref": "old-english:Bekan"}], "notes": "race course for horses'. 'Bekan's mound"}
 {"_type": "toponym", "ref": "Heskin@Lancashire", "modern_name": "Heskin", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Heskin@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:heschen"}], "notes": "Marshy, sedgy place"}
+{"_type": "etymology_element", "toponym_ref": "Heskin@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:heschen"}], "notes": "Marshy, sedgy place"}
 {"_type": "toponym", "ref": "Heyhouses@Lancashire", "modern_name": "Heyhouses", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Heyhouses@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēg"}, {"ordinal": 2, "etymon_ref": "old-english:hūs"}], "notes": "Hay houses"}
 {"_type": "toponym", "ref": "Heysham@Lancashire", "modern_name": "Heysham", "country": "England", "region": "Lancashire"}
@@ -1809,19 +1809,19 @@
 {"_type": "toponym", "ref": "Hyde@Lancashire", "modern_name": "Hyde", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Hyde@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hīd"}], "notes": "Hide of land"}
 {"_type": "toponym", "ref": "Ightenhill Park@Lancashire", "modern_name": "Ightenhill Park", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Ightenhill Park@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eithin"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "gorse hill"}
+{"_type": "etymology_element", "toponym_ref": "Ightenhill Park@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eithin"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "gorse hill"}
 {"_type": "toponym", "ref": "Ince Blundell@Lancashire", "modern_name": "Ince Blundell", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Ince Blundell@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "celtic:ïnïs"}], "notes": "Island"}
+{"_type": "etymology_element", "toponym_ref": "Ince Blundell@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "brittonic:ïnïs"}], "notes": "Island"}
 {"_type": "toponym", "ref": "Ince in Makerfield@Lancashire", "modern_name": "Ince in Makerfield", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Ince in Makerfield@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "celtic:ïnïs"}, {"ordinal": 3, "etymon_ref": "celtic:maguïr"}], "notes": "Island'. Makerfield is an ancient district name formed from a pre-English name *Macer, 'wall', probably referring to ruins and a later OE feld, 'open land"}
+{"_type": "etymology_element", "toponym_ref": "Ince in Makerfield@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "brittonic:ïnïs"}, {"ordinal": 3, "etymon_ref": "brittonic:maguïr"}], "notes": "Island'. Makerfield is an ancient district name formed from a pre-English name *Macer, 'wall', probably referring to ruins and a later OE feld, 'open land"}
 {"_type": "toponym", "ref": "Inskip with Sowerby@Lancashire", "modern_name": "Inskip with Sowerby", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Inskip with Sowerby@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:cȳpe"}, {"ordinal": 3, "etymon_ref": "celtic:ïnïs"}, {"ordinal": 4, "etymon_ref": "old-norse:saurr"}], "notes": "Bowl island'. Alternatively, the second element may be Celtic *cib with the same meaning. 'Sour-ground farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Inskip with Sowerby@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-english:cȳpe"}, {"ordinal": 3, "etymon_ref": "brittonic:ïnïs"}, {"ordinal": 4, "etymon_ref": "old-norse:saurr"}], "notes": "Bowl island'. Alternatively, the second element may be Celtic *cib with the same meaning. 'Sour-ground farm/settlement"}
 {"_type": "toponym", "ref": "Ireby@Lancashire", "modern_name": "Ireby", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Ireby@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 2, "etymon_ref": "old-norse:Íri"}], "notes": "Irish farm/settlement"}
 {"_type": "toponym", "ref": "Kearsley@Lancashire", "modern_name": "Kearsley", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Kearsley@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cærse"}, {"ordinal": 2, "etymon_ref": "old-english:lēah"}], "notes": "Cress wood/clearing"}
 {"_type": "toponym", "ref": "Kenyon@Lancashire", "modern_name": "Kenyon", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Kenyon@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:crṻg"}], "notes": "Einion's mound; unresolved personal name(s): Einion"}
+{"_type": "etymology_element", "toponym_ref": "Kenyon@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:crṻg"}], "notes": "Einion's mound; unresolved personal name(s): Einion"}
 {"_type": "toponym", "ref": "Kirkby@Lancashire", "modern_name": "Kirkby", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Kirkby@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:kirkju-býr"}], "notes": "Church farm/settlement"}
 {"_type": "toponym", "ref": "Kirkby Ireleth@Lancashire", "modern_name": "Kirkby Ireleth", "country": "England", "region": "Lancashire"}
@@ -1859,7 +1859,7 @@
 {"_type": "toponym", "ref": "Little and Much Woolton@Lancashire", "modern_name": "Little and Much Woolton", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Little and Much Woolton@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Wulf"}], "notes": "*Wulfa's farm/settlement"}
 {"_type": "toponym", "ref": "Little Eccleston with Larbreck@Lancashire", "modern_name": "Little Eccleston with Larbreck", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Little Eccleston with Larbreck@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:brekka"}, {"ordinal": 2, "etymon_ref": "celtic:eglẹ̄s"}, {"ordinal": 3, "etymon_ref": "old-norse:leira"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Church farm/settlement'. 'Clay slope"}
+{"_type": "etymology_element", "toponym_ref": "Little Eccleston with Larbreck@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:brekka"}, {"ordinal": 2, "etymon_ref": "brittonic:eglẹ̄s"}, {"ordinal": 3, "etymon_ref": "old-norse:leira"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Church farm/settlement'. 'Clay slope"}
 {"_type": "toponym", "ref": "Little Harwood@Lancashire", "modern_name": "Little Harwood", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Little Harwood@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hær"}, {"ordinal": 2, "etymon_ref": "old-english:hār"}, {"ordinal": 3, "etymon_ref": "old-english:hara"}, {"ordinal": 4, "etymon_ref": "old-english:wudu"}], "notes": "Grey wood', 'rock wood ' or 'hare wood"}
 {"_type": "toponym", "ref": "Little Middle and Over Hulton@Lancashire", "modern_name": "Little Middle and Over Hulton", "country": "England", "region": "Lancashire"}
@@ -1891,9 +1891,9 @@
 {"_type": "toponym", "ref": "Lytham@Lancashire", "modern_name": "Lytham", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Lytham@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hlið"}], "notes": "At the slopes"}
 {"_type": "toponym", "ref": "Maghull@Lancashire", "modern_name": "Maghull", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Maghull@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}, {"ordinal": 2, "etymon_ref": "old-english:mægðe"}, {"ordinal": 3, "etymon_ref": "celtic:mages"}, {"ordinal": 4, "etymon_ref": "middle-english:Baga"}], "notes": "May-weed nook of land' or perhaps, '*Maga's nook of land'. Alternatively, the first element may be 'open land"}
+{"_type": "etymology_element", "toponym_ref": "Maghull@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:halh"}, {"ordinal": 2, "etymon_ref": "old-english:mægðe"}, {"ordinal": 3, "etymon_ref": "brittonic:mages"}, {"ordinal": 4, "etymon_ref": "middle-english:Baga"}], "notes": "May-weed nook of land' or perhaps, '*Maga's nook of land'. Alternatively, the first element may be 'open land"}
 {"_type": "toponym", "ref": "Manchester@Lancashire", "modern_name": "Manchester", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Manchester@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "celtic:mamm"}], "notes": "Roman site' added to a reduced form of the original name possibly meaning 'breast-like hill"}
+{"_type": "etymology_element", "toponym_ref": "Manchester@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "brittonic:mamm"}], "notes": "Roman site' added to a reduced form of the original name possibly meaning 'breast-like hill"}
 {"_type": "toponym", "ref": "Mansriggs@Lancashire", "modern_name": "Mansriggs", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Mansriggs@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:hryggr"}, {"ordinal": 2, "etymon_ref": "old-english:manslaga"}, {"ordinal": 3, "etymon_ref": "old-norse:manslagari"}], "notes": "manslaughter ridge"}
 {"_type": "toponym", "ref": "Marton@Lancashire", "modern_name": "Marton", "country": "England", "region": "Lancashire"}
@@ -1909,7 +1909,7 @@
 {"_type": "toponym", "ref": "Melling with Wrayton@Lancashire", "modern_name": "Melling with Wrayton", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Melling with Wrayton@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}, {"ordinal": 4, "etymon_ref": "old-norse:vrá"}, {"ordinal": 5, "etymon_ref": "old-english:Mealla"}], "notes": "*Mealla's people' or '*Mealla's place'. 'Corner farm/settlement"}
 {"_type": "toponym", "ref": "Mellor@Lancashire", "modern_name": "Mellor", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Mellor@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:breg"}, {"ordinal": 2, "etymon_ref": "celtic:mę̄l"}], "notes": "Bald hill"}
+{"_type": "etymology_element", "toponym_ref": "Mellor@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:breg"}, {"ordinal": 2, "etymon_ref": "brittonic:mę̄l"}], "notes": "Bald hill"}
 {"_type": "toponym", "ref": "Middleton@Lancashire", "modern_name": "Middleton", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Middleton@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:middel"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Middle farm/settlement"}
 {"_type": "toponym", "ref": "Middleton@Lancashire", "modern_name": "Middleton", "country": "England", "region": "Lancashire"}
@@ -1983,7 +1983,7 @@
 {"_type": "toponym", "ref": "Pendleton@Lancashire", "modern_name": "Pendleton", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Pendleton@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyll"}, {"ordinal": 2, "etymon_ref": "celtic:penn"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at Penn hill'. The Celtic 'penn' may have been adopted as a proper name to which 'hyll"}
 {"_type": "toponym", "ref": "Penketh@Lancashire", "modern_name": "Penketh", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Penketh@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:penn"}], "notes": "Wood's edge"}
+{"_type": "etymology_element", "toponym_ref": "Penketh@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:penn"}], "notes": "Wood's edge"}
 {"_type": "toponym", "ref": "Pennington@Lancashire", "modern_name": "Pennington", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Pennington@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:pening"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Penny rent farm/settlement"}
 {"_type": "toponym", "ref": "Pennington@Lancashire", "modern_name": "Pennington", "country": "England", "region": "Lancashire"}
@@ -2005,7 +2005,7 @@
 {"_type": "toponym", "ref": "Poulton with Fearnhead@Lancashire", "modern_name": "Poulton with Fearnhead", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Poulton with Fearnhead@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:fearn"}, {"ordinal": 2, "etymon_ref": "old-english:hēafod"}, {"ordinal": 3, "etymon_ref": "old-english:pull"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Pool farm/settlement'. 'Ferny hill"}
 {"_type": "toponym", "ref": "Preesall with Hackinsall@Lancashire", "modern_name": "Preesall with Hackinsall", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Preesall with Hackinsall@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:haugr"}, {"ordinal": 2, "etymon_ref": "old-english:hēafod"}, {"ordinal": 3, "etymon_ref": "old-norse:hǫfuð"}, {"ordinal": 4, "etymon_ref": "celtic:pres"}, {"ordinal": 5, "etymon_ref": "old-norse:Hákon"}], "notes": "Brushwood headland'. 'Hakon's mound"}
+{"_type": "etymology_element", "toponym_ref": "Preesall with Hackinsall@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:haugr"}, {"ordinal": 2, "etymon_ref": "old-english:hēafod"}, {"ordinal": 3, "etymon_ref": "old-norse:hǫfuð"}, {"ordinal": 4, "etymon_ref": "brittonic:pres"}, {"ordinal": 5, "etymon_ref": "old-norse:Hákon"}], "notes": "Brushwood headland'. 'Hakon's mound"}
 {"_type": "toponym", "ref": "Prescot@Lancashire", "modern_name": "Prescot", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Prescot@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cot"}, {"ordinal": 2, "etymon_ref": "old-english:prēost"}], "notes": "Priests' cottage(s)"}
 {"_type": "toponym", "ref": "Preston@Lancashire", "modern_name": "Preston", "country": "England", "region": "Lancashire"}
@@ -2071,7 +2071,7 @@
 {"_type": "toponym", "ref": "Sharples@Lancashire", "modern_name": "Sharples", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Sharples@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lǣs"}, {"ordinal": 2, "etymon_ref": "old-english:scearp"}], "notes": "Steep meadow"}
 {"_type": "toponym", "ref": "Shevington@Lancashire", "modern_name": "Shevington", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Shevington@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cev˜n"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at *Chevin (= the ridge)"}
+{"_type": "etymology_element", "toponym_ref": "Shevington@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cev˜n"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at *Chevin (= the ridge)"}
 {"_type": "toponym", "ref": "Silverdale@Lancashire", "modern_name": "Silverdale", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Silverdale@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dǣl"}, {"ordinal": 2, "etymon_ref": "old-english:seolfor"}], "notes": "Silver-coloured valley"}
 {"_type": "toponym", "ref": "Simonstone@Lancashire", "modern_name": "Simonstone", "country": "England", "region": "Lancashire"}
@@ -2135,7 +2135,7 @@
 {"_type": "toponym", "ref": "Trawden@Lancashire", "modern_name": "Trawden", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Trawden@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:trog"}], "notes": "Trough-shaped valley"}
 {"_type": "toponym", "ref": "Treales Roseacre and Wharles@Lancashire", "modern_name": "Treales Roseacre and Wharles", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Treales Roseacre and Wharles@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:akr"}, {"ordinal": 2, "etymon_ref": "old-english:hlāw"}, {"ordinal": 3, "etymon_ref": "old-norse:hreysi"}, {"ordinal": 4, "etymon_ref": "old-english:hwerfel"}, {"ordinal": 5, "etymon_ref": "celtic:lïs"}, {"ordinal": 6, "etymon_ref": "celtic:treβ"}], "notes": "Court farm/settlement'. 'Cairn field'. 'Stone-circle mounds"}
+{"_type": "etymology_element", "toponym_ref": "Treales Roseacre and Wharles@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-norse:akr"}, {"ordinal": 2, "etymon_ref": "old-english:hlāw"}, {"ordinal": 3, "etymon_ref": "old-norse:hreysi"}, {"ordinal": 4, "etymon_ref": "old-english:hwerfel"}, {"ordinal": 5, "etymon_ref": "brittonic:lïs"}, {"ordinal": 6, "etymon_ref": "brittonic:treβ"}], "notes": "Court farm/settlement'. 'Cairn field'. 'Stone-circle mounds"}
 {"_type": "toponym", "ref": "Tunstall@Lancashire", "modern_name": "Tunstall", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Tunstall@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn-stall"}], "notes": "Farmstead"}
 {"_type": "toponym", "ref": "Turton@Lancashire", "modern_name": "Turton", "country": "England", "region": "Lancashire"}
@@ -2175,7 +2175,7 @@
 {"_type": "toponym", "ref": "Wavertree@Lancashire", "modern_name": "Wavertree", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Wavertree@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 2, "etymon_ref": "old-english:trēow"}], "notes": "waving tree"}
 {"_type": "toponym", "ref": "Weeton with Preese@Lancashire", "modern_name": "Weeton with Preese", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Weeton with Preese@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:pres"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-english:wīðig"}], "notes": "Willow-tree farm/settlement'. 'Brushwood"}
+{"_type": "etymology_element", "toponym_ref": "Weeton with Preese@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:pres"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-english:wīðig"}], "notes": "Willow-tree farm/settlement'. 'Brushwood"}
 {"_type": "toponym", "ref": "Welch Whettle@Lancashire", "modern_name": "Welch Whettle", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Welch Whettle@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:hwīt"}, {"ordinal": 3, "etymon_ref": "old-english:hyll"}], "notes": "White hill"}
 {"_type": "toponym", "ref": "Wennington@Lancashire", "modern_name": "Wennington", "country": "England", "region": "Lancashire"}
@@ -2205,9 +2205,9 @@
 {"_type": "toponym", "ref": "Widnes@Lancashire", "modern_name": "Widnes", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Widnes@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:næss"}, {"ordinal": 2, "etymon_ref": "old-english:wīd"}], "notes": "Wide promontory"}
 {"_type": "toponym", "ref": "Wigan@Lancashire", "modern_name": "Wigan", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Wigan@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:treβ"}, {"ordinal": 2, "etymon_ref": "old-english:Wiga"}], "notes": "Wigan's farm/settlement' or perhaps, 'little farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Wigan@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:treβ"}, {"ordinal": 2, "etymon_ref": "old-english:Wiga"}], "notes": "Wigan's farm/settlement' or perhaps, 'little farm/settlement"}
 {"_type": "toponym", "ref": "Wilpshire@Lancashire", "modern_name": "Wilpshire", "country": "England", "region": "Lancashire"}
-{"_type": "etymology_element", "toponym_ref": "Wilpshire@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scīr"}, {"ordinal": 2, "etymon_ref": "celtic:wlïb"}, {"ordinal": 3, "etymon_ref": "old-english:Clip"}], "notes": "Wlip's district' or possibly, 'wet district"}
+{"_type": "etymology_element", "toponym_ref": "Wilpshire@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:scīr"}, {"ordinal": 2, "etymon_ref": "brittonic:wlïb"}, {"ordinal": 3, "etymon_ref": "old-english:Clip"}], "notes": "Wlip's district' or possibly, 'wet district"}
 {"_type": "toponym", "ref": "Windle@Lancashire", "modern_name": "Windle", "country": "England", "region": "Lancashire"}
 {"_type": "etymology_element", "toponym_ref": "Windle@Lancashire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyll"}, {"ordinal": 2, "etymon_ref": "old-english:wind"}], "notes": "Windy hill"}
 {"_type": "toponym", "ref": "Winmarleigh@Lancashire", "modern_name": "Winmarleigh", "country": "England", "region": "Lancashire"}

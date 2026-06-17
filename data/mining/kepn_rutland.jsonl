@@ -126,7 +126,7 @@
 {"_type": "etymon", "ref": "old-english:horn", "canonical_form": "horn", "language": "old-english", "glosses": ["A horn; something shaped like a horn; a hornlike projection on a building; a projecting piece of land, esp. formed in a river-bend; a projecting headland; a horn-shaped hill."]}
 {"_type": "citation", "etymon_ref": "old-english:horn"}
 {"_type": "citation", "etymon_ref": "old-english:horn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Cox, The Place-Names of Rutland; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Cox, The Place-Names of Rutland; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:ēa", "canonical_form": "ēa", "language": "old-english", "glosses": ["A river."]}
@@ -332,7 +332,7 @@
 {"_type": "toponym", "ref": "Horn@Rutland", "modern_name": "Horn", "country": "England", "region": "Rutland"}
 {"_type": "etymology_element", "toponym_ref": "Horn@Rutland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:horn"}], "notes": "Horn-shaped feature"}
 {"_type": "toponym", "ref": "Ketton@Rutland", "modern_name": "Ketton", "country": "England", "region": "Rutland"}
-{"_type": "etymology_element", "toponym_ref": "Ketton@Rutland", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:ēa"}, {"ordinal": 3, "etymon_ref": "old-english:Tribal-Name"}, {"ordinal": 4, "etymon_ref": "old-english:Beta"}], "notes": "*Ceta's river', with the second element later remodelled as OE tun. Otherwise, this is possibly an old name for the River Chater containing PrW 'wood' or an OE tribal name, '*Cetan"}
+{"_type": "etymology_element", "toponym_ref": "Ketton@Rutland", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:ēa"}, {"ordinal": 3, "etymon_ref": "old-english:Tribal-Name"}, {"ordinal": 4, "etymon_ref": "old-english:Beta"}], "notes": "*Ceta's river', with the second element later remodelled as OE tun. Otherwise, this is possibly an old name for the River Chater containing PrW 'wood' or an OE tribal name, '*Cetan"}
 {"_type": "toponym", "ref": "Langham@Rutland", "modern_name": "Langham", "country": "England", "region": "Rutland"}
 {"_type": "etymology_element", "toponym_ref": "Langham@Rutland", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām"}, {"ordinal": 2, "etymon_ref": "old-english:hamm"}, {"ordinal": 3, "etymon_ref": "old-english:lang"}], "notes": "Long homestead/village' or 'hemmed-in land"}
 {"_type": "toponym", "ref": "Leighfield@Rutland", "modern_name": "Leighfield", "country": "England", "region": "Rutland"}

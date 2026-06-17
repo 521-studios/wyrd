@@ -162,10 +162,10 @@
 {"_type": "etymon", "ref": "latin:episcopus", "canonical_form": "episcopus", "language": "latin", "glosses": ["A bishop."]}
 {"_type": "citation", "etymon_ref": "latin:episcopus"}
 {"_type": "citation", "etymon_ref": "latin:episcopus", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:garth", "canonical_form": "garth", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:garth", "canonical_form": "garth", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:garth"}
 {"_type": "citation", "etymon_ref": "celtic:garth", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:lẹ̄d", "canonical_form": "lẹ̄d", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:lẹ̄d", "canonical_form": "lẹ̄d", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:lẹ̄d"}
 {"_type": "citation", "etymon_ref": "celtic:lẹ̄d", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:blæc", "canonical_form": "blæc", "language": "old-english", "glosses": ["Black, dark-coloured, dark."]}
@@ -183,7 +183,7 @@
 {"_type": "etymon", "ref": "old-english:brōc", "canonical_form": "brōc", "language": "old-english", "glosses": ["A brook, a stream.  (Used of a stream with a muddy bed and a visible sediment load.)"]}
 {"_type": "citation", "etymon_ref": "old-english:brōc"}
 {"_type": "citation", "etymon_ref": "old-english:brōc", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:breg", "canonical_form": "breg", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:breg", "canonical_form": "breg", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:breg"}
 {"_type": "citation", "etymon_ref": "celtic:breg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "unknown:Obscure element", "canonical_form": "Obscure element", "language": "unknown", "glosses": ["Obscure element"]}
@@ -276,13 +276,13 @@
 {"_type": "etymon", "ref": "old-english:cēod", "canonical_form": "cēod", "language": "old-english", "glosses": ["A bag; topographically perhaps a hollow, a bay."]}
 {"_type": "citation", "etymon_ref": "old-english:cēod"}
 {"_type": "citation", "etymon_ref": "old-english:cēod", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:ceunant", "canonical_form": "ceunant", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:ceunant", "canonical_form": "ceunant", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:ceunant"}
 {"_type": "citation", "etymon_ref": "celtic:ceunant", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:dor", "canonical_form": "dor", "language": "old-english", "glosses": ["A large door, a gate; the entrance to a pass between hills."]}
 {"_type": "citation", "etymon_ref": "old-english:dor"}
 {"_type": "citation", "etymon_ref": "old-english:dor", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:cyte", "canonical_form": "cyte", "language": "old-english", "glosses": ["A cottage; a hermit's or monk's cell."]}
@@ -309,7 +309,7 @@
 {"_type": "etymon", "ref": "old-english:cild", "canonical_form": "cild", "language": "old-english", "glosses": ["A child, a young person, a boy, a son."]}
 {"_type": "citation", "etymon_ref": "old-english:cild"}
 {"_type": "citation", "etymon_ref": "old-english:cild", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:ciltā", "canonical_form": "ciltā", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:ciltā", "canonical_form": "ciltā", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:ciltā"}
 {"_type": "citation", "etymon_ref": "celtic:ciltā", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:calc", "canonical_form": "calc", "language": "old-english"}
@@ -324,7 +324,7 @@
 {"_type": "etymon", "ref": "old-english:cisel", "canonical_form": "cisel", "language": "old-english", "glosses": ["Gravel, shingle."]}
 {"_type": "citation", "etymon_ref": "old-english:cisel"}
 {"_type": "citation", "etymon_ref": "old-english:cisel", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:crṻg", "canonical_form": "crṻg", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:crṻg", "canonical_form": "crṻg", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:crṻg"}
 {"_type": "citation", "etymon_ref": "celtic:crṻg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:cirice", "canonical_form": "cirice", "language": "old-english", "glosses": ["A church."]}
@@ -390,7 +390,7 @@
 {"_type": "etymon", "ref": "old-english:dīgol", "canonical_form": "dīgol", "language": "old-english", "glosses": ["Hidden, obscure."]}
 {"_type": "citation", "etymon_ref": "old-english:dīgol"}
 {"_type": "citation", "etymon_ref": "old-english:dīgol", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:creig", "canonical_form": "creig", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:creig", "canonical_form": "creig", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:creig"}
 {"_type": "citation", "etymon_ref": "celtic:creig", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:torr", "canonical_form": "torr", "language": "old-english", "glosses": ["A rock, a rocky outcrop, a rocky peak."]}
@@ -420,7 +420,7 @@
 {"_type": "etymon", "ref": "old-english:hlȳde", "canonical_form": "hlȳde", "language": "old-english", "glosses": ["A noisy stream (literally a loud one."]}
 {"_type": "citation", "etymon_ref": "old-english:hlȳde"}
 {"_type": "citation", "etymon_ref": "old-english:hlȳde", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:ardd", "canonical_form": "ardd", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:ardd", "canonical_form": "ardd", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:ardd"}
 {"_type": "citation", "etymon_ref": "celtic:ardd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "celtic:penn", "canonical_form": "penn", "language": "celtic"}
@@ -633,7 +633,7 @@
 {"_type": "etymon", "ref": "old-english:norð", "canonical_form": "norð", "language": "old-english", "glosses": ["Northern, north."]}
 {"_type": "citation", "etymon_ref": "old-english:norð"}
 {"_type": "citation", "etymon_ref": "old-english:norð", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:mönið", "canonical_form": "mönið", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:mönið", "canonical_form": "mönið", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:mönið"}
 {"_type": "citation", "etymon_ref": "celtic:mönið", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:munuc", "canonical_form": "munuc", "language": "old-english", "glosses": ["A monk."]}
@@ -738,13 +738,13 @@
 {"_type": "etymon", "ref": "old-english:prēost", "canonical_form": "prēost", "language": "old-english", "glosses": ["A priest."]}
 {"_type": "citation", "etymon_ref": "old-english:prēost"}
 {"_type": "citation", "etymon_ref": "old-english:prēost", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:prið", "canonical_form": "prið", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:prið", "canonical_form": "prið", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:prið"}
 {"_type": "citation", "etymon_ref": "celtic:prið", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:tïg", "canonical_form": "tïg", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:tïg", "canonical_form": "tïg", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:tïg"}
 {"_type": "citation", "etymon_ref": "celtic:tïg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:prisc", "canonical_form": "prisc", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:prisc", "canonical_form": "prisc", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:prisc"}
 {"_type": "citation", "etymon_ref": "celtic:prisc", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:hlāw", "canonical_form": "hlāw", "language": "old-english", "glosses": ["A tumulus; a hill."]}
@@ -756,10 +756,10 @@
 {"_type": "etymon", "ref": "old-english:pirige", "canonical_form": "pirige", "language": "old-english", "glosses": ["A pear-tree."]}
 {"_type": "citation", "etymon_ref": "old-english:pirige"}
 {"_type": "citation", "etymon_ref": "old-english:pirige", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:canto-", "canonical_form": "canto-", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:canto-", "canonical_form": "canto-", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:canto-"}
 {"_type": "citation", "etymon_ref": "celtic:canto-", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:mę̄l", "canonical_form": "mę̄l", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:mę̄l", "canonical_form": "mę̄l", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:mę̄l"}
 {"_type": "citation", "etymon_ref": "celtic:mę̄l", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:rād", "canonical_form": "rād", "language": "old-english", "glosses": ["The act of riding on horseback; a riding-way (as distinct from a foot-path), a road."]}
@@ -1047,7 +1047,7 @@
 {"_type": "toponym", "ref": "Binegar@Somerset", "modern_name": "Binegar", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Binegar@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:begen"}, {"ordinal": 2, "etymon_ref": "old-english:hangra"}, {"ordinal": 3, "etymon_ref": "old-english:Bēage"}], "notes": "Beage's wooded-slope' or perhaps, 'wooded-slope growing with berries"}
 {"_type": "toponym", "ref": "Bishops Lydeard@Somerset", "modern_name": "Bishops Lydeard", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Bishops Lydeard@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "latin:episcopus"}, {"ordinal": 2, "etymon_ref": "celtic:garth"}, {"ordinal": 3, "etymon_ref": "celtic:lẹ̄d"}], "notes": "Grey hill"}
+{"_type": "etymology_element", "toponym_ref": "Bishops Lydeard@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "latin:episcopus"}, {"ordinal": 2, "etymon_ref": "brittonic:garth"}, {"ordinal": 3, "etymon_ref": "brittonic:lẹ̄d"}], "notes": "Grey hill"}
 {"_type": "toponym", "ref": "Blackford@Somerset", "modern_name": "Blackford", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Blackford@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:blæc"}, {"ordinal": 2, "etymon_ref": "old-english:ford"}], "notes": "Dark-coloured ford"}
 {"_type": "toponym", "ref": "Blagdon@Somerset", "modern_name": "Blagdon", "country": "England", "region": "Somerset"}
@@ -1059,7 +1059,7 @@
 {"_type": "toponym", "ref": "Bratton Seymore@Somerset", "modern_name": "Bratton Seymore", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Bratton Seymore@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Brook farm/settlement"}
 {"_type": "toponym", "ref": "Brean@Somerset", "modern_name": "Brean", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Brean@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:breg"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "Hill"}
+{"_type": "etymology_element", "toponym_ref": "Brean@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:breg"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "Hill"}
 {"_type": "toponym", "ref": "Brent Knoll@Somerset", "modern_name": "Brent Knoll", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Brent Knoll@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cnoll"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}], "notes": "Brent (= steep) hill"}
 {"_type": "toponym", "ref": "Bridgwater@Somerset", "modern_name": "Bridgwater", "country": "England", "region": "Somerset"}
@@ -1125,9 +1125,9 @@
 {"_type": "toponym", "ref": "Charterhouse@Somerset", "modern_name": "Charterhouse", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Charterhouse@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-french:chartrouse"}], "notes": "House of Carthusian monks"}
 {"_type": "toponym", "ref": "Cheddar@Somerset", "modern_name": "Cheddar", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Cheddar@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cēod"}, {"ordinal": 2, "etymon_ref": "celtic:ceunant"}, {"ordinal": 3, "etymon_ref": "old-english:dor"}], "notes": "Bag' in as transferred sense referring to the gorge itself or the many caves in it. Alternatively, a Celtic origin, 'hollow enclosure"}
+{"_type": "etymology_element", "toponym_ref": "Cheddar@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cēod"}, {"ordinal": 2, "etymon_ref": "brittonic:ceunant"}, {"ordinal": 3, "etymon_ref": "old-english:dor"}], "notes": "Bag' in as transferred sense referring to the gorge itself or the many caves in it. Alternatively, a Celtic origin, 'hollow enclosure"}
 {"_type": "toponym", "ref": "Cheddon Fitzpaine@Somerset", "modern_name": "Cheddon Fitzpaine", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Cheddon Fitzpaine@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:cyte"}, {"ordinal": 3, "etymon_ref": "old-english:denu"}, {"ordinal": 4, "etymon_ref": "unknown:Family name"}], "notes": "Wood valley' or perhaps, 'cottage valley'. It was held by Roger, son ("}
+{"_type": "etymology_element", "toponym_ref": "Cheddon Fitzpaine@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:cyte"}, {"ordinal": 3, "etymon_ref": "old-english:denu"}, {"ordinal": 4, "etymon_ref": "unknown:Family name"}], "notes": "Wood valley' or perhaps, 'cottage valley'. It was held by Roger, son ("}
 {"_type": "toponym", "ref": "Chedzoy@Somerset", "modern_name": "Chedzoy", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Chedzoy@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:īeg"}, {"ordinal": 2, "etymon_ref": "old-english:Ædd"}], "notes": "*Cedd's island"}
 {"_type": "toponym", "ref": "Chelvey@Somerset", "modern_name": "Chelvey", "country": "England", "region": "Somerset"}
@@ -1145,7 +1145,7 @@
 {"_type": "toponym", "ref": "Chillington@Somerset", "modern_name": "Chillington", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Chillington@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Ceola; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Chilthorne Domer@Somerset", "modern_name": "Chilthorne Domer", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Chilthorne Domer@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ciltā"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}], "notes": "steep hill"}
+{"_type": "etymology_element", "toponym_ref": "Chilthorne Domer@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:ciltā"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}], "notes": "steep hill"}
 {"_type": "toponym", "ref": "Chilton Cantello@Somerset", "modern_name": "Chilton Cantello", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Chilton Cantello@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cild"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Children's farm/settlement"}
 {"_type": "toponym", "ref": "Chilton Trinity@Somerset", "modern_name": "Chilton Trinity", "country": "England", "region": "Somerset"}
@@ -1157,7 +1157,7 @@
 {"_type": "toponym", "ref": "Chiselborough@Somerset", "modern_name": "Chiselborough", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Chiselborough@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-english:cisel"}], "notes": "Gravel burial-mound/hill"}
 {"_type": "toponym", "ref": "Christon@Somerset", "modern_name": "Christon", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Christon@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Hill farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Christon@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Hill farm/settlement"}
 {"_type": "toponym", "ref": "Churchill@Somerset", "modern_name": "Churchill", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Churchill@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cirice"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Church hill"}
 {"_type": "toponym", "ref": "Churchstanton@Somerset", "modern_name": "Churchstanton", "country": "England", "region": "Somerset"}
@@ -1203,13 +1203,13 @@
 {"_type": "toponym", "ref": "Cothelstone@Somerset", "modern_name": "Cothelstone", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Cothelstone@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}], "notes": "Cuthwulf's farm/settlement; unresolved personal name(s): Cuthwulf"}
 {"_type": "toponym", "ref": "Creech St. Michael@Somerset", "modern_name": "Creech St. Michael", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Creech St. Michael@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:crṻg"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Hill"}
+{"_type": "etymology_element", "toponym_ref": "Creech St. Michael@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:crṻg"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Hill"}
 {"_type": "toponym", "ref": "Crewkerne@Somerset", "modern_name": "Crewkerne", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Crewkerne@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ærn"}, {"ordinal": 2, "etymon_ref": "celtic:crṻg"}], "notes": "Hill house"}
+{"_type": "etymology_element", "toponym_ref": "Crewkerne@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ærn"}, {"ordinal": 2, "etymon_ref": "brittonic:crṻg"}], "notes": "Hill house"}
 {"_type": "toponym", "ref": "Cricket Malherbie@Somerset", "modern_name": "Cricket Malherbie", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Cricket Malherbie@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-french:-ette"}, {"ordinal": 2, "etymon_ref": "celtic:crṻg"}, {"ordinal": 3, "etymon_ref": "unknown:Family name"}], "notes": "Hill"}
+{"_type": "etymology_element", "toponym_ref": "Cricket Malherbie@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-french:-ette"}, {"ordinal": 2, "etymon_ref": "brittonic:crṻg"}, {"ordinal": 3, "etymon_ref": "unknown:Family name"}], "notes": "Hill"}
 {"_type": "toponym", "ref": "Cricket St. Thomas@Somerset", "modern_name": "Cricket St. Thomas", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Cricket St. Thomas@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-french:-ette"}, {"ordinal": 2, "etymon_ref": "celtic:crṻg"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "Hill"}
+{"_type": "etymology_element", "toponym_ref": "Cricket St. Thomas@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-french:-ette"}, {"ordinal": 2, "etymon_ref": "brittonic:crṻg"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "Hill"}
 {"_type": "toponym", "ref": "Crimchard@Somerset", "modern_name": "Crimchard", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Crimchard@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Place-name"}], "notes": "Cynmaer's Chard; unresolved personal name(s): Cynmaer"}
 {"_type": "toponym", "ref": "Croscombe@Somerset", "modern_name": "Croscombe", "country": "England", "region": "Somerset"}
@@ -1231,7 +1231,7 @@
 {"_type": "toponym", "ref": "Cutcombe@Somerset", "modern_name": "Cutcombe", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Cutcombe@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cumb"}, {"ordinal": 2, "etymon_ref": "old-english:Cuda"}], "notes": "Cuda's valley"}
 {"_type": "toponym", "ref": "Dinder@Somerset", "modern_name": "Dinder", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Dinder@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ærn"}, {"ordinal": 2, "etymon_ref": "celtic:breg"}, {"ordinal": 3, "etymon_ref": "old-english:denu"}, {"ordinal": 4, "etymon_ref": "celtic:din"}], "notes": "Valley dwelling' or perhaps, 'hill fortification"}
+{"_type": "etymology_element", "toponym_ref": "Dinder@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ærn"}, {"ordinal": 2, "etymon_ref": "brittonic:breg"}, {"ordinal": 3, "etymon_ref": "old-english:denu"}, {"ordinal": 4, "etymon_ref": "celtic:din"}], "notes": "Valley dwelling' or perhaps, 'hill fortification"}
 {"_type": "toponym", "ref": "Dinnington@Somerset", "modern_name": "Dinnington", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Dinnington@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:-ing-"}, {"ordinal": 3, "etymon_ref": "old-english:dūn"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement associated with Dynne'. Alternatively, perhaps, 'farm/settlement at Duning (= the hill place); unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Ditcheat@Somerset", "modern_name": "Ditcheat", "country": "England", "region": "Somerset"}
@@ -1253,7 +1253,7 @@
 {"_type": "toponym", "ref": "Dundry@Somerset", "modern_name": "Dundry", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Dundry@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dræg"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Steep hill slope"}
 {"_type": "toponym", "ref": "Dunkerton@Somerset", "modern_name": "Dunkerton", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Dunkerton@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:creig"}, {"ordinal": 2, "etymon_ref": "celtic:din"}], "notes": "Rock fortification"}
+{"_type": "etymology_element", "toponym_ref": "Dunkerton@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:creig"}, {"ordinal": 2, "etymon_ref": "celtic:din"}], "notes": "Rock fortification"}
 {"_type": "toponym", "ref": "Dunster@Somerset", "modern_name": "Dunster", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Dunster@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:torr"}], "notes": "rocky outcrop', later the name Dun(n) was added: 'Dun(n)'s rocky outcrop; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Durleigh@Somerset", "modern_name": "Durleigh", "country": "England", "region": "Somerset"}
@@ -1277,7 +1277,7 @@
 {"_type": "toponym", "ref": "East Middle and West Chinnock@Somerset", "modern_name": "East Middle and West Chinnock", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "East Middle and West Chinnock@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}]}
 {"_type": "toponym", "ref": "East Pennard@Somerset", "modern_name": "East Pennard", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "East Pennard@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ardd"}, {"ordinal": 2, "etymon_ref": "celtic:garth"}, {"ordinal": 3, "etymon_ref": "celtic:penn"}], "notes": "Hill head' or perhaps, 'high hill"}
+{"_type": "etymology_element", "toponym_ref": "East Pennard@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:ardd"}, {"ordinal": 2, "etymon_ref": "brittonic:garth"}, {"ordinal": 3, "etymon_ref": "celtic:penn"}], "notes": "Hill head' or perhaps, 'high hill"}
 {"_type": "toponym", "ref": "Easton in Gordano@Somerset", "modern_name": "Easton in Gordano", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Easton in Gordano@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:ēast"}, {"ordinal": 3, "etymon_ref": "old-english:gāra"}, {"ordinal": 4, "etymon_ref": "old-english:gor"}, {"ordinal": 5, "etymon_ref": "old-english:tūn"}], "notes": "East farm/settlement' in the 'triangular' or 'dirty valley'. 'Gordano"}
 {"_type": "toponym", "ref": "Edington@Somerset", "modern_name": "Edington", "country": "England", "region": "Somerset"}
@@ -1293,7 +1293,7 @@
 {"_type": "toponym", "ref": "Enmore@Somerset", "modern_name": "Enmore", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Enmore@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ened"}, {"ordinal": 2, "etymon_ref": "old-english:mere"}], "notes": "Duck pool"}
 {"_type": "toponym", "ref": "Evercreech@Somerset", "modern_name": "Evercreech", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Evercreech@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:eofor"}], "notes": "boar hill'. Alternatively, the first element might be W efwr, Co *evor, 'cow-parsnip/bogweed"}
+{"_type": "etymology_element", "toponym_ref": "Evercreech@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:crṻg"}, {"ordinal": 2, "etymon_ref": "old-english:eofor"}], "notes": "boar hill'. Alternatively, the first element might be W efwr, Co *evor, 'cow-parsnip/bogweed"}
 {"_type": "toponym", "ref": "Exford@Somerset", "modern_name": "Exford", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Exford@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "River Exe ford"}
 {"_type": "toponym", "ref": "Exmoor@Somerset", "modern_name": "Exmoor", "country": "England", "region": "Somerset"}
@@ -1457,7 +1457,7 @@
 {"_type": "toponym", "ref": "Luxborough@Somerset", "modern_name": "Luxborough", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Luxborough@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:berg"}, {"ordinal": 2, "etymon_ref": "old-english:burh"}, {"ordinal": 3, "etymon_ref": "old-english:Lulluc"}], "notes": "Lulluc's fortification' or 'Lulluc's hill"}
 {"_type": "toponym", "ref": "Lydeard St. Lawrence@Somerset", "modern_name": "Lydeard St. Lawrence", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Lydeard St. Lawrence@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:garth"}, {"ordinal": 2, "etymon_ref": "celtic:lẹ̄d"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "Grey hill"}
+{"_type": "etymology_element", "toponym_ref": "Lydeard St. Lawrence@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:garth"}, {"ordinal": 2, "etymon_ref": "brittonic:lẹ̄d"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "Grey hill"}
 {"_type": "toponym", "ref": "Lympsham@Somerset", "modern_name": "Lympsham", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Lympsham@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām"}, {"ordinal": 2, "etymon_ref": "old-english:hamm"}, {"ordinal": 3, "etymon_ref": "unknown:Place-name"}], "notes": "*Limpel's homestead/village. Alternatively, a lost place-name, *Linpol, 'flax pool' or *Lindpyll, 'lime-tree pool; unresolved personal name(s): Limpel"}
 {"_type": "toponym", "ref": "Lyncombe and Widcombe@Somerset", "modern_name": "Lyncombe and Widcombe", "country": "England", "region": "Somerset"}
@@ -1493,7 +1493,7 @@
 {"_type": "toponym", "ref": "Milverton@Somerset", "modern_name": "Milverton", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Milverton@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ford"}, {"ordinal": 2, "etymon_ref": "old-english:myln"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Mill-ford farm/settlement"}
 {"_type": "toponym", "ref": "Minehead@Somerset", "modern_name": "Minehead", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Minehead@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēafod"}, {"ordinal": 2, "etymon_ref": "celtic:mönið"}], "notes": "Myne (= mountain) headland"}
+{"_type": "etymology_element", "toponym_ref": "Minehead@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hēafod"}, {"ordinal": 2, "etymon_ref": "brittonic:mönið"}], "notes": "Myne (= mountain) headland"}
 {"_type": "toponym", "ref": "Misterton@Somerset", "modern_name": "Misterton", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Misterton@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mynster"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Monastery farm/settlement"}
 {"_type": "toponym", "ref": "Monksilver@Somerset", "modern_name": "Monksilver", "country": "England", "region": "Somerset"}
@@ -1603,9 +1603,9 @@
 {"_type": "toponym", "ref": "Preston Plucknett@Somerset", "modern_name": "Preston Plucknett", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Preston Plucknett@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:prēost"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Priests' farm/settlement"}
 {"_type": "toponym", "ref": "Priddy@Somerset", "modern_name": "Priddy", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Priddy@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:prið"}, {"ordinal": 2, "etymon_ref": "celtic:tïg"}], "notes": "Earth house"}
+{"_type": "etymology_element", "toponym_ref": "Priddy@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:prið"}, {"ordinal": 2, "etymon_ref": "brittonic:tïg"}], "notes": "Earth house"}
 {"_type": "toponym", "ref": "Priston@Somerset", "modern_name": "Priston", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Priston@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:prisc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Thicket farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Priston@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:prisc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Thicket farm/settlement"}
 {"_type": "toponym", "ref": "Publow@Somerset", "modern_name": "Publow", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Publow@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hlāw"}, {"ordinal": 2, "etymon_ref": "old-english:Bubba"}], "notes": "Pubba's burial-mound/hill"}
 {"_type": "toponym", "ref": "Puckington@Somerset", "modern_name": "Puckington", "country": "England", "region": "Somerset"}
@@ -1617,7 +1617,7 @@
 {"_type": "toponym", "ref": "Pylle@Somerset", "modern_name": "Pylle", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Pylle@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:pyll"}], "notes": "Creek"}
 {"_type": "toponym", "ref": "Queen Camel@Somerset", "modern_name": "Queen Camel", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "Queen Camel@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:canto-"}, {"ordinal": 2, "etymon_ref": "celtic:mę̄l"}], "notes": "circular/rim' and 'bare"}
+{"_type": "etymology_element", "toponym_ref": "Queen Camel@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:canto-"}, {"ordinal": 2, "etymon_ref": "brittonic:mę̄l"}], "notes": "circular/rim' and 'bare"}
 {"_type": "toponym", "ref": "Queen Charlton@Somerset", "modern_name": "Queen Charlton", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Queen Charlton@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceorl"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Free peasants' farm/settlement"}
 {"_type": "toponym", "ref": "Raddington@Somerset", "modern_name": "Raddington", "country": "England", "region": "Somerset"}
@@ -1807,7 +1807,7 @@
 {"_type": "toponym", "ref": "West Buckland@Somerset", "modern_name": "West Buckland", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "West Buckland@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bōc-land"}], "notes": "Charter land', i.e. 'estate with certain rights and privileges created by an Anglo-Saxon royal diploma"}
 {"_type": "toponym", "ref": "West Camel@Somerset", "modern_name": "West Camel", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "West Camel@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:canto-"}, {"ordinal": 2, "etymon_ref": "celtic:mę̄l"}], "notes": "circular/rim' and 'bare'. 'West"}
+{"_type": "etymology_element", "toponym_ref": "West Camel@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:canto-"}, {"ordinal": 2, "etymon_ref": "brittonic:mę̄l"}], "notes": "circular/rim' and 'bare'. 'West"}
 {"_type": "toponym", "ref": "West Cranmore@Somerset", "modern_name": "West Cranmore", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "West Cranmore@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cran"}, {"ordinal": 2, "etymon_ref": "old-english:mere"}], "notes": "Crane/heron pool"}
 {"_type": "toponym", "ref": "West Dowlish@Somerset", "modern_name": "West Dowlish", "country": "England", "region": "Somerset"}
@@ -1821,7 +1821,7 @@
 {"_type": "toponym", "ref": "West Monkton@Somerset", "modern_name": "West Monkton", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "West Monkton@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:munuc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Monks' farm/settlement"}
 {"_type": "toponym", "ref": "West Pennard@Somerset", "modern_name": "West Pennard", "country": "England", "region": "Somerset"}
-{"_type": "etymology_element", "toponym_ref": "West Pennard@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ardd"}, {"ordinal": 2, "etymon_ref": "celtic:garth"}, {"ordinal": 3, "etymon_ref": "celtic:penn"}], "notes": "Hill head' or perhaps, 'high hill"}
+{"_type": "etymology_element", "toponym_ref": "West Pennard@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:ardd"}, {"ordinal": 2, "etymon_ref": "brittonic:garth"}, {"ordinal": 3, "etymon_ref": "celtic:penn"}], "notes": "Hill head' or perhaps, 'high hill"}
 {"_type": "toponym", "ref": "Westbury@Somerset", "modern_name": "Westbury", "country": "England", "region": "Somerset"}
 {"_type": "etymology_element", "toponym_ref": "Westbury@Somerset", "elements": [{"ordinal": 1, "etymon_ref": "old-english:burh"}, {"ordinal": 2, "etymon_ref": "old-english:west"}], "notes": "West fortification"}
 {"_type": "toponym", "ref": "Weston@Somerset", "modern_name": "Weston", "country": "England", "region": "Somerset"}

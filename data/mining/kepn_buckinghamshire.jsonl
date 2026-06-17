@@ -123,7 +123,7 @@
 {"_type": "etymon", "ref": "old-english:ēg", "canonical_form": "ēg", "language": "old-english", "glosses": ["An island.  In ancient settlement-names, most frequently refers to dry ground surrounded by marsh.  Also used of islands in modern sense.  In late OE names: well-watered land."]}
 {"_type": "citation", "etymon_ref": "old-english:ēg"}
 {"_type": "citation", "etymon_ref": "old-english:ēg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Place-names of Buckinghamshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:brig", "canonical_form": "brig", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:brig", "canonical_form": "brig", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:brig"}
 {"_type": "citation", "etymon_ref": "celtic:brig", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Place-names of Buckinghamshire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:hyll", "canonical_form": "hyll", "language": "old-english", "glosses": ["A hill, a natural eminence or elevated piece of ground."]}
@@ -141,7 +141,7 @@
 {"_type": "etymon", "ref": "old-english:wella", "canonical_form": "wella", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:wella"}
 {"_type": "citation", "etymon_ref": "old-english:wella", "source_id": "kepn_external", "context_snippet": "Place-names of Buckinghamshire; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:breg", "canonical_form": "breg", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:breg", "canonical_form": "breg", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:breg"}
 {"_type": "citation", "etymon_ref": "celtic:breg", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Place-names of Buckinghamshire; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:-ingas", "canonical_form": "-ingas", "language": "old-english", "glosses": ["The people of . . .; the people called after . . ."]}
@@ -207,7 +207,7 @@
 {"_type": "etymon", "ref": "old-english:ceastel", "canonical_form": "ceastel", "language": "old-english", "glosses": ["A heap."]}
 {"_type": "citation", "etymon_ref": "old-english:ceastel"}
 {"_type": "citation", "etymon_ref": "old-english:ceastel", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Place-names of Buckinghamshire; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Place-names of Buckinghamshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Cicca", "canonical_form": "Cicca", "language": "old-english"}
@@ -808,13 +808,13 @@
 {"_type": "toponym", "ref": "Boveney@Buckinghamshire", "modern_name": "Boveney", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Boveney@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:bufan"}, {"ordinal": 2, "etymon_ref": "old-english:ēg"}], "notes": "Above the island"}
 {"_type": "toponym", "ref": "Bow Brickhill@Buckinghamshire", "modern_name": "Bow Brickhill", "country": "England", "region": "Buckinghamshire"}
-{"_type": "etymology_element", "toponym_ref": "Bow Brickhill@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:brig"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}, {"ordinal": 3, "etymon_ref": "old-english:Bolle"}], "notes": "s 'Brig (= the hill top) hill'. The Celtic 'brig' was adopted as a proper name to which 'hyll"}
+{"_type": "etymology_element", "toponym_ref": "Bow Brickhill@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:brig"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}, {"ordinal": 3, "etymon_ref": "old-english:Bolle"}], "notes": "s 'Brig (= the hill top) hill'. The Celtic 'brig' was adopted as a proper name to which 'hyll"}
 {"_type": "toponym", "ref": "Bradenham@Buckinghamshire", "modern_name": "Bradenham", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Bradenham@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brād"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:hamm"}], "notes": "At the broad homestead/village' or 'at the broad hemmed-in land"}
 {"_type": "toponym", "ref": "Bradwell@Buckinghamshire", "modern_name": "Bradwell", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Bradwell@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brād"}, {"ordinal": 2, "etymon_ref": "old-english:wella"}], "notes": "The broad spring/stream"}
 {"_type": "toponym", "ref": "Brill@Buckinghamshire", "modern_name": "Brill", "country": "England", "region": "Buckinghamshire"}
-{"_type": "etymology_element", "toponym_ref": "Brill@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:breg"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Bre hill'. The Celtic 'hill' appears to have been adopted as a proper name to which 'hyll"}
+{"_type": "etymology_element", "toponym_ref": "Brill@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:breg"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}], "notes": "Bre hill'. The Celtic 'hill' appears to have been adopted as a proper name to which 'hyll"}
 {"_type": "toponym", "ref": "Broughton@Buckinghamshire", "modern_name": "Broughton", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Broughton@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:brōc"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Brook farm/settlement"}
 {"_type": "toponym", "ref": "Buckingham@Buckinghamshire", "modern_name": "Buckingham", "country": "England", "region": "Buckinghamshire"}
@@ -848,7 +848,7 @@
 {"_type": "toponym", "ref": "Chesham Bois@Buckinghamshire", "modern_name": "Chesham Bois", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Chesham Bois@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Place-name"}], "notes": "Hemmed-in land by a heap of stones; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Chetwode@Buckinghamshire", "modern_name": "Chetwode", "country": "England", "region": "Buckinghamshire"}
-{"_type": "etymology_element", "toponym_ref": "Chetwode@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:wudu"}], "notes": "Wood' with the addition of OE 'wood"}
+{"_type": "etymology_element", "toponym_ref": "Chetwode@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:wudu"}], "notes": "Wood' with the addition of OE 'wood"}
 {"_type": "toponym", "ref": "Chichele or Chicheley@Buckinghamshire", "modern_name": "Chichele or Chicheley", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Chichele or Chicheley@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēah"}, {"ordinal": 2, "etymon_ref": "old-english:Cicca"}], "notes": "*Cicca's wood/clearing"}
 {"_type": "toponym", "ref": "Chilton@Buckinghamshire", "modern_name": "Chilton", "country": "England", "region": "Buckinghamshire"}
@@ -868,7 +868,7 @@
 {"_type": "toponym", "ref": "Cuddington@Buckinghamshire", "modern_name": "Cuddington", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Cuddington@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingtūn"}], "notes": "Farm/settlement connected with Cud(d)a; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Datchet@Buckinghamshire", "modern_name": "Datchet", "country": "England", "region": "Buckinghamshire"}
-{"_type": "etymology_element", "toponym_ref": "Datchet@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "wood"}
+{"_type": "etymology_element", "toponym_ref": "Datchet@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "wood"}
 {"_type": "toponym", "ref": "Denham@Buckinghamshire", "modern_name": "Denham", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Denham@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}], "notes": "Valley homestead/village"}
 {"_type": "toponym", "ref": "Dinton@Buckinghamshire", "modern_name": "Dinton", "country": "England", "region": "Buckinghamshire"}
@@ -928,7 +928,7 @@
 {"_type": "toponym", "ref": "Great and Little Missenden@Buckinghamshire", "modern_name": "Great and Little Missenden", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Great and Little Missenden@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:mysse"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}], "notes": "Marshy/water-plant"}
 {"_type": "toponym", "ref": "Great Brickhill@Buckinghamshire", "modern_name": "Great Brickhill", "country": "England", "region": "Buckinghamshire"}
-{"_type": "etymology_element", "toponym_ref": "Great Brickhill@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:brig"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}, {"ordinal": 3, "etymon_ref": "latin:magna"}], "notes": "Brig (= the hill top) hill'. The Celtic 'brig' was adopted as a proper name to which 'hyll"}
+{"_type": "etymology_element", "toponym_ref": "Great Brickhill@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:brig"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}, {"ordinal": 3, "etymon_ref": "latin:magna"}], "notes": "Brig (= the hill top) hill'. The Celtic 'brig' was adopted as a proper name to which 'hyll"}
 {"_type": "toponym", "ref": "Grendon Underwood@Buckinghamshire", "modern_name": "Grendon Underwood", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Grendon Underwood@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-english:grēne"}, {"ordinal": 3, "etymon_ref": "old-english:under"}, {"ordinal": 4, "etymon_ref": "old-english:wudu"}], "notes": "Green hill"}
 {"_type": "toponym", "ref": "Grove@Buckinghamshire", "modern_name": "Grove", "country": "England", "region": "Buckinghamshire"}
@@ -1006,7 +1006,7 @@
 {"_type": "toponym", "ref": "Linslade@Buckinghamshire", "modern_name": "Linslade", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Linslade@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:gelād"}, {"ordinal": 2, "etymon_ref": "old-english:hlinc"}], "notes": "Bank river-crossing"}
 {"_type": "toponym", "ref": "Little Brickhill@Buckinghamshire", "modern_name": "Little Brickhill", "country": "England", "region": "Buckinghamshire"}
-{"_type": "etymology_element", "toponym_ref": "Little Brickhill@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:brig"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}, {"ordinal": 3, "etymon_ref": "latin:parva"}], "notes": "Brig (= the hill top) hill'. The Celtic 'brig' was adopted as a proper name to which 'hyll"}
+{"_type": "etymology_element", "toponym_ref": "Little Brickhill@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:brig"}, {"ordinal": 2, "etymon_ref": "old-english:hyll"}, {"ordinal": 3, "etymon_ref": "latin:parva"}], "notes": "Brig (= the hill top) hill'. The Celtic 'brig' was adopted as a proper name to which 'hyll"}
 {"_type": "toponym", "ref": "Long Crendon@Buckinghamshire", "modern_name": "Long Crendon", "country": "England", "region": "Buckinghamshire"}
 {"_type": "etymology_element", "toponym_ref": "Long Crendon@Buckinghamshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dūn"}, {"ordinal": 2, "etymon_ref": "old-english:Creoda"}], "notes": "Creoda's hill'. 'Long"}
 {"_type": "toponym", "ref": "Loughton@Buckinghamshire", "modern_name": "Loughton", "country": "England", "region": "Buckinghamshire"}

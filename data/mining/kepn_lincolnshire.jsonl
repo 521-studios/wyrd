@@ -1121,7 +1121,7 @@
 {"_type": "etymon", "ref": "latin:colonia", "canonical_form": "colonia", "language": "latin", "glosses": ["Colonial town, settlement."]}
 {"_type": "citation", "etymon_ref": "latin:colonia"}
 {"_type": "citation", "etymon_ref": "latin:colonia", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Cameron; Dictionary of Lincolnshire Place-names; Rivet & Smith; Place-names of Roman Britain; Cameon et al.; Place-names of Lincolnshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:lindo-", "canonical_form": "lindo-", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:lindo-", "canonical_form": "lindo-", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:lindo-"}
 {"_type": "citation", "etymon_ref": "celtic:lindo-", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Cameron; Dictionary of Lincolnshire Place-names; Rivet & Smith; Place-names of Roman Britain; Cameon et al.; Place-names of Lincolnshire; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:lȳtel", "canonical_form": "lȳtel", "language": "old-english", "glosses": ["Little, small."]}
@@ -2569,9 +2569,9 @@
 {"_type": "toponym", "ref": "Leverton@Lincolnshire", "modern_name": "Leverton", "country": "England", "region": "Lincolnshire"}
 {"_type": "etymology_element", "toponym_ref": "Leverton@Lincolnshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lēfer"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Rushy/reedy farm/settlement"}
 {"_type": "toponym", "ref": "Lincoln@Lincolnshire", "modern_name": "Lincoln", "country": "England", "region": "Lincolnshire"}
-{"_type": "etymology_element", "toponym_ref": "Lincoln@Lincolnshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "latin:colonia"}, {"ordinal": 3, "etymon_ref": "celtic:lindo-"}]}
+{"_type": "etymology_element", "toponym_ref": "Lincoln@Lincolnshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "latin:colonia"}, {"ordinal": 3, "etymon_ref": "brittonic:lindo-"}]}
 {"_type": "toponym", "ref": "Lincoln@Lincolnshire", "modern_name": "Lincoln", "country": "England", "region": "Lincolnshire"}
-{"_type": "etymology_element", "toponym_ref": "Lincoln@Lincolnshire", "elements": [{"ordinal": 1, "etymon_ref": "latin:colonia"}, {"ordinal": 2, "etymon_ref": "celtic:lindo-"}], "notes": "Colonial settlement of Lindum (= the pool)"}
+{"_type": "etymology_element", "toponym_ref": "Lincoln@Lincolnshire", "elements": [{"ordinal": 1, "etymon_ref": "latin:colonia"}, {"ordinal": 2, "etymon_ref": "brittonic:lindo-"}], "notes": "Colonial settlement of Lindum (= the pool)"}
 {"_type": "toponym", "ref": "Linwood@Lincolnshire", "modern_name": "Linwood", "country": "England", "region": "Lincolnshire"}
 {"_type": "etymology_element", "toponym_ref": "Linwood@Lincolnshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lind"}, {"ordinal": 2, "etymon_ref": "old-english:wudu"}], "notes": "Lime-tree wood"}
 {"_type": "toponym", "ref": "Lissington@Lincolnshire", "modern_name": "Lissington", "country": "England", "region": "Lincolnshire"}

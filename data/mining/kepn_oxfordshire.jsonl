@@ -614,7 +614,7 @@
 {"_type": "etymon", "ref": "old-english:land-riht", "canonical_form": "land-riht", "language": "old-english", "glosses": ["Land rights, the law of the land, rights connected with the ownership of an estate."]}
 {"_type": "citation", "etymon_ref": "old-english:land-riht"}
 {"_type": "citation", "etymon_ref": "old-english:land-riht", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gelling; Place-names of Oxfordshire; Coates and Breeze, Celtic Voices English Places"}
-{"_type": "etymon", "ref": "celtic:rïcc", "canonical_form": "rïcc", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:rïcc", "canonical_form": "rïcc", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:rïcc"}
 {"_type": "citation", "etymon_ref": "celtic:rïcc", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Gelling; Place-names of Oxfordshire; Coates and Breeze, Celtic Voices English Places"}
 {"_type": "etymon", "ref": "old-english:rod", "canonical_form": "rod", "language": "old-english", "glosses": ["A clearing."]}
@@ -1166,7 +1166,7 @@
 {"_type": "toponym", "ref": "Ramsden@Oxfordshire", "modern_name": "Ramsden", "country": "England", "region": "Oxfordshire"}
 {"_type": "etymology_element", "toponym_ref": "Ramsden@Oxfordshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:hramsa"}], "notes": "Wild-garlic valley"}
 {"_type": "toponym", "ref": "Rollright@Oxfordshire", "modern_name": "Rollright", "country": "England", "region": "Oxfordshire"}
-{"_type": "etymology_element", "toponym_ref": "Rollright@Oxfordshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land-riht"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}, {"ordinal": 3, "etymon_ref": "celtic:rïcc"}, {"ordinal": 4, "etymon_ref": "old-english:rod"}], "notes": "groove at Rodland (= wheel precinct)"}
+{"_type": "etymology_element", "toponym_ref": "Rollright@Oxfordshire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land-riht"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}, {"ordinal": 3, "etymon_ref": "brittonic:rïcc"}, {"ordinal": 4, "etymon_ref": "old-english:rod"}], "notes": "groove at Rodland (= wheel precinct)"}
 {"_type": "toponym", "ref": "Rotherfield Greys@Oxfordshire", "modern_name": "Rotherfield Greys", "country": "England", "region": "Oxfordshire"}
 {"_type": "etymology_element", "toponym_ref": "Rotherfield Greys@Oxfordshire", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:feld"}, {"ordinal": 3, "etymon_ref": "old-english:hrīðer"}], "notes": "Open land where cattle are kept"}
 {"_type": "toponym", "ref": "Rotherfield Peppard@Oxfordshire", "modern_name": "Rotherfield Peppard", "country": "England", "region": "Oxfordshire"}

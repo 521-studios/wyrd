@@ -147,7 +147,7 @@
 {"_type": "etymon", "ref": "old-english:Brant", "canonical_form": "Brant", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Brant"}
 {"_type": "citation", "etymon_ref": "old-english:Brant", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Cox; The Place-names of Leicestershire; Cox, The Place-Names of Leicestershire and Rutland (unpublished PhD); E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:brigā", "canonical_form": "brigā", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:brigā", "canonical_form": "brigā", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:brigā"}
 {"_type": "citation", "etymon_ref": "celtic:brigā", "source_id": "kepn_external", "context_snippet": "Cox, The Place-Names of Leicestershire and Rutland (unpublished PhD); Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:-ing", "canonical_form": "-ing", "language": "old-english", "glosses": ["Place-name forming suffix."]}
@@ -426,7 +426,7 @@
 {"_type": "etymon", "ref": "old-norse:dalr", "canonical_form": "dalr", "language": "old-norse", "glosses": ["A valley."]}
 {"_type": "citation", "etymon_ref": "old-norse:dalr"}
 {"_type": "citation", "etymon_ref": "old-norse:dalr", "source_id": "kepn_external", "context_snippet": "Cox; The Place-names of Leicestershire; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Cox, The Place-Names of Leicestershire and Rutland (unpublished PhD)"}
-{"_type": "etymon", "ref": "celtic:glïnn", "canonical_form": "glïnn", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:glïnn", "canonical_form": "glïnn", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:glïnn"}
 {"_type": "citation", "etymon_ref": "celtic:glïnn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Cox, The Place-Names of Leicestershire and Rutland (unpublished PhD); E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Grimr", "canonical_form": "Grimr", "language": "old-english"}
@@ -1089,7 +1089,7 @@
 {"_type": "toponym", "ref": "Braunstone@Leicestershire", "modern_name": "Braunstone", "country": "England", "region": "Leicestershire"}
 {"_type": "etymology_element", "toponym_ref": "Braunstone@Leicestershire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Brant"}], "notes": "*Brant's farm/settlement"}
 {"_type": "toponym", "ref": "Breedon on the Hill@Leicestershire", "modern_name": "Breedon on the Hill", "country": "England", "region": "Leicestershire"}
-{"_type": "etymology_element", "toponym_ref": "Breedon on the Hill@Leicestershire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:brigā"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": ". The Celtic 'breg' appears to have been adopted as a proper name to which 'dun"}
+{"_type": "etymology_element", "toponym_ref": "Breedon on the Hill@Leicestershire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:brigā"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": ". The Celtic 'breg' appears to have been adopted as a proper name to which 'dun"}
 {"_type": "toponym", "ref": "Brentingby and Wyfordby@Leicestershire", "modern_name": "Brentingby and Wyfordby", "country": "England", "region": "Leicestershire"}
 {"_type": "etymology_element", "toponym_ref": "Brentingby and Wyfordby@Leicestershire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:brant"}, {"ordinal": 3, "etymon_ref": "old-norse:bȳ"}, {"ordinal": 4, "etymon_ref": "old-english:ford"}, {"ordinal": 5, "etymon_ref": "unknown:Place-name"}, {"ordinal": 6, "etymon_ref": "old-english:wēoh"}, {"ordinal": 7, "etymon_ref": "old-english:wīg"}, {"ordinal": 8, "etymon_ref": "old-english:Branting"}], "notes": "Branting's/Brenting's farm/settlement'. Alternatively, perhaps 'farm/settlement at *Branting (= the steep place)'. Probably, 'Wigford's farm/settlement"}
 {"_type": "toponym", "ref": "Bringhurst@Leicestershire", "modern_name": "Bringhurst", "country": "England", "region": "Leicestershire"}
@@ -1235,7 +1235,7 @@
 {"_type": "toponym", "ref": "Great Easton@Leicestershire", "modern_name": "Great Easton", "country": "England", "region": "Leicestershire"}
 {"_type": "etymology_element", "toponym_ref": "Great Easton@Leicestershire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ēast"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "East farm/settlement"}
 {"_type": "toponym", "ref": "Great Glen@Leicestershire", "modern_name": "Great Glen", "country": "England", "region": "Leicestershire"}
-{"_type": "etymology_element", "toponym_ref": "Great Glen@Leicestershire", "elements": [{"ordinal": 1, "etymon_ref": "celtic:glïnn"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "valley"}
+{"_type": "etymology_element", "toponym_ref": "Great Glen@Leicestershire", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:glïnn"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "valley"}
 {"_type": "toponym", "ref": "Grimston@Leicestershire", "modern_name": "Grimston", "country": "England", "region": "Leicestershire"}
 {"_type": "etymology_element", "toponym_ref": "Grimston@Leicestershire", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Grimr"}], "notes": "Grimr's farm/settlement'. Grimr is a common Norse personal name, but Grimr, 'masked one"}
 {"_type": "toponym", "ref": "Gumley@Leicestershire", "modern_name": "Gumley", "country": "England", "region": "Leicestershire"}

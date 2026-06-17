@@ -198,7 +198,7 @@
 {"_type": "etymon", "ref": "unknown:Place-name", "canonical_form": "Place-name", "language": "unknown", "glosses": ["Place-name"]}
 {"_type": "citation", "etymon_ref": "unknown:Place-name"}
 {"_type": "citation", "etymon_ref": "unknown:Place-name", "source_id": "kepn_external", "context_snippet": "Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Ekwall; Studies1; Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names; Wallenberg; Kentish Place-Names; E. Ekwall; Dictionary of English Place-Names; Coates and Breeze, Celtic Voices English Places; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:Cēol", "canonical_form": "Cēol", "language": "old-english"}
@@ -207,7 +207,7 @@
 {"_type": "etymon", "ref": "old-english:cirice", "canonical_form": "cirice", "language": "old-english", "glosses": ["A church."]}
 {"_type": "citation", "etymon_ref": "old-english:cirice"}
 {"_type": "citation", "etymon_ref": "old-english:cirice", "source_id": "kepn_external", "context_snippet": "Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent; Watts; Cambridge Dictionary of English Place-names; Ekwall; Studies1; Wallenberg; The Place-Names of Kent; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cev˜n", "canonical_form": "cev˜n", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cev˜n", "canonical_form": "cev˜n", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cev˜n"}
 {"_type": "citation", "etymon_ref": "celtic:cev˜n", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Coates and Breeze, Celtic Voices English Places; E. Ekwall; Dictionary of English Place-Names; Ekwall; English place-names in -ing (2nd ed.); Wallenberg; The Place-Names of Kent; Winifred D. Abbott; Thesis on Kent; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:stān", "canonical_form": "stān", "language": "old-english", "glosses": ["A stone, stone, rock."]}
@@ -528,7 +528,7 @@
 {"_type": "etymon", "ref": "old-english:hlēo", "canonical_form": "hlēo", "language": "old-english", "glosses": ["Protection, defence; a shelter.  (Only recorded in poetry.)"]}
 {"_type": "citation", "etymon_ref": "old-english:hlēo"}
 {"_type": "citation", "etymon_ref": "old-english:hlēo", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Cameron; Dictionary of Lincolnshire Place-names; A.D. Mills; Dictionary of English Place-Names; Wallenberg; The Place-Names of Kent; Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent"}
-{"_type": "etymon", "ref": "celtic:lemo-", "canonical_form": "lemo-", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:lemo-", "canonical_form": "lemo-", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:lemo-"}
 {"_type": "citation", "etymon_ref": "celtic:lemo-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent; E. Ekwall; Dictionary of English Place-Names; Ekwall; English River-Names; Wallenberg; Kentish Place-Names; Wallenberg; The Place-Names of Kent; Gelling; Signposts to the Past; Forsberg 1950; Contribution (L)"}
 {"_type": "etymon", "ref": "old-english:lind", "canonical_form": "lind", "language": "old-english", "glosses": ["A lime-tree."]}
@@ -666,7 +666,7 @@
 {"_type": "etymon", "ref": "old-english:ceaster", "canonical_form": "ceaster", "language": "old-english", "glosses": ["A city; an old fortification; a Roman site."]}
 {"_type": "citation", "etymon_ref": "old-english:ceaster"}
 {"_type": "citation", "etymon_ref": "old-english:ceaster", "source_id": "kepn_external", "context_snippet": "Coates and Breeze, Celtic Voices English Places; Gelling; Signposts to the Past; Anderson; English Hundred-Names; E. Ekwall; Dictionary of English Place-Names; The Vocabulary of English Place-Names; Forsberg 1950; Contribution (L); Wallenberg; The Place-Names of Kent; Wallenberg; Kentish Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:duro-", "canonical_form": "duro-", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:duro-", "canonical_form": "duro-", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:duro-"}
 {"_type": "citation", "etymon_ref": "celtic:duro-", "source_id": "kepn_external", "context_snippet": "Coates and Breeze, Celtic Voices English Places; Gelling; Signposts to the Past; Anderson; English Hundred-Names; E. Ekwall; Dictionary of English Place-Names; The Vocabulary of English Place-Names; Forsberg 1950; Contribution (L); Wallenberg; The Place-Names of Kent; Wallenberg; Kentish Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-french:roial", "canonical_form": "roial", "language": "old-french", "glosses": ["Royal"]}
@@ -693,7 +693,7 @@
 {"_type": "etymon", "ref": "old-english:sand", "canonical_form": "sand", "language": "old-english", "glosses": ["Sand."]}
 {"_type": "citation", "etymon_ref": "old-english:sand"}
 {"_type": "citation", "etymon_ref": "old-english:sand", "source_id": "kepn_external", "context_snippet": "Wallenberg; The Place-Names of Kent; A.D. Mills; Dictionary of English Place-Names; Cameron; Dictionary of Lincolnshire Place-names; Wallenberg; Kentish Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:sarn", "canonical_form": "sarn", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:sarn", "canonical_form": "sarn", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:sarn"}
 {"_type": "citation", "etymon_ref": "celtic:sarn", "source_id": "kepn_external", "context_snippet": "Cullen; The Place-names of the Lathes of St Augustine and Shipway, Kent; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Wallenberg; The Place-Names of Kent; Coates and Breeze, Celtic Voices English Places; Wallenberg; Kentish Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:sele", "canonical_form": "sele", "language": "old-english", "glosses": ["A dwelling, a house, a hall."]}
@@ -1039,13 +1039,13 @@
 {"_type": "toponym", "ref": "Chartham@Kent", "modern_name": "Chartham", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Chartham@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cert"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}], "notes": "Homestead/village in rough ground' (or perhaps more accurately 'homestead/village in the chartlands"}
 {"_type": "toponym", "ref": "Chatham@Kent", "modern_name": "Chatham", "country": "England", "region": "Kent"}
-{"_type": "etymology_element", "toponym_ref": "Chatham@Kent", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}], "notes": "Homestead/village in or by the wood"}
+{"_type": "etymology_element", "toponym_ref": "Chatham@Kent", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}], "notes": "Homestead/village in or by the wood"}
 {"_type": "toponym", "ref": "Chelsfield@Kent", "modern_name": "Chelsfield", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Chelsfield@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:feld"}, {"ordinal": 2, "etymon_ref": "old-english:Cēol"}], "notes": "Ceol's open land"}
 {"_type": "toponym", "ref": "Cheriton@Kent", "modern_name": "Cheriton", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Cheriton@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cirice"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Church farm/estate'. The significance is uncertain - perhaps 'estate with a church' or 'estate belonging to a church"}
 {"_type": "toponym", "ref": "Chevening@Kent", "modern_name": "Chevening", "country": "England", "region": "Kent"}
-{"_type": "etymology_element", "toponym_ref": "Chevening@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "celtic:cev˜n"}], "notes": "ridge place' or '(settlement of) the dwellers at the ridge"}
+{"_type": "etymology_element", "toponym_ref": "Chevening@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:-ingas"}, {"ordinal": 3, "etymon_ref": "brittonic:cev˜n"}], "notes": "ridge place' or '(settlement of) the dwellers at the ridge"}
 {"_type": "toponym", "ref": "Chiddingstone@Kent", "modern_name": "Chiddingstone", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Chiddingstone@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing-"}, {"ordinal": 2, "etymon_ref": "old-english:stān"}], "notes": "stone connected with *Cidd or Cidda; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Chilham@Kent", "modern_name": "Chilham", "country": "England", "region": "Kent"}
@@ -1341,7 +1341,7 @@
 {"_type": "toponym", "ref": "Lyminge@Kent", "modern_name": "Lyminge", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Lyminge@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:gē"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "District around the River Limen"}
 {"_type": "toponym", "ref": "Lympne@Kent", "modern_name": "Lympne", "country": "England", "region": "Kent"}
-{"_type": "etymology_element", "toponym_ref": "Lympne@Kent", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lemo-"}], "notes": "Elm-wood place' or 'marshy place"}
+{"_type": "etymology_element", "toponym_ref": "Lympne@Kent", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:lemo-"}], "notes": "Elm-wood place' or 'marshy place"}
 {"_type": "toponym", "ref": "Lynsted@Kent", "modern_name": "Lynsted", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Lynsted@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:lind"}, {"ordinal": 2, "etymon_ref": "old-english:stede"}], "notes": "Place where lime-trees grow"}
 {"_type": "toponym", "ref": "Maidstone@Kent", "modern_name": "Maidstone", "country": "England", "region": "Kent"}
@@ -1435,7 +1435,7 @@
 {"_type": "toponym", "ref": "Pembury@Kent", "modern_name": "Pembury", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Pembury@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "old-english:burh"}], "notes": "fortification of the people of *Pepa or *Peppa; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Penge@Kent", "modern_name": "Penge", "country": "England", "region": "Kent"}
-{"_type": "etymology_element", "toponym_ref": "Penge@Kent", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:penn"}], "notes": "Wood head"}
+{"_type": "etymology_element", "toponym_ref": "Penge@Kent", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "celtic:penn"}], "notes": "Wood head"}
 {"_type": "toponym", "ref": "Penshurst@Kent", "modern_name": "Penshurst", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Penshurst@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hyrst"}, {"ordinal": 2, "etymon_ref": "old-english:Pefen"}], "notes": "*Pefen's wooded-hill"}
 {"_type": "toponym", "ref": "Petham@Kent", "modern_name": "Petham", "country": "England", "region": "Kent"}
@@ -1465,7 +1465,7 @@
 {"_type": "toponym", "ref": "Riverhead@Kent", "modern_name": "Riverhead", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Riverhead@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrīðer"}, {"ordinal": 2, "etymon_ref": "old-english:hȳð"}], "notes": "Landing-place for cattle"}
 {"_type": "toponym", "ref": "Rochester@Kent", "modern_name": "Rochester", "country": "England", "region": "Kent"}
-{"_type": "etymology_element", "toponym_ref": "Rochester@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "celtic:duro-"}, {"ordinal": 3, "etymon_ref": "unknown:Place-name"}], "notes": "Roman town called *Hrofi'. *Hrofi seems to be a greatly reduced form of the British name Durobrivis, recorded in the 4th century, meaning 'walled town with bridges"}
+{"_type": "etymology_element", "toponym_ref": "Rochester@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "brittonic:duro-"}, {"ordinal": 3, "etymon_ref": "unknown:Place-name"}], "notes": "Roman town called *Hrofi'. *Hrofi seems to be a greatly reduced form of the British name Durobrivis, recorded in the 4th century, meaning 'walled town with bridges"}
 {"_type": "toponym", "ref": "Rodmersham@Kent", "modern_name": "Rodmersham", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Rodmersham@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hām"}], "notes": "unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Rolvenden@Kent", "modern_name": "Rolvenden", "country": "England", "region": "Kent"}
@@ -1483,7 +1483,7 @@
 {"_type": "toponym", "ref": "Sandwich@Kent", "modern_name": "Sandwich", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Sandwich@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:sand"}, {"ordinal": 2, "etymon_ref": "old-english:wīc"}], "notes": "Trading-centre on sand"}
 {"_type": "toponym", "ref": "Sarre@Kent", "modern_name": "Sarre", "country": "England", "region": "Kent"}
-{"_type": "etymology_element", "toponym_ref": "Sarre@Kent", "elements": [{"ordinal": 1, "etymon_ref": "celtic:sarn"}], "notes": "causeway' in the dual form sarnu, hence 'two causeways"}
+{"_type": "etymology_element", "toponym_ref": "Sarre@Kent", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:sarn"}], "notes": "causeway' in the dual form sarnu, hence 'two causeways"}
 {"_type": "toponym", "ref": "Seal@Kent", "modern_name": "Seal", "country": "England", "region": "Kent"}
 {"_type": "etymology_element", "toponym_ref": "Seal@Kent", "elements": [{"ordinal": 1, "etymon_ref": "old-english:sele"}, {"ordinal": 2, "etymon_ref": "old-english:syle"}], "notes": "hall' (OE sele) or 'sallow-tree copse' (OE *sele), though a recent interpretation as 'miry place"}
 {"_type": "toponym", "ref": "Seasalter@Kent", "modern_name": "Seasalter", "country": "England", "region": "Kent"}

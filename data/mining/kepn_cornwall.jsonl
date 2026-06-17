@@ -3,7 +3,7 @@
 {"_type": "etymon", "ref": "unknown:Saint's Name", "canonical_form": "Saint's Name", "language": "unknown", "glosses": ["Saint's name."]}
 {"_type": "citation", "etymon_ref": "unknown:Saint's Name"}
 {"_type": "citation", "etymon_ref": "unknown:Saint's Name", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:alter", "canonical_form": "alter", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:alter", "canonical_form": "alter", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:alter"}
 {"_type": "citation", "etymon_ref": "celtic:alter", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:tūn", "canonical_form": "tūn", "language": "old-english", "glosses": ["An enclosure; a farmstead; a village; an estate."]}
@@ -21,7 +21,7 @@
 {"_type": "etymon", "ref": "celtic:bod", "canonical_form": "bod", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:bod"}
 {"_type": "citation", "etymon_ref": "celtic:bod", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:menehi", "canonical_form": "menehi", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:menehi", "canonical_form": "menehi", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:menehi"}
 {"_type": "citation", "etymon_ref": "celtic:menehi", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "unknown:Family name", "canonical_form": "Family name", "language": "unknown", "glosses": ["Family name."]}
@@ -33,7 +33,7 @@
 {"_type": "etymon", "ref": "old-english:Boia", "canonical_form": "Boia", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Boia"}
 {"_type": "citation", "etymon_ref": "old-english:Boia", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:eglēs", "canonical_form": "eglēs", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:eglēs", "canonical_form": "eglēs", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:eglēs"}
 {"_type": "citation", "etymon_ref": "celtic:eglēs", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:calu", "canonical_form": "calu", "language": "old-english", "glosses": ["Bald, bare, lacking vegetation."]}
@@ -45,13 +45,13 @@
 {"_type": "etymon", "ref": "old-english:stoc", "canonical_form": "stoc", "language": "old-english", "glosses": ["A place, a secondary settlement."]}
 {"_type": "citation", "etymon_ref": "old-english:stoc"}
 {"_type": "citation", "etymon_ref": "old-english:stoc", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:bronn", "canonical_form": "bronn", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:bronn", "canonical_form": "bronn", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:bronn"}
 {"_type": "citation", "etymon_ref": "celtic:bronn", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "celtic:cam", "canonical_form": "cam", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:cam"}
 {"_type": "citation", "etymon_ref": "celtic:cam", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:dinan", "canonical_form": "dinan", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:dinan", "canonical_form": "dinan", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:dinan"}
 {"_type": "citation", "etymon_ref": "celtic:dinan", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "celtic:ker", "canonical_form": "ker", "language": "celtic"}
@@ -66,16 +66,16 @@
 {"_type": "etymon", "ref": "old-english:stōw", "canonical_form": "stōw", "language": "old-english", "glosses": ["A place; a place of assembly; a holy place."]}
 {"_type": "citation", "etymon_ref": "old-english:stōw"}
 {"_type": "citation", "etymon_ref": "old-english:stōw", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:dew", "canonical_form": "dew", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:dew", "canonical_form": "dew", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:dew"}
 {"_type": "citation", "etymon_ref": "celtic:dew", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "unknown:River-name", "canonical_form": "River-name", "language": "unknown", "glosses": ["River-name"]}
 {"_type": "citation", "etymon_ref": "unknown:River-name"}
 {"_type": "citation", "etymon_ref": "unknown:River-name", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:logh", "canonical_form": "logh", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:logh", "canonical_form": "logh", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:logh"}
 {"_type": "citation", "etymon_ref": "celtic:logh", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:heyl", "canonical_form": "heyl", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:heyl", "canonical_form": "heyl", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:heyl"}
 {"_type": "citation", "etymon_ref": "celtic:heyl", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:mūða", "canonical_form": "mūða", "language": "old-english", "glosses": ["The mouth of a large river, an estuary."]}
@@ -84,7 +84,7 @@
 {"_type": "etymon", "ref": "old-english:fore-burg", "canonical_form": "fore-burg", "language": "old-english", "glosses": ["An out-work."]}
 {"_type": "citation", "etymon_ref": "old-english:fore-burg"}
 {"_type": "citation", "etymon_ref": "old-english:fore-burg", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:goel", "canonical_form": "goel", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:goel", "canonical_form": "goel", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:goel"}
 {"_type": "citation", "etymon_ref": "celtic:goel", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "celtic:nant", "canonical_form": "nant", "language": "celtic"}
@@ -96,49 +96,49 @@
 {"_type": "etymon", "ref": "old-french:pont", "canonical_form": "pont", "language": "old-french", "glosses": ["A bridge."]}
 {"_type": "citation", "etymon_ref": "old-french:pont"}
 {"_type": "citation", "etymon_ref": "old-french:pont", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:hen", "canonical_form": "hen", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:hen", "canonical_form": "hen", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:hen"}
 {"_type": "citation", "etymon_ref": "celtic:hen", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:hen-lys", "canonical_form": "hen-lys", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:hen-lys", "canonical_form": "hen-lys", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:hen-lys"}
 {"_type": "citation", "etymon_ref": "celtic:hen-lys", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:gwynn", "canonical_form": "gwynn", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:gwynn", "canonical_form": "gwynn", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:gwynn"}
 {"_type": "citation", "etymon_ref": "celtic:gwynn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:keyn", "canonical_form": "keyn", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:keyn", "canonical_form": "keyn", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:keyn"}
 {"_type": "citation", "etymon_ref": "celtic:keyn", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:kylgh", "canonical_form": "kylgh", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:kylgh", "canonical_form": "kylgh", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:kylgh"}
 {"_type": "citation", "etymon_ref": "celtic:kylgh", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:to-", "canonical_form": "to-", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:to-", "canonical_form": "to-", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:to-"}
 {"_type": "citation", "etymon_ref": "celtic:to-", "source_id": "kepn_external", "context_snippet": "Padel; Cornish Place-name Elements; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:lannergh", "canonical_form": "lannergh", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:lannergh", "canonical_form": "lannergh", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:lannergh"}
 {"_type": "citation", "etymon_ref": "celtic:lannergh", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:neved", "canonical_form": "neved", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:neved", "canonical_form": "neved", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:neved"}
 {"_type": "citation", "etymon_ref": "celtic:neved", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:nans", "canonical_form": "nans", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:nans", "canonical_form": "nans", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:nans"}
 {"_type": "citation", "etymon_ref": "celtic:nans", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:gwyth", "canonical_form": "gwyth", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:gwyth", "canonical_form": "gwyth", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:gwyth"}
 {"_type": "citation", "etymon_ref": "celtic:gwyth", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:lys", "canonical_form": "lys", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:lys", "canonical_form": "lys", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:lys"}
 {"_type": "citation", "etymon_ref": "celtic:lys", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:nowydh", "canonical_form": "nowydh", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:nowydh", "canonical_form": "nowydh", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:nowydh"}
 {"_type": "citation", "etymon_ref": "celtic:nowydh", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:sans", "canonical_form": "sans", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:sans", "canonical_form": "sans", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:sans"}
 {"_type": "citation", "etymon_ref": "celtic:sans", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Lant", "canonical_form": "Lant", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Lant"}
 {"_type": "citation", "etymon_ref": "old-english:Lant", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:gwthyel", "canonical_form": "gwthyel", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:gwthyel", "canonical_form": "gwthyel", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:gwthyel"}
 {"_type": "citation", "etymon_ref": "celtic:gwthyel", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "celtic:lost", "canonical_form": "lost", "language": "celtic"}
@@ -147,7 +147,7 @@
 {"_type": "etymon", "ref": "celtic:-an", "canonical_form": "-an", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:-an"}
 {"_type": "citation", "etymon_ref": "celtic:-an", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:lusow", "canonical_form": "lusow", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:lusow", "canonical_form": "lusow", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:lusow"}
 {"_type": "citation", "etymon_ref": "celtic:lusow", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "celtic:log", "canonical_form": "log", "language": "celtic"}
@@ -156,37 +156,37 @@
 {"_type": "etymon", "ref": "middle-english:Mab", "canonical_form": "Mab", "language": "middle-english"}
 {"_type": "citation", "etymon_ref": "middle-english:Mab"}
 {"_type": "citation", "etymon_ref": "middle-english:Mab", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:magoer", "canonical_form": "magoer", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:magoer", "canonical_form": "magoer", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:magoer"}
 {"_type": "citation", "etymon_ref": "celtic:magoer", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:managh", "canonical_form": "managh", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:managh", "canonical_form": "managh", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:managh"}
 {"_type": "citation", "etymon_ref": "celtic:managh", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:byghan", "canonical_form": "byghan", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:byghan", "canonical_form": "byghan", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:byghan"}
 {"_type": "citation", "etymon_ref": "celtic:byghan", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:marghas", "canonical_form": "marghas", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:marghas", "canonical_form": "marghas", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:marghas"}
 {"_type": "citation", "etymon_ref": "celtic:marghas", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:cirice", "canonical_form": "cirice", "language": "old-english", "glosses": ["A church."]}
 {"_type": "citation", "etymon_ref": "old-english:cirice"}
 {"_type": "citation", "etymon_ref": "old-english:cirice", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:-ek", "canonical_form": "-ek", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:-ek", "canonical_form": "-ek", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:-ek"}
 {"_type": "citation", "etymon_ref": "celtic:-ek", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names"}
 {"_type": "etymon", "ref": "celtic:ma", "canonical_form": "ma", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:ma"}
 {"_type": "citation", "etymon_ref": "celtic:ma", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:merther", "canonical_form": "merther", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:merther", "canonical_form": "merther", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:merther"}
 {"_type": "citation", "etymon_ref": "celtic:merther", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:hag", "canonical_form": "hag", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:hag", "canonical_form": "hag", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:hag"}
 {"_type": "citation", "etymon_ref": "celtic:hag", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:bedh", "canonical_form": "bedh", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:bedh", "canonical_form": "bedh", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:bedh"}
 {"_type": "citation", "etymon_ref": "celtic:bedh", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:mǭr", "canonical_form": "mǭr", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:mǭr", "canonical_form": "mǭr", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:mǭr"}
 {"_type": "citation", "etymon_ref": "celtic:mǭr", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names"}
 {"_type": "etymon", "ref": "celtic:mor", "canonical_form": "mor", "language": "celtic"}
@@ -201,10 +201,10 @@
 {"_type": "etymon", "ref": "old-english:hamm", "canonical_form": "hamm", "language": "old-english", "glosses": ["Land hemmed in by water or marsh (perhaps also by high ground); a river-meadow; cultivated plot on the edge of woodland or moor."]}
 {"_type": "citation", "etymon_ref": "old-english:hamm"}
 {"_type": "citation", "etymon_ref": "old-english:hamm", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:plu", "canonical_form": "plu", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:plu", "canonical_form": "plu", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:plu"}
 {"_type": "citation", "etymon_ref": "celtic:plu", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:penn rynn", "canonical_form": "penn rynn", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:penn rynn", "canonical_form": "penn rynn", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:penn rynn"}
 {"_type": "citation", "etymon_ref": "celtic:penn rynn", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "celtic:penn", "canonical_form": "penn", "language": "celtic"}
@@ -213,7 +213,7 @@
 {"_type": "etymon", "ref": "celtic:ar", "canonical_form": "ar", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:ar"}
 {"_type": "citation", "etymon_ref": "celtic:ar", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:goethel", "canonical_form": "goethel", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:goethel", "canonical_form": "goethel", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:goethel"}
 {"_type": "citation", "etymon_ref": "celtic:goethel", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "modern-english:saint", "canonical_form": "saint", "language": "modern-english", "glosses": ["A saint."]}
@@ -243,16 +243,16 @@
 {"_type": "etymon", "ref": "old-english:pund", "canonical_form": "pund", "language": "old-english", "glosses": ["A pound, an enclosure into which stray cattle were put."]}
 {"_type": "citation", "etymon_ref": "old-english:pund"}
 {"_type": "citation", "etymon_ref": "old-english:pund", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cuid", "canonical_form": "cuid", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cuid", "canonical_form": "cuid", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cuid"}
 {"_type": "citation", "etymon_ref": "celtic:cuid", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:hrama", "canonical_form": "hrama", "language": "old-english", "glosses": ["A post, a barrier."]}
 {"_type": "citation", "etymon_ref": "old-english:hrama"}
 {"_type": "citation", "etymon_ref": "old-english:hrama", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:rïd", "canonical_form": "rïd", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:rïd", "canonical_form": "rïd", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:rïd"}
 {"_type": "citation", "etymon_ref": "celtic:rïd", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:rudh", "canonical_form": "rudh", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:rudh", "canonical_form": "rudh", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:rudh"}
 {"_type": "citation", "etymon_ref": "celtic:rudh", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-french:rocher", "canonical_form": "rocher", "language": "old-french", "glosses": ["A rock, a rocky place."]}
@@ -264,7 +264,7 @@
 {"_type": "etymon", "ref": "old-english:salt", "canonical_form": "salt", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:salt"}
 {"_type": "citation", "etymon_ref": "old-english:salt", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:sevi", "canonical_form": "sevi", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:sevi", "canonical_form": "sevi", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:sevi"}
 {"_type": "citation", "etymon_ref": "celtic:sevi", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-norse:hagi", "canonical_form": "hagi", "language": "old-norse", "glosses": ["A grazing enclosure, a pasture."]}
@@ -273,7 +273,7 @@
 {"_type": "etymon", "ref": "old-norse:nes", "canonical_form": "nes", "language": "old-norse", "glosses": ["A ness, a headland, a promontory. (Used for larger areas than the Old English word naess.)"]}
 {"_type": "citation", "etymon_ref": "old-norse:nes"}
 {"_type": "citation", "etymon_ref": "old-norse:nes", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:dinas", "canonical_form": "dinas", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:dinas", "canonical_form": "dinas", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:dinas"}
 {"_type": "citation", "etymon_ref": "celtic:dinas", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names"}
 {"_type": "etymon", "ref": "celtic:ros", "canonical_form": "ros", "language": "celtic"}
@@ -285,16 +285,16 @@
 {"_type": "etymon", "ref": "celtic:en", "canonical_form": "en", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:en"}
 {"_type": "citation", "etymon_ref": "celtic:en", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:kevyll", "canonical_form": "kevyll", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:kevyll", "canonical_form": "kevyll", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:kevyll"}
 {"_type": "citation", "etymon_ref": "celtic:kevyll", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:-yel", "canonical_form": "-yel", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:-yel", "canonical_form": "-yel", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:-yel"}
 {"_type": "citation", "etymon_ref": "celtic:-yel", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:stras", "canonical_form": "stras", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:stras", "canonical_form": "stras", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:stras"}
 {"_type": "citation", "etymon_ref": "celtic:stras", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:tal", "canonical_form": "tal", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:tal", "canonical_form": "tal", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:tal"}
 {"_type": "citation", "etymon_ref": "celtic:tal", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names"}
 {"_type": "etymon", "ref": "middle-english:temple", "canonical_form": "temple", "language": "middle-english", "glosses": ["A temple; usually in allusion to properties of the Knights Templar."]}
@@ -303,7 +303,7 @@
 {"_type": "etymon", "ref": "celtic:din", "canonical_form": "din", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:din"}
 {"_type": "citation", "etymon_ref": "celtic:din", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:tagell", "canonical_form": "tagell", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:tagell", "canonical_form": "tagell", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:tagell"}
 {"_type": "citation", "etymon_ref": "celtic:tagell", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "celtic:tre", "canonical_form": "tre", "language": "celtic"}
@@ -312,43 +312,43 @@
 {"_type": "etymon", "ref": "old-english:Ragni", "canonical_form": "Ragni", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Ragni"}
 {"_type": "citation", "etymon_ref": "old-english:Ragni", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:men", "canonical_form": "men", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:men", "canonical_form": "men", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:men"}
 {"_type": "citation", "etymon_ref": "celtic:men", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "celtic:an", "canonical_form": "an", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:an"}
 {"_type": "citation", "etymon_ref": "celtic:an", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:scaw", "canonical_form": "scaw", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:scaw", "canonical_form": "scaw", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:scaw"}
 {"_type": "citation", "etymon_ref": "celtic:scaw", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Ælga", "canonical_form": "Ælga", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Ælga"}
 {"_type": "citation", "etymon_ref": "old-english:Ælga", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:berow", "canonical_form": "berow", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:berow", "canonical_form": "berow", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:berow"}
 {"_type": "citation", "etymon_ref": "celtic:berow", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "unknown:Tribal-Name", "canonical_form": "Tribal-Name", "language": "unknown", "glosses": ["Tribal-name."]}
 {"_type": "citation", "etymon_ref": "unknown:Tribal-Name"}
 {"_type": "citation", "etymon_ref": "unknown:Tribal-Name", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:try-", "canonical_form": "try-", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:try-", "canonical_form": "try-", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:try-"}
 {"_type": "citation", "etymon_ref": "celtic:try-", "source_id": "kepn_external", "context_snippet": "Padel, Cornish place-names; A.D. Mills; Dictionary of English Place-Names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:tiʒ", "canonical_form": "tiʒ", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:tiʒ", "canonical_form": "tiʒ", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:tiʒ"}
 {"_type": "citation", "etymon_ref": "celtic:tiʒ", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:trêth", "canonical_form": "trêth", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:trêth", "canonical_form": "trêth", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:trêth"}
 {"_type": "citation", "etymon_ref": "celtic:trêth", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:war", "canonical_form": "war", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:war", "canonical_form": "war", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:war"}
 {"_type": "citation", "etymon_ref": "celtic:war", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names; Padel, Cornish place-names"}
-{"_type": "etymon", "ref": "celtic:-i", "canonical_form": "-i", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:-i", "canonical_form": "-i", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:-i"}
 {"_type": "citation", "etymon_ref": "celtic:-i", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; Padel; Cornish Place-name Elements; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:elergh", "canonical_form": "elergh", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:elergh", "canonical_form": "elergh", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:elergh"}
 {"_type": "citation", "etymon_ref": "celtic:elergh", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; Padel; Cornish Place-name Elements; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:gor-", "canonical_form": "gor-", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:gor-", "canonical_form": "gor-", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:gor-"}
 {"_type": "citation", "etymon_ref": "celtic:gor-", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Padel, Cornish place-names; E. Ekwall; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
 {"_type": "etymon", "ref": "old-english:wīc", "canonical_form": "wīc", "language": "old-english", "glosses": ["A dwelling; a building or collection of buildings for special purposes; a farm, a dairy farm; a trading or industrial settlement; or (in the plural) a hamlet, village."]}
@@ -365,7 +365,7 @@
 {"_type": "toponym", "ref": "Advent@Cornwall", "modern_name": "Advent", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Advent@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Advent /Adwen"}
 {"_type": "toponym", "ref": "Altarnun@Cornwall", "modern_name": "Altarnun", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Altarnun@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:alter"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Nonn's altar"}
+{"_type": "etymology_element", "toponym_ref": "Altarnun@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:alter"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Nonn's altar"}
 {"_type": "toponym", "ref": "Antony@Cornwall", "modern_name": "Antony", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Antony@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "old-english:tūn"}, {"ordinal": 2, "etymon_ref": "old-english:Anna"}], "notes": "*Anna's/ *Anta's farm"}
 {"_type": "toponym", "ref": "Blisland@Cornwall", "modern_name": "Blisland", "country": "England", "region": "Cornwall"}
@@ -373,13 +373,13 @@
 {"_type": "toponym", "ref": "Boconnoc@Cornwall", "modern_name": "Boconnoc", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Boconnoc@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:bod"}], "notes": "Conec's/Kenec's dwelling; unresolved personal name(s): Conec"}
 {"_type": "toponym", "ref": "Bodmin@Cornwall", "modern_name": "Bodmin", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Bodmin@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:bod"}, {"ordinal": 2, "etymon_ref": "celtic:menehi"}], "notes": "sanctuary dwelling"}
+{"_type": "etymology_element", "toponym_ref": "Bodmin@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:bod"}, {"ordinal": 2, "etymon_ref": "brittonic:menehi"}], "notes": "sanctuary dwelling"}
 {"_type": "toponym", "ref": "Botusfleming@Cornwall", "modern_name": "Botusfleming", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Botusfleming@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:bod"}, {"ordinal": 2, "etymon_ref": "unknown:Family name"}, {"ordinal": 3, "etymon_ref": "unknown:Obscure element"}], "notes": "Dwelling"}
 {"_type": "toponym", "ref": "Boyton@Cornwall", "modern_name": "Boyton", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Boyton@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "old-english:boia"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}, {"ordinal": 3, "etymon_ref": "old-english:Boia"}], "notes": "Boia's farm/settlement'. Alternatively, 'boy's farm/settlement"}
 {"_type": "toponym", "ref": "Breage@Cornwall", "modern_name": "Breage", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Breage@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglēs"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Breage'. or sometimes, 'church of St. Breage"}
+{"_type": "etymology_element", "toponym_ref": "Breage@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglēs"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Breage'. or sometimes, 'church of St. Breage"}
 {"_type": "toponym", "ref": "Broadoak@Cornwall", "modern_name": "Broadoak", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Broadoak@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}]}
 {"_type": "toponym", "ref": "Budock@Cornwall", "modern_name": "Budock", "country": "England", "region": "Cornwall"}
@@ -389,9 +389,9 @@
 {"_type": "toponym", "ref": "Calstock@Cornwall", "modern_name": "Calstock", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Calstock@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 2, "etymon_ref": "unknown:Place-name"}, {"ordinal": 3, "etymon_ref": "old-english:stoc"}], "notes": "Outlying farm/settlement' with an obscure first element, although 'Callington's outlying farm/settlement"}
 {"_type": "toponym", "ref": "Camborne@Cornwall", "modern_name": "Camborne", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Camborne@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:bronn"}, {"ordinal": 2, "etymon_ref": "celtic:cam"}], "notes": "Crooked hill"}
+{"_type": "etymology_element", "toponym_ref": "Camborne@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:bronn"}, {"ordinal": 2, "etymon_ref": "celtic:cam"}], "notes": "Crooked hill"}
 {"_type": "toponym", "ref": "Cardinham@Cornwall", "modern_name": "Cardinham", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Cardinham@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:dinan"}, {"ordinal": 2, "etymon_ref": "celtic:ker"}], "notes": "Fortification called Dynan'. The name is redundant, as Dynan also means 'fortification"}
+{"_type": "etymology_element", "toponym_ref": "Cardinham@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:dinan"}, {"ordinal": 2, "etymon_ref": "celtic:ker"}], "notes": "Fortification called Dynan'. The name is redundant, as Dynan also means 'fortification"}
 {"_type": "toponym", "ref": "Colan@Cornwall", "modern_name": "Colan", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Colan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Colan"}
 {"_type": "toponym", "ref": "Constantine@Cornwall", "modern_name": "Constantine", "country": "England", "region": "Cornwall"}
@@ -413,15 +413,15 @@
 {"_type": "toponym", "ref": "Davidstow@Cornwall", "modern_name": "Davidstow", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Davidstow@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 2, "etymon_ref": "old-english:stōw"}], "notes": "St. David's place'. He is the patron saint of Wales but venerated here as well as Brittany. The name used to contain the Cornish version of the saint's name, Dewy; the pronunciation 'Dewstow"}
 {"_type": "toponym", "ref": "Duloe@Cornwall", "modern_name": "Duloe", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Duloe@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:dew"}, {"ordinal": 2, "etymon_ref": "celtic:lann"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}, {"ordinal": 4, "etymon_ref": "unknown:Saint's Name"}], "notes": "Two Rivers Looe'. The name of the churchtown was Lankyp, 'St. Cuby's church"}
+{"_type": "etymology_element", "toponym_ref": "Duloe@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:dew"}, {"ordinal": 2, "etymon_ref": "celtic:lann"}, {"ordinal": 3, "etymon_ref": "unknown:River-name"}, {"ordinal": 4, "etymon_ref": "unknown:Saint's Name"}], "notes": "Two Rivers Looe'. The name of the churchtown was Lankyp, 'St. Cuby's church"}
 {"_type": "toponym", "ref": "East and West Looe@Cornwall", "modern_name": "East and West Looe", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "East and West Looe@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:logh"}], "notes": "Pool"}
+{"_type": "etymology_element", "toponym_ref": "East and West Looe@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:logh"}], "notes": "Pool"}
 {"_type": "toponym", "ref": "East Newlyn@Cornwall", "modern_name": "East Newlyn", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "East Newlyn@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Neulin'. She was believed to have been martyred near here by her father, a king. After the prefix 'St."}
 {"_type": "toponym", "ref": "Egloshayle@Cornwall", "modern_name": "Egloshayle", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Egloshayle@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglēs"}, {"ordinal": 2, "etymon_ref": "celtic:heyl"}], "notes": "Estuary church'. 'Heyl' was probably the former name of the River Camel, as evidenced in the name Haegelmutha (11th century'), 'River Heyl's mouth"}
+{"_type": "etymology_element", "toponym_ref": "Egloshayle@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglēs"}, {"ordinal": 2, "etymon_ref": "brittonic:heyl"}], "notes": "Estuary church'. 'Heyl' was probably the former name of the River Camel, as evidenced in the name Haegelmutha (11th century'), 'River Heyl's mouth"}
 {"_type": "toponym", "ref": "Egloskerry@Cornwall", "modern_name": "Egloskerry", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Egloskerry@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglēs"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Keri's church"}
+{"_type": "etymology_element", "toponym_ref": "Egloskerry@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglēs"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Keri's church"}
 {"_type": "toponym", "ref": "Falmouth@Cornwall", "modern_name": "Falmouth", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Falmouth@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "old-english:mūða"}, {"ordinal": 2, "etymon_ref": "unknown:River-name"}], "notes": "River Fal's mouth'. Earlier, the place that is now known as Falmouth was comprised of two settlements: Smythwyk (1370) from OE smith and wic, 'smith's workshop/dwelling' and Pennicomequicke (1646), 'get-rich-quick"}
 {"_type": "toponym", "ref": "Feock@Cornwall", "modern_name": "Feock", "country": "England", "region": "Cornwall"}
@@ -433,7 +433,7 @@
 {"_type": "toponym", "ref": "Gerrans@Cornwall", "modern_name": "Gerrans", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Gerrans@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Gerent"}
 {"_type": "toponym", "ref": "Golant or St. Sampson@Cornwall", "modern_name": "Golant or St. Sampson", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Golant or St. Sampson@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:goel"}, {"ordinal": 2, "etymon_ref": "celtic:nant"}], "notes": "Fair valley"}
+{"_type": "etymology_element", "toponym_ref": "Golant or St. Sampson@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:goel"}, {"ordinal": 2, "etymon_ref": "celtic:nant"}], "notes": "Fair valley"}
 {"_type": "toponym", "ref": "Grade@Cornwall", "modern_name": "Grade", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Grade@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Grade"}
 {"_type": "toponym", "ref": "Grampound@Cornwall", "modern_name": "Grampound", "country": "England", "region": "Cornwall"}
@@ -449,9 +449,9 @@
 {"_type": "toponym", "ref": "Gwithian@Cornwall", "modern_name": "Gwithian", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Gwithian@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Gwithian"}
 {"_type": "toponym", "ref": "Helland@Cornwall", "modern_name": "Helland", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Helland@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:hen"}, {"ordinal": 2, "etymon_ref": "celtic:lann"}], "notes": "Old church"}
+{"_type": "etymology_element", "toponym_ref": "Helland@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:hen"}, {"ordinal": 2, "etymon_ref": "celtic:lann"}], "notes": "Old church"}
 {"_type": "toponym", "ref": "Helston@Cornwall", "modern_name": "Helston", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Helston@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:hen-lys"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Ancient court' with the later addition of 'farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Helston@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:hen-lys"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Ancient court' with the later addition of 'farm/settlement"}
 {"_type": "toponym", "ref": "Illogan@Cornwall", "modern_name": "Illogan", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Illogan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Illogan"}
 {"_type": "toponym", "ref": "Jacobstow@Cornwall", "modern_name": "Jacobstow", "country": "England", "region": "Cornwall"}
@@ -459,17 +459,17 @@
 {"_type": "toponym", "ref": "Kea@Cornwall", "modern_name": "Kea", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Kea@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Kea"}
 {"_type": "toponym", "ref": "Kenwyn@Cornwall", "modern_name": "Kenwyn", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Kenwyn@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:gwynn"}, {"ordinal": 2, "etymon_ref": "celtic:keyn"}], "notes": "White ridge'. The name was later wrongly interpreted as a saint"}
+{"_type": "etymology_element", "toponym_ref": "Kenwyn@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:gwynn"}, {"ordinal": 2, "etymon_ref": "brittonic:keyn"}], "notes": "White ridge'. The name was later wrongly interpreted as a saint"}
 {"_type": "toponym", "ref": "Kilkhampton@Cornwall", "modern_name": "Kilkhampton", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Kilkhampton@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:kylgh"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at/called Kylgh (= the circle)"}
+{"_type": "etymology_element", "toponym_ref": "Kilkhampton@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:kylgh"}, {"ordinal": 2, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at/called Kylgh (= the circle)"}
 {"_type": "toponym", "ref": "Ladock@Cornwall", "modern_name": "Ladock", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Ladock@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Ladoca"}
 {"_type": "toponym", "ref": "Lamorran@Cornwall", "modern_name": "Lamorran", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Lamorran@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Moren's church"}
 {"_type": "toponym", "ref": "Landewednack@Cornwall", "modern_name": "Landewednack", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Landewednack@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "celtic:to-"}], "notes": "St. To-winn-oc's church"}
+{"_type": "etymology_element", "toponym_ref": "Landewednack@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "brittonic:to-"}], "notes": "St. To-winn-oc's church"}
 {"_type": "toponym", "ref": "Landrake with St. Erney@Cornwall", "modern_name": "Landrake with St. Erney", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Landrake with St. Erney@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lannergh"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Clearing'. 'St. Erme"}
+{"_type": "etymology_element", "toponym_ref": "Landrake with St. Erney@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:lannergh"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Clearing'. 'St. Erme"}
 {"_type": "toponym", "ref": "Landulph@Cornwall", "modern_name": "Landulph", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Landulph@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Dilic's church"}
 {"_type": "toponym", "ref": "Laneast@Cornwall", "modern_name": "Laneast", "country": "England", "region": "Cornwall"}
@@ -477,37 +477,37 @@
 {"_type": "toponym", "ref": "Lanhydrock@Cornwall", "modern_name": "Lanhydrock", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Lanhydrock@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Hydrek's church"}
 {"_type": "toponym", "ref": "Lanivet@Cornwall", "modern_name": "Lanivet", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Lanivet@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "celtic:neved"}], "notes": "Church at the sacred pagan place"}
+{"_type": "etymology_element", "toponym_ref": "Lanivet@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "brittonic:neved"}], "notes": "Church at the sacred pagan place"}
 {"_type": "toponym", "ref": "Lanlivery@Cornwall", "modern_name": "Lanlivery", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Lanlivery@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}], "notes": "*Livri's church; unresolved personal name(s): Livri"}
 {"_type": "toponym", "ref": "Lanreath@Cornwall", "modern_name": "Lanreath", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Lanreath@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}], "notes": "Reydhogh's church; unresolved personal name(s): Reydhogh"}
 {"_type": "toponym", "ref": "Lanteglos@Cornwall", "modern_name": "Lanteglos", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Lanteglos@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglēs"}, {"ordinal": 2, "etymon_ref": "celtic:nans"}], "notes": "Church valley"}
+{"_type": "etymology_element", "toponym_ref": "Lanteglos@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglēs"}, {"ordinal": 2, "etymon_ref": "brittonic:nans"}], "notes": "Church valley"}
 {"_type": "toponym", "ref": "Lanteglos@Cornwall", "modern_name": "Lanteglos", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Lanteglos@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglēs"}, {"ordinal": 2, "etymon_ref": "celtic:nans"}], "notes": "Church valley"}
+{"_type": "etymology_element", "toponym_ref": "Lanteglos@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglēs"}, {"ordinal": 2, "etymon_ref": "brittonic:nans"}], "notes": "Church valley"}
 {"_type": "toponym", "ref": "Launcells@Cornwall", "modern_name": "Launcells", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Launcells@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "Church"}
 {"_type": "toponym", "ref": "Launceston@Cornwall", "modern_name": "Launceston", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Launceston@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "St. Stephen's church' with the later addition of 'farm/settlement'. Prior to the transfer of the name Launceston from present day St. Stephens, the place here was called Dunheved, from OE dun and heafod, 'hill-head"}
 {"_type": "toponym", "ref": "Lawhitton@Cornwall", "modern_name": "Lawhitton", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Lawhitton@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:gwyth"}, {"ordinal": 2, "etymon_ref": "celtic:lann"}, {"ordinal": 3, "etymon_ref": "celtic:nans"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Gwethen's valley' with 'church' either replacing 'valley' or as the original first element. Alternatively, 'tree valley'. 'Farm/settlement; unresolved personal name(s): Gwethen"}
+{"_type": "etymology_element", "toponym_ref": "Lawhitton@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:gwyth"}, {"ordinal": 2, "etymon_ref": "celtic:lann"}, {"ordinal": 3, "etymon_ref": "brittonic:nans"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Gwethen's valley' with 'church' either replacing 'valley' or as the original first element. Alternatively, 'tree valley'. 'Farm/settlement; unresolved personal name(s): Gwethen"}
 {"_type": "toponym", "ref": "Lesnewth@Cornwall", "modern_name": "Lesnewth", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Lesnewth@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lys"}, {"ordinal": 2, "etymon_ref": "celtic:nowydh"}], "notes": "New court"}
+{"_type": "etymology_element", "toponym_ref": "Lesnewth@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:lys"}, {"ordinal": 2, "etymon_ref": "brittonic:nowydh"}], "notes": "New court"}
 {"_type": "toponym", "ref": "Lewannick@Cornwall", "modern_name": "Lewannick", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Lewannick@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}], "notes": "Gwenek's church; unresolved personal name(s): Gwenek"}
 {"_type": "toponym", "ref": "Lezant@Cornwall", "modern_name": "Lezant", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Lezant@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "celtic:sans"}, {"ordinal": 3, "etymon_ref": "old-english:Lant"}], "notes": "Sant's church' rather than 'holy church"}
+{"_type": "etymology_element", "toponym_ref": "Lezant@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "brittonic:sans"}, {"ordinal": 3, "etymon_ref": "old-english:Lant"}], "notes": "Sant's church' rather than 'holy church"}
 {"_type": "toponym", "ref": "Linkinhorne@Cornwall", "modern_name": "Linkinhorne", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Linkinhorne@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}], "notes": "Kenhoarn's church; unresolved personal name(s): Kenhoarn"}
 {"_type": "toponym", "ref": "Liskeard@Cornwall", "modern_name": "Liskeard", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Liskeard@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lys"}], "notes": "Kerwyd's court; unresolved personal name(s): Kerwyd"}
+{"_type": "etymology_element", "toponym_ref": "Liskeard@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:lys"}], "notes": "Kerwyd's court; unresolved personal name(s): Kerwyd"}
 {"_type": "toponym", "ref": "Little Petherick@Cornwall", "modern_name": "Little Petherick", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Little Petherick@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Petrock"}
 {"_type": "toponym", "ref": "Lostwithiel@Cornwall", "modern_name": "Lostwithiel", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Lostwithiel@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:gwthyel"}, {"ordinal": 2, "etymon_ref": "celtic:lost"}], "notes": "Tail of the woodland"}
+{"_type": "etymology_element", "toponym_ref": "Lostwithiel@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:gwthyel"}, {"ordinal": 2, "etymon_ref": "celtic:lost"}], "notes": "Tail of the woodland"}
 {"_type": "toponym", "ref": "Ludgvan@Cornwall", "modern_name": "Ludgvan", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Ludgvan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-an"}, {"ordinal": 2, "etymon_ref": "celtic:lusow"}], "notes": "Place of ashes"}
+{"_type": "etymology_element", "toponym_ref": "Ludgvan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-an"}, {"ordinal": 2, "etymon_ref": "brittonic:lusow"}], "notes": "Place of ashes"}
 {"_type": "toponym", "ref": "Luxulian@Cornwall", "modern_name": "Luxulian", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Luxulian@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:log"}], "notes": "Sulyen's chapel'. Occasional forms show replacement of the first element by Co lann, 'church'. It has been suggested that this single occurence of the more common Breton element 'lok,; unresolved personal name(s): Sulyen"}
 {"_type": "toponym", "ref": "Mabe@Cornwall", "modern_name": "Mabe", "country": "England", "region": "Cornwall"}
@@ -515,15 +515,15 @@
 {"_type": "toponym", "ref": "Madron@Cornwall", "modern_name": "Madron", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Madron@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}]}
 {"_type": "toponym", "ref": "Maker@Cornwall", "modern_name": "Maker", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Maker@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:magoer"}], "notes": "Wall"}
+{"_type": "etymology_element", "toponym_ref": "Maker@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:magoer"}], "notes": "Wall"}
 {"_type": "toponym", "ref": "Manaccan@Cornwall", "modern_name": "Manaccan", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Manaccan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-an"}, {"ordinal": 2, "etymon_ref": "celtic:managh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Manaca'. It is uncertain whether the dedication to the saint is genuine or derived from an older place-name such as Managhan, 'monks' place"}
+{"_type": "etymology_element", "toponym_ref": "Manaccan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-an"}, {"ordinal": 2, "etymon_ref": "brittonic:managh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Manaca'. It is uncertain whether the dedication to the saint is genuine or derived from an older place-name such as Managhan, 'monks' place"}
 {"_type": "toponym", "ref": "Marazion@Cornwall", "modern_name": "Marazion", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Marazion@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:byghan"}, {"ordinal": 2, "etymon_ref": "celtic:marghas"}], "notes": "Small market'. An alternative name for the place is Market Jew, although in reality, this was for a long time a separate place. The name is from Co marghas and yow, 'Thursday market"}
+{"_type": "etymology_element", "toponym_ref": "Marazion@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:byghan"}, {"ordinal": 2, "etymon_ref": "brittonic:marghas"}], "notes": "Small market'. An alternative name for the place is Market Jew, although in reality, this was for a long time a separate place. The name is from Co marghas and yow, 'Thursday market"}
 {"_type": "toponym", "ref": "Marhamchurch@Cornwall", "modern_name": "Marhamchurch", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Marhamchurch@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cirice"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Marwen's church' after one of the 24 children of the Welsh Kin Broccan, or 'St. Merwenn's church"}
 {"_type": "toponym", "ref": "Mawgan in Meneage@Cornwall", "modern_name": "Mawgan in Meneage", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Mawgan in Meneage@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-ek"}, {"ordinal": 2, "etymon_ref": "celtic:managh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Mawgan'. One of several Cornwall parishes containing the district name Meneage, 'monks place"}
+{"_type": "etymology_element", "toponym_ref": "Mawgan in Meneage@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-ek"}, {"ordinal": 2, "etymon_ref": "brittonic:managh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Mawgan'. One of several Cornwall parishes containing the district name Meneage, 'monks place"}
 {"_type": "toponym", "ref": "Mawgan in Pyder@Cornwall", "modern_name": "Mawgan in Pyder", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Mawgan in Pyder@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Mawgan"}
 {"_type": "toponym", "ref": "Mawnan@Cornwall", "modern_name": "Mawnan", "country": "England", "region": "Cornwall"}
@@ -531,15 +531,15 @@
 {"_type": "toponym", "ref": "Menheniot@Cornwall", "modern_name": "Menheniot", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Menheniot@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ma"}], "notes": "*Hynyed's land; unresolved personal name(s): Hynyed"}
 {"_type": "toponym", "ref": "Merther@Cornwall", "modern_name": "Merther", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Merther@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:eglēs"}, {"ordinal": 2, "etymon_ref": "celtic:merther"}], "notes": "Church of the saint's grave"}
+{"_type": "etymology_element", "toponym_ref": "Merther@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:eglēs"}, {"ordinal": 2, "etymon_ref": "brittonic:merther"}], "notes": "Church of the saint's grave"}
 {"_type": "toponym", "ref": "Mevagissey@Cornwall", "modern_name": "Mevagissey", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Mevagissey@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:hag"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Meva and St. Issey'. Nothing else is known of St. Meva, but for St. Issey, see the place-name. An older name of the place was Lammorech (c. 1210) from Co lann, 'church' and mor, 'sea"}
+{"_type": "etymology_element", "toponym_ref": "Mevagissey@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:hag"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Meva and St. Issey'. Nothing else is known of St. Meva, but for St. Issey, see the place-name. An older name of the place was Lammorech (c. 1210) from Co lann, 'church' and mor, 'sea"}
 {"_type": "toponym", "ref": "Michaelstow@Cornwall", "modern_name": "Michaelstow", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Michaelstow@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 2, "etymon_ref": "old-english:stōw"}], "notes": "St. Michael's place"}
 {"_type": "toponym", "ref": "Minster@Cornwall", "modern_name": "Minster", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Minster@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}]}
 {"_type": "toponym", "ref": "Morvah@Cornwall", "modern_name": "Morvah", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Morvah@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:bedh"}, {"ordinal": 2, "etymon_ref": "celtic:mǭr"}], "notes": "Sea grave'. No burial is known for certain here, but a nearby farm is called Merthyr from Co merther, 'saint's grave'. William of Worcester in the 15th century wrote that 'Sanctus Morianus"}
+{"_type": "etymology_element", "toponym_ref": "Morvah@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:bedh"}, {"ordinal": 2, "etymon_ref": "brittonic:mǭr"}], "notes": "Sea grave'. No burial is known for certain here, but a nearby farm is called Merthyr from Co merther, 'saint's grave'. William of Worcester in the 15th century wrote that 'Sanctus Morianus"}
 {"_type": "toponym", "ref": "Morval@Cornwall", "modern_name": "Morval", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Morval@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:mor"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "Sea"}
 {"_type": "toponym", "ref": "Morwenstow@Cornwall", "modern_name": "Morwenstow", "country": "England", "region": "Cornwall"}
@@ -559,13 +559,13 @@
 {"_type": "toponym", "ref": "Paul@Cornwall", "modern_name": "Paul", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Paul@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Paul'. He was a Welsh saint, Paulinus Aurelian, who founded monasteries in Brittany. An alternative name survives, Brewinney, from Co bre, 'hill"}
 {"_type": "toponym", "ref": "Pelynt@Cornwall", "modern_name": "Pelynt", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Pelynt@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:plu"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Nennyd's parish"}
+{"_type": "etymology_element", "toponym_ref": "Pelynt@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:plu"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Nennyd's parish"}
 {"_type": "toponym", "ref": "Penryn@Cornwall", "modern_name": "Penryn", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Penryn@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:penn rynn"}], "notes": "Promontory"}
+{"_type": "etymology_element", "toponym_ref": "Penryn@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:penn rynn"}], "notes": "Promontory"}
 {"_type": "toponym", "ref": "Penzance@Cornwall", "modern_name": "Penzance", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Penzance@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:penn"}, {"ordinal": 2, "etymon_ref": "celtic:sans"}], "notes": "Holy head"}
+{"_type": "etymology_element", "toponym_ref": "Penzance@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:penn"}, {"ordinal": 2, "etymon_ref": "brittonic:sans"}], "notes": "Holy head"}
 {"_type": "toponym", "ref": "Perranarworthal@Cornwall", "modern_name": "Perranarworthal", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Perranarworthal@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ar"}, {"ordinal": 2, "etymon_ref": "celtic:goethel"}, {"ordinal": 3, "etymon_ref": "modern-english:saint"}], "notes": "St. Piran's church in Arwothel (= beside the marsh)"}
+{"_type": "etymology_element", "toponym_ref": "Perranarworthal@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:ar"}, {"ordinal": 2, "etymon_ref": "brittonic:goethel"}, {"ordinal": 3, "etymon_ref": "modern-english:saint"}], "notes": "St. Piran's church in Arwothel (= beside the marsh)"}
 {"_type": "toponym", "ref": "Perranuthnoe@Cornwall", "modern_name": "Perranuthnoe", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Perranuthnoe@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Piran's church in Uthno"}
 {"_type": "toponym", "ref": "Perranzabuloe@Cornwall", "modern_name": "Perranzabuloe", "country": "England", "region": "Cornwall"}
@@ -583,11 +583,11 @@
 {"_type": "toponym", "ref": "Probus@Cornwall", "modern_name": "Probus", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Probus@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Probus"}
 {"_type": "toponym", "ref": "Quethiock@Cornwall", "modern_name": "Quethiock", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Quethiock@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-ek"}, {"ordinal": 2, "etymon_ref": "celtic:cuid"}], "notes": "Wooded place"}
+{"_type": "etymology_element", "toponym_ref": "Quethiock@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-ek"}, {"ordinal": 2, "etymon_ref": "brittonic:cuid"}], "notes": "Wooded place"}
 {"_type": "toponym", "ref": "Rame@Cornwall", "modern_name": "Rame", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Rame@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hrama"}], "notes": "barrier"}
 {"_type": "toponym", "ref": "Redruth@Cornwall", "modern_name": "Redruth", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Redruth@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:rïd"}, {"ordinal": 2, "etymon_ref": "celtic:rudh"}], "notes": "Red ford"}
+{"_type": "etymology_element", "toponym_ref": "Redruth@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:rïd"}, {"ordinal": 2, "etymon_ref": "brittonic:rudh"}], "notes": "Red ford"}
 {"_type": "toponym", "ref": "Roche@Cornwall", "modern_name": "Roche", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Roche@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "old-french:rocher"}], "notes": "Rock"}
 {"_type": "toponym", "ref": "Ruan Lanihorn@Cornwall", "modern_name": "Ruan Lanihorn", "country": "England", "region": "Cornwall"}
@@ -603,7 +603,7 @@
 {"_type": "toponym", "ref": "Sennen@Cornwall", "modern_name": "Sennen", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Sennen@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Senana"}
 {"_type": "toponym", "ref": "Sheviock@Cornwall", "modern_name": "Sheviock", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Sheviock@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-ek"}, {"ordinal": 2, "etymon_ref": "celtic:sevi"}], "notes": "Strawberry place"}
+{"_type": "etymology_element", "toponym_ref": "Sheviock@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-ek"}, {"ordinal": 2, "etymon_ref": "brittonic:sevi"}], "notes": "Strawberry place"}
 {"_type": "toponym", "ref": "Sithney@Cornwall", "modern_name": "Sithney", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Sithney@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Sithney"}
 {"_type": "toponym", "ref": "South Hill@Cornwall", "modern_name": "South Hill", "country": "England", "region": "Cornwall"}
@@ -615,13 +615,13 @@
 {"_type": "toponym", "ref": "St. Allen@Cornwall", "modern_name": "St. Allen", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Allen@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Alun'. Nothing is known of this saint, although a Breton St. Alan is recorded. A field at the churchtown is called Eglosellan, 'Alun's church"}
 {"_type": "toponym", "ref": "St. Anthony in Meneage@Cornwall", "modern_name": "St. Anthony in Meneage", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "St. Anthony in Meneage@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-ek"}, {"ordinal": 2, "etymon_ref": "celtic:managh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Entenin'. The name has obviously been influenced by the English name, Anthony (from Latin Antoninus). One of several Cornwall parishes containing the district name Meneage, 'monks place"}
+{"_type": "etymology_element", "toponym_ref": "St. Anthony in Meneage@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-ek"}, {"ordinal": 2, "etymon_ref": "brittonic:managh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Entenin'. The name has obviously been influenced by the English name, Anthony (from Latin Antoninus). One of several Cornwall parishes containing the district name Meneage, 'monks place"}
 {"_type": "toponym", "ref": "St. Austell@Cornwall", "modern_name": "St. Austell", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Austell@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Austol"}
 {"_type": "toponym", "ref": "St. Blazey@Cornwall", "modern_name": "St. Blazey", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Blazey@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Blaise"}
 {"_type": "toponym", "ref": "St. Breok@Cornwall", "modern_name": "St. Breok", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "St. Breok@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "celtic:sans"}, {"ordinal": 4, "etymon_ref": "old-english:Lant"}], "notes": "St. Brioc'. He was thought to have been born in Cardinganshire and studied in France with St. German of Paris. The name of the churchtown was Lansant (1259), Nansant (1291) and Nanssent (1335) and it survived as Nancent until 1841, either 'Sant's/Sent"}
+{"_type": "etymology_element", "toponym_ref": "St. Breok@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "brittonic:sans"}, {"ordinal": 4, "etymon_ref": "old-english:Lant"}], "notes": "St. Brioc'. He was thought to have been born in Cardinganshire and studied in France with St. German of Paris. The name of the churchtown was Lansant (1259), Nansant (1291) and Nanssent (1335) and it survived as Nancent until 1841, either 'Sant's/Sent"}
 {"_type": "toponym", "ref": "St. Breward@Cornwall", "modern_name": "St. Breward", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Breward@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Brewerd"}
 {"_type": "toponym", "ref": "St. Buryan@Cornwall", "modern_name": "St. Buryan", "country": "England", "region": "Cornwall"}
@@ -635,7 +635,7 @@
 {"_type": "toponym", "ref": "St. Columb Major and Minor@Cornwall", "modern_name": "St. Columb Major and Minor", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Columb Major and Minor@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Columba"}
 {"_type": "toponym", "ref": "St. Dennis@Cornwall", "modern_name": "St. Dennis", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "St. Dennis@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:dinas"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Denys' from the first bishop of Paris, who was martyred in the 3rd century However, given the location of the place, it is perhaps more likely that the name is a corruption of Co dinas, 'fortification"}
+{"_type": "etymology_element", "toponym_ref": "St. Dennis@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:dinas"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Denys' from the first bishop of Paris, who was martyred in the 3rd century However, given the location of the place, it is perhaps more likely that the name is a corruption of Co dinas, 'fortification"}
 {"_type": "toponym", "ref": "St. Dominick@Cornwall", "modern_name": "St. Dominick", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Dominick@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Dominica"}
 {"_type": "toponym", "ref": "St. Endellion@Cornwall", "modern_name": "St. Endellion", "country": "England", "region": "Cornwall"}
@@ -679,7 +679,7 @@
 {"_type": "toponym", "ref": "St. Keverne@Cornwall", "modern_name": "St. Keverne", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Keverne@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Achobran"}
 {"_type": "toponym", "ref": "St. Kew@Cornwall", "modern_name": "St. Kew", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "St. Kew@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Place-name"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "celtic:sans"}], "notes": "St. Kew'. An alternative name for the churchtown was Lanhougou seynt, 'saints' Lanow (= Doghow's church)"}
+{"_type": "etymology_element", "toponym_ref": "St. Kew@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Place-name"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 3, "etymon_ref": "brittonic:sans"}], "notes": "St. Kew'. An alternative name for the churchtown was Lanhougou seynt, 'saints' Lanow (= Doghow's church)"}
 {"_type": "toponym", "ref": "St. Keyne@Cornwall", "modern_name": "St. Keyne", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Keyne@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Keyne/Keyna'. Along with St. Issey. St.Dilic, St. Endellion, St. Mabon and others she is said to be one of the 24 children of the Welsh King Broccan. Another possible occurrence of her name is Llangeinor, Wales, 'Keyne's church"}
 {"_type": "toponym", "ref": "St. Levan@Cornwall", "modern_name": "St. Levan", "country": "England", "region": "Cornwall"}
@@ -689,7 +689,7 @@
 {"_type": "toponym", "ref": "St. Martin by Looe@Cornwall", "modern_name": "St. Martin by Looe", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Martin by Looe@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Martin"}
 {"_type": "toponym", "ref": "St. Martin in Meneage@Cornwall", "modern_name": "St. Martin in Meneage", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "St. Martin in Meneage@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-ek"}, {"ordinal": 2, "etymon_ref": "celtic:managh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Martin'. One of several Cornwall parishes containing the district name Meneage, 'monks place"}
+{"_type": "etymology_element", "toponym_ref": "St. Martin in Meneage@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-ek"}, {"ordinal": 2, "etymon_ref": "brittonic:managh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Martin'. One of several Cornwall parishes containing the district name Meneage, 'monks place"}
 {"_type": "toponym", "ref": "St. Mary's (Scilly Isles)@Cornwall", "modern_name": "St. Mary's (Scilly Isles)", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Mary's (Scilly Isles)@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "old-english:dor"}, {"ordinal": 2, "etymon_ref": "celtic:en"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Mary'. Also recorded as island of Ennore, 'the ground"}
 {"_type": "toponym", "ref": "St. Mellion@Cornwall", "modern_name": "St. Mellion", "country": "England", "region": "Cornwall"}
@@ -701,7 +701,7 @@
 {"_type": "toponym", "ref": "St. Michael Caerhays@Cornwall", "modern_name": "St. Michael Caerhays", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Michael Caerhays@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Archangel St. Michael'. The parish is distinguished by the name of the manor, 'Caerhays"}
 {"_type": "toponym", "ref": "St. Michael Penkevil@Cornwall", "modern_name": "St. Michael Penkevil", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "St. Michael Penkevil@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:kevyll"}, {"ordinal": 2, "etymon_ref": "celtic:penn"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "Archangel St. Michael'. The parish is distinguished by the name of the manor Penkevil, perhaps, 'horse head'. The exact reference is unknown, possibly a feature thought to resemble a horse"}
+{"_type": "etymology_element", "toponym_ref": "St. Michael Penkevil@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:kevyll"}, {"ordinal": 2, "etymon_ref": "celtic:penn"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "Archangel St. Michael'. The parish is distinguished by the name of the manor Penkevil, perhaps, 'horse head'. The exact reference is unknown, possibly a feature thought to resemble a horse"}
 {"_type": "toponym", "ref": "St. Minver Highlands and Lowlands@Cornwall", "modern_name": "St. Minver Highlands and Lowlands", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Minver Highlands and Lowlands@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Menfreda"}
 {"_type": "toponym", "ref": "St. Neot@Cornwall", "modern_name": "St. Neot", "country": "England", "region": "Cornwall"}
@@ -709,7 +709,7 @@
 {"_type": "toponym", "ref": "St. Pinnock@Cornwall", "modern_name": "St. Pinnock", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Pinnock@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Pinnuh"}
 {"_type": "toponym", "ref": "St. Stephen in Brannel@Cornwall", "modern_name": "St. Stephen in Brannel", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "St. Stephen in Brannel@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-yel"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Stephen"}
+{"_type": "etymology_element", "toponym_ref": "St. Stephen in Brannel@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-yel"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Stephen"}
 {"_type": "toponym", "ref": "St. Stephens@Cornwall", "modern_name": "St. Stephens", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "St. Stephens@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Stephen"}
 {"_type": "toponym", "ref": "St. Teath@Cornwall", "modern_name": "St. Teath", "country": "England", "region": "Cornwall"}
@@ -727,43 +727,43 @@
 {"_type": "toponym", "ref": "Stoke Climsland@Cornwall", "modern_name": "Stoke Climsland", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Stoke Climsland@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "old-english:land"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}, {"ordinal": 3, "etymon_ref": "old-english:stoc"}], "notes": "Outlying farm/settlement"}
 {"_type": "toponym", "ref": "Stratton@Cornwall", "modern_name": "Stratton", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Stratton@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}, {"ordinal": 2, "etymon_ref": "celtic:stras"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "River Neet valley' with the later addition of 'farm/settlement"}
+{"_type": "etymology_element", "toponym_ref": "Stratton@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:River-name"}, {"ordinal": 2, "etymon_ref": "brittonic:stras"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "River Neet valley' with the later addition of 'farm/settlement"}
 {"_type": "toponym", "ref": "Talland@Cornwall", "modern_name": "Talland", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Talland@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "celtic:tal"}], "notes": "Hill-brow church'. It was earlier referred to as 'a creek between Poulperro and Looe"}
+{"_type": "etymology_element", "toponym_ref": "Talland@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "brittonic:tal"}], "notes": "Hill-brow church'. It was earlier referred to as 'a creek between Poulperro and Looe"}
 {"_type": "toponym", "ref": "Temple@Cornwall", "modern_name": "Temple", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Temple@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "middle-english:temple"}]}
 {"_type": "toponym", "ref": "Tintagel@Cornwall", "modern_name": "Tintagel", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Tintagel@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:din"}, {"ordinal": 2, "etymon_ref": "celtic:tagell"}], "notes": "Neck of land fortification"}
+{"_type": "etymology_element", "toponym_ref": "Tintagel@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:din"}, {"ordinal": 2, "etymon_ref": "brittonic:tagell"}], "notes": "Neck of land fortification"}
 {"_type": "toponym", "ref": "Towednack@Cornwall", "modern_name": "Towednack", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Towednack@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 2, "etymon_ref": "celtic:to-"}], "notes": "St. To-Winn-oc'. The pet form of the saint"}
+{"_type": "etymology_element", "toponym_ref": "Towednack@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 2, "etymon_ref": "brittonic:to-"}], "notes": "St. To-Winn-oc'. The pet form of the saint"}
 {"_type": "toponym", "ref": "Tregavethan@Cornwall", "modern_name": "Tregavethan", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Tregavethan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:tre"}], "notes": "Farm; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "Tregony@Cornwall", "modern_name": "Tregony", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Tregony@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:tre"}, {"ordinal": 2, "etymon_ref": "old-english:Ragni"}], "notes": "*Rigni's farm"}
 {"_type": "toponym", "ref": "Tremaine@Cornwall", "modern_name": "Tremaine", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Tremaine@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:men"}, {"ordinal": 2, "etymon_ref": "celtic:tre"}], "notes": "Stone farm"}
+{"_type": "etymology_element", "toponym_ref": "Tremaine@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:men"}, {"ordinal": 2, "etymon_ref": "celtic:tre"}], "notes": "Stone farm"}
 {"_type": "toponym", "ref": "Treneglos@Cornwall", "modern_name": "Treneglos", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Treneglos@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:an"}, {"ordinal": 2, "etymon_ref": "celtic:eglēs"}, {"ordinal": 3, "etymon_ref": "celtic:tre"}], "notes": "Farm of the church"}
+{"_type": "etymology_element", "toponym_ref": "Treneglos@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:an"}, {"ordinal": 2, "etymon_ref": "brittonic:eglēs"}, {"ordinal": 3, "etymon_ref": "celtic:tre"}], "notes": "Farm of the church"}
 {"_type": "toponym", "ref": "Tresco (Scilly Isles)@Cornwall", "modern_name": "Tresco (Scilly Isles)", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Tresco (Scilly Isles)@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:scaw"}, {"ordinal": 2, "etymon_ref": "celtic:tre"}], "notes": "Elder-tree farm"}
+{"_type": "etymology_element", "toponym_ref": "Tresco (Scilly Isles)@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:scaw"}, {"ordinal": 2, "etymon_ref": "celtic:tre"}], "notes": "Elder-tree farm"}
 {"_type": "toponym", "ref": "Tresmeer@Cornwall", "modern_name": "Tresmeer", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Tresmeer@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:tre"}], "notes": "*Gwasmeur's farm; unresolved personal name(s): Gwasmeur"}
 {"_type": "toponym", "ref": "Trevalga@Cornwall", "modern_name": "Trevalga", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Trevalga@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:tre"}, {"ordinal": 2, "etymon_ref": "old-english:Ælga"}], "notes": "*Melga's farm"}
 {"_type": "toponym", "ref": "Trewen@Cornwall", "modern_name": "Trewen", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Trewen@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:gwynn"}, {"ordinal": 2, "etymon_ref": "celtic:tre"}], "notes": "White farm"}
+{"_type": "etymology_element", "toponym_ref": "Trewen@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:gwynn"}, {"ordinal": 2, "etymon_ref": "celtic:tre"}], "notes": "White farm"}
 {"_type": "toponym", "ref": "Truro@Cornwall", "modern_name": "Truro", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Truro@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:berow"}, {"ordinal": 2, "etymon_ref": "unknown:Tribal-Name"}, {"ordinal": 3, "etymon_ref": "celtic:try-"}], "notes": "very boiling' but the implied sense may be 'turbulent water"}
+{"_type": "etymology_element", "toponym_ref": "Truro@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:berow"}, {"ordinal": 2, "etymon_ref": "unknown:Tribal-Name"}, {"ordinal": 3, "etymon_ref": "brittonic:try-"}], "notes": "very boiling' but the implied sense may be 'turbulent water"}
 {"_type": "toponym", "ref": "Tywardreath@Cornwall", "modern_name": "Tywardreath", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Tywardreath@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:tiʒ"}, {"ordinal": 2, "etymon_ref": "celtic:trêth"}, {"ordinal": 3, "etymon_ref": "celtic:war"}], "notes": "House on the beach"}
+{"_type": "etymology_element", "toponym_ref": "Tywardreath@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:tiʒ"}, {"ordinal": 2, "etymon_ref": "brittonic:trêth"}, {"ordinal": 3, "etymon_ref": "brittonic:war"}], "notes": "House on the beach"}
 {"_type": "toponym", "ref": "Uny Lelant@Cornwall", "modern_name": "Uny Lelant", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Uny Lelant@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:lann"}, {"ordinal": 2, "etymon_ref": "unknown:Saint's Name"}], "notes": "Anta's church"}
 {"_type": "toponym", "ref": "Veryan@Cornwall", "modern_name": "Veryan", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Veryan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-i"}, {"ordinal": 2, "etymon_ref": "celtic:elergh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Symphorian'. The present form of the name is reduced, reflecting the loss of the first syllable of the name when it was altered to Severian. The name was subsequently reinterpreted as Saint Veryan, and the 'saint"}
+{"_type": "etymology_element", "toponym_ref": "Veryan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-i"}, {"ordinal": 2, "etymon_ref": "brittonic:elergh"}, {"ordinal": 3, "etymon_ref": "unknown:Saint's Name"}], "notes": "St. Symphorian'. The present form of the name is reduced, reflecting the loss of the first syllable of the name when it was altered to Severian. The name was subsequently reinterpreted as Saint Veryan, and the 'saint"}
 {"_type": "toponym", "ref": "Warbstow@Cornwall", "modern_name": "Warbstow", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Warbstow@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 2, "etymon_ref": "old-english:stōw"}], "notes": "St. Waerburh's place"}
 {"_type": "toponym", "ref": "Warleggan@Cornwall", "modern_name": "Warleggan", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Warleggan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:gor-"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "watches over/guards'. Nearby Carburrow Tor may have been such a 'watching place'. Otherwise, the first element may simply be gor, 'over, very"}
+{"_type": "etymology_element", "toponym_ref": "Warleggan@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:gor-"}, {"ordinal": 2, "etymon_ref": "unknown:Obscure element"}], "notes": "watches over/guards'. Nearby Carburrow Tor may have been such a 'watching place'. Otherwise, the first element may simply be gor, 'over, very"}
 {"_type": "toponym", "ref": "Week St. Mary@Cornwall", "modern_name": "Week St. Mary", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Week St. Mary@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Saint's Name"}, {"ordinal": 2, "etymon_ref": "old-english:wīc"}], "notes": "Specialised farm"}
 {"_type": "toponym", "ref": "Wendron@Cornwall", "modern_name": "Wendron", "country": "England", "region": "Cornwall"}
@@ -771,7 +771,7 @@
 {"_type": "toponym", "ref": "Whitstone@Cornwall", "modern_name": "Whitstone", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Whitstone@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "old-english:hwīt"}, {"ordinal": 2, "etymon_ref": "old-english:stān"}], "notes": "White stone"}
 {"_type": "toponym", "ref": "Withiel@Cornwall", "modern_name": "Withiel", "country": "England", "region": "Cornwall"}
-{"_type": "etymology_element", "toponym_ref": "Withiel@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "celtic:-yel"}, {"ordinal": 2, "etymon_ref": "celtic:gwthyel"}], "notes": "Wooded place"}
+{"_type": "etymology_element", "toponym_ref": "Withiel@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:-yel"}, {"ordinal": 2, "etymon_ref": "brittonic:gwthyel"}], "notes": "Wooded place"}
 {"_type": "toponym", "ref": "Worth Matravers@Cornwall", "modern_name": "Worth Matravers", "country": "England", "region": "Cornwall"}
 {"_type": "etymology_element", "toponym_ref": "Worth Matravers@Cornwall", "elements": [{"ordinal": 1, "etymon_ref": "unknown:Family name"}, {"ordinal": 2, "etymon_ref": "old-english:worð"}]}
 {"_type": "toponym", "ref": "Zennor@Cornwall", "modern_name": "Zennor", "country": "England", "region": "Cornwall"}

@@ -93,7 +93,7 @@
 {"_type": "etymon", "ref": "old-english:tūn", "canonical_form": "tūn", "language": "old-english", "glosses": ["An enclosure; a farmstead; a village; an estate."]}
 {"_type": "citation", "etymon_ref": "old-english:tūn"}
 {"_type": "citation", "etymon_ref": "old-english:tūn", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Gover et al.; Place-names of Surrey; Watts; Cambridge Dictionary of English Place-names; A.D. Mills; Dictionary of English Place-Names"}
-{"_type": "etymon", "ref": "celtic:cadeir", "canonical_form": "cadeir", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cadeir", "canonical_form": "cadeir", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cadeir"}
 {"_type": "citation", "etymon_ref": "celtic:cadeir", "source_id": "kepn_external", "context_snippet": "Watts; Cambridge Dictionary of English Place-names; Gover et al.; Place-names of Surrey; E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:catte", "canonical_form": "catte", "language": "old-english", "glosses": ["A she-cat, probably both wild and domestic."]}
@@ -564,7 +564,7 @@
 {"_type": "toponym", "ref": "Carshalton@Surrey", "modern_name": "Carshalton", "country": "England", "region": "Surrey"}
 {"_type": "etymology_element", "toponym_ref": "Carshalton@Surrey", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ǣwell"}, {"ordinal": 2, "etymon_ref": "old-english:cærse"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "water-source farm/settlement'. 'Cress"}
 {"_type": "toponym", "ref": "Caterham@Surrey", "modern_name": "Caterham", "country": "England", "region": "Surrey"}
-{"_type": "etymology_element", "toponym_ref": "Caterham@Surrey", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cadeir"}, {"ordinal": 2, "etymon_ref": "old-english:catte"}, {"ordinal": 3, "etymon_ref": "old-english:hām"}, {"ordinal": 4, "etymon_ref": "old-english:hamm"}, {"ordinal": 5, "etymon_ref": "old-english:Catta"}], "notes": "homestead/village at the hill called *Cadeir (= the chair)'. Alternatively, 'Catta's/Catte's homestead/village' or 'wild-cat homestead/village"}
+{"_type": "etymology_element", "toponym_ref": "Caterham@Surrey", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cadeir"}, {"ordinal": 2, "etymon_ref": "old-english:catte"}, {"ordinal": 3, "etymon_ref": "old-english:hām"}, {"ordinal": 4, "etymon_ref": "old-english:hamm"}, {"ordinal": 5, "etymon_ref": "old-english:Catta"}], "notes": "homestead/village at the hill called *Cadeir (= the chair)'. Alternatively, 'Catta's/Catte's homestead/village' or 'wild-cat homestead/village"}
 {"_type": "toponym", "ref": "Chaldon@Surrey", "modern_name": "Chaldon", "country": "England", "region": "Surrey"}
 {"_type": "etymology_element", "toponym_ref": "Chaldon@Surrey", "elements": [{"ordinal": 1, "etymon_ref": "old-english:calf"}, {"ordinal": 2, "etymon_ref": "old-english:dūn"}], "notes": "Calves' hill"}
 {"_type": "toponym", "ref": "Charlwood@Surrey", "modern_name": "Charlwood", "country": "England", "region": "Surrey"}

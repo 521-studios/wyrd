@@ -1,193 +1,194 @@
 {
-  "_doc": "Source of truth for the from-scratch lexicon rebuild. Paired with wyrd/generators/kenning/REBUILD.md (the prose runbook) and tests/test_kenning_rebuild_runbook.py (the CI gate that ties the two together). When you add a data-population CLI (mine-*/ingest-*/backfill-*/cleanup-*), the test fails until you categorize it here AND, if it is a rebuild step, document it in REBUILD.md. See the 'Keeping this runbook honest' section of REBUILD.md.",
-  "_principle": "A full wipe (rebuild-from-jsonl) restores only what L2 JSONL carries plus the enrichment-derived columns. FREE re-runnable mining against the local bulk slices is an acceptable manual rebuild step PROVIDED it is listed in rebuild_step_commands and documented in REBUILD.md. PAID mining (LLM/Gemini/Ollama API cost) must NOT be a rebuild step -- its output must round-trip through L2 so rebuild-from-jsonl replays it for free (enforced separately by .reviewers/db-reconstructibility-reviewer.md).",
-  "rebuild_step_commands": [
-    "backfill-toponym-country",
-    "ingest-toponym-mentions",
-    "mine-wiktextract-forms",
-    "mine-wiktextract-corpus",
-    "cleanup-wiktionary-empirical",
-    "mine-empirical-baselines",
-    "mine-genitive-priors",
-    "import-modern-reflexes"
-  ],
-  "non_rebuild_commands": {
-    "mine-same-morpheme-binds": "DETERMINISTIC same-morpheme identity uplift (wyrd-c7iz, D50 1a). Mines breakdown-only etymons that are the same morpheme as a shipped one (shared folded surface + cluster/gloss) and --apply appends mint-canonical + same-morpheme bind assertions to the canonicalization L2 streams (data/mining/canonicalization/_canonical_nodes.jsonl + _assert_bind.jsonl). Those streams are already covered by the 'canonicalization-graph' layer and replayed/projected by the u6fn.3 projection (dormant until then) — the miner itself is never re-run on rebuild. Not a wipe-restore step.",
-    "normalize-l2-vocab": "One-time idempotent Class-A region/country normalization of the committed L2 JSONL in place (wyrd-3q6m.4). Its output IS L2, so rebuild-from-jsonl replays the already-canonical data — not a wipe-restore step. Safe to re-run (a re-run is a no-op).",
-    "backfill-fantasy-tags": "Backfills tags on fantasy_morpheme rows; the fantasy layer round-trips via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores it. Not a wipe-restore step.",
-    "audit-merges": "LLM (Ollama) audit of merge decisions (folds / OCR-cluster tombstones / lemma links) that reverts wrongly-merged homographs (wyrd-6hbv). NON-DETERMINISTIC, so per the reconstructibility rule its reverts persist to the L2 ledgers — collapse-fold reverts to data/mining/_collapses.jsonl (into: ''), OCR/lemma reverts to data/mining/_curation.jsonl (merged_into_ref/lemma_ref cleared) — and are replayed deterministically by run_full_enrichment's collapse + curation passes; the verdict log data/mining/_merge_audit.jsonl is idempotency/audit only. The auditor itself is never re-run on rebuild.",
-    "backfill-pages": "Backfills citation page numbers from source-specific data; one-off enrichment, not part of a from-scratch rebuild.",
-    "detect-collapses": "Generates deterministic form-of/variant collapse rows into the data/mining/_collapses.jsonl ledger (wyrd-y651). The rows round-trip through L2 and are replayed for free by run_full_enrichment's collapse pass; this detector itself is never re-run on rebuild.",
-    "ingest-briggs-personal-names": "Source-specific ingester; output lands in L2 and is replayed by rebuild-from-jsonl. Not a wipe-restore step.",
-    "merge-collapses": "LLM (Ollama) same-meaning judgment over variant-doubling candidates (wyrd-6xzs). NON-DETERMINISTIC, so per the reconstructibility rule its verdicts persist to the data/mining/_collapses.jsonl ledger and are replayed deterministically — it must never be a rebuild step (re-judging would make rebuilds non-reproducible).",
-    "mine-element-glosses": "DETERMINISTIC grounded-consensus gloss backfill for unglossed generation surfaces (wyrd-u9k6). Votes the toponyms' mined etymologies + inherits authoritative glosses, writing the data/mining/_element_glosses.jsonl ledger. The rows round-trip through L2 and are replayed for free by run_full_enrichment's element-gloss pass (links the orphan reflex to its etymon in reflex_etymon); the miner itself is never re-run on rebuild.",
-    "adjudicate-element-glosses": "LLM (Ollama) weak-tail adjudication that PICKS among the grounded consensus candidates (wyrd-u9k6). NON-DETERMINISTIC / PAID, so per the reconstructibility rule its accepted picks persist to the data/mining/_element_gloss_adjudications.jsonl ledger and are replayed deterministically by run_full_enrichment — it must never be a rebuild step.",
-    "mine-pronunciation-llm": "LLM (Ollama) broad-IPA transcription for the no-G2P-table generation languages — Goidelic (irish/gaelic), Romance (old/norman French, latin), Middle English, Breton (wyrd-vm8t). NON-DETERMINISTIC / PAID, so its high+medium-confidence rows persist to the data/mining/_pronunciation.jsonl ledger and are replayed deterministically by run_full_enrichment's pronunciation pass (collect_pronunciation → derive_pronunciation_ipa llm_state) — never a rebuild step. The OE/ON/welsh/celtic IPA is NOT here: that is the deterministic G2P fill, re-derived for free on rebuild.",
-    "ingest-domesday": "Source-specific ingester (Open Domesday); output lands in L2. Not a wipe-restore step.",
-    "ingest-etymonline": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
-    "ingest-hearth-tax": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
-    "ingest-hundred-rolls": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
-    "ingest-kepn": "Source-specific ingester (KEPN county files); output lands in L2. Not a wipe-restore step.",
-    "ingest-os-open-names": "Source-specific ingester (OS OpenNames gazetteer); output lands in L2. Not a wipe-restore step.",
-    "ingest-report-snapshot": "Reporting tool: loads dashboard report snapshots into the DB for diffing. Not corpus data, not a rebuild step.",
-    "ingest-speed-1611": "Source-specific ingester (Speed 1611 atlas); output lands in L2. Not a wipe-restore step.",
-    "ingest-wiktionary": "L1 bulk wiktextract descent-graph ingest; performed by rebuild-from-jsonl's bulk phase internally (slices fetched via fetch-bulk-sources / --fetch-bulk). Not a separate manual step.",
-    "mine-attestations": "Extracts dated historical forms from toponym_etymology.notes. The canonical rebuild restores toponym_attestation via ingest-toponym-mentions over the committed data/mining/phase2/*.jsonl, not via this path. If the rebuild ever routes attestations through this command, move it to rebuild_step_commands and document it.",
-    "mine-fantasy-name": "Paid (Gemini) creature-name research. The usable fantasy_morpheme rows round-trip via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores them. Not a wipe-restore step.",
-    "mine-llm": "Paid LLM mining of new OCR sources. Output is dumped to L2 (dump-jsonl) and replayed by rebuild-from-jsonl. Must never be a rebuild step (it costs money).",
-    "mine-tags-llm": "LLM (Ollama, gemma4:26b) classification of untagged-but-glossed generation etymons into the controlled tag vocab (44 existing + kinship; wyrd-xz3g). NON-DETERMINISTIC / PAID, so per the reconstructibility rule its decisions (including the 'none' outcomes) persist to the data/mining/_tags.jsonl ledger and are replayed deterministically by run_full_enrichment's apply-tag-additions pass (collect_tags → apply_tag_additions) into etymon_tag — never a rebuild step.",
-    "mine-skeat": "Source-specific parser mine of a new book; output dumped to L2. Not a wipe-restore step.",
-    "mine-toponym-mentions": "Source-capture mining that PRODUCES the committed data/mining/phase2/*.jsonl files; the rebuild replays those via ingest-toponym-mentions. The mining itself is source capture, not a wipe-restore step.",
-    "mine-toponym-mentions-staged": "Staged variant of mine-toponym-mentions (source capture). Not a wipe-restore step.",
-    "mine-toponym-mentions-tiered": "Tiered variant of mine-toponym-mentions (source capture). Not a wipe-restore step.",
-    "build": "Legacy seed-from-meanings.json path; superseded by rebuild-from-jsonl for the rebuild (etymons + reflexes now arrive via L2 replay incl. _reflexes.jsonl). Not a wipe-restore step.",
-    "synsets seed": "Seeds meaning_synset FREE from the committed data/meaning_synsets.json. Currently deferred/unused (0 rows); rebuild-from-jsonl does not run it. If meaning_synset is ever populated, promote to a rebuild step and document in REBUILD.md.",
-    "synsets assign": "Writes etymon_meaning_synset (D28 Phase-2 semantic classification). Deferred/unused (0 rows); if activated via LLM it is paid and must round-trip through L2, not become a re-mine step.",
-    "audit-reflexes": "LLM (Gemini Flash) audit of reflex_etymon links that prunes bad town-name / neighbor-fragment links wrongly recorded as spellings of a suffix morpheme (-burnham/Belch- -> ham; -bolton -> tun) — the era-grid town-pollution root (wyrd-862b). A deterministic pre-screen keeps links whose surface IS a known form of the etymon (canonical / spelling-variant / cognate-cluster mate / descent reflex); only the residual is judged. NON-DETERMINISTIC, so per the reconstructibility rule the prune persists to L2: --apply deletes the PRUNE-verdict links and re-dumps data/mining/_reflexes.jsonl (the reflex L2 source, wyrd-ned5), which replays for free on rebuild via the seed reflex layer. The verdict log data/mining/_reflex_audit.jsonl is idempotency/audit only. The auditor itself is never re-run on rebuild.",
-    "audit-descent": "LLM (Ollama) audit of cognate-cluster descent edges that DETACHES bad edges over-merging etymologically-distinct words into one cluster — proto-form fan-out (itc-pro:*wolwumen -> vallis/vulva/...) + spurious edges (hām->am) — the era-grid over-merge root, Phase 2 (wyrd-rd69; sibling of audit-merges/6hbv + audit-reflexes/862b). A deterministic pre-screen surfaces bridge edges only in INCOHERENT clusters (glossed members split into >=2 gloss-token sense-groups); only the residual is judged. NON-DETERMINISTIC, so per the reconstructibility rule the detaches persist to data/mining/_collapses.jsonl (detach_parents rows) and are replayed deterministically by run_full_enrichment's collapse pass (apply_collapses deletes the edges BEFORE the fold, so cluster_cognates re-derives clean clusters); the verdict log data/mining/_descent_audit.jsonl is idempotency/audit only. The auditor itself is never re-run on rebuild. --scope 2b (wyrd-2wml) adds the glossless-proto-conductor screen: in a cluster with a clear dominant glossed sense, a proto/reconstruction conductor's fan-out edges to off-dominant/glossless children (val cluster pulling in glossless vulva/valgus) are judged against the dominant sense; same detach round-trip.",
-    "audit-cluster-reflexes": "LLM (Ollama) audit of cognate-cluster MODERN reflexes vs the cluster's dominant glossed sense — the WORKING era-grid over-merge fix (wyrd-1wv2). Supersedes the descent edge-audit (rd69/2wml), which couldn't split multi-parent deep-proto clusters. Judges each modern-english cluster member (gloss pre-screen auto-keeps on-sense members; only suspect/glossless go to the LLM) and DETACHES an implausible reflex's in-cluster bridging in-edges (orphaning the leaf). NON-DETERMINISTIC, so the detaches persist to data/mining/_collapses.jsonl and replay deterministically: at rebuild apply_collapses deletes the edges + fresh cluster_cognates drops the orphan. The verdict log data/mining/_cluster_reflex_audit.jsonl is idempotency/audit only. Never re-run at rebuild.",
-    "audit-toponym-reflexes": "LLM (Ollama) per-form toponym-plausibility audit — the era-grid over-merge long-tail cleaner (wyrd-1wv2). Judges each distinct modern-english era-grid reflex form generically ('is this a plausible English place-name element?') and DETACHES the unrelated cluster-merged ones (medical Latin, foreign words, proper nouns, function words, abstract nouns) by orphaning the leaf (cutting its in-cluster bridging in-edges). A surface pre-screen auto-keeps forms similar to their cluster morphemes. NON-DETERMINISTIC; detaches persist to data/mining/_collapses.jsonl and replay (apply_collapses + fresh cluster_cognates); verdict log data/mining/_toponym_reflex_audit.jsonl is idempotency/audit only. Never re-run at rebuild."
+ "_doc": "Source of truth for the from-scratch lexicon rebuild. Paired with wyrd/generators/kenning/REBUILD.md (the prose runbook) and tests/test_kenning_rebuild_runbook.py (the CI gate that ties the two together). When you add a data-population CLI (mine-*/ingest-*/backfill-*/cleanup-*), the test fails until you categorize it here AND, if it is a rebuild step, document it in REBUILD.md. See the 'Keeping this runbook honest' section of REBUILD.md.",
+ "_principle": "A full wipe (rebuild-from-jsonl) restores only what L2 JSONL carries plus the enrichment-derived columns. FREE re-runnable mining against the local bulk slices is an acceptable manual rebuild step PROVIDED it is listed in rebuild_step_commands and documented in REBUILD.md. PAID mining (LLM/Gemini/Ollama API cost) must NOT be a rebuild step -- its output must round-trip through L2 so rebuild-from-jsonl replays it for free (enforced separately by .reviewers/db-reconstructibility-reviewer.md).",
+ "rebuild_step_commands": [
+  "backfill-toponym-country",
+  "ingest-toponym-mentions",
+  "mine-wiktextract-forms",
+  "mine-wiktextract-corpus",
+  "cleanup-wiktionary-empirical",
+  "mine-empirical-baselines",
+  "mine-genitive-priors",
+  "import-modern-reflexes"
+ ],
+ "non_rebuild_commands": {
+  "mine-same-morpheme-binds": "DETERMINISTIC same-morpheme identity uplift (wyrd-c7iz, D50 1a). Mines breakdown-only etymons that are the same morpheme as a shipped one (shared folded surface + cluster/gloss) and --apply appends mint-canonical + same-morpheme bind assertions to the canonicalization L2 streams (data/mining/canonicalization/_canonical_nodes.jsonl + _assert_bind.jsonl). Those streams are already covered by the 'canonicalization-graph' layer and replayed/projected by the u6fn.3 projection (dormant until then) — the miner itself is never re-run on rebuild. Not a wipe-restore step.",
+  "normalize-l2-vocab": "One-time idempotent Class-A region/country normalization of the committed L2 JSONL in place (wyrd-3q6m.4). Its output IS L2, so rebuild-from-jsonl replays the already-canonical data — not a wipe-restore step. Safe to re-run (a re-run is a no-op).",
+  "backfill-fantasy-tags": "Backfills tags on fantasy_morpheme rows; the fantasy layer round-trips via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores it. Not a wipe-restore step.",
+  "audit-merges": "LLM (Ollama) audit of merge decisions (folds / OCR-cluster tombstones / lemma links) that reverts wrongly-merged homographs (wyrd-6hbv). NON-DETERMINISTIC, so per the reconstructibility rule its reverts persist to the L2 ledgers — collapse-fold reverts to data/mining/_collapses.jsonl (into: ''), OCR/lemma reverts to data/mining/_curation.jsonl (merged_into_ref/lemma_ref cleared) — and are replayed deterministically by run_full_enrichment's collapse + curation passes; the verdict log data/mining/_merge_audit.jsonl is idempotency/audit only. The auditor itself is never re-run on rebuild.",
+  "backfill-pages": "Backfills citation page numbers from source-specific data; one-off enrichment, not part of a from-scratch rebuild.",
+  "detect-collapses": "Generates deterministic form-of/variant collapse rows into the data/mining/_collapses.jsonl ledger (wyrd-y651). The rows round-trip through L2 and are replayed for free by run_full_enrichment's collapse pass; this detector itself is never re-run on rebuild.",
+  "ingest-briggs-personal-names": "Source-specific ingester; output lands in L2 and is replayed by rebuild-from-jsonl. Not a wipe-restore step.",
+  "merge-collapses": "LLM (Ollama) same-meaning judgment over variant-doubling candidates (wyrd-6xzs). NON-DETERMINISTIC, so per the reconstructibility rule its verdicts persist to the data/mining/_collapses.jsonl ledger and are replayed deterministically — it must never be a rebuild step (re-judging would make rebuilds non-reproducible).",
+  "mine-element-glosses": "DETERMINISTIC grounded-consensus gloss backfill for unglossed generation surfaces (wyrd-u9k6). Votes the toponyms' mined etymologies + inherits authoritative glosses, writing the data/mining/_element_glosses.jsonl ledger. The rows round-trip through L2 and are replayed for free by run_full_enrichment's element-gloss pass (links the orphan reflex to its etymon in reflex_etymon); the miner itself is never re-run on rebuild.",
+  "adjudicate-element-glosses": "LLM (Ollama) weak-tail adjudication that PICKS among the grounded consensus candidates (wyrd-u9k6). NON-DETERMINISTIC / PAID, so per the reconstructibility rule its accepted picks persist to the data/mining/_element_gloss_adjudications.jsonl ledger and are replayed deterministically by run_full_enrichment — it must never be a rebuild step.",
+  "mine-pronunciation-llm": "LLM (Ollama) broad-IPA transcription for the no-G2P-table generation languages — Goidelic (irish/gaelic), Romance (old/norman French, latin), Middle English, Breton (wyrd-vm8t). NON-DETERMINISTIC / PAID, so its high+medium-confidence rows persist to the data/mining/_pronunciation.jsonl ledger and are replayed deterministically by run_full_enrichment's pronunciation pass (collect_pronunciation → derive_pronunciation_ipa llm_state) — never a rebuild step. The OE/ON/welsh/celtic IPA is NOT here: that is the deterministic G2P fill, re-derived for free on rebuild.",
+  "ingest-domesday": "Source-specific ingester (Open Domesday); output lands in L2. Not a wipe-restore step.",
+  "ingest-etymonline": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
+  "ingest-hearth-tax": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
+  "ingest-hundred-rolls": "Source-specific ingester; output lands in L2. Not a wipe-restore step.",
+  "ingest-kepn": "Source-specific ingester (KEPN county files); output lands in L2. Not a wipe-restore step.",
+  "ingest-os-open-names": "Source-specific ingester (OS OpenNames gazetteer); output lands in L2. Not a wipe-restore step.",
+  "ingest-report-snapshot": "Reporting tool: loads dashboard report snapshots into the DB for diffing. Not corpus data, not a rebuild step.",
+  "ingest-speed-1611": "Source-specific ingester (Speed 1611 atlas); output lands in L2. Not a wipe-restore step.",
+  "ingest-wiktionary": "L1 bulk wiktextract descent-graph ingest; performed by rebuild-from-jsonl's bulk phase internally (slices fetched via fetch-bulk-sources / --fetch-bulk). Not a separate manual step.",
+  "mine-attestations": "Extracts dated historical forms from toponym_etymology.notes. The canonical rebuild restores toponym_attestation via ingest-toponym-mentions over the committed data/mining/phase2/*.jsonl, not via this path. If the rebuild ever routes attestations through this command, move it to rebuild_step_commands and document it.",
+  "mine-fantasy-name": "Paid (Gemini) creature-name research. The usable fantasy_morpheme rows round-trip via data/mining/_fantasy_morphemes.jsonl, so rebuild-from-jsonl restores them. Not a wipe-restore step.",
+  "mine-llm": "Paid LLM mining of new OCR sources. Output is dumped to L2 (dump-jsonl) and replayed by rebuild-from-jsonl. Must never be a rebuild step (it costs money).",
+  "mine-tags-llm": "LLM (Ollama, gemma4:26b) classification of untagged-but-glossed generation etymons into the controlled tag vocab (44 existing + kinship; wyrd-xz3g). NON-DETERMINISTIC / PAID, so per the reconstructibility rule its decisions (including the 'none' outcomes) persist to the data/mining/_tags.jsonl ledger and are replayed deterministically by run_full_enrichment's apply-tag-additions pass (collect_tags → apply_tag_additions) into etymon_tag — never a rebuild step.",
+  "mine-skeat": "Source-specific parser mine of a new book; output dumped to L2. Not a wipe-restore step.",
+  "mine-toponym-mentions": "Source-capture mining that PRODUCES the committed data/mining/phase2/*.jsonl files; the rebuild replays those via ingest-toponym-mentions. The mining itself is source capture, not a wipe-restore step.",
+  "mine-toponym-mentions-staged": "Staged variant of mine-toponym-mentions (source capture). Not a wipe-restore step.",
+  "mine-toponym-mentions-tiered": "Tiered variant of mine-toponym-mentions (source capture). Not a wipe-restore step.",
+  "build": "Legacy seed-from-meanings.json path; superseded by rebuild-from-jsonl for the rebuild (etymons + reflexes now arrive via L2 replay incl. _reflexes.jsonl). Not a wipe-restore step.",
+  "synsets seed": "Seeds meaning_synset FREE from the committed data/meaning_synsets.json. Currently deferred/unused (0 rows); rebuild-from-jsonl does not run it. If meaning_synset is ever populated, promote to a rebuild step and document in REBUILD.md.",
+  "synsets assign": "Writes etymon_meaning_synset (D28 Phase-2 semantic classification). Deferred/unused (0 rows); if activated via LLM it is paid and must round-trip through L2, not become a re-mine step.",
+  "audit-reflexes": "LLM (Gemini Flash) audit of reflex_etymon links that prunes bad town-name / neighbor-fragment links wrongly recorded as spellings of a suffix morpheme (-burnham/Belch- -> ham; -bolton -> tun) — the era-grid town-pollution root (wyrd-862b). A deterministic pre-screen keeps links whose surface IS a known form of the etymon (canonical / spelling-variant / cognate-cluster mate / descent reflex); only the residual is judged. NON-DETERMINISTIC, so per the reconstructibility rule the prune persists to L2: --apply deletes the PRUNE-verdict links and re-dumps data/mining/_reflexes.jsonl (the reflex L2 source, wyrd-ned5), which replays for free on rebuild via the seed reflex layer. The verdict log data/mining/_reflex_audit.jsonl is idempotency/audit only. The auditor itself is never re-run on rebuild.",
+  "audit-descent": "LLM (Ollama) audit of cognate-cluster descent edges that DETACHES bad edges over-merging etymologically-distinct words into one cluster — proto-form fan-out (itc-pro:*wolwumen -> vallis/vulva/...) + spurious edges (hām->am) — the era-grid over-merge root, Phase 2 (wyrd-rd69; sibling of audit-merges/6hbv + audit-reflexes/862b). A deterministic pre-screen surfaces bridge edges only in INCOHERENT clusters (glossed members split into >=2 gloss-token sense-groups); only the residual is judged. NON-DETERMINISTIC, so per the reconstructibility rule the detaches persist to data/mining/_collapses.jsonl (detach_parents rows) and are replayed deterministically by run_full_enrichment's collapse pass (apply_collapses deletes the edges BEFORE the fold, so cluster_cognates re-derives clean clusters); the verdict log data/mining/_descent_audit.jsonl is idempotency/audit only. The auditor itself is never re-run on rebuild. --scope 2b (wyrd-2wml) adds the glossless-proto-conductor screen: in a cluster with a clear dominant glossed sense, a proto/reconstruction conductor's fan-out edges to off-dominant/glossless children (val cluster pulling in glossless vulva/valgus) are judged against the dominant sense; same detach round-trip.",
+  "audit-cluster-reflexes": "LLM (Ollama) audit of cognate-cluster MODERN reflexes vs the cluster's dominant glossed sense — the WORKING era-grid over-merge fix (wyrd-1wv2). Supersedes the descent edge-audit (rd69/2wml), which couldn't split multi-parent deep-proto clusters. Judges each modern-english cluster member (gloss pre-screen auto-keeps on-sense members; only suspect/glossless go to the LLM) and DETACHES an implausible reflex's in-cluster bridging in-edges (orphaning the leaf). NON-DETERMINISTIC, so the detaches persist to data/mining/_collapses.jsonl and replay deterministically: at rebuild apply_collapses deletes the edges + fresh cluster_cognates drops the orphan. The verdict log data/mining/_cluster_reflex_audit.jsonl is idempotency/audit only. Never re-run at rebuild.",
+  "audit-toponym-reflexes": "LLM (Ollama) per-form toponym-plausibility audit — the era-grid over-merge long-tail cleaner (wyrd-1wv2). Judges each distinct modern-english era-grid reflex form generically ('is this a plausible English place-name element?') and DETACHES the unrelated cluster-merged ones (medical Latin, foreign words, proper nouns, function words, abstract nouns) by orphaning the leaf (cutting its in-cluster bridging in-edges). A surface pre-screen auto-keeps forms similar to their cluster morphemes. NON-DETERMINISTIC; detaches persist to data/mining/_collapses.jsonl and replay (apply_collapses + fresh cluster_cognates); verdict log data/mining/_toponym_reflex_audit.jsonl is idempotency/audit only. Never re-run at rebuild.",
+  "retag-celtic-branch": "One-time idempotent re-tag of flat 'celtic' L2 etymons to their branch (brittonic/goidelic), derived from the countries of the toponyms that use each etymon (wyrd-xdam.2). Output IS L2 (mutates etymon language + cascades celtic:<form> refs), so rebuild-from-jsonl replays the already-branched data; the re-tag itself is never re-run on rebuild. Mixed/unknown/unattached celtic etymons stay 'celtic'. Curated-gazetteer L2 only (no wiktextract)."
+ },
+ "layers": [
+  {
+   "layer": "l2-corpus",
+   "summary": "etymon / citations / descent / glosses / tags / toponym / toponym_etymology / mining_run",
+   "restored_by": "l2-replay",
+   "cost": "free",
+   "runbook_token": "rebuild-from-jsonl"
   },
-  "layers": [
-    {
-      "layer": "l2-corpus",
-      "summary": "etymon / citations / descent / glosses / tags / toponym / toponym_etymology / mining_run",
-      "restored_by": "l2-replay",
-      "cost": "free",
-      "runbook_token": "rebuild-from-jsonl"
-    },
-    {
-      "layer": "enrichment-derived-columns",
-      "summary": "OCR clusters, lemma links, cognate_id, stratum, english_shaped, pronunciation_ipa (G2P fill for OE/ON/welsh gaps + OE onset-h fix, wyrd-vm8t), phonological_vector, toponym_decomposition, etymon_period_form",
-      "restored_by": "enrichment",
-      "cost": "free",
-      "runbook_token": "--with-enrichment"
-    },
-    {
-      "layer": "reflexes",
-      "summary": "reflex / reflex_etymon (modern_usage -> etymon links)",
-      "restored_by": "l2-replay",
-      "cost": "free",
-      "runbook_token": "_reflexes.jsonl"
-    },
-    {
-      "layer": "element-gloss-backfill",
-      "summary": "reflex_etymon links that gloss unglossed generation surfaces (wyrd-u9k6). run_full_enrichment replays the committed data/mining/_element_glosses.jsonl (deterministic consensus) + _element_gloss_adjudications.jsonl (LLM picks) into reflex_etymon, so the surface inherits its etymon's authoritative gloss. Additive over the _reflexes.jsonl reflex links above.",
-      "restored_by": "enrichment",
-      "cost": "free",
-      "runbook_token": "_element_glosses.jsonl"
-    },
-    {
-      "layer": "pronunciation-ipa-llm",
-      "summary": "etymon.pronunciation_ipa for the no-G2P-table generation languages (Goidelic, Romance, Middle English, Breton; wyrd-vm8t). run_full_enrichment's pronunciation pass replays the high+medium-confidence rows of the committed data/mining/_pronunciation.jsonl (LLM broad IPA, gaps only — never overrides Wiktionary). Distinct from the deterministic G2P fill of OE/ON/welsh/celtic, which is re-derived for free (enrichment-derived-columns layer above).",
-      "restored_by": "enrichment",
-      "cost": "free",
-      "runbook_token": "_pronunciation.jsonl"
-    },
-    {
-      "layer": "tag-backfill-llm",
-      "summary": "etymon_tag rows backfilled onto untagged-but-glossed generation morphemes (wyrd-xz3g). run_full_enrichment's apply-tag-additions pass replays the committed data/mining/_tags.jsonl (gemma4:26b decisions classifying a gloss into the 44-existing + kinship controlled vocab) into etymon_tag, so the PAID LLM pass never re-runs on a rebuild. etymon_tag is itself an L2 column; this layer is the LLM-derived subset of it.",
-      "restored_by": "enrichment",
-      "cost": "free",
-      "runbook_token": "_tags.jsonl"
-    },
-    {
-      "layer": "fantasy-morphemes",
-      "summary": "fantasy_morpheme (wyrd-ami)",
-      "restored_by": "l2-replay",
-      "cost": "free",
-      "runbook_token": "_fantasy_morphemes.jsonl"
-    },
-    {
-      "layer": "curation-overrides",
-      "summary": "operator lemma/merge overrides applied after auto-clustering",
-      "restored_by": "l2-replay",
-      "cost": "free",
-      "runbook_token": "_curation.jsonl"
-    },
-    {
-      "layer": "toponym-country",
-      "summary": "toponym.country (prerequisite for empirical baselines)",
-      "restored_by": "free-mining",
-      "cost": "free",
-      "restore_command": "backfill-toponym-country",
-      "runbook_token": "backfill-toponym-country"
-    },
-    {
-      "layer": "phase2-attestations",
-      "summary": "toponym_attestation (L3-only; replays committed data/mining/phase2/*.jsonl)",
-      "restored_by": "free-mining",
-      "cost": "free",
-      "restore_command": "ingest-toponym-mentions",
-      "runbook_token": "ingest-toponym-mentions"
-    },
-    {
-      "layer": "forms-variants",
-      "summary": "etymon_text_match (D18 spelling-variant pools; L3-only)",
-      "restored_by": "free-mining",
-      "cost": "free",
-      "restore_command": "mine-wiktextract-forms",
-      "runbook_token": "mine-wiktextract-forms"
-    },
-    {
-      "layer": "empirical",
-      "summary": "wiktionary-empirical citations (L3-only); mine then cleanup",
-      "restored_by": "free-mining",
-      "cost": "free",
-      "restore_command": "mine-wiktextract-corpus",
-      "cleanup_command": "cleanup-wiktionary-empirical",
-      "runbook_token": "mine-wiktextract-corpus"
-    },
-    {
-      "layer": "empirical-baselines",
-      "summary": "empirical_priors_native / empirical_priors_loan (derived from country + attestations + empirical)",
-      "restored_by": "free-mining",
-      "cost": "free",
-      "restore_command": "mine-empirical-baselines",
-      "runbook_token": "mine-empirical-baselines"
-    },
-    {
-      "layer": "genitive-split-prior",
-      "summary": "genitive_split_prior (per-suffix town/stone split counts, derived from toponym_etymology + historical_form + toponym_attestation + reflex cognate clusters)",
-      "restored_by": "free-mining",
-      "cost": "free",
-      "restore_command": "mine-genitive-priors",
-      "runbook_token": "mine-genitive-priors"
-    },
-    {
-      "layer": "wiktextract-form-variants",
-      "summary": "etymon_variant (~5.8M rows; forms arrays from the L1 wiktextract slices). Distinct from etymon_text_match (the D18 forms-variants layer above). Restored AUTOMATICALLY by rebuild-from-jsonl's default bulk L1 ingest -- NOT a manual step. Skipped only under --skip-bulk.",
-      "restored_by": "l1-bulk-ingest",
-      "cost": "free",
-      "runbook_token": "etymon_variant"
-    },
-    {
-      "layer": "meaning-synsets",
-      "summary": "meaning_synset (semantic-equivalence catalog, D28). Seeded FREE from committed wyrd/generators/kenning/data/meaning_synsets.json via `lexicon synsets seed`. DEFERRED/EMPTY today (0 rows). rebuild-from-jsonl does NOT seed it; if you ever populate it, run `synsets seed` after the rebuild and add it as a documented step.",
-      "restored_by": "free-seed-deferred",
-      "cost": "free",
-      "runbook_token": "meaning_synset"
-    },
-    {
-      "layer": "etymon-meaning-synset-assignments",
-      "summary": "etymon_meaning_synset (LLM Phase-2 semantic classification, D28). DEFERRED/EMPTY today (0 rows). If activated it is PAID (LLM) -- per the principle above it must then round-trip through L2 (synthetic JSONL), NOT become a re-mine rebuild step.",
-      "restored_by": "paid-deferred",
-      "cost": "paid",
-      "runbook_token": "etymon_meaning_synset"
-    },
-    {
-      "layer": "modern-reflexes",
-      "summary": "curated modern-English reflex etymons + inheritance descent edges so OE/ON/OF/ME morphemes' era-grid modern stage populates",
-      "restored_by": "import-modern-reflexes (replays data/mining/_modern_reflexes.jsonl; run AFTER enrich so each reflex inherits its morpheme's cognate cluster)",
-      "cost": "free",
-      "runbook_token": "import-modern-reflexes"
-    },
-    {
-      "layer": "canonicalization-graph",
-      "summary": "canonical_morpheme / canonical_place / canonical_sense nodes + canonical_label + the canonical_*_id binds on etymon/etymon_gloss/toponym/toponym_etymology (Class-B entity resolution, D49/D50, wyrd-u6fn). The SCHEMA is created automatically by alembic migration 0019 like every other table (not a manual step). The DATA (nodes / binds / labels) is PROJECTED from the data/mining/canonicalization/ L2 assertion streams by the project-canonical pass (wyrd-u6fn.3, D50.6), which runs as the terminal L3 derivation inside run_full_enrichment -- so rebuild-from-jsonl --with-enrichment populates it for free. Deterministic + idempotent (same L2 -> byte-identical L3, D36.9); the L2 assertion streams are the source of truth and replay for free, never a paid re-mine. By default the pass also FOLDS today's deterministic identity clustering (merged_into_id OCR variants + lemma_id inflections) into the graph (wyrd-u6fn.4), so the rebuilt graph reproduces today's identity clustering from the columns the deterministic passes already produce -- no committed snapshot (cognate_id is NOT folded; it stays relational per D50.2, re-derived from etymon_descent). ADDITIVE: this populates the canonical graph but does NOT yet migrate the legacy merged_into_id/cognate_id/lemma_id READERS onto the canonical FK join (that reader cutover is wyrd-b2mf), so until then the graph is built alongside the legacy columns. Reverse with clear-enrichment --stage=canonical.",
-      "restored_by": "rebuild-from-jsonl --with-enrichment (project-canonical pass)",
-      "cost": "free",
-      "runbook_token": "canonical_morpheme"
-    }
-  ]
+  {
+   "layer": "enrichment-derived-columns",
+   "summary": "OCR clusters, lemma links, cognate_id, stratum, english_shaped, pronunciation_ipa (G2P fill for OE/ON/welsh gaps + OE onset-h fix, wyrd-vm8t), phonological_vector, toponym_decomposition, etymon_period_form",
+   "restored_by": "enrichment",
+   "cost": "free",
+   "runbook_token": "--with-enrichment"
+  },
+  {
+   "layer": "reflexes",
+   "summary": "reflex / reflex_etymon (modern_usage -> etymon links)",
+   "restored_by": "l2-replay",
+   "cost": "free",
+   "runbook_token": "_reflexes.jsonl"
+  },
+  {
+   "layer": "element-gloss-backfill",
+   "summary": "reflex_etymon links that gloss unglossed generation surfaces (wyrd-u9k6). run_full_enrichment replays the committed data/mining/_element_glosses.jsonl (deterministic consensus) + _element_gloss_adjudications.jsonl (LLM picks) into reflex_etymon, so the surface inherits its etymon's authoritative gloss. Additive over the _reflexes.jsonl reflex links above.",
+   "restored_by": "enrichment",
+   "cost": "free",
+   "runbook_token": "_element_glosses.jsonl"
+  },
+  {
+   "layer": "pronunciation-ipa-llm",
+   "summary": "etymon.pronunciation_ipa for the no-G2P-table generation languages (Goidelic, Romance, Middle English, Breton; wyrd-vm8t). run_full_enrichment's pronunciation pass replays the high+medium-confidence rows of the committed data/mining/_pronunciation.jsonl (LLM broad IPA, gaps only — never overrides Wiktionary). Distinct from the deterministic G2P fill of OE/ON/welsh/celtic, which is re-derived for free (enrichment-derived-columns layer above).",
+   "restored_by": "enrichment",
+   "cost": "free",
+   "runbook_token": "_pronunciation.jsonl"
+  },
+  {
+   "layer": "tag-backfill-llm",
+   "summary": "etymon_tag rows backfilled onto untagged-but-glossed generation morphemes (wyrd-xz3g). run_full_enrichment's apply-tag-additions pass replays the committed data/mining/_tags.jsonl (gemma4:26b decisions classifying a gloss into the 44-existing + kinship controlled vocab) into etymon_tag, so the PAID LLM pass never re-runs on a rebuild. etymon_tag is itself an L2 column; this layer is the LLM-derived subset of it.",
+   "restored_by": "enrichment",
+   "cost": "free",
+   "runbook_token": "_tags.jsonl"
+  },
+  {
+   "layer": "fantasy-morphemes",
+   "summary": "fantasy_morpheme (wyrd-ami)",
+   "restored_by": "l2-replay",
+   "cost": "free",
+   "runbook_token": "_fantasy_morphemes.jsonl"
+  },
+  {
+   "layer": "curation-overrides",
+   "summary": "operator lemma/merge overrides applied after auto-clustering",
+   "restored_by": "l2-replay",
+   "cost": "free",
+   "runbook_token": "_curation.jsonl"
+  },
+  {
+   "layer": "toponym-country",
+   "summary": "toponym.country (prerequisite for empirical baselines)",
+   "restored_by": "free-mining",
+   "cost": "free",
+   "restore_command": "backfill-toponym-country",
+   "runbook_token": "backfill-toponym-country"
+  },
+  {
+   "layer": "phase2-attestations",
+   "summary": "toponym_attestation (L3-only; replays committed data/mining/phase2/*.jsonl)",
+   "restored_by": "free-mining",
+   "cost": "free",
+   "restore_command": "ingest-toponym-mentions",
+   "runbook_token": "ingest-toponym-mentions"
+  },
+  {
+   "layer": "forms-variants",
+   "summary": "etymon_text_match (D18 spelling-variant pools; L3-only)",
+   "restored_by": "free-mining",
+   "cost": "free",
+   "restore_command": "mine-wiktextract-forms",
+   "runbook_token": "mine-wiktextract-forms"
+  },
+  {
+   "layer": "empirical",
+   "summary": "wiktionary-empirical citations (L3-only); mine then cleanup",
+   "restored_by": "free-mining",
+   "cost": "free",
+   "restore_command": "mine-wiktextract-corpus",
+   "cleanup_command": "cleanup-wiktionary-empirical",
+   "runbook_token": "mine-wiktextract-corpus"
+  },
+  {
+   "layer": "empirical-baselines",
+   "summary": "empirical_priors_native / empirical_priors_loan (derived from country + attestations + empirical)",
+   "restored_by": "free-mining",
+   "cost": "free",
+   "restore_command": "mine-empirical-baselines",
+   "runbook_token": "mine-empirical-baselines"
+  },
+  {
+   "layer": "genitive-split-prior",
+   "summary": "genitive_split_prior (per-suffix town/stone split counts, derived from toponym_etymology + historical_form + toponym_attestation + reflex cognate clusters)",
+   "restored_by": "free-mining",
+   "cost": "free",
+   "restore_command": "mine-genitive-priors",
+   "runbook_token": "mine-genitive-priors"
+  },
+  {
+   "layer": "wiktextract-form-variants",
+   "summary": "etymon_variant (~5.8M rows; forms arrays from the L1 wiktextract slices). Distinct from etymon_text_match (the D18 forms-variants layer above). Restored AUTOMATICALLY by rebuild-from-jsonl's default bulk L1 ingest -- NOT a manual step. Skipped only under --skip-bulk.",
+   "restored_by": "l1-bulk-ingest",
+   "cost": "free",
+   "runbook_token": "etymon_variant"
+  },
+  {
+   "layer": "meaning-synsets",
+   "summary": "meaning_synset (semantic-equivalence catalog, D28). Seeded FREE from committed wyrd/generators/kenning/data/meaning_synsets.json via `lexicon synsets seed`. DEFERRED/EMPTY today (0 rows). rebuild-from-jsonl does NOT seed it; if you ever populate it, run `synsets seed` after the rebuild and add it as a documented step.",
+   "restored_by": "free-seed-deferred",
+   "cost": "free",
+   "runbook_token": "meaning_synset"
+  },
+  {
+   "layer": "etymon-meaning-synset-assignments",
+   "summary": "etymon_meaning_synset (LLM Phase-2 semantic classification, D28). DEFERRED/EMPTY today (0 rows). If activated it is PAID (LLM) -- per the principle above it must then round-trip through L2 (synthetic JSONL), NOT become a re-mine rebuild step.",
+   "restored_by": "paid-deferred",
+   "cost": "paid",
+   "runbook_token": "etymon_meaning_synset"
+  },
+  {
+   "layer": "modern-reflexes",
+   "summary": "curated modern-English reflex etymons + inheritance descent edges so OE/ON/OF/ME morphemes' era-grid modern stage populates",
+   "restored_by": "import-modern-reflexes (replays data/mining/_modern_reflexes.jsonl; run AFTER enrich so each reflex inherits its morpheme's cognate cluster)",
+   "cost": "free",
+   "runbook_token": "import-modern-reflexes"
+  },
+  {
+   "layer": "canonicalization-graph",
+   "summary": "canonical_morpheme / canonical_place / canonical_sense nodes + canonical_label + the canonical_*_id binds on etymon/etymon_gloss/toponym/toponym_etymology (Class-B entity resolution, D49/D50, wyrd-u6fn). The SCHEMA is created automatically by alembic migration 0019 like every other table (not a manual step). The DATA (nodes / binds / labels) is PROJECTED from the data/mining/canonicalization/ L2 assertion streams by the project-canonical pass (wyrd-u6fn.3, D50.6), which runs as the terminal L3 derivation inside run_full_enrichment -- so rebuild-from-jsonl --with-enrichment populates it for free. Deterministic + idempotent (same L2 -> byte-identical L3, D36.9); the L2 assertion streams are the source of truth and replay for free, never a paid re-mine. By default the pass also FOLDS today's deterministic identity clustering (merged_into_id OCR variants + lemma_id inflections) into the graph (wyrd-u6fn.4), so the rebuilt graph reproduces today's identity clustering from the columns the deterministic passes already produce -- no committed snapshot (cognate_id is NOT folded; it stays relational per D50.2, re-derived from etymon_descent). ADDITIVE: this populates the canonical graph but does NOT yet migrate the legacy merged_into_id/cognate_id/lemma_id READERS onto the canonical FK join (that reader cutover is wyrd-b2mf), so until then the graph is built alongside the legacy columns. Reverse with clear-enrichment --stage=canonical.",
+   "restored_by": "rebuild-from-jsonl --with-enrichment (project-canonical pass)",
+   "cost": "free",
+   "runbook_token": "canonical_morpheme"
+  }
+ ]
 }

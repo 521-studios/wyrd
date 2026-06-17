@@ -210,7 +210,7 @@
 {"_type": "etymon", "ref": "old-english:Cissa", "canonical_form": "Cissa", "language": "old-english"}
 {"_type": "citation", "etymon_ref": "old-english:Cissa"}
 {"_type": "citation", "etymon_ref": "old-english:Cissa", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; Rivet & Smith; Place-names of Roman Britain; Mawer et al.; Place-names of Sussex; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:cē¸d", "canonical_form": "cē¸d", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:cē¸d", "canonical_form": "cē¸d", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d"}
 {"_type": "citation", "etymon_ref": "celtic:cē¸d", "source_id": "kepn_external", "context_snippet": "Mawer et al.; Place-names of Sussex; A.D. Mills; Dictionary of English Place-Names; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:Citta", "canonical_form": "Citta", "language": "old-english"}
@@ -282,7 +282,7 @@
 {"_type": "etymon", "ref": "old-english:blæc", "canonical_form": "blæc", "language": "old-english", "glosses": ["Black, dark-coloured, dark."]}
 {"_type": "citation", "etymon_ref": "old-english:blæc"}
 {"_type": "citation", "etymon_ref": "old-english:blæc", "source_id": "kepn_external", "context_snippet": "E. Ekwall; Dictionary of English Place-Names; A.D. Mills; Dictionary of English Place-Names; Mawer et al.; Place-names of Sussex; Watts; Cambridge Dictionary of English Place-names"}
-{"_type": "etymon", "ref": "celtic:ciltā", "canonical_form": "ciltā", "language": "celtic"}
+{"_type": "etymon", "ref": "brittonic:ciltā", "canonical_form": "ciltā", "language": "brittonic"}
 {"_type": "citation", "etymon_ref": "celtic:ciltā"}
 {"_type": "citation", "etymon_ref": "celtic:ciltā", "source_id": "kepn_external", "context_snippet": "A.D. Mills; Dictionary of English Place-Names; Mawer et al.; Place-names of Sussex; Watts; Cambridge Dictionary of English Place-names; E. Ekwall; Dictionary of English Place-Names"}
 {"_type": "etymon", "ref": "old-english:ēast", "canonical_form": "ēast", "language": "old-english", "glosses": ["Eastern, east."]}
@@ -983,11 +983,11 @@
 {"_type": "toponym", "ref": "Chichester@Sussex", "modern_name": "Chichester", "country": "England", "region": "Sussex"}
 {"_type": "etymology_element", "toponym_ref": "Chichester@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:ceaster"}, {"ordinal": 2, "etymon_ref": "old-english:Cissa"}], "notes": "Cissa's Roman town"}
 {"_type": "toponym", "ref": "Chiddingly@Sussex", "modern_name": "Chiddingly", "country": "England", "region": "Sussex"}
-{"_type": "etymology_element", "toponym_ref": "Chiddingly@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 3, "etymon_ref": "old-english:lēah"}, {"ordinal": 4, "etymon_ref": "old-english:Citta"}], "notes": "Wood/clearing of *Citta's people'. Alternatively, the first element may be 'wood"}
+{"_type": "etymology_element", "toponym_ref": "Chiddingly@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ingas"}, {"ordinal": 2, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 3, "etymon_ref": "old-english:lēah"}, {"ordinal": 4, "etymon_ref": "old-english:Citta"}], "notes": "Wood/clearing of *Citta's people'. Alternatively, the first element may be 'wood"}
 {"_type": "toponym", "ref": "Chidham@Sussex", "modern_name": "Chidham", "country": "England", "region": "Sussex"}
 {"_type": "etymology_element", "toponym_ref": "Chidham@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:cēod"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:hamm"}], "notes": "bag homestead/village' or 'bag hemmed-in land', probably in a transferred sense a 'bay, hollow"}
 {"_type": "toponym", "ref": "Chithurst@Sussex", "modern_name": "Chithurst", "country": "England", "region": "Sussex"}
-{"_type": "etymology_element", "toponym_ref": "Chithurst@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "celtic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:hyrst"}, {"ordinal": 3, "etymon_ref": "old-english:Citta"}], "notes": "*Citta's wooded hill', or perhaps, 'wood' used as a place-name to which 'wooded hill"}
+{"_type": "etymology_element", "toponym_ref": "Chithurst@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "brittonic:cē¸d"}, {"ordinal": 2, "etymon_ref": "old-english:hyrst"}, {"ordinal": 3, "etymon_ref": "old-english:Citta"}], "notes": "*Citta's wooded hill', or perhaps, 'wood' used as a place-name to which 'wooded hill"}
 {"_type": "toponym", "ref": "Clapham@Sussex", "modern_name": "Clapham", "country": "England", "region": "Sussex"}
 {"_type": "etymology_element", "toponym_ref": "Clapham@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:clopp"}, {"ordinal": 2, "etymon_ref": "old-english:hām"}, {"ordinal": 3, "etymon_ref": "old-english:hamm"}], "notes": "Hill homestead/village' or 'hill hemmed-in land"}
 {"_type": "toponym", "ref": "Clayton@Sussex", "modern_name": "Clayton", "country": "England", "region": "Sussex"}
@@ -1035,7 +1035,7 @@
 {"_type": "toponym", "ref": "East Blatchington@Sussex", "modern_name": "East Blatchington", "country": "England", "region": "Sussex"}
 {"_type": "etymology_element", "toponym_ref": "East Blatchington@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:-ing-"}, {"ordinal": 3, "etymon_ref": "old-english:blæc"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement connected with Blaecca' or perhaps, 'farm/settlement at Blaecing (= the black place); unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "East Chiltington@Sussex", "modern_name": "East Chiltington", "country": "England", "region": "Sussex"}
-{"_type": "etymology_element", "toponym_ref": "East Chiltington@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "celtic:ciltā"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at/called *Ciltine (=the steep slope)' or perhaps, 'farm/settlement connected with Cilla/Cilta; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "etymology_element", "toponym_ref": "East Chiltington@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "brittonic:ciltā"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at/called *Ciltine (=the steep slope)' or perhaps, 'farm/settlement connected with Cilla/Cilta; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "East Dean@Sussex", "modern_name": "East Dean", "country": "England", "region": "Sussex"}
 {"_type": "etymology_element", "toponym_ref": "East Dean@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}, {"ordinal": 2, "etymon_ref": "old-english:ēast"}], "notes": "Valley"}
 {"_type": "toponym", "ref": "East Grinstead@Sussex", "modern_name": "East Grinstead", "country": "England", "region": "Sussex"}
@@ -1421,7 +1421,7 @@
 {"_type": "toponym", "ref": "West Blatchington@Sussex", "modern_name": "West Blatchington", "country": "England", "region": "Sussex"}
 {"_type": "etymology_element", "toponym_ref": "West Blatchington@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "old-english:-ing-"}, {"ordinal": 3, "etymon_ref": "old-english:blæc"}, {"ordinal": 4, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement connected with Blaecca' or perhaps, 'farm/settlement at Blaecing (= the black place); unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "West Chiltington@Sussex", "modern_name": "West Chiltington", "country": "England", "region": "Sussex"}
-{"_type": "etymology_element", "toponym_ref": "West Chiltington@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "celtic:ciltā"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at/called *Ciltine (=the steep slope)' or perhaps, 'farm/settlement connected with Cilla/Cilta; unresolved personal name(s): (unextracted personal name)"}
+{"_type": "etymology_element", "toponym_ref": "West Chiltington@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:-ing"}, {"ordinal": 2, "etymon_ref": "brittonic:ciltā"}, {"ordinal": 3, "etymon_ref": "old-english:tūn"}], "notes": "Farm/settlement at/called *Ciltine (=the steep slope)' or perhaps, 'farm/settlement connected with Cilla/Cilta; unresolved personal name(s): (unextracted personal name)"}
 {"_type": "toponym", "ref": "West Dean@Sussex", "modern_name": "West Dean", "country": "England", "region": "Sussex"}
 {"_type": "etymology_element", "toponym_ref": "West Dean@Sussex", "elements": [{"ordinal": 1, "etymon_ref": "old-english:denu"}], "notes": "Valley"}
 {"_type": "toponym", "ref": "West Firle@Sussex", "modern_name": "West Firle", "country": "England", "region": "Sussex"}
