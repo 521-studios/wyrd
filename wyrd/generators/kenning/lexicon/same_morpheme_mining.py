@@ -93,31 +93,41 @@ def _load_rows(db: LexiconDB) -> list[EtymonRow]:
         r["etymon_id"]
         for r in db.conn.execute("SELECT DISTINCT etymon_id FROM toponym_etymology_element")
     }
-    glosses: dict[int, set[str]] = defaultdict(set)
-    for r in db.conn.execute("SELECT etymon_id, gloss FROM etymon_gloss"):
-        if r["gloss"]:
-            glosses[r["etymon_id"]].add(r["gloss"].strip().lower())
 
-    rows: list[EtymonRow] = []
+    # Only shipped or breakdown etymons can match: a "neither" etymon is never in a
+    # group's `shipped` list and is always skipped as a candidate `x`, so it can't
+    # affect any bind. Drop them in a first pass — over the ~700k-row table that
+    # skips the fold + row allocation (and gloss-set building) for the ~600k that
+    # are neither (Gemini perf finding).
+    relevant: dict[int, tuple[int | None, str, str, str]] = {}
     for r in db.conn.execute("SELECT id, cognate_id, language, canonical_form FROM etymon"):
-        cid = r["cognate_id"]
+        eid = r["id"]
+        if not (member_to_root.get(eid, eid) in shipped_roots or eid in breakdown):
+            continue
         form = r["canonical_form"]
         folded = _fold(form) if form else ""
         if not folded:
             continue
-        rows.append(
-            EtymonRow(
-                etymon_id=r["id"],
-                cluster=f"c{cid}" if cid is not None else f"e{r['id']}",
-                language=r["language"] or "",
-                canonical_form=form,
-                folded=folded,
-                glosses=frozenset(glosses.get(r["id"], ())),
-                is_shipped=member_to_root.get(r["id"], r["id"]) in shipped_roots,
-                is_breakdown=r["id"] in breakdown,
-            )
+        relevant[eid] = (r["cognate_id"], r["language"] or "", form, folded)
+
+    glosses: dict[int, set[str]] = defaultdict(set)
+    for r in db.conn.execute("SELECT etymon_id, gloss FROM etymon_gloss"):
+        if r["etymon_id"] in relevant and r["gloss"]:
+            glosses[r["etymon_id"]].add(r["gloss"].strip().lower())
+
+    return [
+        EtymonRow(
+            etymon_id=eid,
+            cluster=f"c{cid}" if cid is not None else f"e{eid}",
+            language=language,
+            canonical_form=form,
+            folded=folded,
+            glosses=frozenset(glosses.get(eid, ())),
+            is_shipped=member_to_root.get(eid, eid) in shipped_roots,
+            is_breakdown=eid in breakdown,
         )
-    return rows
+        for eid, (cid, language, form, folded) in relevant.items()
+    ]
 
 
 @dataclass(frozen=True)
