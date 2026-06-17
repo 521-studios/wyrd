@@ -593,11 +593,11 @@
 {"_type": "etymology_element", "toponym_ref": "Wildon@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wild"}, {"ordinal": 1, "etymon_ref": "old-english:dun"}], "historical_form": "wild-dun", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar marks first element as 'probably' of same origin as Wilton; second element dun glossed as 'hill'. | Wildon, Wyldon 1138 Dugd v. 350, 1224 FF et passim Wildun 1247 Ch The first element is probably of the same origin as that of Wilton (Pick) go supra. 'The second is dun; hence ‘ wild hill.’ 8. YEARSLEY 22 H 6 [ja:zlo] Eureslage 1086 DB Euereslet 1176 P, -ley(a) 13 BylE 36, 1303 Var", "attested_year": 1086}
 {"_type": "etymology_element", "toponym_ref": "Wittun@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:widu"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "widu-tun", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Wittun, -ton c. 1150 Dugd v. 572, 1201 FF, 1268 Abbr, E(a)stwitton 1156 Dugd v. 573 Est Wotton 1316 FA ‘Farm in the wood’ v. tun. The spelling Widtun (West Witt", "attested_year": 1150}
 {"_type": "etymology_element", "toponym_ref": "YChant@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:norp"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "norp-tun", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | YChant, (77 luto) 1578 FF ‘North farm’ v. norp, tun. The affix drt is from ON drit ‘dirt’; Lat. Jutum = OE cleg ‘clay’; all these words refer to the clayey, swampy nature of the land round Norton. For /e, v. Barton le Willows 38 supra. ‘North,’ perhaps in relation to Boroughbridge, three miles to the south. Topcliffe 1. ASENBY 21H 14 [sezenbi] Estanesbi 1086 DB, Aistanesbi 12 Dods viii. 154 d (p) Aystaneby 1157 RichReg 82, 1182 Percy, 1244 Ass", "attested_year": 1086}
-{"_type": "toponym", "ref": "Battle@SUS", "modern_name": "Battle", "country": "England", "region": "SUS"}
-{"_type": "toponym", "ref": "Wooburn@BUK", "modern_name": "Wooburn", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Battle@Sussex", "modern_name": "Battle", "country": "England", "region": "Sussex"}
+{"_type": "toponym", "ref": "Wooburn@Buckinghamshire", "modern_name": "Wooburn", "country": "England", "region": "Buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Banco@-", "form": "Banco", "date_year": 1399, "source_doc": "smith_1928_north_riding_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Banco@-", "form": "Saxton", "date_year": 1613, "source_doc": "smith_1928_north_riding_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Battle@SUS", "form": "Battle", "date_year": 1319, "source_doc": "smith_1928_north_riding_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Battle@Sussex", "form": "Battle", "date_year": 1319, "source_doc": "smith_1928_north_riding_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Blakoumore@-", "form": "Riev", "date_year": 1350, "source_doc": "smith_1928_north_riding_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Bodelton@-", "form": "Riev", "date_year": 1201, "source_doc": "smith_1928_north_riding_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Bodelton@-", "form": "Riev", "date_year": 1252, "source_doc": "smith_1928_north_riding_yorkshire"}
@@ -654,7 +654,7 @@
 {"_type": "attestation", "toponym_ref": "Welleberc@-", "form": "Fees", "date_year": 1508, "source_doc": "smith_1928_north_riding_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Wherfletun@-", "form": "Abbr", "date_year": 1354, "source_doc": "smith_1928_north_riding_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Wherfletun@-", "form": "Test", "date_year": 1412, "source_doc": "smith_1928_north_riding_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Wooburn@BUK", "form": "Wooburn", "date_year": 1242, "source_doc": "smith_1928_north_riding_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Wooburn@Buckinghamshire", "form": "Wooburn", "date_year": 1242, "source_doc": "smith_1928_north_riding_yorkshire"}
 {"_type": "attestation", "toponym_ref": "YChant@-", "form": "Percy", "date_year": 1237, "source_doc": "smith_1928_north_riding_yorkshire"}
 {"_type": "attestation", "toponym_ref": "YChant@-", "form": "Percy", "date_year": 1244, "source_doc": "smith_1928_north_riding_yorkshire"}
 {"_type": "attestation", "toponym_ref": "YChant@-", "form": "Percy", "date_year": 1252, "source_doc": "smith_1928_north_riding_yorkshire"}

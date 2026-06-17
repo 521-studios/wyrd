@@ -1386,9 +1386,9 @@
 {"_type": "etymology_element", "toponym_ref": "Worthe@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weorp"}], "historical_form": "weorp", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Worthe, Cal. Inq. P.M. vol. i. p. 328. 1327 Wourth, ibid. ii. p. 3. 1439 Worthe, ibid. iv. p. 198. O.E. weorp, \"enclosed land.\" Strictly speaking, Type I repres", "attested_year": 1327}
 {"_type": "etymology_element", "toponym_ref": "Worthing@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weorfr"}, {"ordinal": 1, "etymon_ref": "old-english:ing"}], "historical_form": "weorfr-ing", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Scholar notes the form is 'practically synonymous' with OE weorfr, implying a derivation but not stating it as a definitive etymological breakdown. | Worthing. 1328 W", "attested_year": 1328}
 {"_type": "etymology_element", "toponym_ref": "Wyseberg@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wlsa"}, {"ordinal": 1, "etymon_ref": "old-english:beorg"}], "historical_form": "wlsa-beorg", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; First element 'probably' O.E. wlsa, possibly used as a personal name or shortened form of names like Wlsldc, Wisgdr; second element certainly O.E. beorg/beorh. Modern forms show confusion between M.E. -bergh and -burgh. | Wyseberg, Wisborough Green. 1287 Wyberg, Abbr. Plac. p. 214. 1306 Wiseberg, Cal. Rot. Ch. p. 138. WtfS ** 04^, K*. «- 12 — 2 / v > 180 WYSEBERG, WISBOROUGH GREEN 1409 Wysburgh, Ind. Ch. and Rolls, p. 826. 1411-2 Wisebergh, Subs.", "attested_year": 1287}
-{"_type": "toponym", "ref": "Bourn@Cambridgeshire", "modern_name": "Bourn", "region": "Cambridgeshire"}
+{"_type": "toponym", "ref": "Bourn@Cambridgeshire", "modern_name": "Bourn", "region": "Cambridgeshire", "country": "England"}
 {"_type": "toponym", "ref": "Herste@Kent", "modern_name": "Herste", "country": "England", "region": "Kent"}
-{"_type": "toponym", "ref": "Mesewelle@SUS", "modern_name": "Mesewelle", "country": "England", "region": "SUS"}
+{"_type": "toponym", "ref": "Mesewelle@Sussex", "modern_name": "Mesewelle", "country": "England", "region": "Sussex"}
 {"_type": "toponym", "ref": "Sudtone@Lincolnshire", "modern_name": "Sudtone", "country": "England", "region": "Lincolnshire"}
 {"_type": "attestation", "toponym_ref": "Aldingbourne@-", "form": "Aldingeborne", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Aldrington@-", "form": "Eldretun", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
@@ -1443,7 +1443,7 @@
 {"_type": "attestation", "toponym_ref": "Lancing@-", "form": "Lancinges", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Lewes@-", "form": "Lewes", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Maudlin@-", "form": "Maudlin", "date_year": 1562, "source_doc": "roberts_1914_sussex"}
-{"_type": "attestation", "toponym_ref": "Mesewelle@SUS", "form": "Mesewelle", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Mesewelle@Sussex", "form": "Mesewelle", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Middleton@-", "form": "Middeltone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Mountfield@-", "form": "Montifelle", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "No@-", "form": "Eschintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}

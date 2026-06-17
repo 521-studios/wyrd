@@ -195,64 +195,64 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T04:55:18.960547+00:00", "completed_at": "2026-05-05T04:57:56.109462+00:00", "parsed_count": 22, "accepted": 10, "declined": 11, "rejected": 1, "by_failure": "{\"element_count_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T06:49:52.707703+00:00", "completed_at": "2026-05-05T06:50:53.440473+00:00", "parsed_count": 12, "accepted": 2, "declined": 9, "rejected": 1, "by_failure": "{\"element_count_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T08:54:28.840916+00:00", "completed_at": "2026-05-05T08:55:22.896536+00:00", "parsed_count": 10, "accepted": 0, "declined": 9, "rejected": 1, "by_failure": "{\"element_count_out_of_range\": 1}"}
-{"_type": "toponym", "ref": "Abbey Dore@Herefordshire", "modern_name": "Abbey Dore", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Adzor@Herefordshire", "modern_name": "Adzor", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Almeley@Herefordshire", "modern_name": "Almeley", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Almshall@Herefordshire", "modern_name": "Almshall", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Altyrynys@Herefordshire", "modern_name": "Altyrynys", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Ankerdine Hill@Herefordshire", "modern_name": "Ankerdine Hill", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Archenfield@Herefordshire", "modern_name": "Archenfield", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Ashton@Herefordshire", "modern_name": "Ashton", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Aston Ingham@Herefordshire", "modern_name": "Aston Ingham", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Attwood@Herefordshire", "modern_name": "Attwood", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Avenbury@Herefordshire", "modern_name": "Avenbury", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Aylton@Herefordshire", "modern_name": "Aylton", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Aymestrey@Herefordshire", "modern_name": "Aymestrey", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Backbury Hill@Herefordshire", "modern_name": "Backbury Hill", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Bacton@Herefordshire", "modern_name": "Bacton", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Banco@Herefordshire", "modern_name": "Banco", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Bartestree@Herefordshire", "modern_name": "Bartestree", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Baynton@Herefordshire", "modern_name": "Baynton", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Bellimore@Herefordshire", "modern_name": "Bellimore", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Berkley@Herefordshire", "modern_name": "Berkley", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Berrington@Herefordshire", "modern_name": "Berrington", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Birch@Herefordshire", "modern_name": "Birch", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Blacknorle@Herefordshire", "modern_name": "Blacknorle", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Blakemere@Herefordshire", "modern_name": "Blakemere", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Blestacre@Herefordshire", "modern_name": "Blestacre", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Bosbury@Herefordshire", "modern_name": "Bosbury", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Bradnor@Herefordshire", "modern_name": "Bradnor", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Bredenbury@Herefordshire", "modern_name": "Bredenbury", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Bridstow@Herefordshire", "modern_name": "Bridstow", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Brimfield@Herefordshire", "modern_name": "Brimfield", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Bringsty@Herefordshire", "modern_name": "Bringsty", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Brinsop@Herefordshire", "modern_name": "Brinsop", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Broadfield@Herefordshire", "modern_name": "Broadfield", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Brockhampton@Herefordshire", "modern_name": "Brockhampton", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Bryngwyn@Herefordshire", "modern_name": "Bryngwyn", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Buckland@Herefordshire", "modern_name": "Buckland", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Burton@Herefordshire", "modern_name": "Burton", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Byton@Herefordshire", "modern_name": "Byton", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Cabbage-lane@Herefordshire", "modern_name": "Cabbage-lane", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Caldicott@Herefordshire", "modern_name": "Caldicott", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Calver Hill@Herefordshire", "modern_name": "Calver Hill", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Canons' Barton@Herefordshire", "modern_name": "Canons' Barton", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Caradoc Court@Herefordshire", "modern_name": "Caradoc Court", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Cart@Herefordshire", "modern_name": "Cart", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Cefn Farm@Herefordshire", "modern_name": "Cefn Farm", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Cefn-coed@Herefordshire", "modern_name": "Cefn-coed", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Chart@Herefordshire", "modern_name": "Chart", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Cowarne@Herefordshire", "modern_name": "Cowarne", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Dom@Herefordshire", "modern_name": "Dom", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Dore Cart@Herefordshire", "modern_name": "Dore Cart", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Eccles@Herefordshire", "modern_name": "Eccles", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Evidently the Welsh Penarth@Herefordshire", "modern_name": "Evidently the Welsh Penarth", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Fr@Herefordshire", "modern_name": "Fr", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "H'shire Hearth Taxation List@Herefordshire", "modern_name": "H'shire Hearth Taxation List", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Nevill@Herefordshire", "modern_name": "Nevill", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Reg@Herefordshire", "modern_name": "Reg", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Survey@Herefordshire", "modern_name": "Survey", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Surveys@Herefordshire", "modern_name": "Surveys", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Abbey Dore@Herefordshire", "modern_name": "Abbey Dore", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Adzor@Herefordshire", "modern_name": "Adzor", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Almeley@Herefordshire", "modern_name": "Almeley", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Almshall@Herefordshire", "modern_name": "Almshall", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Altyrynys@Herefordshire", "modern_name": "Altyrynys", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Ankerdine Hill@Herefordshire", "modern_name": "Ankerdine Hill", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Archenfield@Herefordshire", "modern_name": "Archenfield", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Ashton@Herefordshire", "modern_name": "Ashton", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Aston Ingham@Herefordshire", "modern_name": "Aston Ingham", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Attwood@Herefordshire", "modern_name": "Attwood", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Avenbury@Herefordshire", "modern_name": "Avenbury", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Aylton@Herefordshire", "modern_name": "Aylton", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Aymestrey@Herefordshire", "modern_name": "Aymestrey", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Backbury Hill@Herefordshire", "modern_name": "Backbury Hill", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bacton@Herefordshire", "modern_name": "Bacton", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Banco@Herefordshire", "modern_name": "Banco", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bartestree@Herefordshire", "modern_name": "Bartestree", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Baynton@Herefordshire", "modern_name": "Baynton", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bellimore@Herefordshire", "modern_name": "Bellimore", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Berkley@Herefordshire", "modern_name": "Berkley", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Berrington@Herefordshire", "modern_name": "Berrington", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Birch@Herefordshire", "modern_name": "Birch", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Blacknorle@Herefordshire", "modern_name": "Blacknorle", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Blakemere@Herefordshire", "modern_name": "Blakemere", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Blestacre@Herefordshire", "modern_name": "Blestacre", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bosbury@Herefordshire", "modern_name": "Bosbury", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bradnor@Herefordshire", "modern_name": "Bradnor", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bredenbury@Herefordshire", "modern_name": "Bredenbury", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bridstow@Herefordshire", "modern_name": "Bridstow", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Brimfield@Herefordshire", "modern_name": "Brimfield", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bringsty@Herefordshire", "modern_name": "Bringsty", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Brinsop@Herefordshire", "modern_name": "Brinsop", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Broadfield@Herefordshire", "modern_name": "Broadfield", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Brockhampton@Herefordshire", "modern_name": "Brockhampton", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Bryngwyn@Herefordshire", "modern_name": "Bryngwyn", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Buckland@Herefordshire", "modern_name": "Buckland", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Burton@Herefordshire", "modern_name": "Burton", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Byton@Herefordshire", "modern_name": "Byton", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Cabbage-lane@Herefordshire", "modern_name": "Cabbage-lane", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Caldicott@Herefordshire", "modern_name": "Caldicott", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Calver Hill@Herefordshire", "modern_name": "Calver Hill", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Canons' Barton@Herefordshire", "modern_name": "Canons' Barton", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Caradoc Court@Herefordshire", "modern_name": "Caradoc Court", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Cart@Herefordshire", "modern_name": "Cart", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Cefn Farm@Herefordshire", "modern_name": "Cefn Farm", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Cefn-coed@Herefordshire", "modern_name": "Cefn-coed", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Chart@Herefordshire", "modern_name": "Chart", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Cowarne@Herefordshire", "modern_name": "Cowarne", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Dom@Herefordshire", "modern_name": "Dom", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Dore Cart@Herefordshire", "modern_name": "Dore Cart", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Eccles@Herefordshire", "modern_name": "Eccles", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Evidently the Welsh Penarth@Herefordshire", "modern_name": "Evidently the Welsh Penarth", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Fr@Herefordshire", "modern_name": "Fr", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "H'shire Hearth Taxation List@Herefordshire", "modern_name": "H'shire Hearth Taxation List", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Nevill@Herefordshire", "modern_name": "Nevill", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Reg@Herefordshire", "modern_name": "Reg", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Survey@Herefordshire", "modern_name": "Survey", "region": "Herefordshire", "country": "England"}
+{"_type": "toponym", "ref": "Surveys@Herefordshire", "modern_name": "Surveys", "region": "Herefordshire", "country": "England"}
 {"_type": "etymology_element", "toponym_ref": "Abbey Dore@Herefordshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:aber"}, {"ordinal": 1, "etymon_ref": "celtic:dwr"}], "historical_form": "Aber-dwr", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5; H. O. (III. 268) disputes the phonetic representation of dwr in the modern form 'Dore'; Welsh dw/r or dwr proposed but phonetic correspondence questioned. | Ab"}
 {"_type": "etymology_element", "toponym_ref": "Abbey Dore@Herefordshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:aber"}, {"ordinal": 1, "etymon_ref": "celtic:dwr"}], "historical_form": "Aber-dwr", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5; H. O. (III. 268) disputes the phonetic representation of dwr in the modern form 'Dore'; Welsh dw/r or dwr proposed as the etymon. | Abbey Dore, Ord. Map. A hou"}
 {"_type": "etymology_element", "toponym_ref": "Adzor@Herefordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:ada"}, {"ordinal": 1, "etymon_ref": "old-english:ofer"}], "historical_form": "Ada-ofer", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5; First element identified as 'probably' a personal name; comparison with Hadsor (Worcs.) supports the analysis. | Adzor (Wellington). 1345 Adesore, Ep. Reg. 134", "attested_year": 1345}
@@ -331,7 +331,7 @@
 {"_type": "etymology_element", "toponym_ref": "Reg@Herefordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:byre"}], "historical_form": "byre", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5 | Reg. 1334 Maurice atte Birches ordained, Ep. Reg. 1340 Muchelbirches, Min. Ace. Aconbury. 1 341 Byrches sancte Marie, Non. Inq. 1538 Birche, Val. Eccles. 1539", "attested_year": 1334}
 {"_type": "etymology_element", "toponym_ref": "Survey@Herefordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:brom"}, {"ordinal": 1, "etymon_ref": "modern-english:close"}], "historical_form": "Broomy-Close", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5; Scholar identifies this as a 19th-century Wallicizing of a 17th-century English name. Multiple parallel forms attested (Broomy Hill, The Broome, Broome Hill Fa"}
 {"_type": "etymology_element", "toponym_ref": "Surveys@Herefordshire", "elements": [{"ordinal": 0, "etymon_ref": "modern-english:blacman", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "Blacman-tun", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5; Scholar notes that popular etymology later altered the form to 'Surveys'; original compound was 'Blacman's tun' from a person named Blacman who held the Kentis"}
-{"_type": "toponym", "ref": "Barre@Scotland", "modern_name": "Barre", "region": "Scotland"}
+{"_type": "toponym", "ref": "Barre@Scotland", "modern_name": "Barre", "region": "Scotland", "country": "Scotland"}
 {"_type": "toponym", "ref": "Bodenham@Herefordshire", "modern_name": "Bodenham", "country": "England", "region": "Herefordshire"}
 {"_type": "toponym", "ref": "Burghill@Herefordshire", "modern_name": "Burghill", "country": "England", "region": "Herefordshire"}
 {"_type": "toponym", "ref": "Goodrich@Herefordshire", "modern_name": "Goodrich", "country": "England", "region": "Herefordshire"}

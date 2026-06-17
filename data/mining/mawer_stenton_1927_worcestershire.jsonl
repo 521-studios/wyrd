@@ -560,7 +560,7 @@
 {"_type": "toponym", "ref": "Chaddesley@Worcestershire", "modern_name": "Chaddesley", "country": "England", "region": "Worcestershire"}
 {"_type": "toponym", "ref": "Cofton@Worcestershire", "modern_name": "Cofton", "country": "England", "region": "Worcestershire"}
 {"_type": "toponym", "ref": "Cropthorne@Worcestershire", "modern_name": "Cropthorne", "country": "England", "region": "Worcestershire"}
-{"_type": "toponym", "ref": "Farm@Isle of Man", "modern_name": "Farm", "region": "Isle of Man"}
+{"_type": "toponym", "ref": "Farm@Isle of Man", "modern_name": "Farm", "region": "Isle of Man", "country": "Isle of Man"}
 {"_type": "toponym", "ref": "Frankley@Worcestershire", "modern_name": "Frankley", "country": "England", "region": "Worcestershire"}
 {"_type": "toponym", "ref": "Hadzor@Worcestershire", "modern_name": "Hadzor", "country": "England", "region": "Worcestershire"}
 {"_type": "toponym", "ref": "Hallow@Worcestershire", "modern_name": "Hallow", "country": "England", "region": "Worcestershire"}

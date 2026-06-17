@@ -225,82 +225,82 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T05:05:08.443058+00:00", "completed_at": "2026-05-05T05:07:00.517658+00:00", "parsed_count": 12, "accepted": 2, "declined": 9, "rejected": 1, "by_failure": "{\"form_not_in_body\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T07:13:33.080941+00:00", "completed_at": "2026-05-05T07:15:13.493723+00:00", "parsed_count": 10, "accepted": 0, "declined": 9, "rejected": 1, "by_failure": "{\"element_count_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T09:18:04.375290+00:00", "completed_at": "2026-05-05T09:19:43.164285+00:00", "parsed_count": 10, "accepted": 0, "declined": 9, "rejected": 1, "by_failure": "{\"form_not_in_body\": 1}"}
-{"_type": "toponym", "ref": "MiCKLETHWAlTE@South-West Yorkshire", "modern_name": "MiCKLETHWAlTE", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "MiDDLEWOOD@South-West Yorkshire", "modern_name": "MiDDLEWOOD", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "MiDGLEY@South-West Yorkshire", "modern_name": "MiDGLEY", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "MoORHOUSE@South-West Yorkshire", "modern_name": "MoORHOUSE", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "MoSELDEN@South-West Yorkshire", "modern_name": "MoSELDEN", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Morthen@South-West Yorkshire", "modern_name": "Morthen", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "MosCAR@South-West Yorkshire", "modern_name": "MosCAR", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Netherton@South-West Yorkshire", "modern_name": "Netherton", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Newbigging@South-West Yorkshire", "modern_name": "Newbigging", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Newsholme@South-West Yorkshire", "modern_name": "Newsholme", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Newsome@South-West Yorkshire", "modern_name": "Newsome", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Newstead@South-West Yorkshire", "modern_name": "Newstead", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Newton@South-West Yorkshire", "modern_name": "Newton", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Norland@South-West Yorkshire", "modern_name": "Norland", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Norwood@South-West Yorkshire", "modern_name": "Norwood", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Oakes@South-West Yorkshire", "modern_name": "Oakes", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Oakwell@South-West Yorkshire", "modern_name": "Oakwell", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Oakworth@South-West Yorkshire", "modern_name": "Oakworth", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Ogden@South-West Yorkshire", "modern_name": "Ogden", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "OuzELWELL@South-West Yorkshire", "modern_name": "OuzELWELL", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Owls Head@South-West Yorkshire", "modern_name": "Owls Head", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Pennant@South-West Yorkshire", "modern_name": "Pennant", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Prestelay@South-West Yorkshire", "modern_name": "Prestelay", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Ramsden@South-West Yorkshire", "modern_name": "Ramsden", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "RawmarsH@South-West Yorkshire", "modern_name": "RawmarsH", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "RiNGINGLOW@South-West Yorkshire", "modern_name": "RiNGINGLOW", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "RiPPONDEN@South-West Yorkshire", "modern_name": "RiPPONDEN", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Rowley@South-West Yorkshire", "modern_name": "Rowley", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Ryburn@South-West Yorkshire", "modern_name": "Ryburn", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Rycroft@South-West Yorkshire", "modern_name": "Rycroft", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Ryhill@South-West Yorkshire", "modern_name": "Ryhill", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Sandal Magna@South-West Yorkshire", "modern_name": "Sandal Magna", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "SandbeCK@South-West Yorkshire", "modern_name": "SandbeCK", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Shaw House@South-West Yorkshire", "modern_name": "Shaw House", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Shelley@South-West Yorkshire", "modern_name": "Shelley", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Slackcote@South-West Yorkshire", "modern_name": "Slackcote", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Smeaton@South-West Yorkshire", "modern_name": "Smeaton", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Spinkwell@South-West Yorkshire", "modern_name": "Spinkwell", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stainborough@South-West Yorkshire", "modern_name": "Stainborough", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stainforth@South-West Yorkshire", "modern_name": "Stainforth", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stainland and Stainton@South-West Yorkshire", "modern_name": "Stainland and Stainton", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stanbury@South-West Yorkshire", "modern_name": "Stanbury", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stancil@South-West Yorkshire", "modern_name": "Stancil", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Standbridge@South-West Yorkshire", "modern_name": "Standbridge", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stannard@South-West Yorkshire", "modern_name": "Stannard", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stannington@South-West Yorkshire", "modern_name": "Stannington", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stansfield@South-West Yorkshire", "modern_name": "Stansfield", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stennard@South-West Yorkshire", "modern_name": "Stennard", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stoneshaw@South-West Yorkshire", "modern_name": "Stoneshaw", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stoodley Pike@South-West Yorkshire", "modern_name": "Stoodley Pike", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stotfold@South-West Yorkshire", "modern_name": "Stotfold", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Strafford Sands@South-West Yorkshire", "modern_name": "Strafford Sands", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Stubbing@South-West Yorkshire", "modern_name": "Stubbing", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Studroyd@South-West Yorkshire", "modern_name": "Studroyd", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Sugden@South-West Yorkshire", "modern_name": "Sugden", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "SwiNDEN@South-West Yorkshire", "modern_name": "SwiNDEN", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "SwiNLEY@South-West Yorkshire", "modern_name": "SwiNLEY", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "SwiNSEY@South-West Yorkshire", "modern_name": "SwiNSEY", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "SwiNTON@South-West Yorkshire", "modern_name": "SwiNTON", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Thornhills@South-West Yorkshire", "modern_name": "Thornhills", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Thornseat@South-West Yorkshire", "modern_name": "Thornseat", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Thornton@South-West Yorkshire", "modern_name": "Thornton", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Thorpe@South-West Yorkshire", "modern_name": "Thorpe", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Thorpe Audlin@South-West Yorkshire", "modern_name": "Thorpe Audlin", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Thorpe Hesley@South-West Yorkshire", "modern_name": "Thorpe Hesley", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Thorpe Salvin@South-West Yorkshire", "modern_name": "Thorpe Salvin", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Wakeley in Hertfordshire@South-West Yorkshire", "modern_name": "Wakeley in Hertfordshire", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Whitehaughs@South-West Yorkshire", "modern_name": "Whitehaughs", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Whitgift@South-West Yorkshire", "modern_name": "Whitgift", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Whitley Beaumont@South-West Yorkshire", "modern_name": "Whitley Beaumont", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "WoODHALL@South-West Yorkshire", "modern_name": "WoODHALL", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "WoODHEAD@South-West Yorkshire", "modern_name": "WoODHEAD", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "WoODTHORPE@South-West Yorkshire", "modern_name": "WoODTHORPE", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "WoRSBOROUGH@South-West Yorkshire", "modern_name": "WoRSBOROUGH", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Wudelesford@South-West Yorkshire", "modern_name": "Wudelesford", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Wyke@South-West Yorkshire", "modern_name": "Wyke", "region": "South-West Yorkshire"}
+{"_type": "toponym", "ref": "MiCKLETHWAlTE@South-West Yorkshire", "modern_name": "MiCKLETHWAlTE", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "MiDDLEWOOD@South-West Yorkshire", "modern_name": "MiDDLEWOOD", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "MiDGLEY@South-West Yorkshire", "modern_name": "MiDGLEY", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "MoORHOUSE@South-West Yorkshire", "modern_name": "MoORHOUSE", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "MoSELDEN@South-West Yorkshire", "modern_name": "MoSELDEN", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Morthen@South-West Yorkshire", "modern_name": "Morthen", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "MosCAR@South-West Yorkshire", "modern_name": "MosCAR", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Netherton@South-West Yorkshire", "modern_name": "Netherton", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Newbigging@South-West Yorkshire", "modern_name": "Newbigging", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Newsholme@South-West Yorkshire", "modern_name": "Newsholme", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Newsome@South-West Yorkshire", "modern_name": "Newsome", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Newstead@South-West Yorkshire", "modern_name": "Newstead", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Newton@South-West Yorkshire", "modern_name": "Newton", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Norland@South-West Yorkshire", "modern_name": "Norland", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Norwood@South-West Yorkshire", "modern_name": "Norwood", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Oakes@South-West Yorkshire", "modern_name": "Oakes", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Oakwell@South-West Yorkshire", "modern_name": "Oakwell", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Oakworth@South-West Yorkshire", "modern_name": "Oakworth", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Ogden@South-West Yorkshire", "modern_name": "Ogden", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "OuzELWELL@South-West Yorkshire", "modern_name": "OuzELWELL", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Owls Head@South-West Yorkshire", "modern_name": "Owls Head", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Pennant@South-West Yorkshire", "modern_name": "Pennant", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Prestelay@South-West Yorkshire", "modern_name": "Prestelay", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Ramsden@South-West Yorkshire", "modern_name": "Ramsden", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "RawmarsH@South-West Yorkshire", "modern_name": "RawmarsH", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "RiNGINGLOW@South-West Yorkshire", "modern_name": "RiNGINGLOW", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "RiPPONDEN@South-West Yorkshire", "modern_name": "RiPPONDEN", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Rowley@South-West Yorkshire", "modern_name": "Rowley", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Ryburn@South-West Yorkshire", "modern_name": "Ryburn", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Rycroft@South-West Yorkshire", "modern_name": "Rycroft", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Ryhill@South-West Yorkshire", "modern_name": "Ryhill", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Sandal Magna@South-West Yorkshire", "modern_name": "Sandal Magna", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "SandbeCK@South-West Yorkshire", "modern_name": "SandbeCK", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Shaw House@South-West Yorkshire", "modern_name": "Shaw House", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Shelley@South-West Yorkshire", "modern_name": "Shelley", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Slackcote@South-West Yorkshire", "modern_name": "Slackcote", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Smeaton@South-West Yorkshire", "modern_name": "Smeaton", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Spinkwell@South-West Yorkshire", "modern_name": "Spinkwell", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stainborough@South-West Yorkshire", "modern_name": "Stainborough", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stainforth@South-West Yorkshire", "modern_name": "Stainforth", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stainland and Stainton@South-West Yorkshire", "modern_name": "Stainland and Stainton", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stanbury@South-West Yorkshire", "modern_name": "Stanbury", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stancil@South-West Yorkshire", "modern_name": "Stancil", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Standbridge@South-West Yorkshire", "modern_name": "Standbridge", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stannard@South-West Yorkshire", "modern_name": "Stannard", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stannington@South-West Yorkshire", "modern_name": "Stannington", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stansfield@South-West Yorkshire", "modern_name": "Stansfield", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stennard@South-West Yorkshire", "modern_name": "Stennard", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stoneshaw@South-West Yorkshire", "modern_name": "Stoneshaw", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stoodley Pike@South-West Yorkshire", "modern_name": "Stoodley Pike", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stotfold@South-West Yorkshire", "modern_name": "Stotfold", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Strafford Sands@South-West Yorkshire", "modern_name": "Strafford Sands", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Stubbing@South-West Yorkshire", "modern_name": "Stubbing", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Studroyd@South-West Yorkshire", "modern_name": "Studroyd", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Sugden@South-West Yorkshire", "modern_name": "Sugden", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "SwiNDEN@South-West Yorkshire", "modern_name": "SwiNDEN", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "SwiNLEY@South-West Yorkshire", "modern_name": "SwiNLEY", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "SwiNSEY@South-West Yorkshire", "modern_name": "SwiNSEY", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "SwiNTON@South-West Yorkshire", "modern_name": "SwiNTON", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Thornhills@South-West Yorkshire", "modern_name": "Thornhills", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Thornseat@South-West Yorkshire", "modern_name": "Thornseat", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Thornton@South-West Yorkshire", "modern_name": "Thornton", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Thorpe@South-West Yorkshire", "modern_name": "Thorpe", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Thorpe Audlin@South-West Yorkshire", "modern_name": "Thorpe Audlin", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Thorpe Hesley@South-West Yorkshire", "modern_name": "Thorpe Hesley", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Thorpe Salvin@South-West Yorkshire", "modern_name": "Thorpe Salvin", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Wakeley in Hertfordshire@South-West Yorkshire", "modern_name": "Wakeley in Hertfordshire", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Whitehaughs@South-West Yorkshire", "modern_name": "Whitehaughs", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Whitgift@South-West Yorkshire", "modern_name": "Whitgift", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Whitley Beaumont@South-West Yorkshire", "modern_name": "Whitley Beaumont", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "WoODHALL@South-West Yorkshire", "modern_name": "WoODHALL", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "WoODHEAD@South-West Yorkshire", "modern_name": "WoODHEAD", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "WoODTHORPE@South-West Yorkshire", "modern_name": "WoODTHORPE", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "WoRSBOROUGH@South-West Yorkshire", "modern_name": "WoRSBOROUGH", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Wudelesford@South-West Yorkshire", "modern_name": "Wudelesford", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Wyke@South-West Yorkshire", "modern_name": "Wyke", "region": "South-West Yorkshire", "country": "England"}
 {"_type": "etymology_element", "toponym_ref": "MiCKLETHWAlTE@South-West Yorkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:mickil"}, {"ordinal": 1, "etymon_ref": "old-norse:thveit"}], "historical_form": "Mickil-thveit", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | MiCKLETHWAlTE, Cawthorne, is mentioned in PT 1379 under Cawthorne as Mickilwayte ; this means ' the great clear- ing,' from ON thveit.", "attested_year": 1379}
 {"_type": "etymology_element", "toponym_ref": "MiDDLEWOOD@South-West Yorkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:middel"}, {"ordinal": 1, "etymon_ref": "old-english:wude"}], "historical_form": "Middel-wude", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | MiDDLEWOOD, Darfield, YS 1297 Middelwude, tells its story with entire frankness and simplicity. VIII] ALPHABETICAL LIST OF NAMES 213 MIDGLEY, Halifax", "attested_year": 1297}
 {"_type": "etymology_element", "toponym_ref": "MiDGLEY@South-West Yorkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:mycge"}, {"ordinal": 1, "etymon_ref": "old-english:leah"}], "historical_form": "mycge-leah", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | MiDGLEY, Halifax MiDGLEY, Wakefield WCR 1274 Miggeley YR 1234 Miggeley WCR 1297 Miggeley DN 1241 Migeley WCR 1308 Miglay YI 1287 Miggeley It is impos", "attested_year": 1234}
@@ -379,53 +379,53 @@
 {"_type": "etymology_element", "toponym_ref": "WoRSBOROUGH@South-West Yorkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weorc", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:burg"}], "historical_form": "Weorc-burg", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | WoRSBOROUGH, Barnsley. WORTLEY, Leeds. WORTLEY, Sheffield. DB 1086 Wircesburg KC 1189 Wirkeleia DB 1086 VVirtleie, Wirlei YS 1297 Wortelay NV 1 3 16 ", "attested_year": 1086}
 {"_type": "etymology_element", "toponym_ref": "Wudelesford@South-West Yorkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wodel"}, {"ordinal": 1, "etymon_ref": "old-english:ford"}], "historical_form": "Wodel-ford", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies first element as personal name Wodel (from Searle); second element is ford. Early forms show variation (Wodelesford, Wridelesford, "}
 {"_type": "etymology_element", "toponym_ref": "Wyke@South-West Yorkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:vlk"}], "historical_form": "vlk", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar states 'very probable' and 'most probably' from ON vlk, but the specific gloss of vlk is not provided in the entry. | Wyke, Bradford, DB Wich,"}
-{"_type": "toponym", "ref": "Bedale@Yorkshire", "modern_name": "Bedale", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Bentham@Yorkshire", "modern_name": "Bentham", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Bedale@North Riding", "modern_name": "Bedale", "country": "England", "region": "North Riding"}
+{"_type": "toponym", "ref": "Bentham@West Riding", "modern_name": "Bentham", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Bericote@Warwickshire", "modern_name": "Bericote", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Blackburn@Cheshire", "modern_name": "Blackburn", "country": "England", "region": "Cheshire"}
 {"_type": "toponym", "ref": "Childwall@Cheshire", "modern_name": "Childwall", "country": "England", "region": "Cheshire"}
 {"_type": "toponym", "ref": "Chorley@Cheshire", "modern_name": "Chorley", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Common@Northumberland and Durham", "modern_name": "Common", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Coniston@Yorkshire", "modern_name": "Coniston", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Fetternear@Scotland", "modern_name": "Fetternear", "region": "Scotland"}
+{"_type": "toponym", "ref": "Common@Northumberland and Durham", "modern_name": "Common", "region": "Northumberland and Durham", "country": "England"}
+{"_type": "toponym", "ref": "Coniston@East Riding", "modern_name": "Coniston", "country": "England", "region": "East Riding"}
+{"_type": "toponym", "ref": "Fetternear@Scotland", "modern_name": "Fetternear", "region": "Scotland", "country": "Scotland"}
 {"_type": "toponym", "ref": "Formby@Cheshire", "modern_name": "Formby", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Gisburn@Yorkshire", "modern_name": "Gisburn", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Grassington@Yorkshire", "modern_name": "Grassington", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Holmfirth@South-West Yorkshire", "modern_name": "Holmfirth", "region": "South-West Yorkshire"}
-{"_type": "toponym", "ref": "Huddersfield@Yorkshire", "modern_name": "Huddersfield", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Gisburn@West Riding", "modern_name": "Gisburn", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Grassington@West Riding", "modern_name": "Grassington", "country": "England", "region": "West Riding"}
+{"_type": "toponym", "ref": "Holmfirth@South-West Yorkshire", "modern_name": "Holmfirth", "region": "South-West Yorkshire", "country": "England"}
+{"_type": "toponym", "ref": "Huddersfield@West Riding", "modern_name": "Huddersfield", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Kendal@Yorkshire", "modern_name": "Kendal", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Kirkham@Yorkshire", "modern_name": "Kirkham", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Kirkham@East Riding", "modern_name": "Kirkham", "country": "England", "region": "East Riding"}
 {"_type": "toponym", "ref": "Later@-", "modern_name": "Later"}
 {"_type": "toponym", "ref": "Malton@Yorkshire", "modern_name": "Malton", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Olaf@Argyll", "modern_name": "Olaf", "region": "Argyll"}
-{"_type": "toponym", "ref": "Penistone@Yorkshire", "modern_name": "Penistone", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Olaf@Argyll", "modern_name": "Olaf", "region": "Argyll", "country": "Scotland"}
+{"_type": "toponym", "ref": "Penistone@West Riding", "modern_name": "Penistone", "country": "England", "region": "West Riding"}
 {"_type": "toponym", "ref": "Sandal@Yorkshire", "modern_name": "Sandal", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Settle@Yorkshire", "modern_name": "Settle", "country": "England", "region": "Yorkshire"}
-{"_type": "attestation", "toponym_ref": "Bedale@Yorkshire", "form": "Bedale", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Bentham@Yorkshire", "form": "Bentham", "date_year": 1260, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "toponym", "ref": "Settle@West Riding", "modern_name": "Settle", "country": "England", "region": "West Riding"}
+{"_type": "attestation", "toponym_ref": "Bedale@North Riding", "form": "Bedale", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Bentham@West Riding", "form": "Bentham", "date_year": 1260, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Bericote@Warwickshire", "form": "Bericote", "date_year": 1275, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Blackburn@Cheshire", "form": "Blackburn", "date_year": 1321, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Childwall@Cheshire", "form": "Childwall", "date_year": 1224, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Chorley@Cheshire", "form": "Chorley", "date_year": 1208, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Common@Northumberland and Durham", "form": "Common", "date_year": 1607, "source_doc": "goodall_1914_sw_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Coniston@Yorkshire", "form": "Coniston", "date_year": 1202, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Coniston@East Riding", "form": "Coniston", "date_year": 1202, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Fetternear@Scotland", "form": "Fetternear", "date_year": 1157, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Formby@Cheshire", "form": "Formby", "date_year": 1213, "source_doc": "goodall_1914_sw_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Gisburn@Yorkshire", "form": "Gisburn", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Grassington@Yorkshire", "form": "Grassington", "date_year": 1259, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Gisburn@West Riding", "form": "Gisburn", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Grassington@West Riding", "form": "Grassington", "date_year": 1259, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Holmfirth@South-West Yorkshire", "form": "Holmfirth", "date_year": 1514, "source_doc": "goodall_1914_sw_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Huddersfield@Yorkshire", "form": "Huddersfield", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Huddersfield@West Riding", "form": "Huddersfield", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Kendal@Yorkshire", "form": "Kendal", "date_year": 1301, "source_doc": "goodall_1914_sw_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Kirkham@Yorkshire", "form": "Kirkham", "date_year": 1235, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Kirkham@East Riding", "form": "Kirkham", "date_year": 1235, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Later@-", "form": "Later", "date_year": 1275, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Malton@Yorkshire", "form": "Malton", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Morthen@South-West Yorkshire", "form": "Morthen", "date_year": 1305, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "MosCAR@South-West Yorkshire", "form": "Moskarr", "date_year": 1574, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Olaf@Argyll", "form": "Olaf", "date_year": 940, "source_doc": "goodall_1914_sw_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Penistone@Yorkshire", "form": "Penistone", "date_year": 1256, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Penistone@West Riding", "form": "Penistone", "date_year": 1256, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "RiNGINGLOW@South-West Yorkshire", "form": "Sheffield", "date_year": 1574, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Sandal@Yorkshire", "form": "Sandal", "date_year": 1279, "source_doc": "goodall_1914_sw_yorkshire"}
-{"_type": "attestation", "toponym_ref": "Settle@Yorkshire", "form": "Settle", "date_year": 1299, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Settle@West Riding", "form": "Settle", "date_year": 1299, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Stennard@South-West Yorkshire", "form": "Stenodiff", "date_year": 1540, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Thornseat@South-West Yorkshire", "form": "Thorneset", "date_year": 1329, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Thorpe@South-West Yorkshire", "form": "Thorp", "date_year": 1150, "source_doc": "goodall_1914_sw_yorkshire"}

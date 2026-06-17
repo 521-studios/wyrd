@@ -341,106 +341,106 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T06:22:16.756252+00:00", "completed_at": "2026-05-05T06:27:03.637888+00:00", "parsed_count": 39, "accepted": 21, "declined": 14, "rejected": 4, "by_failure": "{\"attested_year_out_of_range\": 2, \"element_count_out_of_range\": 1, \"form_not_in_body\": 2}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T08:19:31.694511+00:00", "completed_at": "2026-05-05T08:22:19.287587+00:00", "parsed_count": 18, "accepted": 5, "declined": 12, "rejected": 1, "by_failure": "{\"element_count_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T10:21:17.637821+00:00", "completed_at": "2026-05-05T10:22:41.936290+00:00", "parsed_count": 13, "accepted": 0, "declined": 12, "rejected": 1, "by_failure": "{\"element_count_out_of_range\": 1}"}
-{"_type": "toponym", "ref": "Abbey Cwm Hir@Wales", "modern_name": "Abbey Cwm Hir", "region": "Wales"}
-{"_type": "toponym", "ref": "Abercwmboy@Wales", "modern_name": "Abercwmboy", "region": "Wales"}
-{"_type": "toponym", "ref": "Aberfan@Wales", "modern_name": "Aberfan", "region": "Wales"}
-{"_type": "toponym", "ref": "Abergwynolwyn@Wales", "modern_name": "Abergwynolwyn", "region": "Wales"}
-{"_type": "toponym", "ref": "Bangor Iscoed@Wales", "modern_name": "Bangor Iscoed", "region": "Wales"}
-{"_type": "toponym", "ref": "Berthlwyd@Wales", "modern_name": "Berthlwyd", "region": "Wales"}
-{"_type": "toponym", "ref": "Beynsadler@Wales", "modern_name": "Beynsadler", "region": "Wales"}
-{"_type": "toponym", "ref": "Blaengwrach@Wales", "modern_name": "Blaengwrach", "region": "Wales"}
-{"_type": "toponym", "ref": "Blethfa@Wales", "modern_name": "Blethfa", "region": "Wales"}
-{"_type": "toponym", "ref": "BoDFARi@Wales", "modern_name": "BoDFARi", "region": "Wales"}
-{"_type": "toponym", "ref": "Brawdy@Wales", "modern_name": "Brawdy", "region": "Wales"}
-{"_type": "toponym", "ref": "Bugely@Wales", "modern_name": "Bugely", "region": "Wales"}
-{"_type": "toponym", "ref": "BwLCHGWYN@Wales", "modern_name": "BwLCHGWYN", "region": "Wales"}
-{"_type": "toponym", "ref": "Cabalfa@Wales", "modern_name": "Cabalfa", "region": "Wales"}
-{"_type": "toponym", "ref": "Cardiff@Wales", "modern_name": "Cardiff", "region": "Wales"}
-{"_type": "toponym", "ref": "Cascob@Wales", "modern_name": "Cascob", "region": "Wales"}
-{"_type": "toponym", "ref": "Casllwchwr@Wales", "modern_name": "Casllwchwr", "region": "Wales"}
-{"_type": "toponym", "ref": "Castle Martin@Wales", "modern_name": "Castle Martin", "region": "Wales"}
-{"_type": "toponym", "ref": "Cefnllys@Wales", "modern_name": "Cefnllys", "region": "Wales"}
-{"_type": "toponym", "ref": "Church Stoke@Wales", "modern_name": "Church Stoke", "region": "Wales"}
-{"_type": "toponym", "ref": "CiLFYNYDD@Wales", "modern_name": "CiLFYNYDD", "region": "Wales"}
-{"_type": "toponym", "ref": "CoEDPOETH@Wales", "modern_name": "CoEDPOETH", "region": "Wales"}
-{"_type": "toponym", "ref": "CoRNELLY@Wales", "modern_name": "CoRNELLY", "region": "Wales"}
-{"_type": "toponym", "ref": "CoYCHURCH@Wales", "modern_name": "CoYCHURCH", "region": "Wales"}
-{"_type": "toponym", "ref": "Cwm Garw@Wales", "modern_name": "Cwm Garw", "region": "Wales"}
-{"_type": "toponym", "ref": "Cwmdauddwr@Wales", "modern_name": "Cwmdauddwr", "region": "Wales"}
-{"_type": "toponym", "ref": "Cyfeiliog@Wales", "modern_name": "Cyfeiliog", "region": "Wales"}
-{"_type": "toponym", "ref": "Dinas Powis@Wales", "modern_name": "Dinas Powis", "region": "Wales"}
-{"_type": "toponym", "ref": "Doldrewin@Wales", "modern_name": "Doldrewin", "region": "Wales"}
-{"_type": "toponym", "ref": "Dolwen@Wales", "modern_name": "Dolwen", "region": "Wales"}
-{"_type": "toponym", "ref": "Dyffryn@Wales", "modern_name": "Dyffryn", "region": "Wales"}
-{"_type": "toponym", "ref": "Dyserth@Wales", "modern_name": "Dyserth", "region": "Wales"}
-{"_type": "toponym", "ref": "Ewenny@Wales", "modern_name": "Ewenny", "region": "Wales"}
-{"_type": "toponym", "ref": "Fishguard@Wales", "modern_name": "Fishguard", "region": "Wales"}
-{"_type": "toponym", "ref": "Flatholm@Wales", "modern_name": "Flatholm", "region": "Wales"}
-{"_type": "toponym", "ref": "Fron@Wales", "modern_name": "Fron", "region": "Wales"}
-{"_type": "toponym", "ref": "Garth Mill@Wales", "modern_name": "Garth Mill", "region": "Wales"}
-{"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales"}
-{"_type": "toponym", "ref": "Gelligaer@Wales", "modern_name": "Gelligaer", "region": "Wales"}
-{"_type": "toponym", "ref": "GwERN Esgob@Wales", "modern_name": "GwERN Esgob", "region": "Wales"}
-{"_type": "toponym", "ref": "Hanmer@Wales", "modern_name": "Hanmer", "region": "Wales"}
-{"_type": "toponym", "ref": "Harlech@Wales", "modern_name": "Harlech", "region": "Wales"}
-{"_type": "toponym", "ref": "Henllan@Wales", "modern_name": "Henllan", "region": "Wales"}
-{"_type": "toponym", "ref": "Heyop@Wales", "modern_name": "Heyop", "region": "Wales"}
-{"_type": "toponym", "ref": "Killay@Wales", "modern_name": "Killay", "region": "Wales"}
-{"_type": "toponym", "ref": "Langum@Wales", "modern_name": "Langum", "region": "Wales"}
-{"_type": "toponym", "ref": "Llanarmon-yn-Ial@Wales", "modern_name": "Llanarmon-yn-Ial", "region": "Wales"}
-{"_type": "toponym", "ref": "Llanasa@Wales", "modern_name": "Llanasa", "region": "Wales"}
-{"_type": "toponym", "ref": "Llandaf@Wales", "modern_name": "Llandaf", "region": "Wales"}
-{"_type": "toponym", "ref": "Llandegla@Wales", "modern_name": "Llandegla", "region": "Wales"}
-{"_type": "toponym", "ref": "Llandochwy@Wales", "modern_name": "Llandochwy", "region": "Wales"}
-{"_type": "toponym", "ref": "Llandrindod@Wales", "modern_name": "Llandrindod", "region": "Wales"}
-{"_type": "toponym", "ref": "Llanedeyrn@Wales", "modern_name": "Llanedeyrn", "region": "Wales"}
-{"_type": "toponym", "ref": "Llanfair-Talhaiarn@Wales", "modern_name": "Llanfair-Talhaiarn", "region": "Wales"}
-{"_type": "toponym", "ref": "Llangadwaladr@Wales", "modern_name": "Llangadwaladr", "region": "Wales"}
-{"_type": "toponym", "ref": "Llangenydd@Wales", "modern_name": "Llangenydd", "region": "Wales"}
-{"_type": "toponym", "ref": "Llangynfarch@Wales", "modern_name": "Llangynfarch", "region": "Wales"}
-{"_type": "toponym", "ref": "Llanilltyd Fawr@Wales", "modern_name": "Llanilltyd Fawr", "region": "Wales"}
-{"_type": "toponym", "ref": "Llansantffraid Glyndyfrdwy@Wales", "modern_name": "Llansantffraid Glyndyfrdwy", "region": "Wales"}
-{"_type": "toponym", "ref": "Llanwnda@Wales", "modern_name": "Llanwnda", "region": "Wales"}
-{"_type": "toponym", "ref": "Llanwrin@Wales", "modern_name": "Llanwrin", "region": "Wales"}
-{"_type": "toponym", "ref": "Llanyiiechain@Wales", "modern_name": "Llanyiiechain", "region": "Wales"}
-{"_type": "toponym", "ref": "Llaxrhaiadr Dyffryn Clwyd@Wales", "modern_name": "Llaxrhaiadr Dyffryn Clwyd", "region": "Wales"}
-{"_type": "toponym", "ref": "Maesgarmon@Wales", "modern_name": "Maesgarmon", "region": "Wales"}
-{"_type": "toponym", "ref": "Manorbier@Wales", "modern_name": "Manorbier", "region": "Wales"}
-{"_type": "toponym", "ref": "Mawdlaji@Wales", "modern_name": "Mawdlaji", "region": "Wales"}
-{"_type": "toponym", "ref": "MiLFORD Haven@Wales", "modern_name": "MiLFORD Haven", "region": "Wales"}
-{"_type": "toponym", "ref": "Middle Mill@Wales", "modern_name": "Middle Mill", "region": "Wales"}
-{"_type": "toponym", "ref": "Moxknash@Wales", "modern_name": "Moxknash", "region": "Wales"}
-{"_type": "toponym", "ref": "Nannau@Wales", "modern_name": "Nannau", "region": "Wales"}
-{"_type": "toponym", "ref": "Nantmel@Wales", "modern_name": "Nantmel", "region": "Wales"}
-{"_type": "toponym", "ref": "Newport@Wales", "modern_name": "Newport", "region": "Wales"}
-{"_type": "toponym", "ref": "Newtown@Wales", "modern_name": "Newtown", "region": "Wales"}
-{"_type": "toponym", "ref": "Overton@Wales", "modern_name": "Overton", "region": "Wales"}
-{"_type": "toponym", "ref": "Pantscallog@Wales", "modern_name": "Pantscallog", "region": "Wales"}
-{"_type": "toponym", "ref": "Pennant Melangell@Wales", "modern_name": "Pennant Melangell", "region": "Wales"}
-{"_type": "toponym", "ref": "Penrice@Wales", "modern_name": "Penrice", "region": "Wales"}
-{"_type": "toponym", "ref": "Pensarn@Wales", "modern_name": "Pensarn", "region": "Wales"}
-{"_type": "toponym", "ref": "Pentre@Wales", "modern_name": "Pentre", "region": "Wales"}
-{"_type": "toponym", "ref": "PiLLETH@Wales", "modern_name": "PiLLETH", "region": "Wales"}
-{"_type": "toponym", "ref": "PoNTFAEN@Wales", "modern_name": "PoNTFAEN", "region": "Wales"}
-{"_type": "toponym", "ref": "PoRTKERRY@Wales", "modern_name": "PoRTKERRY", "region": "Wales"}
-{"_type": "toponym", "ref": "Pontardawe@Wales", "modern_name": "Pontardawe", "region": "Wales"}
-{"_type": "toponym", "ref": "Prendergast@Wales", "modern_name": "Prendergast", "region": "Wales"}
-{"_type": "toponym", "ref": "Rhiw Saeson@Wales", "modern_name": "Rhiw Saeson", "region": "Wales"}
-{"_type": "toponym", "ref": "Rhydgwilym@Wales", "modern_name": "Rhydgwilym", "region": "Wales"}
-{"_type": "toponym", "ref": "Saeth Marchog@Wales", "modern_name": "Saeth Marchog", "region": "Wales"}
-{"_type": "toponym", "ref": "Saltney@Wales", "modern_name": "Saltney", "region": "Wales"}
-{"_type": "toponym", "ref": "Skerry@Wales", "modern_name": "Skerry", "region": "Wales"}
-{"_type": "toponym", "ref": "St@Wales", "modern_name": "St", "region": "Wales"}
-{"_type": "toponym", "ref": "Swansea@Wales", "modern_name": "Swansea", "region": "Wales"}
-{"_type": "toponym", "ref": "TowYN@Wales", "modern_name": "TowYN", "region": "Wales"}
-{"_type": "toponym", "ref": "Trewyddel@Wales", "modern_name": "Trewyddel", "region": "Wales"}
-{"_type": "toponym", "ref": "Waunarlwydd@Wales", "modern_name": "Waunarlwydd", "region": "Wales"}
-{"_type": "toponym", "ref": "Xorthop@Wales", "modern_name": "Xorthop", "region": "Wales"}
-{"_type": "toponym", "ref": "Ynysawdre@Wales", "modern_name": "Ynysawdre", "region": "Wales"}
-{"_type": "toponym", "ref": "Ynystawe@Wales", "modern_name": "Ynystawe", "region": "Wales"}
-{"_type": "toponym", "ref": "YsBYTTY Ifan@Wales", "modern_name": "YsBYTTY Ifan", "region": "Wales"}
-{"_type": "toponym", "ref": "Ystalyfera@Wales", "modern_name": "Ystalyfera", "region": "Wales"}
-{"_type": "toponym", "ref": "Ystrad Owen@Wales", "modern_name": "Ystrad Owen", "region": "Wales"}
+{"_type": "toponym", "ref": "Abbey Cwm Hir@Wales", "modern_name": "Abbey Cwm Hir", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Abercwmboy@Wales", "modern_name": "Abercwmboy", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Aberfan@Wales", "modern_name": "Aberfan", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Abergwynolwyn@Wales", "modern_name": "Abergwynolwyn", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Bangor Iscoed@Wales", "modern_name": "Bangor Iscoed", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Berthlwyd@Wales", "modern_name": "Berthlwyd", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Beynsadler@Wales", "modern_name": "Beynsadler", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Blaengwrach@Wales", "modern_name": "Blaengwrach", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Blethfa@Wales", "modern_name": "Blethfa", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "BoDFARi@Wales", "modern_name": "BoDFARi", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Brawdy@Wales", "modern_name": "Brawdy", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Bugely@Wales", "modern_name": "Bugely", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "BwLCHGWYN@Wales", "modern_name": "BwLCHGWYN", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Cabalfa@Wales", "modern_name": "Cabalfa", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Cardiff@Wales", "modern_name": "Cardiff", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Cascob@Wales", "modern_name": "Cascob", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Casllwchwr@Wales", "modern_name": "Casllwchwr", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Castle Martin@Wales", "modern_name": "Castle Martin", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Cefnllys@Wales", "modern_name": "Cefnllys", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Church Stoke@Wales", "modern_name": "Church Stoke", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "CiLFYNYDD@Wales", "modern_name": "CiLFYNYDD", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "CoEDPOETH@Wales", "modern_name": "CoEDPOETH", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "CoRNELLY@Wales", "modern_name": "CoRNELLY", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "CoYCHURCH@Wales", "modern_name": "CoYCHURCH", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Cwm Garw@Wales", "modern_name": "Cwm Garw", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Cwmdauddwr@Wales", "modern_name": "Cwmdauddwr", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Cyfeiliog@Wales", "modern_name": "Cyfeiliog", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Dinas Powis@Wales", "modern_name": "Dinas Powis", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Doldrewin@Wales", "modern_name": "Doldrewin", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Dolwen@Wales", "modern_name": "Dolwen", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Dyffryn@Wales", "modern_name": "Dyffryn", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Dyserth@Wales", "modern_name": "Dyserth", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Ewenny@Wales", "modern_name": "Ewenny", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Fishguard@Wales", "modern_name": "Fishguard", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Flatholm@Wales", "modern_name": "Flatholm", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Fron@Wales", "modern_name": "Fron", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Garth Mill@Wales", "modern_name": "Garth Mill", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Gelligaer@Wales", "modern_name": "Gelligaer", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "GwERN Esgob@Wales", "modern_name": "GwERN Esgob", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Hanmer@Wales", "modern_name": "Hanmer", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Harlech@Wales", "modern_name": "Harlech", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Henllan@Wales", "modern_name": "Henllan", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Heyop@Wales", "modern_name": "Heyop", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Killay@Wales", "modern_name": "Killay", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Langum@Wales", "modern_name": "Langum", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanarmon-yn-Ial@Wales", "modern_name": "Llanarmon-yn-Ial", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanasa@Wales", "modern_name": "Llanasa", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llandaf@Wales", "modern_name": "Llandaf", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llandegla@Wales", "modern_name": "Llandegla", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llandochwy@Wales", "modern_name": "Llandochwy", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llandrindod@Wales", "modern_name": "Llandrindod", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanedeyrn@Wales", "modern_name": "Llanedeyrn", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanfair-Talhaiarn@Wales", "modern_name": "Llanfair-Talhaiarn", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llangadwaladr@Wales", "modern_name": "Llangadwaladr", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llangenydd@Wales", "modern_name": "Llangenydd", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llangynfarch@Wales", "modern_name": "Llangynfarch", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanilltyd Fawr@Wales", "modern_name": "Llanilltyd Fawr", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llansantffraid Glyndyfrdwy@Wales", "modern_name": "Llansantffraid Glyndyfrdwy", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanwnda@Wales", "modern_name": "Llanwnda", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanwrin@Wales", "modern_name": "Llanwrin", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llanyiiechain@Wales", "modern_name": "Llanyiiechain", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Llaxrhaiadr Dyffryn Clwyd@Wales", "modern_name": "Llaxrhaiadr Dyffryn Clwyd", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Maesgarmon@Wales", "modern_name": "Maesgarmon", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Manorbier@Wales", "modern_name": "Manorbier", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Mawdlaji@Wales", "modern_name": "Mawdlaji", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "MiLFORD Haven@Wales", "modern_name": "MiLFORD Haven", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Middle Mill@Wales", "modern_name": "Middle Mill", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Moxknash@Wales", "modern_name": "Moxknash", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Nannau@Wales", "modern_name": "Nannau", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Nantmel@Wales", "modern_name": "Nantmel", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Newport@Wales", "modern_name": "Newport", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Newtown@Wales", "modern_name": "Newtown", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Overton@Wales", "modern_name": "Overton", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Pantscallog@Wales", "modern_name": "Pantscallog", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Pennant Melangell@Wales", "modern_name": "Pennant Melangell", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Penrice@Wales", "modern_name": "Penrice", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Pensarn@Wales", "modern_name": "Pensarn", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Pentre@Wales", "modern_name": "Pentre", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "PiLLETH@Wales", "modern_name": "PiLLETH", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "PoNTFAEN@Wales", "modern_name": "PoNTFAEN", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "PoRTKERRY@Wales", "modern_name": "PoRTKERRY", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Pontardawe@Wales", "modern_name": "Pontardawe", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Prendergast@Wales", "modern_name": "Prendergast", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Rhiw Saeson@Wales", "modern_name": "Rhiw Saeson", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Rhydgwilym@Wales", "modern_name": "Rhydgwilym", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Saeth Marchog@Wales", "modern_name": "Saeth Marchog", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Saltney@Wales", "modern_name": "Saltney", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Skerry@Wales", "modern_name": "Skerry", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "St@Wales", "modern_name": "St", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Swansea@Wales", "modern_name": "Swansea", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "TowYN@Wales", "modern_name": "TowYN", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Trewyddel@Wales", "modern_name": "Trewyddel", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Waunarlwydd@Wales", "modern_name": "Waunarlwydd", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Xorthop@Wales", "modern_name": "Xorthop", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Ynysawdre@Wales", "modern_name": "Ynysawdre", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Ynystawe@Wales", "modern_name": "Ynystawe", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "YsBYTTY Ifan@Wales", "modern_name": "YsBYTTY Ifan", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Ystalyfera@Wales", "modern_name": "Ystalyfera", "region": "Wales", "country": "Wales"}
+{"_type": "toponym", "ref": "Ystrad Owen@Wales", "modern_name": "Ystrad Owen", "region": "Wales", "country": "Wales"}
 {"_type": "etymology_element", "toponym_ref": "Abbey Cwm Hir@Wales", "elements": [{"ordinal": 0, "etymon_ref": "celtic:cwm"}, {"ordinal": 1, "etymon_ref": "celtic:hir"}], "historical_form": "Cwm-Hir", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar marks this as 'the best supported derivation' | Abbey Cwm Hir. — Cwm Hir, long vale. Cadwallon ab Madoc built an abbey of the Cistercian order"}
 {"_type": "etymology_element", "toponym_ref": "Abercwmboy@Wales", "elements": [{"ordinal": 0, "etymon_ref": "celtic:aber"}, {"ordinal": 1, "etymon_ref": "celtic:cwm"}, {"ordinal": 2, "etymon_ref": "celtic:bwa"}], "historical_form": "Aber-cwm-bwa", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar prefers 'Aber-cwmbwaa' (bwa = Welsh for bow) over folk etymology deriving 'boy' from 'bwci' (hobgoblin). The 'boy' form is acknowledged as cor"}
 {"_type": "etymology_element", "toponym_ref": "Abercwmboy@Wales", "elements": [{"ordinal": 0, "etymon_ref": "celtic:aber"}, {"ordinal": 1, "etymon_ref": "celtic:cwm"}, {"ordinal": 2, "etymon_ref": "celtic:bwaau", "inflection": "plural"}], "historical_form": "Aber-cwmbwaau", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Abercwmboy. — Some say that boy is a corrupted form of bwci, bugbear, hobgoblin, from a tradition that a hobgobUn once haunted the place. Bwci was in course •of time reduced to bo, and ultimately y was added. We rather think the right wording is Aber-cwmbwaau. Bwa is the Welsh for bow. The place is also called Cap Coch, red cap. There was a public house here as early as 1650, and tradition has it that the eccentric landlord who was also a cock- fighter, was", "attested_year": 1650}
@@ -568,9 +568,9 @@
 {"_type": "etymology_element", "toponym_ref": "Ystalyfera@Wales", "elements": [{"ordinal": 0, "etymon_ref": "celtic:ystal"}, {"ordinal": 1, "etymon_ref": "celtic:fera"}], "historical_form": "Ystal-fera", "confidence": "medium", "notes": "extracted_by:gemini:gemini-2.5-flash; The text mentions an old spelling 'ynys-tal-fera' and that 'some think the right wording is Ynys-tal-furiau'. | Ystalyfera. — In some old documents the name is spelt ynys-tal-fera. In the adjoining places we find ynysmeudwy and ynyspenllwch. Some think the right wording is Ynys-tal-furiau, the meadow at the foot of the 212 PLACE-NAMES IN WALES. high wahs (of Ahtgrug and Tarren Gwyddon). Ystal, a stock or produce, a stall ; y, the ; fera:=hera, a stack of cor"}
 {"_type": "etymology_element", "toponym_ref": "Ystrad Owen@Wales", "elements": [{"ordinal": 0, "etymon_ref": "celtic:ystrad"}, {"ordinal": 1, "etymon_ref": "modern-english:owen"}], "historical_form": "Ystrad-Owen", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Ystrad Owen. — The parish derives its name from Prince Owen, the son of Morgan Hen, King of Morgannwg, who took up his abode here. In a field adjoini"}
 {"_type": "toponym", "ref": "Ho@-", "modern_name": "Ho"}
-{"_type": "toponym", "ref": "Llandaff@Wales and Monmouthshire", "modern_name": "Llandaff", "region": "Wales and Monmouthshire"}
+{"_type": "toponym", "ref": "Llandaff@Wales and Monmouthshire", "modern_name": "Llandaff", "region": "Wales and Monmouthshire", "country": "Wales"}
 {"_type": "toponym", "ref": "Montgomery@Shropshire", "modern_name": "Montgomery", "country": "England", "region": "Shropshire"}
-{"_type": "toponym", "ref": "Wales@Yorkshire", "modern_name": "Wales", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Wales@West Riding", "modern_name": "Wales", "country": "England", "region": "West Riding"}
 {"_type": "attestation", "toponym_ref": "Garthen@Wales", "form": "Saxons", "date_year": 831, "source_doc": "morgan_1912_wales"}
 {"_type": "attestation", "toponym_ref": "Garthen@Wales", "form": "Saxons", "date_year": 1161, "source_doc": "morgan_1912_wales"}
 {"_type": "attestation", "toponym_ref": "Gelligaer@Wales", "form": "Owen", "date_year": 1140, "source_doc": "morgan_1912_wales"}
@@ -578,4 +578,4 @@
 {"_type": "attestation", "toponym_ref": "Llandaff@Wales and Monmouthshire", "form": "Llandaff", "date_year": 1265, "source_doc": "morgan_1912_wales"}
 {"_type": "attestation", "toponym_ref": "Montgomery@Shropshire", "form": "Montgomery", "date_year": 1088, "source_doc": "morgan_1912_wales"}
 {"_type": "attestation", "toponym_ref": "Penrice@Wales", "form": "Normans", "date_year": 1099, "source_doc": "morgan_1912_wales"}
-{"_type": "attestation", "toponym_ref": "Wales@Yorkshire", "form": "Wales", "date_year": 1283, "source_doc": "morgan_1912_wales"}
+{"_type": "attestation", "toponym_ref": "Wales@West Riding", "form": "Wales", "date_year": 1283, "source_doc": "morgan_1912_wales"}

@@ -293,90 +293,90 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T06:27:03.892606+00:00", "completed_at": "2026-05-05T06:32:21.627141+00:00", "parsed_count": 37, "accepted": 16, "declined": 17, "rejected": 4, "by_failure": "{\"attested_form_not_in_body\": 2, \"attested_year_out_of_range\": 1, \"element_count_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T07:50:49.105747+00:00", "completed_at": "2026-05-05T07:53:30.733946+00:00", "parsed_count": 21, "accepted": 0, "declined": 17, "rejected": 4, "by_failure": "{\"attested_form_not_in_body\": 2, \"attested_year_out_of_range\": 1, \"element_count_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T09:50:40.858960+00:00", "completed_at": "2026-05-05T09:53:38.643797+00:00", "parsed_count": 21, "accepted": 0, "declined": 18, "rejected": 3, "by_failure": "{\"attested_form_not_in_body\": 1, \"attested_year_out_of_range\": 1, \"element_count_out_of_range\": 1}"}
-{"_type": "toponym", "ref": "A' Chaoirnich@Scottish Highlands and Islands", "modern_name": "A' Chaoirnich", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Achnacoichen@Scottish Highlands and Islands", "modern_name": "Achnacoichen", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Aherarder@Scottish Highlands and Islands", "modern_name": "Aherarder", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Ahriachan@Scottish Highlands and Islands", "modern_name": "Ahriachan", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Ardersier@Scottish Highlands and Islands", "modern_name": "Ardersier", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Aviemore@Scottish Highlands and Islands", "modern_name": "Aviemore", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Balgowan@Scottish Highlands and Islands", "modern_name": "Balgowan", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Ballifeary@Scottish Highlands and Islands", "modern_name": "Ballifeary", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Banavie@Scottish Highlands and Islands", "modern_name": "Banavie", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Bata-bog@Scottish Highlands and Islands", "modern_name": "Bata-bog", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "BeaUid@Scottish Highlands and Islands", "modern_name": "BeaUid", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Beauly@Scottish Highlands and Islands", "modern_name": "Beauly", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Beinn Eihhinn@Scottish Highlands and Islands", "modern_name": "Beinn Eihhinn", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Ben Wifvis@Scottish Highlands and Islands", "modern_name": "Ben Wifvis", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Benchar@Scottish Highlands and Islands", "modern_name": "Benchar", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Breakachy@Scottish Highlands and Islands", "modern_name": "Breakachy", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Caledonians@Scottish Highlands and Islands", "modern_name": "Caledonians", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Catlodge@Scottish Highlands and Islands", "modern_name": "Catlodge", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Cluny@Scottish Highlands and Islands", "modern_name": "Cluny", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Cnoc Fraing@Scottish Highlands and Islands", "modern_name": "Cnoc Fraing", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Coire Bhoite@Scottish Highlands and Islands", "modern_name": "Coire Bhoite", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Coire Bhran@Scottish Highlands and Islands", "modern_name": "Coire Bhran", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Coire Bog@Scottish Highlands and Islands", "modern_name": "Coire Bog", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Coire Neachdradh@Scottish Highlands and Islands", "modern_name": "Coire Neachdradh", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Coire Suileagach@Scottish Highlands and Islands", "modern_name": "Coire Suileagach", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Compare Bible Head@Scottish Highlands and Islands", "modern_name": "Compare Bible Head", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Creag Chrocan@Scottish Highlands and Islands", "modern_name": "Creag Chrocan", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Creag Ghiubhsachan@Scottish Highlands and Islands", "modern_name": "Creag Ghiubhsachan", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Cruhinmore@Scottish Highlands and Islands", "modern_name": "Cruhinmore", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Culloden@Scottish Highlands and Islands", "modern_name": "Culloden", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "DaJnavert@Scottish Highlands and Islands", "modern_name": "DaJnavert", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Dalannach@Scottish Highlands and Islands", "modern_name": "Dalannach", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Dalchully@Scottish Highlands and Islands", "modern_name": "Dalchully", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Dalraddy@Scottish Highlands and Islands", "modern_name": "Dalraddy", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Dearc Beinne Bige@Scottish Highlands and Islands", "modern_name": "Dearc Beinne Bige", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Eist@Scottish Highlands and Islands", "modern_name": "Eist", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Erchless@Scottish Highlands and Islands", "modern_name": "Erchless", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Essich@Scottish Highlands and Islands", "modern_name": "Essich", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Foyers@Scottish Highlands and Islands", "modern_name": "Foyers", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Gaick@Scottish Highlands and Islands", "modern_name": "Gaick", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Garvaheg and Garvamore@Scottish Highlands and Islands", "modern_name": "Garvaheg and Garvamore", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Glen-quoich@Scottish Highlands and Islands", "modern_name": "Glen-quoich", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Glenfinnan@Scottish Highlands and Islands", "modern_name": "Glenfinnan", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Heisker@Scottish Highlands and Islands", "modern_name": "Heisker", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Insh@Scottish Highlands and Islands", "modern_name": "Insh", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Inveraray@Scottish Highlands and Islands", "modern_name": "Inveraray", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Invernahavon@Scottish Highlands and Islands", "modern_name": "Invernahavon", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Is Creag Dhubh Bhiallaid@Scottish Highlands and Islands", "modern_name": "Is Creag Dhubh Bhiallaid", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Kilvaxter@Scottish Highlands and Islands", "modern_name": "Kilvaxter", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Kincraig@Scottish Highlands and Islands", "modern_name": "Kincraig", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Kingussie@Scottish Highlands and Islands", "modern_name": "Kingussie", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Kinmylies@Scottish Highlands and Islands", "modern_name": "Kinmylies", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Kyllachy@Scottish Highlands and Islands", "modern_name": "Kyllachy", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Laggan@Scottish Highlands and Islands", "modern_name": "Laggan", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Laggun@Scottish Highlands and Islands", "modern_name": "Laggun", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Leachkiyi@Scottish Highlands and Islands", "modern_name": "Leachkiyi", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Leault@Scottish Highlands and Islands", "modern_name": "Leault", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Lovat@Scottish Highlands and Islands", "modern_name": "Lovat", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Lynwilg@Scottish Highlands and Islands", "modern_name": "Lynwilg", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "MacShui'ne@Scottish Highlands and Islands", "modern_name": "MacShui'ne", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Marag@Scottish Highlands and Islands", "modern_name": "Marag", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Meall Aillig@Scottish Highlands and Islands", "modern_name": "Meall Aillig", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Nuide@Scottish Highlands and Islands", "modern_name": "Nuide", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Petty@Scottish Highlands and Islands", "modern_name": "Petty", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Pitchurn@Scottish Highlands and Islands", "modern_name": "Pitchurn", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Pitmain@Scottish Highlands and Islands", "modern_name": "Pitmain", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Pitourie@Scottish Highlands and Islands", "modern_name": "Pitourie", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Point of Ayre@Scottish Highlands and Islands", "modern_name": "Point of Ayre", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Presmitckerach@Scottish Highlands and Islands", "modern_name": "Presmitckerach", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Ruthven@Scottish Highlands and Islands", "modern_name": "Ruthven", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Shaw@Scottish Highlands and Islands", "modern_name": "Shaw", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Shirramore and Shirraheg@Scottish Highlands and Islands", "modern_name": "Shirramore and Shirraheg", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Sneachdach Slinnean@Scottish Highlands and Islands", "modern_name": "Sneachdach Slinnean", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Soillierie@Scottish Highlands and Islands", "modern_name": "Soillierie", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Spe@Scottish Highlands and Islands", "modern_name": "Spe", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Stadhr@Scottish Highlands and Islands", "modern_name": "Stadhr", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Stornoway@Scottish Highlands and Islands", "modern_name": "Stornoway", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Stratherrick@Scottish Highlands and Islands", "modern_name": "Stratherrick", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Sutheiiandshire@Scottish Highlands and Islands", "modern_name": "Sutheiiandshire", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Tomnahuirich@Scottish Highlands and Islands", "modern_name": "Tomnahuirich", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Tomnahurich@Scottish Highlands and Islands", "modern_name": "Tomnahurich", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Troll@Scottish Highlands and Islands", "modern_name": "Troll", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Urquhart@Scottish Highlands and Islands", "modern_name": "Urquhart", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Vik@Scottish Highlands and Islands", "modern_name": "Vik", "region": "Scottish Highlands and Islands"}
+{"_type": "toponym", "ref": "A' Chaoirnich@Scottish Highlands and Islands", "modern_name": "A' Chaoirnich", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Achnacoichen@Scottish Highlands and Islands", "modern_name": "Achnacoichen", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aherarder@Scottish Highlands and Islands", "modern_name": "Aherarder", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ahriachan@Scottish Highlands and Islands", "modern_name": "Ahriachan", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ardersier@Scottish Highlands and Islands", "modern_name": "Ardersier", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Aviemore@Scottish Highlands and Islands", "modern_name": "Aviemore", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Balgowan@Scottish Highlands and Islands", "modern_name": "Balgowan", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ballifeary@Scottish Highlands and Islands", "modern_name": "Ballifeary", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Banavie@Scottish Highlands and Islands", "modern_name": "Banavie", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Bata-bog@Scottish Highlands and Islands", "modern_name": "Bata-bog", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "BeaUid@Scottish Highlands and Islands", "modern_name": "BeaUid", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Beauly@Scottish Highlands and Islands", "modern_name": "Beauly", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Beinn Eihhinn@Scottish Highlands and Islands", "modern_name": "Beinn Eihhinn", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ben Wifvis@Scottish Highlands and Islands", "modern_name": "Ben Wifvis", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Benchar@Scottish Highlands and Islands", "modern_name": "Benchar", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Breakachy@Scottish Highlands and Islands", "modern_name": "Breakachy", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Caledonians@Scottish Highlands and Islands", "modern_name": "Caledonians", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Catlodge@Scottish Highlands and Islands", "modern_name": "Catlodge", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cluny@Scottish Highlands and Islands", "modern_name": "Cluny", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cnoc Fraing@Scottish Highlands and Islands", "modern_name": "Cnoc Fraing", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Coire Bhoite@Scottish Highlands and Islands", "modern_name": "Coire Bhoite", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Coire Bhran@Scottish Highlands and Islands", "modern_name": "Coire Bhran", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Coire Bog@Scottish Highlands and Islands", "modern_name": "Coire Bog", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Coire Neachdradh@Scottish Highlands and Islands", "modern_name": "Coire Neachdradh", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Coire Suileagach@Scottish Highlands and Islands", "modern_name": "Coire Suileagach", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Compare Bible Head@Scottish Highlands and Islands", "modern_name": "Compare Bible Head", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Creag Chrocan@Scottish Highlands and Islands", "modern_name": "Creag Chrocan", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Creag Ghiubhsachan@Scottish Highlands and Islands", "modern_name": "Creag Ghiubhsachan", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cruhinmore@Scottish Highlands and Islands", "modern_name": "Cruhinmore", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Culloden@Scottish Highlands and Islands", "modern_name": "Culloden", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "DaJnavert@Scottish Highlands and Islands", "modern_name": "DaJnavert", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dalannach@Scottish Highlands and Islands", "modern_name": "Dalannach", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dalchully@Scottish Highlands and Islands", "modern_name": "Dalchully", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dalraddy@Scottish Highlands and Islands", "modern_name": "Dalraddy", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dearc Beinne Bige@Scottish Highlands and Islands", "modern_name": "Dearc Beinne Bige", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Eist@Scottish Highlands and Islands", "modern_name": "Eist", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Erchless@Scottish Highlands and Islands", "modern_name": "Erchless", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Essich@Scottish Highlands and Islands", "modern_name": "Essich", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Foyers@Scottish Highlands and Islands", "modern_name": "Foyers", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gaick@Scottish Highlands and Islands", "modern_name": "Gaick", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Garvaheg and Garvamore@Scottish Highlands and Islands", "modern_name": "Garvaheg and Garvamore", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Glen-quoich@Scottish Highlands and Islands", "modern_name": "Glen-quoich", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Glenfinnan@Scottish Highlands and Islands", "modern_name": "Glenfinnan", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Heisker@Scottish Highlands and Islands", "modern_name": "Heisker", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Insh@Scottish Highlands and Islands", "modern_name": "Insh", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Inveraray@Scottish Highlands and Islands", "modern_name": "Inveraray", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Invernahavon@Scottish Highlands and Islands", "modern_name": "Invernahavon", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Is Creag Dhubh Bhiallaid@Scottish Highlands and Islands", "modern_name": "Is Creag Dhubh Bhiallaid", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kilvaxter@Scottish Highlands and Islands", "modern_name": "Kilvaxter", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kincraig@Scottish Highlands and Islands", "modern_name": "Kincraig", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kingussie@Scottish Highlands and Islands", "modern_name": "Kingussie", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kinmylies@Scottish Highlands and Islands", "modern_name": "Kinmylies", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kyllachy@Scottish Highlands and Islands", "modern_name": "Kyllachy", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Laggan@Scottish Highlands and Islands", "modern_name": "Laggan", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Laggun@Scottish Highlands and Islands", "modern_name": "Laggun", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Leachkiyi@Scottish Highlands and Islands", "modern_name": "Leachkiyi", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Leault@Scottish Highlands and Islands", "modern_name": "Leault", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Lovat@Scottish Highlands and Islands", "modern_name": "Lovat", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Lynwilg@Scottish Highlands and Islands", "modern_name": "Lynwilg", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "MacShui'ne@Scottish Highlands and Islands", "modern_name": "MacShui'ne", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Marag@Scottish Highlands and Islands", "modern_name": "Marag", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Meall Aillig@Scottish Highlands and Islands", "modern_name": "Meall Aillig", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Nuide@Scottish Highlands and Islands", "modern_name": "Nuide", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Petty@Scottish Highlands and Islands", "modern_name": "Petty", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Pitchurn@Scottish Highlands and Islands", "modern_name": "Pitchurn", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Pitmain@Scottish Highlands and Islands", "modern_name": "Pitmain", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Pitourie@Scottish Highlands and Islands", "modern_name": "Pitourie", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Point of Ayre@Scottish Highlands and Islands", "modern_name": "Point of Ayre", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Presmitckerach@Scottish Highlands and Islands", "modern_name": "Presmitckerach", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ruthven@Scottish Highlands and Islands", "modern_name": "Ruthven", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Shaw@Scottish Highlands and Islands", "modern_name": "Shaw", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Shirramore and Shirraheg@Scottish Highlands and Islands", "modern_name": "Shirramore and Shirraheg", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sneachdach Slinnean@Scottish Highlands and Islands", "modern_name": "Sneachdach Slinnean", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Soillierie@Scottish Highlands and Islands", "modern_name": "Soillierie", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Spe@Scottish Highlands and Islands", "modern_name": "Spe", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stadhr@Scottish Highlands and Islands", "modern_name": "Stadhr", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stornoway@Scottish Highlands and Islands", "modern_name": "Stornoway", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stratherrick@Scottish Highlands and Islands", "modern_name": "Stratherrick", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sutheiiandshire@Scottish Highlands and Islands", "modern_name": "Sutheiiandshire", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tomnahuirich@Scottish Highlands and Islands", "modern_name": "Tomnahuirich", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tomnahurich@Scottish Highlands and Islands", "modern_name": "Tomnahurich", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Troll@Scottish Highlands and Islands", "modern_name": "Troll", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Urquhart@Scottish Highlands and Islands", "modern_name": "Urquhart", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Vik@Scottish Highlands and Islands", "modern_name": "Vik", "region": "Scottish Highlands and Islands", "country": "Scotland"}
 {"_type": "etymology_element", "toponym_ref": "A' Chaoirnich@Scottish Highlands and Islands", "elements": [{"ordinal": 0, "etymon_ref": "celtic:caorunnach"}], "historical_form": "Caorunnach", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies 'rowan-ny' hill as the meaning, but notes uncertainty with 'doubtless' qualifier. Modern form shows lenition (Chaoirnich) from Caor"}
 {"_type": "etymology_element", "toponym_ref": "Achnacoichen@Scottish Highlands and Islands", "elements": [{"ordinal": 0, "etymon_ref": "celtic:achn"}, {"ordinal": 1, "etymon_ref": "celtic:cochine"}], "historical_form": "achn-a-cochine", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Achnacoichen (Rothiemurchus), ' Field of the Owls ' ; so in Lochaber — Achnacochine, in 1509 Auchancheithin.", "attested_year": 1509}
 {"_type": "etymology_element", "toponym_ref": "Aherarder@Scottish Highlands and Islands", "elements": [{"ordinal": 0, "etymon_ref": "celtic:aber"}, {"ordinal": 1, "etymon_ref": "celtic:ard"}, {"ordinal": 2, "etymon_ref": "celtic:dhoire"}], "historical_form": "Aber-ard-dhoire", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar offers alternative: 'may be from ard dhohhar, high water' — dour appears in place-names as the water sense. Primary gloss given as 'Ard-dhoire"}
@@ -477,12 +477,12 @@
 {"_type": "etymology_element", "toponym_ref": "Troll@Scottish Highlands and Islands", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:tryll"}, {"ordinal": 1, "etymon_ref": "old-norse:steinn"}], "historical_form": "tryll-steinn", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies Tryllskar-steinn as the Old Norse compound underlying Cloch an Truiseil and its variants Tryskall, Tryshall via metathesis. | Troll"}
 {"_type": "etymology_element", "toponym_ref": "Urquhart@Scottish Highlands and Islands", "elements": [{"ordinal": 0, "etymon_ref": "celtic:air"}, {"ordinal": 1, "etymon_ref": "celtic:cartdan"}], "historical_form": "air-chartdan", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar derives cartdan from Welsh cerddin (rowan tree) via Pictish; acknowledges Pictish is unattested and relies on Welsh as nearest kin for explana"}
 {"_type": "etymology_element", "toponym_ref": "Vik@Scottish Highlands and Islands", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:vik"}], "historical_form": "vik", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Vik, a creek, bay, wick. This appears ter- minally in Gaelic as bhaig, aig, or ag. A common name is Sandwick, that is. Sand-bay. It is in Iceland, Sh"}
-{"_type": "toponym", "ref": "Blargie@Scottish Highlands and Islands", "modern_name": "Blargie", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Crathie@Scottish Highlands and Islands", "modern_name": "Crathie", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Kessok@Scotland", "modern_name": "Kessok", "region": "Scotland"}
+{"_type": "toponym", "ref": "Blargie@Scottish Highlands and Islands", "modern_name": "Blargie", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Crathie@Scottish Highlands and Islands", "modern_name": "Crathie", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kessok@Scotland", "modern_name": "Kessok", "region": "Scotland", "country": "Scotland"}
 {"_type": "toponym", "ref": "North@-", "modern_name": "North"}
-{"_type": "toponym", "ref": "Ovie@Scottish Highlands and Islands", "modern_name": "Ovie", "region": "Scottish Highlands and Islands"}
-{"_type": "toponym", "ref": "Perth@Scotland", "modern_name": "Perth", "region": "Scotland"}
+{"_type": "toponym", "ref": "Ovie@Scottish Highlands and Islands", "modern_name": "Ovie", "region": "Scottish Highlands and Islands", "country": "Scotland"}
+{"_type": "toponym", "ref": "Perth@Scotland", "modern_name": "Perth", "region": "Scotland", "country": "Scotland"}
 {"_type": "attestation", "toponym_ref": "Achnacoichen@Scottish Highlands and Islands", "form": "Achnacochine", "date_year": 1509, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "Ahriachan@Scottish Highlands and Islands", "form": "Abir-hacyn", "date_year": 1334, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "BeaUid@Scottish Highlands and Islands", "form": "BeaUid", "date_year": 1603, "source_doc": "macbain_1922_highlands_and_islands"}

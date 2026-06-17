@@ -365,110 +365,110 @@
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T06:16:19.177054+00:00", "completed_at": "2026-05-05T06:22:16.525314+00:00", "parsed_count": 51, "accepted": 18, "declined": 29, "rejected": 4, "by_failure": "{\"attested_form_not_in_body\": 3, \"element_count_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T07:17:35.305888+00:00", "completed_at": "2026-05-05T07:21:56.910316+00:00", "parsed_count": 33, "accepted": 2, "declined": 29, "rejected": 2, "by_failure": "{\"attested_form_not_in_body\": 2, \"attested_year_out_of_range\": 1}"}
 {"_type": "mining_run", "provider": "gemini", "model": "gemini-2.5-flash", "mode": "review", "started_at": "2026-05-05T09:21:52.813345+00:00", "completed_at": "2026-05-05T09:25:31.531371+00:00", "parsed_count": 31, "accepted": 0, "declined": 27, "rejected": 4, "by_failure": "{\"attested_form_not_in_body\": 3, \"form_not_in_body\": 1}"}
-{"_type": "toponym", "ref": "Bridge@Stirlingshire", "modern_name": "Bridge", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Called in the English Nennius@Stirlingshire", "modern_name": "Called in the English Nennius", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Clairinch@Stirlingshire", "modern_name": "Clairinch", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Colzium@Stirlingshire", "modern_name": "Colzium", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Cornton@Stirlingshire", "modern_name": "Cornton", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Corriegrennan@Stirlingshire", "modern_name": "Corriegrennan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Cowie@Stirlingshire", "modern_name": "Cowie", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Craigannet@Stirlingshire", "modern_name": "Craigannet", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Craigforth@Stirlingshire", "modern_name": "Craigforth", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Culcreuch@Stirlingshire", "modern_name": "Culcreuch", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Dalderse@Stirlingshire", "modern_name": "Dalderse", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Dalfoil@Stirlingshire", "modern_name": "Dalfoil", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Dalnair@Stirlingshire", "modern_name": "Dalnair", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Denovan@Stirlingshire", "modern_name": "Denovan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Diillatur@Stirlingshire", "modern_name": "Diillatur", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Divoties@Stirlingshire", "modern_name": "Divoties", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Douchlage@Stirlingshire", "modern_name": "Douchlage", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Drumquharn@Stirlingshire", "modern_name": "Drumquharn", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Drumtian@Stirlingshire", "modern_name": "Drumtian", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Drumwhassle@Stirlingshire", "modern_name": "Drumwhassle", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Drymen@Stirlingshire", "modern_name": "Drymen", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Dundaff@Stirlingshire", "modern_name": "Dundaff", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Duntreath@Stirlingshire", "modern_name": "Duntreath", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Ebroch@Stirlingshire", "modern_name": "Ebroch", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Edinbellie@Stirlingshire", "modern_name": "Edinbellie", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Elphinstone@Stirlingshire", "modern_name": "Elphinstone", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Faughlin Burn@Stirlingshire", "modern_name": "Faughlin Burn", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Fintry@Stirlingshire", "modern_name": "Fintry", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Forth@Stirlingshire", "modern_name": "Forth", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Garchell@Stirlingshire", "modern_name": "Garchell", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Gargunnock@Stirlingshire", "modern_name": "Gargunnock", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Gartchorrachan@Stirlingshire", "modern_name": "Gartchorrachan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Gartness@Stirlingshire", "modern_name": "Gartness", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Gavell@Stirlingshire", "modern_name": "Gavell", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Gillieshill@Stirlingshire", "modern_name": "Gillieshill", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Glen@Stirlingshire", "modern_name": "Glen", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Glorat@Stirlingshire", "modern_name": "Glorat", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Gonachan@Stirlingshire", "modern_name": "Gonachan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Grangemouth@Stirlingshire", "modern_name": "Grangemouth", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Green@Stirlingshire", "modern_name": "Green", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Greystale@Stirlingshire", "modern_name": "Greystale", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Guthrie@Stirlingshire", "modern_name": "Guthrie", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Haining@Stirlingshire", "modern_name": "Haining", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Hallglen@Stirlingshire", "modern_name": "Hallglen", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Herbertshire Castle@Stirlingshire", "modern_name": "Herbertshire Castle", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Hollandbush@Stirlingshire", "modern_name": "Hollandbush", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Hungry Hill@Stirlingshire", "modern_name": "Hungry Hill", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Inchcailloch@Stirlingshire", "modern_name": "Inchcailloch", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Inchterff@Stirlingshire", "modern_name": "Inchterff", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Inchyra Grange@Stirlingshire", "modern_name": "Inchyra Grange", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Inverallan@Stirlingshire", "modern_name": "Inverallan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Jaw and Jawcraig@Stirlingshire", "modern_name": "Jaw and Jawcraig", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Kersie@Stirlingshire", "modern_name": "Kersie", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Kilunan@Stirlingshire", "modern_name": "Kilunan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Kincaid@Stirlingshire", "modern_name": "Kincaid", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Kinkell@Stirlingshire", "modern_name": "Kinkell", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Kinnaird@Stirlingshire", "modern_name": "Kinnaird", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Kippen@Stirlingshire", "modern_name": "Kippen", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Ladysmill@Stirlingshire", "modern_name": "Ladysmill", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Lennoxtown@Stirlingshire", "modern_name": "Lennoxtown", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Livilands@Stirlingshire", "modern_name": "Livilands", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Loch Stank@Stirlingshire", "modern_name": "Loch Stank", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Malise@Stirlingshire", "modern_name": "Malise", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Monyabroch@Stirlingshire", "modern_name": "Monyabroch", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Muckcroft@Stirlingshire", "modern_name": "Muckcroft", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Mugdock@Stirlingshire", "modern_name": "Mugdock", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Muir@Stirlingshire", "modern_name": "Muir", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Mye@Stirlingshire", "modern_name": "Mye", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Not in Pont@Stirlingshire", "modern_name": "Not in Pont", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Ochil Hills@Stirlingshire", "modern_name": "Ochil Hills", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Oraigrostan@Stirlingshire", "modern_name": "Oraigrostan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Orayinch@Stirlingshire", "modern_name": "Orayinch", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Oulvachan@Stirlingshire", "modern_name": "Oulvachan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Peel of Gartfarren@Stirlingshire", "modern_name": "Peel of Gartfarren", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Pendreich@Stirlingshire", "modern_name": "Pendreich", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Pocknaive@Stirlingshire", "modern_name": "Pocknaive", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Polmaise@Stirlingshire", "modern_name": "Polmaise", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Polmont@Stirlingshire", "modern_name": "Polmont", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Port of Menteith@Stirlingshire", "modern_name": "Port of Menteith", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Powfoulis@Stirlingshire", "modern_name": "Powfoulis", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Quarrell@Stirlingshire", "modern_name": "Quarrell", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Quarter House@Stirlingshire", "modern_name": "Quarter House", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Queenzieburn@Stirlingshire", "modern_name": "Queenzieburn", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Randyford@Stirlingshire", "modern_name": "Randyford", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Rouchmute@Stirlingshire", "modern_name": "Rouchmute", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Satterhill@Stirlingshire", "modern_name": "Satterhill", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Sauchie@Stirlingshire", "modern_name": "Sauchie", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Sink@Stirlingshire", "modern_name": "Sink", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Skeogh@Stirlingshire", "modern_name": "Skeogh", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Slafarquhar@Stirlingshire", "modern_name": "Slafarquhar", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Slamannan@Stirlingshire", "modern_name": "Slamannan", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "St@Stirlingshire", "modern_name": "St", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Stenhousemuir@Stirlingshire", "modern_name": "Stenhousemuir", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Stirling@Stirlingshire", "modern_name": "Stirling", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Strathblane@Stirlingshire", "modern_name": "Strathblane", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Tamfour Hill@Stirlingshire", "modern_name": "Tamfour Hill", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Titlandhill@Stirlingshire", "modern_name": "Titlandhill", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Torbrex@Stirlingshire", "modern_name": "Torbrex", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Tough Hills@Stirlingshire", "modern_name": "Tough Hills", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Trienbeg@Stirlingshire", "modern_name": "Trienbeg", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Tullibody@Stirlingshire", "modern_name": "Tullibody", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Village@Stirlingshire", "modern_name": "Village", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Wallacerigg and Wallacestone@Stirlingshire", "modern_name": "Wallacerigg and Wallacestone", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Wyndford@Stirlingshire", "modern_name": "Wyndford", "region": "Stirlingshire"}
+{"_type": "toponym", "ref": "Bridge@Stirlingshire", "modern_name": "Bridge", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Called in the English Nennius@Stirlingshire", "modern_name": "Called in the English Nennius", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Clairinch@Stirlingshire", "modern_name": "Clairinch", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Colzium@Stirlingshire", "modern_name": "Colzium", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cornton@Stirlingshire", "modern_name": "Cornton", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Corriegrennan@Stirlingshire", "modern_name": "Corriegrennan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Cowie@Stirlingshire", "modern_name": "Cowie", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Craigannet@Stirlingshire", "modern_name": "Craigannet", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Craigforth@Stirlingshire", "modern_name": "Craigforth", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Culcreuch@Stirlingshire", "modern_name": "Culcreuch", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dalderse@Stirlingshire", "modern_name": "Dalderse", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dalfoil@Stirlingshire", "modern_name": "Dalfoil", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dalnair@Stirlingshire", "modern_name": "Dalnair", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Denovan@Stirlingshire", "modern_name": "Denovan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Diillatur@Stirlingshire", "modern_name": "Diillatur", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Divoties@Stirlingshire", "modern_name": "Divoties", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Douchlage@Stirlingshire", "modern_name": "Douchlage", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Drumquharn@Stirlingshire", "modern_name": "Drumquharn", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Drumtian@Stirlingshire", "modern_name": "Drumtian", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Drumwhassle@Stirlingshire", "modern_name": "Drumwhassle", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Drymen@Stirlingshire", "modern_name": "Drymen", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Dundaff@Stirlingshire", "modern_name": "Dundaff", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Duntreath@Stirlingshire", "modern_name": "Duntreath", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ebroch@Stirlingshire", "modern_name": "Ebroch", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Edinbellie@Stirlingshire", "modern_name": "Edinbellie", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Elphinstone@Stirlingshire", "modern_name": "Elphinstone", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Faughlin Burn@Stirlingshire", "modern_name": "Faughlin Burn", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Fintry@Stirlingshire", "modern_name": "Fintry", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Forth@Stirlingshire", "modern_name": "Forth", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Garchell@Stirlingshire", "modern_name": "Garchell", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gargunnock@Stirlingshire", "modern_name": "Gargunnock", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gartchorrachan@Stirlingshire", "modern_name": "Gartchorrachan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gartness@Stirlingshire", "modern_name": "Gartness", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gavell@Stirlingshire", "modern_name": "Gavell", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gillieshill@Stirlingshire", "modern_name": "Gillieshill", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Glen@Stirlingshire", "modern_name": "Glen", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Glorat@Stirlingshire", "modern_name": "Glorat", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Gonachan@Stirlingshire", "modern_name": "Gonachan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Grangemouth@Stirlingshire", "modern_name": "Grangemouth", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Green@Stirlingshire", "modern_name": "Green", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Greystale@Stirlingshire", "modern_name": "Greystale", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Guthrie@Stirlingshire", "modern_name": "Guthrie", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Haining@Stirlingshire", "modern_name": "Haining", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Hallglen@Stirlingshire", "modern_name": "Hallglen", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Herbertshire Castle@Stirlingshire", "modern_name": "Herbertshire Castle", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Hollandbush@Stirlingshire", "modern_name": "Hollandbush", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Hungry Hill@Stirlingshire", "modern_name": "Hungry Hill", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Inchcailloch@Stirlingshire", "modern_name": "Inchcailloch", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Inchterff@Stirlingshire", "modern_name": "Inchterff", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Inchyra Grange@Stirlingshire", "modern_name": "Inchyra Grange", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Inverallan@Stirlingshire", "modern_name": "Inverallan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Jaw and Jawcraig@Stirlingshire", "modern_name": "Jaw and Jawcraig", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kersie@Stirlingshire", "modern_name": "Kersie", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kilunan@Stirlingshire", "modern_name": "Kilunan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kincaid@Stirlingshire", "modern_name": "Kincaid", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kinkell@Stirlingshire", "modern_name": "Kinkell", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kinnaird@Stirlingshire", "modern_name": "Kinnaird", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kippen@Stirlingshire", "modern_name": "Kippen", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ladysmill@Stirlingshire", "modern_name": "Ladysmill", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Lennoxtown@Stirlingshire", "modern_name": "Lennoxtown", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Livilands@Stirlingshire", "modern_name": "Livilands", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Loch Stank@Stirlingshire", "modern_name": "Loch Stank", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Malise@Stirlingshire", "modern_name": "Malise", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Monyabroch@Stirlingshire", "modern_name": "Monyabroch", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Muckcroft@Stirlingshire", "modern_name": "Muckcroft", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Mugdock@Stirlingshire", "modern_name": "Mugdock", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Muir@Stirlingshire", "modern_name": "Muir", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Mye@Stirlingshire", "modern_name": "Mye", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Not in Pont@Stirlingshire", "modern_name": "Not in Pont", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Ochil Hills@Stirlingshire", "modern_name": "Ochil Hills", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Oraigrostan@Stirlingshire", "modern_name": "Oraigrostan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Orayinch@Stirlingshire", "modern_name": "Orayinch", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Oulvachan@Stirlingshire", "modern_name": "Oulvachan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Peel of Gartfarren@Stirlingshire", "modern_name": "Peel of Gartfarren", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Pendreich@Stirlingshire", "modern_name": "Pendreich", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Pocknaive@Stirlingshire", "modern_name": "Pocknaive", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Polmaise@Stirlingshire", "modern_name": "Polmaise", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Polmont@Stirlingshire", "modern_name": "Polmont", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Port of Menteith@Stirlingshire", "modern_name": "Port of Menteith", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Powfoulis@Stirlingshire", "modern_name": "Powfoulis", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Quarrell@Stirlingshire", "modern_name": "Quarrell", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Quarter House@Stirlingshire", "modern_name": "Quarter House", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Queenzieburn@Stirlingshire", "modern_name": "Queenzieburn", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Randyford@Stirlingshire", "modern_name": "Randyford", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Rouchmute@Stirlingshire", "modern_name": "Rouchmute", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Satterhill@Stirlingshire", "modern_name": "Satterhill", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sauchie@Stirlingshire", "modern_name": "Sauchie", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Sink@Stirlingshire", "modern_name": "Sink", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Skeogh@Stirlingshire", "modern_name": "Skeogh", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Slafarquhar@Stirlingshire", "modern_name": "Slafarquhar", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Slamannan@Stirlingshire", "modern_name": "Slamannan", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "St@Stirlingshire", "modern_name": "St", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stenhousemuir@Stirlingshire", "modern_name": "Stenhousemuir", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Stirling@Stirlingshire", "modern_name": "Stirling", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Strathblane@Stirlingshire", "modern_name": "Strathblane", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tamfour Hill@Stirlingshire", "modern_name": "Tamfour Hill", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Titlandhill@Stirlingshire", "modern_name": "Titlandhill", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Torbrex@Stirlingshire", "modern_name": "Torbrex", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tough Hills@Stirlingshire", "modern_name": "Tough Hills", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Trienbeg@Stirlingshire", "modern_name": "Trienbeg", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Tullibody@Stirlingshire", "modern_name": "Tullibody", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Village@Stirlingshire", "modern_name": "Village", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Wallacerigg and Wallacestone@Stirlingshire", "modern_name": "Wallacerigg and Wallacestone", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Wyndford@Stirlingshire", "modern_name": "Wyndford", "region": "Stirlingshire", "country": "Scotland"}
 {"_type": "etymology_element", "toponym_ref": "Bridge@Stirlingshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:drypan"}, {"ordinal": 1, "etymon_ref": "modern-english:dreep"}], "historical_form": "dreep", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar derives Sc. dreep from O.E. drypan; the modern place name Bridge appears to be a later reanalysis or translation of the Scots term. | Bridge ("}
 {"_type": "etymology_element", "toponym_ref": "Called in the English Nennius@Stirlingshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:lumon"}], "historical_form": "Lumon", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies root as Pictish 'Lumon', akin to Welsh 'llumon' (beacon) and Gaelic 'laom' (blaze of fire). Notes semantic appropriateness for Ben "}
 {"_type": "etymology_element", "toponym_ref": "Clairinch@Stirlingshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:clor"}, {"ordinal": 1, "etymon_ref": "celtic:innis"}], "historical_form": "clor-innis", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Clairinch (L. Lomond), c. 1225 Clarines. G. clor-innis, \" island like a table or plate,\" G. cZ#r, clair.", "attested_year": 1225}
@@ -593,10 +593,10 @@
 {"_type": "etymology_element", "toponym_ref": "Village@Stirlingshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:glcann"}], "historical_form": "glcann", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Village (Palkirk). 1458 Le Glen. Just above a deep glen, G. glcann.", "attested_year": 1458}
 {"_type": "etymology_element", "toponym_ref": "Wallacerigg and Wallacestone@Stirlingshire", "elements": [{"ordinal": 0, "etymon_ref": "modern-english:wallace"}, {"ordinal": 1, "etymon_ref": "modern-english:rigg"}, {"ordinal": 2, "etymon_ref": "modern-english:wallace"}, {"ordinal": 3, "etymon_ref": "modern-english:stone"}], "historical_form": "Wallace-rigg and Wallace-stone", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Both place names are commemorative, named after Sir William Wallace's battle of Falkirk (1298). The stone was erected in 1810. | Wallacerigg and Walla", "attested_year": 1298}
 {"_type": "etymology_element", "toponym_ref": "Wyndford@Stirlingshire", "elements": [{"ordinal": 0, "etymon_ref": "modern-english:wynd"}, {"ordinal": 1, "etymon_ref": "old-english:ford"}], "historical_form": "wynd-ford", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar notes 'ford' here means 'burn or brook' (obsolete sense), not a water crossing. Etymology depends on whether name is modern or older. | Wyndfo"}
-{"_type": "toponym", "ref": "Berks@Lancashire", "modern_name": "Berks", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Falkirk@Scotland", "modern_name": "Falkirk", "region": "Scotland"}
-{"_type": "toponym", "ref": "Kilsyth@Stirlingshire", "modern_name": "Kilsyth", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Wales@Yorkshire", "modern_name": "Wales", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Berks@Lancashire", "modern_name": "Berks", "region": "Lancashire", "country": "England"}
+{"_type": "toponym", "ref": "Falkirk@Scotland", "modern_name": "Falkirk", "region": "Scotland", "country": "Scotland"}
+{"_type": "toponym", "ref": "Kilsyth@Stirlingshire", "modern_name": "Kilsyth", "region": "Stirlingshire", "country": "Scotland"}
+{"_type": "toponym", "ref": "Wales@West Riding", "modern_name": "Wales", "country": "England", "region": "West Riding"}
 {"_type": "attestation", "toponym_ref": "Berks@Lancashire", "form": "Berks", "date_year": 871, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Craigforth@Stirlingshire", "form": "Oraighorth", "date_year": 1327, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Culcreuch@Stirlingshire", "form": "Oulcrewch", "date_year": 1680, "source_doc": "johnston_1904_stirlingshire"}
@@ -630,4 +630,4 @@
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Estriuelin", "date_year": 1295, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Bstrevelyn", "date_year": 1455, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Sterling", "date_year": 1682, "source_doc": "johnston_1904_stirlingshire"}
-{"_type": "attestation", "toponym_ref": "Wales@Yorkshire", "form": "Wales", "date_year": 1087, "source_doc": "johnston_1904_stirlingshire"}
+{"_type": "attestation", "toponym_ref": "Wales@West Riding", "form": "Wales", "date_year": 1087, "source_doc": "johnston_1904_stirlingshire"}
