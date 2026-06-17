@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.region_model import canonicalize_region
 from wyrd.generators.kenning.lexicon.regions import country_for_region
 
 if TYPE_CHECKING:
@@ -48,7 +49,13 @@ def _upsert_toponym(
     legacy row in place — same effect as running
     ``backfill_toponym_country`` against just that row. Idempotent +
     self-repairing across the migration window.
+
+    Region is validated + canonicalized fail-closed at this boundary
+    (wyrd-3q6m.3): an alias variant is folded to its canonical node, and an
+    England-scoped value that is neither a node nor an alias raises
+    ``RegionValidationError`` rather than silently creating a new bucket.
     """
+    region = canonicalize_region(region, country=country)
     if country is None:
         country = country_for_region(region)
     cur = db.conn.execute(
