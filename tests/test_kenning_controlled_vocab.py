@@ -83,9 +83,31 @@ def test_language_canonical_passes():
 
 
 def test_celtic_branches_are_canonical():
-    # wyrd-xdam.1: brittonic/goidelic are canonical languages; celtic is retained
-    # as the transitional umbrella until the .2 re-tag.
+    # wyrd-xdam.1: brittonic/goidelic/celtic are canonical ROLLUP tokens.
     for lang in ("brittonic", "goidelic", "celtic"):
+        assert lang in LANGUAGE_CANONICAL
+        assert canonicalize_language(lang) == lang
+
+
+def test_celtic_fine_grained_are_canonical():
+    # wyrd-xdam.4: the fine-grained cultural-boundary languages are first-class
+    # canonical (the real data); the rollup tokens above are for display grouping.
+    for lang in (
+        "welsh",
+        "old-welsh",
+        "middle-welsh",
+        "modern-welsh",
+        "cornish",
+        "breton",
+        "old-breton",
+        "middle-breton",
+        "irish",
+        "old-irish",
+        "middle-irish",
+        "scottish-gaelic",
+        "manx",
+        "proto-celtic",
+    ):
         assert lang in LANGUAGE_CANONICAL
         assert canonicalize_language(lang) == lang
 
@@ -102,8 +124,9 @@ def test_language_none_or_empty_raises():
 
 
 def test_language_unknown_is_rejected():
-    # a wiktextract code zoo value, and a not-yet-added place-name language
-    for lang in ("gmw-cfr", "af", "welsh"):
+    # a wiktextract code-zoo value, a 2-letter code, and a not-yet-added
+    # place-name language (basque is a real language we haven't mined sources for)
+    for lang in ("gmw-cfr", "af", "basque"):
         with pytest.raises(LanguageValidationError):
             canonicalize_language(lang)
 

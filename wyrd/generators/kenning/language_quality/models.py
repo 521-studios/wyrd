@@ -130,10 +130,11 @@ DEFAULT_LANGUAGES: tuple[str, ...] = (
     "modern-english",
     "middle-english",
     "old-english",
-    # Celtic branch-level (wyrd-xdam.3) — wired in now; their report DATA (etymon
-    # counts) populates after an L3 rebuild from the branch-tagged L2. The
-    # fine-grained welsh/irish/… below stay until the wiktextract reconciliation
-    # (wyrd-xdam.4).
+    # Celtic — the branch rollups (wyrd-xdam.3; their report DATA populates after an
+    # L3 rebuild) AND the fine-grained cultural-boundary languages below, which are
+    # the real data and now first-class canonical (wyrd-xdam.4 — no longer
+    # transitional). Both grains are reported; the fine-grained roll up to a branch
+    # for display via era.cells.LANGUAGE_TO_FAMILY.
     "brittonic",
     "goidelic",
     "modern-welsh",
@@ -151,17 +152,15 @@ DEFAULT_LANGUAGES: tuple[str, ...] = (
 )
 
 
-# Fine-grained Celtic languages the dashboard still walks for wiktextract-tagged
-# data. They are deliberately NOT in controlled_vocab.LANGUAGE_CANONICAL — Celtic
-# is modeled at BRANCH level there (brittonic/goidelic, wyrd-xdam). This set is
-# TRANSITIONAL: wyrd-xdam.2 re-tags the L2 'celtic' etymons to a branch and .3
-# swaps DEFAULT_LANGUAGES to the branch model, after which it empties. The
-# consistency tripwire (test_default_languages_within_canonical_or_transitional)
-# pins exactly this gap, so a NEW non-canonical language can't drift into
-# DEFAULT_LANGUAGES unnoticed.
-TRANSITIONAL_NONCANONICAL_LANGUAGES: frozenset[str] = frozenset(
-    {"modern-welsh", "welsh", "old-welsh", "irish", "old-irish", "scottish-gaelic", "breton"}
-)
+# Fine-grained Celtic languages that are in DEFAULT_LANGUAGES but NOT canonical.
+# EMPTY as of wyrd-xdam.4: the fine-grained Celtic names (welsh/irish/etc.) are now
+# first-class canonical in controlled_vocab.LANGUAGE_CANONICAL — they are the real
+# cultural-boundary data, rolling up to a branch only for display
+# (era.cells.LANGUAGE_TO_FAMILY). So nothing in DEFAULT_LANGUAGES is non-canonical
+# and nothing is transitional. The tripwire
+# (test_default_languages_within_canonical_or_transitional) still pins the set, so a
+# NEW non-canonical language can't drift into DEFAULT_LANGUAGES unnoticed.
+TRANSITIONAL_NONCANONICAL_LANGUAGES: frozenset[str] = frozenset()
 
 
 # Number of top English tags to use as the reference semantic profile.
