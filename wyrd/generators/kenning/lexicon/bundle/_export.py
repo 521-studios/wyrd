@@ -21,6 +21,7 @@ trade-off without touching the SQL.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 from typing import Any, Literal
 
@@ -372,8 +373,10 @@ def _build_canonical_rollup(
     Equivalent to ``_build_family_rollup`` TODAY (``canonical_morpheme_id``
     reproduces the legacy rollup — the u6fn.4 fidelity gate, 0 violations); the
     point of switching is that once 1a's dormant binds apply, this reflects the
-    new merges and the legacy rollup does not. GUARDS against an unpopulated graph
-    (the projection must have run) rather than silently under-clustering.
+    new merges and the legacy rollup does not. When the canonical graph is
+    UNPOPULATED (the projection hasn't run) it falls back to the legacy rollup
+    with a warning — legacy is full clustering, so the fallback never
+    under-clusters; production always projects (rebuild --with-enrichment).
     """
     legacy_members, legacy_root_of = _build_family_rollup(db)
 
@@ -389,17 +392,23 @@ def _build_canonical_rollup(
     bound = db.conn.execute(
         "SELECT id, canonical_morpheme_id FROM etymon WHERE canonical_morpheme_id IS NOT NULL"
     ).fetchall()
-    # Guard only when there's something that SHOULD be bound but isn't — i.e. a
-    # multi-member legacy family with no binds means the projection never ran
-    # (silent under-cluster risk). An empty / all-singleton DB has nothing to
-    # cluster, so it legitimately returns the singleton rollup (no false raise).
-    if not bound and any(len(m) > 1 for m in legacy_members.values()):
-        raise RuntimeError(
-            "canonical_morpheme_id is unpopulated — run `project-canonical --apply` "
-            "(or `rebuild-from-jsonl --with-enrichment`) before exporting. The canonical "
-            "rollup is the authoritative identity source (wyrd-b2mf); exporting off an "
-            "empty canonical graph would silently under-cluster."
-        )
+    if not bound:
+        # The canonical graph isn't populated (the projection hasn't run). Fall back
+        # to the legacy rollup — which is FULL clustering (byte-identical to canonical
+        # today), so this never under-clusters; it only fails to reflect any not-yet-
+        # applied 1a binds, of which an unprojected DB has none. Production always runs
+        # the projection (the rebuild --with-enrichment terminal pass), so the fallback
+        # is a dev/test convenience — surfaced via a warning (not silent), never a raise
+        # that would make the export unusable on any unprojected DB (wyrd-b2mf).
+        if any(len(m) > 1 for m in legacy_members.values()):
+            warnings.warn(
+                "canonical_morpheme_id is unpopulated — falling back to the legacy "
+                "merged_into_id/lemma_id rollup. Run `project-canonical --apply` (or "
+                "`rebuild-from-jsonl --with-enrichment`) to export off the authoritative "
+                "canonical layer (wyrd-b2mf).",
+                stacklevel=2,
+            )
+        return legacy_members, legacy_root_of
     hub_of: dict[int, str] = {r["id"]: _hub_root(r["canonical_morpheme_id"]) for r in bound}
 
     # Group by canonical family, tracking which LEGACY roots land in each. Iterate
@@ -426,7 +435,11 @@ def _build_canonical_rollup(
     for key, roots in family_legacy_roots.items():
         rep = min(roots, key=lambda r: (form_key.get(r, ("", "")), r))
         members = members_by_family[key]
-        members_by_root[rep] = members
+        # .extend, not assign: if a legacy family were split across hubs (members
+        # bound to different canonical families), both halves share the same legacy
+        # root as rep — a plain assign would drop one half. Union under the rep
+        # instead (degrades a split to the legacy grouping; no member is ever lost).
+        members_by_root.setdefault(rep, []).extend(members)
         for eid in members:
             rep_of_etymon[eid] = rep
 

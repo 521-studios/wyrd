@@ -119,16 +119,20 @@ def test_canonical_rollup_reflects_a_bind_legacy_does_not(tmp_path):
     db.close()
 
 
-def test_guard_raises_when_canonical_graph_unpopulated(tmp_path):
-    # No fold/projection run -> canonical_morpheme_id all NULL -> guard, not
-    # silent under-clustering.
+def test_falls_back_to_legacy_when_canonical_graph_unpopulated(tmp_path):
+    # No fold/projection run -> canonical_morpheme_id all NULL. The export must
+    # stay usable: fall back to the legacy rollup (full clustering -> never
+    # under-clusters) with a warning, NOT raise. (Production always projects.)
     db = _db(tmp_path)
     a = _etymon(db, "tun")
     b = _etymon(db, "Tun")
     _set_merged(db, b, a)
     db.commit()
-    with pytest.raises(RuntimeError, match="unpopulated"):
-        _build_canonical_rollup(db)
+    with pytest.warns(UserWarning, match="unpopulated"):
+        canon_m, canon_root = _build_canonical_rollup(db)
+    legacy_m, legacy_root = _build_family_rollup(db)
+    assert _partition(canon_m) == _partition(legacy_m)  # identical to legacy
+    assert canon_root(b) == legacy_root(b) == a
     db.close()
 
 
