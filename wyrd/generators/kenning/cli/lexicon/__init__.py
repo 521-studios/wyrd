@@ -150,6 +150,9 @@ from wyrd.generators.kenning.cli.lexicon import merge_lemmas as _merge_lemmas_mo
 from wyrd.generators.kenning.cli.lexicon import migrate as _migrate_module
 from wyrd.generators.kenning.cli.lexicon import mine_attestations as _mine_attestations_module
 from wyrd.generators.kenning.cli.lexicon import (
+    mine_cognate_descents as _mine_cognate_descents_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
     mine_element_glosses as _mine_element_glosses_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
@@ -325,6 +328,7 @@ _mine_attestations_module.add_to(lexicon)
 _mine_empirical_baselines_module.add_to(lexicon)
 _mine_genitive_priors_module.add_to(lexicon)
 _mine_same_morpheme_binds_module.add_to(lexicon)
+_mine_cognate_descents_module.add_to(lexicon)
 _mine_fantasy_name_module.add_to(lexicon)
 _mine_llm_module.add_to(lexicon)
 _mine_element_glosses_module.add_to(lexicon)
