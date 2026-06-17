@@ -128,10 +128,15 @@ enrichment commands after rebuild.
   / `toponym` / `toponym_etymology` — the canonicalization graph (D49/D50,
   wyrd-u6fn). L3-derived but from a **new L2 source**: the
   `data/mining/canonicalization/` append-only assertion streams (mint /
-  bind / merge-canonical / canonical-label predicates). Re-derivable by
-  re-running the canonicalization projection (wyrd-u6fn.3, **pending**), so
-  these are **empty** until that pass ships. Schema in alembic migration
-  `0019`; the L2 assertion streams are the source of truth and replay for free.
+  bind / merge-canonical / canonical-label predicates). Re-derived by the
+  **`project-canonical`** pass (wyrd-u6fn.3, D50.6) — the terminal L3 derivation
+  in `run_full_enrichment` — so `rebuild-from-jsonl --with-enrichment` rebuilds
+  them for free (deterministic + idempotent, reversible via `clear-enrichment
+  --stage=canonical`). Schema in alembic migration `0019`; the L2 assertion
+  streams are the source of truth and replay for free. **Additive** until
+  wyrd-u6fn.4: the projection populates this graph but does not yet migrate the
+  legacy `merged_into_id` / `cognate_id` / `lemma_id` readers onto the canonical
+  FK join, so it is currently sparse only because few assertions are authored yet.
 
 ### Views (always derived)
 
@@ -174,9 +179,15 @@ Listed in `run_full_enrichment` execution order:
 | `derive-pronunciation-ipa` | `etymon.pronunciation_ipa` (deterministic G2P fill + replays `_pronunciation.jsonl` LLM tier) | G2P + `llm-ipa-v1` | ✅ wyrd-vm8t |
 | `tag-phonological-vectors` | `phonological_vector` (JSON) | `compute-phon-vector-v1` | ✅ wyrd-kq7w.1 |
 | `project-period-forms` | (`etymon_period_form` table) | hardcoded rules | ✅ wyrd-hidb |
+| `project-canonical` | `canonical_*` tables + `canonical_*_id` binds (from the L2 assertion streams) | deterministic projection | ✅ wyrd-u6fn.3 |
 
-All sixteen passes run via `run_full_enrichment` in the canonical order
-above (`lexicon enrich` and `lexicon rebuild-from-jsonl --with-enrichment`).
+All seventeen passes run via `run_full_enrichment` in the canonical order
+above. The first sixteen run for both `lexicon enrich` and `lexicon
+rebuild-from-jsonl --with-enrichment`; `project-canonical` is the terminal pass
+and runs **only when a `canonicalization_dir` is supplied** — which
+`rebuild-from-jsonl` passes (`data/mining`) but bare `lexicon enrich` does not,
+so the wipe-and-rebuild path is covered while a plain enrich leaves the canonical
+graph untouched.
 The curation-slot appliers (curation / gloss-suppressions / gloss-additions /
 etymon-splits / collapses / element-glosses / tag-additions) run AFTER
 auto-curation and BEFORE the L3 derivations so the derivations see the

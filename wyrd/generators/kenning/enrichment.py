@@ -35,6 +35,7 @@ import re
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from .lexicon import (
@@ -44,6 +45,7 @@ from .lexicon import (
     link_lemmas,
     project_period_forms,
 )
+from .lexicon.canonicalization_projection import project_canonical
 from .lexicon.english_shaping import derive_english_shaped_all
 from .lexicon.phonological_vector_enrichment import (
     tag_phonological_vectors_all,
@@ -1329,6 +1331,7 @@ def run_full_enrichment(
     element_gloss_state: list[dict[str, str]] | None = None,
     tag_state: dict[str, dict[str, Any]] | None = None,
     pronunciation_state: dict[tuple[str, str], str] | None = None,
+    canonicalization_dir: Path | None = None,
     skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
     """Run the canonical L3 enrichment chain (wyrd-hidb Phase 2).
@@ -1412,6 +1415,7 @@ def run_full_enrichment(
     pronunciation_result: dict[str, Any] | None = None
     phonological_vector_result: dict[str, Any] | None = None
     period_form_result: dict[str, Any] | None = None
+    canonical_result: dict[str, Any] | None = None
 
     if not skip_l3_derivations:
         decompose_result = decompose_all(db, apply=apply)
@@ -1438,6 +1442,23 @@ def run_full_enrichment(
         order.append("tag-phonological-vectors")
         period_form_result = project_period_forms(db, apply=apply)
         order.append("project-period-forms")
+        # Terminal pass: project the L2 canonicalization assertions into the L3
+        # collapse graph (wyrd-u6fn.3, D50.6). Additive — does not touch the legacy
+        # merged_into_id/cognate_id/lemma_id readers (that cutover is u6fn.4). Only
+        # runs when a mining dir is supplied (rebuild-from-jsonl passes it).
+        if canonicalization_dir is not None:
+            canonical_projection = project_canonical(
+                db, mining_dir=canonicalization_dir, apply=apply
+            )
+            canonical_result = {
+                "minted": canonical_projection.minted,
+                "bound": canonical_projection.bound,
+                "merged": canonical_projection.merged,
+                "labels": canonical_projection.labels,
+                "conflicts": len(canonical_projection.conflicts),
+                "skipped_unsupported": canonical_projection.skipped_unsupported,
+            }
+            order.append("project-canonical")
 
     return {
         "order": order,
@@ -1467,6 +1488,7 @@ def run_full_enrichment(
         "english_shaped": english_shaped_result,
         "phonological_vectors": phonological_vector_result,
         "period_forms": period_form_result,
+        "canonical": canonical_result,
     }
 
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from wyrd.generators.kenning.lexicon.canonicalization_projection import clear_canonical_graph
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
 
@@ -89,6 +90,7 @@ _ALL_DERIVED_STAGES = frozenset(
         "attested-years",
         "attestations",
         "period-forms",
+        "canonical",
     }
 )
 _VALID_STAGES = _ALL_DERIVED_STAGES | {"all-derived"}
@@ -110,6 +112,11 @@ def _populate_clear_counts(db: LexiconDB, stages: set[str], counts: dict) -> Non
                 "SELECT COUNT(*) FROM toponym_etymology WHERE attested_year IS NOT NULL"
             ).fetchone()[0]
         )
+    if "canonical" in stages:
+        counts["canonical_nodes_to_clear"] = sum(
+            db.conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]  # noqa: S608 — fixed tuple
+            for t in ("canonical_morpheme", "canonical_place", "canonical_sense")
+        )
 
 
 def _apply_stage_clears(db: LexiconDB, stages: set[str]) -> None:
@@ -126,6 +133,8 @@ def _apply_stage_clears(db: LexiconDB, stages: set[str]) -> None:
         if "text-match" not in stages:
             db.conn.execute("UPDATE etymon_text_match SET attested_year = NULL")
         db.conn.execute("UPDATE toponym_etymology SET attested_year = NULL")
+    if "canonical" in stages:
+        clear_canonical_graph(db)
     db.commit()
 
 
@@ -156,7 +165,11 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
       period-forms    - DELETE FROM etymon_period_form
                         (drops every project-period-forms output;
                         wyrd-unuo Phase 3.3)
-      all-derived     - all seven of the above
+      canonical       - NULL the canonical_*_id binding columns + DELETE
+                        the canonical_morpheme/place/sense + canonical_label
+                        tables (drops the project-canonical L2->L3
+                        projection; wyrd-u6fn.3 / D50.6)
+      all-derived     - all eight of the above
 
     Mining evidence (etymon, etymon_citation, etymon_gloss, etymon_tag,
     etymon_descent, toponym, toponym_etymology, toponym_etymology_element)
@@ -187,6 +200,7 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         "attested_years_to_clear": 0,
         "attestation_rows_to_clear": 0,
         "period_form_rows_to_clear": 0,
+        "canonical_nodes_to_clear": 0,
     }
     _populate_clear_counts(db, stages, counts)
 

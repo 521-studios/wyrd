@@ -30,6 +30,7 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
             "attested-years",
             "attestations",
             "period-forms",
+            "canonical",
             "all-derived",
         ]
     ),
@@ -42,7 +43,9 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
         "etymon_text_match.attested_year (D5-1/wyrd-3ux), 'attestations' "
         "drops every toponym_attestation row (wyrd-skm Phase 3.0a), "
         "'period-forms' drops every etymon_period_form row "
-        "(wyrd-unuo Phase 3.3), 'all-derived' does all seven."
+        "(wyrd-unuo Phase 3.3), 'canonical' drops the project-canonical "
+        "L2->L3 projection (canonical_* tables + binding columns; "
+        "wyrd-u6fn.3/D50.6), 'all-derived' does all eight."
     ),
 )
 @click.option(
@@ -89,6 +92,11 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
     if result.get("period_form_rows_to_clear"):
         click.echo(
             f"  {verb} {result['period_form_rows_to_clear']} etymon_period_form rows",
+            err=True,
+        )
+    if result.get("canonical_nodes_to_clear"):
+        click.echo(
+            f"  {verb} {result['canonical_nodes_to_clear']} canonical nodes (+ binds/labels)",
             err=True,
         )
     if not apply_changes:
