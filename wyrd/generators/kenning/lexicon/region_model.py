@@ -82,14 +82,23 @@ def _model() -> _EnglandModel:
     otherwise let an invalid region slip through :func:`canonicalize_region`.
     """
     text = resources.files(_DATA_PACKAGE).joinpath(_FILENAME).read_text(encoding="utf-8")
-    return _build_model(yaml.safe_load(text))
+    try:
+        parsed = yaml.safe_load(text)
+    except yaml.YAMLError as e:  # name the file — _model() is cached, so this is permanent
+        raise ValueError(f"{_FILENAME} is not valid YAML: {e}") from e
+    return _build_model(parsed)
 
 
 def _build_model(m: object) -> _EnglandModel:
     """Validate a parsed region-model mapping into an immutable ``_EnglandModel``.
 
     Split out from :func:`_model` as a pure (uncached, no-I/O) function so the
-    fail-loud guards are directly testable without a malformed YAML fixture.
+    fail-loud guards are directly testable without a malformed YAML fixture. The
+    guards (all raise ``ValueError``): mapping shape; exactly one country node;
+    unique alias sources (a dict would silently drop a duplicate); alias sources
+    disjoint from nodes/zones/quarantine (an overlap is a contradiction — a node
+    folded away, or a quarantine value folded instead of rejected); alias targets
+    are valid region nodes. Any of these would corrupt ``canonicalize_region``.
     """
     if not isinstance(m, dict):
         raise ValueError(f"{_FILENAME} did not parse as a mapping")
@@ -97,7 +106,7 @@ def _build_model(m: object) -> _EnglandModel:
         nodes = m.get("nodes") or []
         valid = frozenset(n["canonical"] for n in nodes if n["level"] in _REGION_LEVELS)
         country_nodes = [n["canonical"] for n in nodes if n["level"] == "country"]
-        aliases = {a["from"]: a["to"] for a in (m.get("aliases") or [])}
+        alias_pairs = [(a["from"], a["to"]) for a in (m.get("aliases") or [])]
         zones = frozenset(z["value"] for z in (m.get("deferred_zones") or []))
         quarantine = frozenset(q["value"] for q in (m.get("quarantine") or []))
     except (KeyError, TypeError) as e:
@@ -107,6 +116,16 @@ def _build_model(m: object) -> _EnglandModel:
     if len(country_nodes) != 1:
         raise ValueError(
             f"{_FILENAME} must have exactly one country-level node, got {country_nodes}"
+        )
+    sources = [frm for frm, _ in alias_pairs]
+    dup_sources = {s for s in sources if sources.count(s) > 1}
+    if dup_sources:
+        raise ValueError(f"{_FILENAME} has duplicate alias sources: {dup_sources}")
+    aliases = dict(alias_pairs)
+    bad_sources = set(aliases) & (valid | zones | quarantine)
+    if bad_sources:
+        raise ValueError(
+            f"{_FILENAME} alias sources collide with nodes/zones/quarantine: {bad_sources}"
         )
     bad_targets = {frm: to for frm, to in aliases.items() if to not in valid}
     if bad_targets:

@@ -8,9 +8,11 @@ tmp-path DB.
 
 from __future__ import annotations
 
+from importlib import resources
 from pathlib import Path
 
 import pytest
+import yaml
 
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.ingest import _upsert_toponym
@@ -19,6 +21,7 @@ from wyrd.generators.kenning.lexicon.region_model import (
     _build_model,
     canonicalize_region,
 )
+from wyrd.generators.kenning.lexicon.regions import known_regions
 
 # --- pure canonicalizer ------------------------------------------------------
 
@@ -168,6 +171,53 @@ def test_build_model_rejects_malformed_entry():
     cryptic KeyError."""
     with pytest.raises(ValueError, match="malformed entry"):
         _build_model({"nodes": [{"level": "county"}]})  # missing 'canonical'
+
+
+def test_build_model_rejects_duplicate_alias_source():
+    """A duplicate alias `from` would silently overwrite in a dict — caught."""
+    bad = {
+        "nodes": [
+            {"canonical": "England", "level": "country"},
+            {"canonical": "Kent", "level": "county"},
+            {"canonical": "Surrey", "level": "county"},
+        ],
+        "aliases": [
+            {"from": "X", "to": "Kent", "kind": "code"},
+            {"from": "X", "to": "Surrey", "kind": "code"},
+        ],
+    }
+    with pytest.raises(ValueError, match="duplicate alias sources"):
+        _build_model(bad)
+
+
+def test_build_model_rejects_alias_source_colliding_with_node():
+    """An alias `from` that is also a canonical node (or zone/quarantine) is a
+    contradiction — the node would be silently folded away."""
+    bad = {
+        "nodes": [
+            {"canonical": "England", "level": "country"},
+            {"canonical": "Kent", "level": "county"},
+            {"canonical": "Surrey", "level": "county"},
+        ],
+        "aliases": [{"from": "Kent", "to": "Surrey", "kind": "code"}],  # 'Kent' is a node
+    }
+    with pytest.raises(ValueError, match="alias sources collide"):
+        _build_model(bad)
+
+
+def test_every_england_node_has_a_country_mapping():
+    """Cross-file invariant: every canonical England region node in the model is
+    present in regions.py's region→country map, so canonicalize_region never
+    strands country=NULL for a valid England region. Fixture-free."""
+    text = (
+        resources.files("wyrd.generators.kenning.data").joinpath("regions_england.yaml").read_text()
+    )
+    model = yaml.safe_load(text)
+    region_nodes = {
+        n["canonical"] for n in model["nodes"] if n["level"] in ("county", "subdivision")
+    }
+    missing = region_nodes - known_regions()
+    assert not missing, f"England nodes missing from regions.py _REGION_TO_COUNTRY: {missing}"
 
 
 # --- ingest-boundary integration --------------------------------------------
