@@ -71,6 +71,10 @@ def _emit(findings, *, show_all: bool, top: int) -> None:
         capped = shown[:top] if top > 0 else shown
         for f in capped:
             label = f.value if f.value is not None else "<NULL>"
+            # region findings are grouped by (region, country) — show the country
+            # so the same region name under two countries doesn't look duplicated.
+            if f.context:
+                label = f"{label} @ {f.context}"
             click.echo(f"  [{f.severity:5}] {label:32} {f.count:>7}  ({f.status})")
         if len(capped) < len(shown):
             click.echo(f"  … and {len(shown) - len(capped)} more (--top 0 for all)")

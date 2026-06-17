@@ -118,6 +118,17 @@ def test_scan_region_no_country_uses_model_recognition():
     assert sev["Yorkshire"] == "ok"
 
 
+def test_region_findings_carry_country_context():
+    """A region grouped under two countries yields two findings disambiguated by
+    .context (so the report doesn't show confusing same-name duplicate rows)."""
+    conn = _conn([("A", "England", "BUK"), ("B", "Wales", "BUK")], [])
+    buk = [f for f in scan(conn)["region"] if f.value == "BUK"]
+    assert {f.context for f in buk} == {"England", "Wales"}
+    sev_by_country = {f.context: f.severity for f in buk}
+    assert sev_by_country["England"] == "stale"  # alias under England
+    assert sev_by_country["Wales"] == "info"  # non-england scope
+
+
 def test_scan_language_severities():
     conn = _conn([], [("a", "old-english"), ("b", "klingon"), ("c", None), ("d", "   ")])
     f = scan(conn)

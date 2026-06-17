@@ -58,6 +58,7 @@ class VocabFinding:
     count: int  # rows carrying this value
     status: str  # dimension-specific classification
     severity: Severity
+    context: str | None = None  # region findings carry their country (scope disambiguator)
 
 
 def _classify_country(value: str | None) -> tuple[str, Severity]:
@@ -111,7 +112,11 @@ def scan_regions(conn: sqlite3.Connection) -> list[VocabFinding]:
         "GROUP BY region, country ORDER BY COUNT(*) DESC",
     ):
         status = classify_region(value, country=country)
-        out.append(VocabFinding("region", value, n, status, _REGION_SEVERITY.get(status, "dirty")))
+        out.append(
+            VocabFinding(
+                "region", value, n, status, _REGION_SEVERITY.get(status, "dirty"), context=country
+            )
+        )
     return out
 
 
