@@ -45,6 +45,9 @@ def test_classify_region_buckets():
     assert classify_region("Cornwall", country="Wales") == "non-england"
     assert classify_region(None) == "empty"
     assert classify_region("   ") == "empty"
+    # a padded country still scopes as England (whitespace-tolerant), so a bad
+    # England region is caught rather than mis-classified non-england.
+    assert classify_region("Freedonia", country=" England ") == "unknown"
 
 
 # --- scan severity classification -------------------------------------------

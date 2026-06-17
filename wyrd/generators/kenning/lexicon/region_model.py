@@ -139,6 +139,20 @@ def _build_model(m: object) -> _EnglandModel:
     return _EnglandModel(valid, country_nodes[0], MappingProxyType(aliases), zones, quarantine)
 
 
+def _england_scoped(region: str, country: str | None) -> bool:
+    """Whether ``region`` is England-scoped (so the England model governs it).
+
+    An explicit ``country`` is authoritative and whitespace-tolerant (a padded
+    ``" England "`` still scopes as England); a blank/whitespace-only country
+    counts as absent. With no country, fall back to the region→country map plus
+    the model's own recognition. Shared by :func:`canonicalize_region` (the gate)
+    and :func:`classify_region` (the report) so the two can't disagree on scope.
+    """
+    if country and country.strip():
+        return country.strip() == "England"
+    return country_for_region(region) == "England" or _model().recognizes(region)
+
+
 def canonicalize_region(region: str | None, *, country: str | None = None) -> str | None:
     """Validate + canonicalize a region value at the ingest boundary.
 
@@ -170,11 +184,7 @@ def canonicalize_region(region: str | None, *, country: str | None = None) -> st
     if not region:  # None / "" / whitespace-only — normalize a missing region to NULL
         return None
     model = _model()
-    if country is not None:
-        england_scoped = country == "England"
-    else:
-        england_scoped = country_for_region(region) == "England" or model.recognizes(region)
-    if not england_scoped:
+    if not _england_scoped(region, country):
         # Non-England dimension (Scotland/Wales/…) or an unknown with no England
         # signal — out of scope here; its model is wyrd-3q6m.5.
         return region
@@ -215,11 +225,7 @@ def classify_region(region: str | None, *, country: str | None = None) -> Region
     if not region:
         return "empty"
     model = _model()
-    if country is not None:
-        england_scoped = country == "England"
-    else:
-        england_scoped = country_for_region(region) == "England" or model.recognizes(region)
-    if not england_scoped:
+    if not _england_scoped(region, country):
         return "non-england"
     if region in model.aliases:
         return "alias"
