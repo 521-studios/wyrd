@@ -262,7 +262,19 @@ def extract_cross_scholar_passthroughs(  # noqa: V103 — stream-1 mining entry 
                 sample_toponyms=tuple(sorted(name[t] for t in tids)[:5]),
             )
         )
-    out.sort(key=lambda p: (-p.support, p.composite_form, p.constituent_forms))
+    # Sort fully by content (cluster keys included) — folded forms can tie across
+    # distinct clusters (homograph surfaces), and the fallback would be dict-
+    # insertion = the ORDER-BY-less SQL row order, which is not rebuild-stable.
+    # The cluster keys make the order content-determined (D36.9 / seed repro).
+    out.sort(
+        key=lambda p: (
+            -p.support,
+            p.composite_form,
+            p.constituent_forms,
+            p.composite_cluster,
+            p.constituent_clusters,
+        )
+    )
     return out
 
 

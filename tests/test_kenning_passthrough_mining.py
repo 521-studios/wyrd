@@ -14,6 +14,7 @@ from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.decomposition_grader import load_cluster_index
 from wyrd.generators.kenning.lexicon.passthrough_mining import (
     METHOD,
+    Passthrough,
     extract_cross_scholar_passthroughs,
     passthrough_assertions,
 )
@@ -114,3 +115,73 @@ def test_assertions_are_deterministic(tmp_path):
     a2 = passthrough_assertions(extract_cross_scholar_passthroughs(db), source="test")
     db.close()
     assert [a.id for a in a1] == [a.id for a in a2]
+
+
+def _fresh(tmp_path):
+    init_schema(tmp_path / "lexicon.db")
+    db = LexiconDB(tmp_path / "lexicon.db")
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    return db
+
+
+def test_no_passthrough_when_composite_surface_does_not_segment(tmp_path):
+    # Gloss-blind guard: a coarse/fine count mismatch whose composite surface does
+    # NOT word-break into the constituent reflexes is rejected (not mined). This is
+    # what stops barton -> bar+ton: only a surface that actually tiles is recorded.
+    db = _fresh(tmp_path)
+    spec = _etymon(db, "Spec")
+    p1 = _etymon(db, "aa")
+    p2 = _etymon(db, "bb")
+    comp = _etymon(db, "zzz")  # 'zzz' cannot tile into 'aa' + 'bb'
+    tid = db.conn.execute(
+        "INSERT INTO toponym (modern_name, country) VALUES ('Zzztown', 'England')"
+    ).lastrowid
+    _breakdown(db, tid, [spec, comp])  # coarse
+    _breakdown(db, tid, [spec, p1, p2])  # fine
+    db.commit()
+    passthroughs = extract_cross_scholar_passthroughs(db)
+    db.close()
+    assert passthroughs == []
+
+
+def test_support_two_yields_high_confidence(tmp_path):
+    # Two toponyms attest ington -> ing+tūn -> support 2 -> pooled into one record,
+    # confidence 'high' (single attestation would be 'medium').
+    db = _fresh(tmp_path)
+    ing = _etymon(db, "ing")
+    tun = _etymon(db, "tūn")
+    ington = _etymon(db, "ington")
+    _reflex(db, "ton", tun)
+    for name in ("Aldington", "Bilington"):
+        spec = _etymon(db, name[:3])
+        tid = db.conn.execute(
+            "INSERT INTO toponym (modern_name, country) VALUES (?, 'England')", (name,)
+        ).lastrowid
+        _breakdown(db, tid, [spec, ington])
+        _breakdown(db, tid, [spec, ing, tun])
+    db.commit()
+    passthroughs = extract_cross_scholar_passthroughs(db)
+    db.close()
+    assert len(passthroughs) == 1
+    assert passthroughs[0].support == 2
+    assertions = passthrough_assertions(passthroughs, source="t")
+    assert assertions and all(a.confidence == "high" for a in assertions)
+
+
+def test_self_loop_constituent_is_skipped():
+    # If a representative composite etymon coincides with a constituent etymon,
+    # passthrough_assertions skips that edge (D50 no-self-loop) instead of letting
+    # validate() raise.
+    p = Passthrough(
+        composite_cluster="c1",
+        composite_etymon=7,
+        constituent_clusters=("c2", "c3"),
+        constituent_etymons=(7, 9),  # 7 == the composite etymon -> self-loop
+        composite_form="x",
+        constituent_forms=("a", "b"),
+        support=1,
+        sample_toponyms=("T",),
+    )
+    assertions = passthrough_assertions([p], source="t")
+    assert len(assertions) == 1
+    assert assertions[0].object.ref == "9"

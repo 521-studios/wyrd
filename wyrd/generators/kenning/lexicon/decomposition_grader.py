@@ -227,6 +227,9 @@ def _attributed_clusters(
     out: list[frozenset[str]] = []
     for surface in surfaces:
         clusters = index.clusters_for(surface)
+        # A surface usually resolves to one passthrough composite; if it maps to
+        # several (homograph composites), expand the lexicographically-smallest
+        # deterministically — a rare edge whose exact pick doesn't bias the grade.
         hit = sorted(c for c in clusters if c in passthrough_map) if passthrough_map else []
         if hit:
             out.extend(frozenset({c}) for c in passthrough_map[hit[0]])
