@@ -219,9 +219,6 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import (
     report_wikipedia_backfill as _report_wikipedia_backfill_module,
 )
-from wyrd.generators.kenning.cli.lexicon import (
-    vocab_health as _vocab_health_module,
-)
 from wyrd.generators.kenning.cli.lexicon import reverse_search as _reverse_search_module
 from wyrd.generators.kenning.cli.lexicon import (
     reverse_search_toponyms as _reverse_search_toponyms_module,
@@ -234,6 +231,9 @@ from wyrd.generators.kenning.cli.lexicon import (
     tag_phonological_vectors as _tag_phonological_vectors_module,
 )
 from wyrd.generators.kenning.cli.lexicon import verify_bulk_sources as _verify_bulk_sources_module
+from wyrd.generators.kenning.cli.lexicon import (
+    vocab_health as _vocab_health_module,
+)
 
 
 @click.group("lexicon")
