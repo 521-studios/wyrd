@@ -200,3 +200,33 @@ def test_cli_apply_is_idempotent(tmp_path):
     # Idempotent: re-running writes nothing new.
     assert stream.read_text().count("\n") == lines_after_first
     assert "skipped" in second.output
+
+
+def test_mixed_group_per_variant_confidence(tmp_path):
+    # One shipped target bound by both a cluster variant (high) and a gloss-only
+    # variant (medium). The group summary is high, but each bind must carry its
+    # OWN confidence — the medium variant must NOT be promoted to high.
+    db = _db(tmp_path)
+    wic = _etymon(db, "wic")
+    _ship(db, wic)
+    _gloss(db, wic, "dwelling")
+    wic_cluster = _etymon(db, "Wic", cognate=wic)  # same cluster -> high
+    _breakdown_only(db, wic_cluster, "Wicton")
+    wic_gloss = _etymon(db, "Wíc")  # different surface string, folds to "wic"
+    _unclustered(db, wic_gloss)  # different cluster, gloss-only -> medium
+    _gloss(db, wic_gloss, "dwelling")
+    _breakdown_only(db, wic_gloss, "Wicham")
+    db.commit()
+
+    groups = mine_same_morpheme_binds(db)
+    assert len(groups) == 1
+    g = groups[0]
+    assert g.confidence == "high"  # group summary
+    assert g.breakdown_confidences == {wic_cluster: "high", wic_gloss: "medium"}
+
+    assertions = bind_assertions(groups, source="t")
+    conf = {a.subject.ref: a.confidence for a in assertions if a.predicate == "bind"}
+    db.close()
+    assert conf[str(wic)] == "high"  # shipped IS the morpheme
+    assert conf[str(wic_cluster)] == "high"
+    assert conf[str(wic_gloss)] == "medium"  # NOT leaked up to high

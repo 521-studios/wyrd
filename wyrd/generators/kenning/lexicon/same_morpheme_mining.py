@@ -134,18 +134,28 @@ def _load_rows(db: LexiconDB) -> list[EtymonRow]:
 class BindGroup:
     """A same-morpheme identity: one shipped etymon + the breakdown-only variants
     bound to it. ``canonical_parts`` are the rebuild-stable content key for the
-    minted node; ``confidence`` is ``high`` (shared cluster) or ``medium`` (gloss-
-    only). ``member_etymons`` are all observations bound to the canonical node."""
+    minted node. ``breakdown_confidences`` is each breakdown variant's OWN match
+    confidence (``high`` = shared cluster, ``medium`` = gloss-only); ``confidence``
+    is the group summary (``high`` if any variant is high). Per-bind authoring uses
+    the per-variant confidence so a gloss-only variant isn't overstated as ``high``
+    just because a cluster-matched sibling shares the node. ``member_etymons`` are
+    all observations bound to the canonical node (shipped first)."""
 
     canonical_parts: tuple[str, str]
     shipped_etymon: int
     breakdown_etymons: tuple[int, ...]
+    breakdown_confidences: dict[int, Confidence]
     confidence: Confidence
     rep_form: str
 
     @property
     def member_etymons(self) -> tuple[int, ...]:
         return (self.shipped_etymon, *self.breakdown_etymons)
+
+    def confidence_for(self, etymon_id: int) -> Confidence:
+        """This member's own bind confidence — ``high`` for the shipped etymon
+        (it IS the morpheme), else the variant's recorded match confidence."""
+        return self.breakdown_confidences.get(etymon_id, "high")
 
 
 def _match_shipped(x: EtymonRow, shipped: list[EtymonRow]) -> tuple[EtymonRow, Confidence] | None:
@@ -173,8 +183,10 @@ def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:
     for row in rows:
         by_surface[row.folded].append(row)
 
-    # shipped_etymon_id -> (confidence, [breakdown etymon ids])
-    matched: dict[int, tuple[Confidence, list[int]]] = {}
+    # shipped_etymon_id -> {breakdown_etymon_id: its own match confidence}. Per
+    # variant, NOT a single group confidence — else a gloss-only (medium) variant
+    # would be overstated as high just because a cluster-matched sibling is high.
+    matched: dict[int, dict[int, Confidence]] = defaultdict(dict)
     rep: dict[int, EtymonRow] = {}
     for group in by_surface.values():
         shipped = [r for r in group if r.is_shipped]
@@ -187,14 +199,11 @@ def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:
             if hit is None:
                 continue
             y, confidence = hit
-            existing = matched.setdefault(y.etymon_id, (confidence, []))
-            # high beats medium if a stronger match for the same target appears.
-            conf = "high" if "high" in (existing[0], confidence) else "medium"
-            matched[y.etymon_id] = (conf, [*existing[1], x.etymon_id])
+            matched[y.etymon_id][x.etymon_id] = confidence
             rep[y.etymon_id] = y
 
     out: list[BindGroup] = []
-    for shipped_id, (confidence, breakdown_ids) in matched.items():
+    for shipped_id, breakdown_confidences in matched.items():
         y = rep[shipped_id]
         out.append(
             BindGroup(
@@ -204,8 +213,9 @@ def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:
                 # two distinct shipped morphemes onto one node.
                 canonical_parts=(y.language, y.canonical_form),
                 shipped_etymon=shipped_id,
-                breakdown_etymons=tuple(sorted(set(breakdown_ids))),
-                confidence=confidence,
+                breakdown_etymons=tuple(sorted(breakdown_confidences)),
+                breakdown_confidences=dict(breakdown_confidences),
+                confidence="high" if "high" in breakdown_confidences.values() else "medium",
                 rep_form=y.canonical_form,
             )
         )
@@ -225,7 +235,7 @@ def bind_assertions(groups: list[BindGroup], *, source: str, actor: str = "") ->
         node = NodeRef("canonical_morpheme", node_id)
         rationale = (
             f"same-morpheme uplift: breakdown variant(s) of shipped '{g.rep_form}' "
-            f"({len(g.breakdown_etymons)} bound; {g.confidence} confidence)"
+            f"({len(g.breakdown_etymons)} bound)"
         )
         out.append(
             Assertion(
@@ -245,7 +255,9 @@ def bind_assertions(groups: list[BindGroup], *, source: str, actor: str = "") ->
                     subject=NodeRef("etymon", str(etymon_id)),
                     object=node,
                     qualifiers={"kind": "same-morpheme"},
-                    confidence=g.confidence,
+                    # Per-variant confidence: a gloss-only variant stays medium even
+                    # if a cluster-matched sibling shares the node (shipped = high).
+                    confidence=g.confidence_for(etymon_id),
                     method=METHOD,
                     source=source,
                     actor=actor,
