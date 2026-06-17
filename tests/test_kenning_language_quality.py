@@ -47,6 +47,9 @@ from wyrd.generators.kenning.language_quality import (
     report_to_json,
     report_to_markdown,
 )
+
+# TRANSITIONAL_NONCANONICAL_LANGUAGES is a transitional internal (removed at
+# wyrd-xdam.3), intentionally NOT re-exported from the package — import direct.
 from wyrd.generators.kenning.language_quality.models import TRANSITIONAL_NONCANONICAL_LANGUAGES
 from wyrd.generators.kenning.lexicon.controlled_vocab import LANGUAGE_CANONICAL
 
@@ -1982,7 +1985,7 @@ def test_default_languages_within_canonical_or_transitional():
     Two directional checks so the failure message points the right way — notably
     at wyrd-xdam.2, when 'celtic' is retired from LANGUAGE_CANONICAL it becomes
     non-canonical and must be either dropped from DEFAULT_LANGUAGES or added to
-    TRANSITIONAL_NONCANONICAL_LANGUAGES (the second assertion will name it)."""
+    TRANSITIONAL_NONCANONICAL_LANGUAGES (the first assertion will name it)."""
     noncanonical = set(DEFAULT_LANGUAGES) - set(LANGUAGE_CANONICAL)
     transitional = set(TRANSITIONAL_NONCANONICAL_LANGUAGES)
 

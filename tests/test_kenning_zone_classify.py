@@ -45,20 +45,21 @@ def test_morpheme_zone_celtic_branches():
     assert morpheme_zone("goidelic") == "celtic"
 
 
-def test_morpheme_zone_celtic_period_variants():
-    # the fine-grained Celtic period variants (in ERA_CHAINS / DEFAULT_LANGUAGES)
-    # must NOT fall through to the anglo-saxon default (wyrd-xdam.1)
-    for lang in (
-        "welsh",
-        "old-welsh",
-        "middle-welsh",
-        "modern-welsh",
-        "irish",
-        "old-irish",
-        "middle-irish",
-        "scottish-gaelic",
-        "breton",
-    ):
+def test_celtic_languages_classify_to_celtic_zone():
+    """wyrd-xdam.1 sync tripwire: EVERY brythonic/goidelic language in the era
+    source-of-truth (cells.LANGUAGE_TO_FAMILY) must classify to the celtic zone —
+    otherwise morpheme_zone silently drops it to the anglo-saxon default. Pins the
+    zones.yaml morpheme_languages list against LANGUAGE_TO_FAMILY so the two can't
+    drift (this would have caught the missing manx / old-breton / middle-breton)."""
+    from wyrd.generators.kenning.era.cells import LANGUAGE_TO_FAMILY
+
+    celtic_langs = {
+        lang
+        for lang, family in LANGUAGE_TO_FAMILY.items()
+        if family in ("brythonic", "goidelic") and lang != "celtic_mix"
+    }
+    assert celtic_langs, "expected some brythonic/goidelic languages"
+    for lang in celtic_langs:
         assert morpheme_zone(lang) == "celtic", lang
 
 
