@@ -7,6 +7,13 @@ from pathlib import Path
 import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
+from wyrd.generators.kenning.lexicon.vocab_health import (
+    VIOLATION_SEVERITIES,
+    Severity,
+    scan_countries,
+    scan_languages,
+    scan_regions,
+)
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -41,8 +48,10 @@ def _emit_report(conn, top: int) -> None:
     _section_totals(conn)
     _section_consensus(conn)
     _section_top_etymons(conn, top)
-    _section_languages(conn)
+    _section_languages(conn, top)
     _section_confidence(conn)
+    _section_countries(conn)
+    _section_regions(conn, top)
     _section_toponyms_per_source(conn)
     _section_disagreements(conn, top)
 
@@ -97,13 +106,46 @@ def _section_top_etymons(conn, top: int) -> None:
     click.echo("")
 
 
-def _section_languages(conn) -> None:
-    click.echo("=== languages of mined etymons ===")
-    rows = conn.execute(
-        "SELECT language, COUNT(*) AS n FROM etymon GROUP BY language ORDER BY n DESC"
-    ).fetchall()
-    for r in rows:
-        click.echo(f"  {r['language']:20} {r['n']:>6}")
+def _mark(severity: Severity) -> str:
+    """Inline marker for a stale/dirty value; ``ok`` and ``info`` read clean. The
+    ``info`` bucket is everything expected/out-of-scope — NULLs, deferred cultural
+    zones (e.g. ``England (Danelaw)``), and non-England regions with no model yet
+    (the full mapping is ``vocab_health._REGION_SEVERITY`` + the _classify_* funcs)."""
+    return f"  [{severity}]" if severity in VIOLATION_SEVERITIES else ""
+
+
+def _section_languages(conn, top: int) -> None:
+    top = max(0, top)  # a negative --top would otherwise slice from the end
+    findings = scan_languages(conn)
+    noncanon = sum(1 for f in findings if f.severity in VIOLATION_SEVERITIES)
+    click.echo(
+        f"=== top {top} languages of mined etymons "
+        f"({len(findings)} distinct, {noncanon} non-canonical) ==="
+    )
+    for f in findings[:top]:
+        click.echo(f"  {(f.value or '(null)'):20} {f.count:>6}{_mark(f.severity)}")
+    click.echo("")
+
+
+def _section_countries(conn) -> None:
+    # No top cap (unlike regions/languages): the canonical country set is tiny
+    # (~10), so the full distribution always fits.
+    click.echo("=== toponym countries ===")
+    for f in scan_countries(conn):
+        click.echo(f"  {(f.value or '(null)'):28} {f.count:>7}{_mark(f.severity)}")
+    click.echo("")
+
+
+def _section_regions(conn, top: int) -> None:
+    top = max(0, top)  # a negative --top would otherwise slice from the end
+    findings = scan_regions(conn)
+    noncanon = sum(1 for f in findings if f.severity in VIOLATION_SEVERITIES)
+    click.echo(
+        f"=== top {top} toponym regions ({len(findings)} distinct, {noncanon} non-canonical) ==="
+    )
+    for f in findings[:top]:
+        label = f"{f.value or '(null)'} @ {f.context}" if f.context else (f.value or "(null)")
+        click.echo(f"  {label:34} {f.count:>7}{_mark(f.severity)}")
     click.echo("")
 
 
