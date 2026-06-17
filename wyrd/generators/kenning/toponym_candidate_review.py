@@ -43,6 +43,7 @@ from wyrd.generators.kenning.lexicon.region_model import (
     RegionValidationError,
     canonicalize_region,
 )
+from wyrd.generators.kenning.lexicon.regions import country_for_region
 
 from .toponym_reverse_search import _normalize_for_match
 
@@ -451,12 +452,19 @@ def _commit_create_row(
     else:
         region = None
     # Fail-closed Class-A guards (wyrd-fxxf): canonicalize the operator-supplied
-    # region + country. A bad value rejects THIS row (record_error) rather than
-    # aborting the whole review commit — the review-tool analogue of the parser
-    # ingest's hard raise (wyrd-3q6m.3/.5).
+    # region + country, COUNTRY FIRST (wyrd-61p9) so the canonical country scopes
+    # the region check (uniform with the other ingest guards). A bad value rejects
+    # THIS row (record_error) rather than aborting the whole review commit — the
+    # review-tool analogue of the parser ingest's hard raise (wyrd-3q6m.3/.5).
     try:
-        region = canonicalize_region(region, country=country)
         country = canonicalize_country(country)
+        region = canonicalize_region(region, country=country)
+        if country is None and region is not None:
+            # derive the country from the canonical region, same as the parser
+            # ingest's _upsert_toponym — so an operator CREATE with a region but no
+            # country doesn't insert a NULL country (wyrd-61p9; regions.py yields
+            # canonical countries, so no re-canonicalization is needed).
+            country = country_for_region(region)
     except (RegionValidationError, CountryValidationError) as exc:
         report.record_error(ctx.idx, str(exc))
         return

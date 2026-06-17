@@ -514,6 +514,32 @@ def test_commit_create_country_fold_enables_collision_demote():
     assert conn.execute("SELECT count(*) c FROM toponym").fetchone()["c"] == 1
 
 
+def test_commit_create_derives_country_from_region():
+    """wyrd-61p9: a CREATE with a region but no country derives the canonical
+    country (England for Suffolk) rather than inserting a NULL country — uniform
+    with the parser ingest's _upsert_toponym."""
+    conn = _make_conn()
+    rows = [_create_row("Ixworth", "Suffolk", country=None)]
+    report = commit_triage_decisions(conn, rows, apply=True)
+    assert report.created == 1
+    row = conn.execute("SELECT country, region FROM toponym WHERE modern_name='Ixworth'").fetchone()
+    assert (row["country"], row["region"]) == ("England", "Suffolk")
+
+
+def test_commit_create_canonicalizes_country_before_region(monkeypatch):
+    """wyrd-61p9: country-first ordering in the review guard too — a (hypothetical)
+    alias that folds to England makes a bad England region scoped + rejected.
+    Pins the order for this guard (region-first would have passed it through)."""
+    import wyrd.generators.kenning.lexicon.controlled_vocab as cv
+
+    monkeypatch.setitem(cv.COUNTRY_ALIASES, "Albion", "England")
+    conn = _make_conn()
+    rows = [_create_row("Nowhere", "Borsetshire", country="Albion")]
+    report = commit_triage_decisions(conn, rows, apply=True)
+    assert report.created == 0 and report.errors == 1
+    assert conn.execute("SELECT count(*) c FROM toponym").fetchone()["c"] == 0
+
+
 def test_commit_create_unique_collision_demotes_to_map():
     """If an existing toponym already has (modern_name, country,
     region), CREATE converts to MAP — prevents accidental duplicate
