@@ -16,6 +16,7 @@ from wyrd.generators.kenning.canonicalization import (
 )
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+    ProjectionResult,
     clear_canonical_graph,
     project_canonical,
 )
@@ -587,3 +588,264 @@ def test_merge_order_invariance_multi_component(tmp_path):
         return snap
 
     assert run("fwd") == run("rev")
+
+
+# --- wyrd-u6fn.4: folding the deterministic legacy identity clustering ---
+
+
+def _set_merged(db, loser, winner):
+    db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (winner, loser))
+
+
+def _set_lemma(db, inflection, lemma):
+    db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (lemma, inflection))
+
+
+def test_fold_legacy_identity_family(tmp_path):
+    # An OCR variant (merged_into_id) and an inflection (lemma_id) of a root must
+    # all land on one canonical_morpheme hub — reproducing today's clustering with
+    # no committed assertions on disk (fold_legacy default True).
+    db = _db(tmp_path)
+    root = _etymon(db, "tun")
+    ocr = _etymon(db, "tvn")
+    _set_merged(db, ocr, root)
+    infl = _etymon(db, "tuns")
+    _set_lemma(db, infl, root)
+    db.commit()
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    cm = _morpheme_id(db, root)
+    assert cm is not None
+    assert _morpheme_id(db, ocr) == cm  # OCR variant shares the hub
+    assert _morpheme_id(db, infl) == cm  # inflection shares the hub
+    assert res.bound == {"etymon": 3}
+    db.close()
+
+
+def test_fold_singleton_left_unbound(tmp_path):
+    db = _db(tmp_path)
+    a = _etymon(db, "ford")  # no merge / lemma -> its own identity
+    db.commit()
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert _morpheme_id(db, a) is None  # NULL, exactly like merged_into_id IS NULL today
+    db.close()
+
+
+def test_legacy_bind_kinds(tmp_path):
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        _legacy_identity_assertions,
+    )
+
+    db = _db(tmp_path)
+    root = _etymon(db, "burh")
+    ocr = _etymon(db, "buruh")
+    _set_merged(db, ocr, root)
+    infl = _etymon(db, "burhs")
+    _set_lemma(db, infl, root)
+    db.commit()
+    kinds = {
+        a.subject.ref: a.qualifiers["kind"]
+        for a in _legacy_identity_assertions(db, ProjectionResult())
+        if a.predicate == "bind"
+    }
+    db.close()
+    assert kinds[str(root)] == "same-morpheme"
+    assert kinds[str(ocr)] == "same-morpheme"  # OCR variant = same morpheme
+    assert kinds[str(infl)] == "inflection-of"  # inflection of the lemma
+
+
+def test_identity_fidelity_gate(tmp_path):
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        assess_identity_fidelity,
+    )
+
+    db = _db(tmp_path)
+    r1, v1 = _etymon(db, "tun"), _etymon(db, "tvn")
+    _set_merged(db, v1, r1)
+    r2, i2 = _etymon(db, "ham"), _etymon(db, "hams")
+    _set_lemma(db, i2, r2)
+    db.commit()
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    rep = assess_identity_fidelity(db)
+    db.close()
+    assert rep.legacy_families == 2
+    assert rep.faithful == 2
+    assert rep.violations == 0
+
+
+def test_fold_composes_with_authored_bind(tmp_path):
+    # An authored bind (1a-style) to the SAME content-keyed node id as the legacy
+    # fold composes onto one hub — not a conflict (same node id => same identity).
+    from wyrd.generators.kenning.canonicalization import mint_canonical_id
+
+    db = _db(tmp_path)
+    root = _etymon(db, "tun")
+    ocr = _etymon(db, "tvn")
+    _set_merged(db, ocr, root)
+    extra = _etymon(db, "Tun")  # singleton, but authored-bound below
+    db.commit()
+    node_id = mint_canonical_id("canonical_morpheme", "old-english", "tun")  # root's key
+    _author(tmp_path, _mint(node_id), _bind(extra, node_id))
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert _morpheme_id(db, root) == node_id
+    assert _morpheme_id(db, ocr) == node_id
+    assert _morpheme_id(db, extra) == node_id  # authored bind landed on the legacy hub
+    db.close()
+
+
+def test_fold_legacy_off_is_pure_assertion(tmp_path):
+    # fold_legacy=False ignores the columns — only authored assertions apply.
+    db = _db(tmp_path)
+    root = _etymon(db, "tun")
+    ocr = _etymon(db, "tvn")
+    _set_merged(db, ocr, root)
+    db.commit()
+    project_canonical(db, mining_dir=tmp_path, apply=True, fold_legacy=False)
+    assert _morpheme_id(db, root) is None  # not folded
+    assert _morpheme_id(db, ocr) is None
+    db.close()
+
+
+def test_fidelity_detects_violation(tmp_path):
+    # If a legacy family's members do NOT all share a canonical group, the gate
+    # must report a violation + sample it (not silently pass).
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        assess_identity_fidelity,
+    )
+
+    db = _db(tmp_path)
+    r, v = _etymon(db, "tun"), _etymon(db, "tvn")
+    _set_merged(db, v, r)
+    db.commit()
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    # Break the binding for one member after the fact -> a split family.
+    db.conn.execute("UPDATE etymon SET canonical_morpheme_id = NULL WHERE id = ?", (v,))
+    db.commit()
+    rep = assess_identity_fidelity(db)
+    db.close()
+    assert rep.violations == 1
+    assert rep.faithful == 0
+    assert len(rep.sample_violations) == 1
+    assert rep.sample_violations[0].legacy_root == r
+
+
+def test_fidelity_holds_when_log_merge_joins_families(tmp_path):
+    # A logged merge-canonical may JOIN two legacy families onto one hub; fidelity
+    # must still pass (canonical may join, never split) — exercises canonical_root.
+    from wyrd.generators.kenning.canonicalization import mint_canonical_id
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        assess_identity_fidelity,
+    )
+
+    db = _db(tmp_path)
+    r1, v1 = _etymon(db, "tun"), _etymon(db, "tvn")
+    _set_merged(db, v1, r1)
+    r2, v2 = _etymon(db, "ham"), _etymon(db, "hvm")
+    _set_merged(db, v2, r2)
+    db.commit()
+    n1 = mint_canonical_id("canonical_morpheme", "old-english", "tun")
+    n2 = mint_canonical_id("canonical_morpheme", "old-english", "ham")
+    _author(
+        tmp_path,
+        Assertion(
+            predicate="merge-canonical",
+            subject=NodeRef("canonical_morpheme", n2),
+            object=NodeRef("canonical_morpheme", n1),
+        ),
+    )
+    project_canonical(db, mining_dir=tmp_path, apply=True)
+    rep = assess_identity_fidelity(db)
+    db.close()
+    assert rep.violations == 0  # both families still each map to one (joined) group
+    assert rep.faithful == 2
+
+
+def test_fold_member_with_both_merge_and_lemma_is_same_morpheme(tmp_path):
+    # A member carrying BOTH merged_into_id and lemma_id is an OCR variant first
+    # (same-morpheme), not an inflection — pin the precedence.
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        _legacy_identity_assertions,
+    )
+
+    db = _db(tmp_path)
+    root = _etymon(db, "wic")
+    both = _etymon(db, "wicc")
+    _set_merged(db, both, root)
+    _set_lemma(db, both, root)
+    db.commit()
+    res = ProjectionResult()
+    kinds = {
+        a.subject.ref: a.qualifiers["kind"]
+        for a in _legacy_identity_assertions(db, res)
+        if a.predicate == "bind"
+    }
+    db.close()
+    assert kinds[str(both)] == "same-morpheme"
+
+
+def test_fold_root_without_canonical_form_warns(tmp_path):
+    # A multi-member family whose root has an empty canonical_form is skipped, but
+    # observably (a warning), not silently.
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        _legacy_identity_assertions,
+    )
+
+    db = _db(tmp_path)
+    root = _etymon(db, "x")
+    ocr = _etymon(db, "x2")
+    _set_merged(db, ocr, root)
+    db.conn.execute("UPDATE etymon SET canonical_form = '' WHERE id = ?", (root,))
+    db.commit()
+    res = ProjectionResult()
+    out = _legacy_identity_assertions(db, res)
+    db.close()
+    assert out == []  # family dropped
+    assert any("no canonical_form" in w for w in res.warnings)  # but observably
+
+
+def _reflex_link(db, parent, child):
+    # A curated reflex-link inheritance edge (COLLAPSE_VARIANT_SOURCE_ID) — the
+    # third family mechanism _build_family_rollup follows (cross-era same morpheme).
+    db.conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('collapse', 'collapse')")
+    db.conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id, confidence) "
+        "VALUES (?, ?, 'inheritance', 'collapse', 'high')",
+        (parent, child),
+    )
+
+
+def test_reflex_link_member_is_same_morpheme(tmp_path):
+    # A member pulled into the family only via a reflex-link edge (no merged_into,
+    # no lemma_id) is a cross-era SAME morpheme — bind kind must be same-morpheme,
+    # not inflection-of.
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import (
+        _legacy_identity_assertions,
+    )
+
+    db = _db(tmp_path)
+    root = _etymon(db, "burh")
+    reflex = _etymon(db, "borough", language="modern-english")
+    _reflex_link(db, root, reflex)
+    db.commit()
+    res = ProjectionResult()
+    kinds = {
+        a.subject.ref: a.qualifiers["kind"]
+        for a in _legacy_identity_assertions(db, res)
+        if a.predicate == "bind"
+    }
+    db.close()
+    assert kinds[str(reflex)] == "same-morpheme"  # reflex, not inflection
+    assert kinds[str(root)] == "same-morpheme"
+
+
+def test_skip_warning_surfaces_through_project_canonical(tmp_path):
+    # The empty-canonical_form warning must reach project_canonical's
+    # ProjectionResult.warnings (the seam the CLI echoes), not just the helper.
+    db = _db(tmp_path)
+    root = _etymon(db, "z")
+    ocr = _etymon(db, "z2")
+    _set_merged(db, ocr, root)
+    db.conn.execute("UPDATE etymon SET canonical_form = '' WHERE id = ?", (root,))
+    db.commit()
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    db.close()
+    assert any("no canonical_form" in w for w in res.warnings)
