@@ -186,15 +186,16 @@ What it does, in order:
    `_reflexes.jsonl`, `_fantasy_morphemes.jsonl`, `_curation.jsonl`,
    `_collapses.jsonl`.
    Later file order wins on scalar conflicts; glosses/tags union.
-4. Runs the 17-pass `run_full_enrichment` chain (because
+4. Runs the 16-pass `run_full_enrichment` chain (because
    `--with-enrichment`): `normalize-ocr → link-lemmas → [curation /
    gloss-suppress / gloss-add / etymon-splits / collapses / element-glosses /
    tag-additions] → decompose →
-   project-descent → cluster-cognates → classify-stratum → derive-english-shaped →
-   derive-pronunciation-ipa → tag-phonological-vectors → project-period-forms`
-   (then the terminal `project-canonical`). `project-descent` runs BEFORE
-   `cluster-cognates` so mined cognate-descent edges feed the `cognate_id` rollup
-   in the same run.
+   cluster-cognates → classify-stratum → derive-english-shaped →
+   derive-pronunciation-ipa → tag-phonological-vectors → project-period-forms`.
+   When the canonicalization streams are supplied (which `rebuild-from-jsonl`
+   does), two more **conditional** passes run: **`project-descent`** right before
+   `cluster-cognates` (so mined cognate-descent edges feed the `cognate_id` rollup
+   in the same run) and the terminal **`project-canonical`**.
 
 This is the slow part (hours — it's L1 bulk over ~2.4M etymons plus the
 enrichment passes). Background it / `tee` it and watch the log.
@@ -207,7 +208,7 @@ a typo'd ref; expected post-prune orphans are fine.
 > Step-by-step alternative (if you want to run enrichment separately):
 > ```bash
 > wyrd kenning lexicon rebuild-from-jsonl --jsonl-dir data/mining
-> wyrd kenning lexicon enrich --apply         # the full 16-pass chain
+> wyrd kenning lexicon enrich --apply         # the 16-pass base chain (no canonicalization projections)
 > wyrd kenning lexicon enrichment-status       # verify per-pass coverage
 > # re-run one pass with --force, e.g.:
 > wyrd kenning lexicon classify-stratum --apply --force
