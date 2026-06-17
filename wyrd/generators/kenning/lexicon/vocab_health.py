@@ -36,6 +36,10 @@ from wyrd.generators.kenning.lexicon.region_model import RegionStatus, classify_
 # stale/dirty violation filter both reference these same four.
 Severity = Literal["ok", "stale", "dirty", "info"]
 
+# The severities that count as a controlled-vocab violation (vs ok / expected-info).
+# Single source of truth for the --strict gate and the report's non-canonical counts.
+VIOLATION_SEVERITIES: frozenset[Severity] = frozenset({"stale", "dirty"})
+
 # region-classification status -> severity. Total over RegionStatus; the lookup
 # below defaults to "dirty" so a future classify_region bucket surfaces as a
 # violation rather than crashing the canary.
@@ -144,4 +148,4 @@ def scan(conn: sqlite3.Connection) -> dict[str, list[VocabFinding]]:
 
 def violations(findings: dict[str, list[VocabFinding]]) -> list[VocabFinding]:
     """The stale + dirty findings across all dimensions — what ``--strict`` gates on."""
-    return [f for fs in findings.values() for f in fs if f.severity in ("stale", "dirty")]
+    return [f for fs in findings.values() for f in fs if f.severity in VIOLATION_SEVERITIES]

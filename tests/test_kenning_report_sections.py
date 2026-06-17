@@ -22,6 +22,7 @@ CREATE TABLE etymon (id INTEGER PRIMARY KEY, canonical_form TEXT, language TEXT)
 
 def _conn(toponyms=(), etymons=()) -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row  # mirror production (_readonly_lexicon sets Row)
     conn.executescript(_DDL)
     conn.executemany("INSERT INTO toponym(modern_name, country, region) VALUES (?,?,?)", toponyms)
     conn.executemany("INSERT INTO etymon(canonical_form, language) VALUES (?,?)", etymons)
@@ -51,6 +52,8 @@ def test_section_regions_shows_country_context_and_marks(capsys):
         toponyms=[
             ("A", "England", "Yorkshire"),  # ok node
             ("B", "England", "BUK"),  # stale alias
+            ("C", "Wales", "Anglesey"),  # info: non-England, no model yet
+            ("D", None, "Surrey"),  # ok node, NULL country → no "@" context
         ]
     )
     _section_regions(conn, top=15)
@@ -58,7 +61,13 @@ def test_section_regions_shows_country_context_and_marks(capsys):
     assert "Yorkshire @ England" in out  # region carries its country context
     assert "BUK @ England" in out
     assert "[stale]" in out
-    assert "non-canonical" in out  # the header summary
+    assert "1 non-canonical" in out  # only BUK counts; Anglesey(info)/Surrey(ok) excluded
+    # info region renders unmarked
+    anglesey = next(line for line in out.splitlines() if "Anglesey" in line)
+    assert "[" not in anglesey
+    # NULL-country region renders without the "@ <country>" suffix (no-context branch)
+    surrey = next(line for line in out.splitlines() if "Surrey" in line)
+    assert "@" not in surrey
 
 
 def test_section_regions_caps_to_top(capsys):
@@ -102,6 +111,16 @@ def test_section_languages_caps_and_flags_noncanonical(capsys):
     # capped to top 2 by count → only 2 value rows under the header
     value_lines = [line for line in out.splitlines() if line.startswith("  ")]
     assert len(value_lines) == 2
+
+
+def test_section_dirty_value_renders_marker(capsys):
+    """A dirty value renders the [dirty] marker on its row (not just counted in
+    the header) — pins _mark on the dirty path, distinct from [stale]."""
+    conn = _conn(etymons=[("a", "klingon"), ("b", "old-english")])
+    _section_languages(conn, top=15)
+    out = capsys.readouterr().out
+    klingon = next(line for line in out.splitlines() if "klingon" in line)
+    assert "[dirty]" in klingon
 
 
 def test_section_ok_values_unmarked(capsys):
