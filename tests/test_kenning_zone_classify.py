@@ -81,6 +81,7 @@ def test_place_zones_breton_departements_are_celtic():
     they must classify to the celtic zone by region (France itself is NOT a celtic
     place_country — only these Breton regions are)."""
     for region in (
+        "Brittany",  # coarse Breton region recognized by regions.py (future-proofing)
         "Côtes-d'Armor",
         "Finistère",
         "Ille-et-Vilaine",
