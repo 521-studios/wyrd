@@ -258,7 +258,7 @@ def test_all_families_returns_full_set_alphabetically_sorted() -> None:
 )
 def test_language_family_covers_every_entry_in_map(language: str, expected_family: str) -> None:
     """Exercise every key in LANGUAGE_TO_FAMILY so a typo or accidental
-    drop surfaces here. Parametrised across all 34 mapped languages."""
+    drop surfaces here. Parametrised across all 35 mapped languages."""
     assert era.language_family(language) == expected_family
 
 
