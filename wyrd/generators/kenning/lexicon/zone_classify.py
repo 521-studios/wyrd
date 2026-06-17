@@ -53,8 +53,8 @@ def _build_model(m: object) -> _ZoneModel:
     zones = m.get("zones") or []
     try:
         names = tuple(z["name"] for z in zones)
-    except (KeyError, TypeError) as e:
-        raise ValueError(f"{_FILENAME} has a malformed zone entry (missing key {e})") from e
+    except (KeyError, TypeError, AttributeError) as e:
+        raise ValueError(f"{_FILENAME} has a malformed zone entry: {e}") from e
     if len(set(names)) != len(names):
         raise ValueError(f"{_FILENAME} has duplicate zone names: {names}")
     if default_zone in names:
@@ -87,10 +87,10 @@ def _index_zones(zones: list) -> tuple[dict[str, str], dict[str, set[str]], dict
                 by_region.setdefault(region, set()).add(z["name"])
             for country in z.get("place_countries") or []:
                 by_country.setdefault(country, set()).add(z["name"])
-    except (KeyError, TypeError) as e:
+    except (KeyError, TypeError, AttributeError) as e:
         # an entry is missing an expected key or isn't a mapping — clear error
         # instead of a cryptic KeyError (zones.yaml is operator-edited).
-        raise ValueError(f"{_FILENAME} has a malformed zone entry (missing key {e})") from e
+        raise ValueError(f"{_FILENAME} has a malformed zone entry: {e}") from e
     return by_language, by_region, by_country
 
 

@@ -90,9 +90,12 @@ def test_build_model_rejects_default_zone_as_named_zone():
 
 
 def test_build_model_rejects_malformed_zone_entry():
-    """A zone entry missing 'name' fails with a clear error, not a cryptic KeyError."""
+    """A zone entry missing 'name', or one that isn't a mapping at all, fails with
+    a clear error rather than a cryptic KeyError/TypeError/AttributeError."""
     with pytest.raises(ValueError, match="malformed zone entry"):
         _build_model({"default_zone": "anglo-saxon", "zones": [{"morpheme_languages": ["x"]}]})
+    with pytest.raises(ValueError, match="malformed zone entry"):
+        _build_model({"default_zone": "anglo-saxon", "zones": ["not-a-mapping"]})
 
 
 def test_build_model_rejects_language_claimed_by_two_zones():
