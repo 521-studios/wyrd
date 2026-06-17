@@ -35,11 +35,11 @@ COUNTRY_ALIASES = {
 }
 
 # Invariant: every alias must resolve to a canonical country, else a typo'd
-# target would silently bypass the guard (alias is resolved before the
-# canonical check). Enforced at import so it can't drift.
-assert set(COUNTRY_ALIASES.values()) <= COUNTRY_CANONICAL, (
-    f"alias targets not canonical: {set(COUNTRY_ALIASES.values()) - COUNTRY_CANONICAL}"
-)
+# target would silently bypass the guard (alias is resolved before the canonical
+# check). Enforced at import via an explicit raise (not assert — survives -O).
+_BAD_ALIAS_TARGETS = set(COUNTRY_ALIASES.values()) - COUNTRY_CANONICAL
+if _BAD_ALIAS_TARGETS:
+    raise RuntimeError(f"COUNTRY_ALIASES targets not canonical: {_BAD_ALIAS_TARGETS}")
 
 
 class CountryValidationError(ValueError):

@@ -168,9 +168,14 @@ def test_ingest_happy_path_multi_element(tmp_path: Path):
         db.conn.execute("INSERT INTO source (id, title) VALUES ('test', 'T')")
         counts = ingest_parsed_entries(db, [entry], source_id="test", region="Suffolk")
         db.commit()
-        langs = {r["language"] for r in db.conn.execute("SELECT language FROM etymon").fetchall()}
+        by_form = {
+            r["canonical_form"]: r["language"]
+            for r in db.conn.execute("SELECT canonical_form, language FROM etymon").fetchall()
+        }
     assert counts["etymologies"] == 1 and counts["elements"] == 2
-    assert {"old-english", "old-norse"} <= langs
+    # per-element pin (not just a set): catches a transposed elem_languages[ordinal]
+    assert by_form["ford"] == "old-english"
+    assert by_form["á"] == "old-norse"
 
 
 def test_ingest_bad_language_is_atomic(tmp_path: Path):
