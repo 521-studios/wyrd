@@ -22,6 +22,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from wyrd.generators.kenning.lexicon.controlled_vocab import (
+    canonicalize_country,
+    canonicalize_language,
+)
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.region_model import canonicalize_region
 from wyrd.generators.kenning.lexicon.regions import country_for_region
@@ -58,6 +62,9 @@ def _upsert_toponym(
     region = canonicalize_region(region, country=country)
     if country is None:
         country = country_for_region(region)
+    # Fail-closed country guard (wyrd-3q6m.5): folds a known alias, validates the
+    # value (explicit or region-derived), raises on an unknown country.
+    country = canonicalize_country(country)
     cur = db.conn.execute(
         """
         SELECT id FROM toponym
@@ -129,10 +136,21 @@ def ingest_parsed_entries(
         "etymons_touched": 0,
     }
     for entry in parsed_entries:
+        has_breakdown = entry.confidence != "low" and bool(entry.elements)
+        # Fail-closed language guard (wyrd-3q6m.5): validate every element's
+        # language BEFORE any write for this entry — including the toponym upsert
+        # below — so a bad language rejects the whole entry without persisting a
+        # partial toponym/etymology. Curated path only; bulk wiktextract uses ISO
+        # codes and never reaches here.
+        elem_languages = (
+            [canonicalize_language(elem.language) for elem in entry.elements]
+            if has_breakdown
+            else []
+        )
+
         toponym_id = _upsert_toponym(db, entry.toponym, region, country)
         counts["toponyms"] += 1
-
-        if entry.confidence == "low" or not entry.elements:
+        if not has_breakdown:
             continue
 
         confidence = entry.confidence if entry.confidence in ("high", "medium", "low") else "low"
@@ -154,7 +172,7 @@ def ingest_parsed_entries(
         counts["etymologies"] += 1
 
         for ordinal, elem in enumerate(entry.elements):
-            etymon_id = db.upsert_etymon(elem.form, elem.language)
+            etymon_id = db.upsert_etymon(elem.form, elem_languages[ordinal])
             counts["etymons_touched"] += 1
             if elem.gloss:
                 db.add_gloss(etymon_id, elem.gloss)
