@@ -48,8 +48,8 @@ from wyrd.generators.kenning.language_quality import (
     report_to_markdown,
 )
 
-# TRANSITIONAL_NONCANONICAL_LANGUAGES is a transitional internal (removed at
-# wyrd-xdam.3), intentionally NOT re-exported from the package — import direct.
+# TRANSITIONAL_NONCANONICAL_LANGUAGES is a drift-tripwire internal (emptied at
+# wyrd-xdam.4), intentionally NOT re-exported from the package — import direct.
 from wyrd.generators.kenning.language_quality.models import TRANSITIONAL_NONCANONICAL_LANGUAGES
 from wyrd.generators.kenning.lexicon.controlled_vocab import LANGUAGE_CANONICAL
 
@@ -1979,13 +1979,13 @@ def test_default_languages_within_canonical_or_transitional():
     """wyrd-xdam.1 drift tripwire: every DEFAULT_LANGUAGES entry is either a
     canonical language (controlled_vocab) or one of the documented transitional
     fine-grained Celtic names. Pins the exact gap so a NEW non-canonical language
-    can't drift into the dashboard list unnoticed; wyrd-xdam.3 empties the
-    transitional set when DEFAULT_LANGUAGES moves to the branch model.
+    can't drift into the dashboard list unnoticed. As of wyrd-xdam.4 the
+    transitional set is EMPTY — the fine-grained Celtic names are now first-class
+    canonical — so every DEFAULT_LANGUAGES entry must be canonical.
 
-    Two directional checks so the failure message points the right way — notably
-    at wyrd-xdam.2, when 'celtic' is retired from LANGUAGE_CANONICAL it becomes
-    non-canonical and must be either dropped from DEFAULT_LANGUAGES or added to
-    TRANSITIONAL_NONCANONICAL_LANGUAGES (the first assertion will name it)."""
+    Two directional checks so the failure message points the right way: a new
+    non-canonical entry trips the first assertion; a stale transitional entry (no
+    longer non-canonical) trips the second."""
     noncanonical = set(DEFAULT_LANGUAGES) - set(LANGUAGE_CANONICAL)
     transitional = set(TRANSITIONAL_NONCANONICAL_LANGUAGES)
 

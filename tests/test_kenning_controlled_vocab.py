@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from wyrd.generators.kenning.era.cells import LANGUAGE_TO_FAMILY
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.controlled_vocab import (
     COUNTRY_ALIASES,
@@ -83,11 +84,45 @@ def test_language_canonical_passes():
 
 
 def test_celtic_branches_are_canonical():
-    # wyrd-xdam.1: brittonic/goidelic are canonical languages; celtic is retained
-    # as the transitional umbrella until the .2 re-tag.
+    # wyrd-xdam.1: brittonic/goidelic/celtic are canonical ROLLUP tokens.
     for lang in ("brittonic", "goidelic", "celtic"):
         assert lang in LANGUAGE_CANONICAL
         assert canonicalize_language(lang) == lang
+
+
+# wyrd-xdam.4: the fine-grained cultural-boundary languages are first-class
+# canonical (the real DATA), each rolling up to its branch family for DISPLAY.
+_FINE_GRAINED_CELTIC_ROLLUP = {
+    "welsh": "brythonic",
+    "old-welsh": "brythonic",
+    "middle-welsh": "brythonic",
+    "modern-welsh": "brythonic",
+    "cornish": "brythonic",
+    "breton": "brythonic",
+    "old-breton": "brythonic",
+    "middle-breton": "brythonic",
+    "irish": "goidelic",
+    "old-irish": "goidelic",
+    "middle-irish": "goidelic",
+    "scottish-gaelic": "goidelic",
+    "manx": "goidelic",
+}
+
+
+def test_celtic_fine_grained_are_canonical():
+    for lang in (*_FINE_GRAINED_CELTIC_ROLLUP, "proto-celtic"):
+        assert lang in LANGUAGE_CANONICAL
+        assert canonicalize_language(lang) == lang
+
+
+def test_celtic_fine_grained_roll_up_to_their_branch():
+    # the data↔rollup contract the controlled_vocab comment promises: every
+    # fine-grained cultural-boundary language maps to its branch era-family.
+    # (proto-celtic is excluded by design — protos have no family, like
+    # proto-germanic / proto-indo-european.)
+    for lang, branch_family in _FINE_GRAINED_CELTIC_ROLLUP.items():
+        assert LANGUAGE_TO_FAMILY.get(lang) == branch_family, lang
+    assert "proto-celtic" not in LANGUAGE_TO_FAMILY
 
 
 def test_language_strips_whitespace():
@@ -102,8 +137,9 @@ def test_language_none_or_empty_raises():
 
 
 def test_language_unknown_is_rejected():
-    # a wiktextract code zoo value, and a not-yet-added place-name language
-    for lang in ("gmw-cfr", "af", "welsh"):
+    # a wiktextract code-zoo value, a 2-letter code, and a not-yet-added
+    # place-name language (basque is a real language we haven't mined sources for)
+    for lang in ("gmw-cfr", "af", "basque"):
         with pytest.raises(LanguageValidationError):
             canonicalize_language(lang)
 

@@ -83,17 +83,38 @@ LANGUAGE_CANONICAL = frozenset(
         "norman-french",
         "latin",
         "medieval-latin",
-        # Celtic is modeled at BRANCH level (wyrd-xdam): the 'brittonic' branch
-        # (Welsh/Cornish/Breton/Cumbric/Pictish) and the 'goidelic' branch (Irish/
-        # Scottish-Gaelic/Manx) never share place-name morphemes, so they must not
-        # pool. Only the two branch names + 'celtic' are canonical here; the finer
-        # per-language names are classification tokens in zones.yaml, not canonical
-        # values. 'celtic' is retained as the transitional umbrella / unspecified-
-        # Celtic fallback — L2 etymons are still tagged 'celtic' until wyrd-xdam.2
-        # re-tags them to a branch (after which 'celtic' can be retired).
+        # Celtic (wyrd-xdam): the fine-grained per-language names ARE the real
+        # cultural-boundary DATA and are first-class canonical — Welsh, Cornish and
+        # Breton are distinct cultures and must never be flattened into each other
+        # in the data (wyrd-xdam.4). 'brittonic'/'goidelic'/'celtic' are kept as
+        # PRESENTATION ROLLUP tokens — the generation-pool boundary is the BRANCH
+        # (brittonic morphemes never pool with goidelic), and the rollup is derived
+        # for display via era.cells.LANGUAGE_TO_FAMILY (wyrd-xdam.3). A rollup token
+        # is used as an etymon's own language only when the finer grain isn't known.
+        # That's not a rule that curated data must be coarse: e.g. wyrd-xdam.2 tagged
+        # flat 'celtic' L2 etymons with a branch only because the toponym's country
+        # yields a branch and nothing finer. 'celtic' is the coarsest rollup (branch
+        # unknown).
         "celtic",
         "brittonic",
         "goidelic",
+        # Brittonic branch — fine-grained cultural-boundary languages
+        "welsh",
+        "old-welsh",
+        "middle-welsh",
+        "modern-welsh",
+        "cornish",
+        "breton",
+        "old-breton",
+        "middle-breton",
+        # Goidelic branch — fine-grained cultural-boundary languages
+        "irish",
+        "old-irish",
+        "middle-irish",
+        "scottish-gaelic",
+        "manx",
+        # Proto ancestor (mirrors proto-germanic / proto-indo-european below)
+        "proto-celtic",
         "germanic",
         "continental-germanic",
         "proto-germanic",

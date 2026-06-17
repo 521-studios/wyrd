@@ -100,6 +100,7 @@ LANGUAGE_TO_FAMILY: dict[str, str] = {
     "welsh": "brythonic",
     "old-welsh": "brythonic",
     "middle-welsh": "brythonic",
+    "modern-welsh": "brythonic",
     "cornish": "brythonic",
     "breton": "brythonic",
     "old-breton": "brythonic",
