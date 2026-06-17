@@ -94,12 +94,12 @@ def _index_zones(zones: list) -> tuple[dict[str, str], dict[str, set[str]], dict
     return by_language, by_region, by_country
 
 
-def zone_names() -> tuple[str, ...]:
+def zone_names() -> tuple[str, ...]:  # noqa: V103 — public zone-axis API; the consumer (generator --zone) is deferred (D52)
     """The defined zone names (excludes the default/un-zoned bucket)."""
     return _model().names
 
 
-def morpheme_zone(language: str | None) -> str:
+def morpheme_zone(language: str | None) -> str:  # noqa: V103 — public zone-axis API; the consumer (generator --zone) is deferred (D52)
     """The zone a morpheme belongs to, from its etymon ``language``. Languages
     claimed by no zone (Old/Middle/Modern English, ``unknown``, …) fall to the
     default ``anglo-saxon`` bucket. This is the generation-relevant signal — a
@@ -110,7 +110,7 @@ def morpheme_zone(language: str | None) -> str:
     return model.by_language.get(language, model.default_zone)
 
 
-def place_zones(region: str | None = None, country: str | None = None) -> frozenset[str]:
+def place_zones(region: str | None = None, country: str | None = None) -> frozenset[str]:  # noqa: V103 — public zone-axis API; the consumer (generator --zone) is deferred (D52)
     """The zone(s) a place falls in, from its ``region`` / ``country`` — possibly
     several (the axis cuts across admin boundaries), possibly none. Secondary to
     :func:`morpheme_zone`; for analysis / empirical priors, not generation."""
