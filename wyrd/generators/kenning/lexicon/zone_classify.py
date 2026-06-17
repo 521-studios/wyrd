@@ -38,26 +38,30 @@ class _ZoneModel:
 def _model() -> _ZoneModel:
     """Parse + index zones.yaml once per process (immutable; static config)."""
     text = resources.files(_DATA_PACKAGE).joinpath(_FILENAME).read_text(encoding="utf-8")
-    m = yaml.safe_load(text)
+    return _build_model(yaml.safe_load(text))
+
+
+def _build_model(m: object) -> _ZoneModel:
+    """Validate + index a parsed zones mapping. Split out from :func:`_model` as
+    a pure (uncached, no-I/O) function so the fail-loud guards are testable
+    without a malformed YAML fixture."""
     if not isinstance(m, dict):
         raise ValueError(f"{_FILENAME} did not parse as a mapping")
-    default_zone = m["default_zone"]
+    default_zone = m.get("default_zone")
+    if not default_zone:
+        raise ValueError(f"{_FILENAME} is missing default_zone")
     zones = m.get("zones") or []
-    names = tuple(z["name"] for z in zones)
+    try:
+        names = tuple(z["name"] for z in zones)
+    except (KeyError, TypeError) as e:
+        raise ValueError(f"{_FILENAME} has a malformed zone entry (missing key {e})") from e
     if len(set(names)) != len(names):
         raise ValueError(f"{_FILENAME} has duplicate zone names: {names}")
-    by_language: dict[str, str] = {}
-    by_region: dict[str, set[str]] = {}
-    by_country: dict[str, set[str]] = {}
-    for z in zones:
-        for lang in z.get("morpheme_languages") or []:
-            if lang in by_language:
-                raise ValueError(f"{_FILENAME}: language {lang!r} claimed by two zones")
-            by_language[lang] = z["name"]
-        for region in z.get("place_regions") or []:
-            by_region.setdefault(region, set()).add(z["name"])
-        for country in z.get("place_countries") or []:
-            by_country.setdefault(country, set()).add(z["name"])
+    if default_zone in names:
+        # the default is "un-zoned by absence" — it must not also be a named zone,
+        # or morpheme_zone's fallback would collide with an explicit one.
+        raise ValueError(f"{_FILENAME} default_zone {default_zone!r} must not also be a named zone")
+    by_language, by_region, by_country = _index_zones(zones)
     return _ZoneModel(
         default_zone=default_zone,
         names=names,
@@ -65,6 +69,29 @@ def _model() -> _ZoneModel:
         by_region=MappingProxyType({k: frozenset(v) for k, v in by_region.items()}),
         by_country=MappingProxyType({k: frozenset(v) for k, v in by_country.items()}),
     )
+
+
+def _index_zones(zones: list) -> tuple[dict[str, str], dict[str, set[str]], dict[str, set[str]]]:
+    """Build the language/region/country reverse indexes; raise on a language
+    claimed by two zones or a malformed (missing-key) entry."""
+    by_language: dict[str, str] = {}
+    by_region: dict[str, set[str]] = {}
+    by_country: dict[str, set[str]] = {}
+    try:
+        for z in zones:
+            for lang in z.get("morpheme_languages") or []:
+                if lang in by_language:
+                    raise ValueError(f"{_FILENAME}: language {lang!r} claimed by two zones")
+                by_language[lang] = z["name"]
+            for region in z.get("place_regions") or []:
+                by_region.setdefault(region, set()).add(z["name"])
+            for country in z.get("place_countries") or []:
+                by_country.setdefault(country, set()).add(z["name"])
+    except (KeyError, TypeError) as e:
+        # an entry is missing an expected key or isn't a mapping — clear error
+        # instead of a cryptic KeyError (zones.yaml is operator-edited).
+        raise ValueError(f"{_FILENAME} has a malformed zone entry (missing key {e})") from e
+    return by_language, by_region, by_country
 
 
 def zone_names() -> tuple[str, ...]:

@@ -8,9 +8,11 @@ from __future__ import annotations
 
 from importlib import resources
 
+import pytest
 import yaml
 
 from wyrd.generators.kenning.lexicon.zone_classify import (
+    _build_model,
     morpheme_zone,
     place_zones,
     zone_names,
@@ -18,7 +20,11 @@ from wyrd.generators.kenning.lexicon.zone_classify import (
 
 
 def _raw():
-    text = resources.files("wyrd.generators.kenning.data").joinpath("zones.yaml").read_text()
+    text = (
+        resources.files("wyrd.generators.kenning.data")
+        .joinpath("zones.yaml")
+        .read_text(encoding="utf-8")
+    )
     return yaml.safe_load(text)
 
 
@@ -50,6 +56,55 @@ def test_place_zones_unzoned_is_empty():
     # a non-Danelaw English shire is in no zone (the un-zoned majority)
     assert place_zones(region="Devon", country="England") == frozenset()
     assert place_zones() == frozenset()
+
+
+def test_place_zones_multi_membership():
+    """The region and country legs union — a place can fall in more than one
+    zone (the axis cuts across admin boundaries)."""
+    result = place_zones(region="Yorkshire", country="Wales")
+    assert result == {"danelaw", "celtic"}
+
+
+# --- _build_model fail-loud guards (test seam) -------------------------------
+
+
+def test_build_model_rejects_non_mapping():
+    with pytest.raises(ValueError, match="did not parse as a mapping"):
+        _build_model([1, 2, 3])
+
+
+def test_build_model_requires_default_zone():
+    with pytest.raises(ValueError, match="missing default_zone"):
+        _build_model({"zones": [{"name": "danelaw"}]})
+
+
+def test_build_model_rejects_duplicate_zone_name():
+    with pytest.raises(ValueError, match="duplicate zone names"):
+        _build_model({"default_zone": "anglo-saxon", "zones": [{"name": "x"}, {"name": "x"}]})
+
+
+def test_build_model_rejects_default_zone_as_named_zone():
+    """The un-zoned default must not also be an explicit zone."""
+    with pytest.raises(ValueError, match="must not also be a named zone"):
+        _build_model({"default_zone": "anglo-saxon", "zones": [{"name": "anglo-saxon"}]})
+
+
+def test_build_model_rejects_malformed_zone_entry():
+    """A zone entry missing 'name' fails with a clear error, not a cryptic KeyError."""
+    with pytest.raises(ValueError, match="malformed zone entry"):
+        _build_model({"default_zone": "anglo-saxon", "zones": [{"morpheme_languages": ["x"]}]})
+
+
+def test_build_model_rejects_language_claimed_by_two_zones():
+    bad = {
+        "default_zone": "anglo-saxon",
+        "zones": [
+            {"name": "a", "morpheme_languages": ["x"]},
+            {"name": "b", "morpheme_languages": ["x"]},
+        ],
+    }
+    with pytest.raises(ValueError, match="claimed by two zones"):
+        _build_model(bad)
 
 
 def test_model_is_wellformed():
