@@ -83,6 +83,16 @@ def _rows():
         {"_type": "collapse", "ref": "celtic:wee", "into": "celtic:bee"},  # both brittonic
         # a reflex carries its OWN language — ref must flip, language must NOT
         {"_type": "reflex", "ref": "celtic:gee", "language": "modern-english", "form": "gee"},
+        # ONE record holding both a mapped (gee) AND a stay-celtic (mix) ref:
+        # the mapped one rewrites, the stay one is left intact (partial rewrite)
+        {
+            "_type": "etymology_element",
+            "toponym_ref": "Galway@Galway",
+            "elements": [
+                {"ordinal": 0, "etymon_ref": "celtic:gee"},
+                {"ordinal": 1, "etymon_ref": "celtic:mix"},
+            ],
+        },
     ]
 
 
@@ -148,7 +158,9 @@ def test_cascade_covers_citation_collapse_and_reflex():
     otherwise dangle and silently drop rows on rebuild."""
     rows = _rows()
     m = build_branch_map(rows)
-    retag_rows(rows, m, RetagReport())
+    report = RetagReport()
+    retag_rows(rows, m, report)
+    assert report.records_rewritten > 0  # the per-record mutation tally is live, not just ==0
     citation = next(r for r in rows if r["_type"] == "citation")
     assert citation["etymon_ref"] == "goidelic:gee"  # citation.etymon_ref cascaded
     collapse = next(r for r in rows if r["_type"] == "collapse")
@@ -156,6 +168,14 @@ def test_cascade_covers_citation_collapse_and_reflex():
     reflex = next(r for r in rows if r["_type"] == "reflex")
     assert reflex["ref"] == "goidelic:gee"  # ref flips...
     assert reflex["language"] == "modern-english"  # ...but the reflex's OWN language does NOT
+    # a single record with a mapped + a stay-celtic ref: mapped rewrites, stay stays
+    mixed = next(
+        r
+        for r in rows
+        if r["_type"] == "etymology_element"
+        and {e["etymon_ref"] for e in r["elements"]} == {"goidelic:gee", "celtic:mix"}
+    )
+    assert mixed  # gee rewrote, mix left intact within the same record
 
 
 def test_summarize_fills_distinct_counts():

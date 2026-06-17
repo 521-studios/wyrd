@@ -66,7 +66,7 @@ def _rebranch(ref: str, branch: str) -> str:
     return f"{branch}:{form}"
 
 
-def _rebranch_refs(obj: object, branch_map: dict[str, str]) -> int:
+def _rebranch_refs(obj: dict | list, branch_map: dict[str, str]) -> int:
     """Recursively rewrite EVERY string anywhere in ``obj`` that is a clean
     ``celtic:<form>`` ref (a ``branch_map`` key) to ``<branch>:<form>``, returning
     the count rewritten. A recursive walk (not an enumerated field list) so it
@@ -75,9 +75,7 @@ def _rebranch_refs(obj: object, branch_map: dict[str, str]) -> int:
     Exact-match against the map keys, so prose fields (glosses/notes) can't be
     touched (a clean ``celtic:<form>`` ref never appears as free text)."""
     n = 0
-    items = (
-        obj.items() if isinstance(obj, dict) else enumerate(obj) if isinstance(obj, list) else ()
-    )
+    items = obj.items() if isinstance(obj, dict) else enumerate(obj)
     for key, value in items:
         if isinstance(value, str):
             if value in branch_map:
@@ -158,6 +156,17 @@ def summarize(branch_map: dict[str, str], distinct_celtic: int, report: RetagRep
     report.stayed_celtic = distinct_celtic - len(branch_map)
 
 
+def _maybe_flip_language(r: dict) -> None:
+    """If a record's own identity ``ref`` was just re-branched, flip its ``language``
+    celtic→branch (etymon/tags rows keyed by the etymon; a reflex carries its own
+    language and is left untouched)."""
+    ref = r.get("ref")
+    if isinstance(ref, str) and r.get("language") == "celtic":
+        branch = ref.partition(":")[0]
+        if branch in _BRANCHES:
+            r["language"] = branch
+
+
 def retag_rows(rows: list[dict], branch_map: dict[str, str], report: RetagReport) -> bool:
     """Rewrite one file's rows IN PLACE: cascade every ``celtic:<form>`` ref to its
     branch (recursively, wherever it appears — etymon ``ref``, element
@@ -167,12 +176,7 @@ def retag_rows(rows: list[dict], branch_map: dict[str, str], report: RetagReport
     changed = False
     for r in rows:
         if _rebranch_refs(r, branch_map):
-            # if this record's own identity ref was re-branched, flip its language
-            ref = r.get("ref")
-            if isinstance(ref, str) and r.get("language") == "celtic":
-                branch = ref.partition(":")[0]
-                if branch in _BRANCHES:
-                    r["language"] = branch
+            _maybe_flip_language(r)
             report.records_rewritten += 1
             changed = True
     return changed
