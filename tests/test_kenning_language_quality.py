@@ -29,6 +29,7 @@ from wyrd.generators.kenning.language_quality import (
     DEFAULT_LANGUAGES,
     ERA_CHAINS,
     FALLBACK_REFERENCE_TAGS,
+    TRANSITIONAL_NONCANONICAL_LANGUAGES,
     LanguageQualityReport,
     LanguageScorecard,
     _bundle_attestation_breakdown,
@@ -1968,3 +1969,20 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
     }
     actual = set(LanguageScorecard.__dataclass_fields__.keys())
     assert actual == fields, f"missing: {fields - actual}, extra: {actual - fields}"
+
+
+def test_default_languages_within_canonical_or_transitional():
+    """wyrd-xdam.1 drift tripwire: every DEFAULT_LANGUAGES entry is either a
+    canonical language (controlled_vocab) or one of the documented transitional
+    fine-grained Celtic names. Pins the exact gap so a NEW non-canonical language
+    can't drift into the dashboard list unnoticed; wyrd-xdam.3 empties the
+    transitional set when DEFAULT_LANGUAGES moves to the branch model."""
+    from wyrd.generators.kenning.lexicon.controlled_vocab import LANGUAGE_CANONICAL
+
+    noncanonical = set(DEFAULT_LANGUAGES) - set(LANGUAGE_CANONICAL)
+    assert noncanonical == set(TRANSITIONAL_NONCANONICAL_LANGUAGES), (
+        "DEFAULT_LANGUAGES drifted from LANGUAGE_CANONICAL beyond the documented "
+        "transitional fine-grained Celtic set. Either add the new language to "
+        "LANGUAGE_CANONICAL, or update TRANSITIONAL_NONCANONICAL_LANGUAGES "
+        f"(unexpected: {noncanonical ^ set(TRANSITIONAL_NONCANONICAL_LANGUAGES)})."
+    )

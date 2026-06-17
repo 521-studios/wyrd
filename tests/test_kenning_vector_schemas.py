@@ -381,7 +381,6 @@ def test_compose_register_effects_rejects_nan():
 
 
 def test_compose_register_effects_rejects_inf():
-
     a = RegisterEffect(name="a", semantic_tags={"death": math.inf})
     with pytest.raises(ValueError, match=r"NaN/Inf inputs"):
         compose_register_effects([a])

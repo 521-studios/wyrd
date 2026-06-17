@@ -39,6 +39,12 @@ def test_morpheme_zone_by_language():
     assert morpheme_zone("medieval-latin") == "roman"
 
 
+def test_morpheme_zone_celtic_branches():
+    # both branch-level Celtic languages map to the celtic zone (wyrd-xdam.1)
+    assert morpheme_zone("brittonic") == "celtic"
+    assert morpheme_zone("goidelic") == "celtic"
+
+
 def test_morpheme_zone_defaults_to_anglo_saxon():
     # native + unclaimed languages fall to the un-zoned default
     for lang in ("old-english", "middle-english", "modern-english", "unknown", None):

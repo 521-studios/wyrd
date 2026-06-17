@@ -35,7 +35,10 @@ zones:
     description: >
       Brittonic / Goidelic substrate (-pen, -tre, -caer, river names). Cuts across
       Wales, Cornwall, and Celtic substrate names elsewhere in England.
-    morpheme_languages: [celtic, brittonic, welsh, cornish, cumbric, gaelic, irish, pictish]
+    # Canonical Celtic languages first (umbrella + both branches, wyrd-xdam), then
+    # the fine-grained members kept for classifying wiktextract-tagged etymons.
+    morpheme_languages:
+      [celtic, brittonic, goidelic, welsh, cornish, cumbric, gaelic, irish, pictish]
     place_regions: [Cornwall]
     place_countries: [Wales, Ireland, Scotland]
 
