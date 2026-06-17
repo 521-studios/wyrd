@@ -101,7 +101,8 @@ def _load_rows(db: LexiconDB) -> list[EtymonRow]:
     rows: list[EtymonRow] = []
     for r in db.conn.execute("SELECT id, cognate_id, language, canonical_form FROM etymon"):
         cid = r["cognate_id"]
-        folded = _fold(r["canonical_form"])
+        form = r["canonical_form"]
+        folded = _fold(form) if form else ""
         if not folded:
             continue
         rows.append(
@@ -109,7 +110,7 @@ def _load_rows(db: LexiconDB) -> list[EtymonRow]:
                 etymon_id=r["id"],
                 cluster=f"c{cid}" if cid is not None else f"e{r['id']}",
                 language=r["language"] or "",
-                canonical_form=r["canonical_form"] or "",
+                canonical_form=form,
                 folded=folded,
                 glosses=frozenset(glosses.get(r["id"], ())),
                 is_shipped=member_to_root.get(r["id"], r["id"]) in shipped_roots,
