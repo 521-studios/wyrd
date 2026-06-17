@@ -1,0 +1,466 @@
+"""Decomposition grader — grade the matcher against the scholarly corpus (wyrd-aicu.9).
+
+The scholarly toponym breakdowns (``toponym_etymology_element``, ~17K toponyms)
+are a **labeled test corpus for the decomposer**: each row says which morphemes
+a place-name scholar split a town into. This module runs the runtime matcher
+over every labeled toponym and scores agreement with the scholar's breakdown,
+then diffs two matcher configurations head-to-head — the canonical use is
+**connective OFF (today's matcher) vs connective ON (the wyrd-aicu.9 genitive
+fix)** — so a decomposer change can be accepted on evidence: *net agreement up
+AND the regression list empty or individually defensible*. The regression list
+(toponyms the new config gets wrong that the old got right) is the **overfitting
+tripwire** that keeps the matcher to GENERAL defensible rules.
+
+Why the metrics look the way they do:
+
+* **Comparison is by COGNATE CLUSTER, not raw surface.** The scholar writes
+  ``tūn``; the matcher emits the reflex ``ton``. They are the same morpheme via
+  cognate cluster ``c346202`` — the same stān/ston bridge :mod:`genitive_priors`
+  uses. A matcher morpheme "recovers" a scholar element when the scholar
+  element's cluster is among the clusters the matcher's surface resolves to.
+
+* **Order-robust (SET, not sequence).** ``toponym_etymology_element.ordinal`` is
+  NOT reliably surface order (wyrd-z3me: some breakdowns are gloss/head-first),
+  so head-by-ordinal would be noisy. The load-bearing metrics are therefore
+  order-free: per-cluster **recall** (did the matcher recover every morpheme the
+  scholar found?) and **precision** (did it avoid inventing morphemes the
+  scholar didn't — the spurious ``ston``/stone of the ``-ston`` bug?), plus
+  **coverage** (a fully-accounted parse, 0 unaccounted chars — the count the
+  generation proportions train on). ``head_attested`` is a deliberately weak
+  proxy: the surface-final matcher morpheme resolves to *some* cluster the
+  scholar used — it catches the ``-ston`` bug (OFF: head ``ston``→stone ∉
+  {bishop, tūn}; ON: head ``ton``→town ∈) without asserting WHICH scholar
+  element is the head, which z3me makes unsafe.
+
+Production faithfulness: the grader's trie is built from the runtime
+``meaning_db`` (the bundle) — the SAME inventory the per-culture generation
+proportions train on (``rebuild-proportions`` → ``load_meanings`` →
+``_decompose_corpus``), so the grade measures the bug where it actually bites.
+The matcher is called directly with ``culture_languages`` + the connective
+params, mirroring that path (Phase 1's ``Name.find_meaning`` threading is a
+later step; the grader is the baseline/validation tool that precedes it).
+
+DB-aware (reads the authoring corpus + the cluster bridge) and LLM-free /
+deterministic.
+"""
+
+from __future__ import annotations
+
+import sys
+import time
+from collections import defaultdict
+from collections.abc import Callable
+from dataclasses import dataclass
+
+from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.genitive_priors import _fold
+from wyrd.generators.kenning.runtime.connective import (
+    DEFAULT_CONNECTIVE_INVENTORY,
+    ConnectiveInventory,
+)
+from wyrd.generators.kenning.runtime.trie_matcher import (
+    MorphemeTrie,
+    canonical_decomposition,
+    count_unaccounted,
+    iter_morphemes,
+)
+
+# ---------------------------------------------------------------------------
+# Cluster bridge + scholar corpus.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ClusterIndex:
+    """Surface ⇄ cognate-cluster bridge built once from the lexicon.
+
+    ``cluster_of``        : etymon_id → cluster key (``c<cognate_id>`` or the
+                            singleton ``e<id>`` when unclustered).
+    ``surface_clusters``  : folded reflex surface → the cluster keys it resolves
+                            to (ALL reflex positions — specifiers as well as
+                            suffixes, unlike the suffix-only index the genitive
+                            prior builds).
+    """
+
+    cluster_of: dict[int, str]
+    surface_clusters: dict[str, frozenset[str]]
+
+    def clusters_for(self, surface: str) -> frozenset[str]:
+        """The cognate clusters a (raw) morpheme surface resolves to — empty for
+        a surface the lexicon has no reflex for (e.g. the matcher's unaccounted
+        fall-through, or a morpheme not in the corpus)."""
+        return self.surface_clusters.get(_fold(surface), frozenset())
+
+
+def load_cluster_index(db: LexiconDB) -> ClusterIndex:
+    """Build the surface ⇄ cluster bridge from the lexicon's etymon + reflex
+    tables (all positions)."""
+    cluster_of: dict[int, str] = {}
+    for row in db.conn.execute("SELECT id, cognate_id FROM etymon"):
+        cid = row["cognate_id"]
+        cluster_of[row["id"]] = f"c{cid}" if cid is not None else f"e{row['id']}"
+
+    surface_etymons: dict[str, set[int]] = defaultdict(set)
+    for row in db.conn.execute(
+        "SELECT re.etymon_id AS eid, r.surface_form AS sf "
+        "FROM reflex r JOIN reflex_etymon re ON re.reflex_id = r.id"
+    ):
+        folded = _fold(row["sf"])
+        if folded:
+            surface_etymons[folded].add(row["eid"])
+
+    surface_clusters = {
+        surface: frozenset(cluster_of[e] for e in eids) for surface, eids in surface_etymons.items()
+    }
+    return ClusterIndex(cluster_of=cluster_of, surface_clusters=surface_clusters)
+
+
+@dataclass(frozen=True)
+class ScholarToponym:
+    """One labeled toponym: its modern name + the cognate clusters its
+    scholarly breakdown(s) touch, pooled across every breakdown and region of
+    that name (pooling is sound — the toponymic head is stable across the places
+    a name appears, wyrd-aicu.9 investigation 3)."""
+
+    name: str
+    clusters: frozenset[str]
+
+
+def load_scholar_corpus(
+    db: LexiconDB,
+    index: ClusterIndex,
+    *,
+    suffix: str | None = None,
+) -> list[ScholarToponym]:
+    """Every toponym with a scholarly breakdown, as ``ScholarToponym`` records
+    sorted by name (deterministic).
+
+    Pools all breakdown elements of a name (across multiple breakdowns and
+    multiple regions sharing a ``modern_name``) into one cluster set. ``suffix``
+    filters to names whose folded form ends with it (e.g. ``ston``) for fast
+    focused probes. Toponyms whose breakdown yields no clusters are dropped (not
+    gradable)."""
+    pooled: dict[str, set[str]] = defaultdict(set)
+    for row in db.conn.execute(
+        """
+        SELECT t.modern_name AS name, tee.etymon_id AS eid
+        FROM toponym_etymology te
+        JOIN toponym t ON t.id = te.toponym_id
+        JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
+        """
+    ):
+        pooled[row["name"]].add(index.cluster_of[row["eid"]])
+
+    corpus: list[ScholarToponym] = []
+    for name, clusters in pooled.items():
+        if not clusters:
+            continue
+        if suffix and not _fold(name).endswith(suffix):
+            continue
+        corpus.append(ScholarToponym(name=name, clusters=frozenset(clusters)))
+    corpus.sort(key=lambda sc: sc.name)
+    return corpus
+
+
+# ---------------------------------------------------------------------------
+# Grading a single toponym.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ToponymGrade:
+    """The matcher's grade for one toponym under one configuration."""
+
+    name: str
+    morphemes: tuple[str, ...]  # content-morpheme surfaces the matcher emitted
+    unaccounted: int
+    recall: float  # scholar clusters recovered / scholar clusters
+    precision: float  # non-spurious matcher morphemes / matcher morphemes
+    exact: bool  # recall == 1 AND no spurious morpheme (full set agreement)
+    coverage: bool  # 0 unaccounted chars (a clean parse)
+    head_attested: bool  # surface-final morpheme resolves to a scholar cluster
+
+
+def _decompose_name(
+    name: str,
+    trie: MorphemeTrie,
+    *,
+    culture_languages: frozenset[str] | None,
+    connective_inventory: ConnectiveInventory | None,
+    genitive_prior: dict[tuple[str, str], float] | None,
+) -> tuple[list[str], int, str | None]:
+    """Decompose a (possibly multi-word) toponym token-by-token, mirroring how
+    ``Name`` splits on whitespace and decomposes each ``Word``. Returns
+    ``(content_surfaces, total_unaccounted, surface_final_morpheme)``."""
+    surfaces: list[str] = []
+    unaccounted = 0
+    head: str | None = None
+    for token in name.split():
+        if not token:
+            continue
+        decomp = canonical_decomposition(
+            token,
+            trie,
+            culture_languages=culture_languages,
+            connective_inventory=connective_inventory,
+            genitive_prior=genitive_prior,
+        )
+        token_surfaces = [m.usage for m in iter_morphemes(decomp)]
+        surfaces.extend(token_surfaces)
+        unaccounted += count_unaccounted(decomp)
+        if token_surfaces:
+            head = token_surfaces[-1]
+    return surfaces, unaccounted, head
+
+
+def _attributed_clusters(
+    surfaces: list[str],
+    index: ClusterIndex,
+    passthrough_map: dict[str, tuple[str, ...]] | None,
+) -> list[frozenset[str]]:
+    """Per matched morpheme, the cognate-cluster set it is ATTRIBUTED to —
+    expanding a composite (a passthrough composite cluster) into one virtual
+    morpheme per constituent cluster (D51.3 passthrough: surface ≠ attribution).
+    ``passthrough_map`` (composite_cluster → ordered constituent clusters) None or
+    empty → identity (one cluster set per surface), so the grade is bit-stable
+    with the no-passthrough baseline."""
+    out: list[frozenset[str]] = []
+    for surface in surfaces:
+        clusters = index.clusters_for(surface)
+        # A surface usually resolves to one passthrough composite; if it maps to
+        # several (homograph composites), expand the lexicographically-smallest
+        # deterministically — a rare edge whose exact pick doesn't bias the grade.
+        hit = sorted(c for c in clusters if c in passthrough_map) if passthrough_map else []
+        if hit:
+            out.extend(frozenset({c}) for c in passthrough_map[hit[0]])
+        else:
+            out.append(clusters)
+    return out
+
+
+def grade_toponym(
+    scholar: ScholarToponym,
+    trie: MorphemeTrie,
+    index: ClusterIndex,
+    *,
+    culture_languages: frozenset[str] | None,
+    connective_inventory: ConnectiveInventory | None,
+    genitive_prior: dict[tuple[str, str], float] | None,
+    passthrough_map: dict[str, tuple[str, ...]] | None = None,
+) -> ToponymGrade:
+    """Run the matcher on one labeled toponym and score it against the scholar's
+    pooled cluster set. See the module docstring for the metric rationale.
+    ``passthrough_map`` expands matched composites to their constituents for
+    attribution (D51.3) — coverage is unaffected (the parse is unchanged); recall
+    / precision / head are scored over the expanded virtual morphemes."""
+    surfaces, unaccounted, _head = _decompose_name(
+        scholar.name,
+        trie,
+        culture_languages=culture_languages,
+        connective_inventory=connective_inventory,
+        genitive_prior=genitive_prior,
+    )
+    scholar_clusters = scholar.clusters
+    morph_clusters = _attributed_clusters(surfaces, index, passthrough_map)
+    recovered = {c for c in scholar_clusters if any(c in mc for mc in morph_clusters)}
+    recall = len(recovered) / len(scholar_clusters)
+    spurious = sum(1 for mc in morph_clusters if mc.isdisjoint(scholar_clusters))
+    precision = (len(morph_clusters) - spurious) / len(morph_clusters) if morph_clusters else 0.0
+    exact = bool(morph_clusters) and recall == 1.0 and spurious == 0
+    head_clusters = morph_clusters[-1] if morph_clusters else frozenset()
+    head_attested = bool(morph_clusters) and not head_clusters.isdisjoint(scholar_clusters)
+    return ToponymGrade(
+        name=scholar.name,
+        morphemes=tuple(surfaces),
+        unaccounted=unaccounted,
+        recall=recall,
+        precision=precision,
+        exact=exact,
+        coverage=unaccounted == 0,
+        head_attested=head_attested,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Corpus grading + config diff.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class GradeSummary:
+    """Aggregate metrics for one configuration across the graded corpus."""
+
+    graded: int
+    mean_recall: float
+    mean_precision: float
+    exact_rate: float
+    coverage_rate: float
+    head_attested_rate: float
+
+
+def summarize(grades: list[ToponymGrade]) -> GradeSummary:
+    n = len(grades)
+    if n == 0:
+        return GradeSummary(0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    return GradeSummary(
+        graded=n,
+        mean_recall=sum(g.recall for g in grades) / n,
+        mean_precision=sum(g.precision for g in grades) / n,
+        exact_rate=sum(g.exact for g in grades) / n,
+        coverage_rate=sum(g.coverage for g in grades) / n,
+        head_attested_rate=sum(g.head_attested for g in grades) / n,
+    )
+
+
+# Metric dimensions a config change can move, each higher-is-better. Used to
+# classify a per-toponym off→on change as a regression (any dimension dropped)
+# and/or an improvement (any dimension rose) — a trade-off lands on both lists.
+_DIMENSIONS: tuple[tuple[str, Callable[[ToponymGrade], float]], ...] = (
+    ("recall", lambda g: g.recall),
+    ("precision", lambda g: g.precision),
+    ("exact", lambda g: float(g.exact)),
+    ("coverage", lambda g: float(g.coverage)),
+    ("head", lambda g: float(g.head_attested)),
+)
+
+
+@dataclass(frozen=True)
+class ConfigChange:
+    """A toponym whose grade changed between configs, with the dimensions that
+    worsened (a regression) or improved. ``dimensions`` lists the moved metrics
+    in the direction this record represents."""
+
+    name: str
+    off_parse: tuple[str, ...]
+    on_parse: tuple[str, ...]
+    dimensions: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CorpusDiff:
+    """Off-vs-on grade across the corpus: per-config summaries plus the
+    regression / improvement lists. The acceptance rule is *every summary metric
+    up (or flat) AND ``regressions`` empty or individually defensible*."""
+
+    off: GradeSummary
+    on: GradeSummary
+    regressions: tuple[ConfigChange, ...]
+    improvements: tuple[ConfigChange, ...]
+
+
+def _emit_progress(label: str, done: int, total: int, started: float) -> None:
+    rate = (time.monotonic() - started) / done if done else 0.0
+    print(f"  [{done}/{total}] {label} ({rate:.4f}s/entry)", file=sys.stderr, flush=True)
+
+
+def grade_configuration(
+    corpus: list[ScholarToponym],
+    trie: MorphemeTrie,
+    index: ClusterIndex,
+    *,
+    culture_languages: frozenset[str] | None,
+    connective_inventory: ConnectiveInventory | None,
+    genitive_prior: dict[tuple[str, str], float] | None,
+    passthrough_map: dict[str, tuple[str, ...]] | None = None,
+    label: str = "grade",
+    progress_every: int = 0,
+) -> list[ToponymGrade]:
+    """Grade every toponym in ``corpus`` under one matcher configuration."""
+    grades: list[ToponymGrade] = []
+    total = len(corpus)
+    started = time.monotonic()
+    for i, scholar in enumerate(corpus, 1):
+        grades.append(
+            grade_toponym(
+                scholar,
+                trie,
+                index,
+                culture_languages=culture_languages,
+                connective_inventory=connective_inventory,
+                genitive_prior=genitive_prior,
+                passthrough_map=passthrough_map,
+            )
+        )
+        if progress_every and i % progress_every == 0:
+            _emit_progress(label, i, total, started)
+    if progress_every and total % progress_every != 0:
+        _emit_progress(label, total, total, started)
+    return grades
+
+
+def _classify_change(
+    off: ToponymGrade, on: ToponymGrade
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """``(worsened, improved)`` metric-dimension names for one toponym."""
+    worsened = tuple(label for label, f in _DIMENSIONS if f(on) < f(off))
+    improved = tuple(label for label, f in _DIMENSIONS if f(on) > f(off))
+    return worsened, improved
+
+
+def diff_grades(
+    off_grades: list[ToponymGrade],
+    on_grades: list[ToponymGrade],
+) -> CorpusDiff:
+    """Build the off-vs-on ``CorpusDiff`` from two same-corpus grade lists."""
+    off_by_name = {g.name: g for g in off_grades}
+    regressions: list[ConfigChange] = []
+    improvements: list[ConfigChange] = []
+    for on in on_grades:
+        off = off_by_name[on.name]
+        worsened, improved = _classify_change(off, on)
+        if worsened:
+            regressions.append(ConfigChange(on.name, off.morphemes, on.morphemes, worsened))
+        if improved:
+            improvements.append(ConfigChange(on.name, off.morphemes, on.morphemes, improved))
+    return CorpusDiff(
+        off=summarize(off_grades),
+        on=summarize(on_grades),
+        regressions=tuple(regressions),
+        improvements=tuple(improvements),
+    )
+
+
+def grade_corpus_diff(
+    db: LexiconDB,
+    trie: MorphemeTrie,
+    *,
+    culture_languages: frozenset[str] | None,
+    genitive_prior: dict[tuple[str, str], float] | None,
+    connective_inventory: ConnectiveInventory = DEFAULT_CONNECTIVE_INVENTORY,
+    suffix: str | None = None,
+    limit: int | None = None,
+    progress_every: int = 0,
+) -> CorpusDiff:
+    """End-to-end: load the bridge + scholar corpus, grade connective-OFF
+    (today's matcher: ``culture_languages`` on, no connective, no prior) vs
+    connective-ON (``connective_inventory`` + ``genitive_prior``), and diff.
+
+    ``culture_languages`` is passed to BOTH configs — it is part of today's
+    matcher (wyrd-pfoo), not the change under test — so the diff isolates the
+    connective's effect. ``suffix`` / ``limit`` focus the run for fast probes.
+    """
+    index = load_cluster_index(db)
+    corpus = load_scholar_corpus(db, index, suffix=suffix)
+    if limit is not None:
+        corpus = corpus[:limit]
+    off = grade_configuration(
+        corpus,
+        trie,
+        index,
+        culture_languages=culture_languages,
+        connective_inventory=None,
+        genitive_prior=None,
+        label="off",
+        progress_every=progress_every,
+    )
+    on = grade_configuration(
+        corpus,
+        trie,
+        index,
+        culture_languages=culture_languages,
+        connective_inventory=connective_inventory,
+        genitive_prior=genitive_prior,
+        label="on",
+        progress_every=progress_every,
+    )
+    return diff_grades(off, on)

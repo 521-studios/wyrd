@@ -43,6 +43,11 @@ _DEFAULT_INCLUDE_RANDO = True
 _DEFAULT_RANDO_MIN_CORROBORATORS = 0
 _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL = True
 _DEFAULT_INCLUDE_WAVE2_ENRICHED = True
+# wyrd-oth3: default OFF — the grader-validated re-emit (wyrd-aicu.9, 2026-06-16)
+# showed the unfiltered admit regresses scholar agreement (coverage up but
+# cluster recall/head down via composite morphemes). Opt-in until wyrd-myv4 +
+# wyrd-h5u1 + wyrd-7hbp make it a graded net win.
+_DEFAULT_INCLUDE_TOPONYM_BREAKDOWN = False
 
 
 @click.command("export-runtime-db")
@@ -121,6 +126,12 @@ _DEFAULT_INCLUDE_WAVE2_ENRICHED = True
     show_default=True,
 )
 @click.option(
+    "--include-toponym-breakdown/--no-include-toponym-breakdown",
+    default=_DEFAULT_INCLUDE_TOPONYM_BREAKDOWN,
+    show_default=True,
+    help="wyrd-oth3: admit any etymon used in a scholarly toponym breakdown.",
+)
+@click.option(
     "--dev",
     "dev_subset",
     is_flag=True,
@@ -171,6 +182,7 @@ def lexicon_export_runtime_db(
     rando_min_corroborators: int,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
+    include_toponym_breakdown: bool,
     dev_subset: bool,
     dev_top_n: int,
     generation_subset: bool,
@@ -200,6 +212,7 @@ def lexicon_export_runtime_db(
             rando_min_corroborators=rando_min_corroborators,
             include_wiktionary_empirical=include_wiktionary_empirical,
             include_wave2_enriched=include_wave2_enriched,
+            include_toponym_breakdown=include_toponym_breakdown,
         )
 
     lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
@@ -213,6 +226,7 @@ def lexicon_export_runtime_db(
             rando_min_corroborators=rando_min_corroborators,
             include_wiktionary_empirical=include_wiktionary_empirical,
             include_wave2_enriched=include_wave2_enriched,
+            include_toponym_breakdown=include_toponym_breakdown,
         )
         canonical_decompositions = collect_canonical_decompositions(db)
         fantasy_morphemes = collect_fantasy_morphemes(db)
@@ -288,6 +302,7 @@ def _reject_non_default_filters_under_dev(
     rando_min_corroborators: int,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
+    include_toponym_breakdown: bool,
 ) -> None:
     """Hard-fail when --dev is combined with any non-default upstream
     filter. The committed seed-runtime.db is byte-stable only if every
@@ -320,6 +335,8 @@ def _reject_non_default_filters_under_dev(
         )
     if include_wave2_enriched != _DEFAULT_INCLUDE_WAVE2_ENRICHED:
         offenders.append("--no-include-wave2-enriched (canonical: --include-wave2-enriched)")
+    if include_toponym_breakdown != _DEFAULT_INCLUDE_TOPONYM_BREAKDOWN:
+        offenders.append("--include-toponym-breakdown (canonical: --no-include-toponym-breakdown)")
     if offenders:
         raise click.UsageError(
             "--dev requires canonical defaults on every upstream filter "

@@ -83,13 +83,19 @@ _LIGATURES = str.maketrans(
 )
 
 
-def _fold(surface: str) -> str:
+def _fold(surface: str | None) -> str:
     """Bare-surface fold: expand ligatures, deaccent (NFKD → ASCII), lowercase,
     drop non-letters.
 
     D45 fold (``replace``-style — dashes are never identity). Sanctioned to also
     strip other non-letter noise so surface forms normalize consistently.
+
+    Returns ``""`` for ``None`` / empty input so callers can fold a possibly-NULL
+    DB column (e.g. ``canonical_form``) without a guard — and the result is always
+    a ``str``, so downstream ``.endswith`` / ``"".join`` are safe.
     """
+    if not surface:
+        return ""
     expanded = surface.translate(_LIGATURES)
     ascii_form = unicodedata.normalize("NFKD", expanded).encode("ascii", "ignore").decode()
     return "".join(ch for ch in ascii_form.lower() if ch.isalpha())
@@ -603,3 +609,52 @@ def split_probability(  # noqa: V103 — matcher-facing lookup (the smoothed pri
     c = counts.get((long_form, short_form), PairCounts())
     n = c.split + c.literal
     return (c.split + pseudocount * backoff) / (n + pseudocount)
+
+
+def load_genitive_prior_counts(db: LexiconDB) -> dict[tuple[str, str], PairCounts]:
+    """Read the persisted ``genitive_split_prior`` table into the in-memory
+    counts map :func:`split_probability` consumes.
+
+    Empty when the table is missing or unpopulated — a DB predating migration
+    0018, or one where ``mine-genitive-priors --apply`` hasn't run. Callers
+    (the matcher prob-map build, the decomposition grader) treat an empty map
+    as "no genitive prior": the connective still wins the non-homograph
+    coverage cases on score, only the homograph tiebreak goes quiet.
+    """
+    table = db.conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='genitive_split_prior'"
+    ).fetchone()
+    if not table:
+        return {}
+    out: dict[tuple[str, str], PairCounts] = {}
+    for r in db.conn.execute(
+        "SELECT long_form, short_form, split_count, literal_count FROM genitive_split_prior"
+    ):
+        out[(r["long_form"], r["short_form"])] = PairCounts(
+            split=r["split_count"], literal=r["literal_count"]
+        )
+    return out
+
+
+def build_split_probability_map(
+    counts: dict[tuple[str, str], PairCounts],
+    *,
+    pseudocount: float = 5.0,
+) -> dict[tuple[str, str], float]:
+    """Precompute the runtime ``{(long_form, short_form): P_split}`` prob-map the
+    decomposition matcher consumes — :func:`split_probability` applied once per
+    active pair against the shared global backoff.
+
+    This is the smoothing-at-emit boundary (wyrd-aicu.9): smoothing + backoff run
+    HERE so the runtime matcher stays DB-free, looking up a plain float per
+    genitive decision (``_prefer_genitive_credible``). Shared by the
+    decomposition grader (Phase 3) and the L4 bundle build (Phase 4) so both
+    consume an identically-smoothed prior. Empty in → empty out.
+    """
+    if not counts:
+        return {}
+    backoff = global_split_rate(counts)
+    return {
+        pair: split_probability(counts, *pair, pseudocount=pseudocount, backoff=backoff)
+        for pair in counts
+    }

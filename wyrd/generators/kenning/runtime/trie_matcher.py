@@ -66,6 +66,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from wyrd.generators.kenning.runtime.connective import (
+    GENITIVE,
+    Connective,
+    ConnectiveInventory,
+    is_connective,
+)
+
 
 class DecompositionTruncatedWarning(UserWarning):
     """Raised by ``all_decompositions`` when its per-position result
@@ -387,11 +394,41 @@ def _compact_unaccounted(decomposition: list[Any]) -> list[Any]:
     return out
 
 
+def _connective_candidates(
+    word: str,
+    pos: int,
+    trie: MorphemeTrie,
+    connective_inventory: ConnectiveInventory | None,
+    walk_best: Any,
+) -> list[tuple[tuple[int, int], list[Any]]]:
+    """walk_best Branch 3 (wyrd-aicu.9): connective glue. A connective surface
+    (genitive ``-s-`` …) consumed between morphemes is +0 unaccounted +0
+    content-morpheme; a head morpheme must follow. ``pos > 0`` so a connective is
+    never word-initial (it needs a preceding specifier; whether that preceding
+    span is itself a clean morpheme is settled by the score — an unaccounted
+    prefix loses). Returns ``[]`` when no inventory (bit-stable default)."""
+    out: list[tuple[tuple[int, int], list[Any]]] = []
+    if not connective_inventory or pos == 0:
+        return out
+    for surface, kind in connective_inventory:
+        clen = len(surface)
+        if word[pos : pos + clen].lower() != surface:
+            continue
+        conn = Connective(word[pos : pos + clen], kind)
+        for end, head in _find_matches_at(trie, word, pos + clen):
+            (h_un, h_mor), h_tails = walk_best(end)
+            cscore = (h_un, h_mor + 1)  # connective free; head +1 morpheme
+            out.extend((cscore, [conn, head, *tail]) for tail in h_tails)
+    return out
+
+
 def canonical_decompositions(
     word: str,
     trie: MorphemeTrie,
     *,
     culture_languages: frozenset[str] | None = None,
+    connective_inventory: ConnectiveInventory | None = None,
+    genitive_prior: dict[tuple[str, str], float] | None = None,
 ) -> list[list[Any]]:
     """Return every decomposition tied for 'best' under the canonical
     score. Multiple ties are common when an etymon has multiple senses
@@ -475,6 +512,9 @@ def canonical_decompositions(
         score = (tail_un + 1, tail_mor)
         for tail in tails:
             candidates.append((score, [word[pos], *tail]))
+        # Branch 3 (wyrd-aicu.9): connective glue (extracted to keep walk_best
+        # under the complexity ceiling). Bit-stable when the inventory is None.
+        candidates.extend(_connective_candidates(word, pos, trie, connective_inventory, walk_best))
         # Pick the best score; keep only the candidates tied at it.
         # ``candidates`` is always non-empty: the skip branch produces
         # at least one entry for every pos < n (walk_best(pos+1) always
@@ -489,6 +529,8 @@ def canonical_decompositions(
     decompositions = [_compact_unaccounted(d) for d in decompositions]
     if culture_languages and len(decompositions) > 1:
         decompositions = _prefer_culture_aligned(decompositions, culture_languages)
+    if genitive_prior and len(decompositions) > 1:
+        decompositions = _prefer_genitive_credible(decompositions, genitive_prior)
     return decompositions
 
 
@@ -559,17 +601,76 @@ def _prefer_culture_aligned(
     return [d for s, d in scores if s == best]
 
 
-def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:  # noqa: V103 — public single-answer decomposition API; tests pin tiebreakers (PR #498 triage)
+def _bare_surface(elem: Any) -> str | None:
+    """The bare folded surface of a decomposition element, or None for an
+    unaccounted ``str``. ``Connective`` carries ``.surface``; a ``Meaning``
+    carries ``.usage`` (dash-stripped, lowercased — the morpheme's own surface,
+    not its positional decoration)."""
+    if isinstance(elem, str):
+        return None
+    if is_connective(elem):
+        return elem.surface.lower()
+    return elem.usage.replace("-", "").lower()
+
+
+def _genitive_credibility(decomp: list[Any], genitive_prior: dict[tuple[str, str], float]) -> float:
+    """Soft genitive credibility of a decomposition (wyrd-aicu.9): the product,
+    over its genitive-homograph decisions, of how the scholarly prior rates that
+    decision. Higher = more credible. A genitive **connective** split to head
+    ``S`` scores ``split_probability(L='s'+S, S)``; the **literal** long-form
+    morpheme ``L`` (where ``(L, L[1:])`` is an active prior pair) scores
+    ``1 - split_probability(L, L[1:])``. Pairs absent from the prior contribute
+    1 (neutral) — the tiebreaker only weighs genuine homographs. A SOFT D40
+    tiebreaker over already-tied parses, never a hard gate."""
+    cred = 1.0
+    for i, elem in enumerate(decomp):
+        if is_connective(elem) and elem.kind == GENITIVE:
+            head = decomp[i + 1] if i + 1 < len(decomp) else None
+            short = _bare_surface(head)
+            if short:
+                pair = (elem.surface.lower() + short, short)
+                if pair in genitive_prior:
+                    cred *= genitive_prior[pair]
+        elif not isinstance(elem, str) and not is_connective(elem):
+            long = _bare_surface(elem)
+            if long and (long, long[1:]) in genitive_prior:
+                cred *= 1.0 - genitive_prior[(long, long[1:])]
+    return cred
+
+
+def _prefer_genitive_credible(
+    decompositions: list[list[Any]],
+    genitive_prior: dict[tuple[str, str], float],
+) -> list[list[Any]]:
+    """From parses already tied on (unaccounted, morpheme_count), keep those at
+    the max genitive credibility. If every parse scores equally (no genitive
+    homograph in play — the common case), the full list passes through so the
+    downstream first-meaning tiebreaker still applies. Bit-stable when
+    ``genitive_prior`` is empty/None (caller-gated)."""
+    scored = [(_genitive_credibility(d, genitive_prior), d) for d in decompositions]
+    best = max(s for s, _ in scored)
+    keep = [d for s, d in scored if s == best]
+    return keep if len(keep) < len(decompositions) else decompositions
+
+
+def canonical_decomposition(  # noqa: V103 — public single-answer decomposition API; tests pin tiebreakers (PR #498 triage)
+    word: str,
+    trie: MorphemeTrie,
+    *,
+    culture_languages: frozenset[str] | None = None,
+    connective_inventory: ConnectiveInventory | None = None,
+    genitive_prior: dict[tuple[str, str], float] | None = None,
+) -> list[Any]:
     """Return ONE 'best' decomposition for ``word`` against the trie —
     the deterministic single-answer variant of
     ``canonical_decompositions``. Use this when the caller wants one
-    pick (e.g. proportions training, single-line CLI output); use the
-    plural ``canonical_decompositions`` when ties carry information
-    (e.g. the explainer surfaces every reading scholars would).
+    pick (e.g. proportions training, single-line CLI output, the corpus
+    grader); use the plural ``canonical_decompositions`` when ties carry
+    information (e.g. the explainer surfaces every reading scholars would).
 
-    Tiebreaker (after the unaccounted-chars + morpheme-count score
-    used by ``canonical_decompositions``): position of the first
-    matched morpheme — earlier wins. Stable across runs.
+    Tiebreaker (after the unaccounted-chars + morpheme-count score, the
+    culture-alignment and genitive-credibility tiebreakers): position of the
+    first matched morpheme — earlier wins. Stable across runs.
 
     wyrd-p8ve: routes through ``canonical_decompositions`` so it
     inherits the score-pruning walk's memory bounds. The (un, mor)
@@ -579,19 +680,31 @@ def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:  # noqa
     decomposition (``[[]]`` for empty input, ``[[word]]`` for no
     matches), so no empty-list guard is needed before ``min``.
     """
-    decompositions = canonical_decompositions(word, trie)
+    decompositions = canonical_decompositions(
+        word,
+        trie,
+        culture_languages=culture_languages,
+        connective_inventory=connective_inventory,
+        genitive_prior=genitive_prior,
+    )
     return min(decompositions, key=_decomposition_score)
+
+
+def _is_content_morpheme(elem: Any) -> bool:
+    """A content morpheme is a Meaning — not an unaccounted ``str`` and not a
+    connective (the genitive ``-s-`` glue is free + non-content, wyrd-aicu.9)."""
+    return not isinstance(elem, str) and not is_connective(elem)
 
 
 def _decomposition_score(decomposition: list[Any]) -> tuple[int, int, int, int]:
     """Score tuple for the canonical picker. Lower wins."""
     unaccounted_chars = sum(len(e) for e in decomposition if isinstance(e, str))
-    morpheme_count = sum(1 for e in decomposition if not isinstance(e, str))
+    morpheme_count = sum(1 for e in decomposition if _is_content_morpheme(e))
     # Tiebreaker: prefer earlier first-meaning. Stable for matchers
     # that produce the same DAG — primarily a determinism guard for
     # tests / serialization.
     first_meaning_pos = next(
-        (i for i, e in enumerate(decomposition) if not isinstance(e, str)),
+        (i for i, e in enumerate(decomposition) if _is_content_morpheme(e)),
         len(decomposition),
     )
     # wyrd-5z5j: among parses tied on (unaccounted, morpheme_count,
@@ -603,7 +716,7 @@ def _decomposition_score(decomposition: list[Any]) -> tuple[int, int, int, int]:
     # Negated so longer wins under ``min``. Pure refinement of a
     # previously-arbitrary tie — only reorders genuine ties.
     first_meaning = next(
-        (e for e in decomposition if not isinstance(e, str)),
+        (e for e in decomposition if _is_content_morpheme(e)),
         None,
     )
     # Dash-stripped surface length — the morpheme's own length, not its
@@ -617,11 +730,12 @@ def _decomposition_score(decomposition: list[Any]) -> tuple[int, int, int, int]:
 
 
 def iter_morphemes(decomposition: Iterable[Any]) -> Iterable[Any]:  # noqa: V103 — public morpheme iterator; tests pin behavior (PR #498 triage)
-    """Yield only the Meaning elements of a decomposition, dropping
-    unaccounted fragments. Convenience for callers that want the
-    matched morpheme sequence (e.g. proportions training)."""
+    """Yield only the content-morpheme (Meaning) elements of a decomposition,
+    dropping unaccounted fragments AND connective glue (the genitive ``-s-`` is
+    not a content morpheme — wyrd-aicu.9). Convenience for callers that want the
+    matched morpheme sequence (e.g. proportions training, the corpus grader)."""
     for elem in decomposition:
-        if not isinstance(elem, str):
+        if _is_content_morpheme(elem):
             yield elem
 
 

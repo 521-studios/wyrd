@@ -116,6 +116,7 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import fetch_bulk_sources as _fetch_bulk_sources_module
 from wyrd.generators.kenning.cli.lexicon import fold_variants as _fold_variants_module
 from wyrd.generators.kenning.cli.lexicon import fuzzy_search as _fuzzy_search_module
+from wyrd.generators.kenning.cli.lexicon import grade_decomposition as _grade_decomposition_module
 from wyrd.generators.kenning.cli.lexicon import import_mining_log as _import_mining_log_module
 from wyrd.generators.kenning.cli.lexicon import (
     import_modern_reflexes as _import_modern_reflexes_module,
@@ -284,6 +285,7 @@ _export_meanings_module.add_to(lexicon)
 _export_runtime_db_module.add_to(lexicon)
 _fetch_bulk_sources_module.add_to(lexicon)
 _fuzzy_search_module.add_to(lexicon)
+_grade_decomposition_module.add_to(lexicon)
 _ingest_briggs_personal_names_module.add_to(lexicon)
 _ingest_hearth_tax_module.add_to(lexicon)
 _ingest_kepn_module.add_to(lexicon)

@@ -3432,7 +3432,11 @@ and everything **projects to SQLite** (no graph engine, D42).
   identity AND cognate, D28) · `glosses-as` (etymon→sense; `etymon_gloss`) ·
   `decomposes-into` (toponym→ordered etymon; `toponym_etymology_element` — **the
   only birthplace of position**, derived by index per D40/D43; identity edges
-  never carry position) · `contains` / `succeeds` / `located-in`
+  never carry position) · `composed-of` (etymon→ordered etymon — the
+  morpheme-level analog of `decomposes-into`: a composite morpheme like
+  `ington` is composed-of `ing`+`tūn`; part-whole, orthogonal to descent and
+  identity; mined gloss-correctly from cross-scholar coarse-vs-fine breakdowns,
+  wyrd-h5u1) · `contains` / `succeeds` / `located-in`
   (region/jurisdiction structure per stratum). `cognate_id` is a *projection* of
   the `descends-from` closure, not stored identity.
 - **Family C — canonicalization choice (select/flag among Family-B

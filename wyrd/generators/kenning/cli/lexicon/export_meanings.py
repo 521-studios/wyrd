@@ -104,6 +104,17 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     "<lang>_english_shaped / _transliteration siblings have no data.",
 )
 @click.option(
+    "--include-toponym-breakdown/--no-include-toponym-breakdown",
+    default=False,
+    show_default=True,
+    help="wyrd-oth3: include families containing any etymon used as an element "
+    "in a scholarly toponym_etymology breakdown, regardless of witness count "
+    "(the place-name evidence channel). DEFAULT OFF — the grader-validated "
+    "re-emit showed the unfiltered admit regresses scholar agreement (composite "
+    "morphemes coarsen parses); opt-in until wyrd-myv4 (composite/occurrence "
+    "filter) + wyrd-h5u1 (granularity tiebreaker) make it a graded net win.",
+)
+@click.option(
     "--joiners-from",
     "joiners_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -125,6 +136,7 @@ def lexicon_export_meanings(
     rando_min_corroborators: int,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
+    include_toponym_breakdown: bool,
     joiners_path: Path | None,
 ) -> None:
     """Export the lexicon DB as a meanings.json document for the runtime.
@@ -150,6 +162,7 @@ def lexicon_export_meanings(
             rando_min_corroborators=rando_min_corroborators,
             include_wiktionary_empirical=include_wiktionary_empirical,
             include_wave2_enriched=include_wave2_enriched,
+            include_toponym_breakdown=include_toponym_breakdown,
         )
         canonical_decompositions = collect_canonical_decompositions(db)
         fantasy_morphemes = collect_fantasy_morphemes(db)
