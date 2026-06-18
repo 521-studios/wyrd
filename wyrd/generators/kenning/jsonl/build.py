@@ -1014,18 +1014,27 @@ def _etymology_element_fingerprint(row: dict[str, Any]) -> tuple:
     )
 
 
-# Synthetic ledgers that a SPECIFIC enrichment/import pass reads directly (not the
-# generic build_from_jsonl replay). Their rows don't conform to the replay schema
-# — some carry a bespoke ``_type`` not in ``log.ALL_TYPES`` (pronunciation,
-# modern_reflex, the *_reflex/descent/cluster audit verdicts), others carry no
-# ``_type`` at all (_reflex_audit, _element_gloss*). Sweeping them into the generic
-# replay raises ReplayError, which silently broke from-scratch rebuild-from-jsonl
-# (wyrd-5qg7). They are EXCLUDED here; their applied effects round-trip through the
-# conforming ledgers (_collapses / _curation / _reflexes) that ARE replayed, or are
-# re-applied by their own pass at rebuild. test_no_unhandled_nonconforming_ledgers
-# guards that any future addition is either replay-conforming or listed here.
-# (``_merge_audit`` / ``_tags`` are NOT here — they conform and replay inert.)
-READ_DIRECTLY_LEDGERS: frozenset[str] = frozenset(
+# Synthetic ledgers EXCLUDED from the generic build_from_jsonl replay (wyrd-5qg7).
+# Each contains at least one row that doesn't conform to the replay schema (a
+# bespoke ``_type`` not in ``log.ALL_TYPES``, e.g. ``pronunciation`` /
+# ``modern_reflex`` / the ``*_reflex/descent/cluster`` audit verdicts; or no
+# ``_type`` at all, e.g. ``_reflex_audit`` / ``_element_gloss*`` — though several
+# ALSO carry a conforming ``source`` row). Sweeping them into the generic replay
+# raised ReplayError, which silently broke from-scratch rebuild-from-jsonl. They
+# fall into two groups, neither of which needs generic replay:
+#   1. Audit verdict logs (``_reflex_audit`` / ``_descent_audit`` /
+#      ``_cluster_reflex_audit`` / ``_toponym_reflex_audit``) — idempotency/audit
+#      only; NOT read at rebuild at all. Their applied detaches round-trip through
+#      ``_collapses.jsonl`` / ``_reflexes.jsonl`` (which ARE replayed). Their own
+#      ``source`` row is referenced by nothing post-rebuild.
+#   2. Read-directly ledgers (``_element_glosses`` / ``_element_gloss_adjudications``
+#      → element-gloss enrichment; ``_pronunciation`` → collect_pronunciation;
+#      ``_modern_reflexes`` → import-modern-reflexes) — re-applied by their own pass,
+#      which upserts its own source.
+# test_no_unhandled_nonconforming_ledgers guards that any future non-conforming
+# ledger is listed here. (``_merge_audit`` / ``_tags`` are NOT here — they conform
+# and replay inert.)
+REPLAY_EXCLUDED_LEDGERS: frozenset[str] = frozenset(
     {
         "_reflex_audit.jsonl",
         "_descent_audit.jsonl",
@@ -1040,13 +1049,13 @@ READ_DIRECTLY_LEDGERS: frozenset[str] = frozenset(
 
 
 def jsonl_paths_in(directory: str | Path) -> list[Path]:
-    """All ``*.jsonl`` files in ``directory`` EXCEPT the read-directly ledgers
-    (:data:`READ_DIRECTLY_LEDGERS`), sorted ASCII. Used as the default input set
-    for :func:`build_from_jsonl`. The excluded ledgers are consumed by their own
-    enrichment/import pass and don't conform to the generic replay schema
-    (wyrd-5qg7)."""
+    """All ``*.jsonl`` files in ``directory`` EXCEPT the replay-excluded ledgers
+    (:data:`REPLAY_EXCLUDED_LEDGERS`), sorted ASCII. Used as the default input set
+    for :func:`build_from_jsonl`. The excluded ledgers don't conform to the generic
+    replay schema; each is an audit log or is consumed by its own enrichment/import
+    pass (wyrd-5qg7)."""
     p = Path(directory)
-    return sorted(f for f in p.glob("*.jsonl") if f.name not in READ_DIRECTLY_LEDGERS)
+    return sorted(f for f in p.glob("*.jsonl") if f.name not in REPLAY_EXCLUDED_LEDGERS)
 
 
 # Tables the diff-rebuild check compares (wyrd-f4nl). Scoped to the L2
