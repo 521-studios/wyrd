@@ -69,7 +69,7 @@
   },
   {
    "layer": "reflexes",
-   "summary": "reflex / reflex_etymon (modern_usage -> etymon links)",
+   "summary": "reflex / reflex_etymon — BOTH linked reflexes (modern_usage -> etymon) AND orphan reflexes (generation surfaces with no etymon link, dumped with etymon_refs: []). wyrd-br5o made the orphan layer round-trip: wyrd-ned5's INNER-JOIN dump carried linked-only, so after d90t deleted the rando meanings.json seed a clean rebuild lost ~16k orphan surfaces (-8k promoted meanings; worth/fantasy/realism regressed). The dump now LEFT-JOINs; the full reflex table replays from _reflexes.jsonl.",
    "restored_by": "l2-replay",
    "cost": "free",
    "runbook_token": "_reflexes.jsonl"

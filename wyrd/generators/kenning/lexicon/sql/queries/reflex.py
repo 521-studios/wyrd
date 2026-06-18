@@ -34,18 +34,22 @@ LINK_REFLEX_ETYMON_OR_IGNORE = (
     "INSERT OR IGNORE INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)"
 )
 
-# wyrd-ned5: dump the reflex layer for the ``_reflexes.jsonl`` L2
-# round-trip. One row per (reflex × linked etymon); the dumper groups
+# wyrd-ned5 + wyrd-br5o: dump the reflex layer for the ``_reflexes.jsonl``
+# L2 round-trip. One row per (reflex × linked etymon); the dumper groups
 # by (surface_form, position) and folds the etymon forms into an
-# ``etymon_refs`` list. merged_into_id IS NULL skips OCR-cluster losers
-# (D22) so a tombstoned etymon doesn't resurface as a reflex target.
+# ``etymon_refs`` list. The etymon side is a LEFT JOIN so ORPHAN reflexes
+# (no reflex_etymon link — the generation-surface layer seeded from the
+# rando meanings) ALSO round-trip, as rows with ``etymon_refs: []``;
+# wyrd-ned5's INNER JOIN silently dropped them, so a clean rebuild lost
+# ~4k generation surfaces (wyrd-br5o). The merged_into_id filter rides on
+# the JOIN (not WHERE) so it skips OCR-cluster losers (D22) WITHOUT turning
+# the LEFT JOIN back into an inner one (a WHERE on the nullable side would).
 # Sorted for byte-stable output.
 SELECT_REFLEXES_FOR_DUMP = """
     SELECT r.surface_form, r.position, e.language, e.canonical_form
     FROM reflex r
-    JOIN reflex_etymon re ON re.reflex_id = r.id
-    JOIN etymon e ON e.id = re.etymon_id
-    WHERE e.merged_into_id IS NULL
+    LEFT JOIN reflex_etymon re ON re.reflex_id = r.id
+    LEFT JOIN etymon e ON e.id = re.etymon_id AND e.merged_into_id IS NULL
     ORDER BY r.surface_form, r.position, e.language, e.canonical_form
 """
 

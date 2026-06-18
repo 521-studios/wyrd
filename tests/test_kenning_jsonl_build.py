@@ -2534,6 +2534,63 @@ def test_dump_reflexes_round_trips_through_rebuild(tmp_path: Path):
         dconn.close()
 
 
+def test_dump_reflexes_round_trips_orphan_reflex(tmp_path: Path):
+    """wyrd-br5o: an ORPHAN reflex (no etymon link — the generation-surface
+    layer) must round-trip too. wyrd-ned5's INNER-JOIN dump silently dropped
+    these, so a clean rebuild lost ~4k surfaces. The dump now LEFT-JOINs and
+    emits them with ``etymon_refs: []``; the replay upserts the bare reflex."""
+    from wyrd.generators.kenning.jsonl.dump import (
+        dump_reflexes_to_file,
+        dump_reflexes_to_rows,
+    )
+    from wyrd.generators.kenning.lexicon import init_schema
+    from wyrd.generators.kenning.lexicon.sql.queries.reflex import UPSERT_REFLEX
+
+    # --- source DB: a bare reflex with NO reflex_etymon link.
+    src_db = tmp_path / "src.db"
+    init_schema(src_db)
+    sconn = sqlite3.connect(src_db)
+    sconn.row_factory = sqlite3.Row
+    sconn.execute(UPSERT_REFLEX, ("worth", "post"))
+    sconn.commit()
+
+    # the dump emits the orphan with an empty etymon_refs list.
+    rows = dump_reflexes_to_rows(sconn)
+    reflex_rows = [r for r in rows if r["_type"] == "reflex"]
+    assert reflex_rows == [
+        {"_type": "reflex", "surface_form": "worth", "position": "post", "etymon_refs": []}
+    ]
+
+    out_dir = tmp_path / "l2"
+    out_dir.mkdir()
+    _, n = dump_reflexes_to_file(sconn, out_dir)
+    sconn.close()
+    assert n == 2  # synthetic source row + the orphan reflex row
+
+    # --- rebuild fresh DB: the orphan reflex survives (no link, but present).
+    dst_db = tmp_path / "dst.db"
+    init_schema(dst_db)
+    dconn = sqlite3.connect(dst_db)
+    dconn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(dconn, jsonl_paths_in(out_dir))
+        assert counts["reflex"] == 1
+        present = dconn.execute(
+            """
+            SELECT r.surface_form, r.position,
+                   (SELECT count(*) FROM reflex_etymon re WHERE re.reflex_id = r.id) AS links
+            FROM reflex r WHERE r.surface_form = 'worth'
+            """
+        ).fetchone()
+        assert (present["surface_form"], present["position"], present["links"]) == (
+            "worth",
+            "post",
+            0,
+        )
+    finally:
+        dconn.close()
+
+
 # ---------------------------------------------------------------------------
 # wyrd-5qg7: audit verdict logs must be excluded from the replay set
 # ---------------------------------------------------------------------------

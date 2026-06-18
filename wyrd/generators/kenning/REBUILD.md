@@ -39,7 +39,7 @@ DB and must be re-run by hand after the rebuild.
 | `toponym` / `toponym_etymology` / elements | ✅ yes | — |
 | `mining_run` audit | ✅ yes | — |
 | `etymon_variant` (~5.8M form rows from the wiktextract slices) | ✅ yes — via the **bulk L1 ingest** rebuild-from-jsonl runs by default (skipped only under `--skip-bulk`) | — |
-| reflexes (`reflex` / `reflex_etymon`) | ✅ **now** — via synthetic `data/mining/_reflexes.jsonl` (wyrd-ned5, PR #387) | — |
+| reflexes (`reflex` / `reflex_etymon`) | ✅ **now** — via synthetic `data/mining/_reflexes.jsonl` (wyrd-ned5, PR #387). **Orphan reflexes too** (generation surfaces with no etymon link) since wyrd-br5o: the dump LEFT-JOINs so the *full* reflex table round-trips, not just the linked subset | — |
 | fantasy morphemes | ✅ **now** — via synthetic `data/mining/_fantasy_morphemes.jsonl` (PR #388) | — |
 | curation overrides | ✅ yes — `data/mining/_curation.jsonl` | — |
 | collapse ledger (form-of/variant folds, wyrd-y651) | ✅ yes — `data/mining/_collapses.jsonl`, replayed by `run_full_enrichment`'s curation slot (`apply_collapses`) | — |
@@ -58,6 +58,18 @@ rebuild** and were the cause of the worst surprises (16 canonical-
 morpheme test failures). They now round-trip through L2 synthetic files,
 so a fresh rebuild restores them automatically. The remaining four rows
 above are still manual — that's Phase 2 below.
+
+> **wyrd-br5o (2026-06-18):** wyrd-ned5's `_reflexes.jsonl` dump carried
+> *linked* reflexes only (INNER JOIN). The **orphan** reflexes — generation
+> surfaces with no etymon link, originally seeded by `seed_from_meanings`
+> from `data/meanings.json` — were never in L2. When d90t (#357) deleted
+> `meanings.json` (it was both the runtime artifact *and* the authoring
+> seed), those ~16k orphan surfaces silently stopped reproducing on rebuild,
+> costing ~8k promoted meanings (worth → modern "worth", fantasy 333→8,
+> english realism). Fixed by making the dump `LEFT JOIN` so the *full*
+> reflex table round-trips; `seed_from_meanings` stays retired. If reflexes
+> ever look thin again, re-dump `_reflexes.jsonl` from a known-good DB
+> (`dump_reflexes_to_file`) — do **not** resurrect `seed_from_meanings`.
 
 ### Deferred / empty layers (no data to lose today, but know the rule)
 
@@ -375,7 +387,7 @@ suite 4584 passed / 6 skipped.
 |---|---|---|
 | Empirical mine reports `hits=0` for every culture, `etymons_examined=0`, no error | `--sources-dir` defaulted to the repo `sources/` (OCR books — zero wiktextract slices). The miner **silently `continue`s** on a missing slice. | Pass `--sources-dir ~/.wyrd/sources`. PR #385 changed the default to the bulk cache and added a `missing_slices` WARNING (surfaced into `counts['missing_slices']`) so this is loud now — but still check the warning block. |
 | `mine-empirical-baselines` emits 0 cells; `skip_country_unknown` == every row | `toponym.country` dropped by the wipe; it is **not** an enrichment pass | Run `backfill-toponym-country` *before* `mine-empirical-baselines`. |
-| 16 failures in `test_bundle_canonical_morphemes` (`-ton`→"tone", `-bridge`→"bridge (card game)") | Reflex layer was L3-only and the wipe dropped it; only ~65 of ~1,600 rando reflexes survived | Fixed durably: reflexes now round-trip via `data/mining/_reflexes.jsonl` (wyrd-ned5). A current rebuild restores them in build Pass 3. If they're ever missing again, re-seed via `seed_from_meanings` and re-dump `_reflexes.jsonl`. |
+| 16 failures in `test_bundle_canonical_morphemes` (`-ton`→"tone", `-bridge`→"bridge (card game)") | Reflex layer was L3-only and the wipe dropped it; only ~65 of ~1,600 rando reflexes survived | Fixed durably: reflexes now round-trip via `data/mining/_reflexes.jsonl` (wyrd-ned5 for linked, wyrd-br5o for orphan/generation-surface). A current rebuild restores them in build Pass 3. If they're ever missing again, re-dump `_reflexes.jsonl` from a known-good DB via `dump_reflexes_to_file` — do **not** resurrect `seed_from_meanings` (retired; its `meanings.json` seed was deleted by d90t). |
 | `test_high_spelling_variety_changes_output_when_pool_present` fails (0 variant pools) | `etymon_text_match` empty — forms-variant layer dropped by the wipe | Run `mine-wiktextract-forms` across all 13 slices (Phase 2 step 3). |
 | Proportions look wrong / come from the static gazetteer | Working tree had stale `runtime_db_export.py` (pre-Phase-2a) even though origin was merged | `git show origin/main:wyrd/generators/kenning/lexicon/runtime_db_export.py > <same path>` before exporting; confirm with `grep -c "_load_culture_toponyms"`. |
 | `ingest-toponym-mentions` aborts: `--candidates-out … already exists; pass --force` | Leftover candidates file from a prior run; the command refuses to overwrite (no partial writes) | Re-run with `--force` (or remove the file). |
