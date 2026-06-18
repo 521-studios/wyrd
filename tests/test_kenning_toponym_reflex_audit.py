@@ -368,3 +368,55 @@ def test_cli_scope_celtic_deterministic_detaches_proper_noun(tmp_path):
     assert res.exit_code == 0, res.output
     assert "welsh:Macedonia" in res.output
     assert "deterministic=1" in res.output
+
+
+def test_cli_scope_celtic_llm_tail_judges_ambiguous(tmp_path, monkeypatch):
+    """celtic without --deterministic-only: the proper noun is caught
+    deterministically AND the surface-ambiguous lowercase form goes to the LLM tail."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon import audit_toponym_reflexes as cli
+
+    init_schema(tmp_path / "lexicon.db")
+    db = LexiconDB(tmp_path / "lexicon.db")
+    db.conn.row_factory = sqlite3.Row
+    db.upsert_source(id="wk", title="Wiktionary")
+    oe = db.upsert_etymon("hām", "old-english")  # English-family anchor
+    proper = db.upsert_etymon("Macedonia", "welsh")  # deterministic detach
+    ambiguous = db.upsert_etymon("vwlgws", "welsh")  # lowercase -> LLM tail
+    for eid in (oe, proper, ambiguous):
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (oe, eid))
+    for child in (proper, ambiguous):
+        db.conn.execute(
+            "INSERT INTO etymon_descent(parent_id, child_id, edge_type, source_id) "
+            "VALUES (?,?,'borrowing','wk')",
+            (oe, child),
+        )
+    db.commit()
+    db.close()
+
+    monkeypatch.setattr(
+        cli,
+        "_judge_with_retry",
+        lambda client, c: ToponymReflexVerdict(
+            toponymic=False, confidence="high", reason="foreign word"
+        ),
+    )
+    res = CliRunner().invoke(
+        cli.lexicon_audit_toponym_reflexes,
+        [
+            "--db",
+            str(tmp_path / "lexicon.db"),
+            "--scope",
+            "celtic",
+            "--dry-run",
+            "--collapse-file",
+            str(tmp_path / "c.jsonl"),
+            "--audit-file",
+            str(tmp_path / "a.jsonl"),
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    assert "deterministic=1" in res.output  # the proper noun, no LLM
+    assert "judged=1" in res.output  # the ambiguous form, via the LLM tail
+    assert "welsh:Macedonia" in res.output and "welsh:vwlgws" in res.output

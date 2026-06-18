@@ -309,12 +309,13 @@ PROTECTED_ELEMENTS = frozenset(
 
 @dataclass(frozen=True)
 class ToponymReflexCandidate:
-    """One distinct modern-english form (an era-grid reflex) that is NOT
-    orthographically similar to any English-family morpheme in its clusters —
-    for the LLM to judge: a plausible English place-name element (KEEP) or an
-    unrelated cluster-merged word (DETACH the leaf's bridging in-edges)."""
+    """One distinct era-grid reflex form — modern-english under --scope english, a
+    Celtic language (welsh/irish/…) under --scope celtic — that is NOT
+    orthographically similar to any English-family morpheme in its clusters, for
+    judging: a plausible place-name element (KEEP) or an unrelated cluster-merged
+    word (DETACH the leaf's bridging in-edges)."""
 
-    reflex_ref: str  # "modern-english:<form>"
+    reflex_ref: str  # "<lang>:<form>"
     reflex_form: str
     bridging_parents: tuple[str, ...]
 

@@ -152,7 +152,7 @@ def _run_judging(
 ) -> tuple[int, int, int]:
     """Run the scope's judging pipeline → (deterministic_flagged, judged, skipped).
     celtic runs the deterministic proper-noun screen first; --deterministic-only stops
-    there, otherwise the surface-ambiguous remainder goes to the LLM tail."""
+    there, otherwise the remainder not resolved deterministically goes to the LLM tail."""
     det_flagged = 0
     if scope == "celtic":
         to_judge, det_flagged = _judge_deterministic(to_judge, log, audit_fh)
