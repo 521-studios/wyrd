@@ -67,11 +67,14 @@ rows are written by ``lexicon mine-fantasy-name`` and link to an
 existing ``etymon`` row by FK. Per-source dumping doesn't apply.
 Instead, :func:`dump_fantasy_morphemes_to_file` writes a single
 synthetic file at ``data/mining/_fantasy_morphemes.jsonl`` with a
-``fantasy-mining`` synthetic source declaration + one
-``fantasy_morpheme`` list row per DB row (etymon FK projected to
-``etymon_ref``). Mirrors the ``_curation.jsonl`` pattern of a
-leading-underscore synthetic-source file with a non-per-source
-contract.
+``fantasy-mining`` synthetic source declaration, then one ``etymon``
+canonical-state row per referenced etymon (wyrd-ruvk — these are
+frequently UNCITED, so no per-source dump carries them; without them
+a rebuild can't resolve the morphemes' ``etymon_ref`` and drops them
+as orphans), then one ``fantasy_morpheme`` list row per DB row (etymon
+FK projected to ``etymon_ref``). Mirrors the ``_curation.jsonl``
+pattern of a leading-underscore synthetic-source file with a
+non-per-source contract.
 - Uncited bulk etymons (wiktextract import): handled separately by
   L1 re-ingest path, not this dump.
 """
@@ -153,6 +156,41 @@ def _dump_source_row(conn: sqlite3.Connection, source_id: str) -> dict[str, Any]
     return row
 
 
+# Columns _etymon_state_row needs from a fetched etymon row: the id (for the
+# gloss/tag lookups) + every L2 column it projects. Derived from
+# _ETYMON_L2_COLUMNS so a new L2 column can't drift out of the SELECT and
+# KeyError at projection time (the natural key — canonical_form, language —
+# rides along inside _ETYMON_L2_COLUMNS).
+_ETYMON_STATE_SELECT_COLUMNS = ("e.id AS etymon_id", *(f"e.{col}" for col in _ETYMON_L2_COLUMNS))
+
+
+def _etymon_state_row(conn: sqlite3.Connection, e: sqlite3.Row) -> dict[str, Any]:
+    """Build one ``etymon`` canonical-state row (ref + L2 columns + glosses +
+    tags) from a fetched etymon row that includes ``etymon_id`` and the
+    columns in :data:`_ETYMON_STATE_SELECT_COLUMNS`."""
+    glosses = [
+        g["gloss"]
+        for g in conn.execute(
+            "SELECT gloss FROM etymon_gloss WHERE etymon_id=? ORDER BY gloss",
+            (e["etymon_id"],),
+        )
+    ]
+    tags = [
+        t["tag"]
+        for t in conn.execute(
+            "SELECT tag FROM etymon_tag WHERE etymon_id=? ORDER BY tag",
+            (e["etymon_id"],),
+        )
+    ]
+    row: dict[str, Any] = {"_type": "etymon", "ref": etymon_ref(e["language"], e["canonical_form"])}
+    row.update(_drop_nulls({col: e[col] for col in _ETYMON_L2_COLUMNS}))
+    if glosses:
+        row["glosses"] = glosses
+    if tags:
+        row["tags"] = tags
+    return row
+
+
 def _dump_cited_etymons(conn: sqlite3.Connection, source_id: str) -> Iterable[dict[str, Any]]:
     """One ``etymon`` canonical-state row per etymon REFERENCED by this
     source — whether via citation, descent edge, or etymology element.
@@ -162,11 +200,8 @@ def _dump_cited_etymons(conn: sqlite3.Connection, source_id: str) -> Iterable[di
     etymon row in the same file. Build's cross-file merge unifies
     duplicates across sources."""
     etymons = conn.execute(
-        """
-        SELECT DISTINCT e.id AS etymon_id, e.canonical_form, e.language,
-               e.modifier_type, e.position_pref, e.notes,
-               e.pronunciation_ipa, e.pronunciation_dialect,
-               e.original_script, e.transliteration
+        f"""
+        SELECT DISTINCT {", ".join(_ETYMON_STATE_SELECT_COLUMNS)}
           FROM etymon e
          WHERE e.id IN (
                 SELECT etymon_id FROM etymon_citation WHERE source_id = ?
@@ -181,32 +216,11 @@ def _dump_cited_etymons(conn: sqlite3.Connection, source_id: str) -> Iterable[di
                  WHERE te.source_id = ?
          )
          ORDER BY e.language, e.canonical_form
-        """,
+        """,  # noqa: S608 — interpolated names are module constants
         (source_id, source_id, source_id, source_id),
     ).fetchall()
     for e in etymons:
-        ref = etymon_ref(e["language"], e["canonical_form"])
-        glosses = [
-            g["gloss"]
-            for g in conn.execute(
-                "SELECT gloss FROM etymon_gloss WHERE etymon_id=? ORDER BY gloss",
-                (e["etymon_id"],),
-            )
-        ]
-        tags = [
-            t["tag"]
-            for t in conn.execute(
-                "SELECT tag FROM etymon_tag WHERE etymon_id=? ORDER BY tag",
-                (e["etymon_id"],),
-            )
-        ]
-        row: dict[str, Any] = {"_type": "etymon", "ref": ref}
-        row.update(_drop_nulls({col: e[col] for col in _ETYMON_L2_COLUMNS}))
-        if glosses:
-            row["glosses"] = glosses
-        if tags:
-            row["tags"] = tags
-        yield row
+        yield _etymon_state_row(conn, e)
 
 
 def _dump_citations(conn: sqlite3.Connection, source_id: str) -> Iterable[dict[str, Any]]:
@@ -817,14 +831,23 @@ def _dump_fantasy_morpheme_rows(conn: sqlite3.Connection) -> Iterable[dict[str, 
     ``input_name`` for diff stability. Joins ``etymon`` to project
     ``etymon_id`` → ``etymon_ref``; rows with NULL etymon_id (barred
     morphemes that never resolved a corpus etymon) emit no
-    ``etymon_ref`` field — replaying skips the JOIN on build."""
+    ``etymon_ref`` field — replaying skips the JOIN on build.
+
+    wyrd-ruvk: when ``etymon_id`` points to an OCR-cluster *loser*
+    (``merged_into_id NOT NULL`` — e.g. a diacritic variant ``latin:aeon``
+    merged into ``latin:æon``), the ref follows ``merged_into_id`` to the
+    surviving winner. This keeps the ref off a tombstone (so
+    :func:`_dump_fantasy_etymons` never emits a merged etymon to resurrect)
+    while preserving the link. OCR merges are single-hop, so one COALESCE
+    resolves the canonical etymon."""
     rows = conn.execute(
         f"""
         SELECT {", ".join("fm." + c for c in _FANTASY_MORPHEME_SCALAR_COLUMNS)},
-               e.language AS _etymon_language,
-               e.canonical_form AS _etymon_canonical_form
+               w.language AS _etymon_language,
+               w.canonical_form AS _etymon_canonical_form
           FROM fantasy_morpheme fm
           LEFT JOIN etymon e ON e.id = fm.etymon_id
+          LEFT JOIN etymon w ON w.id = COALESCE(e.merged_into_id, e.id)
          ORDER BY fm.input_name, fm.approach_version
         """  # noqa: S608 — column names are hand-written module constants
     ).fetchall()
@@ -839,10 +862,45 @@ def _dump_fantasy_morpheme_rows(conn: sqlite3.Connection) -> Iterable[dict[str, 
         yield out
 
 
+def _dump_fantasy_etymons(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:
+    """Emit canonical-state ``etymon`` rows for every etymon a
+    ``fantasy_morpheme`` references (``fm.etymon_id``).
+
+    These etymons frequently carry ZERO citations — ``mine-fantasy-name``
+    resolves a fantasy fragment to a morpheme and creates the etymon without a
+    source attribution — so NO per-source dump emits them. Without this, a
+    rebuild can't resolve the ``fantasy_morpheme.etymon_ref`` and drops the
+    morpheme as an orphan (wyrd-ruvk; sibling of the wyrd-ned5/br5o reflex
+    round-trip).
+
+    Resolves each referenced etymon through ``merged_into_id`` to its surviving
+    winner — matching the ref ``_dump_fantasy_morpheme_rows`` emits — so a
+    fantasy_morpheme pointing at an OCR-cluster loser dumps the winner, never
+    the tombstone (D22: no merged etymon resurfaces on rebuild). The winners are
+    themselves unmerged. Build's cross-file merge unifies any etymon also cited
+    by a real source."""
+    etymons = conn.execute(
+        f"""
+        SELECT DISTINCT {", ".join(_ETYMON_STATE_SELECT_COLUMNS)}
+          FROM etymon e
+         WHERE e.id IN (
+                SELECT COALESCE(ref.merged_into_id, ref.id)
+                  FROM fantasy_morpheme fm
+                  JOIN etymon ref ON ref.id = fm.etymon_id
+                 WHERE fm.etymon_id IS NOT NULL
+         )
+         ORDER BY e.language, e.canonical_form
+        """,  # noqa: S608 — interpolated names are module constants
+    ).fetchall()
+    for e in etymons:
+        yield _etymon_state_row(conn, e)
+
+
 def dump_fantasy_morphemes_to_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Yield the rows that ``_fantasy_morphemes.jsonl`` carries: the
-    synthetic ``fantasy-mining`` source declaration followed by one
-    ``fantasy_morpheme`` row per DB row.
+    """Yield the rows that ``_fantasy_morphemes.jsonl`` carries: the synthetic
+    ``fantasy-mining`` source declaration, the canonical-state ``etymon`` rows
+    the morphemes reference (wyrd-ruvk — these are otherwise uncited and carried
+    by no source), then one ``fantasy_morpheme`` row per DB row.
 
     Returns an empty list if the ``fantasy_morpheme`` table does not
     exist (older DBs predate wyrd-ami) or carries zero rows. Skipping
@@ -857,7 +915,8 @@ def dump_fantasy_morphemes_to_rows(conn: sqlite3.Connection) -> list[dict[str, A
     morphemes = list(_dump_fantasy_morpheme_rows(conn))
     if not morphemes:
         return []
-    return [_FANTASY_MINING_SOURCE_ROW, *morphemes]
+    etymons = list(_dump_fantasy_etymons(conn))
+    return [_FANTASY_MINING_SOURCE_ROW, *etymons, *morphemes]
 
 
 def dump_fantasy_morphemes_to_file(

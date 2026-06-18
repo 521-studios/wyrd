@@ -54,6 +54,7 @@ def _build_fixture_db() -> sqlite3.Connection:
             pronunciation_dialect TEXT,
             original_script TEXT,
             transliteration TEXT,
+            merged_into_id INTEGER,
             UNIQUE (canonical_form, language)
         );
         CREATE TABLE etymon_gloss (
