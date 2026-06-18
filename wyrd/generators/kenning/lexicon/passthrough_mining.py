@@ -219,7 +219,7 @@ def _aggregate_pairs(
     return toponyms, best_obs, forms
 
 
-def extract_cross_scholar_passthroughs(  # noqa: V103 — stream-1 mining entry point; consumed by the passthrough-mining CLI / grader validation (wired next)
+def extract_cross_scholar_passthroughs(
     db: LexiconDB,
     *,
     index: ClusterIndex | None = None,
@@ -282,9 +282,19 @@ def build_passthrough_map(passthroughs: list[Passthrough]) -> dict[str, tuple[st
     """The grader's ``passthrough_map`` (composite cognate-cluster → ordered
     constituent clusters) from mined passthroughs — the bridge that lets the grader
     credit a matched composite (``ington``) with its constituents (``ing``+``tūn``)
-    for recall/precision/head (wyrd-h5u1, D51.3). Last-write-wins on a repeated
-    composite cluster; the miner's deterministic sort makes that stable."""
-    return {p.composite_cluster: p.constituent_clusters for p in passthroughs}
+    for recall/precision/head (wyrd-h5u1, D51.3).
+
+    A composite cluster can attest >1 constituent tiling across toponym pairs (the
+    miner keys on ``(composite_cluster, constituent_clusters)``). The HIGHEST-support
+    tiling wins — the most-corroborated attribution — ties broken by the miner's
+    deterministic input order (so the result is rebuild-stable, D36.9)."""
+    out: dict[str, tuple[str, ...]] = {}
+    best_support: dict[str, int] = {}
+    for p in passthroughs:
+        if p.composite_cluster not in best_support or p.support > best_support[p.composite_cluster]:
+            best_support[p.composite_cluster] = p.support
+            out[p.composite_cluster] = p.constituent_clusters
+    return out
 
 
 def _confidence_for(support: int) -> str:
@@ -293,7 +303,7 @@ def _confidence_for(support: int) -> str:
     return "high" if support >= 2 else "medium"
 
 
-def passthrough_assertions(  # noqa: V103 — emits the composed-of assertions the mining CLI appends to the L2 stream (wired next)
+def passthrough_assertions(
     passthroughs: list[Passthrough],
     *,
     source: str,

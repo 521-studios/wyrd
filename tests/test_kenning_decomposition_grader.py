@@ -304,3 +304,20 @@ def test_grade_passthrough_diff_recovers_constituents(tmp_path):
     assert diff.on.coverage_rate == diff.off.coverage_rate  # parse unchanged
     assert not diff.regressions  # attribution only credits, never worsens
     assert any(c.name == "Aldington" for c in diff.improvements)
+
+
+def test_grade_passthrough_diff_irrelevant_map_is_noop(world):
+    # A passthrough_map whose composite cluster never matches in the corpus must
+    # leave the grade untouched: OFF == ON, zero improvements, zero regressions.
+    db, trie = world
+    diff = grade_passthrough_diff(
+        db,
+        trie,
+        passthrough_map={"nonexistent-cluster": ("a", "b")},
+        culture_languages=None,
+        genitive_prior=None,
+        connective_inventory=None,
+    )
+    assert not diff.improvements and not diff.regressions
+    assert diff.on.mean_recall == diff.off.mean_recall
+    assert diff.on.coverage_rate == diff.off.coverage_rate
