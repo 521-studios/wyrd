@@ -180,7 +180,13 @@ def _select_candidates(
     # root -> (shared_fold, has_gloss, bridge_form, bridge_lang, bridge_etymon_id)
     best: dict[int, tuple[int, int, str, str, int]] = {}
     for root, bform, blang, beid in bridges:
-        cand = (_shared_prefix_len(fold, _fold(bform)), 1 if glosses.get(beid) else 0, bform, blang, beid)
+        cand = (
+            _shared_prefix_len(fold, _fold(bform)),
+            1 if glosses.get(beid) else 0,
+            bform,
+            blang,
+            beid,
+        )
         cur = best.get(root)
         # higher (shared_fold, has_gloss) wins; tie → smaller bridge_form.
         if cur is None or cand[:2] > cur[:2] or (cand[:2] == cur[:2] and cand[2] < cur[2]):
@@ -195,7 +201,11 @@ def _select_candidates(
             )
             for root, (_spl, _hg, bform, blang, beid) in best.items()
         ),
-        key=lambda c: (-_shared_prefix_len(fold, _fold(c.bridge_form)), c.bridge_form, c.cluster_root),
+        key=lambda c: (
+            -_shared_prefix_len(fold, _fold(c.bridge_form)),
+            c.bridge_form,
+            c.cluster_root,
+        ),
     )[:max_candidates]
     return tuple(cands)
 
