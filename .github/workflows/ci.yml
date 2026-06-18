@@ -49,7 +49,9 @@ jobs:
           echo "No dead functions/methods/classes."
 
       - name: Run tests
-        run: pytest
+        # -n auto fans the ~5.6k-test suite across the runner's cores
+        # (pytest-xdist). Serial runs dominated CI at ~18 min.
+        run: pytest -n auto
 
   spa:
     name: SPA — check & test
