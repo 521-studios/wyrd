@@ -97,7 +97,7 @@
   },
   {
    "layer": "fantasy-morphemes",
-   "summary": "fantasy_morpheme (wyrd-ami)",
+   "summary": "fantasy_morpheme (wyrd-ami) + the etymons they reference. wyrd-ruvk: the fantasy-linked etymons are frequently UNCITED (mine-fantasy-name creates them without a source), so no per-source dump carried them — a clean rebuild resolved only 8 of ~333 fantasy etymon FKs. The dump now also emits those referenced etymons as canonical-state rows in _fantasy_morphemes.jsonl, so the full fantasy layer round-trips.",
    "restored_by": "l2-replay",
    "cost": "free",
    "runbook_token": "_fantasy_morphemes.jsonl"

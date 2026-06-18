@@ -1072,6 +1072,35 @@ def _add_fantasy_morpheme(conn: sqlite3.Connection, **kwargs) -> int:
     return cur.lastrowid
 
 
+def test_fantasy_morpheme_uncited_etymon_round_trips_through_dump_and_build(tmp_path: Path):
+    """wyrd-ruvk: a fantasy_morpheme links to an etymon that mine-fantasy-name
+    created with NO citation, so no per-source dump carries it. The fantasy
+    dump must emit that etymon's canonical-state row itself — otherwise the
+    rebuild can't resolve the etymon_ref and drops the morpheme as an orphan
+    (the gap that left only 8/1,072 fantasy morphemes resolving on rebuild)."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    pre = _build_fixture_db()
+    # An UNCITED etymon (no etymon_citation row) — the gap's signature.
+    eid = _add_etymon(pre, "middle-english", "-ard")
+    pre.execute("INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, 'agent suffix')", (eid,))
+    _add_fantasy_morpheme(pre, input_name="Bækard", etymon_id=eid, reasoning="decomposed -ard")
+    dump_fantasy_morphemes_to_file(pre, tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    # No orphan: the etymon was recreated from the fantasy file + the FK resolved.
+    assert counts.get("fantasy_morpheme_orphans", 0) == 0
+    assert counts["fantasy_morpheme"] == 1
+    row = rebuilt.execute(
+        "SELECT e.language, e.canonical_form FROM fantasy_morpheme fm "
+        "JOIN etymon e ON e.id = fm.etymon_id WHERE fm.input_name = 'Bækard'"
+    ).fetchone()
+    assert (row["language"], row["canonical_form"]) == ("middle-english", "-ard")
+    rebuilt.close()
+
+
 def test_dump_fantasy_morphemes_returns_empty_when_no_rows():
     """No rows → no source declaration emitted (file shouldn't be
     written). Keeps the source-row contract from creating an
@@ -1108,7 +1137,11 @@ def test_dump_fantasy_morphemes_emits_source_declaration_and_rows():
     rows = dump_fantasy_morphemes_to_rows(conn)
     assert rows[0]["_type"] == "source"
     assert rows[0]["ref"] == "fantasy-mining"
-    morphemes = rows[1:]
+    # wyrd-ruvk: referenced (uncited) etymons are emitted as canonical-state
+    # rows so the morphemes' etymon_refs resolve on rebuild.
+    etymon_rows = [r for r in rows if r["_type"] == "etymon"]
+    assert {r["ref"] for r in etymon_rows} == {"old-english:engel"}
+    morphemes = [r for r in rows if r["_type"] == "fantasy_morpheme"]
     assert len(morphemes) == 2
     # Ordered by input_name (case-insensitive collation collapses, but
     # ORDER BY is text — "Angel" < "Military" still).
@@ -1151,7 +1184,7 @@ def test_dump_fantasy_morphemes_to_file_writes_file_when_populated(tmp_path: Pat
     path, count = dump_fantasy_morphemes_to_file(conn, tmp_path)
     assert path.name == "_fantasy_morphemes.jsonl"
     assert path.exists()
-    assert count == 2  # 1 source row + 1 fantasy_morpheme row
+    assert count == 3  # source + referenced etymon row (wyrd-ruvk) + fantasy_morpheme row
 
 
 def test_dump_fantasy_morphemes_orders_by_input_name_then_approach(tmp_path: Path):
@@ -1163,7 +1196,7 @@ def test_dump_fantasy_morphemes_orders_by_input_name_then_approach(tmp_path: Pat
     _add_fantasy_morpheme(conn, input_name="Angel", approach_version="fantasy-v1", etymon_id=eid)
 
     rows = dump_fantasy_morphemes_to_rows(conn)
-    morphemes = rows[1:]
+    morphemes = [r for r in rows if r["_type"] == "fantasy_morpheme"]
     assert [m["approach_version"] for m in morphemes] == ["fantasy-v1", "fantasy-v2"]
 
 

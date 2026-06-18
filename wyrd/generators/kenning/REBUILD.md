@@ -40,7 +40,7 @@ DB and must be re-run by hand after the rebuild.
 | `mining_run` audit | ✅ yes | — |
 | `etymon_variant` (~5.8M form rows from the wiktextract slices) | ✅ yes — via the **bulk L1 ingest** rebuild-from-jsonl runs by default (skipped only under `--skip-bulk`) | — |
 | reflexes (`reflex` / `reflex_etymon`) | ✅ **now** — via synthetic `data/mining/_reflexes.jsonl` (wyrd-ned5, PR #387). **Orphan reflexes too** (generation surfaces with no etymon link) since wyrd-br5o: the dump LEFT-JOINs so the *full* reflex table round-trips, not just the linked subset | — |
-| fantasy morphemes | ✅ **now** — via synthetic `data/mining/_fantasy_morphemes.jsonl` (PR #388) | — |
+| fantasy morphemes | ✅ **now** — via synthetic `data/mining/_fantasy_morphemes.jsonl` (PR #388). **Their referenced (uncited) etymons round-trip too** since wyrd-ruvk: the dump emits those etymons as canonical-state rows in the same file, else a rebuild resolves only ~8 of ~333 fantasy etymon FKs | — |
 | curation overrides | ✅ yes — `data/mining/_curation.jsonl` | — |
 | collapse ledger (form-of/variant folds, wyrd-y651) | ✅ yes — `data/mining/_collapses.jsonl`, replayed by `run_full_enrichment`'s curation slot (`apply_collapses`) | — |
 | element-gloss backfill (`reflex_etymon` links for unglossed generation surfaces, wyrd-u9k6) | ✅ yes — `data/mining/_element_glosses.jsonl` (deterministic consensus) + `_element_gloss_adjudications.jsonl` (LLM picks), replayed by `run_full_enrichment`'s element-gloss pass (`apply_element_glosses`) | — |
