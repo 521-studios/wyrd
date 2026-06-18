@@ -35,6 +35,112 @@ LLM_TOPONYM_REFLEX_DETACH_METHOD = "llm-toponym-reflex-detach-v1"
 _MODERN = "modern-english"
 _ENGLISH_FAMILY = ("old-english", "old-norse", "old-french", "middle-english")
 
+# wyrd-xdam.5: the fine-grained Celtic languages whose cluster members also get
+# judged. The bulk wiktextract ingest pulls whole Welsh/Irish/… dictionaries
+# (foreign proper nouns and all) into cognate clusters that cross-link to English
+# — e.g. welsh 'Macedonia'/'Libya'/'Philip' clustered with the English forms —
+# polluting the era-grid the same way the medical-Latin / proper-noun noise on the
+# English side does. Judging Celtic members in English-anchored clusters detaches
+# that pollution while leaving real Welsh/Irish elements (which roll up to a
+# branch, wyrd-xdam.4) in place.
+_CELTIC_LANGS = (
+    "welsh",
+    "old-welsh",
+    "middle-welsh",
+    "modern-welsh",
+    "cornish",
+    "breton",
+    "old-breton",
+    "middle-breton",
+    "irish",
+    "old-irish",
+    "middle-irish",
+    "scottish-gaelic",
+    "manx",
+)
+
+# Protective whitelist of standard Celtic place-name elements (Welsh: Owen; Irish:
+# Joyce / Flanagan; Scottish: Watson) — never detached regardless of verdict, like
+# PROTECTED_ELEMENTS on the English side. Bare native form, lower-cased.
+CELTIC_PROTECTED_ELEMENTS = frozenset(
+    [
+        # Brittonic (Welsh / Cornish / Breton)
+        "aber",
+        "llan",
+        "caer",
+        "pen",
+        "tre",
+        "tref",
+        "nant",
+        "bryn",
+        "cwm",
+        "glan",
+        "llyn",
+        "afon",
+        "coed",
+        "rhyd",
+        "pant",
+        "maes",
+        "ynys",
+        "porth",
+        "eglwys",
+        "bod",
+        "din",
+        "dinas",
+        "moel",
+        "mynydd",
+        "pont",
+        "pwll",
+        "ros",
+        "lan",
+        "lann",
+        "ker",
+        "plou",
+        "gwic",
+        "carn",
+        "men",
+        "nans",
+        # Goidelic (Irish / Scottish-Gaelic / Manx)
+        "bally",
+        "baile",
+        "dun",
+        "kil",
+        "cill",
+        "inver",
+        "inbhear",
+        "loch",
+        "lough",
+        "knock",
+        "cnoc",
+        "rath",
+        "glen",
+        "gleann",
+        "drum",
+        "droim",
+        "carrick",
+        "carraig",
+        "slieve",
+        "sliabh",
+        "ben",
+        "beinn",
+        "strath",
+        "srath",
+        "kin",
+        "ceann",
+        "auch",
+        "achadh",
+        "bal",
+        "ard",
+        "lis",
+        "lios",
+        "tully",
+        "tulach",
+        "clon",
+        "cluain",
+        "knock",
+    ]
+)
+
 # Protective whitelist of standard English place-name elements (Smith EPNS /
 # Gelling & Cole / Mills). The generic judge occasionally rejects a common-word
 # element as "just a common noun/adjective" (e.g. home <OE hām, law/low <OE hlāw
@@ -243,11 +349,48 @@ def _surface_similar(a: str, b: str) -> bool:
     return difflib.SequenceMatcher(None, x, y).ratio() >= 0.5
 
 
+def looks_like_proper_noun(form: str) -> bool:
+    """Deterministic proper-noun screen (wyrd-xdam.5): a capitalized headword whose
+    normalized form is not a known place-name element. Catches the foreign
+    proper-noun bulk (Macedonia, Libya, Philip, Andreas) the bulk wiktextract
+    ingest pulls in, without an LLM call. Place-name elements are lower-case in the
+    corpus, so a leading capital is a strong proper-noun signal; the element
+    whitelists are a belt-and-braces guard against a capitalized known element."""
+    f = form.strip().strip("-")
+    if not f or not f[0].isupper():
+        return False
+    return _norm(f) not in (PROTECTED_ELEMENTS | CELTIC_PROTECTED_ELEMENTS)
+
+
+def deterministic_proper_noun_verdict(
+    c: ToponymReflexCandidate,
+) -> ToponymReflexVerdict | None:
+    """A high-confidence DETACH verdict for a candidate whose form is a clear
+    proper noun (deterministic-first; no LLM). ``None`` → defer to the LLM tail."""
+    if looks_like_proper_noun(c.reflex_form):
+        return ToponymReflexVerdict(
+            toponymic=False,
+            confidence="high",
+            reason="capitalized non-element headword (proper noun, deterministic)",
+        )
+    return None
+
+
 def detect_toponym_reflex_candidates(
-    conn: sqlite3.Connection, *, prescreen: bool = True, min_modern_members: int = 1
+    conn: sqlite3.Connection,
+    *,
+    prescreen: bool = True,
+    min_modern_members: int = 1,
+    target_langs: tuple[str, ...] = (_MODERN,),
+    anchor_langs: tuple[str, ...] = _ENGLISH_FAMILY,
 ) -> list[ToponymReflexCandidate]:
-    """Distinct modern-english cluster-member forms in clusters that contain an
-    English-family morpheme.
+    """Distinct cluster-member forms (in ``target_langs``) inside clusters that
+    contain an ``anchor_langs`` morpheme.
+
+    Defaults reproduce the original English behaviour exactly: judge the
+    ``modern-english`` members of English-family-anchored clusters. wyrd-xdam.5
+    passes ``target_langs=_CELTIC_LANGS`` to instead judge the Celtic members that
+    bridge into those English-anchored clusters (the foreign-proper-noun pollution).
 
     With ``prescreen=True`` (default) a form surface-similar to one of its cluster
     morphemes is auto-kept (likely a real reflex) — catches only the
@@ -255,21 +398,21 @@ def detect_toponym_reflex_candidates(
     judged, which also catches surface-SIMILAR noise (``vulva``~``val``,
     ``tuna``~``tūn``) that merely looks like the morpheme; the judge keeps the
     legit spelling variants. ``min_modern_members`` restricts to clusters with at
-    least that many modern members (use 2 with ``prescreen=False`` to target the
-    over-merged clusters where surface-similar noise co-occurs)."""
+    least that many ``target_langs`` members (use 2 with ``prescreen=False`` to
+    target the over-merged clusters where surface-similar noise co-occurs)."""
     by_id = _load_clustered_corpus(conn)
     clusters: dict[int, list[int]] = defaultdict(list)
     for eid, rec in by_id.items():
         clusters[rec["cognate_id"]].append(eid)
 
-    # form -> (etymon_id, set of English-family morpheme forms across its clusters)
+    # form -> (etymon_id, set of anchor-family morpheme forms across its clusters)
     candidates: dict[str, int] = {}
     morphemes_for: dict[str, set[str]] = defaultdict(set)
     for _cog, ids in clusters.items():
-        fam = [by_id[i]["form"] for i in ids if by_id[i]["lang"] in _ENGLISH_FAMILY]
+        fam = [by_id[i]["form"] for i in ids if by_id[i]["lang"] in anchor_langs]
         if not fam:
             continue
-        moderns = [i for i in ids if by_id[i]["lang"] == _MODERN]
+        moderns = [i for i in ids if by_id[i]["lang"] in target_langs]
         if len(moderns) < min_modern_members:
             continue
         for i in moderns:
@@ -306,7 +449,33 @@ _JUDGE_SYSTEM = (
 )
 
 
+_JUDGE_SYSTEM_CELTIC = (
+    "You are auditing CELTIC-language words (Welsh, Cornish, Breton, Irish, Scottish "
+    "Gaelic, Manx) that the bulk dictionary import has grouped into the cognate clusters "
+    "of an ENGLISH PLACE-NAME (toponym) etymology lexicon. For the given Celtic word, "
+    "decide if it is plausibly a Celtic place-name ELEMENT — a word occurring in or "
+    "derived from Welsh/Irish/Scottish/Cornish/Breton place-names (e.g. 'aber','llan',"
+    "'caer','pen','tre','nant','bally','dun','kil','inver','glen','knock','loch'). Answer "
+    "NO if it is clearly an UNRELATED word wrongly cluster-merged: a foreign-language word, "
+    "a proper noun (a person, or a place outside the Celtic lands — e.g. 'Macedonia','Libya',"
+    "'Philip'), a function word/pronoun, an acronym, or an abstract noun with no toponymic "
+    "use. Judge the word itself, not surface look-alikeness. Reply ONLY with a JSON object: "
+    '{"toponymic": true|false, "confidence": "high"|"medium"|"low", "reason": "<one short clause>"}.'
+)
+
+
+def _is_celtic_ref(ref: str) -> bool:
+    return ref.split(":", 1)[0] in _CELTIC_LANGS
+
+
 def build_judge_prompt(c: ToponymReflexCandidate) -> tuple[str, str]:
+    if _is_celtic_ref(c.reflex_ref):
+        user = (
+            f'Celtic word: "{c.reflex_form}"\n'
+            f"Is it a plausible Celtic place-name element (keep), or an unrelated word "
+            f"wrongly cluster-merged (detach)?"
+        )
+        return _JUDGE_SYSTEM_CELTIC, user
     user = (
         f'Modern English word: "{c.reflex_form}"\n'
         f"Is it a plausible English place-name element reflex (keep), or an unrelated word "
@@ -361,7 +530,9 @@ def detach_row(row: dict, min_confidence: str) -> dict | None:
         return None
     # never detach a known place-name element, even if the judge said non-toponymic
     # (normalize so a non-lowercase/accented form still matches the whitelist).
-    if _norm(row.get("reflex_ref", "").split(":", 1)[-1]) in PROTECTED_ELEMENTS:
+    if _norm(row.get("reflex_ref", "").split(":", 1)[-1]) in (
+        PROTECTED_ELEMENTS | CELTIC_PROTECTED_ELEMENTS
+    ):
         return None
     parents = row.get("bridging_parents") or []
     if not parents:

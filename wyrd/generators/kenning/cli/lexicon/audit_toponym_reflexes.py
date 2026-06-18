@@ -123,6 +123,30 @@ def _judge_fresh(client, to_judge, log, audit_fh, base_url, model) -> tuple[int,
     return judged, skipped
 
 
+def _judge_deterministic(to_judge, log, audit_fh) -> tuple[list, int]:
+    """wyrd-xdam.5 deterministic-first: record high-confidence proper-noun DETACH
+    verdicts without an LLM call (the Macedonia/Libya/Philip bulk). Returns the
+    remaining surface-ambiguous candidates for the LLM tail."""
+    from wyrd.generators.kenning.lexicon.toponym_reflex_audit import (
+        audit_log_row,
+        deterministic_proper_noun_verdict,
+    )
+
+    remaining: list = []
+    flagged = 0
+    for c in to_judge:
+        v = deterministic_proper_noun_verdict(c)
+        if v is None:
+            remaining.append(c)
+            continue
+        row = audit_log_row(c, v)
+        log[c.reflex_ref] = row
+        if audit_fh is not None:
+            _append(audit_fh, row)
+        flagged += 1
+    return remaining, flagged
+
+
 def _emit_detaches(log, min_confidence, collapse_state, existing_pairs, collapse_fh, dry_run):
     from wyrd.generators.kenning.lexicon.toponym_reflex_audit import detach_row
 
@@ -203,6 +227,21 @@ def _emit_detaches(log, min_confidence, collapse_state, existing_pairs, collapse
     "auto-keep) — catches surface-SIMILAR noise (vulva~val, tuna~tūn) the default misses.",
 )
 @click.option("--limit", type=int, default=None, help="Cap forms judged this run.")
+@click.option(
+    "--scope",
+    type=click.Choice(["english", "celtic"]),
+    default="english",
+    show_default=True,
+    help="english: judge modern-english members (wyrd-1wv2). celtic: judge Celtic "
+    "members bridging into English-anchored clusters (wyrd-xdam.5) — runs the "
+    "deterministic proper-noun screen first, then the LLM tail.",
+)
+@click.option(
+    "--deterministic-only",
+    is_flag=True,
+    default=False,
+    help="celtic scope: skip the LLM tail; only emit the deterministic proper-noun detaches.",
+)
 @click.option("--dry-run", is_flag=True, default=False, help="Judge + print; write nothing.")
 def lexicon_audit_toponym_reflexes(
     db_path,
@@ -213,14 +252,20 @@ def lexicon_audit_toponym_reflexes(
     min_confidence,
     over_merged,
     limit,
+    scope,
+    deterministic_only,
     dry_run,
 ):
-    """LLM-audit modern era-grid reflexes for toponym-plausibility and detach the
-    unrelated cluster-merged ones (wyrd-1wv2)."""
+    """LLM-audit era-grid reflexes for toponym-plausibility and detach the unrelated
+    cluster-merged ones. ``--scope english`` (default, wyrd-1wv2) judges modern-english
+    members; ``--scope celtic`` (wyrd-xdam.5) judges Celtic members in English-anchored
+    clusters, deterministic proper-noun screen first."""
     from wyrd.generators.kenning.cli.utils import _readonly_lexicon
     from wyrd.generators.kenning.extractors.llm import OllamaClient
     from wyrd.generators.kenning.jsonl.build import collect_collapses
     from wyrd.generators.kenning.lexicon.toponym_reflex_audit import (
+        _CELTIC_LANGS,
+        _MODERN,
         detect_toponym_reflex_candidates,
     )
 
@@ -231,10 +276,14 @@ def lexicon_audit_toponym_reflexes(
         raise click.ClickException(f"Lexicon DB not found: {db_path}")
     base_url = ollama_url or os.environ.get("WYRD_OLLAMA_URL", "http://localhost:11434")
 
-    click.echo(f"Detecting toponym-reflex candidates in {db_path}...", err=True)
+    target_langs = _CELTIC_LANGS if scope == "celtic" else (_MODERN,)
+    click.echo(f"Detecting {scope} toponym-reflex candidates in {db_path}...", err=True)
     with _readonly_lexicon(db_path) as conn:
         candidates = detect_toponym_reflex_candidates(
-            conn, prescreen=not over_merged, min_modern_members=2 if over_merged else 1
+            conn,
+            prescreen=not over_merged,
+            min_modern_members=2 if over_merged else 1,
+            target_langs=target_langs,
         )
 
     log = _load_log(audit_file)
@@ -260,7 +309,18 @@ def lexicon_audit_toponym_reflexes(
         if not dry_run:
             audit_fh = audit_file.open("a", encoding="utf-8")
             collapse_fh = collapse_file.open("a", encoding="utf-8")
-        judged, skipped = _judge_fresh(client, to_judge, log, audit_fh, base_url, model)
+        det_flagged = 0
+        if scope == "celtic":
+            to_judge, det_flagged = _judge_deterministic(to_judge, log, audit_fh)
+            click.echo(
+                f"  deterministic proper-noun detaches: {det_flagged}; "
+                f"{len(to_judge)} ambiguous left for the LLM tail",
+                err=True,
+            )
+        if scope == "celtic" and deterministic_only:
+            judged = skipped = 0
+        else:
+            judged, skipped = _judge_fresh(client, to_judge, log, audit_fh, base_url, model)
         counts = _emit_detaches(
             log, min_confidence, collapse_state, existing_pairs, collapse_fh, dry_run
         )
@@ -271,8 +331,8 @@ def lexicon_audit_toponym_reflexes(
 
     verb = "would detach" if dry_run else "detached"
     click.echo(
-        f"judged {judged} new ({skipped} skipped); {verb}: {counts['detaches']} forms, "
-        f"kept {counts['kept']}, already-detached {counts['already']}",
+        f"deterministic={det_flagged} judged={judged} new ({skipped} skipped); {verb}: "
+        f"{counts['detaches']} forms, kept {counts['kept']}, already-detached {counts['already']}",
         err=True,
     )
 

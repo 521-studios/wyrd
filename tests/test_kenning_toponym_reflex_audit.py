@@ -9,13 +9,17 @@ import pytest
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.schema import init_schema
 from wyrd.generators.kenning.lexicon.toponym_reflex_audit import (
+    _CELTIC_LANGS,
     LLM_TOPONYM_REFLEX_DETACH_METHOD,
     ToponymReflexCandidate,
     ToponymReflexVerdict,
     _surface_similar,
     audit_log_row,
+    build_judge_prompt,
     detach_row,
     detect_toponym_reflex_candidates,
+    deterministic_proper_noun_verdict,
+    looks_like_proper_noun,
     parse_verdict,
     verdict_from_log,
 )
@@ -221,3 +225,66 @@ def test_protected_match_normalizes_case():
         "reason": "adjective",
     }
     assert detach_row(row, "medium") is None  # 'New' normalizes to protected 'new'
+
+
+# --- wyrd-xdam.5: Celtic scope + deterministic proper-noun screen ----------
+
+
+def test_looks_like_proper_noun():
+    assert looks_like_proper_noun("Macedonia")
+    assert looks_like_proper_noun("Libya")
+    assert looks_like_proper_noun("Philip")
+    assert not looks_like_proper_noun("afon")  # lowercase element
+    assert not looks_like_proper_noun("aber")  # lowercase Celtic element
+    assert not looks_like_proper_noun("Aber")  # capitalized but whitelisted Celtic element
+    assert not looks_like_proper_noun("Ham")  # capitalized but whitelisted English element
+    assert not looks_like_proper_noun("")
+
+
+def test_deterministic_proper_noun_verdict():
+    proper = ToponymReflexCandidate("welsh:Macedonia", "Macedonia", ("old-english:hām",))
+    v = deterministic_proper_noun_verdict(proper)
+    assert v is not None and v.toponymic is False and v.confidence == "high"
+    ambiguous = ToponymReflexCandidate("welsh:afon", "afon", ("old-english:hām",))
+    assert deterministic_proper_noun_verdict(ambiguous) is None  # lowercase -> LLM tail
+
+
+def test_celtic_scope_detects_celtic_members_keeps_similar(lex):
+    """--scope celtic picks the Celtic members bridging into an English-anchored
+    cluster; a Celtic form surface-similar to its English morpheme is auto-kept;
+    the default English scope ignores the Celtic member entirely."""
+    oe = _mk(lex, "hām", "old-english")  # English-family anchor
+    _me = _mk(lex, "Macedonia", "modern-english")  # english side of the bad merge
+    w_proper = _mk(lex, "Macedonia", "welsh")  # foreign proper noun -> candidate
+    w_similar = _mk(lex, "hamlet", "welsh")  # surface-similar to hām -> auto-kept
+    _cluster(lex, oe, _me, w_proper, w_similar)
+    _edge(lex, oe, w_proper)  # bridging parent
+    _edge(lex, oe, w_similar)
+    lex.commit()
+    celtic = {
+        c.reflex_ref for c in detect_toponym_reflex_candidates(lex.conn, target_langs=_CELTIC_LANGS)
+    }
+    assert "welsh:Macedonia" in celtic
+    assert "welsh:hamlet" not in celtic  # surface-similar -> auto-kept
+    english = {c.reflex_ref for c in detect_toponym_reflex_candidates(lex.conn)}
+    assert "welsh:Macedonia" not in english  # default scope never picks Celtic members
+
+
+def test_celtic_element_protected_from_detach():
+    row = {
+        "reflex_ref": "welsh:llan",
+        "bridging_parents": ["old-english:hām"],
+        "toponymic": False,
+        "confidence": "high",
+        "reason": "judge said no",
+    }
+    assert detach_row(row, "medium") is None  # CELTIC_PROTECTED_ELEMENTS guard
+
+
+def test_celtic_judge_prompt_is_celtic_aware():
+    celtic = ToponymReflexCandidate("welsh:Macedonia", "Macedonia", ())
+    sysp, user = build_judge_prompt(celtic)
+    assert "Celtic" in sysp and "Macedonia" in user
+    english = ToponymReflexCandidate("modern-english:vulva", "vulva", ())
+    sysp_en, _ = build_judge_prompt(english)
+    assert "English place-name" in sysp_en
