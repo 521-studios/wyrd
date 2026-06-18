@@ -30,7 +30,7 @@ canonicalization L2 stream (replayed + clustered by zrce.1's wired projection).
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from wyrd.generators.kenning.lexicon.cognate_descent_mining import DescentEdge
@@ -169,21 +169,22 @@ def _clustered_prefix_index(
 
 def _select_candidates(
     fold: str,
-    bridges: list[tuple[int, str, str, int]] | tuple,
+    bridges: Sequence[tuple[int, str, str, int]],
     glosses: dict[int, tuple[str, ...]],
     max_candidates: int,
 ) -> tuple[ClusterCand, ...]:
     """The best bridge per candidate cluster (longest shared fold wins), the clusters
-    sorted best-first and capped to ``max_candidates``."""
-    # Best bridge per cluster: longest shared fold, then prefer a GLOSSED member (a
-    # glossless proto-root carries no signal for the LLM even if it shares the prefix).
-    best: dict[int, tuple[int, str, str, int]] = {}
-    best_rank: dict[int, tuple[int, int]] = {}
+    sorted best-first and capped to ``max_candidates``. Fully deterministic — ties on
+    (shared-fold, glossed) break on the smaller ``bridge_form`` so the chosen
+    representative doesn't drift with DB row order (the SELECT has no ORDER BY)."""
+    # root -> (shared_fold, has_gloss, bridge_form, bridge_lang, bridge_etymon_id)
+    best: dict[int, tuple[int, int, str, str, int]] = {}
     for root, bform, blang, beid in bridges:
-        rank = (_shared_prefix_len(fold, _fold(bform)), 1 if glosses.get(beid) else 0)
-        if root not in best_rank or rank > best_rank[root]:
-            best_rank[root] = rank
-            best[root] = (rank[0], bform, blang, beid)
+        cand = (_shared_prefix_len(fold, _fold(bform)), 1 if glosses.get(beid) else 0, bform, blang, beid)
+        cur = best.get(root)
+        # higher (shared_fold, has_gloss) wins; tie → smaller bridge_form.
+        if cur is None or cand[:2] > cur[:2] or (cand[:2] == cur[:2] and cand[2] < cur[2]):
+            best[root] = cand
     cands = sorted(
         (
             ClusterCand(
@@ -192,9 +193,9 @@ def _select_candidates(
                 bridge_lang=blang,
                 bridge_glosses=glosses.get(beid, ()),
             )
-            for root, (_spl, bform, blang, beid) in best.items()
+            for root, (_spl, _hg, bform, blang, beid) in best.items()
         ),
-        key=lambda c: (-_shared_prefix_len(fold, _fold(c.bridge_form)), c.cluster_root),
+        key=lambda c: (-_shared_prefix_len(fold, _fold(c.bridge_form)), c.bridge_form, c.cluster_root),
     )[:max_candidates]
     return tuple(cands)
 

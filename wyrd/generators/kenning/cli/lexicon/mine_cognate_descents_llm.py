@@ -196,12 +196,14 @@ def _judge_fresh(items, judge, log, audit_path, ollama_url, model) -> None:
                         f"Aborting: {_MAX_CONSECUTIVE_FAILS} consecutive judge failures — is "
                         f"Ollama up at {ollama_url} with model {model}? (curl .../api/tags)"
                     )
-                continue
-            consecutive = 0
-            judged += 1
-            log[item.ref] = row
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-            fh.flush()
+            else:
+                consecutive = 0
+                judged += 1
+                log[item.ref] = row
+                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+                fh.flush()
+            # Emit progress on EVERY boundary (incl. a trailing skip) so the final
+            # line always prints and a skip-heavy window isn't silent.
             if i % 10 == 0 or i == len(items):
                 rate = (time.perf_counter() - start) / i
                 confirmed = sum(1 for r in log.values() if r.get("confirmed"))

@@ -243,7 +243,7 @@ def test_judge_item_confirmed_path():
 
     def judge(system, user):
         calls.append(user)
-        if "Refute" in user or "refute" in user:
+        if '"choice"' not in system:  # refute system requests {"confirmed": ...}
             return {"confirmed": True, "confidence": "medium", "reason": "real cognate"}
         return {"choice": 1, "confidence": "medium", "reason": "matches"}
 
@@ -272,7 +272,7 @@ def test_judge_item_refuted_yields_no_edge():
     from wyrd.generators.kenning.lexicon.cognate_descent_llm import judge_item
 
     def judge(system, user):
-        if "efute" in user:
+        if '"choice"' not in system:
             return {"confirmed": False, "confidence": "high", "reason": "look-alike"}
         return {"choice": 1, "confidence": "high", "reason": "matches"}
 
