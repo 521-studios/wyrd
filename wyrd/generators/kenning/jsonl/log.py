@@ -162,8 +162,11 @@ LIST_TYPES: frozenset[str] = frozenset(
         # wyrd-6hbv: merge-audit verdict log (``data/mining/_merge_audit.jsonl``).
         # Idempotency + audit trail only — the applied reverts live in the
         # collapse / curation ledgers; no build helper consumes this list, so it
-        # replays inert. Registered here so rebuild-from-jsonl's glob over every
-        # *.jsonl in data/mining/ accepts the file instead of raising ReplayError.
+        # replays inert. Registered here so rebuild-from-jsonl's glob accepts the
+        # file instead of raising ReplayError — _merge_audit conforms (every row is
+        # a registered _type) and is NOT in build.REPLAY_EXCLUDED_LEDGERS. The other
+        # audit logs each contain at least one row with an unregistered/absent _type
+        # and ARE excluded from the glob there (wyrd-5qg7).
         "merge_audit",
         # wyrd-xz3g: LLM tag-backfill decisions (``data/mining/_tags.jsonl``).
         # Same shape as merge_audit — no build helper consumes the replay

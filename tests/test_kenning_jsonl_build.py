@@ -2532,3 +2532,100 @@ def test_dump_reflexes_round_trips_through_rebuild(tmp_path: Path):
         assert (row["canonical_form"], row["language"]) == ("tūn", "old-english")
     finally:
         dconn.close()
+
+
+# ---------------------------------------------------------------------------
+# wyrd-5qg7: audit verdict logs must be excluded from the replay set
+# ---------------------------------------------------------------------------
+
+
+def test_jsonl_paths_in_excludes_replay_excluded_ledgers(tmp_path: Path):
+    """The replay-excluded ledgers are excluded from the replay set; conforming files
+    — curated sources, _collapses, and _tags/_merge_audit (which replay inert) —
+    are kept."""
+    from wyrd.generators.kenning.jsonl.build import REPLAY_EXCLUDED_LEDGERS
+
+    kept = {"skeat.jsonl", "_tags.jsonl", "_merge_audit.jsonl", "_collapses.jsonl"}
+    for name in kept | set(REPLAY_EXCLUDED_LEDGERS):
+        (tmp_path / name).write_text("", encoding="utf-8")
+    assert {p.name for p in jsonl_paths_in(tmp_path)} == kept
+
+
+def test_no_unhandled_nonconforming_ledgers():
+    """Drift guard, both directions (wyrd-5qg7): every real data/mining/*.jsonl is
+    EITHER replay-conforming (all rows carry a _type in ALL_TYPES) OR listed in
+    REPLAY_EXCLUDED_LEDGERS; AND every listed name still exists and is still
+    non-conforming. A new non-conforming ledger added without listing it — or a
+    stale/over-broad exclusion that became conforming or vanished — fails THIS test
+    in CI instead of silently breaking (or silently over-trimming) the rebuild."""
+    from wyrd.generators.kenning.jsonl.build import REPLAY_EXCLUDED_LEDGERS
+    from wyrd.generators.kenning.jsonl.log import ALL_TYPES
+
+    mining = Path(__file__).resolve().parents[1] / "data" / "mining"
+
+    def first_nonconforming(path: Path) -> str | None:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if json.loads(line).get("_type") not in ALL_TYPES:
+                return repr(json.loads(line).get("_type"))
+        return None
+
+    # forward: a non-conforming file must be listed
+    unlisted = [
+        f"{f.name}: _type={t}"
+        for f in sorted(mining.glob("*.jsonl"))
+        if f.name not in REPLAY_EXCLUDED_LEDGERS and (t := first_nonconforming(f)) is not None
+    ]
+    assert not unlisted, (
+        f"Non-conforming data/mining ledgers not in REPLAY_EXCLUDED_LEDGERS "
+        f"(add them there or fix their schema): {unlisted}"
+    )
+    # inverse: every listed name must still exist AND still be non-conforming
+    stale = [
+        name
+        for name in sorted(REPLAY_EXCLUDED_LEDGERS)
+        if not (mining / name).is_file() or first_nonconforming(mining / name) is None
+    ]
+    assert not stale, (
+        f"Stale REPLAY_EXCLUDED_LEDGERS entries (missing, or now replay-conforming so "
+        f"they'd be wrongly dropped from replay — remove them): {stale}"
+    )
+
+
+def test_build_skips_replay_excluded_ledgers(tmp_path: Path):
+    """Regression: a directory containing both failure modes rebuilds cleanly —
+    the type-less ``_reflex_audit.jsonl`` (bare rows, no ``_type``) AND the
+    bespoke-``_type`` ``_pronunciation.jsonl`` (``_type: pronunciation`` not in
+    ALL_TYPES). Either, swept into the generic replay, used to raise ReplayError
+    (from-scratch rebuild broken)."""
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+            },
+        ],
+    )
+    # bare audit rows with NO _type — would raise "row missing '_type'" if replayed
+    (tmp_path / "_reflex_audit.jsonl").write_text(
+        json.dumps({"surface": "-ock", "canon": "aecern", "valid": False}) + "\n",
+        encoding="utf-8",
+    )
+    # bespoke _type not in ALL_TYPES — would raise "unknown _type 'pronunciation'"
+    (tmp_path / "_pronunciation.jsonl").write_text(
+        json.dumps({"_type": "source", "ref": "pron", "title": "P"})
+        + "\n"
+        + json.dumps({"_type": "pronunciation", "ref": "old-english:cot", "ipa": "kɒt"})
+        + "\n",
+        encoding="utf-8",
+    )
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))  # must not raise
+    assert counts["source"] == 1

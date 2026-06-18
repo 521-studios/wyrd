@@ -1014,11 +1014,48 @@ def _etymology_element_fingerprint(row: dict[str, Any]) -> tuple:
     )
 
 
+# Synthetic ledgers EXCLUDED from the generic build_from_jsonl replay (wyrd-5qg7).
+# Each contains at least one row that doesn't conform to the replay schema (a
+# bespoke ``_type`` not in ``log.ALL_TYPES``, e.g. ``pronunciation`` /
+# ``modern_reflex`` / the ``*_reflex/descent/cluster`` audit verdicts; or no
+# ``_type`` at all, e.g. ``_reflex_audit`` / ``_element_gloss*`` — though several
+# ALSO carry a conforming ``source`` row). Sweeping them into the generic replay
+# raised ReplayError, which silently broke from-scratch rebuild-from-jsonl. They
+# fall into two groups, neither of which needs generic replay:
+#   1. Audit verdict logs (``_reflex_audit`` / ``_descent_audit`` /
+#      ``_cluster_reflex_audit`` / ``_toponym_reflex_audit``) — idempotency/audit
+#      only; NOT read at rebuild at all. Their applied detaches round-trip through
+#      ``_collapses.jsonl`` / ``_reflexes.jsonl`` (which ARE replayed). Their own
+#      ``source`` row is referenced by nothing post-rebuild.
+#   2. Read-directly ledgers (``_element_glosses`` / ``_element_gloss_adjudications``
+#      → element-gloss enrichment; ``_pronunciation`` → collect_pronunciation;
+#      ``_modern_reflexes`` → import-modern-reflexes) — re-applied by their own pass,
+#      which upserts its own source.
+# test_no_unhandled_nonconforming_ledgers guards that any future non-conforming
+# ledger is listed here. (``_merge_audit`` / ``_tags`` are NOT here — they conform
+# and replay inert.)
+REPLAY_EXCLUDED_LEDGERS: frozenset[str] = frozenset(
+    {
+        "_reflex_audit.jsonl",
+        "_descent_audit.jsonl",
+        "_cluster_reflex_audit.jsonl",
+        "_toponym_reflex_audit.jsonl",
+        "_element_glosses.jsonl",
+        "_element_gloss_adjudications.jsonl",
+        "_pronunciation.jsonl",
+        "_modern_reflexes.jsonl",
+    }
+)
+
+
 def jsonl_paths_in(directory: str | Path) -> list[Path]:
-    """All ``*.jsonl`` files in ``directory``, sorted ASCII. Used as the
-    default input set for :func:`build_from_jsonl`."""
+    """All ``*.jsonl`` files in ``directory`` EXCEPT the replay-excluded ledgers
+    (:data:`REPLAY_EXCLUDED_LEDGERS`), sorted ASCII. Used as the default input set
+    for :func:`build_from_jsonl`. The excluded ledgers don't conform to the generic
+    replay schema; each is an audit log or is consumed by its own enrichment/import
+    pass (wyrd-5qg7)."""
     p = Path(directory)
-    return sorted(p.glob("*.jsonl"))
+    return sorted(f for f in p.glob("*.jsonl") if f.name not in REPLAY_EXCLUDED_LEDGERS)
 
 
 # Tables the diff-rebuild check compares (wyrd-f4nl). Scoped to the L2

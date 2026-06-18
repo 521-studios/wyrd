@@ -182,9 +182,14 @@ What it does, in order:
 1. **Wipes** the target DB (`--db`, default `~/.wyrd/lexicon.db`).
 2. Ingests the L1 wiktextract bulk (skip with `--skip-bulk`; download
    with `--fetch-bulk`).
-3. Replays every `data/mining/*.jsonl` L2 file — including the synthetic
-   `_reflexes.jsonl`, `_fantasy_morphemes.jsonl`, `_curation.jsonl`,
-   `_collapses.jsonl`.
+3. Replays the conforming `data/mining/*.jsonl` L2 files — the curated
+   sources plus the synthetic `_reflexes.jsonl`, `_fantasy_morphemes.jsonl`,
+   `_curation.jsonl`, `_collapses.jsonl`, `_tags.jsonl`, `_merge_audit.jsonl`.
+   The replay-excluded ledgers in `build.REPLAY_EXCLUDED_LEDGERS` (the audit
+   verdict logs + `_element_glosses` / `_element_gloss_adjudications` /
+   `_pronunciation` / `_modern_reflexes`) are skipped — they don't conform to
+   the replay schema; their effects round-trip through the conforming ledgers
+   above or are re-applied by their own enrichment/import pass (wyrd-5qg7).
    Later file order wins on scalar conflicts; glosses/tags union.
 4. Runs the 16-pass `run_full_enrichment` chain (because
    `--with-enrichment`): `normalize-ocr → link-lemmas → [curation /
