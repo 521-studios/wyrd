@@ -9,13 +9,17 @@ import pytest
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.schema import init_schema
 from wyrd.generators.kenning.lexicon.toponym_reflex_audit import (
+    _CELTIC_LANGS,
     LLM_TOPONYM_REFLEX_DETACH_METHOD,
     ToponymReflexCandidate,
     ToponymReflexVerdict,
     _surface_similar,
     audit_log_row,
+    build_judge_prompt,
     detach_row,
     detect_toponym_reflex_candidates,
+    deterministic_proper_noun_verdict,
+    looks_like_proper_noun,
     parse_verdict,
     verdict_from_log,
 )
@@ -221,3 +225,199 @@ def test_protected_match_normalizes_case():
         "reason": "adjective",
     }
     assert detach_row(row, "medium") is None  # 'New' normalizes to protected 'new'
+
+
+# --- wyrd-xdam.5: Celtic scope + deterministic proper-noun screen ----------
+
+
+def test_looks_like_proper_noun():
+    assert looks_like_proper_noun("Macedonia")
+    assert looks_like_proper_noun("Libya")
+    assert looks_like_proper_noun("Philip")
+    assert looks_like_proper_noun("Caitrìona")  # accented capital (Gaelic personal name)
+    assert looks_like_proper_noun("Dùn Bheagain")  # multi-word specific place name
+    assert not looks_like_proper_noun("afon")  # lowercase element
+    assert not looks_like_proper_noun("aber")  # lowercase Celtic element
+    assert not looks_like_proper_noun("Aber")  # capitalized but whitelisted Celtic element
+    assert not looks_like_proper_noun("Ham")  # capitalized but whitelisted English element
+    assert not looks_like_proper_noun("-aber")  # leading hyphen stripped -> lowercase element
+    assert not looks_like_proper_noun("")
+
+
+def test_deterministic_proper_noun_verdict():
+    proper = ToponymReflexCandidate("welsh:Macedonia", "Macedonia", ("old-english:hām",))
+    v = deterministic_proper_noun_verdict(proper)
+    assert v is not None and v.toponymic is False and v.confidence == "high"
+    ambiguous = ToponymReflexCandidate("welsh:afon", "afon", ("old-english:hām",))
+    assert deterministic_proper_noun_verdict(ambiguous) is None  # lowercase -> LLM tail
+
+
+def test_celtic_scope_detects_celtic_members_keeps_similar(lex):
+    """--scope celtic picks the Celtic members bridging into an English-anchored
+    cluster; a Celtic form surface-similar to its English morpheme is auto-kept;
+    the default English scope ignores the Celtic member entirely."""
+    oe = _mk(lex, "hām", "old-english")  # English-family anchor
+    _me = _mk(lex, "Macedonia", "modern-english")  # english side of the bad merge
+    w_proper = _mk(lex, "Macedonia", "welsh")  # foreign proper noun -> candidate
+    w_similar = _mk(lex, "hamlet", "welsh")  # surface-similar to hām -> auto-kept
+    _cluster(lex, oe, _me, w_proper, w_similar)
+    _edge(lex, oe, w_proper)  # bridging parent
+    _edge(lex, oe, w_similar)
+    lex.commit()
+    celtic = {
+        c.reflex_ref for c in detect_toponym_reflex_candidates(lex.conn, target_langs=_CELTIC_LANGS)
+    }
+    assert "welsh:Macedonia" in celtic
+    assert "welsh:hamlet" not in celtic  # surface-similar -> auto-kept
+    english = {c.reflex_ref for c in detect_toponym_reflex_candidates(lex.conn)}
+    assert "welsh:Macedonia" not in english  # default scope never picks Celtic members
+
+
+def test_celtic_element_protected_from_detach():
+    row = {
+        "reflex_ref": "welsh:llan",
+        "bridging_parents": ["old-english:hām"],
+        "toponymic": False,
+        "confidence": "high",
+        "reason": "judge said no",
+    }
+    assert detach_row(row, "medium") is None  # CELTIC_PROTECTED_ELEMENTS guard
+    # the guard normalizes, so a capitalized/accented form of a known element is kept too
+    capitalized = {**row, "reflex_ref": "welsh:Llan"}
+    assert detach_row(capitalized, "medium") is None
+
+
+def test_celtic_judge_prompt_is_celtic_aware():
+    celtic = ToponymReflexCandidate("welsh:Macedonia", "Macedonia", ())
+    sysp, user = build_judge_prompt(celtic)
+    assert "Celtic" in sysp and "Macedonia" in user
+    english = ToponymReflexCandidate("modern-english:vulva", "vulva", ())
+    sysp_en, _ = build_judge_prompt(english)
+    assert "English place-name" in sysp_en
+
+
+def test_judge_deterministic_partitions_and_logs():
+    """The CLI orchestrator logs proper-noun detaches and returns the rest."""
+    from wyrd.generators.kenning.cli.lexicon import audit_toponym_reflexes as cli
+
+    proper = ToponymReflexCandidate("welsh:Macedonia", "Macedonia", ("old-english:hām",))
+    ambiguous = ToponymReflexCandidate("welsh:afon", "afon", ("old-english:hām",))
+    log: dict = {}
+    remaining, flagged = cli._judge_deterministic([proper, ambiguous], log, audit_fh=None)
+    assert flagged == 1
+    assert [c.reflex_ref for c in remaining] == ["welsh:afon"]
+    assert log["welsh:Macedonia"]["toponymic"] is False
+    assert "welsh:afon" not in log  # ambiguous -> deferred to LLM tail, not logged
+
+
+def test_cli_deterministic_only_requires_celtic_scope():
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.audit_toponym_reflexes import (
+        lexicon_audit_toponym_reflexes,
+    )
+
+    res = CliRunner().invoke(
+        lexicon_audit_toponym_reflexes, ["--scope", "english", "--deterministic-only"]
+    )
+    assert res.exit_code != 0
+    assert "deterministic-only" in res.output.lower()
+
+
+def test_cli_scope_celtic_deterministic_detaches_proper_noun(tmp_path):
+    """End-to-end: --scope celtic --deterministic-only flags a welsh proper noun
+    bridging into an English-anchored cluster, with no LLM call."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.audit_toponym_reflexes import (
+        lexicon_audit_toponym_reflexes,
+    )
+
+    init_schema(tmp_path / "lexicon.db")
+    db = LexiconDB(tmp_path / "lexicon.db")
+    db.conn.row_factory = sqlite3.Row
+    db.upsert_source(id="wk", title="Wiktionary")
+    oe = db.upsert_etymon("hām", "old-english")  # English-family anchor
+    me = db.upsert_etymon("Macedonia", "modern-english")
+    w = db.upsert_etymon("Macedonia", "welsh")  # foreign proper noun
+    for eid in (oe, me, w):
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (oe, eid))
+    db.conn.execute(
+        "INSERT INTO etymon_descent(parent_id, child_id, edge_type, source_id) "
+        "VALUES (?,?,'borrowing','wk')",
+        (oe, w),  # bridging parent for the welsh leaf
+    )
+    db.commit()
+    db.close()
+
+    res = CliRunner().invoke(
+        lexicon_audit_toponym_reflexes,
+        [
+            "--db",
+            str(tmp_path / "lexicon.db"),
+            "--scope",
+            "celtic",
+            "--deterministic-only",
+            "--dry-run",
+            "--collapse-file",
+            str(tmp_path / "c.jsonl"),
+            "--audit-file",
+            str(tmp_path / "a.jsonl"),
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    assert "welsh:Macedonia" in res.output
+    assert "deterministic=1" in res.output
+
+
+def test_cli_scope_celtic_llm_tail_judges_ambiguous(tmp_path, monkeypatch):
+    """celtic without --deterministic-only: the proper noun is caught
+    deterministically AND the lowercase form not resolved deterministically goes to
+    the LLM tail."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon import audit_toponym_reflexes as cli
+
+    init_schema(tmp_path / "lexicon.db")
+    db = LexiconDB(tmp_path / "lexicon.db")
+    db.conn.row_factory = sqlite3.Row
+    db.upsert_source(id="wk", title="Wiktionary")
+    oe = db.upsert_etymon("hām", "old-english")  # English-family anchor
+    proper = db.upsert_etymon("Macedonia", "welsh")  # deterministic detach
+    ambiguous = db.upsert_etymon("vwlgws", "welsh")  # lowercase -> LLM tail
+    for eid in (oe, proper, ambiguous):
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (oe, eid))
+    for child in (proper, ambiguous):
+        db.conn.execute(
+            "INSERT INTO etymon_descent(parent_id, child_id, edge_type, source_id) "
+            "VALUES (?,?,'borrowing','wk')",
+            (oe, child),
+        )
+    db.commit()
+    db.close()
+
+    monkeypatch.setattr(
+        cli,
+        "_judge_with_retry",
+        lambda client, c: ToponymReflexVerdict(
+            toponymic=False, confidence="high", reason="foreign word"
+        ),
+    )
+    res = CliRunner().invoke(
+        cli.lexicon_audit_toponym_reflexes,
+        [
+            "--db",
+            str(tmp_path / "lexicon.db"),
+            "--scope",
+            "celtic",
+            "--dry-run",
+            "--collapse-file",
+            str(tmp_path / "c.jsonl"),
+            "--audit-file",
+            str(tmp_path / "a.jsonl"),
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    assert "deterministic=1" in res.output  # the proper noun, no LLM
+    assert "judged=1" in res.output  # the ambiguous form, via the LLM tail
+    assert "welsh:Macedonia" in res.output and "welsh:vwlgws" in res.output
