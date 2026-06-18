@@ -157,19 +157,11 @@ def _dump_source_row(conn: sqlite3.Connection, source_id: str) -> dict[str, Any]
 
 
 # Columns _etymon_state_row needs from a fetched etymon row: the id (for the
-# gloss/tag lookups) + the natural key + the L2 columns it projects.
-_ETYMON_STATE_SELECT_COLUMNS = (
-    "e.id AS etymon_id",
-    "e.canonical_form",
-    "e.language",
-    "e.modifier_type",
-    "e.position_pref",
-    "e.notes",
-    "e.pronunciation_ipa",
-    "e.pronunciation_dialect",
-    "e.original_script",
-    "e.transliteration",
-)
+# gloss/tag lookups) + every L2 column it projects. Derived from
+# _ETYMON_L2_COLUMNS so a new L2 column can't drift out of the SELECT and
+# KeyError at projection time (the natural key — canonical_form, language —
+# rides along inside _ETYMON_L2_COLUMNS).
+_ETYMON_STATE_SELECT_COLUMNS = ("e.id AS etymon_id", *(f"e.{col}" for col in _ETYMON_L2_COLUMNS))
 
 
 def _etymon_state_row(conn: sqlite3.Connection, e: sqlite3.Row) -> dict[str, Any]:
@@ -839,14 +831,23 @@ def _dump_fantasy_morpheme_rows(conn: sqlite3.Connection) -> Iterable[dict[str, 
     ``input_name`` for diff stability. Joins ``etymon`` to project
     ``etymon_id`` → ``etymon_ref``; rows with NULL etymon_id (barred
     morphemes that never resolved a corpus etymon) emit no
-    ``etymon_ref`` field — replaying skips the JOIN on build."""
+    ``etymon_ref`` field — replaying skips the JOIN on build.
+
+    wyrd-ruvk: when ``etymon_id`` points to an OCR-cluster *loser*
+    (``merged_into_id NOT NULL`` — e.g. a diacritic variant ``latin:aeon``
+    merged into ``latin:æon``), the ref follows ``merged_into_id`` to the
+    surviving winner. This keeps the ref off a tombstone (so
+    :func:`_dump_fantasy_etymons` never emits a merged etymon to resurrect)
+    while preserving the link. OCR merges are single-hop, so one COALESCE
+    resolves the canonical etymon."""
     rows = conn.execute(
         f"""
         SELECT {", ".join("fm." + c for c in _FANTASY_MORPHEME_SCALAR_COLUMNS)},
-               e.language AS _etymon_language,
-               e.canonical_form AS _etymon_canonical_form
+               w.language AS _etymon_language,
+               w.canonical_form AS _etymon_canonical_form
           FROM fantasy_morpheme fm
           LEFT JOIN etymon e ON e.id = fm.etymon_id
+          LEFT JOIN etymon w ON w.id = COALESCE(e.merged_into_id, e.id)
          ORDER BY fm.input_name, fm.approach_version
         """  # noqa: S608 — column names are hand-written module constants
     ).fetchall()
@@ -870,15 +871,24 @@ def _dump_fantasy_etymons(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:
     source attribution — so NO per-source dump emits them. Without this, a
     rebuild can't resolve the ``fantasy_morpheme.etymon_ref`` and drops the
     morpheme as an orphan (wyrd-ruvk; sibling of the wyrd-ned5/br5o reflex
-    round-trip). Matches ``_dump_fantasy_morpheme_rows``' join (by id, no
-    ``merged_into_id`` filter) so every emitted ``etymon_ref`` has a matching
-    etymon row. Build's cross-file merge unifies any etymon also cited by a
-    real source."""
+    round-trip).
+
+    Resolves each referenced etymon through ``merged_into_id`` to its surviving
+    winner — matching the ref ``_dump_fantasy_morpheme_rows`` emits — so a
+    fantasy_morpheme pointing at an OCR-cluster loser dumps the winner, never
+    the tombstone (D22: no merged etymon resurfaces on rebuild). The winners are
+    themselves unmerged. Build's cross-file merge unifies any etymon also cited
+    by a real source."""
     etymons = conn.execute(
         f"""
         SELECT DISTINCT {", ".join(_ETYMON_STATE_SELECT_COLUMNS)}
           FROM etymon e
-         WHERE e.id IN (SELECT etymon_id FROM fantasy_morpheme WHERE etymon_id IS NOT NULL)
+         WHERE e.id IN (
+                SELECT COALESCE(ref.merged_into_id, ref.id)
+                  FROM fantasy_morpheme fm
+                  JOIN etymon ref ON ref.id = fm.etymon_id
+                 WHERE fm.etymon_id IS NOT NULL
+         )
          ORDER BY e.language, e.canonical_form
         """,  # noqa: S608 — interpolated names are module constants
     ).fetchall()

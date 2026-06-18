@@ -65,7 +65,9 @@ def _build_fixture_db() -> sqlite3.Connection:
             pronunciation_dialect TEXT,
             original_script TEXT,
             transliteration TEXT,
-            -- L3 columns the dumper should ignore
+            -- L3 columns the dumper ignores, EXCEPT merged_into_id, which the
+            -- fantasy dump reads to follow a referenced loser to its winner
+            -- (wyrd-ruvk).
             lemma_id INTEGER,
             merged_into_id INTEGER,
             cognate_id INTEGER,
@@ -1094,10 +1096,97 @@ def test_fantasy_morpheme_uncited_etymon_round_trips_through_dump_and_build(tmp_
     assert counts.get("fantasy_morpheme_orphans", 0) == 0
     assert counts["fantasy_morpheme"] == 1
     row = rebuilt.execute(
-        "SELECT e.language, e.canonical_form FROM fantasy_morpheme fm "
-        "JOIN etymon e ON e.id = fm.etymon_id WHERE fm.input_name = 'Bækard'"
+        "SELECT e.language, e.canonical_form, "
+        "       (SELECT gloss FROM etymon_gloss WHERE etymon_id = e.id) AS gloss "
+        "FROM fantasy_morpheme fm JOIN etymon e ON e.id = fm.etymon_id "
+        "WHERE fm.input_name = 'Bækard'"
     ).fetchone()
-    assert (row["language"], row["canonical_form"]) == ("middle-english", "-ard")
+    # Language, form AND the gloss carried on the emitted etymon row survive.
+    assert (row["language"], row["canonical_form"], row["gloss"]) == (
+        "middle-english",
+        "-ard",
+        "agent suffix",
+    )
+    rebuilt.close()
+
+
+def test_fantasy_morpheme_merged_loser_etymon_follows_to_winner(tmp_path: Path):
+    """wyrd-ruvk: when a fantasy_morpheme references an OCR-cluster LOSER
+    (merged_into_id set — e.g. diacritic variant 'aeon' merged into 'æon'), the
+    dump emits the WINNER's ref + the WINNER etymon row, never the tombstone.
+    The morpheme round-trips linked to the (unmerged) winner — full parity
+    without resurrecting a merged etymon (D22)."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    pre = _build_fixture_db()
+    winner = _add_etymon(pre, "latin", "æon")
+    loser = _add_etymon(pre, "latin", "aeon", merged_into_id=winner)
+    _add_fantasy_morpheme(pre, input_name="Aeonar", etymon_id=loser)
+    rows = dump_fantasy_morphemes_to_rows(pre)
+    # The dump emits ONLY the winner etymon (no tombstone), and the morpheme
+    # carries the winner ref.
+    assert {r["ref"] for r in rows if r["_type"] == "etymon"} == {"latin:æon"}
+    morpheme = next(r for r in rows if r["_type"] == "fantasy_morpheme")
+    assert morpheme["etymon_ref"] == "latin:æon"
+    dump_fantasy_morphemes_to_file(pre, tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    assert counts.get("fantasy_morpheme_orphans", 0) == 0
+    # No tombstone resurrected: the only etymon is the unmerged winner.
+    assert (
+        rebuilt.execute("SELECT count(*) FROM etymon WHERE merged_into_id IS NOT NULL").fetchone()[
+            0
+        ]
+        == 0
+    )
+    row = rebuilt.execute(
+        "SELECT e.canonical_form FROM fantasy_morpheme fm JOIN etymon e ON e.id = fm.etymon_id "
+        "WHERE fm.input_name = 'Aeonar'"
+    ).fetchone()
+    assert row["canonical_form"] == "æon"
+    rebuilt.close()
+
+
+def test_fantasy_etymon_shared_by_two_morphemes_emits_one_row(tmp_path: Path):
+    """wyrd-ruvk: two fantasy_morphemes sharing one etymon emit a single
+    DISTINCT etymon row (guards the DISTINCT in _dump_fantasy_etymons)."""
+    pre = _build_fixture_db()
+    eid = _add_etymon(pre, "old-english", "draca")
+    _add_fantasy_morpheme(pre, input_name="Dracos", etymon_id=eid)
+    _add_fantasy_morpheme(pre, input_name="Dracar", etymon_id=eid)
+    rows = dump_fantasy_morphemes_to_rows(pre)
+    pre.close()
+    etymon_rows = [r for r in rows if r["_type"] == "etymon"]
+    assert [r["ref"] for r in etymon_rows] == ["old-english:draca"]
+    assert len([r for r in rows if r["_type"] == "fantasy_morpheme"]) == 2
+
+
+def test_fantasy_etymon_also_cited_by_real_source_merges_to_one(tmp_path: Path):
+    """wyrd-ruvk: an etymon that is BOTH fantasy-referenced AND cited by a real
+    per-source dump is emitted by both files; the build's cross-file merge
+    (by ref) must unify them into a single etymon on rebuild."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    pre = _build_fixture_db()
+    _add_source(pre, id="skeat", title="Skeat")
+    eid = _add_etymon(pre, "old-english", "cot")
+    pre.execute("INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, 'skeat')", (eid,))
+    _add_fantasy_morpheme(pre, input_name="Cotling", etymon_id=eid)
+    dump_source_to_file(pre, "skeat", tmp_path)  # emits old-english:cot (cited)
+    dump_fantasy_morphemes_to_file(pre, tmp_path)  # also emits old-english:cot (fantasy)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    # One etymon, not two — the cross-file merge unified the duplicate refs.
+    assert (
+        rebuilt.execute(
+            "SELECT count(*) FROM etymon WHERE canonical_form='cot' AND language='old-english'"
+        ).fetchone()[0]
+        == 1
+    )
     rebuilt.close()
 
 

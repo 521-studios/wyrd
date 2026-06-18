@@ -437,6 +437,14 @@ The 2026-05-29/30 rebuild surfaced these and they're now fixed in `main`:
   `data/mining/_fantasy_morphemes.jsonl`; converged seed re-emit.
 - **PR #389** — `ingest-report-snapshot` / `report-snapshot-diff` so the
   before/after report deltas are SQL-queryable, not just files.
+- **PR #673 (wyrd-br5o)** — the `_reflexes.jsonl` dump round-trips the
+  ORPHAN reflexes too (was linked-only), recovering ~16k generation
+  surfaces a clean rebuild had silently dropped after d90t deleted the
+  `meanings.json` seed.
+- **PR #674 (wyrd-ruvk)** — `_fantasy_morphemes.jsonl` now also carries the
+  morphemes' referenced (uncited) etymons; without them a rebuild resolved
+  only ~8 of ~333 fantasy etymon FKs. Loser refs follow `merged_into_id` to
+  the winner so no tombstone resurfaces.
 
 The four remaining manual layers in Phase 2 (country, attestations,
 forms-variants, empirical+baselines) are still L3-only — folding
