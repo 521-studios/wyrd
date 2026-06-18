@@ -372,7 +372,8 @@ def test_cli_scope_celtic_deterministic_detaches_proper_noun(tmp_path):
 
 def test_cli_scope_celtic_llm_tail_judges_ambiguous(tmp_path, monkeypatch):
     """celtic without --deterministic-only: the proper noun is caught
-    deterministically AND the surface-ambiguous lowercase form goes to the LLM tail."""
+    deterministically AND the lowercase form not resolved deterministically goes to
+    the LLM tail."""
     from click.testing import CliRunner
 
     from wyrd.generators.kenning.cli.lexicon import audit_toponym_reflexes as cli

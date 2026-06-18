@@ -367,7 +367,13 @@ def deterministic_proper_noun_verdict(
     c: ToponymReflexCandidate,
 ) -> ToponymReflexVerdict | None:
     """A high-confidence DETACH verdict for a candidate whose form is a clear
-    proper noun (deterministic-first; no LLM). ``None`` → defer to the LLM tail."""
+    proper noun (deterministic-first; no LLM). ``None`` → defer to the LLM tail.
+
+    Unlike the LLM tail there is no KEEP recourse here: a capitalized form not in the
+    element whitelists is detached outright. That's intentional — place-name elements
+    are lower-case in the corpus, so a leading capital is a strong proper-noun signal;
+    the surface-similarity prescreen + whitelist bound the false-positive risk, and any
+    detach is fully reversible via the ``_collapses.jsonl`` ledger."""
     if looks_like_proper_noun(c.reflex_form):
         return ToponymReflexVerdict(
             toponymic=False,
