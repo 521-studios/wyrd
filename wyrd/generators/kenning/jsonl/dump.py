@@ -905,11 +905,15 @@ _REFLEX_SEED_SOURCE_ROW = {
 
 def _dump_reflex_rows(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:
     """Yield one ``reflex`` list row per (surface_form, position),
-    folding every linked etymon into a sorted ``etymon_refs`` list.
+    folding every surviving linked etymon into a sorted ``etymon_refs``
+    list (an orphan reflex with no surviving link emits ``etymon_refs: []``).
 
     Ordered by (surface_form, position) for diff-stable output. OCR-
     cluster loser etymons (merged_into_id NOT NULL) are excluded by the
-    query so a tombstone doesn't resurface as a reflex target."""
+    query so a tombstone doesn't resurface as a reflex target. ORPHAN
+    reflexes (no surviving etymon link — the LEFT JOIN yields NULL etymon
+    columns) emit with ``etymon_refs: []`` so the generation-surface layer
+    round-trips too (wyrd-br5o)."""
     from ..lexicon.sql.queries.reflex import (  # lazy: keep dump import-time light
         SELECT_REFLEXES_FOR_DUMP,
     )
@@ -928,7 +932,10 @@ def _dump_reflex_rows(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:
                 "position": row["position"],
                 "etymon_refs": [],
             }
-        current["etymon_refs"].append(etymon_ref(row["language"], row["canonical_form"]))
+        # An orphan reflex (no link, or its only link was a merged loser) yields a
+        # NULL etymon row from the LEFT JOIN — keep the reflex, append no ref.
+        if row["language"] is not None and row["canonical_form"] is not None:
+            current["etymon_refs"].append(etymon_ref(row["language"], row["canonical_form"]))
     if current is not None:
         yield current
 
@@ -939,7 +946,7 @@ def dump_reflexes_to_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     (surface_form, position).
 
     Returns ``[]`` (file not written) when the ``reflex`` table is absent
-    (older DBs) or carries zero linked reflexes — so a DB that never
+    (older DBs) or carries zero reflexes — so a DB that never
     seeded reflexes doesn't get an empty-but-meaningful artifact."""
     table_exists = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='reflex'"
@@ -957,7 +964,7 @@ def dump_reflexes_to_file(
     out_dir: str | Path,
 ) -> tuple[Path, int]:
     """Write ``<out_dir>/_reflexes.jsonl``. Returns ``(path, row_count)``;
-    row_count is 0 (file not written) when the DB has no linked reflexes."""
+    row_count is 0 (file not written) when the DB has no reflexes (linked or orphan)."""
     rows = dump_reflexes_to_rows(conn)
     path = Path(out_dir) / _REFLEX_SEED_FILENAME
     if not rows:

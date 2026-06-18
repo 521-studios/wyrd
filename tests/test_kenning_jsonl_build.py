@@ -2534,6 +2534,148 @@ def test_dump_reflexes_round_trips_through_rebuild(tmp_path: Path):
         dconn.close()
 
 
+def test_dump_reflexes_round_trips_orphan_reflex(tmp_path: Path):
+    """wyrd-br5o: an ORPHAN reflex (no etymon link — the generation-surface
+    layer) must round-trip too. wyrd-ned5's INNER-JOIN dump silently dropped
+    these, so a clean rebuild lost ~4k of the ~16k orphan surfaces. The dump
+    now LEFT-JOINs and emits them with ``etymon_refs: []``; the replay upserts
+    the bare reflex."""
+    from wyrd.generators.kenning.jsonl.dump import (
+        dump_reflexes_to_file,
+        dump_reflexes_to_rows,
+    )
+    from wyrd.generators.kenning.lexicon import init_schema
+    from wyrd.generators.kenning.lexicon.sql.queries.reflex import UPSERT_REFLEX
+
+    # --- source DB: a bare reflex with NO reflex_etymon link.
+    src_db = tmp_path / "src.db"
+    init_schema(src_db)
+    sconn = sqlite3.connect(src_db)
+    sconn.row_factory = sqlite3.Row
+    sconn.execute(UPSERT_REFLEX, ("worth", "post")).fetchone()
+    sconn.commit()
+
+    # the dump emits the orphan with an empty etymon_refs list.
+    rows = dump_reflexes_to_rows(sconn)
+    reflex_rows = [r for r in rows if r["_type"] == "reflex"]
+    assert reflex_rows == [
+        {"_type": "reflex", "surface_form": "worth", "position": "post", "etymon_refs": []}
+    ]
+
+    out_dir = tmp_path / "l2"
+    out_dir.mkdir()
+    _, n = dump_reflexes_to_file(sconn, out_dir)
+    sconn.close()
+    assert n == 2  # synthetic source row + the orphan reflex row
+
+    # --- rebuild fresh DB: the orphan reflex survives (no link, but present).
+    dst_db = tmp_path / "dst.db"
+    init_schema(dst_db)
+    dconn = sqlite3.connect(dst_db)
+    dconn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(dconn, jsonl_paths_in(out_dir))
+        assert counts["reflex"] == 1
+        # An empty etymon_refs list resolves zero refs — no spurious orphan links.
+        assert counts["reflex_link_orphans"] == 0
+        present = dconn.execute(
+            """
+            SELECT r.surface_form, r.position,
+                   (SELECT count(*) FROM reflex_etymon re WHERE re.reflex_id = r.id) AS links
+            FROM reflex r WHERE r.surface_form = 'worth'
+            """
+        ).fetchone()
+        assert (present["surface_form"], present["position"], present["links"]) == (
+            "worth",
+            "post",
+            0,
+        )
+    finally:
+        dconn.close()
+
+
+def test_dump_reflexes_merged_loser_only_link_emits_orphan(tmp_path: Path):
+    """wyrd-br5o: a reflex whose ONLY link is to a merged-loser etymon
+    (merged_into_id NOT NULL) is a structurally different path from a bare
+    orphan — the reflex_etymon row exists, but the LEFT JOIN's
+    ``AND e.merged_into_id IS NULL`` predicate fails, yielding NULL etymon
+    columns. It must still emit (as ``etymon_refs: []``), NOT be dropped.
+    This guards the merged_into_id filter staying on the JOIN: a WHERE on the
+    nullable side would collapse the LEFT JOIN back to an inner one and drop
+    this reflex (the wyrd-ned5 bug)."""
+    from wyrd.generators.kenning.jsonl.dump import dump_reflexes_to_rows
+    from wyrd.generators.kenning.lexicon import init_schema
+    from wyrd.generators.kenning.lexicon.sql.queries.reflex import (
+        LINK_REFLEX_ETYMON_OR_IGNORE,
+        UPSERT_REFLEX,
+    )
+
+    src_db = tmp_path / "src.db"
+    init_schema(src_db)
+    sconn = sqlite3.connect(src_db)
+    sconn.row_factory = sqlite3.Row
+    # winner + loser (loser merged INTO winner), reflex links only to the loser.
+    winner = sconn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('tūn','old-english') RETURNING id"
+    ).fetchone()[0]
+    loser = sconn.execute(
+        "INSERT INTO etymon (canonical_form, language, merged_into_id) "
+        "VALUES ('tun','old-english',?) RETURNING id",
+        (winner,),
+    ).fetchone()[0]
+    rid = sconn.execute(UPSERT_REFLEX, ("-ton", "post")).fetchone()[0]
+    sconn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (rid, loser))
+    sconn.commit()
+
+    reflex_rows = [r for r in dump_reflexes_to_rows(sconn) if r["_type"] == "reflex"]
+    sconn.close()
+    # Emitted as an orphan (loser excluded by the JOIN predicate), not dropped.
+    assert reflex_rows == [
+        {"_type": "reflex", "surface_form": "-ton", "position": "post", "etymon_refs": []}
+    ]
+
+
+def test_dump_reflexes_mixed_live_and_merged_loser_keeps_live_ref(tmp_path: Path):
+    """wyrd-br5o: a reflex linked to BOTH a live etymon and a merged loser
+    must dump with ``etymon_refs`` holding ONLY the live ref — the per-row
+    NULL-skip in the grouper drops the loser's NULL row without dropping the
+    whole reflex or the live ref."""
+    from wyrd.generators.kenning.jsonl.dump import dump_reflexes_to_rows
+    from wyrd.generators.kenning.lexicon import init_schema
+    from wyrd.generators.kenning.lexicon.sql.queries.reflex import (
+        LINK_REFLEX_ETYMON_OR_IGNORE,
+        UPSERT_REFLEX,
+    )
+
+    src_db = tmp_path / "src.db"
+    init_schema(src_db)
+    sconn = sqlite3.connect(src_db)
+    sconn.row_factory = sqlite3.Row
+    live = sconn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('hām','old-english') RETURNING id"
+    ).fetchone()[0]
+    loser = sconn.execute(
+        "INSERT INTO etymon (canonical_form, language, merged_into_id) "
+        "VALUES ('ham','old-english',?) RETURNING id",
+        (live,),
+    ).fetchone()[0]
+    rid = sconn.execute(UPSERT_REFLEX, ("-ham", "post")).fetchone()[0]
+    sconn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (rid, live))
+    sconn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (rid, loser))
+    sconn.commit()
+
+    reflex_rows = [r for r in dump_reflexes_to_rows(sconn) if r["_type"] == "reflex"]
+    sconn.close()
+    assert reflex_rows == [
+        {
+            "_type": "reflex",
+            "surface_form": "-ham",
+            "position": "post",
+            "etymon_refs": ["old-english:hām"],
+        }
+    ]
+
+
 # ---------------------------------------------------------------------------
 # wyrd-5qg7: audit verdict logs must be excluded from the replay set
 # ---------------------------------------------------------------------------
