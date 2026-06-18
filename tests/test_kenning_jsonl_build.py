@@ -2532,3 +2532,74 @@ def test_dump_reflexes_round_trips_through_rebuild(tmp_path: Path):
         assert (row["canonical_form"], row["language"]) == ("tūn", "old-english")
     finally:
         dconn.close()
+
+
+# ---------------------------------------------------------------------------
+# wyrd-5qg7: audit verdict logs must be excluded from the replay set
+# ---------------------------------------------------------------------------
+
+
+def test_jsonl_paths_in_excludes_read_directly_ledgers(tmp_path: Path):
+    """The read-directly ledgers are excluded from the replay set; conforming files
+    — curated sources, _collapses, and _tags/_merge_audit (which replay inert) —
+    are kept."""
+    from wyrd.generators.kenning.jsonl.build import READ_DIRECTLY_LEDGERS
+
+    kept = {"skeat.jsonl", "_tags.jsonl", "_merge_audit.jsonl", "_collapses.jsonl"}
+    for name in kept | set(READ_DIRECTLY_LEDGERS):
+        (tmp_path / name).write_text("", encoding="utf-8")
+    assert {p.name for p in jsonl_paths_in(tmp_path)} == kept
+
+
+def test_no_unhandled_nonconforming_ledgers():
+    """Drift guard (wyrd-5qg7): every real data/mining/*.jsonl is EITHER
+    replay-conforming (all rows carry a _type in ALL_TYPES) OR explicitly listed in
+    READ_DIRECTLY_LEDGERS. A new read-directly ledger added without listing it here
+    fails THIS test in CI instead of silently breaking from-scratch rebuild."""
+    from wyrd.generators.kenning.jsonl.build import READ_DIRECTLY_LEDGERS
+    from wyrd.generators.kenning.jsonl.log import ALL_TYPES
+
+    mining = Path(__file__).resolve().parents[1] / "data" / "mining"
+    offenders: list[str] = []
+    for f in sorted(mining.glob("*.jsonl")):
+        if f.name in READ_DIRECTLY_LEDGERS:
+            continue
+        for line in f.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            t = json.loads(line).get("_type")
+            if t not in ALL_TYPES:
+                offenders.append(f"{f.name}: _type={t!r}")
+                break
+    assert not offenders, (
+        "Non-conforming data/mining ledgers not in READ_DIRECTLY_LEDGERS "
+        f"(add them there or fix their schema): {offenders}"
+    )
+
+
+def test_build_skips_typeless_reflex_audit_log(tmp_path: Path):
+    """Regression: a directory containing the type-less ``_reflex_audit.jsonl``
+    rebuilds cleanly. Its bare rows (no ``_type``) used to raise ReplayError when
+    the glob swept every ``*.jsonl`` into replay (from-scratch rebuild broken)."""
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+            },
+        ],
+    )
+    # bare audit rows with NO _type — would raise ReplayError if globbed into replay
+    (tmp_path / "_reflex_audit.jsonl").write_text(
+        json.dumps({"surface": "-ock", "canon": "aecern", "valid": False}) + "\n",
+        encoding="utf-8",
+    )
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))  # must not raise
+    assert counts["source"] == 1

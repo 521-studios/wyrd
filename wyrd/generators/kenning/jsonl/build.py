@@ -1014,11 +1014,39 @@ def _etymology_element_fingerprint(row: dict[str, Any]) -> tuple:
     )
 
 
+# Synthetic ledgers that a SPECIFIC enrichment/import pass reads directly (not the
+# generic build_from_jsonl replay). Their rows don't conform to the replay schema
+# — some carry a bespoke ``_type`` not in ``log.ALL_TYPES`` (pronunciation,
+# modern_reflex, the *_reflex/descent/cluster audit verdicts), others carry no
+# ``_type`` at all (_reflex_audit, _element_gloss*). Sweeping them into the generic
+# replay raises ReplayError, which silently broke from-scratch rebuild-from-jsonl
+# (wyrd-5qg7). They are EXCLUDED here; their applied effects round-trip through the
+# conforming ledgers (_collapses / _curation / _reflexes) that ARE replayed, or are
+# re-applied by their own pass at rebuild. test_no_unhandled_nonconforming_ledgers
+# guards that any future addition is either replay-conforming or listed here.
+# (``_merge_audit`` / ``_tags`` are NOT here — they conform and replay inert.)
+READ_DIRECTLY_LEDGERS: frozenset[str] = frozenset(
+    {
+        "_reflex_audit.jsonl",
+        "_descent_audit.jsonl",
+        "_cluster_reflex_audit.jsonl",
+        "_toponym_reflex_audit.jsonl",
+        "_element_glosses.jsonl",
+        "_element_gloss_adjudications.jsonl",
+        "_pronunciation.jsonl",
+        "_modern_reflexes.jsonl",
+    }
+)
+
+
 def jsonl_paths_in(directory: str | Path) -> list[Path]:
-    """All ``*.jsonl`` files in ``directory``, sorted ASCII. Used as the
-    default input set for :func:`build_from_jsonl`."""
+    """All ``*.jsonl`` files in ``directory`` EXCEPT the read-directly ledgers
+    (:data:`READ_DIRECTLY_LEDGERS`), sorted ASCII. Used as the default input set
+    for :func:`build_from_jsonl`. The excluded ledgers are consumed by their own
+    enrichment/import pass and don't conform to the generic replay schema
+    (wyrd-5qg7)."""
     p = Path(directory)
-    return sorted(p.glob("*.jsonl"))
+    return sorted(f for f in p.glob("*.jsonl") if f.name not in READ_DIRECTLY_LEDGERS)
 
 
 # Tables the diff-rebuild check compares (wyrd-f4nl). Scoped to the L2
