@@ -420,6 +420,41 @@ def diff_grades(
     )
 
 
+def grade_passthrough_diff(
+    db: LexiconDB,
+    trie: MorphemeTrie,
+    *,
+    passthrough_map: dict[str, tuple[str, ...]],
+    culture_languages: frozenset[str] | None,
+    genitive_prior: dict[tuple[str, str], float] | None,
+    connective_inventory: ConnectiveInventory = DEFAULT_CONNECTIVE_INVENTORY,
+    suffix: str | None = None,
+    limit: int | None = None,
+    progress_every: int = 0,
+) -> CorpusDiff:
+    """OFF (no composed-of attribution) vs ON (a matched composite credited to its
+    constituents via ``passthrough_map``), holding the matcher config IDENTICAL on
+    both sides — so the diff isolates the wyrd-h5u1 attribution effect (D51.3), not
+    the connective/prior. This is the graded net-win check that gates wyrd-oth3:
+    coverage is unaffected (same parse), and recall/precision/head should recover
+    where the matcher picks a coarse composite that the scholar split finely."""
+    index = load_cluster_index(db)
+    corpus = load_scholar_corpus(db, index, suffix=suffix)
+    if limit is not None:
+        corpus = corpus[:limit]
+    common = {
+        "culture_languages": culture_languages,
+        "connective_inventory": connective_inventory,
+        "genitive_prior": genitive_prior,
+        "progress_every": progress_every,
+    }
+    off = grade_configuration(corpus, trie, index, passthrough_map=None, label="off", **common)
+    on = grade_configuration(
+        corpus, trie, index, passthrough_map=passthrough_map, label="on", **common
+    )
+    return diff_grades(off, on)
+
+
 def grade_corpus_diff(
     db: LexiconDB,
     trie: MorphemeTrie,

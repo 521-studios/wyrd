@@ -278,6 +278,15 @@ def extract_cross_scholar_passthroughs(  # noqa: V103 — stream-1 mining entry 
     return out
 
 
+def build_passthrough_map(passthroughs: list[Passthrough]) -> dict[str, tuple[str, ...]]:
+    """The grader's ``passthrough_map`` (composite cognate-cluster → ordered
+    constituent clusters) from mined passthroughs — the bridge that lets the grader
+    credit a matched composite (``ington``) with its constituents (``ing``+``tūn``)
+    for recall/precision/head (wyrd-h5u1, D51.3). Last-write-wins on a repeated
+    composite cluster; the miner's deterministic sort makes that stable."""
+    return {p.composite_cluster: p.constituent_clusters for p in passthroughs}
+
+
 def _confidence_for(support: int) -> str:
     """Cross-scholar coarse/fine is direct, gloss-bearing evidence, so a single
     attestation is ``medium``; ≥2 distinct toponyms agreeing is ``high``."""

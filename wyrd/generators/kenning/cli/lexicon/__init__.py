@@ -166,6 +166,7 @@ from wyrd.generators.kenning.cli.lexicon import (
     mine_genitive_priors as _mine_genitive_priors_module,
 )
 from wyrd.generators.kenning.cli.lexicon import mine_llm as _mine_llm_module
+from wyrd.generators.kenning.cli.lexicon import mine_passthroughs as _mine_passthroughs_module
 from wyrd.generators.kenning.cli.lexicon import (
     mine_pronunciation_llm as _mine_pronunciation_llm_module,
 )
@@ -338,6 +339,7 @@ _mine_llm_module.add_to(lexicon)
 _mine_element_glosses_module.add_to(lexicon)
 _adjudicate_element_glosses_module.add_to(lexicon)
 _mine_skeat_module.add_to(lexicon)
+_mine_passthroughs_module.add_to(lexicon)
 _mine_tags_llm_module.add_to(lexicon)
 _mine_toponym_mentions_module.add_to(lexicon)
 _mine_toponym_mentions_staged_module.add_to(lexicon)

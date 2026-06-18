@@ -23,6 +23,7 @@ from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.decomposition_grader import (
     grade_configuration,
     grade_corpus_diff,
+    grade_passthrough_diff,
     load_cluster_index,
     load_scholar_corpus,
 )
@@ -263,3 +264,43 @@ def test_diff_improves_town_regresses_genuine_stone(world):
     assert "recall" in rud.dimensions
     assert tuple(rud.off_parse) == ("rud", "ston")
     assert tuple(rud.on_parse) == ("rud", "ton")
+
+
+def test_grade_passthrough_diff_recovers_constituents(tmp_path):
+    # wyrd-h5u1 net-win check: grade_passthrough_diff holds the matcher constant and
+    # diffs attribution OFF vs ON. Aldington parses to ald+ington; crediting ington's
+    # constituents (ing+tūn) recovers recall/head with NO regression + flat coverage.
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    ald = _etymon(db, "Ald")
+    ing = _etymon(db, "ing")
+    tun = _etymon(db, "tūn")
+    ington = _etymon(db, "ington")
+    _reflex(db, "ald", ald, position="pre")
+    _reflex(db, "ington", ington)
+    _toponym(db, "Aldington", [ald, ing, tun])
+    db.commit()
+
+    index = load_cluster_index(db)
+    trie = build_morpheme_trie(
+        {"ald": [Meaning("ald", [], [], {})], "ington": [Meaning("ington", [], [], {})]}
+    )
+    pmap = {index.cluster_of[ington]: (index.cluster_of[ing], index.cluster_of[tun])}
+
+    diff = grade_passthrough_diff(
+        db,
+        trie,
+        passthrough_map=pmap,
+        culture_languages=None,
+        genitive_prior=None,
+        connective_inventory=None,
+    )
+    db.close()
+
+    assert diff.on.mean_recall > diff.off.mean_recall  # ing+tūn recovered
+    assert diff.on.head_attested_rate > diff.off.head_attested_rate
+    assert diff.on.coverage_rate == diff.off.coverage_rate  # parse unchanged
+    assert not diff.regressions  # attribution only credits, never worsens
+    assert any(c.name == "Aldington" for c in diff.improvements)
