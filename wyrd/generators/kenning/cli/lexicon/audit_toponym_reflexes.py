@@ -126,7 +126,7 @@ def _judge_fresh(client, to_judge, log, audit_fh, base_url, model) -> tuple[int,
 def _judge_deterministic(to_judge, log, audit_fh) -> tuple[list, int]:
     """wyrd-xdam.5 deterministic-first: record high-confidence proper-noun DETACH
     verdicts without an LLM call (the Macedonia/Libya/Philip bulk). Returns the
-    remaining surface-ambiguous candidates for the LLM tail."""
+    candidates not resolved deterministically, for the LLM tail."""
     from wyrd.generators.kenning.lexicon.toponym_reflex_audit import (
         audit_log_row,
         deterministic_proper_noun_verdict,
@@ -145,6 +145,26 @@ def _judge_deterministic(to_judge, log, audit_fh) -> tuple[list, int]:
             _append(audit_fh, row)
         flagged += 1
     return remaining, flagged
+
+
+def _run_judging(
+    scope, deterministic_only, client, to_judge, log, audit_fh, base_url, model
+) -> tuple[int, int, int]:
+    """Run the scope's judging pipeline → (deterministic_flagged, judged, skipped).
+    celtic runs the deterministic proper-noun screen first; --deterministic-only stops
+    there, otherwise the surface-ambiguous remainder goes to the LLM tail."""
+    det_flagged = 0
+    if scope == "celtic":
+        to_judge, det_flagged = _judge_deterministic(to_judge, log, audit_fh)
+        click.echo(
+            f"  deterministic proper-noun detaches: {det_flagged}; "
+            f"{len(to_judge)} ambiguous left for the LLM tail",
+            err=True,
+        )
+        if deterministic_only:
+            return det_flagged, 0, 0
+    judged, skipped = _judge_fresh(client, to_judge, log, audit_fh, base_url, model)
+    return det_flagged, judged, skipped
 
 
 def _emit_detaches(log, min_confidence, collapse_state, existing_pairs, collapse_fh, dry_run):
@@ -269,6 +289,8 @@ def lexicon_audit_toponym_reflexes(
         detect_toponym_reflex_candidates,
     )
 
+    if deterministic_only and scope != "celtic":
+        raise click.UsageError("--deterministic-only only applies to --scope celtic.")
     if db_path is None:
         env = os.environ.get("WYRD_LEXICON_DB")
         db_path = Path(env) if env else Path.home() / ".wyrd" / "lexicon.db"
@@ -309,18 +331,9 @@ def lexicon_audit_toponym_reflexes(
         if not dry_run:
             audit_fh = audit_file.open("a", encoding="utf-8")
             collapse_fh = collapse_file.open("a", encoding="utf-8")
-        det_flagged = 0
-        if scope == "celtic":
-            to_judge, det_flagged = _judge_deterministic(to_judge, log, audit_fh)
-            click.echo(
-                f"  deterministic proper-noun detaches: {det_flagged}; "
-                f"{len(to_judge)} ambiguous left for the LLM tail",
-                err=True,
-            )
-        if scope == "celtic" and deterministic_only:
-            judged = skipped = 0
-        else:
-            judged, skipped = _judge_fresh(client, to_judge, log, audit_fh, base_url, model)
+        det_flagged, judged, skipped = _run_judging(
+            scope, deterministic_only, client, to_judge, log, audit_fh, base_url, model
+        )
         counts = _emit_detaches(
             log, min_confidence, collapse_state, existing_pairs, collapse_fh, dry_run
         )

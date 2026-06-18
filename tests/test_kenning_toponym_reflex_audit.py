@@ -234,10 +234,13 @@ def test_looks_like_proper_noun():
     assert looks_like_proper_noun("Macedonia")
     assert looks_like_proper_noun("Libya")
     assert looks_like_proper_noun("Philip")
+    assert looks_like_proper_noun("Caitrìona")  # accented capital (Gaelic personal name)
+    assert looks_like_proper_noun("Dùn Bheagain")  # multi-word specific place name
     assert not looks_like_proper_noun("afon")  # lowercase element
     assert not looks_like_proper_noun("aber")  # lowercase Celtic element
     assert not looks_like_proper_noun("Aber")  # capitalized but whitelisted Celtic element
     assert not looks_like_proper_noun("Ham")  # capitalized but whitelisted English element
+    assert not looks_like_proper_noun("-aber")  # leading hyphen stripped -> lowercase element
     assert not looks_like_proper_noun("")
 
 
@@ -279,6 +282,9 @@ def test_celtic_element_protected_from_detach():
         "reason": "judge said no",
     }
     assert detach_row(row, "medium") is None  # CELTIC_PROTECTED_ELEMENTS guard
+    # the guard normalizes, so a capitalized/accented form of a known element is kept too
+    capitalized = {**row, "reflex_ref": "welsh:Llan"}
+    assert detach_row(capitalized, "medium") is None
 
 
 def test_celtic_judge_prompt_is_celtic_aware():
@@ -288,3 +294,77 @@ def test_celtic_judge_prompt_is_celtic_aware():
     english = ToponymReflexCandidate("modern-english:vulva", "vulva", ())
     sysp_en, _ = build_judge_prompt(english)
     assert "English place-name" in sysp_en
+
+
+def test_judge_deterministic_partitions_and_logs():
+    """The CLI orchestrator logs proper-noun detaches and returns the rest."""
+    from wyrd.generators.kenning.cli.lexicon import audit_toponym_reflexes as cli
+
+    proper = ToponymReflexCandidate("welsh:Macedonia", "Macedonia", ("old-english:hām",))
+    ambiguous = ToponymReflexCandidate("welsh:afon", "afon", ("old-english:hām",))
+    log: dict = {}
+    remaining, flagged = cli._judge_deterministic([proper, ambiguous], log, audit_fh=None)
+    assert flagged == 1
+    assert [c.reflex_ref for c in remaining] == ["welsh:afon"]
+    assert log["welsh:Macedonia"]["toponymic"] is False
+    assert "welsh:afon" not in log  # ambiguous -> deferred to LLM tail, not logged
+
+
+def test_cli_deterministic_only_requires_celtic_scope():
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.audit_toponym_reflexes import (
+        lexicon_audit_toponym_reflexes,
+    )
+
+    res = CliRunner().invoke(
+        lexicon_audit_toponym_reflexes, ["--scope", "english", "--deterministic-only"]
+    )
+    assert res.exit_code != 0
+    assert "deterministic-only" in res.output.lower()
+
+
+def test_cli_scope_celtic_deterministic_detaches_proper_noun(tmp_path):
+    """End-to-end: --scope celtic --deterministic-only flags a welsh proper noun
+    bridging into an English-anchored cluster, with no LLM call."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.audit_toponym_reflexes import (
+        lexicon_audit_toponym_reflexes,
+    )
+
+    init_schema(tmp_path / "lexicon.db")
+    db = LexiconDB(tmp_path / "lexicon.db")
+    db.conn.row_factory = sqlite3.Row
+    db.upsert_source(id="wk", title="Wiktionary")
+    oe = db.upsert_etymon("hām", "old-english")  # English-family anchor
+    me = db.upsert_etymon("Macedonia", "modern-english")
+    w = db.upsert_etymon("Macedonia", "welsh")  # foreign proper noun
+    for eid in (oe, me, w):
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (oe, eid))
+    db.conn.execute(
+        "INSERT INTO etymon_descent(parent_id, child_id, edge_type, source_id) "
+        "VALUES (?,?,'borrowing','wk')",
+        (oe, w),  # bridging parent for the welsh leaf
+    )
+    db.commit()
+    db.close()
+
+    res = CliRunner().invoke(
+        lexicon_audit_toponym_reflexes,
+        [
+            "--db",
+            str(tmp_path / "lexicon.db"),
+            "--scope",
+            "celtic",
+            "--deterministic-only",
+            "--dry-run",
+            "--collapse-file",
+            str(tmp_path / "c.jsonl"),
+            "--audit-file",
+            str(tmp_path / "a.jsonl"),
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    assert "welsh:Macedonia" in res.output
+    assert "deterministic=1" in res.output

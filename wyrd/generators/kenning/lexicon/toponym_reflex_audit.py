@@ -59,9 +59,10 @@ _CELTIC_LANGS = (
     "manx",
 )
 
-# Protective whitelist of standard Celtic place-name elements (Welsh: Owen; Irish:
-# Joyce / Flanagan; Scottish: Watson) — never detached regardless of verdict, like
-# PROTECTED_ELEMENTS on the English side. Bare native form, lower-cased.
+# Protective whitelist of standard Celtic place-name elements (refs: Owen for
+# Welsh; Joyce & Flanagan for Irish; Watson for Scottish) — never detached
+# regardless of verdict, like PROTECTED_ELEMENTS on the English side. Bare native
+# form, lower-cased.
 CELTIC_PROTECTED_ELEMENTS = frozenset(
     [
         # Brittonic (Welsh / Cornish / Breton)
@@ -137,7 +138,6 @@ CELTIC_PROTECTED_ELEMENTS = frozenset(
         "tulach",
         "clon",
         "cluain",
-        "knock",
     ]
 )
 
@@ -382,10 +382,9 @@ def detect_toponym_reflex_candidates(
     prescreen: bool = True,
     min_modern_members: int = 1,
     target_langs: tuple[str, ...] = (_MODERN,),
-    anchor_langs: tuple[str, ...] = _ENGLISH_FAMILY,
 ) -> list[ToponymReflexCandidate]:
     """Distinct cluster-member forms (in ``target_langs``) inside clusters that
-    contain an ``anchor_langs`` morpheme.
+    contain an English-family morpheme.
 
     Defaults reproduce the original English behaviour exactly: judge the
     ``modern-english`` members of English-family-anchored clusters. wyrd-xdam.5
@@ -409,7 +408,7 @@ def detect_toponym_reflex_candidates(
     candidates: dict[str, int] = {}
     morphemes_for: dict[str, set[str]] = defaultdict(set)
     for _cog, ids in clusters.items():
-        fam = [by_id[i]["form"] for i in ids if by_id[i]["lang"] in anchor_langs]
+        fam = [by_id[i]["form"] for i in ids if by_id[i]["lang"] in _ENGLISH_FAMILY]
         if not fam:
             continue
         moderns = [i for i in ids if by_id[i]["lang"] in target_langs]
