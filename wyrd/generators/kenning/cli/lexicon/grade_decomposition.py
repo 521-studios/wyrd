@@ -14,10 +14,15 @@ from wyrd.generators.kenning.lexicon.decomposition_grader import (
     CorpusDiff,
     GradeSummary,
     grade_corpus_diff,
+    grade_passthrough_diff,
 )
 from wyrd.generators.kenning.lexicon.genitive_priors import (
     build_split_probability_map,
     load_genitive_prior_counts,
+)
+from wyrd.generators.kenning.lexicon.passthrough_mining import (
+    build_passthrough_map,
+    extract_cross_scholar_passthroughs,
 )
 from wyrd.generators.kenning.lexicon.proportions_builder import CULTURE_LANGUAGES
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
@@ -125,6 +130,14 @@ def _report(diff: CorpusDiff, *, max_list: int) -> None:
     show_default=True,
     help="Max regression / improvement rows to print.",
 )
+@click.option(
+    "--passthroughs",
+    is_flag=True,
+    default=False,
+    help="wyrd-h5u1: diff composed-of attribution OFF vs ON (a matched composite "
+    "credited to its constituents) instead of connective OFF vs ON — the graded "
+    "net-win check that gates wyrd-oth3. Mines passthroughs live from the corpus.",
+)
 def lexicon_grade_decomposition(
     db_path: Path,
     meanings: Path | None,
@@ -132,6 +145,7 @@ def lexicon_grade_decomposition(
     suffix: str | None,
     limit: int | None,
     max_list: int,
+    passthroughs: bool,
 ) -> None:
     """wyrd-aicu.9 Phase 3: grade the decomposition matcher against the scholarly
     breakdown corpus, diffing connective OFF (today's matcher) vs ON (genitive
@@ -167,15 +181,29 @@ def lexicon_grade_decomposition(
                 "un-mined) — ON measures coverage only, no homograph tiebreak.",
                 err=True,
             )
-        diff = grade_corpus_diff(
-            db,
-            trie,
-            culture_languages=culture_languages,
-            genitive_prior=genitive_prior,
-            suffix=suffix,
-            limit=limit,
-            progress_every=_PROGRESS_EVERY,
-        )
+        if passthroughs:
+            pmap = build_passthrough_map(extract_cross_scholar_passthroughs(db))
+            click.echo(f"  passthrough composites mined={len(pmap)}", err=True)
+            diff = grade_passthrough_diff(
+                db,
+                trie,
+                passthrough_map=pmap,
+                culture_languages=culture_languages,
+                genitive_prior=genitive_prior,
+                suffix=suffix,
+                limit=limit,
+                progress_every=_PROGRESS_EVERY,
+            )
+        else:
+            diff = grade_corpus_diff(
+                db,
+                trie,
+                culture_languages=culture_languages,
+                genitive_prior=genitive_prior,
+                suffix=suffix,
+                limit=limit,
+                progress_every=_PROGRESS_EVERY,
+            )
     _report(diff, max_list=max_list)
 
 

@@ -185,3 +185,90 @@ def test_self_loop_constituent_is_skipped():
     assertions = passthrough_assertions([p], source="t")
     assert len(assertions) == 1
     assert assertions[0].object.ref == "9"
+
+
+def test_build_passthrough_map(tmp_path):
+    # The grader bridge: composite cluster -> ordered constituent clusters.
+    from wyrd.generators.kenning.lexicon.passthrough_mining import build_passthrough_map
+
+    init_schema(tmp_path / "lexicon.db")
+    db, ids = _world(tmp_path)
+    index = load_cluster_index(db)
+    passthroughs = extract_cross_scholar_passthroughs(db, index=index)
+    pmap = build_passthrough_map(passthroughs)
+    db.close()
+
+    assert pmap == {
+        index.cluster_of[ids["ington"]]: (
+            index.cluster_of[ids["ing"]],
+            index.cluster_of[ids["tun"]],
+        )
+    }
+
+
+def test_mine_passthroughs_cli_authors_composed_of(tmp_path):
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.canonicalization import load_assertions
+    from wyrd.generators.kenning.cli.lexicon import mine_passthroughs as cli_mod
+
+    init_schema(tmp_path / "lexicon.db")
+    db, ids = _world(tmp_path)
+    db.close()
+    mining = tmp_path / "mining"
+    mining.mkdir()
+
+    result = CliRunner().invoke(
+        cli_mod.lexicon_mine_passthroughs,
+        ["--db", str(tmp_path / "lexicon.db"), "--mining-dir", str(mining), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+
+    composed = [a for a in load_assertions(mining) if a.predicate == "composed-of"]
+    assert len(composed) == 2  # ington composed-of ing (ord 0) + tūn (ord 1)
+    assert all(a.subject.ref == str(ids["ington"]) for a in composed)
+    assert {a.qualifiers["ordinal"]: a.object.ref for a in composed} == {
+        0: str(ids["ing"]),
+        1: str(ids["tun"]),
+    }
+
+    # Idempotent: a second --apply writes nothing new.
+    again = CliRunner().invoke(
+        cli_mod.lexicon_mine_passthroughs,
+        ["--db", str(tmp_path / "lexicon.db"), "--mining-dir", str(mining), "--apply"],
+    )
+    assert again.exit_code == 0
+    assert "wrote 0" in again.output
+
+
+def test_build_passthrough_map_highest_support_wins():
+    # A composite cluster with two attested tilings → the HIGHER-support one wins,
+    # regardless of input order (rebuild-stable, not last-write-wins).
+    from wyrd.generators.kenning.lexicon.passthrough_mining import (
+        Passthrough,
+        build_passthrough_map,
+    )
+
+    weak = Passthrough("cC", 1, ("cA", "cB"), (2, 3), "ington", ("ing", "ton"), 1, ())
+    strong = Passthrough("cC", 1, ("cX", "cY"), (4, 5), "ington", ("i", "ngton"), 9, ())
+    assert build_passthrough_map([weak, strong])["cC"] == ("cX", "cY")
+    assert build_passthrough_map([strong, weak])["cC"] == ("cX", "cY")  # order-independent
+
+
+def test_mine_passthroughs_dry_run_writes_nothing(tmp_path):
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon import mine_passthroughs as cli_mod
+
+    init_schema(tmp_path / "lexicon.db")
+    db, _ = _world(tmp_path)
+    db.close()
+    mining = tmp_path / "mining"
+    mining.mkdir()
+    result = CliRunner().invoke(
+        cli_mod.lexicon_mine_passthroughs,
+        ["--db", str(tmp_path / "lexicon.db"), "--mining-dir", str(mining)],  # no --apply
+    )
+    assert result.exit_code == 0
+    assert "dry-run" in result.output
+    assert not (mining / "canonicalization").exists()  # nothing authored
