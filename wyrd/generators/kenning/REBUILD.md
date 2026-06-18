@@ -64,9 +64,10 @@ above are still manual — that's Phase 2 below.
 > surfaces with no etymon link, originally seeded by `seed_from_meanings`
 > from `data/meanings.json` — were never in L2. When d90t (#357) deleted
 > `meanings.json` (it was both the runtime artifact *and* the authoring
-> seed), those ~16k orphan surfaces silently stopped reproducing on rebuild,
-> costing ~8k promoted meanings (worth → modern "worth", fantasy 333→8,
-> english realism). Fixed by making the dump `LEFT JOIN` so the *full*
+> seed), the orphan layer (~16k surfaces) had no L2 source: a clean rebuild
+> re-derived only ~12k via enrichment (`derive_positions`), silently losing
+> ~4k — which cost ~8k promoted meanings (worth → modern "worth", fantasy
+> 333→8, english realism). Fixed by making the dump `LEFT JOIN` so the *full*
 > reflex table round-trips; `seed_from_meanings` stays retired. If reflexes
 > ever look thin again, re-dump `_reflexes.jsonl` from a known-good DB
 > (`dump_reflexes_to_file`) — do **not** resurrect `seed_from_meanings`.

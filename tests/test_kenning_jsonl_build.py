@@ -2537,8 +2537,9 @@ def test_dump_reflexes_round_trips_through_rebuild(tmp_path: Path):
 def test_dump_reflexes_round_trips_orphan_reflex(tmp_path: Path):
     """wyrd-br5o: an ORPHAN reflex (no etymon link — the generation-surface
     layer) must round-trip too. wyrd-ned5's INNER-JOIN dump silently dropped
-    these, so a clean rebuild lost ~4k surfaces. The dump now LEFT-JOINs and
-    emits them with ``etymon_refs: []``; the replay upserts the bare reflex."""
+    these, so a clean rebuild lost ~4k of the ~16k orphan surfaces. The dump
+    now LEFT-JOINs and emits them with ``etymon_refs: []``; the replay upserts
+    the bare reflex."""
     from wyrd.generators.kenning.jsonl.dump import (
         dump_reflexes_to_file,
         dump_reflexes_to_rows,
@@ -2551,7 +2552,7 @@ def test_dump_reflexes_round_trips_orphan_reflex(tmp_path: Path):
     init_schema(src_db)
     sconn = sqlite3.connect(src_db)
     sconn.row_factory = sqlite3.Row
-    sconn.execute(UPSERT_REFLEX, ("worth", "post"))
+    sconn.execute(UPSERT_REFLEX, ("worth", "post")).fetchone()
     sconn.commit()
 
     # the dump emits the orphan with an empty etymon_refs list.
@@ -2575,6 +2576,8 @@ def test_dump_reflexes_round_trips_orphan_reflex(tmp_path: Path):
     try:
         counts = build_from_jsonl(dconn, jsonl_paths_in(out_dir))
         assert counts["reflex"] == 1
+        # An empty etymon_refs list resolves zero refs — no spurious orphan links.
+        assert counts["reflex_link_orphans"] == 0
         present = dconn.execute(
             """
             SELECT r.surface_form, r.position,
@@ -2589,6 +2592,88 @@ def test_dump_reflexes_round_trips_orphan_reflex(tmp_path: Path):
         )
     finally:
         dconn.close()
+
+
+def test_dump_reflexes_merged_loser_only_link_emits_orphan(tmp_path: Path):
+    """wyrd-br5o: a reflex whose ONLY link is to a merged-loser etymon
+    (merged_into_id NOT NULL) is a structurally different path from a bare
+    orphan — the reflex_etymon row exists, but the LEFT JOIN's
+    ``AND e.merged_into_id IS NULL`` predicate fails, yielding NULL etymon
+    columns. It must still emit (as ``etymon_refs: []``), NOT be dropped.
+    This guards the merged_into_id filter staying on the JOIN: a WHERE on the
+    nullable side would collapse the LEFT JOIN back to an inner one and drop
+    this reflex (the wyrd-ned5 bug)."""
+    from wyrd.generators.kenning.jsonl.dump import dump_reflexes_to_rows
+    from wyrd.generators.kenning.lexicon import init_schema
+    from wyrd.generators.kenning.lexicon.sql.queries.reflex import (
+        LINK_REFLEX_ETYMON_OR_IGNORE,
+        UPSERT_REFLEX,
+    )
+
+    src_db = tmp_path / "src.db"
+    init_schema(src_db)
+    sconn = sqlite3.connect(src_db)
+    sconn.row_factory = sqlite3.Row
+    # winner + loser (loser merged INTO winner), reflex links only to the loser.
+    winner = sconn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('tūn','old-english') RETURNING id"
+    ).fetchone()[0]
+    loser = sconn.execute(
+        "INSERT INTO etymon (canonical_form, language, merged_into_id) "
+        "VALUES ('tun','old-english',?) RETURNING id",
+        (winner,),
+    ).fetchone()[0]
+    rid = sconn.execute(UPSERT_REFLEX, ("-ton", "post")).fetchone()[0]
+    sconn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (rid, loser))
+    sconn.commit()
+
+    reflex_rows = [r for r in dump_reflexes_to_rows(sconn) if r["_type"] == "reflex"]
+    sconn.close()
+    # Emitted as an orphan (loser excluded by the JOIN predicate), not dropped.
+    assert reflex_rows == [
+        {"_type": "reflex", "surface_form": "-ton", "position": "post", "etymon_refs": []}
+    ]
+
+
+def test_dump_reflexes_mixed_live_and_merged_loser_keeps_live_ref(tmp_path: Path):
+    """wyrd-br5o: a reflex linked to BOTH a live etymon and a merged loser
+    must dump with ``etymon_refs`` holding ONLY the live ref — the per-row
+    NULL-skip in the grouper drops the loser's NULL row without dropping the
+    whole reflex or the live ref."""
+    from wyrd.generators.kenning.jsonl.dump import dump_reflexes_to_rows
+    from wyrd.generators.kenning.lexicon import init_schema
+    from wyrd.generators.kenning.lexicon.sql.queries.reflex import (
+        LINK_REFLEX_ETYMON_OR_IGNORE,
+        UPSERT_REFLEX,
+    )
+
+    src_db = tmp_path / "src.db"
+    init_schema(src_db)
+    sconn = sqlite3.connect(src_db)
+    sconn.row_factory = sqlite3.Row
+    live = sconn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('hām','old-english') RETURNING id"
+    ).fetchone()[0]
+    loser = sconn.execute(
+        "INSERT INTO etymon (canonical_form, language, merged_into_id) "
+        "VALUES ('ham','old-english',?) RETURNING id",
+        (live,),
+    ).fetchone()[0]
+    rid = sconn.execute(UPSERT_REFLEX, ("-ham", "post")).fetchone()[0]
+    sconn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (rid, live))
+    sconn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (rid, loser))
+    sconn.commit()
+
+    reflex_rows = [r for r in dump_reflexes_to_rows(sconn) if r["_type"] == "reflex"]
+    sconn.close()
+    assert reflex_rows == [
+        {
+            "_type": "reflex",
+            "surface_form": "-ham",
+            "position": "post",
+            "etymon_refs": ["old-english:hām"],
+        }
+    ]
 
 
 # ---------------------------------------------------------------------------

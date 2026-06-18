@@ -905,7 +905,8 @@ _REFLEX_SEED_SOURCE_ROW = {
 
 def _dump_reflex_rows(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:
     """Yield one ``reflex`` list row per (surface_form, position),
-    folding every linked etymon into a sorted ``etymon_refs`` list.
+    folding every surviving linked etymon into a sorted ``etymon_refs``
+    list (an orphan reflex with no surviving link emits ``etymon_refs: []``).
 
     Ordered by (surface_form, position) for diff-stable output. OCR-
     cluster loser etymons (merged_into_id NOT NULL) are excluded by the
