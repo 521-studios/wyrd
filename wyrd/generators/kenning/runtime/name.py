@@ -271,8 +271,9 @@ class Name:
         # word and dominated the whole corpus pass on words with many tied
         # decompositions (some Irish names yield 100+) — wyrd-1bkw. The tuple key
         # is the SAME identity-based key ``find_meaning`` dedups on at append
-        # time (Meaning hashes/equals by identity, str by value), so this is
-        # behaviour-identical to the ``Word.__eq__`` list scan — but O(1) per
+        # time (Meaning slots compare by object identity; raw str slots by their
+        # text value), so this is behaviour-identical to the
+        # ``Word.__eq__`` list scan — but O(1) per
         # check and, unlike a ``Word``-keyed set, it skips ``Word.__hash__``'s
         # per-element stringification.
         for word in self.words:
