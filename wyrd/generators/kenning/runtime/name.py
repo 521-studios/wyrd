@@ -308,11 +308,7 @@ class Name:
             seen: set[tuple] = set()
             for meaning in meanings:
                 key = tuple(meaning.word)
-                if (
-                    meaning.size() == max_complexity
-                    and key not in seen
-                    and len(meaning.word) > 0
-                ):
+                if meaning.size() == max_complexity and key not in seen and len(meaning.word) > 0:
                     seen.add(key)
                     new_meanings.append(meaning)
             self.words[word] = new_meanings
