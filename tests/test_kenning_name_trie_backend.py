@@ -123,8 +123,8 @@ def test_find_meaning_preserves_multi_sense_decompositions():
 # english/irish corpora are tens of thousands of names; a deterministic strided
 # sample of roughly this size keeps CI fast while still estimating the rate
 # floor and walking a broad slice for the crash smoke. It's a target, not a
-# hard ceiling: the slice is ``names[::len(names) // target]``, so it lands
-# near (usually slightly above) the target rather than exactly on it.
+# hard ceiling: the slice is ``names[::max(1, len(names) // target)]``, so it
+# lands near (usually slightly above) the target rather than exactly on it.
 _SMOKE_SAMPLE_TARGET = 1000
 
 
@@ -154,7 +154,7 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
 
     Sample size: a deterministic strided sample targeting roughly
     ``_SMOKE_SAMPLE_TARGET`` names per culture (``names[::stride]`` with
-    ``stride = len(names) // target``). The full corpora are tens of
+    ``stride = max(1, len(names) // target)``). The full corpora are tens of
     thousands of names for english (~17.9k) and irish (~34k), and
     ``find_meaning`` exhaustively enumerates decompositions per name —
     long names like 'Westminster' hit the per-position cap — so a full
@@ -168,9 +168,10 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
     decomposition cost — it is today (long, cap-stressing names are
     spread across the alphabetically-sorted files), and the assertion
     below tripwires a future reorder that buried them in a stride gap.
-    Cultures with fewer than ~2x the target (welsh/scottish/breton, all
-    under ~2.3k) run in full at stride 1. See wyrd-1bkw for the
-    underlying full-corpus ``find_meaning`` perf regression.
+    Cultures under ~2x the target — welsh (~1.9k) and breton (~1.2k) —
+    run in full at stride 1; scottish (~2.3k) is just over, at stride 2.
+    See wyrd-1bkw for the underlying full-corpus ``find_meaning`` perf
+    regression.
     """
     place_names_text = seed_data_path(f"{culture}_place_names.json").read_text()
     names = load_names(json.loads(place_names_text))
