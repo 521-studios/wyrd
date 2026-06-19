@@ -48,10 +48,18 @@ def _fold(s: str | None) -> str:
     """Lowercase, strip diacritics/macrons/ligatures, keep ascii letters only."""
     if not s:
         return ""
-    # Map OE/ON letters BEFORE the ascii-strip — NFKD leaves þ/ð/æ/œ intact, so
-    # encode('ascii','ignore') would delete them outright ('þorn'→'orn', 'æsc'→'sc')
-    # instead of folding to 'thorn'/'aesc' and wrecking the LCS pre-screen.
-    s = s.lower().replace("æ", "ae").replace("œ", "oe").replace("þ", "th").replace("ð", "th")
+    # Map OE/ON letters BEFORE the ascii-strip — NFKD leaves þ/ð/æ/œ/ø intact, so
+    # encode('ascii','ignore') would delete them outright ('þorn'→'orn', 'æsc'→'sc',
+    # 'gøta'→'gta') instead of folding and wrecking the LCS pre-screen. ø (Old Norse)
+    # is common in British toponymy.
+    s = (
+        s.lower()
+        .replace("æ", "ae")
+        .replace("œ", "oe")
+        .replace("þ", "th")
+        .replace("ð", "th")
+        .replace("ø", "o")
+    )
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z]", "", s)
 
@@ -103,20 +111,25 @@ def detect_candidates(
     """Low-overlap suspects: toponym_etymology rows whose element surfaces AND
     historical_form share no ``min_overlap``-char run with the (folded) toponym
     name. Pre-screen only — recall-biased; the LLM judge decides spuriousness."""
+    prev_factory = conn.row_factory  # restore in finally — don't mutate a shared conn
     conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT te.id AS te_id, t.modern_name AS nm, te.historical_form AS hf,
+                   te.notes AS notes, tee.ordinal AS ordinal,
+                   e.language AS lang, e.canonical_form AS form
+            FROM toponym_etymology te
+            JOIN toponym t ON t.id = te.toponym_id
+            JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
+            JOIN etymon e ON e.id = tee.etymon_id
+            ORDER BY te.id, tee.ordinal
+            """
+        ).fetchall()
+    finally:
+        conn.row_factory = prev_factory
+
     by_te: dict[int, dict] = {}
-    rows = conn.execute(
-        """
-        SELECT te.id AS te_id, t.modern_name AS nm, te.historical_form AS hf,
-               te.notes AS notes, tee.ordinal AS ordinal,
-               e.language AS lang, e.canonical_form AS form
-        FROM toponym_etymology te
-        JOIN toponym t ON t.id = te.toponym_id
-        JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
-        JOIN etymon e ON e.id = tee.etymon_id
-        ORDER BY te.id, tee.ordinal
-        """
-    )
     for r in rows:
         d = by_te.setdefault(
             r["te_id"],

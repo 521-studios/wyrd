@@ -61,6 +61,7 @@ def test_fold_maps_oe_on_letters_before_ascii_strip():
     assert _fold("Þorn") == "thorn"
     assert _fold("ðæl") == "thael"
     assert _fold("œ") == "oe"
+    assert _fold("gøta") == "gota"  # ON ø does not NFKD-decompose; mapped explicitly
     assert _fold("nīwe") == "niwe"  # macron decomposed + stripped via NFKD
 
 
@@ -327,10 +328,16 @@ def test_cli_apply_authors_assertion_end_to_end(lex, tmp_path, monkeypatch):
         lambda client, c: BreakdownVerdict(True, "high", "belongs to a fordbotl name"),
     )
     mining = tmp_path / "mining"
-    res = CliRunner().invoke(
-        cli.lexicon_mine_spurious_breakdowns,
-        ["--db", str(lex.path), "--mining-dir", str(mining), "--apply"],
-    )
+    argv = ["--db", str(lex.path), "--mining-dir", str(mining), "--apply"]
+    res = CliRunner().invoke(cli.lexicon_mine_spurious_breakdowns, argv)
     assert res.exit_code == 0, res.output
     authored = list(load_assertions(mining))
     assert [a.subject.ref for a in authored] == [str(te)]
+    # the audit row was written AND reads back (the idempotency round-trip the
+    # re-run-skip relies on): _load_judged picks up the te_id...
+    assert te in cli._load_judged(mining)
+    # ...so a second --apply judges nothing new and authors nothing (idempotent).
+    res2 = CliRunner().invoke(cli.lexicon_mine_spurious_breakdowns, argv)
+    assert res2.exit_code == 0, res2.output
+    assert "to-judge=0" in res2.output
+    assert len(list(load_assertions(mining))) == 1

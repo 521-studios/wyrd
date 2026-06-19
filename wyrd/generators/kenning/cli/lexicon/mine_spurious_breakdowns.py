@@ -33,7 +33,7 @@ _AUDIT_FILE = "_decomposition_spurious_audit.jsonl"  # idempotency/judged-log
 def _audit_path(mining_dir: Path) -> Path:
     # Deliberately under canonicalization/ (not data/mining/ root like the other
     # audit logs): the row _type ('decomposition_spurious_audit') is NOT in
-    # log.ALL_TYPES, so at root it'd be swept into the rebuild replay glob
+    # ALL_TYPES (jsonl/log.py), so at root it'd be swept into the rebuild replay glob
     # (jsonl_paths_in) and raise ReplayError unless added to REPLAY_EXCLUDED_LEDGERS
     # — but that denylist's drift-guard requires the file to exist, and this log is
     # created lazily on --apply. canonicalization/ keeps it out of the root glob;
