@@ -266,6 +266,16 @@ class Name:
         self._filter_for_complexity()
 
     def _filter_for_unaccounted(self):
+        # Dedup via a ``seen`` set keyed on ``tuple(meaning.word)`` rather than
+        # ``meaning not in new_meanings``. The list-membership scan was O(n²) per
+        # word and dominated the whole corpus pass on words with many tied
+        # decompositions (some Irish names yield 100+) — wyrd-1bkw. The tuple key
+        # is the SAME identity-based key ``find_meaning`` dedups on at append
+        # time (Meaning slots compare by object identity; raw str slots by their
+        # text value), so this is behaviour-identical to the
+        # ``Word.__eq__`` list scan — but O(1) per
+        # check and, unlike a ``Word``-keyed set, it skips ``Word.__hash__``'s
+        # per-element stringification.
         for word in self.words:
             meanings = self.words[word]
             max_unaccounted = 100
@@ -273,16 +283,21 @@ class Name:
                 if meaning.count_unaccounted() < max_unaccounted:
                     max_unaccounted = meaning.count_unaccounted()
             new_meanings: list[Word] = []
+            seen: set[tuple] = set()
             for meaning in meanings:
+                key = tuple(meaning.word)
                 if (
                     meaning.count_unaccounted() == max_unaccounted
-                    and meaning not in new_meanings
+                    and key not in seen
                     and str(meaning) != ""
                 ):
+                    seen.add(key)
                     new_meanings.append(meaning)
             self.words[word] = new_meanings
 
     def _filter_for_complexity(self):
+        # Same O(n²)→O(n) identity-keyed dedup as _filter_for_unaccounted
+        # (wyrd-1bkw).
         for word in self.words:
             meanings = self.words[word]
             max_complexity = 100
@@ -290,12 +305,15 @@ class Name:
                 if meaning.size() < max_complexity:
                     max_complexity = meaning.size()
             new_meanings: list[Word] = []
+            seen: set[tuple] = set()
             for meaning in meanings:
+                key = tuple(meaning.word)
                 if (
                     meaning.size() == max_complexity
-                    and meaning not in new_meanings
+                    and key not in seen
                     and len(meaning.word) > 0
                 ):
+                    seen.add(key)
                     new_meanings.append(meaning)
             self.words[word] = new_meanings
 

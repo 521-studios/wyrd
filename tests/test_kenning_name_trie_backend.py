@@ -119,6 +119,36 @@ def test_find_meaning_preserves_multi_sense_decompositions():
     assert decomp_count >= 2, f"expected >=2 multi-sense decompositions, got {decomp_count}"
 
 
+def test_reduce_dedups_identical_words_but_keeps_distinct_senses():
+    """wyrd-1bkw: ``Name.reduce``'s dedup keys on ``tuple(meaning.word)`` —
+    identity for Meaning slots, value for str slots. Pin the two invariants that
+    key rests on, since the perf fix (O(n²) list scan → set) and a future
+    ``Meaning.__hash__``/``__eq__`` override could each quietly break them:
+
+    1. Two decompositions that are the SAME Meaning instances collapse to one.
+    2. Two decompositions sharing a surface but using DISTINCT Meaning senses
+       (the '-y' = 'island' OR 'district' case) both survive — they are NOT
+       merged by surface. A surface-based Meaning hash would silently fail this.
+    """
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.word import Word
+
+    island = Meaning("-y", [], ["Island"], {"old_english": ["ieg"]})
+    district = Meaning("-y", [], ["District"], {"old_english": ["ie"]})
+
+    n = Name("Selsey")
+    # Pre-populate with a duplicate (same `island` instance twice) plus the
+    # distinct `district` sense. All three are zero-unaccounted, size-1 — so the
+    # score filters keep them all and only the dedup decides cardinality.
+    n.words = {"Selsey": [Word([island]), Word([island]), Word([district])]}
+    n.reduce()
+
+    survivors = n.words["Selsey"]
+    assert len(survivors) == 2, f"expected the identical pair to collapse to 2, got {len(survivors)}"
+    glosses = {tuple(w.word[0].meanings) for w in survivors}
+    assert glosses == {("Island",), ("District",)}, f"both senses must survive, got {glosses}"
+
+
 # Target sample size per culture for the corpus smoke test below. The full
 # english/irish corpora are tens of thousands of names; a deterministic strided
 # sample of roughly this size keeps CI fast while still estimating the rate
@@ -155,23 +185,22 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
     Sample size: a deterministic strided sample targeting roughly
     ``_SMOKE_SAMPLE_TARGET`` names per culture (``names[::stride]`` with
     ``stride = max(1, len(names) // target)``). The full corpora are tens of
-    thousands of names for english (~17.9k) and irish (~34k), and
-    ``find_meaning`` exhaustively enumerates decompositions per name —
-    long names like 'Westminster' hit the per-position cap — so a full
-    pass is ~150 s for irish, not the sub-second the trie's per-position
-    cost would suggest. Striding keeps the pass fast (~8 s irish) while
-    preserving both this test's jobs: the perfect-decomposition rate is
-    a statistical property a deterministic ~1k-name sample estimates
-    well above the 0.5% floor, and the crash smoke still walks a broad,
-    evenly-spaced slice. Systematic (strided) sampling stays
-    representative only while corpus order is uncorrelated with
-    decomposition cost — it is today (long, cap-stressing names are
-    spread across the alphabetically-sorted files), and the assertion
-    below tripwires a future reorder that buried them in a stride gap.
-    Cultures under ~2x the target — welsh (~1.9k) and breton (~1.2k) —
-    run in full at stride 1; scottish (~2.3k) is just over, at stride 2.
-    See wyrd-1bkw for the underlying full-corpus ``find_meaning`` perf
-    regression.
+    thousands of names for english (~17.9k) and irish (~34k). A full pass
+    over irish is ~20 s (wyrd-1bkw fixed the O(n²) dedup in
+    ``Name.reduce`` that had made it ~150 s); striding to ~1k names keeps
+    the pass well under a second while preserving both this test's jobs:
+    the perfect-decomposition rate is a statistical property a
+    deterministic ~1k-name sample estimates well above the 0.5% floor,
+    and the crash smoke still walks a broad, evenly-spaced slice.
+    Systematic (strided) sampling stays representative only while corpus
+    order is uncorrelated with decomposition cost — it is today (long,
+    cap-stressing names are spread across the alphabetically-sorted
+    files), and the assertion below tripwires a future reorder that
+    buried them in a stride gap. Cultures under ~2x the target — welsh
+    (~1.9k) and breton (~1.2k) — run in full at stride 1; scottish
+    (~2.3k) is just over, at stride 2. Sampling is retained even post-fix
+    so this never becomes the slowest test (the ~20 s full pass would be
+    the xdist per-worker floor).
     """
     place_names_text = seed_data_path(f"{culture}_place_names.json").read_text()
     names = load_names(json.loads(place_names_text))
@@ -180,8 +209,8 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
     sample = names[::stride]
 
     # Crash-smoke tripwire: the sample must still include the long,
-    # decomposition-stressing names (the ones that drive the full pass to
-    # ~150 s). With today's alphabetically-sorted corpora they're spread
+    # decomposition-stressing names (the ones that dominate the full pass,
+    # ~20 s post-wyrd-1bkw). With today's alphabetically-sorted corpora they're spread
     # throughout, so striding keeps tens-to-hundreds of them per culture; this
     # fires only if a future reorder clustered them into a single skipped
     # stride gap — which would gut crash coverage while the rate floor below
