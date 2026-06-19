@@ -251,6 +251,61 @@ def test_select_targets_includes_reflexless_breakdown_admit_cohort(tmp_path: Pat
     assert ("old-english", "rarewic") not in targets  # only 1 breakdown → below threshold
 
 
+def test_select_targets_excludes_already_tagged_breakdown_admit(tmp_path: Path):
+    """The untagged filter gates BOTH reachability channels, not just the reflex
+    one: an etymon used in >=2 toponym breakdowns but already carrying a tag must
+    NOT be re-selected (the AND NOT EXISTS etymon_tag is outside the OR group)."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    tagged = _etymon(
+        conn, "old-english", "burh", gloss="fortified place", reflex=False, tag="architecture"
+    )
+    _breakdown(conn, tagged, n_toponyms=2)
+    conn.close()
+
+    targets = {(lang, form) for lang, form, _ in select_targets(str(db_path))}
+    assert ("old-english", "burh") not in targets  # >=2 breakdowns but already tagged → excluded
+
+
+def _breakdowns_of_one_toponym(conn, etymon_id: int, n_breakdowns: int) -> None:
+    """Add ``etymon_id`` as an element in ``n_breakdowns`` distinct scholarly
+    breakdowns of a SINGLE shared toponym — so count(DISTINCT toponym_id) is 1
+    however many breakdowns there are. Distinguishes the admit threshold's
+    count(DISTINCT toponym_id) from a plain count(*) over breakdown rows."""
+    conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('skeat', 'Skeat')")
+    tid = conn.execute(
+        "INSERT INTO toponym (modern_name) VALUES (?)", (f"Shared{etymon_id}",)
+    ).lastrowid
+    for _ in range(n_breakdowns):
+        teid = conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id) VALUES (?, 'skeat')", (tid,)
+        ).lastrowid
+        conn.execute(
+            "INSERT INTO toponym_etymology_element (toponym_etymology_id, ordinal, etymon_id) "
+            "VALUES (?, 1, ?)",
+            (teid, etymon_id),
+        )
+    conn.commit()
+
+
+def test_select_targets_breakdown_admit_counts_distinct_toponyms_not_breakdowns(tmp_path: Path):
+    """The admit threshold counts DISTINCT toponyms, not raw breakdown rows: an
+    etymon in 2 breakdowns of the SAME toponym is 1 distinct toponym — below the
+    >=2 threshold, so it stays excluded. Guards against a regression from
+    count(DISTINCT te.toponym_id) to count(*)."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    eid = _etymon(conn, "old-english", "ham", gloss="homestead", reflex=False)
+    _breakdowns_of_one_toponym(conn, eid, n_breakdowns=2)
+    conn.close()
+
+    targets = {(lang, form) for lang, form, _ in select_targets(str(db_path))}
+    # 2 breakdown rows but 1 distinct toponym → below threshold → excluded
+    assert ("old-english", "ham") not in targets
+
+
 # ---------------------------------------------------------------------------
 # apply_tag_additions — real tmp lexicon (D10)
 # ---------------------------------------------------------------------------
