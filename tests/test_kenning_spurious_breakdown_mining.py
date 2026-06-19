@@ -145,3 +145,132 @@ def test_spurious_assertion_is_valid_decomposition_spurious(lex):
     assert a.object is None and a.polarity == "affirm"
     assert a.qualifiers == {"reason": "belongs to a fordbotl name"}
     assert a.method == METHOD and a.id  # content-hash id minted
+
+
+# --- CLI orchestration (monkeypatched judge — no live Ollama) ---------------
+
+
+def test_load_judged_tolerates_corrupt_and_filters(tmp_path):
+    import json
+
+    from wyrd.generators.kenning.cli.lexicon import mine_spurious_breakdowns as cli
+
+    cdir = tmp_path / "canonicalization"
+    cdir.mkdir()
+    (cdir / "_decomposition_spurious_audit.jsonl").write_text(
+        json.dumps(
+            {
+                "_type": "decomposition_spurious_audit",
+                "te_id": 780,
+                "spurious": True,
+                "confidence": "high",
+                "reason": "x",
+            }
+        )
+        + "\n{bad json\n"
+        + json.dumps({"_type": "other", "te_id": 999})  # wrong _type → skipped
+        + "\n"
+        + json.dumps(
+            {"_type": "decomposition_spurious_audit", "te_id": "nope"}
+        )  # non-int → skipped
+        + "\n",
+        encoding="utf-8",
+    )
+    assert set(cli._load_judged(tmp_path)) == {780}
+
+
+def test_judge_loop_authors_spurious_gates_low_and_dedups(tmp_path, monkeypatch):
+    from wyrd.generators.kenning.canonicalization import load_assertions
+    from wyrd.generators.kenning.cli.lexicon import mine_spurious_breakdowns as cli
+
+    hi = BreakdownCandidate(
+        780, "Newton", "ford-botl", "n", ("old-english:ford", "old-english:botl")
+    )
+    low = BreakdownCandidate(781, "X", "a-b", "n", ("old-english:a", "old-english:b"))
+    keep = BreakdownCandidate(782, "Y", "c-d", "n", ("old-english:c", "old-english:d"))
+    verdicts = {
+        780: BreakdownVerdict(True, "high", "x"),
+        781: BreakdownVerdict(True, "low", "y"),  # below medium gate → not authored
+        782: BreakdownVerdict(False, "high", "z"),  # not spurious → kept
+    }
+    monkeypatch.setattr(cli, "_judge_with_retry", lambda client, c: verdicts[c.te_id])
+    counts = cli._judge_loop(
+        None,
+        [hi, low, keep],
+        mining_dir=tmp_path,
+        source="t",
+        min_confidence="medium",
+        apply=True,
+        existing_ids=set(),
+        audit_fh=None,
+        base_url="u",
+        model="m",
+    )
+    assert counts == {"authored": 1, "spurious": 1, "kept": 2, "skipped": 0}
+    authored = list(load_assertions(tmp_path))
+    assert [a.subject.ref for a in authored] == ["780"]
+    # dedup: re-run with the id already present → no second author
+    counts2 = cli._judge_loop(
+        None,
+        [hi],
+        mining_dir=tmp_path,
+        source="t",
+        min_confidence="medium",
+        apply=True,
+        existing_ids={authored[0].id},
+        audit_fh=None,
+        base_url="u",
+        model="m",
+    )
+    assert counts2["authored"] == 0 and len(list(load_assertions(tmp_path))) == 1
+
+
+def test_judge_loop_aborts_after_consecutive_failures(monkeypatch):
+    import click
+
+    from wyrd.generators.kenning.cli.lexicon import mine_spurious_breakdowns as cli
+
+    monkeypatch.setattr(cli, "_judge_with_retry", lambda client, c: None)  # always fail
+    cands = [BreakdownCandidate(i, "n", "h", "x", ("old-english:a",)) for i in range(6)]
+    with pytest.raises(click.ClickException):
+        cli._judge_loop(
+            None,
+            cands,
+            mining_dir=None,
+            source="t",
+            min_confidence="medium",
+            apply=False,
+            existing_ids=set(),
+            audit_fh=None,
+            base_url="u",
+            model="m",
+        )
+
+
+def test_cli_apply_authors_assertion_end_to_end(lex, tmp_path, monkeypatch):
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.canonicalization import load_assertions
+    from wyrd.generators.kenning.cli.lexicon import mine_spurious_breakdowns as cli
+
+    te = _etymology(
+        lex,
+        _toponym(lex, "Newton"),
+        hf="ford-botl",
+        notes="Newton (v.): Newtona 1191-8 FC, Neuton 1190.",
+        elements=[("ford", "old-english"), ("botl", "old-english")],
+    )
+    lex.commit()
+    monkeypatch.setattr(
+        cli,
+        "_judge_with_retry",
+        lambda client, c: BreakdownVerdict(True, "high", "belongs to a fordbotl name"),
+    )
+    mining = tmp_path / "mining"
+    res = CliRunner().invoke(
+        cli.lexicon_mine_spurious_breakdowns,
+        ["--db", str(lex.path), "--mining-dir", str(mining), "--apply"],
+    )
+    assert res.exit_code == 0, res.output
+    authored = list(load_assertions(mining))
+    assert [a.subject.ref for a in authored] == [str(te)]

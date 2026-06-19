@@ -18,18 +18,27 @@ from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.canonicalization import append_assertion, load_assertions
+from wyrd.generators.kenning.canonicalization import (
+    append_assertion,
+    load_assertions,
+    score_confidence,
+)
 from wyrd.generators.kenning.canonicalization.streams import CANONICALIZATION_DIRNAME
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
-_AUDIT_FILE = (
-    "_decomposition_spurious_audit.jsonl"  # idempotency/judged-log (not an assertion stream)
-)
-_CONF_RANK = {"low": 0, "medium": 1, "high": 2}
+_AUDIT_FILE = "_decomposition_spurious_audit.jsonl"  # idempotency/judged-log
 
 
 def _audit_path(mining_dir: Path) -> Path:
+    # Deliberately under canonicalization/ (not data/mining/ root like the other
+    # audit logs): the row _type ('decomposition_spurious_audit') is NOT in
+    # log.ALL_TYPES, so at root it'd be swept into the rebuild replay glob
+    # (jsonl_paths_in) and raise ReplayError unless added to REPLAY_EXCLUDED_LEDGERS
+    # — but that denylist's drift-guard requires the file to exist, and this log is
+    # created lazily on --apply. canonicalization/ keeps it out of the root glob;
+    # load_assertions reads canonicalization/*.jsonl but intentionally skips non
+    # canonical_assertion rows, so it's inert there too (wyrd-u6fn.6 / wyrd-5qg7).
     return mining_dir / CANONICALIZATION_DIRNAME / _AUDIT_FILE
 
 
@@ -46,6 +55,10 @@ def _load_judged(mining_dir: Path) -> dict[int, dict]:
         try:
             row = json.loads(line)
         except json.JSONDecodeError:
+            click.echo(
+                f"  warning: skipping corrupt line in {path.name} (te_id will be re-judged)",
+                err=True,
+            )
             continue
         if row.get("_type") == "decomposition_spurious_audit" and isinstance(row.get("te_id"), int):
             out[row["te_id"]] = row
@@ -103,7 +116,7 @@ def _judge_loop(
                 )
             continue
         consecutive = 0
-        if v.spurious and _CONF_RANK[v.confidence] >= _CONF_RANK[min_confidence]:
+        if v.spurious and score_confidence(v.confidence) >= score_confidence(min_confidence):
             counts["spurious"] += 1
             a = spurious_assertion(c, v, source=source)
             if apply and a.id not in existing_ids:
@@ -131,7 +144,7 @@ def _judge_loop(
                 + "\n"
             )
             audit_fh.flush()
-        if i % 25 == 0 or i == len(to_judge):
+        if i % 10 == 0 or i == len(to_judge):
             rate = (time.perf_counter() - start) / i
             click.echo(
                 f"  judged [{i}/{len(to_judge)}] spurious={counts['spurious']} "

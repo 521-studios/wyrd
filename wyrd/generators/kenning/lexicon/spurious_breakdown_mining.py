@@ -31,6 +31,7 @@ import re
 import sqlite3
 import unicodedata
 from dataclasses import dataclass
+from typing import Literal
 
 from wyrd.generators.kenning.canonicalization.assertions import Assertion, NodeRef
 
@@ -47,8 +48,10 @@ def _fold(s: str | None) -> str:
     """Lowercase, strip diacritics/macrons/ligatures, keep ascii letters only."""
     if not s:
         return ""
-    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
-    s = s.replace("þ", "th").replace("ð", "th")
+    # þ/ð → th BEFORE the ascii-strip — they're non-ascii and would otherwise be
+    # dropped by encode('ascii','ignore') (folding 'þorn' to 'orn', not 'thorn').
+    s = s.lower().replace("þ", "th").replace("ð", "th")
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z]", "", s)
 
 
@@ -89,7 +92,7 @@ class BreakdownCandidate:
 @dataclass(frozen=True)
 class BreakdownVerdict:
     spurious: bool  # True → the breakdown belongs to a different word (DETACH)
-    confidence: str
+    confidence: Literal["high", "medium", "low"]
     reason: str
 
 
