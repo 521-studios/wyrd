@@ -396,13 +396,19 @@ suite 4584 passed / 6 skipped.
 
 ## Other gotchas
 
-- **Two exports, by design.** The empirical miner reads a bundle to find
-  unaccounted fragments, so the sequence is: interim export → empirical
-  mine + cleanup + baselines → final export. Don't try to mine empirical
-  before any export exists.
-- **`cleanup-wiktionary-empirical` is mandatory after the mine.** The POS
-  filter only drops function words; modern-english content-word
-  homographs still come in and must be cleaned.
+- **Empirical mine/cleanup are OPERATOR-ONLY now, not rebuild steps
+  (wyrd-x33t).** The `wiktionary-empirical` citations round-trip via
+  `data/mining/wiktionary-empirical.jsonl` (replayed in Phase 1), so a rebuild
+  does NOT run `mine-wiktextract-corpus` / `cleanup-wiktionary-empirical`. The
+  two notes below apply only when an **operator mints NEW empirical** (then
+  re-dumps the jsonl), never during a rebuild:
+  - *Two exports, by design.* The empirical miner reads a bundle to find
+    unaccounted fragments, so the mint sequence is: interim export → empirical
+    mine + cleanup + baselines → re-dump. Don't mine empirical before any
+    export exists.
+  - *`cleanup-wiktionary-empirical` is mandatory after the mine.* The POS
+    filter only drops function words; modern-english content-word homographs
+    still come in and must be cleaned before re-dumping.
 - **`tag-phonological-vectors` is incremental (NULL-only) by default.**
   The enrichment chain runs it that way. To recompute the whole corpus
   after a vector-algorithm change, run the standalone command with

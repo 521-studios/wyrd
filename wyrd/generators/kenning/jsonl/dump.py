@@ -570,6 +570,9 @@ def dump_source_to_rows(conn: sqlite3.Connection, source_id: str) -> list[dict[s
 #    from L1 raw inputs (``sources/wiktextract_*.jsonl``). Their dump
 #    would produce huge files that don't belong in git — the build
 #    pipeline re-runs the wiktextract ingester to recreate their rows.
+#    NOTE: ``wiktionary-empirical`` is deliberately NOT here (wyrd-x33t) —
+#    its re-mine is non-convergent, so it round-trips via its own
+#    per-source ``wiktionary-empirical.jsonl`` like any L2 source.
 # 2. The synthetic ``manual-curation`` source (wyrd-2jhs / wyrd-tzf2)
 #    whose JSONL file is operator-maintained at
 #    ``data/mining/_curation.jsonl``. Dumping it would create a competing
