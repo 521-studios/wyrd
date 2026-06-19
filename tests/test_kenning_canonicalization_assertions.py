@@ -551,6 +551,22 @@ def test_load_skips_foreign_type_rows(tmp_path):
     assert loaded[0].subject.ref == "671826"
 
 
+def test_load_skips_bespoke_audit_type_rows(tmp_path):
+    """A judged-log with a bespoke, UNregistered _type (the spurious-breakdown audit
+    log lives under canonicalization/) must be skipped, not parsed — the guarantee
+    mine-spurious-breakdowns' _audit_path placement relies on (wyrd-u6fn.6). Distinct
+    from the 'source' case above, which uses a registered ALL_TYPES member."""
+    append_assertion(tmp_path, _bind("671826", "CM-new-oe"))
+    audit = tmp_path / "canonicalization" / "_decomposition_spurious_audit.jsonl"
+    audit.write_text(
+        '{"_type": "decomposition_spurious_audit", "te_id": 780, "spurious": true, '
+        '"confidence": "high", "reason": "x"}\n',
+        encoding="utf-8",
+    )
+    loaded = list(load_assertions(tmp_path))
+    assert [a.subject.ref for a in loaded] == ["671826"]  # audit row inert
+
+
 def test_load_raises_located_error_on_malformed_row(tmp_path):
     bad = tmp_path / "canonicalization" / "_assert_bind.jsonl"
     bad.parent.mkdir(parents=True, exist_ok=True)

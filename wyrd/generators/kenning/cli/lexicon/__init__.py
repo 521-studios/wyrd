@@ -174,6 +174,9 @@ from wyrd.generators.kenning.cli.lexicon import (
     mine_same_morpheme_binds as _mine_same_morpheme_binds_module,
 )
 from wyrd.generators.kenning.cli.lexicon import mine_skeat as _mine_skeat_module
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_spurious_breakdowns as _mine_spurious_breakdowns_module,
+)
 from wyrd.generators.kenning.cli.lexicon import mine_tags_llm as _mine_tags_llm_module
 from wyrd.generators.kenning.cli.lexicon import (
     mine_toponym_mentions as _mine_toponym_mentions_module,
@@ -332,6 +335,7 @@ _mine_attestations_module.add_to(lexicon)
 _mine_empirical_baselines_module.add_to(lexicon)
 _mine_genitive_priors_module.add_to(lexicon)
 _mine_same_morpheme_binds_module.add_to(lexicon)
+_mine_spurious_breakdowns_module.add_to(lexicon)
 _mine_cognate_descents_module.add_to(lexicon)
 _mine_cognate_descents_llm_module.add_to(lexicon)
 _mine_fantasy_name_module.add_to(lexicon)
