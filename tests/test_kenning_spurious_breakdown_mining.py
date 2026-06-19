@@ -235,6 +235,56 @@ def test_judge_loop_authors_spurious_gates_low_and_dedups(tmp_path, monkeypatch)
     assert counts2["authored"] == 0 and len(list(load_assertions(tmp_path))) == 1
 
 
+def test_judge_loop_dry_run_authors_nothing(tmp_path, monkeypatch):
+    from wyrd.generators.kenning.canonicalization import load_assertions
+    from wyrd.generators.kenning.cli.lexicon import mine_spurious_breakdowns as cli
+
+    c = BreakdownCandidate(
+        780, "Newton", "ford-botl", "n", ("old-english:ford", "old-english:botl")
+    )
+    monkeypatch.setattr(
+        cli, "_judge_with_retry", lambda client, c: BreakdownVerdict(True, "high", "x")
+    )
+    counts = cli._judge_loop(
+        None,
+        [c],
+        mining_dir=tmp_path,
+        source="t",
+        min_confidence="medium",
+        apply=False,
+        existing_ids=set(),
+        audit_fh=None,
+        base_url="u",
+        model="m",
+    )
+    assert counts["spurious"] == 1 and counts["authored"] == 0
+    assert list(load_assertions(tmp_path)) == []  # dry-run writes nothing
+
+
+def test_judge_with_retry_recovers_then_gives_up():
+    from wyrd.generators.kenning.cli.lexicon import mine_spurious_breakdowns as cli
+
+    class _Client:
+        def __init__(self, seq):
+            self.seq, self.calls = list(seq), 0
+
+        def chat_json(self, system, user, schema):
+            r = self.seq[self.calls]
+            self.calls += 1
+            if isinstance(r, Exception):
+                raise r
+            return r
+
+    c = BreakdownCandidate(1, "N", "h", "x", ("old-english:a",))
+    # attempt 1 raises, attempt 2 parses → verdict returned
+    ok = cli._judge_with_retry(
+        _Client([RuntimeError("boom"), {"spurious": True, "confidence": "high", "reason": "r"}]), c
+    )
+    assert ok is not None and ok.spurious is True
+    # both attempts unparseable → None (skipped, not crashed)
+    assert cli._judge_with_retry(_Client([{"bad": 1}, {"bad": 2}]), c) is None
+
+
 def test_judge_loop_aborts_after_consecutive_failures(monkeypatch):
     import click
 
