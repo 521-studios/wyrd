@@ -1310,6 +1310,39 @@ def test_default_bulk_excluded_sources_excludes_fantasy_mining_from_dump_all():
     assert "skeat" in sids
 
 
+def test_wiktionary_empirical_is_dumpable_and_round_trips(tmp_path: Path):
+    """wyrd-x33t: wiktionary-empirical was excluded from dump as an L3-only
+    re-mine, but the re-mine is non-convergent, so its citations now round-trip
+    through L2. It must NOT be in DEFAULT_BULK_EXCLUDED_SOURCES, and dump → build
+    must reproduce its citations (while the true bulk `wiktionary` stays
+    excluded)."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+    from wyrd.generators.kenning.jsonl.dump import DEFAULT_BULK_EXCLUDED_SOURCES
+
+    assert "wiktionary-empirical" not in DEFAULT_BULK_EXCLUDED_SOURCES
+    assert "wiktionary" in DEFAULT_BULK_EXCLUDED_SOURCES  # the 5.8M-row bulk stays out
+
+    pre = _build_fixture_db()
+    _add_source(pre, id="wiktionary-empirical", title="Wiktionary (empirical corpus mining)")
+    eid = _add_etymon(pre, "old-english", "worþ")
+    pre.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) "
+        "VALUES (?, 'wiktionary-empirical', 'corpus')",
+        (eid,),
+    )
+    dump_source_to_file(pre, "wiktionary-empirical", tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    row = rebuilt.execute(
+        "SELECT e.canonical_form, e.language FROM etymon_citation c "
+        "JOIN etymon e ON e.id = c.etymon_id WHERE c.source_id = 'wiktionary-empirical'"
+    ).fetchone()
+    assert (row["canonical_form"], row["language"]) == ("worþ", "old-english")
+    rebuilt.close()
+
+
 def test_default_bulk_excluded_sources_excludes_modern_reflex_curation():
     """A rebuilt DB carries a ``modern-reflex-curation`` row in ``source``
     (inserted by ``import-modern-reflexes`` from ``_modern_reflexes.jsonl``).
