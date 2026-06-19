@@ -53,6 +53,12 @@ ingest = [
 ]
 dev = [
     "pytest>=8.0",
+    # wyrd CI: parallel test execution (`pytest -n auto`). The suite is
+    # ~5.6k tests and the serial run dominated CI at ~18 min; xdist fans it
+    # across the runner's cores. Tests are isolated via tmp_path / in-memory
+    # DBs + the autouse _isolate_default_lexicon_db / _isolate_bulk_manifest
+    # fixtures, so worker distribution is safe.
+    "pytest-xdist>=3.5",
     "ruff>=0.4",
     # wyrd-0vj3: moto for offline S3 testing in bulk_sources tests.
     # wyrd-dsl5: moto[dynamodb] for the defects-table tests (defects + CLI).

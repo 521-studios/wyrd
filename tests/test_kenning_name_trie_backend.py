@@ -119,11 +119,21 @@ def test_find_meaning_preserves_multi_sense_decompositions():
     assert decomp_count >= 2, f"expected >=2 multi-sense decompositions, got {decomp_count}"
 
 
+# Target sample size per culture for the corpus smoke test below. The full
+# english/irish corpora are tens of thousands of names; a deterministic strided
+# sample of roughly this size keeps CI fast while still estimating the rate
+# floor and walking a broad slice for the crash smoke. It's a target, not a
+# hard ceiling: the slice is ``names[::max(1, len(names) // target)]``, so it
+# lands near (usually slightly above) the target rather than exactly on it.
+_SMOKE_SAMPLE_TARGET = 1000
+
+
 @pytest.mark.parametrize("culture", ["english", "scottish", "welsh", "irish", "breton"])
 def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_word_db):
-    """Smoke test — every name in the bundled per-culture corpus must
-    decompose cleanly without raising, and the perfect-decomposition
-    rate must stay above a floor. The previous Phase-2 regression
+    """Smoke test — every sampled name in the bundled per-culture
+    corpus must decompose cleanly without raising, and the
+    perfect-decomposition rate must stay above a floor. The previous
+    Phase-2 regression
     that lived here compared trie vs legacy decision parity; with
     legacy gone, this rate-floor check is what's left to guard
     against matcher-or-bundle regressions.
@@ -142,25 +152,59 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
     during morpheme-mining churn; looser thresholds miss real
     regressions.
 
-    Sample size: every name in the bundled corpus. Tens of thousands of
-    names per culture for english/irish, but the trie path is
-    O(match-length) per position so the full pass is sub-second.
+    Sample size: a deterministic strided sample targeting roughly
+    ``_SMOKE_SAMPLE_TARGET`` names per culture (``names[::stride]`` with
+    ``stride = max(1, len(names) // target)``). The full corpora are tens of
+    thousands of names for english (~17.9k) and irish (~34k), and
+    ``find_meaning`` exhaustively enumerates decompositions per name —
+    long names like 'Westminster' hit the per-position cap — so a full
+    pass is ~150 s for irish, not the sub-second the trie's per-position
+    cost would suggest. Striding keeps the pass fast (~8 s irish) while
+    preserving both this test's jobs: the perfect-decomposition rate is
+    a statistical property a deterministic ~1k-name sample estimates
+    well above the 0.5% floor, and the crash smoke still walks a broad,
+    evenly-spaced slice. Systematic (strided) sampling stays
+    representative only while corpus order is uncorrelated with
+    decomposition cost — it is today (long, cap-stressing names are
+    spread across the alphabetically-sorted files), and the assertion
+    below tripwires a future reorder that buried them in a stride gap.
+    Cultures under ~2x the target — welsh (~1.9k) and breton (~1.2k) —
+    run in full at stride 1; scottish (~2.3k) is just over, at stride 2.
+    See wyrd-1bkw for the underlying full-corpus ``find_meaning`` perf
+    regression.
     """
     place_names_text = seed_data_path(f"{culture}_place_names.json").read_text()
     names = load_names(json.loads(place_names_text))
 
+    stride = max(1, len(names) // _SMOKE_SAMPLE_TARGET)
+    sample = names[::stride]
+
+    # Crash-smoke tripwire: the sample must still include the long,
+    # decomposition-stressing names (the ones that drive the full pass to
+    # ~150 s). With today's alphabetically-sorted corpora they're spread
+    # throughout, so striding keeps tens-to-hundreds of them per culture; this
+    # fires only if a future reorder clustered them into a single skipped
+    # stride gap — which would gut crash coverage while the rate floor below
+    # still passed.
+    assert any(len(name.name) >= 15 for name in sample), (
+        f"{culture} sample has no name >= 15 chars (sampled {len(sample)}/"
+        f"{len(names)} at stride {stride}) — corpus order may have changed so "
+        f"the strided crash-smoke no longer covers long, cap-stressing names"
+    )
+
     perfect = 0
-    for name in names:
+    for name in sample:
         n = Name(name.name)
         n.find_meaning(bundle_word_db)
         if n.count_unaccounted() == 0:
             perfect += 1
 
-    rate = perfect / len(names) if names else 0.0
+    rate = perfect / len(sample) if sample else 0.0
     assert rate > 0.005, (
         f"{culture} corpus perfect-decomposition rate fell below 0.5% "
-        f"({perfect}/{len(names)} = {rate * 100:.2f}%) — likely a matcher "
-        f"or bundle regression"
+        f"({perfect}/{len(sample)} = {rate * 100:.2f}%, sampled "
+        f"{len(sample)}/{len(names)} at stride {stride}) — likely a "
+        f"matcher or bundle regression"
     )
 
 
