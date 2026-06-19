@@ -54,6 +54,16 @@ def lex(tmp_path):
         db.close()
 
 
+def test_fold_maps_oe_on_letters_before_ascii_strip():
+    """þ/ð/æ/œ must be mapped before encode('ascii') drops them (else 'þorn'→'orn')."""
+    from wyrd.generators.kenning.lexicon.spurious_breakdown_mining import _fold
+
+    assert _fold("Þorn") == "thorn"
+    assert _fold("ðæl") == "thael"
+    assert _fold("œ") == "oe"
+    assert _fold("nīwe") == "niwe"  # macron decomposed + stripped via NFKD
+
+
 def test_detect_prescreen_flags_low_overlap_excludes_overlapping(lex):
     """Pre-screen (recall-biased) flags breakdowns sharing no >=3-char run with the
     toponym name — the ford+botl-for-Newton contamination AND, by design, legit OE

@@ -48,9 +48,10 @@ def _fold(s: str | None) -> str:
     """Lowercase, strip diacritics/macrons/ligatures, keep ascii letters only."""
     if not s:
         return ""
-    # þ/ð → th BEFORE the ascii-strip — they're non-ascii and would otherwise be
-    # dropped by encode('ascii','ignore') (folding 'þorn' to 'orn', not 'thorn').
-    s = s.lower().replace("þ", "th").replace("ð", "th")
+    # Map OE/ON letters BEFORE the ascii-strip — NFKD leaves þ/ð/æ/œ intact, so
+    # encode('ascii','ignore') would delete them outright ('þorn'→'orn', 'æsc'→'sc')
+    # instead of folding to 'thorn'/'aesc' and wrecking the LCS pre-screen.
+    s = s.lower().replace("æ", "ae").replace("œ", "oe").replace("þ", "th").replace("ð", "th")
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z]", "", s)
 
