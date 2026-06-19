@@ -155,23 +155,22 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
     Sample size: a deterministic strided sample targeting roughly
     ``_SMOKE_SAMPLE_TARGET`` names per culture (``names[::stride]`` with
     ``stride = max(1, len(names) // target)``). The full corpora are tens of
-    thousands of names for english (~17.9k) and irish (~34k), and
-    ``find_meaning`` exhaustively enumerates decompositions per name —
-    long names like 'Westminster' hit the per-position cap — so a full
-    pass is ~150 s for irish, not the sub-second the trie's per-position
-    cost would suggest. Striding keeps the pass fast (~8 s irish) while
-    preserving both this test's jobs: the perfect-decomposition rate is
-    a statistical property a deterministic ~1k-name sample estimates
-    well above the 0.5% floor, and the crash smoke still walks a broad,
-    evenly-spaced slice. Systematic (strided) sampling stays
-    representative only while corpus order is uncorrelated with
-    decomposition cost — it is today (long, cap-stressing names are
-    spread across the alphabetically-sorted files), and the assertion
-    below tripwires a future reorder that buried them in a stride gap.
-    Cultures under ~2x the target — welsh (~1.9k) and breton (~1.2k) —
-    run in full at stride 1; scottish (~2.3k) is just over, at stride 2.
-    See wyrd-1bkw for the underlying full-corpus ``find_meaning`` perf
-    regression.
+    thousands of names for english (~17.9k) and irish (~34k). A full pass
+    over irish is ~20 s (wyrd-1bkw fixed the O(n²) dedup in
+    ``Name.reduce`` that had made it ~150 s); striding to ~1k names keeps
+    the pass well under a second while preserving both this test's jobs:
+    the perfect-decomposition rate is a statistical property a
+    deterministic ~1k-name sample estimates well above the 0.5% floor,
+    and the crash smoke still walks a broad, evenly-spaced slice.
+    Systematic (strided) sampling stays representative only while corpus
+    order is uncorrelated with decomposition cost — it is today (long,
+    cap-stressing names are spread across the alphabetically-sorted
+    files), and the assertion below tripwires a future reorder that
+    buried them in a stride gap. Cultures under ~2x the target — welsh
+    (~1.9k) and breton (~1.2k) — run in full at stride 1; scottish
+    (~2.3k) is just over, at stride 2. Sampling is retained even post-fix
+    so this never becomes the slowest test (the ~20 s full pass would be
+    the xdist per-worker floor).
     """
     place_names_text = seed_data_path(f"{culture}_place_names.json").read_text()
     names = load_names(json.loads(place_names_text))
