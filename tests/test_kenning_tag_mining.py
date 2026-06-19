@@ -209,6 +209,48 @@ def test_select_targets_only_untagged_glossed_reachable(tmp_path: Path):
     assert targets[0][2] == "spear"
 
 
+def _breakdown(conn, etymon_id: int, n_toponyms: int) -> None:
+    """Add ``etymon_id`` as an element in ``n_toponyms`` distinct scholarly
+    toponym_etymology breakdowns (wyrd-oth3 admit signal)."""
+    conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('skeat', 'Skeat')")
+    for i in range(n_toponyms):
+        tid = conn.execute(
+            "INSERT INTO toponym (modern_name) VALUES (?)", (f"Place{etymon_id}_{i}",)
+        ).lastrowid
+        teid = conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id) VALUES (?, 'skeat')", (tid,)
+        ).lastrowid
+        conn.execute(
+            "INSERT INTO toponym_etymology_element (toponym_etymology_id, ordinal, etymon_id) "
+            "VALUES (?, 1, ?)",
+            (teid, etymon_id),
+        )
+    conn.commit()
+
+
+def test_select_targets_includes_reflexless_breakdown_admit_cohort(tmp_path: Path):
+    """wyrd-jrwc: a reflex-less morpheme used in >=2 scholarly toponym breakdowns
+    is an admitted (oth3) generation surface and MUST be a tag target, even
+    though the reflex-only gate would miss it. A morpheme in only 1 breakdown is
+    below the realistic-admit threshold and stays excluded (myv4's tail)."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    admit = _etymon(
+        conn, "old-english", "worth", gloss="enclosure", reflex=False
+    )  # ✓ via breakdown
+    _breakdown(conn, admit, n_toponyms=2)
+    tail = _etymon(
+        conn, "old-english", "rarewic", gloss="dwelling", reflex=False
+    )  # ✗ only 1 breakdown
+    _breakdown(conn, tail, n_toponyms=1)
+    conn.close()
+
+    targets = {(lang, form) for lang, form, _ in select_targets(str(db_path))}
+    assert ("old-english", "worth") in targets  # reflex-less, but >=2 breakdowns → admitted
+    assert ("old-english", "rarewic") not in targets  # only 1 breakdown → below threshold
+
+
 # ---------------------------------------------------------------------------
 # apply_tag_additions — real tmp lexicon (D10)
 # ---------------------------------------------------------------------------
