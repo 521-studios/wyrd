@@ -28,7 +28,7 @@ from wyrd.generators.kenning.runtime.drift_runner import _sample_from_generation
 # Sample sizes (wyrd-yzul: sized to the statistic each test checks, not a flat
 # 120). N covers the well-formed invariant and the divergence floors — both have
 # enormous headroom (divergence runs ~93–100% true against a 20% floor, so even
-# ~a dozen samples clear it by >10σ; well-formed is a per-sample non-empty
+# ~a dozen samples clear it by ~10σ; well-formed is a per-sample non-empty
 # invariant), so 50 keeps them robust while ~halving this file's CI cost.
 # N_RATE is the within-name dup-rate test, the one genuinely statistical guard
 # (true rate ~1% vs a 5% ceiling), so it keeps the larger sample for a non-flaky

@@ -1077,7 +1077,7 @@ def test_kenning_generate_cohesion_one_diverges_from_zero():
 
     k = Kenning()
     # wyrd-yzul: 20 seeds suffices — cohesion=1 diverges from 0 on ~65% of seeds,
-    # so P(zero diffs) ≈ 0.35**20 ≈ 4e-10. The test only needs ONE divergence to
+    # so P(zero diffs) ≈ 0.35**20 ≈ 8e-10. The test only needs ONE divergence to
     # disprove the no-op regression.
     diffs = sum(
         k.generate({"culture": "english", "cohesion": 0.0}, seed=s).result
@@ -1320,20 +1320,21 @@ def test_new_name_str_uses_rendered_when_present() -> None:
 
 
 def test_name_generator_no_adjacent_duplicate_words_across_a_seed_sweep() -> None:
-    """wyrd-gzvr end-to-end: across a 30-seed × 5-culture sweep
-    (count=10 each → ~1500 names) the generator produces zero outputs
+    """wyrd-gzvr end-to-end: across a 40-seed × 5-culture sweep
+    (count=10 each → ~2000 names) the generator produces zero outputs
     containing adjacent-duplicate words. Pre-PR scan surfaced 'North
     North' / 'East East' / 'Green Green' / 'Pentre Pentre' / 'Les Les'
-    patterns — the exclude_keys filter eliminates them. (wyrd-yzul: 30
+    patterns — the exclude_keys filter eliminates them. (wyrd-yzul: 40
     seeds, down from 50; a returned regression removes the filter
-    wholesale, so the artifacts flood back across the sweep — 30×5×10
-    names catch it with ample margin.)"""
+    wholesale, so the duplicates flood back. The pre-fix rate was
+    materially higher than the triple-letter case below, so 2000 names
+    catch it with even more margin than that sibling's ~e^-9.6 P(miss).)"""
     from wyrd.generators.kenning import Kenning
 
     k = Kenning()
     duplicates: list[str] = []
     for culture in ("english", "welsh", "scottish", "irish", "breton"):
-        for seed in range(1, 31):
+        for seed in range(1, 41):
             result = k.generate({"culture": culture, "count": 10}, seed=seed)
             for line in result.result.splitlines():
                 line = line.strip()
@@ -1430,13 +1431,15 @@ def test_new_name_str_applies_triple_letter_collapse() -> None:
 
 
 def test_name_generator_no_triple_letter_runs_across_a_seed_sweep() -> None:
-    """wyrd-ovsv end-to-end: across a 30-seed × 5-culture sweep
-    (count=10 each → ~1500 names) the generator produces zero outputs
+    """wyrd-ovsv end-to-end: across a 40-seed × 5-culture sweep
+    (count=10 each → ~2000 names) the generator produces zero outputs
     containing 3+-letter runs. Pre-PR scan surfaced 12 such outputs
     (Killlen, Alllas, Bronferrrhedyn, ...) — the collapse pass
-    eliminates them. (wyrd-yzul: 30 seeds, down from 50; the pre-fix
-    density was ~12/2500 names, so a returned regression still yields
-    ~7 hits across the 30-seed sweep — P(miss) ≈ e^-7 ≈ 0.1%.)"""
+    eliminates them. (wyrd-yzul: 40 seeds, down from 50; the pre-fix
+    density was ~12/2500 names, so a returned regression yields ~9.6
+    hits across the 40-seed sweep — P(miss) ≈ e^-9.6 ≈ 0.007%. This
+    zero-tolerance scan has no built-in slack, so it keeps a fatter
+    sample than the rate-based tests in this PR.)"""
     import re as _re
 
     from wyrd.generators.kenning import Kenning
@@ -1445,7 +1448,7 @@ def test_name_generator_no_triple_letter_runs_across_a_seed_sweep() -> None:
     k = Kenning()
     violations: list[str] = []
     for culture in ("english", "welsh", "scottish", "irish", "breton"):
-        for seed in range(1, 31):
+        for seed in range(1, 41):
             result = k.generate({"culture": culture, "count": 10}, seed=seed)
             for line in result.result.splitlines():
                 line = line.strip()
