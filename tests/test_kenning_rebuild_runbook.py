@@ -153,6 +153,27 @@ def test_command_buckets_are_disjoint() -> None:
     )
 
 
+def test_empirical_layer_is_l2_replay_not_remined() -> None:
+    """wyrd-x33t: the wiktionary-empirical citation layer round-trips through L2
+    (data/mining/wiktionary-empirical.jsonl); a clean re-mine is non-convergent
+    and re-mining it on rebuild would re-break the worth gate + breton realism
+    (wyrd-ruvk). This pins the load-bearing invariant: mine-wiktextract-corpus +
+    cleanup-wiktionary-empirical must NOT be rebuild steps, and the empirical
+    layer must be l2-replay. A future edit re-promoting the mine would fail here."""
+    m = _load_manifest()
+    for cmd in ("mine-wiktextract-corpus", "cleanup-wiktionary-empirical"):
+        assert cmd in m["non_rebuild_commands"], (
+            f"{cmd} must be in non_rebuild_commands (its output round-trips via L2)"
+        )
+        assert cmd not in m["rebuild_step_commands"], (
+            f"{cmd} must NOT be a rebuild step — re-mining adds citations atop the "
+            "replayed set, re-breaking reproducibility (wyrd-ruvk)"
+        )
+    empirical = next(layer for layer in m["layers"] if layer["layer"] == "empirical")
+    assert empirical["restored_by"] == "l2-replay"
+    assert empirical["runbook_token"] == "wiktionary-empirical.jsonl"
+
+
 def test_rebuild_step_commands_appear_in_runbook() -> None:
     """Every command the manifest calls a rebuild step must be written into
     REBUILD.md -- this is what keeps the instructions complete."""

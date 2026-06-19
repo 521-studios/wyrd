@@ -570,6 +570,9 @@ def dump_source_to_rows(conn: sqlite3.Connection, source_id: str) -> list[dict[s
 #    from L1 raw inputs (``sources/wiktextract_*.jsonl``). Their dump
 #    would produce huge files that don't belong in git — the build
 #    pipeline re-runs the wiktextract ingester to recreate their rows.
+#    NOTE: ``wiktionary-empirical`` is deliberately NOT here (wyrd-x33t) —
+#    its re-mine is non-convergent, so it round-trips via its own
+#    per-source ``wiktionary-empirical.jsonl`` like any L2 source.
 # 2. The synthetic ``manual-curation`` source (wyrd-2jhs / wyrd-tzf2)
 #    whose JSONL file is operator-maintained at
 #    ``data/mining/_curation.jsonl``. Dumping it would create a competing
@@ -582,7 +585,15 @@ def dump_source_to_rows(conn: sqlite3.Connection, source_id: str) -> list[dict[s
 DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
     {
         "wiktionary",
-        "wiktionary-empirical",
+        # wyrd-x33t: wiktionary-empirical was excluded as an L3-only re-mine
+        # (mine-wiktextract-corpus). But that mine is NON-CONVERGENT — a clean
+        # rebuild reproduces only ~1,870-2,676 of the backup's accumulated
+        # ~3,682 citations, which shifts the global promotion landscape so OE
+        # place-name elements (worð/worþ) stop clearing the gate (worth gate +
+        # breton realism regress, wyrd-ruvk). So it now round-trips through L2
+        # like reflexes (wyrd-ned5/br5o) + fantasy etymons (ruvk): dump_all_sources
+        # emits data/mining/wiktionary-empirical.jsonl (etymons + citations) and
+        # build_from_jsonl replays it. Its reflexes already ride _reflexes.jsonl.
         "wiktionary-forms",
         "manual-curation",
         # wyrd-2thc: synthetic source declared inline by

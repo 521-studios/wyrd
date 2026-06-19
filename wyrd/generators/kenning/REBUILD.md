@@ -48,7 +48,7 @@ DB and must be re-run by hand after the rebuild.
 | pronunciation IPA backfill (`etymon.pronunciation_ipa`, wyrd-vm8t) | ✅ yes — **two tiers**: (1) the deterministic G2P fill for OE/ON/welsh/celtic is re-derived for free by `run_full_enrichment`'s `derive_pronunciation_ipa` pass (no jsonl — same as english-shaped/stratum); (2) the LLM tier for the no-G2P-table languages (Goidelic/Romance/Middle English/Breton) replays the high+medium-confidence rows of `data/mining/_pronunciation.jsonl` through the same pass (`collect_pronunciation` → `llm_state`, gaps only) | — |
 | **`toponym.country`** | ❌ dropped | `backfill-toponym-country` |
 | **phase-2 attestations** (`toponym_attestation`) | ❌ L3-only (boundary doc "deferred") | `ingest-toponym-mentions` over `data/mining/phase2/*.jsonl` |
-| **empirical layer** (`wiktionary-empirical` citations) | ❌ L3-only | `mine-wiktextract-corpus` + `cleanup-wiktionary-empirical` |
+| **empirical layer** (`wiktionary-empirical` citations) | ✅ **now** — L2-replay via `data/mining/wiktionary-empirical.jsonl` (wyrd-x33t). Was an L3-only re-mine, but `mine-wiktextract-corpus` is non-convergent (~1,870–2,676 vs accumulated ~3,682), and the shortfall regressed the worth gate + breton realism (wyrd-ruvk); so the citations now round-trip | — |
 | **forms-variants** (`etymon_text_match`, D18 spelling pools) | ❌ L3-only ("deferred") | `mine-wiktextract-forms` per slice |
 | **empirical baselines / priors** | ❌ L3-only (derived from the above) | `mine-empirical-baselines` + `dump-empirical-priors` |
 | **genitive split prior** (`genitive_split_prior`, wyrd-aicu.9 + .9.1) | ❌ L3-only (derived from toponym_etymology + historical_form + reflex cognate clusters + toponym_attestation) | `mine-genitive-priors` + `dump-genitive-priors` |
@@ -264,24 +264,20 @@ for s in "${SLICES[@]}"; do
   wyrd kenning lexicon mine-wiktextract-forms ~/.wyrd/sources/wiktextract_${s}.jsonl --apply
 done
 
-# 4. Interim bundle export — the empirical miner needs a current bundle to
-#    compute "unaccounted" place-name fragments (it calls load_meanings()).
-wyrd kenning lexicon export-runtime-db --db ~/.wyrd/lexicon.db \
-  --output /tmp/rebuild-interim.db
+# 4–6. Empirical layer — NO LONGER a rebuild step (wyrd-x33t). The
+#    wiktionary-empirical citations round-trip via L2
+#    (data/mining/wiktionary-empirical.jsonl) and are replayed by
+#    rebuild-from-jsonl in Phase 1. Do NOT re-run mine-wiktextract-corpus /
+#    cleanup-wiktionary-empirical here: the mine is non-convergent and would
+#    add citations ON TOP of the replayed set, re-breaking reproducibility
+#    (worth gate + breton realism, wyrd-ruvk). Its reflexes already ride
+#    _reflexes.jsonl (wyrd-ned5/br5o).
+#    [Operators minting NEW empirical: run mine-wiktextract-corpus (needs an
+#     interim bundle export + --sources-dir ~/.wyrd/sources) then
+#     cleanup-wiktionary-empirical, then RE-DUMP the jsonl via dump-jsonl.]
 
-# 5. Empirical layer. MUST pass --sources-dir ~/.wyrd/sources (see Traps).
-#    Point WYRD_RUNTIME_DB at the interim bundle from step 4.
-WYRD_RUNTIME_DB=/tmp/rebuild-interim.db \
-  wyrd kenning lexicon mine-wiktextract-corpus \
-    --culture all --apply --sources-dir ~/.wyrd/sources
-
-# 6. De-pollute the empirical layer (drops modern-english content-word
-#    homographs with no historical cluster mate — ~10–12k rows). Dry-run
-#    first, then --apply.
-wyrd kenning lexicon cleanup-wiktionary-empirical            # dry-run
-wyrd kenning lexicon cleanup-wiktionary-empirical --apply
-
-# 7. Empirical baselines + the git-tracked priors sidecar.
+# 7. Empirical baselines + the git-tracked priors sidecar. Derives from the
+#    now-replayed empirical citations + country + attestations.
 wyrd kenning lexicon mine-empirical-baselines --apply
 D=data/mining/reports/after-rebuild-$(date +%Y%m%d); mkdir -p "$D"
 wyrd kenning lexicon dump-empirical-priors \
@@ -400,13 +396,19 @@ suite 4584 passed / 6 skipped.
 
 ## Other gotchas
 
-- **Two exports, by design.** The empirical miner reads a bundle to find
-  unaccounted fragments, so the sequence is: interim export → empirical
-  mine + cleanup + baselines → final export. Don't try to mine empirical
-  before any export exists.
-- **`cleanup-wiktionary-empirical` is mandatory after the mine.** The POS
-  filter only drops function words; modern-english content-word
-  homographs still come in and must be cleaned.
+- **Empirical mine/cleanup are OPERATOR-ONLY now, not rebuild steps
+  (wyrd-x33t).** The `wiktionary-empirical` citations round-trip via
+  `data/mining/wiktionary-empirical.jsonl` (replayed in Phase 1), so a rebuild
+  does NOT run `mine-wiktextract-corpus` / `cleanup-wiktionary-empirical`. The
+  two notes below apply only when an **operator mints NEW empirical** (then
+  re-dumps the jsonl), never during a rebuild:
+  - *Two exports, by design.* The empirical miner reads a bundle to find
+    unaccounted fragments, so the mint sequence is: interim export → empirical
+    mine + cleanup + baselines → re-dump. Don't mine empirical before any
+    export exists.
+  - *`cleanup-wiktionary-empirical` is mandatory after the mine.* The POS
+    filter only drops function words; modern-english content-word homographs
+    still come in and must be cleaned before re-dumping.
 - **`tag-phonological-vectors` is incremental (NULL-only) by default.**
   The enrichment chain runs it that way. To recompute the whole corpus
   after a vector-algorithm change, run the standalone command with

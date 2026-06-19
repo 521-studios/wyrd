@@ -39,10 +39,11 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     is_flag=True,
     default=False,
     help=(
-        "Also dump bulk wiktextract-derived sources (wiktionary, "
-        "wiktionary-empirical, wiktionary-forms). Default skips them — "
-        "their rows are re-derivable from L1 raw inputs and the "
-        "wiktionary dump file alone is ~200MB+."
+        "Also dump the bulk wiktextract-derived sources kept out of the "
+        "default dump (wiktionary, wiktionary-forms). Default skips them — "
+        "the wiktionary bulk dump alone is ~200MB+. Note: wiktionary-empirical "
+        "is NO LONGER bulk-excluded (wyrd-x33t) — it round-trips via "
+        "wiktionary-empirical.jsonl in every dump."
     ),
 )
 def lexicon_dump_jsonl(
