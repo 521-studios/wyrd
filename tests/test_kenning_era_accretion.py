@@ -215,9 +215,14 @@ def test_mixed_and_present_day_stay_skeleton_identical():
     seed (same picked morphemes, same modern_name()); only the render
     differs. This is the surviving seed-level half of the D44 invariant
     and the regression guard for the wyrd-c6o1.3 starvation: if the
-    present-day stage ever gates again, this diverges."""
+    present-day stage ever gates again, this diverges.
+
+    wyrd-yzul: 30 seeds (down from 60). This is a per-seed DETERMINISTIC
+    equality, not a statistical rate — a re-gated present-day stage
+    diverges on essentially every seed, so 30 catches it just as surely
+    while halving the cost."""
     gen = Kenning()
-    for seed in range(60):
+    for seed in range(30):
         mixed = _roll(gen, "", seed)
         modern = _roll(gen, "present-day", seed)
         assert mixed.result_modern == modern.result_modern, (

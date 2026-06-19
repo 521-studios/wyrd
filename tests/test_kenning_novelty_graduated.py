@@ -25,7 +25,16 @@ from wyrd.generators.kenning.generators.kenning import Kenning
 # vector mode and exposes no novelty knob, so the per-sample helper is the seam.
 from wyrd.generators.kenning.runtime.drift_runner import _sample_from_generation_result
 
-N = 120
+# Sample sizes (wyrd-yzul: sized to the statistic each test checks, not a flat
+# 120). N covers the well-formed invariant and the divergence floors — both have
+# enormous headroom (divergence runs ~93–100% true against a 20% floor, so even
+# ~a dozen samples clear it by ~10σ; well-formed is a per-sample non-empty
+# invariant), so 50 keeps them robust while ~halving this file's CI cost.
+# N_RATE is the within-name dup-rate test, the one genuinely statistical guard
+# (true rate ~1% vs a 5% ceiling), so it keeps the larger sample for a non-flaky
+# margin.
+N = 50
+N_RATE = 120
 # english + welsh; welsh was the most novelty-sensitive culture in the fca0 sweep,
 # so if anything degrades fastest with novelty it shows here.
 CULTURES = ["english", "welsh"]
@@ -57,7 +66,7 @@ def test_high_novelty_does_not_blow_up_repeats(culture):
     measured ≤1.1% across all cultures; 5% is a generous, non-flaky ceiling that
     still catches a diversification regression (the wyrd-57d8 failure mode)."""
     k = Kenning()
-    samples = _samples(k, culture, 1.0, N)
+    samples = _samples(k, culture, 1.0, N_RATE)
     dup = sum(1 for s in samples if len({m.lower() for m in s.morphemes}) != len(s.morphemes))
     rate = dup / len(samples)
     assert rate <= 0.05, f"{culture} nov=1.0: within-name dup rate {rate:.2%} > 5%"

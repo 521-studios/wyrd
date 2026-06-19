@@ -13,7 +13,13 @@ from __future__ import annotations
 from wyrd.generators.kenning.generators.kenning import Kenning
 
 GRIM = {"death", "military", "monster", "undead", "magic"}
-N = 200
+# wyrd-yzul: 100 samples keeps every assertion here comfortably non-flaky — the
+# binding one is the no-mood baseline ceiling (base < 0.30; true ~0.17, ~3.5σ
+# out at n=100), while grim incidence is a flat 1.0 (∞ margin) and the
+# means/has-normal checks sit well inside their windows. Halved from 200 to cut
+# CI cost; these are seed-deterministic so the reduction only trades a thinner
+# (still ample) statistical margin, never reproducibility.
+N = 100
 
 
 def _name_tag_sets(k, mood, n=N):
