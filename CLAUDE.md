@@ -64,12 +64,26 @@ worktree keeps each PR scoped to exactly its own change.
 
 ## Build & Test
 
-_Add your build and test commands here_
+**Run ruff before every push.** CI's "Test & Lint" job gates on
+`ruff format --check .` and `ruff check .`, but `commit-and-push.sh`'s
+pre-commit hook does NOT run ruff in this environment (ruff/pre-commit aren't
+installed locally), so a format/lint slip passes locally and fails CI — and
+has merged red to `main` that way. Always run, and confirm clean, before
+pushing:
 
 ```bash
-# Example:
-# npm install
-# npm test
+ruff format .          # auto-format (or `ruff format --check .` to verify only)
+ruff check .           # lint
+pytest -n auto         # full suite (pytest-xdist; -n auto ≈ CPU count)
+```
+
+A green from `check-ci.sh` immediately after a push can be stale (it races the
+new commit's check-runs and may report the previous commit's result). Before
+merging, verify the **actual HEAD SHA's** checks:
+
+```bash
+HEAD=$(gh pr view <pr> --json headRefOid --jq .headRefOid)
+gh api /repos/521-studios/wyrd/commits/$HEAD/check-runs --jq '.check_runs[]|{name,conclusion}'
 ```
 
 ## Architecture Overview
