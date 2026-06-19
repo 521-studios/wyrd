@@ -144,7 +144,9 @@ def test_reduce_dedups_identical_words_but_keeps_distinct_senses():
     n.reduce()
 
     survivors = n.words["Selsey"]
-    assert len(survivors) == 2, f"expected the identical pair to collapse to 2, got {len(survivors)}"
+    assert len(survivors) == 2, (
+        f"expected the identical pair to collapse to 2, got {len(survivors)}"
+    )
     glosses = {tuple(w.word[0].meanings) for w in survivors}
     assert glosses == {("Island",), ("District",)}, f"both senses must survive, got {glosses}"
 
