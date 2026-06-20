@@ -124,3 +124,35 @@ export function isNameMorpheme(morph) {
   const first = String((morph?.meanings || [])[0] || '');
   return /personal name|manorial family|surname|family name/i.test(first);
 }
+
+/**
+ * The 1–2 word gloss shown under a morpheme. Falls back to a dim "name" marker
+ * for proper-name elements (manorial families etc.) — but only when the surface
+ * is capitalized, so lowercase connectives (and/et/be) whose pooled meanings
+ * happen to include "a personal name" stay blank.
+ *
+ * Pure (regex + Map build over `morph`), so the caller can memoize it.
+ */
+export function glossFor(morph) {
+  const g = representativeMeanings(morph.meanings);
+  if (g.length) return g.join(' · ');
+  const looksProper = /^[A-Z]/.test(morph.usage || '');
+  return looksProper && isNameMorpheme(morph) ? 'name' : '';
+}
+
+/**
+ * Precompute the per-morpheme glosses for a list of results, once. Returns a
+ * nested array mirroring each result's `morphemes_by_word`:
+ * `out[resultIdx][wordIdx][morphIdx]` is the gloss string for that morpheme.
+ *
+ * wyrd-myof: glosses are a pure function of a result's `morphemes_by_word`, so
+ * computing them here (keyed off `appState.results` via a `$derived` in the
+ * Output column) runs the regex/Map work once per ROLL — not inline in the
+ * template, where it recomputed for every result on every reactive render
+ * (including selection changes via `currentResultIndex`).
+ */
+export function glossesByResults(results) {
+  return (results ?? []).map((r) =>
+    (r?.morphemes_by_word ?? []).map((word) => word.map((morph) => glossFor(morph))),
+  );
+}
