@@ -51,12 +51,27 @@ def _mint(node_id, node_type="canonical_morpheme"):
     return Assertion(predicate="mint-canonical", subject=NodeRef(node_type, node_id))
 
 
+def _ref(db, etymon_id):
+    """The etymon's stable natural-key ref (wyrd-c6wu), as the emitters now author."""
+    r = db.conn.execute(
+        "SELECT language, canonical_form FROM etymon WHERE id = ?", (etymon_id,)
+    ).fetchone()
+    return f"{r['language'] or ''}:{r['canonical_form']}"
+
+
 def _bind(
-    etymon_id, node_id, *, confidence="high", kind="same-morpheme", polarity="affirm", retracts=None
+    db,
+    etymon_id,
+    node_id,
+    *,
+    confidence="high",
+    kind="same-morpheme",
+    polarity="affirm",
+    retracts=None,
 ):
     return Assertion(
         predicate="bind",
-        subject=NodeRef("etymon", str(etymon_id)),
+        subject=NodeRef("etymon", _ref(db, etymon_id)),
         object=NodeRef("canonical_morpheme", node_id),
         qualifiers={"kind": kind},
         confidence=confidence,
@@ -79,7 +94,7 @@ def test_mint_and_bind_same_morpheme(tmp_path):
     db = _db(tmp_path)
     a, b = _etymon(db, "niwe"), _etymon(db, "nīwe")
     db.commit()
-    _author(tmp_path, _mint("CM-new"), _bind(a, "CM-new"), _bind(b, "CM-new"))
+    _author(tmp_path, _mint("CM-new"), _bind(db, a, "CM-new"), _bind(db, b, "CM-new"))
     res = project_canonical(db, mining_dir=tmp_path, apply=True)
     assert res.minted == {"canonical_morpheme": 1}
     assert res.bound == {"etymon": 2}
@@ -94,7 +109,7 @@ def test_confidence_gate_leaves_below_gate_unbound(tmp_path):
     db = _db(tmp_path)
     a = _etymon(db, "leah")
     db.commit()
-    _author(tmp_path, _mint("CM-leah"), _bind(a, "CM-leah", confidence="medium"))
+    _author(tmp_path, _mint("CM-leah"), _bind(db, a, "CM-leah", confidence="medium"))
     # Default high gate: medium bind does NOT apply (D46 leave-separate).
     project_canonical(db, mining_dir=tmp_path, apply=True)
     assert _morpheme_id(db, a) is None
@@ -111,8 +126,8 @@ def test_refute_drops_the_bind(tmp_path):
     _author(
         tmp_path,
         _mint("CM-ton"),
-        _bind(a, "CM-ton"),
-        _bind(a, "CM-ton", polarity="refute"),
+        _bind(db, a, "CM-ton"),
+        _bind(db, a, "CM-ton", polarity="refute"),
     )
     project_canonical(db, mining_dir=tmp_path, apply=True)
     assert _morpheme_id(db, a) is None
@@ -123,12 +138,12 @@ def test_retract_drops_the_bind(tmp_path):
     db = _db(tmp_path)
     a = _etymon(db, "cot")
     db.commit()
-    [_, bind, _] = _author(tmp_path, _mint("CM-cot"), _bind(a, "CM-cot"), _mint("CM-x"))
+    [_, bind, _] = _author(tmp_path, _mint("CM-cot"), _bind(db, a, "CM-cot"), _mint("CM-x"))
     _author(
         tmp_path,
         Assertion(
             predicate="bind",
-            subject=NodeRef("etymon", str(a)),
+            subject=NodeRef("etymon", _ref(db, a)),
             object=NodeRef("canonical_morpheme", "CM-cot"),
             qualifiers={"kind": "same-morpheme"},
             polarity="retract",
@@ -160,7 +175,7 @@ def test_merge_canonical_chain_flatten_smallest_id_wins(tmp_path):
             subject=NodeRef("canonical_morpheme", "CM-b"),
             object=NodeRef("canonical_morpheme", "CM-a"),
         ),
-        _bind(a, "CM-c"),
+        _bind(db, a, "CM-c"),
     )
     res = project_canonical(db, mining_dir=tmp_path, apply=True)
     rows = dict(db.conn.execute("SELECT id, merged_into FROM canonical_morpheme").fetchall())
@@ -177,10 +192,10 @@ def test_conflict_two_distinct_hubs_left_unbound_and_flagged(tmp_path):
     db = _db(tmp_path)
     a = _etymon(db, "mere")
     db.commit()
-    _author(tmp_path, _mint("CM-1"), _mint("CM-2"), _bind(a, "CM-1"), _bind(a, "CM-2"))
+    _author(tmp_path, _mint("CM-1"), _mint("CM-2"), _bind(db, a, "CM-1"), _bind(db, a, "CM-2"))
     res = project_canonical(db, mining_dir=tmp_path, apply=True)
     assert _morpheme_id(db, a) is None  # left UNBOUND
-    assert res.conflicts == [("etymon", str(a), ["CM-1", "CM-2"])]
+    assert res.conflicts == [("etymon", _ref(db, a), ["CM-1", "CM-2"])]
     db.close()
 
 
@@ -197,8 +212,8 @@ def test_conflict_dissolves_when_hubs_are_merged(tmp_path):
             subject=NodeRef("canonical_morpheme", "CM-2"),
             object=NodeRef("canonical_morpheme", "CM-1"),
         ),
-        _bind(a, "CM-1"),
-        _bind(a, "CM-2"),
+        _bind(db, a, "CM-1"),
+        _bind(db, a, "CM-2"),
     )
     res = project_canonical(db, mining_dir=tmp_path, apply=True)
     assert res.conflicts == []  # both hubs are one identity post-merge
@@ -294,7 +309,7 @@ def test_bind_to_unminted_node_is_skipped_with_warning(tmp_path):
     db = _db(tmp_path)
     a = _etymon(db, "ford")
     db.commit()
-    _author(tmp_path, _bind(a, "CM-never-minted"))  # no mint for it
+    _author(tmp_path, _bind(db, a, "CM-never-minted"))  # no mint for it
     res = project_canonical(db, mining_dir=tmp_path, apply=True)
     assert _morpheme_id(db, a) is None
     assert any("unminted" in w for w in res.warnings)
@@ -305,7 +320,7 @@ def test_dry_run_writes_nothing(tmp_path):
     db = _db(tmp_path)
     a = _etymon(db, "wic")
     db.commit()
-    _author(tmp_path, _mint("CM-wic"), _bind(a, "CM-wic"))
+    _author(tmp_path, _mint("CM-wic"), _bind(db, a, "CM-wic"))
     res = project_canonical(db, mining_dir=tmp_path, apply=False)
     assert res.bound == {"etymon": 1}  # would-bind reported
     assert _morpheme_id(db, a) is None  # but nothing written
@@ -317,7 +332,7 @@ def test_idempotent_and_reversible(tmp_path):
     db = _db(tmp_path)
     a, b = _etymon(db, "burh"), _etymon(db, "byrig")
     db.commit()
-    _author(tmp_path, _mint("CM-burh"), _bind(a, "CM-burh"), _bind(b, "CM-burh"))
+    _author(tmp_path, _mint("CM-burh"), _bind(db, a, "CM-burh"), _bind(db, b, "CM-burh"))
 
     def snapshot():
         return (
@@ -350,7 +365,7 @@ def test_projection_is_order_independent(tmp_path):
         db = _db(d)
         a, b = _etymon(db, "dun"), _etymon(db, "down")
         db.commit()
-        asserts = [_mint("CM-dun"), _bind(a, "CM-dun"), _bind(b, "CM-dun")]
+        asserts = [_mint("CM-dun"), _bind(db, a, "CM-dun"), _bind(db, b, "CM-dun")]
         if order == "rev":
             # Appends binds before the mint; the projection sorts by id, so the
             # result must be identical regardless of on-disk append order.
@@ -377,7 +392,7 @@ def test_clear_enrichment_canonical_stage(tmp_path):
     db = _db(tmp_path)
     a = _etymon(db, "stoc")
     db.commit()
-    _author(tmp_path, _mint("CM-stoc"), _bind(a, "CM-stoc"))
+    _author(tmp_path, _mint("CM-stoc"), _bind(db, a, "CM-stoc"))
     project_canonical(db, mining_dir=tmp_path, apply=True)
     assert _morpheme_id(db, a) == "CM-stoc"
 
@@ -394,7 +409,7 @@ def test_run_full_enrichment_runs_projection(tmp_path):
     db = _db(tmp_path)
     a = _etymon(db, "halh")
     db.commit()
-    _author(tmp_path, _mint("CM-halh"), _bind(a, "CM-halh"))
+    _author(tmp_path, _mint("CM-halh"), _bind(db, a, "CM-halh"))
     result = run_full_enrichment(db, apply=True, canonicalization_dir=tmp_path)
     assert "project-canonical" in result["order"]
     assert result["canonical"]["minted"] == {"canonical_morpheme": 1}
@@ -418,16 +433,18 @@ def test_confidence_gate_validation(tmp_path):
     db.close()
 
 
-def test_non_integer_ref_skipped_not_fatal(tmp_path):
-    # A bind whose (supported-type) subject ref isn't an integer must be skipped
-    # with a warning BEFORE the destructive write — never abort the projection.
+def test_unresolvable_ref_skipped_not_fatal(tmp_path):
+    # wyrd-c6wu: a bind whose etymon natural-key ref doesn't resolve to an
+    # observation in this build must be skipped with a warning BEFORE the
+    # destructive write — never abort the projection.
     db = _db(tmp_path)
     a = _etymon(db, "stan")
     db.commit()
     _author(
         tmp_path,
         _mint("CM-stan"),
-        _bind(a, "CM-stan"),  # valid
+        _bind(db, a, "CM-stan"),  # valid (old-english:stan resolves)
+        # No separator -> not a natural-key ref at all (e.g. a stale bare-int).
         Assertion(
             predicate="bind",
             subject=NodeRef("etymon", "not-an-int"),
@@ -435,11 +452,10 @@ def test_non_integer_ref_skipped_not_fatal(tmp_path):
             qualifiers={"kind": "same-morpheme"},
             confidence="high",
         ),
-        # '²' is str.isdigit()==True but int('²') raises — the guard must catch
-        # it too (isascii() + isdigit()), or it crashes at the int() in the write.
+        # Well-formed natural key, but no such etymon in this build.
         Assertion(
             predicate="bind",
-            subject=NodeRef("etymon", "²"),
+            subject=NodeRef("etymon", "old-english:ghost"),
             object=NodeRef("canonical_morpheme", "CM-stan"),
             qualifiers={"kind": "same-morpheme"},
             confidence="high",
@@ -447,7 +463,7 @@ def test_non_integer_ref_skipped_not_fatal(tmp_path):
     )
     res = project_canonical(db, mining_dir=tmp_path, apply=True)  # must not raise
     assert _morpheme_id(db, a) == "CM-stan"  # the valid bind still applied
-    assert sum("non-integer" in w for w in res.warnings) == 2  # both bad refs skipped
+    assert sum("did not resolve" in w for w in res.warnings) == 2  # both bad refs skipped
     db.close()
 
 
@@ -458,7 +474,7 @@ def test_float_confidence_gating(tmp_path):
     _author(
         tmp_path,
         _mint("CM-wella"),
-        _bind(a, "CM-wella", confidence=0.7),
+        _bind(db, a, "CM-wella", confidence=0.7),
     )
     project_canonical(db, mining_dir=tmp_path, apply=True, confidence_gate=0.9)
     assert _morpheme_id(db, a) is None  # 0.7 < 0.9 gate
@@ -647,10 +663,10 @@ def test_legacy_bind_kinds(tmp_path):
         for a in _legacy_identity_assertions(db, ProjectionResult())
         if a.predicate == "bind"
     }
+    assert kinds[_ref(db, root)] == "same-morpheme"
+    assert kinds[_ref(db, ocr)] == "same-morpheme"  # OCR variant = same morpheme
+    assert kinds[_ref(db, infl)] == "inflection-of"  # inflection of the lemma
     db.close()
-    assert kinds[str(root)] == "same-morpheme"
-    assert kinds[str(ocr)] == "same-morpheme"  # OCR variant = same morpheme
-    assert kinds[str(infl)] == "inflection-of"  # inflection of the lemma
 
 
 def test_identity_fidelity_gate(tmp_path):
@@ -684,7 +700,7 @@ def test_fold_composes_with_authored_bind(tmp_path):
     extra = _etymon(db, "Tun")  # singleton, but authored-bound below
     db.commit()
     node_id = mint_canonical_id("canonical_morpheme", "old-english", "tun")  # root's key
-    _author(tmp_path, _mint(node_id), _bind(extra, node_id))
+    _author(tmp_path, _mint(node_id), _bind(db, extra, node_id))
     project_canonical(db, mining_dir=tmp_path, apply=True)
     assert _morpheme_id(db, root) == node_id
     assert _morpheme_id(db, ocr) == node_id
@@ -778,8 +794,8 @@ def test_fold_member_with_both_merge_and_lemma_is_same_morpheme(tmp_path):
         for a in _legacy_identity_assertions(db, res)
         if a.predicate == "bind"
     }
+    assert kinds[_ref(db, both)] == "same-morpheme"
     db.close()
-    assert kinds[str(both)] == "same-morpheme"
 
 
 def test_fold_root_without_canonical_form_warns(tmp_path):
@@ -832,9 +848,9 @@ def test_reflex_link_member_is_same_morpheme(tmp_path):
         for a in _legacy_identity_assertions(db, res)
         if a.predicate == "bind"
     }
+    assert kinds[_ref(db, reflex)] == "same-morpheme"  # reflex, not inflection
+    assert kinds[_ref(db, root)] == "same-morpheme"
     db.close()
-    assert kinds[str(reflex)] == "same-morpheme"  # reflex, not inflection
-    assert kinds[str(root)] == "same-morpheme"
 
 
 def test_skip_warning_surfaces_through_project_canonical(tmp_path):
@@ -849,3 +865,30 @@ def test_skip_warning_surfaces_through_project_canonical(tmp_path):
     res = project_canonical(db, mining_dir=tmp_path, apply=True)
     db.close()
     assert any("no canonical_form" in w for w in res.warnings)
+
+
+def test_bind_natural_key_ref_survives_id_reassignment(tmp_path):
+    """wyrd-c6wu: a same-morpheme bind authored against one set of etymon row-ids
+    still binds the CORRECT morpheme after a rebuild reassigns every id — the bind
+    subject is the stable natural key, not the row-id (an id-keyed bind would bind
+    a 'pad' row or nothing)."""
+    db = _db(tmp_path)
+    a = _etymon(db, "stoc")
+    db.commit()
+    _author(tmp_path, _mint("CM-stoc"), _bind(db, a, "CM-stoc"))
+
+    # Simulate a from-scratch rebuild: wipe + reinsert the SAME morpheme, padded so
+    # AUTOINCREMENT hands it a DIFFERENT id.
+    db.conn.execute("DELETE FROM etymon")
+    for i in range(5):
+        db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language) VALUES (?, 'x')", (f"pad{i}",)
+        )
+    new_a = _etymon(db, "stoc")
+    db.commit()
+    assert new_a != a  # id genuinely reassigned
+
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert res.bound == {"etymon": 1}
+    assert _morpheme_id(db, new_a) == "CM-stoc"  # bound at its NEW id via the natural key
+    db.close()

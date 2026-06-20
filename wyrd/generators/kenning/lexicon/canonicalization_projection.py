@@ -62,6 +62,7 @@ from wyrd.generators.kenning.canonicalization import (
 )
 from wyrd.generators.kenning.lexicon.bundle._export import _build_family_rollup
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref, resolve_etymon_ref
 
 # Legacy deterministic clustering (merged_into_id OCR variants + lemma_id
 # inflections) is folded into in-memory assertions stamped with this method, so
@@ -268,16 +269,27 @@ def _group_binds(
             continue
         if _score(a.confidence) < gate:
             continue
-        # isascii() guards the gap between str.isdigit() and int(): Unicode
-        # numerics like '²' / Devanagari digits are isdigit()==True but raise in
-        # int(), which would defeat this skip-don't-crash guard.
-        if not (a.subject.ref.isascii() and a.subject.ref.isdigit()):
-            result.warnings.append(
-                f"bind {a.subject.type}:{a.subject.ref} has a non-integer observation ref; skipped"
-            )
-            continue
+        # The subject ref shape is type-dependent (etymon = "language:canonical_form"
+        # natural key, wyrd-c6wu; toponym/te = id for now) — validation/resolution is
+        # deferred to the type-aware _resolve_bind_subject at the write boundary.
         grouped[(a.subject.type, a.subject.ref)].append(a)
     return grouped
+
+
+def _resolve_bind_subject(conn, subj_type: str, subj_ref: str) -> int | None:
+    """Resolve a bind subject ref to its observation row id, or None (skip + flag).
+
+    Etymon refs are the stable natural key ``"language:canonical_form"`` (wyrd-c6wu /
+    D50.1). ``toponym`` / ``toponym_etymology`` are still id-keyed — no natural-key
+    emitter binds them yet (toponym is future place-canon; te is blocked on the
+    dedup task), so the consumer keeps accepting an integer ref for those types.
+    ``isascii()`` guards the ``str.isdigit()``/``int()`` gap (Unicode numerics).
+    """
+    if subj_type == "etymon":
+        return resolve_etymon_ref(conn, subj_ref)
+    if subj_ref.isascii() and subj_ref.isdigit():
+        return int(subj_ref)
+    return None
 
 
 def _resolve_binds(
@@ -286,6 +298,7 @@ def _resolve_binds(
     root_of: dict[str, str],
     gate: float,
     result: ProjectionResult,
+    conn,
 ) -> list[BindWrite]:
     """Resolve each observation's binds to a single hub, flagging conflicts (D46)."""
     writes: list[BindWrite] = []
@@ -310,7 +323,13 @@ def _resolve_binds(
             continue
         # Deterministic pick among equivalent binds: highest score, tie lowest id.
         winner = min(valid, key=lambda b: (-_score(b.confidence), b.id))
-        writes.append(BindWrite(table, column, winner.object.ref, int(subj_ref)))
+        subj_id = _resolve_bind_subject(conn, subj_type, subj_ref)
+        if subj_id is None:
+            result.warnings.append(
+                f"bind {subj_type}:{subj_ref} did not resolve to an observation in this build; skipped"
+            )
+            continue
+        writes.append(BindWrite(table, column, winner.object.ref, subj_id))
         bound[subj_type] += 1
     result.bound = dict(bound)
     return writes
@@ -462,7 +481,8 @@ def _legacy_identity_assertions(db: LexiconDB, result: ProjectionResult) -> list
             out.append(
                 Assertion(
                     predicate="bind",
-                    subject=NodeRef("etymon", str(m)),
+                    # wyrd-c6wu: stable natural-key ref (mi carries language + form).
+                    subject=NodeRef("etymon", etymon_ref(mi.language, mi.canonical_form)),
                     object=node,
                     qualifiers={"kind": kind},
                     confidence="high",
@@ -545,7 +565,7 @@ def project_canonical(
         [a for a in by_pred.get("merge-canonical", ()) if a.polarity == "affirm"], minted, result
     )
     result.merged = len(root_of)
-    bind_writes = _resolve_binds(by_pred.get("bind", []), minted, root_of, gate, result)
+    bind_writes = _resolve_binds(by_pred.get("bind", []), minted, root_of, gate, result, db.conn)
     label_pick = _pick_labels(by_pred, minted, result)
     result.labels = len(label_pick)
 
