@@ -13330,6 +13330,71 @@ def test_migrate_schema_adds_phase2a_pronunciation_columns_to_legacy_db(
             assert applied2[c] is False, f"{c} re-applied on second run"
 
 
+def test_migrate_schema_adds_stratum_and_phonological_vector_columns_to_legacy_db(
+    fresh_db: Path,
+) -> None:
+    """A pre-wyrd-lr4 / pre-wyrd-kq7w.1 etymon table without the stratum
+    and phonological_vector columns picks them up on migrate_schema.
+    Existing rows survive with NULL in both new columns. Idempotent
+    re-run reports both as already-applied (False).
+
+    These are the two most-recently-added etymon columns (wyrd-cnf8): the
+    fresh-alembic path covers them, but the legacy migrate_schema uplift
+    path had no dedicated assertion. Mirrors
+    test_migrate_schema_adds_phase2a_pronunciation_columns_to_legacy_db."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        legacy_id = db.upsert_etymon("ham", "old-english")
+        db.commit()
+
+        # Drop all etymon-dependent views before the table swap (same
+        # CASCADE concern as the phase2a-columns test).
+        db.conn.execute("DROP VIEW IF EXISTS etymon_consensus")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_canonical")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_gloss_canonical")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_tag_canonical")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_text_match_canonical")
+
+        # Recreate the etymon table without stratum/phonological_vector to
+        # simulate a pre-lr4/pre-kq7w.1 DB. Build the surviving column list
+        # dynamically from the live schema so the fixture doesn't rot as
+        # new etymon columns are added.
+        legacy_cols = [
+            row["name"]
+            for row in db.conn.execute("PRAGMA table_info(etymon)")
+            if row["name"] not in ("stratum", "phonological_vector")
+        ]
+        col_list = ", ".join(legacy_cols)
+        db.conn.execute(f"CREATE TABLE etymon_legacy AS SELECT {col_list} FROM etymon")
+        db.conn.execute("DROP TABLE etymon")
+        db.conn.execute("ALTER TABLE etymon_legacy RENAME TO etymon")
+
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
+        for c in ("stratum", "phonological_vector"):
+            assert c not in cols, f"{c} unexpectedly present in pre-migration legacy table"
+
+        applied = migrate_schema(db)
+        for c in ("etymon.stratum", "etymon.phonological_vector"):
+            assert applied[c] is True, f"{c} migration didn't apply"
+
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
+        for c in ("stratum", "phonological_vector"):
+            assert c in cols, f"{c} missing post-migration"
+
+        # Existing row survives with NULL in both new columns.
+        row = db.conn.execute(
+            "SELECT id, stratum, phonological_vector FROM etymon WHERE id = ?",
+            (legacy_id,),
+        ).fetchone()
+        assert row["stratum"] is None
+        assert row["phonological_vector"] is None
+
+        # Idempotent: re-running reports both as already-present.
+        applied2 = migrate_schema(db)
+        for c in ("etymon.stratum", "etymon.phonological_vector"):
+            assert applied2[c] is False, f"{c} re-applied on second run"
+
+
 # --- D27 / wyrd-81n: cluster-cognates enrichment pass ------------------
 
 

@@ -1021,6 +1021,8 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         # wyrd-lr4: within-language stratum tag.
         "etymon.stratum": False,
         "idx_etymon_stratum": False,
+        # wyrd-kq7w.1: per-etymon phonological vector (JSON blob).
+        "etymon.phonological_vector": False,
         # wyrd-skm Phase 3.0a: idempotent ingest of toponym_attestation.
         "idx_attestation_unique": False,
         # wyrd-unuo Phase 3.3: per-etymon period-form projection table.
