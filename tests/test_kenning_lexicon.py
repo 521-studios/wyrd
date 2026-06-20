@@ -331,8 +331,8 @@ def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
         row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
     assert row is not None, "alembic_version row missing"
     # Head revision id per the wyrd-67fv layered migrations.
-    assert row[0] == "0019_canonicalization_graph", (
-        f"expected head '0019_canonicalization_graph', got {row[0]!r}"
+    assert row[0] == "0020_select_targets_indexes", (
+        f"expected head '0020_select_targets_indexes', got {row[0]!r}"
     )
 
 
@@ -1403,7 +1403,7 @@ def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
 
     with sqlite3.connect(fresh_db) as conn:
         version = conn.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert version[0] == "0019_canonicalization_graph"
+    assert version[0] == "0020_select_targets_indexes"
 
 
 def test_etymon_citation_attested_form_column(fresh_db: Path) -> None:

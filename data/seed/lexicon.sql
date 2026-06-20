@@ -315,6 +315,10 @@ CREATE TABLE reflex_etymon (
   etymon_id INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
   PRIMARY KEY (reflex_id, etymon_id)
 );
+-- wyrd-53ep: PK leads with reflex_id, so reflex-reachability lookups by
+-- etymon_id (tag_mining.select_targets; the etymon FK's ON DELETE CASCADE)
+-- can't use it.
+CREATE INDEX idx_reflex_etymon_etymon ON reflex_etymon(etymon_id);
 
 -- A real or attested place name.
 CREATE TABLE toponym (
@@ -408,6 +412,10 @@ CREATE TABLE toponym_etymology_element (
   surface_in_modern    TEXT,
   PRIMARY KEY (toponym_etymology_id, ordinal)
 );
+-- wyrd-53ep: PK is (toponym_etymology_id, ordinal), so breakdown-admit lookups
+-- by etymon_id (tag_mining.select_targets; the etymon FK's ON DELETE CASCADE)
+-- have no usable index.
+CREATE INDEX idx_toponym_etymology_element_etymon ON toponym_etymology_element(etymon_id);
 
 -- wyrd-08m: matcher-derived alternative breakdowns per toponym. One row
 -- per (toponym_id, signature), where signature is a stable hash of the
