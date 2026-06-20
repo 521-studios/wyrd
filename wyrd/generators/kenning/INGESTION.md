@@ -675,6 +675,19 @@ Regenerate `data/meanings.json` from the lexicon:
 (Confirm the command flags from `--help` — there may be filter options
 like `--min-witnesses 3` to limit the export to promotion-eligible rows.)
 
+> **Memory: give `export-meanings` headroom (~1.5 GB+).** The export holds the
+> corpus, the word DB, and **all ~67K promoted families simultaneously** —
+> grouping families into subjects by `(modifier_type, glosses, tags)` signature
+> is a full-corpus operation, so every family dict must be live at once (~1 GB
+> peak RSS). Run it **with memory headroom and NOT concurrently** with other
+> heavy passes (a second export, bulk ingest, enrichment); it has been
+> OOM-killed under concurrent load (0-byte output, no file written — wyrd-v3ow.1).
+> If a host is memory-constrained, run the export in its own subprocess with an
+> RSS ceiling rather than alongside the rest of a deploy. Capping the *peak*
+> itself (a two-pass group-keys-first rewrite) is deferred — it trades the
+> wyrd-4zyb bulk-attested-years wall-time win and risks the u6fn.4 fidelity
+> gate, so it's only worth it if a hard memory ceiling forces it (see wyrd-9dwv).
+
 Then regenerate the per-culture **proportions** — the empirical corpus
 distribution (slot structures + tag co-occurrence) that the **vector**
 generator samples its skeleton from and draws its cohesion signal from. This
