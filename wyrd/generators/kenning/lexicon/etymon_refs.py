@@ -59,14 +59,19 @@ def etymon_refs_for(conn: sqlite3.Connection, ids: Iterable[int]) -> dict[int, s
     return out
 
 
-def resolve_etymon_ref(conn: sqlite3.Connection, ref: str) -> int | None:
+def resolve_etymon_ref(conn: sqlite3.Connection, ref: str | int) -> int | None:
     """Resolve ``"<language>:<canonical_form>"`` -> ``etymon.id`` (None if unknown).
 
     The inverse of :func:`etymon_ref`: splits on the FIRST ``:`` and matches the
     UNIQUE ``(canonical_form, language)`` key. Used at the L2->L3 projection
     boundary in place of the old ``int(ref)``.
+
+    ``ref`` is annotated ``str | int`` because the input is genuinely either: a
+    natural-key string (the live format), or a legacy id ``int`` deserialized from a
+    pre-natural-key cache row (wyrd-s964). The ``isinstance`` guard below narrows to
+    the string case and resolves anything else to None (caller skips, never raises).
     """
-    if _SEP not in ref:
+    if not isinstance(ref, str) or _SEP not in ref:
         return None
     language, canonical_form = ref.split(_SEP, 1)
     row = conn.execute(

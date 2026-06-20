@@ -71,6 +71,10 @@ def test_candidate_built_for_shared_prefix(tmp_path):
     assert it.etymon_id == x and it.glosses == ("stony place",)
     assert len(it.candidates) == 1
     assert it.candidates[0].cluster_root == root
+    # wyrd-s964: build_candidates resolves the root's durable natural key (via the
+    # batch etymon_refs_for lookup) onto each candidate — this is what audit_log_row
+    # records, so pin it at the source.
+    assert it.candidates[0].root_ref == "proto-germanic:stanaz"
     assert it.candidates[0].bridge_form == "stane"
     db.close()
 
@@ -146,11 +150,13 @@ def test_parse_verdict():
 # --- verdict log → edge ----------------------------------------------------
 
 
-def _log(confirmed, pconf, vconf, *, root=10, ref="5"):
+# wyrd-s964: the verdict log stores stable NATURAL KEYS, so edge_from_log resolves
+# them to the current build's ids via a conn (not int()).
+def _log(confirmed, pconf, vconf, *, root_ref="proto-germanic:stanaz", ref="old-english:stant"):
     return {
         "morpheme_ref": ref,
         "morpheme_form": "stant",
-        "cluster_root": root if confirmed else None,
+        "cluster_root": root_ref if confirmed else None,
         "bridge_form": "stane",
         "proposal_confidence": pconf,
         "confirmed": confirmed,
@@ -158,30 +164,104 @@ def _log(confirmed, pconf, vconf, *, root=10, ref="5"):
     }
 
 
-def test_edge_from_log_confirmed_above_gate():
-    e = edge_from_log(_log(True, "medium", "high"), min_confidence="medium")
+def _edge_db(tmp_path):
+    """A DB holding the child + root etymons the verdict-log natural keys resolve to,
+    so edge_from_log can map "old-english:stant" / "proto-germanic:stanaz" → ids."""
+    db = _db(tmp_path)
+    child = _etymon(db, "stant", language="old-english")  # ref "old-english:stant"
+    root = _etymon(db, "stanaz", language="proto-germanic")  # ref "proto-germanic:stanaz"
+    db.commit()
+    return db, child, root
+
+
+def test_edge_from_log_confirmed_above_gate(tmp_path):
+    db, child, root = _edge_db(tmp_path)
+    e = edge_from_log(_log(True, "medium", "high"), conn=db.conn, min_confidence="medium")
     assert e is not None
-    assert e.child_etymon == 5 and e.cluster_root == 10 and e.confidence == "medium"
+    assert e.child_etymon == child and e.cluster_root == root and e.confidence == "medium"
+    db.close()
 
 
-def test_edge_from_log_effective_is_min_and_capped():
+def test_edge_from_log_effective_is_min_and_capped(tmp_path):
+    db, _child, _root = _edge_db(tmp_path)
+    c = db.conn
     # proposal high + verify medium → effective medium
     assert (
-        edge_from_log(_log(True, "high", "medium"), min_confidence="medium").confidence == "medium"
+        edge_from_log(_log(True, "high", "medium"), conn=c, min_confidence="medium").confidence
+        == "medium"
     )
     # high + high → capped to medium (LLM never high-confidence identity)
-    assert edge_from_log(_log(True, "high", "high"), min_confidence="medium").confidence == "medium"
-    # verify low floors it → below medium gate → no edge
-    assert edge_from_log(_log(True, "medium", "low"), min_confidence="medium") is None
-    # ...but emits at a lowered gate
-    assert edge_from_log(_log(True, "medium", "low"), min_confidence="low").confidence == "low"
-
-
-def test_edge_from_log_refuted_or_none():
-    assert edge_from_log(_log(False, "high", "high"), min_confidence="low") is None
     assert (
-        edge_from_log({"confirmed": True, "cluster_root": None}, min_confidence="low") is None
+        edge_from_log(_log(True, "high", "high"), conn=c, min_confidence="medium").confidence
+        == "medium"
+    )
+    # verify low floors it → below medium gate → no edge
+    assert edge_from_log(_log(True, "medium", "low"), conn=c, min_confidence="medium") is None
+    # ...but emits at a lowered gate
+    assert (
+        edge_from_log(_log(True, "medium", "low"), conn=c, min_confidence="low").confidence == "low"
+    )
+    db.close()
+
+
+def test_edge_from_log_refuted_or_none(tmp_path):
+    db, _child, _root = _edge_db(tmp_path)
+    c = db.conn
+    assert edge_from_log(_log(False, "high", "high"), conn=c, min_confidence="low") is None
+    assert (
+        edge_from_log({"confirmed": True, "cluster_root": None}, conn=c, min_confidence="low")
+        is None
     )  # no chosen cluster
+    db.close()
+
+
+def test_edge_from_log_resolves_against_reassigned_ids(tmp_path):
+    """wyrd-s964 core promise: a verdict cached against one id-assignment must resolve
+    correctly after a rebuild REASSIGNS etymon ids. We replay the SAME natural-key row
+    against a second build where the identical (form, language) pair lands on a
+    DIFFERENT row id — the edge must follow the natural key, not a frozen id. A
+    regression to int(ref) would silently pass whenever the ids happened to coincide;
+    this test fails it by forcing them apart."""
+    db_a, child_a, root_a = _edge_db(tmp_path / "a")
+    row = _log(True, "medium", "high")  # natural keys: old-english:stant / proto-germanic:stanaz
+
+    # Build B: insert filler etymons FIRST so the same two morphemes get higher ids.
+    db_b = _db(tmp_path / "b")
+    for i in range(5):
+        _etymon(db_b, f"filler{i}", language="gothic")
+    child_b = _etymon(db_b, "stant", language="old-english")
+    root_b = _etymon(db_b, "stanaz", language="proto-germanic")
+    db_b.commit()
+
+    assert (child_b, root_b) != (child_a, root_a)  # ids genuinely reassigned
+    e = edge_from_log(row, conn=db_b.conn, min_confidence="medium")
+    assert e is not None
+    assert e.child_etymon == child_b and e.cluster_root == root_b  # resolved to BUILD B's ids
+    db_a.close()
+    db_b.close()
+
+
+def test_edge_from_log_unresolvable_key_skipped(tmp_path):
+    """wyrd-s964: a confirmed verdict whose endpoint key is absent from THIS build
+    (a stale entry from a different corpus, or a legacy id-keyed row) resolves to no
+    edge — skipped + re-judged, never a wrong/orphaned edge."""
+    db, _child, _root = _edge_db(tmp_path)
+    c = db.conn
+    # stale natural key (no such etymon in this build)
+    assert (
+        edge_from_log(
+            _log(True, "high", "high", root_ref="old-norse:ghost"), conn=c, min_confidence="low"
+        )
+        is None
+    )
+    # legacy id-keyed row (bare "10" has no ':' → resolve_etymon_ref → None)
+    assert (
+        edge_from_log(
+            _log(True, "high", "high", ref="10", root_ref="42"), conn=c, min_confidence="low"
+        )
+        is None
+    )
+    db.close()
 
 
 # --- prompts ---------------------------------------------------------------
@@ -209,8 +289,10 @@ def test_prompts_render(tmp_path):
     row = audit_log_row(
         item, Proposal(chosen=0, confidence="medium", reason="r"), Verdict(True, "medium", "ok")
     )
-    assert row["confirmed"] is True and row["cluster_root"] == root
-    assert edge_from_log(row, min_confidence="medium").cluster_root == root
+    # wyrd-s964: the log records the root's NATURAL KEY, not its id…
+    assert row["confirmed"] is True and row["cluster_root"] == "proto-germanic:stanaz"
+    # …which edge_from_log resolves back to the current build's root id.
+    assert edge_from_log(row, conn=db.conn, min_confidence="medium").cluster_root == root
     db.close()
 
 
@@ -228,6 +310,7 @@ def _item():
         candidates=(
             ClusterCand(
                 cluster_root=10,
+                root_ref="proto-germanic:stanaz",
                 bridge_form="stane",
                 bridge_lang="old-norse",
                 bridge_glosses=("stone",),
@@ -236,9 +319,10 @@ def _item():
     )
 
 
-def test_judge_item_confirmed_path():
+def test_judge_item_confirmed_path(tmp_path):
     from wyrd.generators.kenning.lexicon.cognate_descent_llm import judge_item
 
+    db, _child, root = _edge_db(tmp_path)
     calls = []
 
     def judge(system, user):
@@ -249,13 +333,16 @@ def test_judge_item_confirmed_path():
 
     row = judge_item(_item(), judge)
     assert len(calls) == 2  # propose + verify
-    assert row["confirmed"] is True and row["cluster_root"] == 10
-    assert edge_from_log(row, min_confidence="medium").cluster_root == 10
+    # wyrd-s964: the row records the root's natural key; edge_from_log resolves it.
+    assert row["confirmed"] is True and row["cluster_root"] == "proto-germanic:stanaz"
+    assert edge_from_log(row, conn=db.conn, min_confidence="medium").cluster_root == root
+    db.close()
 
 
-def test_judge_item_none_proposal_skips_verify():
+def test_judge_item_none_proposal_skips_verify(tmp_path):
     from wyrd.generators.kenning.lexicon.cognate_descent_llm import judge_item
 
+    db, _child, _root = _edge_db(tmp_path)
     calls = []
 
     def judge(system, user):
@@ -265,11 +352,14 @@ def test_judge_item_none_proposal_skips_verify():
     row = judge_item(_item(), judge)
     assert len(calls) == 1  # NONE proposal → no verify call
     assert row["confirmed"] is False and row["cluster_root"] is None
-    assert edge_from_log(row, min_confidence="low") is None
+    assert edge_from_log(row, conn=db.conn, min_confidence="low") is None
+    db.close()
 
 
-def test_judge_item_refuted_yields_no_edge():
+def test_judge_item_refuted_yields_no_edge(tmp_path):
     from wyrd.generators.kenning.lexicon.cognate_descent_llm import judge_item
+
+    db, _child, _root = _edge_db(tmp_path)
 
     def judge(system, user):
         if '"choice"' not in system:
@@ -278,7 +368,8 @@ def test_judge_item_refuted_yields_no_edge():
 
     row = judge_item(_item(), judge)
     assert row["confirmed"] is False
-    assert edge_from_log(row, min_confidence="low") is None
+    assert edge_from_log(row, conn=db.conn, min_confidence="low") is None
+    db.close()
 
 
 def test_judge_item_unusable_response_returns_none():
