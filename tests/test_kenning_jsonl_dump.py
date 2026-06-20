@@ -308,6 +308,53 @@ def test_dump_etymon_distinct_per_source_even_with_multiple_citations():
     assert (n_etymons, n_citations) == (1, 2)
 
 
+def test_dump_cited_etymon_merged_loser_follows_to_winner(tmp_path: Path):
+    """wyrd-q6ro: when a source cites an OCR-cluster LOSER (merged_into_id
+    set), the per-source dump emits the WINNER etymon row AND a citation
+    referencing the winner — never the tombstone. build_from_jsonl drops
+    merged_into_id, so emitting the loser would resurrect it as a live
+    unmerged etymon (D22) and orphan the citation witness (D21). Mirrors the
+    fantasy guard (test_fantasy_morpheme_merged_loser_etymon_follows_to_winner)."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    pre = _build_fixture_db()
+    _add_source(pre, id="skeat", title="X")
+    winner = _add_etymon(pre, "old-english", "wic")
+    loser = _add_etymon(pre, "old-english", "wych", merged_into_id=winner)
+    pre.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '15')",
+        (loser,),
+    )
+    rows = dump_source_to_rows(pre, "skeat")
+    # Etymon dump: only the winner, never the tombstone.
+    assert {r["ref"] for r in rows if r["_type"] == "etymon"} == {"old-english:wic"}
+    # The citation follows to the winner ref too (no dangling loser ref).
+    citation = next(r for r in rows if r["_type"] == "citation")
+    assert citation["etymon_ref"] == "old-english:wic"
+    dump_source_to_file(pre, "skeat", tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    # No tombstone resurrected: the only etymon is the unmerged winner.
+    assert (
+        rebuilt.execute("SELECT count(*) FROM etymon WHERE merged_into_id IS NOT NULL").fetchone()[
+            0
+        ]
+        == 0
+    )
+    forms = {r[0] for r in rebuilt.execute("SELECT canonical_form FROM etymon").fetchall()}
+    assert forms == {"wic"}
+    # Citation evidence preserved + attached to the winner (not orphaned).
+    assert counts.get("citation_orphans", 0) == 0
+    cited = rebuilt.execute(
+        "SELECT e.canonical_form FROM etymon_citation c JOIN etymon e ON e.id = c.etymon_id "
+        "WHERE c.source_id = 'skeat'"
+    ).fetchall()
+    assert [r[0] for r in cited] == ["wic"]
+    rebuilt.close()
+
+
 # ---------------------------------------------------------------------------
 # Descent dump
 # ---------------------------------------------------------------------------

@@ -198,22 +198,35 @@ def _dump_cited_etymons(conn: sqlite3.Connection, source_id: str) -> Iterable[di
     Each source's JSONL file is self-contained: every etymon ref it
     uses (in any list-type row) gets a corresponding canonical-state
     etymon row in the same file. Build's cross-file merge unifies
-    duplicates across sources."""
+    duplicates across sources.
+
+    Resolves each referenced etymon through ``merged_into_id`` to its
+    surviving winner (``COALESCE(ref.merged_into_id, ref.id)``) — matching
+    ``_dump_fantasy_etymons`` (wyrd-ruvk) — so a reference to an OCR-cluster
+    loser dumps the winner, never the tombstone. ``build_from_jsonl`` does
+    not carry ``merged_into_id`` (absent from ``_ETYMON_INSERT_COLUMNS``),
+    so emitting a loser would resurrect it as a live unmerged etymon on
+    rebuild (D22: no merged etymon resurfaces). The winners are themselves
+    unmerged. Latent until a cited etymon becomes a merge loser (wyrd-q6ro)."""
     etymons = conn.execute(
         f"""
         SELECT DISTINCT {", ".join(_ETYMON_STATE_SELECT_COLUMNS)}
           FROM etymon e
          WHERE e.id IN (
-                SELECT etymon_id FROM etymon_citation WHERE source_id = ?
-                UNION
-                SELECT parent_id FROM etymon_descent WHERE source_id = ?
-                UNION
-                SELECT child_id FROM etymon_descent WHERE source_id = ?
-                UNION
-                SELECT el.etymon_id
-                  FROM toponym_etymology_element el
-                  JOIN toponym_etymology te ON te.id = el.toponym_etymology_id
-                 WHERE te.source_id = ?
+                SELECT COALESCE(ref.merged_into_id, ref.id)
+                  FROM etymon ref
+                 WHERE ref.id IN (
+                        SELECT etymon_id FROM etymon_citation WHERE source_id = ?
+                        UNION
+                        SELECT parent_id FROM etymon_descent WHERE source_id = ?
+                        UNION
+                        SELECT child_id FROM etymon_descent WHERE source_id = ?
+                        UNION
+                        SELECT el.etymon_id
+                          FROM toponym_etymology_element el
+                          JOIN toponym_etymology te ON te.id = el.toponym_etymology_id
+                         WHERE te.source_id = ?
+                 )
          )
          ORDER BY e.language, e.canonical_form
         """,  # noqa: S608 — interpolated names are module constants
@@ -224,12 +237,20 @@ def _dump_cited_etymons(conn: sqlite3.Connection, source_id: str) -> Iterable[di
 
 
 def _dump_citations(conn: sqlite3.Connection, source_id: str) -> Iterable[dict[str, Any]]:
+    # Resolve the cited etymon through merged_into_id to its surviving winner
+    # so the emitted etymon_ref matches the (winner) row _dump_cited_etymons
+    # emits. OCR clustering keeps the citation attached to the loser (D22,
+    # non-destructive), so without this follow-to-winner a re-dump after a
+    # merge would emit a citation referencing the loser — which no etymon row
+    # carries post-fix, orphaning the witness on rebuild (D21 evidence loss).
+    # The winner is itself unmerged. wyrd-q6ro.
     citations = conn.execute(
         """
-        SELECT e.language, e.canonical_form,
+        SELECT w.language, w.canonical_form,
                c.page, c.short_quote, c.context_snippet
           FROM etymon_citation c
-          JOIN etymon e ON e.id = c.etymon_id
+          JOIN etymon ref ON ref.id = c.etymon_id
+          JOIN etymon w ON w.id = COALESCE(ref.merged_into_id, ref.id)
          WHERE c.source_id = ?
          ORDER BY c.id
         """,
