@@ -1038,6 +1038,7 @@ REPLAY_EXCLUDED_LEDGERS: frozenset[str] = frozenset(
     {
         "_reflex_audit.jsonl",
         "_descent_audit.jsonl",
+        "_cognate_descent_audit.jsonl",
         "_cluster_reflex_audit.jsonl",
         "_toponym_reflex_audit.jsonl",
         "_element_glosses.jsonl",

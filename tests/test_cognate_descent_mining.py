@@ -12,6 +12,8 @@ from __future__ import annotations
 from wyrd.generators.kenning.canonicalization import validate
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.cognate_descent_mining import (
+    DescentEdge,
+    _is_degenerate_ref,
     descent_assertions,
     mine_cognate_descents,
 )
@@ -221,6 +223,31 @@ def test_multiple_edges_sorted_by_child(tmp_path):
     assert {e.child_etymon for e in edges} == {a, b}
     assert all(e.cluster_root == root for e in edges)
     db.close()
+
+
+def test_descent_assertions_drops_degenerate_endpoint():
+    # An edge whose root resolves to a degenerate "*:-" ref (empty/dash canonical_form)
+    # is dropped: anchoring a cognate cluster on a formless etymon is meaningless. The
+    # normal edge's assertion survives. (No DB needed — descent_assertions is pure.)
+    normal = DescentEdge(child_etymon=1, cluster_root=2, confidence="medium", rationale="r")
+    degenerate = DescentEdge(child_etymon=3, cluster_root=4, confidence="medium", rationale="r")
+    refs = {
+        1: "old-english:tun",
+        2: "proto-germanic:tunaz",
+        3: "old-english:bury",
+        4: "qfa-sub:-",  # degenerate root
+    }
+    out = descent_assertions([normal, degenerate], refs, source="t")
+    assert len(out) == 1
+    assert out[0].subject.ref == "old-english:tun"
+    assert out[0].object.ref == "proto-germanic:tunaz"
+
+
+def test_is_degenerate_ref():
+    assert _is_degenerate_ref("latin:faba") is False
+    assert _is_degenerate_ref("qfa-sub:-") is True
+    assert _is_degenerate_ref("latin:") is True
+    assert _is_degenerate_ref("old-english:--") is True
 
 
 def test_same_cluster_multiple_members_one_edge(tmp_path):

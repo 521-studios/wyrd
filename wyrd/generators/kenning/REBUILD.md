@@ -122,7 +122,12 @@ here's the obligation:
   (clears its own `source_id` then re-inserts from the live assertion set; Wiktionary
   edges untouched). Like `project-canonical`, runs only when a `canonicalization_dir`
   is supplied (which `rebuild-from-jsonl` passes). Reverse by appending a `retract`
-  (append-only, D21).
+  (append-only, D21). The LLM half of these edges (wyrd-zrce.2) carries a verdict
+  cache, `data/mining/_cognate_descent_audit.jsonl` — like the other `_*_audit.jsonl`
+  ledgers it is in `build.REPLAY_EXCLUDED_LEDGERS` (NOT replayed as a source file at
+  rebuild; it only resumes the `mine-cognate-descents-llm` pass and re-derives edges
+  threshold-independently without re-calling the LLM). Its endpoints are natural keys
+  (wyrd-s964), so it survives a rebuild's id reassignment.
 
 ---
 
