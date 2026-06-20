@@ -139,6 +139,33 @@ def test_bind_resolves_by_natural_key_across_id_reassignment(tmp_path):
     db2.close()
 
 
+def test_bind_to_missing_etymon_is_skipped_not_fatal(tmp_path):
+    """wyrd-c6wu: a bind whose natural-key ref resolves to NO etymon (the etymon
+    was dropped by a corpus change since the assertion was authored) is skipped
+    with a warning — never a crash, never a wrong bind. This is the fail-closed
+    guarantee that lets committed L2 survive arbitrary corpus churn."""
+    db = _db(tmp_path)
+    present = _etymon(db, "niwe")
+    db.commit()
+    # Author a bind to an etymon NOT in this DB (no row with form 'gone').
+    _author(
+        tmp_path,
+        _mint("CM-x"),
+        Assertion(
+            predicate="bind",
+            subject=NodeRef("etymon", etymon_ref("old-english", "gone")),
+            object=NodeRef("canonical_morpheme", "CM-x"),
+            qualifiers={"kind": "same-morpheme"},
+            confidence="high",
+        ),
+    )
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert res.bound == {}  # nothing bound — the unresolvable ref was skipped
+    assert _morpheme_id(db, present) is None
+    assert any("did not resolve" in w for w in res.warnings), res.warnings
+    db.close()
+
+
 def test_confidence_gate_leaves_below_gate_unbound(tmp_path):
     db = _db(tmp_path)
     a = _etymon(db, "leah")

@@ -243,7 +243,12 @@ def bind_assertions(
     ``"language:canonical_form"`` (via ``etymon_refs_for``), NEVER the etymon
     row-id — row-ids are reassigned on every ``rebuild-from-jsonl``, so an
     id-keyed bind would orphan after any corpus change. ``conn`` is the live
-    lexicon connection the member ids were mined from, so every id resolves."""
+    lexicon connection the member ids were mined from in THIS transaction, so a
+    member id must be a live row; ``refs[etymon_id]`` therefore indexes directly
+    and raises loudly on a miss — a missing freshly-mined id is a programming
+    error, not a data condition (mirrors ``descent_assertions`` / its
+    raise-on-incomplete-refs contract). The rebuild-survival safety net lives on
+    the READ side (the projection's resolve-by-natural-key, skip-on-miss)."""
     refs = etymon_refs_for(conn, {eid for g in groups for eid in g.member_etymons})
     out: list[Assertion] = []
     for g in groups:

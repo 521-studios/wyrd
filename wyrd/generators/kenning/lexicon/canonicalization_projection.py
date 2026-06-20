@@ -46,6 +46,7 @@ Scope (deferred, by design):
 
 from __future__ import annotations
 
+import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -252,9 +253,12 @@ def _group_binds(
     binds: list[Assertion], gate: float, result: ProjectionResult
 ) -> dict[tuple[str, str], list[Assertion]]:
     """Affirmed, non-refuted, above-gate binds grouped by observation subject.
-    Records unsupported kinds (e.g. same-sense) and non-integer observation refs as
-    observable skips — validated HERE, before the destructive write, so a bad ref
-    can never abort the projection mid-rebuild."""
+    Records unsupported kinds (e.g. same-sense) as observable skips. Non-etymon
+    subjects (toponym / toponym_etymology) must be integer row-id refs — a
+    non-integer one is skipped HERE, before the destructive write, so it can't
+    abort the projection mid-rebuild. Etymon subjects carry natural-key refs
+    ("language:canonical_form"), resolved (and skipped-on-miss) in
+    ``_resolve_binds`` — also before the write (wyrd-c6wu)."""
     refuted = {_bind_key(a) for a in binds if a.polarity == "refute" and a.object is not None}
     grouped: dict[tuple[str, str], list[Assertion]] = defaultdict(list)
     for a in binds:
@@ -291,7 +295,7 @@ def _resolve_binds(
     root_of: dict[str, str],
     gate: float,
     result: ProjectionResult,
-    db: LexiconDB,
+    conn: sqlite3.Connection,
 ) -> list[BindWrite]:
     """Resolve each observation's binds to a single hub, flagging conflicts (D46)."""
     writes: list[BindWrite] = []
@@ -321,7 +325,7 @@ def _resolve_binds(
         # ref to an etymon dropped by a corpus change can't abort the rebuild.
         # toponym / toponym_etymology subjects are still row-id refs.
         if subj_type == "etymon":
-            subj_id = resolve_etymon_ref(db.conn, subj_ref)
+            subj_id = resolve_etymon_ref(conn, subj_ref)
             if subj_id is None:
                 result.warnings.append(
                     f"bind etymon:{subj_ref} did not resolve to a known etymon; skipped"
@@ -573,7 +577,7 @@ def project_canonical(
         [a for a in by_pred.get("merge-canonical", ()) if a.polarity == "affirm"], minted, result
     )
     result.merged = len(root_of)
-    bind_writes = _resolve_binds(by_pred.get("bind", []), minted, root_of, gate, result, db)
+    bind_writes = _resolve_binds(by_pred.get("bind", []), minted, root_of, gate, result, db.conn)
     label_pick = _pick_labels(by_pred, minted, result)
     result.labels = len(label_pick)
 
