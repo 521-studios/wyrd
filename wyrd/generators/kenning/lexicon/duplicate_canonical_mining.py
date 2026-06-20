@@ -48,6 +48,7 @@ from wyrd.generators.kenning.canonicalization.assertions import (
 )
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
+from wyrd.generators.kenning.lexicon.spurious_breakdown_mining import _fold
 from wyrd.generators.kenning.lexicon.variant_fold_detect import _gloss_tokens
 
 METHOD = "duplicate-canonical-finder-v1"
@@ -104,6 +105,13 @@ def _maybe_pair(da: dict, db: dict, a: int, b: int, min_gloss_overlap: float):
     already collapsed and their gloss token-sets reach the Jaccard floor; else None."""
     if da["cm_id"] is not None and da["cm_id"] == db["cm_id"]:
         return None  # already collapsed into the same hub
+    # High-precision compound exclusion: a dash marks a morpheme boundary, so a
+    # dashed form is a compound. If the two forms don't fold to the SAME string,
+    # one is a compound and the other its constituent (or a different compound) —
+    # not one morpheme (gōs vs gos-wic). A fold-equal dashed pair is just a spelling
+    # variant of one word (wulfpytt vs wulf-pytt) and is kept for the LLM to judge.
+    if ("-" in da["form"] or "-" in db["form"]) and _fold(da["form"]) != _fold(db["form"]):
+        return None
     ta, tb = da["tokens"], db["tokens"]
     if not ta or not tb:
         return None
@@ -206,28 +214,53 @@ def detect_candidates(
 
 # --- LLM: propose (same morpheme?) then adversarially refute -----------------
 
+# SAME-MORPHEME means ONE etymological lexeme recorded twice — only spelling /
+# phonological / diacritic variants of a single word, or inflections of one lexeme.
+# It does NOT mean "etymologically related". The judge must reject three classes
+# that share a root but are NOT one lexeme (they corrupt the canonical graph if
+# merged) — calibrated against the wyrd-u6fn.5 apply-run false-positives.
+_SAME_MORPHEME_RULES = (
+    "SAME MORPHEME = ONE lexeme written or inflected two ways. ONLY these count as same:\n"
+    "  - spelling / phonological / diacritic variants of one word "
+    "(mad=mat, mylen=myln, scēad=scéad, sūþ=sud, wulfpytt=wulf-pytt);\n"
+    "  - inflections / case forms of ONE lexeme (crux=crucis, pons=pontem, bōc=bēce);\n"
+    "  - a genuine spelling variant of ONE personal name (Katharine=Katherine, "
+    "Margerie=Margery, Agnes=Annis).\n"
+    "These are NOT the same morpheme (they share a ROOT but are DISTINCT lexemes) "
+    "so answer NOT-same:\n"
+    "  - COMPOUND vs its constituent/head: B is A plus another element "
+    "(treow != plūm-trēow, bȳ != kross-bý, vellir != thingvellir, "
+    "gōs != gos-wic, gortna != gortmore, bille != da-bille). A dash, or one form "
+    "built by adding material to the other, signals a compound.\n"
+    "  - DERIVATION: noun<->verb (willa != willian), base<->adjective-derivative "
+    "(west != westerne, horu != horig), participle/gerund<->noun (wilig != wiligen), "
+    "nominalization (iuo != iubhar), zero-derivation or a different derivational "
+    "suffix (linden != lind, byrgen != byrgels), extra suffix like -red/-hood "
+    "(hund != hundred).\n"
+    "  - DISTINCT NAME or HYPOCORISTIC / pet-form: a nickname is a different "
+    "name-form (Margerie != Meg, Joan != Jane, Gilot != Gillota, Malkin != Mallin).\n"
+    "When unsure, answer NOT-same: a missed merge is harmless, a wrong merge corrupts."
+)
+
 _PROPOSE_SYSTEM = (
     "You judge a historical ENGLISH/British PLACE-NAME etymology lexicon. Two "
     "canonical etymon entries in the SAME language share a similar gloss. Decide "
-    "whether they are the SAME morpheme recorded under two spellings (so they "
-    "should be unified) or DISTINCT words that merely overlap in meaning "
-    "(homographs/near-synonyms that must stay separate). Same morpheme means a "
-    "single etymological lexeme (e.g. OE 'niwe' and 'ne' BOTH meaning 'new' are "
-    "spelling/abstraction variants of one word; but 'ea' (river) and 'eg' (island) "
-    "are DISTINCT despite both being watery). Default to NOT-same unless the "
-    "identity is clear. Reply ONLY with a JSON object: "
+    "whether they are the SAME morpheme (one lexeme, to be unified) or merely "
+    "related/overlapping words that must stay separate.\n" + _SAME_MORPHEME_RULES + "\n"
+    "Reply ONLY with a JSON object: "
     '{"same_morpheme": true|false, "confidence": "high"|"medium"|"low", "reason": "<one short clause>"}.'
 )
 
 _REFUTE_SYSTEM = (
     "You are a skeptical historical-linguistics referee. A proposal claims two "
     "place-name etymons in the same language are the SAME morpheme and should be "
-    "merged into one canonical node. Your job is to REFUTE it if you can: are they "
-    "actually DISTINCT words (different roots, different declension class, only a "
-    "coincidental gloss overlap, one a derivative not the lemma)? A wrong merge "
-    "corrupts the lexicon, a missed merge is harmless — so refute on reasonable "
-    "doubt. Confirm only if the identity genuinely holds. Reply ONLY with a JSON "
-    'object: {"refuted": true|false, "confidence": "high"|"medium"|"low", "reason": "<one short clause>"}.'
+    "merged into one canonical node. REFUTE it unless they are genuinely ONE lexeme "
+    "(a spelling/diacritic variant or an inflection of the same word). In "
+    "particular REFUTE when B is a COMPOUND containing A, a DERIVATION of A "
+    "(noun<->verb, base<->diminutive, base<->adjective, nominalization, extra "
+    "suffix), or a DISTINCT NAME / hypocoristic.\n" + _SAME_MORPHEME_RULES + "\n"
+    "A wrong merge corrupts the lexicon, a missed merge is harmless. Reply ONLY "
+    'with a JSON object: {"refuted": true|false, "confidence": "high"|"medium"|"low", "reason": "<one short clause>"}.'
 )
 
 

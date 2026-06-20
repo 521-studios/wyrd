@@ -487,3 +487,33 @@ def test_load_judged_tolerates_non_dict_line(tmp_path):
         encoding="utf-8",
     )
     assert cli._load_judged(tmp_path) == {"1:2"}
+
+
+# --- wyrd-szyd: dash compound pre-filter + prompt reject-class guidance -------
+
+
+def test_detect_dash_compound_excluded_but_foldequal_kept(lex):
+    """A dashed form whose fold differs from its partner is a compound↔constituent
+    (gōs vs gos-wic) and is pre-filtered out; a dashed form that folds EQUAL to its
+    partner is just a spelling variant of one word (wulfpytt vs wulf-pytt) and is kept."""
+    _etymon(lex, "gos", "old-english", ["goose"])
+    _etymon(lex, "gos-wic", "old-english", ["goose", "farm"])  # compound (goose-farm)
+    _etymon(lex, "wulfpytt", "old-english", ["wolf", "pit"])
+    _etymon(lex, "wulf-pytt", "old-english", ["wolf", "pit"])  # same word, dash spelling
+    lex.commit()
+    pairs = {frozenset((c.a_form, c.b_form)) for c in detect_candidates(lex.conn).candidates}
+    assert frozenset(("gos", "gos-wic")) not in pairs  # compound↔constituent excluded
+    assert frozenset(("wulfpytt", "wulf-pytt")) in pairs  # fold-equal dash variant kept
+
+
+def test_prompts_reject_compound_derivation_name_classes():
+    """Both prompts must steer the judge away from the three false-positive classes
+    the u6fn.5 apply-run surfaced, while still keeping genuine variants/inflections."""
+    ps, _ = build_propose_prompt(_cand())
+    rs, _ = build_refute_prompt(_cand())
+    for s in (ps.lower(), rs.lower()):
+        assert "compound" in s  # constituent↔compound
+        assert "deriv" in s  # derivation (noun↔verb etc.)
+        assert "hypocorist" in s or "nickname" in s or "pet-form" in s  # distinct names
+    # and it still affirms the genuine-keep classes (inflection + a name spelling variant)
+    assert "inflection" in ps.lower() and "katharine" in ps.lower()
