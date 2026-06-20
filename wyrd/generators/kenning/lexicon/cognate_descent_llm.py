@@ -29,6 +29,7 @@ canonicalization L2 stream (replayed + clustered by zrce.1's wired projection).
 
 from __future__ import annotations
 
+import sqlite3
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -36,6 +37,11 @@ from dataclasses import dataclass
 from wyrd.generators.kenning.lexicon.cognate_descent_mining import DescentEdge
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.etymon_refs import (
+    etymon_ref,
+    etymon_refs_for,
+    resolve_etymon_ref,
+)
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
 
 METHOD = "cognate-descent-llm-v1"
@@ -52,6 +58,7 @@ class ClusterCand:
     fold-prefix (what the LLM judges against) + the cluster root we'd link to."""
 
     cluster_root: int  # cognate_id (most-ancestral etymon, D27) — the descends-from object
+    root_ref: str  # cluster_root's natural key "language:canonical_form" (wyrd-s964, D50.1)
     bridge_form: str
     bridge_lang: str
     bridge_glosses: tuple[str, ...]
@@ -69,7 +76,10 @@ class ResidueItem:
 
     @property
     def ref(self) -> str:
-        return str(self.etymon_id)
+        # wyrd-s964 / D50.1: the morpheme's STABLE natural key, not the
+        # rebuild-volatile row id — so the verdict cache (keyed by this) and the
+        # audit log's morpheme_ref survive a corpus re-id.
+        return etymon_ref(self.language, self.form)
 
 
 @dataclass(frozen=True)
@@ -111,6 +121,12 @@ def build_candidates(
         for r in db.conn.execute("SELECT DISTINCT etymon_id FROM toponym_etymology_element")
     }
     clustered_folds, prefix_index = _clustered_prefix_index(db, prefix_len)
+    # wyrd-s964: resolve each candidate cluster-root id → its stable natural key
+    # ONCE here (one batch query), so the per-candidate ClusterCand carries the
+    # durable ref and audit_log_row records keys, not rebuild-volatile row ids.
+    root_refs = etymon_refs_for(
+        db.conn, {root for bridges in prefix_index.values() for root, *_ in bridges}
+    )
 
     # Residue rows + the bridge etymon ids we'll need glosses for.
     residue_rows: list[tuple[int, str, str, str]] = []  # (eid, form, lang, fold)
@@ -137,7 +153,7 @@ def build_candidates(
         if not gl:  # no semantic signal → leave-separate, don't spend an LLM call
             continue
         bridges = prefix_index.get(fold[:prefix_len], ())
-        cands = _select_candidates(fold, bridges, glosses, max_candidates)
+        cands = _select_candidates(fold, bridges, glosses, max_candidates, root_refs)
         if cands:
             items.append(
                 ResidueItem(etymon_id=eid, form=form, language=lang, glosses=gl, candidates=cands)
@@ -172,6 +188,7 @@ def _select_candidates(
     bridges: Sequence[tuple[int, str, str, int]],
     glosses: dict[int, tuple[str, ...]],
     max_candidates: int,
+    root_refs: dict[int, str],
 ) -> tuple[ClusterCand, ...]:
     """The best bridge per candidate cluster (longest shared fold wins), the clusters
     sorted best-first and capped to ``max_candidates``. Fully deterministic — ties on
@@ -195,6 +212,7 @@ def _select_candidates(
         (
             ClusterCand(
                 cluster_root=root,
+                root_ref=root_refs[root],
                 bridge_form=bform,
                 bridge_lang=blang,
                 bridge_glosses=glosses.get(beid, ()),
@@ -311,11 +329,15 @@ def audit_log_row(item: ResidueItem, prop: Proposal, verdict: Verdict | None) ->
     """One raw judgment for a residue morpheme — recorded once, threshold-independent,
     so emissions re-derive at any min_confidence without re-calling the LLM."""
     chosen = item.candidates[prop.chosen] if prop.chosen is not None else None
+    # wyrd-s964 / D50.1: morpheme_ref (= item.ref) and cluster_root are STABLE
+    # natural keys ("language:canonical_form"), never rebuild-volatile row ids,
+    # so a replay of this cache against a re-id'd corpus resolves correctly
+    # (edge_from_log → resolve_etymon_ref) instead of silently losing verdicts.
     return {
         "_type": "cognate_descent_audit",
         "morpheme_ref": item.ref,
         "morpheme_form": item.form,
-        "cluster_root": chosen.cluster_root if chosen else None,
+        "cluster_root": chosen.root_ref if chosen else None,
         "bridge_form": chosen.bridge_form if chosen else None,
         "proposal_confidence": prop.confidence if chosen else None,
         "proposal_reason": prop.reason,
@@ -342,10 +364,18 @@ def judge_item(item: ResidueItem, judge: Callable[[str, str], dict]) -> dict | N
     return audit_log_row(item, prop, verdict)
 
 
-def edge_from_log(row: dict, *, min_confidence: str) -> DescentEdge | None:
+def edge_from_log(
+    row: dict, *, conn: sqlite3.Connection, min_confidence: str
+) -> DescentEdge | None:
     """Re-derive a ``DescentEdge`` from a logged judgment at ``min_confidence`` — only
     a CONFIRMED link whose effective confidence (the min of proposal + verify, so a
-    shaky verify floors a confident proposal) clears the bar. None otherwise."""
+    shaky verify floors a confident proposal) clears the bar. None otherwise.
+
+    wyrd-s964: ``morpheme_ref`` / ``cluster_root`` are stable natural keys, so they
+    resolve to the CURRENT build's ids via :func:`resolve_etymon_ref` (not ``int()``).
+    A key that doesn't resolve in this DB — a stale entry from a different corpus, or
+    a legacy id-keyed row from before this change — yields None (the edge is skipped
+    and the morpheme re-judged), never a wrong/orphaned edge."""
     if not row.get("confirmed") or row.get("cluster_root") is None:
         return None
     pconf = row.get("proposal_confidence")
@@ -359,9 +389,13 @@ def edge_from_log(row: dict, *, min_confidence: str) -> DescentEdge | None:
         effective = "medium"
     if CONFIDENCE_RANK[effective] < CONFIDENCE_RANK[min_confidence]:
         return None
+    child = resolve_etymon_ref(conn, row["morpheme_ref"])
+    root = resolve_etymon_ref(conn, row["cluster_root"])
+    if child is None or root is None:
+        return None  # stale/legacy key absent from this build → skip + re-judge
     return DescentEdge(
-        child_etymon=int(row["morpheme_ref"]),
-        cluster_root=int(row["cluster_root"]),
+        child_etymon=child,
+        cluster_root=root,
         confidence=effective,
         rationale=(
             f"LLM cognate-descent (propose+verify): '{row.get('morpheme_form')}' "

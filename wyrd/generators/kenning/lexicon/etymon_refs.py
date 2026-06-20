@@ -65,8 +65,12 @@ def resolve_etymon_ref(conn: sqlite3.Connection, ref: str) -> int | None:
     The inverse of :func:`etymon_ref`: splits on the FIRST ``:`` and matches the
     UNIQUE ``(canonical_form, language)`` key. Used at the L2->L3 projection
     boundary in place of the old ``int(ref)``.
+
+    Total over malformed input: a non-string ref (e.g. a legacy id int from a
+    pre-natural-key cache, wyrd-s964) or a string with no ``:`` separator is not a
+    valid natural key, so it resolves to None (caller skips) rather than raising.
     """
-    if _SEP not in ref:
+    if not isinstance(ref, str) or _SEP not in ref:
         return None
     language, canonical_form = ref.split(_SEP, 1)
     row = conn.execute(

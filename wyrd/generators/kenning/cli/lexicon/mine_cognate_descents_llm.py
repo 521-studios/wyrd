@@ -31,7 +31,7 @@ from wyrd.generators.kenning.lexicon.cognate_descent_llm import (
     judge_item,
 )
 from wyrd.generators.kenning.lexicon.cognate_descent_mining import descent_assertions
-from wyrd.generators.kenning.lexicon.etymon_refs import etymon_refs_for
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_refs_for, resolve_etymon_ref
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 _AUDIT_FILE = "_cognate_descent_audit.jsonl"
@@ -154,34 +154,51 @@ def lexicon_mine_cognate_descents_llm(
             _judge_fresh(items, judge, log, audit_path, ollama_url, model)
 
     # PASS 2 — derive descends-from from the (updated) log at the gate; author to L2.
-    edges = [e for row in log.values() if (e := edge_from_log(row, min_confidence=min_confidence))]
-    confirmed = sum(1 for r in log.values() if r.get("confirmed"))
-    click.echo(
-        f"  log: {len(log)} judged, {confirmed} confirmed, {len(edges)} edges >= {min_confidence}",
-        err=True,
-    )
-    if not apply:
-        click.echo("  dry-run — no LLM calls, no edges written (pass --apply).", err=True)
-        return
-
-    # wyrd-c6wu: resolve the log's endpoint ids -> stable natural keys against the
-    # current DB so the authored L2 assertions are durable. The audit log still
-    # stores endpoint ids (cluster_root/morpheme_ref), so a log mined against a
-    # DIFFERENT corpus can carry STALE ids (verdict-cache durability is wyrd-s964).
-    # Drop any edge whose endpoint isn't in this build rather than KeyError —
-    # mirrors relational_projection's unresolved-skip (D24).
+    # wyrd-s964: the log now stores stable NATURAL KEYS (morpheme_ref / cluster_root),
+    # so edge_from_log resolves them to THIS build's ids (resolve_etymon_ref) and
+    # skips any key absent from the current corpus — a stale entry from a different
+    # corpus, or a legacy id-keyed row from before s964. The authored L2 assertions
+    # then carry natural keys too (descent_assertions over the resolved ids → refs).
     with LexiconDB(db_path) as db:
-        refs = etymon_refs_for(
-            db.conn, {e.child_etymon for e in edges} | {e.cluster_root for e in edges}
+        conn = db.conn
+        edges = [
+            e
+            for row in log.values()
+            if (e := edge_from_log(row, conn=conn, min_confidence=min_confidence))
+        ]
+        confirmed = sum(1 for r in log.values() if r.get("confirmed"))
+        # Observability (D24): confirmed verdicts dropped because an endpoint key
+        # doesn't resolve in this build — operator-actionable (re-judge needed).
+        unresolved = sum(
+            1
+            for r in log.values()
+            if r.get("confirmed")
+            and r.get("cluster_root") is not None
+            and (
+                resolve_etymon_ref(conn, r["morpheme_ref"]) is None
+                or resolve_etymon_ref(conn, r["cluster_root"]) is None
+            )
         )
-    resolvable = [e for e in edges if e.child_etymon in refs and e.cluster_root in refs]
-    if len(resolvable) != len(edges):
         click.echo(
-            f"  skipped {len(edges) - len(resolvable)} edge(s) with stale ids not in this DB "
-            f"(re-judge needed — wyrd-s964)",
+            f"  log: {len(log)} judged, {confirmed} confirmed, {len(edges)} edges >= {min_confidence}",
             err=True,
         )
-    assertions = descent_assertions(resolvable, refs, source=source)
+        if unresolved:
+            click.echo(
+                f"  {unresolved} confirmed verdict(s) skipped — endpoint key not in this build "
+                f"(stale/legacy cache, re-judge needed — wyrd-s964)",
+                err=True,
+            )
+        if not apply:
+            click.echo("  dry-run — no LLM calls, no edges written (pass --apply).", err=True)
+            return
+
+        # edges already carry current-build ids (resolved above), so every id is in
+        # this DB → etymon_refs_for maps them all back to natural keys for the L2 output.
+        refs = etymon_refs_for(
+            conn, {e.child_etymon for e in edges} | {e.cluster_root for e in edges}
+        )
+        assertions = descent_assertions(edges, refs, source=source)
     existing = {a.id for a in load_assertions(mining_dir)}
     written = 0
     for a in assertions:
