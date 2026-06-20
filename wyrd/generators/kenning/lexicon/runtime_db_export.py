@@ -722,14 +722,7 @@ def _write_proportions(
             conn,
             "proportions_single_usage",
             culture,
-            # D45: lone words are bare by construction — position is always 'bare',
-            # and the key is the bare surface (fold any dash + surrounding
-            # whitespace defensively so operator-JSON / legacy keys can't smuggle
-            # a dash or a trailing space into the table, wyrd-an8u).
-            (
-                (k.replace("-", "").strip(), "bare", int(v))
-                for k, v in (data.get("single_usages") or {}).items()
-            ),
+            _iter_single_usage_rows(data.get("single_usages") or {}),
         )
         counts["proportions_structure"] += _insert_structures(
             conn, culture, data.get("structures") or []
@@ -817,6 +810,17 @@ def _insert_attested_languages(
         rows,
     )
     return len(rows)
+
+
+def _iter_single_usage_rows(single_usages: dict[str, int]) -> Iterable[tuple[str, str, int]]:
+    """Flatten ``single_usages`` (lone-word pool) into ``(surface, 'bare', weight)``
+    rows for the L4 writer. D45: lone words are bare by construction (position is
+    always ``'bare'``) and the key is the bare surface — fold any dash +
+    surrounding whitespace defensively (wyrd-an8u) so an operator-JSON / legacy
+    key can't smuggle a dash or trailing space into the table. Mirrors the
+    ``_iter_usage_rows`` fold for the single-usage path."""
+    for key, weight in single_usages.items():
+        yield key.replace("-", "").strip(), "bare", int(weight)
 
 
 def _iter_usage_rows(usages: dict[str, Any]) -> Iterable[tuple[str, str, int]]:

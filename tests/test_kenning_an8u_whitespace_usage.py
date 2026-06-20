@@ -26,6 +26,7 @@ from wyrd.generators.kenning.lexicon.proportions_builder import (
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
     _bare_modern_usage,
     _insert_attested_languages,
+    _iter_single_usage_rows,
     _iter_usage_rows,
     _write_meanings,
 )
@@ -144,9 +145,16 @@ def test_attested_language_surface_strips_whitespace():
 
 def test_iter_usage_rows_strips_whitespace_dirty_key():
     # The nested part-pool writer folds the key to a bare, whitespace-clean
-    # surface (the single_usage row writer shares this exact fold).
+    # surface.
     rows = list(_iter_usage_rows({"Oak- ": {"pre": 5}}))
     assert rows == [("Oak", "pre", 5)]
+
+
+def test_iter_single_usage_rows_strips_whitespace_dirty_key():
+    # The single_usage (lone-word) writer is a SEPARATE path from
+    # _iter_usage_rows; pin its own defensive whitespace fold so a revert to
+    # replace-only is caught.
+    assert list(_iter_single_usage_rows({"Oak- ": 5})) == [("Oak", "bare", 5)]
 
 
 def test_iter_usage_rows_legacy_flat_key_strips_before_position_decode():
