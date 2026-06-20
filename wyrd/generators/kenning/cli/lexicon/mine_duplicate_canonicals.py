@@ -1,6 +1,6 @@
 """``wyrd kenning lexicon mine-duplicate-canonicals`` — find two SEPARATE canonical
-etymon nodes that are the same morpheme and author reversible same-morpheme binds
-to collapse them (wyrd-u6fn.5).
+etymon nodes that are the same morpheme and author reversible same-morpheme bind +
+merge-canonical assertions to collapse them (wyrd-u6fn.5).
 
 Deterministic pre-screen (canonical etymons sharing a gloss within a language)
 narrows the pairs; a two-pass LLM judge PROPOSES sameness then an independent
@@ -72,14 +72,16 @@ def _load_judged(mining_dir: Path) -> set[str]:
 
 
 def _call(client, system, user, parse):
-    """One judge call with a 2-attempt retry; None on persistent failure."""
+    """One judge call with a 2-attempt retry; None (with a stderr note) on failure."""
+    last_err = "unparseable response"
     for _attempt in range(2):
         try:
             v = parse(client.chat_json(system, user, {}))
             if v is not None:
                 return v
-        except Exception:  # transient LLM/transport noise: retry, then give up
-            pass
+        except Exception as exc:  # transient LLM/transport noise: retry, then give up
+            last_err = str(exc) or exc.__class__.__name__
+    click.echo(f"  judge call failed: {last_err}", err=True)  # surface why, don't swallow
     return None
 
 
@@ -185,8 +187,8 @@ def _judge_loop(
             counts["authored"] += int(
                 _author_pair(c, v, mining_dir=mining_dir, source=source, existing_ids=existing_ids)
             )
-        elif bucket != "separate":
-            tag = "MERGE" if bucket == "same" else "QUEUE"
+        if bucket != "separate":  # echo same + queued (both apply and dry-run) for visibility
+            tag = "merge" if bucket == "same" else "queue"
             click.echo(
                 f"  [{tag} {v.confidence}] {c.a_form!r}≈{c.b_form!r} ({c.language}): "
                 f"{v.reason[:60]}",

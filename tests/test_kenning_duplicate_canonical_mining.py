@@ -32,6 +32,14 @@ def _etymon(db, form, lang, glosses):
     return eid
 
 
+def _ocr_variant(db, root_id, form, lang):
+    """An etymon merged into ``root_id`` (an OCR-variant tombstone) — makes root_id a
+    legacy multi-member family root."""
+    vid = db.upsert_etymon(form, lang)
+    db.conn.execute("UPDATE etymon SET merged_into_id=? WHERE id=?", (root_id, vid))
+    return vid
+
+
 @pytest.fixture
 def lex(tmp_path):
     init_schema(tmp_path / "lexicon.db")
@@ -129,6 +137,8 @@ def test_combine_verdict_leaves_separate_unless_proposed_and_unrefuted():
     assert combine_verdict(hi_same, _Refute(True, "medium", "different root")).same is False
     # proposed, verify call failed (None) → separate (leave-separate on doubt)
     assert combine_verdict(hi_same, None).same is False
+    # no proposal at all → separate
+    assert combine_verdict(None, None).same is False
     # proposed high, survives a MEDIUM refute → same, floored to medium
     v = combine_verdict(hi_same, _Refute(False, "medium", "holds"))
     assert v.same is True and v.confidence == "medium"
@@ -184,9 +194,11 @@ def _canonical_root(db, etymon_id):
     return node
 
 
-def test_projection_collapses_authored_pair(lex, tmp_path):
-    """Author same-morpheme assertions for niwe≈ne, project, and confirm both
-    etymons resolve to ONE canonical root — and identity fidelity is preserved."""
+def test_projection_collapses_multi_member_families_preserving_fidelity(lex, tmp_path):
+    """niwe and ne each anchor a legacy OCR family; authoring + projection collapses
+    BOTH families into ONE canonical root (the merge-canonical brings each family
+    along), and identity fidelity holds (canonical may JOIN legacy families, never
+    SPLIT). Uses real multi-member families so the fidelity check is non-vacuous."""
     from wyrd.generators.kenning.canonicalization import append_assertion
     from wyrd.generators.kenning.lexicon.canonicalization_projection import (
         assess_identity_fidelity,
@@ -194,7 +206,9 @@ def test_projection_collapses_authored_pair(lex, tmp_path):
     )
 
     niwe = _etymon(lex, "niwe", "old-english", ["new"])
+    niwa = _ocr_variant(lex, niwe, "niwa", "old-english")  # OCR variant of niwe
     ne = _etymon(lex, "ne", "old-english", ["new"])
+    nee = _ocr_variant(lex, ne, "nee", "old-english")  # OCR variant of ne
     lex.commit()
     c = DuplicateCandidate(
         a_id=niwe,
@@ -210,50 +224,37 @@ def test_projection_collapses_authored_pair(lex, tmp_path):
         append_assertion(tmp_path, a)
 
     project_canonical(lex, mining_dir=tmp_path, apply=True, confidence_gate="high")
-    root_niwe, root_ne = _canonical_root(lex, niwe), _canonical_root(lex, ne)
-    assert root_niwe is not None and root_niwe == root_ne  # collapsed into one node
-    assert assess_identity_fidelity(lex).violations == 0  # no legacy family was split
+    roots = {_canonical_root(lex, e) for e in (niwe, niwa, ne, nee)}
+    assert len(roots) == 1 and None not in roots  # all four collapsed into one node
+    fid = assess_identity_fidelity(lex)
+    assert fid.legacy_families >= 2 and fid.violations == 0  # both families joined, none split
 
 
-def test_projection_does_not_collapse_below_gate(lex, tmp_path):
-    """A medium-confidence merge is NOT collapsed when projected at the high gate
-    (the binds are gated out; no spurious collapse)."""
-    from wyrd.generators.kenning.canonicalization import append_assertion
-    from wyrd.generators.kenning.lexicon.canonicalization_projection import project_canonical
-
+def test_detect_excludes_non_root_survivor(lex):
+    """An inflection survivor (merged_into_id NULL but lemma_id set → its legacy hub is
+    the lemma's, not its own) is excluded — pairing it would mint a divergent hub."""
     niwe = _etymon(lex, "niwe", "old-english", ["new"])
-    ne = _etymon(lex, "ne", "old-english", ["new"])
+    infl = _etymon(lex, "niwum", "old-english", ["new"])  # an inflected form of a lemma
+    lemma = _etymon(lex, "neowe", "old-english", ["new"])
+    lex.conn.execute("UPDATE etymon SET lemma_id=? WHERE id=?", (lemma, infl))
     lex.commit()
-    c = DuplicateCandidate(
-        a_id=niwe,
-        a_form="niwe",
-        b_id=ne,
-        b_form="ne",
-        language="old-english",
-        a_glosses=("new",),
-        b_glosses=("new",),
-        gloss_overlap=1.0,
-    )
-    for a in same_morpheme_assertions(c, MergeVerdict(True, "medium", "maybe"), source="t"):
-        append_assertion(tmp_path, a)
-    project_canonical(lex, mining_dir=tmp_path, apply=True, confidence_gate="high")
-    # singletons: neither bind projected at the high gate → both stay unbound (NULL)
-    assert (
-        _canonical_root(lex, niwe) != _canonical_root(lex, ne) or _canonical_root(lex, niwe) is None
-    )
+    ids = {(c.a_id, c.b_id) for c in detect_candidates(lex.conn).candidates}
+    assert all(infl not in pair for pair in ids)  # the inflection child is never paired
+    assert (min(niwe, lemma), max(niwe, lemma)) in ids  # the two roots still pair
 
 
 # --- CLI orchestration (two-pass judge mocked — no live Ollama) -------------
 
 
 class _Client:
-    """Fake OllamaClient: dispatches propose vs refute on the system prompt."""
+    """Fake OllamaClient: dispatches propose vs refute by the 'refute' marker present
+    in the refute prompt (system+user), robust to either being reworded."""
 
     def __init__(self, propose, refute=None):
         self.propose, self.refute = propose, refute
 
     def chat_json(self, system, user, schema):
-        return self.refute if "skeptical" in system.lower() else self.propose
+        return self.refute if "refute" in (system + user).lower() else self.propose
 
 
 def test_load_judged_tolerates_corrupt_and_filters(tmp_path):
@@ -304,6 +305,11 @@ def test_judge_pair_two_pass():
     assert v.same is True and v.confidence == "medium"
     # propose call never parses → None (skip / counts toward abort)
     assert cli._judge_pair(_Client("garbage"), c) is None
+    # proposed same, but the refute call never parses (None) → leave-separate on doubt
+    v = cli._judge_pair(
+        _Client({"same_morpheme": True, "confidence": "high", "reason": "x"}, "garbage"), c
+    )
+    assert v.same is False
 
 
 def test_judge_loop_authors_high_queues_medium_separates_and_dedups(tmp_path, monkeypatch):
@@ -396,3 +402,39 @@ def test_cli_apply_collapses_pair_end_to_end(lex, tmp_path, monkeypatch):
     project_canonical(lex, mining_dir=mining, apply=True, confidence_gate="high")
     assert _canonical_root(lex, niwe) is not None
     assert _canonical_root(lex, niwe) == _canonical_root(lex, ne)
+
+
+def test_maybe_pair_skips_glossless_and_already_collapsed():
+    from wyrd.generators.kenning.lexicon.duplicate_canonical_mining import _maybe_pair
+
+    full = {"cm_id": None, "form": "a", "lang": "x", "glosses": {"new"}, "tokens": {"new"}}
+    glossless = {"cm_id": None, "form": "b", "lang": "x", "glosses": set(), "tokens": set()}
+    assert _maybe_pair(full, glossless, 1, 2, 0.5) is None  # no shared tokens to compare
+    same_hub_a = {**full, "cm_id": "H"}
+    same_hub_b = {**full, "cm_id": "H", "form": "b"}
+    assert _maybe_pair(same_hub_a, same_hub_b, 1, 2, 0.5) is None  # already collapsed
+    assert _maybe_pair(full, {**full, "form": "b"}, 1, 2, 0.5) is not None  # genuine pair
+
+
+def test_call_retries_then_gives_up():
+    from wyrd.generators.kenning.cli.lexicon import mine_duplicate_canonicals as cli
+    from wyrd.generators.kenning.lexicon.duplicate_canonical_mining import parse_propose
+
+    class _Flaky:
+        def __init__(self, seq):
+            self.seq, self.calls = list(seq), 0
+
+        def chat_json(self, system, user, schema):
+            r = self.seq[self.calls]
+            self.calls += 1
+            if isinstance(r, Exception):
+                raise r
+            return r
+
+    # attempt 1 raises, attempt 2 parses → verdict returned
+    ok = _Flaky(
+        [RuntimeError("boom"), {"same_morpheme": True, "confidence": "high", "reason": "r"}]
+    )
+    assert cli._call(ok, "s", "u", parse_propose).same is True
+    # both attempts unparseable → None (skipped, not crashed)
+    assert cli._call(_Flaky([{"bad": 1}, {"bad": 2}]), "s", "u", parse_propose) is None

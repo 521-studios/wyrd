@@ -153,40 +153,41 @@ def detect_candidates(
     max_bucket: int = _MAX_BUCKET,
     limit: int | None = None,
 ) -> DetectResult:
-    """Pre-screen: distinct canonical etymons (merged_into_id IS NULL) in the same
-    language whose gloss token-sets overlap by Jaccard >= ``min_gloss_overlap``.
-    Pairs already sharing a canonical_morpheme_id (collapsed by a prior run) are
-    skipped. Recall-biased — the two-pass LLM judge decides sameness."""
-    prev_factory = conn.row_factory  # restore below — don't mutate a shared conn
-    conn.row_factory = sqlite3.Row
-    try:
-        rows = conn.execute(
-            """
-            SELECT e.id AS id, e.language AS lang, e.canonical_form AS form,
-                   e.canonical_morpheme_id AS cm_id, g.gloss AS gloss
-            FROM etymon e
-            LEFT JOIN etymon_gloss g ON g.etymon_id = e.id
-            WHERE e.merged_into_id IS NULL
-            """
-        ).fetchall()
-    finally:
-        conn.row_factory = prev_factory
+    """Pre-screen: distinct canonical etymons that are their own legacy family ROOT,
+    in the same language, whose gloss token-sets overlap by Jaccard >=
+    ``min_gloss_overlap``. Pairs already sharing a canonical_morpheme_id (collapsed by
+    a prior run) are skipped. Recall-biased — the two-pass LLM judge decides sameness.
+
+    Roots only (``merged_into_id IS NULL AND (lemma_id IS NULL OR lemma_id = id)``):
+    the authoring binds each etymon to a hub minted from ITS OWN form, which matches
+    the legacy rollup hub only when the etymon is its family root. Pairing a non-root
+    survivor (e.g. an inflection child) would mint a divergent hub and fail to collapse
+    the family cleanly — so we exclude them (a missed merge is harmless, D46)."""
+    # Tuple rows + index unpack — no need to mutate the shared conn's row_factory.
+    rows = conn.execute(
+        """
+        SELECT e.id, e.language, e.canonical_form, e.canonical_morpheme_id, g.gloss
+        FROM etymon e
+        LEFT JOIN etymon_gloss g ON g.etymon_id = e.id
+        WHERE e.merged_into_id IS NULL AND (e.lemma_id IS NULL OR e.lemma_id = e.id)
+        """
+    ).fetchall()
 
     by_id: dict[int, dict] = {}
-    for r in rows:
+    for eid, lang, form, cm_id, gloss in rows:
         d = by_id.setdefault(
-            r["id"],
+            eid,
             {
-                "lang": r["lang"] or "",
-                "form": r["form"] or "",
-                "cm_id": r["cm_id"],
+                "lang": lang or "",
+                "form": form or "",
+                "cm_id": cm_id,
                 "glosses": set(),
                 "tokens": set(),
             },
         )
-        if r["gloss"]:
-            d["glosses"].add(r["gloss"])
-            d["tokens"] |= _gloss_tokens(r["gloss"])
+        if gloss:
+            d["glosses"].add(gloss)
+            d["tokens"] |= _gloss_tokens(gloss)
 
     # Inverted index: (language, gloss-token) -> etymon ids that carry it.
     index: dict[tuple[str, str], set[int]] = defaultdict(set)
