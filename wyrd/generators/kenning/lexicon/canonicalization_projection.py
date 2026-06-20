@@ -46,6 +46,7 @@ Scope (deferred, by design):
 
 from __future__ import annotations
 
+import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -62,6 +63,7 @@ from wyrd.generators.kenning.canonicalization import (
 )
 from wyrd.generators.kenning.lexicon.bundle._export import _build_family_rollup
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref, resolve_etymon_ref
 
 # Legacy deterministic clustering (merged_into_id OCR variants + lemma_id
 # inflections) is folded into in-memory assertions stamped with this method, so
@@ -251,9 +253,12 @@ def _group_binds(
     binds: list[Assertion], gate: float, result: ProjectionResult
 ) -> dict[tuple[str, str], list[Assertion]]:
     """Affirmed, non-refuted, above-gate binds grouped by observation subject.
-    Records unsupported kinds (e.g. same-sense) and non-integer observation refs as
-    observable skips — validated HERE, before the destructive write, so a bad ref
-    can never abort the projection mid-rebuild."""
+    Records unsupported kinds (e.g. same-sense) as observable skips. Non-etymon
+    subjects (toponym / toponym_etymology) must be integer row-id refs — a
+    non-integer one is skipped HERE, before the destructive write, so it can't
+    abort the projection mid-rebuild. Etymon subjects carry natural-key refs
+    ("language:canonical_form"), resolved (and skipped-on-miss) in
+    ``_resolve_binds`` — also before the write (wyrd-c6wu)."""
     refuted = {_bind_key(a) for a in binds if a.polarity == "refute" and a.object is not None}
     grouped: dict[tuple[str, str], list[Assertion]] = defaultdict(list)
     for a in binds:
@@ -268,10 +273,14 @@ def _group_binds(
             continue
         if _score(a.confidence) < gate:
             continue
-        # isascii() guards the gap between str.isdigit() and int(): Unicode
-        # numerics like '²' / Devanagari digits are isdigit()==True but raise in
-        # int(), which would defeat this skip-don't-crash guard.
-        if not (a.subject.ref.isascii() and a.subject.ref.isdigit()):
+        # wyrd-c6wu: etymon binds carry the stable natural-key ref
+        # "language:canonical_form", resolved to a row-id in _resolve_binds
+        # (skip-on-miss there — still before the destructive write). toponym /
+        # toponym_etymology binds remain row-id refs (their natural-key migration
+        # is a separate ticket), so keep the integer guard for those. isascii()
+        # guards the str.isdigit()/int() gap (Unicode numerics like '²' are
+        # isdigit()==True but raise in int()).
+        if a.subject.type != "etymon" and not (a.subject.ref.isascii() and a.subject.ref.isdigit()):
             result.warnings.append(
                 f"bind {a.subject.type}:{a.subject.ref} has a non-integer observation ref; skipped"
             )
@@ -286,6 +295,7 @@ def _resolve_binds(
     root_of: dict[str, str],
     gate: float,
     result: ProjectionResult,
+    conn: sqlite3.Connection,
 ) -> list[BindWrite]:
     """Resolve each observation's binds to a single hub, flagging conflicts (D46)."""
     writes: list[BindWrite] = []
@@ -310,7 +320,20 @@ def _resolve_binds(
             continue
         # Deterministic pick among equivalent binds: highest score, tie lowest id.
         winner = min(valid, key=lambda b: (-_score(b.confidence), b.id))
-        writes.append(BindWrite(table, column, winner.object.ref, int(subj_ref)))
+        # wyrd-c6wu: etymon subjects are natural-key refs — resolve to the CURRENT
+        # row-id here (id-independent across rebuilds); skip-on-miss observably so a
+        # ref to an etymon dropped by a corpus change can't abort the rebuild.
+        # toponym / toponym_etymology subjects are still row-id refs.
+        if subj_type == "etymon":
+            subj_id = resolve_etymon_ref(conn, subj_ref)
+            if subj_id is None:
+                result.warnings.append(
+                    f"bind etymon:{subj_ref} did not resolve to a known etymon; skipped"
+                )
+                continue
+        else:
+            subj_id = int(subj_ref)
+        writes.append(BindWrite(table, column, winner.object.ref, subj_id))
         bound[subj_type] += 1
     result.bound = dict(bound)
     return writes
@@ -456,13 +479,22 @@ def _legacy_identity_assertions(db: LexiconDB, result: ProjectionResult) -> list
             # reflex-link members (cross-era SAME morpheme, wyrd-rogd.9) are all
             # same-morpheme.
             mi = info.get(m, _EtymonInfo("", "", False, False))
+            # wyrd-c6wu: the bind ref is the stable natural key
+            # "language:canonical_form", never the etymon row-id (reassigned on
+            # rebuild). A member with no canonical_form has no natural key, so
+            # skip it observably (D24) rather than emit an orphan-prone id ref.
+            if not mi.canonical_form:
+                result.warnings.append(
+                    f"legacy rollup member etymon {m} has no canonical_form; bind skipped"
+                )
+                continue
             kind = (
                 "inflection-of" if (mi.is_inflection and not mi.is_ocr_variant) else "same-morpheme"
             )
             out.append(
                 Assertion(
                     predicate="bind",
-                    subject=NodeRef("etymon", str(m)),
+                    subject=NodeRef("etymon", etymon_ref(mi.language, mi.canonical_form)),
                     object=node,
                     qualifiers={"kind": kind},
                     confidence="high",
@@ -545,7 +577,7 @@ def project_canonical(
         [a for a in by_pred.get("merge-canonical", ()) if a.polarity == "affirm"], minted, result
     )
     result.merged = len(root_of)
-    bind_writes = _resolve_binds(by_pred.get("bind", []), minted, root_of, gate, result)
+    bind_writes = _resolve_binds(by_pred.get("bind", []), minted, root_of, gate, result, db.conn)
     label_pick = _pick_labels(by_pred, minted, result)
     result.labels = len(label_pick)
 

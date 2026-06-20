@@ -24,6 +24,7 @@ from wyrd.generators.kenning.lexicon.bundle._export import (
     _build_family_rollup,
 )
 from wyrd.generators.kenning.lexicon.canonicalization_projection import project_canonical
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
 
 
 def _db(tmp_path):
@@ -104,7 +105,7 @@ def test_canonical_rollup_reflects_a_bind_legacy_does_not(tmp_path):
         tmp_path,
         Assertion(
             predicate="bind",
-            subject=NodeRef("etymon", str(extra)),
+            subject=NodeRef("etymon", etymon_ref("old-english", "Tunbreakdown")),
             object=NodeRef("canonical_morpheme", tun_hub),
             qualifiers={"kind": "same-morpheme"},
             confidence="high",

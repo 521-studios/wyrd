@@ -47,6 +47,7 @@ from wyrd.generators.kenning.canonicalization.assertions import (
     mint_canonical_id,
 )
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
 from wyrd.generators.kenning.lexicon.variant_fold_detect import _gloss_tokens
 
 METHOD = "duplicate-canonical-finder-v1"
@@ -351,7 +352,8 @@ def same_morpheme_assertions(
         out.append(
             Assertion(
                 predicate="bind",
-                subject=NodeRef("etymon", str(eid)),
+                # wyrd-c6wu: stable natural-key ref, not the etymon row-id.
+                subject=NodeRef("etymon", etymon_ref(c.language, forms[eid])),
                 object=NodeRef(_NODE, hub),
                 qualifiers={"kind": "same-morpheme"},
                 confidence=v.confidence,

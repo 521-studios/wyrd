@@ -9,6 +9,7 @@ left separate (D46).
 from __future__ import annotations
 
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
 from wyrd.generators.kenning.lexicon.same_morpheme_mining import (
     METHOD,
     bind_assertions,
@@ -77,12 +78,16 @@ def test_high_confidence_same_morpheme_bind(tmp_path):
     assert g.breakdown_etymons == (ford_bd,)
     assert g.confidence == "high"  # shared cognate cluster
 
-    assertions = bind_assertions(groups, source="test")
+    assertions = bind_assertions(groups, conn=db.conn, source="test")
     mint = [a for a in assertions if a.predicate == "mint-canonical"]
     binds = [a for a in assertions if a.predicate == "bind"]
     assert len(mint) == 1
     node_id = mint[0].subject.ref
-    assert {b.subject.ref for b in binds} == {str(ford_shipped), str(ford_bd)}
+    # wyrd-c6wu: bind refs are stable natural keys, not etymon row-ids.
+    assert {b.subject.ref for b in binds} == {
+        etymon_ref("old-english", "ford"),
+        etymon_ref("old-english", "Ford"),
+    }
     assert all(b.object.ref == node_id for b in binds)
     assert all(b.qualifiers["kind"] == "same-morpheme" for b in binds)
     assert all(a.method == METHOD and a.id for a in assertions)
@@ -155,13 +160,17 @@ def test_multi_member_group_binds_all(tmp_path):
     _breakdown_only(db, cot_b, "Cotham")
     db.commit()
     groups = mine_same_morpheme_binds(db)
-    assertions = bind_assertions(groups, source="t")
+    assertions = bind_assertions(groups, conn=db.conn, source="t")
     db.close()
     assert len(groups) == 1
     assert set(groups[0].breakdown_etymons) == {cot_a, cot_b}
     binds = [a for a in assertions if a.predicate == "bind"]
     assert len([a for a in assertions if a.predicate == "mint-canonical"]) == 1
-    assert {b.subject.ref for b in binds} == {str(cot), str(cot_a), str(cot_b)}
+    assert {b.subject.ref for b in binds} == {
+        etymon_ref("old-english", "cot"),
+        etymon_ref("old-english", "Cot"),
+        etymon_ref("old-english", "COT"),
+    }
 
 
 def test_cli_apply_is_idempotent(tmp_path):
@@ -224,9 +233,9 @@ def test_mixed_group_per_variant_confidence(tmp_path):
     assert g.confidence == "high"  # group summary
     assert g.breakdown_confidences == {wic_cluster: "high", wic_gloss: "medium"}
 
-    assertions = bind_assertions(groups, source="t")
+    assertions = bind_assertions(groups, conn=db.conn, source="t")
     conf = {a.subject.ref: a.confidence for a in assertions if a.predicate == "bind"}
     db.close()
-    assert conf[str(wic)] == "high"  # shipped IS the morpheme
-    assert conf[str(wic_cluster)] == "high"
-    assert conf[str(wic_gloss)] == "medium"  # NOT leaked up to high
+    assert conf[etymon_ref("old-english", "wic")] == "high"  # shipped IS the morpheme
+    assert conf[etymon_ref("old-english", "Wic")] == "high"
+    assert conf[etymon_ref("old-english", "Wíc")] == "medium"  # NOT leaked up to high
