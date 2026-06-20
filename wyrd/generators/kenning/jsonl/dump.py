@@ -278,15 +278,27 @@ def _dump_citations(conn: sqlite3.Connection, source_id: str) -> Iterable[dict[s
 
 
 def _dump_descent_edges(conn: sqlite3.Connection, source_id: str) -> Iterable[dict[str, Any]]:
+    # Resolve both endpoints through merged_into_id to their winners (same
+    # follow-to-winner as _dump_cited_etymons / _dump_citations, wyrd-q6ro):
+    # an endpoint that is an OCR-cluster loser would otherwise emit a ref no
+    # etymon row carries post-fix, orphaning the edge on rebuild. When BOTH
+    # endpoints collapse to the SAME winner (an intra-cluster edge between two
+    # OCR variants of one morpheme), the edge degenerates to a self-loop and
+    # is skipped — it carries no real descent signal, and build's
+    # _insert_descent has no self-edge guard. Single-hop (see wyrd-lpxq).
     edges = conn.execute(
         """
         SELECT pe.language AS p_lang, pe.canonical_form AS p_form,
                ce.language AS c_lang, ce.canonical_form AS c_form,
                d.edge_type, d.confidence, d.notes
           FROM etymon_descent d
-          JOIN etymon pe ON pe.id = d.parent_id
-          JOIN etymon ce ON ce.id = d.child_id
+          JOIN etymon pref ON pref.id = d.parent_id
+          JOIN etymon pe ON pe.id = COALESCE(pref.merged_into_id, pref.id)
+          JOIN etymon cref ON cref.id = d.child_id
+          JOIN etymon ce ON ce.id = COALESCE(cref.merged_into_id, cref.id)
          WHERE d.source_id = ?
+           AND COALESCE(pref.merged_into_id, pref.id)
+               != COALESCE(cref.merged_into_id, cref.id)
          ORDER BY d.id
         """,
         (source_id,),
@@ -362,11 +374,16 @@ def _dump_toponyms_and_etymologies(
     for te in etys:
         elements: list[dict[str, Any]] = []
         for el in conn.execute(
+            # Resolve the element etymon through merged_into_id to its winner
+            # (follow-to-winner, wyrd-q6ro): a loser element id would emit a
+            # ref no etymon row carries post-fix, orphaning the element on
+            # rebuild. Single-hop (see wyrd-lpxq).
             """
             SELECT el.ordinal, el.inflection, el.surface_in_modern, el.confidence,
                    e.language, e.canonical_form
               FROM toponym_etymology_element el
-              JOIN etymon e ON e.id = el.etymon_id
+              JOIN etymon ref ON ref.id = el.etymon_id
+              JOIN etymon e ON e.id = COALESCE(ref.merged_into_id, ref.id)
              WHERE el.toponym_etymology_id = ?
              ORDER BY el.ordinal
             """,

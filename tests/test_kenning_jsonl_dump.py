@@ -428,6 +428,51 @@ def test_dump_descent_edges():
     }
 
 
+def test_dump_descent_edge_merged_endpoint_follows_to_winner():
+    """wyrd-q6ro: a descent edge whose endpoint is an OCR-cluster loser emits
+    the WINNER ref (matching the winner etymon row _dump_cited_etymons emits),
+    so the edge references an etymon the file carries and doesn't orphan on
+    rebuild."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="wiki", title="Wiktionary")
+    parent = _add_etymon(conn, "proto-germanic", "*tunaz")
+    winner = _add_etymon(conn, "old-english", "tun")
+    loser = _add_etymon(conn, "old-english", "tunne", merged_into_id=winner)
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (?, ?, 'inheritance', 'wiki')",
+        (parent, loser),
+    )
+    rows = dump_source_to_rows(conn, "wiki")
+    descent = next(r for r in rows if r["_type"] == "etymon_descent")
+    assert descent["child_ref"] == "old-english:tun"
+    assert descent["parent_ref"] == "proto-germanic:*tunaz"
+    # The loser ref appears nowhere.
+    assert all(
+        r.get("child_ref") != "old-english:tunne" and r.get("parent_ref") != "old-english:tunne"
+        for r in rows
+    )
+
+
+def test_dump_descent_edge_collapsing_to_self_loop_is_skipped():
+    """wyrd-q6ro: a descent edge between two OCR variants of the SAME morpheme
+    (both merge to one winner) degenerates to a parent==child self-loop after
+    follow-to-winner and is dropped — it carries no real descent signal and
+    build's _insert_descent has no self-edge guard."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="wiki", title="Wiktionary")
+    winner = _add_etymon(conn, "old-english", "tun")
+    loser_a = _add_etymon(conn, "old-english", "tunne", merged_into_id=winner)
+    loser_b = _add_etymon(conn, "old-english", "tvn", merged_into_id=winner)
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (?, ?, 'inheritance', 'wiki')",
+        (loser_a, loser_b),
+    )
+    rows = dump_source_to_rows(conn, "wiki")
+    assert not any(r["_type"] == "etymon_descent" for r in rows)
+
+
 # ---------------------------------------------------------------------------
 # Mining-run dump
 # ---------------------------------------------------------------------------
@@ -510,6 +555,34 @@ def test_dump_toponym_and_etymology_elements():
         "confidence": "high",
         "attested_year": 1086,
     }
+
+
+def test_dump_etymology_element_merged_etymon_follows_to_winner():
+    """wyrd-q6ro: a toponym etymology element referencing an OCR-cluster loser
+    emits the WINNER etymon_ref, matching the winner etymon row, so the element
+    doesn't orphan on rebuild."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="mawer", title="X")
+    winner = _add_etymon(conn, "old-english", "tun")
+    loser = _add_etymon(conn, "old-english", "tunne", merged_into_id=winner)
+    cur = conn.execute(
+        "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+        ("Acton", "England", "Cheshire"),
+    )
+    tid = cur.lastrowid
+    cur = conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id) VALUES (?, 'mawer')",
+        (tid,),
+    )
+    eid = cur.lastrowid
+    conn.execute(
+        "INSERT INTO toponym_etymology_element (toponym_etymology_id, ordinal, etymon_id) "
+        "VALUES (?, 1, ?)",
+        (eid, loser),
+    )
+    rows = dump_source_to_rows(conn, "mawer")
+    el = next(r for r in rows if r["_type"] == "etymology_element")
+    assert el["elements"] == [{"ordinal": 1, "etymon_ref": "old-english:tun"}]
 
 
 def test_toponym_ref_handles_null_region():
