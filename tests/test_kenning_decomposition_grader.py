@@ -284,8 +284,10 @@ def test_diff_grades_tradeoff_lands_on_both_lists():
 
     assert "Tradeoff" in regressed
     assert "Tradeoff" in improved
-    assert "precision" in regressed["Tradeoff"].dimensions
-    assert "recall" in improved["Tradeoff"].dimensions
+    # Exact: ONLY precision worsened and ONLY recall improved — the other three
+    # dimensions held flat, so neither list over-reports a moved metric.
+    assert regressed["Tradeoff"].dimensions == ("precision",)
+    assert improved["Tradeoff"].dimensions == ("recall",)
     # The record carries the same off/on parse on both lists.
     assert regressed["Tradeoff"].on_parse == ("a", "b")
     assert improved["Tradeoff"].off_parse == ("a",)

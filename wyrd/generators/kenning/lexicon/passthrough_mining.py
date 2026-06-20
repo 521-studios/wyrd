@@ -50,6 +50,17 @@ METHOD = "passthrough-cross-scholar-v1"
 # skipped rather than hung on.
 _MAX_CONSTITUENTS = 4
 
+# Structural shapes shared across the coarse/fine passthrough scan, named so the
+# accumulator signatures stay legible (wyrd-gzjo review):
+#   _Key — a passthrough's identity (composite cluster + ordered constituents),
+#   _Obs — an observation (composite etymon id + ordered constituent etymon ids),
+#   _Forms — the matching surface forms,
+#   _Candidate — one detected (key, observation, forms) triple.
+_Key = tuple[str, tuple[str, ...]]
+_Obs = tuple[int, tuple[int, ...]]
+_Forms = tuple[str, tuple[str, ...]]
+_Candidate = tuple[_Key, _Obs, _Forms]
+
 
 def _cluster_surfaces(db: LexiconDB, index: ClusterIndex) -> dict[str, set[str]]:
     """cluster key → folded surfaces it can take (reflex surfaces from the index,
@@ -152,10 +163,7 @@ def _detect_coarse_fine_pair(
     coarse: list[tuple[str, str, int]],
     coarse_set: set[str],
     cluster_surfaces: dict[str, set[str]],
-) -> (
-    tuple[tuple[str, tuple[str, ...]], tuple[int, tuple[int, ...]], tuple[str, tuple[str, ...]]]
-    | None
-):
+) -> _Candidate | None:
     """One ordered (fine, coarse) breakdown pair → a passthrough candidate
     ``(key, observation, forms)`` or ``None``. The coarse breakdown must have
     exactly one cluster the fine lacks (the composite) and the fine ≥2 the coarse
@@ -186,14 +194,10 @@ def _detect_coarse_fine_pair(
 
 def _record_pair(
     tid: int,
-    cand: tuple[
-        tuple[str, tuple[str, ...]],
-        tuple[int, tuple[int, ...]],
-        tuple[str, tuple[str, ...]],
-    ],
-    toponyms: dict[tuple[str, tuple[str, ...]], set[int]],
-    best_obs: dict[tuple[str, tuple[str, ...]], tuple[int, tuple[int, ...]]],
-    forms: dict[tuple[str, tuple[str, ...]], tuple[str, tuple[str, ...]]],
+    cand: _Candidate,
+    toponyms: dict[_Key, set[int]],
+    best_obs: dict[_Key, _Obs],
+    forms: dict[_Key, _Forms],
 ) -> None:
     """Accumulate one detected coarse/fine pair into the per-key maps: add ``tid``
     to the key's support, and keep the lexicographically smallest observation
@@ -209,17 +213,13 @@ def _record_pair(
 def _aggregate_pairs(
     topo_breakdowns: dict[int, list[list[tuple[str, str, int]]]],
     cluster_surfaces: dict[str, set[str]],
-) -> tuple[
-    dict[tuple[str, tuple[str, ...]], set[int]],
-    dict[tuple[str, tuple[str, ...]], tuple[int, tuple[int, ...]]],
-    dict[tuple[str, tuple[str, ...]], tuple[str, tuple[str, ...]]],
-]:
+) -> tuple[dict[_Key, set[int]], dict[_Key, _Obs], dict[_Key, _Forms]]:
     """Scan every toponym's breakdown pairs, accumulating per passthrough key:
     the attesting toponym ids (support), the representative (smallest)
     observation, and its forms."""
-    toponyms: dict[tuple[str, tuple[str, ...]], set[int]] = defaultdict(set)
-    best_obs: dict[tuple[str, tuple[str, ...]], tuple[int, tuple[int, ...]]] = {}
-    forms: dict[tuple[str, tuple[str, ...]], tuple[str, tuple[str, ...]]] = {}
+    toponyms: dict[_Key, set[int]] = defaultdict(set)
+    best_obs: dict[_Key, _Obs] = {}
+    forms: dict[_Key, _Forms] = {}
     for tid, breakdowns in topo_breakdowns.items():
         if len(breakdowns) < 2:
             continue
