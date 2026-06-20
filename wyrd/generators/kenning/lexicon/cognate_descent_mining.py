@@ -196,15 +196,23 @@ def mine_cognate_descents(db: LexiconDB) -> list[DescentEdge]:
 
 
 def descent_assertions(
-    edges: list[DescentEdge], *, source: str, actor: str = ""
+    edges: list[DescentEdge], refs: dict[int, str], *, source: str, actor: str = ""
 ) -> list[Assertion]:
     """Author one ``descends-from`` assertion per mined edge (Family B relational —
-    no canonical node, unlike the identity binds). Deterministic ids (D36.9)."""
+    no canonical node, unlike the identity binds). Deterministic ids (D36.9).
+
+    ``refs`` maps ``etymon_id -> "language:canonical_form"`` (build it with
+    :func:`etymon_refs.etymon_refs_for` over the edges' endpoint ids). wyrd-c6wu /
+    D50.1: subject/object are the STABLE natural key, never the ``etymon.id``
+    row-id — so the committed JSONL survives a rebuild's id reassignment. An edge
+    whose endpoint id is absent from ``refs`` is a programming error (the caller
+    must cover every endpoint); it raises ``KeyError`` rather than silently
+    emitting a broken ref."""
     return [
         Assertion(
             predicate="descends-from",
-            subject=NodeRef("etymon", str(e.child_etymon)),
-            object=NodeRef("etymon", str(e.cluster_root)),
+            subject=NodeRef("etymon", refs[e.child_etymon]),
+            object=NodeRef("etymon", refs[e.cluster_root]),
             qualifiers={"edge_type": EDGE_TYPE},
             confidence=e.confidence,
             method=METHOD,

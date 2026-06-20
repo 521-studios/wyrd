@@ -15,6 +15,16 @@ from wyrd.generators.kenning.lexicon.cognate_descent_mining import (
     descent_assertions,
     mine_cognate_descents,
 )
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_refs_for
+
+
+def _descent_assertions(db, *, source="test"):
+    """Mine + author, resolving endpoint ids to stable natural-key refs (wyrd-c6wu)."""
+    edges = mine_cognate_descents(db)
+    refs = etymon_refs_for(
+        db.conn, {e.child_etymon for e in edges} | {e.cluster_root for e in edges}
+    )
+    return descent_assertions(edges, refs, source=source)
 
 
 def _db(tmp_path):
@@ -142,18 +152,19 @@ def test_non_breakdown_unclustered_is_ignored(tmp_path):
 
 def test_assertions_are_valid_descends_from(tmp_path):
     db = _db(tmp_path)
-    root, _ = _cluster(db, "tunaz", "tún", gloss="enclosure")
+    _cluster(db, "tunaz", "tún", gloss="enclosure")
     x = _etymon(db, "tun", language="old-english")
     _breakdown(db, x)
     _gloss(db, x, "enclosure")
     db.commit()
 
-    assertions = descent_assertions(mine_cognate_descents(db), source="test")
+    assertions = _descent_assertions(db)
     assert len(assertions) == 1
     a = assertions[0]
     assert a.predicate == "descends-from"
-    assert a.subject.type == "etymon" and a.subject.ref == str(x)
-    assert a.object.type == "etymon" and a.object.ref == str(root)
+    # wyrd-c6wu: refs are stable natural keys (language:canonical_form), not row ids.
+    assert a.subject.type == "etymon" and a.subject.ref == "old-english:tun"
+    assert a.object.type == "etymon" and a.object.ref == "proto-germanic:tunaz"
     assert a.qualifiers["edge_type"] == "inheritance"
     validate(a)  # raises if the record violates the Family-B spec
     db.close()
@@ -167,8 +178,8 @@ def test_deterministic_ids(tmp_path):
     _gloss(db, x, "enclosure")
     db.commit()
 
-    first = [a.id for a in descent_assertions(mine_cognate_descents(db), source="test")]
-    second = [a.id for a in descent_assertions(mine_cognate_descents(db), source="test")]
+    first = [a.id for a in _descent_assertions(db)]
+    second = [a.id for a in _descent_assertions(db)]
     assert first == second  # no timestamp in the id (D36.9 idempotent re-mining)
     db.close()
 

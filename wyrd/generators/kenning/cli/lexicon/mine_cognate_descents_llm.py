@@ -31,6 +31,7 @@ from wyrd.generators.kenning.lexicon.cognate_descent_llm import (
     judge_item,
 )
 from wyrd.generators.kenning.lexicon.cognate_descent_mining import descent_assertions
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_refs_for
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 _AUDIT_FILE = "_cognate_descent_audit.jsonl"
@@ -163,7 +164,24 @@ def lexicon_mine_cognate_descents_llm(
         click.echo("  dry-run — no LLM calls, no edges written (pass --apply).", err=True)
         return
 
-    assertions = descent_assertions(edges, source=source)
+    # wyrd-c6wu: resolve the log's endpoint ids -> stable natural keys against the
+    # current DB so the authored L2 assertions are durable. The audit log still
+    # stores endpoint ids (cluster_root/morpheme_ref), so a log mined against a
+    # DIFFERENT corpus can carry STALE ids (verdict-cache durability is wyrd-s964).
+    # Drop any edge whose endpoint isn't in this build rather than KeyError —
+    # mirrors relational_projection's unresolved-skip (D24).
+    with LexiconDB(db_path) as db:
+        refs = etymon_refs_for(
+            db.conn, {e.child_etymon for e in edges} | {e.cluster_root for e in edges}
+        )
+    resolvable = [e for e in edges if e.child_etymon in refs and e.cluster_root in refs]
+    if len(resolvable) != len(edges):
+        click.echo(
+            f"  skipped {len(edges) - len(resolvable)} edge(s) with stale ids not in this DB "
+            f"(re-judge needed — wyrd-s964)",
+            err=True,
+        )
+    assertions = descent_assertions(resolvable, refs, source=source)
     existing = {a.id for a in load_assertions(mining_dir)}
     written = 0
     for a in assertions:
