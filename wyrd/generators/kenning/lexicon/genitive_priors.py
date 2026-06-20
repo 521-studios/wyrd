@@ -83,7 +83,7 @@ _LIGATURES = str.maketrans(
 )
 
 
-def _fold(surface: str | None) -> str:
+def fold_surface(surface: str | None) -> str:
     """Bare-surface fold: expand ligatures, deaccent (NFKD → ASCII), lowercase,
     drop non-letters.
 
@@ -138,7 +138,7 @@ def load_classifier_data(db: LexiconDB) -> ClassifierData:
         f"WHERE r.position IN ({placeholders})",
         _SUFFIX_POSITIONS,
     ):
-        folded = _fold(row["sf"])
+        folded = fold_surface(row["sf"])
         if not folded:
             continue
         surface_etymons[folded].add(row["eid"])
@@ -312,8 +312,8 @@ def detect_historical_genitive(
     is never overridden, so only an *unclassified* stone with no ``-stan`` form
     could be mis-split — a rare residue the cluster prior smooths over.
     """
-    modern = _fold(modern_name)
-    hist = {f for f in (_fold(x) for x in forms) if f and f != modern}
+    modern = fold_surface(modern_name)
+    hist = {f for f in (fold_surface(x) for x in forms) if f and f != modern}
     if not hist:
         return None
     saw_town = town_regex is not None and any(town_regex.search(f) for f in hist)
@@ -428,7 +428,7 @@ def _tally(
         stats["scanned"] += 1
         if progress_every and stats["scanned"] % progress_every == 0:
             _progress()
-        folded_name = _fold(name)
+        folded_name = fold_surface(name)
         eclusters = topo_clusters[tid]
         for pair in pair_clusters:
             if not folded_name.endswith(pair[0]):

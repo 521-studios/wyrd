@@ -1320,7 +1320,7 @@ def test_grandfather_audit_excludes_uncited_families() -> None:
 
 
 def test_grandfather_audit_follows_family_rollup() -> None:
-    """Lemma-id and merged_into_id rollup matches lexicon._build_family_rollup:
+    """Lemma-id and merged_into_id rollup matches lexicon.build_family_rollup:
     a family is rolled up to its root, and citations from any member count
     toward the family's classification. Pin: an inflected child of a pure-
     grandfather lemma stays in the pure-grandfather bucket, NOT a separate

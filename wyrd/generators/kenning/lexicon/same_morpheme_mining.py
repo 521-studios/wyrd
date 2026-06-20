@@ -40,12 +40,12 @@ from typing import Literal
 from wyrd.generators.kenning.canonicalization import Assertion, NodeRef, mint_canonical_id
 from wyrd.generators.kenning.lexicon.bundle._export import (
     RECOMMENDED_LANG_THRESHOLDS,
-    _build_family_rollup,
-    _select_promoted_root_ids,
+    build_family_rollup,
+    select_promoted_root_ids,
 )
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_refs_for
-from wyrd.generators.kenning.lexicon.genitive_priors import _fold
+from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
 
 METHOD = "same-morpheme-uplift-v1"
 
@@ -71,9 +71,9 @@ class EtymonRow:
 def _load_rows(db: LexiconDB) -> list[EtymonRow]:
     """One ``EtymonRow`` per etymon, with cluster, folded surface, glosses, and
     the shipped / breakdown flags."""
-    members_by_root, root_of = _build_family_rollup(db)
+    members_by_root, root_of = build_family_rollup(db)
     shipped_roots = set(
-        _select_promoted_root_ids(
+        select_promoted_root_ids(
             db,
             lang_thresholds=RECOMMENDED_LANG_THRESHOLDS,
             min_witnesses=2,
@@ -107,7 +107,7 @@ def _load_rows(db: LexiconDB) -> list[EtymonRow]:
         if not (member_to_root.get(eid, eid) in shipped_roots or eid in breakdown):
             continue
         form = r["canonical_form"]
-        folded = _fold(form) if form else ""
+        folded = fold_surface(form) if form else ""
         if not folded:
             continue
         relevant[eid] = (r["cognate_id"], r["language"] or "", form, folded)

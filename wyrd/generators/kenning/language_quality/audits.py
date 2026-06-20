@@ -1114,7 +1114,7 @@ def compute_rando_port_grandfather_audit(
     citation-bearing families whose root is in this language —
     denominator for grandfather-density rates.
 
-    Family rollup matches ``lexicon._build_family_rollup``: target =
+    Family rollup matches ``lexicon.build_family_rollup``: target =
     merged_into_id OR lemma_id OR self; root = lemma_id of target OR
     target itself. So OCR-cluster losers and inflected children both
     surface their lemma as root. Computed once per report (caller

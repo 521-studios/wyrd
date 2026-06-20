@@ -61,7 +61,7 @@ from wyrd.generators.kenning.canonicalization import (
     resolve_confidence_gate,
     score_confidence,
 )
-from wyrd.generators.kenning.lexicon.bundle._export import _build_family_rollup
+from wyrd.generators.kenning.lexicon.bundle._export import build_family_rollup
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref, resolve_etymon_ref
 
@@ -414,7 +414,7 @@ def _legacy_identity_assertions(db: LexiconDB, result: ProjectionResult) -> list
     reproduces it with no committed snapshot — it re-derives free on rebuild from
     the columns the deterministic passes already produce.
 
-    Reuses the same two-step rollup (``_build_family_rollup``) the 1a miner used, so
+    Reuses the same two-step rollup (``build_family_rollup``) the 1a miner used, so
     legacy node ids content-key on the family root's ``(language, canonical_form)``
     and compose cleanly with authored binds (same node id => same hub, not a
     conflict). Only multi-member families produce assertions; a singleton is its
@@ -424,14 +424,14 @@ def _legacy_identity_assertions(db: LexiconDB, result: ProjectionResult) -> list
     cognate_id is NOT folded here — it is relational (D50.2: a cognate cluster is
     the closure of descent edges, not one identity), re-derived from
     ``etymon_descent`` by the rollup view in the reader-cutover ticket."""
-    members_by_root, _root_of = _build_family_rollup(db)
+    members_by_root, _root_of = build_family_rollup(db)
     multi = {r: members for r, members in members_by_root.items() if len(members) > 1}
     if not multi:
         return []
     needed = sorted(set(multi) | {m for members in multi.values() for m in members})
     # Fetch only the family members by PK in chunks (SQLite param-limit-safe),
     # not a full 2.4M-row scan — this pass runs on every rebuild, and the rest of
-    # the fold already pays one full scan inside _build_family_rollup.
+    # the fold already pays one full scan inside build_family_rollup.
     info: dict[int, _EtymonInfo] = {}
     for i in range(0, len(needed), 900):
         chunk = needed[i : i + 900]
@@ -511,7 +511,7 @@ def assess_identity_fidelity(db: LexiconDB) -> FidelityReport:
     family must map to exactly one canonical group (rolled through ``merged_into``)
     — the canonical partition may JOIN legacy families via logged merges, but must
     never SPLIT one. Returns the gate counts + up to 10 sampled violations."""
-    members_by_root, _root_of = _build_family_rollup(db)
+    members_by_root, _root_of = build_family_rollup(db)
     legacy_families = {r: ms for r, ms in members_by_root.items() if len(ms) > 1}
 
     merged_into = dict(db.conn.execute("SELECT id, merged_into FROM canonical_morpheme").fetchall())

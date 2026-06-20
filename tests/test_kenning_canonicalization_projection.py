@@ -896,7 +896,7 @@ def test_fold_root_without_canonical_form_warns(tmp_path):
 
 def _reflex_link(db, parent, child):
     # A curated reflex-link inheritance edge (COLLAPSE_VARIANT_SOURCE_ID) — the
-    # third family mechanism _build_family_rollup follows (cross-era same morpheme).
+    # third family mechanism build_family_rollup follows (cross-era same morpheme).
     db.conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('collapse', 'collapse')")
     db.conn.execute(
         "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id, confidence) "
