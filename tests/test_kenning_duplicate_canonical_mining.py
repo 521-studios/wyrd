@@ -417,8 +417,23 @@ def test_cli_apply_collapses_pair_end_to_end(lex, tmp_path, monkeypatch):
 def test_maybe_pair_skips_glossless_and_already_collapsed():
     from wyrd.generators.kenning.lexicon.duplicate_canonical_mining import _maybe_pair
 
-    full = {"cm_id": None, "form": "a", "lang": "x", "glosses": {"new"}, "tokens": {"new"}}
-    glossless = {"cm_id": None, "form": "b", "lang": "x", "glosses": set(), "tokens": set()}
+    # by_id entries always carry a precomputed "fold" (detect_candidates sets it).
+    full = {
+        "cm_id": None,
+        "form": "a",
+        "fold": "a",
+        "lang": "x",
+        "glosses": {"new"},
+        "tokens": {"new"},
+    }
+    glossless = {
+        "cm_id": None,
+        "form": "b",
+        "fold": "b",
+        "lang": "x",
+        "glosses": set(),
+        "tokens": set(),
+    }
     assert _maybe_pair(full, glossless, 1, 2, 0.5) is None  # no shared tokens to compare
     same_hub_a = {**full, "cm_id": "H"}
     same_hub_b = {**full, "cm_id": "H", "form": "b"}

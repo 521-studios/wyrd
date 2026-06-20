@@ -110,8 +110,8 @@ def _maybe_pair(da: dict, db: dict, a: int, b: int, min_gloss_overlap: float):
     # one is a compound and the other its constituent (or a different compound) —
     # not one etymon (gōs vs gos-wic). A fold-equal dashed pair is the same etymon
     # under a punctuation/diacritic variant (wulfpytt vs wulf-pytt, kaup-maðr vs
-    # kaup-madr) and is kept for the LLM to judge. Folds are precomputed per etymon
-    # (da["fold"]) so this O(n^2) candidate loop doesn't re-fold the same form.
+    # kaup-madr) and is kept for the LLM to judge. da["fold"] is precomputed per etymon
+    # by detect_candidates (required key) so this O(n^2) candidate loop doesn't re-fold.
     if ("-" in da["form"] or "-" in db["form"]) and da["fold"] != db["fold"]:
         return None
     ta, tb = da["tokens"], db["tokens"]
@@ -191,7 +191,7 @@ def detect_candidates(
             {
                 "lang": lang or "",
                 "form": form or "",
-                "fold": _fold(form),  # precomputed once — the O(n^2) pair loop reuses it
+                "fold": _fold(form),  # precomputed per etymon — the O(n^2) pair loop reuses it
                 "cm_id": cm_id,
                 "glosses": set(),
                 "tokens": set(),
@@ -236,10 +236,10 @@ _SAME_MORPHEME_RULES = (
     "gōs != gos-wic, gortna != gortmore, bille != da-bille). A dash, or one form "
     "built by adding material to the other, signals a compound.\n"
     "  - DERIVATION: noun<->verb (willa != willian), base<->adjective-derivative "
-    "(west != westerne, horu != horig, wilig != wiligen), participle/gerund<->noun "
-    "(ridding != ryden), nominalization (iuo != iubhar), zero-derivation or a "
-    "different derivational suffix (linden != lind, byrgen != byrgels), extra suffix "
-    "like -red/-hood (hund != hundred).\n"
+    "(west != westerne, horu != horig, wilig != wiligen), nominalization "
+    "(iuo != iubhar), zero-derivation or a different derivational suffix "
+    "(linden != lind, byrgen != byrgels), extra suffix like -red/-hood "
+    "(hund != hundred).\n"
     "  - DISTINCT NAME or HYPOCORISTIC / pet-form: a nickname is a different "
     "name-form (Margerie != Meg, Joan != Jane, Gilot != Gillota, Malkin != Mallin).\n"
     "When unsure, answer NOT-same: a missed merge is harmless, a wrong merge corrupts."
