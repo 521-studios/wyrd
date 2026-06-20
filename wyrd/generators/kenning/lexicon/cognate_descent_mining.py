@@ -35,6 +35,7 @@ idempotent (D36.9). LLM-free; the residue (no clustered surface match) is wyrd-z
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Literal
@@ -42,6 +43,19 @@ from typing import Literal
 from wyrd.generators.kenning.canonicalization import Assertion, NodeRef
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
+
+_logger = logging.getLogger(__name__)
+
+
+def _is_degenerate_ref(ref: str) -> bool:
+    """A natural-key ref ``"language:canonical_form"`` whose form is empty or only
+    dashes — a degenerate upstream etymon (``*:-``) that should never anchor a
+    cognate-descent edge: clustering a morpheme under a formless root is meaningless
+    (wyrd-zrce PR review). The form is everything after the FIRST ``:`` (a form may
+    itself contain ``:``)."""
+    form = ref.split(":", 1)[1] if ":" in ref else ref
+    return not form.strip("-")
+
 
 METHOD = "cognate-descent-uplift-v1"
 
@@ -186,8 +200,11 @@ def mine_cognate_descents(db: LexiconDB) -> list[DescentEdge]:
                 cluster_root=root,
                 confidence=confidence,
                 rationale=(
+                    # wyrd-s964: NO row-id in the rationale — the matched cluster's
+                    # identity is the assertion's object ref (the root's natural key);
+                    # the folded surface names the match here.
                     f"cognate-descent uplift: unclustered breakdown morpheme folds to "
-                    f"'{x.folded}', matching cognate cluster {root} ({corroborated})"
+                    f"'{x.folded}', matching a clustered cognate ({corroborated})"
                 ),
             )
         )
@@ -207,18 +224,36 @@ def descent_assertions(
     row-id — so the committed JSONL survives a rebuild's id reassignment. An edge
     whose endpoint id is absent from ``refs`` is a programming error (the caller
     must cover every endpoint); it raises ``KeyError`` rather than silently
-    emitting a broken ref."""
-    return [
-        Assertion(
-            predicate="descends-from",
-            subject=NodeRef("etymon", refs[e.child_etymon]),
-            object=NodeRef("etymon", refs[e.cluster_root]),
-            qualifiers={"edge_type": EDGE_TYPE},
-            confidence=e.confidence,
-            method=METHOD,
-            source=source,
-            actor=actor,
-            rationale=e.rationale,
-        ).with_id()
-        for e in edges
-    ]
+    emitting a broken ref.
+
+    An edge whose child or root resolves to a degenerate ``*:-`` ref (empty/dash
+    canonical_form) is dropped + logged: anchoring a cognate cluster on a formless
+    etymon is meaningless (wyrd-zrce PR review; the dash-form etymons themselves are
+    wyrd-aicu's cleanup)."""
+    out: list[Assertion] = []
+    skipped = 0
+    for e in edges:
+        child_ref, root_ref = refs[e.child_etymon], refs[e.cluster_root]
+        if _is_degenerate_ref(child_ref) or _is_degenerate_ref(root_ref):
+            skipped += 1
+            continue
+        out.append(
+            Assertion(
+                predicate="descends-from",
+                subject=NodeRef("etymon", child_ref),
+                object=NodeRef("etymon", root_ref),
+                qualifiers={"edge_type": EDGE_TYPE},
+                confidence=e.confidence,
+                method=METHOD,
+                source=source,
+                actor=actor,
+                rationale=e.rationale,
+            ).with_id()
+        )
+    if skipped:
+        _logger.info(
+            "descent_assertions: dropped %d edge(s) anchored on a degenerate (empty/dash) "
+            "canonical_form endpoint",
+            skipped,
+        )
+    return out
