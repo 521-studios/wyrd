@@ -43,6 +43,13 @@ class PipelineState {
   // own error inline rather than a global banner.
   errors = $state([]);
 
+  // wyrd-obvc: per-step "skipped because its feature flag is off" marker,
+  // indexed parallel to steps. disabled[i] is true when steps[i] is a
+  // flag-gated transform whose flag is off (a saved/shared step opened where
+  // the flag isn't enabled), so the step card renders a "disabled" marker
+  // rather than a "→ <name>" preview that looks like it ran.
+  disabled = $state([]);
+
   // True while a run is in flight. Step cards + the inspector head
   // can show a pending state. wyrd-kppy round 2: actually
   // implemented via #runToken — a stale slow run's results are
@@ -229,6 +236,7 @@ class PipelineState {
     this.steps = [];
     this.states = [];
     this.errors = [];
+    this.disabled = [];
     this.isRunning = false;
   }
 
@@ -245,6 +253,7 @@ class PipelineState {
     }));
     const nextStates = [original];
     const nextErrors = [];
+    const nextDisabled = [];
     let state = original;
     let halted = false;
     for (let i = 0; i < stepsSnapshot.length; i += 1) {
@@ -253,24 +262,32 @@ class PipelineState {
         const t = getTransform(step.kind);
         // wyrd-nwpa: a flag-gated transform (e.g. Rewind) whose flag is off is
         // skipped as a pass-through, so a restored/shared workspace can't run
-        // it in prod (where the palette also hides it).
+        // it in prod (where the palette also hides it). wyrd-obvc: mark it
+        // disabled so the step card shows a "disabled" marker rather than a
+        // "→ <name>" preview that misleadingly looks like the step ran.
         if (t.flag && !flagOn(appState.config, t.flag)) {
           nextStates.push(state);
           nextErrors.push(null);
+          nextDisabled.push(true);
           continue;
         }
         state = await t.apply(state, step.params);
         nextStates.push(state);
         nextErrors.push(null);
+        nextDisabled.push(false);
       } catch (err) {
         nextErrors.push(err.message || String(err));
         halted = true;
         break;
       }
     }
-    // Pad errors so length matches steps even when we halted early.
+    // Pad errors + disabled so lengths match steps even when we halted early
+    // (the erroring + unreached steps are not "disabled").
     while (nextErrors.length < stepsSnapshot.length) {
       nextErrors.push(null);
+    }
+    while (nextDisabled.length < stepsSnapshot.length) {
+      nextDisabled.push(false);
     }
     // Commit only if we're still the freshest run. wyrd-kppy
     // round 2: isRunning reset moved inside the token guard so a
@@ -280,6 +297,7 @@ class PipelineState {
     if (myToken === this.#runToken) {
       this.states = nextStates;
       this.errors = nextErrors;
+      this.disabled = nextDisabled;
       this.isRunning = false;
       this.#commitToStore(nextStates[nextStates.length - 1]);
     }
