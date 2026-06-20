@@ -13,13 +13,16 @@
   // states[i+1] is the output of step i (states[0] = original).
   let stepResult = $derived(pipeline.states[index + 1] || null);
   let stepError = $derived(pipeline.errors[index] || null);
+  // wyrd-obvc: true when this step's feature flag is off, so it was skipped as
+  // a pass-through (saved/shared step opened where the flag isn't enabled).
+  let stepDisabled = $derived(pipeline.disabled[index] || false);
 
   function remove() {
     pipeline.removeStep(index);
   }
 </script>
 
-<article class="step" class:errored={!!stepError}>
+<article class="step" class:errored={!!stepError} class:disabled={stepDisabled}>
   <header>
     <span class="num">{index + 1}.</span>
     <span class="label">{transform.label}</span>
@@ -52,6 +55,11 @@
 
   {#if stepError}
     <p class="error">⚠ {stepError}</p>
+  {:else if stepDisabled}
+    <!-- wyrd-obvc: the step's feature flag is off, so it was skipped (not run).
+         Show that explicitly rather than a "→ <name>" preview of the unchanged
+         pass-through name, which would look as if the step had applied. -->
+    <p class="disabled-marker">⊘ disabled (feature off)</p>
   {:else if stepResult}
     <p class="preview">
       → <span class="name">{stepResult.name}</span>
@@ -71,6 +79,17 @@
   }
   .step.errored {
     border-color: #ef6f6c;
+  }
+  /* wyrd-obvc: a flag-off (skipped) step is dimmed + dashed to read as inert. */
+  .step.disabled {
+    border-style: dashed;
+    opacity: 0.6;
+  }
+  .disabled-marker {
+    margin: 6px 0 0;
+    font-size: 11px;
+    color: var(--fg-muted);
+    font-style: italic;
   }
   header {
     display: flex;
