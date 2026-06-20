@@ -206,8 +206,11 @@ def _dump_cited_etymons(conn: sqlite3.Connection, source_id: str) -> Iterable[di
     loser dumps the winner, never the tombstone. ``build_from_jsonl`` does
     not carry ``merged_into_id`` (absent from ``_ETYMON_INSERT_COLUMNS``),
     so emitting a loser would resurrect it as a live unmerged etymon on
-    rebuild (D22: no merged etymon resurfaces). The winners are themselves
-    unmerged. Latent until a cited etymon becomes a merge loser (wyrd-q6ro)."""
+    rebuild (D22: no merged etymon resurfaces). This resolves a SINGLE merge
+    hop — it assumes ``merged_into_id`` points at a terminal (unmerged) winner,
+    which holds for the OCR auto-collapse path but not for curated multi-hop
+    chains (``loser → mid → winner``); wyrd-lpxq tracks chain-flattening across
+    all dump paths. Latent until a cited etymon becomes a merge loser (wyrd-q6ro)."""
     etymons = conn.execute(
         f"""
         SELECT DISTINCT {", ".join(_ETYMON_STATE_SELECT_COLUMNS)}
@@ -243,7 +246,8 @@ def _dump_citations(conn: sqlite3.Connection, source_id: str) -> Iterable[dict[s
     # non-destructive), so without this follow-to-winner a re-dump after a
     # merge would emit a citation referencing the loser — which no etymon row
     # carries post-fix, orphaning the witness on rebuild (D21 evidence loss).
-    # The winner is itself unmerged. wyrd-q6ro.
+    # Single merge hop only — assumes merged_into_id points at a terminal
+    # winner (wyrd-lpxq tracks multi-hop curated chains). wyrd-q6ro.
     citations = conn.execute(
         """
         SELECT w.language, w.canonical_form,

@@ -331,6 +331,10 @@ def test_dump_cited_etymon_merged_loser_follows_to_winner(tmp_path: Path):
     # The citation follows to the winner ref too (no dangling loser ref).
     citation = next(r for r in rows if r["_type"] == "citation")
     assert citation["etymon_ref"] == "old-english:wic"
+    # Hardening: the loser ref must not appear in ANY emitted row (ref or
+    # etymon_ref), so a partial-fix regression on either dump can't slip by.
+    loser_ref = "old-english:wych"
+    assert all(r.get("ref") != loser_ref and r.get("etymon_ref") != loser_ref for r in rows)
     dump_source_to_file(pre, "skeat", tmp_path)
     pre.close()
 
@@ -352,6 +356,49 @@ def test_dump_cited_etymon_merged_loser_follows_to_winner(tmp_path: Path):
         "WHERE c.source_id = 'skeat'"
     ).fetchall()
     assert [r[0] for r in cited] == ["wic"]
+    rebuilt.close()
+
+
+def test_dump_cited_etymon_winner_and_loser_both_cited_dedups_etymon_keeps_all_witnesses(
+    tmp_path: Path,
+):
+    """wyrd-q6ro: a source citing BOTH the winner directly AND its merge
+    loser (plus a second citation on the loser) emits exactly ONE winner
+    etymon row (the DISTINCT + COALESCE collapse), and every citation
+    follows to the winner ref so all three witnesses round-trip onto the
+    winner — no duplicate etymon, no lost witness, no resurrected loser."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    pre = _build_fixture_db()
+    _add_source(pre, id="skeat", title="X")
+    winner = _add_etymon(pre, "old-english", "wic")
+    loser = _add_etymon(pre, "old-english", "wych", merged_into_id=winner)
+    # Winner cited directly; loser cited twice (distinct pages).
+    pre.executemany(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', ?)",
+        [(winner, "10"), (loser, "15"), (loser, "16")],
+    )
+    rows = dump_source_to_rows(pre, "skeat")
+    # Exactly one winner etymon row (loser collapses into it via COALESCE).
+    assert [r["ref"] for r in rows if r["_type"] == "etymon"] == ["old-english:wic"]
+    # All three citations emit, every one referencing the winner.
+    cite_refs = [r["etymon_ref"] for r in rows if r["_type"] == "citation"]
+    assert cite_refs == ["old-english:wic", "old-english:wic", "old-english:wic"]
+    dump_source_to_file(pre, "skeat", tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    assert counts.get("citation_orphans", 0) == 0
+    # One etymon (the winner), all three witnesses attached to it.
+    assert [r[0] for r in rebuilt.execute("SELECT canonical_form FROM etymon").fetchall()] == [
+        "wic"
+    ]
+    n_cites = rebuilt.execute(
+        "SELECT count(*) FROM etymon_citation c JOIN etymon e ON e.id = c.etymon_id "
+        "WHERE e.canonical_form = 'wic'"
+    ).fetchone()[0]
+    assert n_cites == 3
     rebuilt.close()
 
 
