@@ -34,6 +34,12 @@ describe('glossFor', () => {
   it('returns "" when meanings are all junk/empty', () => {
     expect(glossFor({ usage: 'x', meanings: [] })).toBe('');
   });
+
+  it('returns "" for a morph with no meanings key (live-row safety)', () => {
+    // The live-row branch calls glossFor on raw pipeline morphemes that may
+    // omit `meanings`; representativeMeanings guards non-arrays, so this is "".
+    expect(glossFor({ usage: 'x' })).toBe('');
+  });
 });
 
 describe('glossesByResults', () => {
@@ -47,6 +53,23 @@ describe('glossesByResults', () => {
       },
     ];
     expect(glossesByResults(results)).toEqual([[['farmstead'], ['hill']]]);
+  });
+
+  it('memoizes across multiple results and multi-morpheme words ([i] and [mi] axes)', () => {
+    // The template indexes glossesByResult[i][wi][mi], so exercise a second
+    // result (the per-roll memo axis) and a word with two morphemes.
+    const results = [
+      { morphemes_by_word: [[{ usage: 'dun', meanings: ['hill'] }]] },
+      {
+        morphemes_by_word: [
+          [
+            { usage: 'Stoke', meanings: ['place'] },
+            { usage: 'ton', meanings: ['farmstead'] },
+          ],
+        ],
+      },
+    ];
+    expect(glossesByResults(results)).toEqual([[['hill']], [['place', 'farmstead']]]);
   });
 
   it('tolerates a result with no morphemes_by_word (explanation-only rolls)', () => {
