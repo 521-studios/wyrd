@@ -15,6 +15,7 @@ from wyrd.generators.kenning.lexicon.cognate_descent_mining import (
     descent_assertions,
     mine_cognate_descents,
 )
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_refs_for
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -62,7 +63,12 @@ def lexicon_mine_cognate_descents(
     click.echo("mine-cognate-descents: scanning unclustered breakdown morphemes…", err=True)
     with LexiconDB(db_path) as db:
         edges = mine_cognate_descents(db)
-        assertions = descent_assertions(edges, source=source)
+        # wyrd-c6wu: resolve endpoint ids -> stable natural keys at WRITE time so
+        # the committed L2 carries refs that survive a rebuild's id reassignment.
+        refs = etymon_refs_for(
+            db.conn, {e.child_etymon for e in edges} | {e.cluster_root for e in edges}
+        )
+        assertions = descent_assertions(edges, refs, source=source)
 
     medium = sum(1 for e in edges if e.confidence == "medium")
     click.echo(

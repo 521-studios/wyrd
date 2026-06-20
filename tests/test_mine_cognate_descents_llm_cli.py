@@ -71,7 +71,7 @@ def test_cli_judges_logs_and_emits(tmp_path, monkeypatch):
     db_path = tmp_path / "lexicon.db"
     mining = tmp_path / "mining"
     mining.mkdir()
-    root, x = _seed_db(db_path)
+    root, _x = _seed_db(db_path)
 
     result = CliRunner().invoke(
         cli_mod.lexicon_mine_cognate_descents_llm,
@@ -89,7 +89,11 @@ def test_cli_judges_logs_and_emits(tmp_path, monkeypatch):
     # A descends-from assertion was authored (x -> root).
     assertions = [a for a in load_assertions(mining) if a.predicate == "descends-from"]
     assert len(assertions) == 1
-    assert assertions[0].subject.ref == str(x) and assertions[0].object.ref == str(root)
+    # wyrd-c6wu: authored refs are stable natural keys, not row ids.
+    assert (
+        assertions[0].subject.ref == "old-english:stant"
+        and assertions[0].object.ref == "proto-germanic:stanaz"
+    )
     assert assertions[0].confidence == "medium"
 
 

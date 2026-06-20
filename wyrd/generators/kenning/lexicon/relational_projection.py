@@ -35,6 +35,7 @@ from wyrd.generators.kenning.canonicalization import (
     score_confidence,
 )
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.etymon_refs import resolve_etymon_ref
 
 # Attribution for the edges this projection materializes (kept distinct from
 # ``wiktionary`` so a clear/rebuild only ever touches mined cognate-descent edges).
@@ -42,8 +43,9 @@ DESCENT_SOURCE_ID = "cognate-descent-uplift"
 _DESCENT_SOURCE_TITLE = "Cognate-descent uplift (wyrd-zrce.1, D50 Family B)"
 
 # An edge as the (parent_ref, child_ref, edge_type) string triple an assertion
-# describes — descends-from(subject=child, object=parent). One shape for both the
-# refute set and the affirm lookup; int conversion is confined to the INSERT boundary.
+# describes — descends-from(subject=child, object=parent). The refs are stable
+# natural keys ("language:canonical_form", wyrd-c6wu/D50.1); resolution to the
+# current build's etymon ids is confined to the INSERT boundary.
 _EdgeKey = tuple[str, str, str | None]
 
 
@@ -60,6 +62,7 @@ class DescentProjectionResult:
     cleared: int = 0  # this source's pre-existing rows removed before rebuild
     gated_out: int = 0  # below-gate descends-from assertions skipped
     refuted: int = 0  # affirmed edges dropped by a matching refute (D50.4)
+    unresolved: int = 0  # endpoint natural-key ref not in this build (wyrd-c6wu, D24)
 
 
 def project_descent_assertions(
@@ -99,14 +102,17 @@ def project_descent_assertions(
             result.gated_out += 1
             continue
         parent_ref, child_ref, edge_type = key
-        # int conversion is confined here (the INSERT boundary); a hand-edited stream
-        # with a non-integer etymon ref surfaces as ONE located error, not a bare crash.
-        try:
-            edges.add((int(parent_ref), int(child_ref), edge_type))
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"descends-from {a.id}: non-integer etymon ref {child_ref!r} -> {parent_ref!r}"
-            ) from exc
+        # wyrd-c6wu: refs are stable natural keys; resolve to THIS build's etymon
+        # ids here (the projection/INSERT boundary) — never int(ref), since row-ids
+        # aren't stable across rebuilds. An endpoint that isn't in this build (a
+        # stale/cross-corpus ref) is skipped + counted (D24 observability), not a
+        # crash — the edge simply doesn't materialize.
+        parent_id = resolve_etymon_ref(db.conn, parent_ref)
+        child_id = resolve_etymon_ref(db.conn, child_ref)
+        if parent_id is None or child_id is None:
+            result.unresolved += 1
+            continue
+        edges.add((parent_id, child_id, edge_type))
 
     result.inserted = len(edges)
     if apply:

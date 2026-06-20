@@ -17,6 +17,7 @@ from wyrd.generators.kenning.lexicon.cognate_descent_mining import (
     descent_assertions,
     mine_cognate_descents,
 )
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_refs_for
 from wyrd.generators.kenning.lexicon.relational_projection import (
     DESCENT_SOURCE_ID,
     project_descent_assertions,
@@ -49,11 +50,21 @@ def _gloss(db, eid, gloss):
     db.conn.execute("INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)", (eid, gloss))
 
 
-def _descends(child, parent, *, confidence="medium", polarity="affirm", edge_type="inheritance"):
+def _ref(db, eid):
+    """The etymon's stable natural-key ref (wyrd-c6wu), as the emitters now author."""
+    r = db.conn.execute(
+        "SELECT language, canonical_form FROM etymon WHERE id = ?", (eid,)
+    ).fetchone()
+    return f"{r['language'] or ''}:{r['canonical_form']}"
+
+
+def _descends(
+    db, child, parent, *, confidence="medium", polarity="affirm", edge_type="inheritance"
+):
     return Assertion(
         predicate="descends-from",
-        subject=NodeRef("etymon", str(child)),
-        object=NodeRef("etymon", str(parent)),
+        subject=NodeRef("etymon", _ref(db, child)),
+        object=NodeRef("etymon", _ref(db, parent)),
         qualifiers={"edge_type": edge_type},
         confidence=confidence,
         polarity=polarity,
@@ -75,8 +86,8 @@ def _edges(db, source_id=DESCENT_SOURCE_ID):
 def test_medium_projects_low_gated_out_by_default(tmp_path):
     db = _db(tmp_path)
     root, mid, lo = _etymon(db, "r"), _etymon(db, "m"), _etymon(db, "l")
-    append_assertion(tmp_path, _descends(mid, root, confidence="medium"))
-    append_assertion(tmp_path, _descends(lo, root, confidence="low"))
+    append_assertion(tmp_path, _descends(db, mid, root, confidence="medium"))
+    append_assertion(tmp_path, _descends(db, lo, root, confidence="low"))
     db.commit()
 
     result = project_descent_assertions(db, mining_dir=tmp_path, apply=True)
@@ -89,7 +100,7 @@ def test_medium_projects_low_gated_out_by_default(tmp_path):
 def test_low_projects_when_gate_lowered(tmp_path):
     db = _db(tmp_path)
     root, lo = _etymon(db, "r"), _etymon(db, "l")
-    append_assertion(tmp_path, _descends(lo, root, confidence="low"))
+    append_assertion(tmp_path, _descends(db, lo, root, confidence="low"))
     db.commit()
 
     result = project_descent_assertions(db, mining_dir=tmp_path, apply=True, confidence_gate="low")
@@ -101,8 +112,8 @@ def test_low_projects_when_gate_lowered(tmp_path):
 def test_refute_drops_matching_affirm(tmp_path):
     db = _db(tmp_path)
     root, child = _etymon(db, "r"), _etymon(db, "c")
-    append_assertion(tmp_path, _descends(child, root, confidence="medium"))
-    append_assertion(tmp_path, _descends(child, root, confidence="medium", polarity="refute"))
+    append_assertion(tmp_path, _descends(db, child, root, confidence="medium"))
+    append_assertion(tmp_path, _descends(db, child, root, confidence="medium", polarity="refute"))
     db.commit()
 
     result = project_descent_assertions(db, mining_dir=tmp_path, apply=True)
@@ -115,7 +126,7 @@ def test_refute_drops_matching_affirm(tmp_path):
 def test_dry_run_writes_nothing(tmp_path):
     db = _db(tmp_path)
     root, child = _etymon(db, "r"), _etymon(db, "c")
-    append_assertion(tmp_path, _descends(child, root, confidence="medium"))
+    append_assertion(tmp_path, _descends(db, child, root, confidence="medium"))
     db.commit()
 
     result = project_descent_assertions(db, mining_dir=tmp_path, apply=False)
@@ -134,7 +145,7 @@ def test_idempotent_and_scoped_to_source(tmp_path):
         "VALUES (?, ?, 'inheritance', 'wiktionary')",
         (root, child),
     )
-    append_assertion(tmp_path, _descends(child, root, confidence="medium"))
+    append_assertion(tmp_path, _descends(db, child, root, confidence="medium"))
     db.commit()
 
     first = project_descent_assertions(db, mining_dir=tmp_path, apply=True)
@@ -175,7 +186,10 @@ def test_end_to_end_mine_project_cluster(tmp_path):
     # Mine → author → project → re-cluster.
     edges = mine_cognate_descents(db)
     assert len(edges) == 1
-    for a in descent_assertions(edges, source="test"):
+    refs = etymon_refs_for(
+        db.conn, {e.child_etymon for e in edges} | {e.cluster_root for e in edges}
+    )
+    for a in descent_assertions(edges, refs, source="test"):
         append_assertion(tmp_path, a)
     db.commit()
     project_descent_assertions(db, mining_dir=tmp_path, apply=True)
@@ -195,8 +209,8 @@ def test_refute_with_different_edge_type_does_not_drop_affirm(tmp_path):
     # inheritance-affirm of the same pair.
     db = _db(tmp_path)
     root, child = _etymon(db, "r"), _etymon(db, "c")
-    append_assertion(tmp_path, _descends(child, root, edge_type="inheritance"))
-    append_assertion(tmp_path, _descends(child, root, edge_type="borrowing", polarity="refute"))
+    append_assertion(tmp_path, _descends(db, child, root, edge_type="inheritance"))
+    append_assertion(tmp_path, _descends(db, child, root, edge_type="borrowing", polarity="refute"))
     db.commit()
 
     result = project_descent_assertions(db, mining_dir=tmp_path, apply=True)
@@ -208,8 +222,8 @@ def test_refute_with_different_edge_type_does_not_drop_affirm(tmp_path):
 def test_float_confidence_respects_gate(tmp_path):
     db = _db(tmp_path)
     root, hi, lo = _etymon(db, "r"), _etymon(db, "h"), _etymon(db, "l")
-    append_assertion(tmp_path, _descends(hi, root, confidence=0.7))  # >= medium (0.6)
-    append_assertion(tmp_path, _descends(lo, root, confidence=0.5))  # < 0.6
+    append_assertion(tmp_path, _descends(db, hi, root, confidence=0.7))  # >= medium (0.6)
+    append_assertion(tmp_path, _descends(db, lo, root, confidence=0.5))  # < 0.6
     db.commit()
 
     result = project_descent_assertions(db, mining_dir=tmp_path, apply=True)
@@ -239,7 +253,7 @@ def test_run_full_enrichment_wires_descent_before_cluster(tmp_path):
     root = _etymon(db, "tunaz", language="proto-germanic")
     x = _etymon(db, "tun", language="old-english")
     db.commit()
-    append_assertion(tmp_path, _descends(x, root, confidence="medium"))
+    append_assertion(tmp_path, _descends(db, x, root, confidence="medium"))
 
     result = run_full_enrichment(db, apply=True, canonicalization_dir=tmp_path)
     order = result["order"]
@@ -247,4 +261,61 @@ def test_run_full_enrichment_wires_descent_before_cluster(tmp_path):
     assert result["descent"]["inserted"] >= 1
     # The materialized edge fed cluster_cognates in the same run.
     assert db.conn.execute("SELECT cognate_id FROM etymon WHERE id=?", (x,)).fetchone()[0] == root
+    db.close()
+
+
+def test_natural_key_ref_survives_id_reassignment(tmp_path):
+    """The wyrd-c6wu proof: a descends-from authored against one set of etymon
+    row-ids still projects to the CORRECT morphemes after a rebuild reassigns
+    every id — because the L2 ref is the stable natural key, not the row-id."""
+    db = _db(tmp_path)
+    root, child = _etymon(db, "tunaz", language="proto-germanic"), _etymon(db, "tun")
+    append_assertion(tmp_path, _descends(db, child, root, confidence="medium"))
+    db.commit()
+
+    # Simulate a from-scratch rebuild: wipe the observation rows and re-insert the
+    # SAME morphemes, padded so AUTOINCREMENT hands them DIFFERENT ids.
+    db.conn.execute("DELETE FROM etymon")
+    for i in range(7):
+        db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language) VALUES (?, 'x')", (f"pad{i}",)
+        )
+    new_root = _etymon(db, "tunaz", language="proto-germanic")
+    new_child = _etymon(db, "tun")
+    db.commit()
+    assert (new_root, new_child) != (root, child)  # ids genuinely reassigned
+
+    # The id-keyed approach would resolve to the OLD ids (now 'pad' rows / gone);
+    # the natural-key ref resolves to the morphemes at their NEW ids.
+    result = project_descent_assertions(db, mining_dir=tmp_path, apply=True)
+    assert result.inserted == 1 and result.unresolved == 0
+    assert _edges(db) == {(new_root, new_child, "inheritance")}
+    db.close()
+
+
+def test_unresolved_ref_is_counted_not_crashed(tmp_path):
+    """A descends-from whose endpoint morpheme isn't in THIS build (a stale/cross-
+    corpus ref) is skipped + counted (D24), never an int()-style crash."""
+    db = _db(tmp_path)
+    root = _etymon(db, "tunaz", language="proto-germanic")
+    db.commit()
+    # 'old-english:ghost' has no etymon row in this build.
+    from wyrd.generators.kenning.canonicalization import Assertion, NodeRef
+
+    append_assertion(
+        tmp_path,
+        Assertion(
+            predicate="descends-from",
+            subject=NodeRef("etymon", "old-english:ghost"),
+            object=NodeRef("etymon", _ref(db, root)),
+            qualifiers={"edge_type": "inheritance"},
+            confidence="medium",
+            method="test",
+            source="test",
+        ).with_id(),
+    )
+    db.commit()
+    result = project_descent_assertions(db, mining_dir=tmp_path, apply=True)
+    assert result.inserted == 0 and result.unresolved == 1
+    assert _edges(db) == set()
     db.close()
