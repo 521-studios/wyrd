@@ -19,12 +19,16 @@ class KenningError(Exception):
 
 
 class EmptyEligiblePool(KenningError):
-    """A valid request whose gate predicates (culture / era / stratum / tags) —
-    or thin bundle data — leave the vector scorer with zero eligible morphemes,
-    so no name can be produced.
+    """A valid request that the vector scorer can't satisfy: the gate predicates
+    (culture / era / stratum / tags) — or thin bundle data — leave it with zero
+    eligible morphemes, so the scorer returns no name.
 
     Distinct from an unexpected internal error: the request was well-formed, it
     just can't be satisfied. The web layer maps this to a 422 (reserving 500 for
     genuine crashes). The loud-fail behavior is preserved — the message still
-    names the likely causes; it's only now classifiable. wyrd-hh2m.
+    names the likely causes; it's only now classifiable.
+
+    Raised for the empty-pool *no-name* outcome (the vector path's ``None``
+    return); a genuine crash mid-scoring is NOT this and still surfaces as 500.
+    wyrd-hh2m.
     """

@@ -160,6 +160,42 @@ def test_dispatch_empty_eligible_pool_maps_to_422(caplog):
     assert lines, "empty_eligible_pool dispatch line not emitted"
 
 
+def test_empty_eligible_pool_exception_hierarchy_invariants():
+    """wyrd-hh2m load-bearing invariant: EmptyEligiblePool must NOT subclass
+    ValueError, or the dispatcher's generic ValueError->400 clause would shadow
+    the 422 mapping. NoEligibleReplacementError (regenerate's per-slot flavor) is
+    unified under it, so it maps to 422 too. A future `class
+    KenningError(ValueError)` regression would pass the other tests silently;
+    this pins it."""
+    from wyrd.generators.kenning.errors import EmptyEligiblePool, KenningError
+    from wyrd.generators.kenning.generators.kenning_regenerate import (
+        NoEligibleReplacementError,
+    )
+
+    assert not issubclass(EmptyEligiblePool, ValueError)
+    assert issubclass(EmptyEligiblePool, KenningError)
+    assert issubclass(NoEligibleReplacementError, EmptyEligiblePool)
+
+
+def test_dispatch_maps_empty_eligible_pool_to_422_via_monkeypatched_raise(monkeypatch):
+    """Drives the 422 branch directly (decoupled from generator internals): any
+    generator raising EmptyEligiblePool from generate() → 422, so the mapping
+    stays exercised even if the 'religion' magic input ever becomes placeable."""
+    from wyrd.generators.kenning.errors import EmptyEligiblePool
+
+    def _boom(self, params, seed):
+        raise EmptyEligiblePool("forced empty pool")
+
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.generators.kenning.Kenning.generate", _boom, raising=True
+    )
+    app = create_app()
+    with app.test_client() as client:
+        response = client.post("/api/kenning", json={"culture": "english", "count": 1, "seed": 0})
+    assert response.status_code == 422
+    assert response.get_json()["error"] == "empty_eligible_pool"
+
+
 def test_dispatch_debug_emits_per_result_breakdown(caplog):
     """When DEBUG is on, dispatch emits a per_result_ms=[…] line so
     a slow sub-seed within a count>1 batch can be localized."""
