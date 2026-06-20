@@ -83,6 +83,7 @@ def _call(client, system, user, parse):
             v = parse(client.chat_json(system, user, {}))
             if v is not None:
                 return v
+            last_err = "unparseable response"  # reflect THIS attempt, not a stale earlier exc
         except Exception as exc:  # transient LLM/transport noise: retry, then give up
             last_err = str(exc) or exc.__class__.__name__
     click.echo(f"  judge call failed: {last_err}", err=True)  # surface why, don't swallow
