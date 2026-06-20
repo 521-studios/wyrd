@@ -6,10 +6,7 @@
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import StarToggle from '../components/StarToggle.svelte';
-  import {
-    representativeMeanings,
-    isNameMorpheme,
-  } from '../lib/morphemeGloss.js';
+  import { glossFor, glossesByResults } from '../lib/morphemeGloss.js';
   import { accentedName } from '../lib/accents.js';
   // wyrd-24s6 (D41): native/modern surface predicates live in lib/render.js so
   // they're unit-testable (svelte components have no test harness here).
@@ -23,16 +20,12 @@
   // wyrd-z3fl: "report defective" moved to the Inspect & Transform column
   // (col 3) — you flag the result you're inspecting there, not per-row here.
 
-  // The 1–2 word gloss shown under a morpheme. Falls back to a dim "name"
-  // marker for proper-name elements (manorial families etc.) — but only when
-  // the surface is capitalized, so lowercase connectives (and/et/be) whose
-  // pooled meanings happen to include "a personal name" stay blank.
-  function glossFor(morph) {
-    const g = representativeMeanings(morph.meanings);
-    if (g.length) return g.join(' · ');
-    const looksProper = /^[A-Z]/.test(morph.usage || '');
-    return looksProper && isNameMorpheme(morph) ? 'name' : '';
-  }
+  // wyrd-myof: glosses are a pure function of each result's morphemes_by_word,
+  // so compute them ONCE per roll (keyed off appState.results) instead of inline
+  // in the template, where glossFor() recomputed for every result on every
+  // reactive render — including selection changes via currentResultIndex.
+  // Shape mirrors morphemes_by_word: glossesByResult[i][wordIdx][morphIdx].
+  const glossesByResult = $derived(glossesByResults(appState.results));
 
   // wyrd-y0lx (operator decision): the row being inspected LIVE-RENDERS the
   // pipeline's current state — every transform (regenerate / swap / rewind)
@@ -90,10 +83,15 @@
               </span>
               {#if mbw?.length}
                 <span class="etymology">
-                  {#each mbw as word}
+                  {#each mbw as word, wi}
                     <span class="word-group">
-                      {#each word as morph}
-                        {@const g = glossFor(morph)}
+                      {#each word as morph, mi}
+                        <!-- wyrd-myof: static rows read the per-roll memoized
+                             glosses; the live (selected + transformed) row's
+                             morphemes differ from r.morphemes_by_word, so it
+                             computes glossFor inline (one row, recomputed only
+                             on a transform). -->
+                        {@const g = live ? glossFor(morph) : (glossesByResult[i]?.[wi]?.[mi] ?? '')}
                         {@const nat = nativeSurface(morph)}
                         {@const mod = modernSurface(morph)}
                         <span class="morph-col">
