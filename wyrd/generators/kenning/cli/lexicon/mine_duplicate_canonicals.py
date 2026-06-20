@@ -102,7 +102,10 @@ def _judge_pair(client, c):
     if not prop.same:
         return combine_verdict(prop, None)  # leave-separate; no need to refute
     refute = _call(client, *build_refute_prompt(c), parse_refute)
-    return combine_verdict(prop, refute)  # refute None → verify-failed → leave-separate
+    if refute is None:
+        return None  # skeptic call failed transiently → skip (retry next run), NOT a recorded
+        # 'separate' verdict — otherwise a network blip permanently buries a valid merge.
+    return combine_verdict(prop, refute)
 
 
 def _disposition(v, min_confidence: str) -> str:

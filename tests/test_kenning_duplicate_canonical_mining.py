@@ -305,11 +305,14 @@ def test_judge_pair_two_pass():
     assert v.same is True and v.confidence == "medium"
     # propose call never parses → None (skip / counts toward abort)
     assert cli._judge_pair(_Client("garbage"), c) is None
-    # proposed same, but the refute call never parses (None) → leave-separate on doubt
-    v = cli._judge_pair(
-        _Client({"same_morpheme": True, "confidence": "high", "reason": "x"}, "garbage"), c
+    # proposed same, but the refute call fails transiently (None) → None (retryable skip,
+    # NOT a permanent 'separate' that would bury the pair in the judged-log)
+    assert (
+        cli._judge_pair(
+            _Client({"same_morpheme": True, "confidence": "high", "reason": "x"}, "garbage"), c
+        )
+        is None
     )
-    assert v.same is False
 
 
 def test_judge_loop_authors_high_queues_medium_separates_and_dedups(tmp_path, monkeypatch):
