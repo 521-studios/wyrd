@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from wyrd.generators.kenning.lexicon.cognate_descent_mining import DescentEdge
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 from wyrd.generators.kenning.lexicon.db import LexiconDB
-from wyrd.generators.kenning.lexicon.genitive_priors import _fold
+from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
 
 METHOD = "cognate-descent-llm-v1"
 
@@ -121,7 +121,7 @@ def build_candidates(
     ):
         if r["id"] not in breakdown:
             continue
-        f = _fold(r["canonical_form"])
+        f = fold_surface(r["canonical_form"])
         if not f or f in clustered_folds or len(f) < prefix_len:
             continue
         residue_rows.append((r["id"], r["canonical_form"], r["language"] or "", f))
@@ -156,7 +156,7 @@ def _clustered_prefix_index(
     for r in db.conn.execute(
         "SELECT id, cognate_id, language, canonical_form FROM etymon WHERE cognate_id IS NOT NULL"
     ):
-        f = _fold(r["canonical_form"])
+        f = fold_surface(r["canonical_form"])
         if not f:
             continue
         clustered_folds.add(f)
@@ -181,7 +181,7 @@ def _select_candidates(
     best: dict[int, tuple[int, int, str, str, int]] = {}
     for root, bform, blang, beid in bridges:
         cand = (
-            _shared_prefix_len(fold, _fold(bform)),
+            _shared_prefix_len(fold, fold_surface(bform)),
             1 if glosses.get(beid) else 0,
             bform,
             blang,
@@ -202,7 +202,7 @@ def _select_candidates(
             for root, (_spl, _hg, bform, blang, beid) in best.items()
         ),
         key=lambda c: (
-            -_shared_prefix_len(fold, _fold(c.bridge_form)),
+            -_shared_prefix_len(fold, fold_surface(c.bridge_form)),
             c.bridge_form,
             c.cluster_root,
         ),

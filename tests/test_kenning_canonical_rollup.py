@@ -2,7 +2,7 @@
 authoritative `canonical_morpheme` layer (wyrd-b2mf reader cutover).
 
 The load-bearing property: TODAY it produces the SAME partition + representative
-roots as the legacy `_build_family_rollup` (because `canonical_morpheme_id`
+roots as the legacy `build_family_rollup` (because `canonical_morpheme_id`
 reproduces the legacy rollup — the u6fn.4 fidelity gate), so switching the export
 to it is byte-equivalent. Once 1a's binds merge families, the canonical rollup
 reflects the merge and the legacy one does not.
@@ -21,7 +21,7 @@ from wyrd.generators.kenning.canonicalization import (
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.bundle._export import (
     _build_canonical_rollup,
-    _build_family_rollup,
+    build_family_rollup,
 )
 from wyrd.generators.kenning.lexicon.canonicalization_projection import project_canonical
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
@@ -70,7 +70,7 @@ def _families(tmp_path):
 
 def test_canonical_rollup_matches_legacy_today(tmp_path):
     db, _ = _families(tmp_path)
-    legacy_m, legacy_root = _build_family_rollup(db)
+    legacy_m, legacy_root = build_family_rollup(db)
     canon_m, canon_root = _build_canonical_rollup(db)
 
     # Same partition: identical sets of family member-sets.
@@ -113,7 +113,7 @@ def test_canonical_rollup_reflects_a_bind_legacy_does_not(tmp_path):
     )
     project_canonical(db, mining_dir=tmp_path, apply=True, fold_legacy=True)
 
-    _, legacy_root = _build_family_rollup(db)
+    _, legacy_root = build_family_rollup(db)
     _, canon_root = _build_canonical_rollup(db)
     assert legacy_root(extra) == extra  # legacy: its own singleton
     assert canon_root(extra) == canon_root(ids["tun"])  # canonical: joined tun's family
@@ -131,7 +131,7 @@ def test_falls_back_to_legacy_when_canonical_graph_unpopulated(tmp_path):
     db.commit()
     with pytest.warns(UserWarning, match="unpopulated"):
         canon_m, canon_root = _build_canonical_rollup(db)
-    legacy_m, legacy_root = _build_family_rollup(db)
+    legacy_m, legacy_root = build_family_rollup(db)
     assert _partition(canon_m) == _partition(legacy_m)  # identical to legacy
     assert canon_root(b) == legacy_root(b) == a
     db.close()
@@ -242,7 +242,7 @@ def test_export_subjects_identical_canonical_vs_legacy(tmp_path):
     canon = json.dumps(export_meanings(db), sort_keys=True, ensure_ascii=False)
     orig = exp._build_canonical_rollup
     try:
-        exp._build_canonical_rollup = exp._build_family_rollup
+        exp._build_canonical_rollup = exp.build_family_rollup
         legacy = json.dumps(export_meanings(db), sort_keys=True, ensure_ascii=False)
     finally:
         exp._build_canonical_rollup = orig

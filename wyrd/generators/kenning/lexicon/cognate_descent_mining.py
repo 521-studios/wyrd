@@ -41,7 +41,7 @@ from typing import Literal
 
 from wyrd.generators.kenning.canonicalization import Assertion, NodeRef
 from wyrd.generators.kenning.lexicon.db import LexiconDB
-from wyrd.generators.kenning.lexicon.genitive_priors import _fold
+from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
 
 METHOD = "cognate-descent-uplift-v1"
 
@@ -110,7 +110,7 @@ def _load(db: LexiconDB) -> tuple[list[_Cohort], dict[str, list[_Target]]]:
     ):
         if r["id"] not in breakdown:
             continue
-        folded = _fold(r["canonical_form"])
+        folded = fold_surface(r["canonical_form"])
         if not folded:
             continue
         cohort_raw[r["id"]] = (folded, r["language"] or "")
@@ -124,7 +124,7 @@ def _load(db: LexiconDB) -> tuple[list[_Cohort], dict[str, list[_Target]]]:
     for r in db.conn.execute(
         "SELECT id, cognate_id, language, canonical_form FROM etymon WHERE cognate_id IS NOT NULL"
     ):
-        folded = _fold(r["canonical_form"])
+        folded = fold_surface(r["canonical_form"])
         if folded not in cohort_folds:
             continue
         target_raw[folded].append((r["cognate_id"], r["language"] or "", r["id"]))

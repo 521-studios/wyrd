@@ -48,7 +48,7 @@ from wyrd.generators.kenning.canonicalization.assertions import (
 )
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
-from wyrd.generators.kenning.lexicon.genitive_priors import _fold
+from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
 from wyrd.generators.kenning.lexicon.variant_fold_detect import _gloss_tokens
 
 METHOD = "duplicate-canonical-finder-v1"
@@ -191,7 +191,9 @@ def detect_candidates(
             {
                 "lang": lang or "",
                 "form": form or "",
-                "fold": _fold(form),  # precomputed per etymon — the O(n^2) pair loop reuses it
+                "fold": fold_surface(
+                    form
+                ),  # precomputed per etymon — the O(n^2) pair loop reuses it
                 "cm_id": cm_id,
                 "glosses": set(),
                 "tokens": set(),

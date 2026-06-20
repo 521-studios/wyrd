@@ -21,6 +21,8 @@ import pytest
 
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.decomposition_grader import (
+    ToponymGrade,
+    diff_grades,
     grade_configuration,
     grade_corpus_diff,
     grade_passthrough_diff,
@@ -264,6 +266,29 @@ def test_diff_improves_town_regresses_genuine_stone(world):
     assert "recall" in rud.dimensions
     assert tuple(rud.off_parse) == ("rud", "ston")
     assert tuple(rud.on_parse) == ("rud", "ton")
+
+
+def test_diff_grades_tradeoff_lands_on_both_lists():
+    """wyrd-gzjo: diff_grades classifies a config change PER DIMENSION, so a
+    single toponym that improves one metric (recall up) while regressing another
+    (precision down) lands on BOTH the regressions and improvements lists — the
+    trade-off case the test corpus's separate-toponym cases don't exercise."""
+    common = {"unaccounted": 0, "exact": False, "coverage": True, "head_attested": True}
+    off = [ToponymGrade(name="Tradeoff", morphemes=("a",), recall=0.5, precision=1.0, **common)]
+    # on: recall rises (0.5 -> 1.0), precision falls (1.0 -> 0.5) — a genuine trade-off.
+    on = [ToponymGrade(name="Tradeoff", morphemes=("a", "b"), recall=1.0, precision=0.5, **common)]
+
+    diff = diff_grades(off, on)
+    regressed = {c.name: c for c in diff.regressions}
+    improved = {c.name: c for c in diff.improvements}
+
+    assert "Tradeoff" in regressed
+    assert "Tradeoff" in improved
+    assert "precision" in regressed["Tradeoff"].dimensions
+    assert "recall" in improved["Tradeoff"].dimensions
+    # The record carries the same off/on parse on both lists.
+    assert regressed["Tradeoff"].on_parse == ("a", "b")
+    assert improved["Tradeoff"].off_parse == ("a",)
 
 
 def test_grade_passthrough_diff_recovers_constituents(tmp_path):

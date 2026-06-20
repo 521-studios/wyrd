@@ -19,12 +19,12 @@ from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.genitive_priors import (
     PairCounts,
     _compile_town_regex,
-    _fold,
     _genitive_ambiguous,
     detect_historical_genitive,
     discover_candidate_pairs,
     dump_genitive_priors_to_json,
     extract_genitive_priors,
+    fold_surface,
     global_split_rate,
     load_genitive_priors_from_json,
     mine_genitive_priors,
@@ -115,12 +115,12 @@ def ston_world(db):
     return {"tun": tun, "stan": stan, "bishop": bishop, "rud": rud}
 
 
-# ---------- _fold --------------------------------------------------------
+# ---------- fold_surface --------------------------------------------------------
 
 
 def test_fold_deaccents_lowercases_strips_nonletters():
-    assert _fold("Ælfrīce-s-tūn") == "aelfricestun"
-    assert _fold("-STON-") == "ston"
+    assert fold_surface("Ælfrīce-s-tūn") == "aelfricestun"
+    assert fold_surface("-STON-") == "ston"
 
 
 # ---------- discover_candidate_pairs -------------------------------------

@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
-from wyrd.generators.kenning.lexicon.bundle._export import _build_family_rollup
+from wyrd.generators.kenning.lexicon.bundle._export import build_family_rollup
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ def test_reflex_rolls_into_ancestor_family(fresh_db: Path) -> None:
         bishop = db.upsert_etymon("bishop", "modern-english")
         _edge(db, biscop, bishop, "inheritance")
         db.commit()
-        members_by_root, root_of = _build_family_rollup(db)
+        members_by_root, root_of = build_family_rollup(db)
         assert root_of(bishop) == biscop  # reflex joins the ancestor's family
         assert root_of(biscop) == biscop
         assert set(members_by_root[biscop]) == {biscop, bishop}
@@ -51,7 +51,7 @@ def test_homographs_without_edge_stay_separate(fresh_db: Path) -> None:
         dun = db.upsert_etymon("dūn", "old-english")
         holt = db.upsert_etymon("holt", "old-english")
         db.commit()
-        _, root_of = _build_family_rollup(db)
+        _, root_of = build_family_rollup(db)
         assert root_of(dun) == dun and root_of(holt) == holt
 
 
@@ -61,7 +61,7 @@ def test_derivation_edge_is_not_followed(fresh_db: Path) -> None:
         deriv = db.upsert_etymon("tūnscipe", "old-english")
         _edge(db, base, deriv, "derivation")
         db.commit()
-        _, root_of = _build_family_rollup(db)
+        _, root_of = build_family_rollup(db)
         assert root_of(deriv) == deriv  # derived word keeps its own family
 
 
@@ -73,7 +73,7 @@ def test_multi_era_chain_rolls_to_oldest(fresh_db: Path) -> None:
         _edge(db, oe, me, "inheritance")
         _edge(db, me, mod, "inheritance")
         db.commit()
-        _, root_of = _build_family_rollup(db)
+        _, root_of = build_family_rollup(db)
         assert root_of(mod) == oe and root_of(me) == oe  # chain to the oldest
 
 
@@ -84,7 +84,7 @@ def test_inheritance_cycle_terminates(fresh_db: Path) -> None:
         _edge(db, a, b, "inheritance")
         _edge(db, b, a, "inheritance")  # noisy back-edge
         db.commit()
-        _, root_of = _build_family_rollup(db)
+        _, root_of = build_family_rollup(db)
         assert root_of(a) in (a, b) and root_of(b) in (a, b)  # terminates, no hang
 
 
@@ -97,7 +97,7 @@ def test_non_collapse_inheritance_is_not_followed(fresh_db: Path) -> None:
         ref = db.upsert_etymon("wick", "modern-english")
         _edge(db, anc, ref, "inheritance", source_id="wiktionary")
         db.commit()
-        _, root_of = _build_family_rollup(db)
+        _, root_of = build_family_rollup(db)
         assert root_of(ref) == ref  # NOT rolled into the ancestor
 
 
@@ -106,8 +106,8 @@ def test_consensus_reflex_promotes_ancestor_not_itself(fresh_db: Path) -> None:
     # promote its ancestor's root (so it isn't promoted standalone AND rolled
     # into the ancestor's family → emitted twice / surface double-counted).
     from wyrd.generators.kenning.lexicon.bundle._export import (
-        _build_family_rollup,
-        _select_promoted_root_ids,
+        build_family_rollup,
+        select_promoted_root_ids,
     )
 
     with LexiconDB(fresh_db) as db:
@@ -119,8 +119,8 @@ def test_consensus_reflex_promotes_ancestor_not_itself(fresh_db: Path) -> None:
         db.add_citation(bishop, "src-b")
         _edge(db, biscop, bishop, "inheritance")
         db.commit()
-        members_by_root, root_of = _build_family_rollup(db)
-        promoted = _select_promoted_root_ids(
+        members_by_root, root_of = build_family_rollup(db)
+        promoted = select_promoted_root_ids(
             db,
             lang_thresholds={},
             min_witnesses=1,
@@ -144,7 +144,7 @@ def test_reflex_with_lemma_id_still_finds_ancestor(fresh_db: Path) -> None:
         db.conn.execute("UPDATE etymon SET lemma_id=? WHERE id=?", (lemma, infl))
         _edge(db, anc, infl, "inheritance")  # edge on the inflected reflex
         db.commit()
-        _, root_of = _build_family_rollup(db)
+        _, root_of = build_family_rollup(db)
         assert root_of(infl) == anc  # rolls through its lemma to the ancestor
         assert root_of(lemma) == anc
 
@@ -159,5 +159,5 @@ def test_multi_parent_picks_lowest_content_key(fresh_db: Path) -> None:
         _edge(db, p1, child, "inheritance")
         _edge(db, p2, child, "inheritance")
         db.commit()
-        _, root_of = _build_family_rollup(db)
+        _, root_of = build_family_rollup(db)
         assert root_of(child) == p1  # ('old-english','aac') < ('old-english','zzz')

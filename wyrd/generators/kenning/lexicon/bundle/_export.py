@@ -12,7 +12,7 @@ threshold per language tag — looser for thinly-attested languages
 package re-export shim for ``language_quality``'s own
 quality-tier gating.
 
-``_select_promoted_root_ids`` is the witness-count + tag-quality
+``select_promoted_root_ids`` is the witness-count + tag-quality
 gate that decides which etymons become subjects; the per-language
 ``min_witnesses`` thresholds + ``lang_thresholds`` override let
 ``export-meanings`` callers tune the bundle's recall/precision
@@ -230,10 +230,10 @@ def _collect_families(
     # wyrd-b2mf: the export reads the AUTHORITATIVE canonical identity layer, not
     # the legacy COALESCE(merged_into_id, lemma_id, id) columns — byte-equivalent
     # today (the u6fn.4 fidelity gate), and reflects 1a's binds once applied. (The
-    # fold, the 1a miner, and the fidelity verifier keep using _build_family_rollup
+    # fold, the 1a miner, and the fidelity verifier keep using build_family_rollup
     # — the fold BUILDS canonical_morpheme_id from it, so it can't read it back.)
     members_by_root, root_of = _build_canonical_rollup(db)
-    root_ids = _select_promoted_root_ids(
+    root_ids = select_promoted_root_ids(
         db,
         lang_thresholds=lang_thresholds,
         min_witnesses=min_witnesses,
@@ -248,7 +248,7 @@ def _collect_families(
     return _iterate_families_with_progress(db, root_ids, members_by_root)
 
 
-def _build_family_rollup(
+def build_family_rollup(
     db: LexiconDB,
 ) -> tuple[dict[int, list[int]], Callable[[int], int]]:
     """Compute the etymon → root_id rollup in PYTHON rather than via
@@ -357,20 +357,20 @@ def _build_canonical_rollup(
 ) -> tuple[dict[int, list[int]], Callable[[int], int]]:
     """The identity rollup read from the AUTHORITATIVE ``canonical_morpheme``
     layer — the cutover target (wyrd-b2mf), the canonical analog of
-    ``_build_family_rollup``. Same contract: ``(members_by_root, root_of)`` with
+    ``build_family_rollup``. Same contract: ``(members_by_root, root_of)`` with
     an etymon-id representative.
 
     Partition: an etymon's family is its ``canonical_morpheme_id`` rolled through
     ``canonical_morpheme.merged_into``; an UNBOUND etymon (``canonical_morpheme_id``
     NULL — a singleton, exactly like ``merged_into_id IS NULL`` legacy, since the
     fold binds every multi-member family) is its own family. The REPRESENTATIVE is
-    reused from the legacy rollup (``_build_family_rollup``) so the subtle
+    reused from the legacy rollup (``build_family_rollup``) so the subtle
     lemma/inheritance-hop root logic isn't re-implemented: a family's root is the
     smallest-``(language, canonical_form, id)`` among the legacy roots of its
     members (one legacy root per family today → identical to legacy; once 1a's
     binds merge families, the deterministic min picks the survivor).
 
-    Equivalent to ``_build_family_rollup`` TODAY (``canonical_morpheme_id``
+    Equivalent to ``build_family_rollup`` TODAY (``canonical_morpheme_id``
     reproduces the legacy rollup — the u6fn.4 fidelity gate, 0 violations); the
     point of switching is that once 1a's dormant binds apply, this reflects the
     new merges and the legacy rollup does not. When the canonical graph is
@@ -378,7 +378,7 @@ def _build_canonical_rollup(
     with a warning — legacy is full clustering, so the fallback never
     under-clusters; production always projects (rebuild --with-enrichment).
     """
-    legacy_members, legacy_root_of = _build_family_rollup(db)
+    legacy_members, legacy_root_of = build_family_rollup(db)
 
     merged_into = dict(db.conn.execute("SELECT id, merged_into FROM canonical_morpheme").fetchall())
 
@@ -417,7 +417,7 @@ def _build_canonical_rollup(
     hub_of: dict[int, str] = {r["id"]: _hub_root(r["canonical_morpheme_id"]) for r in bound}
 
     # Group by canonical family, tracking which LEGACY roots land in each. Iterate
-    # legacy_members (already keyed by legacy root from _build_family_rollup) so we
+    # legacy_members (already keyed by legacy root from build_family_rollup) so we
     # never re-walk legacy_root_of per etymon. ``eid in hub_of`` (not truthiness):
     # a bound etymon's hub id is non-empty, but membership is the precise test.
     members_by_family: dict[FamilyKey, list[int]] = {}
@@ -469,7 +469,7 @@ def _content_keys(db: LexiconDB, ids: set[int]) -> dict[int, tuple[str, str]]:
     return out
 
 
-def _select_promoted_root_ids(
+def select_promoted_root_ids(
     db: LexiconDB,
     *,
     lang_thresholds: dict[str, int],
@@ -599,7 +599,7 @@ def _families_with_corroborators(
     head and an OCR-merge loser's citation corroborates the winner).
 
     The per-family fold runs in Python — same shape as
-    ``_build_family_rollup``. Citations are pulled in chunked
+    ``build_family_rollup``. Citations are pulled in chunked
     ``etymon_id IN (...)`` batches to keep the query selective on
     just the rando-family member rows; bulk-SELECTing every non-
     rando citation in the corpus would scan ~80k rows the rollup

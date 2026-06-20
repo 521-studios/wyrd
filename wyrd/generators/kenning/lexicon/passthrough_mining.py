@@ -39,7 +39,7 @@ from itertools import permutations
 from wyrd.generators.kenning.canonicalization import Assertion, NodeRef, validate
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.decomposition_grader import ClusterIndex, load_cluster_index
-from wyrd.generators.kenning.lexicon.genitive_priors import _fold
+from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
 
 METHOD = "passthrough-cross-scholar-v1"
 
@@ -63,7 +63,7 @@ def _cluster_surfaces(db: LexiconDB, index: ClusterIndex) -> dict[str, set[str]]
     for row in db.conn.execute("SELECT id, cognate_id, canonical_form FROM etymon"):
         cid = row["cognate_id"]
         cluster = f"c{cid}" if cid is not None else f"e{row['id']}"
-        folded = _fold(row["canonical_form"])
+        folded = fold_surface(row["canonical_form"])
         if folded:
             out[cluster].add(folded)
     return out
@@ -137,7 +137,7 @@ def _load_breakdowns(
         name[row["tid"]] = row["nm"]
         breakdown_topo[row["teid"]] = row["tid"]
         by_breakdown[row["teid"]].append(
-            (index.cluster_of[row["eid"]], _fold(row["cf"]), row["eid"])
+            (index.cluster_of[row["eid"]], fold_surface(row["cf"]), row["eid"])
         )
 
     topo_breakdowns: dict[int, list[list[tuple[str, str, int]]]] = defaultdict(list)
@@ -184,6 +184,28 @@ def _detect_coarse_fine_pair(
     return None
 
 
+def _record_pair(
+    tid: int,
+    cand: tuple[
+        tuple[str, tuple[str, ...]],
+        tuple[int, tuple[int, ...]],
+        tuple[str, tuple[str, ...]],
+    ],
+    toponyms: dict[tuple[str, tuple[str, ...]], set[int]],
+    best_obs: dict[tuple[str, tuple[str, ...]], tuple[int, tuple[int, ...]]],
+    forms: dict[tuple[str, tuple[str, ...]], tuple[str, tuple[str, ...]]],
+) -> None:
+    """Accumulate one detected coarse/fine pair into the per-key maps: add ``tid``
+    to the key's support, and keep the lexicographically smallest observation
+    (and its forms) as the representative. Hoisted out of ``_aggregate_pairs``'s
+    inner double loop to keep that accumulation block off the depth-4 nesting."""
+    key, obs, fms = cand
+    toponyms[key].add(tid)
+    if key not in best_obs or obs < best_obs[key]:
+        best_obs[key] = obs
+        forms[key] = fms
+
+
 def _aggregate_pairs(
     topo_breakdowns: dict[int, list[list[tuple[str, str, int]]]],
     cluster_surfaces: dict[str, set[str]],
@@ -209,13 +231,8 @@ def _aggregate_pairs(
                 cand = _detect_coarse_fine_pair(
                     fine, cluster_sets[i], coarse, cluster_sets[j], cluster_surfaces
                 )
-                if cand is None:
-                    continue
-                key, obs, fms = cand
-                toponyms[key].add(tid)
-                if key not in best_obs or obs < best_obs[key]:
-                    best_obs[key] = obs
-                    forms[key] = fms
+                if cand is not None:
+                    _record_pair(tid, cand, toponyms, best_obs, forms)
     return toponyms, best_obs, forms
 
 

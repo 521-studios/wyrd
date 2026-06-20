@@ -10458,7 +10458,7 @@ def test_export_meanings_rando_min_corroborators_rolls_inflection_child_citation
     fresh_db: Path,
 ) -> None:
     """wyrd-fssn: docstring claims the corroborator rollup follows
-    ``_build_family_rollup`` — an inflection child's citation
+    ``build_family_rollup`` — an inflection child's citation
     corroborates the lemma head. Pin the structural claim with a
     fixture where the rando-cited LEMMA has no direct non-rando
     citation but its INFLECTED CHILD does."""

@@ -53,7 +53,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
-from wyrd.generators.kenning.lexicon.genitive_priors import _fold
+from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
 from wyrd.generators.kenning.runtime.connective import (
     DEFAULT_CONNECTIVE_INVENTORY,
     ConnectiveInventory,
@@ -89,7 +89,7 @@ class ClusterIndex:
         """The cognate clusters a (raw) morpheme surface resolves to — empty for
         a surface the lexicon has no reflex for (e.g. the matcher's unaccounted
         fall-through, or a morpheme not in the corpus)."""
-        return self.surface_clusters.get(_fold(surface), frozenset())
+        return self.surface_clusters.get(fold_surface(surface), frozenset())
 
 
 def load_cluster_index(db: LexiconDB) -> ClusterIndex:
@@ -105,7 +105,7 @@ def load_cluster_index(db: LexiconDB) -> ClusterIndex:
         "SELECT re.etymon_id AS eid, r.surface_form AS sf "
         "FROM reflex r JOIN reflex_etymon re ON re.reflex_id = r.id"
     ):
-        folded = _fold(row["sf"])
+        folded = fold_surface(row["sf"])
         if folded:
             surface_etymons[folded].add(row["eid"])
 
@@ -155,7 +155,7 @@ def load_scholar_corpus(
     for name, clusters in pooled.items():
         if not clusters:
             continue
-        if suffix and not _fold(name).endswith(suffix):
+        if suffix and not fold_surface(name).endswith(suffix):
             continue
         corpus.append(ScholarToponym(name=name, clusters=frozenset(clusters)))
     corpus.sort(key=lambda sc: sc.name)
