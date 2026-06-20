@@ -723,10 +723,11 @@ def _write_proportions(
             "proportions_single_usage",
             culture,
             # D45: lone words are bare by construction — position is always 'bare',
-            # and the key is the bare surface (fold any dash defensively so
-            # operator-JSON / legacy keys can't smuggle a dash into the table).
+            # and the key is the bare surface (fold any dash + surrounding
+            # whitespace defensively so operator-JSON / legacy keys can't smuggle
+            # a dash or a trailing space into the table, wyrd-an8u).
             (
-                (k.replace("-", ""), "bare", int(v))
+                (k.replace("-", "").strip(), "bare", int(v))
                 for k, v in (data.get("single_usages") or {}).items()
             ),
         )
@@ -798,7 +799,10 @@ def _insert_attested_languages(
     it once v2 is gone."""
     folded: dict[str, set[str]] = {}
     for usage_key, langs in attested.items():
-        surface = usage_key.replace("-", "").lower()
+        # Fold dash + surrounding whitespace (wyrd-an8u) so a dirty operator-JSON
+        # key keys the same surface as the clean one and matches the stripped
+        # runtime lookup.
+        surface = usage_key.replace("-", "").strip().lower()
         folded.setdefault(surface, set()).update(langs)
     # Sort the outer surface loop too so byte-stability is local to this write
     # site rather than leaning on the caller's dict insertion order (seed-repro).
@@ -826,8 +830,9 @@ def _iter_usage_rows(usages: dict[str, Any]) -> Iterable[tuple[str, str, int]]:
 
     for key, value in usages.items():
         # Fold the key defensively on BOTH branches so operator-JSON / legacy
-        # dashed keys can't smuggle a dash into the table (D45).
-        bare = key.replace("-", "")
+        # keys can't smuggle a dash or surrounding whitespace into the table
+        # (D45 / wyrd-an8u).
+        bare = key.replace("-", "").strip()
         if isinstance(value, dict):
             for position, weight in value.items():
                 yield bare, position, int(weight)

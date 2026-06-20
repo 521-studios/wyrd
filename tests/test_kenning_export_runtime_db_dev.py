@@ -146,6 +146,26 @@ def test_select_dev_subset_keeps_words_whose_usage_appears_in_any_culture() -> N
     assert [s["words"][0]["modern_usage"] for s in subs_out] == ["caer-"]
 
 
+def test_select_dev_subset_keeps_whitespace_dirty_usage_matching_clean_surface() -> None:
+    """wyrd-an8u: a subject word with a whitespace-dirty modern_usage ('Oak- ',
+    trailing space) must still be kept when its CLEAN bare surface ('Oak') is in
+    the per-culture top-N. The keep-fold strips surrounding whitespace (via
+    _bare_modern_usage) to match the whitespace-clean keep_surfaces; a
+    replace-only fold would leave 'oak ', miss 'oak', and silently drop the word
+    from the --dev / generation_subset (prod cold-start) bundle."""
+    subjects = [_subject("Oak- ")]
+    proportions = {"english": _proportions({"Oak-": 100})}
+    subs_out, _, _, _ = select_dev_subset(
+        subjects,
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=2,
+    )
+    # The word survived the trim (not dropped); de-dash/strip happens later.
+    assert [s["words"][0]["modern_usage"] for s in subs_out] == ["Oak- "]
+
+
 def test_select_dev_subset_prunes_unrenderable_structure_after_trim(caplog) -> None:
     """wyrd-9eqk: a structure whose only filler usage is trimmed by the
     top-N cut would render an empty name. select_dev_subset must drop such
