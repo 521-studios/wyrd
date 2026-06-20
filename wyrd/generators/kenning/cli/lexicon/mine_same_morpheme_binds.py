@@ -10,6 +10,7 @@ import click
 from wyrd.generators.kenning.canonicalization import append_assertion, load_assertions
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_refs_for
 from wyrd.generators.kenning.lexicon.same_morpheme_mining import (
     bind_assertions,
     mine_same_morpheme_binds,
@@ -61,7 +62,9 @@ def lexicon_mine_same_morpheme_binds(
     click.echo("mine-same-morpheme-binds: building family rollup + scanning…", err=True)
     with LexiconDB(db_path) as db:
         groups = mine_same_morpheme_binds(db)
-        assertions = bind_assertions(groups, source=source)
+        # wyrd-c6wu: resolve member ids -> stable natural keys at WRITE time.
+        refs = etymon_refs_for(db.conn, {m for g in groups for m in g.member_etymons})
+        assertions = bind_assertions(groups, refs, source=source)
 
     high = sum(1 for g in groups if g.confidence == "high")
     variants = sum(len(g.breakdown_etymons) for g in groups)

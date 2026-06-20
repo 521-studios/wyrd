@@ -229,11 +229,19 @@ def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:
     return out
 
 
-def bind_assertions(groups: list[BindGroup], *, source: str, actor: str = "") -> list[Assertion]:
+def bind_assertions(
+    groups: list[BindGroup], refs: dict[int, str], *, source: str, actor: str = ""
+) -> list[Assertion]:
     """Author the D50 assertions for each bind group: one ``mint-canonical``
     declaration of the ``canonical_morpheme`` node, then a same-morpheme ``bind``
     for every member observation (shipped + breakdown variants). Deterministic ids
-    (no timestamp), so re-mining the same corpus is idempotent (D36.9)."""
+    (no timestamp), so re-mining the same corpus is idempotent (D36.9).
+
+    ``refs`` maps ``etymon_id -> "language:canonical_form"`` (build with
+    :func:`etymon_refs.etymon_refs_for` over every group's member ids). wyrd-c6wu /
+    D50.1: the bind subject is the STABLE natural key, never the ``etymon.id`` row-id.
+    A member id absent from ``refs`` raises ``KeyError`` (the caller must cover every
+    member) rather than emitting a broken ref."""
     out: list[Assertion] = []
     for g in groups:
         node_id = mint_canonical_id("canonical_morpheme", *g.canonical_parts)
@@ -257,7 +265,7 @@ def bind_assertions(groups: list[BindGroup], *, source: str, actor: str = "") ->
             out.append(
                 Assertion(
                     predicate="bind",
-                    subject=NodeRef("etymon", str(etymon_id)),
+                    subject=NodeRef("etymon", refs[etymon_id]),
                     object=node,
                     qualifiers={"kind": "same-morpheme"},
                     # Per-variant confidence: a gloss-only variant stays medium even
