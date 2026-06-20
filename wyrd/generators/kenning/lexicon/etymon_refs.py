@@ -68,9 +68,8 @@ def resolve_etymon_ref(conn: sqlite3.Connection, ref: str | int) -> int | None:
 
     ``ref`` is annotated ``str | int`` because the input is genuinely either: a
     natural-key string (the live format), or a legacy id ``int`` deserialized from a
-    pre-natural-key cache row (wyrd-s964). Both are handled — the ``isinstance``
-    narrowing makes the ``int`` (and any other non-``str``, or a ``str`` with no
-    ``:`` separator) resolve to None (caller skips) rather than raising.
+    pre-natural-key cache row (wyrd-s964). The ``isinstance`` guard below narrows to
+    the string case and resolves anything else to None (caller skips, never raises).
     """
     if not isinstance(ref, str) or _SEP not in ref:
         return None
