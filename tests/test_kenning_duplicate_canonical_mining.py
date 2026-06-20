@@ -417,8 +417,23 @@ def test_cli_apply_collapses_pair_end_to_end(lex, tmp_path, monkeypatch):
 def test_maybe_pair_skips_glossless_and_already_collapsed():
     from wyrd.generators.kenning.lexicon.duplicate_canonical_mining import _maybe_pair
 
-    full = {"cm_id": None, "form": "a", "lang": "x", "glosses": {"new"}, "tokens": {"new"}}
-    glossless = {"cm_id": None, "form": "b", "lang": "x", "glosses": set(), "tokens": set()}
+    # by_id entries always carry a precomputed "fold" (detect_candidates sets it).
+    full = {
+        "cm_id": None,
+        "form": "a",
+        "fold": "a",
+        "lang": "x",
+        "glosses": {"new"},
+        "tokens": {"new"},
+    }
+    glossless = {
+        "cm_id": None,
+        "form": "b",
+        "fold": "b",
+        "lang": "x",
+        "glosses": set(),
+        "tokens": set(),
+    }
     assert _maybe_pair(full, glossless, 1, 2, 0.5) is None  # no shared tokens to compare
     same_hub_a = {**full, "cm_id": "H"}
     same_hub_b = {**full, "cm_id": "H", "form": "b"}
@@ -487,3 +502,40 @@ def test_load_judged_tolerates_non_dict_line(tmp_path):
         encoding="utf-8",
     )
     assert cli._load_judged(tmp_path) == {"1:2"}
+
+
+# --- wyrd-szyd: dash compound pre-filter + prompt reject-class guidance -------
+
+
+def test_detect_dash_compound_excluded_but_foldequal_kept(lex):
+    """A dashed form whose fold differs from its partner is a compound↔constituent
+    (gōs vs gos-wic) and is pre-filtered out; a dashed form that folds EQUAL to its
+    partner is the same etymon under a punctuation/diacritic variant (wulfpytt vs
+    wulf-pytt; kaup-maðr vs kaup-madr — note ð folds to d) and is kept."""
+    _etymon(lex, "gos", "old-english", ["goose"])
+    _etymon(lex, "gos-wic", "old-english", ["goose", "farm"])  # compound (goose-farm)
+    _etymon(lex, "gos-tun", "old-english", ["goose", "farm"])  # ANOTHER compound (both dashed)
+    _etymon(lex, "wulfpytt", "old-english", ["wolf", "pit"])
+    _etymon(lex, "wulf-pytt", "old-english", ["wolf", "pit"])  # same word, dash spelling
+    _etymon(lex, "kaup-maðr", "old-norse", ["merchant"])
+    _etymon(lex, "kaup-madr", "old-norse", ["merchant"])  # ð/d diacritic variant, both dashed
+    lex.commit()
+    pairs = {frozenset((c.a_form, c.b_form)) for c in detect_candidates(lex.conn).candidates}
+    assert frozenset(("gos", "gos-wic")) not in pairs  # compound↔constituent excluded
+    assert frozenset(("gos-wic", "gos-tun")) not in pairs  # both dashed, folds differ → excluded
+    assert frozenset(("wulfpytt", "wulf-pytt")) in pairs  # fold-equal dash variant kept
+    assert frozenset(("kaup-maðr", "kaup-madr")) in pairs  # ð folds to d → kept (was the #687 miss)
+
+
+def test_prompts_reject_compound_derivation_name_classes():
+    """Both prompts must steer the judge away from the three false-positive classes
+    the u6fn.5 apply-run surfaced, while still keeping genuine variants/inflections."""
+    ps, _ = build_propose_prompt(_cand())
+    rs, _ = build_refute_prompt(_cand())
+    for s in (ps.lower(), rs.lower()):
+        assert "compound" in s  # constituent↔compound
+        assert "deriv" in s  # derivation (noun↔verb etc.)
+        assert "hypocorist" in s or "nickname" in s or "pet-form" in s  # distinct names
+    # and BOTH prompts still affirm the genuine-keep classes (inflection + name variant)
+    for s in (ps.lower(), rs.lower()):
+        assert "inflection" in s and "katharine" in s
