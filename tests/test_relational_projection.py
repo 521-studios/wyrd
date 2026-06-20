@@ -300,8 +300,6 @@ def test_unresolved_ref_is_counted_not_crashed(tmp_path):
     root = _etymon(db, "tunaz", language="proto-germanic")
     db.commit()
     # 'old-english:ghost' has no etymon row in this build.
-    from wyrd.generators.kenning.canonicalization import Assertion, NodeRef
-
     append_assertion(
         tmp_path,
         Assertion(

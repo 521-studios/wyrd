@@ -19,17 +19,17 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterable
 
-# An empty language is stored consistently as "" on both the emit and resolve
-# sides so a ref round-trips (etymon.language may be NULL/empty for some rows).
 _SEP = ":"
 
 
 def etymon_ref(language: str | None, canonical_form: str) -> str:
     """The stable ``"<language>:<canonical_form>"`` ref for an etymon observation.
 
-    ``language`` is coalesced to ``""`` (matching the resolver) so a missing
-    language still round-trips. ``canonical_form`` may itself contain ``:`` —
-    only the FIRST separator splits language from form, so the form is preserved.
+    ``etymon.language`` is ``TEXT NOT NULL`` (and the write paths canonicalize it
+    to a non-empty value), so the stored language is never NULL; ``language or ''``
+    only defends a ``None`` passed by a caller, coalescing it to ``""`` to match
+    the resolver. ``canonical_form`` may itself contain ``:`` — only the FIRST
+    separator splits language from form, so the form is preserved.
     """
     return f"{language or ''}{_SEP}{canonical_form}"
 
