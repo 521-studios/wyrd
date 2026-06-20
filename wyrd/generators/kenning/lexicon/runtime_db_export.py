@@ -149,6 +149,17 @@ DEV_SOURCE_LEXICON_SENTINEL = "DEV_SOURCE_LEXICON"
 DEV_TOP_N_PER_CULTURE = 200
 
 
+def _bare_modern_usage(value: str) -> str:
+    """The stored bare surface for a subject word's ``modern_usage``: dashes are
+    render-time decoration (D45/D39) and surrounding whitespace is never part of
+    a morpheme's identity (wyrd-an8u), so both are stripped. Keeps the meaning /
+    dormant-morpheme blob keys bare + whitespace-clean, so a dirty ``'Oak- '``
+    merges into the ``'Oak'`` meaning row rather than duplicating it and
+    splitting its weight. Mirrors ``word._bare_surface`` (the proportions key
+    path)."""
+    return value.replace("-", "").strip()
+
+
 def write_runtime_db(
     *,
     output_path: Path,
@@ -250,7 +261,7 @@ def write_runtime_db(
                 for word in subject.get("words") or []:
                     mu = word.get("modern_usage")
                     if mu:
-                        word["modern_usage"] = mu.replace("-", "")
+                        word["modern_usage"] = _bare_modern_usage(mu)
             n_meanings = _write_meanings(conn, subjects)
             n_morphemes = _write_morphemes(conn, subjects)  # wyrd-rogd.10 (dormant)
             n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
@@ -711,13 +722,7 @@ def _write_proportions(
             conn,
             "proportions_single_usage",
             culture,
-            # D45: lone words are bare by construction — position is always 'bare',
-            # and the key is the bare surface (fold any dash defensively so
-            # operator-JSON / legacy keys can't smuggle a dash into the table).
-            (
-                (k.replace("-", ""), "bare", int(v))
-                for k, v in (data.get("single_usages") or {}).items()
-            ),
+            _iter_single_usage_rows(data.get("single_usages") or {}),
         )
         counts["proportions_structure"] += _insert_structures(
             conn, culture, data.get("structures") or []
@@ -787,7 +792,10 @@ def _insert_attested_languages(
     it once v2 is gone."""
     folded: dict[str, set[str]] = {}
     for usage_key, langs in attested.items():
-        surface = usage_key.replace("-", "").lower()
+        # Fold dash + surrounding whitespace (wyrd-an8u) so a dirty operator-JSON
+        # key keys the same surface as the clean one and matches the stripped
+        # runtime lookup.
+        surface = usage_key.replace("-", "").strip().lower()
         folded.setdefault(surface, set()).update(langs)
     # Sort the outer surface loop too so byte-stability is local to this write
     # site rather than leaning on the caller's dict insertion order (seed-repro).
@@ -804,6 +812,17 @@ def _insert_attested_languages(
     return len(rows)
 
 
+def _iter_single_usage_rows(single_usages: dict[str, int]) -> Iterable[tuple[str, str, int]]:
+    """Flatten ``single_usages`` (lone-word pool) into ``(surface, 'bare', weight)``
+    rows for the L4 writer. D45: lone words are bare by construction (position is
+    always ``'bare'``) and the key is the bare surface — fold any dash +
+    surrounding whitespace defensively (wyrd-an8u) so an operator-JSON / legacy
+    key can't smuggle a dash or trailing space into the table. Mirrors the
+    ``_iter_usage_rows`` fold for the single-usage path."""
+    for key, weight in single_usages.items():
+        yield key.replace("-", "").strip(), "bare", int(weight)
+
+
 def _iter_usage_rows(usages: dict[str, Any]) -> Iterable[tuple[str, str, int]]:
     """D45 (wyrd-aicu): flatten the nested ``{surface: {position: weight}}``
     part pool into ``(surface, position, weight)`` rows for the L4 writer. The
@@ -815,13 +834,18 @@ def _iter_usage_rows(usages: dict[str, Any]) -> Iterable[tuple[str, str, int]]:
 
     for key, value in usages.items():
         # Fold the key defensively on BOTH branches so operator-JSON / legacy
-        # dashed keys can't smuggle a dash into the table (D45).
-        bare = key.replace("-", "")
+        # keys can't smuggle a dash or surrounding whitespace into the table
+        # (D45 / wyrd-an8u).
+        bare = key.replace("-", "").strip()
         if isinstance(value, dict):
             for position, weight in value.items():
                 yield bare, position, int(weight)
         else:
-            yield bare, _location_from_form(key), int(value)
+            # Strip the key before position-decode too (wyrd-an8u): a doubly-
+            # dirty legacy key like 'Oak- ' (dash + trailing space) would
+            # otherwise hide the trailing position-dash behind the space and
+            # decode as 'bare' instead of 'pre'.
+            yield bare, _location_from_form(key.strip()), int(value)
 
 
 def _insert_cumulative(
@@ -1069,11 +1093,16 @@ def select_dev_subset(
     trimmed_subjects: list[dict[str, Any]] = []
     for subject in subjects:
         # D45: subject modern_usage is still dash-marked here (de-dashed later
-        # in _write_meanings); fold to bare-lower to match keep_surfaces.
+        # before _write_meanings); fold to bare-lower to match keep_surfaces.
+        # Must use the SAME fold as the keep_surfaces source (_bare_surface →
+        # dash + surrounding-whitespace strip, wyrd-an8u): keep_surfaces is
+        # whitespace-clean, so a raw ``'Oak- '`` folded with replace-only would
+        # be ``'oak '`` and miss the stripped ``'oak'`` — silently dropping the
+        # word from the --dev / generation_subset (prod cold-start) bundle.
         kept_words = [
             word
             for word in (subject.get("words") or [])
-            if (word.get("modern_usage") or "").lower().replace("-", "") in keep_surfaces
+            if _bare_modern_usage(word.get("modern_usage") or "").lower() in keep_surfaces
         ]
         if not kept_words:
             continue

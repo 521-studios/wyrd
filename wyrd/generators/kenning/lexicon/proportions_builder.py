@@ -69,7 +69,10 @@ def _accumulate_attested_languages(name, attested_languages: dict[str, set[str]]
                 # wyrd-c6o1.3 load-time fold-union workaround (the exact-key
                 # narrowing leaked welsh `ton` into english through the
                 # un-folded dash-variants).
-                surface = elem.usage.replace("-", "").lower()
+                # ``.strip()`` drops surrounding whitespace (wyrd-an8u) so a
+                # dirty ``'Oak- '`` keys the same bare surface as ``'Oak-'``,
+                # matching _bare_surface (the usages/single_usages key path).
+                surface = elem.usage.replace("-", "").strip().lower()
                 attested_languages.setdefault(surface, set()).add(primary)
 
 

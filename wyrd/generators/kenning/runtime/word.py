@@ -58,8 +58,13 @@ def _bare_surface(meaning: Meaning) -> str:
     dashes are NEVER part of it. The proportions tally (:meth:`Word.get_samples`)
     records ``(bare_surface, position)`` with position as an EXPLICIT axis, so
     nothing dash-encoded ever reaches the L4 tables. Stored case is kept (so an
-    initial name's internal caps survive the render's front-cap, D39)."""
-    return meaning.usage.replace("-", "")
+    initial name's internal caps survive the render's front-cap, D39).
+
+    Surrounding whitespace is stripped too (wyrd-an8u): it's never part of a
+    morpheme's identity, and a dirty ``'Oak- '`` would otherwise tally a
+    distinct ``'Oak '`` surface that splits proportion weight from the clean
+    ``'Oak'``."""
+    return meaning.usage.replace("-", "").strip()
 
 
 def _position_form(meaning: Meaning, position: str) -> str:
