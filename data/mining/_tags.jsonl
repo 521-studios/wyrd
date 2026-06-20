@@ -3011,3 +3011,14 @@
 {"_type": "tags", "confidence": "high", "form": "ysgubo", "language": "welsh", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "welsh:ysgubo", "tags": ["action"]}
 {"_type": "tags", "confidence": "high", "form": "ystrad", "language": "welsh", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "welsh:ystrad", "tags": ["topography"]}
 {"_type": "tags", "confidence": "high", "form": "ystum", "language": "welsh", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "welsh:ystum", "tags": ["action"]}
+{"_type": "tags", "confidence": "high", "form": "asa", "language": "biblical", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "biblical:asa", "tags": ["personal-name", "saint"]}
+{"_type": "tags", "confidence": "high", "form": "Frome", "language": "brittonic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "brittonic:Frome", "tags": ["descriptive", "water"]}
+{"_type": "tags", "confidence": "high", "form": "alwent", "language": "brittonic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "brittonic:alwent", "tags": ["water"]}
+{"_type": "tags", "confidence": "high", "form": "blaen", "language": "brittonic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "brittonic:blaen", "tags": []}
+{"_type": "tags", "confidence": "high", "form": "bwa", "language": "brittonic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "brittonic:bwa", "tags": ["architecture"]}
+{"_type": "tags", "confidence": "high", "form": "din", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:din", "tags": ["architecture", "topography"]}
+{"_type": "tags", "confidence": "high", "form": "dun", "language": "celtic", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "celtic:dun", "tags": ["architecture", "topography"]}
+{"_type": "tags", "confidence": "high", "form": "ana", "language": "old-english", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "old-english:ana", "tags": []}
+{"_type": "tags", "confidence": "high", "form": "cōl", "language": "old-english", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "old-english:cōl", "tags": ["temperature"]}
+{"_type": "tags", "confidence": "high", "form": "geoc", "language": "old-english", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "old-english:geoc", "tags": ["agriculture", "item", "manorial", "social"]}
+{"_type": "tags", "confidence": "high", "form": "ble", "language": "welsh", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "welsh:ble", "tags": []}

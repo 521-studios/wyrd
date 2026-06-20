@@ -124,19 +124,36 @@ def source_row() -> dict:
     }
 
 
+# wyrd-jrwc: a breakdown morpheme is "admitted" to the bundle (wyrd-oth3) when it
+# appears as an element in scholarly toponym_etymology breakdowns. The realistic
+# admit cohort is the elements used in >= this many DISTINCT toponyms (the epic's
+# gap-profile threshold; the single-occurrence tail is wyrd-myv4's junk-pruning
+# concern, not the tag cohort's).
+_BREAKDOWN_ADMIT_MIN_TOPONYMS = 2
+
+
 def select_targets(db_path: str) -> list[tuple[str, str, str]]:
     """Generation-reachable etymons that have a gloss but no tags. Read-only;
-    returns ``[(language, canonical_form, glosses), …]``. The ``reflex_etymon``
-    join restricts to morphemes that actually reach a generation surface (the
-    same reachability the bundle ships), so we don't pay to tag dead etymons."""
+    returns ``[(language, canonical_form, glosses), …]``.
+
+    Reachability matches what the bundle actually ships, which is TWO channels:
+    (1) reflex_etymon — a morpheme that reaches a generation surface via a reflex;
+    (2) wyrd-jrwc/oth3 — an admitted breakdown morpheme: an element appearing in
+    the scholarly breakdowns of >= ``_BREAKDOWN_ADMIT_MIN_TOPONYMS`` DISTINCT
+    toponyms (counted by toponym_id, so multiple breakdowns of one toponym count
+    once). Channel (2) is the largely-reflex-less admit cohort the reflex-only
+    gate used to miss — untagged, those morphemes are matchable for decomposition
+    but never SELECTED in generation (the >=1-tag gate skips them). Dead etymons
+    (neither channel) are still excluded, so we don't pay to tag them."""
     # Path.as_uri() handles spaces / '?' / '#' / Windows backslashes robustly
     # (matches runtime_db.py's read-only open), unlike bare f-string interp.
     uri = f"{Path(db_path).absolute().as_uri()}?mode=ro"
     conn = sqlite3.connect(uri, uri=True)
     try:
         # Two query shapes matter here:
-        # - Reachability is an EXISTS check, NOT a JOIN: joining the one-to-many
-        #   reflex_etymon AND the one-to-many etymon_gloss would
+        # - Reachability is a correlated subquery (EXISTS on reflex_etymon; a
+        #   DISTINCT-toponym count on the breakdown channel), NOT a JOIN: joining
+        #   the one-to-many reflex_etymon AND the one-to-many etymon_gloss would
         #   Cartesian-product and GROUP_CONCAT would duplicate each gloss once
         #   per reflex ('spear || spear'), inflating the prompt + wasting tokens.
         # - Glosses are ORDER BY'd inside a subquery before GROUP_CONCAT so the
@@ -150,10 +167,18 @@ def select_targets(db_path: str) -> list[tuple[str, str, str]]:
             "         e.canonical_form AS canonical_form, g.gloss AS gloss "
             "  FROM etymon e "
             "  JOIN etymon_gloss g ON g.etymon_id = e.id "
-            "  WHERE EXISTS (SELECT 1 FROM reflex_etymon re WHERE re.etymon_id = e.id) "
+            "  WHERE ("
+            "         EXISTS (SELECT 1 FROM reflex_etymon re WHERE re.etymon_id = e.id) "
+            "      OR ("
+            "           SELECT count(DISTINCT te.toponym_id) "
+            "           FROM toponym_etymology_element el "
+            "           JOIN toponym_etymology te ON te.id = el.toponym_etymology_id "
+            "           WHERE el.etymon_id = e.id "
+            f"         ) >= {_BREAKDOWN_ADMIT_MIN_TOPONYMS} "
+            "  ) "
             "    AND NOT EXISTS (SELECT 1 FROM etymon_tag t WHERE t.etymon_id = e.id) "
             "  ORDER BY e.id, g.gloss"
-            ") GROUP BY id ORDER BY language, canonical_form"
+            ") GROUP BY id ORDER BY language, canonical_form"  # noqa: S608 — interpolated int constant
         ).fetchall()
     finally:
         conn.close()
