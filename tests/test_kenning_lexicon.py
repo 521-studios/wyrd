@@ -13376,6 +13376,11 @@ def test_migrate_schema_adds_stratum_and_phonological_vector_columns_to_legacy_d
         applied = migrate_schema(db)
         for c in ("etymon.stratum", "etymon.phonological_vector"):
             assert applied[c] is True, f"{c} migration didn't apply"
+        # The CREATE TABLE AS SELECT swap above drops the etymon indexes
+        # along with the original table, so the stratum index is recreated
+        # too — assert that adjacent re-creation since it's part of the
+        # same wyrd-lr4 column's migration story.
+        assert applied["idx_etymon_stratum"] is True, "idx_etymon_stratum not recreated"
 
         cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
         for c in ("stratum", "phonological_vector"):
@@ -13389,10 +13394,14 @@ def test_migrate_schema_adds_stratum_and_phonological_vector_columns_to_legacy_d
         assert row["stratum"] is None
         assert row["phonological_vector"] is None
 
-        # Idempotent: re-running reports both as already-present.
+        # Idempotent: re-running reports both columns and the stratum
+        # index as already-present.
         applied2 = migrate_schema(db)
         for c in ("etymon.stratum", "etymon.phonological_vector"):
             assert applied2[c] is False, f"{c} re-applied on second run"
+        assert applied2["idx_etymon_stratum"] is False, (
+            "idx_etymon_stratum re-created on second run"
+        )
 
 
 # --- D27 / wyrd-81n: cluster-cognates enrichment pass ------------------
