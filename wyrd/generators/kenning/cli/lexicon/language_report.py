@@ -25,8 +25,11 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
     help=(
-        "Bundled meanings.json (default: package-bundled "
-        "wyrd/generators/kenning/data/meanings.json)."
+        "Optional meanings.json override for the bundle metrics. DEFAULT "
+        "(omit this flag): rehydrate the bundle from the L4 runtime DB "
+        "(seed-runtime.db) — the meanings.json file was retired in the D38 "
+        "SQLite cutover (#357), so passing a stale/partial JSON here is the "
+        "only way to get wrong bundle_* numbers (wyrd-9fva)."
     ),
 )
 @click.option(
@@ -35,8 +38,9 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
     help=(
-        "english_proportions.json — used to derive the top-N reference "
-        "tags (default: package-bundled english_proportions.json)."
+        "Optional english_proportions.json override — used to derive the "
+        "top-N reference tags. DEFAULT (omit this flag): fetch English "
+        "proportions straight from the L4 runtime DB (no JSON round-trip)."
     ),
 )
 @click.option(
@@ -133,8 +137,9 @@ def lexicon_language_report(
 ) -> None:
     """Per-language quality scorecard (wyrd-wzwa Phase 1).
 
-    Computes per-language metrics from the lexicon DB + bundled
-    meanings.json: corpus depth, bundle representation, semantic-
+    Computes per-language metrics from the lexicon DB + the L4 runtime
+    bundle (rehydrated from seed-runtime.db; ``--bundle`` overrides with a
+    meanings.json file): corpus depth, bundle representation, semantic-
     profile coverage vs the English reference, inflection / variant /
     era-reflex / stratum / citation coverage. Emits a markdown table
     by default; ``--format json`` swaps stdout to the schema-versioned
