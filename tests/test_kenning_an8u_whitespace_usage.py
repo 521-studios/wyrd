@@ -25,6 +25,8 @@ from wyrd.generators.kenning.lexicon.proportions_builder import (
 )
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
     _bare_modern_usage,
+    _insert_attested_languages,
+    _iter_usage_rows,
     _write_meanings,
 )
 from wyrd.generators.kenning.runtime.meaning import Meaning
@@ -135,3 +137,26 @@ def test_attested_language_surface_strips_whitespace():
     # Keyed by the clean bare surface, not 'oak ' with a trailing space.
     assert "oak" in attested
     assert all(" " not in surface for surface in attested)
+
+
+# ---- export write-time defensive folds (operator-JSON / legacy keys) -------
+
+
+def test_iter_usage_rows_strips_whitespace_dirty_key():
+    # The nested part-pool writer folds the key to a bare, whitespace-clean
+    # surface (the single_usage row writer shares this exact fold).
+    rows = list(_iter_usage_rows({"Oak- ": {"pre": 5}}))
+    assert rows == [("Oak", "pre", 5)]
+
+
+def test_insert_attested_languages_strips_whitespace_dirty_key():
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE proportions_attested_language "
+        "(culture TEXT, usage_key TEXT, primary_language TEXT)"
+    )
+    n = _insert_attested_languages(conn, "english", {"Oak- ": ["old_english"]})
+    assert n == 1
+    usage_key = conn.execute("SELECT usage_key FROM proportions_attested_language").fetchone()[0]
+    assert usage_key == "oak"  # bare + lowercased + whitespace-stripped
+    conn.close()
