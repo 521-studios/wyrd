@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pytest
 
+from wyrd.generators.kenning.errors import EmptyEligiblePool
 from wyrd.generators.kenning.generators.kenning import Kenning
 
 
@@ -68,10 +69,14 @@ def test_empty_tag_pool_raises_instead_of_reusing_a_warmed_pool():
     tag — it's "religious") must fail loudly, NOT silently reuse a pool warmed
     by an earlier valid tag. The cache bug masked exactly this: it served the
     first tag's pool, so the empty tag never raised. wyrd-i7uy unmasked it; lock
-    the unmasked behavior in (the raise itself is pre-existing, kenning.py)."""
+    the unmasked behavior in (the raise itself is pre-existing, kenning.py).
+
+    wyrd-hh2m: the raise is now EmptyEligiblePool (a KenningError, NOT a
+    ValueError) so the web layer maps this valid-but-unsatisfiable case to a 422
+    instead of an opaque 500."""
     k = Kenning()
     # Warm the shared generator with a valid tag first — the old bug would have
     # made the next (empty) tag reuse this pool and return water names.
     k.generate({"culture": "english", "tags": ["water"]}, seed=0)
-    with pytest.raises(ValueError, match="no eligible name"):
+    with pytest.raises(EmptyEligiblePool, match="no eligible name"):
         k.generate({"culture": "english", "tags": ["religion"]}, seed=0)

@@ -11,8 +11,9 @@ Pins the operator-decided contract (2026-06-11):
     must keep a tag-filtered name tag-satisfying);
   * held slots pass through verbatim;
   * malformed input surfaces as ValueError → the dispatcher's 400; pool
-    exhaustion surfaces as NoEligibleReplacementError (a ValueError
-    subclass, same 400 mapping).
+    exhaustion surfaces as NoEligibleReplacementError (a KenningError /
+    EmptyEligiblePool subclass → the dispatcher's 422, wyrd-hh2m — the same
+    valid-but-unsatisfiable mapping a fresh roll's empty pool gets).
 
 Runs against the committed seed-runtime.db (no live lexicon DB — CI has
 none)."""
@@ -137,8 +138,8 @@ def test_collides_excludes_by_native_form_fold():
 
 def test_pool_exhaustion_raises_no_eligible_replacement(english_roll, monkeypatch):
     """When the pool is empty after gates + exclusions, the endpoint fails
-    loudly with NoEligibleReplacementError (→ the dispatcher's 400), never
-    a silent no-op or duplicate."""
+    loudly with NoEligibleReplacementError (→ the dispatcher's 422, wyrd-hh2m),
+    never a silent no-op or duplicate."""
     monkeypatch.setattr(vector_name_select, "_slot_weighted_pool", lambda *a, **k: [])
     words = english_roll.morphemes_by_word
     with pytest.raises(NoEligibleReplacementError, match="no eligible replacement"):

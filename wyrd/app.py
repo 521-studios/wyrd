@@ -12,6 +12,7 @@ from flask import Flask, jsonify, request
 from wyrd import registry
 from wyrd.envelope import envelope
 from wyrd.feature_flags import apply_env_defaults, resolve_feature_config
+from wyrd.generators.kenning.errors import EmptyEligiblePool
 from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
 
 MAX_COUNT = 10
@@ -180,6 +181,20 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
                     generator.name,
                     ",".join(slot_ms),
                 )
+    except EmptyEligiblePool as e:
+        # wyrd-hh2m: a valid request whose gate (culture/era/stratum/tags) or
+        # thin bundle data leaves zero eligible morphemes. Distinct from a
+        # malformed request (400) and from a genuine crash (500): the input was
+        # well-formed, it just can't be satisfied → 422 Unprocessable Entity.
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        _logger.info(
+            "dispatch empty_eligible_pool generator=%s elapsed_ms=%.1f params=%r detail=%s",
+            generator_name,
+            elapsed_ms,
+            param_snapshot,
+            e,
+        )
+        return jsonify({"error": "empty_eligible_pool", "detail": str(e)}), 422
     except (ValueError, KeyError) as e:
         elapsed_ms = (time.perf_counter() - started) * 1000
         _logger.info(

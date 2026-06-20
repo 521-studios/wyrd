@@ -31,6 +31,7 @@ from wyrd.generators.kenning import (
     available_tags,
 )
 from wyrd.generators.kenning.era.cells import ERA_CELLS, family_stage_order
+from wyrd.generators.kenning.errors import EmptyEligiblePool
 from wyrd.generators.kenning.lexicon.strata import (
     FRENCH_STRATA,
     OLD_ENGLISH_STRATA,
@@ -537,8 +538,10 @@ class Kenning(Generator):
         if new_name is None:
             # Vector path filtered everything (empty register + empty
             # priors, or every meaning gated out). Loud failure with an
-            # operator-readable diagnostic.
-            raise ValueError(
+            # operator-readable diagnostic. EmptyEligiblePool (not a bare
+            # ValueError) so the web layer maps a valid-but-unsatisfiable
+            # request to a 422 instead of an opaque 500 (wyrd-hh2m).
+            raise EmptyEligiblePool(
                 "vector scoring produced no eligible name — check that the "
                 "bundle carries phonological_vector data (kq7w.1), "
                 "priors_path is set (or the register carries non-trivial "

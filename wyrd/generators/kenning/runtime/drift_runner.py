@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from wyrd.generators.kenning.errors import EmptyEligiblePool
 from wyrd.generators.kenning.runtime.drift_measurement import NameSample
 
 
@@ -132,10 +133,12 @@ def run_realism_samples(  # noqa: V103 — engine of the absolute corpus-realism
         try:
             r_vec = k.generate(base_params, seed=base_seed + i)
             samples_vector.append(_sample_from_generation_result(r_vec))
-        except ValueError:
+        except (ValueError, EmptyEligiblePool):
             # Post-wyrd-tbke the vector path degrades rather than raising,
             # so this is now only a defensive skip for a genuinely empty
-            # (gate-excludes-everything) request.
+            # (gate-excludes-everything) request. wyrd-hh2m: that empty-pool
+            # case now raises EmptyEligiblePool (a KenningError, NOT a
+            # ValueError), so catch both to keep skipping it here.
             pass
 
     return samples_vector, reference

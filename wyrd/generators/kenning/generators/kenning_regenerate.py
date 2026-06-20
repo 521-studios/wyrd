@@ -16,6 +16,7 @@ from wyrd.generators.kenning import (
     _resolve_era_render_language,
     _resolve_stratum_param,
 )
+from wyrd.generators.kenning.errors import EmptyEligiblePool
 from wyrd.generators.kenning.runtime.word import (
     WORD_POSITION_KEY_PREFIX,
     word_position_for,
@@ -26,16 +27,19 @@ from wyrd.seed import rng_for
 _logger = logging.getLogger(__name__)
 
 
-class NoEligibleReplacementError(ValueError):
+class NoEligibleReplacementError(EmptyEligiblePool):
     """No candidate can fill the slot: the pool is empty after the context
     gates + in-use exclusions, or every surviving candidate's weight is
     zero/negative so the weighted draw can't pick. A valid request with no
     fulfillable answer, distinct from the malformed-input ValueErrors
     raised by ``_validate_target``.
 
-    Subclasses ValueError so the dispatcher's existing ValueError → 400
-    mapping still fires (no API behavior change); callers / tests can catch
-    this specifically instead of matching message strings."""
+    Subclasses ``EmptyEligiblePool`` (wyrd-hh2m): this is the per-slot flavor
+    of the same valid-but-unsatisfiable empty-pool case, so the dispatcher
+    maps it to a 422 — consistent with a fresh roll's empty pool, rather than
+    the old 400. (It was previously a ``ValueError`` → 400; unified so two
+    sibling generators don't return different statuses for the same concept.)
+    Callers / tests can still catch this specifically."""
 
 
 class KenningRegenerateMorpheme(Generator):
