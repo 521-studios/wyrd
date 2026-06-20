@@ -286,6 +286,10 @@ reflex_etymon = Table(
     Column("etymon_id", Integer, ForeignKey("etymon.id", ondelete="CASCADE"), nullable=False),
     PrimaryKeyConstraint("reflex_id", "etymon_id"),
 )
+# wyrd-53ep: the PK leads with reflex_id, so a `WHERE etymon_id = ?` lookup
+# (tag_mining.select_targets' reflex-reachability EXISTS; also the etymon FK's
+# ON DELETE CASCADE) can't use it. Index etymon_id directly.
+Index("idx_reflex_etymon_etymon", reflex_etymon.c.etymon_id)
 
 # ---------------------------------------------------------------------------
 # Toponym layer
@@ -428,6 +432,10 @@ toponym_etymology_element = Table(
     ),
     PrimaryKeyConstraint("toponym_etymology_id", "ordinal"),
 )
+# wyrd-53ep: the PK is (toponym_etymology_id, ordinal), so a `WHERE etymon_id = ?`
+# lookup (tag_mining.select_targets' breakdown-admit count; also the etymon FK's
+# ON DELETE CASCADE) has no usable index. Index etymon_id directly.
+Index("idx_toponym_etymology_element_etymon", toponym_etymology_element.c.etymon_id)
 
 toponym_decomposition = Table(
     "toponym_decomposition",
