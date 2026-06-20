@@ -62,6 +62,16 @@ Why: the commit-and-push flow stages with `git add -A`, so working in the main
 checkout risks sweeping unrelated untracked files into a PR. An isolated
 worktree keeps each PR scoped to exactly its own change.
 
+**Never run `commit-and-push.sh` (or any `git add -A` commit) from the main
+checkout, and never sit in the main checkout while running `bd` mutations
+(`create`/`close`/`update`/`dep`).** `bd` rewrites `.beads/issues.jsonl` on
+every mutation, so a later `git add -A` from the main checkout sweeps those
+edits — plus anything else dirty in the tree — onto `main` without a deliberate
+decision (it "ships" as you type). Keep the main checkout **idle**: do real work
+in a worktree, and run `bd` ticket ops as standalone steps where you then
+explicitly commit *only* `.beads/issues.jsonl` (`git commit -- .beads/issues.jsonl`).
+Always check `git status` before any `git add -A`.
+
 ## Build & Test
 
 **Run ruff before every push.** CI's "Test & Lint" job gates on
