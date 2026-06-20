@@ -675,11 +675,12 @@ Regenerate `data/meanings.json` from the lexicon:
 (Confirm the command flags from `--help` — there may be filter options
 like `--min-witnesses 3` to limit the export to promotion-eligible rows.)
 
-> **Memory: give `export-meanings` headroom (~1.5 GB+).** The export holds the
+> **Memory: give `export-meanings` headroom.** The export holds the
 > corpus, the word DB, and **all ~67K promoted families simultaneously** —
 > grouping families into subjects by `(modifier_type, glosses, tags)` signature
-> is a full-corpus operation, so every family dict must be live at once (~1 GB
-> peak RSS). Run it **with memory headroom and NOT concurrently** with other
+> is a full-corpus operation, so every family dict must be live at once. That
+> peaks around **~1 GB RSS**, so provision **~1.5 GB+** to leave margin. Run it
+> **with memory headroom and NOT concurrently** with other
 > heavy passes (a second export, bulk ingest, enrichment); it has been
 > OOM-killed under concurrent load (0-byte output, no file written — wyrd-v3ow.1).
 > If a host is memory-constrained, run the export in its own subprocess with an
