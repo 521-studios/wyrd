@@ -55,7 +55,7 @@ def etymon_refs_for(conn: sqlite3.Connection, ids: Iterable[int]) -> dict[int, s
             f"SELECT id, language, canonical_form FROM etymon WHERE id IN ({placeholders})",  # noqa: S608 — placeholders only
             chunk,
         ):
-            out[row[0]] = etymon_ref(row[1], row[2])
+            out[row["id"]] = etymon_ref(row["language"], row["canonical_form"])
     return out
 
 
@@ -73,4 +73,4 @@ def resolve_etymon_ref(conn: sqlite3.Connection, ref: str) -> int | None:
         "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
         (language, canonical_form),
     ).fetchone()
-    return row[0] if row else None
+    return row["id"] if row else None
