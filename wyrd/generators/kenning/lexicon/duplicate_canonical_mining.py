@@ -48,7 +48,7 @@ from wyrd.generators.kenning.canonicalization.assertions import (
 )
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
-from wyrd.generators.kenning.lexicon.spurious_breakdown_mining import _fold
+from wyrd.generators.kenning.lexicon.genitive_priors import _fold
 from wyrd.generators.kenning.lexicon.variant_fold_detect import _gloss_tokens
 
 METHOD = "duplicate-canonical-finder-v1"
@@ -108,9 +108,11 @@ def _maybe_pair(da: dict, db: dict, a: int, b: int, min_gloss_overlap: float):
     # High-precision compound exclusion: a dash marks a morpheme boundary, so a
     # dashed form is a compound. If the two forms don't fold to the SAME string,
     # one is a compound and the other its constituent (or a different compound) —
-    # not one morpheme (gōs vs gos-wic). A fold-equal dashed pair is just a spelling
-    # variant of one word (wulfpytt vs wulf-pytt) and is kept for the LLM to judge.
-    if ("-" in da["form"] or "-" in db["form"]) and _fold(da["form"]) != _fold(db["form"]):
+    # not one etymon (gōs vs gos-wic). A fold-equal dashed pair is the same etymon
+    # under a punctuation/diacritic variant (wulfpytt vs wulf-pytt, kaup-maðr vs
+    # kaup-madr) and is kept for the LLM to judge. Folds are precomputed per etymon
+    # (da["fold"]) so this O(n^2) candidate loop doesn't re-fold the same form.
+    if ("-" in da["form"] or "-" in db["form"]) and da["fold"] != db["fold"]:
         return None
     ta, tb = da["tokens"], db["tokens"]
     if not ta or not tb:
@@ -189,6 +191,7 @@ def detect_candidates(
             {
                 "lang": lang or "",
                 "form": form or "",
+                "fold": _fold(form),  # precomputed once — the O(n^2) pair loop reuses it
                 "cm_id": cm_id,
                 "glosses": set(),
                 "tokens": set(),
@@ -233,10 +236,10 @@ _SAME_MORPHEME_RULES = (
     "gōs != gos-wic, gortna != gortmore, bille != da-bille). A dash, or one form "
     "built by adding material to the other, signals a compound.\n"
     "  - DERIVATION: noun<->verb (willa != willian), base<->adjective-derivative "
-    "(west != westerne, horu != horig), participle/gerund<->noun (wilig != wiligen), "
-    "nominalization (iuo != iubhar), zero-derivation or a different derivational "
-    "suffix (linden != lind, byrgen != byrgels), extra suffix like -red/-hood "
-    "(hund != hundred).\n"
+    "(west != westerne, horu != horig, wilig != wiligen), participle/gerund<->noun "
+    "(ridding != ryden), nominalization (iuo != iubhar), zero-derivation or a "
+    "different derivational suffix (linden != lind, byrgen != byrgels), extra suffix "
+    "like -red/-hood (hund != hundred).\n"
     "  - DISTINCT NAME or HYPOCORISTIC / pet-form: a nickname is a different "
     "name-form (Margerie != Meg, Joan != Jane, Gilot != Gillota, Malkin != Mallin).\n"
     "When unsure, answer NOT-same: a missed merge is harmless, a wrong merge corrupts."
@@ -257,8 +260,8 @@ _REFUTE_SYSTEM = (
     "merged into one canonical node. REFUTE it unless they are genuinely ONE lexeme "
     "(a spelling/diacritic variant or an inflection of the same word). In "
     "particular REFUTE when B is a COMPOUND containing A, a DERIVATION of A "
-    "(noun<->verb, base<->diminutive, base<->adjective, nominalization, extra "
-    "suffix), or a DISTINCT NAME / hypocoristic.\n" + _SAME_MORPHEME_RULES + "\n"
+    "(noun<->verb, base<->adjective-derivative, nominalization, extra suffix), or a "
+    "DISTINCT NAME / hypocoristic.\n" + _SAME_MORPHEME_RULES + "\n"
     "A wrong merge corrupts the lexicon, a missed merge is harmless. Reply ONLY "
     'with a JSON object: {"refuted": true|false, "confidence": "high"|"medium"|"low", "reason": "<one short clause>"}.'
 )
