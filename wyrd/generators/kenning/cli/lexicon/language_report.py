@@ -25,11 +25,12 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
     help=(
-        "Optional meanings.json override for the bundle metrics. DEFAULT "
-        "(omit this flag): rehydrate the bundle from the L4 runtime DB "
-        "(seed-runtime.db) — the meanings.json file was retired in the D38 "
-        "SQLite cutover (#357), so passing a stale/partial JSON here is the "
-        "only way to get wrong bundle_* numbers (wyrd-9fva)."
+        "Override the bundle metrics' source with a meanings.json file. "
+        "DEFAULT (omit this flag): rehydrate the bundle from the L4 runtime "
+        "DB (seed-runtime.db) — the authoritative source since the meanings.json "
+        "file was retired in the D38 SQLite cutover (#357). Pass this only if you "
+        "have a specific JSON to measure; a stale/partial one yields wrong "
+        "bundle_* numbers (wyrd-9fva)."
     ),
 )
 @click.option(
