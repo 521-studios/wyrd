@@ -6,6 +6,7 @@ import pytest
 
 from wyrd.app import create_app
 from wyrd.generators.kenning import CULTURES, Kenning, available_tags
+from wyrd.generators.kenning.errors import EmptyEligiblePool
 
 
 def test_each_culture_generates_a_name():
@@ -582,7 +583,9 @@ def test_culture_empty_tag_raises_no_eligible_name():
     from wyrd.generators.kenning import _tags_options_by_culture
 
     assert "monster" not in _tags_options_by_culture()["english"]
-    with pytest.raises(ValueError, match="no eligible name"):
+    # wyrd-hh2m: now EmptyEligiblePool (a KenningError, not a ValueError) so the
+    # web layer can map this valid-but-unsatisfiable case to a 422.
+    with pytest.raises(EmptyEligiblePool, match="no eligible name"):
         Kenning().generate({"culture": "english", "tags": ["monster"]}, seed=0)
 
 
@@ -604,7 +607,9 @@ def test_offered_english_tags_are_actually_placeable():
 def _rolls_ok(k, params, seed) -> bool:
     try:
         return bool(k.generate(params, seed=seed).result)
-    except ValueError:
+    except (ValueError, EmptyEligiblePool):
+        # wyrd-hh2m: an empty pool now raises EmptyEligiblePool, not ValueError —
+        # treat it (like a bad-param ValueError) as a failed roll.
         return False
 
 

@@ -181,3 +181,22 @@ def test_scoring_weights_flow_through_to_request_vector(monkeypatch):
         "pos_w": 0.5,
         "base_w": 0.0,
     }
+
+
+def test_empty_eligible_pool_surfaces_friendly_cli_error(monkeypatch):
+    """wyrd-hh2m: an EmptyEligiblePool from generate (a valid-but-unsatisfiable
+    request — KenningError, not ValueError) is surfaced as a friendly 'Error:'
+    on stderr + exit 1, not an uncaught traceback."""
+    from wyrd.generators.kenning.errors import EmptyEligiblePool
+
+    def _boom(self, params, seed):
+        raise EmptyEligiblePool("vector scoring produced no eligible name — gated out")
+
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.cli.generate.Kenning.generate", _boom, raising=True
+    )
+    runner = CliRunner()
+    result = runner.invoke(generate, ["english", "--count", "1", "--seed", "0", "--no-describe"])
+    assert result.exit_code == 1
+    assert "Error:" in result.output
+    assert "no eligible name" in result.output

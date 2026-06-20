@@ -14,6 +14,7 @@ from wyrd.generators.kenning import (
     Kenning,
     available_tags,
 )
+from wyrd.generators.kenning.errors import EmptyEligiblePool
 from wyrd.generators.kenning.registers.effects import available_register_effects
 from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
 
@@ -382,11 +383,13 @@ def generate(
             # wyrd-aof8: cap sub-seeds at JS Number safe range so
             # they round-trip through the SPA's copy/paste flow.
             result = kenning.generate(params, seed_rng.randrange(MAX_SAFE_INTEGER + 1))
-        except ValueError as exc:
-            # Surface user-input errors (bad --era, etc.) as friendly
-            # CLI messages on stderr + exit non-zero, matching the
-            # tags/moods pre-validation pattern above. Other unexpected
-            # exceptions still propagate so a real bug isn't silenced.
+        except (ValueError, EmptyEligiblePool) as exc:
+            # Surface user-input errors (bad --era, etc.) and the
+            # valid-but-unsatisfiable empty-pool case (wyrd-hh2m,
+            # EmptyEligiblePool — a KenningError, not a ValueError) as friendly
+            # CLI messages on stderr + exit non-zero, matching the tags/moods
+            # pre-validation pattern above. Other unexpected exceptions still
+            # propagate so a real bug isn't silenced.
             click.echo(f"Error: {exc}", err=True)
             sys.exit(1)
         _emit_result(result, culture, json_output, describe)
