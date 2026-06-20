@@ -11,7 +11,7 @@
 // or not the bug exists. We then assert run() fired a BOUNDED number of times:
 // the fix → once per mount/switch; a reintroduced loop → the count blows the
 // bound (or the loop spins until vitest's 5s timeout fails the test).
-import { render } from '@testing-library/svelte';
+import { fireEvent, render } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -75,5 +75,45 @@ describe('InspectorColumn reactive wiring (wyrd-c6o1.1 / wyrd-200v)', () => {
 
     expect(afterSwitch).toBeGreaterThan(afterMount); // the switch re-ran the new base
     expect(run.mock.calls.length).toBe(afterSwitch); // …and re-converged (no loop)
+  });
+});
+
+// wyrd-410t: the time-warp button bar (Section 2). One button per era stage,
+// flag-gated behind 'rewind'; pressing a stage drives pipeline.setRewind.
+describe('InspectorColumn time-warp bar (wyrd-410t)', () => {
+  it('is hidden when the rewind flag is off (prod default)', async () => {
+    appState.manifest = null; // config → null → flagOn false
+    const { queryByRole } = render(InspectorColumn, { props: {} });
+    await settle();
+    expect(queryByRole('group', { name: /time-warp/i })).toBeNull();
+  });
+
+  it('renders one button per era stage when the flag is on', async () => {
+    appState.manifest = { config: { all: true } };
+    const { getByRole, getByText } = render(InspectorColumn, { props: {} });
+    await settle();
+    expect(getByRole('group', { name: /time-warp/i })).toBeTruthy();
+    // The three rewind-exposed stages, short-labelled (date range → title only).
+    expect(getByText('Old English')).toBeTruthy();
+    expect(getByText('Middle English')).toBeTruthy();
+    expect(getByText('Modern')).toBeTruthy();
+  });
+
+  it('pressing a stage adds a single front rewind step + marks it active; pressing it again clears', async () => {
+    appState.manifest = { config: { all: true } };
+    const setRewind = vi.spyOn(pipeline, 'setRewind');
+    const { getByText } = render(InspectorColumn, { props: {} });
+    await settle();
+
+    await fireEvent.click(getByText('Middle English'));
+    expect(setRewind).toHaveBeenCalledWith('me');
+    expect(pipeline.steps.filter((s) => s.kind === 'rewind')).toHaveLength(1);
+    expect(pipeline.rewindEra).toBe('me');
+    await settle();
+    // active stage reflects aria-pressed
+    expect(getByText('Middle English').getAttribute('aria-pressed')).toBe('true');
+
+    await fireEvent.click(getByText('Middle English')); // press active → clear
+    expect(pipeline.rewindEra).toBe(null);
   });
 });

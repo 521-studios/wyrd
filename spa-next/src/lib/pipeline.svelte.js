@@ -207,6 +207,42 @@ class PipelineState {
     }
   }
 
+  /** Direct-manipulation time-warp (wyrd-410t): maintain AT MOST ONE rewind
+   *  step, kept at the FRONT of the pipeline so it acts as the global era
+   *  FLOOR. Per-slot swaps (added later, indexing the post-rewind cards per
+   *  swap.js's documented "Rewind before Swap" ordering) then layer on top and
+   *  WIN — which is what blends eras into the active card's "Mixed (…)" badge.
+   *
+   *  Pressing a stage: no rewind step → add one at the front; a rewind step at
+   *  a DIFFERENT era → update its era in place; the ACTIVE era (rewind already
+   *  at that era) → remove it, the "back to as-generated" affordance. */
+  setRewind(era) {
+    const idx = this.steps.findIndex((s) => s.kind === 'rewind');
+    if (idx !== -1) {
+      if (this.steps[idx].params.era === era) {
+        this.removeStep(idx); // press the active stage → clear
+        return;
+      }
+      const next = [...this.steps];
+      next[idx] = { ...next[idx], params: { ...next[idx].params, era } };
+      this.steps = next; // switch era in place
+      return;
+    }
+    // New rewind step at the FRONT — addStep appends, so build it inline.
+    const t = getTransform('rewind');
+    this.#nextStepId += 1;
+    this.steps = [
+      { id: this.#nextStepId, kind: 'rewind', params: { ...t.defaultParams, era } },
+      ...this.steps,
+    ];
+  }
+
+  /** The era of the single rewind step (null if none) — drives the time-warp
+   *  bar's active-stage highlight. */
+  get rewindEra() {
+    return this.steps.find((s) => s.kind === 'rewind')?.params.era ?? null;
+  }
+
   /** Replace step at index i with a new params object (callers
    *  mutate the step's params in-place via bind:value; this
    *  helper is for callers that want explicit replacement). */
