@@ -149,6 +149,14 @@ def test_iter_usage_rows_strips_whitespace_dirty_key():
     assert rows == [("Oak", "pre", 5)]
 
 
+def test_iter_usage_rows_legacy_flat_key_strips_before_position_decode():
+    # Legacy flat ``{dashed: weight}`` operator-JSON shape: a doubly-dirty
+    # 'Oak- ' (position-dash + trailing space) must still decode position 'pre'
+    # from the trailing dash — the strip happens BEFORE _location_from_form so
+    # the space doesn't hide the dash (degrading 'pre' -> 'bare').
+    assert list(_iter_usage_rows({"Oak- ": 5})) == [("Oak", "pre", 5)]
+
+
 def test_insert_attested_languages_strips_whitespace_dirty_key():
     conn = sqlite3.connect(":memory:")
     conn.execute(

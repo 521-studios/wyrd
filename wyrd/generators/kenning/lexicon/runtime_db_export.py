@@ -837,7 +837,11 @@ def _iter_usage_rows(usages: dict[str, Any]) -> Iterable[tuple[str, str, int]]:
             for position, weight in value.items():
                 yield bare, position, int(weight)
         else:
-            yield bare, _location_from_form(key), int(value)
+            # Strip the key before position-decode too (wyrd-an8u): a doubly-
+            # dirty legacy key like 'Oak- ' (dash + trailing space) would
+            # otherwise hide the trailing position-dash behind the space and
+            # decode as 'bare' instead of 'pre'.
+            yield bare, _location_from_form(key.strip()), int(value)
 
 
 def _insert_cumulative(
