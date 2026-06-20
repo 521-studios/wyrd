@@ -252,3 +252,50 @@ def test_cli_skips_corrupt_log_line(tmp_path, monkeypatch):
     )
     assert dry.exit_code == 0  # corrupt line skipped, not crashed
     assert "1 edges >= medium" in dry.output  # the valid row still derives an edge
+
+
+def test_cli_skips_stale_endpoint_ids_without_crashing(tmp_path, monkeypatch):
+    """wyrd-c6wu/s964: the audit log stores endpoint ROW-IDS, so a log mined against
+    a different corpus can carry stale ids. PASS 2 must DROP such edges (refs omits
+    the missing id) + warn — never KeyError in descent_assertions. Proves the
+    db81976b safety net at the CLI level."""
+    monkeypatch.setattr(cli_mod, "OllamaClient", _FakeClient)
+    db_path = tmp_path / "lexicon.db"
+    mining = tmp_path / "mining"
+    mining.mkdir()
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    child = db.conn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('tun', 'old-english')"
+    ).lastrowid
+    db.commit()
+    db.close()
+
+    # A CONFIRMED judgment whose cluster_root points at an etymon that doesn't exist
+    # in THIS build (a stale id). morpheme_ref (child) is real; only the root is stale.
+    (mining / "_cognate_descent_audit.jsonl").write_text(
+        json.dumps(
+            {
+                "_type": "cognate_descent_audit",
+                "morpheme_ref": child,
+                "morpheme_form": "tun",
+                "cluster_root": 9_999_999,  # no such etymon
+                "bridge_form": "tún",
+                "proposal_confidence": "medium",
+                "proposal_reason": "x",
+                "confirmed": True,
+                "verify_confidence": "medium",
+                "verify_reason": "y",
+            }
+        )
+        + "\n"
+    )
+
+    result = CliRunner().invoke(
+        cli_mod.lexicon_mine_cognate_descents_llm,
+        ["--db", str(db_path), "--mining-dir", str(mining), "--apply"],
+    )
+    assert result.exit_code == 0, result.output  # no KeyError
+    assert "skipped 1 edge" in result.output
+    # No assertion authored — the stale edge was dropped, not emitted broken.
+    assert [a for a in load_assertions(mining) if a.predicate == "descends-from"] == []
