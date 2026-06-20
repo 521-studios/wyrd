@@ -260,11 +260,29 @@ def test_cli_skips_corrupt_log_line(tmp_path, monkeypatch):
     assert "1 edges >= medium" in dry.output  # the valid row still derives an edge
 
 
-def test_cli_skips_stale_endpoint_ids_without_crashing(tmp_path, monkeypatch):
-    """wyrd-s964: a confirmed verdict whose endpoint key doesn't resolve in THIS
-    build — a stale entry from a different corpus, or (as here) a LEGACY id-keyed
-    row from before the natural-key cache — must be DROPPED + warned, never crash
-    (resolve_etymon_ref is total over non-natural-key input). No broken edge emitted."""
+def _audit_row(*, morpheme_ref, morpheme_form, cluster_root):
+    return {
+        "_type": "cognate_descent_audit",
+        "morpheme_ref": morpheme_ref,
+        "morpheme_form": morpheme_form,
+        "cluster_root": cluster_root,
+        "bridge_form": "x",
+        "proposal_confidence": "medium",
+        "proposal_reason": "p",
+        "confirmed": True,
+        "verify_confidence": "medium",
+        "verify_reason": "v",
+    }
+
+
+def test_cli_skips_unresolvable_endpoints_without_crashing(tmp_path, monkeypatch):
+    """wyrd-s964: confirmed verdicts whose endpoint key doesn't resolve in THIS build
+    must be DROPPED + counted, never crash (resolve_etymon_ref is total over
+    non-natural-key input). Two kinds, BOTH skipped — N=2 proves the counter isn't
+    hard-wired to one row:
+      (1) a realistic steady-state row: VALID natural-key morpheme but a STALE
+          natural-key root (a cluster that existed in the mining corpus, not here);
+      (2) a LEGACY id-keyed row from before the natural-key cache (bare ints)."""
     monkeypatch.setattr(cli_mod, "OllamaClient", _FakeClient)
     db_path = tmp_path / "lexicon.db"
     mining = tmp_path / "mining"
@@ -277,23 +295,18 @@ def test_cli_skips_stale_endpoint_ids_without_crashing(tmp_path, monkeypatch):
     db.commit()
     db.close()
 
-    # A CONFIRMED judgment whose cluster_root points at an etymon that doesn't exist
-    # in THIS build (a stale id). morpheme_ref (child) is real; only the root is stale.
     (mining / "_cognate_descent_audit.jsonl").write_text(
+        # (1) morpheme resolves (old-english:tun is real), root key is stale → skipped.
         json.dumps(
-            {
-                "_type": "cognate_descent_audit",
-                "morpheme_ref": child,
-                "morpheme_form": "tun",
-                "cluster_root": 9_999_999,  # no such etymon
-                "bridge_form": "tún",
-                "proposal_confidence": "medium",
-                "proposal_reason": "x",
-                "confirmed": True,
-                "verify_confidence": "medium",
-                "verify_reason": "y",
-            }
+            _audit_row(
+                morpheme_ref="old-english:tun",
+                morpheme_form="tun",
+                cluster_root="proto-germanic:ghost",  # no such cluster in this build
+            )
         )
+        + "\n"
+        # (2) legacy id-keyed row: bare ints, neither a natural key → skipped.
+        + json.dumps(_audit_row(morpheme_ref=child, morpheme_form="tun", cluster_root=9_999_999))
         + "\n"
     )
 
@@ -301,7 +314,7 @@ def test_cli_skips_stale_endpoint_ids_without_crashing(tmp_path, monkeypatch):
         cli_mod.lexicon_mine_cognate_descents_llm,
         ["--db", str(db_path), "--mining-dir", str(mining), "--apply"],
     )
-    assert result.exit_code == 0, result.output  # no crash on the unresolvable key
-    assert "1 confirmed verdict(s) skipped" in result.output
-    # No assertion authored — the stale/legacy edge was dropped, not emitted broken.
+    assert result.exit_code == 0, result.output  # no crash on the unresolvable keys
+    assert "2 confirmed verdict(s) skipped" in result.output
+    # No assertion authored — both edges dropped, not emitted broken.
     assert [a for a in load_assertions(mining) if a.predicate == "descends-from"] == []

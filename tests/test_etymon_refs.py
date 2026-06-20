@@ -56,9 +56,9 @@ def test_resolve_none_branches(tmp_path):
     assert resolve_etymon_ref(db.conn, "12345") is None
     # Well-formed but not in this build → None.
     assert resolve_etymon_ref(db.conn, "old-english:ghost") is None
-    # wyrd-s964: a NON-STRING ref (a legacy id int from a pre-natural-key cache)
-    # resolves to None, never a TypeError on the `':' not in ref` membership test.
-    assert resolve_etymon_ref(db.conn, 12345) is None  # type: ignore[arg-type]
+    # wyrd-s964: a legacy id int (the `str | int` input from a pre-natural-key
+    # cache) resolves to None, never a TypeError on the `':' not in ref` test.
+    assert resolve_etymon_ref(db.conn, 12345) is None
     db.close()
 
 

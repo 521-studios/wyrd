@@ -71,6 +71,10 @@ def test_candidate_built_for_shared_prefix(tmp_path):
     assert it.etymon_id == x and it.glosses == ("stony place",)
     assert len(it.candidates) == 1
     assert it.candidates[0].cluster_root == root
+    # wyrd-s964: build_candidates resolves the root's durable natural key (via the
+    # batch etymon_refs_for lookup) onto each candidate — this is what audit_log_row
+    # records, so pin it at the source.
+    assert it.candidates[0].root_ref == "proto-germanic:stanaz"
     assert it.candidates[0].bridge_form == "stane"
     db.close()
 
@@ -208,6 +212,33 @@ def test_edge_from_log_refuted_or_none(tmp_path):
         edge_from_log({"confirmed": True, "cluster_root": None}, conn=c, min_confidence="low")
         is None
     )  # no chosen cluster
+    db.close()
+
+
+def test_edge_from_log_resolves_against_reassigned_ids(tmp_path):
+    """wyrd-s964 core promise: a verdict cached against one id-assignment must resolve
+    correctly after a rebuild REASSIGNS etymon ids. We replay the SAME natural-key row
+    against a second build where the identical (form, language) pair lands on a
+    DIFFERENT row id — the edge must follow the natural key, not a frozen id. A
+    regression to int(ref) would silently pass whenever the ids happened to coincide;
+    this test fails it by forcing them apart."""
+    db_a, child_a, root_a = _edge_db(tmp_path / "a")
+    row = _log(True, "medium", "high")  # natural keys: old-english:stant / proto-germanic:stanaz
+
+    # Build B: insert filler etymons FIRST so the same two morphemes get higher ids.
+    db_b = _db(tmp_path / "b")
+    for i in range(5):
+        _etymon(db_b, f"filler{i}", language="gothic")
+    child_b = _etymon(db_b, "stant", language="old-english")
+    root_b = _etymon(db_b, "stanaz", language="proto-germanic")
+    db_b.commit()
+
+    assert (child_b, root_b) != (child_a, root_a)  # ids genuinely reassigned
+    e = edge_from_log(row, conn=db_b.conn, min_confidence="medium")
+    assert e is not None
+    assert e.child_etymon == child_b and e.cluster_root == root_b  # resolved to BUILD B's ids
+    db_a.close()
+    db_b.close()
 
 
 def test_edge_from_log_unresolvable_key_skipped(tmp_path):
