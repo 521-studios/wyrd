@@ -149,6 +149,17 @@ DEV_SOURCE_LEXICON_SENTINEL = "DEV_SOURCE_LEXICON"
 DEV_TOP_N_PER_CULTURE = 200
 
 
+def _bare_modern_usage(value: str) -> str:
+    """The stored bare surface for a subject word's ``modern_usage``: dashes are
+    render-time decoration (D45/D39) and surrounding whitespace is never part of
+    a morpheme's identity (wyrd-an8u), so both are stripped. Keeps the meaning /
+    dormant-morpheme blob keys bare + whitespace-clean, so a dirty ``'Oak- '``
+    merges into the ``'Oak'`` meaning row rather than duplicating it and
+    splitting its weight. Mirrors ``word._bare_surface`` (the proportions key
+    path)."""
+    return value.replace("-", "").strip()
+
+
 def write_runtime_db(
     *,
     output_path: Path,
@@ -250,7 +261,7 @@ def write_runtime_db(
                 for word in subject.get("words") or []:
                     mu = word.get("modern_usage")
                     if mu:
-                        word["modern_usage"] = mu.replace("-", "")
+                        word["modern_usage"] = _bare_modern_usage(mu)
             n_meanings = _write_meanings(conn, subjects)
             n_morphemes = _write_morphemes(conn, subjects)  # wyrd-rogd.10 (dormant)
             n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
