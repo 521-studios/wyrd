@@ -16,12 +16,17 @@ whitespace alongside the dash-fold:
 
 from __future__ import annotations
 
+import json
+import sqlite3
 from types import SimpleNamespace
 
 from wyrd.generators.kenning.lexicon.proportions_builder import (
     _accumulate_attested_languages,
 )
-from wyrd.generators.kenning.lexicon.runtime_db_export import _bare_modern_usage
+from wyrd.generators.kenning.lexicon.runtime_db_export import (
+    _bare_modern_usage,
+    _write_meanings,
+)
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.word import Word, _bare_surface
 
@@ -38,9 +43,16 @@ def _meaning(usage: str) -> Meaning:
 # ---- word._bare_surface (proportions usages + render key) ------------------
 
 
-def test_bare_surface_strips_trailing_whitespace():
-    assert _bare_surface(_meaning("Oak- ")) == "Oak"
+def test_bare_surface_strips_surrounding_whitespace():
+    assert _bare_surface(_meaning("Oak- ")) == "Oak"  # trailing
+    assert _bare_surface(_meaning(" Oak-")) == "Oak"  # leading
     assert _bare_surface(_meaning("Har ")) == "Har"
+
+
+def test_bare_surface_preserves_interior_whitespace():
+    # ``.strip()`` trims only the ends — a genuine multi-token surface keeps
+    # its interior space (guards against a regression to ``.replace(" ", "")``).
+    assert _bare_surface(_meaning("Mac Leod")) == "Mac Leod"
 
 
 def test_bare_surface_dirty_and_clean_fold_to_same_identity():
@@ -64,13 +76,53 @@ def test_word_compound_samples_use_whitespace_clean_surface():
 
 def test_bare_modern_usage_strips_dash_and_whitespace():
     assert _bare_modern_usage("Oak- ") == "Oak"
+    assert _bare_modern_usage(" Oak-") == "Oak"  # leading
     assert _bare_modern_usage("Har ") == "Har"
+    assert _bare_modern_usage("Mac Leod") == "Mac Leod"  # interior space kept
 
 
 def test_bare_modern_usage_dirty_and_clean_collide():
     # Same key → _write_meanings groups them into ONE meaning row (unioned
     # entries) rather than two whitespace-variant rows.
     assert _bare_modern_usage("Oak- ") == _bare_modern_usage("Oak-")
+
+
+def test_write_meanings_merges_whitespace_variant_into_one_row():
+    """The downstream consequence the ticket targets: after the export de-dash
+    + whitespace-strip, a dirty ``'Oak- '`` word and a clean ``'Oak-'`` word
+    collapse into ONE ``'Oak'`` meaning row with both entries unioned — not two
+    rows splitting the weight."""
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE meaning (usage_key TEXT, primary_language TEXT, "
+        "stratum TEXT, data BLOB NOT NULL)"
+    )
+    subjects = [
+        {
+            "meaning": ["oak tree"],
+            "modifier_tags": ["flora"],
+            "modifier_type": "noun",
+            "words": [{"modern_usage": "Oak- ", "old_english": ["ac"]}],
+        },
+        {
+            "meaning": ["oak wood"],
+            "modifier_tags": ["flora"],
+            "modifier_type": "noun",
+            "words": [{"modern_usage": "Oak-", "old_english": ["ac"]}],
+        },
+    ]
+    # Mirror write_runtime_db's pre-_write_meanings normalization.
+    for subject in subjects:
+        for word in subject["words"]:
+            word["modern_usage"] = _bare_modern_usage(word["modern_usage"])
+
+    n = _write_meanings(conn, subjects)
+    assert n == 1  # one merged 'Oak' row, not two whitespace variants
+    rows = conn.execute("SELECT usage_key, data FROM meaning").fetchall()
+    assert [r[0] for r in rows] == ["Oak"]
+    entries = json.loads(rows[0][1])["entries"]
+    assert len(entries) == 2  # both subjects' entries unioned onto the winner
+    conn.close()
 
 
 # ---- proportions_builder attested-language key -----------------------------

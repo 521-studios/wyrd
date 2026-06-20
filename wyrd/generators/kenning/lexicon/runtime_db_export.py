@@ -1080,11 +1080,16 @@ def select_dev_subset(
     trimmed_subjects: list[dict[str, Any]] = []
     for subject in subjects:
         # D45: subject modern_usage is still dash-marked here (de-dashed later
-        # in _write_meanings); fold to bare-lower to match keep_surfaces.
+        # before _write_meanings); fold to bare-lower to match keep_surfaces.
+        # Must use the SAME fold as the keep_surfaces source (_bare_surface →
+        # dash + surrounding-whitespace strip, wyrd-an8u): keep_surfaces is
+        # whitespace-clean, so a raw ``'Oak- '`` folded with replace-only would
+        # be ``'oak '`` and miss the stripped ``'oak'`` — silently dropping the
+        # word from the --dev / generation_subset (prod cold-start) bundle.
         kept_words = [
             word
             for word in (subject.get("words") or [])
-            if (word.get("modern_usage") or "").lower().replace("-", "") in keep_surfaces
+            if _bare_modern_usage(word.get("modern_usage") or "").lower() in keep_surfaces
         ]
         if not kept_words:
             continue
