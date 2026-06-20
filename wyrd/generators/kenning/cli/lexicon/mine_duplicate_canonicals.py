@@ -66,7 +66,11 @@ def _load_judged(mining_dir: Path) -> set[str]:
                 err=True,
             )
             continue
-        if row.get("_type") == _AUDIT_TYPE and isinstance(row.get("pair"), str):
+        if (
+            isinstance(row, dict)
+            and row.get("_type") == _AUDIT_TYPE
+            and isinstance(row.get("pair"), str)
+        ):
             out.add(row["pair"])
     return out
 

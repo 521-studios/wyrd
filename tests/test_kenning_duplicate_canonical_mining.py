@@ -225,9 +225,11 @@ def test_projection_collapses_multi_member_families_preserving_fidelity(lex, tmp
 
     project_canonical(lex, mining_dir=tmp_path, apply=True, confidence_gate="high")
     roots = {_canonical_root(lex, e) for e in (niwe, niwa, ne, nee)}
-    assert len(roots) == 1 and None not in roots  # all four collapsed into one node
+    assert len(roots) == 1 and None not in roots  # all four JOINED into one node (the merge)
+    # fidelity checks the no-SPLIT invariant: each legacy family maps to one canonical
+    # group (non-vacuous here — two real 2-member families exist).
     fid = assess_identity_fidelity(lex)
-    assert fid.legacy_families >= 2 and fid.violations == 0  # both families joined, none split
+    assert fid.legacy_families >= 2 and fid.violations == 0
 
 
 def test_detect_excludes_non_root_survivor(lex):
@@ -441,3 +443,42 @@ def test_call_retries_then_gives_up():
     assert cli._call(ok, "s", "u", parse_propose).same is True
     # both attempts unparseable → None (skipped, not crashed)
     assert cli._call(_Flaky([{"bad": 1}, {"bad": 2}]), "s", "u", parse_propose) is None
+
+
+def test_judge_loop_skip_leaves_no_audit_row(tmp_path, monkeypatch):
+    """A None verdict (transient failure) must NOT be written to the judged-log — the
+    pair stays retryable. Guards the continue/_write_audit ordering in the loop."""
+    from wyrd.generators.kenning.cli.lexicon import mine_duplicate_canonicals as cli
+
+    c = DuplicateCandidate(1, "niwe", 2, "ne", "oe", ("new",), ("new",), 1.0)
+    monkeypatch.setattr(cli, "_judge_pair", lambda client, ca: None)
+    audit = tmp_path / "canonicalization" / "_duplicate_canonical_audit.jsonl"
+    audit.parent.mkdir(parents=True)
+    with audit.open("a", encoding="utf-8") as fh:
+        counts = cli._judge_loop(
+            None,
+            [c],
+            mining_dir=tmp_path,
+            source="t",
+            min_confidence="high",
+            apply=True,
+            existing_ids=set(),
+            audit_fh=fh,
+            base_url="u",
+            model="m",
+        )
+    assert counts["skipped"] == 1
+    assert cli._load_judged(tmp_path) == set()  # nothing recorded → pair retried next run
+
+
+def test_load_judged_tolerates_non_dict_line(tmp_path):
+    from wyrd.generators.kenning.cli.lexicon import mine_duplicate_canonicals as cli
+
+    cdir = tmp_path / "canonicalization"
+    cdir.mkdir()
+    (cdir / "_duplicate_canonical_audit.jsonl").write_text(
+        '[1, 2]\n"a string"\ntrue\n'  # valid JSON, but not dicts → must not crash
+        '{"_type": "duplicate_canonical_audit", "pair": "1:2"}\n',
+        encoding="utf-8",
+    )
+    assert cli._load_judged(tmp_path) == {"1:2"}

@@ -285,7 +285,7 @@ def parse_propose(raw: dict) -> _Propose | None:
     if same is None:
         return None
     return _Propose(
-        same, _norm_conf(raw.get("confidence")), str(raw.get("reason", "")).strip()[:200]
+        same, _norm_conf(raw.get("confidence")), str(raw.get("reason") or "").strip()[:200]
     )
 
 
@@ -296,7 +296,7 @@ def parse_refute(raw: dict) -> _Refute | None:
     if refuted is None:
         return None
     return _Refute(
-        refuted, _norm_conf(raw.get("confidence")), str(raw.get("reason", "")).strip()[:200]
+        refuted, _norm_conf(raw.get("confidence")), str(raw.get("reason") or "").strip()[:200]
     )
 
 
