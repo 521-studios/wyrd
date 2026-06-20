@@ -308,6 +308,100 @@ def test_dump_etymon_distinct_per_source_even_with_multiple_citations():
     assert (n_etymons, n_citations) == (1, 2)
 
 
+def test_dump_cited_etymon_merged_loser_follows_to_winner(tmp_path: Path):
+    """wyrd-q6ro: when a source cites an OCR-cluster LOSER (merged_into_id
+    set), the per-source dump emits the WINNER etymon row AND a citation
+    referencing the winner — never the tombstone. build_from_jsonl drops
+    merged_into_id, so emitting the loser would resurrect it as a live
+    unmerged etymon (D22) and orphan the citation witness (D21). Mirrors the
+    fantasy guard (test_fantasy_morpheme_merged_loser_etymon_follows_to_winner)."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    pre = _build_fixture_db()
+    _add_source(pre, id="skeat", title="X")
+    winner = _add_etymon(pre, "old-english", "wic")
+    loser = _add_etymon(pre, "old-english", "wych", merged_into_id=winner)
+    pre.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '15')",
+        (loser,),
+    )
+    rows = dump_source_to_rows(pre, "skeat")
+    # Etymon dump: only the winner, never the tombstone.
+    assert {r["ref"] for r in rows if r["_type"] == "etymon"} == {"old-english:wic"}
+    # The citation follows to the winner ref too (no dangling loser ref).
+    citation = next(r for r in rows if r["_type"] == "citation")
+    assert citation["etymon_ref"] == "old-english:wic"
+    # Hardening: the loser ref must not appear in ANY emitted row (ref or
+    # etymon_ref), so a partial-fix regression on either dump can't slip by.
+    loser_ref = "old-english:wych"
+    assert all(r.get("ref") != loser_ref and r.get("etymon_ref") != loser_ref for r in rows)
+    dump_source_to_file(pre, "skeat", tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    # No tombstone resurrected: the only etymon is the unmerged winner.
+    assert (
+        rebuilt.execute("SELECT count(*) FROM etymon WHERE merged_into_id IS NOT NULL").fetchone()[
+            0
+        ]
+        == 0
+    )
+    forms = {r[0] for r in rebuilt.execute("SELECT canonical_form FROM etymon").fetchall()}
+    assert forms == {"wic"}
+    # Citation evidence preserved + attached to the winner (not orphaned).
+    assert counts.get("citation_orphans", 0) == 0
+    cited = rebuilt.execute(
+        "SELECT e.canonical_form FROM etymon_citation c JOIN etymon e ON e.id = c.etymon_id "
+        "WHERE c.source_id = 'skeat'"
+    ).fetchall()
+    assert [r[0] for r in cited] == ["wic"]
+    rebuilt.close()
+
+
+def test_dump_cited_etymon_winner_and_loser_both_cited_dedups_etymon_keeps_all_witnesses(
+    tmp_path: Path,
+):
+    """wyrd-q6ro: a source citing BOTH the winner directly AND its merge
+    loser (plus a second citation on the loser) emits exactly ONE winner
+    etymon row (the DISTINCT + COALESCE collapse), and every citation
+    follows to the winner ref so all three witnesses round-trip onto the
+    winner — no duplicate etymon, no lost witness, no resurrected loser."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    pre = _build_fixture_db()
+    _add_source(pre, id="skeat", title="X")
+    winner = _add_etymon(pre, "old-english", "wic")
+    loser = _add_etymon(pre, "old-english", "wych", merged_into_id=winner)
+    # Winner cited directly; loser cited twice (distinct pages).
+    pre.executemany(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', ?)",
+        [(winner, "10"), (loser, "15"), (loser, "16")],
+    )
+    rows = dump_source_to_rows(pre, "skeat")
+    # Exactly one winner etymon row (loser collapses into it via COALESCE).
+    assert [r["ref"] for r in rows if r["_type"] == "etymon"] == ["old-english:wic"]
+    # All three citations emit, every one referencing the winner.
+    cite_refs = [r["etymon_ref"] for r in rows if r["_type"] == "citation"]
+    assert cite_refs == ["old-english:wic", "old-english:wic", "old-english:wic"]
+    dump_source_to_file(pre, "skeat", tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    assert counts.get("citation_orphans", 0) == 0
+    # One etymon (the winner), all three witnesses attached to it.
+    assert [r[0] for r in rebuilt.execute("SELECT canonical_form FROM etymon").fetchall()] == [
+        "wic"
+    ]
+    n_cites = rebuilt.execute(
+        "SELECT count(*) FROM etymon_citation c JOIN etymon e ON e.id = c.etymon_id "
+        "WHERE e.canonical_form = 'wic'"
+    ).fetchone()[0]
+    assert n_cites == 3
+    rebuilt.close()
+
+
 # ---------------------------------------------------------------------------
 # Descent dump
 # ---------------------------------------------------------------------------
@@ -332,6 +426,72 @@ def test_dump_descent_edges():
         "edge_type": "inheritance",
         "confidence": "high",
     }
+
+
+def test_dump_descent_edge_merged_endpoint_follows_to_winner(tmp_path: Path):
+    """wyrd-q6ro: a descent edge whose endpoint is an OCR-cluster loser emits
+    the WINNER ref (matching the winner etymon row _dump_cited_etymons emits),
+    so the edge references an etymon the file carries and round-trips through
+    build_from_jsonl without orphaning (no etymon_descent_orphans)."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    conn = _build_fixture_db()
+    _add_source(conn, id="wiki", title="Wiktionary")
+    parent = _add_etymon(conn, "proto-germanic", "*tunaz")
+    winner = _add_etymon(conn, "old-english", "tun")
+    loser = _add_etymon(conn, "old-english", "tunne", merged_into_id=winner)
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (?, ?, 'inheritance', 'wiki')",
+        (parent, loser),
+    )
+    rows = dump_source_to_rows(conn, "wiki")
+    descent = next(r for r in rows if r["_type"] == "etymon_descent")
+    assert descent["child_ref"] == "old-english:tun"
+    assert descent["parent_ref"] == "proto-germanic:*tunaz"
+    # The loser ref appears nowhere.
+    assert all(
+        r.get("child_ref") != "old-english:tunne" and r.get("parent_ref") != "old-english:tunne"
+        for r in rows
+    )
+    dump_source_to_file(conn, "wiki", tmp_path)
+    conn.close()
+
+    # Round-trip: the edge resolves onto the winner, no orphan, no resurrected
+    # tombstone — the D21/D22 bar the citation arm already meets.
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    assert counts.get("etymon_descent_orphans", 0) == 0
+    assert (
+        rebuilt.execute("SELECT count(*) FROM etymon WHERE merged_into_id IS NOT NULL").fetchone()[
+            0
+        ]
+        == 0
+    )
+    edge = rebuilt.execute(
+        "SELECT ce.canonical_form FROM etymon_descent d JOIN etymon ce ON ce.id = d.child_id"
+    ).fetchone()
+    assert edge["canonical_form"] == "tun"
+    rebuilt.close()
+
+
+def test_dump_descent_edge_collapsing_to_self_loop_is_skipped():
+    """wyrd-q6ro: a descent edge between two OCR variants of the SAME morpheme
+    (both merge to one winner) degenerates to a parent==child self-loop after
+    follow-to-winner and is dropped — it carries no real descent signal and
+    build's _insert_descent has no self-edge guard."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="wiki", title="Wiktionary")
+    winner = _add_etymon(conn, "old-english", "tun")
+    loser_a = _add_etymon(conn, "old-english", "tunne", merged_into_id=winner)
+    loser_b = _add_etymon(conn, "old-english", "tvn", merged_into_id=winner)
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (?, ?, 'inheritance', 'wiki')",
+        (loser_a, loser_b),
+    )
+    rows = dump_source_to_rows(conn, "wiki")
+    assert not any(r["_type"] == "etymon_descent" for r in rows)
 
 
 # ---------------------------------------------------------------------------
@@ -416,6 +576,49 @@ def test_dump_toponym_and_etymology_elements():
         "confidence": "high",
         "attested_year": 1086,
     }
+
+
+def test_dump_etymology_element_merged_etymon_follows_to_winner(tmp_path: Path):
+    """wyrd-q6ro: a toponym etymology element referencing an OCR-cluster loser
+    emits the WINNER etymon_ref, matching the winner etymon row, so the element
+    round-trips through build_from_jsonl without orphaning."""
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    conn = _build_fixture_db()
+    _add_source(conn, id="mawer", title="X")
+    winner = _add_etymon(conn, "old-english", "tun")
+    loser = _add_etymon(conn, "old-english", "tunne", merged_into_id=winner)
+    cur = conn.execute(
+        "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+        ("Acton", "England", "Cheshire"),
+    )
+    tid = cur.lastrowid
+    cur = conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id) VALUES (?, 'mawer')",
+        (tid,),
+    )
+    eid = cur.lastrowid
+    conn.execute(
+        "INSERT INTO toponym_etymology_element (toponym_etymology_id, ordinal, etymon_id) "
+        "VALUES (?, 1, ?)",
+        (eid, loser),
+    )
+    rows = dump_source_to_rows(conn, "mawer")
+    el = next(r for r in rows if r["_type"] == "etymology_element")
+    assert el["elements"] == [{"ordinal": 1, "etymon_ref": "old-english:tun"}]
+    dump_source_to_file(conn, "mawer", tmp_path)
+    conn.close()
+
+    # Round-trip: the element resolves onto the winner, no orphan.
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    assert counts.get("etymology_element_orphans", 0) == 0
+    linked = rebuilt.execute(
+        "SELECT e.canonical_form FROM toponym_etymology_element el "
+        "JOIN etymon e ON e.id = el.etymon_id"
+    ).fetchall()
+    assert [r["canonical_form"] for r in linked] == ["tun"]
+    rebuilt.close()
 
 
 def test_toponym_ref_handles_null_region():
