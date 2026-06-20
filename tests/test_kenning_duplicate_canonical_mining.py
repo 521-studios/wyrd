@@ -22,6 +22,7 @@ from wyrd.generators.kenning.lexicon.duplicate_canonical_mining import (
     parse_refute,
     same_morpheme_assertions,
 )
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
 from wyrd.generators.kenning.lexicon.schema import init_schema
 
 
@@ -169,7 +170,11 @@ def test_same_morpheme_assertions_are_valid_family_a():
     assert preds.count("merge-canonical") == 1
     binds = [a for a in asserts if a.predicate == "bind"]
     assert all(a.qualifiers == {"kind": "same-morpheme"} for a in binds)
-    assert {a.subject.ref for a in binds} == {"671826", "369498"}
+    # wyrd-c6wu: bind refs are stable natural keys, not etymon row-ids.
+    assert {a.subject.ref for a in binds} == {
+        etymon_ref("old-english", "niwe"),
+        etymon_ref("old-english", "ne"),
+    }
     assert all(a.confidence == "high" for a in binds)
 
 

@@ -61,7 +61,7 @@ def lexicon_mine_same_morpheme_binds(
     click.echo("mine-same-morpheme-binds: building family rollup + scanning…", err=True)
     with LexiconDB(db_path) as db:
         groups = mine_same_morpheme_binds(db)
-        assertions = bind_assertions(groups, source=source)
+        assertions = bind_assertions(groups, conn=db.conn, source=source)
 
     high = sum(1 for g in groups if g.confidence == "high")
     variants = sum(len(g.breakdown_etymons) for g in groups)

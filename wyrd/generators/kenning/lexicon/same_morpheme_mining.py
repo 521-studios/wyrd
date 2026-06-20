@@ -32,6 +32,7 @@ deterministic. Mirrors ``passthrough_mining``.
 
 from __future__ import annotations
 
+import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Literal
@@ -43,6 +44,7 @@ from wyrd.generators.kenning.lexicon.bundle._export import (
     _select_promoted_root_ids,
 )
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_refs_for
 from wyrd.generators.kenning.lexicon.genitive_priors import _fold
 
 METHOD = "same-morpheme-uplift-v1"
@@ -229,11 +231,20 @@ def mine_same_morpheme_binds(db: LexiconDB) -> list[BindGroup]:
     return out
 
 
-def bind_assertions(groups: list[BindGroup], *, source: str, actor: str = "") -> list[Assertion]:
+def bind_assertions(
+    groups: list[BindGroup], *, conn: sqlite3.Connection, source: str, actor: str = ""
+) -> list[Assertion]:
     """Author the D50 assertions for each bind group: one ``mint-canonical``
     declaration of the ``canonical_morpheme`` node, then a same-morpheme ``bind``
     for every member observation (shipped + breakdown variants). Deterministic ids
-    (no timestamp), so re-mining the same corpus is idempotent (D36.9)."""
+    (no timestamp), so re-mining the same corpus is idempotent (D36.9).
+
+    wyrd-c6wu: a bind's etymon ref is the stable natural key
+    ``"language:canonical_form"`` (via ``etymon_refs_for``), NEVER the etymon
+    row-id — row-ids are reassigned on every ``rebuild-from-jsonl``, so an
+    id-keyed bind would orphan after any corpus change. ``conn`` is the live
+    lexicon connection the member ids were mined from, so every id resolves."""
+    refs = etymon_refs_for(conn, {eid for g in groups for eid in g.member_etymons})
     out: list[Assertion] = []
     for g in groups:
         node_id = mint_canonical_id("canonical_morpheme", *g.canonical_parts)
@@ -257,7 +268,7 @@ def bind_assertions(groups: list[BindGroup], *, source: str, actor: str = "") ->
             out.append(
                 Assertion(
                     predicate="bind",
-                    subject=NodeRef("etymon", str(etymon_id)),
+                    subject=NodeRef("etymon", refs[etymon_id]),
                     object=node,
                     qualifiers={"kind": "same-morpheme"},
                     # Per-variant confidence: a gloss-only variant stays medium even
