@@ -91,16 +91,17 @@ class PipelineState {
    *  / to). The palette path doesn't pass overrides and gets the
    *  transform's defaultParams. */
   addStep(kind, paramOverrides = {}) {
+    this.steps = [...this.steps, this.#makeStep(kind, paramOverrides)];
+  }
+
+  /** Build a fresh step ({id, kind, params}) with a unique id, merging the
+   *  transform's defaultParams under `paramOverrides`. The single place the
+   *  step shape + id allocation live; callers splice it in wherever they need
+   *  (append for addStep, front for setRewind). */
+  #makeStep(kind, paramOverrides = {}) {
     const t = getTransform(kind);
     this.#nextStepId += 1;
-    this.steps = [
-      ...this.steps,
-      {
-        id: this.#nextStepId,
-        kind,
-        params: { ...t.defaultParams, ...paramOverrides },
-      },
-    ];
+    return { id: this.#nextStepId, kind, params: { ...t.defaultParams, ...paramOverrides } };
   }
 
   #nextStepId = 0;
@@ -228,13 +229,8 @@ class PipelineState {
       this.steps = next; // switch era in place
       return;
     }
-    // New rewind step at the FRONT — addStep appends, so build it inline.
-    const t = getTransform('rewind');
-    this.#nextStepId += 1;
-    this.steps = [
-      { id: this.#nextStepId, kind: 'rewind', params: { ...t.defaultParams, era } },
-      ...this.steps,
-    ];
+    // New rewind step at the FRONT — addStep appends, so splice via #makeStep.
+    this.steps = [this.#makeStep('rewind', { era }), ...this.steps];
   }
 
   /** The era of the single rewind step (null if none) — drives the time-warp

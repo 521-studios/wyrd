@@ -202,15 +202,14 @@
   // wyrd-410t: time-warp button bar (Section 2). The stages ARE the set Rewind
   // exposes (oe-late / me / modern — the wyrd-lftl distinct-language-stage
   // granularity the grid columns use); derived from the transform so the two
-  // never drift. Button text is the canonical label minus its date range (kept
-  // in the title), so there's no second copy to bikeshed. Flag-gated behind
-  // 'rewind' (wyrd-nwpa) — prod hides the whole bar until wyrd-k2gn re-enables
-  // Rewind, exactly as the rewind STEP is already gated.
+  // never drift. Each option carries a first-class `short` (the bare stage name)
+  // for the button text + the full `label` (with date range) for the tooltip.
+  // Flag-gated behind 'rewind' (wyrd-nwpa) — see the Section 2 markup comment.
   let rewindEnabled = $derived(flagOn(appState.config, 'rewind'));
   const rewindStages = rewindTransform.paramSchema.era.options.map((o) => ({
     value: o.value,
     label: o.label,
-    short: o.label.replace(/\s*\(.*\)$/, ''),
+    short: o.short ?? o.label,
   }));
 
   // Paragon: the MODERN companion of the as-generated name, pinned to the

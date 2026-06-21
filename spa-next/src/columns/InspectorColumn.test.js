@@ -11,7 +11,7 @@
 // or not the bug exists. We then assert run() fired a BOUNDED number of times:
 // the fix → once per mount/switch; a reintroduced loop → the count blows the
 // bound (or the loop spins until vitest's 5s timeout fails the test).
-import { fireEvent, render } from '@testing-library/svelte';
+import { fireEvent, render, within } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -88,32 +88,60 @@ describe('InspectorColumn time-warp bar (wyrd-410t)', () => {
     expect(queryByRole('group', { name: /time-warp/i })).toBeNull();
   });
 
-  it('renders one button per era stage when the flag is on', async () => {
+  it('renders EXACTLY one button per era stage when the flag is on', async () => {
     appState.manifest = { config: { all: true } };
-    const { getByRole, getByText } = render(InspectorColumn, { props: {} });
+    const { getByRole } = render(InspectorColumn, { props: {} });
     await settle();
-    expect(getByRole('group', { name: /time-warp/i })).toBeTruthy();
-    // The three rewind-exposed stages, short-labelled (date range → title only).
-    expect(getByText('Old English')).toBeTruthy();
-    expect(getByText('Middle English')).toBeTruthy();
-    expect(getByText('Modern')).toBeTruthy();
+    const bar = getByRole('group', { name: /time-warp/i });
+    const buttons = within(bar).getAllByRole('button');
+    // Exactly the three rewind-exposed stages — a 4th era added to
+    // rewindTransform.paramSchema.era.options would (intentionally) trip this.
+    expect(buttons.map((b) => b.textContent.trim())).toEqual([
+      'Old English',
+      'Middle English',
+      'Modern',
+    ]);
   });
 
-  it('pressing a stage adds a single front rewind step + marks it active; pressing it again clears', async () => {
+  it('pressing a stage adds ONE front rewind step + marks ONLY it active; pressing again clears (in state + DOM)', async () => {
     appState.manifest = { config: { all: true } };
     const setRewind = vi.spyOn(pipeline, 'setRewind');
-    const { getByText } = render(InspectorColumn, { props: {} });
+    const { getByRole } = render(InspectorColumn, { props: {} });
     await settle();
+    const bar = getByRole('group', { name: /time-warp/i });
+    const btn = (name) => within(bar).getByRole('button', { name: new RegExp(name, 'i') });
 
-    await fireEvent.click(getByText('Middle English'));
+    await fireEvent.click(btn('Middle English'));
     expect(setRewind).toHaveBeenCalledWith('me');
     expect(pipeline.steps.filter((s) => s.kind === 'rewind')).toHaveLength(1);
     expect(pipeline.rewindEra).toBe('me');
     await settle();
-    // active stage reflects aria-pressed
-    expect(getByText('Middle English').getAttribute('aria-pressed')).toBe('true');
+    // ONLY the pressed stage is active — the others must read false (guards a
+    // bug that highlights every stage or binds the wrong field).
+    expect(btn('Middle English').getAttribute('aria-pressed')).toBe('true');
+    expect(btn('Old English').getAttribute('aria-pressed')).toBe('false');
+    expect(btn('Modern').getAttribute('aria-pressed')).toBe('false');
 
-    await fireEvent.click(getByText('Middle English')); // press active → clear
+    await fireEvent.click(btn('Middle English')); // press active → clear
     expect(pipeline.rewindEra).toBe(null);
+    await settle();
+    // DOM reflects the clear too — not just the pipeline state.
+    expect(btn('Middle English').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('switching stage moves the active highlight (single front step, era updated)', async () => {
+    appState.manifest = { config: { all: true } };
+    const { getByRole } = render(InspectorColumn, { props: {} });
+    await settle();
+    const bar = getByRole('group', { name: /time-warp/i });
+    const btn = (name) => within(bar).getByRole('button', { name: new RegExp(name, 'i') });
+
+    await fireEvent.click(btn('Old English'));
+    await fireEvent.click(btn('Modern')); // switch
+    await settle();
+    expect(pipeline.steps.filter((s) => s.kind === 'rewind')).toHaveLength(1);
+    expect(pipeline.rewindEra).toBe('modern');
+    expect(btn('Modern').getAttribute('aria-pressed')).toBe('true');
+    expect(btn('Old English').getAttribute('aria-pressed')).toBe('false');
   });
 });
