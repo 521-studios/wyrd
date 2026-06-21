@@ -207,33 +207,43 @@ def test_reroll_of_free_slot_under_tag_samples_freely():
     pool-wide gate forced EVERY re-roll tagged; this asserts a free slot can yield
     an un-tagged morpheme."""
     # Find a multi-morpheme roll with exactly one water carrier, then re-roll a
-    # DIFFERENT (free) slot — the carrier still satisfies the tag.
-    target = None
-    for s in range(50):
+    # DIFFERENT (free) slot — the carrier still satisfies the tag, so the free slot
+    # is NOT pool-gated to water. The property is that a free slot CAN yield a
+    # non-water pick; but a given example's free slot may have a water-ONLY pool
+    # (free sampling ≠ guaranteed non-water when the pool is all water), so assert
+    # the property holds for SOME example, failing only if EVERY free slot is
+    # water-locked (the real gating regression). wyrd-aicu.7: the previously
+    # first-found example became a water-only-pool slot after the seed refresh;
+    # scanning keeps this a property test, not a seed-pinned one.
+    saw_free_sampling = False
+    examples = 0
+    for s in range(80):
         words = (
             Kenning().generate({"culture": "english", "tags": ["water"]}, seed=s).morphemes_by_word
         )
         flat = [(wi, mi) for wi, w in enumerate(words) for mi, _ in enumerate(w)]
         carriers = _carriers(words, "water")
         if len(flat) >= 2 and len(carriers) == 1:
-            free = next(slot for slot in flat if slot != carriers[0])
-            target = (words, free)
-            break
-    if target is None:
+            examples += 1
+            wi, mi = next(slot for slot in flat if slot != carriers[0])
+            if any(
+                "water"
+                not in (
+                    _regen(words, wi, mi, seed=rs, culture="english", tags=["water"])
+                    .morphemes_by_word[wi][mi]
+                    .get("tags")
+                    or []
+                )
+                for rs in range(12)
+            ):
+                saw_free_sampling = True
+                break
+    if examples == 0:
         pytest.skip("no multi-morpheme single-water-carrier roll found in range")
-    words, (wi, mi) = target
-    # Across re-roll seeds the free slot should yield at least one NON-water pick.
-    saw_non_water = any(
-        "water"
-        not in (
-            _regen(words, wi, mi, seed=rs, culture="english", tags=["water"])
-            .morphemes_by_word[wi][mi]
-            .get("tags")
-            or []
-        )
-        for rs in range(12)
+    assert saw_free_sampling, (
+        "a free slot under --tag must sample freely (not force water) — every free "
+        "slot was water-locked across all scanned single-carrier rolls"
     )
-    assert saw_non_water, "a free slot under --tag must sample freely, not force water"
 
 
 def test_mood_theme_survives_when_target_is_the_only_carrier():

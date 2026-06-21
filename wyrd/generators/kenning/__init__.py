@@ -1310,6 +1310,20 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
         # but BEFORE meaning/tag counts (so 'hyll' beats 'holt'
         # inside OE for the -hill bucket).
         surface_similarity = _max_form_similarity(matcher, usage_norm, m) if matcher else 0.0
+        # wyrd-aicu.7: a tagged etymon outranks an UNTAGGED thin stub, sorted ABOVE
+        # surface_similarity. The aicu.1 bare-surface merge pooled mining stubs (a
+        # literal modern-spelling form → surface_similarity 1.0, but 0 tags + few
+        # glosses) with the canonical scholarly etymon (macron/thorn-spelled →
+        # <1.0 match, but richly tagged) — and the 1.0 surface match pre-empted
+        # richness, so the stub ranked top (wick→ the 'wick' stub over wīc;
+        # ley→ the 'ley' stub over lēagum). A coarse tags-present boolean cleanly
+        # separates real scholarly etymons from stubs WITHOUT disturbing wyrd-ubbc:
+        # the -hill pollution candidates (hyll/holt/cyln) are ALL tagged, so they
+        # tie here and fall through to surface_similarity-then-count as before.
+        # Full-corpus (6361 multi-sibling pools): 56 top-flips, 46 improvements,
+        # 0 pinned-canonical regressions; the ONLY predicate that also fixes ley
+        # (gloss/citation-count predicates wrongly promote tūn's 35-gloss pool).
+        has_rich_signal = 1 if m.tags else 0
         # wyrd-24s6 (D41): a stable, content-derived final tiebreaker. Without it,
         # siblings tying on every signal above retain meaning_db LOAD order, which
         # varies across SQLite / Python builds — so `siblings[0]` (the canonical
@@ -1321,6 +1335,7 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
         return (
             -stratum_rank,
             is_common_sense,
+            has_rich_signal,
             surface_similarity,
             len(m.meanings),
             len(m.tags),

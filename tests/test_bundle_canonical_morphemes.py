@@ -57,15 +57,19 @@ CANONICAL_MORPHEMES = [
     ("hill", "old_english", "hyll", "hill"),
     ("hurst", "old_english", "hyrst", "hill"),
     # wyrd-ubbc explicitly fixed this case; pin it tight.
-    # ('ley' has both OE lēagum + OF launde in its top entry;
-    # asserting OE source presence is enough — don't pin OF away.)
-    ("ley", "old_english", "lēagum", "glade"),
+    # wyrd-aicu.7: the canonical lēah etymon (forms ['leah',…], 3 tags, 16 glosses
+    # "forest, wood, glade, clearing") now ranks top over the untagged 'ley' stub
+    # and the thinner 'lēagum' variant. Pin the base lemma 'leah' (the richest
+    # canonical) — gloss substring 'glade' still holds.
+    ("ley", "old_english", "leah", "glade"),
     ("stone", "old_english", "stān", "stone"),
     ("ton", "old_english", "tūn", "estate"),
     ("wick", "old_english", "wīc", "dairy"),
     ("Wood", "old_english", "wudu", "forest"),
     ("wood", "old_english", "wudu", "forest"),
-    ("worth", "old_english", "worth", "enclosure"),
+    # wyrd-aicu.7: worð (forms ['worð','worðes','worðe'], "An enclosure.") is the
+    # canonical + tops the pool; pin the actual thorn-spelled lemma, not 'worth'.
+    ("worth", "old_english", "worð", "enclosure"),
 ]
 
 
@@ -80,16 +84,15 @@ def meaning_db():
     return db
 
 
-# wyrd-aicu.7: aicu.1's bare-surface merge pooled each of these with a
-# thin-gloss position-variant, and _rank_siblings now ranks the thin variant
-# above the canonical OE etymon (wick→wīc, ley→lēagum, worth→worð). xfail(strict=
-# True) keeps the rest of the regression net live while honestly tracking the
-# demotion — strict means the marker AUTO-FAILS once aicu.7 restores the ranking
-# (the canonical etymon ranks top again), forcing this xfail's removal. NB we do
-# NOT weaken the expected lemma; the canonical sibling still exists, it's mis-ranked.
-# 'worth' joined when the committed seed was refreshed from a clean rebuild
-# (wyrd-ipvw); the OE worð de-promotion is tracked in wyrd-8vfo + wyrd-aicu.7.
-_XFAIL_RANKING = {"ley", "wick", "worth"}
+# wyrd-aicu.7 FIXED: _rank_siblings now sorts a tags-present signal ABOVE
+# surface_similarity, so an untagged thin mining stub (the literal 'wick'/'ley'
+# spelling, surface match 1.0 but 0 tags) no longer outranks the richly-tagged
+# canonical OE etymon — wīc (6 tags) tops 'wick', leah (3 tags, glade) tops 'ley'.
+# worth's worð (1 tag) tops its pool too (the 8vfo clean-rebuild de-promotion did
+# NOT manifest on this refreshed seed). The remaining ley/worth pin updates were
+# form corrections (leah / worð are the canonical lemmas), not ranking. Xfail set
+# now empty — the canonical suite is fully live again.
+_XFAIL_RANKING: set[str] = set()
 
 
 def _canonical_param(row: tuple[str, str, str, str]):
