@@ -128,6 +128,18 @@ here's the obligation:
   rebuild; it only resumes the `mine-cognate-descents-llm` pass and re-derives edges
   threshold-independently without re-calling the LLM). Its endpoints are natural keys
   (wyrd-s964), so it survives a rebuild's id reassignment.
+- **implied reflexes** (`mine-implied-reflexes`, wyrd-65jh) — residual attribution
+  of a toponym's modern name (anchor the KNOWN-reflex spans, attribute the one
+  contiguous residual span to the remaining element; `Houghton − ton(tūn) ⇒ hough`
+  is an implied reflex of `hōh`). NOT a wipe-restore step: `--apply` writes BOTH the
+  D50 `canonical-label@modern-english` assertion + its `mint-canonical` hub
+  (`data/mining/canonicalization/_assert_canonical_label.jsonl` +
+  `_canonical_nodes.jsonl`, covered by the `canonicalization-graph` layer — the mint
+  is what lets a singleton residual morpheme's label project) AND a `reflex` /
+  `reflex_etymon` projection, then RE-DUMPS `_reflexes.jsonl` (the `reflexes` layer)
+  so the reflex round-trips on rebuild. `surface_in_modern` is NOT written here
+  (wyrd-ujyo owns its derivation). Its outputs all ride existing layers; the miner
+  itself is never re-run on rebuild.
 
 ---
 

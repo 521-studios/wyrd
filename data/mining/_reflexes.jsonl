@@ -11690,7 +11690,7 @@
 {"_type": "reflex", "surface_form": "alkin", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "alkington", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "all", "position": "inner", "etymon_refs": ["breton:all", "middle-english:all", "old-irish:all"]}
-{"_type": "reflex", "surface_form": "all", "position": "post", "etymon_refs": ["middle-english:all", "old-irish:all"]}
+{"_type": "reflex", "surface_form": "all", "position": "post", "etymon_refs": ["middle-english:all", "old-english:halh", "old-irish:all"]}
 {"_type": "reflex", "surface_form": "alla", "position": "inner", "etymon_refs": ["irish:alla", "old-english:Alla"]}
 {"_type": "reflex", "surface_form": "alla", "position": "post", "etymon_refs": ["irish:alla", "old-english:Alla"]}
 {"_type": "reflex", "surface_form": "allam", "position": "inner", "etymon_refs": []}
@@ -13087,7 +13087,7 @@
 {"_type": "reflex", "surface_form": "border", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "bordon", "position": "post", "etymon_refs": ["old-french:bordon"]}
 {"_type": "reflex", "surface_form": "borough", "position": "inner", "etymon_refs": []}
-{"_type": "reflex", "surface_form": "borough", "position": "post", "etymon_refs": ["old-english:beorg"]}
+{"_type": "reflex", "surface_form": "borough", "position": "post", "etymon_refs": ["old-english:beorg", "old-english:berg"]}
 {"_type": "reflex", "surface_form": "borra", "position": "post", "etymon_refs": ["irish:borra"]}
 {"_type": "reflex", "surface_form": "bos", "position": "inner", "etymon_refs": ["irish:bos", "old-english:bos"]}
 {"_type": "reflex", "surface_form": "bosc", "position": "inner", "etymon_refs": []}
@@ -13512,7 +13512,7 @@
 {"_type": "reflex", "surface_form": "burt", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "burton", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "bury", "position": "inner", "etymon_refs": []}
-{"_type": "reflex", "surface_form": "bury", "position": "post", "etymon_refs": ["old-english:burg", "old-english:byrgen"]}
+{"_type": "reflex", "surface_form": "bury", "position": "post", "etymon_refs": ["old-english:burg", "old-english:burh", "old-english:byrgen"]}
 {"_type": "reflex", "surface_form": "bus", "position": "inner", "etymon_refs": ["irish:bus", "middle-irish:bus", "scottish-gaelic:bus"]}
 {"_type": "reflex", "surface_form": "bus", "position": "post", "etymon_refs": ["irish:bus", "middle-irish:bus", "scottish-gaelic:bus"]}
 {"_type": "reflex", "surface_form": "bush", "position": "inner", "etymon_refs": ["middle-english:bush", "modern-english:bush"]}
@@ -14248,7 +14248,7 @@
 {"_type": "reflex", "surface_form": "comb", "position": "inner", "etymon_refs": ["middle-english:comb"]}
 {"_type": "reflex", "surface_form": "comb", "position": "post", "etymon_refs": ["middle-english:comb", "old-english:comb"]}
 {"_type": "reflex", "surface_form": "combe", "position": "inner", "etymon_refs": ["old-english:comb"]}
-{"_type": "reflex", "surface_form": "combe", "position": "post", "etymon_refs": ["old-english:comb"]}
+{"_type": "reflex", "surface_form": "combe", "position": "post", "etymon_refs": ["old-english:comb", "old-english:cumb"]}
 {"_type": "reflex", "surface_form": "comber", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "comberbach", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "comberton", "position": "post", "etymon_refs": []}
@@ -16726,7 +16726,7 @@
 {"_type": "reflex", "surface_form": "halk", "position": "inner", "etymon_refs": ["middle-english:halk"]}
 {"_type": "reflex", "surface_form": "halk", "position": "post", "etymon_refs": ["middle-english:halk"]}
 {"_type": "reflex", "surface_form": "hall", "position": "inner", "etymon_refs": ["modern-english:hall"]}
-{"_type": "reflex", "surface_form": "hall", "position": "post", "etymon_refs": ["modern-english:hall", "old-english:healh", "old-english:heall"]}
+{"_type": "reflex", "surface_form": "hall", "position": "post", "etymon_refs": ["modern-english:hall", "old-english:halh", "old-english:healh", "old-english:heall"]}
 {"_type": "reflex", "surface_form": "halla", "position": "inner", "etymon_refs": ["irish:halla", "old-english:Halla"]}
 {"_type": "reflex", "surface_form": "halla", "position": "post", "etymon_refs": ["irish:halla"]}
 {"_type": "reflex", "surface_form": "hallam", "position": "inner", "etymon_refs": []}
@@ -16747,7 +16747,7 @@
 {"_type": "reflex", "surface_form": "halvey", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "halwill", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "ham", "position": "inner", "etymon_refs": ["middle-english:ham", "old-french:ham"]}
-{"_type": "reflex", "surface_form": "ham", "position": "post", "etymon_refs": ["middle-english:ham", "old-english:hamm", "old-english:hām", "old-french:ham"]}
+{"_type": "reflex", "surface_form": "ham", "position": "post", "etymon_refs": ["middle-english:ham", "old-english:hamm", "old-english:hdm", "old-english:hām", "old-french:ham"]}
 {"_type": "reflex", "surface_form": "hamall", "position": "inner", "etymon_refs": ["old-english:Hamall"]}
 {"_type": "reflex", "surface_form": "hambe", "position": "inner", "etymon_refs": ["old-english:Hambe"]}
 {"_type": "reflex", "surface_form": "hambleden", "position": "post", "etymon_refs": []}
@@ -16776,7 +16776,7 @@
 {"_type": "reflex", "surface_form": "hampstead", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "hampstead", "position": "post", "etymon_refs": ["old-english:hām-stede"]}
 {"_type": "reflex", "surface_form": "hampton", "position": "inner", "etymon_refs": []}
-{"_type": "reflex", "surface_form": "hampton", "position": "post", "etymon_refs": []}
+{"_type": "reflex", "surface_form": "hampton", "position": "post", "etymon_refs": ["old-english:hām-tūn"]}
 {"_type": "reflex", "surface_form": "hams", "position": "inner", "etymon_refs": ["old-norse:hams"]}
 {"_type": "reflex", "surface_form": "hams", "position": "post", "etymon_refs": ["old-norse:hams"]}
 {"_type": "reflex", "surface_form": "hamston", "position": "inner", "etymon_refs": ["old-english:Hamston"]}
@@ -16978,7 +16978,7 @@
 {"_type": "reflex", "surface_form": "hau", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "haug", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "haugh", "position": "inner", "etymon_refs": ["modern-english:haugh"]}
-{"_type": "reflex", "surface_form": "haugh", "position": "post", "etymon_refs": ["modern-english:haugh", "old-english:healh"]}
+{"_type": "reflex", "surface_form": "haugh", "position": "post", "etymon_refs": ["modern-english:haugh", "old-english:halh", "old-english:healh"]}
 {"_type": "reflex", "surface_form": "haughton", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "haul", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "haut", "position": "inner", "etymon_refs": ["old-french:haut"]}
@@ -17486,7 +17486,7 @@
 {"_type": "reflex", "surface_form": "hop", "position": "inner", "etymon_refs": ["modern-english:hop"]}
 {"_type": "reflex", "surface_form": "hop", "position": "post", "etymon_refs": ["modern-english:hop"]}
 {"_type": "reflex", "surface_form": "hope", "position": "inner", "etymon_refs": ["middle-english:hope", "modern-english:hope"]}
-{"_type": "reflex", "surface_form": "hope", "position": "post", "etymon_refs": ["middle-english:hope", "modern-english:hope"]}
+{"_type": "reflex", "surface_form": "hope", "position": "post", "etymon_refs": ["middle-english:hope", "modern-english:hope", "old-english:hop"]}
 {"_type": "reflex", "surface_form": "hopping", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "hopping", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "hopton", "position": "post", "etymon_refs": []}
@@ -17719,7 +17719,7 @@
 {"_type": "reflex", "surface_form": "idsworth", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "iel", "position": "post", "etymon_refs": ["celtic:aoil"]}
 {"_type": "reflex", "surface_form": "ield", "position": "inner", "etymon_refs": ["old-english:ield"]}
-{"_type": "reflex", "surface_form": "ield", "position": "post", "etymon_refs": ["old-english:ield"]}
+{"_type": "reflex", "surface_form": "ield", "position": "post", "etymon_refs": ["old-english:hīd", "old-english:ield"]}
 {"_type": "reflex", "surface_form": "ielden", "position": "inner", "etymon_refs": ["old-english:ielden"]}
 {"_type": "reflex", "surface_form": "ielden", "position": "post", "etymon_refs": ["old-english:ielden"]}
 {"_type": "reflex", "surface_form": "ierin", "position": "post", "etymon_refs": ["celtic:iarainn"]}
@@ -17816,8 +17816,8 @@
 {"_type": "reflex", "surface_form": "infold", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "infrith", "position": "inner", "etymon_refs": ["old-english:Infrith"]}
 {"_type": "reflex", "surface_form": "infrith", "position": "post", "etymon_refs": ["old-english:Infrith"]}
-{"_type": "reflex", "surface_form": "ing", "position": "inner", "etymon_refs": ["old-english:-ing", "welsh:ing"]}
-{"_type": "reflex", "surface_form": "ing", "position": "post", "etymon_refs": ["old-english:-ing", "welsh:ing"]}
+{"_type": "reflex", "surface_form": "ing", "position": "inner", "etymon_refs": ["old-english:-ing", "old-english:-ingas", "welsh:ing"]}
+{"_type": "reflex", "surface_form": "ing", "position": "post", "etymon_refs": ["old-english:-ing", "old-english:-ingas", "welsh:ing"]}
 {"_type": "reflex", "surface_form": "inga", "position": "inner", "etymon_refs": ["middle-irish:inga", "old-norse:Inga"]}
 {"_type": "reflex", "surface_form": "inga", "position": "post", "etymon_refs": ["middle-irish:inga"]}
 {"_type": "reflex", "surface_form": "ingate", "position": "post", "etymon_refs": []}
@@ -18374,7 +18374,7 @@
 {"_type": "reflex", "surface_form": "lanch", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "lanchester", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "land", "position": "inner", "etymon_refs": ["modern-english:land", "old-english:land", "old-norse:land"]}
-{"_type": "reflex", "surface_form": "land", "position": "post", "etymon_refs": ["modern-english:land", "old-english:land", "old-norse:land"]}
+{"_type": "reflex", "surface_form": "land", "position": "post", "etymon_refs": ["modern-english:land", "old-english:land", "old-norse:land", "old-norse:lundr"]}
 {"_type": "reflex", "surface_form": "landa", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "landa", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "lande", "position": "inner", "etymon_refs": ["old-french:lande"]}
@@ -18667,7 +18667,7 @@
 {"_type": "reflex", "surface_form": "lexden", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "lexton", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "ley", "position": "inner", "etymon_refs": ["modern-english:lea"]}
-{"_type": "reflex", "surface_form": "ley", "position": "post", "etymon_refs": ["modern-english:lea", "norman-french:lāch", "old-english:lēagum"]}
+{"_type": "reflex", "surface_form": "ley", "position": "post", "etymon_refs": ["modern-english:lea", "norman-french:lāch", "old-english:leah", "old-english:lēagum"]}
 {"_type": "reflex", "surface_form": "leyton", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "lez", "position": "inner", "etymon_refs": ["old-french:lez"]}
 {"_type": "reflex", "surface_form": "lez", "position": "post", "etymon_refs": ["old-french:lez"]}
@@ -18949,7 +18949,7 @@
 {"_type": "reflex", "surface_form": "lovett", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "lovington", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "low", "position": "inner", "etymon_refs": ["modern-english:low"]}
-{"_type": "reflex", "surface_form": "low", "position": "post", "etymon_refs": ["modern-english:low", "old-english:hlæw", "old-norse:haugr"]}
+{"_type": "reflex", "surface_form": "low", "position": "post", "etymon_refs": ["modern-english:low", "old-english:hlæw", "old-english:hlāw", "old-norse:haugr"]}
 {"_type": "reflex", "surface_form": "lowbridge", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "lowden", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "lowdham", "position": "post", "etymon_refs": []}
@@ -19616,7 +19616,7 @@
 {"_type": "reflex", "surface_form": "morden", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "mordon", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "more", "position": "inner", "etymon_refs": ["old-english:more", "old-english:mōr"]}
-{"_type": "reflex", "surface_form": "more", "position": "post", "etymon_refs": ["celtic:mhòr", "old-english:more", "old-english:mōr"]}
+{"_type": "reflex", "surface_form": "more", "position": "post", "etymon_refs": ["celtic:mhòr", "old-english:mere", "old-english:more", "old-english:mōr"]}
 {"_type": "reflex", "surface_form": "morebath", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "moret", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "moreton", "position": "post", "etymon_refs": []}
@@ -19747,7 +19747,7 @@
 {"_type": "reflex", "surface_form": "nailsea", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "nailsworth", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "nall", "position": "inner", "etymon_refs": []}
-{"_type": "reflex", "surface_form": "nall", "position": "post", "etymon_refs": ["old-english:cnoll"]}
+{"_type": "reflex", "surface_form": "nall", "position": "post", "etymon_refs": ["old-english:cnoll", "old-english:halh"]}
 {"_type": "reflex", "surface_form": "nam", "position": "inner", "etymon_refs": ["welsh:nam"]}
 {"_type": "reflex", "surface_form": "nam", "position": "post", "etymon_refs": ["welsh:nam"]}
 {"_type": "reflex", "surface_form": "nance", "position": "inner", "etymon_refs": []}
@@ -19853,7 +19853,7 @@
 {"_type": "reflex", "surface_form": "nevil", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "nevill", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "neville", "position": "post", "etymon_refs": []}
-{"_type": "reflex", "surface_form": "new", "position": "inner", "etymon_refs": ["modern-english:new"]}
+{"_type": "reflex", "surface_form": "new", "position": "inner", "etymon_refs": ["modern-english:new", "old-english:nīwe"]}
 {"_type": "reflex", "surface_form": "new", "position": "post", "etymon_refs": ["modern-english:new"]}
 {"_type": "reflex", "surface_form": "newa", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "newar", "position": "inner", "etymon_refs": []}
@@ -19886,7 +19886,7 @@
 {"_type": "reflex", "surface_form": "newydd", "position": "post", "etymon_refs": ["welsh:newydd"]}
 {"_type": "reflex", "surface_form": "next", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "ney", "position": "inner", "etymon_refs": []}
-{"_type": "reflex", "surface_form": "ney", "position": "post", "etymon_refs": ["old-norse:ey"]}
+{"_type": "reflex", "surface_form": "ney", "position": "post", "etymon_refs": ["old-english:ēg", "old-norse:ey"]}
 {"_type": "reflex", "surface_form": "nez", "position": "post", "etymon_refs": ["breton:nez"]}
 {"_type": "reflex", "surface_form": "nham", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "nham", "position": "post", "etymon_refs": []}
@@ -22692,7 +22692,7 @@
 {"_type": "reflex", "surface_form": "stobswood", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "stoc", "position": "inner", "etymon_refs": ["irish:stoc", "old-english:stocc"]}
 {"_type": "reflex", "surface_form": "stock", "position": "inner", "etymon_refs": ["modern-english:stock"]}
-{"_type": "reflex", "surface_form": "stock", "position": "post", "etymon_refs": ["modern-english:stock", "old-english:stocc", "old-norse:stokkr"]}
+{"_type": "reflex", "surface_form": "stock", "position": "post", "etymon_refs": ["modern-english:stock", "old-english:stoc", "old-english:stocc", "old-norse:stokkr"]}
 {"_type": "reflex", "surface_form": "stockbridge", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "stockbury", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "stockcross", "position": "post", "etymon_refs": []}
@@ -22863,7 +22863,7 @@
 {"_type": "reflex", "surface_form": "swear", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "swee", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "swell", "position": "inner", "etymon_refs": []}
-{"_type": "reflex", "surface_form": "swell", "position": "post", "etymon_refs": []}
+{"_type": "reflex", "surface_form": "swell", "position": "post", "etymon_refs": ["old-english:wella"]}
 {"_type": "reflex", "surface_form": "swich", "position": "post", "etymon_refs": ["middle-english:swich"]}
 {"_type": "reflex", "surface_form": "swick", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "swick", "position": "post", "etymon_refs": []}
@@ -23143,7 +23143,7 @@
 {"_type": "reflex", "surface_form": "thurston", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "thurvaston", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "thwaite", "position": "inner", "etymon_refs": ["old-english:thwaite"]}
-{"_type": "reflex", "surface_form": "thwaite", "position": "post", "etymon_refs": []}
+{"_type": "reflex", "surface_form": "thwaite", "position": "post", "etymon_refs": ["old-norse:þveit"]}
 {"_type": "reflex", "surface_form": "tib", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "tibb", "position": "inner", "etymon_refs": ["middle-english:Tibb"]}
 {"_type": "reflex", "surface_form": "tibb", "position": "post", "etymon_refs": ["middle-english:Tibb"]}
@@ -23250,7 +23250,7 @@
 {"_type": "reflex", "surface_form": "tom", "position": "inner", "etymon_refs": ["irish:tom"]}
 {"_type": "reflex", "surface_form": "tom", "position": "post", "etymon_refs": ["irish:tom"]}
 {"_type": "reflex", "surface_form": "ton", "position": "inner", "etymon_refs": ["irish:ton", "modern-english:ton", "welsh:ton"]}
-{"_type": "reflex", "surface_form": "ton", "position": "post", "etymon_refs": ["irish:ton", "modern-english:ton", "old-english:tūn", "welsh:ton"]}
+{"_type": "reflex", "surface_form": "ton", "position": "post", "etymon_refs": ["irish:ton", "modern-english:ton", "old-english:tun", "old-english:tūn", "welsh:ton"]}
 {"_type": "reflex", "surface_form": "tone", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "tone", "position": "post", "etymon_refs": ["old-english:Tun", "old-english:Tūn", "old-english:tūn"]}
 {"_type": "reflex", "surface_form": "tong", "position": "inner", "etymon_refs": []}
@@ -23864,7 +23864,7 @@
 {"_type": "reflex", "surface_form": "walker", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "walkhampton", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "wall", "position": "inner", "etymon_refs": ["old-english:wal"]}
-{"_type": "reflex", "surface_form": "wall", "position": "post", "etymon_refs": ["old-english:wal"]}
+{"_type": "reflex", "surface_form": "wall", "position": "post", "etymon_refs": ["old-english:wal", "old-english:wella"]}
 {"_type": "reflex", "surface_form": "wallop", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "wallow", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "wallow", "position": "post", "etymon_refs": []}
@@ -23945,7 +23945,7 @@
 {"_type": "reflex", "surface_form": "warton", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "warwick", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "was", "position": "inner", "etymon_refs": []}
-{"_type": "reflex", "surface_form": "was", "position": "post", "etymon_refs": []}
+{"_type": "reflex", "surface_form": "was", "position": "post", "etymon_refs": ["old-english:wæsse"]}
 {"_type": "reflex", "surface_form": "wasd", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "wasdale", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "wash", "position": "inner", "etymon_refs": []}
@@ -24030,7 +24030,7 @@
 {"_type": "reflex", "surface_form": "weldon", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "welford", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "well", "position": "inner", "etymon_refs": ["modern-english:well"]}
-{"_type": "reflex", "surface_form": "well", "position": "post", "etymon_refs": ["modern-english:well", "old-english:wel"]}
+{"_type": "reflex", "surface_form": "well", "position": "post", "etymon_refs": ["modern-english:well", "old-english:wel", "old-english:wella"]}
 {"_type": "reflex", "surface_form": "welland", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "wellington", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "wels", "position": "inner", "etymon_refs": []}
@@ -24169,7 +24169,7 @@
 {"_type": "reflex", "surface_form": "wich", "position": "post", "etymon_refs": ["celtic:wisc", "old-english:wīc"]}
 {"_type": "reflex", "surface_form": "wichenford", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "wick", "position": "inner", "etymon_refs": ["old-english:wīc"]}
-{"_type": "reflex", "surface_form": "wick", "position": "post", "etymon_refs": ["old-english:wīc", "old-norse:vágr", "old-norse:vík"]}
+{"_type": "reflex", "surface_form": "wick", "position": "post", "etymon_refs": ["old-english:wic", "old-english:wīc", "old-norse:vágr", "old-norse:vík"]}
 {"_type": "reflex", "surface_form": "wicke", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "wickham", "position": "post", "etymon_refs": ["old-english:wīc-hām"]}
 {"_type": "reflex", "surface_form": "widden", "position": "post", "etymon_refs": []}
@@ -24460,7 +24460,7 @@
 {"_type": "reflex", "surface_form": "worsley", "position": "post", "etymon_refs": ["old-english:Worsley"]}
 {"_type": "reflex", "surface_form": "wort", "position": "inner", "etymon_refs": ["middle-english:wort"]}
 {"_type": "reflex", "surface_form": "worth", "position": "inner", "etymon_refs": ["modern-english:worth"]}
-{"_type": "reflex", "surface_form": "worth", "position": "post", "etymon_refs": ["modern-english:worth"]}
+{"_type": "reflex", "surface_form": "worth", "position": "post", "etymon_refs": ["modern-english:worth", "old-english:worð"]}
 {"_type": "reflex", "surface_form": "worthington", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "worthy", "position": "inner", "etymon_refs": ["middle-english:worthy"]}
 {"_type": "reflex", "surface_form": "worthy", "position": "post", "etymon_refs": ["middle-english:worthy"]}
@@ -24636,3 +24636,49 @@
 {"_type": "reflex", "surface_form": "zouch", "position": "inner", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "zouch", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "áth", "position": "post", "etymon_refs": ["irish:áth", "old-irish:áth"]}
+{"_type": "reflex", "surface_form": "new", "position": "pre", "etymon_refs": ["old-english:nīwe"]}
+{"_type": "reflex", "surface_form": "nor", "position": "pre", "etymon_refs": ["old-english:norð"]}
+{"_type": "reflex", "surface_form": "sut", "position": "pre", "etymon_refs": ["old-english:sūð"]}
+{"_type": "reflex", "surface_form": "south", "position": "pre", "etymon_refs": ["old-english:sūð"]}
+{"_type": "reflex", "surface_form": "bur", "position": "pre", "etymon_refs": ["old-english:burh"]}
+{"_type": "reflex", "surface_form": "wal", "position": "pre", "etymon_refs": ["old-english:walh"]}
+{"_type": "reflex", "surface_form": "north", "position": "pre", "etymon_refs": ["old-english:norð"]}
+{"_type": "reflex", "surface_form": "ship", "position": "pre", "etymon_refs": ["old-english:scēp"]}
+{"_type": "reflex", "surface_form": "wel", "position": "pre", "etymon_refs": ["old-english:wella"]}
+{"_type": "reflex", "surface_form": "hat", "position": "pre", "etymon_refs": ["old-english:hǣð"]}
+{"_type": "reflex", "surface_form": "mil", "position": "pre", "etymon_refs": ["old-english:myln"]}
+{"_type": "reflex", "surface_form": "comp", "position": "pre", "etymon_refs": ["old-english:cumb"]}
+{"_type": "reflex", "surface_form": "dray", "position": "pre", "etymon_refs": ["old-english:dræg"]}
+{"_type": "reflex", "surface_form": "clay", "position": "pre", "etymon_refs": ["old-english:clǣg"]}
+{"_type": "reflex", "surface_form": "hay", "position": "pre", "etymon_refs": ["old-english:hēg"]}
+{"_type": "reflex", "surface_form": "horpe", "position": "post", "etymon_refs": ["old-norse:þorp"]}
+{"_type": "reflex", "surface_form": "eccles", "position": "pre", "etymon_refs": ["brittonic:eglẹ̄s"]}
+{"_type": "reflex", "surface_form": "bourn", "position": "post", "etymon_refs": ["old-english:burna"]}
+{"_type": "reflex", "surface_form": "hal", "position": "pre", "etymon_refs": ["old-english:halh"]}
+{"_type": "reflex", "surface_form": "haugh", "position": "pre", "etymon_refs": ["old-english:halh"]}
+{"_type": "reflex", "surface_form": "newn", "position": "pre", "etymon_refs": ["old-english:nīwe"]}
+{"_type": "reflex", "surface_form": "tune", "position": "post", "etymon_refs": ["old-english:tun"]}
+{"_type": "reflex", "surface_form": "twy", "position": "pre", "etymon_refs": ["old-english:twī-"]}
+{"_type": "reflex", "surface_form": "sworth", "position": "post", "etymon_refs": ["old-english:worð"]}
+{"_type": "reflex", "surface_form": "sey", "position": "post", "etymon_refs": ["old-english:ēg"]}
+{"_type": "reflex", "surface_form": "old", "position": "pre", "etymon_refs": ["old-english:ald"]}
+{"_type": "reflex", "surface_form": "sbury", "position": "post", "etymon_refs": ["old-english:burh"]}
+{"_type": "reflex", "surface_form": "cal", "position": "pre", "etymon_refs": ["old-english:calf"]}
+{"_type": "reflex", "surface_form": "clop", "position": "pre", "etymon_refs": ["old-english:clopp"]}
+{"_type": "reflex", "surface_form": "claver", "position": "pre", "etymon_refs": ["old-english:clǣfre"]}
+{"_type": "reflex", "surface_form": "feather", "position": "pre", "etymon_refs": ["old-english:feoðer-"]}
+{"_type": "reflex", "surface_form": "sall", "position": "post", "etymon_refs": ["old-english:halh"]}
+{"_type": "reflex", "surface_form": "hamble", "position": "pre", "etymon_refs": ["old-english:hamol"]}
+{"_type": "reflex", "surface_form": "whad", "position": "pre", "etymon_refs": ["old-english:hwǣte"]}
+{"_type": "reflex", "surface_form": "hen", "position": "pre", "etymon_refs": ["old-english:hēah"]}
+{"_type": "reflex", "surface_form": "lands", "position": "post", "etymon_refs": ["old-english:land"]}
+{"_type": "reflex", "surface_form": "mister", "position": "pre", "etymon_refs": ["old-english:mynster"]}
+{"_type": "reflex", "surface_form": "mur", "position": "pre", "etymon_refs": ["old-english:mōr"]}
+{"_type": "reflex", "surface_form": "newing", "position": "pre", "etymon_refs": ["old-english:nīwe"]}
+{"_type": "reflex", "surface_form": "prest", "position": "pre", "etymon_refs": ["old-english:prēost"]}
+{"_type": "reflex", "surface_form": "shil", "position": "pre", "etymon_refs": ["old-english:scelf"]}
+{"_type": "reflex", "surface_form": "over", "position": "pre", "etymon_refs": ["old-english:uferra"]}
+{"_type": "reflex", "surface_form": "withy", "position": "pre", "etymon_refs": ["old-english:wīðig"]}
+{"_type": "reflex", "surface_form": "ask", "position": "pre", "etymon_refs": ["old-norse:askr"]}
+{"_type": "reflex", "surface_form": "eller", "position": "pre", "etymon_refs": ["old-norse:elri"]}
+{"_type": "reflex", "surface_form": "conis", "position": "pre", "etymon_refs": ["old-norse:kunung"]}

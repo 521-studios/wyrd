@@ -171,6 +171,9 @@ from wyrd.generators.kenning.cli.lexicon import mine_fantasy_name as _mine_fanta
 from wyrd.generators.kenning.cli.lexicon import (
     mine_genitive_priors as _mine_genitive_priors_module,
 )
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_implied_reflexes as _mine_implied_reflexes_module,
+)
 from wyrd.generators.kenning.cli.lexicon import mine_llm as _mine_llm_module
 from wyrd.generators.kenning.cli.lexicon import mine_passthroughs as _mine_passthroughs_module
 from wyrd.generators.kenning.cli.lexicon import (
@@ -346,6 +349,7 @@ _mine_spurious_breakdowns_module.add_to(lexicon)
 _mine_duplicate_canonicals_module.add_to(lexicon)
 _mine_cognate_descents_module.add_to(lexicon)
 _mine_cognate_descents_llm_module.add_to(lexicon)
+_mine_implied_reflexes_module.add_to(lexicon)
 _mine_fantasy_name_module.add_to(lexicon)
 _mine_llm_module.add_to(lexicon)
 _mine_element_glosses_module.add_to(lexicon)
