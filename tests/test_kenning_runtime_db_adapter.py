@@ -81,7 +81,7 @@ def _runtime_db_from_fixture(tmp_path: Path) -> Path:
         (proportions_dir / f"{culture}_proportions.json").write_text(
             json.dumps(
                 {
-                    "usages": {"-ham-": 1},
+                    "usages": {"ham": {"inner": 1}},
                     "single_usages": {},
                     "structures": [{"proportion": 1, "words": [[{"location": "pre"}]]}],
                     "tag_marginal": {},
@@ -252,7 +252,7 @@ def _emit_runtime_db_with_genitive(tmp_path: Path, genitive_split_map) -> Path:
         (proportions_dir / f"{culture}_proportions.json").write_text(
             json.dumps(
                 {
-                    "usages": {"-ham-": 1},
+                    "usages": {"ham": {"inner": 1}},
                     "single_usages": {},
                     "structures": [{"proportion": 1, "words": [[{"location": "pre"}]]}],
                     "tag_marginal": {},

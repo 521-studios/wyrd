@@ -91,7 +91,7 @@ def _proportions_db(tmp_path: Path) -> tuple[Path, Path]:
         (proportions_dir / f"{c}_proportions.json").write_text(
             json.dumps(
                 {
-                    "usages": {"-stub-": 1},
+                    "usages": {"stub": {"inner": 1}},
                     "single_usages": {},
                     "structures": [{"proportion": 1, "words": [[{"location": "pre"}]]}],
                     "tag_marginal": {},

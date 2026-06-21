@@ -417,46 +417,30 @@ def _resolve_morpheme(meaning_db: dict, morpheme_id):
     return _morpheme_index_for(meaning_db).get(morpheme_id)
 
 
-def _location_from_form(usage: str) -> str:
-    """LEGACY (pre-D45) decode: the position a dash-encoded position-form usage
-    carries, from its dashes — ``-x-`` inner, ``x-`` pre, ``-x`` post, bare.
-    Only the legacy branch of :func:`_iter_part_proportions` calls this (old v2
-    bundles + test fixtures built in the flat ``{dashed: weight}`` shape); the
-    D45 path carries position as an explicit axis, not in the string."""
-    lead = usage.startswith("-")
-    trail = usage.endswith("-")
-    if lead and trail:
-        return "inner"
-    if trail:
-        return "pre"
-    if lead:
-        return "post"
-    return "bare"
-
-
 def _iter_part_proportions(
     proportions: dict[str, int | dict[str, int]],
 ) -> Iterator[tuple[str, str, str, int]]:
-    """Normalize the ``usages`` part pool into
-    ``(surface_key, position, item_form, weight)`` tuples, accepting both:
+    """Normalize a part pool into ``(surface_key, position, item_form, weight)``
+    tuples, accepting both live D45 shapes:
 
-    * **D45 (wyrd-aicu)** nested ``{surface: {position: weight}}`` — position is
-      an explicit axis; ``item_form`` is the bare surface (stored case kept so
-      the render's initial-slot front-cap preserves internal name caps), and
+    * **Nested** ``{surface: {position: weight}}`` — the multi-usage pool
+      (``load_proportions`` ``usages``, read from the adapter). Position is an
+      explicit axis; ``item_form`` is the bare surface (stored case kept so the
+      render's initial-slot front-cap preserves internal name caps), and
       ``surface_key`` is its lowercase fold for the bare-surface index.
-    * **Legacy** flat ``{dashed_usage: weight}`` — old v2 L4 bundles and test
-      fixtures; position is decoded from the dashes (:func:`_location_from_form`)
-      and ``item_form`` is the dashed string (the render strips it anyway).
+    * **Flat** ``{surface: weight}`` — the single-usage pool, which the adapter
+      flattens to ints (``_flatten_single_usages``) because lone words are bare
+      by construction (D45). A flat value is therefore a single ``bare`` entry.
 
     The shape is detected per-entry by the value type (dict → nested).
     """
     for key, value in proportions.items():
+        surface_key = key.lower().replace("-", "")
         if isinstance(value, dict):
-            surface_key = key.lower().replace("-", "")
             for position, weight in value.items():
                 yield surface_key, position, key, weight
         else:
-            yield key.lower().replace("-", ""), _location_from_form(key), key, value
+            yield surface_key, "bare", key, value
 
 
 class MeaningGenerator:
@@ -2902,15 +2886,13 @@ def load_proportions(data, meaning_db, tag_db, culture: str | None = None):
     # filter rather than silently emptying the entire native pool —
     # an empty frozenset is truthy under the downstream
     # ``is not None`` guard.
-    # wyrd-eyjk/D40: proportions usages are POSITION-FORMS (`-giles`, `Stoke-`,
-    # bare `giles`); the vector path compares this against each meaning_db
-    # entry's STORED dash-variant key (`Giles-`). Collapse to bare SURFACE on
-    # this side so the cross-mode culture filter matches by morpheme identity,
-    # not by which dash-shape happened to be recorded vs stored (build_non_
-    # position_eligible strips the meaning_db side to match).
+    # wyrd-eyjk/D40 + aicu: usage keys are already de-dashed (the producer strips
+    # dashes from identity — D45), so the dash-fold is a no-op; the CASE fold
+    # stays load-bearing — the pool keys both case variants (e.g. `Ton` + `ton`),
+    # so `.lower()` collapses them to one. The vector path compares this against
+    # each meaning_db entry's bare-lowercased key.
     culture_attested_usages = (
-        frozenset(u.lower().replace("-", "") for u in usages)
-        | frozenset(u.lower().replace("-", "") for u in single_usages)
+        frozenset(u.lower() for u in usages) | frozenset(u.lower() for u in single_usages)
     ) or None
     # wyrd-pfoo: per-Meaning attestation per culture. Bundle ships
     # this as ``{usage_key: [primary_language, ...]}``; we frozenset
@@ -2918,19 +2900,14 @@ def load_proportions(data, meaning_db, tag_db, culture: str | None = None):
     # ``in`` lookups. Legacy bundles built pre-wyrd-pfoo carry no
     # ``attested_languages`` key → None falls back to the per-usage
     # filter only.
-    # wyrd-c6o1.3: keyed by bare SURFACE, union-merged across dash-variants
-    # — the same fold the per-usage filter above applies. The bundle records
-    # attestation under the position-forms the corpus walk saw (`-ton`), but
-    # meaning_db stores every dash-variant key (the bare `ton`, `Ton-`,
-    # `-ton-`); an exact-key lookup left those variants un-narrowed, so
-    # wrong-language homographs (welsh `ton` 'wave' in an english request)
-    # slipped into the native pool through the variant keys.
+    # wyrd-c6o1.3 + aicu: keyed by bare SURFACE. The producer de-dashes identity
+    # (D45), so the bundle's attestation keys are already bare — no surface-fold
+    # / variant-union needed; just frozenset each per-usage language set for
+    # cheap ``in`` lookups in the runtime filter.
     raw_attested = data.get("attested_languages") or {}
-    folded_attested: dict[str, frozenset[str]] = {}
-    for k, v in raw_attested.items():
-        surface = k.lower().replace("-", "")
-        folded_attested[surface] = folded_attested.get(surface, frozenset()).union(v)
-    culture_attested_meanings: dict[str, frozenset[str]] | None = folded_attested or None
+    culture_attested_meanings: dict[str, frozenset[str]] | None = {
+        k: frozenset(v) for k, v in raw_attested.items()
+    } or None
     return NameGenerator(
         meaning_db,
         mg,

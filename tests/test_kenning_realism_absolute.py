@@ -88,7 +88,9 @@ def test_compute_corpus_reference_structure():
         "-ton": [Meaning("-ton", ["settlement"], ["town"], {})],
     }
     # part pool seeds the pre/post buckets the (pre, post) struct references.
-    proportions = dict.fromkeys(db, 1)
+    # D45 nested ``{surface: {position: weight}}`` shape (position the explicit
+    # axis): "Bre-" → pre, "-ton" → post.
+    proportions = {"Bre-": {"pre": 1}, "-ton": {"post": 1}}
     mg = MeaningGenerator(db, {}, proportions)
     structs = {((("pre",), ("post",)),): 1}
     name_gen = NameGenerator(db, mg, structs)
@@ -98,9 +100,14 @@ def test_compute_corpus_reference_structure():
     # Distributions normalize to 1.0 (within float tolerance).
     assert abs(sum(ref.tag_distribution.values()) - 1.0) < 1e-9
     assert abs(sum(ref.position_distribution.values()) - 1.0) < 1e-9
-    # The two morphemes' tags + positions are present.
+    # The two morphemes' tags are present.
     assert set(ref.tag_distribution) == {"topographic", "settlement"}
-    assert set(ref.position_distribution) == {"pre", "post"}
+    # wyrd-aicu: position comes from ``Meaning.location``, which is always "bare"
+    # now (identity is de-dashed — D45); the per-slot position axis the reference
+    # used to read off the dash-shape collapses to a single "bare" bucket. This
+    # matches the production corpus reference, whose position_distribution is
+    # ``{'bare': 1.0}`` (every resolved surface keys a bare-location Meaning).
+    assert set(ref.position_distribution) == {"bare"}
     # Morpheme weights are dash-stripped surfaces (case preserved).
     assert set(ref.morpheme_counts) == {"Bre", "ton"}
 

@@ -893,29 +893,18 @@ def _iter_single_usage_rows(single_usages: dict[str, int]) -> Iterable[tuple[str
         yield key.replace("-", "").strip(), "bare", int(weight)
 
 
-def _iter_usage_rows(usages: dict[str, Any]) -> Iterable[tuple[str, str, int]]:
+def _iter_usage_rows(usages: dict[str, dict[str, int]]) -> Iterable[tuple[str, str, int]]:
     """D45 (wyrd-aicu): flatten the nested ``{surface: {position: weight}}``
     part pool into ``(surface, position, weight)`` rows for the L4 writer. The
     nested Counter from ``proportions_from`` already SUMS any (surface, position)
     collisions, so no weight-merge / cumulative-rebuild is needed on a fresh
-    export — each row appears once. Also tolerates the legacy flat
-    ``{dashed: weight}`` operator-JSON shape (position decoded from the dashes)."""
-    from wyrd.generators.kenning.runtime.proportions import _location_from_form
-
+    export — each row appears once."""
     for key, value in usages.items():
-        # Fold the key defensively on BOTH branches so operator-JSON / legacy
-        # keys can't smuggle a dash or surrounding whitespace into the table
-        # (D45 / wyrd-an8u).
+        # Fold the key defensively so operator-JSON / dirty keys can't smuggle a
+        # dash or surrounding whitespace into the table (D45 / wyrd-an8u).
         bare = key.replace("-", "").strip()
-        if isinstance(value, dict):
-            for position, weight in value.items():
-                yield bare, position, int(weight)
-        else:
-            # Strip the key before position-decode too (wyrd-an8u): a doubly-
-            # dirty legacy key like 'Oak- ' (dash + trailing space) would
-            # otherwise hide the trailing position-dash behind the space and
-            # decode as 'bare' instead of 'pre'.
-            yield bare, _location_from_form(key.strip()), int(value)
+        for position, weight in value.items():
+            yield bare, position, int(weight)
 
 
 def _insert_cumulative(

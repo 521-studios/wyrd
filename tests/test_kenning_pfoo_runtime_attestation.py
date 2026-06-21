@@ -716,22 +716,25 @@ def _proportions_data(attested):
     }
 
 
-def test_load_proportions_fold_unions_attested_languages_keys():
-    """wyrd-c6o1.3: ``load_proportions`` folds the bundle's position-form
-    ``attested_languages`` keys to bare surfaces, unioning the language
-    sets across dash variants, so the runtime filter is surface-keyed."""
+def test_load_proportions_frozensets_attested_languages():
+    """wyrd-c6o1.3 + aicu: the bundle's ``attested_languages`` keys are bare
+    surfaces now (the producer de-dashes identity — D45), so ``load_proportions``
+    just frozensets each per-surface language set for the surface-keyed runtime
+    filter. The retired dash-variant fold+union scenario can no longer be
+    constructed in production (no dashed key reaches this map)."""
     gen = load_proportions(
         _proportions_data(
             {
-                "-ton": ["old_english", "modern_english"],
-                "Ton-": ["celtic_mix"],
+                "ton": ["old_english", "modern_english"],
+                "ham": ["celtic_mix"],
             }
         ),
         {},
         {},
     )
     assert gen.culture_attested_meanings == {
-        "ton": frozenset({"old_english", "modern_english", "celtic_mix"})
+        "ton": frozenset({"old_english", "modern_english"}),
+        "ham": frozenset({"celtic_mix"}),
     }
 
 

@@ -23,6 +23,21 @@ from wyrd.generators.kenning.generators.kenning import Kenning
 from wyrd.seed import MAX_SAFE_INTEGER, rng_for
 
 
+def _fixture_position(usage: str) -> str:
+    """Decode a dash-shaped fixture key to its D45 position axis so a flat
+    ``{dashed: weight}`` test fixture can be expressed as the nested
+    ``{surface: {position: weight}}`` shape the runtime now consumes. (Production
+    never carries dashes in identity — this is test-fixture sugar only.)"""
+    lead, trail = usage.startswith("-"), usage.endswith("-")
+    if lead and trail:
+        return "inner"
+    if trail:
+        return "pre"
+    if lead:
+        return "post"
+    return "bare"
+
+
 @pytest.fixture(autouse=True)
 def _permissive_structure_allowlist(monkeypatch):
     """wyrd-c6o1.5: this module builds SYNTHETIC structs directly into
@@ -251,11 +266,12 @@ def _build_synthetic_vector_name_gen(structs: dict, meaning_db: dict):
         NameGenerator,
     )
 
-    # wyrd-eyjk/D40: the part pool keeps the dash-variant forms (pre/post
-    # buckets); the single pool records the BARE surface (lone words are
-    # structurally bare), so it lands at the ("bare", …, "single") buckets a
-    # single-word struct references.
-    proportions = dict.fromkeys(meaning_db, 1)
+    # wyrd-eyjk/D40 + aicu: the multi-usage part pool is the nested D45 shape
+    # ``{surface: {position: weight}}`` (position the explicit axis); positions
+    # here are decoded from each fixture key's dash-shape. The single pool
+    # records the BARE surface (lone words are structurally bare), so it lands
+    # at the ("bare", …, "single") buckets a single-word struct references.
+    proportions = {k: {_fixture_position(k): 1} for k in meaning_db}
     single_proportions = {k.replace("-", ""): 1 for k in meaning_db}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(single_proportions, "single")
@@ -528,7 +544,7 @@ def test_name_generator_usage_frequency_by_bucket_snapshots_generators():
     rare = Meaning(usage="Rare-", tags=["urban"], meanings=[], sources=[])
     meaning_db = {"Common-": [common], "Rare-": [rare]}
 
-    multi_word_proportions = {"Common-": 6, "Rare-": 2}
+    multi_word_proportions = {"Common-": {"pre": 6}, "Rare-": {"pre": 2}}
     # wyrd-eyjk/D40: lone-word occurrences record the BARE surface form, so the
     # single pool's usages are dash-less (and land at the ("bare", "single")
     # bucket by their derived position, not via the retired add_bare hack).
@@ -565,7 +581,7 @@ def test_name_generator_usage_frequency_by_bucket_separates_qualifier_buckets():
         sources=[],
     )
     meaning_db = {"Port-": [bare], "Smith-": [family]}
-    mg = MeaningGenerator(meaning_db, {}, {"Port-": 5, "Smith-": 3})
+    mg = MeaningGenerator(meaning_db, {}, {"Port-": {"pre": 5}, "Smith-": {"pre": 3}})
     structs = {((("pre",), ("post",)),): 1}
 
     name_gen = NameGenerator(meaning_db, mg, structs)
@@ -591,8 +607,10 @@ def test_select_via_vector_renders_picks_at_slot_positions():
         "Ton-": [Meaning("Ton-", ["urban"], ["t"], {})],
     }
     mg = MeaningGenerator(db, {}, {})
-    mg.load_parts({"Gos-": 1})  # surface 'gos' → pre bucket
-    mg.load_parts({"-ton": 1})  # surface 'ton' → post bucket (stored variant is still 'Ton-')
+    # D45 nested ``{surface: {position: weight}}`` shape — position is the
+    # explicit axis (was previously decoded from the dash-shape of a flat key).
+    mg.load_parts({"Gos-": {"pre": 1}})  # surface 'gos' → pre bucket
+    mg.load_parts({"-ton": {"post": 1}})  # surface 'ton' → post bucket (stored variant 'Ton-')
     structs = {((("pre",), ("post",)),): 1}
     ng = NameGenerator(db, mg, structs)
 

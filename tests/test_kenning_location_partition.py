@@ -55,12 +55,6 @@ def test_bare_usage_gets_bare_location():
     assert _m("beck").location == "bare"
 
 
-def test_dash_shapes_unchanged():
-    assert _m("mine-").location == "pre"
-    assert _m("-ford").location == "post"
-    assert _m("-by-").location == "inner"
-
-
 # wyrd-eyjk/D40: the `_location_allows` match-time position gate was REMOVED —
 # position is no longer a constraint on matching (a morpheme is its string and
 # may match anywhere; bare/pre/post/inner is derived from the span afterward and
