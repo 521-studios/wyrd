@@ -12,23 +12,11 @@ def make_meaning(usage, tags=None, meanings=None, sources=None):
     return Meaning(usage, tags or [], meanings or [], sources or {})
 
 
-def test_location_pre_when_trailing_dash():
-    assert make_meaning("Bre-").location == "pre"
-
-
-def test_location_post_when_leading_dash():
-    assert make_meaning("-combe").location == "post"
-
-
-def test_location_inner_when_dashes_on_both_sides():
-    assert make_meaning("-by-").location == "inner"
-
-
-def test_location_bare_when_no_dash():
-    # wyrd-vpri: a no-dash usage is its own 'bare' location (was 'post'
-    # pre-fix — the conflation that let suffix keys fill single-word
-    # slots). 'bare' is valid at any position; single-word slots encode
-    # ('bare',) so suffix keys ('-park'=post) no longer match them.
+def test_location_always_bare():
+    # wyrd-aicu: identity is bare now (the producer de-dashes every stored usage
+    # — D45), so a Meaning's ``.location`` is always "bare". The retired
+    # dash-shape decode (-x- inner / x- pre / -x post) can no longer be
+    # constructed in production; ``.location`` survives only as a render hint.
     assert make_meaning("ham").location == "bare"
 
 
@@ -47,12 +35,15 @@ def test_is_saint_detection():
     assert not make_meaning("ham", tags=["water"]).is_saint()
 
 
-def test_key_simple_post():
-    assert make_meaning("-ton").key() == ("post",)
+def test_key_simple_bare():
+    # wyrd-aicu: identity is bare → ``.location`` (the first key element) is
+    # always "bare" (the retired dash-shape decode is gone). Position rides on
+    # the proportions axis now, not the morpheme key.
+    assert make_meaning("ton").key() == ("bare",)
 
 
 def test_key_with_name_tag():
-    assert make_meaning("Alf-", tags=["male name"]).key() == ("pre", "name")
+    assert make_meaning("Alf", tags=["male name"]).key() == ("bare", "name")
 
 
 def test_key_with_saint_usage():

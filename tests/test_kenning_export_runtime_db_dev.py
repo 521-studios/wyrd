@@ -194,9 +194,10 @@ def test_select_dev_subset_prunes_unrenderable_structure_after_trim(caplog) -> N
     proportions = {
         "english": {
             "usages": {"Aa": {"pre": 10}},
-            "single_usages": {"Aa-": 5, "Bob": 1},
+            "single_usages": {"Aa": 5, "Bob": 1},
             "structures": [
-                # partially renderable (pre slot filled by Aa-) — KEEP
+                # partially renderable (pre slot filled by the multi pool's Aa@pre)
+                # — KEEP
                 {"proportion": 10, "words": [[{"location": "pre"}, {"location": "post"}]]},
                 # fully unrenderable once Bob is trimmed — DROP (orphan)
                 {"proportion": 1, "words": [[{"location": "bare", "name": True}]]},
@@ -235,14 +236,18 @@ def test_select_dev_subset_keeps_renderable_structures_silently(caplog) -> None:
             "meaning": ["Aa"],
             "modifier_tags": ["topography"],
             "modifier_type": None,
-            "words": [{"modern_usage": "Aa-", "old_english": ["aa"]}],
+            "words": [{"modern_usage": "Aa", "old_english": ["aa"]}],
         },
     ]
+    # wyrd-aicu: single usages are always BARE (D45 — lone words are bare by
+    # construction), so a single-slot structure that a kept usage can fill is a
+    # ("bare", "single") slot; the retired ("pre", "single") shape (a dash-decoded
+    # single usage) can no longer exist.
     proportions = {
         "english": {
             "usages": {"Aa": {"pre": 10}},
-            "single_usages": {"Aa-": 5},
-            "structures": [{"proportion": 10, "words": [[{"location": "pre"}]]}],
+            "single_usages": {"Aa": 5},
+            "structures": [{"proportion": 10, "words": [[{"location": "bare"}]]}],
             "tag_marginal": {},
             "tag_cooccurrence": {},
             "attested_languages": {},
@@ -259,7 +264,7 @@ def test_select_dev_subset_keeps_renderable_structures_silently(caplog) -> None:
             top_n_per_culture=1,
         )
     assert props_out["english"]["structures"] == [
-        {"proportion": 10, "words": [[{"location": "pre"}]]}
+        {"proportion": 10, "words": [[{"location": "bare"}]]}
     ]
     assert not any("wyrd-9eqk" in r.getMessage() for r in caplog.records)
 
@@ -294,11 +299,14 @@ def test_select_dev_subset_prune_preserves_order_and_is_per_culture(caplog) -> N
     ]
     struct_a = {"proportion": 9, "words": [[{"location": "pre"}, {"location": "post"}]]}
     struct_b = {"proportion": 2, "words": [[{"location": "bare", "name": True}]]}
-    struct_c = {"proportion": 5, "words": [[{"location": "pre"}]]}
+    # wyrd-aicu: single usages are always BARE (D45), so a fillable single-slot
+    # structure is a ("bare", "single") slot — the retired ("pre", "single") shape
+    # (a dash-decoded single usage) can no longer exist.
+    struct_c = {"proportion": 5, "words": [[{"location": "bare"}]]}
     proportions = {
         "english": {
             "usages": {"Aa": {"pre": 10}},
-            "single_usages": {"Aa-": 5, "Bob": 1},  # Bob trimmed at top_n=1
+            "single_usages": {"Aa": 5, "Bob": 1},  # Bob trimmed at top_n=1
             "structures": [struct_a, struct_b, struct_c],  # B is the orphan
             "tag_marginal": {},
             "tag_cooccurrence": {},
@@ -306,8 +314,8 @@ def test_select_dev_subset_prune_preserves_order_and_is_per_culture(caplog) -> N
         },
         "welsh": {
             "usages": {"caer": {"pre": 7}},
-            "single_usages": {"caer-": 3},
-            "structures": [{"proportion": 7, "words": [[{"location": "pre"}]]}],  # renderable
+            "single_usages": {"caer": 3},
+            "structures": [{"proportion": 7, "words": [[{"location": "bare"}]]}],  # renderable
             "tag_marginal": {},
             "tag_cooccurrence": {},
             "attested_languages": {},
@@ -326,7 +334,9 @@ def test_select_dev_subset_prune_preserves_order_and_is_per_culture(caplog) -> N
     # Order preserved: orphan B dropped, A and C kept in their source order.
     assert props_out["english"]["structures"] == [struct_a, struct_c]
     # Other culture untouched.
-    assert props_out["welsh"]["structures"] == [{"proportion": 7, "words": [[{"location": "pre"}]]}]
+    assert props_out["welsh"]["structures"] == [
+        {"proportion": 7, "words": [[{"location": "bare"}]]}
+    ]
     # Exactly one warning, naming the pruned culture and not the clean one.
     cj_warnings = [r.getMessage() for r in caplog.records if "wyrd-9eqk" in r.getMessage()]
     assert len(cj_warnings) == 1

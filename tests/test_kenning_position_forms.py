@@ -7,7 +7,6 @@ before these tests:
 * position-form RECORDING — a morpheme is re-dashed to its DERIVED position
   (index among the word's morphemes), not the variant the matcher fetched:
   ``Stokegiles`` records ``Stoke-`` + ``-giles``, a lone word records bare;
-* ``_location_from_form`` — the inverse (form-dashes → position) used to bucket;
 * ``Meaning.is_pure_proper_noun`` — the saint/companion-tag rule;
 * the synthesized-saint-subject base-pool exclusion in BOTH scoring modes;
 * bare-surface resolution of a position-form against a differently-stored
@@ -16,12 +15,9 @@ before these tests:
 
 from __future__ import annotations
 
-import pytest
-
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.proportions import (
     MeaningGenerator,
-    _location_from_form,
     _resolve_surface,
 )
 from wyrd.generators.kenning.runtime.word import Word
@@ -81,16 +77,6 @@ def test_partial_decomposition_positions_account_for_unmatched_fragments():
     w2 = Word([Meaning("Stoke-", [], [], {}), "giles"])
     assert w2.get_samples() == {("Stoke", "pre")}
     assert w2.get_structure() == (("pre",),)
-
-
-@pytest.mark.parametrize(
-    "usage,expected",
-    [("-x-", "inner"), ("x-", "pre"), ("-x", "post"), ("x", "bare"), ("", "bare")],
-)
-def test_location_from_form(usage, expected):
-    """The form→position inverse used to bucket position-form usages —
-    mirrors ``Meaning._set_location``."""
-    assert _location_from_form(usage) == expected
 
 
 # ---- Meaning.is_pure_proper_noun: saint + companion-tag rule ---------------

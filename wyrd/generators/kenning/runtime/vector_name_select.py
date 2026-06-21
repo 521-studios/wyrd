@@ -174,11 +174,13 @@ def _cohesion_multipliers(raws: list[float], cohesion: float) -> list[float]:
 def _slot_position_label(structural_element: str) -> str:
     """Resolve the slot position label from a structural element string.
 
-    Matches ``Meaning._set_location`` exactly. wyrd-eyjk/D40: this label is
-    no longer used to *gate* eligibility (the ``_matches_position`` gate is
-    gone) — it feeds the D36 position-axis SCORING (``pos_score``) and the
-    per-(position) bucket-key lookup. The mapping (from
-    ``runtime/meaning.py:_set_location``):
+    The input here is a render-side *structural* string (D39 position-form
+    decoration applied to a slot), NOT a stored ``Meaning.usage`` — stored
+    identity is bare now (``Meaning._set_location`` is always "bare", wyrd-aicu),
+    so this dash-shape decode lives on the structural-string side only.
+    wyrd-eyjk/D40: this label is no longer used to *gate* eligibility (the
+    ``_matches_position`` gate is gone) — it feeds the D36 position-axis SCORING
+    (``pos_score``) and the per-(position) bucket-key lookup. The mapping:
 
     * ``"-inner-"`` (both dashes) → ``"inner"``
     * ``"Place-"`` (trailing dash only) → ``"pre"``
@@ -187,8 +189,7 @@ def _slot_position_label(structural_element: str) -> str:
 
     wyrd-vpri: bare (no-dashes) maps to its own ``"bare"`` label, NOT
     ``"post"`` — the historical conflation that let suffix-only keys
-    ('-park' → post) be treated as bare single-word slots. Must stay in
-    lockstep with ``Meaning._set_location``.
+    ('-park' → post) be treated as bare single-word slots.
     """
     s = structural_element.strip()
     has_leading = s.startswith("-")

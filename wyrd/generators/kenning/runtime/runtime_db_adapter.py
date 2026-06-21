@@ -274,45 +274,30 @@ def _read_proportions_usage_map(
     ``{surface: {position: weight}}`` shape ``load_parts`` consumes (position
     is an explicit axis, not a dash-encoded form).
 
-    Defensive legacy read (schema v2 DBs, the ``proportions_attested_language``
-    precedent): a ``no such column: position`` error means a pre-D45 bundle —
-    fall back to the flat ``{dashed_usage: weight}`` shape, which ``load_parts``
-    still tolerates via ``_iter_part_proportions``. Iteration order = cumulative
-    ascending = the order the emitter wrote in.
+    Iteration order = cumulative ascending = the order the emitter wrote in.
     """
     if table not in _USAGE_TABLES:
         raise ValueError(
             f"_read_proportions_usage_map target {table!r} not in whitelist {sorted(_USAGE_TABLES)}"
         )
-    try:
-        cursor = conn.execute(
-            f"SELECT usage_key, position, weight FROM {table} "
-            f"WHERE culture = ? ORDER BY cumulative",
-            (culture,),
-        )
-        nested: dict[str, dict[str, int]] = {}
-        for usage_key, position, weight in cursor:
-            nested.setdefault(usage_key, {})[position] = weight
-        return nested
-    except sqlite3.OperationalError as exc:
-        if "no such column" not in str(exc):
-            raise
-        cursor = conn.execute(
-            f"SELECT usage_key, weight FROM {table} WHERE culture = ? ORDER BY cumulative",
-            (culture,),
-        )
-        return dict(cursor)
+    cursor = conn.execute(
+        f"SELECT usage_key, position, weight FROM {table} WHERE culture = ? ORDER BY cumulative",
+        (culture,),
+    )
+    nested: dict[str, dict[str, int]] = {}
+    for usage_key, position, weight in cursor:
+        nested.setdefault(usage_key, {})[position] = weight
+    return nested
 
 
 def _flatten_single_usages(single: dict[str, Any]) -> dict[str, int]:
     """Collapse the single-usage pool to flat ``{surface: weight}``. v3 DBs read
     back nested ``{surface: {'bare': weight}}`` (single usages are always bare —
-    D45); sum across the (single) position. v2 DBs already return flat ints —
-    pass through. The bare-only consumers (``load_bare_word_positions``) need
-    flat; ``load_parts`` tolerates either."""
+    D45); sum across the (single) position. The bare-only consumers
+    (``load_bare_word_positions``) need flat; ``load_parts`` tolerates either."""
     out: dict[str, int] = {}
     for surface, value in single.items():
-        out[surface] = sum(value.values()) if isinstance(value, dict) else value
+        out[surface] = sum(value.values())
     return out
 
 

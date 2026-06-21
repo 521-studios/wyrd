@@ -326,28 +326,15 @@ class Meaning:
         self._set_location()
 
     def _set_location(self):
-        # wyrd-vpri: dash-shape → position. A BARE usage (no dashes) is
-        # its OWN location, distinct from 'post'. Pre-fix bare keys fell
-        # through to the 'post' else-branch, so a bare standalone word
-        # (e.g. 'beck') and a suffix-only morpheme (e.g. '-beck') were
-        # indistinguishable — the proportions grammaticality guard
-        # (_is_ungrammatical_word_template) couldn't tell a legitimate
-        # single bare word from a suffix-only morpheme rendered alone
-        # (the '-park' → "Park" standalone). A distinct 'bare' location
-        # fixes that: single-word occurrences record + bucket as ('bare', …).
-        # wyrd-eyjk/D40: ``.location`` is now only a render/scoring hint, NOT a
-        # match-time gate — matching is string-only and position is derived
-        # from the span (the trie ``_location_allows`` and vector
-        # ``_matches_position`` gates were removed). NOTE: keep in lockstep
-        # with vector_name_select._slot_position_label, which mirrors this map.
-        if self.usage.startswith("-") and self.usage.endswith("-"):
-            self.location = "inner"
-        elif self.usage.endswith("-"):
-            self.location = "pre"
-        elif self.usage.startswith("-"):
-            self.location = "post"
-        else:
-            self.location = "bare"
+        # wyrd-aicu: identity is now BARE (the producer de-dashes every stored
+        # usage — D45), so a Meaning's usage never carries a position-dash and
+        # ``.location`` is always "bare". The field survives as a render/scoring
+        # hint (read by realism_reference, proportions, and the explain API), NOT
+        # a match-time gate — matching is string-only and position is derived
+        # from the span at sample time (wyrd-eyjk/D40). The retired dash-shape →
+        # position decode (-x- inner / x- pre / -x post) lived here; position now
+        # rides as an explicit axis on the proportions, never in the string.
+        self.location = "bare"
 
     def __str__(self):
         return self.usage.lower().replace("-", "")

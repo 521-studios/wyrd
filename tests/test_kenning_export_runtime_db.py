@@ -86,7 +86,11 @@ def _write_proportions_fixture(directory: Path, culture: str = "english") -> Non
     bundled data dir.
     """
     payload = {
-        "usages": {"-ham-": 100, "-ton-": 50, "-zero-weight": 0},
+        "usages": {
+            "ham": {"inner": 100},
+            "ton": {"inner": 50},
+            "zero-weight": {"post": 0},
+        },
         "single_usages": {"-castle": 20, "-bury": 5},
         "structures": [
             {"proportion": 70, "words": [[{"location": "pre"}, {"location": "post"}]]},
@@ -1144,8 +1148,8 @@ def test_emit_via_traversable_proportions_dir(tmp_path: Path) -> None:
     from wyrd.generators.kenning.lexicon.runtime_db_export import _load_proportions
 
     sample = {
-        "usages": {"-ham": 1},
-        "single_usages": {"-ham": 1},
+        "usages": {"ham": {"post": 1}},
+        "single_usages": {"ham": 1},
         "structures": [],
         "tag_marginal": {},
         "tag_cooccurrence": {},
