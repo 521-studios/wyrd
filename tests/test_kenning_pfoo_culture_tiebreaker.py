@@ -55,7 +55,16 @@ def test_decompose_corpus_threads_culture_languages_to_matcher(monkeypatch):
     wyrd-pfoo was filed to fix."""
     captured: list[frozenset[str] | None] = []
 
-    def fake_find_meaning(self, word_db, reduce=True, joiners=None, *, culture_languages=None):
+    def fake_find_meaning(
+        self,
+        word_db,
+        reduce=True,
+        joiners=None,
+        *,
+        culture_languages=None,
+        connective_inventory=None,
+        genitive_prior=None,
+    ):
         captured.append(culture_languages)
         # No-op decompose: leave words populated as-is.
 
@@ -74,7 +83,16 @@ def test_decompose_corpus_default_culture_languages_is_none(monkeypatch):
     keep their pre-fix behaviour."""
     captured: list[frozenset[str] | None] = []
 
-    def fake_find_meaning(self, word_db, reduce=True, joiners=None, *, culture_languages=None):
+    def fake_find_meaning(
+        self,
+        word_db,
+        reduce=True,
+        joiners=None,
+        *,
+        culture_languages=None,
+        connective_inventory=None,
+        genitive_prior=None,
+    ):
         captured.append(culture_languages)
 
     monkeypatch.setattr(Name, "find_meaning", fake_find_meaning)

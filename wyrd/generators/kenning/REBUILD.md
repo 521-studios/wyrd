@@ -53,6 +53,14 @@ DB and must be re-run by hand after the rebuild.
 | **empirical baselines / priors** | ❌ L3-only (derived from the above) | `mine-empirical-baselines` + `dump-empirical-priors` |
 | **genitive split prior** (`genitive_split_prior`, wyrd-aicu.9 + .9.1) | ❌ L3-only (derived from toponym_etymology + historical_form + reflex cognate clusters + toponym_attestation) | `mine-genitive-priors` + `dump-genitive-priors` |
 
+> **wyrd-aicu.9 (L4 emit):** `export-runtime-db` now reads the L3
+> `genitive_split_prior` counts, smooths them (`build_split_probability_map`),
+> and ships the prob-map into the L4 bundle's own `genitive_split_prior`
+> singleton blob (schema v4). A wipe-without-remine yields an **empty** map →
+> the emit writes **no row** → the runtime loads `{}` and degrades gracefully:
+> the genitive connective's coverage gains still land (they win on score), only
+> the homograph tiebreak goes silent until `mine-genitive-priors --apply` re-runs.
+
 The reflex and fantasy layers were **L3-only at the time of the May
 rebuild** and were the cause of the worst surprises (16 canonical-
 morpheme test failures). They now round-trip through L2 synthetic files,

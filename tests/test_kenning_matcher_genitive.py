@@ -8,8 +8,12 @@ no prior needed.
 
 from __future__ import annotations
 
-from wyrd.generators.kenning.runtime.connective import DEFAULT_CONNECTIVE_INVENTORY
+from wyrd.generators.kenning.runtime.connective import (
+    DEFAULT_CONNECTIVE_INVENTORY,
+    is_connective,
+)
 from wyrd.generators.kenning.runtime.meaning import Meaning
+from wyrd.generators.kenning.runtime.name import Name
 from wyrd.generators.kenning.runtime.trie_matcher import (
     build_morpheme_trie,
     canonical_decomposition,
@@ -22,9 +26,9 @@ def _meaning(usage: str) -> Meaning:
     return Meaning(usage, [], [], {})
 
 
-def _world():
+def _world_db():
     # ston (stone) vs ton (town) is the homograph; sworth is NOT a morpheme.
-    db = {
+    return {
         "bishop": [_meaning("bishop")],
         "ston": [_meaning("ston")],  # stone
         "ton": [_meaning("ton")],  # town
@@ -32,7 +36,10 @@ def _world():
         "worth": [_meaning("worth")],
         "rud": [_meaning("rud")],
     }
-    return build_morpheme_trie(db)
+
+
+def _world():
+    return build_morpheme_trie(_world_db())
 
 
 def _surfaces(decomp):
@@ -83,3 +90,41 @@ def test_connective_unblocks_non_homograph_coverage():
     assert _surfaces(d) == ["grim", "s", "worth"]
     assert count_unaccounted(d) == 0
     assert [m.usage for m in iter_morphemes(d)] == ["grim", "worth"]
+
+
+# --- Phase 1: Name.find_meaning activation switch (wyrd-aicu.9) ---
+
+
+def _word_surfaces(name: Name) -> list[str]:
+    """The single best Word's element surfaces for a one-word Name."""
+    words = name.words["bishopston"]
+    assert len(words) == 1, words
+    return [str(e) for e in words[0].word]
+
+
+def test_find_meaning_default_both_none_is_bit_stable():
+    # The activation switch defaults to OFF: both params None reproduce the
+    # pre-connective matcher (the genitive s eaten into the longer 'ston').
+    name = Name("bishopston")
+    name.find_meaning(_world_db())
+    assert _word_surfaces(name) == ["bishop", "ston"]
+
+
+def test_find_meaning_with_inventory_and_prior_splits_to_town():
+    # WITH inventory + prior: Bishop·s·tūn parses as bishop + Connective('s') +
+    # ton, the connective collapses out of content attribution.
+    name = Name("bishopston")
+    name.find_meaning(
+        _world_db(),
+        connective_inventory=DEFAULT_CONNECTIVE_INVENTORY,
+        genitive_prior={("ston", "ton"): 0.94},
+    )
+    word = name.words["bishopston"][0]
+    assert [str(e) for e in word.word] == ["bishop", "s", "ton"]
+    # The middle element is a genuine Connective (genitive glue), not a str.
+    assert is_connective(word.word[1])
+    # Content attribution is the town head — the connective is dropped.
+    assert [m.usage for m in iter_morphemes(word.word)] == ["bishop", "ton"]
+    # size() (complexity tiebreak) counts content only → 2, not 3.
+    assert word.size() == 2
+    assert word.count_unaccounted() == 0

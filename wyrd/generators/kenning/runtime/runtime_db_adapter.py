@@ -125,6 +125,33 @@ def empirical_priors_payload_from_runtime_db(
     return json.loads(row[0])
 
 
+def genitive_split_map_from_runtime_db(
+    conn: sqlite3.Connection,
+) -> dict[tuple[str, str], float] | None:
+    """Read the singleton ``genitive_split_prior`` row + return the precomputed
+    ``{(long_form, short_form): split_probability}`` float map the decomposition
+    matcher consumes (wyrd-aicu.9, D-3). Mirrors
+    :func:`empirical_priors_payload_from_runtime_db`.
+
+    Returns ``None`` when the row is absent — a wipe-without-remine L4, or one
+    predating ``mine-genitive-priors --apply`` at emit time. The runtime loader
+    treats ``None`` as ``{}``: the connective still wins non-homograph coverage
+    on score, only the homograph tiebreak goes silent.
+
+    Schema mismatch (missing table from a pre-v4 DB) doesn't reach this code —
+    ``runtime_db.get_runtime_db`` rejects pre-v4 DBs at connection-open time via
+    :class:`runtime_db.RuntimeDBVersionMismatch`, so any DB this function sees is
+    guaranteed to have the table.
+    """
+    row = conn.execute("SELECT data FROM genitive_split_prior WHERE id = 1").fetchone()
+    if row is None:
+        return None
+    payload = json.loads(row[0])
+    return {
+        (p["long_form"], p["short_form"]): p["split_probability"] for p in payload.get("pairs", [])
+    }
+
+
 def proportions_dict_for_culture(conn: sqlite3.Connection, culture: str) -> dict[str, Any]:
     """Build the per-culture proportions dict that ``load_proportions``
     consumes from the L4 ``proportions_*`` tables (wyrd-d90t PR 6).

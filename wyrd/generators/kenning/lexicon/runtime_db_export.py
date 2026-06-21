@@ -45,7 +45,10 @@ _logger = logging.getLogger(__name__)
 #
 # v2 (2026-05-25): added empirical_priors singleton blob row so vector-
 # scoring works out of the box without a separate priors.json sidecar.
-SCHEMA_VERSION = "3"  # D45 (wyrd-aicu): bare-surface keys + explicit position column
+# v3: D45 (wyrd-aicu) — bare-surface keys + explicit position column.
+# v4 (wyrd-aicu.9, D-4): added genitive_split_prior singleton blob row so the
+# runtime decomposition matcher consumes the genitive homograph tiebreak prior.
+SCHEMA_VERSION = "4"  # wyrd-aicu.9 (D-4): genitive_split_prior singleton blob
 
 # Stamped into bundle_metadata so operators can correlate a deployed DB
 # back to its emitter source.
@@ -168,6 +171,7 @@ def write_runtime_db(
     canonical_decompositions: dict[str, dict[str, str]],
     proportions_dir: Path | Traversable | None,
     empirical_priors_payload: dict[str, Any] | None = None,
+    genitive_split_map: dict[tuple[str, str], float] | None = None,
     source_lexicon_db: Path,
     dev_subset: bool = False,
     generation_subset: bool = False,
@@ -211,7 +215,7 @@ def write_runtime_db(
         )
     if proportions_dir is None:
         proportions_by_culture = _compute_proportions_inline(
-            subjects, canonical_decompositions, source_lexicon_db
+            subjects, canonical_decompositions, source_lexicon_db, genitive_split_map
         )
     else:
         proportions_by_culture = _load_proportions(proportions_dir)
@@ -267,6 +271,7 @@ def write_runtime_db(
             n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
             n_canonical = _write_canonical_decompositions(conn, canonical_decompositions)
             n_priors = _write_empirical_priors(conn, empirical_priors_payload)
+            n_genitive_pairs = _write_genitive_split_prior(conn, genitive_split_map)
             proportion_counts = _write_proportions(conn, proportions_by_culture)
             _write_metadata(
                 conn,
@@ -302,6 +307,7 @@ def write_runtime_db(
         "canonical_decompositions": n_canonical,
         "empirical_priors_native_cells": n_priors.get("native_cells", 0),
         "empirical_priors_loan_cells": n_priors.get("loan_cells", 0),
+        "genitive_split_pairs": n_genitive_pairs,
         "cultures": len(proportions_by_culture),
         **proportion_counts,
     }
@@ -336,6 +342,7 @@ def _compute_proportions_inline(
     subjects: list[dict[str, Any]],
     canonical_decompositions: dict[str, dict[str, str]],
     source_lexicon_db: Path,
+    genitive_split_map: dict[tuple[str, str], float] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Build per-culture proportions on the fly from the subjects we just
     exported + the culture's toponyms read from the L3 DB.
@@ -356,14 +363,27 @@ def _compute_proportions_inline(
     Names without a canonical entry fall through to the
     ``find_meaning(reduce=True)`` heuristic path — same shape, just no
     scholar override.
+
+    ``genitive_split_map`` (wyrd-aicu.9): the precomputed genitive-split
+    prob-map. When supplied, the default connective inventory + this prior are
+    threaded into the heuristic ``find_meaning(reduce=True)`` calls so the
+    proportions train on the CORRECTED decompositions (``Bishop·s·tūn`` parses to
+    the town head, not ``Bishop + ston`` stone). The canonical-pick reduce=False
+    branch is untouched — scholar-attested decompositions carry their own correct
+    attribution. ``None``/empty → bit-stable with the pre-connective inline build.
     """
     from wyrd.generators.kenning.lexicon.proportions_builder import (
         CULTURE_LANGUAGES,
         proportions_from,
     )
+    from wyrd.generators.kenning.runtime.connective import DEFAULT_CONNECTIVE_INVENTORY
     from wyrd.generators.kenning.runtime.decomposition import apply_canonical_to_name
     from wyrd.generators.kenning.runtime.meaning import load_meanings
     from wyrd.generators.kenning.runtime.name import Name
+
+    # wyrd-aicu.9: only engage the connective when a prior is present, so a
+    # wipe-without-remine emit (empty map) stays bit-stable with the legacy path.
+    connective_inventory = DEFAULT_CONNECTIVE_INVENTORY if genitive_split_map else None
 
     word_db, _ = load_meanings({"subjects": subjects})
     # wyrd-bo01.3: read the per-culture corpus from the L3 toponym table
@@ -409,9 +429,21 @@ def _compute_proportions_inline(
                     # decomposition.decompose_with_canonical's
                     # canonical-miss fallback.
                     name = Name(name.name)
-                    name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
+                    name.find_meaning(
+                        word_db,
+                        reduce=True,
+                        culture_languages=culture_languages,
+                        connective_inventory=connective_inventory,
+                        genitive_prior=genitive_split_map,
+                    )
             else:
-                name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
+                name.find_meaning(
+                    word_db,
+                    reduce=True,
+                    culture_languages=culture_languages,
+                    connective_inventory=connective_inventory,
+                    genitive_prior=genitive_split_map,
+                )
             resolved.append(name)
         good_names = [n for n in resolved if n.count_unaccounted() == 0]
         out[culture] = proportions_from(good_names)
@@ -692,6 +724,41 @@ def _write_empirical_priors(
         "native_cells": len(payload.get("native") or []),
         "loan_cells": len(payload.get("loan") or []),
     }
+
+
+def _write_genitive_split_prior(
+    conn: sqlite3.Connection,
+    genitive_split_map: dict[tuple[str, str], float] | None,
+) -> int:
+    """Write the genitive-split prob-map as a singleton blob row (wyrd-aicu.9,
+    D-3). Mirrors :func:`_write_empirical_priors`.
+
+    ``genitive_split_map`` is the precomputed ``{(long_form, short_form):
+    P_split}`` float map (smoothing + backoff already applied at emit time via
+    ``build_split_probability_map``), so the runtime stays DB-free and looks up a
+    plain float per genitive decision.
+
+    ``None`` / empty → no row is written (a wipe-without-remine L3, or one
+    predating ``mine-genitive-priors --apply``). The runtime loader treats the
+    absent row as ``{}``: the connective still wins non-homograph coverage on
+    score, only the homograph tiebreak goes silent. Pairs are sorted
+    deterministically (``-split_probability``, then the pair) so the blob is
+    byte-stable across re-emits. Returns the pair count for the operator summary.
+    """
+    if not genitive_split_map:
+        return 0
+    pairs = [
+        {"long_form": long, "short_form": short, "split_probability": prob}
+        for (long, short), prob in sorted(
+            genitive_split_map.items(), key=lambda kv: (-kv[1], kv[0])
+        )
+    ]
+    payload = {"version": EMITTER_VERSION, "pairs": pairs}
+    conn.execute(
+        "INSERT INTO genitive_split_prior (id, data) VALUES (1, ?)",
+        (json.dumps(payload, ensure_ascii=False).encode("utf-8"),),
+    )
+    return len(pairs)
 
 
 def _write_proportions(

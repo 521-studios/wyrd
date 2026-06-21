@@ -254,7 +254,9 @@ def test_find_meaning_forwards_culture_languages_to_matcher(monkeypatch):
 
     captured: dict = {}
 
-    def fake_canonical(word, trie, *, culture_languages=None):
+    def fake_canonical(
+        word, trie, *, culture_languages=None, connective_inventory=None, genitive_prior=None
+    ):
         captured["called"] = True
         captured["culture_languages"] = culture_languages
         # Return a minimal valid decomposition so find_meaning's
@@ -279,8 +281,12 @@ def test_find_meaning_default_culture_languages_is_none(monkeypatch):
 
     captured: dict = {}
 
-    def fake_canonical(word, trie, *, culture_languages=None):
+    def fake_canonical(
+        word, trie, *, culture_languages=None, connective_inventory=None, genitive_prior=None
+    ):
         captured["culture_languages"] = culture_languages
+        captured["connective_inventory"] = connective_inventory
+        captured["genitive_prior"] = genitive_prior
         return [[word]]
 
     monkeypatch.setattr(name_mod, "canonical_decompositions", fake_canonical)
@@ -288,3 +294,6 @@ def test_find_meaning_default_culture_languages_is_none(monkeypatch):
     n = Name("Foo")
     n.find_meaning(word_db)
     assert captured["culture_languages"] is None
+    # wyrd-aicu.9: the connective params default to None too — bit-stable.
+    assert captured["connective_inventory"] is None
+    assert captured["genitive_prior"] is None

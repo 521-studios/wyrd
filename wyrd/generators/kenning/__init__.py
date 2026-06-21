@@ -48,6 +48,7 @@ from wyrd.generators.kenning.lexicon.strata import (  # noqa: F401  (STRATA cons
     WELSH_STRATA,
     valid_strata_for_culture,
 )
+from wyrd.generators.kenning.runtime.connective import is_connective
 from wyrd.generators.kenning.runtime.decomposition import (
     _decomposition_payload,
     _signature_for_payload,
@@ -546,6 +547,26 @@ def _load_empirical_priors():
 
 
 @lru_cache(maxsize=1)
+def _load_genitive_prior() -> dict[tuple[str, str], float]:
+    """wyrd-aicu.9 (D-3): load the bundled genitive-split prob-map from the L4
+    runtime DB (``genitive_split_prior`` singleton row, schema v4). Returns the
+    precomputed ``{(long_form, short_form): split_probability}`` float map the
+    decomposition matcher consumes (``_prefer_genitive_credible``).
+
+    Returns ``{}`` when the row is absent (a wipe-without-remine L4, or one
+    predating ``mine-genitive-priors --apply``): the connective still wins non-
+    homograph coverage on score, only the homograph tiebreak goes silent.
+    Load-once (lru_cache) so the request path never re-reads the DB; cleared
+    alongside the other bundle caches by ``_coupled_cache_clear``."""
+    from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        genitive_split_map_from_runtime_db,
+    )
+
+    return genitive_split_map_from_runtime_db(get_runtime_db()) or {}
+
+
+@lru_cache(maxsize=1)
 def _load_packs():
     """wyrd-ecjp.10b: load all bundled scenario packs from the
     ``packs/`` subdir of the data root. Returns
@@ -611,6 +632,7 @@ def _coupled_cache_clear() -> None:
     _load_canonical_decompositions.cache_clear()
     _load_fantasy_morphemes.cache_clear()
     _load_empirical_priors.cache_clear()
+    _load_genitive_prior.cache_clear()
     _load_packs.cache_clear()
     _runtime_db_bundle_dict.cache_clear()
     # wyrd-ah53: per-culture tag options derive from the per-culture pools, so
@@ -1503,6 +1525,13 @@ def _decomposition_signature(words: tuple[Word, ...]) -> tuple:
         for chunk in word.word:
             if isinstance(chunk, Meaning):
                 sig.append(("M", chunk.usage))
+            elif is_connective(chunk):
+                # wyrd-aicu.9 (D-1 defensive): a connective (genitive ``-s-``
+                # glue) is position-neutral + non-content and contributes nothing
+                # to the structural signature — skip it explicitly so the
+                # signature stays consistent with ``_decomposition_payload``.
+                # Under D-1 no connective reaches this path; defensive only.
+                continue
             elif isinstance(chunk, str) and chunk:
                 sig.append(("S", chunk))
         sig.append(("|", ""))
