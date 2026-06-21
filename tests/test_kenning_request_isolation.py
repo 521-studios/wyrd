@@ -47,19 +47,21 @@ def test_each_tag_filters_to_its_own_tag_even_after_warming():
     """Per-request filtering isn't sticky: warming the shared generator with one
     tag must not poison a later different-tag request, nor degrade a same-tag one.
 
-    ``death`` is the load-bearing isolation check — a sticky water pool left by the
-    warm-up would make death names carry water, dropping its hit-rate below 0.9.
-    ``water`` is checked warm-vs-cold (not against an absolute floor): its natural
-    english tag-coverage is ~0.78 (river-name morphemes don't fit every structure),
-    so an absolute 0.9 was a brittle proxy that held only by seed luck at n=8 — a
-    structures-allowlist change that reshuffles sampling (same aggregate coverage)
-    tips it. Warm==cold is the real isolation guarantee."""
+    Each tag's warm hit-rate must EXACTLY equal its cold (fresh-generator) rate —
+    warming with one tag leaks no state into a later request. This is stronger and
+    more honest than an absolute floor: water's natural english tag-coverage is only
+    ~0.75 (river-name morphemes don't fit every structure), so an absolute 0.9 was a
+    brittle proxy that held only by seed luck at n=8 and a structures-allowlist
+    change that reshuffles sampling (same aggregate) tips it. warm==cold is the real
+    isolation guarantee (and is exactly deterministic). A sticky water pool from the
+    warm-up would make death carry water (warm death < cold) and/or shift water."""
     n = 24
-    cold_water = _tag_hit_rate(Kenning(), "water", n=n)  # fresh generator, no warm-up
+    cold_death = _tag_hit_rate(Kenning(), "death", n=n)
+    cold_water = _tag_hit_rate(Kenning(), "water", n=n)  # fresh generators, no warm-up
     k = Kenning()
     k.generate({"culture": "english", "tags": ["water"]}, seed=0)  # warm with water
-    assert _tag_hit_rate(k, "death", n=n) >= 0.9  # warm-water did not poison death
-    assert _tag_hit_rate(k, "water", n=n) >= cold_water - 0.05  # warming didn't degrade water
+    assert _tag_hit_rate(k, "death", n=n) == cold_death  # warm-water did not poison death
+    assert _tag_hit_rate(k, "water", n=n) == cold_water  # warming didn't degrade water
 
 
 def test_no_request_derived_caches_persist_on_the_generator():
