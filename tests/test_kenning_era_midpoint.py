@@ -12,11 +12,13 @@ from wyrd.generators.kenning.generators.kenning import Kenning, _request_era_mid
 
 
 def test_request_era_midpoint_rules():
-    # bounded → integer midpoint
+    # bounded historical → integer midpoint
     assert _request_era_midpoint((800, 1100)) == 950
-    # single-bound → that bound (NOT the priors open-bound offset)
-    assert _request_era_midpoint((800, None)) == 800
+    # open START, bounded recent end → that end bound (NOT the priors offset)
     assert _request_era_midpoint((None, 1100)) == 1100
+    # NO upper bound (runs to the present, e.g. present-day (1500, None)) →
+    # wildcard 0: there's no bygone period to lean toward.
+    assert _request_era_midpoint((1500, None)) == 0
     # no era / both-None → 0 (the D44 wildcard)
     assert _request_era_midpoint(None) == 0
     assert _request_era_midpoint((None, None)) == 0
@@ -39,13 +41,25 @@ def _capture_era_midpoint(monkeypatch, params):
 
 def test_bounded_era_passes_its_midpoint_to_the_scorer(monkeypatch):
     expected = _request_era_midpoint(_resolve_era_param("me", "english"))
-    assert expected > 0  # Middle English is a bounded cell
+    assert expected == 1300  # Middle English (1100, 1500)
     got = _capture_era_midpoint(monkeypatch, {"culture": "english", "era": "me"})
     assert got == expected
 
 
-def test_no_era_keeps_the_wildcard_zero(monkeypatch):
+def test_single_bound_historical_era_threads_its_end_bound(monkeypatch):
+    # old-english resolves to (None, 1100) — open start, bounded recent end →
+    # the end bound reaches the scorer (the single-bound branch, end-to-end).
+    assert _resolve_era_param("old-english", "english") == (None, 1100)
+    assert _capture_era_midpoint(monkeypatch, {"culture": "english", "era": "old-english"}) == 1100
+
+
+def test_no_era_and_present_day_keep_the_wildcard_zero(monkeypatch):
     # default (no era) — unchanged behavior
     assert _capture_era_midpoint(monkeypatch, {"culture": "english"}) == 0
     # explicit empty era is also 'no filter' → wildcard
     assert _capture_era_midpoint(monkeypatch, {"culture": "english", "era": ""}) == 0
+    # the DEPLOYED default 'present-day' resolves to (1500, None) — no upper
+    # bound → wildcard 0, so default generation is unchanged BY DESIGN (not by
+    # luck of no 1500 cell). This is the case the review flagged as untested.
+    assert _resolve_era_param("present-day", "english") == (1500, None)
+    assert _capture_era_midpoint(monkeypatch, {"culture": "english", "era": "present-day"}) == 0

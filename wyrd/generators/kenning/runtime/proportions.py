@@ -1410,9 +1410,12 @@ class NameGenerator:
                 to translate Kenning's per-call knobs).
             priors: loaded :class:`EmpiricalPriors` (the JSON sidecar
                 via :func:`lexicon.empirical_priors.load_empirical_priors_from_json`).
-            era_midpoint: int year for the baseline-axis lookup. D44:
-                always 0 in practice — the request's era never drives
-                scoring (see vector_name_select.select_via_vector_scoring).
+            era_midpoint: int year for the baseline-axis lookup (the D36.7
+                per-era frequency cells). 0 = wildcard (no era-fashion lean,
+                the default). wyrd-3tvd: a bounded HISTORICAL request era now
+                drives this with its midpoint (via
+                kenning._request_era_midpoint); an era with no upper bound
+                (present-day) stays 0. See vector_name_select.select_via_vector_scoring.
             cohesion: D17 cohesion knob in [0, 1]. Threads through
                 to the vector primitive's slot-relative cohesion
                 bias (:func:`_cohesion_raw` + :func:`_cohesion_multipliers`).

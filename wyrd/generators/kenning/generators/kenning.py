@@ -475,10 +475,12 @@ class Kenning(Generator):
         # nothing. The call doubles as request validation (typo'd era → 4xx).
         era_range = _resolve_era_param(params.get("era"), culture)
         era_record_cutoff = era_range[1] if era_range else None
-        # wyrd-3tvd: a bounded era also leans the priors-baseline toward that
-        # period's naming FASHION (D36.7 per-era frequency cells) via era_midpoint
-        # — not just the D46 inventory cutoff above. Open-ended/no era → 0 (the
-        # D44 wildcard), so the deployed present-day default is unchanged.
+        # wyrd-3tvd: a bounded HISTORICAL era also leans the priors-baseline
+        # toward that period's naming FASHION (D36.7 per-era frequency cells) via
+        # era_midpoint — not just the D46 inventory cutoff above. An era with no
+        # upper bound (the deployed present-day default, (1500, None)) → 0, the
+        # D44 wildcard, so default generation is unchanged. (See
+        # _request_era_midpoint for the keyed-on-upper-bound rule.)
         era_midpoint = _request_era_midpoint(era_range)
         # wyrd-6c8x (feature A): the target language to RENDER morphemes in for
         # the requested era — under D44 this is era's ONLY effect. None =
@@ -767,28 +769,35 @@ def _resolve_vector_inputs(
 
 def _request_era_midpoint(era_range: tuple[int | None, int | None] | None) -> int:
     """The baseline-axis ``era_midpoint`` for the requested era (wyrd-3tvd): so
-    generation at a bounded period also leans toward that period's naming
-    FASHION (the D36.7 per-era frequency cells), not just its inventory floor.
+    generation at a bounded historical period also leans toward that period's
+    naming FASHION (the D36.7 per-era frequency cells), not just its inventory
+    floor.
 
-    Bounded (both bounds) → ``(start + end) // 2``; single-bound → that bound;
-    open-ended or no era → ``0``, the D44 wildcard = no era-fashion lean (the
-    deployed present-day default, so default behavior is unchanged).
+    Keyed on the era's UPPER bound:
+      * no era at all → ``0``;
+      * no upper bound (``end is None``) → ``0`` — the era runs to the present, so
+        there is no bygone period to lean toward. This is the deployed default
+        ``present-day`` (resolves to ``(1500, None)``), so default generation is
+        unchanged by design (NOT merely because no 1500 cell happens to exist);
+      * bounded historical (both bounds) → ``(start + end) // 2``;
+      * open START, bounded recent end (e.g. early-OE, ``(None, 800)``) → the end
+        bound, the only known anchor.
 
-    NOTE: this is the REQUEST convention, deliberately distinct from
+    ``0`` is the D44 wildcard sentinel = no era-fashion lean. (Era cells are all
+    CE/AD, so a genuine bounded era never midpoints to year 0 — no collision with
+    the sentinel.) This is the REQUEST convention, deliberately distinct from
     ``empirical_priors._era_midpoint`` (which uses an open-bound OFFSET so every
-    era CELL gets a deterministic identity year) — here an open bound means
+    era CELL gets a deterministic identity year) — here an open upper bound means
     'wildcard', so it must NOT borrow that offset.
     """
     if era_range is None:
         return 0
     start, end = era_range
-    if start is not None and end is not None:
-        return (start + end) // 2
-    if start is not None:
-        return start
-    if end is not None:
+    if end is None:  # open-ended toward the present (present-day) → wildcard
+        return 0
+    if start is None:  # open start, bounded recent end → that bound
         return end
-    return 0
+    return (start + end) // 2
 
 
 def _generate_via_vector(
@@ -800,7 +809,7 @@ def _generate_via_vector(
     mood: tuple[str, ...],
     harshness: float,
     era_record_cutoff: int | None,
-    era_midpoint: int = 0,
+    era_midpoint: int,
     stratum: str | None,
     cohesion: float,
     exclude_tags: tuple[str, ...],
