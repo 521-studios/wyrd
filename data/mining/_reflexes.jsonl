@@ -4027,7 +4027,7 @@
 {"_type": "reflex", "surface_form": "Flix", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Flixton", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Flo", "position": "pre", "etymon_refs": ["middle-english:flo"]}
-{"_type": "reflex", "surface_form": "Flo- ", "position": "post", "etymon_refs": []}
+{"_type": "reflex", "surface_form": "Flo", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Floc", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Flock", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Flockton", "position": "pre", "etymon_refs": []}
@@ -7426,7 +7426,7 @@
 {"_type": "reflex", "surface_form": "O", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Oadby", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Oak", "position": "pre", "etymon_refs": ["old-english:āc"]}
-{"_type": "reflex", "surface_form": "Oak- ", "position": "post", "etymon_refs": ["old-english:āc", "old-english:ācen"]}
+{"_type": "reflex", "surface_form": "Oak", "position": "post", "etymon_refs": ["old-english:āc", "old-english:ācen"]}
 {"_type": "reflex", "surface_form": "Oakamoor", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Oake", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Oaken", "position": "pre", "etymon_refs": ["old-english:āc", "old-english:ācen"]}
@@ -10687,7 +10687,7 @@
 {"_type": "reflex", "surface_form": "Waven", "position": "pre", "etymon_refs": ["middle-english:waven", "old-english:wagen"]}
 {"_type": "reflex", "surface_form": "Waveney", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Waver", "position": "pre", "etymon_refs": ["old-english:wēfer"]}
-{"_type": "reflex", "surface_form": "Waver- ", "position": "post", "etymon_refs": []}
+{"_type": "reflex", "surface_form": "Waver", "position": "post", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Waverton", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Wavertree", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Waw", "position": "pre", "etymon_refs": []}
@@ -11219,7 +11219,7 @@
 {"_type": "reflex", "surface_form": "Wratt", "position": "pre", "etymon_refs": ["old-english:wreatt"]}
 {"_type": "reflex", "surface_form": "Wraw", "position": "pre", "etymon_refs": ["middle-english:wraw"]}
 {"_type": "reflex", "surface_form": "Wrawby", "position": "pre", "etymon_refs": []}
-{"_type": "reflex", "surface_form": "Wrax-,", "position": "post", "etymon_refs": ["old-english:wrocc"]}
+{"_type": "reflex", "surface_form": "Wrax", "position": "post", "etymon_refs": ["old-english:wrocc"]}
 {"_type": "reflex", "surface_form": "Wraxall", "position": "pre", "etymon_refs": []}
 {"_type": "reflex", "surface_form": "Wray", "position": "pre", "etymon_refs": ["old-norse:vrá"]}
 {"_type": "reflex", "surface_form": "Wraysbury", "position": "pre", "etymon_refs": []}
