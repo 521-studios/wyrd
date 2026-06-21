@@ -24,10 +24,41 @@ standalone single-word subjects.
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+
+# wyrd-f233: residual non-combining special letters to fold to an ASCII modern
+# spelling after NFD-stripping combining marks. NFD handles macrons/accents/
+# ogoneks (ā→a, ǣ→æ, ȳ→y, ą→a); these atomic letters don't decompose, so map
+# them explicitly. Modern-toponym spelling conventions: æ→ae, þ/ð→th, ø→o.
+_MODERN_LETTER_FOLD = {
+    "æ": "ae", "Æ": "Ae", "œ": "oe", "Œ": "Oe", "ø": "o", "Ø": "O",
+    "þ": "th", "Þ": "Th", "ð": "th", "Ð": "Th", "ł": "l", "Ł": "L",
+}  # fmt: skip
+
+
+def _fold_to_modern_surface(form: str) -> str:
+    """Fold a reconstructed/macron-bearing canonical form to a clean ASCII modern
+    surface (wyrd-f233). Used for the synthesized fallback ``modern_usage`` of a
+    reflex-LESS family, so the bundle keys + renders a real surface instead of a
+    macron/proto canonical form (``tūn``→``tun``, ``ǣcer``→``aecer``,
+    ``*beuganą``→``beugana``). Drops proto ``*`` markers, NFD-decomposes and
+    removes combining marks, then maps residual special letters. Case-preserving;
+    does NOT touch dashes (position decoration is applied separately, D45). The
+    matcher already deaccents at fold time, so this only cleans the stored/rendered
+    surface — it never changes which morpheme matches.
+
+    A non-Latin source form (Semitic ʕ/ʔ, etc.) has no Latin fold and passes
+    through unchanged — those exotic reflex-less admits (~9 in the cohort) are a
+    transliteration concern, out of this macron/proto cleanup's scope."""
+    s = form.replace("*", "")  # proto markers, anywhere — never part of a surface
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    return "".join(_MODERN_LETTER_FOLD.get(ch, ch) for ch in s)
+
 
 _LANG_CODE_TO_JSON_FIELD = {
     "old-english": "old_english",
@@ -262,7 +293,10 @@ def _synthesize_modern_usage(family: dict[str, Any]) -> str:
     location via Meaning._set_location — wyrd-vpri; valid at any
     single-token position, distinct from a 'post' suffix).
     """
-    form = family["root_canonical_form"]
+    # wyrd-f233: a reflex-less family has no clean modern surface, so the canonical
+    # form (which may carry macrons / a proto ``*``) was leaking verbatim into the
+    # matcher key + rendered output. Fold it to a clean ASCII surface.
+    form = _fold_to_modern_surface(family["root_canonical_form"])
     position = family.get("position_pref")
     if position == "pre":
         return f"{form}-"
