@@ -410,11 +410,11 @@ def _connective_candidates(
     out: list[tuple[tuple[int, int], list[Any]]] = []
     if not connective_inventory or pos == 0:
         return out
-    for surface, kind in connective_inventory:
-        clen = len(surface)
-        if word[pos : pos + clen].lower() != surface:
+    for spec in connective_inventory:
+        clen = len(spec.surface)
+        if word[pos : pos + clen].lower() != spec.surface:
             continue
-        conn = Connective(word[pos : pos + clen], kind)
+        conn = Connective(word[pos : pos + clen], spec.kind)
         for end, head in _find_matches_at(trie, word, pos + clen):
             (h_un, h_mor), h_tails = walk_best(end)
             cscore = (h_un, h_mor + 1)  # connective free; head +1 morpheme

@@ -26,25 +26,47 @@ discriminate the three element kinds via :func:`is_connective`.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
-# Connective kinds. Each entry in a connective inventory carries one of these so
-# the matcher can apply kind-specific selection (the genitive prior applies to
-# ``GENITIVE`` connectives; ``FORMATIVE`` / ``LINKING`` are meaning-neutral).
-GENITIVE = "genitive"
-FORMATIVE = "formative"
-LINKING = "linking"
+
+class ConnectiveKind(StrEnum):
+    """The kind of linguistic glue a connective is — a CLOSED set, so a typo'd
+    kind can't silently skip the genitive tiebreak. The matcher applies
+    kind-specific selection: the genitive prior applies to ``GENITIVE``;
+    ``FORMATIVE`` / ``LINKING`` are meaning-neutral. A ``StrEnum`` so each member
+    ``== `` its string value (``ConnectiveKind.GENITIVE == "genitive"``), keeping
+    any string-keyed comparison / serialization valid."""
+
+    GENITIVE = "genitive"
+    FORMATIVE = "formative"
+    LINKING = "linking"
+
+
+# Module-level aliases — the existing public names, now bound to the enum members.
+# A member ``== `` its value, so callers doing ``kind == GENITIVE`` or
+# ``kind == "genitive"`` keep working unchanged.
+GENITIVE = ConnectiveKind.GENITIVE
+FORMATIVE = ConnectiveKind.FORMATIVE
+LINKING = ConnectiveKind.LINKING
 
 
 @dataclass(frozen=True)
 class Connective:
     """A connective element in a decomposition. ``surface`` is the glue's
-    characters (``s``); ``kind`` is one of :data:`GENITIVE` / :data:`FORMATIVE`
-    / :data:`LINKING`. Frozen + hashable so decompositions remain dedupable
-    (the matcher dedups by ``tuple(decomposition)``), and renders as its bare
-    surface so a decomposition reconstructs the input word."""
+    characters (``s``); ``kind`` is a :class:`ConnectiveKind`. Frozen + hashable
+    so decompositions remain dedupable (the matcher dedups by
+    ``tuple(decomposition)``), and renders as its bare surface so a decomposition
+    reconstructs the input word."""
 
     surface: str
-    kind: str
+    kind: ConnectiveKind
+
+    def __post_init__(self) -> None:
+        # Enforce the closed set even when constructed from a bare string: coerce
+        # ``kind`` through ConnectiveKind so a typo (``"genitiv"``) raises here at
+        # construction rather than silently storing an off-set value that skips
+        # the genitive tiebreak. A valid str or an existing member passes through.
+        object.__setattr__(self, "kind", ConnectiveKind(self.kind))
 
     def __str__(self) -> str:
         return self.surface
@@ -58,10 +80,12 @@ def is_connective(elem: object) -> bool:
     return isinstance(elem, Connective)
 
 
-# Data-driven connective inventory: an ordered tuple of ``(surface, kind)``.
+# Data-driven connective inventory: an ordered tuple of :class:`Connective`.
 # v1 ships the genitive ``-s-`` only; ``-ing-`` (FORMATIVE) and linking vowels
 # extend this as DATA, with no matcher code change. Surfaces are bare
-# lowercase; the matcher folds the word the same way before matching.
-ConnectiveInventory = tuple[tuple[str, str], ...]
+# lowercase; the matcher folds the word the same way before matching. Typed as
+# ``Connective`` (not a bare ``(surface, kind)`` tuple) so a transposed entry is
+# a construction error, not a silent bug.
+ConnectiveInventory = tuple[Connective, ...]
 
-DEFAULT_CONNECTIVE_INVENTORY: ConnectiveInventory = (("s", GENITIVE),)
+DEFAULT_CONNECTIVE_INVENTORY: ConnectiveInventory = (Connective("s", GENITIVE),)

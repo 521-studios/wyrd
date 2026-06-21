@@ -50,7 +50,7 @@ import sys
 import time
 from collections import defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
@@ -181,13 +181,28 @@ class ToponymGrade:
     head_attested: bool  # surface-final morpheme resolves to a scholar cluster
 
 
+@dataclass(frozen=True)
+class MatcherConfig:
+    """The matcher knobs the grader holds together across a configuration: the
+    culture's allowed languages, the connective inventory, and the genitive
+    prior. Bundled (wyrd-buye) so the three travel as one value through the grade
+    entry points instead of three kw-only params threaded each.
+
+    ``passthrough_map`` is deliberately NOT here — it's the grading-time
+    composite-attribution toggle that ``grade_passthrough_diff`` VARIES (off vs
+    on) while holding this matcher config identical, so it stays a separate
+    argument. All three default to None (the no-op baseline matcher)."""
+
+    culture_languages: frozenset[str] | None = None
+    connective_inventory: ConnectiveInventory | None = None
+    genitive_prior: dict[tuple[str, str], float] | None = None
+
+
 def _decompose_name(
     name: str,
     trie: MorphemeTrie,
     *,
-    culture_languages: frozenset[str] | None,
-    connective_inventory: ConnectiveInventory | None,
-    genitive_prior: dict[tuple[str, str], float] | None,
+    config: MatcherConfig,
 ) -> tuple[list[str], int, str | None]:
     """Decompose a (possibly multi-word) toponym token-by-token, mirroring how
     ``Name`` splits on whitespace and decomposes each ``Word``. Returns
@@ -201,9 +216,9 @@ def _decompose_name(
         decomp = canonical_decomposition(
             token,
             trie,
-            culture_languages=culture_languages,
-            connective_inventory=connective_inventory,
-            genitive_prior=genitive_prior,
+            culture_languages=config.culture_languages,
+            connective_inventory=config.connective_inventory,
+            genitive_prior=config.genitive_prior,
         )
         token_surfaces = [m.usage for m in iter_morphemes(decomp)]
         surfaces.extend(token_surfaces)
@@ -243,9 +258,7 @@ def grade_toponym(
     trie: MorphemeTrie,
     index: ClusterIndex,
     *,
-    culture_languages: frozenset[str] | None,
-    connective_inventory: ConnectiveInventory | None,
-    genitive_prior: dict[tuple[str, str], float] | None,
+    config: MatcherConfig,
     passthrough_map: dict[str, tuple[str, ...]] | None = None,
 ) -> ToponymGrade:
     """Run the matcher on one labeled toponym and score it against the scholar's
@@ -253,13 +266,7 @@ def grade_toponym(
     ``passthrough_map`` expands matched composites to their constituents for
     attribution (D51.3) — coverage is unaffected (the parse is unchanged); recall
     / precision / head are scored over the expanded virtual morphemes."""
-    surfaces, unaccounted, _head = _decompose_name(
-        scholar.name,
-        trie,
-        culture_languages=culture_languages,
-        connective_inventory=connective_inventory,
-        genitive_prior=genitive_prior,
-    )
+    surfaces, unaccounted, _head = _decompose_name(scholar.name, trie, config=config)
     scholar_clusters = scholar.clusters
     morph_clusters = _attributed_clusters(surfaces, index, passthrough_map)
     recovered = {c for c in scholar_clusters if any(c in mc for mc in morph_clusters)}
@@ -358,9 +365,7 @@ def grade_configuration(
     trie: MorphemeTrie,
     index: ClusterIndex,
     *,
-    culture_languages: frozenset[str] | None,
-    connective_inventory: ConnectiveInventory | None,
-    genitive_prior: dict[tuple[str, str], float] | None,
+    config: MatcherConfig,
     passthrough_map: dict[str, tuple[str, ...]] | None = None,
     label: str = "grade",
     progress_every: int = 0,
@@ -375,9 +380,7 @@ def grade_configuration(
                 scholar,
                 trie,
                 index,
-                culture_languages=culture_languages,
-                connective_inventory=connective_inventory,
-                genitive_prior=genitive_prior,
+                config=config,
                 passthrough_map=passthrough_map,
             )
         )
@@ -425,55 +428,18 @@ def grade_passthrough_diff(
     trie: MorphemeTrie,
     *,
     passthrough_map: dict[str, tuple[str, ...]],
-    culture_languages: frozenset[str] | None,
-    genitive_prior: dict[tuple[str, str], float] | None,
-    connective_inventory: ConnectiveInventory = DEFAULT_CONNECTIVE_INVENTORY,
+    config: MatcherConfig,
     suffix: str | None = None,
     limit: int | None = None,
     progress_every: int = 0,
 ) -> CorpusDiff:
     """OFF (no composed-of attribution) vs ON (a matched composite credited to its
-    constituents via ``passthrough_map``), holding the matcher config IDENTICAL on
-    both sides — so the diff isolates the wyrd-h5u1 attribution effect (D51.3), not
-    the connective/prior. This is the graded net-win check that gates wyrd-oth3:
-    coverage is unaffected (same parse), and recall/precision/head should recover
-    where the matcher picks a coarse composite that the scholar split finely."""
-    index = load_cluster_index(db)
-    corpus = load_scholar_corpus(db, index, suffix=suffix)
-    if limit is not None:
-        corpus = corpus[:limit]
-    common = {
-        "culture_languages": culture_languages,
-        "connective_inventory": connective_inventory,
-        "genitive_prior": genitive_prior,
-        "progress_every": progress_every,
-    }
-    off = grade_configuration(corpus, trie, index, passthrough_map=None, label="off", **common)
-    on = grade_configuration(
-        corpus, trie, index, passthrough_map=passthrough_map, label="on", **common
-    )
-    return diff_grades(off, on)
-
-
-def grade_corpus_diff(
-    db: LexiconDB,
-    trie: MorphemeTrie,
-    *,
-    culture_languages: frozenset[str] | None,
-    genitive_prior: dict[tuple[str, str], float] | None,
-    connective_inventory: ConnectiveInventory = DEFAULT_CONNECTIVE_INVENTORY,
-    suffix: str | None = None,
-    limit: int | None = None,
-    progress_every: int = 0,
-) -> CorpusDiff:
-    """End-to-end: load the bridge + scholar corpus, grade connective-OFF
-    (today's matcher: ``culture_languages`` on, no connective, no prior) vs
-    connective-ON (``connective_inventory`` + ``genitive_prior``), and diff.
-
-    ``culture_languages`` is passed to BOTH configs — it is part of today's
-    matcher (wyrd-pfoo), not the change under test — so the diff isolates the
-    connective's effect. ``suffix`` / ``limit`` focus the run for fast probes.
-    """
+    constituents via ``passthrough_map``), holding the matcher ``config`` IDENTICAL
+    on both sides — so the diff isolates the wyrd-h5u1 attribution effect (D51.3),
+    not the connective/prior. This is the graded net-win check that gates
+    wyrd-oth3: coverage is unaffected (same parse), and recall/precision/head
+    should recover where the matcher picks a coarse composite the scholar split
+    finely."""
     index = load_cluster_index(db)
     corpus = load_scholar_corpus(db, index, suffix=suffix)
     if limit is not None:
@@ -482,9 +448,8 @@ def grade_corpus_diff(
         corpus,
         trie,
         index,
-        culture_languages=culture_languages,
-        connective_inventory=None,
-        genitive_prior=None,
+        config=config,
+        passthrough_map=None,
         label="off",
         progress_every=progress_every,
     )
@@ -492,10 +457,53 @@ def grade_corpus_diff(
         corpus,
         trie,
         index,
-        culture_languages=culture_languages,
-        connective_inventory=connective_inventory,
-        genitive_prior=genitive_prior,
+        config=config,
+        passthrough_map=passthrough_map,
         label="on",
         progress_every=progress_every,
+    )
+    return diff_grades(off, on)
+
+
+def grade_corpus_diff(
+    db: LexiconDB,
+    trie: MorphemeTrie,
+    *,
+    config: MatcherConfig,
+    suffix: str | None = None,
+    limit: int | None = None,
+    progress_every: int = 0,
+) -> CorpusDiff:
+    """End-to-end: load the bridge + scholar corpus, grade connective-OFF
+    (today's matcher: ``culture_languages`` on, no connective, no prior) vs
+    connective-ON (the full ``config``), and diff.
+
+    ``config`` is the connective-ON configuration; the OFF side reuses its
+    ``culture_languages`` but zeroes the connective inventory + genitive prior
+    (``replace``), since ``culture_languages`` is part of today's matcher
+    (wyrd-pfoo), not the change under test — so the diff isolates the connective's
+    effect. ``suffix`` / ``limit`` focus the run for fast probes.
+
+    A connective diff needs SOMETHING to turn on: if ``config`` carries no
+    connective inventory the ON side defaults to ``DEFAULT_CONNECTIVE_INVENTORY``
+    (the genitive ``-s-``) — matching the pre-wyrd-buye signature default, so an
+    inventory-less call still diffs the connective rather than silently producing
+    a no-op OFF==ON.
+    """
+    index = load_cluster_index(db)
+    corpus = load_scholar_corpus(db, index, suffix=suffix)
+    if limit is not None:
+        corpus = corpus[:limit]
+    on_config = (
+        config
+        if config.connective_inventory is not None
+        else replace(config, connective_inventory=DEFAULT_CONNECTIVE_INVENTORY)
+    )
+    off_config = replace(on_config, connective_inventory=None, genitive_prior=None)
+    off = grade_configuration(
+        corpus, trie, index, config=off_config, label="off", progress_every=progress_every
+    )
+    on = grade_configuration(
+        corpus, trie, index, config=on_config, label="on", progress_every=progress_every
     )
     return diff_grades(off, on)

@@ -13,6 +13,7 @@ from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.lexicon.decomposition_grader import (
     CorpusDiff,
     GradeSummary,
+    MatcherConfig,
     grade_corpus_diff,
     grade_passthrough_diff,
 )
@@ -26,6 +27,7 @@ from wyrd.generators.kenning.lexicon.passthrough_mining import (
 )
 from wyrd.generators.kenning.lexicon.proportions_builder import CULTURE_LANGUAGES
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
+from wyrd.generators.kenning.runtime.connective import DEFAULT_CONNECTIVE_INVENTORY
 from wyrd.generators.kenning.runtime.meaning import load_meanings
 from wyrd.generators.kenning.runtime.trie_matcher import build_morpheme_trie
 
@@ -169,6 +171,14 @@ def lexicon_grade_decomposition(
     with LexiconDB(db_path) as db:
         counts = load_genitive_prior_counts(db)
         genitive_prior = build_split_probability_map(counts)
+        # The connective-ON matcher config (wyrd-buye): culture languages + the
+        # default genitive-s inventory + the mined prior. grade_corpus_diff
+        # derives its OFF side from this; grade_passthrough_diff holds it constant.
+        config = MatcherConfig(
+            culture_languages=culture_languages,
+            connective_inventory=DEFAULT_CONNECTIVE_INVENTORY,
+            genitive_prior=genitive_prior,
+        )
         click.echo("grade-decomposition:", err=True)
         click.echo(
             f"  trie morphemes={trie.morpheme_count} culture={culture} "
@@ -188,8 +198,7 @@ def lexicon_grade_decomposition(
                 db,
                 trie,
                 passthrough_map=pmap,
-                culture_languages=culture_languages,
-                genitive_prior=genitive_prior,
+                config=config,
                 suffix=suffix,
                 limit=limit,
                 progress_every=_PROGRESS_EVERY,
@@ -198,8 +207,7 @@ def lexicon_grade_decomposition(
             diff = grade_corpus_diff(
                 db,
                 trie,
-                culture_languages=culture_languages,
-                genitive_prior=genitive_prior,
+                config=config,
                 suffix=suffix,
                 limit=limit,
                 progress_every=_PROGRESS_EVERY,

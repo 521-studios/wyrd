@@ -2,12 +2,36 @@
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.generators.kenning.runtime.connective import (
     DEFAULT_CONNECTIVE_INVENTORY,
     GENITIVE,
     Connective,
+    ConnectiveKind,
     is_connective,
 )
+
+
+def test_connective_kind_is_a_strenum_equal_to_its_value():
+    # wyrd-buye: the closed-set kind is a StrEnum, so the module-level aliases
+    # ARE its members and a member == its str value — keeping every existing
+    # `kind == GENITIVE` / `kind == "genitive"` comparison valid.
+    assert GENITIVE is ConnectiveKind.GENITIVE
+    assert ConnectiveKind.GENITIVE == "genitive"
+    assert Connective("s", GENITIVE).kind == "genitive"
+    assert isinstance(Connective("s", GENITIVE).kind, ConnectiveKind)
+
+
+def test_connective_coerces_str_kind_and_rejects_typos():
+    # __post_init__ enforces the closed set so the "can't silently skip the
+    # tiebreak" guarantee is real: a valid bare string is coerced to the member,
+    # an off-set typo raises at construction (not stored silently).
+    coerced = Connective("s", "genitive")
+    assert coerced.kind is ConnectiveKind.GENITIVE
+    assert isinstance(coerced.kind, ConnectiveKind)
+    with pytest.raises(ValueError):
+        Connective("s", "genitiv")
 
 
 def test_connective_renders_its_surface():
@@ -32,4 +56,4 @@ def test_is_connective_discriminates_the_three_kinds():
 
 
 def test_default_inventory_is_the_genitive_s():
-    assert DEFAULT_CONNECTIVE_INVENTORY == (("s", GENITIVE),)
+    assert list(DEFAULT_CONNECTIVE_INVENTORY) == [Connective("s", GENITIVE)]
