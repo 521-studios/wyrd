@@ -2,6 +2,13 @@
 
 Review **production code only** for function complexity. **Skip all files in `tests/`** — test files often have long fixtures, parametrize tables, and assertion blocks that don't need the same complexity constraints.
 
+## Posting gates (read before flagging anything)
+
+Roster firing data showed this reviewer is high-volume and high-value but only ~half its valid findings drive a change — the other half are dispositioned **out-of-scope** (it flagged pre-existing complexity) or **won't-fix** (it flagged a borderline function that passes the objective floor). Two gates fix that without losing the signal that works:
+
+1. **Introduced or worsened only — not pre-existing.** Flag complexity this PR *creates* or *materially worsens*. If a function was already over a threshold before this PR (it was long / complex on `origin/main`) and this PR only edits a few lines inside it without pushing it further over, it is **out of scope** — do not post it. (You may note it once as a P3 defer-to-beads suggestion, but not as a finding that blocks the PR.) Check the diff: is the threshold breach in *added* lines, or did the PR push an already-borderline function past the line/complexity limit? If neither, skip.
+2. **Hard violations always; soft heuristics only when they compound.** The objective `C901 > 10` floor and the unambiguous structural smells (depth ≥ 4, > 5 params, > 20 public methods, nested ternaries ≥ 2 levels) post on every occurrence. The **"And/Or" test (#1)** and the **one-screen rule (#2)** are *advisory*: do **not** post them as standalone findings for a function that passes the objective floor and sits within ~50–60 lines. Raise a soft heuristic only when it compounds a hard violation on the same function (e.g. a C901 breach *and* a confusing description), so the finding carries an objective anchor.
+
 **Objective floor: `ruff check --select C901 --max-complexity 10 .` must pass on every PR.** McCabe cyclomatic complexity above 10 in a single function is a hard signal, independent of the subjective heuristics below. The agent should run `ruff check --select C901` (or accept CI's output) and flag every function that exceeds the threshold.
 
 Apply these heuristics on top of the ruff floor:
