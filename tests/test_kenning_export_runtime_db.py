@@ -1389,3 +1389,125 @@ def test_loader_tolerates_missing_genitive_table(tmp_path: Path) -> None:
         assert sv == "3"
     finally:
         conn.close()
+
+
+# ---------- wyrd-x7w4: --dev auto-regenerates structures.yaml ----------
+
+
+def test_dev_export_regenerates_structure_allowlist(tmp_path: Path) -> None:
+    """wyrd-x7w4: ``_regen_structure_allowlist`` rebuilds the per-language
+    structures.yaml from the just-written seed DB via a refresh-merge.
+
+    Pointed at a copy of the COMMITTED seed-runtime.db (the DB ``--dev`` would
+    have just written), it must reproduce the COMMITTED structures.yaml
+    byte-for-byte — the idempotency that the drift-guard
+    (test_kenning_structure_allowlist.test_committed_structures_yaml_in_sync_with_bundle)
+    relies on, here exercised through the export hook's code path."""
+    import shutil
+    from importlib import resources
+
+    from wyrd.generators.kenning.cli.lexicon.export_runtime_db import (
+        _regen_structure_allowlist,
+    )
+
+    data = resources.files("wyrd.generators.kenning.data")
+    with resources.as_file(data.joinpath("seed-runtime.db")) as seed:
+        shutil.copy(seed, tmp_path / "seed-runtime.db")
+
+    out = _regen_structure_allowlist(tmp_path / "seed-runtime.db")
+
+    assert out == tmp_path / "structures.yaml"  # written next to the DB
+    committed = data.joinpath("structures.yaml").read_text(encoding="utf-8")
+    assert out.read_text(encoding="utf-8") == committed
+
+
+def test_dev_export_writes_structures_yaml_next_to_db(tmp_path: Path) -> None:
+    """wyrd-x7w4 wiring: ``export-runtime-db --dev`` invokes the allowlist regen,
+    leaving a structures.yaml next to the seed DB (in tmp — never the package file).
+
+    Uses the inline-rebuild path (toponym-seeded lexicon, no --proportions-dir) so
+    --dev's top-N produces D45-nested usages."""
+    import yaml
+
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "seed-runtime.db"
+    _seed_lexicon_with_toponyms(db_path, [("Acton", "England", None), ("Bath", "England", None)])
+
+    result = CliRunner().invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--db",
+            str(db_path),
+            "--output",
+            str(out_path),
+            "--dev",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    structures = tmp_path / "structures.yaml"
+    assert structures.exists(), "--dev must regenerate structures.yaml next to the DB"
+    parsed = yaml.safe_load(structures.read_text(encoding="utf-8"))
+    # sectioned per-language output (refresh-merged over the committed file)
+    assert "english" in parsed
+
+
+def test_non_dev_export_does_not_write_structures_yaml(tmp_path: Path) -> None:
+    """The allowlist regen is --dev-only; a plain export leaves no structures.yaml."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    result = CliRunner().invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--db",
+            str(db_path),
+            "--output",
+            str(out_path),
+            "--proportions-dir",
+            str(tmp_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    assert not (tmp_path / "structures.yaml").exists()
+
+
+def test_dev_regen_preserves_operator_false_through_merge(tmp_path: Path) -> None:
+    """wyrd-x7w4: the hook is a refresh-MERGE, not a regen-from-scratch — an
+    operator ``enabled: false`` on a MULTI-morpheme structure (which _build would
+    otherwise default to ``true``) must survive. Guards against a regression to
+    ``_build(conn, {})`` that the idempotency test can't catch (the committed
+    file's only falses are auto-seeded <Bare> defaults).
+
+    Also pins the Gemini-HIGH fix: the merge base is the WORKING-TREE sibling
+    structures.yaml next to the DB (written below), not the importlib.resources
+    copy — so local curation isn't dropped under a non-editable install."""
+    import shutil
+    from importlib import resources
+
+    from wyrd.generators.kenning.cli.lexicon.export_runtime_db import _regen_structure_allowlist
+    from wyrd.generators.kenning.runtime.structure_allowlist import (
+        load_structure_allowlist_from_text,
+    )
+
+    data = resources.files("wyrd.generators.kenning.data")
+    with resources.as_file(data.joinpath("seed-runtime.db")) as seed:
+        shutil.copy(seed, tmp_path / "seed-runtime.db")
+
+    # An operator has disabled a real 3-morpheme english structure (default:
+    # enabled) in the WORKING-TREE structures.yaml sitting next to the seed.
+    curated = "(pre+inner+post)"
+    (tmp_path / "structures.yaml").write_text(
+        f'english:\n  "{curated}": {{enabled: false}}\n', encoding="utf-8"
+    )
+
+    out = _regen_structure_allowlist(tmp_path / "seed-runtime.db")
+    al = load_structure_allowlist_from_text(out.read_text(encoding="utf-8"))
+    assert al["english"][curated] is False  # sticky operator false preserved by the merge
