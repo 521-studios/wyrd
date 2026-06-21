@@ -604,6 +604,36 @@ def test_assert_merge_chains_flat_fails_loud_on_chain_and_cycle():
     cyc.close()
 
 
+def test_dump_jsonl_cli_aborts_on_merge_chain_writing_nothing(tmp_path: Path):
+    """wyrd-lpxq: the read-only `lexicon dump-jsonl` CLI aborts (non-zero exit,
+    no JSONL written) when the DB carries an un-flattened merge chain, instead of
+    emitting a D22-violating dump. Guards the assert_merge_chains_flat wiring
+    against deletion/reordering (a regression there would otherwise ship green)."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+    from wyrd.generators.kenning.jsonl.dump import MergeChainError
+    from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        winner = _add_etymon(db.conn, "old-english", "tun")
+        mid = _add_etymon(db.conn, "old-english", "tunn", merged_into_id=winner)
+        _add_etymon(db.conn, "old-english", "tunne", merged_into_id=mid)  # 2-hop chain
+        db.conn.commit()
+
+    out_dir = tmp_path / "out"
+    result = CliRunner().invoke(
+        cli_root,
+        ["lexicon", "dump-jsonl", "--db", str(db_path), "--out-dir", str(out_dir)],
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, MergeChainError)
+    # Aborted before any write — no JSONL produced.
+    assert not (out_dir.exists() and list(out_dir.glob("*.jsonl")))
+
+
 def test_dump_descent_edge_collapsing_to_self_loop_is_skipped():
     """wyrd-q6ro: a descent edge between two OCR variants of the SAME morpheme
     (both merge to one winner) degenerates to a parent==child self-loop after

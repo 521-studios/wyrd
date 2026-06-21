@@ -1387,10 +1387,12 @@ def _run_curation_slot_passes(
     # chain (loser → mid → winner). Flatten it here — right after curation, before
     # the L3 derivations consume the graph — so merged_into_id always names a
     # TERMINAL winner and the dump's single-hop COALESCE resolves correctly.
-    # Curation is the ONLY slot pass that can form a chain: collapses + OCR resolve
-    # targets via the tombstone-excluding _resolve_live_etymon, and splits never
-    # write merged_into_id. (The read-only dump-jsonl CLI can't enrich, so it
-    # independently FAILS LOUD on any residual chain — see _assert_merge_chains_flat.)
+    # Curation is the ONLY slot pass that can form a chain: the curated-collapse
+    # fold resolves targets via the tombstone-excluding _resolve_live_etymon, the
+    # bulk OCR clusterer self-flattens on write (chain-follow + an OR-clause that
+    # re-routes pre-existing redirects onto the winner), and splits never write
+    # merged_into_id. (The read-only dump-jsonl CLI can't enrich, so it
+    # independently FAILS LOUD on any residual chain — see assert_merge_chains_flat.)
     if counts.get("curation") is not None:
         counts["merge_chain_flatten"] = flatten_merge_chains(db.conn, apply=apply)
         order.append("flatten-merge-chains")
