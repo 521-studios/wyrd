@@ -1181,18 +1181,44 @@ def _classify_grandfather_families(
         lang = lang_by_id.get(root_id)
         if lang is None:
             continue
-        bucket = audit.setdefault(
-            lang, {"pure_grandfather": 0, "mixed_grandfather": 0, "total_families": 0}
-        )
+        bucket = audit.setdefault(lang, _empty_grandfather_bucket())
         bucket["total_families"] += 1
         # Use the same ``_GRANDFATHER_CITATION_SOURCES`` constant as
         # ``_bundle_attestation_breakdown`` so changes to the
         # grandfather source list propagate to both audits.
         if family_sources == _GRANDFATHER_CITATION_SOURCES:
-            bucket["pure_grandfather"] += 1
+            bucket["pure_grandfather"] += 1  # rando-only, 0 corroborators (corr_0)
         elif family_sources & _GRANDFATHER_CITATION_SOURCES:
             bucket["mixed_grandfather"] += 1
+            # wyrd-g7n6: refine the rando+corroborated tail by corroborator count
+            # (distinct non-rando-port sources). Decision-free + standalone (unlike
+            # the lift column, which awaits the policy decision). Under the deployed
+            # ≥2-witness gate (witnesses count rando-port), any rando + ≥1
+            # corroborator already clears promotion — so corr_0 is the retirement
+            # tail and corr_1/2/3+ are already promotion-eligible.
+            corroborators = len(family_sources - _GRANDFATHER_CITATION_SOURCES)
+            if corroborators == 1:
+                bucket["corr_1"] += 1
+            elif corroborators == 2:
+                bucket["corr_2"] += 1
+            else:
+                bucket["corr_3plus"] += 1
     return audit
+
+
+def _empty_grandfather_bucket() -> dict[str, int]:
+    """Zeroed per-language grandfather audit bucket. ``pure_grandfather`` is the
+    rando-only (corr_0) count; ``corr_1``/``corr_2``/``corr_3plus`` partition the
+    ``mixed_grandfather`` (rando + ≥1 corroborator) families by corroborator count
+    (wyrd-g7n6)."""
+    return {
+        "pure_grandfather": 0,
+        "mixed_grandfather": 0,
+        "corr_1": 0,
+        "corr_2": 0,
+        "corr_3plus": 0,
+        "total_families": 0,
+    }
 
 
 # --- top-level scorecard --------------------------------------------------
@@ -1248,9 +1274,7 @@ def compute_scorecard(
         )
     else:
         tier4_count = -1
-    rando_bucket = (rando_port_audit or {}).get(
-        language, {"pure_grandfather": 0, "mixed_grandfather": 0, "total_families": 0}
-    )
+    rando_bucket = (rando_port_audit or {}).get(language, _empty_grandfather_bucket())
 
     total_lemmas = depth["total_lemmas"]
     total_etymons = depth["total_etymons"]
@@ -1327,6 +1351,9 @@ def compute_scorecard(
         ),
         rando_pure_grandfather_families=rando_bucket["pure_grandfather"],
         rando_mixed_grandfather_families=rando_bucket["mixed_grandfather"],
+        rando_corr1_families=rando_bucket["corr_1"],
+        rando_corr2_families=rando_bucket["corr_2"],
+        rando_corr3plus_families=rando_bucket["corr_3plus"],
         rando_total_cited_families=rando_bucket["total_families"],
         rando_pure_grandfather_rate=(
             round(rando_bucket["pure_grandfather"] / rando_bucket["total_families"], 4)
