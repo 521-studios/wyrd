@@ -1186,23 +1186,27 @@ def _classify_grandfather_families(
         # Use the same ``_GRANDFATHER_CITATION_SOURCES`` constant as
         # ``_bundle_attestation_breakdown`` so changes to the
         # grandfather source list propagate to both audits.
-        if family_sources == _GRANDFATHER_CITATION_SOURCES:
-            bucket["pure_grandfather"] += 1  # rando-only, 0 corroborators (corr_0)
-        elif family_sources & _GRANDFATHER_CITATION_SOURCES:
-            bucket["mixed_grandfather"] += 1
-            # wyrd-g7n6: refine the rando+corroborated tail by corroborator count
-            # (distinct non-rando-port sources). Decision-free + standalone (unlike
-            # the lift column, which awaits the policy decision). Under the deployed
-            # ≥2-witness gate (witnesses count rando-port), any rando + ≥1
-            # corroborator already clears promotion — so corr_0 is the retirement
-            # tail and corr_1/2/3+ are already promotion-eligible.
+        if family_sources & _GRANDFATHER_CITATION_SOURCES:
+            # wyrd-g7n6: classify by corroborator count = distinct non-grandfather
+            # sources. corr_0 (all sources are grandfather sources) is pure; ≥1 is
+            # mixed, refined into corr_1/corr_2/corr_3plus. The set-difference works
+            # for a multi-element grandfather set too (Gemini review) — unlike the
+            # prior ``family_sources == _GRANDFATHER_CITATION_SOURCES`` exact check.
+            # Standalone + decision-free (the lift column awaits the policy decision).
+            # Under the deployed ≥2-witness gate (witnesses count rando-port), any
+            # rando + ≥1 corroborator already clears promotion — corr_0 is the
+            # retirement tail; corr_1/2/3+ are already promotion-eligible.
             corroborators = len(family_sources - _GRANDFATHER_CITATION_SOURCES)
-            if corroborators == 1:
-                bucket["corr_1"] += 1
-            elif corroborators == 2:
-                bucket["corr_2"] += 1
+            if corroborators == 0:
+                bucket["pure_grandfather"] += 1
             else:
-                bucket["corr_3plus"] += 1
+                bucket["mixed_grandfather"] += 1
+                if corroborators == 1:
+                    bucket["corr_1"] += 1
+                elif corroborators == 2:
+                    bucket["corr_2"] += 1
+                else:
+                    bucket["corr_3plus"] += 1
     return audit
 
 
