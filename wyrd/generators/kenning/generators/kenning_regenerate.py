@@ -394,6 +394,10 @@ def _parse_knobs(params: dict[str, Any]) -> dict[str, Any]:
     if isinstance(moods, str):
         moods = [moods]
     include_fiction = _coerce_bool(params.get("include_fiction", False))
+    # Lazy import (the wyrd.generators.kenning.__init__ cycle; same reason as the
+    # function-local _resolve_vector_inputs import in generate_all above).
+    from wyrd.generators.kenning.generators.kenning import _request_era_midpoint
+
     # D46: the resolved era range's END is the record-entry cutoff (a
     # bounded era replaces only with morphemes "in the record by then");
     # the call doubles as request validation (typo'd era → 4xx).
@@ -410,6 +414,10 @@ def _parse_knobs(params: dict[str, Any]) -> dict[str, Any]:
         "include_unglossed": _coerce_bool(params.get("include_unglossed", False)),
         "exclude_tags": () if include_fiction else (_FICTION_TAG,),
         "era_record_cutoff": era_range[1] if era_range else None,
+        # wyrd-951i: same priors-baseline era cell the main path leans toward
+        # (wyrd-3tvd), so a single-slot re-roll scores against the requested era's
+        # naming fashion instead of the wildcard-0 cell.
+        "era_midpoint": _request_era_midpoint(era_range),
         "era_render_language": _resolve_era_render_language(params.get("era"), culture),
         "era_requested": bool(params.get("era")),
         "stratum": _resolve_stratum_param(params.get("stratum"), culture),
@@ -463,6 +471,7 @@ def _weighted_pool_with_fallback(
         prior_tags=prior_tags,
         slot_base_scores=slot_base_scores,
         require_tags=require_tags,
+        era_midpoint=knobs["era_midpoint"],
     )
     if weighted:
         return weighted
@@ -487,6 +496,7 @@ def _weighted_pool_with_fallback(
         prior_tags=prior_tags,
         slot_base_scores=None,
         require_tags=require_tags,
+        era_midpoint=knobs["era_midpoint"],
     )
 
 
