@@ -392,9 +392,15 @@ def _regen_structure_allowlist(output_path: Path) -> Path:
     from wyrd.generators.kenning.runtime.runtime_db import _open_readonly
 
     structures_path = output_path.parent / "structures.yaml"
+    # Merge base = the file we're about to OVERWRITE (the working-tree curation
+    # next to the DB), not the importlib.resources copy. Under a non-editable
+    # install those differ, and reading the installed copy would silently drop
+    # local working-tree curation on write (Gemini review HIGH). Fall back to the
+    # bundled resource (None) only when no sibling exists yet (first dump).
+    merge_base_path = structures_path if structures_path.exists() else None
     conn = _open_readonly(output_path)
     try:
-        sections, summary = _build(conn, _read_merge_base(None))
+        sections, summary = _build(conn, _read_merge_base(merge_base_path))
     finally:
         conn.close()
     structures_path.write_text(_render(sections), encoding="utf-8")
