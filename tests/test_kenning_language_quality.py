@@ -2069,15 +2069,18 @@ def test_attribution_mode_for_classifies_donor_receiver_both() -> None:
 
 
 def test_compute_scorecard_threads_attribution_mode_via_map() -> None:
-    """The wiring: a scorecard's attribution_mode comes from attribution_mode_for."""
-    from wyrd.generators.kenning.language_quality import attribution_mode_for
-
-    assert _minimal_card(language="latin").attribution_mode == "receiver"  # field default
-    # the compute path sets it from the map (mirrored here to pin the contract)
-    assert (
-        attribution_mode_for("latin")
-        == _minimal_card(language="latin", attribution_mode="donor-only").attribution_mode
-    )
+    """The actual wiring: compute_scorecard sets attribution_mode from the map for
+    the real language (not the field default). Deleting the audits.py wiring line
+    would fall back to 'receiver' and fail this. attribution_mode is map-derived,
+    not DB-derived, so it's correct even for a language with no fixture etymons."""
+    conn = _build_fixture_db()
+    ref = list(FALLBACK_REFERENCE_TAGS[:3])
+    latin = compute_scorecard(conn, "latin", [], ref, compute_tier4=False)
+    oe = compute_scorecard(conn, "old-english", [], ref, compute_tier4=False)
+    norse = compute_scorecard(conn, "old-norse", [], ref, compute_tier4=False)
+    assert latin.attribution_mode == "donor-only"
+    assert oe.attribution_mode == "receiver"
+    assert norse.attribution_mode == "both"
 
 
 def test_donor_only_renders_na_not_zero() -> None:
@@ -2140,3 +2143,21 @@ def test_receiver_with_coverage_gets_no_gap_annotation() -> None:
     )
     assert "data-gap" not in md and "corpus-thin" not in md
     assert "donor-only" not in md
+
+
+def test_both_mode_renders_as_receiver_not_donor_only() -> None:
+    """'both' (old-norse/old-french/norman-french) donate AND receive, so coverage
+    is expected from the receiving direction — render the receiver-style signal
+    (data-gap / corpus-thin / numeric cell), never 'donor-only (n/a)'."""
+    md = _md_for(
+        _minimal_card(
+            language="old-norse",
+            attribution_mode="both",
+            bundle_sibling="old_scandinavian",
+            bundle_word_count=0,
+            promotion_threshold=2,
+            promotion_eligible=4,
+        )
+    )
+    assert "donor-only" not in md
+    assert "data-gap" in md and "4 promotable lemmas" in md
