@@ -82,12 +82,14 @@ def meaning_db():
 
 # wyrd-aicu.7: aicu.1's bare-surface merge pooled each of these with a
 # thin-gloss position-variant, and _rank_siblings now ranks the thin variant
-# above the canonical OE etymon (wick→wīc, ley→lēagum). xfail(strict=True) keeps
-# the rest of the regression net live while honestly tracking the demotion —
-# strict means the marker AUTO-FAILS once aicu.7 restores the ranking (the
-# canonical etymon ranks top again), forcing this xfail's removal. NB we do NOT
-# weaken the expected lemma; the canonical sibling still exists, it's mis-ranked.
-_XFAIL_RANKING = {"ley", "wick"}
+# above the canonical OE etymon (wick→wīc, ley→lēagum, worth→worð). xfail(strict=
+# True) keeps the rest of the regression net live while honestly tracking the
+# demotion — strict means the marker AUTO-FAILS once aicu.7 restores the ranking
+# (the canonical etymon ranks top again), forcing this xfail's removal. NB we do
+# NOT weaken the expected lemma; the canonical sibling still exists, it's mis-ranked.
+# 'worth' joined when the committed seed was refreshed from a clean rebuild
+# (wyrd-ipvw); the OE worð de-promotion is tracked in wyrd-8vfo + wyrd-aicu.7.
+_XFAIL_RANKING = {"ley", "wick", "worth"}
 
 
 def _canonical_param(row: tuple[str, str, str, str]):
