@@ -90,9 +90,11 @@ def _summary_table_row(c: LanguageScorecard, report: LanguageQualityReport) -> s
     """One language's row in the summary coverage table (n/a cells where a
     bundle/citation denominator is zero)."""
     promo = f"{c.promotion_eligible} (≥{c.promotion_threshold})"
-    if c.attribution_mode == "donor-only":
-        # wyrd-v7wg: donor-only zero is expected (loans receiver-attributed), not a
-        # gap — render 'donor-only (n/a)' so it doesn't read as a should-fix zero.
+    if c.attribution_mode == "donor-only" and c.bundle_word_count == 0:
+        # wyrd-v7wg: a donor-only ZERO is expected (loans receiver-attributed), not a
+        # gap — render 'donor-only (n/a)' so it doesn't read as a should-fix zero. A
+        # donor-only with >0 words is unexpected; fall through to show the count so
+        # the anomaly is visible rather than hidden (Gemini review).
         bundle_cell = "donor-only (n/a)"
     else:
         bundle_pct = _format_pct(c.bundle_word_count, report.bundle_total_words)
@@ -205,10 +207,11 @@ def _language_detail_lines(c: LanguageScorecard, report: LanguageQualityReport) 
 
 def _lang_bundle_lines(c: LanguageScorecard, report: LanguageQualityReport) -> list[str]:
     """Sections B (bundle representation) + B₂ (bundle attestation breakdown, wyrd-lc94)."""
-    if c.attribution_mode == "donor-only":
+    if c.attribution_mode == "donor-only" and c.bundle_word_count == 0:
         # wyrd-v7wg: loans from a donor-only language are attributed to the
         # RECEIVING language at export (e.g. latin `castra` ships as old-english
-        # `ceaster`), so zero bundle coverage is by-design, not a should-fix gap.
+        # `ceaster`), so a zero here is by-design, not a should-fix gap. A donor-only
+        # with >0 words is unexpected → fall through to the count (Gemini review).
         bundle_line = (
             "- **B. Bundle representation:** donor-only (n/a) — loans are attributed to the "
             "receiving language at export, so zero bundle coverage is expected (not a data gap)."

@@ -2102,6 +2102,22 @@ def test_donor_only_renders_na_not_zero() -> None:
     assert "Bundle representation:** 0 words" not in md
 
 
+def test_donor_only_with_words_shows_count_not_na() -> None:
+    """wyrd-v7wg (Gemini review): the 'donor-only (n/a)' placeholder is only for the
+    EXPECTED zero. A donor-only language that unexpectedly HAS bundle words must show
+    the real count so the anomaly is visible, not hidden behind n/a."""
+    md = _md_for(
+        _minimal_card(
+            language="latin",
+            attribution_mode="donor-only",
+            bundle_sibling="latin",
+            bundle_word_count=5,
+        )
+    )
+    assert "donor-only (n/a)" not in md
+    assert "Bundle representation:** 5 words" in md
+
+
 def test_receiver_zero_with_promotables_reads_data_gap() -> None:
     md = _md_for(
         _minimal_card(
