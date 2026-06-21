@@ -42,6 +42,7 @@ from .lexicon import (
     LexiconDB,
     cluster_cognates,
     cluster_ocr_variants,
+    derive_surface_in_modern,
     link_lemmas,
     project_period_forms,
 )
@@ -1498,6 +1499,7 @@ def run_full_enrichment(
     pronunciation_result: dict[str, Any] | None = None
     phonological_vector_result: dict[str, Any] | None = None
     period_form_result: dict[str, Any] | None = None
+    surface_in_modern_result: dict[str, Any] | None = None
     canonical_result: dict[str, Any] | None = None
 
     if not skip_l3_derivations:
@@ -1541,6 +1543,11 @@ def run_full_enrichment(
         order.append("tag-phonological-vectors")
         period_form_result = project_period_forms(db, apply=apply)
         order.append("project-period-forms")
+        # wyrd-ujyo: per-element modern-surface slices, suffix-anchored against
+        # toponym.modern_name (same machinery as project-period-forms). Needs the
+        # cognate_id mates cluster-cognates assigned, so it runs after that.
+        surface_in_modern_result = derive_surface_in_modern(db, apply=apply)
+        order.append("derive-surface-in-modern")
         # Terminal pass: project the L2 canonicalization assertions into the L3
         # collapse graph (wyrd-u6fn.3, D50.6), folding today's deterministic
         # merged_into_id/lemma_id identity clustering by default (wyrd-u6fn.4) so
@@ -1591,6 +1598,7 @@ def run_full_enrichment(
         "english_shaped": english_shaped_result,
         "phonological_vectors": phonological_vector_result,
         "period_forms": period_form_result,
+        "surface_in_modern": surface_in_modern_result,
         "canonical": canonical_result,
     }
 
@@ -1762,6 +1770,16 @@ def _format_period_forms_section(p: dict[str, Any]) -> list[str]:
     ]
 
 
+def _format_surface_in_modern_section(p: dict[str, Any]) -> list[str]:
+    return [
+        "### Modern-surface projection",
+        f"- Breakdowns scanned: {p.get('rows_scanned', 0)}",
+        f"- Projected: {p.get('rows_projected', 0)}",
+        f"- Elements updated: {p.get('elements_updated', 0)}",
+        f"- Rows written: {p.get('rows_written', 0)}",
+    ]
+
+
 # Table of optional sections: (result-dict key, render function). Order
 # here drives section ordering in the rendered markdown. To add a new
 # pass: append a (key, render_fn) tuple and write a _format_<x>_section
@@ -1772,6 +1790,7 @@ _OPTIONAL_SECTIONS: tuple[tuple[str, Any], ...] = (
     ("stratum", _format_stratum_section),
     ("english_shaped", _format_english_shaped_section),
     ("period_forms", _format_period_forms_section),
+    ("surface_in_modern", _format_surface_in_modern_section),
 )
 
 

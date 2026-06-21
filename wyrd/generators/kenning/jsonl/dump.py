@@ -420,7 +420,7 @@ def _dump_toponyms_and_etymologies(
             # rebuild. Single-hop COALESCE — relies on the terminal-winner
             # invariant (see _dump_cited_etymons / wyrd-lpxq).
             """
-            SELECT el.ordinal, el.inflection, el.surface_in_modern, el.confidence,
+            SELECT el.ordinal, el.inflection, el.confidence,
                    e.language, e.canonical_form
               FROM toponym_etymology_element el
               JOIN etymon ref ON ref.id = el.etymon_id
@@ -438,11 +438,13 @@ def _dump_toponyms_and_etymologies(
                 _drop_nulls(
                     {
                         "inflection": el["inflection"],
-                        "surface_in_modern": el["surface_in_modern"],
+                        # surface_in_modern is L3-derived (wyrd-ujyo:
+                        # derive_surface_in_modern re-derives it on every
+                        # enrichment), so it is NOT dumped — it would otherwise
+                        # go stale in L2 like lemma_id / merged_into_id.
                         # wyrd-2n1: per-element confidence; round-trips
-                        # alongside inflection / surface_in_modern.
-                        # NULL elements drop the key entirely, matching
-                        # the surrounding _drop_nulls pattern.
+                        # alongside inflection. NULL elements drop the key
+                        # entirely, matching the surrounding _drop_nulls pattern.
                         "confidence": el["confidence"],
                     }
                 )

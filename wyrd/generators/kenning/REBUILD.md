@@ -26,7 +26,7 @@ A full wipe silently drops every *L3-only* enrichment layer — no error,
 no warning, just a bundle that's ~37% smaller and tests that fail on
 morphemes you "know" are there.
 
-The 16-pass enrichment chain (`--with-enrichment`) rebuilds the
+The enrichment chain (`--with-enrichment`) rebuilds the
 *derived columns* (OCR clusters, lemma links, cognates, stratum,
 english-shaped, phonological vectors, decompositions, period-forms).
 It does **not** run the *mining* passes that populate the empirical,
@@ -214,7 +214,10 @@ What it does, in order:
    gloss-suppress / gloss-add / etymon-splits / collapses / element-glosses /
    tag-additions] → flatten-merge-chains → decompose →
    cluster-cognates → classify-stratum → derive-english-shaped →
-   derive-pronunciation-ipa → tag-phonological-vectors → project-period-forms`.
+   derive-pronunciation-ipa → tag-phonological-vectors → project-period-forms →
+   derive-surface-in-modern`. `derive-surface-in-modern` (wyrd-ujyo) suffix-anchors
+   each binary breakdown against the toponym's modern name to fill
+   `toponym_etymology_element.surface_in_modern`.
    `flatten-merge-chains` (wyrd-lpxq) runs when a curation slot ran — it collapses
    any multi-hop `merged_into_id` chain a curated merge built to a terminal winner,
    before the L3 derivations consume the graph. When the canonicalization streams
@@ -234,7 +237,7 @@ a typo'd ref; expected post-prune orphans are fine.
 > Step-by-step alternative (if you want to run enrichment separately):
 > ```bash
 > wyrd kenning lexicon rebuild-from-jsonl --jsonl-dir data/mining
-> wyrd kenning lexicon enrich --apply         # the 16-pass base chain (no canonicalization projections)
+> wyrd kenning lexicon enrich --apply         # the base enrichment chain (no canonicalization projections)
 > wyrd kenning lexicon enrichment-status       # verify per-pass coverage
 > # re-run one pass with --force, e.g.:
 > wyrd kenning lexicon classify-stratum --apply --force

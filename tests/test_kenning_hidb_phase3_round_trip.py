@@ -263,6 +263,7 @@ def test_round_trip_rebuild_enrich_export_byte_identical(tmp_path: Path) -> None
         "derive-pronunciation-ipa",
         "tag-phonological-vectors",
         "project-period-forms",
+        "derive-surface-in-modern",
     ], "orchestrator skipped a pass — fixture doesn't exercise the full chain"
     assert pre_result["curation"] is not None, "apply-curation pass didn't run"
     # decompose: at least one canonical pick (otherwise the matcher couldn't

@@ -184,11 +184,12 @@ Listed in `run_full_enrichment` execution order:
 | `derive-pronunciation-ipa` | `etymon.pronunciation_ipa` (deterministic G2P fill + replays `_pronunciation.jsonl` LLM tier) | G2P + `llm-ipa-v1` | ✅ wyrd-vm8t |
 | `tag-phonological-vectors` | `phonological_vector` (JSON) | `compute-phon-vector-v1` | ✅ wyrd-kq7w.1 |
 | `project-period-forms` | (`etymon_period_form` table) | hardcoded rules | ✅ wyrd-hidb |
+| `derive-surface-in-modern` | `toponym_etymology_element.surface_in_modern` (per-element modern-name surface slice, suffix-anchored) | hardcoded rules | ✅ wyrd-ujyo |
 | `project-canonical` | `canonical_*` tables + `canonical_*_id` binds (from the L2 assertion streams) | deterministic projection | ✅ wyrd-u6fn.3 |
 
 These passes run via `run_full_enrichment` in the canonical order above. The
-unconditional core (`normalize-ocr` … `project-period-forms`, excluding the two
-conditional passes below) runs for both `lexicon enrich` and `lexicon
+unconditional core (`normalize-ocr` … `derive-surface-in-modern`, excluding the
+two conditional passes below) runs for both `lexicon enrich` and `lexicon
 rebuild-from-jsonl --with-enrichment`. Two passes are **conditional**:
 `flatten-merge-chains` (wyrd-lpxq) runs only when a curation slot ran (curation is
 the only pass that can build a `merged_into_id` chain), and `project-canonical` is
@@ -333,7 +334,7 @@ see the orphan counts in the rebuild summary so unexpected typos
 
 ### Rebuilding L3 from L2
 
-One-shot rebuild — `--with-enrichment` runs the full 8-pass chain
+One-shot rebuild — `--with-enrichment` runs the full enrichment chain
 (wyrd-hidb):
 
 ```bash

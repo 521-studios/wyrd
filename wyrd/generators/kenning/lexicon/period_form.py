@@ -1,23 +1,31 @@
-"""Per-etymon period-form projection (wyrd-unuo Phase 3.3).
+"""Suffix-anchoring projection over binary toponym breakdowns (wyrd-unuo
+Phase 3.3 + wyrd-ujyo).
 
-For each binary toponym breakdown, find the longest suffix of the
-attested historical form that matches a known reflex of the second
-morpheme's etymon, then assign the corresponding period form to the
-FIRST morpheme. Writes ``etymon_period_form`` rows so the
-``etymon_era_reflexes`` Tier 3 picker can return them.
+Two projections share the same machinery — for each binary breakdown, find the
+longest suffix of a target string that matches a known reflex of the SECOND
+morpheme's etymon, then split the target into (prefix, suffix):
 
-Example: toponym 'Westminster' attested as 'Westmynstre' in 1086 with
-breakdown OE ``west`` + OE ``mynster``. The suffix-matcher finds
-'mynstre' as a reflex of ``mynster``, leaves 'West' as the projected
-period form for ``west`` at 1086.
+* :func:`project_period_forms` anchors against the **attested historical form**
+  (``toponym_attestation.form``) and writes ``etymon_period_form`` rows so the
+  ``etymon_era_reflexes`` Tier-3 picker can return them.
+* :func:`derive_surface_in_modern` anchors against the **modern toponym name**
+  (``toponym.modern_name``) and writes the per-element surface slice back onto
+  ``toponym_etymology_element.surface_in_modern`` (e.g. Ardeley = Earda + lēah →
+  'Arde' + 'ley', recording that Earda surfaces as 'Arde').
 
-Binary breakdowns only (ternary alignment isn't reliable without
-phonetic distance); ≥2-char projected segments; skips breakdowns whose
-components point at OCR-cluster losers (``merged_into_id IS NOT NULL``).
+Both: binary breakdowns only (ternary alignment isn't reliable without phonetic
+distance); ≥2-char projected segments; skip breakdowns whose components point at
+OCR-cluster losers (``merged_into_id IS NOT NULL``).
 
-Idempotent + reversible via
-``clear_enrichment(stage="period-forms")``. ~85-90% precision on a
-40-row stratified spot-check.
+Example (period forms): toponym 'Westminster' attested as 'Westmynstre' in 1086
+with breakdown OE ``west`` + OE ``mynster``. The suffix-matcher finds 'mynstre'
+as a reflex of ``mynster``, leaving 'West' as the projected period form for
+``west`` at 1086.
+
+Both passes are deterministic, LLM-free, and idempotent. period-forms is
+reversible via ``clear_enrichment(stage="period-forms")`` (~85-90% precision on
+a 40-row stratified spot-check); derive_surface_in_modern re-derives the same
+surface on every run.
 """
 
 from __future__ import annotations
@@ -275,3 +283,147 @@ def _preload_binary_breakdowns(db: LexiconDB) -> dict[int, list[list[dict]]]:
         if len(elements) == 2 and (topo_id, te_id) not in skip_te_keys:
             out.setdefault(topo_id, []).append(elements)
     return out
+
+
+def _preload_binary_breakdowns_for_modern(db: LexiconDB) -> list[tuple[str, list[dict]]]:
+    """Every binary breakdown whose toponym has a ``modern_name``, as
+    ``(modern_name, [element0, element1])`` ordered by ordinal. Each element dict
+    carries its ``toponym_etymology_element`` natural key (``te_id`` +
+    ``ordinal``) so the caller can UPDATE its ``surface_in_modern`` (the table
+    has no surrogate id), plus the etymon fields the suffix-matcher needs.
+
+    Mirror of :func:`_preload_binary_breakdowns` (single query, drops breakdowns
+    whose components are ``merged_into_id`` tombstones) but anchored on the
+    toponym's modern name rather than its attestations.
+    """
+    cur = db.conn.execute(
+        """
+        SELECT t.id AS toponym_id, t.modern_name, te.id AS te_id,
+               tee.ordinal, tee.etymon_id,
+               e.canonical_form, e.cognate_id, e.merged_into_id
+        FROM toponym t
+        JOIN toponym_etymology te ON te.toponym_id = t.id
+        JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
+        JOIN etymon e ON tee.etymon_id = e.id
+        WHERE t.modern_name IS NOT NULL AND t.modern_name != ''
+        ORDER BY t.id, te.id, tee.ordinal
+        """
+    )
+    grouped: dict[tuple[int, int], dict] = {}
+    skip_keys: set[tuple[int, int]] = set()
+    for row in cur:
+        key = (row["toponym_id"], row["te_id"])
+        if row["merged_into_id"] is not None:
+            skip_keys.add(key)
+            continue
+        entry = grouped.setdefault(key, {"modern_name": row["modern_name"], "elements": []})
+        entry["elements"].append(
+            {
+                "te_id": row["te_id"],
+                "ordinal": row["ordinal"],
+                "etymon_id": row["etymon_id"],
+                "canonical_form": row["canonical_form"],
+                "cognate_id": row["cognate_id"],
+            }
+        )
+    out: list[tuple[str, list[dict]]] = []
+    for key, entry in grouped.items():
+        if len(entry["elements"]) == 2 and key not in skip_keys:
+            out.append((entry["modern_name"], entry["elements"]))
+    return out
+
+
+def derive_surface_in_modern(
+    db: LexiconDB,
+    *,
+    apply: bool = False,
+    progress_every: int = 200,
+) -> dict:
+    """Derive ``toponym_etymology_element.surface_in_modern`` by suffix-anchoring
+    each binary breakdown against the toponym's MODERN name (wyrd-ujyo).
+
+    For each binary breakdown, segment the modern name's suffix against the LAST
+    morpheme's known reflexes (canonical form + cognate-cluster mates + etymon
+    variants); the matched suffix is that morpheme's surface, and the remaining
+    prefix is the FIRST morpheme's surface. e.g. 'Ardeley' = OE ``earda`` + OE
+    ``lēah`` → first morpheme surfaces as 'Arde', last as 'ley'.
+
+    Limits mirror :func:`project_period_forms`: binary breakdowns only,
+    last-morpheme suffix-anchoring only, skip ``merged_into_id`` losers, both
+    projected segments ≥2 chars. v1 also skips MULTI-WORD modern names
+    ('Stratford upon Avon') — the prefix slice would otherwise absorb the leading
+    words + whitespace; word-aware alignment is out of scope. Deterministic +
+    idempotent — re-runs UPDATE the same surface (the column starts NULL at
+    ingest). Dry-run unless ``apply``.
+
+    Progress lines emit to stderr every ``progress_every`` breakdowns scanned
+    (CLAUDE.md mining-progress shape; clamps to ≥1). Returns row-counts.
+    """
+    import sys
+    import time
+
+    progress_every = max(progress_every, 1)
+    started = time.monotonic()
+
+    breakdowns = _preload_binary_breakdowns_for_modern(db)
+    cached_candidates: dict[int, set[str]] = {}
+    rows_scanned = 0
+    rows_projected = 0
+    multiword_skipped = 0
+    updates: list[tuple[str, int, int]] = []  # (surface_in_modern, te_id, ordinal)
+
+    def _progress(rows_written: int | None = None) -> None:
+        elapsed = max(time.monotonic() - started, 1e-6)
+        written = "" if rows_written is None else f" rows_written={rows_written}"
+        print(
+            f"  [{rows_scanned}/{len(breakdowns)}]  rows_projected={rows_projected} "
+            f"elements_updated={len(updates)}{written} "
+            f"({elapsed / max(rows_scanned, 1):.4f}s/entry)",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    for modern_name, elements in breakdowns:
+        rows_scanned += 1
+        # v1: single-token modern names only — a multi-word name's prefix slice
+        # would absorb the leading words + whitespace (e.g. 'Stratford upon A').
+        if " " in modern_name:
+            multiword_skipped += 1
+            continue
+        first, last = elements[0], elements[1]
+        if last["etymon_id"] not in cached_candidates:
+            cached_candidates[last["etymon_id"]] = _suffix_candidates_for_etymon(
+                db, last["etymon_id"], last["canonical_form"], last["cognate_id"]
+            )
+        match = _find_longest_suffix_match(modern_name, cached_candidates[last["etymon_id"]])
+        if match is not None:
+            last_surface = match
+            first_surface = modern_name[: len(modern_name) - len(match)]
+            # Both projected segments ≥2 chars (single-letter slices are noise).
+            if len(first_surface) >= 2 and len(last_surface) >= 2:
+                updates.append((first_surface, first["te_id"], first["ordinal"]))
+                updates.append((last_surface, last["te_id"], last["ordinal"]))
+                rows_projected += 1
+        if rows_scanned % progress_every == 0:
+            _progress()
+
+    rows_written = 0
+    if apply and updates:
+        result = db.conn.executemany(
+            "UPDATE toponym_etymology_element SET surface_in_modern = ? "
+            "WHERE toponym_etymology_id = ? AND ordinal = ?",
+            updates,
+        )
+        rows_written = result.rowcount
+        db.commit()
+
+    _progress(rows_written=rows_written)
+
+    return {
+        "rows_scanned": rows_scanned,
+        "rows_projected": rows_projected,
+        "multiword_skipped": multiword_skipped,
+        "elements_updated": len(updates),
+        "rows_written": rows_written,
+        "applied": apply,
+    }
