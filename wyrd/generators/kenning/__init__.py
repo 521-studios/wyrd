@@ -548,14 +548,23 @@ def _load_empirical_priors():
 
 @lru_cache(maxsize=1)
 def _load_genitive_prior() -> dict[tuple[str, str], float]:
-    """wyrd-aicu.9 (D-3): load the bundled genitive-split prob-map from the L4
-    runtime DB (``genitive_split_prior`` singleton row, schema v4). Returns the
-    precomputed ``{(long_form, short_form): split_probability}`` float map the
-    decomposition matcher consumes (``_prefer_genitive_credible``).
+    """wyrd-aicu.9: load the bundled genitive-split prob-map from the L4 runtime
+    DB (``genitive_split_prior`` singleton row — an additive/optional table, no
+    schema bump). Returns the precomputed ``{(long_form, short_form):
+    split_probability}`` float map for the decomposition matcher's
+    ``_prefer_genitive_credible`` tiebreaker.
 
-    Returns ``{}`` when the row is absent (a wipe-without-remine L4, or one
-    predating ``mine-genitive-priors --apply``): the connective still wins non-
-    homograph coverage on score, only the homograph tiebreak goes silent.
+    STAGED, not yet consumed at runtime. The connective fix currently flows via
+    EXPORT-time proportions training (``_compute_proportions_inline`` passes the
+    map into ``find_meaning``), so the shipped bundle's proportions already
+    reflect it. This runtime loader is for a FUTURE consumer — wiring the prior
+    into the LIVE generation/explain decompose path (wyrd-aicu.9 follow-on);
+    until then nothing calls it (kept tested + bundled so the consumer is a
+    one-line change).
+
+    Returns ``{}`` when the row/table is absent (a wipe-without-remine L4, a
+    pre-aicu.9 seed lacking the additive table, or one predating
+    ``mine-genitive-priors --apply``): graceful degradation, tiebreak silent.
     Load-once (lru_cache) so the request path never re-reads the DB; cleared
     alongside the other bundle caches by ``_coupled_cache_clear``."""
     from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db

@@ -56,7 +56,8 @@ DB and must be re-run by hand after the rebuild.
 > **wyrd-aicu.9 (L4 emit):** `export-runtime-db` now reads the L3
 > `genitive_split_prior` counts, smooths them (`build_split_probability_map`),
 > and ships the prob-map into the L4 bundle's own `genitive_split_prior`
-> singleton blob (schema v4). A wipe-without-remine yields an **empty** map →
+> singleton blob (additive/optional table, **no schema bump** — the loader
+> tolerates its absence). A wipe-without-remine yields an **empty** map →
 > the emit writes **no row** → the runtime loads `{}` and degrades gracefully:
 > the genitive connective's coverage gains still land (they win on score), only
 > the homograph tiebreak goes silent until `mine-genitive-priors --apply` re-runs.

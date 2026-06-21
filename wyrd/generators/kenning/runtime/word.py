@@ -144,6 +144,8 @@ class Word:
         for w in self.word:
             if isinstance(w, str):
                 results.append(w)
+            elif is_connective(w):
+                results.append(w.surface)  # Connective has .surface, not .usage
             else:
                 results.append(w.usage)
         return " ".join(results)
