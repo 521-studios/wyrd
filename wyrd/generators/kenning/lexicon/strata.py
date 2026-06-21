@@ -352,6 +352,104 @@ _OLD_NORSE_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {
 }
 
 
+# --- Celtic-family strata (wyrd-de77) -------------------------------------
+#
+# Three NEW families covering the coarse Celtic-family language tags
+# the Welsh / French / OE / ON classifiers never touched:
+# 'brittonic', 'goidelic', and the generic 'celtic'. 476 of the
+# >=2-toponym admit cohort carry one of these tags and were
+# unclassified before this phase.
+#
+# The data drives the design. Of the 476 Celtic admits, only ~60
+# (13%) have ANY etymon_descent parent edge; 87% are orphans and
+# land in the default native-* bucket. The real parent ancestries
+# observed in the live DB are proto-celtic (dominant), old-irish
+# (8), middle-irish (2), and cel-bry-pro. The admit cohort carries
+# NO Norse / Anglo-Norman / French / English loan ancestries (a
+# handful of loan-parented rows exist across the FULL classified
+# set — they fall to native-* rather than justifying a bucket), so —
+# unlike Welsh / OE / ON — these families ship NO loan buckets.
+# proto-germanic parents that show up are mining NOISE (mis-traced
+# edges), so they're deliberately NOT mapped, mirroring every
+# existing classifier (which never maps proto-germanic).
+#
+# All three are LEAF language tags: 'brittonic' / 'goidelic' /
+# 'celtic' are never themselves the PARENT of another etymon in the
+# data, so each has an EMPTY self-language map. The ancestor-walk
+# pass over modern_lang rows does all the work; there are no
+# ancestor / period varieties to fold via self-language (contrast
+# Welsh's middle-welsh / old-welsh, French's old-french, ON's
+# gmq-osw). If wave-2 mining ever surfaces a sub-period Celtic
+# variety as a parent tag, the two-pass shape is ready to extend.
+
+# Brittonic (P-Celtic branch: Welsh / Cornish / Breton ancestors).
+# Two buckets: a proto-celtic substrate layer + the native default.
+# cel-bry-pro (Proto-Brythonic) and proto-celtic both route to the
+# substrate bucket — they're the deep-time ancestor stages.
+_BRITTONIC_DEFAULT_STRATUM: str = "native-brittonic"
+
+BRITTONIC_STRATA: tuple[str, ...] = (
+    "proto-celtic-substrate",
+    _BRITTONIC_DEFAULT_STRATUM,
+)
+
+_BRITTONIC_ANCESTOR_TO_STRATUM: dict[str, str] = {
+    "proto-celtic": "proto-celtic-substrate",
+    "cel-bry-pro": "proto-celtic-substrate",
+}
+
+# Empty: brittonic is a leaf tag, never a parent in the data.
+_BRITTONIC_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {}
+
+
+# Goidelic (Q-Celtic branch: Irish / Scottish Gaelic / Manx).
+# Four buckets in priority order: the proto-celtic substrate first,
+# then the two attested Gaelic stages (old-irish, middle-irish),
+# then the native default last — matching the Welsh convention of
+# substrate-first, period-stages, default-last. scottish-gaelic /
+# irish / latin parents are NOT mapped (too few to bucket; they fold
+# to the default).
+_GOIDELIC_DEFAULT_STRATUM: str = "native-goidelic"
+
+GOIDELIC_STRATA: tuple[str, ...] = (
+    "proto-celtic-substrate",
+    "old-irish",
+    "middle-irish",
+    _GOIDELIC_DEFAULT_STRATUM,
+)
+
+_GOIDELIC_ANCESTOR_TO_STRATUM: dict[str, str] = {
+    "proto-celtic": "proto-celtic-substrate",
+    "old-irish": "old-irish",
+    "middle-irish": "middle-irish",
+}
+
+# Empty: goidelic is a leaf tag, never a parent in the data.
+_GOIDELIC_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {}
+
+
+# Celtic (the generic / unbranched tag — used when the source didn't
+# distinguish P- vs Q-Celtic). Two buckets: proto-celtic substrate +
+# native default. Deliberately does NOT map the mixed
+# old-irish / old-welsh ancestries some generic-celtic rows carry —
+# the generic tag can't honestly claim a branch-specific stage, so
+# those fold to the default.
+_CELTIC_DEFAULT_STRATUM: str = "native-celtic"
+
+CELTIC_STRATA: tuple[str, ...] = (
+    "proto-celtic-substrate",
+    _CELTIC_DEFAULT_STRATUM,
+)
+
+_CELTIC_ANCESTOR_TO_STRATUM: dict[str, str] = {
+    "proto-celtic": "proto-celtic-substrate",
+    "cel-bry-pro": "proto-celtic-substrate",
+}
+
+# Empty: celtic is a leaf tag, never a parent in the data.
+_CELTIC_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {}
+
+
 def _stratum_to_ancestors(
     ancestor_to_stratum: dict[str, str],
 ) -> dict[str, set[str]]:
@@ -570,6 +668,86 @@ def classify_old_norse(db: LexiconDB) -> dict[int, str]:
     )
 
 
+def classify_brittonic(db: LexiconDB) -> dict[int, str]:
+    """Return ``{etymon_id: stratum}`` for the Brittonic family (wyrd-de77).
+
+    Covers etymons whose ``language`` is ``brittonic``, classified by
+    ancestor language via ``etymon_descent``. 'brittonic' is a leaf
+    tag (never a parent in the data), so the self-language map is
+    empty and the ancestor-walk pass does all the work. 87% of
+    Brittonic admits are orphans → ``native-brittonic`` default.
+
+    Pure read. Skips ``merged_into_id IS NOT NULL`` rows.
+
+    Note: proto-germanic parents (mining noise) are intentionally NOT
+    in the ancestor map — mirrors every other classifier, which never
+    maps proto-germanic. No loan buckets: the admit cohort carries no
+    Norse / French / English loan ancestries (the few across the full
+    classified set fall to native-*).
+    """
+    return _classify_family(
+        db,
+        modern_lang="brittonic",
+        strata_order=BRITTONIC_STRATA,
+        ancestor_to_stratum=_BRITTONIC_ANCESTOR_TO_STRATUM,
+        self_lang_to_stratum=_BRITTONIC_SELF_LANGUAGE_TO_STRATUM,
+        default_stratum=_BRITTONIC_DEFAULT_STRATUM,
+    )
+
+
+def classify_goidelic(db: LexiconDB) -> dict[int, str]:
+    """Return ``{etymon_id: stratum}`` for the Goidelic family (wyrd-de77).
+
+    Covers etymons whose ``language`` is ``goidelic``, classified by
+    ancestor language via ``etymon_descent``. 'goidelic' is a leaf
+    tag (never a parent), so the self-language map is empty. The
+    attested Gaelic stages (old-irish, middle-irish) get their own
+    buckets; proto-celtic routes to the substrate bucket; everything
+    else (including the rare scottish-gaelic / irish / latin parents,
+    too few to bucket) folds to ``native-goidelic``.
+
+    Pure read. Skips ``merged_into_id IS NOT NULL`` rows.
+
+    Note: proto-germanic parents (mining noise) are intentionally NOT
+    mapped — same convention as every other classifier.
+    """
+    return _classify_family(
+        db,
+        modern_lang="goidelic",
+        strata_order=GOIDELIC_STRATA,
+        ancestor_to_stratum=_GOIDELIC_ANCESTOR_TO_STRATUM,
+        self_lang_to_stratum=_GOIDELIC_SELF_LANGUAGE_TO_STRATUM,
+        default_stratum=_GOIDELIC_DEFAULT_STRATUM,
+    )
+
+
+def classify_celtic(db: LexiconDB) -> dict[int, str]:
+    """Return ``{etymon_id: stratum}`` for the generic Celtic family (wyrd-de77).
+
+    Covers etymons whose ``language`` is the coarse ``celtic`` tag
+    (used when the source didn't distinguish P- vs Q-Celtic),
+    classified by ancestor language via ``etymon_descent``. 'celtic'
+    is a leaf tag (never a parent), so the self-language map is empty.
+    Only the proto-celtic substrate is bucketed; the mixed
+    old-irish / old-welsh ancestries some generic-celtic rows carry
+    are deliberately NOT mapped (the generic tag can't honestly claim
+    a branch-specific stage) and fold to ``native-celtic``.
+
+    Pure read. Skips ``merged_into_id IS NOT NULL`` rows.
+
+    Note: proto-germanic parents (mining noise) are intentionally NOT
+    mapped — same convention as every other classifier.
+    """
+    return _classify_family(
+        db,
+        modern_lang="celtic",
+        strata_order=CELTIC_STRATA,
+        ancestor_to_stratum=_CELTIC_ANCESTOR_TO_STRATUM,
+        self_lang_to_stratum=_CELTIC_SELF_LANGUAGE_TO_STRATUM,
+        default_stratum=_CELTIC_DEFAULT_STRATUM,
+    )
+
+
 # --- Cross-family registry ------------------------------------------------
 #
 # Union of every stratum name across every classified language
@@ -590,7 +768,13 @@ def classify_old_norse(db: LexiconDB) -> dict[int, str]:
 # rationale the per-family ``WELSH_STRATA`` / ``FRENCH_STRATA`` /
 # etc. tuples carry.
 ALL_STRATA: frozenset[str] = frozenset(
-    WELSH_STRATA + FRENCH_STRATA + OLD_ENGLISH_STRATA + OLD_NORSE_STRATA
+    WELSH_STRATA
+    + FRENCH_STRATA
+    + OLD_ENGLISH_STRATA
+    + OLD_NORSE_STRATA
+    + BRITTONIC_STRATA
+    + GOIDELIC_STRATA
+    + CELTIC_STRATA
 )
 
 
@@ -605,6 +789,9 @@ STRATA_BY_FAMILY: dict[str, tuple[str, ...]] = {
     "french": FRENCH_STRATA,
     "old-english": OLD_ENGLISH_STRATA,
     "old-norse": OLD_NORSE_STRATA,
+    "brittonic": BRITTONIC_STRATA,
+    "goidelic": GOIDELIC_STRATA,
+    "celtic": CELTIC_STRATA,
 }
 
 
@@ -641,6 +828,14 @@ def _build_language_to_family() -> dict[str, str]:
         # Old Norse family.
         "old-norse": "old-norse",
         **dict.fromkeys(_OLD_NORSE_SELF_LANGUAGE_TO_STRATUM, "old-norse"),
+        # Celtic-family leaf tags (wyrd-de77). Each has an empty
+        # self-language map, so they contribute only their modern_lang.
+        "brittonic": "brittonic",
+        **dict.fromkeys(_BRITTONIC_SELF_LANGUAGE_TO_STRATUM, "brittonic"),
+        "goidelic": "goidelic",
+        **dict.fromkeys(_GOIDELIC_SELF_LANGUAGE_TO_STRATUM, "goidelic"),
+        "celtic": "celtic",
+        **dict.fromkeys(_CELTIC_SELF_LANGUAGE_TO_STRATUM, "celtic"),
     }
 
 
@@ -660,21 +855,43 @@ LANGUAGE_TO_FAMILY: dict[str, str] = _build_language_to_family()
 #
 # Empty set = 'no per-culture restriction'; falls back to the
 # broader ALL_STRATA typo-check in ``_resolve_stratum_param``. Used
-# for cultures whose families don't yet have classifiers
-# (irish, breton — Goidelic / Brittonic-Brythonic classifiers
-# follow in Phase 4e+).
+# for any culture not enumerated below (none currently — every
+# culture with a classified family has an explicit set; irish /
+# breton gained theirs in wyrd-de77).
 #
-# english + scottish span all four classified families because
-# British place-names sample from each (OE base + ON Danelaw layer
-# + Norman French superstrate + Brythonic substrate). Welsh
+# english + scottish span the four core British source families
+# because British place-names sample from each (OE base + ON Danelaw
+# layer + Norman French superstrate + Brythonic substrate). Welsh
 # culture is narrower — primarily Welsh-family forms plus the
 # Norman French overlay from post-1283 Welsh place naming.
+# wyrd-de77: the Celtic-family classifiers (brittonic / goidelic /
+# celtic) now have output, so the irish / breton cultures gain
+# non-empty allowed-sets and the welsh / scottish sets widen to
+# include their Celtic-family substrate. These culture↔family
+# mappings are a CURATION CALL flagged for Devon's review — the
+# conservative, data-grounded choices are:
+#   * irish    = Goidelic + the generic Celtic tag.
+#   * breton   = Brittonic + the generic Celtic tag + French (Breton
+#                place-naming carries a heavy French overlay).
+#   * welsh    = the existing Welsh + French sets PLUS Brittonic +
+#                Celtic (Welsh is the P-Celtic Brittonic branch).
+#   * scottish = Goidelic + Brittonic + Celtic (Scotland straddles
+#                the Gaelic / Brythonic line), on TOP of the existing
+#                OE + ON + French + Welsh British-place-name spread.
 _CULTURE_TO_VALID_STRATA: dict[str, frozenset[str]] = {
     "english": frozenset(WELSH_STRATA + FRENCH_STRATA + OLD_ENGLISH_STRATA + OLD_NORSE_STRATA),
-    "scottish": frozenset(WELSH_STRATA + FRENCH_STRATA + OLD_ENGLISH_STRATA + OLD_NORSE_STRATA),
-    "welsh": frozenset(WELSH_STRATA + FRENCH_STRATA),
-    "irish": frozenset(),
-    "breton": frozenset(),
+    "scottish": frozenset(
+        WELSH_STRATA
+        + FRENCH_STRATA
+        + OLD_ENGLISH_STRATA
+        + OLD_NORSE_STRATA
+        + GOIDELIC_STRATA
+        + BRITTONIC_STRATA
+        + CELTIC_STRATA
+    ),
+    "welsh": frozenset(WELSH_STRATA + FRENCH_STRATA + BRITTONIC_STRATA + CELTIC_STRATA),
+    "irish": frozenset(GOIDELIC_STRATA + CELTIC_STRATA),
+    "breton": frozenset(BRITTONIC_STRATA + CELTIC_STRATA + FRENCH_STRATA),
 }
 
 
@@ -723,7 +940,8 @@ def _fetch_null_stratum_ids(db, etymon_ids) -> set[int]:
 def classify_stratum_all(db: LexiconDB, *, apply: bool = True) -> dict[str, Any]:
     """Uniform L3 wrapper for the ``classify-stratum`` pass — runs
     the per-language classifiers (welsh, french, old-english,
-    old-norse) and persists the stratum assignments.
+    old-norse, brittonic, goidelic, celtic) and persists the stratum
+    assignments.
 
     Wyrd-hidb Phase 2 plumbs this into ``run_full_enrichment``.
 
@@ -744,6 +962,9 @@ def classify_stratum_all(db: LexiconDB, *, apply: bool = True) -> dict[str, Any]
         ("french", classify_french),
         ("old-english", classify_old_english),
         ("old-norse", classify_old_norse),
+        ("brittonic", classify_brittonic),
+        ("goidelic", classify_goidelic),
+        ("celtic", classify_celtic),
     ):
         proposals = classifier(db)
         if not proposals:
@@ -795,13 +1016,19 @@ def classify_stratum_all(db: LexiconDB, *, apply: bool = True) -> dict[str, Any]
 
 __all__ = [
     "ALL_STRATA",
+    "BRITTONIC_STRATA",
+    "CELTIC_STRATA",
     "FRENCH_STRATA",
+    "GOIDELIC_STRATA",
     "LANGUAGE_TO_FAMILY",
     "OLD_ENGLISH_STRATA",
     "OLD_NORSE_STRATA",
     "STRATA_BY_FAMILY",
     "WELSH_STRATA",
+    "classify_brittonic",
+    "classify_celtic",
     "classify_french",
+    "classify_goidelic",
     "classify_old_english",
     "classify_old_norse",
     "classify_stratum_all",

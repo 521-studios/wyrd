@@ -39,7 +39,10 @@ from wyrd.generators.kenning.extractors import (
 )
 from wyrd.generators.kenning.lexicon.strata import (  # noqa: F401  (STRATA constants are back-compat re-exports for external callers)
     ALL_STRATA,
+    BRITTONIC_STRATA,
+    CELTIC_STRATA,
     FRENCH_STRATA,
+    GOIDELIC_STRATA,
     OLD_ENGLISH_STRATA,
     OLD_NORSE_STRATA,
     WELSH_STRATA,

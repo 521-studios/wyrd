@@ -23,7 +23,17 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 )
 @click.option(
     "--language",
-    type=click.Choice(["welsh", "french", "old-english", "old-norse"]),
+    type=click.Choice(
+        [
+            "welsh",
+            "french",
+            "old-english",
+            "old-norse",
+            "brittonic",
+            "goidelic",
+            "celtic",
+        ]
+    ),
     required=True,
     help=(
         "Language family to classify. Welsh covers etymons with "
@@ -33,7 +43,13 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
         "'cel-gau'); Old English covers language='old-english' "
         "(loan-source ancestors only — dialect axis deferred); Old "
         "Norse covers ('old-norse', 'gmq-osw' Old Swedish, 'gmq-oda' "
-        "Old Danish)."
+        "Old Danish). The Celtic-family classifiers (wyrd-de77) each "
+        "cover one coarse leaf tag — brittonic covers "
+        "language='brittonic', goidelic covers language='goidelic', "
+        "celtic covers language='celtic' — classifying by proto-celtic "
+        "/ Gaelic-stage ancestry; 87% of these are orphans landing in "
+        "the native-* default (no loan buckets — the data carries no "
+        "loan ancestries)."
     ),
 )
 @click.option(
@@ -94,11 +110,17 @@ def _resolve_stratum_classifier(language: str) -> tuple[Any, tuple[str, ...]]:
     commands; same pattern as other lexicon subcommands.
     """
     from wyrd.generators.kenning.lexicon.strata import (
+        BRITTONIC_STRATA,
+        CELTIC_STRATA,
         FRENCH_STRATA,
+        GOIDELIC_STRATA,
         OLD_ENGLISH_STRATA,
         OLD_NORSE_STRATA,
         WELSH_STRATA,
+        classify_brittonic,
+        classify_celtic,
         classify_french,
+        classify_goidelic,
         classify_old_english,
         classify_old_norse,
         classify_welsh,
@@ -109,6 +131,9 @@ def _resolve_stratum_classifier(language: str) -> tuple[Any, tuple[str, ...]]:
         "french": (classify_french, FRENCH_STRATA),
         "old-english": (classify_old_english, OLD_ENGLISH_STRATA),
         "old-norse": (classify_old_norse, OLD_NORSE_STRATA),
+        "brittonic": (classify_brittonic, BRITTONIC_STRATA),
+        "goidelic": (classify_goidelic, GOIDELIC_STRATA),
+        "celtic": (classify_celtic, CELTIC_STRATA),
     }
     return classifiers[language]
 

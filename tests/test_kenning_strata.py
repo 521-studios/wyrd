@@ -31,11 +31,17 @@ from click.testing import CliRunner
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
 from wyrd.generators.kenning.lexicon.strata import (
+    BRITTONIC_STRATA,
+    CELTIC_STRATA,
     FRENCH_STRATA,
+    GOIDELIC_STRATA,
     OLD_ENGLISH_STRATA,
     OLD_NORSE_STRATA,
     WELSH_STRATA,
+    classify_brittonic,
+    classify_celtic,
     classify_french,
+    classify_goidelic,
     classify_old_english,
     classify_old_norse,
     classify_stratum_all,
@@ -1505,6 +1511,300 @@ def test_cli_classify_stratum_old_norse_force_overwrites(fresh_db: Path) -> None
     assert stratum == "native-old-norse"
 
 
+# --- classify_brittonic / classify_goidelic / classify_celtic (wyrd-de77) -
+#
+# The Celtic-family classifiers cover the coarse 'brittonic' /
+# 'goidelic' / 'celtic' leaf tags. Three load-bearing properties
+# distinguish them from Welsh / OE / ON: (1) 87% of the cohort are
+# orphans → native-* default, (2) NO loan buckets (data carries no
+# loan ancestries), (3) proto-germanic parents are mining noise and
+# fold to default.
+
+
+def test_classify_brittonic_assigns_native_when_no_descent(fresh_db: Path) -> None:
+    """A brittonic etymon with NO descent parents → native-brittonic
+    (the dominant case — 87% of the Celtic cohort are orphans)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("*brigantī", "brittonic")
+        proposals = classify_brittonic(db)
+    assert proposals == {eid: "native-brittonic"}
+
+
+def test_classify_brittonic_proto_celtic_substrate_via_descent(fresh_db: Path) -> None:
+    """A brittonic etymon descending from proto-celtic / cel-bry-pro →
+    proto-celtic-substrate."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        pc_id = db.upsert_etymon("*brigant-", "proto-celtic")
+        br_id = db.upsert_etymon("*brigantī", "brittonic")
+        _add_descent(db, parent_id=pc_id, child_id=br_id)
+        cbp_id = db.upsert_etymon("*brɨɣant", "cel-bry-pro")
+        br2_id = db.upsert_etymon("*breɣant", "brittonic")
+        _add_descent(db, parent_id=cbp_id, child_id=br2_id)
+        proposals = classify_brittonic(db)
+    assert proposals[br_id] == "proto-celtic-substrate"
+    assert proposals[br2_id] == "proto-celtic-substrate"
+
+
+def test_classify_brittonic_proto_germanic_parent_is_noise_stays_default(
+    fresh_db: Path,
+) -> None:
+    """proto-germanic parents are mining NOISE and intentionally NOT
+    in the ancestor map (mirrors every other classifier) — a brittonic
+    etymon with only a proto-germanic parent falls through to the
+    native-brittonic default."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gem_id = db.upsert_etymon("*berhtaz", "proto-germanic")
+        br_id = db.upsert_etymon("*brigantī", "brittonic")
+        _add_descent(db, parent_id=gem_id, child_id=br_id)
+        proposals = classify_brittonic(db)
+    assert proposals[br_id] == "native-brittonic"
+
+
+def test_classify_brittonic_skips_merged_rows(fresh_db: Path) -> None:
+    """OCR-clustering losers (merged_into_id IS NOT NULL) are skipped."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        winner = db.upsert_etymon("*brigantī", "brittonic")
+        loser = db.upsert_etymon("*brigant1", "brittonic")  # OCR variant
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner, loser),
+        )
+        db.commit()
+        proposals = classify_brittonic(db)
+    assert winner in proposals
+    assert loser not in proposals
+
+
+def test_brittonic_strata_priority_order_includes_all_buckets() -> None:
+    """``BRITTONIC_STRATA`` source-of-truth ordering: substrate first,
+    native default last. Two buckets (no loan strata — the data carries
+    no loan ancestries on Brittonic rows)."""
+    assert BRITTONIC_STRATA == (
+        "proto-celtic-substrate",
+        "native-brittonic",
+    )
+
+
+def test_classify_goidelic_assigns_native_when_no_descent(fresh_db: Path) -> None:
+    """A goidelic etymon with NO descent parents → native-goidelic."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("*windos", "goidelic")
+        proposals = classify_goidelic(db)
+    assert proposals == {eid: "native-goidelic"}
+
+
+def test_classify_goidelic_proto_celtic_substrate_via_descent(fresh_db: Path) -> None:
+    """A goidelic etymon descending from proto-celtic →
+    proto-celtic-substrate."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        pc_id = db.upsert_etymon("*windos", "proto-celtic")
+        go_id = db.upsert_etymon("finn", "goidelic")
+        _add_descent(db, parent_id=pc_id, child_id=go_id)
+        proposals = classify_goidelic(db)
+    assert proposals[go_id] == "proto-celtic-substrate"
+
+
+def test_classify_goidelic_old_irish_via_descent(fresh_db: Path) -> None:
+    """A goidelic etymon descending from old-irish → old-irish stratum."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        oi_id = db.upsert_etymon("dún", "old-irish")
+        go_id = db.upsert_etymon("dún", "goidelic")
+        _add_descent(db, parent_id=oi_id, child_id=go_id)
+        proposals = classify_goidelic(db)
+    assert proposals[go_id] == "old-irish"
+
+
+def test_classify_goidelic_middle_irish_via_descent(fresh_db: Path) -> None:
+    """A goidelic etymon descending from middle-irish →
+    middle-irish stratum."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        mi_id = db.upsert_etymon("baile", "middle-irish")
+        go_id = db.upsert_etymon("baile", "goidelic")
+        _add_descent(db, parent_id=mi_id, child_id=go_id)
+        proposals = classify_goidelic(db)
+    assert proposals[go_id] == "middle-irish"
+
+
+def test_classify_goidelic_priority_substrate_over_gaelic_stages(fresh_db: Path) -> None:
+    """Priority order pins the tuple: a goidelic etymon with BOTH a
+    proto-celtic and an old-irish ancestor classifies as the
+    substrate (it leads OLD_GOIDELIC priority order)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        pc_id = db.upsert_etymon("*windos", "proto-celtic")
+        oi_id = db.upsert_etymon("finn", "old-irish")
+        go_id = db.upsert_etymon("fionn", "goidelic")
+        _add_descent(db, parent_id=pc_id, child_id=go_id)
+        _add_descent(db, parent_id=oi_id, child_id=go_id)
+        proposals = classify_goidelic(db)
+    assert proposals[go_id] == "proto-celtic-substrate"
+
+
+def test_classify_goidelic_proto_germanic_parent_is_noise_stays_default(
+    fresh_db: Path,
+) -> None:
+    """proto-germanic parents are mining noise → native-goidelic default."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gem_id = db.upsert_etymon("*gardaz", "proto-germanic")
+        go_id = db.upsert_etymon("gort", "goidelic")
+        _add_descent(db, parent_id=gem_id, child_id=go_id)
+        proposals = classify_goidelic(db)
+    assert proposals[go_id] == "native-goidelic"
+
+
+def test_classify_goidelic_skips_merged_rows(fresh_db: Path) -> None:
+    """OCR-clustering losers are skipped."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        winner = db.upsert_etymon("dún", "goidelic")
+        loser = db.upsert_etymon("dvn", "goidelic")  # OCR variant
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner, loser),
+        )
+        db.commit()
+        proposals = classify_goidelic(db)
+    assert winner in proposals
+    assert loser not in proposals
+
+
+def test_goidelic_strata_priority_order_includes_all_buckets() -> None:
+    """``GOIDELIC_STRATA`` source-of-truth ordering: substrate first,
+    then the attested Gaelic stages (old-irish, middle-irish), native
+    default last. Four buckets, no loan strata."""
+    assert GOIDELIC_STRATA == (
+        "proto-celtic-substrate",
+        "old-irish",
+        "middle-irish",
+        "native-goidelic",
+    )
+
+
+def test_classify_celtic_assigns_native_when_no_descent(fresh_db: Path) -> None:
+    """A celtic etymon with NO descent parents → native-celtic."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("*dūnom", "celtic")
+        proposals = classify_celtic(db)
+    assert proposals == {eid: "native-celtic"}
+
+
+def test_classify_celtic_proto_celtic_substrate_via_descent(fresh_db: Path) -> None:
+    """A celtic etymon descending from proto-celtic / cel-bry-pro →
+    proto-celtic-substrate."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        pc_id = db.upsert_etymon("*dūnom", "proto-celtic")
+        ce_id = db.upsert_etymon("dun", "celtic")
+        _add_descent(db, parent_id=pc_id, child_id=ce_id)
+        cbp_id = db.upsert_etymon("*dīnas", "cel-bry-pro")
+        ce2_id = db.upsert_etymon("din", "celtic")
+        _add_descent(db, parent_id=cbp_id, child_id=ce2_id)
+        proposals = classify_celtic(db)
+    assert proposals[ce_id] == "proto-celtic-substrate"
+    assert proposals[ce2_id] == "proto-celtic-substrate"
+
+
+def test_classify_celtic_mixed_branch_ancestry_folds_to_default(fresh_db: Path) -> None:
+    """The generic celtic tag deliberately does NOT map the mixed
+    old-irish / old-welsh ancestries some rows carry — it can't honestly
+    claim a branch-specific stage, so they fold to native-celtic."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        oi_id = db.upsert_etymon("cathair", "old-irish")
+        ow_id = db.upsert_etymon("cair", "old-welsh")
+        ce_id = db.upsert_etymon("caer", "celtic")
+        _add_descent(db, parent_id=oi_id, child_id=ce_id)
+        _add_descent(db, parent_id=ow_id, child_id=ce_id)
+        proposals = classify_celtic(db)
+    assert proposals[ce_id] == "native-celtic"
+
+
+def test_classify_celtic_proto_germanic_parent_is_noise_stays_default(
+    fresh_db: Path,
+) -> None:
+    """proto-germanic parents are mining noise → native-celtic default."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gem_id = db.upsert_etymon("*tūnaz", "proto-germanic")
+        ce_id = db.upsert_etymon("dun", "celtic")
+        _add_descent(db, parent_id=gem_id, child_id=ce_id)
+        proposals = classify_celtic(db)
+    assert proposals[ce_id] == "native-celtic"
+
+
+def test_classify_celtic_skips_merged_rows(fresh_db: Path) -> None:
+    """OCR-clustering losers are skipped."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        winner = db.upsert_etymon("dun", "celtic")
+        loser = db.upsert_etymon("dnu", "celtic")  # OCR variant
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner, loser),
+        )
+        db.commit()
+        proposals = classify_celtic(db)
+    assert winner in proposals
+    assert loser not in proposals
+
+
+def test_celtic_strata_priority_order_includes_all_buckets() -> None:
+    """``CELTIC_STRATA`` source-of-truth ordering: substrate first,
+    native default last. Two buckets, no loan strata."""
+    assert CELTIC_STRATA == (
+        "proto-celtic-substrate",
+        "native-celtic",
+    )
+
+
+def test_cli_classify_stratum_celtic_families_dispatch(fresh_db: Path) -> None:
+    """End-to-end CLI sanity: the three Celtic-family --language
+    choices dispatch to their classifiers and write via --apply.
+    Pins the Choice list + dispatch table + STRATA-tuple wiring for
+    all three at once (one row each, orphan → native-*)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        br_id = db.upsert_etymon("*brigantī", "brittonic")
+        go_id = db.upsert_etymon("*windos", "goidelic")
+        ce_id = db.upsert_etymon("*dūnom", "celtic")
+        db.commit()
+
+    runner = CliRunner()
+    for language, eid, expected in (
+        ("brittonic", br_id, "native-brittonic"),
+        ("goidelic", go_id, "native-goidelic"),
+        ("celtic", ce_id, "native-celtic"),
+    ):
+        result = runner.invoke(
+            cli_root,
+            [
+                "lexicon",
+                "classify-stratum",
+                "--db",
+                str(fresh_db),
+                "--language",
+                language,
+                "--apply",
+            ],
+        )
+        assert result.exit_code == 0, result.output + (result.stderr or "")
+        with LexiconDB(fresh_db) as db:
+            stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+                "stratum"
+            ]
+        assert stratum == expected, language
+
+
 # --- lexicon set-stratum (wyrd-lr4 Phase 4d) ------------------------------
 
 
@@ -2128,18 +2428,21 @@ def test_family_for_language_returns_none_for_unclassified() -> None:
 
 
 def test_valid_strata_for_culture_known_and_unknown() -> None:
-    """``valid_strata_for_culture`` returns a non-empty frozenset
-    for cultures with a per-culture restriction (english/scottish/
-    welsh today), an empty frozenset for cultures without one
-    (irish/breton, plus unknown cultures via dict.get default)."""
+    """``valid_strata_for_culture`` returns a non-empty frozenset for
+    every real culture (english / scottish / welsh, plus irish /
+    breton since wyrd-de77 shipped the Celtic-family classifiers), and
+    an empty frozenset only for an unknown culture (via dict.get's
+    default) — which signals 'no per-culture restriction, fall back to
+    the ALL_STRATA typo-check'."""
     from wyrd.generators.kenning.lexicon.strata import valid_strata_for_culture
 
     assert valid_strata_for_culture("english")  # non-empty
     assert valid_strata_for_culture("welsh")  # non-empty
-    # Configured-but-empty (irish/breton) and unknown cultures both
-    # return frozenset() — both signal 'no per-culture restriction'.
-    assert valid_strata_for_culture("irish") == frozenset()
-    assert valid_strata_for_culture("breton") == frozenset()
+    # wyrd-de77: irish / breton now carry Celtic-family restrictions.
+    assert valid_strata_for_culture("irish")  # non-empty
+    assert valid_strata_for_culture("breton")  # non-empty
+    # Unknown cultures still return frozenset() — signals 'no
+    # per-culture restriction'.
     assert valid_strata_for_culture("klingon") == frozenset()
 
 
@@ -2618,3 +2921,31 @@ def test_classify_stratum_all_by_stratum_dict_keyed_by_assignment(
     assert welsh.get("by_stratum") == {"native-welsh": 2}
     # by_stratum sums to written.
     assert sum(welsh["by_stratum"].values()) == welsh["written"]
+
+
+def test_classify_stratum_all_routes_celtic_families(fresh_db: Path) -> None:
+    """wyrd-de77: the chain entry point dispatches the three Celtic-family
+    classifiers (brittonic / goidelic / celtic), not just the original four.
+    Guards against a regression that drops a loop entry — the enrichment
+    chain is the path that re-derives stratum on every rebuild, so a missing
+    entry would silently leave the Celtic admit cohort unclassified.
+    Seeds one orphan per family (→ native-*) plus a proto-celtic-descended
+    goidelic etymon (→ proto-celtic-substrate)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        db.upsert_etymon("ynys", "brittonic")  # orphan → native-brittonic
+        db.upsert_etymon("dun", "celtic")  # orphan → native-celtic
+        db.upsert_etymon("achadh", "goidelic")  # orphan → native-goidelic
+        child = db.upsert_etymon("baile", "goidelic")
+        parent = db.upsert_etymon("*baljom", "proto-celtic")
+        _add_descent(db, parent_id=parent, child_id=child)
+        result = classify_stratum_all(db, apply=True)
+
+    langs = result["languages"]
+    assert langs["brittonic"]["by_stratum"] == {"native-brittonic": 1}
+    assert langs["celtic"]["by_stratum"] == {"native-celtic": 1}
+    # goidelic: one orphan default + one proto-celtic-substrate via descent.
+    assert langs["goidelic"]["by_stratum"] == {
+        "native-goidelic": 1,
+        "proto-celtic-substrate": 1,
+    }

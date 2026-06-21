@@ -1355,6 +1355,34 @@ supply the constants.
     + `gmq-oda` Old Danish) — the ancestor walk doesn't apply
     because old-norse is the PARENT of those varieties, not the
     other way around.
+  * Brittonic (2 buckets, wyrd-de77): native-brittonic /
+    proto-celtic-substrate.
+  * Goidelic (4 buckets, wyrd-de77): native-goidelic /
+    proto-celtic-substrate / old-irish / middle-irish (priority
+    order: substrate first, then the attested Gaelic stages, default
+    last — the Welsh convention).
+  * Celtic (2 buckets, wyrd-de77): native-celtic /
+    proto-celtic-substrate. The coarse / unbranched tag, used when
+    the source didn't distinguish P- vs Q-Celtic.
+
+The three Celtic-family classifiers (wyrd-de77) cover the coarse
+`brittonic` / `goidelic` / `celtic` language tags — 476 of the
+>=2-toponym admit cohort were unclassified before this phase. The
+data drives the lean design:
+
+  * **87% of Celtic admits are orphans** (only ~60 of 476 have any
+    `etymon_descent` parent edge), so the overwhelming majority land
+    in the native-* default bucket.
+  * **No loan buckets.** The data carries ZERO Norse / Anglo-Norman /
+    French / English loan ancestries on these rows, so — unlike
+    Welsh / OE / ON — these families ship no loan strata.
+  * **proto-germanic parents are mining NOISE** (mis-traced edges)
+    and are deliberately NOT mapped, mirroring every existing
+    classifier (none map proto-germanic).
+  * **All three are LEAF tags** (`brittonic` / `goidelic` / `celtic`
+    are never the PARENT of another etymon in the data), so each has
+    an EMPTY self-language map — there's no self-language pass, the
+    ancestor walk over modern_lang rows does all the work.
 
 Cross-family stratum names overlap (`latin-loan` exists in Welsh /
 OE / ON; `english-loan` in Welsh / ON). The value alone is
@@ -1390,9 +1418,14 @@ STRATA tuples for language families that culture's place-name
 corpus draws from). Catches both typos AND culturally-incoherent
 values (`--culture welsh --stratum east-norse` 4xxs because
 east-norse isn't in any classified Welsh-bundle language family).
-Cultures without a per-culture restriction (irish / breton today
-— no classifier yet for those families) fall back to the broader
-`ALL_STRATA` typo-check. The `LANGUAGE_TO_FAMILY` map is built
+Since wyrd-de77 every culture has a non-empty per-culture
+restriction (the Celtic-family classifiers gave irish / breton
+their allowed-sets, and widened welsh / scottish to include their
+Celtic-family substrate). The culture↔family mappings are a
+curation call flagged for review: irish = Goidelic + Celtic;
+breton = Brittonic + Celtic + French; welsh = Welsh + French +
+Brittonic + Celtic; scottish = the British spread + Goidelic +
+Brittonic + Celtic. The `LANGUAGE_TO_FAMILY` map is built
 programmatically from each classifier's `*_SELF_LANGUAGE_TO_STRATUM`
 keys + the modern_lang strings, so adding a new self-language
 entry (e.g. an Old French dialect variety) auto-extends the
