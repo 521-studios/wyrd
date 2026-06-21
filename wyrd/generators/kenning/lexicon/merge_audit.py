@@ -85,29 +85,38 @@ def _is_affix(form: str) -> bool:
     return form.startswith("-") or form.endswith("-")
 
 
-def _sense_groups(glossed: list[tuple[int, set[str]]]) -> list[list[int]]:
-    """Partition glossed members into sense-groups by shared gloss content token
-    (union-find). ``glossed`` is ``[(etymon_id, {token, …}), …]`` with non-empty
-    token sets. Two members land in one group iff they share ≥1 content token."""
-    parent = {eid: eid for eid, _ in glossed}
+def _union_find_components[K](nodes: list[tuple[K, set[str]]]) -> list[list[K]]:
+    """Union-find over ``nodes = [(key, {token, …}), …]``: keys that share ≥1
+    content token land in one component. Returns one list per component
+    (components in first-seen order, keys in input order). The shared core of
+    :func:`_sense_groups` (key = ``etymon_id``) and :func:`_sense_clusters`
+    (key = ``(etymon_id, sub_index)``)."""
+    parent: dict[K, K] = {key: key for key, _ in nodes}
 
-    def find(x: int) -> int:
+    def find(x: K) -> K:
         while parent[x] != x:
             parent[x] = parent[parent[x]]
             x = parent[x]
         return x
 
-    first_for_token: dict[str, int] = {}
-    for eid, toks in glossed:
+    first_for_token: dict[str, K] = {}
+    for key, toks in nodes:
         for t in toks:
             if t in first_for_token:
-                parent[find(eid)] = find(first_for_token[t])
+                parent[find(key)] = find(first_for_token[t])
             else:
-                first_for_token[t] = eid
-    groups: dict[int, list[int]] = defaultdict(list)
-    for eid, _ in glossed:
-        groups[find(eid)].append(eid)
-    return list(groups.values())
+                first_for_token[t] = key
+    components: dict[K, list[K]] = defaultdict(list)
+    for key, _ in nodes:
+        components[find(key)].append(key)
+    return list(components.values())
+
+
+def _sense_groups(glossed: list[tuple[int, set[str]]]) -> list[list[int]]:
+    """Partition glossed members into sense-groups by shared gloss content token
+    (union-find). ``glossed`` is ``[(etymon_id, {token, …}), …]`` with non-empty
+    token sets. Two members land in one group iff they share ≥1 content token."""
+    return _union_find_components(glossed)
 
 
 # wyrd-uumc: a gloss is split into sub-senses on ';' and the word 'or' BEFORE
@@ -136,32 +145,17 @@ def _sense_clusters(glossed: list[tuple[int, set[str]]]) -> list[set[int]]:
     runs over ``(eid, sub_index)`` nodes and the result collapses to eid SETS per
     sense-cluster. A member with a mixed gloss therefore appears in MULTIPLE
     clusters — it VOTES for each sense without BRIDGING them into one component
-    (the ``-ing`` 44-gloss blob that previously masked its topographic intruder).
-    ``glossed`` is ``[(eid, {gloss_string, …}), …]`` (raw glosses, not tokens).
-    Returned eid-sets may overlap; the caller decides membership semantics."""
-    nodes: list[tuple[tuple[int, int], set[str]]] = []
-    for eid, glosses in glossed:
-        for i, toks in enumerate(_sub_sense_token_sets(glosses)):
-            nodes.append(((eid, i), toks))
-    parent: dict[tuple[int, int], tuple[int, int]] = {key: key for key, _ in nodes}
-
-    def find(x: tuple[int, int]) -> tuple[int, int]:
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    first_for_token: dict[str, tuple[int, int]] = {}
-    for key, toks in nodes:
-        for t in toks:
-            if t in first_for_token:
-                parent[find(key)] = find(first_for_token[t])
-            else:
-                first_for_token[t] = key
-    clusters: dict[tuple[int, int], set[int]] = defaultdict(set)
-    for key, _ in nodes:
-        clusters[find(key)].add(key[0])  # collapse (eid, sub) → eid
-    return list(clusters.values())
+    (the ``-ing`` multi-gloss blob that previously masked its topographic
+    intruder). ``glossed`` is ``[(eid, {gloss_string, …}), …]`` (raw glosses, not
+    tokens). Returned eid-sets may overlap; the caller decides membership
+    semantics."""
+    nodes: list[tuple[tuple[int, int], set[str]]] = [
+        ((eid, i), toks)
+        for eid, glosses in glossed
+        for i, toks in enumerate(_sub_sense_token_sets(glosses))
+    ]
+    # collapse each component's (eid, sub_index) keys back to a set of eids
+    return [{key[0] for key in comp} for comp in _union_find_components(nodes)]
 
 
 def _load_corpus(
@@ -243,9 +237,12 @@ def _anchor_intruders(
         return []
     # Dominant sense = the largest cluster the anchor participates in (its primary
     # sense), else the largest cluster overall. Subtracting it drops members that
-    # ALSO carry the dominant sense (they belong) + the anchor.
+    # ALSO carry the dominant sense (they belong) + the anchor. The sorted-eid
+    # secondary key makes the choice fully deterministic on a size tie (even when
+    # the anchor sits in both tied clusters, where a min-eid tiebreak would still
+    # tie) — never gloss-insertion-order dependent.
     anchor_groups = [g for g in groups if anchor_id in g]
-    dominant = max(anchor_groups or groups, key=len)
+    dominant = max(anchor_groups or groups, key=lambda g: (len(g), sorted(g)))
     intruder_ids = {mid for g in groups if g is not dominant for mid in g} - dominant - {anchor_id}
     anchor = by_id[anchor_id]
     return [

@@ -18,6 +18,7 @@ from wyrd.generators.kenning.lexicon.merge_audit import (
     PROV_OCR,
     MergeAuditCandidate,
     MergeAuditVerdict,
+    _sub_sense_token_sets,
     build_audit_judge_prompt,
     detect_merge_audit_candidates,
     parse_audit_verdict,
@@ -127,6 +128,91 @@ def test_detect_disjoint_intruder_despite_mixed_gloss_on_anchor(tmp_path):
     assert "old-english:-ingas" not in refs  # patronymic core spared
     assert "old-english:-ung" not in refs
     assert "old-english:-ing" not in refs  # the mixed anchor itself is never an intruder
+
+
+def test_sub_sense_token_sets_splits_on_semicolon_and_or_not_comma():
+    """wyrd-uumc: the sense-split boundaries are ';' and the WORD 'or' — NOT comma
+    (comma phrases are one sense), and not 'or' inside a word."""
+    # ';' splits → 2 sub-senses
+    assert len(_sub_sense_token_sets({"patronymic descendants; water-meadow"})) == 2
+    # ' or ' splits → 2 sub-senses
+    assert len(_sub_sense_token_sets({"patronymic descendants or water-meadow"})) == 2
+    # comma does NOT split — one conflated wetland list stays ONE sub-sense
+    assert len(_sub_sense_token_sets({"meadow, water meadow, marsh"})) == 1
+    # 'or' inside a word ('border', 'corn') must not false-split
+    assert len(_sub_sense_token_sets({"border fortress stronghold"})) == 1
+    # empty sub-senses (a trailing ';') are dropped, not emitted as empty sets
+    assert all(s for s in _sub_sense_token_sets({"hill;"}))
+
+
+def test_detect_disjoint_intruder_via_or_only_boundary(tmp_path):
+    """wyrd-uumc: the ' or ' boundary in isolation (no ';') also un-bridges a mixed
+    gloss so the topographic intruder is flagged. Patronymic is the majority sense
+    (2 members vs 1) so it's unambiguously dominant."""
+    conn = _conn(tmp_path / "lex.db")
+    _ety(conn, 1, "-ing", ["patronymic descendants or water-meadow"], lang="old-english")
+    _ety(conn, 2, "-ingas", ["patronymic descendants people"], lang="old-english", merged_into=1)
+    _ety(conn, 4, "-ung", ["patronymic descendants"], lang="old-english", merged_into=1)
+    _ety(conn, 3, "ing", ["water-meadow grassland"], lang="old-english", merged_into=1)
+    refs = {c.member_ref for c in detect_merge_audit_candidates(conn, {}, scope="anchors")}
+    assert "old-english:ing" in refs
+    assert "old-english:-ingas" not in refs
+    assert "old-english:-ung" not in refs
+
+
+def test_disjoint_dominant_tie_is_deterministic(tmp_path):
+    """wyrd-uumc: when two disjoint senses are EQUAL size (anchor in both), the
+    dominant pick is structurally ambiguous — but it must be DETERMINISTIC (stable
+    across gloss-insertion order), not flaky. The (len, sorted-eids) key fixes the
+    choice; the LLM judge is the backstop that arbitrates the flagged side. Here we
+    only pin that the SAME side is flagged regardless of insert order."""
+
+    def flagged(order):
+        conn = _conn(tmp_path / f"lex_{'_'.join(order)}.db")
+        # distinct fillers (people / grassland) so the two members DON'T share a
+        # token — only the anchor's mixed gloss spans both senses → a clean 2-2 tie.
+        rows = {
+            "anchor": (1, "-x", ["alpha beta; or gamma delta"]),
+            "a": (2, "xa", ["alpha beta people"]),
+            "b": (3, "xb", ["gamma delta grassland"]),
+        }
+        for key in order:
+            eid, form, gl = rows[key]
+            _ety(
+                conn, eid, form, gl, lang="old-english", merged_into=None if key == "anchor" else 1
+            )
+        return {c.member_ref for c in detect_merge_audit_candidates(conn, {}, scope="anchors")}
+
+    # Two equal clusters {1,2} (alpha/beta) and {1,3} (gamma/delta) → a tie.
+    one = flagged(["anchor", "a", "b"])
+    two = flagged(["anchor", "b", "a"])
+    assert one == two  # deterministic regardless of insertion order
+    assert len(one) == 1  # exactly one side flagged (recall screen; LLM arbitrates)
+
+
+def test_detect_mixed_non_anchor_member_sharing_dominant_is_spared(tmp_path):
+    """wyrd-uumc: the ``- dominant`` term — a NON-anchor member whose mixed gloss
+    carries BOTH the dominant (patronymic) sense AND a topographic one BELONGS (it
+    shares the dominant sense), so it must NOT be flagged; only the pure
+    topographic intruder is."""
+    conn = _conn(tmp_path / "lex.db")
+    _ety(conn, 1, "-ing", ["patronymic descendants"], lang="old-english")
+    _ety(conn, 2, "-ingas", ["patronymic descendants people"], lang="old-english", merged_into=1)
+    # mixed CHILD: shares the dominant patronymic sense + a water-meadow sub-sense
+    _ety(
+        conn,
+        5,
+        "-ling",
+        ["patronymic descendants; or water-meadow"],
+        lang="old-english",
+        merged_into=1,
+    )
+    # pure topographic intruder
+    _ety(conn, 3, "ing", ["water-meadow grassland"], lang="old-english", merged_into=1)
+    refs = {c.member_ref for c in detect_merge_audit_candidates(conn, {}, scope="anchors")}
+    assert "old-english:ing" in refs  # pure intruder flagged
+    assert "old-english:-ling" not in refs  # mixed member sharing dominant → spared
+    assert "old-english:-ingas" not in refs
 
 
 def test_detect_lemma_link_provenance(tmp_path):
