@@ -861,19 +861,44 @@ def test_resolve_stratum_param_rejects_typo_in_known_culture():
 
 
 def test_resolve_stratum_param_falls_back_to_all_strata_for_unrestricted_culture():
-    """Cultures with no per-culture restriction (irish / breton —
-    no classifier yet) fall back to ALL_STRATA typo-check. Valid
+    """Cultures with no per-culture restriction fall back to the
+    ALL_STRATA typo-check. Since wyrd-de77 every real culture has a
+    restriction (the Celtic-family classifiers gave irish / breton
+    their allowed-sets), so this fallback path is now exercised only
+    by an unknown culture (dict.get's frozenset() default). Valid
     cross-family strata pass through; typos still raise."""
 
     from wyrd.generators.kenning import _resolve_stratum_param
 
-    # 'native-welsh' is in ALL_STRATA — passes through for irish.
-    assert _resolve_stratum_param("native-welsh", "irish") == "native-welsh"
+    # 'native-welsh' is in ALL_STRATA — passes through for an
+    # unrestricted (unknown) culture.
+    assert _resolve_stratum_param("native-welsh", "klingon") == "native-welsh"
     # 'frankish-substrate' — same.
-    assert _resolve_stratum_param("frankish-substrate", "breton") == "frankish-substrate"
+    assert _resolve_stratum_param("frankish-substrate", "klingon") == "frankish-substrate"
     # Typo — caught by ALL_STRATA fallback.
     with pytest.raises(ValueError, match="lattin-loan"):
-        _resolve_stratum_param("lattin-loan", "irish")
+        _resolve_stratum_param("lattin-loan", "klingon")
+
+
+def test_resolve_stratum_param_accepts_celtic_family_strata_for_irish_breton():
+    """wyrd-de77: irish / breton now have non-empty per-culture
+    restrictions (Goidelic / Brittonic / Celtic classifiers shipped),
+    so their family strata pass through and out-of-family values are
+    rejected as culturally incoherent."""
+
+    from wyrd.generators.kenning import _resolve_stratum_param
+
+    # irish = Goidelic + Celtic.
+    assert _resolve_stratum_param("native-goidelic", "irish") == "native-goidelic"
+    assert _resolve_stratum_param("old-irish", "irish") == "old-irish"
+    assert _resolve_stratum_param("native-celtic", "irish") == "native-celtic"
+    # breton = Brittonic + Celtic + French.
+    assert _resolve_stratum_param("native-brittonic", "breton") == "native-brittonic"
+    assert _resolve_stratum_param("frankish-substrate", "breton") == "frankish-substrate"
+    # Out-of-family now rejected (was previously allowed via the
+    # ALL_STRATA fallback when irish/breton were unrestricted).
+    with pytest.raises(ValueError, match="east-norse"):
+        _resolve_stratum_param("east-norse", "irish")
 
 
 def test_kenning_generate_propagates_resolve_stratum_error():
@@ -910,10 +935,10 @@ def test_kenning_input_schema_stratum_carries_x_options_by_culture():
 
 def test_resolve_stratum_param_unknown_culture_falls_back_to_all_strata():
     """A culture that's not in ``_CULTURE_TO_VALID_STRATA`` at all
-    (vs configured-but-empty like irish/breton) gets the ALL_STRATA
-    typo-check fallback via dict.get's frozenset() default. Both
-    sub-cases of the empty-set branch are now pinned: configured-
-    empty + missing-entirely → same fallback."""
+    gets the ALL_STRATA typo-check fallback via dict.get's
+    frozenset() default. Since wyrd-de77 every real culture has a
+    restriction, so an unknown culture (klingon) is the only remaining
+    way to reach this empty-set branch."""
 
     from wyrd.generators.kenning import _resolve_stratum_param
 
@@ -938,17 +963,20 @@ def test_kenning_input_schema_stratum_default_round_trips_to_no_filter():
     assert default == ""
     # SPA roundtrip — the default value must validate to None.
     assert _resolve_stratum_param(default, "english") is None
-    assert _resolve_stratum_param(default, "irish") is None  # unrestricted culture
+    assert _resolve_stratum_param(default, "irish") is None  # empty == no filter
 
 
 def test_kenning_input_schema_stratum_options_match_per_culture_allowed_set():
     """The schema's per-culture stratum lists must match what
     _resolve_stratum_param accepts — so picking a value from the
     SPA dropdown can't surface as a 4xx at submit time. Pin a
-    representative culture (welsh, narrow set) + a representative
-    fallback culture (irish, empty set → just the no-filter option)."""
+    representative culture (welsh) + a Celtic-family culture (irish,
+    wyrd-de77 gave it a Goidelic + Celtic restriction)."""
     from wyrd.generators.kenning import (
+        BRITTONIC_STRATA,
+        CELTIC_STRATA,
         FRENCH_STRATA,
+        GOIDELIC_STRATA,
         WELSH_STRATA,
         Kenning,
     )
@@ -956,12 +984,16 @@ def test_kenning_input_schema_stratum_options_match_per_culture_allowed_set():
     schema = Kenning().input_schema()
     options = schema["properties"]["stratum"]["x-options-by-culture"]
 
-    # Welsh allows WELSH + FRENCH strata; sorted by the schema helper.
-    welsh_expected = [""] + sorted(set(WELSH_STRATA + FRENCH_STRATA))
+    # wyrd-de77: welsh allows WELSH + FRENCH + BRITTONIC + CELTIC strata;
+    # sorted by the schema helper.
+    welsh_expected = [""] + sorted(
+        set(WELSH_STRATA + FRENCH_STRATA + BRITTONIC_STRATA + CELTIC_STRATA)
+    )
     assert options["welsh"] == welsh_expected
 
-    # Irish has no per-culture restriction → just 'no filter'.
-    assert options["irish"] == [""]
+    # Irish allows GOIDELIC + CELTIC strata.
+    irish_expected = [""] + sorted(set(GOIDELIC_STRATA + CELTIC_STRATA))
+    assert options["irish"] == irish_expected
 
 
 # --- wyrd-lr4 Phase 3 stratum filter --------------------------------------
