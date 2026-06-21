@@ -67,6 +67,90 @@ def test_diversify_repeats_picks_cross_language_synonym():
     assert d["words"][1][0]["sources"] == {"old_scandinavian": ["haeth"]}
 
 
+def test_diversify_synonym_graft_uses_era_form():
+    """wyrd-68ye: under an active era render, a repeat resolved by a cross-language
+    synonym grafts the synonym's ERA reflex (period-pure), not its raw modern form
+    — so an oe-early name no longer shows a stray modern token in the repeat slot.
+    Contrast test_diversify_repeats_picks_cross_language_synonym (no era → raw)."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    hill = Meaning("hill", tags=[], meanings=["hill"], sources={"old_english": ["hill"]})
+    norse = Meaning(
+        "hill",
+        tags=[],
+        meanings=["Hill"],
+        sources={"old_scandinavian": ["haeth"]},
+        era_reflexes={"old-english": [("haethr", "src")]},
+    )
+    nn = NewName(struct=None, meaning_db={"hill": [hill, norse]}, name=[["hill"], ["hill"]])
+    nn.era_render_language = "old-english"  # _apply_render sets this in production
+    assert str(nn) == "Hill Haethr"  # era reflex, not the raw 'Haeth'
+
+
+def test_diversify_repick_uses_era_form():
+    """wyrd-68ye: a re-picked repeat (no cross-language synonym) renders the
+    re-pick's ERA reflex under an active era render, instead of falling back to the
+    modern usage. Contrast test_diversify_repeats_repicks_* (no era → 'Park Dale')."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    park = Meaning("park", tags=[], meanings=["park"], sources={"old_english": ["park"]})
+    dale = Meaning(
+        "dale",
+        tags=[],
+        meanings=["valley"],
+        sources={"old_english": ["dale"]},
+        era_reflexes={"old-english": [("dael", "src")]},
+    )
+    # rendered is non-None in an era request (set by _apply_render before diversify);
+    # the re-pick's render branch only runs then — for non-era (rendered=None) the
+    # path is unchanged (see test_diversify_repeats_repicks_different_morpheme...).
+    nn = NewName(
+        struct=None,
+        meaning_db={"park": [park], "dale": [dale]},
+        name=[["park"], ["park"]],
+        rendered=[["park"], ["park"]],
+    )
+    nn.era_render_language = "old-english"
+    assert str(nn) == "Park Dael"  # re-picked AND era-rendered (era reflex of dale)
+
+
+def test_diversify_era_active_falls_back_when_no_reflex():
+    """wyrd-68ye: when an era render is active but the synonym/re-pick morpheme has
+    NO reflex at that era (the common case — most morphemes lack era reflexes), the
+    grafted/re-picked slot falls back to the prior form, NOT empty. Site (a) → raw
+    synonym form; site (b) → native form. Pins the `... or form`/`... or native`
+    fallback so an era render never blanks a resolved repeat."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    # site (a): synonym has reflexes only for a DIFFERENT era → no oe reflex.
+    hill = Meaning("hill", tags=[], meanings=["hill"], sources={"old_english": ["hill"]})
+    norse = Meaning(
+        "hill",
+        tags=[],
+        meanings=["Hill"],
+        sources={"old_scandinavian": ["haeth"]},
+        era_reflexes={"middle-english": [("haethe", "src")]},
+    )
+    a = NewName(struct=None, meaning_db={"hill": [hill, norse]}, name=[["hill"], ["hill"]])
+    a.era_render_language = "old-english"
+    assert str(a) == "Hill Haeth"  # falls back to the raw synonym form, not blank
+
+    # site (b): re-pick morpheme has no reflex at the active era → native fallback.
+    park = Meaning("park", tags=[], meanings=["park"], sources={"old_english": ["park"]})
+    dale = Meaning("dale", tags=[], meanings=["valley"], sources={"old_english": ["dale"]})
+    b = NewName(
+        struct=None,
+        meaning_db={"park": [park], "dale": [dale]},
+        name=[["park"], ["park"]],
+        rendered=[["park"], ["park"]],
+    )
+    b.era_render_language = "old-english"
+    assert str(b) == "Park Dale"  # native/modern fallback (dale has no oe reflex)
+
+
 def test_diversify_repeats_leaves_dupe_when_nothing_else_available():
     """wyrd-72q9: a repeat with NO cross-language synonym AND no other
     same-position morpheme to re-pick is left as-is (last resort)."""

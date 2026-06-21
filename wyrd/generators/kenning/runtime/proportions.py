@@ -1958,9 +1958,20 @@ class NewName:
         alt = self._cross_lang_synonym(canon, siblings, seen[fold] | canon_langs)
         if alt is not None:
             sib, lang, form = alt
+            # wyrd-68ye: in an era render, graft the synonym's ERA form rather than
+            # its raw (modern) form, so a repeat-resolved slot stays period-pure
+            # instead of emitting a stray modern token in an otherwise-period name.
+            # Falls back to the raw form when the synonym carries no reflex at this
+            # era (or for non-era requests, where era_render_language is None) — so
+            # non-era output is bit-stable. The RAW form still drives identity
+            # (picked_ids / seen) so the D44 era-INVARIANT skeleton is unchanged;
+            # only the rendered surface becomes era-aware.
+            render_form = form
+            if self.era_render_language:
+                render_form = _era_form_for_meanings([sib], self.era_render_language) or form
             lead = usage[: len(usage) - len(usage.lstrip("-"))]
             trail = usage[len(usage.rstrip("-")) :]
-            grafted = f"{lead}{form.strip('-')}{trail}"
+            grafted = f"{lead}{render_form.strip('-')}{trail}"
             if self.rendered is None:
                 self.rendered = [[None] * len(w) for w in self.name]
             self.rendered[wi][ei] = grafted
@@ -1994,7 +2005,13 @@ class NewName:
             # form so the native render stays consistent (pre-D41 set None →
             # the modern usage). modern_name() reads the replacement's modern
             # surface from self.name (e) directly.
+            # wyrd-68ye: in an era render, prefer the re-pick's ERA reflex over its
+            # native form so the slot is period-pure (native is the fallback when
+            # there's no reflex at this era; non-era requests have
+            # era_render_language=None → native, so they stay bit-stable).
             native = _native_form_for_meanings(repl_sibs)
+            if self.era_render_language:
+                native = _era_form_for_meanings(repl_sibs, self.era_render_language) or native
             native_rendered = _mimic_case(repl, native) if native else None
             # If the re-pick's NATIVE form ALSO collides (a native homograph
             # of an earlier slot — re-pick excludes seen folds by BUCKET key,
