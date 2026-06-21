@@ -712,9 +712,9 @@ def _slot_weighted_pool(
     prior_tags: frozenset[str],
     slot_base_scores: dict[tuple, list[tuple[Meaning, float]]] | None,
     require_tags: frozenset[str] = frozenset(),
-    # D44: the request's era never drives this — 0 is the priors tables'
-    # wildcard-cell convention. The parameter survives for the scoring
-    # layer (the priors DATA keeps its era cells, D36.7).
+    # The baseline era axis (D36.7 priors cells). 0 = wildcard cell (the
+    # default). wyrd-3tvd: a bounded HISTORICAL request era now drives this
+    # with its midpoint; an era with no upper bound (present-day) stays 0.
     era_midpoint: int = 0,
 ) -> list[tuple[Meaning, float]]:
     """The weighted ``(meaning, score)`` pool for one slot: base scores ×
