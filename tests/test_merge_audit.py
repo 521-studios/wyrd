@@ -162,31 +162,30 @@ def test_detect_disjoint_intruder_via_or_only_boundary(tmp_path):
 
 def test_disjoint_dominant_tie_is_deterministic(tmp_path):
     """wyrd-uumc: when two disjoint senses are EQUAL size (anchor in both), the
-    dominant pick is structurally ambiguous — but it must be DETERMINISTIC (stable
-    across gloss-insertion order), not flaky. The (len, sorted-eids) key fixes the
-    choice; the LLM judge is the backstop that arbitrates the flagged side. Here we
-    only pin that the SAME side is flagged regardless of insert order."""
+    dominant pick is structurally ambiguous — but it must be DETERMINISTIC, not
+    dependent on incidental ordering. The real order signal is the ANCHOR's gloss
+    SENSE-ORDER: _anchor_intruders always puts the anchor first, so cluster return
+    order follows which sub-sense the anchor lists first. A plain key=len max would
+    flag whichever side the anchor happens to mention first (flaky); the
+    (len, sorted-eids) secondary key flags the SAME side regardless. The LLM judge
+    arbitrates the flagged side."""
 
-    def flagged(order):
-        conn = _conn(tmp_path / f"lex_{'_'.join(order)}.db")
+    def flagged(anchor_gloss):
+        slug = anchor_gloss.replace(" ", "").replace(";", "")[:12]
+        conn = _conn(tmp_path / f"lex_{slug}.db")
         # distinct fillers (people / grassland) so the two members DON'T share a
         # token — only the anchor's mixed gloss spans both senses → a clean 2-2 tie.
-        rows = {
-            "anchor": (1, "-x", ["alpha beta; or gamma delta"]),
-            "a": (2, "xa", ["alpha beta people"]),
-            "b": (3, "xb", ["gamma delta grassland"]),
-        }
-        for key in order:
-            eid, form, gl = rows[key]
-            _ety(
-                conn, eid, form, gl, lang="old-english", merged_into=None if key == "anchor" else 1
-            )
+        _ety(conn, 1, "-x", [anchor_gloss], lang="old-english")
+        _ety(conn, 2, "xa", ["alpha beta people"], lang="old-english", merged_into=1)
+        _ety(conn, 3, "xb", ["gamma delta grassland"], lang="old-english", merged_into=1)
         return {c.member_ref for c in detect_merge_audit_candidates(conn, {}, scope="anchors")}
 
-    # Two equal clusters {1,2} (alpha/beta) and {1,3} (gamma/delta) → a tie.
-    one = flagged(["anchor", "a", "b"])
-    two = flagged(["anchor", "b", "a"])
-    assert one == two  # deterministic regardless of insertion order
+    # Same two equal clusters {1,2}(alpha/beta) and {1,3}(gamma/delta), but the
+    # anchor lists the senses in OPPOSITE order — which flips the cluster return
+    # order. A key=len max would flag different sides; the sorted-eids key must not.
+    one = flagged("alpha beta; or gamma delta")
+    two = flagged("gamma delta; or alpha beta")
+    assert one == two  # deterministic despite the anchor's sense-order flip
     assert len(one) == 1  # exactly one side flagged (recall screen; LLM arbitrates)
 
 
