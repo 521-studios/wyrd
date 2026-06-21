@@ -181,6 +181,24 @@ CREATE TABLE empirical_priors (
     data BLOB NOT NULL                         -- JSON: {version, native: [...], loan: [...]}
 );
 
+-- ===== Genitive-split prior (wyrd-aicu.9, D-3) =====
+--
+-- Singleton row: the precomputed genitive-split probability map the runtime
+-- decomposition matcher consumes (``_prefer_genitive_credible``). Mirrors
+-- ``empirical_priors`` — one JSON blob, loaded whole at cold start. Smoothing +
+-- hierarchical backoff already ran at emit time (``build_split_probability_map``),
+-- so the runtime sees a plain ``{(long_form, short_form): P_split}`` float map
+-- and stays DB-free. The connective INVENTORY stays code-side (not bundled);
+-- only the data-driven prior ships here.
+--
+-- Absent row (a wipe-without-remine L3, or one predating ``mine-genitive-
+-- priors --apply``) → the runtime loader returns ``{}`` → the connective still
+-- wins non-homograph coverage on score, only the homograph tiebreak goes silent.
+CREATE TABLE genitive_split_prior (
+    id   INTEGER PRIMARY KEY CHECK (id = 1),  -- singleton
+    data BLOB NOT NULL                         -- JSON: {version, pairs: [{long_form, short_form, split_probability}, ...]}
+);
+
 -- ===== Operational =====
 
 CREATE TABLE bundle_metadata (

@@ -21,6 +21,10 @@ from wyrd.generators.kenning.lexicon import (
     collect_fantasy_morphemes,
     export_meanings,
 )
+from wyrd.generators.kenning.lexicon.genitive_priors import (
+    build_split_probability_map,
+    load_genitive_prior_counts,
+)
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
     DEV_TOP_N_PER_CULTURE,
     EMITTER_VERSION,
@@ -231,6 +235,12 @@ def lexicon_export_runtime_db(
         canonical_decompositions = collect_canonical_decompositions(db)
         fantasy_morphemes = collect_fantasy_morphemes(db)
         empirical_priors_payload = collect_empirical_priors(db, version=EMITTER_VERSION)
+        # wyrd-aicu.9 (D-3/Phase 4): precompute the genitive-split prob-map from
+        # the L3 ``genitive_split_prior`` counts (smoothing + backoff applied
+        # here), mirroring the grader's build. Empty when the table is missing /
+        # unmined → no row emitted → runtime loader returns {} → connective
+        # coverage still lands, homograph tiebreak goes silent.
+        genitive_split_map = build_split_probability_map(load_genitive_prior_counts(db))
 
     counts = write_runtime_db(
         output_path=output_path,
@@ -238,6 +248,7 @@ def lexicon_export_runtime_db(
         fantasy_morphemes=fantasy_morphemes,
         canonical_decompositions=canonical_decompositions,
         empirical_priors_payload=empirical_priors_payload,
+        genitive_split_map=genitive_split_map,
         proportions_dir=proportions_dir,
         source_lexicon_db=db_path,
         dev_subset=dev_subset,
@@ -258,6 +269,7 @@ def lexicon_export_runtime_db(
         f"{counts['meanings']} meaning rows, "
         f"{counts['fantasy_morphemes']} fantasy morphemes, "
         f"{counts['canonical_decompositions']} canonical decompositions, "
+        f"{counts.get('genitive_split_pairs', 0)} genitive-split prior pairs, "
         f"{proportion_total} proportion rows across {counts['cultures']} cultures.",
         err=True,
     )

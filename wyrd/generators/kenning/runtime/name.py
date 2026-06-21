@@ -163,7 +163,15 @@ class Name:
         return cnt
 
     def find_meaning(
-        self, word_db, reduce=True, joiners=None, *, culture_languages=None, trie=None
+        self,
+        word_db,
+        reduce=True,
+        joiners=None,
+        *,
+        culture_languages=None,
+        trie=None,
+        connective_inventory=None,
+        genitive_prior=None,
     ):
         """Decompose every word in this place name against ``word_db``
         via the trie matcher.
@@ -209,6 +217,19 @@ class Name:
         appropriate senses (Welsh ``pen-`` → Celtic 'end/head' over
         OE 'penny').
 
+        ``connective_inventory`` / ``genitive_prior`` (wyrd-aicu.9, both
+        optional, keyword-only) activate the connective decomposition
+        branch + the genitive homograph tiebreak. Forwarded ONLY to
+        ``canonical_decompositions`` (the ``reduce=True`` path); the
+        ``reduce=False`` ``all_decompositions`` path is deliberately
+        left without a connective branch (D-1: it keeps its two-type
+        Meaning/str invariant, so the explainer reduce=False path stays
+        connective-free — a documented limitation). Both ``None``
+        (default) is bit-stable with the pre-connective matcher — the
+        path KenningExplain / KenningRewind / era-map take. The live
+        generation + proportions callers pass
+        ``DEFAULT_CONNECTIVE_INVENTORY`` + the bundled prob-map.
+
         Multi-parse semantics: a word with two senses for one surface
         (``-y`` = 'island' OR 'district') or a word the trie matches
         at multiple boundaries surfaces every reading as its own
@@ -244,7 +265,13 @@ class Name:
         joiner_forms = _build_joiner_lookup(joiners)
         for word in self.words:
             decompositions = (
-                canonical_decompositions(word, trie, culture_languages=culture_languages)
+                canonical_decompositions(
+                    word,
+                    trie,
+                    culture_languages=culture_languages,
+                    connective_inventory=connective_inventory,
+                    genitive_prior=genitive_prior,
+                )
                 if reduce
                 else all_decompositions(word, trie)
             )

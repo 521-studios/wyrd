@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING
 
 from wyrd.generators.kenning.lexicon import _LANG_CODE_TO_JSON_FIELD
 
+from .connective import is_connective
 from .meaning import Meaning, load_meanings
 from .name import Name
 
@@ -86,6 +87,15 @@ def _decomposition_payload(decomposition: list) -> list:
     for slot in decomposition:
         if isinstance(slot, Meaning):
             payload.append(["morpheme", slot.usage])
+        elif is_connective(slot):
+            # wyrd-aicu.9 (D-1 defensive): a connective (genitive ``-s-`` glue)
+            # is free + non-content and must NOT be serialized as an unaccounted
+            # fragment — that would corrupt the canonical signature and inflate
+            # the unaccounted-char count. Under D-1 no connective reaches the
+            # signature/payload path (``all_decompositions`` has no connective
+            # branch), so this guard is defensive only; full connective rendering
+            # in the explainer is the documented follow-on.
+            continue
         else:
             payload.append(["unaccounted", str(slot)])
     return payload
@@ -855,6 +865,8 @@ def decompose_with_canonical(
     region: str | None = None,
     *,
     culture_languages: frozenset[str] | None = None,
+    connective_inventory=None,
+    genitive_prior=None,
 ) -> tuple[Name, str | None]:
     """Decompose ``name_str`` honouring the canonical pick when one exists.
 
@@ -869,7 +881,15 @@ def decompose_with_canonical(
     ``culture_languages`` (wyrd-pfoo) is forwarded to every heuristic
     ``find_meaning(reduce=True)`` invocation — the no-db path AND the
     canonical-miss fallback (when a recorded canonical signature
-    doesn't match any current cross-product cell). Scholar-canonical
+    doesn't match any current cross-product cell).
+
+    ``connective_inventory`` / ``genitive_prior`` (wyrd-aicu.9) are
+    likewise forwarded to every heuristic ``find_meaning(reduce=True)``
+    call so the live generation path decomposes ``X·s·head`` toponyms
+    via the genitive connective + homograph tiebreak. The canonical-
+    match ``find_meaning(reduce=False)`` call is untouched (D-1: the
+    explainer-style reduce=False path stays connective-free). Both
+    ``None`` (default) is bit-stable. Scholar-canonical
     picks that DO match aren't reshaped by the tiebreaker — those
     carry their own correct attestation and short-circuit before any
     reduce. Per-culture callers (rebuild-proportions,
@@ -902,7 +922,19 @@ def decompose_with_canonical(
                 name_str,
             )
             name = Name(name_str)
-            name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
+            name.find_meaning(
+                word_db,
+                reduce=True,
+                culture_languages=culture_languages,
+                connective_inventory=connective_inventory,
+                genitive_prior=genitive_prior,
+            )
             return name, None
-    name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
+    name.find_meaning(
+        word_db,
+        reduce=True,
+        culture_languages=culture_languages,
+        connective_inventory=connective_inventory,
+        genitive_prior=genitive_prior,
+    )
     return name, None

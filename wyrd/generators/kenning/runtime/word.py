@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from .connective import is_connective
 from .meaning import Meaning
 
 
@@ -86,6 +87,48 @@ def _position_form(meaning: Meaning, position: str) -> str:
     return surface  # bare
 
 
+def _is_content_element(elem: object) -> bool:
+    """wyrd-aicu.9: a CONTENT element is everything position is derived over —
+    matched ``Meaning`` morphemes AND unaccounted ``str`` fragments — but NOT a
+    ``Connective`` (the genitive ``-s-`` glue). A connective is free + non-content
+    + position-neutral: it reconstructs the surface but must not shift the
+    pre/inner/post slot of the morphemes around it (``Bishop·s·tūn`` → ``Bishop``
+    is pre and ``tūn`` is post, exactly as if the connective weren't there).
+
+    Mirrors ``trie_matcher._is_content_morpheme`` semantics on the connective
+    exclusion, but KEEPS unaccounted ``str`` fragments in the count: position is
+    derived over all word elements that occupy a structural slot, and an
+    unaccounted fragment between two morphemes still separates them (the
+    pre-existing ``count = len(self.word)`` behaviour for partial parses), whereas
+    a connective is glue that collapses out of the position math entirely."""
+    return not is_connective(elem)
+
+
+def _content_index(word: list) -> tuple[list[int | None], int]:
+    """wyrd-aicu.9: map each raw word slot to its CONTENT index (its position
+    among non-connective elements), plus the total content count.
+
+    Returns ``(content_index_per_slot, content_count)`` where
+    ``content_index_per_slot[i]`` is the 0-based index of slot ``i`` within the
+    content sequence, or ``None`` when slot ``i`` is a connective (skipped).
+    ``_positioned_usages`` and ``get_structure`` both derive position from this
+    shared mapping so they stay in LOCKSTEP — a connective collapses out, and the
+    surrounding content keeps its true pre/inner/post slot.
+
+    No-op invariant: when no connective is present, ``content_index_per_slot[i]
+    == i`` for every slot and ``content_count == len(word)`` — byte-identical to
+    the pre-connective ``enumerate(self.word)`` + ``len(self.word)`` math."""
+    content_index_per_slot: list[int | None] = []
+    next_content = 0
+    for elem in word:
+        if _is_content_element(elem):
+            content_index_per_slot.append(next_content)
+            next_content += 1
+        else:
+            content_index_per_slot.append(None)
+    return content_index_per_slot, next_content
+
+
 class Word:
     def __init__(self, word):
         if isinstance(word, str):
@@ -101,6 +144,8 @@ class Word:
         for w in self.word:
             if isinstance(w, str):
                 results.append(w)
+            elif is_connective(w):
+                results.append(w.surface)  # Connective has .surface, not .usage
             else:
                 results.append(w.usage)
         return " ".join(results)
@@ -116,7 +161,15 @@ class Word:
         return hash(tuple(str(w) for w in self.word))
 
     def size(self):
-        return len(self.word)
+        # wyrd-aicu.9: the complexity tiebreak (Name._filter_for_complexity)
+        # must count the same things the matcher's Occam score does — content
+        # elements only. A connective (genitive ``-s-`` glue) is free + non-
+        # content, so it never adds to complexity; excluding it here keeps the
+        # legacy-matcher complexity rank in agreement with the trie matcher's
+        # ``_decomposition_score`` morpheme count (which uses
+        # ``_is_content_morpheme``). No-op when no connective is present
+        # (every element is content → ``len(self.word)``).
+        return sum(1 for w in self.word if _is_content_element(w))
 
     def count_unaccounted(self):
         size = 0
@@ -138,17 +191,22 @@ class Word:
         axis. ``Stokegiles`` → ``(Stoke, pre)`` + ``(giles, post)``. Position is
         never folded into the surface string (the pre-D45 dash-form
         ``-giles``); the proportions tables carry it as its own column."""
-        # wyrd-eyjk round 2 (Gemini): derive position over ALL word elements
-        # (count = len(self.word)), not just the matched Meanings, so a morpheme
-        # in a partially-decomposed word (with unmatched string fragments) gets
-        # its true structural position — a word-final ``giles`` after an
-        # unmatched ``Stoke`` is post, not bare. Recorded corpus words are fully
-        # decomposed (the exporter keeps only count_unaccounted()==0), so this
-        # is a no-op on production data and robust for any partial caller. Kept
-        # in lockstep with ``get_structure``.
-        count = len(self.word)
+        # wyrd-eyjk round 2 (Gemini): derive position over ALL word elements,
+        # not just the matched Meanings, so a morpheme in a partially-decomposed
+        # word (with unmatched string fragments) gets its true structural
+        # position — a word-final ``giles`` after an unmatched ``Stoke`` is post,
+        # not bare. Recorded corpus words are fully decomposed (the exporter
+        # keeps only count_unaccounted()==0), so this is a no-op on production
+        # data and robust for any partial caller. Kept in lockstep with
+        # ``get_structure``.
+        #
+        # wyrd-aicu.9: position is derived over CONTENT elements (the shared
+        # ``_content_index`` helper drops connectives), so the genitive ``-s-``
+        # glue doesn't shift the pre/inner/post slot of the morphemes around it.
+        # No-op when no connective is present (content index == raw index).
+        content_index_per_slot, count = _content_index(self.word)
         return [
-            (_bare_surface(m), _structural_position(i, count))
+            (_bare_surface(m), _structural_position(content_index_per_slot[i], count))
             for i, m in enumerate(self.word)
             if isinstance(m, Meaning)
         ]
@@ -182,18 +240,23 @@ class Word:
         # The ``name`` / ``saint`` flags stay orthogonal — they ride alongside
         # whatever structural position the morpheme occupies.
         #
-        # wyrd-eyjk round 2: position is derived over ALL word elements
-        # (count = len(self.word)), in lockstep with ``_positioned_usages`` —
-        # so a matched morpheme keeps the same position in the structure tuple
-        # as in the recorded usage form even when the word has unmatched string
-        # fragments (a no-op for the fully-decomposed corpus words actually
-        # recorded).
-        count = len(self.word)
+        # wyrd-eyjk round 2: position is derived over ALL word elements, in
+        # lockstep with ``_positioned_usages`` — so a matched morpheme keeps the
+        # same position in the structure tuple as in the recorded usage form even
+        # when the word has unmatched string fragments (a no-op for the fully-
+        # decomposed corpus words actually recorded).
+        #
+        # wyrd-aicu.9: position is derived over CONTENT elements via the shared
+        # ``_content_index`` helper (connectives collapse out), so the genitive
+        # ``-s-`` glue is position-neutral and ``get_structure`` /
+        # ``_positioned_usages`` stay in lockstep. No-op when no connective is
+        # present (content index == raw index).
+        content_index_per_slot, count = _content_index(self.word)
         structure = []
         for index, m in enumerate(self.word):
             if not isinstance(m, Meaning):
                 continue
-            position = _structural_position(index, count)
+            position = _structural_position(content_index_per_slot[index], count)
             if m.is_name():
                 structure.append((position, "name"))
             elif m.usage.replace("-", "").lower() == "saint":

@@ -92,11 +92,33 @@ def rebuild_proportions(
     # get None → matcher falls back to pre-PR bit-stable behaviour.
     from wyrd.generators.kenning.lexicon.proportions_builder import CULTURE_LANGUAGES
 
+    # wyrd-aicu.9: when a --db is supplied, build the genitive-split prob-map
+    # from its mined counts (smoothing applied here) and engage the default
+    # connective inventory so the rebuilt proportions train on the corrected
+    # X·s·head decompositions. Without --db (or an unmined DB) the map is empty
+    # → connective stays off → legacy bit-stable heuristic path.
+    connective_inventory = None
+    genitive_prior = None
+    if db_path is not None:
+        from wyrd.generators.kenning.lexicon import LexiconDB
+        from wyrd.generators.kenning.lexicon.genitive_priors import (
+            build_split_probability_map,
+            load_genitive_prior_counts,
+        )
+        from wyrd.generators.kenning.runtime.connective import DEFAULT_CONNECTIVE_INVENTORY
+
+        with LexiconDB(db_path) as prior_db:
+            genitive_prior = build_split_probability_map(load_genitive_prior_counts(prior_db))
+        if genitive_prior:
+            connective_inventory = DEFAULT_CONNECTIVE_INVENTORY
+
     resolved_names, canonical_hits = _decompose_corpus(
         name_entries,
         word_db,
         db_path,
         culture_languages=CULTURE_LANGUAGES.get(culture),
+        connective_inventory=connective_inventory,
+        genitive_prior=genitive_prior,
     )
     good_names = [n for n in resolved_names if n.count_unaccounted() == 0]
     word_names = sum(1 for n in resolved_names if n.has_name())

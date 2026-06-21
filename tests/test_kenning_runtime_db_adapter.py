@@ -25,6 +25,7 @@ from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.lexicon.runtime_db_export import write_runtime_db
 from wyrd.generators.kenning.runtime.runtime_db_adapter import (
     bundle_dict_from_runtime_db,
+    genitive_split_map_from_runtime_db,
 )
 
 
@@ -35,6 +36,7 @@ def _reset_caches():
     kenning_pkg._load_meanings.cache_clear()
     kenning_pkg._load_canonical_decompositions.cache_clear()
     kenning_pkg._load_fantasy_morphemes.cache_clear()
+    kenning_pkg._load_genitive_prior.cache_clear()
     # The runtime DB loader has its own process-wide cached conn.
     from wyrd.generators.kenning.runtime.runtime_db import reset_runtime_db_cache
 
@@ -43,6 +45,7 @@ def _reset_caches():
     kenning_pkg._load_meanings.cache_clear()
     kenning_pkg._load_canonical_decompositions.cache_clear()
     kenning_pkg._load_fantasy_morphemes.cache_clear()
+    kenning_pkg._load_genitive_prior.cache_clear()
     reset_runtime_db_cache()
 
 
@@ -226,3 +229,97 @@ def test_meaning_objects_have_subject_metadata(monkeypatch, _runtime_db_from_fix
             assert hasattr(sample, "sources")
             return
     pytest.fail("expected at least one '-ham-' family meaning in the loaded db")
+
+
+# ---------- genitive-split prior round-trip (wyrd-aicu.9, D-3) ----------
+
+
+def _emit_runtime_db_with_genitive(tmp_path: Path, genitive_split_map) -> Path:
+    """Emit a minimal L4 runtime DB carrying ``genitive_split_map`` (or None)."""
+    import json
+
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    lexicon_path = tmp_path / "lexicon.db"
+    init_schema(lexicon_path)
+    with LexiconDB(lexicon_path) as db:
+        db.upsert_source(id="rando-port", title="Rando port (seed)")
+        db.commit()
+
+    proportions_dir = tmp_path / "proportions"
+    proportions_dir.mkdir()
+    for culture in ("english", "scottish", "welsh", "irish", "breton"):
+        (proportions_dir / f"{culture}_proportions.json").write_text(
+            json.dumps(
+                {
+                    "usages": {"-ham-": 1},
+                    "single_usages": {},
+                    "structures": [{"proportion": 1, "words": [[{"location": "pre"}]]}],
+                    "tag_marginal": {},
+                    "tag_cooccurrence": {},
+                }
+            )
+        )
+
+    out_path = tmp_path / "runtime.db"
+    write_runtime_db(
+        output_path=out_path,
+        subjects=[],
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_dir=proportions_dir,
+        genitive_split_map=genitive_split_map,
+        source_lexicon_db=lexicon_path,
+    )
+    return out_path
+
+
+def test_genitive_split_map_round_trips_exact_dict(tmp_path: Path) -> None:
+    """Emit a known prob-map → the adapter reads back the EXACT
+    ``{(long, short): p}`` dict (keys are tuples, values are floats)."""
+    known = {("ston", "ton"): 0.82, ("sley", "ley"): 0.41}
+    out_path = _emit_runtime_db_with_genitive(tmp_path, known)
+
+    conn = sqlite3.connect(f"file:{out_path}?mode=ro", uri=True)
+    try:
+        loaded = genitive_split_map_from_runtime_db(conn)
+    finally:
+        conn.close()
+
+    assert loaded == known
+
+
+def test_genitive_split_map_absent_when_empty_map(tmp_path: Path) -> None:
+    """An empty / None map writes NO row → the adapter returns None →
+    the loader treats it as {} (connective coverage lands, tiebreak
+    silent)."""
+    out_path = _emit_runtime_db_with_genitive(tmp_path, {})
+
+    conn = sqlite3.connect(f"file:{out_path}?mode=ro", uri=True)
+    try:
+        row = conn.execute("SELECT COUNT(*) FROM genitive_split_prior").fetchone()[0]
+        loaded = genitive_split_map_from_runtime_db(conn)
+    finally:
+        conn.close()
+
+    assert row == 0
+    assert loaded is None
+
+
+def test_load_genitive_prior_returns_empty_dict_when_absent(monkeypatch, tmp_path: Path) -> None:
+    """The package-level ``_load_genitive_prior`` cache returns ``{}`` (not
+    None) when the bundle carries no genitive row — the matcher-facing
+    'no prior' contract."""
+    out_path = _emit_runtime_db_with_genitive(tmp_path, {})
+    monkeypatch.setenv("WYRD_RUNTIME_DB", str(out_path))
+
+    assert kenning_pkg._load_genitive_prior() == {}
+
+
+def test_load_genitive_prior_reads_l4_map(monkeypatch, tmp_path: Path) -> None:
+    """The package-level cache reads the emitted prob-map from the L4."""
+    known = {("ston", "ton"): 0.9}
+    out_path = _emit_runtime_db_with_genitive(tmp_path, known)
+    monkeypatch.setenv("WYRD_RUNTIME_DB", str(out_path))
+
+    assert kenning_pkg._load_genitive_prior() == known

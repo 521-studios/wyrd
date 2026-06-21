@@ -35,6 +35,7 @@ from wyrd.generators.kenning.lexicon.runtime_db_export import (
     _strata_for_word,
     _write_canonical_decompositions,
     _write_fantasy_morphemes,
+    write_runtime_db,
 )
 
 # ---------- helpers ----------
@@ -157,6 +158,8 @@ def test_emit_creates_l4_schema(tmp_path: Path) -> None:
         "proportions_tag_marginal",
         "proportions_tag_cooccurrence",
         "proportions_bare_word_position",
+        "empirical_priors",
+        "genitive_split_prior",
         "bundle_metadata",
     } <= tables
 
@@ -1287,3 +1290,102 @@ def test_dash_guard_invoked_once_on_successful_emit(
     _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
     assert calls == [1]
     assert out_path.exists()
+
+
+# ---------- genitive-split prior emit (wyrd-aicu.9, D-3) ----------
+
+
+def _emit_with_genitive(tmp_path: Path, genitive_split_map):
+    """Emit a minimal L4 with ``genitive_split_map``; return the out path."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+    counts = write_runtime_db(
+        output_path=out_path,
+        subjects=[],
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_dir=tmp_path,
+        genitive_split_map=genitive_split_map,
+        source_lexicon_db=db_path,
+    )
+    return out_path, counts
+
+
+def test_emit_writes_genitive_split_prior_singleton(tmp_path: Path) -> None:
+    """A non-empty map writes the singleton id=1 blob; the JSON payload
+    carries the pairs sorted by -split_probability then the pair, and the
+    return count reports the pair total."""
+    out_path, counts = _emit_with_genitive(tmp_path, {("ston", "ton"): 0.4, ("sley", "ley"): 0.9})
+    assert counts["genitive_split_pairs"] == 2
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        rows = conn.execute("SELECT id, data FROM genitive_split_prior").fetchall()
+    finally:
+        conn.close()
+
+    assert len(rows) == 1
+    assert rows[0][0] == 1
+    payload = json.loads(rows[0][1])
+    assert payload["version"] == EMITTER_VERSION
+    # Sorted by -split_probability: the 0.9 pair leads.
+    assert payload["pairs"][0] == {
+        "long_form": "sley",
+        "short_form": "ley",
+        "split_probability": 0.9,
+    }
+    assert payload["pairs"][1]["long_form"] == "ston"
+
+
+def test_emit_skips_genitive_split_prior_when_empty(tmp_path: Path) -> None:
+    """An empty / None map writes no row and reports a zero pair count —
+    the wipe-without-remine graceful path."""
+    out_path, counts = _emit_with_genitive(tmp_path, {})
+    assert counts["genitive_split_pairs"] == 0
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        n = conn.execute("SELECT COUNT(*) FROM genitive_split_prior").fetchone()[0]
+    finally:
+        conn.close()
+    assert n == 0
+
+
+def test_emit_stamps_schema_version_unbumped(tmp_path: Path) -> None:
+    """genitive_split_prior is additive/optional — emit stays at the existing
+    schema_version (no bump, wyrd-aicu.9)."""
+    out_path, _ = _emit_with_genitive(tmp_path, {})
+    conn = sqlite3.connect(str(out_path))
+    try:
+        sv = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key='schema_version'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert sv == SCHEMA_VERSION == "3"
+
+
+def test_loader_tolerates_missing_genitive_table(tmp_path: Path) -> None:
+    """A pre-aicu.9 bundle lacks the genitive_split_prior table entirely (the
+    table is additive, no schema bump). The loader must degrade to None (→ {}),
+    NOT raise — and the runtime must still accept the bundle."""
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        genitive_split_map_from_runtime_db,
+    )
+
+    out_path, _ = _emit_with_genitive(tmp_path, {})
+    conn = sqlite3.connect(str(out_path))
+    try:
+        conn.execute("DROP TABLE IF EXISTS genitive_split_prior")
+        conn.commit()
+        # Tolerant: missing table → None, not OperationalError.
+        assert genitive_split_map_from_runtime_db(conn) is None
+        # Schema version is unchanged, so the runtime still accepts it.
+        sv = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key='schema_version'"
+        ).fetchone()[0]
+        assert sv == "3"
+    finally:
+        conn.close()

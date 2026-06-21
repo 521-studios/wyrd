@@ -114,6 +114,8 @@ def _decompose_corpus(
     db_path: Path | None,
     *,
     culture_languages: frozenset[str] | None = None,
+    connective_inventory=None,
+    genitive_prior=None,
 ) -> tuple[list, Counter]:
     """Decompose a corpus of Names, honouring canonical picks when a
     lexicon DB path is supplied.
@@ -131,6 +133,12 @@ def _decompose_corpus(
     Meanings on ambiguous decompositions. The canonical-pick path is
     unaffected — scholar-attested decompositions carry their own
     correct sense and don't pass through the tiebreaker.
+
+    ``connective_inventory`` / ``genitive_prior`` (wyrd-aicu.9) are
+    forwarded to both the db (``decompose_with_canonical``) and no-db
+    (``find_meaning``) heuristic paths so the genitive connective +
+    homograph tiebreak fire on the live generation / proportions
+    decompose. Both ``None`` (default) keeps the legacy bit-stable path.
 
     Centralises (a) DB context-manager hygiene via ``nullcontext``,
     (b) the per-name canonical-vs-heuristic branch, (c) the
@@ -156,11 +164,18 @@ def _decompose_corpus(
                     db,
                     region=region,
                     culture_languages=culture_languages,
+                    connective_inventory=connective_inventory,
+                    genitive_prior=genitive_prior,
                 )
                 canonical_hits[source or "heuristic"] += 1
             else:
                 resolved = name
-                resolved.find_meaning(word_db, culture_languages=culture_languages)
+                resolved.find_meaning(
+                    word_db,
+                    culture_languages=culture_languages,
+                    connective_inventory=connective_inventory,
+                    genitive_prior=genitive_prior,
+                )
             resolved_names.append(resolved)
     return resolved_names, canonical_hits
 
