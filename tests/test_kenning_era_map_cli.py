@@ -9,6 +9,7 @@ rewind → table/JSON render + the culture-optional contract) without a lexicon 
 from __future__ import annotations
 
 import json
+import types
 
 import pytest
 from click.testing import CliRunner
@@ -26,6 +27,15 @@ class _FakeDB:
 
     def __exit__(self, *exc):
         return False
+
+
+@pytest.fixture
+def dbfile(tmp_path):
+    """An existing (dummy) DB path so the from-json existence check passes; the
+    real open is stubbed via LexiconDB, so the file's contents don't matter."""
+    p = tmp_path / "lex.db"
+    p.touch()
+    return p
 
 
 @pytest.fixture
@@ -53,8 +63,10 @@ def _objs(*names: str) -> str:
     return "\n".join(json.dumps({"name": n, "words": [[{"usage": n.lower()}]]}) for n in names)
 
 
-def test_from_json_renders_era_map_table(stub_rewind):
-    result = CliRunner().invoke(era_map, ["--from-json", "-"], input=_objs("Whitton", "Aldton"))
+def test_from_json_renders_era_map_table(stub_rewind, dbfile):
+    result = CliRunner().invoke(
+        era_map, ["--from-json", "-", "--db", str(dbfile)], input=_objs("Whitton", "Aldton")
+    )
     assert result.exit_code == 0, result.output
     # era-map table shape: name header + 'family/cell  rendered' rows, both names.
     assert "Whitton" in result.output and "Aldton" in result.output
@@ -62,8 +74,10 @@ def test_from_json_renders_era_map_table(stub_rewind):
     assert "Whitton-OE" in result.output and "Aldton-ME" in result.output
 
 
-def test_from_json_as_json_shape(stub_rewind):
-    result = CliRunner().invoke(era_map, ["--from-json", "-", "--as-json"], input=_objs("Whitton"))
+def test_from_json_as_json_shape(stub_rewind, dbfile):
+    result = CliRunner().invoke(
+        era_map, ["--from-json", "-", "--as-json", "--db", str(dbfile)], input=_objs("Whitton")
+    )
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert data == [
@@ -77,7 +91,32 @@ def test_from_json_as_json_shape(stub_rewind):
     ]
 
 
-def test_from_json_custom_era_ladder_is_parsed(stub_rewind, monkeypatch):
+def test_from_json_table_marks_fallback(stub_rewind, dbfile, monkeypatch):
+    """A stop with a fallback morpheme gets the ' *' marker in the table."""
+
+    def fake(name, words, db, meaning_db, *, eras):
+        return Rewind(
+            name=name,
+            decomposition="x",
+            eras=[
+                EraStop(
+                    family="english",
+                    cell="me",
+                    morphemes=[types.SimpleNamespace(fallback=True)],
+                    rendered=f"{name}-ME",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(rw, "rewind_from_morphemes", fake)
+    result = CliRunner().invoke(
+        era_map, ["--from-json", "-", "--db", str(dbfile)], input=_objs("X")
+    )
+    assert result.exit_code == 0, result.output
+    assert "X-ME *" in result.output
+
+
+def test_from_json_custom_era_ladder_is_parsed(stub_rewind, dbfile, monkeypatch):
     """--era values are resolved (via era_cell_for_input) and passed to the
     rewinder; a bad era exits 1."""
     seen = {}
@@ -89,19 +128,47 @@ def test_from_json_custom_era_ladder_is_parsed(stub_rewind, monkeypatch):
 
     monkeypatch.setattr(rw, "rewind_from_morphemes", capture)
     ok = CliRunner().invoke(
-        era_map, ["--from-json", "-", "--era", "oe-early", "--era", "me"], input=_objs("X")
+        era_map,
+        ["--from-json", "-", "--db", str(dbfile), "--era", "oe-early", "--era", "me"],
+        input=_objs("X"),
     )
     assert ok.exit_code == 0, ok.output
     assert seen["eras"] and len(seen["eras"]) == 2
 
-    bad = CliRunner().invoke(era_map, ["--from-json", "-", "--era", "not-a-cell"], input=_objs("X"))
+    bad = CliRunner().invoke(
+        era_map, ["--from-json", "-", "--db", str(dbfile), "--era", "not-a-cell"], input=_objs("X")
+    )
     assert bad.exit_code == 1
 
 
-def test_from_json_empty_input_exits_loud(stub_rewind):
-    result = CliRunner().invoke(era_map, ["--from-json", "-"], input="\n  \n")
+def test_from_json_empty_input_exits_loud(stub_rewind, dbfile):
+    result = CliRunner().invoke(era_map, ["--from-json", "-", "--db", str(dbfile)], input="\n  \n")
     assert result.exit_code == 1
     assert "no JSON objects" in result.output
+
+
+def test_from_json_missing_db_exits_loud(stub_rewind, tmp_path):
+    """A nonexistent --db fails loud (SQLite would otherwise create an empty DB
+    and render everything as era-less fallback)."""
+    missing = tmp_path / "nope.db"
+    result = CliRunner().invoke(
+        era_map, ["--from-json", "-", "--db", str(missing)], input=_objs("X")
+    )
+    assert result.exit_code == 1
+    assert "lexicon DB not found" in result.output
+
+
+def test_from_json_default_db_path_is_resolved(stub_rewind, tmp_path, monkeypatch):
+    """With no --db, the default lexicon path is resolved by CALLING
+    _DEFAULT_LEXICON_PATH (it's a callable, not a Path) and run through the same
+    existence check — a missing default fails loud, not with a TypeError."""
+    import wyrd.generators.kenning.cli.utils as utils
+
+    missing = tmp_path / "default-nope.db"
+    monkeypatch.setattr(utils, "_DEFAULT_LEXICON_PATH", lambda: missing)
+    result = CliRunner().invoke(era_map, ["--from-json", "-"], input=_objs("X"))
+    assert result.exit_code == 1
+    assert "lexicon DB not found" in result.output
 
 
 def test_culture_required_without_from_json():

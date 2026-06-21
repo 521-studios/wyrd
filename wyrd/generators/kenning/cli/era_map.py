@@ -42,9 +42,10 @@ from wyrd.generators.kenning import CULTURES, KenningEraMap
 @click.option(
     "--db",
     "db_path",
-    # NOT exists=True: the default-generated path must not break the (DB-free)
-    # generate path in CI where no live lexicon DB exists. The --from-json path
-    # opens it explicitly and fails loud if it's missing.
+    # NOT exists=True: a path-checked default would break the (DB-free) generate
+    # path in CI where no live lexicon DB exists. The --from-json path instead
+    # checks existence itself (SQLite would otherwise silently CREATE an empty DB
+    # and render everything as era-less fallback) — see _emit_era_map_from_json.
     type=click.Path(dir_okay=False, path_type=Path),
     default=None,
     help="Lexicon DB for the --from-json era-reflex lookups (defaults to the standard path).",
@@ -139,7 +140,15 @@ def _emit_era_map_from_json(
 
     objects = _load_json_objects(from_json)
     meaning_db, _ = _load_meanings()
-    resolved_db = db_path if db_path is not None else _DEFAULT_LEXICON_PATH
+    # _DEFAULT_LEXICON_PATH is a CALLABLE (click invokes it as a default; here we
+    # resolve it ourselves) — call it to get the Path.
+    resolved_db = db_path if db_path is not None else _DEFAULT_LEXICON_PATH()
+    # Fail loud on a missing DB: SQLite would otherwise CREATE an empty file on
+    # open, so every morpheme would silently fall back to its modern usage at
+    # every era — a confusing all-fallback render instead of a clear error.
+    if not Path(resolved_db).exists():
+        click.echo(f"Error: lexicon DB not found at {resolved_db} (pass --db)", err=True)
+        raise click.exceptions.Exit(1)
 
     try:
         with LexiconDB(resolved_db) as db:
