@@ -573,7 +573,9 @@ def _load_culture(culture: str):
     )
 
     proportions = proportions_dict_for_culture(get_runtime_db(), culture)
-    return load_proportions(proportions, meaning_db, tag_db), tag_db
+    # wyrd-hzqs: thread the culture NAME so the per-language structure allowlist
+    # (is_structure_enabled) can key on it.
+    return load_proportions(proportions, meaning_db, tag_db, culture=culture), tag_db
 
 
 # wyrd-h3ls: ``_load_culture`` independently caches a ``NameGenerator``
