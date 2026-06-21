@@ -1477,3 +1477,33 @@ def test_non_dev_export_does_not_write_structures_yaml(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     assert not (tmp_path / "structures.yaml").exists()
+
+
+def test_dev_regen_preserves_operator_false_through_merge(tmp_path: Path, monkeypatch) -> None:
+    """wyrd-x7w4: the hook is a refresh-MERGE, not a regen-from-scratch — an
+    operator ``enabled: false`` on a MULTI-morpheme structure (which _build would
+    otherwise default to ``true``) must survive. Guards against a regression to
+    ``_build(conn, {})`` that the idempotency test can't catch (the committed
+    file's only falses are auto-seeded <Bare> defaults)."""
+    import shutil
+    from importlib import resources
+
+    from wyrd.generators.kenning.cli import dump_structures
+    from wyrd.generators.kenning.cli.lexicon.export_runtime_db import _regen_structure_allowlist
+    from wyrd.generators.kenning.runtime.structure_allowlist import (
+        load_structure_allowlist_from_text,
+    )
+
+    data = resources.files("wyrd.generators.kenning.data")
+    with resources.as_file(data.joinpath("seed-runtime.db")) as seed:
+        shutil.copy(seed, tmp_path / "seed-runtime.db")
+
+    # Operator has disabled a real 3-morpheme english structure (default: enabled).
+    curated = "(pre+inner+post)"
+    monkeypatch.setattr(
+        dump_structures, "_read_merge_base", lambda _arg: {"english": {curated: False}}
+    )
+
+    out = _regen_structure_allowlist(tmp_path / "seed-runtime.db")
+    al = load_structure_allowlist_from_text(out.read_text(encoding="utf-8"))
+    assert al["english"][curated] is False  # sticky operator false preserved by the merge
