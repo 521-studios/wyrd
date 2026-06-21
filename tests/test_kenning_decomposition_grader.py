@@ -21,6 +21,7 @@ import pytest
 
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.decomposition_grader import (
+    MatcherConfig,
     ToponymGrade,
     diff_grades,
     grade_configuration,
@@ -148,9 +149,7 @@ def test_off_baseline_reproduces_ston_bug(world):
             corpus,
             trie,
             index,
-            culture_languages=None,
-            connective_inventory=None,
-            genitive_prior=None,
+            config=MatcherConfig(),
         )
     )
     # Bishopston mis-parses to bishop+ston(stone): the town cluster is missed
@@ -177,9 +176,10 @@ def test_connective_coverage_gain_no_prior(world):
             corpus,
             trie,
             index,
-            culture_languages=None,
-            connective_inventory=DEFAULT_CONNECTIVE_INVENTORY,
-            genitive_prior={},  # no homograph tiebreak
+            config=MatcherConfig(
+                connective_inventory=DEFAULT_CONNECTIVE_INVENTORY,
+                genitive_prior={},  # no homograph tiebreak
+            ),
         )
     )
     # Grimsworth: the connective absorbs the s → a clean 0-unaccounted parse,
@@ -221,9 +221,7 @@ def test_passthrough_expansion_recovers_constituents(tmp_path):
             corpus,
             trie,
             index,
-            culture_languages=None,
-            connective_inventory=None,
-            genitive_prior=None,
+            config=MatcherConfig(),
             passthrough_map=passthrough_map,
         )[0]
 
@@ -242,8 +240,10 @@ def test_diff_improves_town_regresses_genuine_stone(world):
     diff = grade_corpus_diff(
         db,
         trie,
-        culture_languages=None,
-        genitive_prior=TOWN_PRIOR,
+        config=MatcherConfig(
+            connective_inventory=DEFAULT_CONNECTIVE_INVENTORY,
+            genitive_prior=TOWN_PRIOR,
+        ),
     )
     # Aggregate: coverage strictly up (Grimsworth gained a clean parse).
     assert diff.on.coverage_rate > diff.off.coverage_rate
@@ -320,9 +320,7 @@ def test_grade_passthrough_diff_recovers_constituents(tmp_path):
         db,
         trie,
         passthrough_map=pmap,
-        culture_languages=None,
-        genitive_prior=None,
-        connective_inventory=None,
+        config=MatcherConfig(),
     )
     db.close()
 
@@ -341,9 +339,7 @@ def test_grade_passthrough_diff_irrelevant_map_is_noop(world):
         db,
         trie,
         passthrough_map={"nonexistent-cluster": ("a", "b")},
-        culture_languages=None,
-        genitive_prior=None,
-        connective_inventory=None,
+        config=MatcherConfig(),
     )
     assert not diff.improvements and not diff.regressions
     assert diff.on.mean_recall == diff.off.mean_recall
