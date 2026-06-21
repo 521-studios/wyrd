@@ -17,6 +17,11 @@
   let col1Open = $state(false);
   let col3Open = $state(false);
 
+  // wyrd-f5if: bind:this on each mobile panel so the focus trap can scope its
+  // Tab cycle to the open one.
+  let col1El = $state();
+  let col3El = $state();
+
   // wyrd-14hn round 2 (frontend LOW): viewport tracking lifted to
   // appState.isMobileViewport (App.svelte owns the matchMedia
   // listener). Resize from mobile→desktop still needs to dismiss
@@ -35,17 +40,57 @@
     }
   });
 
+  // wyrd-f5if: focus trap + restore for the open mobile panel. Mirrors the
+  // proven DefectModal pattern (stash activeElement on open, Esc + Tab cycle,
+  // restore on close). The effect re-runs whenever col1Open/col3Open changes,
+  // so triggerBefore is captured per run — a panel swap (a result tapped while
+  // the drawer is up) briefly restores then re-stashes, landing focus in the
+  // foreground panel either way.
   $effect(() => {
     if (!col1Open && !col3Open) return;
+    // Foreground panel the trap scopes to: the sheet (col3) wins when both are
+    // open, since it's the interaction that surfaced it (a tapped result).
+    const trapEl = col3Open ? col3El : col1El;
+    const triggerBefore = document.activeElement;
+
     const onKey = (e) => {
-      if (e.key === 'Escape') closeAll();
+      if (e.key === 'Escape') {
+        closeAll();
+        return;
+      }
+      if (e.key !== 'Tab' || !trapEl) return;
+      const focusables = trapEl.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !trapEl.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || !trapEl.contains(active))) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // Focus the foreground panel's close button so keyboard/AT users land
+    // inside the dialog rather than behind the backdrop.
+    queueMicrotask(() => trapEl?.querySelector('.close-btn')?.focus?.());
+
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
+      if (triggerBefore && typeof triggerBefore.focus === 'function') {
+        try {
+          triggerBefore.focus();
+        } catch {
+          /* opener detached from the DOM */
+        }
+      }
     };
   });
 
@@ -66,6 +111,7 @@
 <div class="layout" class:col1Open class:col3Open>
   <div
     class="col col-1"
+    bind:this={col1El}
     role={appState.isMobileViewport ? 'dialog' : undefined}
     aria-modal={appState.isMobileViewport && col1Open ? 'true' : undefined}
     aria-label={appState.isMobileViewport ? 'Configure' : undefined}
@@ -85,6 +131,7 @@
 
   <div
     class="col col-3"
+    bind:this={col3El}
     role={appState.isMobileViewport ? 'dialog' : undefined}
     aria-modal={appState.isMobileViewport && col3Open ? 'true' : undefined}
     aria-label={appState.isMobileViewport ? 'Inspect and Transform' : undefined}
