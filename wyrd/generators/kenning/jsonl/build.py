@@ -408,19 +408,21 @@ def _insert_etymology_element(
                 f"(toponym_etymology source={source_id})"
             )
         conn.execute(
+            # surface_in_modern is NOT restored from L2 — it is L3-derived by
+            # enrichment.derive_surface_in_modern (wyrd-ujyo) on every rebuild,
+            # so it's left NULL here (like lemma_id / merged_into_id).
             """INSERT INTO toponym_etymology_element
-               (toponym_etymology_id, ordinal, etymon_id, inflection, surface_in_modern, confidence)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+               (toponym_etymology_id, ordinal, etymon_id, inflection, confidence)
+               VALUES (?, ?, ?, ?, ?)""",
             (
                 etymology_id,
                 el["ordinal"],
                 eid,
                 el.get("inflection"),
-                el.get("surface_in_modern"),
-                # wyrd-2n1: per-element confidence flows through the
-                # JSONL alongside inflection / surface_in_modern. Old
-                # JSONL files (pre-2n1) won't carry the field; .get()
-                # returns None which the schema accepts as "no rating".
+                # wyrd-2n1: per-element confidence flows through the JSONL
+                # alongside inflection. Old JSONL files (pre-2n1) won't carry
+                # the field; .get() returns None which the schema accepts as
+                # "no rating".
                 el.get("confidence"),
             ),
         )
@@ -985,8 +987,9 @@ def _etymology_element_fingerprint(row: dict[str, Any]) -> tuple:
     Includes every field that influences the inserted
     ``toponym_etymology`` + ``toponym_etymology_element`` rows:
     toponym ref, ordered element list (ordinal + etymon_ref +
-    inflection + surface_in_modern per element), historical_form,
-    confidence, notes, attested_year, page.
+    inflection per element), historical_form, confidence, notes,
+    attested_year, page. (surface_in_modern is L3-derived, not an L2
+    element field — wyrd-ujyo — so it doesn't participate.)
 
     Lists become tuples so the result is hashable. Element ordering
     is preserved as-is (ordinal IS the order; sorting would change
@@ -997,7 +1000,6 @@ def _etymology_element_fingerprint(row: dict[str, Any]) -> tuple:
             el.get("ordinal"),
             el.get("etymon_ref"),
             el.get("inflection"),
-            el.get("surface_in_modern"),
         )
         # `or []` handles an explicit ``"elements": null`` in JSONL —
         # ``get("elements", [])`` would still return None in that case.

@@ -5071,6 +5071,77 @@ def test_derive_surface_in_modern_two_char_gate(fresh_db: Path) -> None:
     assert set(surfaces.values()) == {None}
 
 
+def test_derive_surface_in_modern_no_suffix_match(fresh_db: Path) -> None:
+    """A binary breakdown IS scanned but its modern suffix matches none of the
+    last morpheme's reflexes → nothing projected (the dominant precision-loss
+    path). 'Bradville' doesn't end in any reflex of 'ford'."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Bradville", first_etymon_id=brad_id, last_etymon_id=ford_id
+        )
+        result = derive_surface_in_modern(db, apply=True)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["rows_scanned"] == 1  # the breakdown was scanned
+    assert result["rows_projected"] == 0  # but no suffix matched
+    assert set(surfaces.values()) == {None}
+
+
+def test_derive_surface_in_modern_skips_multiword_name(fresh_db: Path) -> None:
+    """v1 skips multi-word modern names — the prefix slice would otherwise absorb
+    the leading words ('Stratford upon A')."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        strat_id = db.upsert_etymon("strǣt", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Stratford upon Avon",
+            first_etymon_id=strat_id,
+            last_etymon_id=ford_id,
+        )
+        result = derive_surface_in_modern(db, apply=True)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["multiword_skipped"] == 1
+    assert result["rows_projected"] == 0
+    assert set(surfaces.values()) == {None}
+
+
+def test_derive_surface_in_modern_cli(fresh_db: Path) -> None:
+    """End-to-end CLI: ``lexicon derive-surface-in-modern`` dry-runs by default
+    and writes surface_in_modern with --apply."""
+    runner = CliRunner()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Bradford", first_etymon_id=brad_id, last_etymon_id=ford_id
+        )
+
+    result = runner.invoke(
+        kenning_cli, ["lexicon", "derive-surface-in-modern", "--db", str(fresh_db)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "(dry-run" in result.output
+    with LexiconDB(fresh_db) as db:
+        assert _surfaces_by_ordinal(db) == {0: None, 1: None}
+
+    result = runner.invoke(
+        kenning_cli, ["lexicon", "derive-surface-in-modern", "--db", str(fresh_db), "--apply"]
+    )
+    assert result.exit_code == 0, result.output
+    with LexiconDB(fresh_db) as db:
+        assert _surfaces_by_ordinal(db) == {0: "Brad", 1: "ford"}
+
+
 def test_etymon_era_reflexes_tier4_period_form_fallback(fresh_db: Path) -> None:
     """Tier 4: when both cluster and descent paths return empty AND
     target_family_cell is set, the picker queries etymon_period_form

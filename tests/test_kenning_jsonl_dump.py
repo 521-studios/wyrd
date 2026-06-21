@@ -737,6 +737,38 @@ def test_dump_toponym_and_etymology_elements():
     }
 
 
+def test_dump_omits_l3_derived_surface_in_modern():
+    """wyrd-ujyo: surface_in_modern is L3-derived (derive_surface_in_modern
+    re-derives it on every enrichment), so the dump must NOT carry it — else it
+    goes stale in L2 like lemma_id / merged_into_id. Even when the column is
+    populated in the DB, the dumped element omits the key."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="mawer", title="N&D")
+    cot = _add_etymon(conn, "old-english", "cot")
+    tun = _add_etymon(conn, "old-english", "tun")
+    cur = conn.execute("INSERT INTO toponym (modern_name) VALUES ('Cotton')")
+    tid = cur.lastrowid
+    cur = conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) VALUES (?, 'mawer', 'high')",
+        (tid,),
+    )
+    eid = cur.lastrowid
+    # Populate surface_in_modern on both elements (as the L3 pass would).
+    conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id, surface_in_modern) VALUES (?, 0, ?, 'Cot')",
+        (eid, cot),
+    )
+    conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id, surface_in_modern) VALUES (?, 1, ?, 'ton')",
+        (eid, tun),
+    )
+    rows = dump_source_to_rows(conn, "mawer")
+    el = next(r for r in rows if r["_type"] == "etymology_element")
+    assert all("surface_in_modern" not in e for e in el["elements"])
+
+
 def test_dump_etymology_element_merged_etymon_follows_to_winner(tmp_path: Path):
     """wyrd-q6ro: a toponym etymology element referencing an OCR-cluster loser
     emits the WINNER etymon_ref, matching the winner etymon row, so the element

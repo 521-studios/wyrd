@@ -334,7 +334,7 @@ see the orphan counts in the rebuild summary so unexpected typos
 
 ### Rebuilding L3 from L2
 
-One-shot rebuild — `--with-enrichment` runs the full 8-pass chain
+One-shot rebuild — `--with-enrichment` runs the full enrichment chain
 (wyrd-hidb):
 
 ```bash

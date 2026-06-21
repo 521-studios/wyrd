@@ -350,8 +350,11 @@ def derive_surface_in_modern(
 
     Limits mirror :func:`project_period_forms`: binary breakdowns only,
     last-morpheme suffix-anchoring only, skip ``merged_into_id`` losers, both
-    projected segments ≥2 chars. Deterministic + idempotent — re-runs UPDATE the
-    same surface (the column starts NULL at ingest). Dry-run unless ``apply``.
+    projected segments ≥2 chars. v1 also skips MULTI-WORD modern names
+    ('Stratford upon Avon') — the prefix slice would otherwise absorb the leading
+    words + whitespace; word-aware alignment is out of scope. Deterministic +
+    idempotent — re-runs UPDATE the same surface (the column starts NULL at
+    ingest). Dry-run unless ``apply``.
 
     Progress lines emit to stderr every ``progress_every`` breakdowns scanned
     (CLAUDE.md mining-progress shape; clamps to ≥1). Returns row-counts.
@@ -366,23 +369,27 @@ def derive_surface_in_modern(
     cached_candidates: dict[int, set[str]] = {}
     rows_scanned = 0
     rows_projected = 0
+    multiword_skipped = 0
     updates: list[tuple[str, int, int]] = []  # (surface_in_modern, te_id, ordinal)
 
-    def _progress(final: bool = False) -> None:
+    def _progress(rows_written: int | None = None) -> None:
         elapsed = max(time.monotonic() - started, 1e-6)
-        total = len(breakdowns)
+        written = "" if rows_written is None else f" rows_written={rows_written}"
         print(
-            f"  [{rows_scanned}/{total}]  rows_projected={rows_projected} "
-            f"elements_updated={len(updates)}"
-            f"{f' rows_written={rows_written}' if final else ''} "
+            f"  [{rows_scanned}/{len(breakdowns)}]  rows_projected={rows_projected} "
+            f"elements_updated={len(updates)}{written} "
             f"({elapsed / max(rows_scanned, 1):.4f}s/entry)",
             file=sys.stderr,
             flush=True,
         )
 
-    rows_written = 0
     for modern_name, elements in breakdowns:
         rows_scanned += 1
+        # v1: single-token modern names only — a multi-word name's prefix slice
+        # would absorb the leading words + whitespace (e.g. 'Stratford upon A').
+        if " " in modern_name:
+            multiword_skipped += 1
+            continue
         first, last = elements[0], elements[1]
         if last["etymon_id"] not in cached_candidates:
             cached_candidates[last["etymon_id"]] = _suffix_candidates_for_etymon(
@@ -400,6 +407,7 @@ def derive_surface_in_modern(
         if rows_scanned % progress_every == 0:
             _progress()
 
+    rows_written = 0
     if apply and updates:
         result = db.conn.executemany(
             "UPDATE toponym_etymology_element SET surface_in_modern = ? "
@@ -409,11 +417,12 @@ def derive_surface_in_modern(
         rows_written = result.rowcount
         db.commit()
 
-    _progress(final=True)
+    _progress(rows_written=rows_written)
 
     return {
         "rows_scanned": rows_scanned,
         "rows_projected": rows_projected,
+        "multiword_skipped": multiword_skipped,
         "elements_updated": len(updates),
         "rows_written": rows_written,
         "applied": apply,
