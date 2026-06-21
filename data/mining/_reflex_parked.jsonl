@@ -1,2 +1,6 @@
 {"ref": "old-english:wald", "reason": "ambiguous realization — Walton/Waltham often wealh/weald not wald; needs disambiguation"}
 {"ref": "old-norse:vápnatak", "reason": "administrative hundred-names; no toponym surface realization to ground"}
+{"ref": "old-english:mǣre", "reason": "short ambiguous realizations (mar/mer/more) collide with mere(pool) — uncertain attribution"}
+{"ref": "middle-english:atten", "reason": "realized as a single-letter juncture (atten-ash→Nash); no cleanly groundable surface span"}
+{"ref": "old-english:hȳð", "reason": "messy attributions; only Maidenhead shows a clean 'head' span — defer for review"}
+{"ref": "old-norse:erg", "reason": "short ambiguous realizations (er/ar/ergh); needs careful disambiguation"}
