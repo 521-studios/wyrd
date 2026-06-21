@@ -882,17 +882,36 @@
     {
       "grid": [
         [
-          "Col-",
+          "Al-",
           [
             [
-              "norse",
+              "english",
               [
                 [
-                  "old-norse",
+                  "old-english",
                   [
-                    "Klakk",
-                    "klakkr",
-                    "Col"
+                    "aler",
+                    "alor"
+                  ]
+                ],
+                [
+                  "middle-english",
+                  [
+                    "aldre",
+                    "aldur",
+                    "aldyr",
+                    "aleyre",
+                    "aller",
+                    "alre",
+                    "althir",
+                    "olr"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "owler",
+                    "Al"
                   ]
                 ]
               ]
@@ -942,42 +961,68 @@
               ]
             ]
           ]
+        ],
+        [
+          "Hall",
+          [
+            [
+              "english",
+              [
+                [
+                  "old-english",
+                  [
+                    "heall",
+                    "healla"
+                  ]
+                ],
+                [
+                  "middle-english",
+                  [
+                    "alle",
+                    "hal",
+                    "hall",
+                    "halle",
+                    "haule",
+                    "hawle"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "hail",
+                    "hall",
+                    "hyel",
+                    "whole"
+                  ]
+                ]
+              ]
+            ]
+          ]
         ]
       ],
-      "name": "Klakklea",
-      "name_modern": "Colley",
+      "name": "Alorlea Heall",
+      "name_modern": "Alley Hall",
       "seed": 42
     },
     {
       "grid": [
         [
-          "West",
+          "ar-",
           [
             [
-              "english",
+              "brythonic",
               [
                 [
-                  "old-english",
+                  "welsh",
                   [
-                    "westan",
-                    "westane",
-                    "wēst"
+                    "Ar",
+                    "ar"
                   ]
                 ],
                 [
-                  "middle-english",
+                  "celtic",
                   [
-                    "west",
-                    "westan",
-                    "westen",
-                    "westene"
-                  ]
-                ],
-                [
-                  "modern-english",
-                  [
-                    "west",
-                    "wester"
+                    "aírd"
                   ]
                 ]
               ]
@@ -985,7 +1030,7 @@
           ]
         ],
         [
-          "Stan-",
+          "-ton",
           [
             [
               "english",
@@ -993,22 +1038,20 @@
                 [
                   "old-english",
                   [
-                    "stānig"
+                    "tunne"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "stani",
-                    "stoni",
-                    "stony"
+                    "tonne",
+                    "tunne"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "Stan",
-                    "stony"
+                    "ton"
                   ]
                 ]
               ]
@@ -1016,7 +1059,7 @@
           ]
         ],
         [
-          "-es",
+          "end",
           [
             [
               "english",
@@ -1024,14 +1067,37 @@
                 [
                   "old-english",
                   [
-                    "-es",
-                    "æs"
+                    "end",
+                    "ende"
+                  ]
+                ],
+                [
+                  "middle-english",
+                  [
+                    "-ant",
+                    "-ing",
+                    "-inge",
+                    "-ingge",
+                    "-nd",
+                    "-yng",
+                    "-ynge",
+                    "-yngge",
+                    "eend",
+                    "eende",
+                    "eynde",
+                    "hende",
+                    "yende",
+                    "ynde",
+                    "ȝend",
+                    "ȝende",
+                    "ȝynd",
+                    "ȝynde"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "es"
+                    "end"
                   ]
                 ]
               ]
@@ -1039,14 +1105,14 @@
           ]
         ]
       ],
-      "name": "West Stāniges",
-      "name_modern": "West Stanes",
+      "name": "Aírdton End",
+      "name_modern": "Arton End",
       "seed": 1337
     },
     {
       "grid": [
         [
-          "Ston-",
+          "St",
           [
             [
               "english",
@@ -1054,36 +1120,19 @@
                 [
                   "old-english",
                   [
-                    "stanian",
-                    "stān",
-                    "stōhnēs"
+                    "seynte"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "stan",
-                    "stane",
-                    "stanen",
-                    "steinen",
-                    "steynen",
-                    "stoan",
-                    "ston",
-                    "stone",
-                    "stoon",
-                    "stoone"
+                    "seinte"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "stain",
-                    "steen",
-                    "stein",
-                    "sten",
-                    "stone",
-                    "stonen",
-                    "Ston"
+                    "St"
                   ]
                 ]
               ]
@@ -1091,7 +1140,7 @@
           ]
         ],
         [
-          "-ing-",
+          "thorn-",
           [
             [
               "english",
@@ -1099,14 +1148,29 @@
                 [
                   "old-english",
                   [
-                    "-ing",
-                    "-ingahām"
+                    "ᚦᚩᚱᚾ",
+                    "ðōhrhnēhn",
+                    "ðōhrhnēs",
+                    "þorn",
+                    "þōhrhn",
+                    "þōhrhnēhn"
+                  ]
+                ],
+                [
+                  "middle-english",
+                  [
+                    "thorn",
+                    "thorne",
+                    "thornen",
+                    "thron",
+                    "thurne"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "ing"
+                    "thorn",
+                    "thornen"
                   ]
                 ]
               ]
@@ -1143,8 +1207,8 @@
           ]
         ]
       ],
-      "name": "Stonington",
-      "name_modern": "Stonington",
+      "name": "Seynte Thornton",
+      "name_modern": "St Thornton",
       "seed": 8502015221875428
     },
     {
@@ -1461,7 +1525,7 @@
     {
       "grid": [
         [
-          "Old",
+          "Long-",
           [
             [
               "english",
@@ -1469,42 +1533,28 @@
                 [
                   "old-english",
                   [
-                    "eald",
-                    "eld",
-                    "eold",
-                    "æld"
+                    "lang",
+                    "langian"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "ald",
-                    "awlde",
-                    "eald",
-                    "eeld",
-                    "eelde",
-                    "eild",
-                    "eld",
-                    "elde",
-                    "færeld",
-                    "holde",
-                    "olde",
-                    "oold",
-                    "wolde",
-                    "yalde",
-                    "yealde",
-                    "yhold",
-                    "yolde",
-                    "yolle"
+                    "belangen",
+                    "belongen",
+                    "lang",
+                    "lange",
+                    "langen",
+                    "long",
+                    "longe",
+                    "longen"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "alt",
-                    "eld",
-                    "old",
-                    "yule"
+                    "belong",
+                    "Long"
                   ]
                 ]
               ]
@@ -1512,34 +1562,28 @@
           ]
         ],
         [
-          "tre-",
+          "-ling-",
           [
             [
-              "english",
+              "goidelic",
               [
                 [
-                  "old-english",
+                  "old-irish",
                   [
-                    "treowen",
-                    "triewen",
-                    "trēo",
-                    "trēēhn"
+                    "lingid"
                   ]
                 ],
                 [
-                  "middle-english",
+                  "middle-irish",
                   [
-                    "tre",
-                    "treen",
-                    "trew"
+                    "lingid",
+                    "léimmid"
                   ]
                 ],
                 [
-                  "modern-english",
+                  "irish",
                   [
-                    "tree",
-                    "treen",
-                    "tre"
+                    "ling"
                   ]
                 ]
               ]
@@ -1594,14 +1638,14 @@
           ]
         ]
       ],
-      "name": "Eald Treburg",
-      "name_modern": "Old Trebury",
+      "name": "Longlingburg",
+      "name_modern": "Longlingbury",
       "seed": 31415
     },
     {
       "grid": [
         [
-          "wood-",
+          "west",
           [
             [
               "english",
@@ -1609,14 +1653,60 @@
                 [
                   "old-english",
                   [
-                    "wudig"
+                    "westan",
+                    "westane",
+                    "wēst"
+                  ]
+                ],
+                [
+                  "middle-english",
+                  [
+                    "west",
+                    "westan",
+                    "westen",
+                    "westene"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "Wood",
-                    "wood"
+                    "west",
+                    "wester"
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          "tre-",
+          [
+            [
+              "english",
+              [
+                [
+                  "old-english",
+                  [
+                    "treowen",
+                    "triewen",
+                    "trēo",
+                    "trēēhn"
+                  ]
+                ],
+                [
+                  "middle-english",
+                  [
+                    "tre",
+                    "treen",
+                    "trew"
+                  ]
+                ],
+                [
+                  "modern-english",
+                  [
+                    "tree",
+                    "treen",
+                    "tre"
                   ]
                 ]
               ]
@@ -1632,29 +1722,20 @@
                 [
                   "old-english",
                   [
-                    "town",
-                    "tūn"
+                    "tunne"
                   ]
                 ],
                 [
                   "middle-english",
                   [
-                    "-ton",
-                    "toun",
-                    "town",
-                    "towne",
-                    "tun",
-                    "tune"
+                    "tonne",
+                    "tunne"
                   ]
                 ],
                 [
                   "modern-english",
                   [
-                    "-ton",
-                    "toun",
-                    "toune",
-                    "town",
-                    "towne"
+                    "ton"
                   ]
                 ]
               ]
@@ -1662,8 +1743,8 @@
           ]
         ]
       ],
-      "name": "Wudigtūn",
-      "name_modern": "Woodton",
+      "name": "West Treton",
+      "name_modern": "West Treton",
       "seed": 271828
     }
   ],
