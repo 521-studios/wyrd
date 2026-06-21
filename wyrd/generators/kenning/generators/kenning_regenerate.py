@@ -395,7 +395,7 @@ def _parse_knobs(params: dict[str, Any]) -> dict[str, Any]:
         moods = [moods]
     include_fiction = _coerce_bool(params.get("include_fiction", False))
     # Lazy import (the wyrd.generators.kenning.__init__ cycle; same reason as the
-    # _resolve_vector_inputs import below).
+    # function-local _resolve_vector_inputs import in generate_all above).
     from wyrd.generators.kenning.generators.kenning import _request_era_midpoint
 
     # D46: the resolved era range's END is the record-entry cutoff (a

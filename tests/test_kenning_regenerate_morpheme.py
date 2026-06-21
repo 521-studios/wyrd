@@ -389,32 +389,48 @@ def test_bounded_era_regeneration_draws_from_the_record(english_roll):
 def test_era_midpoint_threaded_into_slot_weighted_pool(english_roll, monkeypatch):
     """wyrd-951i: the single-slot re-roll threads the priors-baseline era_midpoint
     into _slot_weighted_pool (the same cell the main path leans toward, wyrd-3tvd)
-    — a bounded era → its midpoint; no era → the wildcard 0. Spies on the kwarg
-    the way test_bucket_key_miss does."""
+    — a bounded era → its midpoint; no era / present-day → the wildcard 0. Covers
+    BOTH the keyed pool and the bucket-miss fallback. Spies on the kwarg the way
+    test_bucket_key_miss does."""
     from wyrd.generators.kenning import _resolve_era_param
     from wyrd.generators.kenning.generators.kenning import _request_era_midpoint
 
-    captured: list[int | None] = []
+    captured: list[tuple[bool, int | None]] = []  # (is_fallback, era_midpoint)
     real = vector_name_select._slot_weighted_pool
+    force_miss = {"on": False}
 
     def spy(*args, **kwargs):
-        captured.append(kwargs.get("era_midpoint"))
+        is_fallback = kwargs.get("slot_bucket_key") is None
+        captured.append((is_fallback, kwargs.get("era_midpoint")))
+        # Force the bucket-key miss so the fallback _slot_weighted_pool call fires.
+        if force_miss["on"] and not is_fallback:
+            return []
         return real(*args, **kwargs)
 
     monkeypatch.setattr(vector_name_select, "_slot_weighted_pool", spy)
     words = english_roll.morphemes_by_word
 
-    # Bounded era 'me' (Middle English, (1100, 1500)) → midpoint 1300.
+    # Bounded era 'me' (Middle English, (1100, 1500)) → midpoint 1300, keyed path.
     expected = _request_era_midpoint(_resolve_era_param("me", "english"))
     assert expected == 1300
     captured.clear()
     _regen(words, 0, 0, seed=7, culture="english", era="me")
-    assert captured and all(m == expected for m in captured)
+    assert captured and all(mp == expected for _, mp in captured)
 
-    # No era → the wildcard 0 (unchanged baseline behavior).
+    # Forced bucket miss → both the keyed call AND the fallback thread era_midpoint.
     captured.clear()
-    _regen(words, 0, 0, seed=7, culture="english")
-    assert captured and all(m == 0 for m in captured)
+    force_miss["on"] = True
+    _regen(words, 0, 0, seed=7, culture="english", era="me")
+    force_miss["on"] = False
+    assert any(is_fb for is_fb, _ in captured)  # the fallback actually fired
+    assert all(mp == expected for _, mp in captured)  # both call sites threaded
+
+    # No era AND the deployed default present-day → 0 (reached via different
+    # _request_era_midpoint branches: era_range is None vs end is None).
+    for era_params in ({}, {"era": "present-day"}):
+        captured.clear()
+        _regen(words, 0, 0, seed=7, culture="english", **era_params)
+        assert captured and all(mp == 0 for _, mp in captured)
 
 
 def test_bad_era_raises_value_error(english_roll):
