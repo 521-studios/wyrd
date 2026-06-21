@@ -99,6 +99,36 @@ def test_detect_member_level_disjoint_sense_intruder(tmp_path):
     assert "old-english:-ingas" not in refs
 
 
+def test_detect_disjoint_intruder_despite_mixed_gloss_on_anchor(tmp_path):
+    """wyrd-uumc: the real -ing blob — the ANCHOR carries a MIXED gloss
+    ('patronymic descendants; or water-meadow') whose tokens span BOTH senses.
+    Pre-fix, the gloss-token union-find unioned the anchor's combined tokens with
+    both the patronymic members AND the topographic intruder → ONE component →
+    not flagged disjoint → 'ing' (water-meadow) silently survived on -ing.
+    Splitting the gloss on ';'/'or' into sub-senses lets the mixed anchor vote for
+    each cluster WITHOUT bridging them, so the topographic intruder is flagged."""
+    conn = _conn(tmp_path / "lex.db")
+    # Anchor with a conflated mixed gloss (the bridging gloss) + a clean one.
+    _ety(
+        conn,
+        1,
+        "-ing",
+        ["patronymic descendants; or water-meadow", "patronymic suffix"],
+        lang="old-english",
+    )
+    # Patronymic core (dominant: more members) — must NOT be flagged.
+    _ety(conn, 2, "-ingas", ["patronymic descendants people"], lang="old-english", merged_into=1)
+    _ety(conn, 4, "-ung", ["patronymic descendants"], lang="old-english", merged_into=1)
+    # Pure topographic intruder — the one to revert off -ing.
+    _ety(conn, 3, "ing", ["water-meadow grassland"], lang="old-english", merged_into=1)
+    cands = detect_merge_audit_candidates(conn, {}, scope="anchors")
+    refs = {c.member_ref for c in cands}
+    assert "old-english:ing" in refs  # topographic intruder flagged despite the mixed anchor
+    assert "old-english:-ingas" not in refs  # patronymic core spared
+    assert "old-english:-ung" not in refs
+    assert "old-english:-ing" not in refs  # the mixed anchor itself is never an intruder
+
+
 def test_detect_lemma_link_provenance(tmp_path):
     """A disjoint intruder reached via lemma_id (not merged_into) is lemma-link
     provenance."""
