@@ -24,10 +24,39 @@ standalone single-word subjects.
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+
+
+def _fold_to_modern_surface(form: str) -> str:
+    """Strip macrons/accents + proto ``*`` from a reflex-less family's canonical
+    form so the synthesized fallback ``modern_usage`` is a clean surface instead of
+    a macron/proto leak (wyrd-f233): ``tūn``→``tun``, ``*beuganą``→``beugana``.
+    Drops ``*`` markers (always matcher-safe), then NFD-strips combining marks.
+    Case-preserving; does NOT touch dashes (position decoration is separate, D45).
+
+    Self-verifies against the runtime matcher fold (``fold_surface``): the cleaned
+    surface is adopted ONLY when it folds to the SAME key as the raw form, else the
+    raw form is kept. Without this, stripping could make the synthesized surface
+    bind to a DIFFERENT reflex cell than its canonical — the matcher fold is itself
+    quirky (it drops ``ǣ`` but expands plain ``æ``→ae, drops ``ø``), so e.g.
+    stripping ``ǣ``'s macron → ``æ`` folds to ``ae`` while the raw ``ǣ`` folds away.
+    ~47/1737 admits keep their raw form for this reason; the rest clean safely. This
+    guarantees matching is provably unchanged (the wyrd-mook self-binding class).
+    OE/ON letters are deliberately NOT ASCII-mapped here — that needs the matcher
+    fold aligned too (wyrd-7fs2)."""
+    # Function-level import: genitive_priors → lexicon/__init__ (LexiconDB) would
+    # cycle with this leaf module's load via lexicon/__init__ → bundle._emit.
+    from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
+
+    base = form.replace("*", "")  # proto markers — matcher drops these anyway
+    candidate = unicodedata.normalize("NFD", base)
+    candidate = "".join(ch for ch in candidate if not unicodedata.combining(ch))
+    return candidate if fold_surface(candidate) == fold_surface(base) else base
+
 
 _LANG_CODE_TO_JSON_FIELD = {
     "old-english": "old_english",
@@ -262,7 +291,10 @@ def _synthesize_modern_usage(family: dict[str, Any]) -> str:
     location via Meaning._set_location — wyrd-vpri; valid at any
     single-token position, distinct from a 'post' suffix).
     """
-    form = family["root_canonical_form"]
+    # wyrd-f233: a reflex-less family has no clean modern surface, so the canonical
+    # form (which may carry macrons / a proto ``*``) was leaking verbatim into the
+    # matcher key + rendered output. Fold it to a clean ASCII surface.
+    form = _fold_to_modern_surface(family["root_canonical_form"])
     position = family.get("position_pref")
     if position == "pre":
         return f"{form}-"
