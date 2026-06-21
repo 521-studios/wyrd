@@ -32,6 +32,7 @@
   } from '../lib/era.js';
   import { showModernCompanion } from '../lib/render.js';
   import { flagOn } from '../lib/featureFlags.js';
+  import { rewindTransform } from '../lib/transforms/rewind.js';
   import NameGuideCard from '../components/NameGuideCard.svelte';
   import MorphemeGrid from '../components/MorphemeGrid.svelte';
   import TransformStep from '../components/TransformStep.svelte';
@@ -198,6 +199,19 @@
   // an untouched modern roll. Logic lives in eraBadge (lib/era.js, unit-tested).
   let eraLabel = $derived(eraBadge(displayState?.morphemes_by_word, languageLabel));
 
+  // wyrd-410t: time-warp button bar (Section 2). The stages ARE the set Rewind
+  // exposes (oe-late / me / modern — the wyrd-lftl distinct-language-stage
+  // granularity the grid columns use); derived from the transform so the two
+  // never drift. Each option carries a first-class `short` (the bare stage name)
+  // for the button text + the full `label` (with date range) for the tooltip.
+  // Flag-gated behind 'rewind' (wyrd-nwpa) — see the Section 2 markup comment.
+  let rewindEnabled = $derived(flagOn(appState.config, 'rewind'));
+  const rewindStages = rewindTransform.paramSchema.era.options.map((o) => ({
+    value: o.value,
+    label: o.label,
+    short: o.short ?? o.label,
+  }));
+
   // Paragon: the MODERN companion of the as-generated name, pinned to the
   // ORIGINAL (unaffected by swaps). wyrd-24s6 (D41): the backend now renders
   // BOTH surfaces, so `result_modern` is the true modern reflex — used directly,
@@ -250,6 +264,32 @@
         {/if}
       </div>
     </header>
+
+    <!-- wyrd-410t: Section 2 — time-warp button bar. One button per era stage;
+         pressing a stage rewinds EVERY morpheme to that era (closest-it-can,
+         handled server-side) as a SINGLE rewind step at the front of the
+         pipeline, so it's the global era FLOOR. Pressing the active stage
+         clears it (back to as-generated). Per-slot grid swaps (Section 3) layer
+         on top and win, which is what surfaces the "Mixed" badge on the active
+         card above. Flag-gated (rewind); not rendered in prod until wyrd-k2gn.
+         This is NOT the transform-stack palette — that stays out of col 3. -->
+    {#if rewindEnabled}
+      <div class="time-warp" role="group" aria-label="Time-warp: render every morpheme at an era">
+        <span class="time-warp-label">Time-warp</span>
+        {#each rewindStages as stage (stage.value)}
+          <button
+            type="button"
+            class="warp-stage"
+            class:active={pipeline.rewindEra === stage.value}
+            aria-pressed={pipeline.rewindEra === stage.value}
+            onclick={() => pipeline.setRewind(stage.value)}
+            title={pipeline.rewindEra === stage.value
+              ? `${stage.label} — click to clear`
+              : stage.label}
+          >{stage.short}</button>
+        {/each}
+      </div>
+    {/if}
 
     <section class="morphemes" bind:this={morphemesEl}>
       <h4 class="section-head">Morphemes ({allMorphemes.length})</h4>
@@ -399,6 +439,47 @@
     font-size: 14px;
     color: var(--fg-muted);
     margin-left: 4px;
+  }
+  /* wyrd-410t: time-warp button bar — a compact horizontal stage group. */
+  .time-warp {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0;
+  }
+  .time-warp-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 2px;
+  }
+  .warp-stage {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .warp-stage:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .warp-stage:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .warp-stage.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
   }
   .section-head {
     font-size: 11px;

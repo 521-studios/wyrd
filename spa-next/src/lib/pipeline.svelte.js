@@ -91,16 +91,17 @@ class PipelineState {
    *  / to). The palette path doesn't pass overrides and gets the
    *  transform's defaultParams. */
   addStep(kind, paramOverrides = {}) {
+    this.steps = [...this.steps, this.#makeStep(kind, paramOverrides)];
+  }
+
+  /** Build a fresh step ({id, kind, params}) with a unique id, merging the
+   *  transform's defaultParams under `paramOverrides`. The single place the
+   *  step shape + id allocation live; callers splice it in wherever they need
+   *  (append for addStep, front for setRewind). */
+  #makeStep(kind, paramOverrides = {}) {
     const t = getTransform(kind);
     this.#nextStepId += 1;
-    this.steps = [
-      ...this.steps,
-      {
-        id: this.#nextStepId,
-        kind,
-        params: { ...t.defaultParams, ...paramOverrides },
-      },
-    ];
+    return { id: this.#nextStepId, kind, params: { ...t.defaultParams, ...paramOverrides } };
   }
 
   #nextStepId = 0;
@@ -205,6 +206,37 @@ class PipelineState {
         },
       ];
     }
+  }
+
+  /** Direct-manipulation time-warp (wyrd-410t): maintain AT MOST ONE rewind
+   *  step, kept at the FRONT of the pipeline so it acts as the global era
+   *  FLOOR. Per-slot swaps (added later, indexing the post-rewind cards per
+   *  swap.js's documented "Rewind before Swap" ordering) then layer on top and
+   *  WIN — which is what blends eras into the active card's "Mixed (…)" badge.
+   *
+   *  Pressing a stage: no rewind step → add one at the front; a rewind step at
+   *  a DIFFERENT era → update its era in place; the ACTIVE era (rewind already
+   *  at that era) → remove it, the "back to as-generated" affordance. */
+  setRewind(era) {
+    const idx = this.steps.findIndex((s) => s.kind === 'rewind');
+    if (idx !== -1) {
+      if (this.steps[idx].params.era === era) {
+        this.removeStep(idx); // press the active stage → clear
+        return;
+      }
+      const next = [...this.steps];
+      next[idx] = { ...next[idx], params: { ...next[idx].params, era } };
+      this.steps = next; // switch era in place
+      return;
+    }
+    // New rewind step at the FRONT — addStep appends, so splice via #makeStep.
+    this.steps = [this.#makeStep('rewind', { era }), ...this.steps];
+  }
+
+  /** The era of the single rewind step (null if none) — drives the time-warp
+   *  bar's active-stage highlight. */
+  get rewindEra() {
+    return this.steps.find((s) => s.kind === 'rewind')?.params.era ?? null;
   }
 
   /** Replace step at index i with a new params object (callers

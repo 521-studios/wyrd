@@ -37,10 +37,13 @@ export const rewindTransform = {
     era: {
       label: 'Era',
       type: 'select',
+      // `short` is the bare stage name for compact UIs (the wyrd-410t time-warp
+      // bar); `label` keeps the date range for the palette select + tooltips.
+      // First-class so consumers don't regex-parse the label back apart.
       options: [
-        { value: 'oe-late', label: 'Old English (late, 800–1100)' },
-        { value: 'me', label: 'Middle English (1100–1500)' },
-        { value: 'modern', label: 'Modern (1700–)' },
+        { value: 'oe-late', label: 'Old English (late, 800–1100)', short: 'Old English' },
+        { value: 'me', label: 'Middle English (1100–1500)', short: 'Middle English' },
+        { value: 'modern', label: 'Modern (1700–)', short: 'Modern' },
       ],
     },
   },
