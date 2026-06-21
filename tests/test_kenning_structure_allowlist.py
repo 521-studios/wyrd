@@ -339,10 +339,19 @@ def test_committed_structures_yaml_in_sync_with_bundle():
     review the +new/-dropped on stderr, and commit. (The auto-regen hook that
     makes this automatic on `export-runtime-db --dev` is the remaining half of
     wyrd-x7w4.)"""
+    import os
     from importlib import resources
 
     from wyrd.generators.kenning.cli.dump_structures import _build, _read_merge_base, _render
     from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+
+    # The committed structures.yaml is derived from the committed SEED bundle. When
+    # WYRD_RUNTIME_DB[_BUCKET] redirects get_runtime_db to a full-corpus L4, the
+    # comparison is apples-to-oranges (more structures) → spurious failure; skip,
+    # mirroring the inverse guard in the full-corpus-only sibling tests. CI sets
+    # neither var, so the guard always runs there (its enforcement target).
+    if os.environ.get("WYRD_RUNTIME_DB") or os.environ.get("WYRD_RUNTIME_DB_BUCKET"):
+        pytest.skip("drift-guard needs the committed seed bundle; WYRD_RUNTIME_DB[_BUCKET] is set")
 
     committed = (
         resources.files("wyrd.generators.kenning.data")
