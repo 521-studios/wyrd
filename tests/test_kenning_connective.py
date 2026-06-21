@@ -6,8 +6,19 @@ from wyrd.generators.kenning.runtime.connective import (
     DEFAULT_CONNECTIVE_INVENTORY,
     GENITIVE,
     Connective,
+    ConnectiveKind,
     is_connective,
 )
+
+
+def test_connective_kind_is_a_strenum_equal_to_its_value():
+    # wyrd-buye: the closed-set kind is a StrEnum, so the module-level aliases
+    # ARE its members and a member == its str value — keeping every existing
+    # `kind == GENITIVE` / `kind == "genitive"` comparison valid.
+    assert GENITIVE is ConnectiveKind.GENITIVE
+    assert ConnectiveKind.GENITIVE == "genitive"
+    assert Connective("s", GENITIVE).kind == "genitive"
+    assert isinstance(Connective("s", GENITIVE).kind, ConnectiveKind)
 
 
 def test_connective_renders_its_surface():
@@ -32,4 +43,4 @@ def test_is_connective_discriminates_the_three_kinds():
 
 
 def test_default_inventory_is_the_genitive_s():
-    assert DEFAULT_CONNECTIVE_INVENTORY == (("s", GENITIVE),)
+    assert list(DEFAULT_CONNECTIVE_INVENTORY) == [Connective("s", GENITIVE)]
