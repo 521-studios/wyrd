@@ -244,7 +244,8 @@ def test_mine_to_jsonl_merges_by_default_overwrite_replaces(tmp_path):
     _census_db(census_path).close()
     _grounding_db(db_path).close()
     out = str(tmp_path / "_element_glosses.jsonl")
-    # Seed an accumulated row the census will NOT re-derive.
+    # Seed (a) a row the census will NOT re-derive and (b) a CONFLICTING row for a
+    # surface the census DOES re-derive (-ick, suffix) carrying a sentinel gloss.
     write_jsonl(
         [
             {
@@ -252,15 +253,24 @@ def test_mine_to_jsonl_merges_by_default_overwrite_replaces(tmp_path):
                 "position": "suffix",
                 "is_element": True,
                 "candidates": [{"form": "zzz"}],
-            }
+            },
+            {
+                "surface": "-ick",
+                "position": "suffix",
+                "is_element": True,
+                "candidates": [{"form": "SENTINEL"}],
+            },
         ],
         out,
     )
 
     merged = mine_to_jsonl(census_path, db_path, out)  # default merge
     assert merged.overwritten is False
-    assert "-zzz" in {r["surface"] for r in merged.written}  # NOT dropped (the fix)
-    assert merged.existing_kept >= 1
+    by_key = {(r["surface"], r["position"]): r for r in merged.written}
+    assert ("-zzz", "suffix") in by_key  # census-absent surface NOT dropped (the fix)
+    # Conflict on a re-derived surface: the established gloss survives end-to-end.
+    assert by_key[("-ick", "suffix")]["candidates"][0]["form"] == "SENTINEL"
+    assert merged.existing_kept >= 2  # both seeded rows kept
 
     replaced = mine_to_jsonl(census_path, db_path, out, overwrite=True)  # escape hatch
     assert replaced.overwritten is True

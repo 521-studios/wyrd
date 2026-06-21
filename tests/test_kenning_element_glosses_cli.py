@@ -58,6 +58,30 @@ def test_mine_element_glosses_summary_counts(tmp_path: Path, monkeypatch) -> Non
     assert "merged into" in result.output and "added 3 new" in result.output
 
 
+def test_mine_element_glosses_overwrite_flag_forwarded(tmp_path: Path, monkeypatch) -> None:
+    """The --overwrite flag is forwarded to mine_to_jsonl and the summary reports
+    the destructive 'overwrote' branch (wyrd-5f5w)."""
+    captured: dict = {}
+
+    def _stub(*a, **k):
+        captured["overwrite"] = k.get("overwrite")
+        return eg.ElementGlossMineResult(
+            rows=[], written=[], existing_kept=0, new_added=0, overwritten=k.get("overwrite", False)
+        )
+
+    monkeypatch.setattr(eg, "mine_to_jsonl", _stub)
+    census = _touch(tmp_path / "census.db")
+    db = _touch(tmp_path / "lex.db")
+    out = tmp_path / "_element_glosses.jsonl"
+    result = CliRunner().invoke(
+        lexicon_mine_element_glosses,
+        ["--census", str(census), "--db", str(db), "--output", str(out), "--overwrite"],
+    )
+    assert result.exit_code == 0, result.output
+    assert captured["overwrite"] is True  # flag forwarded
+    assert "overwrote" in result.output  # destructive-branch verb
+
+
 @pytest.fixture
 def _stub_adjudicate(monkeypatch):
     """Stub the DB-touching backfill helpers + the Ollama transport. Returns a

@@ -412,21 +412,21 @@ def _merge_into_ledger(
     only appends genuinely-new ``(surface, position)`` keys.
 
     Returns ``(merged_rows, new_added)`` with existing rows first (order
-    preserved) and new surfaces appended (so the write is diff-stable). When the
-    ledger doesn't exist yet, returns ``(new_rows, len(new_rows))``.
+    preserved) and new surfaces appended (so the write is diff-stable). New rows
+    are also deduplicated against each other by key, so a fresh ledger (no file
+    yet) still collapses any internal ``(surface, position)`` duplicates.
     """
-    if not os.path.exists(path):
-        return list(new_rows), len(new_rows)
     merged: list[dict[str, Any]] = []
     seen: set[tuple[Any, Any]] = set()
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            row = json.loads(line)
-            merged.append(row)
-            seen.add(_row_key(row))
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                merged.append(row)
+                seen.add(_row_key(row))
     new_added = 0
     for row in new_rows:
         if _row_key(row) not in seen:
