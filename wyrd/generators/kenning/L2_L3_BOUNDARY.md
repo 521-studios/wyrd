@@ -176,6 +176,7 @@ Listed in `run_full_enrichment` execution order:
 | `apply-collapses` | folds form-of/variant etymons into their lemma (`merged_into_id` + `etymon_variant`); replays `_collapses.jsonl` | `collapse` ledger (wyrd-y651) | ✅ wyrd-hidb |
 | `apply-element-glosses` | INSERT OR IGNOREs `reflex_etymon` links for unglossed surfaces; replays `_element_glosses.jsonl` | `grounded-consensus-v1` | ✅ wyrd-u9k6 |
 | `apply-tag-additions` | INSERT OR IGNOREs `etymon_tag` rows from the LLM tag backfill (`data/mining/_tags.jsonl`, gemma4:26b → controlled vocab) | `llm-tags-v1` | ✅ wyrd-xz3g |
+| `flatten-merge-chains` | re-points `merged_into_id` to its terminal winner (collapses curated multi-hop chains, D22); conditional — runs only when a curation slot ran | n/a (normalization) | ✅ wyrd-lpxq |
 | `decompose` | (`toponym_decomposition` table) | matcher rules | ✅ wyrd-hidb |
 | `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v2` | ✅ wyrd-hidb |
 | `classify-stratum` | `stratum` | hardcoded heuristics | ✅ wyrd-hidb |
@@ -185,13 +186,16 @@ Listed in `run_full_enrichment` execution order:
 | `project-period-forms` | (`etymon_period_form` table) | hardcoded rules | ✅ wyrd-hidb |
 | `project-canonical` | `canonical_*` tables + `canonical_*_id` binds (from the L2 assertion streams) | deterministic projection | ✅ wyrd-u6fn.3 |
 
-All seventeen passes run via `run_full_enrichment` in the canonical order
-above. The first sixteen run for both `lexicon enrich` and `lexicon
-rebuild-from-jsonl --with-enrichment`; `project-canonical` is the terminal pass
-and runs **only when a `canonicalization_dir` is supplied** — which
-`rebuild-from-jsonl` passes (`data/mining`) but bare `lexicon enrich` does not,
-so the wipe-and-rebuild path is covered while a plain enrich leaves the canonical
-graph untouched.
+These passes run via `run_full_enrichment` in the canonical order above. The
+unconditional core (`normalize-ocr` … `project-period-forms`, excluding the two
+conditional passes below) runs for both `lexicon enrich` and `lexicon
+rebuild-from-jsonl --with-enrichment`. Two passes are **conditional**:
+`flatten-merge-chains` (wyrd-lpxq) runs only when a curation slot ran (curation is
+the only pass that can build a `merged_into_id` chain), and `project-canonical` is
+the terminal pass that runs **only when a `canonicalization_dir` is supplied** —
+which `rebuild-from-jsonl` passes (`data/mining`) but bare `lexicon enrich` does
+not, so the wipe-and-rebuild path is covered while a plain enrich leaves the
+canonical graph untouched.
 The curation-slot appliers (curation / gloss-suppressions / gloss-additions /
 etymon-splits / collapses / element-glosses / tag-additions) run AFTER
 auto-curation and BEFORE the L3 derivations so the derivations see the

@@ -91,6 +91,37 @@ from .log import write_jsonl
 
 _logger = logging.getLogger(__name__)
 
+
+class MergeChainError(RuntimeError):
+    """The lexicon has an un-flattened multi-hop ``merged_into_id`` chain (or
+    cycle): a tombstone whose ``merged_into_id`` points at another tombstone.
+    The dump's follow-to-winner is single-hop, so dumping such a DB would emit a
+    mid-chain tombstone that resurrects as a live unmerged etymon on rebuild
+    (D22). Re-run enrichment (``flatten_merge_chains``) to flatten before dumping
+    (wyrd-lpxq)."""
+
+
+def assert_merge_chains_flat(conn: sqlite3.Connection) -> None:
+    """Fail loud (read-only) if any ``etymon.merged_into_id`` chain is longer
+    than one hop — a tombstone pointing at another tombstone (multi-hop chain or
+    cycle). The dump follows winners single-hop and assumes ``merged_into_id``
+    names a TERMINAL winner; enrichment's ``flatten_merge_chains`` establishes
+    that on every rebuild, but the standalone read-only ``dump-jsonl`` CLI can't
+    enrich, so it verifies the invariant here rather than silently producing a
+    non-reconstructible dump (wyrd-lpxq)."""
+    row = conn.execute(
+        "SELECT loser.id AS loser, mid.id AS mid "
+        "FROM etymon loser JOIN etymon mid ON mid.id = loser.merged_into_id "
+        "WHERE mid.merged_into_id IS NOT NULL LIMIT 1"
+    ).fetchone()
+    if row is not None:
+        raise MergeChainError(
+            f"etymon {row['loser']} merges into tombstone {row['mid']} "
+            "(un-flattened merge chain); run enrichment to flatten merged_into_id "
+            "to terminal winners before dumping — wyrd-lpxq."
+        )
+
+
 # Etymon columns that are L2-attributable facts. Order is significant
 # only for diff stability — the kernel doesn't care about field order.
 _ETYMON_L2_COLUMNS: tuple[str, ...] = (
@@ -206,11 +237,17 @@ def _dump_cited_etymons(conn: sqlite3.Connection, source_id: str) -> Iterable[di
     loser dumps the winner, never the tombstone. ``build_from_jsonl`` does
     not carry ``merged_into_id`` (absent from ``_ETYMON_INSERT_COLUMNS``),
     so emitting a loser would resurrect it as a live unmerged etymon on
-    rebuild (D22: no merged etymon resurfaces). This resolves a SINGLE merge
-    hop — it assumes ``merged_into_id`` points at a terminal (unmerged) winner,
-    which holds for the OCR auto-collapse path but not for curated multi-hop
-    chains (``loser → mid → winner``); wyrd-lpxq tracks chain-flattening across
-    all dump paths. Latent until a cited etymon becomes a merge loser (wyrd-q6ro)."""
+    rebuild (D22: no merged etymon resurfaces).
+
+    The single-hop COALESCE assumes ``merged_into_id`` names a TERMINAL
+    (unmerged) winner. That holds because (a) the OCR/collapse/bridge writers
+    resolve merge targets to live etymons and self-flatten, and (b) the curated
+    path's multi-hop chains (``loser → mid → winner``) are flattened by
+    ``enrichment.flatten_merge_chains`` on every enrichment. The read-only
+    ``dump-jsonl`` CLI can't enrich, so it VERIFIES this fail-loud via
+    ``assert_merge_chains_flat`` rather than silently emitting a mid-tombstone
+    (wyrd-lpxq). Latent-bug origin: a cited etymon becoming a merge loser
+    (wyrd-q6ro)."""
     etymons = conn.execute(
         f"""
         SELECT DISTINCT {", ".join(_ETYMON_STATE_SELECT_COLUMNS)}
@@ -246,8 +283,9 @@ def _dump_citations(conn: sqlite3.Connection, source_id: str) -> Iterable[dict[s
     # non-destructive), so without this follow-to-winner a re-dump after a
     # merge would emit a citation referencing the loser — which no etymon row
     # carries post-fix, orphaning the witness on rebuild (D21 evidence loss).
-    # Single merge hop only — assumes merged_into_id points at a terminal
-    # winner (wyrd-lpxq tracks multi-hop curated chains). wyrd-q6ro.
+    # Single-hop COALESCE — relies on the terminal-winner invariant (enrichment
+    # flattens; dump-jsonl asserts it fail-loud); see _dump_cited_etymons /
+    # wyrd-lpxq. wyrd-q6ro.
     citations = conn.execute(
         """
         SELECT w.language, w.canonical_form,
@@ -285,7 +323,9 @@ def _dump_descent_edges(conn: sqlite3.Connection, source_id: str) -> Iterable[di
     # endpoints collapse to the SAME winner (an intra-cluster edge between two
     # OCR variants of one morpheme), the edge degenerates to a self-loop and
     # is skipped — it carries no real descent signal, and build's
-    # _insert_descent has no self-edge guard. Single-hop (see wyrd-lpxq).
+    # _insert_descent has no self-edge guard. Single-hop COALESCE relies on the
+    # terminal-winner invariant (see _dump_cited_etymons / wyrd-lpxq); a chain
+    # whose endpoints flatten to one winner still self-loops correctly here.
     edges = conn.execute(
         """
         SELECT pe.language AS p_lang, pe.canonical_form AS p_form,
@@ -377,7 +417,8 @@ def _dump_toponyms_and_etymologies(
             # Resolve the element etymon through merged_into_id to its winner
             # (follow-to-winner, wyrd-q6ro): a loser element id would emit a
             # ref no etymon row carries post-fix, orphaning the element on
-            # rebuild. Single-hop (see wyrd-lpxq).
+            # rebuild. Single-hop COALESCE — relies on the terminal-winner
+            # invariant (see _dump_cited_etymons / wyrd-lpxq).
             """
             SELECT el.ordinal, el.inflection, el.surface_in_modern, el.confidence,
                    e.language, e.canonical_form
@@ -891,8 +932,9 @@ def _dump_fantasy_morpheme_rows(conn: sqlite3.Connection) -> Iterable[dict[str, 
     merged into ``latin:æon``), the ref follows ``merged_into_id`` to the
     surviving winner. This keeps the ref off a tombstone (so
     :func:`_dump_fantasy_etymons` never emits a merged etymon to resurrect)
-    while preserving the link. OCR merges are single-hop, so one COALESCE
-    resolves the canonical etymon."""
+    while preserving the link. One COALESCE resolves the canonical etymon —
+    relies on the terminal-winner invariant (enrichment flattens curated chains;
+    dump-jsonl asserts it fail-loud); see _dump_cited_etymons / wyrd-lpxq."""
     rows = conn.execute(
         f"""
         SELECT {", ".join("fm." + c for c in _FANTASY_MORPHEME_SCALAR_COLUMNS)},

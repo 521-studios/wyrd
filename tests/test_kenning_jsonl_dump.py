@@ -12,6 +12,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from wyrd.generators.kenning.jsonl.dump import (
     _attestation_source_doc_filter,
     _source_for_attestation_doc,
@@ -359,6 +361,56 @@ def test_dump_cited_etymon_merged_loser_follows_to_winner(tmp_path: Path):
     rebuilt.close()
 
 
+def test_dump_multi_hop_merge_chain_flattens_no_mid_tombstone_resurrects(tmp_path: Path):
+    """wyrd-lpxq: a curated multi-hop chain (loser → mid → winner) must not
+    resurrect the MID tombstone. The dump's follow-to-winner is single-hop
+    COALESCE(merged_into_id, id) — without flattening it would emit ``mid`` for
+    the loser's citation, and build (which drops merged_into_id) would resurrect
+    ``mid`` as a live unmerged etymon (the D22 violation one hop deeper).
+    enrichment.flatten_merge_chains (run before the dump in the real pipeline)
+    re-points the loser straight at the terminal winner, so single-hop COALESCE
+    resolves correctly."""
+    from wyrd.generators.kenning.enrichment import flatten_merge_chains
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    pre = _build_fixture_db()
+    _add_source(pre, id="skeat", title="X")
+    winner = _add_etymon(pre, "old-english", "wic")
+    mid = _add_etymon(pre, "old-english", "wiic", merged_into_id=winner)
+    loser = _add_etymon(pre, "old-english", "wych", merged_into_id=mid)  # 2-hop chain
+    pre.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '15')",
+        (loser,),
+    )
+
+    # The fix: flatten before dumping (mirrors enrichment's curation slot).
+    assert flatten_merge_chains(pre, apply=True)["chains_flattened"] == 1
+
+    rows = dump_source_to_rows(pre, "skeat")
+    # Only the terminal winner is emitted; neither mid nor loser ref appears.
+    assert {r["ref"] for r in rows if r["_type"] == "etymon"} == {"old-english:wic"}
+    citation = next(r for r in rows if r["_type"] == "citation")
+    assert citation["etymon_ref"] == "old-english:wic"
+    for stale in ("old-english:wych", "old-english:wiic"):
+        assert all(r.get("ref") != stale and r.get("etymon_ref") != stale for r in rows)
+    dump_source_to_file(pre, "skeat", tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    # No tombstone (mid OR loser) resurrected: the only etymon is the winner.
+    assert (
+        rebuilt.execute("SELECT count(*) FROM etymon WHERE merged_into_id IS NOT NULL").fetchone()[
+            0
+        ]
+        == 0
+    )
+    forms = {r[0] for r in rebuilt.execute("SELECT canonical_form FROM etymon").fetchall()}
+    assert forms == {"wic"}
+    assert counts.get("citation_orphans", 0) == 0
+    rebuilt.close()
+
+
 def test_dump_cited_etymon_winner_and_loser_both_cited_dedups_etymon_keeps_all_witnesses(
     tmp_path: Path,
 ):
@@ -473,6 +525,113 @@ def test_dump_descent_edge_merged_endpoint_follows_to_winner(tmp_path: Path):
     ).fetchone()
     assert edge["canonical_form"] == "tun"
     rebuilt.close()
+
+
+def test_dump_descent_edge_multi_hop_chain_flattens_to_terminal_winner(tmp_path: Path):
+    """wyrd-lpxq: a descent edge whose child endpoint is a multi-hop loser
+    (loser → mid → winner) must resolve to the TERMINAL winner. The descent dump
+    follows endpoints single-hop, so without flattening it would emit ``mid``
+    (still a tombstone), orphaning the edge / resurrecting mid on rebuild.
+    flatten_merge_chains (run pre-dump in the pipeline) re-points loser → winner.
+    Covers a non-citation dump arm (build's _insert_descent has no self-edge
+    guard, so a stale mid endpoint is especially load-bearing here)."""
+    from wyrd.generators.kenning.enrichment import flatten_merge_chains
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    conn = _build_fixture_db()
+    _add_source(conn, id="wiki", title="Wiktionary")
+    parent = _add_etymon(conn, "proto-germanic", "*tunaz")
+    winner = _add_etymon(conn, "old-english", "tun")
+    mid = _add_etymon(conn, "old-english", "tunn", merged_into_id=winner)
+    loser = _add_etymon(conn, "old-english", "tunne", merged_into_id=mid)  # 2-hop
+    conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (?, ?, 'inheritance', 'wiki')",
+        (parent, loser),
+    )
+
+    assert flatten_merge_chains(conn, apply=True)["chains_flattened"] == 1
+
+    rows = dump_source_to_rows(conn, "wiki")
+    descent = next(r for r in rows if r["_type"] == "etymon_descent")
+    assert descent["child_ref"] == "old-english:tun"
+    for stale in ("old-english:tunne", "old-english:tunn"):
+        assert all(r.get("child_ref") != stale and r.get("parent_ref") != stale for r in rows)
+    dump_source_to_file(conn, "wiki", tmp_path)
+    conn.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    assert counts.get("etymon_descent_orphans", 0) == 0
+    assert (
+        rebuilt.execute("SELECT count(*) FROM etymon WHERE merged_into_id IS NOT NULL").fetchone()[
+            0
+        ]
+        == 0
+    )
+    rebuilt.close()
+
+
+def test_assert_merge_chains_flat_fails_loud_on_chain_and_cycle():
+    """wyrd-lpxq: the read-only dump-jsonl guard raises on a residual multi-hop
+    chain or cycle (a tombstone whose target is itself a tombstone), so a
+    non-reconstructible DB can't be silently dumped; a flat/single-hop DB passes."""
+    from wyrd.generators.kenning.jsonl.dump import MergeChainError, assert_merge_chains_flat
+
+    # Flat (single-hop loser → winner): passes.
+    flat = _build_fixture_db()
+    w = _add_etymon(flat, "old-english", "tun")
+    _add_etymon(flat, "old-english", "tunne", merged_into_id=w)
+    assert_merge_chains_flat(flat)  # no raise
+    flat.close()
+
+    # Multi-hop chain: raises.
+    chain = _build_fixture_db()
+    cw = _add_etymon(chain, "old-english", "tun")
+    cm = _add_etymon(chain, "old-english", "tunn", merged_into_id=cw)
+    _add_etymon(chain, "old-english", "tunne", merged_into_id=cm)
+    with pytest.raises(MergeChainError):
+        assert_merge_chains_flat(chain)
+    chain.close()
+
+    # Cycle (a → b → a): raises (both are tombstones pointing at tombstones).
+    cyc = _build_fixture_db()
+    a = _add_etymon(cyc, "old-english", "alpha")
+    b = _add_etymon(cyc, "old-english", "beta", merged_into_id=a)
+    cyc.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (b, a))
+    with pytest.raises(MergeChainError):
+        assert_merge_chains_flat(cyc)
+    cyc.close()
+
+
+def test_dump_jsonl_cli_aborts_on_merge_chain_writing_nothing(tmp_path: Path):
+    """wyrd-lpxq: the read-only `lexicon dump-jsonl` CLI aborts (non-zero exit,
+    no JSONL written) when the DB carries an un-flattened merge chain, instead of
+    emitting a D22-violating dump. Guards the assert_merge_chains_flat wiring
+    against deletion/reordering (a regression there would otherwise ship green)."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+    from wyrd.generators.kenning.jsonl.dump import MergeChainError
+    from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        winner = _add_etymon(db.conn, "old-english", "tun")
+        mid = _add_etymon(db.conn, "old-english", "tunn", merged_into_id=winner)
+        _add_etymon(db.conn, "old-english", "tunne", merged_into_id=mid)  # 2-hop chain
+        db.conn.commit()
+
+    out_dir = tmp_path / "out"
+    result = CliRunner().invoke(
+        cli_root,
+        ["lexicon", "dump-jsonl", "--db", str(db_path), "--out-dir", str(out_dir)],
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, MergeChainError)
+    # Aborted before any write — no JSONL produced.
+    assert not (out_dir.exists() and list(out_dir.glob("*.jsonl")))
 
 
 def test_dump_descent_edge_collapsing_to_self_loop_is_skipped():

@@ -68,6 +68,7 @@ def lexicon_dump_jsonl(
     """
     from wyrd.generators.kenning.jsonl.dump import (
         DEFAULT_BULK_EXCLUDED_SOURCES,
+        assert_merge_chains_flat,
         dump_all_sources,
         dump_fantasy_morphemes_to_file,
         dump_reflexes_to_file,
@@ -84,6 +85,11 @@ def lexicon_dump_jsonl(
     reflex_count = 0
     # Read-only DB access — dump never writes.
     with _readonly_lexicon(db_path) as conn:
+        # wyrd-lpxq: the dump follows merged_into_id single-hop. Enrichment
+        # flattens chains to terminal winners, but this read-only CLI can't, so
+        # fail loud on a residual multi-hop chain/cycle rather than emit a
+        # mid-tombstone that resurrects on rebuild (D22).
+        assert_merge_chains_flat(conn)
         if source_id is not None:
             path, count = dump_source_to_file(conn, source_id, out_dir)
             click.echo(f"Wrote {count} rows → {path}", err=True)
