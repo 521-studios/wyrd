@@ -237,13 +237,13 @@ def test_passthrough_expansion_recovers_constituents(tmp_path):
 
 def test_diff_improves_town_regresses_genuine_stone(world):
     db, trie = world
+    # No connective_inventory in the config: grade_corpus_diff defaults the ON
+    # side to DEFAULT_CONNECTIVE_INVENTORY (the pre-wyrd-buye signature default),
+    # so this still diffs the connective rather than producing a no-op OFF==ON.
     diff = grade_corpus_diff(
         db,
         trie,
-        config=MatcherConfig(
-            connective_inventory=DEFAULT_CONNECTIVE_INVENTORY,
-            genitive_prior=TOWN_PRIOR,
-        ),
+        config=MatcherConfig(genitive_prior=TOWN_PRIOR),
     )
     # Aggregate: coverage strictly up (Grimsworth gained a clean parse).
     assert diff.on.coverage_rate > diff.off.coverage_rate

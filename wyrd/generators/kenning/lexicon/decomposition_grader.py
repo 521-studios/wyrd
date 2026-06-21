@@ -54,7 +54,10 @@ from dataclasses import dataclass, replace
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
-from wyrd.generators.kenning.runtime.connective import ConnectiveInventory
+from wyrd.generators.kenning.runtime.connective import (
+    DEFAULT_CONNECTIVE_INVENTORY,
+    ConnectiveInventory,
+)
 from wyrd.generators.kenning.runtime.trie_matcher import (
     MorphemeTrie,
     canonical_decomposition,
@@ -480,16 +483,27 @@ def grade_corpus_diff(
     (``replace``), since ``culture_languages`` is part of today's matcher
     (wyrd-pfoo), not the change under test — so the diff isolates the connective's
     effect. ``suffix`` / ``limit`` focus the run for fast probes.
+
+    A connective diff needs SOMETHING to turn on: if ``config`` carries no
+    connective inventory the ON side defaults to ``DEFAULT_CONNECTIVE_INVENTORY``
+    (the genitive ``-s-``) — matching the pre-wyrd-buye signature default, so an
+    inventory-less call still diffs the connective rather than silently producing
+    a no-op OFF==ON.
     """
     index = load_cluster_index(db)
     corpus = load_scholar_corpus(db, index, suffix=suffix)
     if limit is not None:
         corpus = corpus[:limit]
-    off_config = replace(config, connective_inventory=None, genitive_prior=None)
+    on_config = (
+        config
+        if config.connective_inventory is not None
+        else replace(config, connective_inventory=DEFAULT_CONNECTIVE_INVENTORY)
+    )
+    off_config = replace(on_config, connective_inventory=None, genitive_prior=None)
     off = grade_configuration(
         corpus, trie, index, config=off_config, label="off", progress_every=progress_every
     )
     on = grade_configuration(
-        corpus, trie, index, config=config, label="on", progress_every=progress_every
+        corpus, trie, index, config=on_config, label="on", progress_every=progress_every
     )
     return diff_grades(off, on)

@@ -61,6 +61,13 @@ class Connective:
     surface: str
     kind: ConnectiveKind
 
+    def __post_init__(self) -> None:
+        # Enforce the closed set even when constructed from a bare string: coerce
+        # ``kind`` through ConnectiveKind so a typo (``"genitiv"``) raises here at
+        # construction rather than silently storing an off-set value that skips
+        # the genitive tiebreak. A valid str or an existing member passes through.
+        object.__setattr__(self, "kind", ConnectiveKind(self.kind))
+
     def __str__(self) -> str:
         return self.surface
 

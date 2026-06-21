@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.generators.kenning.runtime.connective import (
     DEFAULT_CONNECTIVE_INVENTORY,
     GENITIVE,
@@ -19,6 +21,17 @@ def test_connective_kind_is_a_strenum_equal_to_its_value():
     assert ConnectiveKind.GENITIVE == "genitive"
     assert Connective("s", GENITIVE).kind == "genitive"
     assert isinstance(Connective("s", GENITIVE).kind, ConnectiveKind)
+
+
+def test_connective_coerces_str_kind_and_rejects_typos():
+    # __post_init__ enforces the closed set so the "can't silently skip the
+    # tiebreak" guarantee is real: a valid bare string is coerced to the member,
+    # an off-set typo raises at construction (not stored silently).
+    coerced = Connective("s", "genitive")
+    assert coerced.kind is ConnectiveKind.GENITIVE
+    assert isinstance(coerced.kind, ConnectiveKind)
+    with pytest.raises(ValueError):
+        Connective("s", "genitiv")
 
 
 def test_connective_renders_its_surface():
