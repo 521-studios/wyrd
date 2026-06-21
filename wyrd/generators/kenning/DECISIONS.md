@@ -2977,9 +2977,34 @@ english generation through the un-narrowed dash-variant keys.
 * Parsers / extractors / miners reading dashes in RAW SOURCE TEXT
   (scholarly books hyphenate; that's document syntax, not identity).
 * Genuinely hyphenated lexical forms inside language data (e.g. the OE
-  compound headword `lēac-tūn` as a FORM) — a form's spelling may contain
-  a hyphen; the STORED IDENTITY of a morpheme may not carry positional
+  compound headword `lēac-tūn` as a FORM, or a word that genuinely contains a
+  hyphen — `al-Quadim`, `al-Adha`, `Bēl-šarra-uṣur`) — a form's spelling may
+  contain a hyphen; the STORED IDENTITY of a morpheme may not carry positional
   dash markers.
+
+### The morpheme STORE is in scope too — no "content key" exception (wyrd-aicu.8, 2026-06-21)
+
+D45 governs **every** place a morpheme's identity is stored or keyed — including
+`etymon.canonical_form` and the derived `morpheme_id` (`language:canonical_form`,
+the L4 `morpheme` table's content key). The tempting rationalization —
+"`morpheme_id` is a scholarly CONTENT key, a different scheme, so D45 doesn't
+apply, close as not-applicable" — is **REJECTED**. That is precisely the
+half-dashed-corpus state the rule exists to prevent: when *some* morphemes are
+stored `-ach` and others `ach`, one morpheme forks into phantom duplicates, edges
+multiply (an `-ach`→x edge AND an `ach`→x edge), and you are forced to mint a
+separate `-ton-` the moment a name happens to carry `ton` medially. It is noise in
+the corpus. **Dashes go; the morpheme is its bare surface; position is the separate
+pre/inner/post axis** — uniformly, with no "this layer is special" carve-outs.
+
+So the affix-POSITION dashes in the store are stripped too (`-ach`→`ach`, the
+boundary recorded as the position axis), with content-key **collision merges**
+(`celtic:-ach` + `celtic:ach` → one `celtic:ach`) propagated across every L2 ref
+that uses the `language:canonical_form` natural key. The ONLY dashes that survive
+are the genuine in-WORD hyphens of the Exemptions above (the *word itself* contains
+the hyphen — `al-Quadim` — which is form spelling, not position decoration). The
+classifier is structural: a leading/trailing boundary dash on a bound morpheme is
+position decoration → **strip**; a hyphen between real word-characters is part of
+the word → **keep**.
 
 Composes with D39 (render owns decoration), D40 (position derived, never a
 match gate), D44 (identity is also era-invariant). Together: a morpheme's
