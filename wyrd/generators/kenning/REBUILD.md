@@ -214,7 +214,10 @@ What it does, in order:
    gloss-suppress / gloss-add / etymon-splits / collapses / element-glosses /
    tag-additions] → flatten-merge-chains → decompose →
    cluster-cognates → classify-stratum → derive-english-shaped →
-   derive-pronunciation-ipa → tag-phonological-vectors → project-period-forms`.
+   derive-pronunciation-ipa → tag-phonological-vectors → project-period-forms →
+   derive-surface-in-modern`. `derive-surface-in-modern` (wyrd-ujyo) suffix-anchors
+   each binary breakdown against the toponym's modern name to fill
+   `toponym_etymology_element.surface_in_modern`.
    `flatten-merge-chains` (wyrd-lpxq) runs when a curation slot ran — it collapses
    any multi-hop `merged_into_id` chain a curated merge built to a terminal winner,
    before the L3 derivations consume the graph. When the canonicalization streams

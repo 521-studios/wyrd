@@ -73,6 +73,7 @@ from wyrd.generators.kenning.lexicon import (
     derive_lemma_candidate,
     derive_lemma_candidates,
     derive_mutation_lemma_candidate,
+    derive_surface_in_modern,
     detect_running_headers,
     etymon_era_reflexes,
     export_meanings,
@@ -4909,6 +4910,165 @@ def test_project_period_forms_idempotent_rerun(fresh_db: Path) -> None:
     assert first["rows_written"] == 2
     assert second["rows_written"] == 0
     assert total == 2
+
+
+# --- derive_surface_in_modern (wyrd-ujyo) ---------------------------------
+
+
+def _surfaces_by_ordinal(db: LexiconDB) -> dict[int, str | None]:
+    rows = db.conn.execute(
+        "SELECT ordinal, surface_in_modern FROM toponym_etymology_element ORDER BY ordinal"
+    ).fetchall()
+    return {r["ordinal"]: r["surface_in_modern"] for r in rows}
+
+
+def test_derive_surface_in_modern_segments_modern_name(fresh_db: Path) -> None:
+    """Happy path: 'Bradford' = OE brad + OE ford splits as 'Brad' + 'ford' via
+    suffix-anchoring against the OE 'ford' canonical_form."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Bradford", first_etymon_id=brad_id, last_etymon_id=ford_id
+        )
+        result = derive_surface_in_modern(db, apply=True)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["rows_projected"] == 1
+    assert result["rows_written"] == 2
+    assert surfaces[0] == "Brad"  # prefix → first morpheme
+    assert surfaces[1] == "ford"  # suffix → last morpheme
+
+
+def test_derive_surface_in_modern_uses_cluster_mate_modern_suffix(fresh_db: Path) -> None:
+    """The decisive case: modern names end in MODERN suffixes (Chesterton →
+    'ton'), not the OE canonical (tūn). The suffix matches a cognate-cluster mate
+    ('ton'), so 'Chesterton' = ceaster + tūn → 'Chester' + 'ton'."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        ceaster_id = db.upsert_etymon("ceaster", "old-english")
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        ton_id = db.upsert_etymon("ton", "english")  # modern reflex, same cluster
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ? WHERE id IN (?, ?)", (tun_id, tun_id, ton_id)
+        )
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Chesterton", first_etymon_id=ceaster_id, last_etymon_id=tun_id
+        )
+        result = derive_surface_in_modern(db, apply=True)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["rows_projected"] == 1
+    assert surfaces[0] == "Chester"
+    assert surfaces[1] == "ton"
+
+
+def test_derive_surface_in_modern_dry_run_writes_nothing(fresh_db: Path) -> None:
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Bradford", first_etymon_id=brad_id, last_etymon_id=ford_id
+        )
+        result = derive_surface_in_modern(db, apply=False)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["rows_projected"] == 1  # counted
+    assert result["rows_written"] == 0  # but not written
+    assert surfaces == {0: None, 1: None}  # column untouched
+
+
+def test_derive_surface_in_modern_idempotent_rerun(fresh_db: Path) -> None:
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Bradford", first_etymon_id=brad_id, last_etymon_id=ford_id
+        )
+        derive_surface_in_modern(db, apply=True)
+        before = _surfaces_by_ordinal(db)
+        derive_surface_in_modern(db, apply=True)  # re-derive
+        after = _surfaces_by_ordinal(db)
+
+    assert before == after == {0: "Brad", 1: "ford"}
+
+
+def test_derive_surface_in_modern_skips_ternary_breakdown(fresh_db: Path) -> None:
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        a_id = db.upsert_etymon("brad", "old-english")
+        b_id = db.upsert_etymon("inga", "old-english")
+        c_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("Bradingford",))
+        toponym_id = cur.lastrowid
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) VALUES (?, ?, ?)",
+            (toponym_id, "src", "high"),
+        )
+        te_id = cur.lastrowid
+        for ordinal, eid in enumerate((a_id, b_id, c_id)):
+            db.conn.execute(
+                "INSERT INTO toponym_etymology_element "
+                "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, ?, ?)",
+                (te_id, ordinal, eid),
+            )
+        db.commit()
+        result = derive_surface_in_modern(db, apply=True)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["rows_scanned"] == 0  # ternary breakdown not loaded
+    assert result["rows_projected"] == 0
+    assert set(surfaces.values()) == {None}
+
+
+def test_derive_surface_in_modern_skips_merged_etymon(fresh_db: Path) -> None:
+    """A breakdown whose component points at an OCR-cluster loser
+    (merged_into_id set) is skipped, so losers don't get stale surfaces."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        winner_id = db.upsert_etymon("ford-winner", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (winner_id, ford_id))
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Bradford", first_etymon_id=brad_id, last_etymon_id=ford_id
+        )
+        result = derive_surface_in_modern(db, apply=True)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["rows_scanned"] == 0  # the only breakdown was dropped
+    assert set(surfaces.values()) == {None}
+
+
+def test_derive_surface_in_modern_two_char_gate(fresh_db: Path) -> None:
+    """A match leaving a sub-2-char prefix is noise → not projected. 'Aton' =
+    a + tūn would leave 'A' (1 char), so nothing is written."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        a_id = db.upsert_etymon("a", "old-english")
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        ton_id = db.upsert_etymon("ton", "english")
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ? WHERE id IN (?, ?)", (tun_id, tun_id, ton_id)
+        )
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Aton", first_etymon_id=a_id, last_etymon_id=tun_id
+        )
+        result = derive_surface_in_modern(db, apply=True)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["rows_projected"] == 0  # 'A' prefix fails the ≥2-char gate
+    assert set(surfaces.values()) == {None}
 
 
 def test_etymon_era_reflexes_tier4_period_form_fallback(fresh_db: Path) -> None:

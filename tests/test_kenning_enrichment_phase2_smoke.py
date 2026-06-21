@@ -24,6 +24,7 @@ def test_run_full_enrichment_phase2_chain_smoke(tmp_path: Path):
         "derive-pronunciation-ipa",
         "tag-phonological-vectors",
         "project-period-forms",
+        "derive-surface-in-modern",
     ]
     # Every L3 result is non-None (since we didn't skip)
     for key in (

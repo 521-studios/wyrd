@@ -104,6 +104,7 @@ from wyrd.generators.kenning.lexicon.ingest import (  # noqa: E402, F401
 from wyrd.generators.kenning.lexicon.period_form import (  # noqa: E402, F401
     _find_longest_suffix_match,  # tested directly by test_kenning_lexicon
     _strip_diacritics,  # tested directly by test_kenning_lexicon
+    derive_surface_in_modern,
     project_period_forms,
 )
 from wyrd.generators.kenning.lexicon.schema import (  # noqa: E402, F401

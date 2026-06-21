@@ -89,6 +89,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import (
     derive_pronunciation_ipa as _derive_pronunciation_ipa_module,
 )
+from wyrd.generators.kenning.cli.lexicon import (
+    derive_surface_in_modern as _derive_surface_in_modern_module,
+)
 from wyrd.generators.kenning.cli.lexicon import detect_collapses as _detect_collapses_module
 from wyrd.generators.kenning.cli.lexicon import diff_bundle as _diff_bundle_module
 from wyrd.generators.kenning.cli.lexicon import diff_rebuild as _diff_rebuild_module
@@ -296,6 +299,7 @@ _dump_genitive_priors_module.add_to(lexicon)
 _extract_pfsrd2_monsters_module.add_to(lexicon)
 _derive_english_shaped_module.add_to(lexicon)
 _derive_pronunciation_ipa_module.add_to(lexicon)
+_derive_surface_in_modern_module.add_to(lexicon)
 _mine_pronunciation_llm_module.add_to(lexicon)
 _diff_bundle_module.add_to(lexicon)
 _diff_rebuild_module.add_to(lexicon)
