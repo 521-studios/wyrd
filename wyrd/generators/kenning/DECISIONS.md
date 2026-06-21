@@ -3697,6 +3697,57 @@ passthrough: the passthrough lets the composite win the parse and expands at
 attribution, needing no scoring surgery and working even when the finer split is
 not independently the best parse.
 
+### D51.4. Genitive-`s` split prior — homograph disambiguation from scholarly breakdowns (wyrd-aicu.9 / wyrd-aicu.9.1).
+
+The matcher mis-parses the genitive `s` of `X's-tūn` (a *town*) as `X + ston` (a
+*stone*): the greedy `(unaccounted, morphemes)` score prefers the longer `ston`
+(0 unaccounted) over `X + s + ton` (the genitive `s` left unaccounted), so Occam
+picks stone. `Bishopston` = Bishop's-`tūn` decomposes as `bishop + ston`,
+inflating the `stone` morpheme's weight and starving `ton` in generation. The fix
+is a **homograph-aware, per-suffix probabilistic split** seeded by the breakdown
+corpus — NOT a hardcoded `if ston` rule (which `-ster`/minster and the ~6%
+genuine `-stone` cases would break). This is a fourth use of the D51 substrate,
+sitting under the same provenance discipline:
+
+- **Candidate suffix pairs are auto-discovered**, never hardcoded. Every surface
+  `L = 's' + S` where both `L` and `S` are real reflexes (`ston`/`ton`,
+  `sley`/`ley`, …) is a candidate; the set grows as the inventory grows. Most are
+  coincidental noise (`sage` ⊃ `age`) and only pairs with real scholarly split
+  evidence become active.
+- **Classification is by COGNATE CLUSTER, not surface membership** — the scholarly
+  etymon (`stān`) and the surface reflex (`ston`) are different rows; clustering
+  (cluster 358859 unifies stān/ston/stone/stan) recovers both the genitive-split
+  (`tūn → town`) and the genuine-`stone` classes, where surface membership is
+  lossy. A breakdown touching both classes or neither is skipped and counted, not
+  guessed. This is **D51.2's gloss-blind rule applied** to suffix homographs: the
+  reading comes from what scholars attributed, never from segmenting the surface.
+- **The evidence hierarchy is deliberate and ordered**: the cognate-cluster
+  verdict is **decisive**; the historical `-es-`/`-s-` genitive marker
+  (`Kingston ← cyninge·s·tun`, wyrd-aicu.9.1) is a **subordinate** tiebreaker that
+  only resolves the cluster-ambiguous `both`/`unclassified` residue and NEVER
+  overrides a decisive cluster verdict. The marker fires only on genuinely
+  historical forms (folded form ≠ folded modern name) — `toponym_attestation` is
+  ~97% modern-name echo, and running the marker on a bare modern `ston`
+  (`= s + ton`) is what mis-split the protected genuine-stone set in the first
+  cut; restricting it to real historical spellings keeps that set safe by
+  construction.
+- **Raw counts in storage, smoothing + hierarchical backoff at lookup**
+  (`genitive_split_prior` table; `split_probability` at matcher-lookup time) — the
+  D43 pattern: the table stays a faithful data mirror and the prior sharpens
+  automatically as breakdowns accrue. LLM-free, deterministic, idempotent,
+  replace-not-merge (mirrors `empirical_priors`).
+
+**Why this is its own sub-entry and not just application of D43 + D51.2:** the two
+load-bearing choices are not mechanical. (1) The *evidence hierarchy* — cluster
+decisive, `-es-` marker strictly subordinate and historical-only — is a design
+decision with a costly rejected alternative (the first cut ran the marker on
+modern echoes and broke the genuine-stone set). (2) Disambiguation is **per-suffix
+homograph**, a different axis from D8's deferred per-position *inflection*-density
+case selection (genitive_strong/dative_or_pl by pre-/post-); this subsystem does
+not implement D8's rules and D8's "not yet implemented" note still holds. CLI:
+`lexicon mine-genitive-priors` / `dump-genitive-priors`;
+`lexicon/genitive_priors.py`; migration `0018_genitive_split_prior`.
+
 ### Why this shape.
 
 It unifies three previously-separate concerns onto one corpus under one
@@ -3709,7 +3760,8 @@ them as such across admission, validation, and enrichment.
 
 Tickets: wyrd-7hbp (uplift epic), wyrd-oth3 (admission), wyrd-myv4
 (occurrence/junk filter), wyrd-h5u1 (`composed-of` passthrough mining), wyrd-65jh
-(implied reflexes).
+(implied reflexes), wyrd-aicu.9 (genitive-`s` split prior, D51.4), wyrd-aicu.9.1
+(subordinate historical `-es-` marker).
 
 ## D52. Cultural/linguistic-zone axis — rule-based, distinct from the dedup region hierarchy (2026-06-17).
 
