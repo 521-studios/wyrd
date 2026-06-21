@@ -227,6 +227,13 @@ class LanguageScorecard:
     eligible_lemmas: int = 0
     promotion_threshold: int = 0
     promotion_eligible: int = 0
+    # wyrd-g7n6: promotion-eligible under the wyrd-fssn TIERED policy — a
+    # rando-port family with ≥1 non-rando corroborator promotes (alongside any
+    # net-new family with ≥threshold witnesses). The delta vs
+    # ``promotion_eligible`` is the per-language lift the tiered policy unlocks
+    # without new mining. Computed over the same eligible lemma-head family unit
+    # as ``promotion_eligible`` so the two are directly comparable.
+    tiered_promotion_eligible: int = 0
     avg_witnesses: float = 0.0
     source_count: int = 0
     # B. Bundle representation
@@ -349,6 +356,16 @@ class LanguageScorecard:
     rando_mixed_grandfather_families: int = 0
     rando_total_cited_families: int = 0
     rando_pure_grandfather_rate: float = 0.0
+    # wyrd-g7n6: the rando families bucketed by distinct NON-rando corroborator
+    # count, so the K-row surfaces the tiered-policy distribution. rando_corr_0 ==
+    # rando_pure_grandfather_families (0 corroborators); rando_corr_1 + _2 +
+    # _3plus == rando_mixed_grandfather_families. rando_corr_1 + rando_corr_2 is
+    # the wyrd-fssn lift (promote under tiered, not yet under ≥3); rando_corr_3plus
+    # already promotes under ≥3.
+    rando_corr_0: int = 0
+    rando_corr_1: int = 0
+    rando_corr_2: int = 0
+    rando_corr_3plus: int = 0
 
 
 @dataclass

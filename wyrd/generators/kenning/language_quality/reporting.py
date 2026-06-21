@@ -76,12 +76,20 @@ def _summary_table_lines(report: LanguageQualityReport) -> list[str]:
     # raw is shown for DB-depth context. All coverage cells use the
     # eligible denominator.
     lines.append(
-        "| Language | Etymons (elig/raw) | Lemmas (elig/raw) | Promo (≥thr) | Bundle | "
+        "| Language | Etymons (elig/raw) | Lemmas (elig/raw) | Promo (≥thr) | "
+        "Promo (tiered) | Bundle | "
         "Scholar atst | IPA (db / bundle) | Grandfather | Lex tag hit | "
         "Bundle tag hit | Inflect | Variants | Era reflex (lex / bundle) |"
     )
-    lines.append("|---|---:|---:|---|---:|---:|---|---:|---|---|---|---|---|")
-    lines += [_summary_table_row(c, report) for c in report.languages]
+    lines.append("|---|---:|---:|---|---|---:|---:|---|---:|---|---|---|---|---|")
+    # wyrd-g7n6: sort by the tiered-policy lift (tiered − ≥thr) descending so the
+    # languages that benefit most from the wyrd-fssn policy surface at the top.
+    ordered = sorted(
+        report.languages,
+        key=lambda c: c.tiered_promotion_eligible - c.promotion_eligible,
+        reverse=True,
+    )
+    lines += [_summary_table_row(c, report) for c in ordered]
     lines.append("")
     return lines
 
@@ -90,6 +98,10 @@ def _summary_table_row(c: LanguageScorecard, report: LanguageQualityReport) -> s
     """One language's row in the summary coverage table (n/a cells where a
     bundle/citation denominator is zero)."""
     promo = f"{c.promotion_eligible} (≥{c.promotion_threshold})"
+    # wyrd-g7n6: tiered count + the lift vs the current ≥thr policy (the
+    # wyrd-fssn unlock). A '+N' suffix renders only when the policy adds rows.
+    tiered_lift = c.tiered_promotion_eligible - c.promotion_eligible
+    promo_tiered = f"{c.tiered_promotion_eligible}" + (f" (+{tiered_lift})" if tiered_lift else "")
     bundle_pct = _format_pct(c.bundle_word_count, report.bundle_total_words)
     bundle_cell = f"{c.bundle_word_count} ({bundle_pct})"
     ref_n = len(c.reference_tags)
@@ -143,7 +155,7 @@ def _summary_table_row(c: LanguageScorecard, report: LanguageQualityReport) -> s
             f"({_format_pct(c.rando_pure_grandfather_families, c.rando_total_cited_families)})"
         )
     return (
-        f"| {c.language} | {etymons_cell} | {lemmas_cell} | {promo} | "
+        f"| {c.language} | {etymons_cell} | {lemmas_cell} | {promo} | {promo_tiered} | "
         f"{bundle_cell} | {scholar_atst} | {ipa_cell} | {grandfather_cell} | "
         f"{lex_hit} | {bundle_hit} | {inflect} | {variants} | {era} |"
     )
@@ -245,13 +257,19 @@ def _lang_grandfather_line(c: LanguageScorecard) -> str:
             "- **K. Rando-port grandfather audit:** n/a — no "
             "citation-bearing families rooted in this language."
         )
+    # wyrd-g7n6: expand the mixed count into the corroborator-bucket
+    # distribution so the tiered-policy lift is legible. rando_corr_1 +
+    # rando_corr_2 promote under tiered but not under ≥3; rando_corr_3plus already
+    # promote.
     return (
         f"- **K. Rando-port grandfather audit:** "
         f"{c.rando_pure_grandfather_families} pure-grandfather "
         f"({_format_pct(c.rando_pure_grandfather_families, c.rando_total_cited_families)}), "
         f"{c.rando_mixed_grandfather_families} mixed (rando-port + scholar/empirical), "
         f"of {c.rando_total_cited_families} cited families "
-        f"rooted in this language."
+        f"rooted in this language. Corroborator buckets: "
+        f"{c.rando_corr_0} rando-only, {c.rando_corr_1} rando+1, "
+        f"{c.rando_corr_2} rando+2, {c.rando_corr_3plus} rando+≥3 (already promoted)."
     )
 
 

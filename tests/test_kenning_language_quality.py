@@ -1538,6 +1538,142 @@ def test_scorecard_promotion_eligible_filters_to_eligible_pool() -> None:
     )
 
 
+# --- wyrd-g7n6: tiered-promo column + corroborator buckets ----------------
+
+
+def test_grandfather_audit_corroborator_buckets() -> None:
+    """wyrd-g7n6: rando families bucket by distinct non-rando corroborator
+    count (0/1/2/≥3). Pin one family per bucket + the consistency invariants
+    (corr_0 == pure; corr_1+2+3plus == mixed)."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        """
+        CREATE TABLE source (id TEXT PRIMARY KEY);
+        INSERT INTO source(id) VALUES ('rando-port'), ('s1'), ('s2'), ('s3');
+        CREATE TABLE etymon (
+            id INTEGER PRIMARY KEY, canonical_form TEXT NOT NULL, language TEXT NOT NULL,
+            lemma_id INTEGER, merged_into_id INTEGER
+        );
+        CREATE TABLE etymon_citation (
+            id INTEGER PRIMARY KEY, etymon_id INTEGER NOT NULL, source_id TEXT NOT NULL
+        );
+        INSERT INTO etymon(id, canonical_form, language) VALUES
+            (1, 'a', 'old-english'), (2, 'b', 'old-english'),
+            (3, 'c', 'old-english'), (4, 'd', 'old-english');
+        -- corr 0 (rando only); corr 1; corr 2; corr 3 (capped at 3plus)
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (1, 'rando-port');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (2, 'rando-port'), (2, 's1');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (3, 'rando-port'), (3, 's1'), (3, 's2');
+        INSERT INTO etymon_citation(etymon_id, source_id)
+            VALUES (4, 'rando-port'), (4, 's1'), (4, 's2'), (4, 's3');
+        """
+    )
+    oe = compute_rando_port_grandfather_audit(conn)["old-english"]
+    assert (oe["rando_corr_0"], oe["rando_corr_1"], oe["rando_corr_2"], oe["rando_corr_3plus"]) == (
+        1,
+        1,
+        1,
+        1,
+    )
+    assert oe["rando_corr_0"] == oe["pure_grandfather"]
+    assert (
+        oe["rando_corr_1"] + oe["rando_corr_2"] + oe["rando_corr_3plus"] == oe["mixed_grandfather"]
+    )
+
+
+def test_scorecard_tiered_promotion_counts_rando_with_corroborator() -> None:
+    """wyrd-g7n6: under the tiered policy a rando-port family with ≥1
+    corroborator promotes even below the witness threshold; a pure-rando family
+    (0 corroborators) does NOT. Delta-tested so it's robust to the fixture
+    baseline (threshold forced to ≥3 so a 2-witness rando+1 family is a lift)."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    conn.execute("INSERT OR IGNORE INTO source(id) VALUES ('rando-port')")
+    tags = list(FALLBACK_REFERENCE_TAGS[:5])
+    thr = {"old-english": 3}
+    populate_eligible_etymon_table(conn)
+    base = compute_scorecard(conn, "old-english", bundle, tags, lang_thresholds=thr)
+
+    # rando-port + 1 corroborator = 2 witnesses (< 3): tiered promotes, ≥thr doesn't.
+    conn.execute(
+        "INSERT INTO etymon(id, canonical_form, language) VALUES (700, 'wic', 'old-english')"
+    )
+    conn.execute(
+        "INSERT INTO etymon_citation(etymon_id, source_id) VALUES (700, 'rando-port'), (700, 'skeat_1901')"
+    )
+    # pure-rando = 1 witness, 0 corroborators: neither policy promotes it.
+    conn.execute(
+        "INSERT INTO etymon(id, canonical_form, language) VALUES (701, 'bad', 'old-english')"
+    )
+    conn.execute("INSERT INTO etymon_citation(etymon_id, source_id) VALUES (701, 'rando-port')")
+    conn.commit()
+    populate_eligible_etymon_table(conn)
+    after = compute_scorecard(conn, "old-english", bundle, tags, lang_thresholds=thr)
+
+    assert after.promotion_eligible == base.promotion_eligible  # neither new lemma crosses ≥3
+    assert (
+        after.tiered_promotion_eligible == base.tiered_promotion_eligible + 1
+    )  # only wic (rando+1)
+
+
+def test_report_renders_tiered_promo_column_buckets_and_sorts_by_lift() -> None:
+    """wyrd-g7n6: the summary table gains a 'Promo (tiered)' column (with the
+    +lift suffix), the K-row shows the corroborator buckets, and rows sort by
+    lift (tiered − ≥thr) descending."""
+    low = LanguageScorecard(
+        language="old-norse",
+        total_etymons=10,
+        total_lemmas=10,
+        eligible_etymons=10,
+        eligible_lemmas=10,
+        promotion_threshold=2,
+        promotion_eligible=5,
+        tiered_promotion_eligible=6,  # lift +1
+        rando_total_cited_families=4,
+        rando_pure_grandfather_families=1,
+        rando_mixed_grandfather_families=3,
+        rando_corr_0=1,
+        rando_corr_1=2,
+        rando_corr_2=1,
+        rando_corr_3plus=0,
+        bundle_attestation_total=0,
+    )
+    high = LanguageScorecard(
+        language="celtic",
+        total_etymons=10,
+        total_lemmas=10,
+        eligible_etymons=10,
+        eligible_lemmas=10,
+        promotion_threshold=3,
+        promotion_eligible=0,
+        tiered_promotion_eligible=98,  # lift +98
+        rando_total_cited_families=100,
+        rando_pure_grandfather_families=2,
+        rando_mixed_grandfather_families=98,
+        rando_corr_0=2,
+        rando_corr_1=50,
+        rando_corr_2=48,
+        rando_corr_3plus=0,
+        bundle_attestation_total=0,
+    )
+    report = LanguageQualityReport(
+        schema_version="1.0",
+        generated_at="2026-06-21T00:00:00Z",
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+        bundle_total_words=100,
+        languages=[low, high],  # input order is NOT lift order
+    )
+    md = report_to_markdown(report)
+    assert "Promo (tiered)" in md
+    assert "98 (+98)" in md  # high tiered cell + lift suffix
+    assert "6 (+1)" in md  # low tiered cell + lift suffix
+    # K-row corroborator buckets.
+    assert "50 rando+1" in md and "48 rando+2" in md
+    # Summary table sorts by lift desc: celtic (+98) before old-norse (+1).
+    assert md.index("| celtic |") < md.index("| old-norse |")
+
+
 def test_scorecard_witness_rollup_includes_lemma_descendants() -> None:
     """wyrd-6n2x: the per-lemma witness count must roll up citations
     from both edges the ``etymon_consensus`` view walks via
@@ -1919,6 +2055,7 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "eligible_lemmas",
         "promotion_threshold",
         "promotion_eligible",
+        "tiered_promotion_eligible",
         "avg_witnesses",
         "source_count",
         "bundle_sibling",
@@ -1970,6 +2107,11 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "rando_mixed_grandfather_families",
         "rando_total_cited_families",
         "rando_pure_grandfather_rate",
+        # K (wyrd-g7n6). Corroborator-bucket breakdown
+        "rando_corr_0",
+        "rando_corr_1",
+        "rando_corr_2",
+        "rando_corr_3plus",
     }
     actual = set(LanguageScorecard.__dataclass_fields__.keys())
     assert actual == fields, f"missing: {fields - actual}, extra: {actual - fields}"

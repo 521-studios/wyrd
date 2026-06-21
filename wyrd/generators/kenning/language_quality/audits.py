@@ -615,8 +615,15 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
     # branch through ``idx_etymon_citation_unique`` instead of full-
     # scanning ``etymon_citation`` per outer row — 4-100× faster
     # than the view-based query on the live DB.
+    # wyrd-g7n6: per lemma-head family, count both total witnesses AND the
+    # distinct NON-rando corroborators (+ whether any rando-port citation), so
+    # the tiered promotion count (wyrd-fssn) is computed over the SAME eligible
+    # family unit as promotion_eligible and the two columns are comparable. The
+    # rando-source placeholders are bound once per subquery referencing them.
+    rando_sources = sorted(_GRANDFATHER_CITATION_SOURCES)
+    rando_ph = ", ".join("?" * len(rando_sources))
     consensus_rows = conn.execute(
-        """
+        f"""
         SELECT
           (SELECT COUNT(DISTINCT c.source_id)
              FROM etymon_citation c
@@ -627,21 +634,49 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
                     UNION ALL
                     SELECT id FROM etymon WHERE merged_into_id = e.id
                   )
-          ) AS witnesses
+          ) AS witnesses,
+          (SELECT COUNT(DISTINCT c.source_id)
+             FROM etymon_citation c
+            WHERE c.etymon_id IN (
+                    SELECT e.id
+                    UNION ALL
+                    SELECT id FROM etymon WHERE lemma_id = e.id
+                    UNION ALL
+                    SELECT id FROM etymon WHERE merged_into_id = e.id
+                  )
+              AND c.source_id NOT IN ({rando_ph})
+          ) AS corroborators,
+          (SELECT COUNT(*)
+             FROM etymon_citation c
+            WHERE c.etymon_id IN (
+                    SELECT e.id
+                    UNION ALL
+                    SELECT id FROM etymon WHERE lemma_id = e.id
+                    UNION ALL
+                    SELECT id FROM etymon WHERE merged_into_id = e.id
+                  )
+              AND c.source_id IN ({rando_ph})
+          ) AS rando_cites
           FROM etymon e
           JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.lemma_id IS NULL
            AND e.merged_into_id IS NULL
         """,
-        (language,),
+        (*rando_sources, *rando_sources, language),
     ).fetchall()
     if consensus_rows:
         avg_witnesses = sum(r[0] for r in consensus_rows) / len(consensus_rows)
         promotion_eligible = sum(1 for r in consensus_rows if r[0] >= threshold)
+        # Tiered (wyrd-fssn): a rando-port family with ≥1 corroborator promotes,
+        # OR any family at/over the witness threshold (the net-new path).
+        tiered_promotion_eligible = sum(
+            1 for r in consensus_rows if r[0] >= threshold or (r[2] > 0 and r[1] >= 1)
+        )
     else:
         avg_witnesses = 0.0
         promotion_eligible = 0
+        tiered_promotion_eligible = 0
     source_count = conn.execute(
         """
         SELECT COUNT(DISTINCT c.source_id)
@@ -658,6 +693,7 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
         "eligible_lemmas": eligible_lemmas,
         "promotion_threshold": threshold,
         "promotion_eligible": promotion_eligible,
+        "tiered_promotion_eligible": tiered_promotion_eligible,
         "avg_witnesses": round(avg_witnesses, 3),
         "source_count": source_count,
     }
@@ -1163,8 +1199,14 @@ def _classify_grandfather_families(
     (reported elsewhere) and families whose root has no language. A family
     whose sources are EXACTLY ``_GRANDFATHER_CITATION_SOURCES`` is
     ``pure_grandfather``; one that merely INTERSECTS it (some sibling has a
-    scholar/empirical citation too) is ``mixed_grandfather``. Returns
-    ``{language: {pure_grandfather, mixed_grandfather, total_families}}``.
+    scholar/empirical citation too) is ``mixed_grandfather``.
+
+    wyrd-g7n6: rando families (grandfather-source intersection) are additionally
+    bucketed by distinct NON-rando corroborator count into ``rando_corr_0`` /
+    ``_1`` / ``_2`` / ``_3plus`` (0 == pure; 1+2+3plus == mixed) so the K-row can
+    surface the tiered-policy distribution. Returns ``{language:
+    {pure_grandfather, mixed_grandfather, total_families, rando_corr_0,
+    rando_corr_1, rando_corr_2, rando_corr_3plus}}``.
     """
     audit: dict[str, dict[str, int]] = {}
     for root_id, members in family_members.items():
@@ -1181,7 +1223,16 @@ def _classify_grandfather_families(
         if lang is None:
             continue
         bucket = audit.setdefault(
-            lang, {"pure_grandfather": 0, "mixed_grandfather": 0, "total_families": 0}
+            lang,
+            {
+                "pure_grandfather": 0,
+                "mixed_grandfather": 0,
+                "total_families": 0,
+                "rando_corr_0": 0,
+                "rando_corr_1": 0,
+                "rando_corr_2": 0,
+                "rando_corr_3plus": 0,
+            },
         )
         bucket["total_families"] += 1
         # Use the same ``_GRANDFATHER_CITATION_SOURCES`` constant as
@@ -1191,6 +1242,12 @@ def _classify_grandfather_families(
             bucket["pure_grandfather"] += 1
         elif family_sources & _GRANDFATHER_CITATION_SOURCES:
             bucket["mixed_grandfather"] += 1
+        # wyrd-g7n6: bucket rando families by distinct NON-rando corroborator
+        # count so the K-row surfaces the tiered-policy distribution.
+        if family_sources & _GRANDFATHER_CITATION_SOURCES:
+            corroborators = len(family_sources - _GRANDFATHER_CITATION_SOURCES)
+            key = f"rando_corr_{corroborators}" if corroborators < 3 else "rando_corr_3plus"
+            bucket[key] += 1
     return audit
 
 
@@ -1248,7 +1305,16 @@ def compute_scorecard(
     else:
         tier4_count = -1
     rando_bucket = (rando_port_audit or {}).get(
-        language, {"pure_grandfather": 0, "mixed_grandfather": 0, "total_families": 0}
+        language,
+        {
+            "pure_grandfather": 0,
+            "mixed_grandfather": 0,
+            "total_families": 0,
+            "rando_corr_0": 0,
+            "rando_corr_1": 0,
+            "rando_corr_2": 0,
+            "rando_corr_3plus": 0,
+        },
     )
 
     total_lemmas = depth["total_lemmas"]
@@ -1263,6 +1329,7 @@ def compute_scorecard(
         eligible_lemmas=eligible_lemmas,
         promotion_threshold=threshold,
         promotion_eligible=depth["promotion_eligible"],
+        tiered_promotion_eligible=depth["tiered_promotion_eligible"],
         avg_witnesses=depth["avg_witnesses"],
         source_count=depth["source_count"],
         bundle_sibling=sibling,
@@ -1331,6 +1398,10 @@ def compute_scorecard(
             if rando_bucket["total_families"]
             else 0.0
         ),
+        rando_corr_0=rando_bucket["rando_corr_0"],
+        rando_corr_1=rando_bucket["rando_corr_1"],
+        rando_corr_2=rando_bucket["rando_corr_2"],
+        rando_corr_3plus=rando_bucket["rando_corr_3plus"],
     )
 
 
