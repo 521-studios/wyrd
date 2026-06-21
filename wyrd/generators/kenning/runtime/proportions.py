@@ -1214,9 +1214,15 @@ class NameGenerator:
         culture_attested_usages: frozenset[str] | None = None,
         culture_attested_meanings: dict[str, frozenset[str]] | None = None,
         tag_marginal: dict[str, int] | None = None,
+        culture: str | None = None,
     ):
         self.meaning_db = meaning_db
         self.meaning_gen = meaning_gen
+        # wyrd-hzqs: the culture NAME (e.g. "english"), used to key the
+        # per-language structure allowlist (is_structure_enabled). ``None`` for
+        # legacy callers that build a generator without a culture → that path's
+        # structures are unfiltered by the allowlist (fail-open).
+        self.culture: str | None = culture
         # Set of usage_keys attested in this culture's corpus (union of
         # proportions_usage + proportions_single_usage). Used as a
         # culture filter on the vector path's eligibility pool — without
@@ -1270,7 +1276,7 @@ class NameGenerator:
         self.structs = {
             k: v
             for k, v in structs.items()
-            if is_structurally_grammatical(k) and is_structure_enabled(k)
+            if is_structurally_grammatical(k) and is_structure_enabled(k, culture)
         }
         # Loud-failure guard (generator-contract-reviewer P2, round 1):
         # if the filters empty an otherwise-non-empty structs dict, the
@@ -2852,7 +2858,7 @@ def word_to_key(word):
     return tuple(tuple(e) for e in elements)
 
 
-def load_proportions(data, meaning_db, tag_db):
+def load_proportions(data, meaning_db, tag_db, culture: str | None = None):
     usages = data["usages"]
     mg = MeaningGenerator(meaning_db, tag_db, usages)
     single_usages = data["single_usages"]
@@ -2933,6 +2939,7 @@ def load_proportions(data, meaning_db, tag_db):
         culture_attested_usages=culture_attested_usages,
         culture_attested_meanings=culture_attested_meanings,
         tag_marginal=tag_marginal,
+        culture=culture,
     )
 
 

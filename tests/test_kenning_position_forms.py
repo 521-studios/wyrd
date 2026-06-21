@@ -221,11 +221,14 @@ def test_single_morpheme_structures_ship_disabled_in_allowlist():
     special-case. Multi-morpheme structures stay enabled."""
     from wyrd.generators.kenning.runtime.structure_allowlist import is_structure_enabled
 
-    assert not is_structure_enabled(((("bare", "single"),),))  # 1 word, 1 morpheme
-    assert not is_structure_enabled(((("bare", "name", "single"),),))
-    assert is_structure_enabled(((("pre",), ("post",)),))  # Higham: 2 morphemes
+    # wyrd-hzqs: the allowlist is per-culture now — pass the culture. (bare) is a
+    # single-morpheme seed in every culture; (bare[name]) only occurs (and seeds
+    # disabled) in scottish/welsh, not english.
+    assert not is_structure_enabled(((("bare", "single"),),), "english")  # 1 word, 1 morpheme
+    assert not is_structure_enabled(((("bare", "name", "single"),),), "scottish")
+    assert is_structure_enabled(((("pre",), ("post",)),), "english")  # Higham: 2 morphemes
     # Green Park: 2 words, 2 morphemes total → enabled
-    assert is_structure_enabled(((("bare", "single"),), (("bare", "single"),)))
+    assert is_structure_enabled(((("bare", "single"),), (("bare", "single"),)), "english")
 
 
 def test_is_given_name():
@@ -246,7 +249,10 @@ def test_load_proportions_excludes_single_morpheme_from_generation(monkeypatch):
     from wyrd.generators.kenning.runtime import structure_allowlist
     from wyrd.generators.kenning.runtime.proportions import load_proportions
 
-    monkeypatch.setattr(structure_allowlist, "_load_bundled_cached", lambda: {"(bare)": False})
+    # wyrd-hzqs: allowlist is per-culture now — nested {culture: {label: bool}}.
+    monkeypatch.setattr(
+        structure_allowlist, "_load_bundled_cached", lambda: {"english": {"(bare)": False}}
+    )
     meaning_db = {
         "Stoke-": [Meaning("Stoke-", [], [], {})],
         "-ton": [Meaning("-ton", [], [], {})],
@@ -263,7 +269,9 @@ def test_load_proportions_excludes_single_morpheme_from_generation(monkeypatch):
             {"proportion": 5, "words": [[{"location": "bare"}]]},  # 1 morpheme → excluded
         ],
     }
-    ng = load_proportions(data, meaning_db, {})
+    # wyrd-hzqs: the allowlist is per-culture — pass culture so english's shipped
+    # "(bare)": false seed applies.
+    ng = load_proportions(data, meaning_db, {}, culture="english")
     assert ((("pre",), ("post",)),) in ng.structs, "multi-morpheme structure must survive"
     assert ((("bare", "single"),),) not in ng.structs, "single-morpheme excluded from generation"
 

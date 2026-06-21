@@ -3129,16 +3129,18 @@ mechanism as era / stratum); the `items.enum` stays the union for CLI/API
 validation. Pinned by `tests/test_kenning.py` (per-culture options) +
 `tests/test_kenning_vector_name_select.py` (the slot mechanics + cohesion-safety).
 
-## D48. Structure allowlist is the single operator filter for which structures generate (wyrd-c6o1.5, 2026-06-15).
+## D48. Structure allowlist is the single operator filter for which structures generate (wyrd-c6o1.5, 2026-06-15; per-language + refresh-merge wyrd-hzqs, 2026-06-21).
 
 Which name STRUCTURES the generator may use is an operator choice, expressed in a
-bundled YAML (`data/structures.yaml`) — one entry per structure, keyed by a
-canonical label (`struct_key_to_label`: `(bare)`, `(pre+post)`, `(bare) (bare)`,
-`(bare[name])`, …). Each defaults to `enabled: true`; the operator opts a
-structure OUT with `enabled: false`. A structure ABSENT from the file is enabled,
-so a bundle rebuild that surfaces a brand-new structure generates by default
-(operator opts out, never in). `wyrd kenning dump-structures` emits the full
-inventory to curate from.
+bundled YAML (`data/structures.yaml`). The file is **per-language** (top-level
+culture sections — see the wyrd-hzqs subsection below); within a section each
+structure is keyed by a canonical label (`struct_key_to_label`: `(bare)`,
+`(pre+post)`, `(bare) (bare)`, `(bare[name])`, …). Each defaults to
+`enabled: true`; the operator opts a structure OUT for that culture with
+`enabled: false`. A structure ABSENT from its section — or an absent section — is
+enabled, so a bundle rebuild that surfaces a brand-new structure generates by
+default (operator opts out, never in). `wyrd kenning dump-structures` emits the
+per-language inventory (with frequencies) to curate from.
 
 ### One filtering path
 
@@ -3156,9 +3158,36 @@ operator can't `enabled: true` a structure into ungrammaticality.
 Mirrors `register_effects.yaml`: a package-data file shipped via the `data/*.yaml`
 glob, loaded lazily through `importlib.resources`. The structures themselves stay
 in the runtime DB; only the enable/disable overlay is YAML, so curating the
-allowlist needs no DB migration or re-emit. Global (not per-culture): the label is
-a language-agnostic position shape; per-culture overrides could extend the schema
-later without breaking it (absent → all cultures).
+allowlist needs no DB migration or re-emit.
+
+### Per-language sections + refresh-merge dump (wyrd-hzqs, 2026-06-21)
+
+The file is **per-language**, not global: a top-level mapping of CULTURE → section,
+each section the `{label: {enabled}}` map for that culture. The same structure has
+different frequencies (and different "is this trash") per language — English run-on
+compounds aren't Irish patterns — so `is_structure_enabled(struct_key, culture)`
+keys on the culture. The culture NAME is threaded `_load_culture → load_proportions
+→ NameGenerator(culture=…)`; a `NameGenerator` built without a culture (legacy/test)
+fails open (no section to key on → unfiltered). Absent label → enabled; absent
+culture section → enabled. This SUPERSEDES the original "global, not per-culture"
+choice (the label alone couldn't express that a shape is fine in one language and
+junk in another).
+
+Each dumped row carries an **advisory** `# <weight> (<pct>%)` frequency comment (a
+dump-time snapshot; the loader ignores it) so the operator can curate by commonness
+— most "trash" is rare-tail. Rows are **alphabetically** sorted (stable) so a
+rebuild that only nudges frequencies doesn't reorder the file and churn the git
+diff; new structures land as clean added lines.
+
+`dump-structures` is a **refresh-merge**, not a regen: it reads the existing
+committed file, the operator's `enabled` value wins for any label already present
+(every `false` is sticky), a NEW label gets the default (`true`, except
+single-morpheme `<Bare>` → `false`), and a structure no longer in the corpus drops
+out. It prints a per-culture `+new / -dropped` summary (with the new labels' freq)
+to **stderr** — an explicit "go filter these" signal on top of the git diff. The
+flat (pre-hzqs) format is hard-cut: an old flat file fails the loader loudly (its
+`{enabled: bool}` values aren't section mappings) — re-dump to migrate. Auto-regen
+on rebuild + a CI drift-guard is the follow-up (wyrd-x7w4).
 
 ### Posture
 
