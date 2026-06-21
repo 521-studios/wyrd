@@ -44,13 +44,22 @@ def test_tag_switch_is_not_sticky_across_calls():
 
 
 def test_each_tag_filters_to_its_own_tag_even_after_warming():
-    """The gate actually filters per request — both tags hit their tag at a high
-    rate, even though they share the long-lived generator."""
+    """Per-request filtering isn't sticky: warming the shared generator with one
+    tag must not poison a later different-tag request, nor degrade a same-tag one.
+
+    ``death`` is the load-bearing isolation check — a sticky water pool left by the
+    warm-up would make death names carry water, dropping its hit-rate below 0.9.
+    ``water`` is checked warm-vs-cold (not against an absolute floor): its natural
+    english tag-coverage is ~0.78 (river-name morphemes don't fit every structure),
+    so an absolute 0.9 was a brittle proxy that held only by seed luck at n=8 — a
+    structures-allowlist change that reshuffles sampling (same aggregate coverage)
+    tips it. Warm==cold is the real isolation guarantee."""
+    n = 24
+    cold_water = _tag_hit_rate(Kenning(), "water", n=n)  # fresh generator, no warm-up
     k = Kenning()
-    # interleave so a stale cache from one would corrupt the other
-    k.generate({"culture": "english", "tags": ["water"]}, seed=0)
-    assert _tag_hit_rate(k, "death") >= 0.9
-    assert _tag_hit_rate(k, "water") >= 0.9
+    k.generate({"culture": "english", "tags": ["water"]}, seed=0)  # warm with water
+    assert _tag_hit_rate(k, "death", n=n) >= 0.9  # warm-water did not poison death
+    assert _tag_hit_rate(k, "water", n=n) >= cold_water - 0.05  # warming didn't degrade water
 
 
 def test_no_request_derived_caches_persist_on_the_generator():
