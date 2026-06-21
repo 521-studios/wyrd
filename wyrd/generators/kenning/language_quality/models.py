@@ -384,10 +384,24 @@ class LanguageScorecard:
     # scholar/empirical on some sibling. Already corroborated through
     # the cluster — safe to keep, useful as a trend indicator (count
     # should drift down as mining propagates).
+    # ``rando_corr1_families`` / ``rando_corr2_families`` /
+    # ``rando_corr3plus_families`` (wyrd-g7n6): the mixed families split by
+    # corroborator count (distinct non-rando-port sources) — 1 / 2 / ≥3. They
+    # partition ``rando_mixed_grandfather_families`` exactly (sum == mixed), and
+    # ``rando_pure_grandfather_families`` is the corr-0 (rando-only) bucket.
     # ``rando_total_cited_families``: denominator (families whose root
     # is in this language, with at least one citation anywhere).
     rando_pure_grandfather_families: int = 0
     rando_mixed_grandfather_families: int = 0
+    # wyrd-g7n6: the rando+corroborated tail (== mixed) split by corroborator count
+    # (distinct non-rando-port sources); corr_0 is rando_pure_grandfather_families.
+    # A standalone, decision-free refinement of section K — the 'Promo (tiered)' lift
+    # column from this ticket is deferred (it needs the policy decision). Under the
+    # deployed ≥2-witness gate (witnesses count rando-port) any rando + ≥1
+    # corroborator is already promotion-eligible; corr_0 is the retirement tail.
+    rando_corr1_families: int = 0
+    rando_corr2_families: int = 0
+    rando_corr3plus_families: int = 0
     rando_total_cited_families: int = 0
     rando_pure_grandfather_rate: float = 0.0
 

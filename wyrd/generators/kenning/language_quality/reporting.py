@@ -275,13 +275,19 @@ def _lang_grandfather_line(c: LanguageScorecard) -> str:
             "- **K. Rando-port grandfather audit:** n/a — no "
             "citation-bearing families rooted in this language."
         )
+    # wyrd-g7n6: expand the mixed (rando + corroborated) bucket by corroborator
+    # count. corr_0 == pure-grandfather (rando-only, the retirement tail);
+    # rando + ≥1 corroborator is already promotion-eligible under the deployed
+    # ≥2-witness gate.
     return (
         f"- **K. Rando-port grandfather audit:** "
-        f"{c.rando_pure_grandfather_families} pure-grandfather "
-        f"({_format_pct(c.rando_pure_grandfather_families, c.rando_total_cited_families)}), "
-        f"{c.rando_mixed_grandfather_families} mixed (rando-port + scholar/empirical), "
-        f"of {c.rando_total_cited_families} cited families "
-        f"rooted in this language."
+        f"{c.rando_pure_grandfather_families} rando-only "
+        f"({_format_pct(c.rando_pure_grandfather_families, c.rando_total_cited_families)}; "
+        f"0 corroborators — retirement candidates), "
+        f"{c.rando_mixed_grandfather_families} corroborated "
+        f"[+1: {c.rando_corr1_families}, +2: {c.rando_corr2_families}, "
+        f"+≥3: {c.rando_corr3plus_families}; all already promotion-eligible at ≥2 witnesses], "
+        f"of {c.rando_total_cited_families} cited families rooted in this language."
     )
 
 

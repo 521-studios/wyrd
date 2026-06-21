@@ -1302,6 +1302,55 @@ def test_grandfather_audit_classifies_three_paths() -> None:
     assert oe["pure_grandfather"] == 1
     assert oe["mixed_grandfather"] == 1
     assert oe["total_families"] == 3
+    # wyrd-g7n6: the one mixed family (etymon 101: rando-port + skeat) has exactly
+    # 1 corroborator, so it lands in corr_1; corr_2 / corr_3plus are empty.
+    assert oe["corr_1"] == 1
+    assert oe["corr_2"] == 0
+    assert oe["corr_3plus"] == 0
+
+
+def test_grandfather_audit_corroborator_buckets() -> None:
+    """wyrd-g7n6: rando+corroborated families bin by corroborator count (distinct
+    non-rando-port sources): 0 → pure (rando-only), 1 → corr_1, 2 → corr_2, ≥3 →
+    corr_3plus. pure + corr_1 + corr_2 + corr_3plus == total cited grandfather-touching
+    families; corr_1+corr_2+corr_3plus == mixed."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        """
+        CREATE TABLE source (id TEXT PRIMARY KEY);
+        INSERT INTO source(id) VALUES
+            ('rando-port'),('skeat_1901'),('mawer_1920'),('ekwall_1936'),('joyce_1875');
+        CREATE TABLE etymon (
+            id INTEGER PRIMARY KEY, canonical_form TEXT NOT NULL, language TEXT NOT NULL,
+            lemma_id INTEGER, merged_into_id INTEGER
+        );
+        CREATE TABLE etymon_citation (
+            id INTEGER PRIMARY KEY, etymon_id INTEGER NOT NULL, source_id TEXT NOT NULL
+        );
+        -- corr_0 (rando-only)
+        INSERT INTO etymon(id, canonical_form, language) VALUES (200, 'a', 'old-english');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (200, 'rando-port');
+        -- corr_1 (rando + 1)
+        INSERT INTO etymon(id, canonical_form, language) VALUES (201, 'b', 'old-english');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (201, 'rando-port'),(201,'skeat_1901');
+        -- corr_2 (rando + 2)
+        INSERT INTO etymon(id, canonical_form, language) VALUES (202, 'c', 'old-english');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES
+            (202, 'rando-port'),(202,'skeat_1901'),(202,'mawer_1920');
+        -- corr_3plus (rando + 3)
+        INSERT INTO etymon(id, canonical_form, language) VALUES (203, 'd', 'old-english');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES
+            (203, 'rando-port'),(203,'skeat_1901'),(203,'mawer_1920'),(203,'ekwall_1936');
+        """
+    )
+    oe = compute_rando_port_grandfather_audit(conn)["old-english"]
+    assert oe["pure_grandfather"] == 1  # corr_0
+    assert oe["corr_1"] == 1
+    assert oe["corr_2"] == 1
+    assert oe["corr_3plus"] == 1
+    assert oe["mixed_grandfather"] == 3  # corr_1 + corr_2 + corr_3plus
+    assert oe["total_families"] == 4
 
 
 def test_grandfather_audit_excludes_uncited_families() -> None:
@@ -1969,6 +2018,9 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         # K. Rando-port grandfather audit (wyrd-vn09)
         "rando_pure_grandfather_families",
         "rando_mixed_grandfather_families",
+        "rando_corr1_families",
+        "rando_corr2_families",
+        "rando_corr3plus_families",
         "rando_total_cited_families",
         "rando_pure_grandfather_rate",
     }
@@ -2177,3 +2229,31 @@ def test_both_mode_renders_as_receiver_not_donor_only() -> None:
     )
     assert "donor-only" not in md
     assert "data-gap" in md and "4 promotable lemmas" in md
+
+
+def test_grandfather_k_row_renders_corroborator_breakdown() -> None:
+    """wyrd-g7n6: the K-row detail expands the mixed bucket into the corroborator
+    distribution (rando-only / +1 / +2 / +≥3)."""
+    card = LanguageScorecard(
+        language="old-english",
+        total_etymons=10,
+        total_lemmas=10,
+        rando_pure_grandfather_families=5,
+        rando_mixed_grandfather_families=6,
+        rando_corr1_families=3,
+        rando_corr2_families=2,
+        rando_corr3plus_families=1,
+        rando_total_cited_families=11,
+    )
+    report = LanguageQualityReport(
+        schema_version="1.0",
+        generated_at="2026-06-21T00:00:00Z",
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+        bundle_total_words=100,
+        languages=[card],
+    )
+    md = report_to_markdown(report)
+    assert "5 rando-only" in md and "retirement candidates" in md
+    assert "6 corroborated" in md
+    assert "+1: 3" in md and "+2: 2" in md and "+≥3: 1" in md
+    assert "of 11 cited families" in md
