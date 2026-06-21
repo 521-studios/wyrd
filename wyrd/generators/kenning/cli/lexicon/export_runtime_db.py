@@ -282,6 +282,17 @@ def lexicon_export_runtime_db(
         sidecar = _build_matcher_sidecar(output_path)
         click.echo(f"Wrote decomposition matcher to {sidecar}", err=True)
 
+    # wyrd-x7w4: --dev is the canonical "regenerate the committed seed-runtime.db"
+    # invocation, and the committed per-language structures.yaml allowlist is
+    # DERIVED from that seed's proportions (wyrd-hzqs). Regenerate it here too so
+    # the two never drift (the test_committed_structures_yaml_in_sync_with_bundle
+    # drift-guard would otherwise fail until the operator remembered to re-dump).
+    # Refresh-merge keeps existing operator `enabled: false`s; the working-tree
+    # file is left for the operator to review + commit (NEVER auto-committed).
+    if dev_subset:
+        structures_path = _regen_structure_allowlist(output_path)
+        click.echo(f"Wrote structure allowlist to {structures_path}", err=True)
+
 
 def _parse_lang_thresholds(specs: tuple[str, ...], *, use_preset: bool) -> dict[str, int]:
     """Parse ``LANG=N`` overrides. Mirrors the export-meanings shape."""
@@ -355,6 +366,40 @@ def _reject_non_default_filters_under_dev(
             "(otherwise the committed seed-runtime.db is unreproducible "
             "across operators). Conflicts:\n  - " + "\n  - ".join(offenders)
         )
+
+
+def _regen_structure_allowlist(output_path: Path) -> Path:
+    """wyrd-x7w4: regenerate the per-language ``structures.yaml`` allowlist from the
+    just-written ``--dev`` seed DB and write it next to the DB.
+
+    A refresh-merge over the CURRENT committed file (read via importlib.resources,
+    so operator ``enabled: false`` curation stays sticky); new structures land
+    enabled, retired ones drop, and the ``+new/-dropped`` summary prints to stderr.
+    The working-tree file is left for the operator to review + commit — NEVER
+    auto-committed.
+
+    Unlike ``_build_matcher_sidecar`` (which must redirect ``WYRD_RUNTIME_DB`` +
+    reset runtime caches because it builds the matcher through ``_load_meanings``),
+    this reads the L4 ``proportions_*`` tables directly via the canonical
+    read-only opener ``runtime_db._open_readonly`` — no global-cache surgery, and
+    no raw sqlite3 in cli/lexicon (the package-boundary rule)."""
+    from wyrd.generators.kenning.cli.dump_structures import (
+        _build,
+        _emit_summary,
+        _read_merge_base,
+        _render,
+    )
+    from wyrd.generators.kenning.runtime.runtime_db import _open_readonly
+
+    structures_path = output_path.parent / "structures.yaml"
+    conn = _open_readonly(output_path)
+    try:
+        sections, summary = _build(conn, _read_merge_base(None))
+    finally:
+        conn.close()
+    structures_path.write_text(_render(sections), encoding="utf-8")
+    _emit_summary(summary)
+    return structures_path
 
 
 def _build_matcher_sidecar(output_path: Path) -> Path:
