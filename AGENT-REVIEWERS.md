@@ -5,7 +5,6 @@
   "defaults_version_checked": "1.5.0",
   "disabled": [
     "silent-failure-hunter",
-    "comment-analyzer",
     "code-simplifier"
   ],
   "overlap_acknowledged": {
@@ -57,6 +56,7 @@ Read `.reviewers/logging-reviewer.md` and follow it as your complete review spec
 
 **What it checks:** McCabe complexity > 10 (hard floor), one-screen rule, nesting depth, parameter count > 5, class size > 20 public methods, nested ternaries, redundant single-call wrappers, generic identifiers in long functions.
 **When to spawn:** PR touches production `*.py` (skip `tests/`). Skip if the diff is data / docs / SQL / config only.
+**Post only what this PR owns and what decisively breaks a threshold.** Two posting gates (firing data showed ~half of valid findings get dispositioned out-of-scope or won't-fix): (1) **introduced/worsened only** — do NOT post complexity in a function that was already over a threshold before this PR unless the PR pushes it *further* over; a pre-existing long function the PR merely edits is out of scope. (2) **no borderline soft flags** — the "And/Or" test and one-screen rule are advisory; do not post them as standalone findings for a function that passes the objective `C901`/length floor (e.g. ~50–60 lines). Post the hard objective violations always; raise the soft heuristics only when they compound a hard one.
 
 Read `.reviewers/complexity-reviewer.md` and follow it as your complete review specification.
 
@@ -173,7 +173,7 @@ Read `.reviewers/typing-consistency-reviewer.md` and follow it as your complete 
 ## terraform-reviewer
 
 **What it checks:** this repo's terraform stays in the `apps` layer — must NOT own CloudFront distributions, public ACM certs, public DNS records, CloudFront Functions, or foundational shared resources (VPC, subnets, ECS cluster). Must NOT read from `infra-frontend` remote state or hardcode account IDs.
-**When to spawn:** PR touches `terraform/**/*.tf`. Skip otherwise.
+**When to spawn:** PR adds or modifies a `resource`, `data`, `module`, `provider`, or `terraform`/backend block under `terraform/**/*.tf` (i.e. a *structural* change to what infra is owned or where state is read). Skip value-only edits (variable defaults, `locals`, tags, counts) and all non-`terraform/` diffs — every check here is about resource ownership / remote-state boundaries, so a value-only change can't violate them. (Firing data: fired 46× → 8 findings, half low-value, because it ran on every `.tf` touch.)
 
 Read `.reviewers/terraform-reviewer.md` and follow it as your complete review specification.
 

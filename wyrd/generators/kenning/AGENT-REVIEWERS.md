@@ -79,15 +79,6 @@ Read `wyrd/generators/kenning/.reviewers/dataclass-extraction-decorator-reviewer
 
 ---
 
-## cli-extraction-cross-module-imports-reviewer
-
-**What it checks:** during the `cli.py` → `cli/` subpackage extraction (wyrd-g143 pattern), per-command modules must NOT `from wyrd.generators.kenning.cli import ...` — that's the back-compat shim and importing from it creates partial-init problems. Imports must go to `cli.utils`, sibling per-command modules, or non-cli packages.
-**When to spawn:** PR touches files under `wyrd/generators/kenning/cli/` (except `cli/__init__.py` itself). Skip otherwise.
-
-Read `wyrd/generators/kenning/.reviewers/cli-extraction-cross-module-imports-reviewer.md` and follow it as your complete review specification.
-
----
-
 ## cli-extraction-test-monkeypatch-reviewer
 
 **What it checks:** when a CLI helper moves from `cli/__init__.py` into a per-command module, existing `monkeypatch.setattr(cli_mod, "_helper", ...)` test sites become stale — they patch the shim, not the consumer's local-bound reference, and the test silently runs against the original.
@@ -97,12 +88,9 @@ Read `wyrd/generators/kenning/.reviewers/cli-extraction-test-monkeypatch-reviewe
 
 ---
 
-## cli-extraction-placement-reviewer
+## Retired reviewers
 
-**What it checks:** helpers and constants extracted from `cli.py` land in the right home — single-consumer co-locates with the command; cross-family shared goes to `cli/utils.py`; family-local multi-consumer co-locates with the natural-home command; nested `@click.group` decorators must live in their own subpackage.
-**When to spawn:** PR adds new module-level helpers, constants, or `@click.group` decorators under `wyrd/generators/kenning/cli/`. Skip otherwise.
-
-Read `wyrd/generators/kenning/.reviewers/cli-extraction-placement-reviewer.md` and follow it as your complete review specification.
+- **`cli-extraction-placement-reviewer`** and **`cli-extraction-cross-module-imports-reviewer`** — retired 2026-06-21. They guarded the one-time `cli.py` → `cli/` subpackage extraction (wyrd-g143, now complete). Firing data showed them tailed off with ~0 acted-on findings. The durable lessons live in the `pre-push-extraction-sweep` practice + its wyrd-g143 extension below; the per-round reviewers are spent. Restore from git history if a comparable large extraction starts. `cli-extraction-test-monkeypatch-reviewer` stays — it generalizes to any helper move, not just the g143 extraction.
 
 ---
 
