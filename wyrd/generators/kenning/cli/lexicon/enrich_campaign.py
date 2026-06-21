@@ -25,12 +25,16 @@ from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_l
 from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     next_slice,
     reflex_progress,
+    tag_next_slice,
+    tag_progress,
     validate_candidates,
+    validate_tag_candidates,
 )
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 _DEFAULT_REFLEXES_PATH = Path("data/mining/_reflexes.jsonl")
 _DEFAULT_PARKED_PATH = Path("data/mining/_reflex_parked.jsonl")
+_DEFAULT_TAGS_PATH = Path("data/mining/_tags.jsonl")
 
 _db_option = click.option(
     "--db",
@@ -143,6 +147,70 @@ def cmd_status(db_path: Path, reflexes_path: Path, parked_path: Path) -> None:
         f"scholar-reflex coverage: {done}/{total} ({pct:.1f}%) "
         f"— {parked} parked, {remaining} remaining to attempt"
     )
+
+
+_tags_option = click.option(
+    "--tags-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=_DEFAULT_TAGS_PATH,
+    show_default=True,
+    help="Committed tag ledger (_tags.jsonl) — the remainder/dedup source.",
+)
+
+
+@enrich_campaign.command("tags-next-slice")
+@_db_option
+@_tags_option
+@click.option("--n", type=int, default=20, show_default=True, help="Etymons to emit.")
+def cmd_tags_next_slice(db_path: Path, tags_path: Path, n: int) -> None:
+    """Phase 2: emit the next N impact-ordered admit-cohort etymons that have a
+    gloss but no tag, each with its glosses + the controlled vocab, as JSON."""
+    with _readonly_lexicon(db_path) as conn:
+        slice_ = tag_next_slice(conn, db_path, tags_path, n=n)
+    click.echo(json.dumps(slice_, ensure_ascii=False, indent=2))
+    click.echo(f"emitted {len(slice_)} etymons for tagging", err=True)
+
+
+@enrich_campaign.command("tags-validate")
+@_db_option
+@_tags_option
+@click.option(
+    "--candidates",
+    "candidates_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="JSONL file of authored tag-decision rows to validate.",
+)
+def cmd_tags_validate(db_path: Path, tags_path: Path, candidates_path: Path) -> None:
+    """Validate authored tag decisions. Exit 0 if all pass, 1 otherwise."""
+    candidates = []
+    for lineno, line in enumerate(candidates_path.read_text(encoding="utf-8").splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            candidates.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            click.echo(f"line {lineno}: invalid JSON — {exc}", err=True)
+            sys.exit(1)
+    with _readonly_lexicon(db_path) as conn:
+        errors = validate_tag_candidates(conn, tags_path, candidates)
+    if errors:
+        click.echo(f"VALIDATION FAILED — {len(errors)} error(s):", err=True)
+        for err in errors:
+            click.echo(f"  - {err}", err=True)
+        sys.exit(1)
+    click.echo(f"OK — {len(candidates)} tag decision(s) passed all gates.", err=True)
+
+
+@enrich_campaign.command("tags-status")
+@_db_option
+@_tags_option
+def cmd_tags_status(db_path: Path, tags_path: Path) -> None:
+    """Report how many admit-cohort etymons still await a tag decision."""
+    with _readonly_lexicon(db_path) as conn:
+        remaining = tag_progress(conn, db_path, tags_path)
+    click.echo(f"tag uplift: {remaining} admit-cohort etymons awaiting a tag decision")
 
 
 def add_to(parent: click.Group) -> None:

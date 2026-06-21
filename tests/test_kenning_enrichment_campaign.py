@@ -18,19 +18,25 @@ from pathlib import Path
 
 import pytest
 
-from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, tag_mining
 from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     committed_reflex_refs,
     next_slice,
     reflex_progress,
+    tag_next_slice,
+    tag_progress,
     validate_candidates,
+    validate_tag_candidates,
 )
 
 
-def _etymon(db, form, *, language="old-english"):
-    return db.conn.execute(
+def _etymon(db, form, *, language="old-english", gloss=None):
+    eid = db.conn.execute(
         "INSERT INTO etymon (canonical_form, language) VALUES (?, ?)", (form, language)
     ).lastrowid
+    if gloss is not None:
+        db.conn.execute("INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)", (eid, gloss))
+    return eid
 
 
 def _toponym(db, name, elements):
@@ -58,8 +64,8 @@ def world(tmp_path):
     db = LexiconDB(db_path)
     db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
 
-    tun = _etymon(db, "tūn")
-    by = _etymon(db, "by", language="old-norse")
+    tun = _etymon(db, "tūn", gloss="An enclosure; a farmstead, a village.")
+    by = _etymon(db, "by", language="old-norse", gloss="Estate, farm, village.")
     placeholder = _etymon(db, "Place-name", language="unknown")  # junk → excluded
     phrase = _etymon(db, "Bartholomew County", language="modern-english")  # phrase → excluded
 
@@ -190,3 +196,54 @@ def test_validate_rejects_committed_duplicate(world):
         ],
     )
     assert any("duplicate" in e for e in errors)
+
+
+# --- tag uplift (phase 2) ---------------------------------------------------
+
+_VALID_TAG = tag_mining.TAG_VOCAB[0]
+
+
+def test_tag_next_slice_surfaces_glossed_untagged_admit(world):
+    db, tmp_path = world
+    empty = tmp_path / "_tags.jsonl"
+    slice_ = tag_next_slice(db.conn, tmp_path / "lexicon.db", empty, n=10)
+    refs = {t["ref"] for t in slice_}
+    # tūn (3 toponyms, glossed, untagged) and by (2, glossed, untagged) qualify.
+    assert refs == {"old-english:tūn", "old-norse:by"}
+    assert all(t["glosses"] for t in slice_)
+    assert slice_[0]["vocab"] == list(tag_mining.TAG_VOCAB)
+    # Impact-ordered: tūn (3) before by (2).
+    assert slice_[0]["ref"] == "old-english:tūn"
+
+
+def test_tag_validate_vocab_and_none_outcome(world):
+    db, tmp_path = world
+    empty = tmp_path / "_tags.jsonl"
+    ok = [
+        {"_type": "tags", "ref": "old-english:tūn", "tags": [_VALID_TAG]},
+        {"_type": "tags", "ref": "old-norse:by", "tags": []},  # 'none' outcome is valid
+    ]
+    assert validate_tag_candidates(db.conn, empty, ok) == []
+    bad_vocab = [{"_type": "tags", "ref": "old-english:tūn", "tags": ["not-a-real-tag"]}]
+    assert any("vocabulary" in e for e in validate_tag_candidates(db.conn, empty, bad_vocab))
+    bad_ref = [{"_type": "tags", "ref": "old-english:nope", "tags": [_VALID_TAG]}]
+    assert any(
+        "resolves to no etymon" in e for e in validate_tag_candidates(db.conn, empty, bad_ref)
+    )
+
+
+def test_tag_validate_rejects_committed_duplicate(world):
+    db, tmp_path = world
+    tags = tmp_path / "_tags.jsonl"
+    tags.write_text(
+        json.dumps({"_type": "tags", "ref": "old-english:tūn", "tags": [_VALID_TAG]}) + "\n",
+        encoding="utf-8",
+    )
+    errors = validate_tag_candidates(
+        db.conn, tags, [{"_type": "tags", "ref": "old-english:tūn", "tags": [_VALID_TAG]}]
+    )
+    assert any("duplicate" in e for e in errors)
+    # And the committed ref drops out of the next slice.
+    slice_ = tag_next_slice(db.conn, tmp_path / "lexicon.db", tags, n=10)
+    assert "old-english:tūn" not in {t["ref"] for t in slice_}
+    assert tag_progress(db.conn, tmp_path / "lexicon.db", tags) == 1  # only 'by' remains

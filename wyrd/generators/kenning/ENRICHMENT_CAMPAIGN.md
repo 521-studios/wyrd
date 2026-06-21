@@ -24,10 +24,9 @@ Run from the campaign worktree (`/home/devon/521Studios/wyrd-campaign`), branch
 
 1. **Sync**: `git pull --rebase` (the branch only ever moves forward via this loop).
 2. **Get work**: `wyrd kenning lexicon enrich-campaign next-slice --n 20 > /tmp/slice.json`
-   - Empty array ⇒ phase 1 exhausted (every remaining etymon done or parked).
-     Stop the loop and file a note on **wyrd-eni4.1** that phase 1 is complete;
-     do NOT auto-advance to the decision-gated phases (740t variants, dxtn
-     gloss) unattended.
+   - Empty array ⇒ **phase 1 (reflexes) is exhausted** (every remaining etymon
+     done or parked). Note phase-1 complete on **wyrd-eni4.1.2**, then
+     **advance to phase 2 (tags)** — see "Phase ladder" below. Do NOT stop.
 3. **Author**: for each etymon in the slice, write reflex rows to
    `/tmp/cand.jsonl`, one JSON object per line:
    ```json
@@ -55,6 +54,29 @@ Run from the campaign worktree (`/home/devon/521Studios/wyrd-campaign`), branch
 7. **Update PR + ticket**: keep the single PR's body current; append progress to
    **wyrd-eni4.1.2** notes from
    `wyrd kenning lexicon enrich-campaign status`.
+
+## Phase ladder (what runs, in order)
+
+The loop works **phase 1 to completion first, then advances** (wyrd-eni4.2 is
+the staged-second track):
+
+1. **Phase 1 — reflexes** (steps above). Run until `next-slice` is empty.
+2. **Phase 2 — tags** (wyrd-eni4.2.3). Same loop shape, different verbs:
+   - `enrich-campaign tags-next-slice --n 20` → each etymon carries its glosses
+     + the controlled `vocab`.
+   - Classify each gloss into that vocab. Write rows
+     `{"_type":"tags","ref":"<ref>","tags":["..."],"confidence":"high","method":"claude-tags-v1","model":"opus"}`
+     to `/tmp/tags.jsonl`. **Use ONLY vocab tags; an empty `tags: []` is the
+     valid "none" outcome for genuinely-abstract glosses — no tag sprawl, no bad
+     matches.**
+   - `enrich-campaign tags-validate --candidates /tmp/tags.jsonl` (must exit 0),
+     then append to `data/mining/_tags.jsonl`, commit + push, update
+     **wyrd-eni4.2.3** from `enrich-campaign tags-status`.
+   - When `tags-next-slice` is empty, phase 2 is done → **stop the loop.**
+3. **Human-gated, NOT auto-entered:** variants/D18 spelling pool (wyrd-eni4.2.2,
+   blocked on the wyrd-740t tag-convention decision) and cognate binds
+   (wyrd-eni4.2.4, active over-merge bugs). The loop must **not** author these
+   unattended — leave them for a human session.
 
 ## Why these invariants (don't relax them)
 

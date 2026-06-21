@@ -47,8 +47,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from wyrd.generators.kenning.lexicon import tag_mining
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref, resolve_etymon_ref
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
+
+_TAG_VOCAB_SET = frozenset(tag_mining.TAG_VOCAB)
 
 # The reflex replay accepts exactly these positions (build._insert_reflex_rows
 # upserts (surface_form, position); the matcher reads them by position class).
@@ -446,3 +449,132 @@ def validate_candidates(
             )
         )
     return errors
+
+
+# ---------------------------------------------------------------------------
+# Tag uplift (phase 2 — the accepted-morpheme quality track, wyrd-eni4.2.3).
+# ---------------------------------------------------------------------------
+#
+# The controlled vocabulary is reused wholesale from tag_mining.TAG_VOCAB. The
+# cohort, however, is computed HERE rather than via tag_mining.select_targets:
+# that function runs a correlated admit-count subquery for every glossed etymon
+# in the 2.4M-row table (a one-time paid-mine cost it can absorb, but minutes per
+# call — unusable in a 30-min loop). Instead we scope to the admit ranking (the
+# same fast GROUP BY over the ~43k breakdown rows that _IMPACT_SQL already does)
+# and add cheap indexed gloss/tag EXISTS over the ~3k-row cohort. The loop's only
+# real work is classifying each gloss into the vocab and recording the decision
+# (incl. the 'none' outcome) to data/mining/_tags.jsonl — the same ledger
+# mine-tags-llm writes, replayed for free by the apply-tag-additions pass.
+
+# admit cohort (>=2 distinct toponyms) that is glossed but untagged, impact-first.
+_TAG_COHORT_SQL = """
+    WITH admit AS (
+        SELECT tee.etymon_id AS eid,
+               e.language AS language,
+               e.canonical_form AS canonical_form,
+               COUNT(DISTINCT te.toponym_id) AS impact
+        FROM toponym_etymology_element tee
+        JOIN toponym_etymology te ON te.id = tee.toponym_etymology_id
+        JOIN etymon e ON e.id = tee.etymon_id
+        WHERE tee.etymon_id IS NOT NULL
+          AND e.language <> 'unknown'
+          AND e.canonical_form NOT LIKE '% %'
+        GROUP BY tee.etymon_id, e.language, e.canonical_form
+        HAVING impact >= 2
+    )
+    SELECT a.eid, a.language, a.canonical_form, a.impact,
+           (SELECT GROUP_CONCAT(g.gloss, ' || ')
+            FROM etymon_gloss g WHERE g.etymon_id = a.eid) AS glosses
+    FROM admit a
+    WHERE EXISTS (SELECT 1 FROM etymon_gloss g WHERE g.etymon_id = a.eid)
+      AND NOT EXISTS (SELECT 1 FROM etymon_tag t WHERE t.etymon_id = a.eid)
+    ORDER BY a.impact DESC, a.language, a.canonical_form
+"""
+
+
+def tag_cohort(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Admit-cohort (>=2-toponym) etymons that are glossed but untagged in the
+    DB, impact-first. The DB-tag filter is equivalent to the committed-ledger
+    remainder on a clean rebuild (DB tags == replayed _tags.jsonl)."""
+    return list(conn.execute(_TAG_COHORT_SQL))
+
+
+def tag_next_slice(
+    conn: sqlite3.Connection,
+    db_path: Path,
+    tags_path: Path,
+    *,
+    n: int = 20,
+) -> list[dict[str, Any]]:
+    """The next ``n`` admit-cohort etymons that have a gloss but no tag (and no
+    decision yet in the committed ``_tags.jsonl``), impact-ordered, each with its
+    glosses for classification. Empty when the cohort is exhausted. ``db_path`` is
+    accepted for signature parity with the reflex rail; the cohort comes from
+    ``conn``."""
+    del db_path  # cohort is computed from conn, not a fresh path-opened connection
+    done = tag_mining.existing_refs(str(tags_path))
+    targets: list[dict[str, Any]] = []
+    for row in tag_cohort(conn):
+        ref = etymon_ref(row["language"], row["canonical_form"])
+        if ref in done:
+            continue
+        targets.append(
+            {
+                "ref": ref,
+                "language": row["language"],
+                "canonical_form": row["canonical_form"],
+                "glosses": row["glosses"],
+                "impact": row["impact"],
+                "vocab": list(tag_mining.TAG_VOCAB),
+            }
+        )
+        if len(targets) >= n:
+            break
+    return targets
+
+
+def validate_tag_candidates(
+    conn: sqlite3.Connection,
+    tags_path: Path,
+    candidates: Sequence[dict[str, Any]],
+) -> list[str]:
+    """Validate authored tag-decision rows. Checks per record: ``_type ==
+    "tags"``; ``ref`` resolves to a real etymon; every tag is in the controlled
+    vocabulary (an empty list is the valid 'none' outcome); no duplicate decision
+    for a ref already committed or seen in this batch."""
+    done = tag_mining.existing_refs(str(tags_path))
+    seen: set[str] = set()
+    errors: list[str] = []
+    for i, rec in enumerate(candidates):
+        tag = f"candidate[{i}]"
+        if rec.get("_type") != "tags":
+            errors.append(f"{tag}: _type must be 'tags' (got {rec.get('_type')!r})")
+            continue
+        ref = rec.get("ref")
+        tags = rec.get("tags")
+        if not isinstance(ref, str) or resolve_etymon_ref(conn, ref) is None:
+            errors.append(f"{tag}: ref {ref!r} resolves to no etymon")
+            continue
+        if not isinstance(tags, list):
+            errors.append(f"{tag}: tags must be a list (use [] for the 'none' outcome)")
+            continue
+        bad = [t for t in tags if t not in _TAG_VOCAB_SET]
+        if bad:
+            errors.append(f"{tag}: tags not in controlled vocabulary: {bad}")
+        if ref in done or ref in seen:
+            errors.append(f"{tag}: duplicate tag decision for {ref}")
+        seen.add(ref)
+    return errors
+
+
+def tag_progress(conn: sqlite3.Connection, db_path: Path, tags_path: Path) -> int:
+    """Count admit-cohort etymons still awaiting a tag decision (cohort from the
+    DB, remainder from the committed ``_tags.jsonl`` — equivalent on a clean
+    rebuild where DB tags == the committed ledger)."""
+    del db_path  # cohort is computed from conn
+    done = tag_mining.existing_refs(str(tags_path))
+    return sum(
+        1
+        for row in tag_cohort(conn)
+        if etymon_ref(row["language"], row["canonical_form"]) not in done
+    )
