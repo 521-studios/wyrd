@@ -475,6 +475,11 @@ class Kenning(Generator):
         # nothing. The call doubles as request validation (typo'd era → 4xx).
         era_range = _resolve_era_param(params.get("era"), culture)
         era_record_cutoff = era_range[1] if era_range else None
+        # wyrd-3tvd: a bounded era also leans the priors-baseline toward that
+        # period's naming FASHION (D36.7 per-era frequency cells) via era_midpoint
+        # — not just the D46 inventory cutoff above. Open-ended/no era → 0 (the
+        # D44 wildcard), so the deployed present-day default is unchanged.
+        era_midpoint = _request_era_midpoint(era_range)
         # wyrd-6c8x (feature A): the target language to RENDER morphemes in for
         # the requested era — under D44 this is era's ONLY effect. None =
         # render the modern canonical form (no era set, or a cell with no
@@ -510,6 +515,7 @@ class Kenning(Generator):
             mood=original_moods,
             harshness=original_harshness,
             era_record_cutoff=era_record_cutoff,
+            era_midpoint=era_midpoint,
             stratum=stratum,
             cohesion=cohesion,
             exclude_tags=exclude_tags,
@@ -759,6 +765,32 @@ def _resolve_vector_inputs(
     return request, priors, pack_meaning_dbs
 
 
+def _request_era_midpoint(era_range: tuple[int | None, int | None] | None) -> int:
+    """The baseline-axis ``era_midpoint`` for the requested era (wyrd-3tvd): so
+    generation at a bounded period also leans toward that period's naming
+    FASHION (the D36.7 per-era frequency cells), not just its inventory floor.
+
+    Bounded (both bounds) → ``(start + end) // 2``; single-bound → that bound;
+    open-ended or no era → ``0``, the D44 wildcard = no era-fashion lean (the
+    deployed present-day default, so default behavior is unchanged).
+
+    NOTE: this is the REQUEST convention, deliberately distinct from
+    ``empirical_priors._era_midpoint`` (which uses an open-bound OFFSET so every
+    era CELL gets a deterministic identity year) — here an open bound means
+    'wildcard', so it must NOT borrow that offset.
+    """
+    if era_range is None:
+        return 0
+    start, end = era_range
+    if start is not None and end is not None:
+        return (start + end) // 2
+    if start is not None:
+        return start
+    if end is not None:
+        return end
+    return 0
+
+
 def _generate_via_vector(
     name_gen: NameGenerator,
     rng: random.Random,
@@ -768,6 +800,7 @@ def _generate_via_vector(
     mood: tuple[str, ...],
     harshness: float,
     era_record_cutoff: int | None,
+    era_midpoint: int = 0,
     stratum: str | None,
     cohesion: float,
     exclude_tags: tuple[str, ...],
@@ -807,6 +840,7 @@ def _generate_via_vector(
         rng,
         request=request,
         priors=priors,
+        era_midpoint=era_midpoint,
         cohesion=cohesion,
         exclude_tags=exclude_tags,
         pack_meaning_dbs=pack_meaning_dbs or None,
