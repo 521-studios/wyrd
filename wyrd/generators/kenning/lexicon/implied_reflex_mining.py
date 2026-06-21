@@ -22,16 +22,38 @@ Output (two targets, D50 + projection):
 
 * a D50 ``canonical-label@modern-english`` assertion on the residual element's
   ``canonical_morpheme`` node — the SOURCE OF TRUTH (which observed form is the
-  modern-stratum label of that morpheme); and
+  modern-stratum label of that morpheme) — paired with a ``mint-canonical``
+  declaration of that node so the label PROJECTS even for a SINGLETON residual
+  morpheme (``project-canonical`` skips a label whose subject node is unminted, and
+  the legacy identity fold only mints MULTI-member families); and
 * (effectfully, via :func:`apply_implied_reflexes`) a ``reflex`` row + a
   ``reflex_etymon`` link so the surface feeds the era-grid / bundle, re-dumped to
-  ``_reflexes.jsonl`` so it survives a rebuild (the ned5/br5o round-trip), plus the
-  per-element ``surface_in_modern`` span on every cleanly-aligned breakdown element.
+  ``_reflexes.jsonl`` so it survives a rebuild (the ned5/br5o round-trip).
 
-GUARDS (false alignment is the empirically top risk — a wrong reflex is corruption,
-a missed one is harmless): position-order only; reject a residual containing
-whitespace / apostrophe / digit; v1 single-token names only; residual length ≥2 AND
-the anchor span ≥2; MAXIMAL-anchor-coverage tiling — enumerate every valid tiling
+``surface_in_modern`` is NOT written here — its derivation is owned by wyrd-ujyo
+(suffix-anchoring), merged separately; this miner stays scoped to the reflex +
+canonical-label/mint-canonical targets.
+
+DATA-QUALITY GUARDS (wyrd-65jh round-2 — drop the empirically-bad classes the
+support≥3 band still admitted):
+
+* MIN RESIDUAL ≥ :data:`_MIN_RESIDUAL` (3): a 2-char residual is almost always a
+  spurious co-folded fragment (``eh``/``gh``/``nh``/``sh``←hamm, ``le``←hyll,
+  ``ly``←lēah) rather than a real reflex.
+* PLACEHOLDER / PERSONAL-NAME ETYMON: skip a residual attributed to a non-morpheme
+  etymon — a bracket placeholder (``River-name``, ``Place-name``), a CAPITALIZED
+  personal name (``Sótr``, ``Ecga``, ``Íri``), or an ``unknown``-language etymon.
+  These are toponymic stand-ins, not morphemes with a reflex.
+* CO-PRESENT KNOWN-REFLEX: skip a residual that is already the established
+  (higher-cluster-evidence) reflex of a DIFFERENT, co-present breakdown element —
+  i.e. the residual span is one element's canonical reflex mis-attributed to its
+  neighbour (``ton``←dūn, since ``ton`` is the reflex of tūn; ``den``←dūn).
+
+ALIGNMENT GUARDS (false alignment is the empirically top risk — a wrong reflex is
+corruption, a missed one is harmless): position-order only; reject a residual
+containing whitespace / apostrophe / digit; v1 single-token names only; residual
+length ≥ :data:`_MIN_RESIDUAL` AND the anchor span ≥2; MAXIMAL-anchor-coverage
+tiling — enumerate every valid tiling
 and pick the one that maximizes anchor span (= the SHORTEST residual), so a long
 anchor surface consumes the boundary char (``down`` beats ``dow``, ``brad`` beats
 ``bra``) instead of leaking it into the residual; emit only when that minimal
@@ -70,9 +92,34 @@ METHOD = "implied-reflex-residual-v1"
 # morpheme. The canonical-label value IS that observed modern form.
 MODERN_STRATUM = "modern-english"
 
-# Min span lengths (a 1-char anchor or residual is too noisy to attribute — a
-# coincidence rather than a reflex). Mirrors the conservative passthrough caps.
+# Min ANCHOR span length (a 1-char anchor is too noisy to tile on — a coincidence
+# rather than a reflex). Mirrors the conservative passthrough caps.
 _MIN_SPAN = 2
+
+# Min RESIDUAL length (wyrd-65jh round-2): a 2-char residual is overwhelmingly a
+# spurious co-folded fragment (eh/gh/nh/sh←hamm, le←hyll, ly←lēah), not a real
+# reflex — require ≥3. Strictly tighter than _MIN_SPAN, applied to the residual gap.
+_MIN_RESIDUAL = 3
+
+# Placeholder etymon canonical_forms (bracket toponymic stand-ins, not morphemes):
+# a residual attributed to one of these is never a real reflex (wyrd-65jh round-2).
+_PLACEHOLDER_FORMS = frozenset({"River-name", "Place-name", "Personal-name"})
+
+
+def _is_non_morpheme_etymon(language: str, canonical_form: str) -> bool:
+    """True when an etymon is a non-morpheme attribution target (wyrd-65jh round-2):
+    a bracket PLACEHOLDER (``River-name``), an ``unknown``-language etymon, or a
+    CAPITALIZED personal name (``Sótr``, ``Ecga``). Real morphemes are lower-case
+    and carry a concrete language; these stand-ins have no reflex to attribute."""
+    if not canonical_form:
+        return True
+    if canonical_form in _PLACEHOLDER_FORMS:
+        return True
+    if language == "unknown" or not language:
+        return True
+    # A personal name is title-cased; morphemes (tūn, halh, -ingas) are lower-case.
+    return canonical_form[:1].isupper()
+
 
 # Bound the permutation search the same way passthrough_mining does — a breakdown
 # with more anchored elements than this is skipped rather than hung on N!.
@@ -195,15 +242,16 @@ class ImpliedReflex:
     sample_toponyms: tuple[str, ...]
 
 
-# One cleanly-aligned breakdown: the residual it attributes + the per-element
-# matched spans (etymon_id -> folded span) to write back as surface_in_modern.
+# One cleanly-aligned breakdown: the residual it attributes + the per-element matched
+# spans (etymon_id -> folded span). ``spans`` is retained for diagnostics/tiling
+# bookkeeping only; surface_in_modern is no longer written here (wyrd-ujyo owns it).
 @dataclass(frozen=True)
 class _Alignment:
     breakdown: _Breakdown
     residual_element: _Element
     residual: str
     position: str
-    spans: dict[int, str]  # etymon_id -> matched modern-name span
+    spans: dict[int, str]  # etymon_id -> matched modern-name span (diagnostic)
 
 
 def _position_for(prefix_len: int, suffix_start: int, name_len: int) -> str:
@@ -236,11 +284,15 @@ def _align_breakdown(
     name = bd.folded_name
     if not name or len(bd.elements) < 2 or len(bd.elements) - 1 > _MAX_ANCHORS:
         return None
-    # already-known guard: any folded surface ANY breakdown cluster can take.
-    known_surfaces = {sf for e in bd.elements for sf in cluster_surfaces.get(e.cluster, ()) if sf}
 
     valid: list[_Alignment] = []
     for residual_element in bd.elements:
+        # PLACEHOLDER / PERSONAL-NAME guard (wyrd-65jh round-2): a residual element
+        # that is a non-morpheme stand-in (bracket placeholder, personal name,
+        # unknown language) has no reflex to attribute — skip it as a residual
+        # candidate.
+        if _is_non_morpheme_etymon(residual_element.language, residual_element.canonical_form):
+            continue
         anchors = [e for e in bd.elements if e is not residual_element]
         # Every anchor must actually carry at least one folded surface, else it
         # can't tile (an unclustered/formless element makes the residual span
@@ -250,9 +302,22 @@ def _align_breakdown(
         aln = _residual_from_anchors(bd, name, residual_element, anchors, cluster_surfaces)
         if aln is None:
             continue
+        # already-known / CO-PRESENT-known-reflex guard: any folded surface ANY
+        # breakdown cluster can take, broadened across COGNATE-EQUIVALENT clusters
+        # (expanded_surfaces) so the macron/ASCII split is healed. This catches the
+        # co-present contamination where the residual span is the canonical reflex of
+        # a DIFFERENT co-present element whose own (impoverished) cluster doesn't list
+        # it but its cognate twin does (ton←dūn: 'ton' is the reflex of the
+        # co-present tūn; den←dūn: 'den' belongs to denn/denu). Homograph / already
+        # handled — don't re-attribute (wyrd-65jh round-2).
+        known_surfaces = {
+            sf
+            for e in bd.elements
+            for src in (cluster_surfaces, expanded_surfaces)
+            for sf in src.get(e.cluster, ())
+            if sf
+        }
         if aln.residual in known_surfaces:
-            # The residual is already a known reflex of some cluster here — a
-            # homograph / already-handled surface; don't re-attribute it.
             continue
         if _known_reflex_leftover(residual_element, aln, cluster_surfaces, expanded_surfaces):
             # Boundary-leak guard (belt-and-suspenders): the residual element ALREADY
@@ -408,8 +473,8 @@ def _candidate_splits(
     ``suffix_anchors`` at the tail. Each anchor side enumerates ALL boundaries it can
     reach (every permutation × per-cluster surface choice), so a longer anchor
     surface that consumes a boundary char is among the candidates the caller ranks
-    by maximal coverage. A residual must be a clean span (length ≥ :data:`_MIN_SPAN`,
-    no noise chars)."""
+    by maximal coverage. A residual must be a clean span (length ≥
+    :data:`_MIN_RESIDUAL`, no noise chars)."""
     prefix_lens = _tile_lengths(name, prefix_anchors, cluster_surfaces, from_head=True)
     suffix_starts = _tile_lengths(name, suffix_anchors, cluster_surfaces, from_head=False)
     matches: list[_Alignment] = []
@@ -418,7 +483,7 @@ def _candidate_splits(
             if p > s:
                 continue
             residual = name[p:s]
-            if len(residual) < _MIN_SPAN or any(c in _NOISE_CHARS for c in residual):
+            if len(residual) < _MIN_RESIDUAL or any(c in _NOISE_CHARS for c in residual):
                 continue
             position = _position_for(p, s, len(name))
             spans = {**pspans, **sspans, residual_element.etymon_id: residual}
@@ -520,8 +585,8 @@ def _walk_order(
 
 def _load_breakdowns(db: LexiconDB, index: ClusterIndex) -> list[_Breakdown]:
     """Every multi-element breakdown with a single-token modern name, carrying its
-    ``toponym_etymology`` id (for surface_in_modern write-back), the toponym id +
-    display name, and its elements with their stable natural-key parts.
+    ``toponym_etymology`` id, the toponym id + display name, and its elements with
+    their stable natural-key parts.
 
     v1 single-token guard: a modern name with whitespace/apostrophe is skipped here
     (the residual guards would reject it anyway; skipping early bounds the search)."""
@@ -634,17 +699,40 @@ def extract_implied_reflexes(
 def implied_reflex_assertions(
     reflexes: list[ImpliedReflex], *, source: str, actor: str = ""
 ) -> list[Assertion]:
-    """Author one D50 ``canonical-label@modern-english`` assertion per mined
-    implied reflex (the SOURCE OF TRUTH for the residual modern label).
+    """Author the D50 canonicalization assertions per mined implied reflex:
 
-    Subject is the residual element's ``canonical_morpheme`` node, minted from its
-    rebuild-stable ``(language, canonical_form)`` (never an etymon row-id, D50.1);
-    the ``value`` qualifier is the residual surface; ``stratum`` is
-    ``modern-english``. Deterministic ids (no timestamp) → re-mining is idempotent
-    (D36.9)."""
+    * a ``canonical-label@modern-english`` (the SOURCE OF TRUTH for the residual
+      modern label), subject = the residual element's ``canonical_morpheme`` node
+      (minted from its rebuild-stable ``(language, canonical_form)``, never an etymon
+      row-id, D50.1); the ``value`` qualifier is the residual surface; and
+    * a ``mint-canonical`` declaration of that SAME node (wyrd-65jh round-2): without
+      it ``project-canonical`` SKIPS the label whose subject node is unminted, and
+      the legacy identity fold only mints MULTI-member families — so a SINGLETON
+      residual morpheme's committed canonical-label would project to NOTHING. One
+      mint per DISTINCT node (a morpheme with two residual labels mints once).
+
+    Deterministic ids (no timestamp) → re-authoring is idempotent (D36.9). The mints
+    sort first by id but ``append_assertion`` routes them to ``_canonical_nodes.jsonl``
+    while labels land in ``_assert_canonical_label.jsonl`` (per-predicate streams)."""
     out: list[Assertion] = []
+    minted_nodes: set[str] = set()
     for r in reflexes:
         node_id = mint_canonical_id("canonical_morpheme", r.language, r.canonical_form)
+        if node_id not in minted_nodes:
+            minted_nodes.add(node_id)
+            mint = Assertion(
+                predicate="mint-canonical",
+                subject=NodeRef("canonical_morpheme", node_id),
+                confidence="high",
+                method=METHOD,
+                source=source,
+                actor=actor,
+                rationale=(
+                    f"hub for {r.language}:{r.canonical_form} (implied-reflex residual morpheme)"
+                ),
+            ).with_id()
+            validate(mint)
+            out.append(mint)
         rationale = (
             f"implied reflex: residual modern-name span '{r.residual}' ({r.position}) "
             f"of {r.language}:{r.canonical_form} (support {r.support}; "
@@ -672,33 +760,33 @@ def apply_implied_reflexes(
     min_support: int = 2,
 ) -> dict[str, int]:
     """Effectful projection of mined implied reflexes onto the live DB (the f233 /
-    bundle feed). Idempotent: upserts + ``INSERT OR IGNORE`` links + an
-    UPDATE-guarded surface_in_modern fill.
+    bundle feed). Idempotent: upserts + ``INSERT OR IGNORE`` links.
 
     ``min_support`` defaults to **2** here (vs 1 for :func:`extract_implied_reflexes`):
-    support=1 is weak evidence for the EFFECTFUL reflex/reflex_etymon +
-    surface_in_modern + canonical-label projection (a single attesting toponym is a
-    coincidence-prone singleton; the real-data measurement found ~3656 of 4009 are
-    support=1). Extract still returns ALL records for vetting; only the WRITE path is
-    gated at ≥2 so production gets the clean high-support reflexes, not the noise.
-    Override with the CLI ``--min-support``.
+    support=1 is weak evidence for the EFFECTFUL reflex/reflex_etymon + canonical-label
+    projection (a single attesting toponym is a coincidence-prone singleton; the
+    real-data measurement found ~3656 of 4009 are support=1). Extract still returns
+    ALL records for vetting; only the WRITE path is gated at ≥2 so production gets the
+    clean high-support reflexes, not the noise. Override with the CLI ``--min-support``.
 
     Per mined implied reflex: upsert a ``reflex(surface_form=residual, position)``
     and link ``reflex_etymon`` to the residual element's etymon (resolved by the
-    natural key — productivity is left 0, recomputed at the rebuild tail). Per
-    cleanly-aligned breakdown: set ``toponym_etymology_element.surface_in_modern``
-    = the matched span + ``confidence`` = the support label on every element
-    (anchors + residual). The caller is responsible for re-dumping
-    ``_reflexes.jsonl`` (``dump_reflexes_to_file``) and the affected
-    ``toponym_etymology`` L2 so both round-trip on rebuild.
+    natural key — productivity is left 0, recomputed at the rebuild tail). The caller
+    is responsible for re-dumping ``_reflexes.jsonl`` (``dump_reflexes_to_file``) so
+    the reflex round-trips on rebuild.
+
+    NOTE (wyrd-65jh round-2): this miner does NOT write
+    ``toponym_etymology_element.surface_in_modern`` — its derivation is owned by
+    wyrd-ujyo (suffix-anchoring on ``main``), and the per-source re-dump path it
+    required rewrote all L2 (a 7327-row data-loss bug). The reflex + canonical-label /
+    mint-canonical are the only effects.
 
     Returns a counts dict."""
     if index is None:
         index = load_cluster_index(db)
-    alignments = _mine_alignments(db, index)
     reflexes = extract_implied_reflexes(db, index=index, min_support=min_support)
 
-    counts = {"reflexes": 0, "reflex_links": 0, "surface_in_modern": 0}
+    counts = {"reflexes": 0, "reflex_links": 0}
 
     # Reflex layer: one (surface, position) per mined record, linked to the etymon.
     for r in reflexes:
@@ -710,29 +798,6 @@ def apply_implied_reflexes(
         db.link_reflex_etymon(reflex_id, eid)
         counts["reflex_links"] += 1
 
-    # surface_in_modern: every element of each cleanly-aligned breakdown that met
-    # the support floor (its residual record survived the min_support filter).
-    surviving = {(r.language, r.canonical_form, r.residual, r.position) for r in reflexes}
-    for aln in alignments:
-        e = aln.residual_element
-        if (e.language, e.canonical_form, aln.residual, aln.position) not in surviving:
-            continue
-        label = _confidence_for(
-            next(
-                r.support
-                for r in reflexes
-                if (r.language, r.canonical_form, r.residual, r.position)
-                == (e.language, e.canonical_form, aln.residual, aln.position)
-            )
-        )
-        for etymon_id, span in aln.spans.items():
-            db.conn.execute(
-                "UPDATE toponym_etymology_element "
-                "SET surface_in_modern = ?, confidence = ? "
-                "WHERE toponym_etymology_id = ? AND etymon_id = ?",
-                (span, label, aln.breakdown.etymology_id, etymon_id),
-            )
-            counts["surface_in_modern"] += 1
     db.commit()
     return counts
 

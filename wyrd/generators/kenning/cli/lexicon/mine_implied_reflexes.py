@@ -3,9 +3,10 @@ residual attribution of a toponym's modern name (wyrd-65jh).
 
 Anchors the spans a breakdown's KNOWN-reflex elements cover, attributes the one
 contiguous residual span to the remaining element, and (with ``--apply``) authors
-BOTH a D50 ``canonical-label@modern-english`` assertion (source of truth) AND a
-``reflex`` / ``reflex_etymon`` projection + ``surface_in_modern`` fill, re-dumping
-``_reflexes.jsonl`` and the affected toponym_etymology L2 so they round-trip.
+the D50 ``canonical-label@modern-english`` assertion + its ``mint-canonical`` hub
+(source of truth) AND a ``reflex`` / ``reflex_etymon`` projection, re-dumping
+``_reflexes.jsonl`` so the reflex round-trips. ``surface_in_modern`` is NOT written
+here (wyrd-ujyo owns its derivation on main).
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import click
 
 from wyrd.generators.kenning.canonicalization import append_assertion, load_assertions
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
-from wyrd.generators.kenning.jsonl.dump import dump_all_sources, dump_reflexes_to_file
+from wyrd.generators.kenning.jsonl.dump import dump_reflexes_to_file
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.lexicon.implied_reflex_mining import (
     apply_implied_reflexes,
@@ -40,13 +41,12 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     type=click.Path(file_okay=False, path_type=Path),
     default=Path("data/mining"),
     show_default=True,
-    help="L2 mining root; canonical-label assertions append under "
-    "<dir>/canonicalization/, and _reflexes.jsonl + per-source toponym_etymology "
-    "are re-dumped here on --apply.",
+    help="L2 mining root; canonical-label + mint-canonical assertions append under "
+    "<dir>/canonicalization/, and _reflexes.jsonl is re-dumped here on --apply.",
 )
 @click.option(
     "--source",
-    default="implied-reflex-residual",
+    default="implied-reflex-align",
     show_default=True,
     help="Provenance source id stamped on the authored assertions.",
 )
@@ -74,10 +74,10 @@ def lexicon_mine_implied_reflexes(
     contiguous residual span to the remaining element.
 
     DETERMINISTIC, LLM-free. ``--apply`` writes two targets: the
-    canonical-label@modern-english assertion (source of truth, under
-    <mining-dir>/canonicalization/) AND the reflex/reflex_etymon projection +
-    surface_in_modern fill (re-dumped to _reflexes.jsonl + per-source
-    toponym_etymology so both survive a rebuild).
+    canonical-label@modern-english assertion + its mint-canonical hub (source of
+    truth, under <mining-dir>/canonicalization/) AND the reflex/reflex_etymon
+    projection (re-dumped to _reflexes.jsonl so it survives a rebuild).
+    surface_in_modern is NOT written here (wyrd-ujyo owns its derivation).
 
     Default support floors: the dry-run report shows EVERYTHING (≥1) for vetting;
     --apply writes only the high-support clean reflexes (≥2), since support=1 is weak
@@ -116,28 +116,23 @@ def lexicon_mine_implied_reflexes(
             append_assertion(mining_dir, assertion)
             written += 1
         click.echo(
-            f"  wrote {written} canonical-label assertions to "
-            f"{mining_dir}/canonicalization/ (skipped {skipped} already-authored)",
+            f"  wrote {written} canonicalization assertions (mint-canonical + "
+            f"canonical-label) to {mining_dir}/canonicalization/ "
+            f"(skipped {skipped} already-authored)",
             err=True,
         )
 
         counts = apply_implied_reflexes(db, min_support=apply_floor)
         click.echo(
-            f"  projected reflexes={counts['reflexes']} "
-            f"links={counts['reflex_links']} "
-            f"surface_in_modern={counts['surface_in_modern']}",
+            f"  projected reflexes={counts['reflexes']} links={counts['reflex_links']}",
             err=True,
         )
-        # Re-dump the durable L2 so the reflex + surface_in_modern round-trip on a
-        # from-scratch rebuild (the ned5/br5o gap): _reflexes.jsonl via the
-        # dedicated dumper, and the per-source toponym_etymology via dump_all_sources.
+        # Re-dump the durable L2 so the reflex round-trips on a from-scratch rebuild
+        # (the ned5/br5o gap): _reflexes.jsonl via the dedicated dumper. We do NOT
+        # re-dump per-source toponym_etymology here — surface_in_modern is wyrd-ujyo's
+        # (its full-L2 dump_all_sources path also had a 7327-row data-loss bug).
         _, n = dump_reflexes_to_file(db.conn, mining_dir)
         click.echo(f"  re-dumped {n} rows to {mining_dir}/_reflexes.jsonl", err=True)
-        dump_all_sources(db.conn, mining_dir)
-        click.echo(
-            f"  re-dumped per-source L2 (toponym_etymology surface_in_modern) to {mining_dir}/",
-            err=True,
-        )
 
 
 def add_to(parent: click.Group) -> None:

@@ -131,13 +131,15 @@ here's the obligation:
 - **implied reflexes** (`mine-implied-reflexes`, wyrd-65jh) — residual attribution
   of a toponym's modern name (anchor the KNOWN-reflex spans, attribute the one
   contiguous residual span to the remaining element; `Houghton − ton(tūn) ⇒ hough`
-  is an implied reflex of `hōh`). NOT a wipe-restore step: `--apply` writes BOTH a
-  D50 `canonical-label@modern-english` assertion (`data/mining/canonicalization/_assert_canonical_label.jsonl`,
-  covered by the `canonicalization-graph` layer) AND a `reflex` / `reflex_etymon`
-  projection + `surface_in_modern` fill, then RE-DUMPS `_reflexes.jsonl` (the
-  `reflexes` layer) and the per-source `toponym_etymology` L2 (the `l2-corpus`
-  layer) so both round-trip on rebuild. Its outputs all ride existing layers; the
-  miner itself is never re-run on rebuild.
+  is an implied reflex of `hōh`). NOT a wipe-restore step: `--apply` writes BOTH the
+  D50 `canonical-label@modern-english` assertion + its `mint-canonical` hub
+  (`data/mining/canonicalization/_assert_canonical_label.jsonl` +
+  `_canonical_nodes.jsonl`, covered by the `canonicalization-graph` layer — the mint
+  is what lets a singleton residual morpheme's label project) AND a `reflex` /
+  `reflex_etymon` projection, then RE-DUMPS `_reflexes.jsonl` (the `reflexes` layer)
+  so the reflex round-trips on rebuild. `surface_in_modern` is NOT written here
+  (wyrd-ujyo owns its derivation). Its outputs all ride existing layers; the miner
+  itself is never re-run on rebuild.
 
 ---
 

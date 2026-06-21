@@ -401,13 +401,15 @@ def test_support_tiers(tmp_path):
     out = {r.canonical_form: r for r in extract_implied_reflexes(db)}
     assert out["hōh"].support == 2
     assert out["burna"].support == 1
-    assertions = {
-        a.subject.ref: a for a in implied_reflex_assertions(list(out.values()), source="t")
+    labels = {
+        a.subject.ref: a
+        for a in implied_reflex_assertions(list(out.values()), source="t")
+        if a.predicate == "canonical-label"
     }
     hoh_node = mint_canonical_id("canonical_morpheme", "old-english", "hōh")
     burna_node = mint_canonical_id("canonical_morpheme", "old-english", "burna")
-    assert assertions[hoh_node].confidence == "high"
-    assert assertions[burna_node].confidence == "medium"
+    assert labels[hoh_node].confidence == "high"
+    assert labels[burna_node].confidence == "medium"
 
 
 # --- assertion shape -------------------------------------------------------
@@ -422,20 +424,25 @@ def test_assertion_shape(tmp_path):
     db.commit()
 
     out = extract_implied_reflexes(db)
-    assertions = implied_reflex_assertions(out, source="implied-reflex-residual")
-    assert len(assertions) == 1
-    a = assertions[0]
-    assert a.predicate == "canonical-label"
-    assert a.subject.type == "canonical_morpheme"
-    assert a.subject.ref == mint_canonical_id("canonical_morpheme", "old-english", "hōh")
-    assert a.qualifiers == {"stratum": "modern-english", "value": "hough"}
-    assert a.id  # minted, deterministic
+    assertions = implied_reflex_assertions(out, source="implied-reflex-align")
+    # One mint-canonical (the hub) + one canonical-label (the modern reflex label).
+    assert [a.predicate for a in assertions] == ["mint-canonical", "canonical-label"]
+    node = mint_canonical_id("canonical_morpheme", "old-english", "hōh")
+    mint, label = assertions
+    assert mint.predicate == "mint-canonical"
+    assert mint.subject.type == "canonical_morpheme"
+    assert mint.subject.ref == node
+    assert mint.object is None  # unary
+    assert label.predicate == "canonical-label"
+    assert label.subject.ref == node
+    assert label.qualifiers == {"stratum": "modern-english", "value": "hough"}
+    assert mint.id and label.id  # minted, deterministic
 
 
-# --- apply: reflex + surface_in_modern -------------------------------------
+# --- apply: reflex (surface_in_modern is wyrd-ujyo's, not written here) ------
 
 
-def test_apply_writes_reflex_and_surface_in_modern(tmp_path):
+def test_apply_writes_reflex_only_not_surface_in_modern(tmp_path):
     db = _db(tmp_path)
     hoh = _etymon(db, "hōh")
     tun = _etymon(db, "tūn")
@@ -446,6 +453,7 @@ def test_apply_writes_reflex_and_surface_in_modern(tmp_path):
     counts = apply_implied_reflexes(db, min_support=1)  # single-toponym fixture
     assert counts["reflexes"] == 1
     assert counts["reflex_links"] == 1
+    assert "surface_in_modern" not in counts  # wyrd-65jh round-2: no longer written
     # The implied reflex row + link exist.
     row = db.conn.execute(
         "SELECT r.id, r.position FROM reflex r WHERE r.surface_form='hough'"
@@ -457,7 +465,7 @@ def test_apply_writes_reflex_and_surface_in_modern(tmp_path):
         (hoh,),
     ).fetchone()
     assert linked is not None
-    # surface_in_modern filled on BOTH elements (anchor + residual).
+    # surface_in_modern is NOT touched by this miner (wyrd-ujyo owns it).
     spans = dict(
         db.conn.execute(
             "SELECT etymon_id, surface_in_modern FROM toponym_etymology_element "
@@ -465,8 +473,8 @@ def test_apply_writes_reflex_and_surface_in_modern(tmp_path):
             (teid,),
         ).fetchall()
     )
-    assert spans[hoh] == "hough"
-    assert spans[tun] == "ton"
+    assert spans[hoh] is None
+    assert spans[tun] is None
 
 
 def test_apply_idempotent(tmp_path):
@@ -522,12 +530,6 @@ def test_reflex_round_trips_through_rebuild(tmp_path):
     ).fetchone()
     assert reproduced is not None
     assert reproduced["position"] == "pre"
-    # surface_in_modern also round-trips through the toponym_etymology L2 dump.
-    sim = fresh.conn.execute(
-        "SELECT tee.surface_in_modern FROM toponym_etymology_element tee "
-        "JOIN etymon e ON e.id=tee.etymon_id WHERE e.canonical_form='hōh'"
-    ).fetchone()
-    assert sim is not None and sim["surface_in_modern"] == "hough"
 
 
 def test_determinism(tmp_path):
@@ -548,3 +550,175 @@ def test_determinism(tmp_path):
     # And the mined order is content-determined (not SQL row order).
     forms = [r.canonical_form for r in extract_implied_reflexes(db)]
     assert forms == sorted(set(forms), key=forms.index)  # stable across calls
+
+
+# --- mint-canonical durability (wyrd-65jh round-2) -------------------------
+
+
+def test_mint_canonical_one_per_distinct_node(tmp_path):
+    """One mint-canonical per DISTINCT residual morpheme node, even when that
+    morpheme carries two residual labels (a morpheme minted once, labelled twice)."""
+    db = _db(tmp_path)
+    # mōr (folds 'mor') gets two 3-char residuals: 'mur' at pre and at post — one
+    # node, two labels.
+    mor = _etymon(db, "mōr")
+    tun = _etymon(db, "tūn")
+    _reflex(db, "ton", "post", tun)
+    _reflex(db, "tun", "pre", tun)  # tūn can also anchor the head as 'tun'
+    _breakdown(db, "Murton", [(mor, 0), (tun, 1)])  # mur←mōr (pre)
+    _breakdown(db, "Tunmur", [(tun, 0), (mor, 1)])  # mur←mōr (post)
+    db.commit()
+
+    assertions = implied_reflex_assertions(extract_implied_reflexes(db), source="t")
+    node = mint_canonical_id("canonical_morpheme", "old-english", "mōr")
+    mints = [a for a in assertions if a.predicate == "mint-canonical" and a.subject.ref == node]
+    labels = [a for a in assertions if a.predicate == "canonical-label" and a.subject.ref == node]
+    assert len(mints) == 1  # minted ONCE
+    assert len(labels) == 2  # but labelled for each residual
+
+
+def test_canonical_label_projects_for_singleton_via_mint(tmp_path):
+    """The committed canonical-label of a SINGLETON residual morpheme must PROJECT on
+    rebuild — project-canonical skips a label whose node is unminted, and the legacy
+    fold only mints multi-member families, so the paired mint-canonical is load-bearing.
+    """
+    from wyrd.generators.kenning.canonicalization import append_assertion
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import project_canonical
+
+    db = _db(tmp_path)
+    hoh = _etymon(db, "hōh")  # SINGLETON cluster — no merged_into/lemma family
+    tun = _etymon(db, "tūn")
+    _reflex(db, "ton", "post", tun)
+    _breakdown(db, "Houghton", [(hoh, 0), (tun, 1)])
+    db.commit()
+
+    mining_dir = tmp_path / "mining"
+    for a in implied_reflex_assertions(extract_implied_reflexes(db), source="t"):
+        append_assertion(mining_dir, a)
+
+    # Project with legacy fold off so ONLY the authored mint+label drive the graph.
+    result = project_canonical(db, mining_dir=mining_dir, apply=True, fold_legacy=False)
+    assert not result.warnings  # no "canonical-label for unminted node" skip
+    node = mint_canonical_id("canonical_morpheme", "old-english", "hōh")
+    label = db.conn.execute(
+        "SELECT value, stratum FROM canonical_label WHERE canonical_id=?", (node,)
+    ).fetchone()
+    assert label is not None
+    assert label["value"] == "hough"
+    assert label["stratum"] == "modern-english"
+
+
+def test_canonical_label_does_not_project_without_mint(tmp_path):
+    """Counter-proof: the SAME canonical-label without a mint-canonical hub projects
+    to NOTHING (project-canonical skips it as an unminted-node label) — proving the
+    mint is what makes the singleton label durable."""
+    from wyrd.generators.kenning.canonicalization import append_assertion
+    from wyrd.generators.kenning.lexicon.canonicalization_projection import project_canonical
+
+    db = _db(tmp_path)
+    hoh = _etymon(db, "hōh")
+    tun = _etymon(db, "tūn")
+    _reflex(db, "ton", "post", tun)
+    _breakdown(db, "Houghton", [(hoh, 0), (tun, 1)])
+    db.commit()
+
+    mining_dir = tmp_path / "mining"
+    # Author ONLY the canonical-label (drop the mint-canonical).
+    for a in implied_reflex_assertions(extract_implied_reflexes(db), source="t"):
+        if a.predicate == "canonical-label":
+            append_assertion(mining_dir, a)
+
+    result = project_canonical(db, mining_dir=mining_dir, apply=True, fold_legacy=False)
+    node = mint_canonical_id("canonical_morpheme", "old-english", "hōh")
+    label = db.conn.execute(
+        "SELECT 1 FROM canonical_label WHERE canonical_id=?", (node,)
+    ).fetchone()
+    assert label is None  # unminted node → label skipped (the bug this fix closes)
+    assert any("unminted" in w for w in result.warnings)
+
+
+# --- data-quality guards (wyrd-65jh round-2) ------------------------------
+
+
+def test_guard_min_residual_drops_two_char(tmp_path):
+    """A 2-char residual (a spurious co-folded fragment) is dropped — _MIN_RESIDUAL=3.
+    Hamm folds to 'hamm'; the anchor 'hamm' over a name like 'Hammeh' would leave a
+    2-char residual 'eh' — never minted."""
+    db = _db(tmp_path)
+    hamm = _etymon(db, "hamm")  # anchor — known reflex 'hamm'
+    eh = _etymon(db, "ēh")  # residual element, folds to 'eh' (len 2)
+    _reflex(db, "hamm", "pre", hamm)
+    _breakdown(db, "Hammeh", [(hamm, 0), (eh, 1)])  # residual 'eh' len 2
+    db.commit()
+    assert extract_implied_reflexes(db) == []
+
+
+def test_guard_three_char_residual_allowed(tmp_path):
+    """Boundary check: a 3-char residual is still admitted (the guard is < 3). mōr
+    folds to 'mor' (≠ the residual 'mur', so the already-known guard doesn't fire)."""
+    db = _db(tmp_path)
+    tun = _etymon(db, "tūn")
+    mor = _etymon(db, "mōr")  # residual element — folds to 'mor', residual is 'mur'
+    _reflex(db, "ton", "post", tun)
+    _breakdown(db, "Murton", [(mor, 0), (tun, 1)])  # residual 'mur' len 3
+    db.commit()
+    out = extract_implied_reflexes(db)
+    assert [(r.canonical_form, r.residual) for r in out] == [("mōr", "mur")]
+
+
+def test_guard_placeholder_etymon_dropped(tmp_path):
+    """A residual attributed to a bracket placeholder ('River-name') is dropped."""
+    db = _db(tmp_path)
+    river = _etymon(db, "River-name", language="unknown")  # placeholder + unknown lang
+    tun = _etymon(db, "tūn")
+    _reflex(db, "ton", "post", tun)
+    _breakdown(
+        db, "Exeton", [(river, 0), (tun, 1)]
+    )  # residual 'exe' would attribute to placeholder
+    db.commit()
+    assert extract_implied_reflexes(db) == []
+
+
+def test_guard_personal_name_etymon_dropped(tmp_path):
+    """A residual attributed to a CAPITALIZED personal name ('Sótr') is dropped."""
+    db = _db(tmp_path)
+    sotr = _etymon(db, "Sótr")  # personal name — title-cased
+    tun = _etymon(db, "tūn")
+    _reflex(db, "ton", "post", tun)
+    _breakdown(db, "Foston", [(sotr, 0), (tun, 1)])  # residual 'fos' → personal name
+    db.commit()
+    assert extract_implied_reflexes(db) == []
+
+
+def test_guard_morpheme_etymon_still_mined(tmp_path):
+    """Control: a lower-case real morpheme with a concrete language is NOT dropped by
+    the placeholder/personal-name guard."""
+    db = _db(tmp_path)
+    hoh = _etymon(db, "hōh")  # real morpheme, lower-case
+    tun = _etymon(db, "tūn")
+    _reflex(db, "ton", "post", tun)
+    _breakdown(db, "Houghton", [(hoh, 0), (tun, 1)])
+    db.commit()
+    out = extract_implied_reflexes(db)
+    assert [(r.canonical_form, r.residual) for r in out] == [("hōh", "hough")]
+
+
+def test_guard_co_present_known_reflex_dropped(tmp_path):
+    """Co-present contamination: the residual span is the canonical reflex of a
+    DIFFERENT co-present element (whose own impoverished cluster doesn't list it, but
+    its cognate twin does). 'ton'←dūn: 'ton' is the reflex of the co-present tūn, so
+    attributing it to dūn is dropped (the expanded co-present known-reflex guard)."""
+    db = _db(tmp_path)
+    dun = _etymon(db, "dūn")  # residual element candidate
+    # tūn co-present as an ANCHOR via its cognate twin; 'ton' is its reflex.
+    tun_ascii = _etymon(db, "Tun", cognate=None)  # impoverished singleton anchor
+    tun_macron = _etymon(db, "tūn")  # cognate twin knows 'ton'
+    _reflex(db, "tun", "pre", tun_ascii)  # anchor surface so it can tile the head
+    _reflex(db, "ton", "post", tun_macron)
+    # Name 'Tunton': anchor 'tun' (head) + residual 'ton' attributed to dūn.
+    _breakdown(db, "Tunton", [(tun_ascii, 0), (dun, 1)])
+    db.commit()
+    out = extract_implied_reflexes(db)
+    # 'ton' is a known (cognate-expanded) reflex of the co-present tūn → not
+    # re-attributed to dūn.
+    assert all(r.residual != "ton" for r in out)
