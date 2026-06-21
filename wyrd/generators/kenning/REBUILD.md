@@ -209,16 +209,19 @@ What it does, in order:
    the replay schema; their effects round-trip through the conforming ledgers
    above or are re-applied by their own enrichment/import pass (wyrd-5qg7).
    Later file order wins on scalar conflicts; glosses/tags union.
-4. Runs the 16-pass `run_full_enrichment` chain (because
+4. Runs the `run_full_enrichment` chain (because
    `--with-enrichment`): `normalize-ocr → link-lemmas → [curation /
    gloss-suppress / gloss-add / etymon-splits / collapses / element-glosses /
-   tag-additions] → decompose →
+   tag-additions] → flatten-merge-chains → decompose →
    cluster-cognates → classify-stratum → derive-english-shaped →
    derive-pronunciation-ipa → tag-phonological-vectors → project-period-forms`.
-   When the canonicalization streams are supplied (which `rebuild-from-jsonl`
-   does), two more **conditional** passes run: **`project-descent`** right before
-   `cluster-cognates` (so mined cognate-descent edges feed the `cognate_id` rollup
-   in the same run) and the terminal **`project-canonical`**.
+   `flatten-merge-chains` (wyrd-lpxq) runs when a curation slot ran — it collapses
+   any multi-hop `merged_into_id` chain a curated merge built to a terminal winner,
+   before the L3 derivations consume the graph. When the canonicalization streams
+   are supplied (which `rebuild-from-jsonl` does), two more **conditional** passes
+   run: **`project-descent`** right before `cluster-cognates` (so mined
+   cognate-descent edges feed the `cognate_id` rollup in the same run) and the
+   terminal **`project-canonical`**.
 
 This is the slow part (hours — it's L1 bulk over ~2.4M etymons plus the
 enrichment passes). Background it / `tee` it and watch the log.

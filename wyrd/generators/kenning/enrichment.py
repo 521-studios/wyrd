@@ -1276,8 +1276,10 @@ def _terminal_merge_winner(chain: dict[int, int | None], start_id: int) -> int |
     """Walk a ``{id: merged_into_id}`` map from ``start_id`` to the TERMINAL
     winner (the first id whose ``merged_into_id`` is NULL). Returns ``None`` if
     the chain cycles (a pathological loser↔winner loop) so the caller can skip
-    it rather than pick an arbitrary node. Mirrors
-    ``bridges/_common._resolve_canonical`` (same iterative cycle-guarded walk)."""
+    it rather than pick an arbitrary node. Same iterative cycle-guarded walk as
+    ``lexicon/bridges/_common._resolve_canonical``, but that one returns the last
+    pre-loop node on a cycle whereas this returns ``None`` (the caller must not
+    silently re-point a cyclic chain)."""
     cid = start_id
     visited: set[int] = set()
     while (nxt := chain.get(cid)) is not None:
@@ -1298,23 +1300,31 @@ def flatten_merge_chains(conn: sqlite3.Connection, *, apply: bool) -> dict[str, 
     single-hop ``COALESCE(merged_into_id, id)`` follow-to-winner would then emit
     ``mid`` (still a merged loser); ``build_from_jsonl`` drops ``merged_into_id``,
     so ``mid`` resurrects as a live unmerged etymon — the D22 violation, one hop
-    deeper. (The OCR auto-collapse path can't form chains — it resolves targets
-    via :func:`_resolve_live_etymon`, which excludes tombstones — so only the
-    curated/collapse path needs this.)
+    deeper. (Only the curated path forms chains: the bulk OCR clusterer and the
+    curated-collapse fold both resolve merge targets to LIVE, non-tombstone
+    etymons and re-route any pre-existing redirect onto the winner, so they leave
+    ``merged_into_id`` terminal; splits never write it.)
 
     Flattening collapses every chain so ``merged_into_id`` always names a
     terminal winner; the dump's single-hop COALESCE is then correct at every
     site. Idempotent (a no-op once flat) and cycle-safe (a cyclic chain is
-    counted under ``cycles_skipped`` and left untouched). DB writes are gated on
+    counted under ``cycles_skipped`` and left UNTOUCHED — the dump-jsonl CLI
+    rejects such a DB via :func:`~wyrd.generators.kenning.jsonl.dump` rather than
+    silently emitting a non-reconstructible chain). DB writes are gated on
     ``apply``; counting always runs."""
-    rows = conn.execute("SELECT id, merged_into_id FROM etymon").fetchall()
+    # Load only the tombstones (a tiny fraction of the etymon table — the bulk
+    # wiktextract import leaves millions of rows merged_into_id IS NULL). A live
+    # terminal winner is then simply absent from ``chain`` (so ``chain.get`` ==
+    # None marks the walk's end), and every cycle member is a tombstone so cycle
+    # detection is unaffected.
+    rows = conn.execute(
+        "SELECT id, merged_into_id FROM etymon WHERE merged_into_id IS NOT NULL"
+    ).fetchall()
     chain: dict[int, int | None] = {r["id"]: r["merged_into_id"] for r in rows}
     counts = {"chains_flattened": 0, "cycles_skipped": 0}
     updates: list[tuple[int, int]] = []
     for r in rows:
-        direct = r["merged_into_id"]
-        if direct is None:
-            continue
+        direct = r["merged_into_id"]  # non-NULL by the WHERE filter
         terminal = _terminal_merge_winner(chain, r["id"])
         if terminal is None:
             counts["cycles_skipped"] += 1
@@ -1372,14 +1382,16 @@ def _run_curation_slot_passes(
             continue
         counts[key] = pass_fn(db, state, apply=apply)
         order.append(order_name)
-    # wyrd-lpxq: the curation (_apply_curated_merge) and collapse passes resolve
-    # merge targets tombstone-agnostically, so they can leave a multi-hop chain
-    # (loser → mid → winner). Flatten it here — after every merged_into_id-touching
-    # pass, before the L3 derivations/dumps consume the graph — so merged_into_id
-    # always names a TERMINAL winner and the dump's single-hop COALESCE resolves
-    # correctly everywhere. Only runs when a chain-forming pass ran (the OCR path
-    # is already chain-safe via _resolve_live_etymon).
-    if counts.get("curation") is not None or counts.get("collapses") is not None:
+    # wyrd-lpxq: the curation pass (_apply_curated_merge via the tombstone-agnostic
+    # _resolve_etymon_id) can point a loser at a tombstone, leaving a multi-hop
+    # chain (loser → mid → winner). Flatten it here — right after curation, before
+    # the L3 derivations consume the graph — so merged_into_id always names a
+    # TERMINAL winner and the dump's single-hop COALESCE resolves correctly.
+    # Curation is the ONLY slot pass that can form a chain: collapses + OCR resolve
+    # targets via the tombstone-excluding _resolve_live_etymon, and splits never
+    # write merged_into_id. (The read-only dump-jsonl CLI can't enrich, so it
+    # independently FAILS LOUD on any residual chain — see _assert_merge_chains_flat.)
+    if counts.get("curation") is not None:
         counts["merge_chain_flatten"] = flatten_merge_chains(db.conn, apply=apply)
         order.append("flatten-merge-chains")
     else:
