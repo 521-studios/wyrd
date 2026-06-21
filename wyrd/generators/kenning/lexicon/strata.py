@@ -364,8 +364,10 @@ _OLD_NORSE_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {
 # (13%) have ANY etymon_descent parent edge; 87% are orphans and
 # land in the default native-* bucket. The real parent ancestries
 # observed in the live DB are proto-celtic (dominant), old-irish
-# (8), middle-irish (2), and cel-bry-pro. There are ZERO
-# Norse / Anglo-Norman / French / English loan ancestries, so —
+# (8), middle-irish (2), and cel-bry-pro. The admit cohort carries
+# NO Norse / Anglo-Norman / French / English loan ancestries (a
+# handful of loan-parented rows exist across the FULL classified
+# set — they fall to native-* rather than justifying a bucket), so —
 # unlike Welsh / OE / ON — these families ship NO loan buckets.
 # proto-germanic parents that show up are mining NOISE (mis-traced
 # edges), so they're deliberately NOT mapped, mirroring every
@@ -679,9 +681,9 @@ def classify_brittonic(db: LexiconDB) -> dict[int, str]:
 
     Note: proto-germanic parents (mining noise) are intentionally NOT
     in the ancestor map — mirrors every other classifier, which never
-    maps proto-germanic. There are no loan buckets because the data
-    carries zero Norse / French / English loan ancestries on these
-    rows.
+    maps proto-germanic. No loan buckets: the admit cohort carries no
+    Norse / French / English loan ancestries (the few across the full
+    classified set fall to native-*).
     """
     return _classify_family(
         db,
@@ -853,13 +855,13 @@ LANGUAGE_TO_FAMILY: dict[str, str] = _build_language_to_family()
 #
 # Empty set = 'no per-culture restriction'; falls back to the
 # broader ALL_STRATA typo-check in ``_resolve_stratum_param``. Used
-# for cultures whose families don't yet have classifiers
-# (irish, breton — Goidelic / Brittonic-Brythonic classifiers
-# follow in Phase 4e+).
+# for any culture not enumerated below (none currently — every
+# culture with a classified family has an explicit set; irish /
+# breton gained theirs in wyrd-de77).
 #
-# english + scottish span all four classified families because
-# British place-names sample from each (OE base + ON Danelaw layer
-# + Norman French superstrate + Brythonic substrate). Welsh
+# english + scottish span the four core British source families
+# because British place-names sample from each (OE base + ON Danelaw
+# layer + Norman French superstrate + Brythonic substrate). Welsh
 # culture is narrower — primarily Welsh-family forms plus the
 # Norman French overlay from post-1283 Welsh place naming.
 # wyrd-de77: the Celtic-family classifiers (brittonic / goidelic /
@@ -938,7 +940,8 @@ def _fetch_null_stratum_ids(db, etymon_ids) -> set[int]:
 def classify_stratum_all(db: LexiconDB, *, apply: bool = True) -> dict[str, Any]:
     """Uniform L3 wrapper for the ``classify-stratum`` pass — runs
     the per-language classifiers (welsh, french, old-english,
-    old-norse) and persists the stratum assignments.
+    old-norse, brittonic, goidelic, celtic) and persists the stratum
+    assignments.
 
     Wyrd-hidb Phase 2 plumbs this into ``run_full_enrichment``.
 

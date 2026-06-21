@@ -2921,3 +2921,31 @@ def test_classify_stratum_all_by_stratum_dict_keyed_by_assignment(
     assert welsh.get("by_stratum") == {"native-welsh": 2}
     # by_stratum sums to written.
     assert sum(welsh["by_stratum"].values()) == welsh["written"]
+
+
+def test_classify_stratum_all_routes_celtic_families(fresh_db: Path) -> None:
+    """wyrd-de77: the chain entry point dispatches the three Celtic-family
+    classifiers (brittonic / goidelic / celtic), not just the original four.
+    Guards against a regression that drops a loop entry — the enrichment
+    chain is the path that re-derives stratum on every rebuild, so a missing
+    entry would silently leave the Celtic admit cohort unclassified.
+    Seeds one orphan per family (→ native-*) plus a proto-celtic-descended
+    goidelic etymon (→ proto-celtic-substrate)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        db.upsert_etymon("ynys", "brittonic")  # orphan → native-brittonic
+        db.upsert_etymon("dun", "celtic")  # orphan → native-celtic
+        db.upsert_etymon("achadh", "goidelic")  # orphan → native-goidelic
+        child = db.upsert_etymon("baile", "goidelic")
+        parent = db.upsert_etymon("*baljom", "proto-celtic")
+        _add_descent(db, parent_id=parent, child_id=child)
+        result = classify_stratum_all(db, apply=True)
+
+    langs = result["languages"]
+    assert langs["brittonic"]["by_stratum"] == {"native-brittonic": 1}
+    assert langs["celtic"]["by_stratum"] == {"native-celtic": 1}
+    # goidelic: one orphan default + one proto-celtic-substrate via descent.
+    assert langs["goidelic"]["by_stratum"] == {
+        "native-goidelic": 1,
+        "proto-celtic-substrate": 1,
+    }
