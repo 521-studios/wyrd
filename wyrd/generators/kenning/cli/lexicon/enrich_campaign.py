@@ -1,0 +1,150 @@
+"""``wyrd kenning lexicon enrich-campaign`` — rail for the scholar-morpheme
+enrichment loop (wyrd-eni4.1).
+
+Three subcommands the 30-minute loop drives:
+
+  next-slice  — emit the next impact-ordered scholar etymons needing a reflex,
+                with grounding evidence (JSON on stdout).
+  validate    — gate authored reflex candidates (a JSONL file) before commit;
+                exits non-zero with errors if any record fails.
+  status      — committed reflex coverage of the scholar etymon set.
+
+Read-only against the lexicon DB; the only writes the campaign makes are the
+loop appending validated candidates to ``data/mining/_reflexes.jsonl``.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import click
+
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
+from wyrd.generators.kenning.lexicon.enrichment_campaign import (
+    next_slice,
+    reflex_progress,
+    validate_candidates,
+)
+from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
+
+_DEFAULT_REFLEXES_PATH = Path("data/mining/_reflexes.jsonl")
+_DEFAULT_PARKED_PATH = Path("data/mining/_reflex_parked.jsonl")
+
+_db_option = click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+_reflexes_option = click.option(
+    "--reflexes-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=_DEFAULT_REFLEXES_PATH,
+    show_default=True,
+    help="Committed reflex ledger — the remainder/dedup source of truth.",
+)
+_parked_option = click.option(
+    "--parked-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=_DEFAULT_PARKED_PATH,
+    show_default=True,
+    help="Parked-etymon ledger — un-groundable refs excluded from future slices.",
+)
+
+
+@click.group("enrich-campaign")
+def enrich_campaign() -> None:
+    """Scholar-morpheme enrichment campaign rail (wyrd-eni4.1)."""
+
+
+@enrich_campaign.command("next-slice")
+@_db_option
+@_reflexes_option
+@_parked_option
+@click.option("--n", type=int, default=20, show_default=True, help="Etymons to emit.")
+def cmd_next_slice(db_path: Path, reflexes_path: Path, parked_path: Path, n: int) -> None:
+    """Emit the next N impact-ordered scholar etymons still missing a reflex
+    (and not parked), each with grounding evidence, as a JSON array on stdout."""
+    with _readonly_lexicon(db_path) as conn:
+        slice_ = next_slice(conn, reflexes_path, n=n, parked_path=parked_path)
+    click.echo(json.dumps([e.to_dict() for e in slice_], ensure_ascii=False, indent=2))
+    click.echo(f"emitted {len(slice_)} etymons (reflexes-path={reflexes_path})", err=True)
+
+
+@enrich_campaign.command("park")
+@_parked_option
+@click.option("--ref", "ref", required=True, help="The 'language:canonical_form' ref to park.")
+@click.option("--reason", required=True, help="Why it can't be grounded (one line).")
+def cmd_park(parked_path: Path, ref: str, reason: str) -> None:
+    """Record an un-groundable etymon so it drops out of future slices."""
+    parked_path.parent.mkdir(parents=True, exist_ok=True)
+    with parked_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"ref": ref, "reason": reason}, ensure_ascii=False) + "\n")
+    click.echo(f"parked {ref}", err=True)
+
+
+@enrich_campaign.command("validate")
+@_db_option
+@_reflexes_option
+@click.option(
+    "--candidates",
+    "candidates_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="JSONL file of authored reflex candidate rows to validate.",
+)
+@click.option(
+    "--allow-non-scholar",
+    is_flag=True,
+    default=False,
+    help="Permit refs outside the scholar set (default: campaign-scoped).",
+)
+def cmd_validate(
+    db_path: Path, reflexes_path: Path, candidates_path: Path, allow_non_scholar: bool
+) -> None:
+    """Validate authored reflex candidates. Exit 0 if all pass, 1 otherwise."""
+    candidates = []
+    for lineno, line in enumerate(candidates_path.read_text(encoding="utf-8").splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            candidates.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            click.echo(f"line {lineno}: invalid JSON — {exc}", err=True)
+            sys.exit(1)
+
+    with _readonly_lexicon(db_path) as conn:
+        errors = validate_candidates(
+            conn, reflexes_path, candidates, scholar_only=not allow_non_scholar
+        )
+    if errors:
+        click.echo(f"VALIDATION FAILED — {len(errors)} error(s):", err=True)
+        for err in errors:
+            click.echo(f"  - {err}", err=True)
+        sys.exit(1)
+    click.echo(f"OK — {len(candidates)} candidate(s) passed all gates.", err=True)
+
+
+@enrich_campaign.command("status")
+@_db_option
+@_reflexes_option
+@_parked_option
+def cmd_status(db_path: Path, reflexes_path: Path, parked_path: Path) -> None:
+    """Report committed reflex coverage of the scholar etymon set."""
+    with _readonly_lexicon(db_path) as conn:
+        done, parked, total = reflex_progress(conn, reflexes_path, parked_path=parked_path)
+    pct = (100.0 * done / total) if total else 0.0
+    remaining = total - done - parked
+    click.echo(
+        f"scholar-reflex coverage: {done}/{total} ({pct:.1f}%) "
+        f"— {parked} parked, {remaining} remaining to attempt"
+    )
+
+
+def add_to(parent: click.Group) -> None:
+    """Register ``enrich-campaign`` on the parent ``@lexicon`` group."""
+    parent.add_command(enrich_campaign)
