@@ -9,6 +9,7 @@ import types
 from wyrd.generators.kenning.lexicon.element_gloss_backfill import (
     _confidence,
     _has_vowel,
+    _merge_into_ledger,
     _normform,
     _position,
     accept_adjudication,
@@ -19,6 +20,7 @@ from wyrd.generators.kenning.lexicon.element_gloss_backfill import (
     load_toponym_lowers,
     mine_to_jsonl,
     toponym_context,
+    write_jsonl,
 )
 
 
@@ -172,15 +174,108 @@ def test_mine_to_jsonl_and_load_toponym_lowers(tmp_path):
     _census_db(census_path).close()
     _grounding_db(db_path).close()
     out = str(tmp_path / "_element_glosses.jsonl")
-    rows = mine_to_jsonl(census_path, db_path, out)
-    surfaces = {r["surface"] for r in rows}
+    result = mine_to_jsonl(census_path, db_path, out)  # fresh ledger → write == derived
+    surfaces = {r["surface"] for r in result.rows}
     assert "-ick" in surfaces and "Chur-" in surfaces
+    assert result.new_added == len(result.rows) and result.existing_kept == 0
     with open(out, encoding="utf-8") as fh:
         written = [json.loads(line) for line in fh]
     assert {r["surface"] for r in written} == surfaces  # round-trips to disk
 
     lowers = load_toponym_lowers(db_path)
     assert ("Hardwick", "hardwick") in lowers and ("Churchill", "churchill") in lowers
+
+
+def test_merge_into_ledger_keeps_existing_and_appends_new(tmp_path):
+    """wyrd-5f5w: merging unions by (surface, position); existing rows win on
+    conflict and are NEVER dropped — only genuinely-new keys append."""
+    path = str(tmp_path / "_element_glosses.jsonl")
+    write_jsonl(
+        [
+            {
+                "surface": "-ick",
+                "position": "suffix",
+                "is_element": True,
+                "candidates": [{"form": "wic"}],
+            },
+            {
+                "surface": "-old",
+                "position": "suffix",
+                "is_element": True,
+                "candidates": [{"form": "ald"}],
+            },
+        ],
+        path,
+    )
+    new_rows = [
+        # conflict on (-ick, suffix): existing must win (don't rewrite established gloss)
+        {
+            "surface": "-ick",
+            "position": "suffix",
+            "is_element": True,
+            "candidates": [{"form": "DIFFERENT"}],
+        },
+        {
+            "surface": "-new",
+            "position": "suffix",
+            "is_element": True,
+            "candidates": [{"form": "niwe"}],
+        },
+    ]
+    merged, new_added = _merge_into_ledger(new_rows, path)
+    by_surface = {r["surface"]: r for r in merged}
+    assert set(by_surface) == {"-ick", "-old", "-new"}  # -old not in the census, NOT dropped
+    assert new_added == 1  # only -new
+    assert by_surface["-ick"]["candidates"][0]["form"] == "wic"  # existing won the conflict
+
+
+def test_merge_into_ledger_no_existing_file_is_passthrough(tmp_path):
+    new_rows = [{"surface": "-a", "position": "suffix"}]
+    merged, new_added = _merge_into_ledger(new_rows, str(tmp_path / "absent.jsonl"))
+    assert merged == new_rows and new_added == 1
+
+
+def test_mine_to_jsonl_merges_by_default_overwrite_replaces(tmp_path):
+    """wyrd-5f5w: the footgun fix end-to-end. A fresh (partial) census MERGES —
+    a pre-existing surface the census doesn't reproduce survives. --overwrite is
+    the deliberate full-replace escape hatch."""
+    census_path = str(tmp_path / "census.db")
+    db_path = str(tmp_path / "lex.db")
+    _census_db(census_path).close()
+    _grounding_db(db_path).close()
+    out = str(tmp_path / "_element_glosses.jsonl")
+    # Seed (a) a row the census will NOT re-derive and (b) a CONFLICTING row for a
+    # surface the census DOES re-derive (-ick, suffix) carrying a sentinel gloss.
+    write_jsonl(
+        [
+            {
+                "surface": "-zzz",
+                "position": "suffix",
+                "is_element": True,
+                "candidates": [{"form": "zzz"}],
+            },
+            {
+                "surface": "-ick",
+                "position": "suffix",
+                "is_element": True,
+                "candidates": [{"form": "SENTINEL"}],
+            },
+        ],
+        out,
+    )
+
+    merged = mine_to_jsonl(census_path, db_path, out)  # default merge
+    assert merged.overwritten is False
+    by_key = {(r["surface"], r["position"]): r for r in merged.written}
+    assert ("-zzz", "suffix") in by_key  # census-absent surface NOT dropped (the fix)
+    # Conflict on a re-derived surface: the established gloss survives end-to-end.
+    assert by_key[("-ick", "suffix")]["candidates"][0]["form"] == "SENTINEL"
+    assert merged.existing_kept >= 2  # both seeded rows kept
+
+    replaced = mine_to_jsonl(census_path, db_path, out, overwrite=True)  # escape hatch
+    assert replaced.overwritten is True
+    assert "-zzz" not in {r["surface"] for r in replaced.written}  # deliberately gone
+    assert replaced.existing_kept == 0
 
 
 def test_run_full_enrichment_threads_element_gloss_state(tmp_path):

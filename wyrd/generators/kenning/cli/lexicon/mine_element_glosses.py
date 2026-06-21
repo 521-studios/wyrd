@@ -42,20 +42,37 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     default=Path("data/mining/_element_glosses.jsonl"),
     show_default=True,
 )
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Full-replace the ledger instead of MERGING into it. The ledger is an "
+    "accumulated corpus; the default merge keeps existing (surface, position) rows "
+    "so a partial census can't drop already-glossed surfaces (wyrd-5f5w). Use only "
+    "for a deliberate from-scratch rebuild.",
+)
 def lexicon_mine_element_glosses(
-    census_path: Path, db_path: Path, culture: str, output_path: Path
+    census_path: Path, db_path: Path, culture: str, output_path: Path, overwrite: bool
 ) -> None:
     """Grounded-consensus gloss backfill → ``_element_glosses.jsonl`` (wyrd-u9k6)."""
     from wyrd.generators.kenning.lexicon.element_gloss_backfill import mine_to_jsonl
 
-    rows = mine_to_jsonl(str(census_path), str(db_path), str(output_path), culture)
+    result = mine_to_jsonl(
+        str(census_path), str(db_path), str(output_path), culture, overwrite=overwrite
+    )
+    rows = result.rows
 
     confident = sum(1 for r in rows if r.get("is_element"))
     weak = sum(1 for r in rows if not r.get("is_element") and r.get("candidates"))
     nomatch = sum(1 for r in rows if not r.get("candidates"))
     click.echo(
-        f"[{len(rows)}/{len(rows)}]  confident={confident} weak={weak} no-match={nomatch} "
-        f"-> {output_path}",
+        f"[{len(rows)}/{len(rows)}]  confident={confident} weak={weak} no-match={nomatch}",
+        err=True,
+    )
+    verb = "overwrote" if result.overwritten else "merged into"
+    click.echo(
+        f"{verb} {output_path}: {len(result.written)} rows total "
+        f"(kept {result.existing_kept} existing, added {result.new_added} new)",
         err=True,
     )
     click.echo(

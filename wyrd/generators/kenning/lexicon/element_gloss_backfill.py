@@ -69,6 +69,7 @@ import sqlite3
 import unicodedata
 from collections import Counter, defaultdict
 from collections.abc import Iterator
+from dataclasses import dataclass
 from typing import Any
 
 METHOD_VERSION = "grounded-consensus-v1"
@@ -391,6 +392,64 @@ def write_jsonl(rows: list[dict[str, Any]], path: str) -> None:
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
 
 
+def _row_key(row: dict[str, Any]) -> tuple[Any, Any]:
+    """The ledger's natural key — ``(surface, position)`` — matching the dedup
+    key :func:`collect_element_glosses` replays on."""
+    return (row.get("surface"), row.get("position"))
+
+
+def _merge_into_ledger(
+    new_rows: list[dict[str, Any]], path: str
+) -> tuple[list[dict[str, Any]], int]:
+    """Union ``new_rows`` into the EXISTING ledger at ``path``, keyed by
+    ``(surface, position)``; EXISTING rows win on conflict (wyrd-5f5w).
+
+    ``_element_glosses.jsonl`` is an ACCUMULATED corpus — most of its surfaces
+    are already glossed (their glosses replayed into ``etymon_gloss``), so a
+    fresh census reproduces only a fraction of the rows. A full-replace write
+    would silently DROP every surface the new census didn't re-derive, leaving
+    them unglossed on the next rebuild. Merging keeps every established row and
+    only appends genuinely-new ``(surface, position)`` keys.
+
+    Returns ``(merged_rows, new_added)`` with existing rows first (order
+    preserved) and new surfaces appended (so the write is diff-stable). New rows
+    are also deduplicated against each other by key, so a fresh ledger (no file
+    yet) still collapses any internal ``(surface, position)`` duplicates.
+    """
+    merged: list[dict[str, Any]] = []
+    seen: set[tuple[Any, Any]] = set()
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                merged.append(row)
+                seen.add(_row_key(row))
+    new_added = 0
+    for row in new_rows:
+        if _row_key(row) not in seen:
+            seen.add(_row_key(row))
+            merged.append(row)
+            new_added += 1
+    return merged, new_added
+
+
+@dataclass
+class ElementGlossMineResult:
+    """Outcome of :func:`mine_to_jsonl`. ``rows`` is what this run DERIVED (the
+    mining stats are over these); ``written`` is what actually landed on disk
+    after the merge (or replace). ``existing_kept`` + ``new_added`` make the
+    accumulation visible so a shrinking ledger can't pass silently (wyrd-5f5w)."""
+
+    rows: list[dict[str, Any]]
+    written: list[dict[str, Any]]
+    existing_kept: int
+    new_added: int
+    overwritten: bool
+
+
 @contextlib.contextmanager
 def _ro(path: str) -> Iterator[sqlite3.Connection]:
     """Read-only sqlite connection, closed on exit — matches the package's
@@ -403,15 +462,37 @@ def _ro(path: str) -> Iterator[sqlite3.Connection]:
 
 
 def mine_to_jsonl(
-    census_path: str, db_path: str, output_path: str, culture: str = "english"
-) -> list[dict[str, Any]]:
+    census_path: str,
+    db_path: str,
+    output_path: str,
+    culture: str = "english",
+    *,
+    overwrite: bool = False,
+) -> ElementGlossMineResult:
     """Open the census bundle + lexicon (read-only), derive grounded glosses,
-    and write the consensus jsonl. Returns the rows. The DB-touching entry point
-    for the ``mine-element-glosses`` CLI (which stays pure glue)."""
+    and write the consensus jsonl. The DB-touching entry point for the
+    ``mine-element-glosses`` CLI (which stays pure glue).
+
+    By default the derived rows are MERGED into the existing ledger keyed by
+    ``(surface, position)`` (existing rows win), so a fresh — and necessarily
+    partial — census can't drop the accumulated corpus (wyrd-5f5w). Pass
+    ``overwrite=True`` to full-replace instead (the deliberate from-scratch
+    rebuild). Returns an :class:`ElementGlossMineResult`.
+    """
     with _ro(census_path) as census, _ro(db_path) as live:
         rows = derive_element_glosses(census, live, culture)
-    write_jsonl(rows, output_path)
-    return rows
+    if overwrite:
+        written, new_added = list(rows), len(rows)
+    else:
+        written, new_added = _merge_into_ledger(rows, output_path)
+    write_jsonl(written, output_path)
+    return ElementGlossMineResult(
+        rows=rows,
+        written=written,
+        existing_kept=len(written) - new_added,
+        new_added=new_added,
+        overwritten=overwrite,
+    )
 
 
 def load_toponym_lowers(db_path: str) -> list[tuple[str, str]]:
