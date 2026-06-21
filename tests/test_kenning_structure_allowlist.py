@@ -267,6 +267,16 @@ def test_dump_refresh_merge_preserves_false_defaults_new_drops_gone(tmp_path):
     assert "new" in err and "NEW:" in err
 
 
+def test_dump_merge_from_missing_path_errors(tmp_path):
+    """A typo'd --merge-from must error (exists=True), not silently fall back to an
+    empty base and wipe all curation on the next write (Gemini review, PR #714)."""
+    from wyrd.generators.kenning.cli.dump_structures import dump_structures
+
+    res = CliRunner().invoke(dump_structures, ["--merge-from", str(tmp_path / "typo.yaml")])
+    assert res.exit_code != 0
+    assert "does not exist" in (res.output + (res.stderr or ""))
+
+
 def test_dump_to_stdout_smoke():
     from wyrd.generators.kenning.cli.dump_structures import dump_structures
 
@@ -295,6 +305,11 @@ def test_shipped_allowlist_labels_are_all_producible_per_culture():
 
     conn = get_runtime_db()
     al = sa._load_bundled_cached()
+    # A typo'd section key (e.g. `englis:`) would parse fine but silently fail-open
+    # for the intended culture at runtime — and the per-culture loop below would
+    # never look at it. Catch unknown section keys here (Gemini review, PR #714).
+    unknown = set(al) - set(CULTURES)
+    assert not unknown, f"structures.yaml has unknown culture sections: {sorted(unknown)}"
     for culture in CULTURES:
         producible = set()
         for element in proportions_dict_for_culture(conn, culture)["structures"]:

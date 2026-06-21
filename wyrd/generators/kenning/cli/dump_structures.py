@@ -42,12 +42,16 @@ from wyrd.generators.kenning.runtime.proportions import is_structurally_grammati
 from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
 from wyrd.generators.kenning.runtime.runtime_db_adapter import proportions_dict_for_culture
 from wyrd.generators.kenning.runtime.structure_allowlist import (
+    _DATA_PACKAGE,
+    _FILENAME,
     load_structure_allowlist_from_text,
     struct_key_to_label,
 )
 
-_DATA_PACKAGE = "wyrd.generators.kenning.data"
-_FILENAME = "structures.yaml"
+# _DATA_PACKAGE / _FILENAME are imported (not redefined) so the dump reads EXACTLY
+# the file the runtime loads — the refresh-merge's "operator false is sticky"
+# guarantee depends on it, and a single source can't drift (importlib-resources
+# review, PR #714 round 1).
 
 _HEADER = """\
 # wyrd-c6o1.5 / wyrd-hzqs: PER-LANGUAGE structure allowlist. Top-level keys are
@@ -79,11 +83,12 @@ def _single_morpheme(struct_key: tuple) -> bool:
 def _read_merge_base(merge_from: Path | None) -> dict[str, dict[str, bool]]:
     """The existing curation to preserve: ``{culture: {label: enabled}}``. Reads
     ``merge_from`` if given (mainly for tests), else the bundled committed file.
-    A missing file → empty (everything fresh-default); a malformed file raises
-    loudly (don't silently wipe curation)."""
+    A malformed file raises loudly (don't silently wipe curation); an explicit
+    ``--merge-from`` is ``exists=True``-validated at the CLI, so a typo'd path
+    errors at parse time rather than silently dropping all curation (PR #714
+    review HIGH). A missing DEFAULT bundled file → empty (fresh-default)."""
     if merge_from is not None:
-        if not merge_from.exists():
-            return {}
+        # exists=True on the option guarantees the file is present here.
         return load_structure_allowlist_from_text(merge_from.read_text(encoding="utf-8"))
     try:
         text = resources.files(_DATA_PACKAGE).joinpath(_FILENAME).read_text(encoding="utf-8")
@@ -108,7 +113,9 @@ def _culture_weights(conn, culture: str) -> tuple[dict[str, int], dict[str, bool
     return weights, single
 
 
-def _build(conn, merge_base: dict[str, dict[str, bool]]):
+def _build(
+    conn, merge_base: dict[str, dict[str, bool]]
+) -> tuple[dict[str, list], dict[str, tuple]]:
     """Returns (sections, summary):
     sections[culture] = [(label, enabled, weight, pct), …] alpha-sorted;
     summary[culture]  = (total, [(label, weight, pct) new…], [dropped labels…])."""
@@ -166,7 +173,9 @@ def _emit_summary(summary: dict[str, tuple]) -> None:
 )
 @click.option(
     "--merge-from",
-    type=click.Path(dir_okay=False, path_type=Path),
+    # exists=True: a typo'd path must error at parse time, not silently fall back
+    # to an empty base and wipe all curation on write (PR #714 review HIGH).
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
     help="Preserve existing curation from this file instead of the bundled "
     "structures.yaml (mainly for tests).",

@@ -3132,13 +3132,15 @@ validation. Pinned by `tests/test_kenning.py` (per-culture options) +
 ## D48. Structure allowlist is the single operator filter for which structures generate (wyrd-c6o1.5, 2026-06-15; per-language + refresh-merge wyrd-hzqs, 2026-06-21).
 
 Which name STRUCTURES the generator may use is an operator choice, expressed in a
-bundled YAML (`data/structures.yaml`) — one entry per structure, keyed by a
-canonical label (`struct_key_to_label`: `(bare)`, `(pre+post)`, `(bare) (bare)`,
-`(bare[name])`, …). Each defaults to `enabled: true`; the operator opts a
-structure OUT with `enabled: false`. A structure ABSENT from the file is enabled,
-so a bundle rebuild that surfaces a brand-new structure generates by default
-(operator opts out, never in). `wyrd kenning dump-structures` emits the full
-inventory to curate from.
+bundled YAML (`data/structures.yaml`). The file is **per-language** (top-level
+culture sections — see the wyrd-hzqs subsection below); within a section each
+structure is keyed by a canonical label (`struct_key_to_label`: `(bare)`,
+`(pre+post)`, `(bare) (bare)`, `(bare[name])`, …). Each defaults to
+`enabled: true`; the operator opts a structure OUT for that culture with
+`enabled: false`. A structure ABSENT from its section — or an absent section — is
+enabled, so a bundle rebuild that surfaces a brand-new structure generates by
+default (operator opts out, never in). `wyrd kenning dump-structures` emits the
+per-language inventory (with frequencies) to curate from.
 
 ### One filtering path
 
