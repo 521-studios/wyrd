@@ -386,6 +386,37 @@ def test_bounded_era_regeneration_draws_from_the_record(english_roll):
     assert checked > 20
 
 
+def test_era_midpoint_threaded_into_slot_weighted_pool(english_roll, monkeypatch):
+    """wyrd-951i: the single-slot re-roll threads the priors-baseline era_midpoint
+    into _slot_weighted_pool (the same cell the main path leans toward, wyrd-3tvd)
+    — a bounded era → its midpoint; no era → the wildcard 0. Spies on the kwarg
+    the way test_bucket_key_miss does."""
+    from wyrd.generators.kenning import _resolve_era_param
+    from wyrd.generators.kenning.generators.kenning import _request_era_midpoint
+
+    captured: list[int | None] = []
+    real = vector_name_select._slot_weighted_pool
+
+    def spy(*args, **kwargs):
+        captured.append(kwargs.get("era_midpoint"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(vector_name_select, "_slot_weighted_pool", spy)
+    words = english_roll.morphemes_by_word
+
+    # Bounded era 'me' (Middle English, (1100, 1500)) → midpoint 1300.
+    expected = _request_era_midpoint(_resolve_era_param("me", "english"))
+    assert expected == 1300
+    captured.clear()
+    _regen(words, 0, 0, seed=7, culture="english", era="me")
+    assert captured and all(m == expected for m in captured)
+
+    # No era → the wildcard 0 (unchanged baseline behavior).
+    captured.clear()
+    _regen(words, 0, 0, seed=7, culture="english")
+    assert captured and all(m == 0 for m in captured)
+
+
 def test_bad_era_raises_value_error(english_roll):
     """The era input must surface a typo as ValueError → the dispatcher's
     400 (D46: the resolved range's END also feeds the record-entry gate;
