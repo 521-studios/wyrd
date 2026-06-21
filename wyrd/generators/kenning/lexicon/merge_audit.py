@@ -39,6 +39,7 @@ NEVER re-run at rebuild — its verdicts round-trip through L2.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
@@ -84,29 +85,77 @@ def _is_affix(form: str) -> bool:
     return form.startswith("-") or form.endswith("-")
 
 
-def _sense_groups(glossed: list[tuple[int, set[str]]]) -> list[list[int]]:
-    """Partition glossed members into sense-groups by shared gloss content token
-    (union-find). ``glossed`` is ``[(etymon_id, {token, …}), …]`` with non-empty
-    token sets. Two members land in one group iff they share ≥1 content token."""
-    parent = {eid: eid for eid, _ in glossed}
+def _union_find_components[K](nodes: list[tuple[K, set[str]]]) -> list[list[K]]:
+    """Union-find over ``nodes = [(key, {token, …}), …]``: keys that share ≥1
+    content token land in one component. Returns one list per component
+    (components in first-seen order, keys in input order). The shared core of
+    :func:`_sense_groups` (key = ``etymon_id``) and :func:`_sense_clusters`
+    (key = ``(etymon_id, sub_index)``)."""
+    parent: dict[K, K] = {key: key for key, _ in nodes}
 
-    def find(x: int) -> int:
+    def find(x: K) -> K:
         while parent[x] != x:
             parent[x] = parent[parent[x]]
             x = parent[x]
         return x
 
-    first_for_token: dict[str, int] = {}
-    for eid, toks in glossed:
+    first_for_token: dict[str, K] = {}
+    for key, toks in nodes:
         for t in toks:
             if t in first_for_token:
-                parent[find(eid)] = find(first_for_token[t])
+                parent[find(key)] = find(first_for_token[t])
             else:
-                first_for_token[t] = eid
-    groups: dict[int, list[int]] = defaultdict(list)
-    for eid, _ in glossed:
-        groups[find(eid)].append(eid)
-    return list(groups.values())
+                first_for_token[t] = key
+    components: dict[K, list[K]] = defaultdict(list)
+    for key, _ in nodes:
+        components[find(key)].append(key)
+    return list(components.values())
+
+
+def _sense_groups(glossed: list[tuple[int, set[str]]]) -> list[list[int]]:
+    """Partition glossed members into sense-groups by shared gloss content token
+    (union-find). ``glossed`` is ``[(etymon_id, {token, …}), …]`` with non-empty
+    token sets. Two members land in one group iff they share ≥1 content token."""
+    return _union_find_components(glossed)
+
+
+# wyrd-uumc: a gloss is split into sub-senses on ';' and the word 'or' BEFORE
+# tokenizing — the two boundaries that separate genuinely distinct senses in a
+# conflated gloss ('sons of; or water-meadow', 'patronymic; or hill'). NOT comma:
+# comma-separated phrases are usually one sense ('meadow, water meadow, ing').
+_SENSE_SPLIT_RE = re.compile(r";|\bor\b", re.IGNORECASE)
+
+
+def _sub_sense_token_sets(glosses: set[str]) -> list[set[str]]:
+    """Each gloss split on ';' / ' or ' into sub-senses, each tokenized; empty
+    sub-senses dropped. So a MIXED gloss yields SEPARATE token sets that vote for
+    different sense-clusters instead of one combined set that bridges them."""
+    out: list[set[str]] = []
+    for g in glosses:
+        for sub in _SENSE_SPLIT_RE.split(g):
+            toks = _gloss_tokens(sub)
+            if toks:
+                out.append(toks)
+    return out
+
+
+def _sense_clusters(glossed: list[tuple[int, set[str]]]) -> list[set[int]]:
+    """wyrd-uumc: like :func:`_sense_groups`, but at SUB-SENSE granularity. Each
+    member's glosses are split into sub-senses (``;`` / ``or``); the union-find
+    runs over ``(eid, sub_index)`` nodes and the result collapses to eid SETS per
+    sense-cluster. A member with a mixed gloss therefore appears in MULTIPLE
+    clusters — it VOTES for each sense without BRIDGING them into one component
+    (the ``-ing`` multi-gloss blob that previously masked its topographic
+    intruder). ``glossed`` is ``[(eid, {gloss_string, …}), …]`` (raw glosses, not
+    tokens). Returned eid-sets may overlap; the caller decides membership
+    semantics."""
+    nodes: list[tuple[tuple[int, int], set[str]]] = [
+        ((eid, i), toks)
+        for eid, glosses in glossed
+        for i, toks in enumerate(_sub_sense_token_sets(glosses))
+    ]
+    # collapse each component's (eid, sub_index) keys back to a set of eids
+    return [{key[0] for key in comp} for comp in _union_find_components(nodes)]
 
 
 def _load_corpus(
@@ -172,22 +221,33 @@ def _anchor_intruders(
     anchor_id: int, child_ids: list[int], by_id: dict[int, dict], collapse_folds: set[str]
 ) -> list[MergeAuditCandidate]:
     """Intruder candidates for one anchor family, or [] if its glossed members
-    don't split into ≥2 disjoint sense-groups."""
-    glossed = [(i, by_id[i]["tokens"]) for i in (anchor_id, *child_ids) if by_id[i]["tokens"]]
+    don't split into ≥2 disjoint sense-groups.
+
+    wyrd-uumc: grouped at SUB-SENSE granularity (:func:`_sense_clusters`) off the
+    members' raw GLOSSES, so a member with a MIXED gloss votes for each of its
+    senses without bridging them into one component (the ``-ing`` blob). A member
+    can therefore land in several clusters; only a member whose senses are ALL
+    outside the dominant cluster is an intruder — one that shares the dominant
+    sense (incl. the mixed anchor itself) BELONGS."""
+    glossed = [(i, by_id[i]["glosses"]) for i in (anchor_id, *child_ids) if by_id[i]["tokens"]]
     if len(glossed) < 2:
         return []
-    groups = _sense_groups(glossed)
+    groups = _sense_clusters(glossed)
     if len(groups) < 2:
         return []
-    # Dominant = the group holding the anchor; else the largest.
-    dominant = next((g for g in groups if anchor_id in g), None) or max(groups, key=len)
+    # Dominant sense = the largest cluster the anchor participates in (its primary
+    # sense), else the largest cluster overall. Subtracting it drops members that
+    # ALSO carry the dominant sense (they belong) + the anchor. The sorted-eid
+    # secondary key makes the choice fully deterministic on a size tie (even when
+    # the anchor sits in both tied clusters, where a min-eid tiebreak would still
+    # tie) — never gloss-insertion-order dependent.
+    anchor_groups = [g for g in groups if anchor_id in g]
+    dominant = max(anchor_groups or groups, key=lambda g: (len(g), sorted(g)))
+    intruder_ids = {mid for g in groups if g is not dominant for mid in g} - dominant - {anchor_id}
     anchor = by_id[anchor_id]
     return [
         _candidate(anchor, by_id[mid], _provenance(by_id[mid], collapse_folds))
-        for g in groups
-        if g is not dominant
-        for mid in g
-        if mid != anchor_id
+        for mid in sorted(intruder_ids)
     ]
 
 
