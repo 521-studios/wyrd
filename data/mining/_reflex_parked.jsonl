@@ -4,3 +4,4 @@
 {"ref": "middle-english:atten", "reason": "realized as a single-letter juncture (atten-ash→Nash); no cleanly groundable surface span"}
 {"ref": "old-english:hȳð", "reason": "messy attributions; only Maidenhead shows a clean 'head' span — defer for review"}
 {"ref": "old-norse:erg", "reason": "short ambiguous realizations (er/ar/ergh); needs careful disambiguation"}
+{"ref": "old-french:le", "reason": "2-char article; substring grounding is meaningless (matches 'le' in any name) — over-match risk"}

@@ -24736,3 +24736,33 @@
 {"_type":"reflex","surface_form":"dean","position":"post","etymon_refs":["old-english:dene"]}
 {"_type":"reflex","surface_form":"den","position":"post","etymon_refs":["old-english:dene"]}
 {"_type":"reflex","surface_form":"don","position":"post","etymon_refs":["old-english:dene"]}
+{"_type":"reflex","surface_form":"cow","position":"pre","etymon_refs":["old-english:cū"]}
+{"_type":"reflex","surface_form":"mickle","position":"pre","etymon_refs":["old-english:micel"]}
+{"_type":"reflex","surface_form":"michel","position":"pre","etymon_refs":["old-english:micel"]}
+{"_type":"reflex","surface_form":"mitchel","position":"pre","etymon_refs":["old-english:micel"]}
+{"_type":"reflex","surface_form":"sal","position":"pre","etymon_refs":["old-english:salh"]}
+{"_type":"reflex","surface_form":"saugh","position":"pre","etymon_refs":["old-english:salh"]}
+{"_type":"reflex","surface_form":"salt","position":"pre","etymon_refs":["old-english:salt"]}
+{"_type":"reflex","surface_form":"rath","position":"pre","etymon_refs":["goidelic:rath"]}
+{"_type":"reflex","surface_form":"hamp","position":"inner","etymon_refs":["old-english:hǣme"]}
+{"_type":"reflex","surface_form":"lin","position":"pre","etymon_refs":["old-english:līn"]}
+{"_type":"reflex","surface_form":"lyn","position":"pre","etymon_refs":["old-english:līn"]}
+{"_type":"reflex","surface_form":"ley","position":"post","etymon_refs":["old-english:lea"]}
+{"_type":"reflex","surface_form":"lea","position":"post","etymon_refs":["old-english:lea"]}
+{"_type": "reflex", "surface_form": "crich", "position": "pre", "etymon_refs": ["brittonic:crṻg"]}
+{"_type": "reflex", "surface_form": "creech", "position": "pre", "etymon_refs": ["brittonic:crṻg"]}
+{"_type": "reflex", "surface_form": "crux", "position": "post", "etymon_refs": ["brittonic:crṻg"]}
+{"_type":"reflex","surface_form":"acus","position":"post","etymon_refs":["latin:-acus"]}
+{"_type":"reflex","surface_form":"buck","position":"pre","etymon_refs":["old-english:Bucca"]}
+{"_type":"reflex","surface_form":"ton","position":"post","etymon_refs":["old-english:ton"]}
+{"_type":"reflex","surface_form":"toft","position":"post","etymon_refs":["old-norse:toft"]}
+{"_type":"reflex","surface_form":"lis","position":"pre","etymon_refs":["goidelic:lios"]}
+{"_type":"reflex","surface_form":"lios","position":"pre","etymon_refs":["goidelic:lios"]}
+{"_type":"reflex","surface_form":"winterborne","position":"pre","etymon_refs":["old-english:Winterborne"]}
+{"_type":"reflex","surface_form":"burn","position":"post","etymon_refs":["old-english:burn"]}
+{"_type":"reflex","surface_form":"borne","position":"post","etymon_refs":["old-english:burn"]}
+{"_type":"reflex","surface_form":"by","position":"pre","etymon_refs":["old-english:bī"]}
+{"_type":"reflex","surface_form":"bere","position":"pre","etymon_refs":["old-english:bǣr"]}
+{"_type":"reflex","surface_form":"beer","position":"pre","etymon_refs":["old-english:bǣr"]}
+{"_type":"reflex","surface_form":"col","position":"pre","etymon_refs":["old-english:col"]}
+{"_type":"reflex","surface_form":"cole","position":"pre","etymon_refs":["old-english:col"]}
