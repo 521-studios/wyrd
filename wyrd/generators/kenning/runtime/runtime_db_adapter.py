@@ -133,17 +133,17 @@ def genitive_split_map_from_runtime_db(
     matcher consumes (wyrd-aicu.9, D-3). Mirrors
     :func:`empirical_priors_payload_from_runtime_db`.
 
-    Returns ``None`` when the row is absent — a wipe-without-remine L4, or one
-    predating ``mine-genitive-priors --apply`` at emit time. The runtime loader
-    treats ``None`` as ``{}``: the connective still wins non-homograph coverage
-    on score, only the homograph tiebreak goes silent.
-
-    Schema mismatch (missing table from a pre-v4 DB) doesn't reach this code —
-    ``runtime_db.get_runtime_db`` rejects pre-v4 DBs at connection-open time via
-    :class:`runtime_db.RuntimeDBVersionMismatch`, so any DB this function sees is
-    guaranteed to have the table.
+    Returns ``None`` when the prior is unavailable — the row is absent (a
+    wipe-without-remine L4, or one predating ``mine-genitive-priors --apply`` at
+    emit time) OR the whole table is absent (a pre-aicu.9 seed: the table is
+    ADDITIVE/OPTIONAL with no schema bump, so an older bundle simply lacks it).
+    The runtime loader treats ``None`` as ``{}``: the connective still wins
+    non-homograph coverage on score, only the homograph tiebreak goes silent.
     """
-    row = conn.execute("SELECT data FROM genitive_split_prior WHERE id = 1").fetchone()
+    try:
+        row = conn.execute("SELECT data FROM genitive_split_prior WHERE id = 1").fetchone()
+    except sqlite3.OperationalError:
+        return None  # additive table absent on a pre-aicu.9 bundle (no schema bump)
     if row is None:
         return None
     payload = json.loads(row[0])

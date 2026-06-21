@@ -1353,8 +1353,9 @@ def test_emit_skips_genitive_split_prior_when_empty(tmp_path: Path) -> None:
     assert n == 0
 
 
-def test_emit_stamps_schema_version_4(tmp_path: Path) -> None:
-    """The emit stamps schema_version=4 (the genitive_split_prior bump, D-4)."""
+def test_emit_stamps_schema_version_unbumped(tmp_path: Path) -> None:
+    """genitive_split_prior is additive/optional — emit stays at the existing
+    schema_version (no bump, wyrd-aicu.9)."""
     out_path, _ = _emit_with_genitive(tmp_path, {})
     conn = sqlite3.connect(str(out_path))
     try:
@@ -1363,38 +1364,28 @@ def test_emit_stamps_schema_version_4(tmp_path: Path) -> None:
         ).fetchone()[0]
     finally:
         conn.close()
-    assert sv == SCHEMA_VERSION == "4"
+    assert sv == SCHEMA_VERSION == "3"
 
 
-def test_runtime_rejects_schema_v3(tmp_path: Path) -> None:
-    """A v3-stamped DB is rejected by the runtime's schema check (v4 expected)."""
-    from wyrd.generators.kenning.runtime.runtime_db import (
-        RuntimeDBVersionMismatch,
-        reset_runtime_db_cache,
+def test_loader_tolerates_missing_genitive_table(tmp_path: Path) -> None:
+    """A pre-aicu.9 bundle lacks the genitive_split_prior table entirely (the
+    table is additive, no schema bump). The loader must degrade to None (→ {}),
+    NOT raise — and the runtime must still accept the bundle."""
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        genitive_split_map_from_runtime_db,
     )
 
     out_path, _ = _emit_with_genitive(tmp_path, {})
-    # Downgrade the stamp to v3 in place.
     conn = sqlite3.connect(str(out_path))
     try:
-        conn.execute("UPDATE bundle_metadata SET value='3' WHERE key='schema_version'")
+        conn.execute("DROP TABLE IF EXISTS genitive_split_prior")
         conn.commit()
+        # Tolerant: missing table → None, not OperationalError.
+        assert genitive_split_map_from_runtime_db(conn) is None
+        # Schema version is unchanged, so the runtime still accepts it.
+        sv = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key='schema_version'"
+        ).fetchone()[0]
+        assert sv == "3"
     finally:
         conn.close()
-
-    reset_runtime_db_cache()
-    import os
-
-    old = os.environ.get("WYRD_RUNTIME_DB")
-    os.environ["WYRD_RUNTIME_DB"] = str(out_path)
-    try:
-        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
-
-        with pytest.raises(RuntimeDBVersionMismatch):
-            get_runtime_db()
-    finally:
-        reset_runtime_db_cache()
-        if old is None:
-            os.environ.pop("WYRD_RUNTIME_DB", None)
-        else:
-            os.environ["WYRD_RUNTIME_DB"] = old

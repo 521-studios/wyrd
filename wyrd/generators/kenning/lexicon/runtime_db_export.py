@@ -46,9 +46,12 @@ _logger = logging.getLogger(__name__)
 # v2 (2026-05-25): added empirical_priors singleton blob row so vector-
 # scoring works out of the box without a separate priors.json sidecar.
 # v3: D45 (wyrd-aicu) — bare-surface keys + explicit position column.
-# v4 (wyrd-aicu.9, D-4): added genitive_split_prior singleton blob row so the
-# runtime decomposition matcher consumes the genitive homograph tiebreak prior.
-SCHEMA_VERSION = "4"  # wyrd-aicu.9 (D-4): genitive_split_prior singleton blob
+# wyrd-aicu.9: added the genitive_split_prior singleton blob row as an ADDITIVE,
+# OPTIONAL table — the loader tolerates its absence (→ {}), so a pre-aicu.9 v3
+# seed still loads and the homograph tiebreak just stays silent. Backward-
+# compatible, so NO schema bump (the seed refresh that would populate it is a
+# separate concern — the seed is stale since #629).
+SCHEMA_VERSION = "3"  # genitive_split_prior is additive/optional — no bump (wyrd-aicu.9)
 
 # Stamped into bundle_metadata so operators can correlate a deployed DB
 # back to its emitter source.
