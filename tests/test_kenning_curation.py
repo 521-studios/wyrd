@@ -573,7 +573,12 @@ def test_orchestrator_curation_overrides_auto_clustering(tmp_path: Path):
             db, apply=True, curation_state=curation, skip_l3_derivations=True
         )
     assert result["curation"] is not None
-    assert result["order"] == ["normalize-ocr", "link-lemmas", "apply-curation"]
+    assert result["order"] == [
+        "normalize-ocr",
+        "link-lemmas",
+        "apply-curation",
+        "flatten-merge-chains",
+    ]
     assert result["curation"]["lemma_id_set"] == 1
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -604,7 +609,12 @@ def test_orchestrator_dry_run_validates_curation_without_writing(tmp_path: Path)
     assert result["curation"] is not None
     assert result["curation"]["applied"] is False
     assert result["curation"]["lemma_id_set"] == 1
-    assert result["order"] == ["normalize-ocr", "link-lemmas", "apply-curation"]
+    assert result["order"] == [
+        "normalize-ocr",
+        "link-lemmas",
+        "apply-curation",
+        "flatten-merge-chains",
+    ]
     # DB is untouched.
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row

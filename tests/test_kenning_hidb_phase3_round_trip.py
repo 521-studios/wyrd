@@ -255,6 +255,7 @@ def test_round_trip_rebuild_enrich_export_byte_identical(tmp_path: Path) -> None
         "normalize-ocr",
         "link-lemmas",
         "apply-curation",
+        "flatten-merge-chains",
         "decompose",
         "cluster-cognates",
         "classify-stratum",

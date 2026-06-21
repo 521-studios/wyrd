@@ -16,7 +16,9 @@ from pathlib import Path
 from wyrd.generators.kenning.enrichment import (
     LEMMA_METHOD_VERSION,
     OCR_METHOD_VERSION,
+    _run_curation_slot_passes,
     enrichment_status,
+    flatten_merge_chains,
     format_enrichment_run,
     format_enrichment_status,
     run_full_enrichment,
@@ -485,3 +487,105 @@ def test_format_run_renders_all_optional_sections_together():
         "### Period-form projection",
     ):
         assert md.count(heading) == 1, f"section heading {heading!r} count mismatch"
+
+
+# --- flatten_merge_chains (wyrd-lpxq) -------------------------------------
+
+
+def _add_etymon(conn: sqlite3.Connection, form: str, merged_into_id: int | None = None) -> int:
+    cur = conn.execute(
+        "INSERT INTO etymon (language, canonical_form, merged_into_id) VALUES (?, ?, ?)",
+        ("old-english", form, merged_into_id),
+    )
+    return cur.lastrowid
+
+
+def _merged_into(conn: sqlite3.Connection, eid: int) -> int | None:
+    return conn.execute("SELECT merged_into_id FROM etymon WHERE id = ?", (eid,)).fetchone()[0]
+
+
+def test_flatten_merge_chains_collapses_multi_hop_to_terminal_winner(tmp_path: Path):
+    """wyrd-lpxq: a curated chain ``loser → mid → winner`` (and a deeper
+    ``loser2 → loser → mid → winner``) must collapse so every tombstone points
+    DIRECTLY at the terminal winner — otherwise the dump's single-hop COALESCE
+    emits a mid-tombstone that resurrects on rebuild (D22, one hop deeper)."""
+    db_path = _build_db(tmp_path)
+    with LexiconDB(db_path) as db:
+        conn = db.conn
+        winner = _add_etymon(conn, "wic")
+        mid = _add_etymon(conn, "wiic", merged_into_id=winner)
+        loser = _add_etymon(conn, "wych", merged_into_id=mid)
+        loser2 = _add_etymon(conn, "wyche", merged_into_id=loser)  # 3-hop
+        live = _add_etymon(conn, "ham")  # untouched canonical
+
+        counts = flatten_merge_chains(conn, apply=True)
+
+        assert counts == {"chains_flattened": 2, "cycles_skipped": 0}  # loser + loser2
+        # Every tombstone now points straight at the terminal winner.
+        assert _merged_into(conn, mid) == winner
+        assert _merged_into(conn, loser) == winner
+        assert _merged_into(conn, loser2) == winner
+        assert _merged_into(conn, winner) is None  # winner stays canonical
+        assert _merged_into(conn, live) is None
+
+        # Idempotent: a second run flattens nothing.
+        assert flatten_merge_chains(conn, apply=True) == {
+            "chains_flattened": 0,
+            "cycles_skipped": 0,
+        }
+
+
+def test_flatten_merge_chains_apply_false_counts_without_writing(tmp_path: Path):
+    db_path = _build_db(tmp_path)
+    with LexiconDB(db_path) as db:
+        conn = db.conn
+        winner = _add_etymon(conn, "wic")
+        mid = _add_etymon(conn, "wiic", merged_into_id=winner)
+        loser = _add_etymon(conn, "wych", merged_into_id=mid)
+
+        counts = flatten_merge_chains(conn, apply=False)
+
+        assert counts == {"chains_flattened": 1, "cycles_skipped": 0}
+        assert _merged_into(conn, loser) == mid  # unchanged — dry run
+
+
+def test_flatten_merge_chains_skips_cycles_without_mutating(tmp_path: Path):
+    """A pathological cycle (a → b → a) is counted and left untouched, not
+    crashed on or arbitrarily resolved."""
+    db_path = _build_db(tmp_path)
+    with LexiconDB(db_path) as db:
+        conn = db.conn
+        a = _add_etymon(conn, "alpha")
+        b = _add_etymon(conn, "beta", merged_into_id=a)
+        conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (b, a))  # close the loop
+
+        counts = flatten_merge_chains(conn, apply=True)
+
+        assert counts == {"chains_flattened": 0, "cycles_skipped": 2}
+        assert _merged_into(conn, a) == b  # untouched
+        assert _merged_into(conn, b) == a
+
+
+def test_curation_slot_flattens_a_chain_it_creates(tmp_path: Path):
+    """Integration: a curation batch that points loser→mid and mid→winner builds
+    a 2-hop chain (_apply_curated_merge resolves merge targets tombstone-
+    agnostically), and the slot's flatten step (wyrd-lpxq) collapses loser→winner
+    before the L3 derivations / dump consume the graph."""
+    db_path = _build_db(tmp_path)
+    with LexiconDB(db_path) as db:
+        winner = _add_etymon(db.conn, "wic")
+        mid = _add_etymon(db.conn, "wiic")
+        loser = _add_etymon(db.conn, "wych")
+        curation = {
+            "old-english:wiic": {"merged_into_ref": "old-english:wic"},  # mid → winner
+            "old-english:wych": {"merged_into_ref": "old-english:wiic"},  # loser → mid
+        }
+        order: list[str] = []
+        counts = _run_curation_slot_passes(db, {"curation": curation}, order, apply=True)
+
+        assert order == ["apply-curation", "flatten-merge-chains"]
+        assert counts["merge_chain_flatten"] == {"chains_flattened": 1, "cycles_skipped": 0}
+        # The chain the curation built is flattened: every tombstone → terminal.
+        assert _merged_into(db.conn, loser) == winner
+        assert _merged_into(db.conn, mid) == winner
+        assert _merged_into(db.conn, winner) is None

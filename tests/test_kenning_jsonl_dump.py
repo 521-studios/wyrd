@@ -359,6 +359,56 @@ def test_dump_cited_etymon_merged_loser_follows_to_winner(tmp_path: Path):
     rebuilt.close()
 
 
+def test_dump_multi_hop_merge_chain_flattens_no_mid_tombstone_resurrects(tmp_path: Path):
+    """wyrd-lpxq: a curated multi-hop chain (loser → mid → winner) must not
+    resurrect the MID tombstone. The dump's follow-to-winner is single-hop
+    COALESCE(merged_into_id, id) — without flattening it would emit ``mid`` for
+    the loser's citation, and build (which drops merged_into_id) would resurrect
+    ``mid`` as a live unmerged etymon (the D22 violation one hop deeper).
+    enrichment.flatten_merge_chains (run before the dump in the real pipeline)
+    re-points the loser straight at the terminal winner, so single-hop COALESCE
+    resolves correctly."""
+    from wyrd.generators.kenning.enrichment import flatten_merge_chains
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+
+    pre = _build_fixture_db()
+    _add_source(pre, id="skeat", title="X")
+    winner = _add_etymon(pre, "old-english", "wic")
+    mid = _add_etymon(pre, "old-english", "wiic", merged_into_id=winner)
+    loser = _add_etymon(pre, "old-english", "wych", merged_into_id=mid)  # 2-hop chain
+    pre.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '15')",
+        (loser,),
+    )
+
+    # The fix: flatten before dumping (mirrors enrichment's curation slot).
+    assert flatten_merge_chains(pre, apply=True)["chains_flattened"] == 1
+
+    rows = dump_source_to_rows(pre, "skeat")
+    # Only the terminal winner is emitted; neither mid nor loser ref appears.
+    assert {r["ref"] for r in rows if r["_type"] == "etymon"} == {"old-english:wic"}
+    citation = next(r for r in rows if r["_type"] == "citation")
+    assert citation["etymon_ref"] == "old-english:wic"
+    for stale in ("old-english:wych", "old-english:wiic"):
+        assert all(r.get("ref") != stale and r.get("etymon_ref") != stale for r in rows)
+    dump_source_to_file(pre, "skeat", tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    # No tombstone (mid OR loser) resurrected: the only etymon is the winner.
+    assert (
+        rebuilt.execute("SELECT count(*) FROM etymon WHERE merged_into_id IS NOT NULL").fetchone()[
+            0
+        ]
+        == 0
+    )
+    forms = {r[0] for r in rebuilt.execute("SELECT canonical_form FROM etymon").fetchall()}
+    assert forms == {"wic"}
+    assert counts.get("citation_orphans", 0) == 0
+    rebuilt.close()
+
+
 def test_dump_cited_etymon_winner_and_loser_both_cited_dedups_etymon_keeps_all_witnesses(
     tmp_path: Path,
 ):

@@ -1272,6 +1272,61 @@ def apply_collapses(
     return counts
 
 
+def _terminal_merge_winner(chain: dict[int, int | None], start_id: int) -> int | None:
+    """Walk a ``{id: merged_into_id}`` map from ``start_id`` to the TERMINAL
+    winner (the first id whose ``merged_into_id`` is NULL). Returns ``None`` if
+    the chain cycles (a pathological loser↔winner loop) so the caller can skip
+    it rather than pick an arbitrary node. Mirrors
+    ``bridges/_common._resolve_canonical`` (same iterative cycle-guarded walk)."""
+    cid = start_id
+    visited: set[int] = set()
+    while (nxt := chain.get(cid)) is not None:
+        if cid in visited:
+            return None
+        visited.add(cid)
+        cid = nxt
+    return cid
+
+
+def flatten_merge_chains(conn: sqlite3.Connection, *, apply: bool) -> dict[str, int]:
+    """Re-point every ``etymon.merged_into_id`` at its TERMINAL winner (wyrd-lpxq).
+
+    The curated-merge path (:func:`_apply_curated_merge` via the
+    tombstone-agnostic :func:`_resolve_etymon_id`) can set
+    ``loser.merged_into_id = mid`` where ``mid`` is itself a tombstone
+    (``mid.merged_into_id = winner``) — a multi-hop chain. The dump's
+    single-hop ``COALESCE(merged_into_id, id)`` follow-to-winner would then emit
+    ``mid`` (still a merged loser); ``build_from_jsonl`` drops ``merged_into_id``,
+    so ``mid`` resurrects as a live unmerged etymon — the D22 violation, one hop
+    deeper. (The OCR auto-collapse path can't form chains — it resolves targets
+    via :func:`_resolve_live_etymon`, which excludes tombstones — so only the
+    curated/collapse path needs this.)
+
+    Flattening collapses every chain so ``merged_into_id`` always names a
+    terminal winner; the dump's single-hop COALESCE is then correct at every
+    site. Idempotent (a no-op once flat) and cycle-safe (a cyclic chain is
+    counted under ``cycles_skipped`` and left untouched). DB writes are gated on
+    ``apply``; counting always runs."""
+    rows = conn.execute("SELECT id, merged_into_id FROM etymon").fetchall()
+    chain: dict[int, int | None] = {r["id"]: r["merged_into_id"] for r in rows}
+    counts = {"chains_flattened": 0, "cycles_skipped": 0}
+    updates: list[tuple[int, int]] = []
+    for r in rows:
+        direct = r["merged_into_id"]
+        if direct is None:
+            continue
+        terminal = _terminal_merge_winner(chain, r["id"])
+        if terminal is None:
+            counts["cycles_skipped"] += 1
+            continue
+        if terminal != direct:  # multi-hop: re-point straight at the terminal
+            counts["chains_flattened"] += 1
+            updates.append((terminal, r["id"]))
+    if apply and updates:
+        conn.executemany("UPDATE etymon SET merged_into_id = ? WHERE id = ?", updates)
+    return counts
+
+
 def _run_curation_slot_passes(
     db: LexiconDB,
     states: dict[str, Any],
@@ -1317,6 +1372,18 @@ def _run_curation_slot_passes(
             continue
         counts[key] = pass_fn(db, state, apply=apply)
         order.append(order_name)
+    # wyrd-lpxq: the curation (_apply_curated_merge) and collapse passes resolve
+    # merge targets tombstone-agnostically, so they can leave a multi-hop chain
+    # (loser → mid → winner). Flatten it here — after every merged_into_id-touching
+    # pass, before the L3 derivations/dumps consume the graph — so merged_into_id
+    # always names a TERMINAL winner and the dump's single-hop COALESCE resolves
+    # correctly everywhere. Only runs when a chain-forming pass ran (the OCR path
+    # is already chain-safe via _resolve_live_etymon).
+    if counts.get("curation") is not None or counts.get("collapses") is not None:
+        counts["merge_chain_flatten"] = flatten_merge_chains(db.conn, apply=apply)
+        order.append("flatten-merge-chains")
+    else:
+        counts["merge_chain_flatten"] = None
     return counts
 
 
