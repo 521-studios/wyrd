@@ -619,10 +619,10 @@ def score(
     * Resolving the ``slot_position`` label from the slot's index in
       the structure (e.g. 'pre' / 'inner' / 'post' per
       ``Meaning.location``).
-    * Passing ``era_midpoint`` (D44: always 0 — the wildcard-cell
-      convention; the request's era never drives scoring. The
-      parameter and the priors tables' era cells survive for
-      pack-template / future non-request-driven lookups).
+    * Passing ``era_midpoint`` (the D36.7 per-era frequency cells). 0 =
+      wildcard (no era-fashion lean, the default). wyrd-3tvd: a bounded
+      HISTORICAL request era now drives this with its midpoint; an era with
+      no upper bound (present-day) stays 0 (the wildcard cell).
     * Looking up ``lemma_phon`` from per-etymon phonological vectors
       (kq7w.1 corpus enrichment). For Meanings without phonological
       vectors yet, pass a default-constructed PhonologicalVector

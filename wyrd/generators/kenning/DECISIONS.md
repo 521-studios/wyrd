@@ -2813,8 +2813,11 @@ fallback.
 > same-skeleton-at-every-era invariant narrows to the ungated pair
 > (era="" ↔ present-day) plus the town-level statement (a generated town's
 > structure persists across renderings). Everything else here stands:
-> nothing ever expires, era never re-weights the draw, render is era's
-> primary effect, and the diversify split below remains load-bearing.
+> nothing ever expires, render is era's primary effect, and the diversify
+> split below remains load-bearing. (Later refinement, wyrd-3tvd: a bounded
+> HISTORICAL era now ALSO leans the priors-baseline toward its midpoint — a
+> mild fashion re-weight — while present-day/open-ended stays neutral; see
+> D46 "What this changes vs D44".)
 
 **The decision: the morpheme inventory is time-invariant. A request's era
 changes which SURFACE each morpheme renders as (its era reflex, via the D33
@@ -3029,9 +3032,13 @@ failure mode punished exactly the best-documented morphemes (wyrd-c6o1.3).
 
 * ``EligibilityGate`` regains one era field — ``era_record_cutoff`` (the
   resolved era range's END) — consumed by ``passes_record_gate`` /
-  ``_passes_base_gates``. The request's era still never re-weights the draw
-  (the priors ``era_midpoint`` stays at the wildcard convention; the optional
-  fashion-weighting follow-up is wyrd-3tvd).
+  ``_passes_base_gates``. As of D44 the request's era did not re-weight the
+  draw (the priors ``era_midpoint`` stayed at the wildcard convention). The
+  optional fashion-weighting follow-up **wyrd-3tvd** has since landed: a
+  bounded HISTORICAL era now also leans the priors-baseline toward its
+  midpoint (kenning ``_request_era_midpoint`` → ``select_via_vector``), while
+  an era with no upper bound (present-day, the deployed default) stays at the
+  wildcard 0 — so default generation is unchanged.
 * Pools are MONOTONE in era: pool(oe-early) ⊆ pool(me) ⊆ pool(present).
 * The D44 seed-level invariant narrows: per-request determinism is untouched
   and the UNGATED pair (era="" ↔ present-day) stays skeleton-identical per
