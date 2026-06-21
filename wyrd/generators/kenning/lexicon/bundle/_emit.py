@@ -30,34 +30,32 @@ from typing import Any
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
-# wyrd-f233: residual non-combining special letters to fold to an ASCII modern
-# spelling after NFD-stripping combining marks. NFD handles macrons/accents/
-# ogoneks (ā→a, ǣ→æ, ȳ→y, ą→a); these atomic letters don't decompose, so map
-# them explicitly. Modern-toponym spelling conventions: æ→ae, þ/ð→th, ø→o.
-_MODERN_LETTER_FOLD = {
-    "æ": "ae", "Æ": "Ae", "œ": "oe", "Œ": "Oe", "ø": "o", "Ø": "O",
-    "þ": "th", "Þ": "Th", "ð": "th", "Ð": "Th", "ł": "l", "Ł": "L",
-}  # fmt: skip
-
 
 def _fold_to_modern_surface(form: str) -> str:
-    """Fold a reconstructed/macron-bearing canonical form to a clean ASCII modern
-    surface (wyrd-f233). Used for the synthesized fallback ``modern_usage`` of a
-    reflex-LESS family, so the bundle keys + renders a real surface instead of a
-    macron/proto canonical form (``tūn``→``tun``, ``ǣcer``→``aecer``,
-    ``*beuganą``→``beugana``). Drops proto ``*`` markers, NFD-decomposes and
-    removes combining marks, then maps residual special letters. Case-preserving;
-    does NOT touch dashes (position decoration is applied separately, D45). The
-    matcher already deaccents at fold time, so this only cleans the stored/rendered
-    surface — it never changes which morpheme matches.
+    """Strip macrons/accents + proto ``*`` from a reflex-less family's canonical
+    form so the synthesized fallback ``modern_usage`` is a clean surface instead of
+    a macron/proto leak (wyrd-f233): ``tūn``→``tun``, ``*beuganą``→``beugana``.
+    Drops ``*`` markers (always matcher-safe), then NFD-strips combining marks.
+    Case-preserving; does NOT touch dashes (position decoration is separate, D45).
 
-    A non-Latin source form (Semitic ʕ/ʔ, etc.) has no Latin fold and passes
-    through unchanged — those exotic reflex-less admits (~9 in the cohort) are a
-    transliteration concern, out of this macron/proto cleanup's scope."""
-    s = form.replace("*", "")  # proto markers, anywhere — never part of a surface
-    s = unicodedata.normalize("NFD", s)
-    s = "".join(ch for ch in s if not unicodedata.combining(ch))
-    return "".join(_MODERN_LETTER_FOLD.get(ch, ch) for ch in s)
+    Self-verifies against the runtime matcher fold (``fold_surface``): the cleaned
+    surface is adopted ONLY when it folds to the SAME key as the raw form, else the
+    raw form is kept. Without this, stripping could make the synthesized surface
+    bind to a DIFFERENT reflex cell than its canonical — the matcher fold is itself
+    quirky (it drops ``ǣ`` but expands plain ``æ``→ae, drops ``ø``), so e.g.
+    stripping ``ǣ``'s macron → ``æ`` folds to ``ae`` while the raw ``ǣ`` folds away.
+    ~47/1737 admits keep their raw form for this reason; the rest clean safely. This
+    guarantees matching is provably unchanged (the wyrd-mook self-binding class).
+    OE/ON letters are deliberately NOT ASCII-mapped here — that needs the matcher
+    fold aligned too (wyrd-7fs2)."""
+    # Function-level import: genitive_priors → lexicon/__init__ (LexiconDB) would
+    # cycle with this leaf module's load via lexicon/__init__ → bundle._emit.
+    from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
+
+    base = form.replace("*", "")  # proto markers — matcher drops these anyway
+    candidate = unicodedata.normalize("NFD", base)
+    candidate = "".join(ch for ch in candidate if not unicodedata.combining(ch))
+    return candidate if fold_surface(candidate) == fold_surface(base) else base
 
 
 _LANG_CODE_TO_JSON_FIELD = {
