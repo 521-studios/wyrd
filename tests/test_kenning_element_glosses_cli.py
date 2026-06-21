@@ -39,7 +39,13 @@ def test_mine_element_glosses_summary_counts(tmp_path: Path, monkeypatch) -> Non
         {"surface": "b", "is_element": False, "candidates": [{"x": 1}]},  # weak
         {"surface": "c", "is_element": False, "candidates": []},  # no-match
     ]
-    monkeypatch.setattr(eg, "mine_to_jsonl", lambda *a, **k: rows)
+    monkeypatch.setattr(
+        eg,
+        "mine_to_jsonl",
+        lambda *a, **k: eg.ElementGlossMineResult(
+            rows=rows, written=rows, existing_kept=0, new_added=len(rows), overwritten=False
+        ),
+    )
     census = _touch(tmp_path / "census.db")
     db = _touch(tmp_path / "lex.db")
     out = tmp_path / "_element_glosses.jsonl"
@@ -49,6 +55,7 @@ def test_mine_element_glosses_summary_counts(tmp_path: Path, monkeypatch) -> Non
     )
     assert result.exit_code == 0, result.output
     assert "[3/3]  confident=1 weak=1 no-match=1" in result.output
+    assert "merged into" in result.output and "added 3 new" in result.output
 
 
 @pytest.fixture
