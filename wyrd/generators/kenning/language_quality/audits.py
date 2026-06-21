@@ -50,6 +50,7 @@ from .models import (
     REFERENCE_TAG_COUNT,
     LanguageQualityReport,
     LanguageScorecard,
+    attribution_mode_for,
 )
 
 # --- reference profile ----------------------------------------------------
@@ -1268,6 +1269,7 @@ def compute_scorecard(
         bundle_sibling=sibling,
         bundle_word_count=bundle_words,
         bundle_shared_with=shared_with,
+        attribution_mode=attribution_mode_for(language),
         reference_tags=list(reference_tags),
         lexicon_tagged_etymons=lex_tag["lexicon_tagged_etymons"],
         lexicon_tag_coverage=lex_tag["lexicon_tag_coverage"],

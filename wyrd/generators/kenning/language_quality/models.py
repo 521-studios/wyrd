@@ -163,6 +163,44 @@ DEFAULT_LANGUAGES: tuple[str, ...] = (
 TRANSITIONAL_NONCANONICAL_LANGUAGES: frozenset[str] = frozenset()
 
 
+# wyrd-v7wg: per-language bundle-attribution mode, so the dashboard can tell a
+# DELIBERATE zero (loans get receiver-attributed at export — Latin's `castra`
+# ships as old-english `ceaster`, with no separate latin entry) apart from a
+# genuine DATA-GAP zero (we just haven't mined enough yet). A hand-curated static
+# map (mirrors ERA_CHAINS / RECOMMENDED_LANG_THRESHOLDS): only the donor-only +
+# the few `both` languages need entries; everything else defaults to `receiver`.
+#
+# - ``donor-only``: classical loan SOURCES. Their items land in the receiving
+#   language at bundle export, so zero bundle coverage is EXPECTED, not a gap.
+# - ``both``: donate to English-family AND receive (e.g. ON ← gaelic-substrate,
+#   ON → OE). Coverage > 0 expected from the receiving direction.
+# - ``receiver`` (default, absent from this map): primary bundle attribution;
+#   zero coverage is a real signal (data-gap or corpus-thin).
+ATTRIBUTION_MODE: dict[str, str] = {
+    # donor-only — classical loan sources (wyrd-v7wg)
+    "latin": "donor-only",
+    "greek": "donor-only",
+    "akkadian": "donor-only",
+    "egyptian": "donor-only",
+    "hebrew": "donor-only",
+    "arabic": "donor-only",
+    "persian": "donor-only",
+    "sanskrit": "donor-only",
+    "aramaic": "donor-only",
+    "armenian": "donor-only",
+    # both — donate into English-family and receive
+    "old-norse": "both",
+    "old-french": "both",
+    "norman-french": "both",
+}
+
+
+def attribution_mode_for(language: str) -> str:
+    """Bundle-attribution mode for ``language`` (wyrd-v7wg). Absent → ``receiver``
+    (the safe default: a receiver-language's zero coverage is a real gap)."""
+    return ATTRIBUTION_MODE.get(language, "receiver")
+
+
 # Number of top English tags to use as the reference semantic profile.
 # Read from english_proportions.json's tag_marginal at runtime; this is
 # a fallback if the proportions file isn't reachable.
@@ -233,6 +271,9 @@ class LanguageScorecard:
     bundle_sibling: str | None = None
     bundle_word_count: int = 0
     bundle_shared_with: list[str] = field(default_factory=list)
+    # wyrd-v7wg: 'donor-only' | 'receiver' | 'both' — lets the dashboard read a
+    # donor-only zero (expected: loans receiver-attributed) apart from a real gap.
+    attribution_mode: str = "receiver"
     # C. Semantic-profile coverage (vs English reference)
     reference_tags: list[str] = field(default_factory=list)
     # Lexicon-side: counts of etymons in this language tagged with each

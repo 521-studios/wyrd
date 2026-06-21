@@ -1924,6 +1924,7 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "bundle_sibling",
         "bundle_word_count",
         "bundle_shared_with",
+        "attribution_mode",
         "reference_tags",
         "lexicon_tagged_etymons",
         "lexicon_tag_coverage",
@@ -2027,3 +2028,152 @@ def test_celtic_branches_wired_into_report_and_era() -> None:
             if member in LANGUAGE_TO_FAMILY:
                 assert LANGUAGE_TO_FAMILY[member] == family, (branch, member)
     assert "goidelic" not in ERA_CHAINS["brittonic"]["younger"]  # no cross-branch leak
+
+
+# ---- wyrd-v7wg: bundle-attribution mode (donor-only vs data-gap vs corpus-thin) ----
+
+
+def _minimal_card(**overrides) -> LanguageScorecard:
+    """A LanguageScorecard with just the fields the bundle-representation render
+    needs; overrides set the attribution-relevant ones."""
+    base = {"language": "latin", "total_etymons": 10, "total_lemmas": 10}
+    base.update(overrides)
+    return LanguageScorecard(**base)
+
+
+def _md_for(card: LanguageScorecard, bundle_total_words: int = 100) -> str:
+    report = LanguageQualityReport(
+        schema_version="1.0",
+        generated_at="2026-06-21T00:00:00Z",
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+        bundle_total_words=bundle_total_words,
+        languages=[card],
+    )
+    return report_to_markdown(report)
+
+
+def test_attribution_mode_for_classifies_donor_receiver_both() -> None:
+    from wyrd.generators.kenning.language_quality import ATTRIBUTION_MODE, attribution_mode_for
+
+    assert attribution_mode_for("latin") == "donor-only"
+    assert attribution_mode_for("greek") == "donor-only"
+    assert attribution_mode_for("old-norse") == "both"
+    assert attribution_mode_for("old-french") == "both"
+    # receiver is the default for anything absent (incl. the english family + unknowns)
+    assert attribution_mode_for("old-english") == "receiver"
+    assert attribution_mode_for("modern-english") == "receiver"
+    assert attribution_mode_for("totally-made-up-lang") == "receiver"
+    # the constant only carries the non-default entries (mirrors the curated-map pattern)
+    assert "old-english" not in ATTRIBUTION_MODE
+    assert ATTRIBUTION_MODE["latin"] == "donor-only"
+
+
+def test_compute_scorecard_threads_attribution_mode_via_map() -> None:
+    """The actual wiring: compute_scorecard sets attribution_mode from the map for
+    the real language (not the field default). Deleting the audits.py wiring line
+    would fall back to 'receiver' and fail this. attribution_mode is map-derived,
+    not DB-derived, so it's correct even for a language with no fixture etymons."""
+    conn = _build_fixture_db()
+    ref = list(FALLBACK_REFERENCE_TAGS[:3])
+    latin = compute_scorecard(conn, "latin", [], ref, compute_tier4=False)
+    oe = compute_scorecard(conn, "old-english", [], ref, compute_tier4=False)
+    norse = compute_scorecard(conn, "old-norse", [], ref, compute_tier4=False)
+    assert latin.attribution_mode == "donor-only"
+    assert oe.attribution_mode == "receiver"
+    assert norse.attribution_mode == "both"
+
+
+def test_donor_only_renders_na_not_zero() -> None:
+    """A donor-only language must read 'donor-only (n/a)', not '0 (0.0%)', in both
+    the summary table and the detail section — the zero is by-design (loans are
+    receiver-attributed), not a should-fix gap."""
+    md = _md_for(
+        _minimal_card(
+            language="latin",
+            attribution_mode="donor-only",
+            bundle_sibling="latin",
+            bundle_word_count=0,
+        )
+    )
+    assert "donor-only (n/a)" in md
+    assert "loans are attributed to the receiving language" in md
+    # the bundle cell/detail must NOT present the misleading should-fix zero
+    # (other unrelated zero metrics for latin may still render 0.0% — scope to bundle)
+    assert "Bundle representation:** 0 words" not in md
+
+
+def test_donor_only_with_words_shows_count_not_na() -> None:
+    """wyrd-v7wg (Gemini review): the 'donor-only (n/a)' placeholder is only for the
+    EXPECTED zero. A donor-only language that unexpectedly HAS bundle words must show
+    the real count so the anomaly is visible, not hidden behind n/a."""
+    md = _md_for(
+        _minimal_card(
+            language="latin",
+            attribution_mode="donor-only",
+            bundle_sibling="latin",
+            bundle_word_count=5,
+        )
+    )
+    assert "donor-only (n/a)" not in md
+    assert "Bundle representation:** 5 words" in md
+
+
+def test_receiver_zero_with_promotables_reads_data_gap() -> None:
+    md = _md_for(
+        _minimal_card(
+            language="welsh",
+            attribution_mode="receiver",
+            bundle_sibling="celtic_mix",
+            bundle_word_count=0,
+            promotion_threshold=3,
+            promotion_eligible=7,
+        )
+    )
+    assert "data-gap" in md
+    assert "7 promotable lemmas" in md
+    assert "corpus-thin" not in md
+
+
+def test_receiver_zero_without_promotables_reads_corpus_thin() -> None:
+    md = _md_for(
+        _minimal_card(
+            language="breton",
+            attribution_mode="receiver",
+            bundle_sibling="celtic_mix",
+            bundle_word_count=0,
+            promotion_eligible=0,
+        )
+    )
+    assert "corpus-thin" in md
+    assert "data-gap" not in md
+
+
+def test_receiver_with_coverage_gets_no_gap_annotation() -> None:
+    md = _md_for(
+        _minimal_card(
+            language="old-english",
+            attribution_mode="receiver",
+            bundle_sibling="old_english",
+            bundle_word_count=40,
+        )
+    )
+    assert "data-gap" not in md and "corpus-thin" not in md
+    assert "donor-only" not in md
+
+
+def test_both_mode_renders_as_receiver_not_donor_only() -> None:
+    """'both' (old-norse/old-french/norman-french) donate AND receive, so coverage
+    is expected from the receiving direction — render the receiver-style signal
+    (data-gap / corpus-thin / numeric cell), never 'donor-only (n/a)'."""
+    md = _md_for(
+        _minimal_card(
+            language="old-norse",
+            attribution_mode="both",
+            bundle_sibling="old_scandinavian",
+            bundle_word_count=0,
+            promotion_threshold=2,
+            promotion_eligible=4,
+        )
+    )
+    assert "donor-only" not in md
+    assert "data-gap" in md and "4 promotable lemmas" in md

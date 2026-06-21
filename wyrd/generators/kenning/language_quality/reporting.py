@@ -90,8 +90,15 @@ def _summary_table_row(c: LanguageScorecard, report: LanguageQualityReport) -> s
     """One language's row in the summary coverage table (n/a cells where a
     bundle/citation denominator is zero)."""
     promo = f"{c.promotion_eligible} (≥{c.promotion_threshold})"
-    bundle_pct = _format_pct(c.bundle_word_count, report.bundle_total_words)
-    bundle_cell = f"{c.bundle_word_count} ({bundle_pct})"
+    if c.attribution_mode == "donor-only" and c.bundle_word_count == 0:
+        # wyrd-v7wg: a donor-only ZERO is expected (loans receiver-attributed), not a
+        # gap — render 'donor-only (n/a)' so it doesn't read as a should-fix zero. A
+        # donor-only with >0 words is unexpected; fall through to show the count so
+        # the anomaly is visible rather than hidden (Gemini review).
+        bundle_cell = "donor-only (n/a)"
+    else:
+        bundle_pct = _format_pct(c.bundle_word_count, report.bundle_total_words)
+        bundle_cell = f"{c.bundle_word_count} ({bundle_pct})"
     ref_n = len(c.reference_tags)
     lex_hit = f"{int(round(c.lexicon_tag_hit_rate * ref_n))}/{ref_n}"
     bundle_hit = f"{int(round(c.bundle_tag_hit_rate * ref_n))}/{ref_n}"
@@ -200,7 +207,16 @@ def _language_detail_lines(c: LanguageScorecard, report: LanguageQualityReport) 
 
 def _lang_bundle_lines(c: LanguageScorecard, report: LanguageQualityReport) -> list[str]:
     """Sections B (bundle representation) + B₂ (bundle attestation breakdown, wyrd-lc94)."""
-    if c.bundle_sibling is None:
+    if c.attribution_mode == "donor-only" and c.bundle_word_count == 0:
+        # wyrd-v7wg: loans from a donor-only language are attributed to the
+        # RECEIVING language at export (e.g. latin `castra` ships as old-english
+        # `ceaster`), so a zero here is by-design, not a should-fix gap. A donor-only
+        # with >0 words is unexpected → fall through to the count (Gemini review).
+        bundle_line = (
+            "- **B. Bundle representation:** donor-only (n/a) — loans are attributed to the "
+            "receiving language at export, so zero bundle coverage is expected (not a data gap)."
+        )
+    elif c.bundle_sibling is None:
         bundle_line = (
             "- **B. Bundle representation:** no dedicated bundle sibling for this language."
         )
@@ -213,6 +229,20 @@ def _lang_bundle_lines(c: LanguageScorecard, report: LanguageQualityReport) -> l
         if c.bundle_shared_with:
             bundle_line += f"; **shared with** {', '.join(c.bundle_shared_with)}"
         bundle_line += ")."
+        # wyrd-v7wg: a receiver language with zero bundle words is a real signal —
+        # distinguish 'data-gap' (promotable lemmas exist, just not re-emitted) from
+        # 'corpus-thin' (nothing promotable yet; needs more mining / tiered policy).
+        if c.bundle_word_count == 0:
+            if c.promotion_eligible > 0:
+                bundle_line += (
+                    f" **data-gap** — {c.promotion_eligible} promotable lemmas "
+                    f"(≥{c.promotion_threshold}) await a bundle re-emit."
+                )
+            else:
+                bundle_line += (
+                    " **corpus-thin** — 0 promotion-eligible lemmas; needs more mining "
+                    "or tiered-policy promotion (wyrd-fssn)."
+                )
     # B₂. Surfaces the actionable runtime-quality signal: of what's actually
     # shipping, what fraction is scholar-attested vs grandfathered. Distinct
     # from A (DB-level corpus depth) which counts mining residue that never

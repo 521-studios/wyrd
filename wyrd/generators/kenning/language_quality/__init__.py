@@ -62,12 +62,14 @@ from .models import (  # noqa: F401
     _BUNDLE_LANG_KEY,
     _GRANDFATHER_CITATION_SOURCES,
     _SHARED_BUNDLE_SIBLINGS,
+    ATTRIBUTION_MODE,
     DEFAULT_LANGUAGES,
     ERA_CHAINS,
     FALLBACK_REFERENCE_TAGS,
     REFERENCE_TAG_COUNT,
     LanguageQualityReport,
     LanguageScorecard,
+    attribution_mode_for,
 )
 from .reporting import (  # noqa: F401
     report_to_json,
