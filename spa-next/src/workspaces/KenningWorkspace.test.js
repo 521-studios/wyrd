@@ -113,4 +113,33 @@ describe('KenningWorkspace mobile focus trap (wyrd-f5if)', () => {
     expect(document.activeElement).toBe(opener);
     expect(document.body.style.overflow).not.toBe('hidden');
   });
+
+  it('col 1 drawer: focuses its close button on open and restores focus on close', async () => {
+    const result = render(KenningWorkspace);
+    result.component.openMenu(); // opens the drawer
+    await settle();
+
+    const col1 = result.container.querySelector('.col-1');
+    const closeBtn = col1.querySelector('.close-btn');
+    expect(document.activeElement).toBe(closeBtn);
+
+    await fireEvent.click(closeBtn); // closes col1
+    await settle();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('tolerates the opener being detached before close (no throw)', async () => {
+    render(KenningWorkspace);
+    appState.currentResultIndex = 0; // open the sheet (opener was the trigger)
+    await settle();
+
+    opener.remove(); // opener leaves the DOM while the panel is open
+    opener = null; // afterEach guard
+
+    // Closing must not throw even though triggerBefore.focus() now targets a
+    // detached node (the try/catch in the effect cleanup).
+    await fireEvent.keyDown(document, { key: 'Escape' });
+    await settle();
+    expect(document.body.style.overflow).not.toBe('hidden'); // cleanup completed
+  });
 });
