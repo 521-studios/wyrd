@@ -322,6 +322,52 @@ def test_shipped_allowlist_labels_are_all_producible_per_culture():
         )
 
 
+def test_committed_structures_yaml_in_sync_with_bundle():
+    """wyrd-x7w4 drift-guard: the committed structures.yaml must equal a fresh
+    refresh-merge over the committed seed-runtime.db.
+
+    structures.yaml is DERIVED from the bundle's per-culture proportions but
+    committed by hand. If a bundle re-export adds/retires structures and the
+    operator forgets to re-run `dump-structures`, the file silently goes stale —
+    new structures default-enable un-reviewed; retired ones leave dead entries.
+    This recomputes the dump (committed file as merge base, so operator `false`s
+    are honored — only structure-set changes can break it) and asserts byte
+    equality. A failure means: re-run
+
+        wyrd kenning dump-structures --output wyrd/generators/kenning/data/structures.yaml
+
+    review the +new/-dropped on stderr, and commit. (The auto-regen hook that
+    makes this automatic on `export-runtime-db --dev` is the remaining half of
+    wyrd-x7w4.)"""
+    import os
+    from importlib import resources
+
+    from wyrd.generators.kenning.cli.dump_structures import _build, _read_merge_base, _render
+    from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+
+    # The committed structures.yaml is derived from the committed SEED bundle. When
+    # WYRD_RUNTIME_DB[_BUCKET] redirects get_runtime_db to a full-corpus L4, the
+    # comparison is apples-to-oranges (more structures) → spurious failure; skip,
+    # mirroring the inverse guard in the full-corpus-only sibling tests. CI sets
+    # neither var, so the guard always runs there (its enforcement target).
+    if os.environ.get("WYRD_RUNTIME_DB") or os.environ.get("WYRD_RUNTIME_DB_BUCKET"):
+        pytest.skip("drift-guard needs the committed seed bundle; WYRD_RUNTIME_DB[_BUCKET] is set")
+
+    committed = (
+        resources.files("wyrd.generators.kenning.data")
+        .joinpath("structures.yaml")
+        .read_text(encoding="utf-8")
+    )
+    sections, _ = _build(get_runtime_db(), _read_merge_base(None))
+    fresh = _render(sections)
+    assert fresh == committed, (
+        "structures.yaml is stale vs the bundle — run "
+        "`wyrd kenning dump-structures --output "
+        "wyrd/generators/kenning/data/structures.yaml`, review the new/dropped "
+        "structures, and commit."
+    )
+
+
 def test_missing_file_degrades_to_empty(monkeypatch):
     class _Missing:
         def joinpath(self, *_a):
