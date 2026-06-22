@@ -218,16 +218,20 @@ resource "aws_lambda_function" "api" {
   memory_size      = 1769
   timeout          = 15
 
-  # wyrd-g1wp: SnapStart snapshots the initialized container (after create_app()
-  # preloads the bundle + cultures) at publish time and restores it on cold
-  # start, so a cold container skips the ~2-4s DB load. Applies ONLY to
-  # published versions, so `publish = true` cuts a version per deploy and the
-  # Function URL / CloudFront permissions target the `live` alias (below), not
-  # $LATEST. python3.12 + arm64 support SnapStart in us-east-2.
+  # wyrd-ocs8: SnapStart is DISABLED. It cached a 1769MB snapshot per published
+  # version, and `publish = true` + staging's per-push auto-deploy cut a new
+  # version every merge — so snapshots accumulated unbounded (~300+ versions),
+  # each billing snapshot storage forever. That blew the cost budget and grew
+  # daily. apply_on = "None" stops new snapshots; the accumulated versions were
+  # deleted out-of-band (2026-06-22). Cold start is ~3.7s on this 1769MB config
+  # (prod has no users yet — acceptable). `publish = true` stays for now so the
+  # `live` alias + Function URL routing is unchanged; the proper fix (serve
+  # $LATEST directly, drop publish + alias so versions can't accumulate) is
+  # tracked in wyrd-ocs8. Do NOT re-enable SnapStart without fixing publish.
   publish = true
 
   snap_start {
-    apply_on = "PublishedVersions"
+    apply_on = "None"
   }
 
   environment {
