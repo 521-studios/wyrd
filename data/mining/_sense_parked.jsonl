@@ -6,3 +6,6 @@
 {"ref": "old-english:ingahām", "reason": "composite morpheme (ingas+hām); should expand to constituents per D51.3, not get a standalone sense"}
 {"ref": "old-english:stōw", "reason": "place / assembly-place / holy-place spread with an umbrella gloss spanning senses — needs careful split"}
 {"ref": "old-english:burh-tūn", "reason": "composite morpheme (burh+tūn); should expand to constituents per D51.3, not get a standalone sense"}
+{"ref": "celtic:an", "reason": "grammatical morpheme (article 'the' / diminutive / locative suffix) + stray 'water' — not a content morpheme"}
+{"ref": "old-english:wic", "reason": "polysemous functional morpheme (dwelling / specialized farm / trading / fish-market / coastal station) — multi-sense split needed; macron-less dup of wīc"}
+{"ref": "old-english:bere-tūn", "reason": "composite (bere+tūn = barley-farm); expand to constituents per D51.3, not standalone sense"}
