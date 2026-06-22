@@ -68,3 +68,4 @@ CORRUPTION_lettersub	brittonic	eglẹ̄s	suspected=eglēs (church)
 CORRUPTION_lettersub	old-english	pqth	suspected=pæth (path); twin_exists=False
 CORRUPTION	old-english	reeth	suspected=? (gloss 'enclosure'; no obvious twin — human triage)
 CORRUPTION_lettersub	old-english	wtc	suspected=wīc (dwelling); collapsed fire#19
+CORRUPTION_lettersub	old-english	wlc	suspected=wīc (dwelling); collapsed fire#19
