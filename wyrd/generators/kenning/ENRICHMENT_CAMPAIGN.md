@@ -33,20 +33,26 @@ loop's lever), 22% variant-gap (a separate lever — see wyrd-eni4.3 follow-up).
 variant pool, AND parse selection (the DID-WE scorer/tiebreak). Structural /
 decision-gated (wyrd-740t, over-merge bugs).
 
-### Per-fire procedure (cron fires every 15 min)
+### Per-fire procedure (cron fires every 5 min)
 
-**FILL THE TIME — backfill is mandatory.** Keep working until ~10–12 min of the
-15-min interval is spent, so the model is never idle 5+ minutes. This is a
-**cost** rule, not a throughput nicety: staying active keeps the conversation in
-Anthropic's prompt cache; idling past ~5 min evicts it and re-bills the full
-context on the next fire. **Never stop after a single slice.** When a slice is
-small or a dimension finishes early, immediately **backfill** — pull the next
-set of the same dimension, then the next dimension, cycling
-reflex → tags → IPA → gloss → (back to more reflex sets) until the time budget
-is met OR every selector is empty. Self-tune `--n` upward when fires finish
-light. (The cron interval and this fill-target are deliberately tuned so the
-idle gap stays inside the prompt-cache window.)
+**Prompt-cache window is controlled by the INTERVAL, not by padding work.**
+Measured reality (git timestamps): a fire's wall-clock is only ~2–3 min even
+when it touches all four dimensions — the work is fast LLM+bash. So you CANNOT
+keep the conversation in Anthropic's prompt cache (5-min TTL) by "filling time";
+the idle gap = `interval − fire_duration`, and the lever is a short interval.
+The cron is therefore every **5 min**: with ~2.5-min fires the gap is ~2.5 min
+(< 5), and if a fire ever runs long the next just fires on idle (~0 gap). Idling
+past ~5 min evicts the cache and re-bills the full context, so keeping the gap
+small is a **cost** rule. Do a normal-sized fire (one reflex slice + a quality
+batch or two) — only backfill extra dimensions when a slice comes back empty/tiny.
 
+**Emit timestamps every fire** (so the < 5-min idle goal is verifiable): run
+`date '+%F %T %Z'` as the FIRST and LAST action of the fire, append
+`START<TAB>FINISH<TAB>summary` to `data/mining/campaign_timing.log` (committed),
+and report START/FINISH/elapsed. The idle gap = this fire's FINISH → the next
+fire's START.
+
+0. `date '+%F %T %Z'` → ITERATION START (report it).
 1. `git pull --rebase`.
 2. **Reflex (primary):** `enrich-campaign next-slice --n N` (impact-ordered, most
    toponyms first) → author grounded reflexes to a temp file, park un-groundable
@@ -65,9 +71,11 @@ idle gap stays inside the prompt-cache window.)
    a `pf2_build`/rebuild replays the ledger), not every fire.
 5. Update wyrd-eni4.3 notes; keep everything on PR #727.
 
-Run multiple sets per fire to hit the ~10–12 min fill target (see the backfill
-mandate above). Stop a fire only when `next-slice` AND all three quality
-selectors (tags/IPA/gloss) return empty.
+6. `date '+%F %T %Z'` → ITERATION FINISH; append the timing line; report
+   START/FINISH/elapsed.
+
+Stop the whole campaign only when `next-slice` AND all three quality selectors
+(tags/IPA/gloss) return empty.
 
 The old reflex-only "Phase ladder" below is **superseded**; its validation
 gates, ledger invariants, and "never invent / park instead" rules still apply.
