@@ -75,3 +75,5 @@ CORRUPTION	old-norse	authn	suspected=auðn (waste land); NO twin in DB — human
 CORRUPTION_lettersub	old-norse	skégr	suspected=skogr (grove); collapsed fire#22
 CORRUPTION	old-norse	ndttfari	suspected=náttfari; NO twin in DB — human triage
 CORRUPTION_lettersub	old-norse	pveit	suspected=þveit (clearing); twin exists but pveit ENRICHED this fire — defer collapse pending apply_collapses verification
+CORRUPTION	germanic	e6d	suspected=ēad/ead (road); '6' OCR for a letter — reflexed 'road', human triage
+CORRUPTION	goidelic	a?	suspected=? ('?' literal in form) — junk, human triage
