@@ -60,6 +60,7 @@ from wyrd.generators.kenning.runtime.connective import (
 )
 from wyrd.generators.kenning.runtime.trie_matcher import (
     MorphemeTrie,
+    all_decompositions,
     canonical_decomposition,
     count_unaccounted,
     iter_morphemes,
@@ -507,3 +508,127 @@ def grade_corpus_diff(
         corpus, trie, index, config=on_config, label="on", progress_every=progress_every
     )
     return diff_grades(off, on)
+
+
+# ---------------------------------------------------------------------------
+# CAN-IT vs DID-WE (wyrd-eni4.3): the two-stage decomposition measurement.
+#
+# CAN-IT asks whether the decomposer GENERATES a parse that recovers the
+# scholar's breakdown AT ALL (over the full candidate list, before selection) —
+# the inventory ceiling the enrichment loop pushes up. DID-WE asks whether the
+# single SELECTED parse recovers it — the selection question the human tackles
+# later. GAP = generated-but-not-selected = recall lost purely to scoring/
+# tiebreak. Measured both ways: ``exact`` (scholar breakdown == a candidate's
+# cluster set) and ``recall1`` (some candidate recovers ALL scholar clusters,
+# matching the grade's recall semantics, the load-bearing number).
+#
+# Per toponym: decompose each whitespace token the EXISTING way
+# (``all_decompositions`` = the un-pruned candidate list the production walk
+# would score), reduce each candidate to its cluster signature, and combine
+# tokens by product (capped). No second decomposer — just visibility into the
+# one we ship.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CanItSummary:
+    """Corpus-level CAN-IT / DID-WE / GAP counts, under both match criteria."""
+
+    graded: int
+    product_capped: int
+    can_it_exact: int
+    did_we_exact: int
+    gap_exact: int
+    can_it_recall1: int
+    did_we_recall1: int
+    gap_recall1: int
+
+
+def _decomp_signature(decomp: list, index: ClusterIndex) -> frozenset[str]:
+    """One decomposition's cluster signature: the clusters across its morphemes."""
+    clusters: set[str] = set()
+    for m in iter_morphemes(decomp):
+        clusters |= index.clusters_for(m.usage)
+    return frozenset(clusters)
+
+
+def _name_candidate_signatures(
+    name: str, trie: MorphemeTrie, index: ClusterIndex, *, config: MatcherConfig, product_cap: int
+) -> tuple[set[frozenset[str]], frozenset[str]]:
+    """Per toponym: (set of full-name candidate cluster-signatures, selected
+    signature). Tokens combine by product (each combo's clusters unioned), capped
+    so a pathological multi-token name can't blow memory."""
+    full: set[frozenset[str]] = {frozenset()}
+    selected: set[str] = set()
+    for token in name.split():
+        if not token:
+            continue
+        cand_sigs = {_decomp_signature(d, index) for d in all_decompositions(token, trie)}
+        selected |= _decomp_signature(
+            canonical_decomposition(
+                token,
+                trie,
+                culture_languages=config.culture_languages,
+                connective_inventory=config.connective_inventory,
+                genitive_prior=config.genitive_prior,
+            ),
+            index,
+        )
+        combined: set[frozenset[str]] = set()
+        for a in full:
+            for b in cand_sigs:
+                combined.add(a | b)
+                if len(combined) >= product_cap:
+                    break
+            if len(combined) >= product_cap:
+                break
+        full = combined
+    return full, frozenset(selected)
+
+
+def grade_can_it(
+    corpus: list[ScholarToponym],
+    trie: MorphemeTrie,
+    index: ClusterIndex,
+    *,
+    config: MatcherConfig,
+    product_cap: int = 20000,
+    progress_every: int = 1000,
+) -> CanItSummary:
+    """Score the corpus for CAN-IT (scholar breakdown is among the generated
+    candidates) vs DID-WE (it is the selected parse), under exact-equality and
+    recall=1 criteria. See the section docstring."""
+    n = capped = 0
+    c_ex = d_ex = g_ex = c_r1 = d_r1 = g_r1 = 0
+    for sc in corpus:
+        scholar = sc.clusters
+        if not scholar:
+            continue
+        n += 1
+        cands, sel_sig = _name_candidate_signatures(
+            sc.name, trie, index, config=config, product_cap=product_cap
+        )
+        if len(cands) >= product_cap:
+            capped += 1
+        in_ex = scholar in cands
+        sel_ex = scholar == sel_sig
+        in_r1 = any(scholar <= sig for sig in cands)
+        sel_r1 = scholar <= sel_sig
+        c_ex += in_ex
+        d_ex += sel_ex
+        g_ex += in_ex and not sel_ex
+        c_r1 += in_r1
+        d_r1 += sel_r1
+        g_r1 += in_r1 and not sel_r1
+        if progress_every and n % progress_every == 0:
+            print(f"  can-it ..{n}/{len(corpus)}", file=sys.stderr, flush=True)
+    return CanItSummary(
+        graded=n,
+        product_capped=capped,
+        can_it_exact=c_ex,
+        did_we_exact=d_ex,
+        gap_exact=g_ex,
+        can_it_recall1=c_r1,
+        did_we_recall1=d_r1,
+        gap_recall1=g_r1,
+    )

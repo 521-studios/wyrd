@@ -11,11 +11,15 @@ from wyrd.generators.kenning import CULTURES
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _load_meanings_data
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.lexicon.decomposition_grader import (
+    CanItSummary,
     CorpusDiff,
     GradeSummary,
     MatcherConfig,
+    grade_can_it,
     grade_corpus_diff,
     grade_passthrough_diff,
+    load_cluster_index,
+    load_scholar_corpus,
 )
 from wyrd.generators.kenning.lexicon.genitive_priors import (
     build_split_probability_map,
@@ -45,6 +49,32 @@ def _fmt_summary(s: GradeSummary) -> str:
 def _delta(off: float, on: float) -> str:
     d = on - off
     return f"{d:+.3f}"
+
+
+def _report_can_it(s: CanItSummary) -> None:
+    n = s.graded or 1
+    click.echo("", err=True)
+    click.echo(
+        f"CAN-IT vs DID-WE over {s.graded} toponyms (product-capped names={s.product_capped}):",
+        err=True,
+    )
+
+    def row(label: str, can_it: int, did_we: int, gap: int) -> None:
+        click.echo(
+            f"  [{label}]  CAN-IT={can_it} ({100 * can_it / n:.1f}%)  "
+            f"DID-WE={did_we} ({100 * did_we / n:.1f}%)  "
+            f"GAP(generated-not-selected)={gap} ({100 * gap / n:.1f}%)",
+            err=True,
+        )
+
+    row("exact set-equality", s.can_it_exact, s.did_we_exact, s.gap_exact)
+    row("recall=1 (subset) ", s.can_it_recall1, s.did_we_recall1, s.gap_recall1)
+    click.echo(
+        "  CAN-IT = decomposer GENERATES the scholar breakdown (inventory ceiling, "
+        "the enrichment-loop target); DID-WE = it is the SELECTED parse; GAP = "
+        "recall recoverable by fixing selection alone.",
+        err=True,
+    )
 
 
 def _report(diff: CorpusDiff, *, max_list: int) -> None:
@@ -140,6 +170,16 @@ def _report(diff: CorpusDiff, *, max_list: int) -> None:
     "credited to its constituents) instead of connective OFF vs ON — the graded "
     "net-win check that gates wyrd-oth3. Mines passthroughs live from the corpus.",
 )
+@click.option(
+    "--can-it",
+    "can_it",
+    is_flag=True,
+    default=False,
+    help="wyrd-eni4.3: report CAN-IT (decomposer GENERATES the scholar breakdown) "
+    "vs DID-WE (it is the SELECTED parse) over the corpus, instead of the "
+    "connective diff. The enrichment loop's scoreboard. Slower (enumerates the "
+    "full candidate list per toponym).",
+)
 def lexicon_grade_decomposition(
     db_path: Path,
     meanings: Path | None,
@@ -148,6 +188,7 @@ def lexicon_grade_decomposition(
     limit: int | None,
     max_list: int,
     passthroughs: bool,
+    can_it: bool,
 ) -> None:
     """wyrd-aicu.9 Phase 3: grade the decomposition matcher against the scholarly
     breakdown corpus, diffing connective OFF (today's matcher) vs ON (genitive
@@ -191,6 +232,17 @@ def lexicon_grade_decomposition(
                 "un-mined) — ON measures coverage only, no homograph tiebreak.",
                 err=True,
             )
+        if can_it:
+            index = load_cluster_index(db)
+            corpus = load_scholar_corpus(db, index, suffix=suffix)
+            if limit is not None:
+                corpus = corpus[:limit]
+            click.echo(f"  CAN-IT corpus={len(corpus)} toponyms", err=True)
+            summary = grade_can_it(
+                corpus, trie, index, config=config, progress_every=_PROGRESS_EVERY
+            )
+            _report_can_it(summary)
+            return
         if passthroughs:
             pmap = build_passthrough_map(extract_cross_scholar_passthroughs(db))
             click.echo(f"  passthrough composites mined={len(pmap)}", err=True)
