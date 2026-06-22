@@ -108,6 +108,31 @@ jobs:
           done
           [ "$OK" = 1 ] || { echo "::error::version $VERSION not Active+Successful after wait"; exit 1; }
 
+      - name: Prune old Lambda versions (keep current + prior)
+        working-directory: terraform
+        # wyrd-ocs8: same retention as the production job, but INACTIVE by
+        # default — gated on the repo variable ENABLE_STAGING_VERSION_PRUNE.
+        # Staging auto-deploys on every push, so this would prune aggressively;
+        # it stays off until deliberately enabled (set the repo/Actions variable
+        # ENABLE_STAGING_VERSION_PRUNE=true — no code change needed). Best-effort;
+        # a prune failure must not strand the SPA on an old build.
+        if: vars.ENABLE_STAGING_VERSION_PRUNE == 'true'
+        continue-on-error: true
+        env:
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: "15"
+        run: |
+          FUNCTION=$(tofu output -raw lambda_function_name)
+          ALIAS_V=$(aws lambda get-alias --function-name "$FUNCTION" --name live --query FunctionVersion --output text)
+          ALL=$(aws lambda list-versions-by-function --function-name "$FUNCTION" --query "Versions[?Version!='\$LATEST'].Version" --output text | tr '\t' '\n' | sort -rn)
+          KEEP=$(printf '%s\n' "$ALL" | head -2)
+          echo "alias→v$ALIAS_V; keeping newest 2 ($(echo $KEEP)) + alias"
+          for v in $ALL; do
+            if ! printf '%s\n' "$KEEP" | grep -qx "$v" && [ "$v" != "$ALIAS_V" ]; then
+              aws lambda delete-function --function-name "$FUNCTION" --qualifier "$v" && echo "pruned v$v"
+            fi
+          done
+
       # wyrd-20pz: Vite SPA build needs Node. Sourced from spa-next/
       # via deploy-spa.sh (npm ci + npm run build + aws s3 sync).
       - uses: actions/setup-node@v6
