@@ -26,6 +26,16 @@ import click
     help="Per-language scholar+empirical attestation threshold (criterion 1).",
 )
 @click.option(
+    "--rando-refs",
+    "rando_refs_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="rando-port citation ledger (JSONL) for the rando-only cross-reference. "
+    "Default: the committed data/mining/rando-port.jsonl. The bundle scrubs "
+    "rando-port from its citation fields, so this ledger is what lets the gate "
+    "see rando-only morphemes at all (wyrd-qkn0).",
+)
+@click.option(
     "--language",
     "languages",
     multiple=True,
@@ -37,6 +47,7 @@ import click
 def lexicon_rando_port_readiness(
     bundle_path: Path | None,
     coverage_threshold: float,
+    rando_refs_path: Path | None,
     languages: tuple[str, ...],
 ) -> None:
     """Report whether the rando-port retirement gate is open (wyrd-j2bv).
@@ -57,13 +68,18 @@ def lexicon_rando_port_readiness(
         DEFAULT_TARGET_LANGUAGES,
         compute_readiness,
         format_readiness,
+        load_rando_attested_refs,
     )
     from wyrd.generators.kenning.cli.utils import _load_meanings_data
 
     target = languages or DEFAULT_TARGET_LANGUAGES
     bundle = _load_meanings_data(bundle_path)
+    rando_refs = load_rando_attested_refs(rando_refs_path)
     report = compute_readiness(
-        bundle, target_languages=target, coverage_threshold=coverage_threshold
+        bundle,
+        target_languages=target,
+        coverage_threshold=coverage_threshold,
+        rando_refs=rando_refs,
     )
     click.echo(format_readiness(report))
     if not report.overall_passes:

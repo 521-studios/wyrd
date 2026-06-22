@@ -153,6 +153,7 @@ def _bundle_total_words(bundle: list[dict[str, Any]] | dict[str, Any]) -> int:
 def _bundle_attestation_breakdown(
     bundle: list[dict[str, Any]] | dict[str, Any],
     sibling: str | None,
+    rando_refs: frozenset[str] | None = None,
 ) -> dict[str, int]:
     """wyrd-lc94: classify every bundle subject containing the language
     sibling by which admission path landed it in the bundle.
@@ -168,12 +169,15 @@ def _bundle_attestation_breakdown(
       headwords matched against unaccounted-fragment misses); not
       scholar-attested per se but at least confirmed by an empirical
       Wiktionary lookup.
-    * ``rando_only`` — only ``rando-port`` citations. The legacy
-      hand-curated grandfather class (export_meanings'
-      ``include_rando=True`` path). These haven't accumulated
-      independent attestation through mining yet.
-    * ``uncited`` — language sibling present but no citation field
-      (older bundles or coverage paths that didn't carry attribution).
+    * ``rando_only`` — rando-port-attested but with no scholar/empirical
+      citation. The legacy hand-curated grandfather class that hasn't
+      accumulated independent attestation through mining yet. Detected via
+      the ``rando_refs`` morpheme_id cross-reference (wyrd-qkn0): the runtime
+      bundle scrubs ``rando-port`` from ``<lang>_citations`` (it's a
+      non-scholarly seed), so WITHOUT ``rando_refs`` this bin is structurally
+      always 0 and these subjects misbin as ``uncited``.
+    * ``uncited`` — language sibling present but no citation field and not in
+      ``rando_refs`` (older bundles or coverage paths without attribution).
 
     Returns a dict with ``total`` (subjects in this language) plus the
     four bin counts. Empty (all zeros) when ``sibling is None``.
@@ -193,7 +197,7 @@ def _bundle_attestation_breakdown(
         return counts
     citation_key = f"{sibling}_citations"
     for subj in _bundle_subjects(bundle):
-        bin_name = _classify_subject_attestation(subj, sibling, citation_key)
+        bin_name = _classify_subject_attestation(subj, sibling, citation_key, rando_refs)
         if bin_name is None:
             continue  # subject has no word carrying this language sibling
         counts["total"] += 1
@@ -202,7 +206,10 @@ def _bundle_attestation_breakdown(
 
 
 def _subject_citation_flags(
-    subj: dict[str, Any], sibling: str, citation_key: str
+    subj: dict[str, Any],
+    sibling: str,
+    citation_key: str,
+    rando_refs: frozenset[str] | None = None,
 ) -> tuple[bool, bool, bool, bool]:
     """Scan a subject's words for the language ``sibling`` and return
     ``(has_lang, scholar, empirical, rando)`` citation-presence flags.
@@ -212,6 +219,15 @@ def _subject_citation_flags(
     sets ``rando``, an empirical source sets ``empirical``, anything
     else sets ``scholar`` and short-circuits (scholar wins all ties, so
     no later citation or word can change the outcome).
+
+    ``rando_refs`` (wyrd-qkn0) is the de-dashed ``language:form`` set of
+    rando-port-cited etymons loaded from the committed ``rando-port.jsonl``.
+    It exists because the bundle's ``<lang>_citations`` field is
+    deliberately stripped of ``rando-port`` (a non-scholarly seed) by
+    ``_fetch_member_citations`` — so a rando-only subject reaches here with
+    an empty citation list and would misbin as ``uncited``. Matching the
+    word's ``morpheme_id`` against ``rando_refs`` recovers the grandfather
+    flag from the source-of-truth ledger instead of the scrubbed field.
     """
     has_lang = False
     scholar = False
@@ -221,6 +237,8 @@ def _subject_citation_flags(
         if not word.get(sibling):
             continue
         has_lang = True
+        if rando_refs and word.get("morpheme_id") in rando_refs:
+            rando = True
         for c in word.get(citation_key) or []:
             if c in _GRANDFATHER_CITATION_SOURCES:
                 rando = True
@@ -235,15 +253,21 @@ def _subject_citation_flags(
 
 
 def _classify_subject_attestation(
-    subj: dict[str, Any], sibling: str, citation_key: str
+    subj: dict[str, Any],
+    sibling: str,
+    citation_key: str,
+    rando_refs: frozenset[str] | None = None,
 ) -> str | None:
     """Classify one bundle subject by its strongest citation admission
     path for the language ``sibling``: ``scholar_attested`` (any citation
     that's neither grandfather nor empirical) > ``empirical_only`` >
     ``rando_only`` > ``uncited`` (sibling present but no citations).
     Returns ``None`` when no word carries the ``sibling`` form (subject
-    not in this language)."""
-    has_lang, scholar, empirical, rando = _subject_citation_flags(subj, sibling, citation_key)
+    not in this language). ``rando_refs`` (wyrd-qkn0) recovers the
+    grandfather flag — see ``_subject_citation_flags``."""
+    has_lang, scholar, empirical, rando = _subject_citation_flags(
+        subj, sibling, citation_key, rando_refs
+    )
     if not has_lang:
         return None
     if scholar:
