@@ -65,3 +65,5 @@ CORRUPTION_lettersub	old-english	hdm	suspected=hām (home)
 CORRUPTION_lettersub	old-english	hldw	suspected=hlāw (hill)
 CORRUPTION_lettersub	brittonic	crṻg	suspected=crug (hill/mound)
 CORRUPTION_lettersub	brittonic	eglẹ̄s	suspected=eglēs (church)
+CORRUPTION_lettersub	old-english	pqth	suspected=pæth (path); twin_exists=False
+CORRUPTION	old-english	reeth	suspected=? (gloss 'enclosure'; no obvious twin — human triage)

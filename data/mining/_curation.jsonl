@@ -481,3 +481,6 @@
 {"_type": "etymon_gloss_add", "ref": "old-english:stēpel", "additions": [{"gloss": "A steeple; a tall tower.", "reason": "OE stēpel; Steeple Claydon/Morden, Steepleton."}]}
 {"_type": "etymon_gloss_add", "ref": "brittonic:breg", "additions": [{"gloss": "A hill.", "reason": "Brittonic bre(g); Brill, Bray, Breinton."}]}
 {"_type": "etymon_gloss_add", "ref": "old-norse:kunung", "additions": [{"gloss": "A king.", "reason": "ON konungr; Coniston/Coningsby/Conisholme = king's."}]}
+{"_type": "collapse", "ref": "old-english:grdfe", "into": "old-english:grǣfe"}
+{"_type": "collapse", "ref": "old-english:dcel", "into": "old-english:dæl"}
+{"_type": "collapse", "ref": "old-english:scedt", "into": "old-english:sceat"}
