@@ -23,6 +23,18 @@ loop's lever), 22% variant-gap (a separate lever — see wyrd-eni4.3 follow-up).
 2. **Then the quality metrics** — tag → IPA → gloss — on the same impact-ordered
    morphemes, raising the covered morphemes' quality.
 
+**Author the ACTUAL surface, even when it ≠ the canonical form (alternate
+spelling).** The reflex `surface_form` records the spelling the morpheme takes in
+*this* name — it is NOT required to equal `canonical_form`. So when the canonical
+doesn't substring-match the toponym because of **Welsh initial consonant
+mutation** (`cadwaladr` → Llangad**waladr** = `gadwaladr`; b→f/v, c→g, d→dd, g→∅,
+m→f) or an **English worn/variant spelling** (Bartholomew → `barthos`, carrecc →
+`cark`), find the span the scholar attributes to the morpheme and author *that*
+surface — it grounds because it actually appears. **Only park when you genuinely
+cannot identify the morpheme's span at all.** This is the alternate-spelling
+record, it's loop-owned (a reflex, NOT the human-gated `etymon.variants` field),
+and it directly chips the variant-gap lever (wyrd-eni4.3.1).
+
 **Loop-owned dimensions** (all author to existing L2 ledgers, all gated):
 - **reflex** → `_reflexes.jsonl` (grounding guard) — **PRIMARY (CAN-IT)**
 - **tag** → `_tags.jsonl` (controlled `TAG_VOCAB`, "none" allowed)
