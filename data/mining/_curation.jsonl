@@ -472,3 +472,12 @@
 {"_type": "etymon_curation", "ref": "old-english:Ing", "merged_into_ref": null, "reason": "wyrd-pilc/-ing: topographic/proper-name homograph wrongly OCR-merged into patronymic -ing; un-merge so -ing/-ling stop showing hill/water-meadow/personal-name senses"}
 {"_type": "etymon_gloss_suppression", "ref": "old-english:ingas", "suppressions": [{"gloss": "Dairy farm", "reason": "wyrd-pilc/-ing: topographic noise on the patronymic plural -ingas; not a farm/meadow morpheme"}, {"gloss": "Herd farm", "reason": "wyrd-pilc/-ing: topographic noise on the patronymic plural -ingas; not a farm/meadow morpheme"}, {"gloss": "meadow", "reason": "wyrd-pilc/-ing: topographic noise on the patronymic plural -ingas; not a farm/meadow morpheme"}]}
 {"_type": "etymon_gloss_suppression", "ref": "old-english:inga", "suppressions": [{"gloss": "inflection of ingān:", "reason": "wyrd-pilc/-ing: verb-inflection noise (ingān 'to go in') on the patronymic inga"}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:strēt", "additions": [{"gloss": "A Roman road; a paved road or street.", "reason": "OE strēt < Latin strata; Stratford/Stretton/Stretham."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:walh", "additions": [{"gloss": "A Briton or Welshman; a foreigner, a serf.", "reason": "OE walh; Wal- in Walton/Walworth = 'Britons'."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:scēp", "additions": [{"gloss": "A sheep.", "reason": "OE scēp/scēap; Shipton/Shefford/Shepreth."}]}
+{"_type": "etymon_gloss_add", "ref": "modern-english:Farm", "additions": [{"gloss": "A farm.", "reason": "ModE 'Farm'; Afflington Farm, Belhuish Farm, etc."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:næss", "additions": [{"gloss": "A ness; a headland or promontory.", "reason": "OE næss; Ness/Bowness/Totnes."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:īeg", "additions": [{"gloss": "An island; well-watered or low-lying land partly surrounded by water.", "reason": "OE īeg; -ey/-sey names (Cholsey, Hilsea)."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:stēpel", "additions": [{"gloss": "A steeple; a tall tower.", "reason": "OE stēpel; Steeple Claydon/Morden, Steepleton."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:breg", "additions": [{"gloss": "A hill.", "reason": "Brittonic bre(g); Brill, Bray, Breinton."}]}
+{"_type": "etymon_gloss_add", "ref": "old-norse:kunung", "additions": [{"gloss": "A king.", "reason": "ON konungr; Coniston/Coningsby/Conisholme = king's."}]}
