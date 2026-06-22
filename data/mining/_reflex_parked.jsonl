@@ -24,3 +24,4 @@
 {"ref": "old-french:la", "reason": "2-char definite article; substring over-matches every name with 'la'"}
 {"ref": "goidelic:air", "reason": "uncertain attribution (Erchless/Urquhart) + junk toponym 'Hostages'; gloss 'slaughter' doubtful"}
 {"ref": "old-english:Hæcca", "reason": "attributed toponyms (Dagenham/Matching/Messing/Datchworth) show no clear Hæcca-derived surface"}
+{"ref": "old-english:Scear", "reason": "attributed toponyms (Shellingford/Snarehill/Snoring/Saredon) show no clear scear/shear surface"}
