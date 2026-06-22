@@ -32,10 +32,15 @@ the destructive clear — non-integer observation refs, binds/labels to unminted
 nodes, and cross-type merges are skipped with an observable warning (D24), never
 fatal. The leave-separate confidence gate is validated at entry.
 
+``same-sense`` binds (``etymon_gloss`` -> ``canonical_sense``, wyrd-u6fn.10): a
+gloss row's ref is ``"<etymon_ref>\x1f<gloss>"`` (the etymon natural key + the
+gloss text, joined by U+001F), resolved to its composite PK ``(etymon_id, gloss)``
+in ``_resolve_binds``. Modeled as IDENTITY (mint a ``canonical_sense`` hub +
+``bind`` each gloss to it), not a new predicate; the per-sense ``canonical-label``
+is the short "compressed gloss". The mint / merge / label paths are type-generic,
+so a sense hub flows through them unchanged.
+
 Scope (deferred, by design):
-  - ``same-sense`` binds (``etymon_gloss``, composite PK) — no ref convention is
-    established yet (no author emits them); flagged-skipped (observable, D24), not
-    guessed. Turned on when the sense-binding work defines the ref.
   - Family-C flags (``canonical-decomposition`` / ``decomposition-spurious``),
     ``composed-of`` (wyrd-h5u1), and the region edges (``contains`` / ``succeeds``
     / ``located-in``, which need new tables) — separate tickets, no authored data.
@@ -63,7 +68,11 @@ from wyrd.generators.kenning.canonicalization import (
 )
 from wyrd.generators.kenning.lexicon.bundle._export import build_family_rollup
 from wyrd.generators.kenning.lexicon.db import LexiconDB
-from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref, resolve_etymon_ref
+from wyrd.generators.kenning.lexicon.etymon_refs import (
+    etymon_ref,
+    resolve_etymon_ref,
+    split_gloss_ref,
+)
 
 # Legacy deterministic clustering (merged_into_id OCR variants + lemma_id
 # inflections) is folded into in-memory assertions stamped with this method, so
@@ -85,7 +94,17 @@ _SUBJECT_TARGET: dict[str, tuple[str, str, str]] = {
     "etymon": ("etymon", "canonical_morpheme_id", "canonical_morpheme"),
     "toponym": ("toponym", "canonical_place_id", "canonical_place"),
     "toponym_etymology": ("toponym_etymology", "canonical_place_id", "canonical_place"),
+    # same-sense binds (wyrd-u6fn.10): a gloss row binds to a canonical_sense hub.
+    # etymon_gloss has a composite PK (etymon_id, gloss) and a natural-key ref
+    # (etymon_ref + \x1f + gloss), resolved in _resolve_binds like the etymon case.
+    "etymon_gloss": ("etymon_gloss", "canonical_sense_id", "canonical_sense"),
 }
+
+# Subject types whose ref is a stable NATURAL key resolved at projection time (not
+# an integer row-id): etymon ("lang:form") and etymon_gloss ("lang:form\x1fgloss").
+# toponym / toponym_etymology are still integer row-id refs (their natural-key
+# migration is a separate ticket), so they keep the integer guard in _group_binds.
+_NATURAL_KEY_SUBJECTS = frozenset({"etymon", "etymon_gloss"})
 
 # Minted-node type -> its table (for mint + merge-canonical).
 _NODE_TABLES = ("canonical_morpheme", "canonical_place", "canonical_sense")
@@ -98,12 +117,16 @@ _BindKey = tuple[str, str, str, str | None]
 
 class BindWrite(NamedTuple):
     """One resolved bind to apply: set ``<table>.<column> = node_id`` for the
-    observation row ``obs_id``. (Named so a field transposition is a type error.)"""
+    observation row identified by ``key_cols == key_vals``. (Named so a field
+    transposition is a type error.) Most tables key on a single ``id`` column;
+    ``etymon_gloss`` has a composite PK ``(etymon_id, gloss)``, so the key is a
+    tuple of columns + matching values rather than a bare row-id (wyrd-u6fn.10)."""
 
     table: str
     column: str
     node_id: str
-    obs_id: int
+    key_cols: tuple[str, ...]
+    key_vals: tuple[object, ...]
 
 
 class Conflict(NamedTuple):
@@ -273,20 +296,61 @@ def _group_binds(
             continue
         if _score(a.confidence) < gate:
             continue
-        # wyrd-c6wu: etymon binds carry the stable natural-key ref
-        # "language:canonical_form", resolved to a row-id in _resolve_binds
-        # (skip-on-miss there — still before the destructive write). toponym /
-        # toponym_etymology binds remain row-id refs (their natural-key migration
-        # is a separate ticket), so keep the integer guard for those. isascii()
-        # guards the str.isdigit()/int() gap (Unicode numerics like '²' are
-        # isdigit()==True but raise in int()).
-        if a.subject.type != "etymon" and not (a.subject.ref.isascii() and a.subject.ref.isdigit()):
+        # wyrd-c6wu: etymon (and wyrd-u6fn.10: etymon_gloss) binds carry stable
+        # natural-key refs resolved to a row-id in _resolve_binds (skip-on-miss
+        # there — still before the destructive write). toponym / toponym_etymology
+        # binds remain row-id refs (their natural-key migration is a separate
+        # ticket), so keep the integer guard for those. isascii() guards the
+        # str.isdigit()/int() gap (Unicode numerics like '²' are isdigit()==True
+        # but raise in int()).
+        if a.subject.type not in _NATURAL_KEY_SUBJECTS and not (
+            a.subject.ref.isascii() and a.subject.ref.isdigit()
+        ):
             result.warnings.append(
                 f"bind {a.subject.type}:{a.subject.ref} has a non-integer observation ref; skipped"
             )
             continue
         grouped[(a.subject.type, a.subject.ref)].append(a)
     return grouped
+
+
+def _resolve_obs_key(
+    subj_type: str, subj_ref: str, conn: sqlite3.Connection, result: ProjectionResult
+) -> tuple[tuple[str, ...], tuple[object, ...]] | None:
+    """Resolve an observation subject ref to its (key_cols, key_vals) write key, or
+    None (warned + skipped) if it can't resolve — always BEFORE the destructive
+    write, so a stale/malformed ref can't abort the rebuild mid-projection.
+
+    - ``etymon`` (wyrd-c6wu): natural-key ref "<lang>:<form>" -> current row-id
+      (id-independent across rebuilds).
+    - ``etymon_gloss`` (wyrd-u6fn.10): composite ref "<etymon_ref>\\x1f<gloss>" ->
+      the composite PK (etymon_id, gloss).
+    - ``toponym`` / ``toponym_etymology``: still integer row-id refs.
+    """
+    if subj_type == "etymon":
+        subj_id = resolve_etymon_ref(conn, subj_ref)
+        if subj_id is None:
+            result.warnings.append(
+                f"bind etymon:{subj_ref} did not resolve to a known etymon; skipped"
+            )
+            return None
+        return ("id",), (subj_id,)
+    if subj_type == "etymon_gloss":
+        parts = split_gloss_ref(subj_ref)
+        if parts is None:
+            result.warnings.append(
+                f"bind etymon_gloss:{subj_ref!r} is not a valid gloss ref; skipped"
+            )
+            return None
+        etymon_part, gloss = parts
+        etymon_id = resolve_etymon_ref(conn, etymon_part)
+        if etymon_id is None:
+            result.warnings.append(
+                f"bind etymon_gloss:{subj_ref!r} did not resolve to a known etymon; skipped"
+            )
+            return None
+        return ("etymon_id", "gloss"), (etymon_id, gloss)
+    return ("id",), (int(subj_ref),)
 
 
 def _resolve_binds(
@@ -320,20 +384,11 @@ def _resolve_binds(
             continue
         # Deterministic pick among equivalent binds: highest score, tie lowest id.
         winner = min(valid, key=lambda b: (-_score(b.confidence), b.id))
-        # wyrd-c6wu: etymon subjects are natural-key refs — resolve to the CURRENT
-        # row-id here (id-independent across rebuilds); skip-on-miss observably so a
-        # ref to an etymon dropped by a corpus change can't abort the rebuild.
-        # toponym / toponym_etymology subjects are still row-id refs.
-        if subj_type == "etymon":
-            subj_id = resolve_etymon_ref(conn, subj_ref)
-            if subj_id is None:
-                result.warnings.append(
-                    f"bind etymon:{subj_ref} did not resolve to a known etymon; skipped"
-                )
-                continue
-        else:
-            subj_id = int(subj_ref)
-        writes.append(BindWrite(table, column, winner.object.ref, subj_id))
+        key = _resolve_obs_key(subj_type, subj_ref, conn, result)
+        if key is None:  # unresolved/malformed ref, warned + skipped (pre-write)
+            continue
+        key_cols, key_vals = key
+        writes.append(BindWrite(table, column, winner.object.ref, key_cols, key_vals))
         bound[subj_type] += 1
     result.bound = dict(bound)
     return writes
@@ -391,9 +446,10 @@ def _write_projection(
                     (root, node),
                 )
         for w in bind_writes:
+            where = " AND ".join(f"{c} = ?" for c in w.key_cols)  # cols from a fixed map
             db.conn.execute(
-                f"UPDATE {w.table} SET {w.column} = ? WHERE id = ?",  # noqa: S608 — from a fixed map
-                (w.node_id, w.obs_id),
+                f"UPDATE {w.table} SET {w.column} = ? WHERE {where}",  # noqa: S608 — table/cols from a fixed map
+                (w.node_id, *w.key_vals),
             )
         for (canonical_type, canonical_id, stratum), a in label_pick.items():
             db.conn.execute(
