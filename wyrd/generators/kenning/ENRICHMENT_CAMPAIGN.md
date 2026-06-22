@@ -1,47 +1,63 @@
 # Scholar-morpheme enrichment campaign — loop runbook
 
-## CURRENT MODEL — band-by-band holistic uplift (wyrd-eni4.3)
+## CURRENT MODEL — push CAN-IT, reflex-first (wyrd-eni4.3)
 
-The goal is to take the morphemes the scholarly breakdowns reference (our best
-decomposition ground-truth) and lift them to **full capability across every
-dimension** — not just reflexes. The loop works **one impact band at a time,
-top-down**: for the highest impact value with any remaining work, bring every
-morpheme in that band to full capability across the four **loop-owned**
-dimensions, then descend to the next band.
+**North star: CAN-IT → ~100%.** CAN-IT is the fraction of scholar toponyms whose
+breakdown the decomposer can GENERATE (recall=1 over the candidate list, before
+selection — `grade-decomposition --can-it`). It is the inventory ceiling, and it
+is the loop's job to raise it. A toponym is CAN-IT only when **every** one of its
+scholar morphemes has a matchable reflex, so the lever is: **give reflex-less
+scholar morphemes a grounded reflex.** (DID-WE — whether the matcher *selects*
+that parse — is the human's separate post-trip problem; the loop NEVER touches
+the scorer/tiebreak.)
+
+Baseline at launch (after-bundle): CAN-IT 28.8% / DID-WE 12.3% (recall=1). Of the
+43,361 scholar (toponym,morpheme) pairs: 56% matched, **21% no-reflex** (this
+loop's lever), 22% variant-gap (a separate lever — see wyrd-eni4.3 follow-up).
+6,316 of 8,939 distinct scholar morphemes still have **no reflex** → ample runway.
+
+**Priority order (per the campaign owner):**
+1. **Reflex first** — the CAN-IT lever. Author grounded reflexes for reflex-less
+   scholar morphemes, **impact-ordered: the morphemes in the MOST toponyms first,
+   working down.** This is exactly what `next-slice` emits (impact-descending).
+2. **Then the quality metrics** — tag → IPA → gloss — on the same impact-ordered
+   morphemes, raising the covered morphemes' quality.
 
 **Loop-owned dimensions** (all author to existing L2 ledgers, all gated):
-- **reflex** → `_reflexes.jsonl` (grounding guard) — *impact ≥3 already done*
+- **reflex** → `_reflexes.jsonl` (grounding guard) — **PRIMARY (CAN-IT)**
 - **tag** → `_tags.jsonl` (controlled `TAG_VOCAB`, "none" allowed)
 - **IPA** → `_pronunciation.jsonl` (`/.../`-delimited)
 - **gloss** → `_curation.jsonl` (`etymon_gloss_add` rows; only the ~5% missing)
 
 **Human-gated, NEVER author in the loop:** lemma-wiring, cognate clustering,
-variant pool. These are structural / decision-gated (wyrd-740t, over-merge bugs).
+variant pool, AND parse selection (the DID-WE scorer/tiebreak). Structural /
+decision-gated (wyrd-740t, over-merge bugs).
 
 ### Per-fire procedure (cron fires every 15 min; fill ~2/3)
 
 1. `git pull --rebase`.
-2. `enrich-campaign bands --top 12` → the first row is the **current top band**
-   `N` and which dimensions still have gaps there. (Empty output = all bands
-   complete across all four → stop, note done on wyrd-eni4.3.)
-3. For that band `N`, work each dimension that has a gap, one at a time:
-   - reflex: `next-slice --impact N` → author grounded reflexes → `validate` →
-     append `_reflexes.jsonl` (park un-groundable).
-   - tag: `tags-next-slice --impact N` → classify into vocab (empty=none) →
-     `tags-validate` → append `_tags.jsonl`.
-   - IPA: `ipa-next-slice --impact N` → author `/IPA/` from the form+glosses →
-     `ipa-validate` → append `_pronunciation.jsonl`.
-   - gloss: `gloss-next-slice --impact N` → author a defensible gloss from the
-     toponyms → `gloss-validate` → append `_curation.jsonl` (skip fragments).
-   Each `*-next-slice --impact N` returning empty = that dimension is done for
-   band N. When all four are empty for N, the band is fully capable → descend.
-4. Commit + push each dimension's append to PR #727; update wyrd-eni4.3 notes.
-5. Repeat bands until ~2/3 of the interval is spent (high bands are sparse — a
-   single etymon — so several finish per fire).
+2. **Reflex (primary):** `enrich-campaign next-slice --n N` (impact-ordered, most
+   toponyms first) → author grounded reflexes to a temp file, park un-groundable
+   ones → `enrich-campaign validate` (exit 0 or fix/drop) → append
+   `data/mining/_reflexes.jsonl` → commit + push. Repeat sets while groundable.
+3. **Quality (secondary):** once the reflex set for this fire is in, spend
+   remaining time on quality, impact-ordered: `tags-next-slice` → classify
+   (empty=none) → `tags-validate` → `_tags.jsonl`; then `ipa-next-slice` →
+   `/IPA/` → `ipa-validate` → `_pronunciation.jsonl`; then `gloss-next-slice`
+   (only the ~5% truly missing a gloss) → `gloss-validate` → `_curation.jsonl`.
+   Commit + push each.
+4. **Track progress (cheap, every fire):** `enrich-campaign status` (reflex
+   ledger coverage) — the per-iteration scoreboard. The REAL CAN-IT number
+   (`grade-decomposition --can-it`) reads the runtime bundle, which only reflects
+   authored reflexes **after a rebuild**, so run it only at **milestones** (after
+   a `pf2_build`/rebuild replays the ledger), not every fire.
+5. Update wyrd-eni4.3 notes; keep everything on PR #727.
 
-The old reflex-only "Phase ladder" below is **superseded** by this model; the
-validation gates, ledger invariants, and "never invent / park instead" rules
-all still apply per dimension.
+Fill ~2/3 of the interval; run multiple sets per fire (`--n` self-tuned). Stop
+when `next-slice` AND the quality selectors are all empty.
+
+The old reflex-only "Phase ladder" below is **superseded**; its validation
+gates, ledger invariants, and "never invent / park instead" rules still apply.
 
 ---
 
