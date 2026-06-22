@@ -27844,3 +27844,7 @@
 {"_type": "reflex", "surface_form": "cas", "position": "pre", "etymon_refs": ["brittonic:cas"]}
 {"_type": "reflex", "surface_form": "catter", "position": "pre", "etymon_refs": ["brittonic:cater"]}
 {"_type": "reflex", "surface_form": "card", "position": "post", "etymon_refs": ["brittonic:ceard"]}
+{"_type":"reflex","surface_form":"gadwaladr","position":"post","etymon_refs":["brittonic:cadwaladr"]}
+{"_type":"reflex","surface_form":"cark","position":"pre","etymon_refs":["brittonic:carrecc"]}
+{"_type":"reflex","surface_form":"becc","position":"pre","etymon_refs":["brittonic:bacc"]}
+{"_type":"reflex","surface_form":"borne","position":"post","etymon_refs":["brittonic:bronn"]}
