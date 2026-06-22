@@ -23,7 +23,13 @@ Run from the campaign worktree (`/home/devon/521Studios/wyrd-campaign`), branch
 `enrichment/scholar-morpheme-campaign`. `wyrd` below = `python -c "from wyrd.cli import main; main()"`.
 
 1. **Sync**: `git pull --rebase` (the branch only ever moves forward via this loop).
-2. **Get work**: `wyrd kenning lexicon enrich-campaign next-slice --n 20 > /tmp/slice.json`
+2. **Get work**: `wyrd kenning lexicon enrich-campaign next-slice --n 40 > /tmp/slice.json`
+   - **Slice size (`--n`) self-tuning:** the cron fires every **15 min** (900s);
+     size each slice to fill **~2/3 of the interval (~10 min)** of useful work.
+     `--n 40` is the phase-1 (reflex) default. When a phase changes — or an
+     iteration finishes well under/over ~10 min — re-evaluate and adjust `--n`
+     (bump up if fast, ease off if long). Tag-classification work per etymon is
+     lighter than reflex authoring, so phase 2 will likely want a larger `--n`.
    - Empty array ⇒ **phase 1 (reflexes) is exhausted** (every remaining etymon
      done or parked). Note phase-1 complete on **wyrd-eni4.1.2**, then
      **advance to phase 2 (tags)** — see "Phase ladder" below. Do NOT stop.
