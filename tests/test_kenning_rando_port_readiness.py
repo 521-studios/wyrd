@@ -300,6 +300,28 @@ def test_load_rando_attested_refs_missing_file_warns_and_is_empty(tmp_path: Path
     assert refs == frozenset()
 
 
+def test_load_rando_attested_refs_mid_file_corruption_raises(tmp_path: Path):
+    """A truncated TRAILING line is tolerated (crash mid-append), but a corrupt
+    MID-FILE line (e.g. an unresolved merge marker) RAISES — silently dropping
+    valid rando-only citations would let this remove-authorizing gate falsely
+    PASS."""
+    bad_mid = tmp_path / "mid.jsonl"
+    bad_mid.write_text(
+        '{"_type": "citation", "etymon_ref": "old-english:tun"}\n'
+        "<<<<<<< HEAD\n"  # mid-file corruption
+        '{"_type": "citation", "etymon_ref": "celtic:aber"}\n'
+    )
+    with pytest.raises(json.JSONDecodeError):
+        load_rando_attested_refs(bad_mid)
+    # A truncated trailing record is still tolerated; the valid line loads.
+    trailing = tmp_path / "trail.jsonl"
+    trailing.write_text(
+        '{"_type": "citation", "etymon_ref": "old-english:tun"}\n'
+        '{"_type": "citation", "etymon_ref": "celtic:ab'  # truncated, no newline
+    )
+    assert load_rando_attested_refs(trailing) == frozenset({"old-english:tun"})
+
+
 def test_compute_readiness_rando_refs_surfaces_live_rando_only():
     """wyrd-qkn0 end-to-end: a live morpheme whose only attestation is
     rando-port reaches the bundle with NO citations (rando-port is scrubbed

@@ -172,27 +172,36 @@ def load_rando_attested_refs(path: Path | None = None) -> frozenset[str]:
             stacklevel=2,
         )
         return frozenset()
+    # Tolerate a truncated TRAILING line (a crash mid-append leaves a partial
+    # last record) but RAISE on a mid-file decode error: corruption like merge
+    # markers would otherwise silently drop valid rando-only citations and let
+    # this destructive gate falsely PASS. The blanket tolerate-and-skip used by
+    # the mining ingesters is wrong here — under-counting a remove-authorizing
+    # gate is not a tolerable failure mode.
+    lines = src.read_text(encoding="utf-8").splitlines()
+    last_nonempty = max((i for i, ln in enumerate(lines) if ln.strip()), default=-1)
     refs: set[str] = set()
-    with open(src, encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError:
-                continue  # tolerate a truncated trailing line (append-ledger convention)
-            if not isinstance(rec, dict) or rec.get("_type") != "citation":
-                continue
-            ref = rec.get("etymon_ref")
-            if not isinstance(ref, str):
-                continue
-            lang, sep, form = ref.partition(":")
-            if not sep:
-                continue
-            bare = normalize_morpheme_surface(form)
-            if bare:
-                refs.add(f"{lang}:{bare}")
+    for idx, line in enumerate(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            if idx == last_nonempty:
+                continue  # truncated trailing line — tolerate
+            raise  # mid-file corruption — fail loud, never silently under-count
+        if not isinstance(rec, dict) or rec.get("_type") != "citation":
+            continue
+        ref = rec.get("etymon_ref")
+        if not isinstance(ref, str):
+            continue
+        lang, sep, form = ref.partition(":")
+        if not sep:
+            continue
+        bare = normalize_morpheme_surface(form)
+        if bare:
+            refs.add(f"{lang}:{bare}")
     return frozenset(refs)
 
 
