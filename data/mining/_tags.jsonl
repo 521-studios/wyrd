@@ -3037,3 +3037,18 @@
 {"_type": "tags", "confidence": "medium", "form": "burh-tūn", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:burh-tūn", "tags": ["military", "architecture"]}
 {"_type": "tags", "confidence": "medium", "form": "hæg", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hæg", "tags": ["architecture"]}
 {"_type": "tags", "confidence": "medium", "form": "ōfer", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:ōfer", "tags": ["topography"]}
+{"_type": "tags", "confidence": "high", "form": "an", "language": "celtic", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "celtic:an", "tags": []}
+{"_type": "tags", "confidence": "medium", "form": "vápnatak", "language": "old-norse", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-norse:vápnatak", "tags": ["social"]}
+{"_type": "tags", "confidence": "medium", "form": "coill", "language": "goidelic", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "goidelic:coill", "tags": ["tree"]}
+{"_type": "tags", "confidence": "high", "form": "grange", "language": "middle-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "middle-english:grange", "tags": ["agriculture"]}
+{"_type": "tags", "confidence": "high", "form": "hall", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hall", "tags": ["topography"]}
+{"_type": "tags", "confidence": "high", "form": "hīd", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hīd", "tags": ["measurement"]}
+{"_type": "tags", "confidence": "high", "form": "sǣ", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:sǣ", "tags": ["water"]}
+{"_type": "tags", "confidence": "medium", "form": "mǣre", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:mǣre", "tags": ["topography"]}
+{"_type": "tags", "confidence": "medium", "form": "mūða", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:mūða", "tags": ["water"]}
+{"_type": "tags", "confidence": "high", "form": "þyrne", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:þyrne", "tags": ["plant"]}
+{"_type": "tags", "confidence": "high", "form": "episcopus", "language": "latin", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "latin:episcopus", "tags": ["religious"]}
+{"_type": "tags", "confidence": "high", "form": "wīðig", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:wīðig", "tags": ["tree"]}
+{"_type": "tags", "confidence": "high", "form": "atten", "language": "middle-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "middle-english:atten", "tags": []}
+{"_type": "tags", "confidence": "high", "form": "clǣg", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:clǣg", "tags": ["geology"]}
+{"_type": "tags", "confidence": "medium", "form": "hȳð", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hȳð", "tags": ["topography"]}
