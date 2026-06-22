@@ -9,3 +9,6 @@
 {"ref": "celtic:an", "reason": "grammatical morpheme (article 'the' / diminutive / locative suffix) + stray 'water' — not a content morpheme"}
 {"ref": "old-english:wic", "reason": "polysemous functional morpheme (dwelling / specialized farm / trading / fish-market / coastal station) — multi-sense split needed; macron-less dup of wīc"}
 {"ref": "old-english:bere-tūn", "reason": "composite (bere+tūn = barley-farm); expand to constituents per D51.3, not standalone sense"}
+{"ref": "old-english:port", "reason": "genuine 3-way polysemy (harbour / market-town / gate) with overlapping glosses — needs careful multi-sense split"}
+{"ref": "old-norse:kirkju-býr", "reason": "composite (kirkja+býr = church-village); expand to constituents per D51.3"}
+{"ref": "old-english:hall", "reason": "conflates hall (building) with halh (nook/slope/corner) + enclosure/boulder — hall/halh confusion, needs disambiguation"}
