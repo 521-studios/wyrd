@@ -26,6 +26,7 @@ all three pass.
 from __future__ import annotations
 
 import json
+import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -158,10 +159,18 @@ def load_rando_attested_refs(path: Path | None = None) -> frozenset[str]:
     dashes (L2 stays dashed); ``normalize_morpheme_surface`` de-dashes the
     form so it matches the bundle's bare ``morpheme_id``. Returns an empty
     set if the ledger is absent — the breakdown then degrades to the old
-    citation-field-only behavior rather than crashing.
+    citation-field-only behavior rather than crashing, but it also warns:
+    a silently-empty set re-creates the very bug this fixes (rando_only=0)
+    and could let a destructive retirement gate falsely PASS.
     """
     src = path or DEFAULT_RANDO_PORT_JSONL
-    if not src.exists():
+    if not src.is_file():
+        warnings.warn(
+            f"rando-port ledger not found at {src}; rando-only detection is "
+            "disabled — the gate will under-report (falsely toward PASS). "
+            "This should not happen in a repo checkout.",
+            stacklevel=2,
+        )
         return frozenset()
     refs: set[str] = set()
     with open(src, encoding="utf-8") as fh:
@@ -169,10 +178,16 @@ def load_rando_attested_refs(path: Path | None = None) -> frozenset[str]:
             line = line.strip()
             if not line:
                 continue
-            rec = json.loads(line)
-            if rec.get("_type") != "citation":
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # tolerate a truncated trailing line (append-ledger convention)
+            if not isinstance(rec, dict) or rec.get("_type") != "citation":
                 continue
-            lang, sep, form = (rec.get("etymon_ref") or "").partition(":")
+            ref = rec.get("etymon_ref")
+            if not isinstance(ref, str):
+                continue
+            lang, sep, form = ref.partition(":")
             if not sep:
                 continue
             bare = normalize_morpheme_surface(form)

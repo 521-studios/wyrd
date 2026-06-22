@@ -169,12 +169,15 @@ def _bundle_attestation_breakdown(
       headwords matched against unaccounted-fragment misses); not
       scholar-attested per se but at least confirmed by an empirical
       Wiktionary lookup.
-    * ``rando_only`` — only ``rando-port`` citations. The legacy
-      hand-curated grandfather class (export_meanings'
-      ``include_rando=True`` path). These haven't accumulated
-      independent attestation through mining yet.
-    * ``uncited`` — language sibling present but no citation field
-      (older bundles or coverage paths that didn't carry attribution).
+    * ``rando_only`` — rando-port-attested but with no scholar/empirical
+      citation. The legacy hand-curated grandfather class that hasn't
+      accumulated independent attestation through mining yet. Detected via
+      the ``rando_refs`` morpheme_id cross-reference (wyrd-qkn0): the runtime
+      bundle scrubs ``rando-port`` from ``<lang>_citations`` (it's a
+      non-scholarly seed), so WITHOUT ``rando_refs`` this bin is structurally
+      always 0 and these subjects misbin as ``uncited``.
+    * ``uncited`` — language sibling present but no citation field and not in
+      ``rando_refs`` (older bundles or coverage paths without attribution).
 
     Returns a dict with ``total`` (subjects in this language) plus the
     four bin counts. Empty (all zeros) when ``sibling is None``.

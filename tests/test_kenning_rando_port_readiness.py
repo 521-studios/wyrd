@@ -279,7 +279,11 @@ def test_load_rando_attested_refs_reads_citations_and_dedashes(tmp_path: Path):
                 {"_type": "etymon", "ref": "old-english:tun", "canonical_form": "tun"},
                 {"_type": "citation", "etymon_ref": "old-english:-ton"},  # dashed
                 {"_type": "citation", "etymon_ref": "celtic:aber"},
-                {"_type": "citation", "etymon_ref": "no-colon-ref"},  # skipped
+                {"_type": "citation", "etymon_ref": "no-colon-ref"},  # skipped (no ':')
+                {
+                    "_type": "citation",
+                    "etymon_ref": "old-english:-",
+                },  # form de-dashes to empty → dropped
             ]
         )
     )
@@ -287,10 +291,13 @@ def test_load_rando_attested_refs_reads_citations_and_dedashes(tmp_path: Path):
     assert refs == frozenset({"old-english:ton", "celtic:aber"})
 
 
-def test_load_rando_attested_refs_missing_file_is_empty(tmp_path: Path):
-    """A missing ledger degrades to an empty set (the breakdown then falls
-    back to citation-field-only behavior) rather than raising."""
-    assert load_rando_attested_refs(tmp_path / "nope.jsonl") == frozenset()
+def test_load_rando_attested_refs_missing_file_warns_and_is_empty(tmp_path: Path):
+    """A missing ledger degrades to an empty set rather than raising — but
+    warns, because a silently-empty set re-creates the rando_only=0 bug and
+    could falsely PASS a gate that authorizes destructive removes."""
+    with pytest.warns(UserWarning, match="rando-port ledger not found"):
+        refs = load_rando_attested_refs(tmp_path / "nope.jsonl")
+    assert refs == frozenset()
 
 
 def test_compute_readiness_rando_refs_surfaces_live_rando_only():
@@ -544,6 +551,40 @@ def test_cli_rando_port_readiness_fails_exits_1(tmp_path: Path):
     )
     assert result.exit_code == 1
     assert "FAIL" in result.output
+
+
+def test_cli_rando_refs_surfaces_rando_only_on_c2(tmp_path: Path):
+    """wyrd-qkn0: the CLI loads the rando-port ledger (--rando-refs) and threads
+    it into the gate. Bundle = 4 scholar subjects + 1 uncited morpheme whose
+    morpheme_id is in the ledger → coverage 80% (C1 passes), so the gate can
+    only close on C2 (rando-only). Pins the full --bundle + --rando-refs wiring:
+    a revert would drop rando_only to 0, C2 would pass, and the gate would
+    falsely report OPEN (exit 0)."""
+    scholar = {"words": [_word({"old_english": ["mawer_1920_northumberland_durham"]})]}
+    rando = {
+        "words": [
+            {"old_english": "tun", "old_english_citations": [], "morpheme_id": "old-english:tun"}
+        ]
+    }
+    bundle = tmp_path / "meanings.json"
+    bundle.write_text(json.dumps({"subjects": [scholar, scholar, scholar, scholar, rando]}))
+    ledger = tmp_path / "rando-port.jsonl"
+    ledger.write_text(json.dumps({"_type": "citation", "etymon_ref": "old-english:tun"}))
+    result = CliRunner().invoke(
+        cli_root,
+        [
+            "lexicon",
+            "rando-port-readiness",
+            "--bundle",
+            str(bundle),
+            "--rando-refs",
+            str(ledger),
+            "--language",
+            "old_english",
+        ],
+    )
+    assert result.exit_code == 1, result.output  # closed on C2, not C1 (coverage is 80%)
+    assert "C2 (1 rando-only)" in result.output
 
 
 @pytest.mark.no_lexicon_isolation
