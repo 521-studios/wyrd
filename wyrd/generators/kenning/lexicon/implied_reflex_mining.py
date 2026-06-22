@@ -81,6 +81,7 @@ from wyrd.generators.kenning.canonicalization import Assertion, NodeRef, mint_ca
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.decomposition_grader import ClusterIndex, load_cluster_index
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 from wyrd.generators.kenning.lexicon.passthrough_mining import (
     _cluster_surfaces,
     _confidence_for,
@@ -805,6 +806,9 @@ def apply_implied_reflexes(
 def _resolve_etymon(db: LexiconDB, language: str, canonical_form: str) -> int | None:
     """Resolve the residual element's etymon by its natural key (the live,
     unmerged row). ``None`` if it has been merged away or removed."""
+    # De-dash the form (wyrd-aicu.8, D45) so a dashed residual/ref form resolves
+    # to the bare-stored etymon.
+    canonical_form = normalize_morpheme_surface(canonical_form) or canonical_form
     row = db.conn.execute(
         "SELECT id FROM etymon "
         "WHERE language = ? AND canonical_form = ? AND merged_into_id IS NULL",

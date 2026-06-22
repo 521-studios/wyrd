@@ -27,6 +27,8 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
+
 CONFIDENCE_RANK = {"low": 0, "medium": 1, "high": 2}
 LLM_MERGE_METHOD = "llm-meaning-match-v1"
 LLM_REJECT_METHOD = "llm-rejected-v1"
@@ -170,6 +172,10 @@ def _detect_pointer_merge_candidates(conn: sqlite3.Connection) -> list[MergeCand
             if m:
                 target = m.group(1).strip(".,;\"'")
                 break
+        # De-dash the pointer-gloss target (wyrd-aicu.8, D45) so it matches the
+        # bare-stored canonical_form (the self-check + the lookup below).
+        if target:
+            target = normalize_morpheme_surface(target) or target
         if not target or target == c["canonical_form"]:
             continue
         tgt = conn.execute(

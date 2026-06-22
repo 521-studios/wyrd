@@ -19,6 +19,8 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterable
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
+
 _SEP = ":"
 
 
@@ -74,6 +76,9 @@ def resolve_etymon_ref(conn: sqlite3.Connection, ref: str | int) -> int | None:
     if not isinstance(ref, str) or _SEP not in ref:
         return None
     language, canonical_form = ref.split(_SEP, 1)
+    # De-dash the form (wyrd-aicu.8, D45) so a dashed L2 ref resolves to the
+    # bare-stored etymon.
+    canonical_form = normalize_morpheme_surface(canonical_form) or canonical_form
     row = conn.execute(
         "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
         (language, canonical_form),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 
 
 def _resolve_etymon_ident(db: LexiconDB, ident: str, language: str | None) -> int:
@@ -23,6 +24,9 @@ def _resolve_etymon_ident(db: LexiconDB, ident: str, language: str | None) -> in
                 f"etymon ident {ident!r} is not numeric; pass --language to "
                 f"look up by canonical_form, or use an integer etymon.id"
             ) from None
+    # De-dash the looked-up form (wyrd-aicu.8, D45) so a dashed ident resolves
+    # to the bare-stored etymon.
+    ident = normalize_morpheme_surface(ident) or ident
     row = db.conn.execute(
         "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
         (ident, language),

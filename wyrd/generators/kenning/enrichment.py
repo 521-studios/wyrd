@@ -99,10 +99,16 @@ SUFFIX_PATTERN = re.compile(r"[a-z0-9_-]+")
 
 def _resolve_etymon_id(conn: sqlite3.Connection, ref: str) -> int | None:
     """Resolve ``"<language>:<canonical_form>"`` → etymon.id. Returns
-    None when the ref doesn't match any row."""
+    None when the ref doesn't match any row.
+
+    De-dashes the ref's form (wyrd-aicu.8, D45) so a dashed L2 ref
+    (``celtic:-ach``) resolves to the bare-stored etymon (``celtic:ach``). This
+    is the central enrichment ref resolver, so the de-dash here keeps every
+    enrichment pass consistent with the bare write path."""
     if ":" not in ref:
         return None
     lang, form = ref.split(":", 1)
+    form = normalize_morpheme_surface(form) or form
     row = conn.execute(
         "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
         (lang, form),
@@ -965,13 +971,21 @@ def _resolve_live_etymon(conn: sqlite3.Connection, ref: str | None):
     EXCLUDING already-tombstoned rows (``merged_into_id IS NULL``). This
     is what makes collapse idempotent: a second apply no longer finds a
     ``from`` that an earlier row already folded. Returns ``None`` for an
-    empty/absent or unmatched ref."""
-    if not ref:
+    empty/absent or unmatched ref.
+
+    Splits the ref and de-dashes the form (wyrd-aicu.8, D45) so a dashed L2
+    collapse ref resolves to the bare-stored etymon. Splitting on the first
+    ``:`` and matching the two columns is equivalent to the old
+    ``language || ':' || canonical_form`` concatenation match (even when the
+    form itself contains a ``:``)."""
+    if not ref or ":" not in ref:
         return None
+    lang, form = ref.split(":", 1)
+    form = normalize_morpheme_surface(form) or form
     return conn.execute(
         "SELECT id, canonical_form, language FROM etymon "
-        "WHERE (language || ':' || canonical_form) = ? AND merged_into_id IS NULL",
-        (ref,),
+        "WHERE language = ? AND canonical_form = ? AND merged_into_id IS NULL",
+        (lang, form),
     ).fetchone()
 
 

@@ -26,6 +26,7 @@ import re
 from collections import Counter
 from typing import Any
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 from wyrd.generators.kenning.registers.phonology import _VOWELS, to_ipa
 
 # LLM transcriptions occasionally leak non-IPA artifacts (an ASCII capital like
@@ -170,6 +171,9 @@ def derive_pronunciation_ipa(
 
     # LLM jsonl replay — no-G2P-table languages, gaps only (never overrides).
     for (lang, form), ipa in (llm_state or {}).items():
+        # De-dash the form (wyrd-aicu.8, D45) so a dashed L2 pronunciation key
+        # resolves to the bare-stored etymon.
+        form = normalize_morpheme_surface(form) or form
         for (eid,) in conn.execute(
             "SELECT id FROM etymon WHERE language=? AND canonical_form=? "
             "AND (pronunciation_ipa IS NULL OR pronunciation_ipa='')",

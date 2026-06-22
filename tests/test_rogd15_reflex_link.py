@@ -63,6 +63,26 @@ def test_reflex_link_is_idempotent(fresh_db: Path) -> None:
         assert n == 1
 
 
+def test_reflex_link_dashed_refs_resolve_to_bare_etymons(fresh_db: Path) -> None:
+    """wyrd-aicu.8 (D45) read-path sweep: a still-dashed collapse ref
+    ('modern-english:-ton' / 'old-english:-tūn') resolves to the BARE-stored
+    etymon via _resolve_live_etymon's de-dash, so the inheritance edge is wired
+    even when the L2 ref hasn't been re-dumped bare yet."""
+    with LexiconDB(fresh_db) as db:
+        tun = db.upsert_etymon("tūn", "old-english", modifier_type="Habitative")
+        ton = db.upsert_etymon("ton", "modern-english")  # stored bare
+        db.commit()
+        # BOTH refs carry an affix dash the live DB no longer stores.
+        state = {"modern-english:-ton": {"inherits": "old-english:-tūn"}}
+        counts = apply_collapses(db, state)
+        assert counts["links_processed"] == 1
+        n = db.conn.execute(
+            "SELECT count(*) FROM etymon_descent WHERE parent_id=? AND child_id=?",
+            (tun, ton),
+        ).fetchone()[0]
+        assert n == 1
+
+
 def test_reflex_link_unresolved_and_self_are_skipped(fresh_db: Path) -> None:
     with LexiconDB(fresh_db) as db:
         tun = db.upsert_etymon("tūn", "old-english", modifier_type="Habitative")
