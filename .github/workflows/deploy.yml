@@ -200,6 +200,9 @@ jobs:
 
       - name: Prune old Lambda versions (keep current + prior)
         working-directory: terraform
+        # Best-effort cleanup: a prune failure must not strand the SPA on an old
+        # build (this runs before the SPA upload + CloudFront invalidation).
+        continue-on-error: true
         # wyrd-ocs8: bound the published-version count to current + prior (one
         # rollback target). publish=true cuts a version per deploy; unchecked they
         # accumulate, and each caches a 1769MB SnapStart snapshot when SnapStart
