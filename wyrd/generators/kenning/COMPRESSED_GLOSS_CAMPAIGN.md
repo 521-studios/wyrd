@@ -61,7 +61,7 @@ Never abandon a half-authored batch.
 PER FIRE:
 1. cd /home/devon/521Studios/wyrd-gloss && git pull --rebase. Resolve any unfinished chunk (above).
 2. PHASE 1 (existing glosses -> senses). Get work:
-     wyrd kenning lexicon gloss-campaign next-slice --n 12 > /tmp/gloss_slice.json
+     wyrd kenning lexicon gloss-campaign next-slice --n 20 > /tmp/gloss_slice.json
    For EACH morpheme, partition its gloss wall into senses. BIAS TO MONOSEMY: default to ONE sense
    (most morphemes are one meaning expressed many ways); only split when meanings are genuinely
    UNRELATED (a true homograph). Give each sense a SHORT label: 1-2 lowercase words, the single
