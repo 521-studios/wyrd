@@ -979,3 +979,14 @@
 {"_type": "pronunciation", "language": "modern-english", "form": "Farm", "ref": "modern-english:Farm", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/fɑːm/", "confidence": "medium"}
 {"_type": "pronunciation", "language": "old-english", "form": "næss", "ref": "old-english:næss", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/næs/", "confidence": "medium"}
 {"_type": "pronunciation", "language": "goidelic", "form": "rath", "ref": "goidelic:rath", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/raθ/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "latin", "form": "acus", "ref": "latin:acus", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/ˈakus/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "old-norse", "form": "askr", "ref": "old-norse:askr", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/askr/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "goidelic", "form": "lios", "ref": "goidelic:lios", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/lʲɪs/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "brittonic", "form": "breg", "ref": "brittonic:breg", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/breɡ/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "latin", "form": "rex", "ref": "latin:rex", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/reks/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "goidelic", "form": "sean", "ref": "goidelic:sean", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/ʃan/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "old-norse", "form": "vað", "ref": "old-norse:vað", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/vað/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "celtic", "form": "ar", "ref": "celtic:ar", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/ar/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "goidelic", "form": "poll", "ref": "goidelic:poll", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/pɔl/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "celtic", "form": "tir", "ref": "celtic:tir", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/tiːr/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "latin", "form": "sub", "ref": "latin:sub", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/sub/", "confidence": "medium"}
