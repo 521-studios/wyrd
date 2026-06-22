@@ -5,3 +5,6 @@
 {"ref": "old-english:hȳð", "reason": "messy attributions; only Maidenhead shows a clean 'head' span — defer for review"}
 {"ref": "old-norse:erg", "reason": "short ambiguous realizations (er/ar/ergh); needs careful disambiguation"}
 {"ref": "old-french:le", "reason": "2-char article; substring grounding is meaningless (matches 'le' in any name) — over-match risk"}
+{"ref": "old-english:hoh", "reason": "worn single/double-char endings (a/oe/ow); no cleanly groundable surface"}
+{"ref": "old-english:ēl", "reason": "clean realization is the 2-char 'el' — substring over-matches; defer"}
+{"ref": "brittonic:breg", "reason": "short varied realizations (bre/bri/bray); attribution uncertain"}

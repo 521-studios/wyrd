@@ -24766,3 +24766,39 @@
 {"_type":"reflex","surface_form":"beer","position":"pre","etymon_refs":["old-english:bǣr"]}
 {"_type":"reflex","surface_form":"col","position":"pre","etymon_refs":["old-english:col"]}
 {"_type":"reflex","surface_form":"cole","position":"pre","etymon_refs":["old-english:col"]}
+{"_type": "reflex", "surface_form": "font", "position": "post", "etymon_refs": ["old-english:funta"]}
+{"_type": "reflex", "surface_form": "hunt", "position": "post", "etymon_refs": ["old-english:funta"]}
+{"_type": "reflex", "surface_form": "grave", "position": "post", "etymon_refs": ["old-english:grǣfe"]}
+{"_type": "reflex", "surface_form": "greave", "position": "post", "etymon_refs": ["old-english:grǣfe"]}
+{"_type": "reflex", "surface_form": "grove", "position": "pre", "etymon_refs": ["old-english:grǣfe"]}
+{"_type": "reflex", "surface_form": "hal", "position": "pre", "etymon_refs": ["old-english:hālig"]}
+{"_type": "reflex", "surface_form": "hol", "position": "pre", "etymon_refs": ["old-english:hālig"]}
+{"_type": "reflex", "surface_form": "holy", "position": "pre", "etymon_refs": ["old-english:hālig"]}
+{"_type": "reflex", "surface_form": "well", "position": "post", "etymon_refs": ["old-english:well"]}
+{"_type": "reflex", "surface_form": "worthy", "position": "post", "etymon_refs": ["old-english:worðig"]}
+{"_type": "reflex", "surface_form": "worth", "position": "post", "etymon_refs": ["old-english:worðig"]}
+{"_type": "reflex", "surface_form": "thorpe", "position": "post", "etymon_refs": ["old-english:þrop"]}
+{"_type": "reflex", "surface_form": "drop", "position": "post", "etymon_refs": ["old-english:þrop"]}
+{"_type": "reflex", "surface_form": "throop", "position": "post", "etymon_refs": ["old-english:þrop"]}
+{"_type": "reflex", "surface_form": "ey", "position": "post", "etymon_refs": ["old-english:īeg"]}
+{"_type": "reflex", "surface_form": "ea", "position": "post", "etymon_refs": ["old-english:īeg"]}
+{"_type": "reflex", "surface_form": "brock", "position": "pre", "etymon_refs": ["old-english:broc"]}
+{"_type": "reflex", "surface_form": "brook", "position": "post", "etymon_refs": ["old-english:broc"]}
+{"_type": "reflex", "surface_form": "broc", "position": "post", "etymon_refs": ["old-english:broc"]}
+{"_type": "reflex", "surface_form": "buck", "position": "pre", "etymon_refs": ["old-english:bucca"]}
+{"_type": "reflex", "surface_form": "bug", "position": "pre", "etymon_refs": ["old-english:bucca"]}
+{"_type": "reflex", "surface_form": "lane", "position": "post", "etymon_refs": ["old-english:lane"]}
+{"_type": "reflex", "surface_form": "lane", "position": "pre", "etymon_refs": ["old-english:lane"]}
+{"_type": "reflex", "surface_form": "steeple", "position": "pre", "etymon_refs": ["old-english:stēpel"]}
+{"_type": "reflex", "surface_form": "staple", "position": "pre", "etymon_refs": ["old-english:stēpel"]}
+{"_type": "reflex", "surface_form": "drum", "position": "pre", "etymon_refs": ["celtic:drum"]}
+{"_type": "reflex", "surface_form": "drum", "position": "post", "etymon_refs": ["celtic:drum"]}
+{"_type": "reflex", "surface_form": "han", "position": "pre", "etymon_refs": ["old-english:Bana"]}
+{"_type": "reflex", "surface_form": "har", "position": "pre", "etymon_refs": ["old-english:hær"]}
+{"_type": "reflex", "surface_form": "moor", "position": "post", "etymon_refs": ["old-english:mor"]}
+{"_type": "reflex", "surface_form": "moor", "position": "pre", "etymon_refs": ["old-english:mor"]}
+{"_type": "reflex", "surface_form": "more", "position": "post", "etymon_refs": ["old-english:mor"]}
+{"_type": "reflex", "surface_form": "ach", "position": "post", "etymon_refs": ["celtic:ach"]}
+{"_type": "reflex", "surface_form": "agh", "position": "post", "etymon_refs": ["celtic:ach"]}
+{"_type": "reflex", "surface_form": "bull", "position": "pre", "etymon_refs": ["old-english:Bula"]}
+{"_type": "reflex", "surface_form": "bul", "position": "pre", "etymon_refs": ["old-english:Bula"]}
