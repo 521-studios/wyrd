@@ -420,6 +420,27 @@ def test_ingest_sense_all_junk_single_link_chain_no_crash(fresh_db: Path) -> Non
     assert counts["edges_added"] == 0
 
 
+def test_ingest_sense_de_dashes_headword_for_leaf_edge_lookup(fresh_db: Path) -> None:
+    """wyrd-aicu.8 (D45): a dashed headword ('-ism') resolves to the BARE-stored
+    etymon ('ism') for the leaf-edge lookup, so the leaf edge isn't silently
+    dropped just because the headword carried an affix dash."""
+    sense = Sense(
+        headword="-ism",
+        pos="n.",
+        summary="",
+        chain=[ChainLink("ancient-greek", "ismos", "inheritance", "high", None, None)],
+    )
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon(db, canonical_form="ism", language="modern-english")  # bare
+        ensure_source(db)
+        counts = ingest_sense(db, sense, apply=True)
+        db.commit()
+        edge_pairs = {(p, c) for p, c, *_ in _all_descent_edges(db)}
+    # Leaf edge wired to the bare-stored headword despite the dashed headword.
+    assert counts["leaf_edge_skipped_no_headword"] == 0
+    assert ("ismos", "ism") in edge_pairs
+
+
 def test_ingest_sense_dry_run_writes_nothing(fresh_db: Path) -> None:
     sense_obj = parse_text((_FIXTURES / "harpy.txt").read_text())[0]
     with LexiconDB(fresh_db) as db:

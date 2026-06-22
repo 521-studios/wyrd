@@ -37,10 +37,15 @@ def _seed_subject_etymons(
         for json_field, lang_code in LANGUAGE_FIELDS.items():
             forms = word.get(json_field) or []
             for form in forms:
-                # Drop a junk seed form that de-dashes to empty (wyrd-aicu.8)
-                # before the upsert choke would raise on it.
-                if normalize_morpheme_surface(form) is None:
+                # De-dash the seed form (wyrd-aicu.8, D45): a junk form (strips
+                # to empty) is dropped before the upsert choke would raise; a
+                # dashed-but-real form is normalized so the per-subject dedup key
+                # (and the stored row) is the bare surface — a dashed + bare form
+                # of the same morpheme in one subject must not fork into two keys.
+                normalized_form = normalize_morpheme_surface(form)
+                if normalized_form is None:
                     continue
+                form = normalized_form
                 key = (form, lang_code)
                 if key in etymons_in_subject:
                     continue

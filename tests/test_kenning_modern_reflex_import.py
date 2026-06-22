@@ -171,6 +171,38 @@ def test_junk_modern_reflex_form_skipped_and_counted(lex, tmp_path):
     assert "-" not in forms and "" not in forms
 
 
+def test_dashed_modern_reflex_form_reuses_bare_stored_reflex(lex, tmp_path):
+    """wyrd-aicu.8 (D45): a dashed reflex form ('-ton') resolves to the
+    BARE-stored reflex ('ton') — counted as an existing reuse, not a spurious
+    create — because both the existence SELECT and the upsert now key on the
+    bare surface."""
+    _clustered_morpheme(lex, "tūn", "old-english")
+    lex.upsert_etymon("ton", "modern-english")  # pre-existing bare reflex
+    lex.commit()
+    f = _write(
+        tmp_path / "_modern_reflexes.jsonl",
+        {"_type": "source", "ref": "modern-reflex-curation", "title": "t"},
+        {
+            "_type": "modern_reflex",
+            "etymon_ref": "old-english:tūn",
+            "modern_forms": ["-ton"],  # dashed; must reuse the bare 'ton'
+            "confidence": "high",
+            "reference": "OED",
+        },
+    )
+    counts = import_modern_reflexes(lex, f, apply=True)
+    assert counts["reflex_existing"] == 1
+    assert counts.get("reflex_created", 0) == 0
+    # No spurious dashed row was minted.
+    forms = {
+        r[0]
+        for r in lex.conn.execute(
+            "SELECT canonical_form FROM etymon WHERE language='modern-english'"
+        )
+    }
+    assert forms == {"ton"}
+
+
 def test_dry_run_writes_nothing(lex, tmp_path):
     ham = _clustered_morpheme(lex, "hām", "old-english")
     f = _write(

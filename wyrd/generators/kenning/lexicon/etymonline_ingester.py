@@ -164,7 +164,11 @@ def _emit_leaf_edge(
     # caller already short-circuits on it) so this helper is self-safe.
     if not link_ids or link_ids[0] is None:
         return
-    head_id = _lookup_etymon_id(db, sense.headword, _HEADWORD_LANGUAGE)
+    # De-dash the headword for the lookup (wyrd-aicu.8, D45): the corpus stores
+    # bare surfaces, so a dashed headword (e.g. '-ism') must be normalized or the
+    # leaf edge is silently dropped. Normalize into a local — don't mutate Sense.
+    head_form = normalize_morpheme_surface(sense.headword) or sense.headword
+    head_id = _lookup_etymon_id(db, head_form, _HEADWORD_LANGUAGE)
     if head_id is None:
         counts["leaf_edge_skipped_no_headword"] += 1
         return
