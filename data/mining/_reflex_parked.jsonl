@@ -11,3 +11,5 @@
 {"ref": "old-english:lǣs", "reason": "attributed toponyms are field-name fragments; no leaze/leas surface to ground"}
 {"ref": "celtic:ar", "reason": "2-char (ar/or); substring grounding over-matches"}
 {"ref": "old-english:Bōfa", "reason": "varied uncertain realizations (bow/cov/cob/hov); unclear which is the name reflex"}
+{"ref": "old-english:gē", "reason": "worn 2-char realizations (ge/ey/y in vange/eastry); over-match"}
+{"ref": "old-english:in", "reason": "the 'in' of -ington is a connective fragment, not a standalone groundable surface; 2-char over-match"}
