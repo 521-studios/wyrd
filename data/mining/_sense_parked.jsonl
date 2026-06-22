@@ -12,3 +12,5 @@
 {"ref": "old-english:port", "reason": "genuine 3-way polysemy (harbour / market-town / gate) with overlapping glosses — needs careful multi-sense split"}
 {"ref": "old-norse:kirkju-býr", "reason": "composite (kirkja+býr = church-village); expand to constituents per D51.3"}
 {"ref": "old-english:hall", "reason": "conflates hall (building) with halh (nook/slope/corner) + enclosure/boulder — hall/halh confusion, needs disambiguation"}
+{"ref": "old-english:bere", "reason": "conflates bere (barley) with cow / swine-pasture senses (bær/bera confusion) — mixed homographs, needs disambiguation"}
+{"ref": "old-english:hām-stede", "reason": "composite (hām+stede = homestead); expand to constituents per D51.3"}
