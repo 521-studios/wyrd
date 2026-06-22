@@ -16,7 +16,6 @@ from wyrd.generators.kenning.bundle.rando_port_readiness import (
     _sibling_for_language,
     compute_readiness,
     format_readiness,
-    load_bundle,
 )
 from wyrd.generators.kenning.cli import cli as cli_root
 
@@ -304,15 +303,8 @@ def test_compute_readiness_uses_default_target_languages():
 
 
 # ---------------------------------------------------------------------------
-# load_bundle + format_readiness
+# format_readiness
 # ---------------------------------------------------------------------------
-
-
-def test_load_bundle_reads_json(tmp_path: Path):
-    path = tmp_path / "meanings.json"
-    path.write_text(json.dumps({"subjects": []}))
-    out = load_bundle(path)
-    assert out == {"subjects": []}
 
 
 def test_scholar_only_pct_matches_direct_ratio():
@@ -500,6 +492,21 @@ def test_cli_rando_port_readiness_fails_exits_1(tmp_path: Path):
     )
     assert result.exit_code == 1
     assert "FAIL" in result.output
+
+
+@pytest.mark.no_lexicon_isolation
+def test_cli_rando_port_readiness_rehydrates_from_runtime_db():
+    """wyrd-52ha: with no --bundle, the command rehydrates the bundle from the
+    L4 runtime DB (the on-disk meanings.json was retired, d90t) instead of
+    erroring on a missing file. Produces the readiness report against the
+    bundled seed; exit code is the gate verdict (0 open / 1 closed), not a usage
+    error."""
+    runner = CliRunner()
+    result = runner.invoke(cli_root, ["lexicon", "rando-port-readiness"])
+    assert result.exit_code in (0, 1), result.output
+    assert "Rando-port retirement readiness" in result.output
+    # The retired-meanings.json failure mode must be gone.
+    assert "does not exist" not in result.output
 
 
 def test_default_coverage_threshold_value():

@@ -25,10 +25,8 @@ all three pass.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.language_quality import _bundle_attestation_breakdown
@@ -162,13 +160,6 @@ def compute_readiness(
         coverage_threshold=coverage_threshold,
         per_language=tuple(per_lang),
     )
-
-
-def load_bundle(bundle_path: Path) -> Any:
-    """Read meanings.json. Returns the raw parsed object; downstream
-    helpers handle both list and dict shapes."""
-    with open(bundle_path, encoding="utf-8") as fh:
-        return json.load(fh)
 
 
 def format_readiness(report: ReadinessReport) -> str:
