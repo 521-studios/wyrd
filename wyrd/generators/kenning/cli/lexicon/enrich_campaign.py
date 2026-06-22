@@ -25,6 +25,7 @@ from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_l
 from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     bands_status,
     gloss_next_slice,
+    identity_reflex_rows,
     ipa_next_slice,
     next_slice,
     reflex_progress,
@@ -368,6 +369,27 @@ def cmd_bands(
             f"{b['ipa']:>5} {b['gloss']:>6}"
         )
     click.echo(f"top band with remaining work: impact={bands[0]['impact']}", err=True)
+
+
+@enrich_campaign.command("identity-reflexes")
+@_db_option
+@_reflexes_option
+@click.option(
+    "--min-len",
+    type=int,
+    default=2,
+    show_default=True,
+    help="Skip folded surfaces shorter than this.",
+)
+def cmd_identity_reflexes(db_path: Path, reflexes_path: Path, min_len: int) -> None:
+    """Emit one *identity reflex* per scholar morpheme whose folded canonical form
+    appears in an attested toponym (the morpheme recognized by its own spelling),
+    deduped against the ledger, as a JSON array. Bulk/retroactive — covers parked
+    morphemes too. Pipe through ``validate`` then append to _reflexes.jsonl."""
+    with _readonly_lexicon(db_path) as conn:
+        rows = identity_reflex_rows(conn, reflexes_path, min_len=min_len)
+    click.echo(json.dumps(rows, ensure_ascii=False))
+    click.echo(f"emitted {len(rows)} identity reflexes (min_len={min_len})", err=True)
 
 
 @enrich_campaign.command("collapse-validate")

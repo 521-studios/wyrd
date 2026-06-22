@@ -160,6 +160,62 @@ def committed_reflex_keys(reflexes_path: Path) -> set[tuple[str, str, str]]:
     return keys
 
 
+# SQL: every scope-clean scholar etymon with its attested toponym surface strings
+# (modern_name | historical_form | surface_in_modern), one row per etymon.
+_IDENTITY_SQL = """
+  SELECT e.id AS eid, e.language AS lang, e.canonical_form AS cf,
+    GROUP_CONCAT(
+      COALESCE(t.modern_name,'')||'|'||COALESCE(te.historical_form,'')||'|'||COALESCE(tee.surface_in_modern,''),
+      '~') AS forms
+  FROM etymon e
+  JOIN toponym_etymology_element tee ON tee.etymon_id = e.id
+  JOIN toponym_etymology te ON te.id = tee.toponym_etymology_id
+  JOIN toponym t ON t.id = te.toponym_id
+  WHERE e.language <> 'unknown' AND e.canonical_form NOT LIKE '% %'
+  GROUP BY e.id
+"""
+
+
+def identity_reflex_rows(
+    conn: sqlite3.Connection, reflexes_path: Path, *, min_len: int = 2
+) -> list[dict[str, Any]]:
+    """One reflex per scholar morpheme whose **own folded canonical form** appears
+    in one of its attested toponym strings — the *identity reflex* (the morpheme
+    recognized by its base spelling, e.g. ``stān`` → ``stan`` so ``Stanton``
+    recovers it). Grounded by construction (the surface IS in a toponym), deduped
+    against the committed ledger, position derived from the matching span. Skips
+    surfaces shorter than ``min_len`` folded chars (avoids 1-char over-matchers).
+
+    This is the bulk/retroactive complement to per-toponym worn-form authoring:
+    every morpheme should be a reflex of itself."""
+    existing = committed_reflex_keys(reflexes_path)
+    out: list[dict[str, Any]] = []
+    for r in conn.execute(_IDENTITY_SQL):
+        fc = fold_surface(r["cf"] or "")
+        if len(fc) < min_len:
+            continue
+        position = None
+        for occ in (r["forms"] or "").split("~"):
+            for fld in occ.split("|"):
+                ff = fold_surface(fld)
+                if fc and fc in ff:
+                    position = (
+                        "pre" if ff.startswith(fc) else "post" if ff.endswith(fc) else "inner"
+                    )
+                    break
+            if position:
+                break
+        if position is None:
+            continue
+        ref = etymon_ref(r["lang"], r["cf"])
+        if (fc, position, _nfc(ref)) in existing:
+            continue
+        out.append(
+            {"_type": "reflex", "surface_form": fc, "position": position, "etymon_refs": [ref]}
+        )
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Scholar etymon ranking + evidence.
 # ---------------------------------------------------------------------------
