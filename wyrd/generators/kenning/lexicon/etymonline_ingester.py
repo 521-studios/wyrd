@@ -159,8 +159,10 @@ def _emit_leaf_edge(
     """Wire chain[0] → headword if the headword exists in the corpus
     as a modern-english etymon. Skipped (with counter) otherwise."""
     # chain[0] (the headword's immediate parent) may be a dropped junk link
-    # (None, wyrd-aicu.8) — no etymon to anchor the leaf edge to.
-    if link_ids[0] is None:
+    # (None, wyrd-aicu.8) — no etymon to anchor the leaf edge to. The
+    # ``not link_ids`` guard is belt-and-suspenders for an empty chain (the
+    # caller already short-circuits on it) so this helper is self-safe.
+    if not link_ids or link_ids[0] is None:
         return
     head_id = _lookup_etymon_id(db, sense.headword, _HEADWORD_LANGUAGE)
     if head_id is None:
@@ -228,6 +230,7 @@ def ingest_text(
         "senses_without_chain": 0,
         "chain_links": 0,
         "etymons_added_or_existing": 0,
+        "chain_links_skipped_junk": 0,
         "edges_added": 0,
         "edges_skipped_dupe": 0,
         "leaf_edge_skipped_no_headword": 0,

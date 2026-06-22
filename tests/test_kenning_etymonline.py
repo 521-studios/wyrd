@@ -373,6 +373,53 @@ def test_ingest_sense_junk_chain_link_skips_its_edges_without_misalignment(
     assert counts["edges_added"] == 1
 
 
+def test_ingest_sense_leading_junk_chain_link_suppresses_leaf_edge(fresh_db: Path) -> None:
+    """wyrd-aicu.8: when chain[0] (the headword's immediate parent) is the junk
+    link, the leaf edge to the headword is suppressed (link_ids[0] is None) —
+    NOT mis-anchored to a deeper ancestor — while the still-valid deeper pair
+    edges normally."""
+    sense = Sense(
+        headword="wordx",
+        pos="n.",
+        summary="",
+        chain=[
+            ChainLink("latin", "-", "inheritance", "high", None, None),  # chain[0] junk
+            ChainLink("latin", "forma", "inheritance", "high", None, None),
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon(db, canonical_form="wordx", language="modern-english")
+        ensure_source(db)
+        counts = ingest_sense(db, sense, apply=True)
+        db.commit()
+        edge_pairs = {(p, c) for p, c, *_ in _all_descent_edges(db)}
+
+    assert counts["chain_links_skipped_junk"] == 1
+    # No leaf edge (chain[0] was junk) and no adjacent edge (its only pair
+    # touches the junk link). The headword is never wired to 'forma'.
+    assert not any(c == "wordx" for _, c in edge_pairs)
+    assert counts["edges_added"] == 0
+
+
+def test_ingest_sense_all_junk_single_link_chain_no_crash(fresh_db: Path) -> None:
+    """wyrd-aicu.8: a non-empty chain whose only link is junk yields
+    link_ids == [None] — the leaf-edge guard must not IndexError, and nothing
+    is written."""
+    sense = Sense(
+        headword="wordx",
+        pos="n.",
+        summary="",
+        chain=[ChainLink("latin", "-", "inheritance", "high", None, None)],
+    )
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon(db, canonical_form="wordx", language="modern-english")
+        ensure_source(db)
+        counts = ingest_sense(db, sense, apply=True)  # must not raise
+        db.commit()
+    assert counts["chain_links_skipped_junk"] == 1
+    assert counts["edges_added"] == 0
+
+
 def test_ingest_sense_dry_run_writes_nothing(fresh_db: Path) -> None:
     sense_obj = parse_text((_FIXTURES / "harpy.txt").read_text())[0]
     with LexiconDB(fresh_db) as db:

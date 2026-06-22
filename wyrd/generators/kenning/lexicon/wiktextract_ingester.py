@@ -1186,7 +1186,9 @@ def _walk_descendants(
             # A present-but-junk word (de-dashes to empty) is distinct from a
             # benign lang-only header row (no word at all) — count it so the
             # drop is visible (wyrd-aicu.8), but treat both the same way below.
-            if child_word and normalized_child is None:
+            # ``child_word is not None`` (not truthiness) so an empty-string word
+            # counts as present-but-junk, not as an absent header.
+            if child_word is not None and normalized_child is None:
                 counts["descendant_junk_word"] += 1
             # Lang-only header row (or that junk word). Don't emit an edge, but
             # DO recurse — sub-descendants of such a row attach to the same
