@@ -62,8 +62,8 @@ def normalize_morpheme_surface(raw: str | None) -> str | None:
         # Re-strip the stem after peeling the sigil ("* -ach" / "*-ach-").
         s = s[1:].strip(" -")
     # Junk if nothing survives, or the stem is only sigils/dashes ("-*", "**") —
-    # a bare sigil is not a morpheme. (`replace` is the junk TEST only; the
+    # a bare sigil is not a morpheme. (`strip` is the junk TEST only; the
     # returned `s` keeps its interior hyphens.)
-    if not s or not s.replace("*", "").replace("-", ""):
+    if not s or not s.strip("*-"):
         return None
     return f"*{s}" if reconstructed else s
