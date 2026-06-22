@@ -3022,3 +3022,18 @@
 {"_type": "tags", "confidence": "high", "form": "cōl", "language": "old-english", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "old-english:cōl", "tags": ["temperature"]}
 {"_type": "tags", "confidence": "high", "form": "geoc", "language": "old-english", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "old-english:geoc", "tags": ["agriculture", "item", "manorial", "social"]}
 {"_type": "tags", "confidence": "high", "form": "ble", "language": "welsh", "method": "llm-tags-v1", "model": "gemma4:26b", "ref": "welsh:ble", "tags": []}
+{"_type": "tags", "confidence": "medium", "form": "ingtūn", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:ingtūn", "tags": ["topography"]}
+{"_type": "tags", "confidence": "medium", "form": "worð", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:worð", "tags": ["architecture"]}
+{"_type": "tags", "confidence": "high", "form": "magna", "language": "latin", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "latin:magna", "tags": ["size"]}
+{"_type": "tags", "confidence": "high", "form": "parva", "language": "latin", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "latin:parva", "tags": ["size"]}
+{"_type": "tags", "confidence": "high", "form": "norð", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:norð", "tags": ["direction"]}
+{"_type": "tags", "confidence": "medium", "form": "ham", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:ham", "tags": ["architecture"]}
+{"_type": "tags", "confidence": "high", "form": "þorn", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:þorn", "tags": ["tree"]}
+{"_type": "tags", "confidence": "medium", "form": "middel", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:middel", "tags": ["descriptive"]}
+{"_type": "tags", "confidence": "high", "form": "na", "language": "celtic", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "celtic:na", "tags": []}
+{"_type": "tags", "confidence": "medium", "form": "ingahām", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:ingahām", "tags": ["social"]}
+{"_type": "tags", "confidence": "medium", "form": "myln", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:myln", "tags": ["architecture"]}
+{"_type": "tags", "confidence": "medium", "form": "geat", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:geat", "tags": ["topography"]}
+{"_type": "tags", "confidence": "medium", "form": "burh-tūn", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:burh-tūn", "tags": ["military", "architecture"]}
+{"_type": "tags", "confidence": "medium", "form": "hæg", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hæg", "tags": ["architecture"]}
+{"_type": "tags", "confidence": "medium", "form": "ōfer", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:ōfer", "tags": ["topography"]}
