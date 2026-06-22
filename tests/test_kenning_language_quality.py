@@ -387,6 +387,61 @@ def test_bundle_attestation_handles_uncited_subjects() -> None:
     assert counts["scholar_attested"] == 0
 
 
+def test_bundle_attestation_rando_refs_recovers_rando_only() -> None:
+    """wyrd-qkn0: the bundle scrubs rando-port from ``<lang>_citations``, so a
+    live rando-only morpheme arrives with no citations and (pre-fix) misbins as
+    'uncited'. Passing ``rando_refs`` — the rando-port ledger keyed by
+    ``morpheme_id`` — recovers the grandfather flag and reclassifies it as
+    rando_only."""
+    bundle = [
+        {
+            "meaning": ["enclosure"],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "-ton",
+                    "old_english": ["tun"],
+                    "morpheme_id": "old-english:tun",
+                }
+            ],
+        }
+    ]
+    # Without the ledger: the structural blind spot — misbins as uncited.
+    no_refs = _bundle_attestation_breakdown(bundle, "old_english")
+    assert no_refs["uncited"] == 1
+    assert no_refs["rando_only"] == 0
+    # With the ledger: correctly rando_only, no longer uncited.
+    with_refs = _bundle_attestation_breakdown(bundle, "old_english", frozenset({"old-english:tun"}))
+    assert with_refs["rando_only"] == 1
+    assert with_refs["uncited"] == 0
+
+
+def test_bundle_attestation_rando_refs_scholar_wins() -> None:
+    """A rando-ledger morpheme that ALSO carries a scholar citation stays
+    scholar_attested — corroborated morphemes are not rando-only. The
+    cross-reference recovers the flag but never downgrades a real attestation
+    (scholar wins all ties)."""
+    bundle = [
+        {
+            "meaning": ["enclosure"],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "-ton",
+                    "old_english": ["tun"],
+                    "morpheme_id": "old-english:tun",
+                    "old_english_citations": ["mawer_1920_northumberland_durham"],
+                }
+            ],
+        }
+    ]
+    counts = _bundle_attestation_breakdown(bundle, "old_english", frozenset({"old-english:tun"}))
+    assert counts["scholar_attested"] == 1
+    assert counts["rando_only"] == 0
+
+
 def test_bundle_attestation_scholar_wins_mixed_citations() -> None:
     """When a subject has BOTH scholar and rando-port citations, scholar
     wins (the priority order in _bundle_attestation_breakdown). Pin so

@@ -16,6 +16,7 @@ from wyrd.generators.kenning.bundle.rando_port_readiness import (
     _sibling_for_language,
     compute_readiness,
     format_readiness,
+    load_rando_attested_refs,
 )
 from wyrd.generators.kenning.cli import cli as cli_root
 
@@ -262,6 +263,57 @@ def test_compute_readiness_rando_only_closes_gate():
     assert lc.rando_only == 1
     assert not lc.passes_rando_only_zero()
     assert not report.overall_passes
+
+
+def test_load_rando_attested_refs_reads_citations_and_dedashes(tmp_path: Path):
+    """wyrd-qkn0: the loader keeps only ``citation`` records, splits
+    ``etymon_ref`` into language:form, and de-dashes the form (L2 refs may
+    still carry affix-position dashes) so it matches the bundle's bare
+    ``morpheme_id``. Non-citation records (source/etymon) are ignored."""
+    ledger = tmp_path / "rando-port.jsonl"
+    ledger.write_text(
+        "\n".join(
+            json.dumps(r)
+            for r in [
+                {"_type": "source", "ref": "rando-port"},
+                {"_type": "etymon", "ref": "old-english:tun", "canonical_form": "tun"},
+                {"_type": "citation", "etymon_ref": "old-english:-ton"},  # dashed
+                {"_type": "citation", "etymon_ref": "celtic:aber"},
+                {"_type": "citation", "etymon_ref": "no-colon-ref"},  # skipped
+            ]
+        )
+    )
+    refs = load_rando_attested_refs(ledger)
+    assert refs == frozenset({"old-english:ton", "celtic:aber"})
+
+
+def test_load_rando_attested_refs_missing_file_is_empty(tmp_path: Path):
+    """A missing ledger degrades to an empty set (the breakdown then falls
+    back to citation-field-only behavior) rather than raising."""
+    assert load_rando_attested_refs(tmp_path / "nope.jsonl") == frozenset()
+
+
+def test_compute_readiness_rando_refs_surfaces_live_rando_only():
+    """wyrd-qkn0 end-to-end: a live morpheme whose only attestation is
+    rando-port reaches the bundle with NO citations (rando-port is scrubbed
+    from <lang>_citations). Without rando_refs it misbins as uncited and the
+    gate falsely passes C2; with rando_refs it surfaces as rando_only and the
+    gate correctly closes."""
+    word = {"old_english": "form", "old_english_citations": [], "morpheme_id": "old-english:tun"}
+    bundle = _bundle([{"words": [word]}])
+    # Pre-fix blind spot: looks clean.
+    blind = compute_readiness(bundle, target_languages=("old_english",))
+    assert blind.per_language[0].rando_only == 0
+    assert blind.per_language[0].uncited == 1
+    # With the ledger: the rando-only morpheme is surfaced, gate closes on C2.
+    seen = compute_readiness(
+        bundle,
+        target_languages=("old_english",),
+        rando_refs=frozenset({"old-english:tun"}),
+    )
+    assert seen.per_language[0].rando_only == 1
+    assert seen.per_language[0].uncited == 0
+    assert not seen.overall_passes
 
 
 def test_compute_readiness_low_coverage_closes_gate():

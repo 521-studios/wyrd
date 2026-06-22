@@ -25,11 +25,23 @@ all three pass.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.language_quality import _bundle_attestation_breakdown
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
+
+# The committed rando-port citation ledger (L2). Each ``citation`` record
+# names an ``etymon_ref`` rando-port attests. We read it because the runtime
+# bundle's ``<lang>_citations`` field is deliberately scrubbed of rando-port
+# (it's a non-scholarly seed) — so this ledger is the only surviving signal of
+# which live morphemes are rando-only (wyrd-qkn0).
+DEFAULT_RANDO_PORT_JSONL = (
+    Path(__file__).resolve().parents[4] / "data" / "mining" / "rando-port.jsonl"
+)
 
 # Bundle-sibling keys this gate cares about. These are the runtime
 # bundle's column names (underscore-separated), not the DB's
@@ -136,16 +148,55 @@ def _sibling_for_language(language: str) -> str:
     return language.replace("-", "_")
 
 
+def load_rando_attested_refs(path: Path | None = None) -> frozenset[str]:
+    """De-dashed ``language:form`` set of every etymon cited by rando-port,
+    read from the committed ``rando-port.jsonl`` ledger (wyrd-qkn0).
+
+    The gate cross-references this against each bundle word's ``morpheme_id``
+    to recover the rando-only flag the scrubbed ``<lang>_citations`` field
+    can't carry. The ledger's ``etymon_ref`` may still hold affix-position
+    dashes (L2 stays dashed); ``normalize_morpheme_surface`` de-dashes the
+    form so it matches the bundle's bare ``morpheme_id``. Returns an empty
+    set if the ledger is absent — the breakdown then degrades to the old
+    citation-field-only behavior rather than crashing.
+    """
+    src = path or DEFAULT_RANDO_PORT_JSONL
+    if not src.exists():
+        return frozenset()
+    refs: set[str] = set()
+    with open(src, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            if rec.get("_type") != "citation":
+                continue
+            lang, sep, form = (rec.get("etymon_ref") or "").partition(":")
+            if not sep:
+                continue
+            bare = normalize_morpheme_surface(form)
+            if bare:
+                refs.add(f"{lang}:{bare}")
+    return frozenset(refs)
+
+
 def compute_readiness(
     bundle: Any,
     *,
     target_languages: Iterable[str] = DEFAULT_TARGET_LANGUAGES,
     coverage_threshold: float = DEFAULT_COVERAGE_THRESHOLD,
+    rando_refs: frozenset[str] | None = None,
 ) -> ReadinessReport:
-    """Score the readiness criteria against a loaded bundle."""
+    """Score the readiness criteria against a loaded bundle.
+
+    ``rando_refs`` (wyrd-qkn0) is the rando-port ledger set from
+    ``load_rando_attested_refs``; without it ``rando_only`` is structurally
+    always 0 because the bundle scrubs rando-port from ``<lang>_citations``.
+    """
     per_lang: list[LanguageCriterion] = []
     for lang in target_languages:
-        breakdown = _bundle_attestation_breakdown(bundle, _sibling_for_language(lang))
+        breakdown = _bundle_attestation_breakdown(bundle, _sibling_for_language(lang), rando_refs)
         per_lang.append(
             LanguageCriterion(
                 language=lang,
