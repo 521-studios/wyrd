@@ -28,6 +28,19 @@ loop's lever), 22% variant-gap (a separate lever — see wyrd-eni4.3 follow-up).
 - **tag** → `_tags.jsonl` (controlled `TAG_VOCAB`, "none" allowed)
 - **IPA** → `_pronunciation.jsonl` (`/.../`-delimited)
 - **gloss** → `_curation.jsonl` (`etymon_gloss_add` rows; only the ~5% missing)
+- **garbled-form repair** → `_curation.jsonl` (`collapse` rows) — **gated, scoped**
+  (wyrd-eni4.3.2). A corrupted canonical_form (OCR junk: `6j^`, `stdn`→`stān`,
+  HTML fragments) is almost always a DUPLICATE of a correct etymon, so the fix is
+  a MERGE not a rename: a `collapse` row folds the garbled `ref` into its correct
+  `into` twin. **This is a structural identity op (over-merge footgun), so:**
+  author a collapse ONLY for a worklist entry
+  (`data/mining/garbled_etymon_forms.tsv`) whose suspected correct twin **already
+  exists** and is an obvious de-OCR of the garbled form; run
+  `enrich-campaign collapse-validate` (rejects `#`-sense suffixes — those are
+  *intentional* homograph disambiguators like `bol#hill`, NOT corruption — plus
+  self/dup/unresolvable). **NEVER** merge junk-with-no-twin or HTML fragments —
+  leave those in the worklist for human triage. A handful per fire, after the
+  reflex+quality work.
 
 **Human-gated, NEVER author in the loop:** lemma-wiring, cognate clustering,
 variant pool, AND parse selection (the DID-WE scorer/tiebreak). Structural /
