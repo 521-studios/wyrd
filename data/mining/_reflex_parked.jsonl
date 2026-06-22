@@ -21,3 +21,4 @@
 {"ref": "goidelic:choill", "reason": "messy/uncertain lenited realizations (chell/hile/coly); attribution unclear"}
 {"ref": "old-english:ea", "reason": "2-char island element; over-match + attributed toponyms (Hartlepool/Hexham/Lindisfarne) show no clean 'ea' span"}
 {"ref": "old-english:hoc", "reason": "attributed toponyms (Hoo/Eggeok/Russoc) are unclear/junk; no clean groundable surface"}
+{"ref": "old-french:la", "reason": "2-char definite article; substring over-matches every name with 'la'"}
