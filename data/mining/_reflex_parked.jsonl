@@ -8,3 +8,5 @@
 {"ref": "old-english:hoh", "reason": "worn single/double-char endings (a/oe/ow); no cleanly groundable surface"}
 {"ref": "old-english:ēl", "reason": "clean realization is the 2-char 'el' — substring over-matches; defer"}
 {"ref": "brittonic:breg", "reason": "short varied realizations (bre/bri/bray); attribution uncertain"}
+{"ref": "old-english:lǣs", "reason": "attributed toponyms are field-name fragments; no leaze/leas surface to ground"}
+{"ref": "celtic:ar", "reason": "2-char (ar/or); substring grounding over-matches"}
