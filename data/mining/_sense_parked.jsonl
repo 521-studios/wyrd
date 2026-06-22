@@ -35,3 +35,8 @@
 {"ref": "old-english:Hræfn", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:Wine", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:heorde-wīc", "reason": "composite (heorde+wīc = herd-farm); expand to constituents per D51.3"}
+{"ref": "old-english:bōðl-tūn", "reason": "composite (bōðl+tūn = building-enclosure); expand to constituents per D51.3"}
+{"ref": "old-english:hrōc", "reason": "rook (bird) conflated with badger / brook (broc confusion) — needs disambiguation"}
+{"ref": "celtic:ar", "reason": "Celtic grammatical morpheme (prep 'on/near' / collective suffix / 'place of') + tillage/west — mixed, needs review"}
+{"ref": "old-english:Aski", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Beorn", "reason": "personal-name element — render as the name, no sense to compress"}
