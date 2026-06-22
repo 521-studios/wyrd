@@ -87,3 +87,15 @@ variable "feature_flag_defaults" {
   # flips the deployed default without a code change.
   default = { novelty = "0.1", cohesion = "0.6", era = "present-day" }
 }
+
+# wyrd-ocs8: Lambda SnapStart toggle. SnapStart caches a ~1769MB snapshot per
+# published version; with publish=true and per-push auto-deploy that accumulated
+# unbounded and blew the cost budget (it grew every day). DEFAULT OFF. Only
+# re-enable once version retention bounds the published-version count (keep
+# current + prior), otherwise the snapshot-storage cost returns. Cold start with
+# it off is ~3.7s on the 1769MB config.
+variable "enable_snapstart" {
+  description = "Enable Lambda SnapStart (caches a snapshot per published version). Default off — see wyrd-ocs8; only enable with version retention in place."
+  type        = bool
+  default     = false
+}
