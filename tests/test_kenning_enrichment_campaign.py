@@ -23,6 +23,7 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     bands_status,
     committed_reflex_refs,
     gloss_next_slice,
+    identity_reflex_rows,
     ipa_next_slice,
     next_slice,
     reflex_progress,
@@ -389,3 +390,35 @@ def test_validate_collapse_gate(world):
         {"_type": "collapse", "ref": "old-english:tvn", "into": "old-english:nope"},  # no twin
     ]
     assert len(validate_collapse_candidates(db.conn, empty, bad)) == 3
+
+
+def test_identity_reflexes_grounded_only(world):
+    """An identity reflex is emitted only when the morpheme's folded canonical
+    actually appears in one of its toponyms (wyrd-eni4.3). 'by' appears in
+    Westby/Irby (→ grounded, post); 'tun' (folded tūn) does NOT appear in
+    Newton/Thornton/Bishopston (anglicized to -ton) → skipped."""
+    db, tmp_path = world
+    empty = tmp_path / "empty.jsonl"
+    rows = identity_reflex_rows(db.conn, empty)
+    by_rows = [r for r in rows if r["etymon_refs"] == ["old-norse:by"]]
+    assert len(by_rows) == 1 and by_rows[0]["surface_form"] == "by"
+    assert by_rows[0]["position"] == "post"  # Westby/Irby end with 'by'
+    # tūn's folded canonical 'tun' isn't in any of its (anglicized) toponyms.
+    assert not any(r["etymon_refs"] == ["old-english:tūn"] for r in rows)
+    # Dedup: once 'by/post' is committed, it's not re-emitted.
+    committed = tmp_path / "committed.jsonl"
+    committed.write_text(
+        json.dumps(
+            {
+                "_type": "reflex",
+                "surface_form": "by",
+                "position": "post",
+                "etymon_refs": ["old-norse:by"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert not any(
+        r["etymon_refs"] == ["old-norse:by"] for r in identity_reflex_rows(db.conn, committed)
+    )
