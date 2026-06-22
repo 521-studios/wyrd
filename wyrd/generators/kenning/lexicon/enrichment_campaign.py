@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -52,6 +53,18 @@ from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref, resolve_etym
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
 
 _TAG_VOCAB_SET = frozenset(tag_mining.TAG_VOCAB)
+
+
+def _nfc(ref: str) -> str:
+    """NFC-normalize a ref for comparison. ``etymon.canonical_form`` is stored
+    inconsistently — some rows NFC (precomposed ``ō`` U+014D), some NFD (``o`` +
+    combining macron U+0304) — so the raw ``language:canonical_form`` ref a slice
+    emits and a ref typed by hand into ``park`` can be byte-different for the same
+    morpheme. Comparing under NFC makes remainder/dedup/park exclusion robust to
+    that, so a parked diacritic etymon actually drops out (else it re-emits every
+    slice — the stall park exists to prevent)."""
+    return unicodedata.normalize("NFC", ref)
+
 
 # The reflex replay accepts exactly these positions (build._insert_reflex_rows
 # upserts (surface_form, position); the matcher reads them by position class).
@@ -118,7 +131,7 @@ def committed_reflex_refs(reflexes_path: Path) -> set[str]:
             if row.get("_type") != "reflex":
                 continue
             for ref in row.get("etymon_refs", []) or []:
-                refs.add(ref)
+                refs.add(_nfc(ref))
     return refs
 
 
@@ -139,7 +152,7 @@ def committed_reflex_keys(reflexes_path: Path) -> set[tuple[str, str, str]]:
             sf = row.get("surface_form")
             pos = row.get("position")
             for ref in row.get("etymon_refs", []) or []:
-                keys.add((sf, pos, ref))
+                keys.add((sf, pos, _nfc(ref)))
     return keys
 
 
@@ -259,7 +272,7 @@ def parked_refs(parked_path: Path | None) -> set[str]:
                 continue
             ref = json.loads(line).get("ref")
             if ref:
-                refs.add(ref)
+                refs.add(_nfc(ref))
     return refs
 
 
@@ -277,7 +290,7 @@ def next_slice(
     out: list[EtymonEvidence] = []
     for row in scholar_impact_ranking(conn):
         ref = etymon_ref(row["language"], row["canonical_form"])
-        if ref in excluded:
+        if _nfc(ref) in excluded:
             continue
         out.append(etymon_evidence(conn, row["eid"], impact=row["impact"]))
         if len(out) >= n:
@@ -301,7 +314,7 @@ def reflex_progress(
     done = 0
     parked_count = 0
     for r in ranking:
-        ref = etymon_ref(r["language"], r["canonical_form"])
+        ref = _nfc(etymon_ref(r["language"], r["canonical_form"]))
         if ref in done_refs:
             done += 1
         elif ref in parked:
@@ -402,7 +415,7 @@ def _validate_one(
             f"appears in no attested toponym form of {refs}"
         )
     for ref in refs:
-        key = (sf, pos, ref)
+        key = (sf, pos, _nfc(ref))
         if key in committed or key in seen_in_batch:
             errors.append(f"{tag}: duplicate reflex (committed or in-batch): {key}")
         seen_in_batch.add(key)

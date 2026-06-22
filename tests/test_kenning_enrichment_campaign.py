@@ -138,6 +138,32 @@ def test_parked_refs_excluded_from_slice(world):
     assert (done, parked_count, total) == (0, 1, 2)
 
 
+def test_parked_ref_excluded_across_unicode_normalization(tmp_path):
+    """A parked ref written NFC (precomposed ō) must still exclude a DB etymon
+    stored NFD (o + combining macron) — same morpheme, different bytes."""
+    import unicodedata
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    nfd = unicodedata.normalize("NFD", "Bōfa")  # stored as o + U+0304
+    eid = _etymon(db, nfd, language="old-english")
+    _toponym(db, "Bowcombe", [eid])
+    _toponym(db, "Coveney", [eid])  # impact 2 → in scope
+    db.commit()
+
+    empty = tmp_path / "empty.jsonl"
+    assert [e.canonical_form for e in next_slice(db.conn, empty, n=10)] == [nfd]
+    parked = tmp_path / "_reflex_parked.jsonl"
+    nfc = unicodedata.normalize("NFC", "Bōfa")  # parked as precomposed ō
+    assert nfc != nfd
+    parked.write_text(
+        json.dumps({"ref": f"old-english:{nfc}", "reason": "x"}) + "\n", encoding="utf-8"
+    )
+    assert next_slice(db.conn, empty, n=10, parked_path=parked) == []
+
+
 def test_validate_accepts_grounded_reflex(world):
     db, tmp_path = world
     empty = tmp_path / "empty.jsonl"
