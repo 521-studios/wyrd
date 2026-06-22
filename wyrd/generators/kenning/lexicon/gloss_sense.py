@@ -22,18 +22,17 @@ default: over-splitting a monosemous wall into spurious "shades" is the failure
 the user's tūn→'town' example calls out, so a split is only kept when a sense
 genuinely differs (unrelated meaning), defaulting to ONE sense when unsure.
 
-Two authoring paths share this module's assertion shape + validation:
-  - the loop agent (Opus) partitions a slice itself and writes candidate rows
-    (``method="opus-gloss-sense-v1"``); ``validate_gloss_sense_candidates`` gates
-    them and ``sense_assertions`` authors them.
-  - an Ollama batch pass (``cluster_gloss_wall``) does the same headless, for A/B
-    and bulk fill (``method="gloss-sense-cluster-v1"``).
+Authoring path: the loop agent (Opus) partitions a slice itself and writes
+``_type="gloss_sense"`` candidate rows (``method="opus-gloss-sense-v1"``);
+``validate_gloss_sense_candidates`` gates them (the grounding guard) and
+``sense_assertions`` authors them. (A headless Ollama batch path lands with the
+A/B harness — wyrd-u6fn.10 follow-up — wired to its own CLI verb + a test.)
 """
 
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 from wyrd.generators.kenning.canonicalization.assertions import (
@@ -48,7 +47,6 @@ from wyrd.generators.kenning.lexicon.etymon_refs import (
     split_gloss_ref,
 )
 
-METHOD_OLLAMA = "gloss-sense-cluster-v1"
 METHOD_AGENT = "opus-gloss-sense-v1"
 DEFAULT_SOURCE = "gloss-sense-audit"
 _NODE = "canonical_sense"
@@ -277,131 +275,3 @@ def committed_sense_refs(assertions) -> set[str]:
             if parts is not None:
                 done.add(parts[0])
     return done
-
-
-# --- Ollama clustering (the headless / A/B path) -----------------------------
-
-# Bias toward MONOSEMY: the wall is ONE sense unless meanings are genuinely
-# unrelated. The propose pass partitions; the challenge pass (only when >1 sense)
-# argues for collapse, and a split survives only un-refuted.
-_PARTITION_SYSTEM = (
-    "You compress a historical place-name etymology lexicon. A single morpheme is "
-    "listed with ALL the glosses scholars recorded for it. Most morphemes have ONE "
-    "sense expressed many ways (tūn: 'enclosure','farmstead','farm, settlement',"
-    "'manor','town' are ALL one sense -> label 'town'). Only split into multiple "
-    "senses when the meanings are genuinely UNRELATED (a true homograph: 'wall' AND "
-    "'frog'), never for shades/near-synonyms of one idea. For EACH sense give a "
-    "SHORT label: 1-2 lowercase words, the single clearest word for that meaning. "
-    "EVERY listed gloss must be assigned to exactly one sense. When unsure, use ONE "
-    "sense.\n"
-    'Reply ONLY with JSON: {"senses":[{"label":"<short>","glosses":["<verbatim '
-    'gloss>", ...]}, ...], "confidence":"high"|"medium"|"low", "reason":"<one clause>"}.'
-)
-
-_COLLAPSE_SYSTEM = (
-    "You are a skeptical lexicographer. A proposal split ONE morpheme's glosses "
-    "into MULTIPLE senses. Most morphemes are monosemous, so REFUTE the split "
-    "unless the senses are genuinely UNRELATED meanings (a true homograph), not "
-    "mere shades or near-synonyms of one idea.\n"
-    'Reply ONLY with JSON: {"over_split": true|false, "confidence":"high"|"medium"'
-    '|"low", "reason":"<one clause>"}.'
-)
-
-
-@dataclass
-class GlossWall:
-    ref: str
-    language: str
-    canonical_form: str
-    glosses: tuple[str, ...]
-
-
-@dataclass
-class ClusterResult:
-    candidate: GlossSenseCandidate | None
-    raw_propose: dict = field(default_factory=dict)
-    raw_challenge: dict = field(default_factory=dict)
-    note: str = ""
-
-
-def build_partition_prompt(wall: GlossWall) -> tuple[str, str]:
-    listed = "\n".join(f"  - {g}" for g in wall.glosses)
-    user = (
-        f'Morpheme: "{wall.canonical_form}" (language: {wall.language})\n'
-        f"Glosses:\n{listed}\n\nPartition these glosses into senses."
-    )
-    return _PARTITION_SYSTEM, user
-
-
-def build_collapse_prompt(wall: GlossWall, senses: tuple[Sense, ...]) -> tuple[str, str]:
-    shown = "\n".join(f"  sense '{s.label}': {', '.join(s.glosses)}" for s in senses)
-    user = (
-        f'Morpheme: "{wall.canonical_form}" (language: {wall.language})\n'
-        f"Proposed senses:\n{shown}\n\nIs this an over-split of one sense?"
-    )
-    return _COLLAPSE_SYSTEM, user
-
-
-def _parse_partition(raw: dict, wall: GlossWall) -> tuple[Sense, ...]:
-    senses_raw = raw.get("senses") if isinstance(raw, dict) else None
-    if not isinstance(senses_raw, list):
-        return ()
-    senses: list[Sense] = []
-    for s in senses_raw:
-        if not isinstance(s, dict):
-            continue
-        label = str(s.get("label") or "").strip()
-        glosses = s.get("glosses")
-        if label and isinstance(glosses, list) and glosses:
-            senses.append(Sense(label=label, glosses=tuple(str(g) for g in glosses)))
-    return tuple(senses)
-
-
-def _as_bool(val: object) -> bool | None:
-    if isinstance(val, bool):
-        return val
-    if isinstance(val, str):
-        return val.strip().lower() in {"true", "yes", "y", "1"}
-    return None
-
-
-def cluster_gloss_wall(
-    client, wall: GlossWall, *, model: str, method: str = METHOD_OLLAMA
-) -> ClusterResult:
-    """Headless two-pass partition: propose senses, then (if >1) challenge the
-    split; collapse to one sense if the skeptic refutes. ``client`` is any
-    ``chat_json(system, user, schema)`` LLM client (Ollama / Anthropic)."""
-    sys_p, usr_p = build_partition_prompt(wall)
-    try:
-        raw_p = client.chat_json(sys_p, usr_p, {})
-    except Exception as exc:  # noqa: BLE001 — surfaced as a note, never fatal in a batch
-        return ClusterResult(None, note=f"propose failed: {exc}")
-    senses = _parse_partition(raw_p, wall)
-    if not senses:
-        return ClusterResult(None, raw_propose=raw_p, note="unparseable partition")
-    conf = _norm_conf(raw_p.get("confidence"))
-    reason = str(raw_p.get("reason") or "").strip()[:300]
-    raw_c: dict = {}
-    if len(senses) > 1:
-        sys_c, usr_c = build_collapse_prompt(wall, senses)
-        try:
-            raw_c = client.chat_json(sys_c, usr_c, {})
-        except Exception as exc:  # noqa: BLE001
-            return ClusterResult(None, raw_propose=raw_p, note=f"challenge failed: {exc}")
-        if _as_bool(raw_c.get("over_split")):
-            # Collapse to one sense: keep the morpheme but as a single sense whose
-            # label is the first (clearest) proposed label, covering the whole wall.
-            senses = (Sense(label=senses[0].label, glosses=wall.glosses),)
-            conf = "low"
-            reason = f"collapsed over-split: {raw_c.get('reason') or ''}".strip()
-    cand = GlossSenseCandidate(
-        ref=wall.ref,
-        language=wall.language,
-        canonical_form=wall.canonical_form,
-        senses=senses,
-        confidence=conf,
-        method=method,
-        model=model,
-        rationale=reason,
-    )
-    return ClusterResult(cand, raw_propose=raw_p, raw_challenge=raw_c)
