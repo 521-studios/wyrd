@@ -41,6 +41,7 @@ exactly, so an authored row round-trips through a clean rebuild.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import unicodedata
 from collections.abc import Sequence
@@ -53,6 +54,9 @@ from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref, resolve_etym
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
 
 _TAG_VOCAB_SET = frozenset(tag_mining.TAG_VOCAB)
+# An IPA value must be slash- or bracket-delimited (/.../ or [...]) and non-empty
+# inside — the same convention the existing _pronunciation.jsonl rows use.
+_IPA_RE = re.compile(r"^[/\[].+[/\]]$")
 
 
 def _nfc(ref: str) -> str:
@@ -282,13 +286,17 @@ def next_slice(
     *,
     n: int = 20,
     parked_path: Path | None = None,
+    impact: int | None = None,
 ) -> list[EtymonEvidence]:
     """The next ``n`` impact-ordered scholar etymons still missing a committed
     reflex AND not parked, each with grounding evidence. Empty when the phase is
-    exhausted (every remaining etymon is either done or parked)."""
+    exhausted (every remaining etymon is either done or parked). ``impact``
+    restricts to a single impact band (the band-by-band holistic loop, wyrd-eni4.3)."""
     excluded = committed_reflex_refs(reflexes_path) | parked_refs(parked_path)
     out: list[EtymonEvidence] = []
     for row in scholar_impact_ranking(conn):
+        if impact is not None and row["impact"] != impact:
+            continue
         ref = etymon_ref(row["language"], row["canonical_form"])
         if _nfc(ref) in excluded:
             continue
@@ -518,16 +526,19 @@ def tag_next_slice(
     tags_path: Path,
     *,
     n: int = 20,
+    impact: int | None = None,
 ) -> list[dict[str, Any]]:
     """The next ``n`` admit-cohort etymons that have a gloss but no tag (and no
     decision yet in the committed ``_tags.jsonl``), impact-ordered, each with its
-    glosses for classification. Empty when the cohort is exhausted. ``db_path`` is
-    accepted for signature parity with the reflex rail; the cohort comes from
-    ``conn``."""
+    glosses for classification. Empty when the cohort is exhausted. ``impact``
+    restricts to a single band. ``db_path`` is accepted for signature parity with
+    the reflex rail; the cohort comes from ``conn``."""
     del db_path  # cohort is computed from conn, not a fresh path-opened connection
     done = tag_mining.existing_refs(str(tags_path))
     targets: list[dict[str, Any]] = []
     for row in tag_cohort(conn):
+        if impact is not None and row["impact"] != impact:
+            continue
         ref = etymon_ref(row["language"], row["canonical_form"])
         if ref in done:
             continue
@@ -591,3 +602,236 @@ def tag_progress(conn: sqlite3.Connection, db_path: Path, tags_path: Path) -> in
         for row in tag_cohort(conn)
         if etymon_ref(row["language"], row["canonical_form"]) not in done
     )
+
+
+# ---------------------------------------------------------------------------
+# IPA + gloss rails + band capability (the band-by-band holistic loop, wyrd-eni4.3).
+#
+# The campaign target cohort is the scholar-referenced, scope-clean morphemes
+# with impact >= 2 (the same set the snapshot reports on). For each impact band,
+# the loop brings every morpheme to full capability across the four loop-owned
+# dimensions — reflex, tag, IPA, gloss — before descending. lemma/cognate/variant
+# stay human-gated. Each dimension authors to its existing L2 ledger:
+#   reflex -> _reflexes.jsonl   tag -> _tags.jsonl
+#   IPA    -> _pronunciation.jsonl ({_type:pronunciation, ref, ipa, ...})
+#   gloss  -> _curation.jsonl ({_type:etymon_gloss_add, ref, additions:[{gloss}]})
+# ---------------------------------------------------------------------------
+
+
+def ledger_refs(path: Path | None, row_type: str) -> set[str]:
+    """NFC refs present in a jsonl ledger for rows of ``row_type`` (e.g.
+    ``pronunciation`` in _pronunciation.jsonl, ``etymon_gloss_add`` in
+    _curation.jsonl). The committed remainder source for IPA/gloss dimensions."""
+    refs: set[str] = set()
+    if path is None or not path.exists():
+        return refs
+    with path.open(encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(row, dict) and row.get("_type") == row_type and row.get("ref"):
+                refs.add(_nfc(row["ref"]))
+    return refs
+
+
+def _band_cohort(conn: sqlite3.Connection, impact: int | None) -> list[sqlite3.Row]:
+    """Scholar scope-clean etymons with impact >= 2 (optionally a single band),
+    impact-first. The campaign target set."""
+    return [
+        r
+        for r in scholar_impact_ranking(conn)
+        if r["impact"] >= 2 and (impact is None or r["impact"] == impact)
+    ]
+
+
+def ipa_next_slice(
+    conn: sqlite3.Connection,
+    ipa_path: Path,
+    *,
+    n: int = 20,
+    impact: int | None = None,
+) -> list[dict[str, Any]]:
+    """Next ``n`` target morphemes missing pronunciation_ipa (DB) and with no
+    committed decision in _pronunciation.jsonl, with glosses as authoring evidence."""
+    done = ledger_refs(ipa_path, "pronunciation")
+    out: list[dict[str, Any]] = []
+    for row in _band_cohort(conn, impact):
+        ref = etymon_ref(row["language"], row["canonical_form"])
+        if _nfc(ref) in done:
+            continue
+        has_ipa = conn.execute(
+            "SELECT 1 FROM etymon WHERE id=? AND pronunciation_ipa IS NOT NULL "
+            "AND pronunciation_ipa<>''",
+            (row["eid"],),
+        ).fetchone()
+        if has_ipa:
+            continue
+        glosses = [
+            g["gloss"]
+            for g in conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id=?", (row["eid"],))
+        ]
+        out.append(
+            {
+                "ref": ref,
+                "language": row["language"],
+                "form": row["canonical_form"],
+                "impact": row["impact"],
+                "glosses": glosses,
+            }
+        )
+        if len(out) >= n:
+            break
+    return out
+
+
+def validate_ipa_candidates(
+    conn: sqlite3.Connection, ipa_path: Path, candidates: Sequence[dict[str, Any]]
+) -> list[str]:
+    """Validate authored pronunciation rows: ``_type == "pronunciation"``, ``ref``
+    resolves, ``ipa`` is slash/bracket-delimited, no duplicate committed/in-batch."""
+    done = ledger_refs(ipa_path, "pronunciation")
+    seen: set[str] = set()
+    errors: list[str] = []
+    for i, rec in enumerate(candidates):
+        tag = f"candidate[{i}]"
+        if rec.get("_type") != "pronunciation":
+            errors.append(f"{tag}: _type must be 'pronunciation'")
+            continue
+        ref = rec.get("ref")
+        ipa = rec.get("ipa")
+        if not isinstance(ref, str) or resolve_etymon_ref(conn, ref) is None:
+            errors.append(f"{tag}: ref {ref!r} resolves to no etymon")
+            continue
+        if not isinstance(ipa, str) or not _IPA_RE.match(ipa.strip()):
+            errors.append(f"{tag}: ipa {ipa!r} must be /.../ or [...] delimited")
+        key = _nfc(ref)
+        if key in done or key in seen:
+            errors.append(f"{tag}: duplicate pronunciation decision for {ref}")
+        seen.add(key)
+    return errors
+
+
+def gloss_next_slice(
+    conn: sqlite3.Connection,
+    gloss_path: Path,
+    *,
+    n: int = 20,
+    impact: int | None = None,
+) -> list[dict[str, Any]]:
+    """Next ``n`` target morphemes with NO gloss (DB) and no committed
+    ``etymon_gloss_add`` decision, with their toponyms as grounding evidence
+    (a gloss must be defensible from how the morpheme is used)."""
+    done = ledger_refs(gloss_path, "etymon_gloss_add")
+    out: list[dict[str, Any]] = []
+    for row in _band_cohort(conn, impact):
+        ref = etymon_ref(row["language"], row["canonical_form"])
+        if _nfc(ref) in done:
+            continue
+        has_gloss = conn.execute(
+            "SELECT 1 FROM etymon_gloss WHERE etymon_id=?", (row["eid"],)
+        ).fetchone()
+        if has_gloss:
+            continue
+        toponyms = [
+            tr["modern_name"]
+            for tr in conn.execute(
+                "SELECT DISTINCT t.modern_name FROM toponym_etymology_element tee "
+                "JOIN toponym_etymology te ON te.id=tee.toponym_etymology_id "
+                "JOIN toponym t ON t.id=te.toponym_id WHERE tee.etymon_id=? LIMIT 12",
+                (row["eid"],),
+            )
+        ]
+        out.append(
+            {
+                "ref": ref,
+                "language": row["language"],
+                "form": row["canonical_form"],
+                "impact": row["impact"],
+                "toponyms": toponyms,
+            }
+        )
+        if len(out) >= n:
+            break
+    return out
+
+
+def validate_gloss_candidates(
+    conn: sqlite3.Connection, gloss_path: Path, candidates: Sequence[dict[str, Any]]
+) -> list[str]:
+    """Validate authored ``etymon_gloss_add`` rows: ``ref`` resolves, ``additions``
+    is a non-empty list of ``{gloss}`` with non-empty gloss text, no dup ref."""
+    done = ledger_refs(gloss_path, "etymon_gloss_add")
+    seen: set[str] = set()
+    errors: list[str] = []
+    for i, rec in enumerate(candidates):
+        tag = f"candidate[{i}]"
+        if rec.get("_type") != "etymon_gloss_add":
+            errors.append(f"{tag}: _type must be 'etymon_gloss_add'")
+            continue
+        ref = rec.get("ref")
+        adds = rec.get("additions")
+        if not isinstance(ref, str) or resolve_etymon_ref(conn, ref) is None:
+            errors.append(f"{tag}: ref {ref!r} resolves to no etymon")
+            continue
+        if not isinstance(adds, list) or not adds:
+            errors.append(f"{tag}: additions must be a non-empty list")
+        elif any(not isinstance(a, dict) or not str(a.get("gloss", "")).strip() for a in adds):
+            errors.append(f"{tag}: each addition needs a non-empty 'gloss'")
+        key = _nfc(ref)
+        if key in done or key in seen:
+            errors.append(f"{tag}: duplicate gloss decision for {ref}")
+        seen.add(key)
+    return errors
+
+
+def bands_status(
+    conn: sqlite3.Connection,
+    *,
+    reflexes_path: Path,
+    parked_path: Path | None,
+    tags_path: Path,
+    ipa_path: Path,
+    gloss_path: Path,
+) -> list[dict[str, Any]]:
+    """Per impact band (descending), the count of target morphemes still missing
+    each loop-owned dimension. A morpheme "has" a dimension if it's in the DB OR
+    its committed ledger. Only bands with remaining work are returned — the first
+    row is the current top band for the band-by-band loop."""
+    reflex_done = committed_reflex_refs(reflexes_path) | parked_refs(parked_path)
+    tag_led = tag_mining.existing_refs(str(tags_path))
+    ipa_led = ledger_refs(ipa_path, "pronunciation")
+    gloss_led = ledger_refs(gloss_path, "etymon_gloss_add")
+    agg: dict[int, dict[str, int]] = {}
+    for row in _band_cohort(conn, None):
+        ref = _nfc(etymon_ref(row["language"], row["canonical_form"]))
+        eid = row["eid"]
+        band = agg.setdefault(
+            row["impact"], {"reflex": 0, "tag": 0, "ipa": 0, "gloss": 0, "total": 0}
+        )
+        band["total"] += 1
+        if ref not in reflex_done:
+            band["reflex"] += 1
+        tagged = conn.execute("SELECT 1 FROM etymon_tag WHERE etymon_id=?", (eid,)).fetchone()
+        if not tagged and ref not in tag_led:
+            band["tag"] += 1
+        has_ipa = conn.execute(
+            "SELECT 1 FROM etymon WHERE id=? AND pronunciation_ipa IS NOT NULL "
+            "AND pronunciation_ipa<>''",
+            (eid,),
+        ).fetchone()
+        if not has_ipa and ref not in ipa_led:
+            band["ipa"] += 1
+        has_gloss = conn.execute("SELECT 1 FROM etymon_gloss WHERE etymon_id=?", (eid,)).fetchone()
+        if not has_gloss and ref not in gloss_led:
+            band["gloss"] += 1
+    out = []
+    for impact in sorted(agg, reverse=True):
+        b = agg[impact]
+        if b["reflex"] or b["tag"] or b["ipa"] or b["gloss"]:
+            out.append({"impact": impact, **b})
+    return out

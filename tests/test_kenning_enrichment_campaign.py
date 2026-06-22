@@ -20,12 +20,17 @@ import pytest
 
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, tag_mining
 from wyrd.generators.kenning.lexicon.enrichment_campaign import (
+    bands_status,
     committed_reflex_refs,
+    gloss_next_slice,
+    ipa_next_slice,
     next_slice,
     reflex_progress,
     tag_next_slice,
     tag_progress,
     validate_candidates,
+    validate_gloss_candidates,
+    validate_ipa_candidates,
     validate_tag_candidates,
 )
 
@@ -273,3 +278,95 @@ def test_tag_validate_rejects_committed_duplicate(world):
     slice_ = tag_next_slice(db.conn, tmp_path / "lexicon.db", tags, n=10)
     assert "old-english:tūn" not in {t["ref"] for t in slice_}
     assert tag_progress(db.conn, tmp_path / "lexicon.db", tags) == 1  # only 'by' remains
+
+
+# --- band-by-band holistic loop (wyrd-eni4.3) -------------------------------
+
+
+def test_next_slice_impact_band_filter(world):
+    db, tmp_path = world
+    empty = tmp_path / "empty.jsonl"
+    # tūn has impact 3, by impact 2 — band filter isolates each.
+    assert [e.ref for e in next_slice(db.conn, empty, n=10, impact=3)] == ["old-english:tūn"]
+    assert [e.ref for e in next_slice(db.conn, empty, n=10, impact=2)] == ["old-norse:by"]
+
+
+def test_ipa_next_slice_and_validate(world):
+    db, tmp_path = world
+    empty = tmp_path / "_pronunciation.jsonl"
+    # neither tūn nor by has pronunciation_ipa → both surface, glosses attached.
+    refs = {t["ref"] for t in ipa_next_slice(db.conn, empty, n=10)}
+    assert refs == {"old-english:tūn", "old-norse:by"}
+    ok = [{"_type": "pronunciation", "ref": "old-english:tūn", "ipa": "/tuːn/"}]
+    assert validate_ipa_candidates(db.conn, empty, ok) == []
+    bad = [
+        {"_type": "pronunciation", "ref": "old-english:tūn", "ipa": "tuun"},  # not delimited
+        {"_type": "pronunciation", "ref": "old-english:nope", "ipa": "/x/"},  # bad ref
+    ]
+    assert len(validate_ipa_candidates(db.conn, empty, bad)) == 2
+
+
+def test_gloss_next_slice_and_validate(tmp_path):
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    glossed = _etymon(db, "tūn", gloss="enclosure")
+    unglossed = _etymon(db, "strēt", language="old-english")  # impact 2, no gloss
+    _toponym(db, "Newton", [glossed])
+    _toponym(db, "Thornton", [glossed])
+    _toponym(db, "Stratford", [unglossed])
+    _toponym(db, "Stretton", [unglossed])
+    db.commit()
+    empty = tmp_path / "_curation.jsonl"
+    refs = {t["ref"] for t in gloss_next_slice(db.conn, empty, n=10)}
+    assert refs == {"old-english:strēt"}  # only the unglossed one
+    ok = [
+        {
+            "_type": "etymon_gloss_add",
+            "ref": "old-english:strēt",
+            "additions": [{"gloss": "a Roman road"}],
+        }
+    ]
+    assert validate_gloss_candidates(db.conn, empty, ok) == []
+    bad = [{"_type": "etymon_gloss_add", "ref": "old-english:strēt", "additions": []}]
+    assert validate_gloss_candidates(db.conn, empty, bad)
+
+
+def test_bands_status_isolates_dimensions(world):
+    db, tmp_path = world
+    e = tmp_path / "e.jsonl"
+    # nothing committed in any ledger → both etymons (impact 3 and 2) need
+    # reflex+ipa (no tag: untagged+unglossed-in-vocab still counts as tag-missing).
+    bands = bands_status(
+        db.conn, reflexes_path=e, parked_path=e, tags_path=e, ipa_path=e, gloss_path=e
+    )
+    by_impact = {b["impact"]: b for b in bands}
+    assert set(by_impact) == {3, 2}
+    assert by_impact[3]["reflex"] == 1 and by_impact[3]["ipa"] == 1
+    assert by_impact[3]["gloss"] == 0  # tūn is glossed in the fixture
+    # committing tūn's reflex clears the reflex gap for band 3.
+    e.write_text(
+        json.dumps(
+            {
+                "_type": "reflex",
+                "surface_form": "ton",
+                "position": "post",
+                "etymon_refs": ["old-english:tūn"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    bands2 = {
+        b["impact"]: b
+        for b in bands_status(
+            db.conn,
+            reflexes_path=e,
+            parked_path=tmp_path / "x",
+            tags_path=tmp_path / "x",
+            ipa_path=tmp_path / "x",
+            gloss_path=tmp_path / "x",
+        )
+    }
+    assert bands2[3]["reflex"] == 0

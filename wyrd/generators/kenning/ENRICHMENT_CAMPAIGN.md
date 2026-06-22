@@ -1,11 +1,58 @@
-# Scholar-morpheme enrichment campaign — loop runbook (wyrd-eni4.1)
+# Scholar-morpheme enrichment campaign — loop runbook
+
+## CURRENT MODEL — band-by-band holistic uplift (wyrd-eni4.3)
+
+The goal is to take the morphemes the scholarly breakdowns reference (our best
+decomposition ground-truth) and lift them to **full capability across every
+dimension** — not just reflexes. The loop works **one impact band at a time,
+top-down**: for the highest impact value with any remaining work, bring every
+morpheme in that band to full capability across the four **loop-owned**
+dimensions, then descend to the next band.
+
+**Loop-owned dimensions** (all author to existing L2 ledgers, all gated):
+- **reflex** → `_reflexes.jsonl` (grounding guard) — *impact ≥3 already done*
+- **tag** → `_tags.jsonl` (controlled `TAG_VOCAB`, "none" allowed)
+- **IPA** → `_pronunciation.jsonl` (`/.../`-delimited)
+- **gloss** → `_curation.jsonl` (`etymon_gloss_add` rows; only the ~5% missing)
+
+**Human-gated, NEVER author in the loop:** lemma-wiring, cognate clustering,
+variant pool. These are structural / decision-gated (wyrd-740t, over-merge bugs).
+
+### Per-fire procedure (cron fires every 15 min; fill ~2/3)
+
+1. `git pull --rebase`.
+2. `enrich-campaign bands --top 12` → the first row is the **current top band**
+   `N` and which dimensions still have gaps there. (Empty output = all bands
+   complete across all four → stop, note done on wyrd-eni4.3.)
+3. For that band `N`, work each dimension that has a gap, one at a time:
+   - reflex: `next-slice --impact N` → author grounded reflexes → `validate` →
+     append `_reflexes.jsonl` (park un-groundable).
+   - tag: `tags-next-slice --impact N` → classify into vocab (empty=none) →
+     `tags-validate` → append `_tags.jsonl`.
+   - IPA: `ipa-next-slice --impact N` → author `/IPA/` from the form+glosses →
+     `ipa-validate` → append `_pronunciation.jsonl`.
+   - gloss: `gloss-next-slice --impact N` → author a defensible gloss from the
+     toponyms → `gloss-validate` → append `_curation.jsonl` (skip fragments).
+   Each `*-next-slice --impact N` returning empty = that dimension is done for
+   band N. When all four are empty for N, the band is fully capable → descend.
+4. Commit + push each dimension's append to PR #727; update wyrd-eni4.3 notes.
+5. Repeat bands until ~2/3 of the interval is spent (high bands are sparse — a
+   single etymon — so several finish per fire).
+
+The old reflex-only "Phase ladder" below is **superseded** by this model; the
+validation gates, ledger invariants, and "never invent / park instead" rules
+all still apply per dimension.
+
+---
+
+# (superseded) reflex-only runbook (wyrd-eni4.1)
 
 A `/loop` ride that raises toponym-decomposition **coverage** by giving the
 ~8,900 etymons the scholarly breakdowns reference a **reflex** the matcher can
 emit/recognize (only 14.6% had one at baseline — the matcher can recover a
 morpheme *only* if it has a reflex, which is why recall≈0.205 / coverage≈0.286).
 
-Each 30-minute iteration authors **grounded** reflexes for the next, highest-impact
+Each iteration authors **grounded** reflexes for the next, highest-impact
 batch of reflex-less scholar etymons, validates them, and commits to one PR.
 
 ## The one rule that keeps this safe unattended
