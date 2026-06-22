@@ -12,9 +12,11 @@ import click
     "--bundle",
     "bundle_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    default=Path("wyrd/generators/kenning/data/meanings.json"),
-    show_default=True,
-    help="Path to meanings.json (the runtime bundle).",
+    default=None,
+    help="Optional frozen meanings.json bundle to score against. Default: "
+    "rehydrate the bundle from the L4 runtime DB (bundled seed-runtime.db, or "
+    "whatever WYRD_RUNTIME_DB / WYRD_RUNTIME_DB_BUCKET resolves to). The on-disk "
+    "meanings.json was retired when bundle storage moved to SQLite (d90t).",
 )
 @click.option(
     "--coverage-threshold",
@@ -33,7 +35,7 @@ import click
     "celtic_mix in the current bundle).",
 )
 def lexicon_rando_port_readiness(
-    bundle_path: Path,
+    bundle_path: Path | None,
     coverage_threshold: float,
     languages: tuple[str, ...],
 ) -> None:
@@ -46,16 +48,20 @@ def lexicon_rando_port_readiness(
 
     Exits 0 if all pass (gate OPEN, retirement can proceed); exit 1
     if any fail (gate CLOSED).
+
+    Reads the bundle from the L4 runtime DB by default (wyrd-52ha) — the on-disk
+    meanings.json was retired when bundle storage moved to SQLite (d90t); pass
+    ``--bundle`` to score a frozen JSON bundle instead.
     """
     from wyrd.generators.kenning.bundle.rando_port_readiness import (
         DEFAULT_TARGET_LANGUAGES,
         compute_readiness,
         format_readiness,
-        load_bundle,
     )
+    from wyrd.generators.kenning.cli.utils import _load_meanings_data
 
     target = languages or DEFAULT_TARGET_LANGUAGES
-    bundle = load_bundle(bundle_path)
+    bundle = _load_meanings_data(bundle_path)
     report = compute_readiness(
         bundle, target_languages=target, coverage_threshold=coverage_threshold
     )
