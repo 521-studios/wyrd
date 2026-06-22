@@ -18,12 +18,12 @@ the COMMITTED canonicalization ledger, never the live DB (wyrd-1rw4).
 from __future__ import annotations
 
 import json
-import os
-import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 import click
 
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.lexicon.gloss_sense import (
     parse_candidate,
     sense_assertions,
@@ -39,21 +39,15 @@ _DEFAULT_MINING_DIR = "data/mining"
 _PARKED_FILENAME = "_sense_parked.jsonl"
 
 
-def _resolve_db(db_path: str | None) -> Path:
-    if db_path:
-        db_file = Path(db_path)
-    else:
-        env_path = os.environ.get("WYRD_LEXICON_DB")
-        db_file = Path(env_path) if env_path else Path.home() / ".wyrd" / "lexicon.db"
+@contextmanager
+def _open_lexicon(db_path):
+    """Read-only lexicon connection (via the shared cli.utils helper, so this CLI
+    file never imports sqlite3 itself — the package-boundary rule)."""
+    db_file = Path(db_path)
     if not db_file.exists():
         raise click.ClickException(f"Lexicon DB not found: {db_file}")
-    return db_file
-
-
-def _readonly_conn(db_file: Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(f"file:{db_file}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    return conn
+    with _readonly_lexicon(db_file) as conn:
+        yield conn
 
 
 def _parked_path(mining_dir: str) -> Path:
@@ -82,7 +76,7 @@ def gloss_campaign() -> None:
 
 
 _db_option = click.option(
-    "--db", "db_path", type=click.Path(), default=None, help="Lexicon DB path."
+    "--db", "db_path", type=click.Path(), default=_DEFAULT_LEXICON_PATH, help="Lexicon DB path."
 )
 _mining_option = click.option(
     "--mining-dir",
@@ -104,9 +98,7 @@ _mining_option = click.option(
 @click.option("--full-inventory", is_flag=True, help="Phase 3: every glossed etymon, by wall size.")
 def cmd_next_slice(db_path, mining_dir, n, min_impact, unglossed, full_inventory):
     """Emit the next impact-ordered morphemes still needing sense compression."""
-    db_file = _resolve_db(db_path)
-    conn = _readonly_conn(db_file)
-    try:
+    with _open_lexicon(db_path) as conn:
         slice_ = next_slice(
             conn,
             mining_dir,
@@ -116,8 +108,6 @@ def cmd_next_slice(db_path, mining_dir, n, min_impact, unglossed, full_inventory
             parked_path=_parked_path(mining_dir),
             full_inventory=full_inventory,
         )
-    finally:
-        conn.close()
     click.echo(json.dumps([e.to_dict() for e in slice_], ensure_ascii=False))
 
 
@@ -129,13 +119,9 @@ def cmd_next_slice(db_path, mining_dir, n, min_impact, unglossed, full_inventory
 )
 def cmd_validate(db_path, mining_dir, candidates):
     """Gate candidate rows (grounding + partition + dedup). Exit 0 OK, 1 on errors."""
-    db_file = _resolve_db(db_path)
     cands = _load_candidates(candidates)
-    conn = _readonly_conn(db_file)
-    try:
+    with _open_lexicon(db_path) as conn:
         errors = validate_gloss_sense_candidates(conn, committed_done(mining_dir), cands)
-    finally:
-        conn.close()
     if errors:
         click.echo(f"VALIDATION FAILED — {len(errors)} error(s):", err=True)
         for e in errors:
@@ -154,13 +140,9 @@ def cmd_author(db_path, mining_dir, candidates):
     """Validate, then append the canonical_sense assertions for each candidate."""
     from wyrd.generators.kenning.canonicalization import append_assertion
 
-    db_file = _resolve_db(db_path)
     cands = _load_candidates(candidates)
-    conn = _readonly_conn(db_file)
-    try:
+    with _open_lexicon(db_path) as conn:
         errors = validate_gloss_sense_candidates(conn, committed_done(mining_dir), cands)
-    finally:
-        conn.close()
     if errors:
         click.echo(f"REFUSED — {len(errors)} validation error(s); fix or drop and retry:", err=True)
         for e in errors:
@@ -183,14 +165,10 @@ def cmd_author(db_path, mining_dir, candidates):
 @click.option("--min-impact", type=int, default=2, help="Cohort impact floor.")
 def cmd_status(db_path, mining_dir, min_impact):
     """Committed sense-coverage of the phase-1 cohort (the per-fire scoreboard)."""
-    db_file = _resolve_db(db_path)
-    conn = _readonly_conn(db_file)
-    try:
+    with _open_lexicon(db_path) as conn:
         done, parked, total = sense_progress(
             conn, mining_dir, _parked_path(mining_dir), min_impact=min_impact
         )
-    finally:
-        conn.close()
     pct = (100.0 * done / total) if total else 0.0
     click.echo(
         f"gloss-sense coverage: {done}/{total} ({pct:.1f}%) — {parked} parked, "
