@@ -2,3 +2,4 @@
 {"ref": "old-english:ing", "reason": "over-merged surface: conflates hill / water-meadow / patronymic / stream — disambiguation needed (cf wyrd-6hbv)"}
 {"ref": "old-english:tun", "reason": "settlement wall + stray 'hill' gloss; also likely OCR/macron duplicate of old-english:tūn — dedup review"}
 {"ref": "old-english:wīc", "reason": "polysemous functional morpheme (dwelling / dairy-farm / trading settlement / salt-works) with no dominant sense — needs careful multi-sense split"}
+{"ref": "old-english:ham", "reason": "conflates hām (homestead/village) + hamm (enclosure/meadow) + noise (harbour/high/hill); macron-less duplicate of hām — dedup + disambiguation review"}
