@@ -503,6 +503,10 @@ def test_cli_rando_port_readiness_rehydrates_from_runtime_db():
     error."""
     runner = CliRunner()
     result = runner.invoke(cli_root, ["lexicon", "rando-port-readiness"])
+    # exit 1 must be the gate-closed SystemExit, NOT an unhandled crash (which
+    # CliRunner also surfaces as exit 1 — and whose traceback would contain the
+    # report header, false-passing the asserts below).
+    assert result.exception is None or isinstance(result.exception, SystemExit), result.output
     assert result.exit_code in (0, 1), result.output
     assert "Rando-port retirement readiness" in result.output
     # The retired-meanings.json failure mode must be gone.
