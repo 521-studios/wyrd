@@ -301,22 +301,21 @@ def test_apply_split_creates_children_and_moves_glosses(tmp_path: Path):
     db.close()
 
 
-def test_apply_split_de_dashes_dashed_parent_into_bare_child_keys(tmp_path: Path):
-    """wyrd-aicu.8 (D45): a split-child minted off a still-dashed parent form
-    lands on the BARE key. The de-dash must happen on ``parent.form`` BEFORE the
-    ``#suffix`` is appended — de-dashing the combined ``parent.form#suffix``
-    would miss a prefix parent's trailing dash, which the suffix pushes off the
-    string boundary (``gear-`` → ``gear-#weir`` survives ``strip('-')``)."""
+def test_apply_split_dashed_ref_resolves_bare_parent_into_bare_child_keys(tmp_path: Path):
+    """wyrd-aicu.8 (D45) read-path sweep: a still-dashed split parent REF
+    ('old-english:-gear') resolves to the BARE-stored parent ('gear') via
+    apply_etymon_splits' de-dashed lookup — else the whole split would drop as
+    unresolved_etymon on rebuild. Children land on the bare key ('gear#weir')."""
     db_path = _build_db(tmp_path)
-    # Raw-insert a DASHED prefix parent (bypasses the de-dashing upsert choke),
-    # mirroring a still-dashed pre-migration L3 row.
+    # Bare parent (post-PR-1 storage). The split ref below is still dashed (a
+    # committed-L2 ref that hasn't been re-dumped bare yet).
     parent_id = _add_etymon_with_glosses_and_tags(
-        db_path, "old-english", "gear-", ["Weir (fishing enclosure)", "year"]
+        db_path, "old-english", "gear", ["Weir (fishing enclosure)", "year"]
     )
 
     db = LexiconDB(db_path)
     state = {
-        "old-english:gear-": {
+        "old-english:-gear": {
             "into": [
                 {"suffix": "weir", "glosses": ["Weir (fishing enclosure)"], "primary": True},
                 {"suffix": "year", "glosses": ["year"]},
@@ -324,9 +323,9 @@ def test_apply_split_de_dashes_dashed_parent_into_bare_child_keys(tmp_path: Path
         }
     }
     counts = apply_etymon_splits(db, state, apply=True)
-    assert counts["children_created"] == 2
+    assert counts["children_created"] == 2  # resolved, not dropped as unresolved
+    assert counts["unresolved_etymon"] == 0
 
-    # Children carry the BARE base 'gear#...', never the dashed 'gear-#...'.
     children = sorted(
         row["canonical_form"]
         for row in db.conn.execute(

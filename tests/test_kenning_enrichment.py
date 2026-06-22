@@ -16,6 +16,8 @@ from pathlib import Path
 from wyrd.generators.kenning.enrichment import (
     LEMMA_METHOD_VERSION,
     OCR_METHOD_VERSION,
+    _resolve_etymon_id,
+    _resolve_live_etymon,
     _run_curation_slot_passes,
     enrichment_status,
     flatten_merge_chains,
@@ -33,6 +35,35 @@ def _build_db(tmp_path: Path) -> Path:
     db_path = tmp_path / "lexicon.db"
     init_schema(db_path)
     return db_path
+
+
+def test_ref_resolvers_de_dash_colon_form_and_non_str(tmp_path: Path) -> None:
+    """wyrd-aicu.8 (D45) read-path sweep: the central enrichment ref resolvers
+    de-dash the ref form (dashed L2 ref → bare-stored etymon), keep the
+    split-on-FIRST-colon equivalence for a form that itself CONTAINS a ':',
+    preserve interior hyphens (al-Quadim must not collapse), and return None on a
+    non-str (legacy int id) ref instead of raising."""
+    db_path = _build_db(tmp_path)
+    with LexiconDB(db_path) as db:
+        ach = db.upsert_etymon("ach", "celtic")  # bare
+        colon = db.upsert_etymon("a:b", "ancient-greek")  # form contains ':'
+        alq = db.upsert_etymon("al-Quadim", "arabic")  # interior hyphen
+        db.commit()
+
+        # Dashed L2 ref resolves to the bare-stored etymon (both resolvers).
+        assert _resolve_etymon_id(db.conn, "celtic:-ach") == ach
+        assert _resolve_live_etymon(db.conn, "celtic:-ach")["id"] == ach
+
+        # Form containing a ':' still resolves (split on the FIRST colon).
+        assert _resolve_etymon_id(db.conn, "ancient-greek:a:b") == colon
+        assert _resolve_live_etymon(db.conn, "ancient-greek:a:b")["id"] == colon
+
+        # Interior hyphen preserved — al-Quadim must NOT become alQuadim.
+        assert _resolve_etymon_id(db.conn, "arabic:al-Quadim") == alq
+
+        # Non-str (legacy int id) ref → None, not a TypeError.
+        assert _resolve_etymon_id(db.conn, 123) is None
+        assert _resolve_live_etymon(db.conn, 123) is None
 
 
 def _seed_for_enrichment(db_path: Path) -> dict[str, int]:

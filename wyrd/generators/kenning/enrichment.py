@@ -105,7 +105,9 @@ def _resolve_etymon_id(conn: sqlite3.Connection, ref: str) -> int | None:
     (``celtic:-ach``) resolves to the bare-stored etymon (``celtic:ach``). This
     is the central enrichment ref resolver, so the de-dash here keeps every
     enrichment pass consistent with the bare write path."""
-    if ":" not in ref:
+    # isinstance guard: a legacy/malformed payload can carry a non-str (int id)
+    # ref — return None rather than TypeError on the string ops below.
+    if not isinstance(ref, str) or ":" not in ref:
         return None
     lang, form = ref.split(":", 1)
     form = normalize_morpheme_surface(form) or form
@@ -878,11 +880,22 @@ def apply_etymon_splits(
         # Re-resolve per outer ref so freshly-inserted child etymons
         # are visible to subsequent collisions / lookups within the same
         # apply call. Don't cache across the loop.
-        orig_row = db.conn.execute(
-            "SELECT id, canonical_form, language FROM etymon "
-            "WHERE (language || ':' || canonical_form) = ?",
-            (etymon_ref,),
-        ).fetchone()
+        #
+        # De-dash the split PARENT ref (wyrd-aicu.8, D45) so a still-dashed L2
+        # split ref (celtic:-ach) resolves to the bare-stored parent (celtic:ach)
+        # — else the whole split (parent stamp + children + evidence moves) is
+        # silently dropped on rebuild. Split + two-column match is equivalent to
+        # the old `language || ':' || canonical_form` concat (no tombstone filter,
+        # matching the prior behavior); a non-str/colonless ref stays unresolved.
+        orig_row = None
+        if isinstance(etymon_ref, str) and ":" in etymon_ref:
+            _lang, _form = etymon_ref.split(":", 1)
+            _form = normalize_morpheme_surface(_form) or _form
+            orig_row = db.conn.execute(
+                "SELECT id, canonical_form, language FROM etymon "
+                "WHERE language = ? AND canonical_form = ?",
+                (_lang, _form),
+            ).fetchone()
         if orig_row is None:
             counts["unresolved_etymon"] += 1
             continue
@@ -977,8 +990,12 @@ def _resolve_live_etymon(conn: sqlite3.Connection, ref: str | None):
     collapse ref resolves to the bare-stored etymon. Splitting on the first
     ``:`` and matching the two columns is equivalent to the old
     ``language || ':' || canonical_form`` concatenation match (even when the
-    form itself contains a ``:``)."""
-    if not ref or ":" not in ref:
+    form itself contains a ``:``).
+
+    The ``isinstance`` guard preserves the pre-rewrite behavior for a non-str
+    (legacy int id) ref: the old concat match passed it to SQL and simply didn't
+    match, so the string ops here must not TypeError on it — return None."""
+    if not isinstance(ref, str) or ":" not in ref:
         return None
     lang, form = ref.split(":", 1)
     form = normalize_morpheme_surface(form) or form

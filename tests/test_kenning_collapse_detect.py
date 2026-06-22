@@ -85,6 +85,20 @@ def test_form_of_mid_sentence_not_a_pointer(tmp_path):
     assert detect_deterministic_collapses(conn) == []
 
 
+def test_pointer_target_dashed_resolves_to_bare_lemma(tmp_path):
+    """wyrd-aicu.8 (D45) read-path sweep: a pointer gloss naming a DASHED target
+    ('form of -ton') de-dashes to resolve the BARE-stored lemma ('ton'), so the
+    collapse is still detected (and the emitted 'into' ref is bare) after PR 1
+    made etymon storage bare. Pre-sweep, '-ton' missed the bare row and the
+    collapse was silently dropped."""
+    conn = _conn(tmp_path / "lex.db")
+    _ety(conn, 1, "tun", ["alternative form of -ton"])  # pointer to a dashed target
+    _ety(conn, 2, "ton", ["enclosure, farmstead"])  # bare-stored lemma
+    rows = detect_deterministic_collapses(conn)
+    assert {r["ref"]: r["into"] for r in rows} == {"old-english:tun": "old-english:ton"}
+    assert rows[0]["method"] == POINTER_PARSE_METHOD
+
+
 def test_pointer_to_missing_target_skipped(tmp_path):
     """Pure pointer but the named target doesn't exist → skipped."""
     conn = _conn(tmp_path / "lex.db")
