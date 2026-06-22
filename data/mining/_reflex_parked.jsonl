@@ -25,3 +25,7 @@
 {"ref": "goidelic:air", "reason": "uncertain attribution (Erchless/Urquhart) + junk toponym 'Hostages'; gloss 'slaughter' doubtful"}
 {"ref": "old-english:Hæcca", "reason": "attributed toponyms (Dagenham/Matching/Messing/Datchworth) show no clear Hæcca-derived surface"}
 {"ref": "old-english:Scear", "reason": "attributed toponyms (Shellingford/Snarehill/Snoring/Saredon) show no clear scear/shear surface"}
+{"ref": "old-english:um", "reason": "2-char suffix, unclear toponyms (Oaken/Coton)"}
+{"ref": "old-english:āna", "reason": "2-char on/an, over-match"}
+{"ref": "old-norse:hǫfuð", "reason": "unclear varied realizations (haven/sall/side)"}
+{"ref": "old-norse:upp", "reason": "2-char 'up', over-match"}
