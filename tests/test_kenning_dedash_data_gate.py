@@ -11,10 +11,11 @@ Two layers of enforcement, both pinned here:
    that bypassed a fresh export is still caught.
 
 Guarded surfaces (D45): ``meaning.usage_key``, the four proportions
-``usage_key`` columns, and the meaning/morpheme blob ``modern_usage``
-values. ``morpheme_id`` is deliberately EXEMPT — it is the L3-derived
-content key (``language:form``), de-dashed by wyrd-aicu.3; this gate
-gains it then.
+``usage_key`` columns, the meaning/morpheme blob ``modern_usage`` values,
+and — since wyrd-aicu.8 — the ``morpheme_id`` content key's FORM part
+(``language:form``; boundary dash only, because the language prefix
+legitimately carries a dash like ``old-english:`` and an interior in-word
+hyphen is legitimate like ``al-Quadim``).
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ import pytest
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
     _DASH_GUARD_BLOB_TABLES,
     _DASH_GUARD_KEY_COLUMNS,
+    _MORPHEME_ID_FORM_DASH_SQL,
     _verify_no_dashed_identity,
 )
 from wyrd.generators.kenning.runtime.runtime_db import _bundled_seed_path
@@ -48,6 +50,10 @@ def test_committed_seed_has_no_dashed_identity():
         for table, col in _DASH_GUARD_KEY_COLUMNS:
             n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} LIKE '%-%'").fetchone()[0]
             assert n == 0, f"{table}.{col} has {n} dash-marked rows in the committed seed"
+        # morpheme_id FORM part — boundary dash only (the language prefix +
+        # interior hyphens are legitimate; wyrd-aicu.8).
+        n = conn.execute(_MORPHEME_ID_FORM_DASH_SQL).fetchone()[0]
+        assert n == 0, f"morpheme.morpheme_id has {n} boundary-dashed forms in the committed seed"
         # Blob modern_usage — JSON parse (a greedy LIKE false-positives on
         # dashes in other fields, e.g. compound headwords like lēac-tūn).
         for table in _DASH_GUARD_BLOB_TABLES:
@@ -83,11 +89,11 @@ def _guard_db() -> sqlite3.Connection:
     conn.execute("CREATE TABLE proportions_single_usage (usage_key TEXT)")
     conn.execute("CREATE TABLE proportions_attested_language (usage_key TEXT)")
     conn.execute("CREATE TABLE proportions_bare_word_position (usage_key TEXT)")
-    conn.execute("CREATE TABLE morpheme (data BLOB NOT NULL)")
+    conn.execute("CREATE TABLE morpheme (morpheme_id TEXT, data BLOB NOT NULL)")
     bare = _blob({"entries": [{"word": {"modern_usage": "ton"}}]})
     conn.execute("INSERT INTO meaning VALUES ('ton', ?)", (bare,))
     conn.execute("INSERT INTO proportions_usage VALUES ('ton')")
-    conn.execute("INSERT INTO morpheme VALUES (?)", (bare,))
+    conn.execute("INSERT INTO morpheme (morpheme_id, data) VALUES ('old-english:ton', ?)", (bare,))
     return conn
 
 
@@ -121,7 +127,7 @@ def test_guard_raises_on_dashed_blob_modern_usage():
     inside the data blob is caught even though the row's key is bare."""
     conn = _guard_db()
     dashed = _blob({"entries": [{"word": {"modern_usage": "-ham-"}}]})
-    conn.execute("INSERT INTO morpheme VALUES (?)", (dashed,))
+    conn.execute("INSERT INTO morpheme (data) VALUES (?)", (dashed,))
     with pytest.raises(RuntimeError, match=r"morpheme blob modern_usage: 1 dashed"):
         _verify_no_dashed_identity(conn)
     conn.close()
@@ -136,7 +142,7 @@ def test_guard_catches_dash_in_blob_storage_class():
     assert the guard still raises."""
     conn = _guard_db()
     conn.execute(
-        "INSERT INTO morpheme VALUES (?)",
+        "INSERT INTO morpheme (data) VALUES (?)",
         (_blob({"entries": [{"word": {"modern_usage": "-ton"}}]}),),
     )
     stored_classes = {row[0] for row in conn.execute("SELECT typeof(data) FROM morpheme")}
@@ -154,4 +160,35 @@ def test_guard_ignores_internal_hyphen_in_other_blob_fields():
     ok = _blob({"entries": [{"word": {"modern_usage": "leighton", "old_english": ["lēac-tūn"]}}]})
     conn.execute("INSERT INTO meaning VALUES ('leighton', ?)", (ok,))
     _verify_no_dashed_identity(conn)  # no raise — the dash is in old_english, not the identity
+    conn.close()
+
+
+def test_guard_raises_on_boundary_dashed_morpheme_id_form():
+    """A boundary (leading/trailing) dash on the morpheme_id FORM part — the
+    affix-position decoration D45 forbids — trips the guard (wyrd-aicu.8)."""
+    conn = _guard_db()
+    conn.execute(
+        "INSERT INTO morpheme (morpheme_id, data) VALUES ('celtic:-ach', ?)",
+        (_blob({"entries": []}),),
+    )
+    with pytest.raises(RuntimeError, match=r"morpheme.morpheme_id form: 1 boundary-dashed"):
+        _verify_no_dashed_identity(conn)
+    conn.close()
+
+
+def test_guard_allows_dashed_language_and_interior_hyphen_in_morpheme_id():
+    """The morpheme_id guard checks only the FORM's boundary: a dash in the
+    LANGUAGE prefix (``old-english:`` — the clean fixture row) and an interior
+    in-word hyphen (``arabic:al-Quadim``) are legitimate and must NOT trip it
+    (wyrd-aicu.8). A blanket ``morpheme_id LIKE '%-%'`` would wrongly flag both."""
+    conn = _guard_db()  # clean row already carries 'old-english:ton' (dashed language)
+    conn.execute(
+        "INSERT INTO morpheme (morpheme_id, data) VALUES ('arabic:al-Quadim', ?)",
+        (_blob({"entries": []}),),
+    )
+    conn.execute(
+        "INSERT INTO morpheme (morpheme_id, data) VALUES ('proto-indo-european:tūn', ?)",
+        (_blob({"entries": []}),),
+    )
+    _verify_no_dashed_identity(conn)  # no raise — only the form boundary matters
     conn.close()
