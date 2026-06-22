@@ -37,3 +37,6 @@
 {"ref": "celtic:duff", "reason": "impact-3 Celtic tail: 2-char/particle or gloss-leak junk toponyms, no clean groundable surface"}
 {"ref": "celtic:en", "reason": "impact-3 Celtic tail: 2-char/particle or gloss-leak junk toponyms, no clean groundable surface"}
 {"ref": "celtic:nan", "reason": "impact-3 Celtic tail: 2-char/particle or gloss-leak junk toponyms, no clean groundable surface"}
+{"ref": "celtic:og", "reason": "impact-3 tail: 2-char/placeholder/translation-only, no clean groundable surface"}
+{"ref": "continental-germanic:Personal-name", "reason": "impact-3 tail: 2-char/placeholder/translation-only, no clean groundable surface"}
+{"ref": "latin:albus", "reason": "impact-3 tail: 2-char/placeholder/translation-only, no clean groundable surface"}
