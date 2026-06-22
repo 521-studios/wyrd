@@ -198,6 +198,28 @@ jobs:
           done
           [ "$OK" = 1 ] || { echo "::error::version $VERSION not Active+Successful after wait"; exit 1; }
 
+      - name: Prune old Lambda versions (keep current + prior)
+        working-directory: terraform
+        # wyrd-ocs8: bound the published-version count to current + prior (one
+        # rollback target). publish=true cuts a version per deploy; unchecked they
+        # accumulate, and each caches a 1769MB SnapStart snapshot when SnapStart
+        # is on — the 2026-06-22 cost blowout. Keep the 2 newest numeric versions
+        # plus whatever `live` points at (rollback-safe); delete the rest.
+        env:
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: "15"
+        run: |
+          FUNCTION=$(tofu output -raw lambda_function_name)
+          ALIAS_V=$(aws lambda get-alias --function-name "$FUNCTION" --name live --query FunctionVersion --output text)
+          ALL=$(aws lambda list-versions-by-function --function-name "$FUNCTION" --query "Versions[?Version!='\$LATEST'].Version" --output text | tr '\t' '\n' | sort -rn)
+          KEEP=$(printf '%s\n' "$ALL" | head -2)
+          echo "alias→v$ALIAS_V; keeping newest 2 ($(echo $KEEP)) + alias"
+          for v in $ALL; do
+            if ! printf '%s\n' "$KEEP" | grep -qx "$v" && [ "$v" != "$ALIAS_V" ]; then
+              aws lambda delete-function --function-name "$FUNCTION" --qualifier "$v" && echo "pruned v$v"
+            fi
+          done
+
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
