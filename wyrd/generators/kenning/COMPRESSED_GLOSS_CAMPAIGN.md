@@ -27,6 +27,22 @@ loop only authors the data.
 - `wyrd` = `python -c "from wyrd.cli import main; main()"` (or the installed
   `wyrd`); the live authoring DB is `~/.wyrd/lexicon.db` (`WYRD_LEXICON_DB`).
 
+## Per-iteration timing report
+
+Each fire reports its timing (matching the eni4 loop) via a helper kept OUT of
+the repo (no CI/PR churn) at `~/.wyrd/gloss_loop_timing.py`, state in
+`~/.wyrd/gloss_loop_timing.json`:
+
+- `python3 ~/.wyrd/gloss_loop_timing.py start` — the **first** action of the fire;
+  prints `ITERATION START` + the **idle gap from the prior finish** (flags `✓` if
+  `<5m`, `⚠ >5m (cache cold)` otherwise — the prompt-cache-warmth target).
+- `python3 ~/.wyrd/gloss_loop_timing.py finish` — the **last** action; prints
+  `ITERATION FINISH` + elapsed, and records this finish as the next iteration's
+  prior. The cron prompt calls both and the fire summary echoes the blocks.
+
+If the worktree/machine is ever re-provisioned, recreate the helper from this
+runbook (it's a ~50-line stdlib-only script; the campaign carries no other copy).
+
 ## The loop prompt
 
 This is the self-contained prompt to hand `/loop 5m`. Everything load-bearing is
