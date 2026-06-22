@@ -35,6 +35,15 @@ cannot identify the morpheme's span at all.** This is the alternate-spelling
 record, it's loop-owned (a reflex, NOT the human-gated `etymon.variants` field),
 and it directly chips the variant-gap lever (wyrd-eni4.3.1).
 
+**Identity reflexes are the base layer (bulk-done, re-runnable).** Every morpheme
+should be a reflex of its *own* folded canonical form (`stān`→`stan`), so it's
+recognized by its base spelling. `enrich-campaign identity-reflexes` emits these
+for all scholar morphemes where the folded canonical grounds in a toponym (deduped,
+covers parked too). This was bulk-run once (+4,482 → ledger coverage 35%→74%). It's
+idempotent — safe to re-run, but the scholar set is fixed so it won't add more. The
+loop's remaining reflex work is therefore the **worn/alternate-spelling** forms for
+morphemes whose canonical doesn't literally appear (the ~2k still reflex-less).
+
 **Loop-owned dimensions** (all author to existing L2 ledgers, all gated):
 - **reflex** → `_reflexes.jsonl` (grounding guard) — **PRIMARY (CAN-IT)**
 - **tag** → `_tags.jsonl` (controlled `TAG_VOCAB`, "none" allowed)
