@@ -133,17 +133,20 @@ def _parse_etymon_ref(ref: str) -> tuple[str, str]:
     canonical_form that we preserve through the round-trip; cleanup
     happens in a separate prune pass.
 
-    The form is de-dashed to its bare morpheme surface (wyrd-aicu.8, D45) so a
-    dashed L2 ref (``celtic:-ach``) resolves to the bare row the de-dashed write
-    path now stores (``celtic:ach``) — keeping the parsed ref and the stored
-    etymon on the same key. A strip-to-empty junk ref collapses to the existing
-    empty-form sentinel (preserved, not crashed)."""
+    NB the form is returned VERBATIM (not de-dashed). The de-dash of
+    ``etymon.canonical_form`` (wyrd-aicu.8, D45) lives in :func:`_insert_etymon`,
+    which writes the bare surface to the row; ref *resolution* keys
+    ``etymon_id_by_ref`` on the raw ref string on both sides (the etymon's own
+    ref and the fact rows that point at it), so it matches raw-to-raw and needs
+    no de-dash here. Dash-duplicate etymon rows collapse onto one row via the
+    ``UNIQUE(canonical_form, language)`` conflict in ``_insert_etymon`` once both
+    de-dash to the same bare form."""
     if ":" not in ref:
         raise BuildError(f"etymon ref must be 'lang:form', got {ref!r}")
     lang, form = ref.split(":", 1)
     if not lang:
         raise BuildError(f"etymon ref has empty language: {ref!r}")
-    return lang, normalize_morpheme_surface(form) or ""
+    return lang, form
 
 
 def _upsert_source(conn: sqlite3.Connection, source_id: str, payload: dict[str, Any]) -> None:
@@ -224,9 +227,12 @@ def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
         raise BuildError(f"etymon row missing canonical_form or language: {payload}")
     # De-dash to the bare morpheme surface (wyrd-aicu.8, D45) on the payload so
     # both the INSERT below and the _merge_etymon_conflict SELECT (which reads
-    # the same payload) key on the bare form. Mirrors _parse_etymon_ref so a
-    # dashed L2 etymon row and the refs that point at it land on one key; an
-    # empty-after-de-dash junk form is preserved as the empty-form sentinel.
+    # the same payload) key on the bare form. This is the load-bearing build-side
+    # de-dash: two dash-duplicate L2 rows (celtic:-ach and celtic:ach) now both
+    # write canonical_form='ach', so the second INSERT hits the
+    # UNIQUE(canonical_form, language) conflict and _merge_etymon_conflict folds
+    # them onto one row. An empty-after-de-dash junk form is preserved as the
+    # existing empty-form sentinel (the prune pass owns its removal).
     payload["canonical_form"] = normalize_morpheme_surface(payload["canonical_form"]) or ""
     vals = [payload[c] for c in cols]
     placeholders = ", ".join("?" * len(cols))

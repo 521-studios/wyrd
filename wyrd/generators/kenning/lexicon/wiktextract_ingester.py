@@ -541,6 +541,10 @@ def ingest_wiktextract_stream(
         "downward_edges": 0,
         "skipped_templates": 0,
         "unsupported_templates": 0,
+        # wyrd-aicu.8: edges dropped because a ref de-dashed to empty junk —
+        # counted (not silently skipped) so an operator can tell 0 from N.
+        "upward_edges_skipped_junk_parent": 0,
+        "descendant_junk_word": 0,
         # wyrd-fqil: per-form variant emission stats
         "forms_emitted": 0,
         "forms_skipped_metadata": 0,
@@ -1106,7 +1110,10 @@ def _emit_upward_edges(
         for parent_lang_code, parent_word, edge_type in edges:
             # A junk parent ref (strips to empty after de-dash) has no morpheme
             # to anchor the edge to — skip it rather than crash the upsert choke.
+            # Count it (like every other skip in this function) so the drop is
+            # visible to an operator rather than silent (wyrd-aicu.8).
             if normalize_morpheme_surface(parent_word) is None:
+                counts["upward_edges_skipped_junk_parent"] += 1
                 continue
             parent_lang = _canonical_language(parent_lang_code)
             parent_id = (
@@ -1175,10 +1182,14 @@ def _walk_descendants(
         child_lang_code = node.get("lang_code")
         child_word = node.get("word")
         if not child_lang_code or normalize_morpheme_surface(child_word) is None:
-            # Lang-only header row (or a junk word that de-dashes to empty —
-            # wyrd-aicu.8). Don't emit an edge, but DO recurse —
-            # sub-descendants of such a row attach to the same parent
-            # as the header would have (the most recent anchored
+            # A present-but-junk word (de-dashes to empty) is distinct from a
+            # benign lang-only header row (no word at all) — count it so the
+            # drop is visible (wyrd-aicu.8), but treat both the same way below.
+            if child_word and normalize_morpheme_surface(child_word) is None:
+                counts["descendant_junk_word"] += 1
+            # Lang-only header row (or that junk word). Don't emit an edge, but
+            # DO recurse — sub-descendants of such a row attach to the same
+            # parent as the header would have (the most recent anchored
             # ancestor up the recursion stack, which is `parent_id`).
             sub = node.get("descendants") or []
             if sub:

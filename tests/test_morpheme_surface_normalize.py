@@ -34,6 +34,8 @@ from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_
         # --- reconstruction sigil PRESERVED (wyrd-qoy8 owns its folding) -------
         ("*tūn", "*tūn"),
         ("*-at-", "*at"),  # sigil kept, boundary dash between sigil + stem trimmed
+        ("* -at-", "*at"),  # whitespace between sigil and stem is re-stripped
+        ("* -", None),  # sigil + whitespace + dash strips to junk → None
         ("*(H)réh₁-ti-s", "*(H)réh₁-ti-s"),  # PIE interior proto-segmentation kept
         # --- strip-to-empty junk → None (drop the record) ---------------------
         ("-", None),

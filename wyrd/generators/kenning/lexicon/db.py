@@ -232,15 +232,23 @@ class LexiconDB:
         pronunciation_dialect updating atomically.
 
         ``canonical_form`` is de-dashed to its bare morpheme surface here
-        (wyrd-aicu.8, D45) — this is the central write choke every etymon
-        writer funnels through, so the boundary affix-position dash never
-        enters the store regardless of the calling path (the durable ingest
-        guard; a one-time UPDATE alone would be undone on the next rebuild).
+        (wyrd-aicu.8, D45) so the boundary affix-position dash never enters the
+        store. This is the de-dash point for the UPSERT path — most etymon
+        writers (seed / etymonline / ingest / modern-reflex / wiktextract) funnel
+        through here; the two writers that bypass the upsert with their own raw
+        ``INSERT INTO etymon`` — ``jsonl.build._insert_etymon`` and the
+        ``enrichment`` split-child — de-dash at their own INSERT. Doing it on
+        write (vs a one-time UPDATE) is what makes it durable: the ~23k dashes
+        re-injected by the L1 wiktextract bulk slices are re-stripped on every
+        rebuild.
+
         The de-dash is a pure idempotent transform; the strip-to-empty *junk*
-        drop is a record-level decision that belongs at the ingest boundary
-        (the bulk miner / ingester pre-filter junk before they reach here),
-        so a form that normalizes to nothing is a contract violation and
-        raises rather than silently minting an empty-keyed row.
+        drop is a record-level decision that belongs at the ingest boundary —
+        every caller (the wiktextract bulk paths and the curated seed /
+        etymonline / ingest / modern-reflex writers) pre-filters a junk form and
+        drops the whole record before reaching here — so a form that normalizes
+        to nothing is a contract violation and raises rather than silently
+        minting an empty-keyed row.
         """
         normalized = normalize_morpheme_surface(canonical_form)
         if normalized is None:

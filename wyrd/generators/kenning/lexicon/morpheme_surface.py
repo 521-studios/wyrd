@@ -55,7 +55,9 @@ def normalize_morpheme_surface(raw: str | None) -> str | None:
     s = raw.strip()
     reconstructed = s.startswith("*")
     if reconstructed:
-        s = s[1:]
+        # Re-strip after peeling the sigil so whitespace between the sigil and
+        # the stem ("* -ach") doesn't block the boundary-dash strip below.
+        s = s[1:].strip()
     s = s.strip("-")
     if not s:
         return None

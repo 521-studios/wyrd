@@ -31,6 +31,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
+
 MODERN_REFLEX_SOURCE = "modern-reflex-curation"
 _SOURCE_TITLE = "Curated modern-English reflexes (wyrd-vewk)"
 MODERN_REFLEX_COGNATE_METHOD = "modern-reflex-curation-v1"
@@ -95,6 +97,11 @@ def _apply_reflex_form(
     reflex etymon (or reuse an existing one), add gloss + citation, record the
     inheritance descent edge, and cluster it onto the morpheme's cognate group.
     When ``apply=False`` only the would-create / would-link counts are bumped."""
+    # Drop a junk reflex form that de-dashes to empty (wyrd-aicu.8) before the
+    # upsert choke would raise on it; counted so the drop isn't silent.
+    if normalize_morpheme_surface(form) is None:
+        counts["reflex_skipped_junk"] += 1
+        return
     existing = db.conn.execute(
         "SELECT id, cognate_id FROM etymon "
         "WHERE canonical_form=? AND language='modern-english' AND merged_into_id IS NULL",

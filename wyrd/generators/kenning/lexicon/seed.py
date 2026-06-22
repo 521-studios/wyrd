@@ -13,6 +13,7 @@ from typing import Any
 
 from wyrd.generators.kenning.lexicon.constants import LANGUAGE_FIELDS, position_from_usage
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 
 
 def _seed_subject_etymons(
@@ -36,6 +37,10 @@ def _seed_subject_etymons(
         for json_field, lang_code in LANGUAGE_FIELDS.items():
             forms = word.get(json_field) or []
             for form in forms:
+                # Drop a junk seed form that de-dashes to empty (wyrd-aicu.8)
+                # before the upsert choke would raise on it.
+                if normalize_morpheme_surface(form) is None:
+                    continue
                 key = (form, lang_code)
                 if key in etymons_in_subject:
                     continue

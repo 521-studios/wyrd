@@ -27,6 +27,7 @@ from wyrd.generators.kenning.lexicon.controlled_vocab import (
     canonicalize_language,
 )
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 from wyrd.generators.kenning.lexicon.region_model import canonicalize_region
 from wyrd.generators.kenning.lexicon.regions import country_for_region
 
@@ -177,6 +178,11 @@ def ingest_parsed_entries(
         counts["etymologies"] += 1
 
         for ordinal, elem in enumerate(entry.elements):
+            # Drop a junk element form that de-dashes to empty (wyrd-aicu.8)
+            # before the upsert choke would raise; the ordinal gap is harmless
+            # (toponym_etymology_element.ordinal is only a sort key).
+            if normalize_morpheme_surface(elem.form) is None:
+                continue
             etymon_id = db.upsert_etymon(elem.form, elem_languages[ordinal])
             counts["etymons_touched"] += 1
             if elem.gloss:

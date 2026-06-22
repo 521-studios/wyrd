@@ -1486,6 +1486,43 @@ def test_upsert_etymon_returns_same_id_on_duplicate(fresh_db: Path) -> None:
         assert third != first
 
 
+def test_upsert_etymon_de_dashes_to_bare_surface(fresh_db: Path) -> None:
+    """wyrd-aicu.8 (D45): upsert_etymon de-dashes canonical_form to the bare
+    surface at the write choke, so a dashed affix form and its bare form fold
+    onto ONE row (the boundary dash is identity noise, not a distinct morpheme).
+    The leading ``*`` reconstruction sigil and interior hyphens are preserved."""
+    with LexiconDB(fresh_db) as db:
+        dashed = db.upsert_etymon("-ton", "old-english")
+        bare = db.upsert_etymon("ton", "old-english")
+        assert dashed == bare, "dashed + bare affix forms must fold onto one row"
+        stored = db.conn.execute(
+            "SELECT canonical_form FROM etymon WHERE id = ?", (bare,)
+        ).fetchone()[0]
+        assert stored == "ton"
+        # Sigil preserved (its own fold is wyrd-qoy8); interior hyphen preserved.
+        pie = db.upsert_etymon("*werh₁-", "proto-indo-european")
+        kept = db.upsert_etymon("al-Quadim", "arabic")
+        forms = {
+            r[0]
+            for r in db.conn.execute(
+                "SELECT canonical_form FROM etymon WHERE id IN (?, ?)", (pie, kept)
+            )
+        }
+        assert forms == {"*werh₁", "al-Quadim"}
+
+
+def test_upsert_etymon_raises_on_strip_to_empty_junk(fresh_db: Path) -> None:
+    """A form that de-dashes to nothing (a bare ``-``/``--``/``*-``) is a
+    contract violation at the choke — junk must be dropped at the ingest
+    boundary, so upsert_etymon raises rather than minting an empty-keyed row
+    (wyrd-aicu.8)."""
+    with LexiconDB(fresh_db) as db:
+        for junk in ("-", "--", "*-"):
+            with pytest.raises(ValueError, match="non-empty morpheme surface"):
+                db.upsert_etymon(junk, "old-english")
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon").fetchone()[0] == 0
+
+
 def test_upsert_reflex_returns_same_id_on_duplicate(fresh_db: Path) -> None:
     with LexiconDB(fresh_db) as db:
         first = db.upsert_reflex("-ham", "post")

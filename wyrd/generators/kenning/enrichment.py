@@ -682,12 +682,16 @@ def _apply_split_child(ctx: _SplitContext, parent: _SplitParent, child: Any) -> 
     if not SUFFIX_PATTERN.fullmatch(suffix):
         ctx.counts["children_skipped_invalid_suffix"] += 1
         return None
-    child_form = f"{parent.form}#{suffix}"
-    # De-dash the bare morpheme surface (wyrd-aicu.8, D45) so a split-child
-    # minted off a still-dashed parent form lands on the bare key — the same
-    # key the existence SELECT below and the de-dashed parent will share. The
-    # ``#suffix`` is non-empty (gated above) so the form never strips to junk.
-    child_form = normalize_morpheme_surface(child_form) or child_form
+    # De-dash the PARENT form (wyrd-aicu.8, D45) BEFORE appending the suffix, so
+    # a split-child minted off a still-dashed parent lands on the bare key — the
+    # same key the existence SELECT below shares. De-dashing the *combined*
+    # ``parent.form#suffix`` would miss a prefix parent's trailing dash, which
+    # the ``#suffix`` pushes off the boundary (``ton-`` → ``ton-#1``, where
+    # ``strip('-')`` no longer reaches the now-interior dash). ``parent.form`` is
+    # an existing etymon surface so it never strips to empty; the bare-or-self
+    # fallback only guards a hypothetical all-dash parent.
+    parent_form_bare = normalize_morpheme_surface(parent.form) or parent.form
+    child_form = f"{parent_form_bare}#{suffix}"
 
     existing = ctx.db.conn.execute(
         "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",

@@ -33,6 +33,7 @@ from wyrd.generators.kenning.etymonline_parser import (
     parse_text,
 )
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 
 # Single source-id literal — bumping to a new attribution scheme is
 # one constant change.
@@ -102,6 +103,10 @@ def _upsert_chain(
     `etymons_added_or_existing` and `glosses_added`."""
     link_ids: list[int] = []
     for link in sense.chain:
+        # Drop a junk chain link that de-dashes to empty (wyrd-aicu.8) before the
+        # upsert choke would raise; a junk link is not a real etymon to chain.
+        if normalize_morpheme_surface(link.word) is None:
+            continue
         eid = db.upsert_etymon(link.word, link.language)
         link_ids.append(eid)
         if link.gloss:
