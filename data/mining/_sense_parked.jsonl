@@ -21,3 +21,9 @@
 {"ref": "celtic:ros", "reason": "genuine 3-way Celtic polysemy (promontory / wood / moor) with overlapping glosses — needs careful split"}
 {"ref": "old-english:Bucca", "reason": "personal-name element; gloss is just 'a personal name' — render as the name, no sense to compress"}
 {"ref": "old-english:ton", "reason": "settlement wall + 'clearing or hill' outlier + inflection note; macron-less dup of tūn — dedup/disambiguation"}
+{"ref": "old-english:Ella", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Winterborne", "reason": "specific river-name, not a generative morpheme"}
+{"ref": "old-english:Catta", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:broc", "reason": "3-way homograph (badger / brook / breeches) — needs disambiguation"}
+{"ref": "old-english:Bana", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:lēac-tūn", "reason": "composite (lēac+tūn = leek-enclosure/herb-garden); expand to constituents per D51.3"}
