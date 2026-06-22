@@ -125,3 +125,7 @@
 {"ref": "goidelic:sidhean", "reason": "impact-2 Goidelic floor: 2-char/unclear, no clean toponym surface"}
 {"ref": "goidelic:ui", "reason": "impact-2 Goidelic floor: 2-char/unclear, no clean toponym surface"}
 {"ref": "goidelic:án", "reason": "impact-2 Goidelic floor: 2-char/unclear, no clean toponym surface"}
+{"ref": "brittonic:canto", "reason": "ambiguous surface: canto spans kent-/caundle/camel across toponyms; no single confident grounded reflex"}
+{"ref": "brittonic:āco", "reason": "ambiguous: short Brittonic -ock/-ake suffix, mixed across Charnock/Savernake/York; precision risk"}
+{"ref": "brittonic:ek", "reason": "ambiguous: short Brittonic -ock/-iock suffix; precision risk"}
+{"ref": "brittonic:to", "reason": "2-char surface 'to'; over-matches, precision risk"}
