@@ -29,6 +29,7 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     tag_next_slice,
     tag_progress,
     validate_candidates,
+    validate_collapse_candidates,
     validate_gloss_candidates,
     validate_ipa_candidates,
     validate_tag_candidates,
@@ -370,3 +371,21 @@ def test_bands_status_isolates_dimensions(world):
         )
     }
     assert bands2[3]["reflex"] == 0
+
+
+def test_validate_collapse_gate(world):
+    """Garbled OCR-dupe → correct-twin merge passes; '#'-sense suffixes, self-
+    merges, and unresolvable twins are rejected (wyrd-eni4.3.2)."""
+    db, tmp_path = world
+    # add a garbled OCR-dupe of tūn ("tvn") so a real twin exists
+    db.conn.execute("INSERT INTO etymon (canonical_form, language) VALUES ('tvn', 'old-english')")
+    db.commit()
+    empty = tmp_path / "_curation.jsonl"
+    ok = [{"_type": "collapse", "ref": "old-english:tvn", "into": "old-english:tūn"}]
+    assert validate_collapse_candidates(db.conn, empty, ok) == []
+    bad = [
+        {"_type": "collapse", "ref": "old-english:bol#hill", "into": "old-english:tūn"},  # #sense
+        {"_type": "collapse", "ref": "old-english:tūn", "into": "old-english:tūn"},  # self
+        {"_type": "collapse", "ref": "old-english:tvn", "into": "old-english:nope"},  # no twin
+    ]
+    assert len(validate_collapse_candidates(db.conn, empty, bad)) == 3

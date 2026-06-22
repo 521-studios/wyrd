@@ -835,3 +835,56 @@ def bands_status(
         if b["reflex"] or b["tag"] or b["ipa"] or b["gloss"]:
             out.append({"impact": impact, **b})
     return out
+
+
+# ---------------------------------------------------------------------------
+# Garbled-form repair via collapse (wyrd-eni4.3.2).
+#
+# A subset of scholar etymons carry a CORRUPTED canonical_form (OCR/mining junk:
+# '6j^', 'stdn' for stān, HTML fragments, '& cetera'). These are almost always
+# DUPLICATES of a correct etymon that already exists, so the fix is a MERGE, not
+# a rename: a ``collapse`` curation row folds the garbled ``ref`` into its correct
+# ``into`` twin (replayed by enrichment.apply_collapses — reproducible, no raw DB
+# writes). This is a STRUCTURAL identity op (over-merge is the wyrd-740t footgun),
+# so the loop is allowed ONLY high-confidence merges and they MUST pass this gate.
+# ---------------------------------------------------------------------------
+
+
+def validate_collapse_candidates(
+    conn: sqlite3.Connection, curation_path: Path, candidates: Sequence[dict[str, Any]]
+) -> list[str]:
+    """Gate freshly-authored ``collapse`` rows. Each must: be ``_type ==
+    "collapse"``; have ``ref`` (the garbled etymon) and ``into`` (the correct
+    twin) BOTH resolve to existing, DISTINCT etymons; NOT carry a ``#`` (those are
+    intentional sense-disambiguation suffixes, never corruption — must not be
+    merged); and not duplicate a committed/in-batch collapse. The grounding-style
+    safety net for autonomous merges."""
+    done = ledger_refs(curation_path, "collapse")
+    seen: set[str] = set()
+    errors: list[str] = []
+    for i, rec in enumerate(candidates):
+        tag = f"candidate[{i}]"
+        if rec.get("_type") != "collapse":
+            errors.append(f"{tag}: _type must be 'collapse'")
+            continue
+        ref = rec.get("ref")
+        into = rec.get("into")
+        if not isinstance(ref, str) or resolve_etymon_ref(conn, ref) is None:
+            errors.append(f"{tag}: ref {ref!r} resolves to no etymon")
+            continue
+        if not isinstance(into, str) or not into or resolve_etymon_ref(conn, into) is None:
+            errors.append(
+                f"{tag}: into {into!r} resolves to no etymon (need an existing correct twin)"
+            )
+        if isinstance(into, str) and _nfc(ref) == _nfc(into):
+            errors.append(f"{tag}: ref and into are the same etymon — no-op merge")
+        if "#" in ref or "#" in (into or ""):
+            errors.append(
+                f"{tag}: '#' present — that's an intentional sense-disambiguation "
+                f"suffix (e.g. bol#hill), NOT corruption; do NOT collapse it"
+            )
+        key = _nfc(ref)
+        if key in done or key in seen:
+            errors.append(f"{tag}: duplicate collapse decision for {ref}")
+        seen.add(key)
+    return errors

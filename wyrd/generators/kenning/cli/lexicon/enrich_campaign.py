@@ -31,6 +31,7 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     tag_next_slice,
     tag_progress,
     validate_candidates,
+    validate_collapse_candidates,
     validate_gloss_candidates,
     validate_ipa_candidates,
     validate_tag_candidates,
@@ -42,6 +43,7 @@ _DEFAULT_PARKED_PATH = Path("data/mining/_reflex_parked.jsonl")
 _DEFAULT_TAGS_PATH = Path("data/mining/_tags.jsonl")
 _DEFAULT_IPA_PATH = Path("data/mining/_pronunciation.jsonl")
 _DEFAULT_GLOSS_PATH = Path("data/mining/_curation.jsonl")
+_DEFAULT_CURATION_PATH = Path("data/mining/_curation.jsonl")
 
 _impact_option = click.option(
     "--impact", type=int, default=None, help="Restrict to a single impact band (band-by-band loop)."
@@ -366,6 +368,31 @@ def cmd_bands(
             f"{b['ipa']:>5} {b['gloss']:>6}"
         )
     click.echo(f"top band with remaining work: impact={bands[0]['impact']}", err=True)
+
+
+@enrich_campaign.command("collapse-validate")
+@_db_option
+@click.option(
+    "--curation-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=_DEFAULT_CURATION_PATH,
+    show_default=True,
+    help="Curation ledger (_curation.jsonl) carrying committed collapse rows.",
+)
+@click.option(
+    "--candidates",
+    "candidates_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+)
+def cmd_collapse_validate(db_path: Path, curation_path: Path, candidates_path: Path) -> None:
+    """wyrd-eni4.3.2: validate authored ``collapse`` rows (garbled OCR-dupe → its
+    correct existing twin). Gate: both refs resolve to distinct etymons, no '#'
+    (intentional sense suffix), no duplicate. Exit 0 if all pass, 1 otherwise."""
+    candidates = _load_candidates(candidates_path)
+    with _readonly_lexicon(db_path) as conn:
+        errors = validate_collapse_candidates(conn, curation_path, candidates)
+    _report_validation(errors, len(candidates), "collapse row(s)")
 
 
 def add_to(parent: click.Group) -> None:
