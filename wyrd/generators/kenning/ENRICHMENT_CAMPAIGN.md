@@ -35,14 +35,19 @@ cannot identify the morpheme's span at all.** This is the alternate-spelling
 record, it's loop-owned (a reflex, NOT the human-gated `etymon.variants` field),
 and it directly chips the variant-gap lever (wyrd-eni4.3.1).
 
-**Identity reflexes are the base layer (bulk-done, re-runnable).** Every morpheme
-should be a reflex of its *own* folded canonical form (`stān`→`stan`), so it's
-recognized by its base spelling. `enrich-campaign identity-reflexes` emits these
-for all scholar morphemes where the folded canonical grounds in a toponym (deduped,
-covers parked too). This was bulk-run once (+4,482 → ledger coverage 35%→74%). It's
-idempotent — safe to re-run, but the scholar set is fixed so it won't add more. The
-loop's remaining reflex work is therefore the **worn/alternate-spelling** forms for
-morphemes whose canonical doesn't literally appear (the ~2k still reflex-less).
+**Identity reflexes are the base layer (bulk-done, re-runnable, GLOSS-GATED).**
+Every *understood* morpheme should be a reflex of its own folded canonical form
+(`stān`→`stan`), so it's recognized by its base spelling. `enrich-campaign
+identity-reflexes` emits these for scholar morphemes that (a) have a **gloss** and
+(b) whose folded canonical grounds in a toponym. The **gloss gate is a legitimacy
+gate**: blanket-asserting a morpheme is matchable-by-its-own-name is only safe for
+morphemes we've confirmed are real — an unglossed morpheme is of unconfirmed
+legitimacy, and identity-reflexing it injects low-confidence matchables (CAN-IT
+false-positive risk). Bulk-run (+3,841 glossed identity reflexes → ledger coverage
+~67%); the 641 unglossed were **reset** back to the pool for per-morpheme judgment
+(worn reflex / gloss / park). Idempotent; the scholar set is fixed so it won't add
+more. The loop's remaining reflex work is the **worn/alternate-spelling** forms +
+the reset unglossed morphemes (judged individually, NOT blanket identity-reflexed).
 
 **Loop-owned dimensions** (all author to existing L2 ledgers, all gated):
 - **reflex** → `_reflexes.jsonl` (grounding guard) — **PRIMARY (CAN-IT)**
