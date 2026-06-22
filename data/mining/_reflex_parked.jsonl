@@ -129,3 +129,34 @@
 {"ref": "brittonic:āco", "reason": "ambiguous: short Brittonic -ock/-ake suffix, mixed across Charnock/Savernake/York; precision risk"}
 {"ref": "brittonic:ek", "reason": "ambiguous: short Brittonic -ock/-iock suffix; precision risk"}
 {"ref": "brittonic:to", "reason": "2-char surface 'to'; over-matches, precision risk"}
+{"ref": "brittonic:dubo", "reason": "brittonic 'dubo'→dove/dud diffuse"}
+{"ref": "brittonic:lemano", "reason": "brittonic 'lemano' no gloss, diffuse (Lyme/Burslem)"}
+{"ref": "brittonic:mailo", "reason": "brittonic 'mailo' no gloss, diffuse (Mellor/Mallerstang)"}
+{"ref": "brittonic:yel", "reason": "brittonic 'yel' no gloss, diffuse"}
+{"ref": "brittonic:ǭg", "reason": "brittonic 'ǭg' no gloss, diffuse (Chideock/Haydock)"}
+{"ref": "goidelic:ach", "reason": "goidelic 'ach' diffuse worn surface"}
+{"ref": "goidelic:aigh", "reason": "goidelic 'aigh' no gloss, diffuse (Cluny/Kyllachy)"}
+{"ref": "goidelic:yn", "reason": "2-char span 'yn' — over-matches, precision risk"}
+{"ref": "latin:altus", "reason": "'altus'→High calque (translation, not phonetic reflex)"}
+{"ref": "latin:aqua", "reason": "'aqua'→Water calque"}
+{"ref": "latin:aria", "reason": "'aria' overlaps arias/ia/ascus; no confident distinct surface"}
+{"ref": "latin:caper", "reason": "'caper'→capr/cavr diffuse; no confident surface"}
+{"ref": "latin:clausum", "reason": "'clausum'→Close calque"}
+{"ref": "latin:colonia", "reason": "'colonia'→col/coln diffuse (Colchester vs Lincoln)"}
+{"ref": "latin:fabius", "reason": "'fabius' gentilicium; diffuse worn surface, no span"}
+{"ref": "latin:ia", "reason": "2-char span 'ia' — over-matches, precision risk"}
+{"ref": "latin:iacus", "reason": "Latin suffix 'iacus' not visible in the attested forms (De Renos/Hispaxia)"}
+{"ref": "latin:icus", "reason": "3-char suffix 'icus'; suffix-soup, precision risk"}
+{"ref": "latin:io", "reason": "2-char 'io'; precision risk"}
+{"ref": "latin:ius", "reason": "'ius' suffix; diffuse, precision risk"}
+{"ref": "latin:marcius", "reason": "'marcius' no span; diffuse worn surface"}
+{"ref": "latin:nova", "reason": "'nova'→New calque; common surface, precision risk"}
+{"ref": "latin:novum", "reason": "span 'New' is an English calque of novum — would map every New* toponym to Latin; precision disaster"}
+{"ref": "latin:ola", "reason": "3-char diminutive 'ola'; common, precision risk"}
+{"ref": "latin:villa", "reason": "'villa' in Irish Derryvilla likely modern, not Latin reflex; uncertain"}
+{"ref": "middle-english:Beornmund", "reason": "ME personal name Beornmund→barm/bermond diffuse, no span"}
+{"ref": "middle-english:Biccel", "reason": "ME personal name Biccel; surfaces wildly diffuse (Biggleswade/Ditchling)"}
+{"ref": "middle-english:Cyddi", "reason": "ME personal name Cyddi; diffuse (Dittisham/Kittisford)"}
+{"ref": "middle-english:Eadhelm", "reason": "ME personal name Eadhelm; diffuse worn surface"}
+{"ref": "middle-english:Eadric", "reason": "ME personal name Eadric; diffuse worn surface"}
+{"ref": "middle-english:Eadwine", "reason": "ME personal name Eadwine; diffuse (Edington/Edingale)"}
