@@ -393,3 +393,22 @@
 {"ref": "old-english:picen", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
 {"ref": "old-english:pocca", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
 {"ref": "old-english:pofel", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:pyttel", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:reeth", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:ridding", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:ruga", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:ruh", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:ryden", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:rye", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:scearnig", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:sceat", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:scenc", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:sceolh", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:scydd", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:scēla", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:scēo", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:slawe", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:slæget", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:smēðe", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:snād", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
+{"ref": "old-english:scedt", "reason": "collapse-pending → old-english:sceat (garbled OCR-dupe 'scedt'); parked so it stops emitting until rebuild applies the collapse"}
