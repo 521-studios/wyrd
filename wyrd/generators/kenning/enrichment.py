@@ -686,7 +686,7 @@ def _apply_split_child(ctx: _SplitContext, parent: _SplitParent, child: Any) -> 
     # a split-child minted off a still-dashed parent lands on the bare key — the
     # same key the existence SELECT below shares. De-dashing the *combined*
     # ``parent.form#suffix`` would miss a prefix parent's trailing dash, which
-    # the ``#suffix`` pushes off the boundary (``ton-`` → ``ton-#1``, where
+    # the ``#suffix`` pushes off the boundary (``ton-`` → ``ton-#weir``, where
     # ``strip('-')`` no longer reaches the now-interior dash). ``parent.form`` is
     # an existing etymon surface so it never strips to empty; the bare-or-self
     # fallback only guards a hypothetical all-dash parent.

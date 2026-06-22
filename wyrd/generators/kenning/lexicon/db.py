@@ -238,9 +238,10 @@ class LexiconDB:
         through here; the two writers that bypass the upsert with their own raw
         ``INSERT INTO etymon`` — ``jsonl.build._insert_etymon`` and the
         ``enrichment`` split-child — de-dash at their own INSERT. Doing it on
-        write (vs a one-time UPDATE) is what makes it durable: the ~23k dashes
-        re-injected by the L1 wiktextract bulk slices are re-stripped on every
-        rebuild.
+        write (vs a one-time UPDATE) is what makes it durable: the bulk of the
+        dashed etymons are re-injected by the L1 wiktextract slices on every
+        rebuild, so a write-time strip re-applies where a one-shot UPDATE would
+        be undone.
 
         The de-dash is a pure idempotent transform; the strip-to-empty *junk*
         drop is a record-level decision that belongs at the ingest boundary —

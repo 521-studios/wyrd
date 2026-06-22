@@ -24,6 +24,7 @@ from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_
         ("-ar-", "ar"),  # infix (both boundaries)
         ("--ach", "ach"),  # doubled boundary dash
         ("  -ach  ", "ach"),  # surrounding whitespace stripped first
+        ("-  ach  -", "ach"),  # nested spaces around boundary dashes
         # --- already bare is a no-op (idempotent) ------------------------------
         ("ton", "ton"),
         ("giles", "giles"),
@@ -41,10 +42,13 @@ from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_
         ("-", None),
         ("--", None),
         ("*-", None),
+        ("-*", None),  # dash + sigil only → junk
+        ("**", None),  # sigil-only stem → junk
         ("*", None),
         ("", None),
         ("   ", None),
         (None, None),
+        (123, None),  # non-string input → None (defensive)
     ],
 )
 def test_normalize_morpheme_surface(raw, expected):

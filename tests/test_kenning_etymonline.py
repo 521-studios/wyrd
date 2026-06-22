@@ -14,6 +14,7 @@ import pytest
 
 from wyrd.generators.kenning.etymonline_parser import (
     ChainLink,
+    Sense,
     parse_chain,
     parse_headword,
     parse_text,
@@ -331,6 +332,45 @@ def test_ingest_sense_is_idempotent(fresh_db: Path) -> None:
     assert counts1["edges_added"] == 3
     assert counts2["edges_added"] == 0
     assert counts2["edges_skipped_dupe"] == 3
+
+
+def test_ingest_sense_junk_chain_link_skips_its_edges_without_misalignment(
+    fresh_db: Path,
+) -> None:
+    """wyrd-aicu.8 (D45): a junk chain link (de-dashes to empty) is dropped, but
+    its slot is kept as a None placeholder so the returned link_ids stays
+    INDEX-ALIGNED with sense.chain. The adjacent-edge emitter must skip BOTH
+    pairs touching the junk middle link — not mis-wire forma→forme or IndexError
+    off the end of a shortened list — and the leaf edge to the headword still
+    fires. (Pins the round-1 regression where a bare `continue` desynced the
+    lists.)"""
+    sense = Sense(
+        headword="wordx",
+        pos="n.",
+        summary="",
+        chain=[
+            ChainLink("old-french", "forme", "inheritance", "high", None, None),
+            ChainLink("latin", "-", "inheritance", "high", None, None),  # junk → None
+            ChainLink("latin", "forma", "inheritance", "high", None, None),
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon(db, canonical_form="wordx", language="modern-english")
+        ensure_source(db)
+        counts = ingest_sense(db, sense, apply=True)
+        db.commit()
+        edges = _all_descent_edges(db)
+        forms = {r[0] for r in db.conn.execute("SELECT canonical_form FROM etymon")}
+
+    assert counts["chain_links_skipped_junk"] == 1
+    # No junk etymon row minted.
+    assert "-" not in forms and "" not in forms
+    edge_pairs = {(p, c) for p, c, _, _ in edges}
+    # Both adjacent pairs touch the junk middle link → skipped; the leaf edge
+    # (chain[0]=forme → headword) still fires. No mis-wired forma→forme edge.
+    assert ("forme", "wordx") in edge_pairs
+    assert ("forma", "forme") not in edge_pairs
+    assert counts["edges_added"] == 1
 
 
 def test_ingest_sense_dry_run_writes_nothing(fresh_db: Path) -> None:

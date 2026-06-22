@@ -49,16 +49,22 @@ def normalize_morpheme_surface(raw: str | None) -> str | None:
         "*-at-"     -> "*at"          # sigil kept, boundary dash trimmed
         "-"         -> None           # junk → drop
         "*-"        -> None           # junk → drop
+        "-*"        -> None           # dash + bare sigil → junk
     """
-    if raw is None:
+    if not isinstance(raw, str):
         return None
     s = raw.strip()
     reconstructed = s.startswith("*")
     if reconstructed:
         # Re-strip after peeling the sigil so whitespace between the sigil and
-        # the stem ("* -ach") doesn't block the boundary-dash strip below.
+        # the stem ("* -ach") doesn't block the boundary strip below.
         s = s[1:].strip()
-    s = s.strip("-")
-    if not s:
+    # Strip BOTH spaces and dashes from the boundary, so a nested-space form
+    # ("-  ach  -") doesn't leave stray spaces after the dash strip.
+    s = s.strip(" -")
+    # Junk if nothing survives, or the stem is only sigils/dashes ("-*", "**") —
+    # a bare sigil is not a morpheme. (`replace` is the junk TEST only; the
+    # returned `s` keeps its interior hyphens.)
+    if not s or not s.replace("*", "").replace("-", ""):
         return None
     return f"*{s}" if reconstructed else s

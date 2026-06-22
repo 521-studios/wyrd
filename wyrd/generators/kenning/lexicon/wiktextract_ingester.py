@@ -1181,11 +1181,12 @@ def _walk_descendants(
             continue
         child_lang_code = node.get("lang_code")
         child_word = node.get("word")
-        if not child_lang_code or normalize_morpheme_surface(child_word) is None:
+        normalized_child = normalize_morpheme_surface(child_word)
+        if not child_lang_code or normalized_child is None:
             # A present-but-junk word (de-dashes to empty) is distinct from a
             # benign lang-only header row (no word at all) — count it so the
             # drop is visible (wyrd-aicu.8), but treat both the same way below.
-            if child_word and normalize_morpheme_surface(child_word) is None:
+            if child_word and normalized_child is None:
                 counts["descendant_junk_word"] += 1
             # Lang-only header row (or that junk word). Don't emit an edge, but
             # DO recurse — sub-descendants of such a row attach to the same

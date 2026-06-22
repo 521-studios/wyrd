@@ -97,15 +97,23 @@ def _upsert_chain(
     db: LexiconDB,
     sense: Sense,
     counts: dict[str, int],
-) -> list[int]:
+) -> list[int | None]:
     """Upsert each chain link's etymon row, attach glosses, and return
     the resulting etymon ids in chain order. Mutates `counts` for
-    `etymons_added_or_existing` and `glosses_added`."""
-    link_ids: list[int] = []
+    `etymons_added_or_existing` and `glosses_added`.
+
+    A junk link that de-dashes to empty (wyrd-aicu.8) would make the upsert
+    choke raise, so it is dropped — but its slot is kept as ``None`` so the
+    returned list stays INDEX-ALIGNED with ``sense.chain``. The edge emitters
+    (`_emit_adjacent_edges` / `_emit_leaf_edge`) pair entries with chain indices
+    positionally, so a bare ``continue`` here would mis-pair every edge past the
+    drop (or IndexError); the ``None`` placeholder lets them skip edges that
+    touch the dropped link instead."""
+    link_ids: list[int | None] = []
     for link in sense.chain:
-        # Drop a junk chain link that de-dashes to empty (wyrd-aicu.8) before the
-        # upsert choke would raise; a junk link is not a real etymon to chain.
         if normalize_morpheme_surface(link.word) is None:
+            link_ids.append(None)
+            counts["chain_links_skipped_junk"] += 1
             continue
         eid = db.upsert_etymon(link.word, link.language)
         link_ids.append(eid)
@@ -119,7 +127,7 @@ def _upsert_chain(
 def _emit_adjacent_edges(
     db: LexiconDB,
     sense: Sense,
-    link_ids: list[int],
+    link_ids: list[int | None],
     counts: dict[str, int],
 ) -> None:
     """For each consecutive (parent, child) pair in the chain, emit
@@ -128,6 +136,10 @@ def _emit_adjacent_edges(
     for i in range(len(sense.chain) - 1):
         parent_id = link_ids[i + 1]
         child_id = link_ids[i]
+        # Either endpoint may be a dropped junk link (None, wyrd-aicu.8) — no
+        # edge to a non-existent etymon.
+        if parent_id is None or child_id is None:
+            continue
         # The edge type comes from the CHILD's hedge — that's the link
         # describing how the child relates to its parent.
         edge_type = sense.chain[i].edge_type
@@ -141,11 +153,15 @@ def _emit_adjacent_edges(
 def _emit_leaf_edge(
     db: LexiconDB,
     sense: Sense,
-    link_ids: list[int],
+    link_ids: list[int | None],
     counts: dict[str, int],
 ) -> None:
     """Wire chain[0] → headword if the headword exists in the corpus
     as a modern-english etymon. Skipped (with counter) otherwise."""
+    # chain[0] (the headword's immediate parent) may be a dropped junk link
+    # (None, wyrd-aicu.8) — no etymon to anchor the leaf edge to.
+    if link_ids[0] is None:
+        return
     head_id = _lookup_etymon_id(db, sense.headword, _HEADWORD_LANGUAGE)
     if head_id is None:
         counts["leaf_edge_skipped_no_headword"] += 1
@@ -176,6 +192,7 @@ def ingest_sense(
     counts = {
         "chain_links": len(sense.chain),
         "etymons_added_or_existing": 0,
+        "chain_links_skipped_junk": 0,
         "edges_added": 0,
         "edges_skipped_dupe": 0,
         "leaf_edge_skipped_no_headword": 0,
