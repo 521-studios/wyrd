@@ -33,7 +33,19 @@ loop's lever), 22% variant-gap (a separate lever — see wyrd-eni4.3 follow-up).
 variant pool, AND parse selection (the DID-WE scorer/tiebreak). Structural /
 decision-gated (wyrd-740t, over-merge bugs).
 
-### Per-fire procedure (cron fires every 15 min; fill ~2/3)
+### Per-fire procedure (cron fires every 15 min)
+
+**FILL THE TIME — backfill is mandatory.** Keep working until ~10–12 min of the
+15-min interval is spent, so the model is never idle 5+ minutes. This is a
+**cost** rule, not a throughput nicety: staying active keeps the conversation in
+Anthropic's prompt cache; idling past ~5 min evicts it and re-bills the full
+context on the next fire. **Never stop after a single slice.** When a slice is
+small or a dimension finishes early, immediately **backfill** — pull the next
+set of the same dimension, then the next dimension, cycling
+reflex → tags → IPA → gloss → (back to more reflex sets) until the time budget
+is met OR every selector is empty. Self-tune `--n` upward when fires finish
+light. (The cron interval and this fill-target are deliberately tuned so the
+idle gap stays inside the prompt-cache window.)
 
 1. `git pull --rebase`.
 2. **Reflex (primary):** `enrich-campaign next-slice --n N` (impact-ordered, most
@@ -53,8 +65,9 @@ decision-gated (wyrd-740t, over-merge bugs).
    a `pf2_build`/rebuild replays the ledger), not every fire.
 5. Update wyrd-eni4.3 notes; keep everything on PR #727.
 
-Fill ~2/3 of the interval; run multiple sets per fire (`--n` self-tuned). Stop
-when `next-slice` AND the quality selectors are all empty.
+Run multiple sets per fire to hit the ~10–12 min fill target (see the backfill
+mandate above). Stop a fire only when `next-slice` AND all three quality
+selectors (tags/IPA/gloss) return empty.
 
 The old reflex-only "Phase ladder" below is **superseded**; its validation
 gates, ledger invariants, and "never invent / park instead" rules still apply.
