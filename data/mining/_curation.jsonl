@@ -486,3 +486,5 @@
 {"_type": "collapse", "ref": "old-english:scedt", "into": "old-english:sceat"}
 {"_type": "collapse", "ref": "old-english:wtc", "into": "old-english:wīc"}
 {"_type": "collapse", "ref": "old-english:wlc", "into": "old-english:wīc"}
+{"_type": "collapse", "ref": "old-norse:hdkon", "into": "old-norse:Hákon"}
+{"_type": "collapse", "ref": "old-norse:hdr", "into": "old-norse:hár"}

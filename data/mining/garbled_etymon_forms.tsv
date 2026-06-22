@@ -69,3 +69,6 @@ CORRUPTION_lettersub	old-english	pqth	suspected=pæth (path); twin_exists=False
 CORRUPTION	old-english	reeth	suspected=? (gloss 'enclosure'; no obvious twin — human triage)
 CORRUPTION_lettersub	old-english	wtc	suspected=wīc (dwelling); collapsed fire#19
 CORRUPTION_lettersub	old-english	wlc	suspected=wīc (dwelling); collapsed fire#19
+CORRUPTION_lettersub	old-norse	hdkon	suspected=Hákon; collapsed fire#21
+CORRUPTION_lettersub	old-norse	hdr	suspected=hár (high); collapsed fire#21
+CORRUPTION	old-norse	authn	suspected=auðn (waste land); NO twin in DB — human triage
