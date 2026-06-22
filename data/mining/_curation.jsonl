@@ -488,3 +488,4 @@
 {"_type": "collapse", "ref": "old-english:wlc", "into": "old-english:wīc"}
 {"_type": "collapse", "ref": "old-norse:hdkon", "into": "old-norse:Hákon"}
 {"_type": "collapse", "ref": "old-norse:hdr", "into": "old-norse:hár"}
+{"_type": "collapse", "ref": "old-norse:skégr", "into": "old-norse:skogr"}
