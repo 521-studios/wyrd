@@ -15,3 +15,4 @@
 {"ref": "old-english:in", "reason": "the 'in' of -ington is a connective fragment, not a standalone groundable surface; 2-char over-match"}
 {"ref": "goidelic:mo", "reason": "2-char particle 'my'; substring grounding over-matches every name with 'mo'"}
 {"ref": "old-english:Tribal-Name", "reason": "placeholder ('Tribal name'), not a real morpheme — like unknown:Place-name; no coherent surface"}
+{"ref": "old-english:éa", "reason": "2-char river element 'ea'; substring over-matches + attributed toponyms are non-toponym citation fragments"}
