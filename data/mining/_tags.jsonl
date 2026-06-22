@@ -3052,3 +3052,19 @@
 {"_type": "tags", "confidence": "high", "form": "atten", "language": "middle-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "middle-english:atten", "tags": []}
 {"_type": "tags", "confidence": "high", "form": "clǣg", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:clǣg", "tags": ["geology"]}
 {"_type": "tags", "confidence": "medium", "form": "hȳð", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hȳð", "tags": ["topography"]}
+{"_type": "tags", "confidence": "high", "form": "erg", "language": "old-norse", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-norse:erg", "tags": ["agriculture"]}
+{"_type": "tags", "confidence": "high", "form": "hwǣte", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hwǣte", "tags": ["grain"]}
+{"_type": "tags", "confidence": "high", "form": "stan", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:stan", "tags": ["geology"]}
+{"_type": "tags", "confidence": "high", "form": "cū", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:cū", "tags": ["mammal"]}
+{"_type": "tags", "confidence": "high", "form": "micel", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:micel", "tags": ["size"]}
+{"_type": "tags", "confidence": "medium", "form": "salt", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:salt", "tags": ["material"]}
+{"_type": "tags", "confidence": "high", "form": "rath", "language": "goidelic", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "goidelic:rath", "tags": ["military", "architecture"]}
+{"_type": "tags", "confidence": "high", "form": "acus", "language": "latin", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "latin:acus", "tags": []}
+{"_type": "tags", "confidence": "high", "form": "hǣme", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hǣme", "tags": ["social"]}
+{"_type": "tags", "confidence": "high", "form": "līn", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:līn", "tags": ["plant"]}
+{"_type": "tags", "confidence": "medium", "form": "lea", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:lea", "tags": ["topography"]}
+{"_type": "tags", "confidence": "medium", "form": "ton", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:ton", "tags": ["topography"]}
+{"_type": "tags", "confidence": "medium", "form": "Winterborne", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:Winterborne", "tags": ["water"]}
+{"_type": "tags", "confidence": "high", "form": "burn", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:burn", "tags": ["water"]}
+{"_type": "tags", "confidence": "medium", "form": "bī", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:bī", "tags": []}
+{"_type": "tags", "confidence": "high", "form": "bǣr", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:bǣr", "tags": ["agriculture"]}
