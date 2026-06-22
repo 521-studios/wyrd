@@ -23,3 +23,4 @@
 {"ref": "old-english:hoc", "reason": "attributed toponyms (Hoo/Eggeok/Russoc) are unclear/junk; no clean groundable surface"}
 {"ref": "old-french:la", "reason": "2-char definite article; substring over-matches every name with 'la'"}
 {"ref": "goidelic:air", "reason": "uncertain attribution (Erchless/Urquhart) + junk toponym 'Hostages'; gloss 'slaughter' doubtful"}
+{"ref": "old-english:Hæcca", "reason": "attributed toponyms (Dagenham/Matching/Messing/Datchworth) show no clear Hæcca-derived surface"}
