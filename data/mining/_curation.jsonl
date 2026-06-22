@@ -484,3 +484,4 @@
 {"_type": "collapse", "ref": "old-english:grdfe", "into": "old-english:grǣfe"}
 {"_type": "collapse", "ref": "old-english:dcel", "into": "old-english:dæl"}
 {"_type": "collapse", "ref": "old-english:scedt", "into": "old-english:sceat"}
+{"_type": "collapse", "ref": "old-english:wtc", "into": "old-english:wīc"}
