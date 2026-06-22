@@ -22,3 +22,4 @@
 {"ref": "old-english:ea", "reason": "2-char island element; over-match + attributed toponyms (Hartlepool/Hexham/Lindisfarne) show no clean 'ea' span"}
 {"ref": "old-english:hoc", "reason": "attributed toponyms (Hoo/Eggeok/Russoc) are unclear/junk; no clean groundable surface"}
 {"ref": "old-french:la", "reason": "2-char definite article; substring over-matches every name with 'la'"}
+{"ref": "goidelic:air", "reason": "uncertain attribution (Erchless/Urquhart) + junk toponym 'Hostages'; gloss 'slaughter' doubtful"}
