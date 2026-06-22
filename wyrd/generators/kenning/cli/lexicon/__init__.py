@@ -104,6 +104,7 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import dump_jsonl as _dump_jsonl_module
 from wyrd.generators.kenning.cli.lexicon import enrich as _enrich_module
+from wyrd.generators.kenning.cli.lexicon import gloss_campaign as _gloss_campaign_module
 from wyrd.generators.kenning.cli.lexicon import enrichment_status as _enrichment_status_module
 from wyrd.generators.kenning.cli.lexicon import era_cell as _era_cell_module
 from wyrd.generators.kenning.cli.lexicon import era_coverage as _era_coverage_module
@@ -299,6 +300,7 @@ _decompose_module.add_to(lexicon)
 _detect_collapses_module.add_to(lexicon)
 _dump_empirical_priors_module.add_to(lexicon)
 _dump_genitive_priors_module.add_to(lexicon)
+_gloss_campaign_module.add_to(lexicon)
 _extract_pfsrd2_monsters_module.add_to(lexicon)
 _derive_english_shaped_module.add_to(lexicon)
 _derive_pronunciation_ipa_module.add_to(lexicon)
