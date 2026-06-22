@@ -3100,3 +3100,19 @@
 {"_type": "tags", "confidence": "medium", "form": "tir", "language": "celtic", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "celtic:tir", "tags": ["topography"]}
 {"_type": "tags", "confidence": "high", "form": "tulaigh", "language": "celtic", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "celtic:tulaigh", "tags": ["topography"]}
 {"_type": "tags", "confidence": "medium", "form": "sub", "language": "latin", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "latin:sub", "tags": ["direction"]}
+{"_type": "tags", "confidence": "high", "form": "super", "language": "latin", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "latin:super", "tags": ["direction"]}
+{"_type": "tags", "confidence": "high", "form": "temple", "language": "middle-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "middle-english:temple", "tags": ["religious"]}
+{"_type": "tags", "confidence": "medium", "form": "toun", "language": "middle-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "middle-english:toun", "tags": ["topography"]}
+{"_type": "tags", "confidence": "medium", "form": "Frīsa", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:Frīsa", "tags": ["social"]}
+{"_type": "tags", "confidence": "high", "form": "bere-wīc", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:bere-wīc", "tags": ["agriculture", "grain"]}
+{"_type": "tags", "confidence": "high", "form": "būr", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:būr", "tags": ["architecture"]}
+{"_type": "tags", "confidence": "high", "form": "clāte", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:clāte", "tags": ["plant"]}
+{"_type": "tags", "confidence": "medium", "form": "hdm", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hdm", "tags": ["architecture"]}
+{"_type": "tags", "confidence": "high", "form": "heafod", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:heafod", "tags": ["topography"]}
+{"_type": "tags", "confidence": "high", "form": "hill", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hill", "tags": ["topography"]}
+{"_type": "tags", "confidence": "high", "form": "hope", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:hope", "tags": ["topography"]}
+{"_type": "tags", "confidence": "high", "form": "in", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:in", "tags": []}
+{"_type": "tags", "confidence": "high", "form": "scēat", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:scēat", "tags": ["topography"]}
+{"_type": "tags", "confidence": "medium", "form": "welle", "language": "old-english", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-english:welle", "tags": ["water"]}
+{"_type": "tags", "confidence": "high", "form": "steinn", "language": "old-norse", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-norse:steinn", "tags": ["geology"]}
+{"_type": "tags", "confidence": "high", "form": "viðr", "language": "old-norse", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-norse:viðr", "tags": ["tree"]}
