@@ -968,3 +968,14 @@
 {"_type": "pronunciation", "language": "old-norse", "form": "vath", "ref": "old-norse:vath", "model": "qwen2.5:7b", "method": "llm-ipa-v1", "ipa": "/vað/", "confidence": "low"}
 {"_type": "pronunciation", "language": "old-norse", "form": "vra", "ref": "old-norse:vra", "model": "qwen2.5:7b", "method": "llm-ipa-v1", "ipa": "/vrɑː/", "confidence": "medium"}
 {"_type": "pronunciation", "language": "old-norse", "form": "vrd", "ref": "old-norse:vrd", "model": "qwen2.5:7b", "method": "llm-ipa-v1", "ipa": "/vrð/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "latin", "form": "magna", "ref": "latin:magna", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/ˈmaɡna/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "latin", "form": "parva", "ref": "latin:parva", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/ˈparva/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "celtic", "form": "na", "ref": "celtic:na", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/na/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "goidelic", "form": "cnoc", "ref": "goidelic:cnoc", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/knɔk/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "celtic", "form": "an", "ref": "celtic:an", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/an/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "goidelic", "form": "coill", "ref": "goidelic:coill", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/kɔlʲ/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "latin", "form": "episcopus", "ref": "latin:episcopus", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/eˈpiskopus/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "middle-english", "form": "atten", "ref": "middle-english:atten", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/ˈatən/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "modern-english", "form": "Farm", "ref": "modern-english:Farm", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/fɑːm/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "old-english", "form": "næss", "ref": "old-english:næss", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/næs/", "confidence": "medium"}
+{"_type": "pronunciation", "language": "goidelic", "form": "rath", "ref": "goidelic:rath", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/raθ/", "confidence": "medium"}
