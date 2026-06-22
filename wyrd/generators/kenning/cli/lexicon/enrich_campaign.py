@@ -381,15 +381,29 @@ def cmd_bands(
     show_default=True,
     help="Skip folded surfaces shorter than this.",
 )
-def cmd_identity_reflexes(db_path: Path, reflexes_path: Path, min_len: int) -> None:
-    """Emit one *identity reflex* per scholar morpheme whose folded canonical form
-    appears in an attested toponym (the morpheme recognized by its own spelling),
-    deduped against the ledger, as a JSON array. Bulk/retroactive — covers parked
-    morphemes too. Pipe through ``validate`` then append to _reflexes.jsonl."""
+@click.option(
+    "--require-gloss/--no-require-gloss",
+    default=True,
+    show_default=True,
+    help="Only emit for GLOSSED morphemes (legitimacy gate); --no- to include unglossed.",
+)
+def cmd_identity_reflexes(
+    db_path: Path, reflexes_path: Path, min_len: int, require_gloss: bool
+) -> None:
+    """Emit one *identity reflex* per GLOSSED scholar morpheme whose folded
+    canonical form appears in an attested toponym (the morpheme recognized by its
+    own spelling), deduped against the ledger, as a JSON array. Bulk/retroactive.
+    Unglossed morphemes are excluded by default — they get per-morpheme judgment in
+    the normal loop. Pipe through ``validate`` then append to _reflexes.jsonl."""
     with _readonly_lexicon(db_path) as conn:
-        rows = identity_reflex_rows(conn, reflexes_path, min_len=min_len)
+        rows = identity_reflex_rows(
+            conn, reflexes_path, min_len=min_len, require_gloss=require_gloss
+        )
     click.echo(json.dumps(rows, ensure_ascii=False))
-    click.echo(f"emitted {len(rows)} identity reflexes (min_len={min_len})", err=True)
+    click.echo(
+        f"emitted {len(rows)} identity reflexes (min_len={min_len}, require_gloss={require_gloss})",
+        err=True,
+    )
 
 
 @enrich_campaign.command("collapse-validate")

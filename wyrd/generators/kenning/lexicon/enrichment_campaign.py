@@ -162,6 +162,7 @@ def committed_reflex_keys(reflexes_path: Path) -> set[tuple[str, str, str]]:
 
 # SQL: every scope-clean scholar etymon with its attested toponym surface strings
 # (modern_name | historical_form | surface_in_modern), one row per etymon.
+# ``{gloss_filter}`` is the gloss gate (see identity_reflex_rows).
 _IDENTITY_SQL = """
   SELECT e.id AS eid, e.language AS lang, e.canonical_form AS cf,
     GROUP_CONCAT(
@@ -172,12 +173,13 @@ _IDENTITY_SQL = """
   JOIN toponym_etymology te ON te.id = tee.toponym_etymology_id
   JOIN toponym t ON t.id = te.toponym_id
   WHERE e.language <> 'unknown' AND e.canonical_form NOT LIKE '% %'
+  {gloss_filter}
   GROUP BY e.id
 """
 
 
 def identity_reflex_rows(
-    conn: sqlite3.Connection, reflexes_path: Path, *, min_len: int = 2
+    conn: sqlite3.Connection, reflexes_path: Path, *, min_len: int = 2, require_gloss: bool = True
 ) -> list[dict[str, Any]]:
     """One reflex per scholar morpheme whose **own folded canonical form** appears
     in one of its attested toponym strings — the *identity reflex* (the morpheme
@@ -186,11 +188,21 @@ def identity_reflex_rows(
     against the committed ledger, position derived from the matching span. Skips
     surfaces shorter than ``min_len`` folded chars (avoids 1-char over-matchers).
 
-    This is the bulk/retroactive complement to per-toponym worn-form authoring:
-    every morpheme should be a reflex of itself."""
+    ``require_gloss`` (default True) is the **legitimacy gate**: blanket-asserting
+    that a morpheme is matchable-by-its-own-name is only safe for morphemes we've
+    confirmed are real, and a gloss is that confirmation. Unglossed morphemes are
+    excluded — they get per-morpheme judgment in the normal loop instead (worn
+    reflex / gloss / park), so we don't inject low-confidence matchables (the
+    CAN-IT false-positive risk). The bulk/retroactive complement to per-toponym
+    worn-form authoring: every *understood* morpheme is a reflex of itself."""
+    gloss_filter = (
+        "AND EXISTS (SELECT 1 FROM etymon_gloss g WHERE g.etymon_id = e.id)"
+        if require_gloss
+        else ""
+    )
     existing = committed_reflex_keys(reflexes_path)
     out: list[dict[str, Any]] = []
-    for r in conn.execute(_IDENTITY_SQL):
+    for r in conn.execute(_IDENTITY_SQL.format(gloss_filter=gloss_filter)):
         fc = fold_surface(r["cf"] or "")
         if len(fc) < min_len:
             continue

@@ -422,3 +422,27 @@ def test_identity_reflexes_grounded_only(world):
     assert not any(
         r["etymon_refs"] == ["old-norse:by"] for r in identity_reflex_rows(db.conn, committed)
     )
+
+
+def test_identity_reflexes_require_gloss_gate(tmp_path):
+    """The gloss gate (default on) excludes UNGLOSSED morphemes — a grounded
+    identity reflex is only blanket-asserted for morphemes we've confirmed are
+    real (gloss = that confirmation). --no-require-gloss includes them."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    glossed = _etymon(db, "ham", gloss="a homestead")  # canonical 'ham' grounds + glossed
+    unglossed = _etymon(db, "wīc")  # canonical 'wic' grounds but NO gloss
+    _toponym(db, "Hampton", [glossed])  # 'ham' in 'hampton'
+    _toponym(db, "Wicford", [unglossed])  # 'wic' in 'wicford'
+    db.commit()
+    empty = tmp_path / "empty.jsonl"
+    # default require_gloss=True → only the glossed morpheme
+    refs_gated = {r["etymon_refs"][0] for r in identity_reflex_rows(db.conn, empty)}
+    assert refs_gated == {"old-english:ham"}
+    # opt out → the unglossed grounded morpheme is included too
+    refs_all = {
+        r["etymon_refs"][0] for r in identity_reflex_rows(db.conn, empty, require_gloss=False)
+    }
+    assert refs_all == {"old-english:ham", "old-english:wīc"}
