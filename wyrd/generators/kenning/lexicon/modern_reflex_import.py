@@ -31,6 +31,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
+
 MODERN_REFLEX_SOURCE = "modern-reflex-curation"
 _SOURCE_TITLE = "Curated modern-English reflexes (wyrd-vewk)"
 MODERN_REFLEX_COGNATE_METHOD = "modern-reflex-curation-v1"
@@ -75,6 +77,9 @@ def _process_reflex_row(db, row: dict, *, apply: bool, counts: Counter) -> None:
         counts["skipped_no_reflex"] += 1
         return
     lang, _sep, canon = (row.get("etymon_ref") or "").partition(":")
+    # De-dash the source-morpheme ref form (wyrd-aicu.8, D45) so a dashed ref
+    # (old-english:-ing) resolves to the bare-stored morpheme (ing).
+    canon = normalize_morpheme_surface(canon) or canon
     morpheme = db.conn.execute(
         "SELECT id, cognate_id FROM etymon "
         "WHERE canonical_form=? AND language=? AND merged_into_id IS NULL",
@@ -95,6 +100,16 @@ def _apply_reflex_form(
     reflex etymon (or reuse an existing one), add gloss + citation, record the
     inheritance descent edge, and cluster it onto the morpheme's cognate group.
     When ``apply=False`` only the would-create / would-link counts are bumped."""
+    # De-dash the reflex form (wyrd-aicu.8, D45): a junk form (strips to empty)
+    # is dropped + counted before the upsert choke would raise; a dashed-but-real
+    # form is normalized so the existence SELECT below and the upsert both key on
+    # the bare surface (else a reuse of a bare-stored reflex miscounts as a
+    # create and skips the cognate-cluster join).
+    normalized_form = normalize_morpheme_surface(form)
+    if normalized_form is None:
+        counts["reflex_skipped_junk"] += 1
+        return
+    form = normalized_form
     existing = db.conn.execute(
         "SELECT id, cognate_id FROM etymon "
         "WHERE canonical_form=? AND language='modern-english' AND merged_into_id IS NULL",

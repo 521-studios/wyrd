@@ -48,6 +48,7 @@ from .lexicon import (
 )
 from .lexicon.canonicalization_projection import project_canonical
 from .lexicon.english_shaping import derive_english_shaped_all
+from .lexicon.morpheme_surface import normalize_morpheme_surface
 from .lexicon.phonological_vector_enrichment import (
     tag_phonological_vectors_all,
 )
@@ -681,7 +682,16 @@ def _apply_split_child(ctx: _SplitContext, parent: _SplitParent, child: Any) -> 
     if not SUFFIX_PATTERN.fullmatch(suffix):
         ctx.counts["children_skipped_invalid_suffix"] += 1
         return None
-    child_form = f"{parent.form}#{suffix}"
+    # De-dash the PARENT form (wyrd-aicu.8, D45) BEFORE appending the suffix, so
+    # a split-child minted off a still-dashed parent lands on the bare key — the
+    # same key the existence SELECT below shares. De-dashing the *combined*
+    # ``parent.form#suffix`` would miss a prefix parent's trailing dash, which
+    # the ``#suffix`` pushes off the boundary (``ton-`` → ``ton-#weir``, where
+    # ``strip('-')`` no longer reaches the now-interior dash). ``parent.form`` is
+    # an existing etymon surface so it never strips to empty; the bare-or-self
+    # fallback only guards a hypothetical all-dash parent.
+    parent_form_bare = normalize_morpheme_surface(parent.form) or parent.form
+    child_form = f"{parent_form_bare}#{suffix}"
 
     existing = ctx.db.conn.execute(
         "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",

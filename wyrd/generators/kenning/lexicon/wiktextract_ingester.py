@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import IO, Any
 
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 
 # wyrd-hun: kaikki.org's wiktextract dump uses Wiktionary lang codes
 # (ISO 639 or Wiktionary-private extensions). Wyrd's etymon.language
@@ -540,6 +541,10 @@ def ingest_wiktextract_stream(
         "downward_edges": 0,
         "skipped_templates": 0,
         "unsupported_templates": 0,
+        # wyrd-aicu.8: edges dropped because a ref de-dashed to empty junk —
+        # counted (not silently skipped) so an operator can tell 0 from N.
+        "upward_edges_skipped_junk_parent": 0,
+        "descendant_junk_word": 0,
         # wyrd-fqil: per-form variant emission stats
         "forms_emitted": 0,
         "forms_skipped_metadata": 0,
@@ -574,7 +579,14 @@ def ingest_wiktextract_stream(
         except json.JSONDecodeError:
             counts["entries_skipped_malformed"] += 1
             continue
-        if not isinstance(entry, dict) or not entry.get("word") or not entry.get("lang_code"):
+        # Drop an entry whose head word is junk after de-dash (a bare '-'
+        # headword strips to empty — wyrd-aicu.8) here at the ingest boundary,
+        # so the head upsert below never hands junk to the de-dash write choke.
+        if (
+            not isinstance(entry, dict)
+            or normalize_morpheme_surface(entry.get("word")) is None
+            or not entry.get("lang_code")
+        ):
             counts["entries_skipped_malformed"] += 1
             continue
         parsed_count += 1
@@ -1096,6 +1108,13 @@ def _emit_upward_edges(
                 counts["unsupported_templates"] += 1
             continue
         for parent_lang_code, parent_word, edge_type in edges:
+            # A junk parent ref (strips to empty after de-dash) has no morpheme
+            # to anchor the edge to — skip it rather than crash the upsert choke.
+            # Count it (like every other skip in this function) so the drop is
+            # visible to an operator rather than silent (wyrd-aicu.8).
+            if normalize_morpheme_surface(parent_word) is None:
+                counts["upward_edges_skipped_junk_parent"] += 1
+                continue
             parent_lang = _canonical_language(parent_lang_code)
             parent_id = (
                 db.upsert_etymon(parent_word, parent_lang) if apply else _DRY_RUN_PLACEHOLDER_ID
@@ -1162,10 +1181,18 @@ def _walk_descendants(
             continue
         child_lang_code = node.get("lang_code")
         child_word = node.get("word")
-        if not child_lang_code or not child_word:
-            # Lang-only header row. Don't emit an edge, but DO recurse —
-            # sub-descendants of such a row attach to the same parent
-            # as the header would have (the most recent anchored
+        normalized_child = normalize_morpheme_surface(child_word)
+        if not child_lang_code or normalized_child is None:
+            # A present-but-junk word (de-dashes to empty) is distinct from a
+            # benign lang-only header row (no word at all) — count it so the
+            # drop is visible (wyrd-aicu.8), but treat both the same way below.
+            # ``child_word is not None`` (not truthiness) so an empty-string word
+            # counts as present-but-junk, not as an absent header.
+            if child_word is not None and normalized_child is None:
+                counts["descendant_junk_word"] += 1
+            # Lang-only header row (or that junk word). Don't emit an edge, but
+            # DO recurse — sub-descendants of such a row attach to the same
+            # parent as the header would have (the most recent anchored
             # ancestor up the recursion stack, which is `parent_id`).
             sub = node.get("descendants") or []
             if sub:

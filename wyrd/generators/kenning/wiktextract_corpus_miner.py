@@ -31,6 +31,7 @@ from typing import Any
 import click
 
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 from wyrd.generators.kenning.lexicon.wiktextract_ingester import (
     _canonical_language,
     _extract_head_template_renderings,
@@ -604,6 +605,9 @@ def _init_mine_counts(
         "glosses_added": 0,
         "tags_added": 0,
         "citations_added": 0,
+        # wyrd-aicu.8: headwords dropped because they de-dash to empty junk —
+        # counted so the de-dash's drop count is visible, not silent.
+        "words_skipped_empty": 0,
         # wyrd-69s5: capture-stat counters mirroring the full ingester
         # so per-run dry-run / apply summaries surface multi-script
         # rendering coverage in the same shape across both paths.
@@ -691,9 +695,16 @@ def _write_one(
     ``transliteration`` matters here too — not just for the explicitly-
     non-Latin slices the full ingester also handles.
     """
-    canonical_form = (entry.get("word") or "").strip()
+    # De-dash to the bare morpheme surface (wyrd-aicu.8, D45); a strip-to-empty
+    # junk word (a bare '-' headword) normalizes to None and is dropped here at
+    # the ingest boundary, before the upsert choke would reject it — counted so
+    # the de-dash's drop is visible.
+    canonical_form = normalize_morpheme_surface(entry.get("word"))
+    if not canonical_form:
+        counts["words_skipped_empty"] += 1
+        return
     sense = _select_canonical_sense(entry)
-    if not canonical_form or sense is None:
+    if sense is None:
         return
     gloss, tags = sense
 
@@ -813,7 +824,9 @@ def _process_corpus_entry(
     canonical headword isn't in the lexicon — counted under ``etymons_missing``;
     forms-mining enriches existing rows, never creates them). Mutates ``counts``
     in place; DB writes (idempotent ON CONFLICT upsert) are gated on ``apply``."""
-    canonical_form = (entry.get("word") or "").strip()
+    # De-dash the lookup form (wyrd-aicu.8, D45) so a dashed wiktextract headword
+    # resolves to the bare etymon row the de-dashed write path now stores.
+    canonical_form = normalize_morpheme_surface(entry.get("word"))
     if not canonical_form:
         return False
     # ``_canonical_language`` returns the empty string for missing lang_code

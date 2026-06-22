@@ -27,13 +27,15 @@ def _e(db: LexiconDB, form: str, lang: str, *glosses: str) -> int:
 def test_cross_era_reflex_is_a_candidate(fresh_db: Path) -> None:
     with LexiconDB(fresh_db) as db:
         tun = _e(db, "tūn", "old-english", "farmstead")
-        ton = _e(db, "-ton", "modern-english", "farmstead")
+        # Modern morpheme stored BARE (wyrd-aicu.8, D45) — the position is the
+        # separate axis, not a dash on the identity.
+        ton = _e(db, "ton", "modern-english", "farmstead")
         db.commit()
         cands = detect_reflex_link_candidates(db.conn)
         assert len(cands) == 1
         c = cands[0]
         assert c.parent_ref == "old-english:tūn"  # earlier era = parent
-        assert c.child_ref == "modern-english:-ton"  # later era = child (reflex)
+        assert c.child_ref == "modern-english:ton"  # later era = child (reflex)
         assert c.shared_glosses == ("farmstead",)
         _ = (tun, ton)
 

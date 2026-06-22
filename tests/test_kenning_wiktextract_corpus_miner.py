@@ -266,6 +266,30 @@ def test_culture_scope_keeps_welsh_morphemes_out_of_english_bundle(
     assert "welsh" not in CULTURE_LANG_SCOPE["english"]
 
 
+def test_mine_corpus_de_dashes_headword_and_drops_junk(tmp_path: Path, fresh_db: Path) -> None:
+    """wyrd-aicu.8 (D45): a dashed empirical headword is stored BARE, and a
+    headword that de-dashes to empty junk (a bare '-') is dropped at the ingest
+    boundary — never handed to the upsert choke — and counted (words_skipped_empty)
+    so the drop isn't silent."""
+    welsh_slice = tmp_path / "wiktextract_welsh.jsonl"
+    _write_slice(
+        welsh_slice,
+        [
+            {"word": "-ach", "lang_code": "cy", "senses": [{"glosses": ["suffix"]}]},
+            {"word": "-", "lang_code": "cy", "senses": [{"glosses": ["junk"]}]},
+        ],
+    )
+    fragments = {"welsh": Counter({"-ach": 3, "-": 2})}
+    with LexiconDB(fresh_db) as db:
+        counts = mine_corpus(db, fragments_by_culture=fragments, sources_dir=tmp_path, apply=True)
+        forms = {r[0] for r in db.conn.execute("SELECT canonical_form FROM etymon")}
+    # The dashed headword is stored de-dashed; the junk '-' is dropped + counted.
+    assert "ach" in forms
+    assert "-ach" not in forms and "-" not in forms
+    assert counts["words_skipped_empty"] == 1
+    assert counts["etymons_upserted"] == 1
+
+
 def test_apply_writes_etymon_gloss_and_empirical_citation(tmp_path: Path, fresh_db: Path) -> None:
     welsh_slice = tmp_path / "wiktextract_welsh.jsonl"
     _write_slice(

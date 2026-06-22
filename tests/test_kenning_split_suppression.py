@@ -301,6 +301,43 @@ def test_apply_split_creates_children_and_moves_glosses(tmp_path: Path):
     db.close()
 
 
+def test_apply_split_de_dashes_dashed_parent_into_bare_child_keys(tmp_path: Path):
+    """wyrd-aicu.8 (D45): a split-child minted off a still-dashed parent form
+    lands on the BARE key. The de-dash must happen on ``parent.form`` BEFORE the
+    ``#suffix`` is appended — de-dashing the combined ``parent.form#suffix``
+    would miss a prefix parent's trailing dash, which the suffix pushes off the
+    string boundary (``gear-`` → ``gear-#weir`` survives ``strip('-')``)."""
+    db_path = _build_db(tmp_path)
+    # Raw-insert a DASHED prefix parent (bypasses the de-dashing upsert choke),
+    # mirroring a still-dashed pre-migration L3 row.
+    parent_id = _add_etymon_with_glosses_and_tags(
+        db_path, "old-english", "gear-", ["Weir (fishing enclosure)", "year"]
+    )
+
+    db = LexiconDB(db_path)
+    state = {
+        "old-english:gear-": {
+            "into": [
+                {"suffix": "weir", "glosses": ["Weir (fishing enclosure)"], "primary": True},
+                {"suffix": "year", "glosses": ["year"]},
+            ]
+        }
+    }
+    counts = apply_etymon_splits(db, state, apply=True)
+    assert counts["children_created"] == 2
+
+    # Children carry the BARE base 'gear#...', never the dashed 'gear-#...'.
+    children = sorted(
+        row["canonical_form"]
+        for row in db.conn.execute(
+            "SELECT canonical_form FROM etymon WHERE id <> ? AND canonical_form LIKE '%#%'",
+            (parent_id,),
+        )
+    )
+    assert children == ["gear#weir", "gear#year"]
+    db.close()
+
+
 def test_apply_split_dry_run_makes_no_changes(tmp_path: Path):
     db_path = _build_db(tmp_path)
     parent_id = _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["a", "b"])

@@ -31,6 +31,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import URL, Engine
 from sqlalchemy.pool import StaticPool
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 from wyrd.generators.kenning.lexicon.sql.queries import (
     INSERT_CITATION_IF_ABSENT,
     INSERT_GLOSS_OR_IGNORE,
@@ -229,7 +230,35 @@ class LexiconDB:
         See ``lexicon.sql.queries.etymon.UPSERT_ETYMON`` for the
         CASE-on-conflict contract that keeps pronunciation_ipa +
         pronunciation_dialect updating atomically.
+
+        ``canonical_form`` is de-dashed to its bare morpheme surface here
+        (wyrd-aicu.8, D45) so the boundary affix-position dash never enters the
+        store. This is the de-dash point for the UPSERT path — most etymon
+        writers (seed / etymonline / ingest / modern-reflex / wiktextract) funnel
+        through here; the two writers that bypass the upsert with their own raw
+        ``INSERT INTO etymon`` — ``jsonl.build._insert_etymon`` and the
+        ``enrichment`` split-child — de-dash at their own INSERT. Doing it on
+        write (vs a one-time UPDATE) is what makes it durable: the bulk of the
+        dashed etymons are re-injected by the L1 wiktextract slices on every
+        rebuild, so a write-time strip re-applies where a one-shot UPDATE would
+        be undone.
+
+        The de-dash is a pure idempotent transform; the strip-to-empty *junk*
+        drop is a record-level decision that belongs at the ingest boundary —
+        every caller (the wiktextract bulk paths and the curated seed /
+        etymonline / ingest / modern-reflex writers) pre-filters a junk form and
+        drops the whole record before reaching here — so a form that normalizes
+        to nothing is a contract violation and raises rather than silently
+        minting an empty-keyed row.
         """
+        normalized = normalize_morpheme_surface(canonical_form)
+        if normalized is None:
+            raise ValueError(
+                "upsert_etymon requires a non-empty morpheme surface; "
+                f"{canonical_form!r} is empty after de-dash (drop junk at the "
+                "ingest boundary, not here)"
+            )
+        canonical_form = normalized
         cur = self.conn.execute(
             UPSERT_ETYMON,
             (

@@ -1496,9 +1496,14 @@ def test_fantasy_morpheme_uncited_etymon_round_trips_through_dump_and_build(tmp_
         "WHERE fm.input_name = 'Bækard'"
     ).fetchone()
     # Language, form AND the gloss carried on the emitted etymon row survive.
+    # The dashed fixture form '-ard' rebuilds de-dashed to 'ard' (wyrd-aicu.8,
+    # D45) because _insert_etymon de-dashes the stored canonical_form. The FK
+    # still resolves (no orphan) because build keys etymon_id_by_ref on the raw
+    # ref string on both sides — the fantasy ref isn't de-dashed; only the
+    # stored column is.
     assert (row["language"], row["canonical_form"], row["gloss"]) == (
         "middle-english",
-        "-ard",
+        "ard",
         "agent suffix",
     )
     rebuilt.close()

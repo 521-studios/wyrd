@@ -697,7 +697,10 @@ def test_entry_combines_etymology_and_descendants_emits_both(
 
     assert result["upward_edges"] == 1
     assert result["downward_edges"] == 1
-    assert ("*dewh₂-", "*tūnaz", "inheritance", "wiktionary") in edges
+    # The PIE root is stored de-dashed (wyrd-aicu.8, D45): the boundary dash on
+    # the raw template arg '*dewh₂-' is affix-position decoration and is
+    # stripped, while the '*' reconstruction sigil survives.
+    assert ("*dewh₂", "*tūnaz", "inheritance", "wiktionary") in edges
     assert ("*tūnaz", "tūn", "inheritance", "wiktionary") in edges
 
 
@@ -765,7 +768,8 @@ def test_root_template_emits_inheritance_edge_to_pie_root(fresh_db: Path) -> Non
     with LexiconDB(fresh_db) as db:
         ingest_wiktextract_stream(db, _stream(line), apply=True)
         edges = _all_descent_edges(db)
-    assert ("*werh₁-", "word", "inheritance", "wiktionary") in edges
+    # Stored de-dashed (wyrd-aicu.8, D45): '*werh₁-' → '*werh₁'.
+    assert ("*werh₁", "word", "inheritance", "wiktionary") in edges
 
 
 def test_root_template_with_multiple_parallel_roots_emits_one_edge_each(
@@ -788,8 +792,38 @@ def test_root_template_with_multiple_parallel_roots_emits_one_edge_each(
     with LexiconDB(fresh_db) as db:
         ingest_wiktextract_stream(db, _stream(line), apply=True)
         edges = _all_descent_edges(db)
-    assert ("*werh₁-", "word", "inheritance", "wiktionary") in edges
-    assert ("*dʰeh₁-", "word", "inheritance", "wiktionary") in edges
+    # Stored de-dashed (wyrd-aicu.8, D45): boundary dash stripped, '*' kept.
+    assert ("*werh₁", "word", "inheritance", "wiktionary") in edges
+    assert ("*dʰeh₁", "word", "inheritance", "wiktionary") in edges
+
+
+def test_junk_de_dashed_words_are_dropped_and_counted(fresh_db: Path) -> None:
+    """wyrd-aicu.8 (D45): a word that de-dashes to empty junk (a bare '-', or a
+    '*-' root that is only sigil+dash) must be DROPPED at the ingest boundary —
+    never handed to the upsert choke, which would raise — and COUNTED so the
+    drop is visible to an operator (not a silent skip). Covers all three word
+    sites: the head word, an etymology-template parent ref, and a descendants
+    child word."""
+    junk_head = _wiktextract_entry(word="-", lang_code="ang")  # head strips to empty
+    mixed = _wiktextract_entry(
+        word="word",
+        lang_code="ang",
+        # '*-' is sigil+boundary-dash only → de-dashes to empty (junk parent).
+        etymology_templates=[{"name": "root", "args": {"1": "ang", "2": "ine-pro", "3": "*-"}}],
+        descendants=[{"lang_code": "ang", "word": "-"}],  # junk descendant child
+    )
+    with LexiconDB(fresh_db) as db:
+        counts = ingest_wiktextract_stream(db, _stream(junk_head, mixed), apply=True)
+        forms = {r[0] for r in db.conn.execute("SELECT canonical_form FROM etymon")}
+    # Only the real head was stored — no empty/junk etymon row, no crash.
+    assert forms == {"word"}
+    # Each junk drop is counted on its own path.
+    assert counts["entries_skipped_malformed"] == 1  # the '-' head entry
+    assert counts["upward_edges_skipped_junk_parent"] == 1  # the '*-' root parent
+    assert counts["descendant_junk_word"] == 1  # the '-' descendant child
+    # No edge survived the junk endpoints.
+    assert counts["upward_edges"] == 0
+    assert counts["downward_edges"] == 0
 
 
 @pytest.mark.parametrize(

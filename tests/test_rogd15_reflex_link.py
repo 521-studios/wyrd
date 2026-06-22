@@ -26,10 +26,12 @@ def fresh_db(tmp_path: Path) -> Path:
 def test_reflex_link_adds_inheritance_edge_without_tombstoning(fresh_db: Path) -> None:
     with LexiconDB(fresh_db) as db:
         tun = db.upsert_etymon("tūn", "old-english", modifier_type="Habitative")
-        ton = db.upsert_etymon("-ton", "modern-english")
+        # Modern morpheme stored BARE (wyrd-aicu.8, D45) — position is the
+        # separate axis, not a dash on the identity; refs use the bare form.
+        ton = db.upsert_etymon("ton", "modern-english")
         db.commit()
         state = {
-            "modern-english:-ton": {"inherits": "old-english:tūn", "confidence": "high"},
+            "modern-english:ton": {"inherits": "old-english:tūn", "confidence": "high"},
         }
         counts = apply_collapses(db, state)
         assert counts["links_processed"] == 1
@@ -49,9 +51,9 @@ def test_reflex_link_adds_inheritance_edge_without_tombstoning(fresh_db: Path) -
 def test_reflex_link_is_idempotent(fresh_db: Path) -> None:
     with LexiconDB(fresh_db) as db:
         tun = db.upsert_etymon("tūn", "old-english", modifier_type="Habitative")
-        ton = db.upsert_etymon("-ton", "modern-english")
+        ton = db.upsert_etymon("ton", "modern-english")  # bare (wyrd-aicu.8, D45)
         db.commit()
-        state = {"modern-english:-ton": {"inherits": "old-english:tūn"}}
+        state = {"modern-english:ton": {"inherits": "old-english:tūn"}}
         apply_collapses(db, state)
         apply_collapses(db, state)  # replay
         n = db.conn.execute(
@@ -107,13 +109,13 @@ def test_fold_still_works_alongside_link(fresh_db: Path) -> None:
         burg = db.upsert_etymon("burg", "old-english", modifier_type="Habitative")
         borough = db.upsert_etymon("borough", "old-english", modifier_type="Habitative")
         tun = db.upsert_etymon("tūn", "old-english", modifier_type="Habitative")
-        ton = db.upsert_etymon("-ton", "modern-english")
+        ton = db.upsert_etymon("ton", "modern-english")  # bare (wyrd-aicu.8, D45)
         db.commit()
         counts = apply_collapses(
             db,
             {
                 "old-english:borough": {"into": "old-english:burg", "variant_class": "alternative"},
-                "modern-english:-ton": {"inherits": "old-english:tūn"},
+                "modern-english:ton": {"inherits": "old-english:tūn"},
             },
         )
         assert counts["collapses_processed"] == 1 and counts["links_processed"] == 1

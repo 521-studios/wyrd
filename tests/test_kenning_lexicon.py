@@ -1486,6 +1486,43 @@ def test_upsert_etymon_returns_same_id_on_duplicate(fresh_db: Path) -> None:
         assert third != first
 
 
+def test_upsert_etymon_de_dashes_to_bare_surface(fresh_db: Path) -> None:
+    """wyrd-aicu.8 (D45): upsert_etymon de-dashes canonical_form to the bare
+    surface at the write choke, so a dashed affix form and its bare form fold
+    onto ONE row (the boundary dash is identity noise, not a distinct morpheme).
+    The leading ``*`` reconstruction sigil and interior hyphens are preserved."""
+    with LexiconDB(fresh_db) as db:
+        dashed = db.upsert_etymon("-ton", "old-english")
+        bare = db.upsert_etymon("ton", "old-english")
+        assert dashed == bare, "dashed + bare affix forms must fold onto one row"
+        stored = db.conn.execute(
+            "SELECT canonical_form FROM etymon WHERE id = ?", (bare,)
+        ).fetchone()[0]
+        assert stored == "ton"
+        # Sigil preserved (its own fold is wyrd-qoy8); interior hyphen preserved.
+        pie = db.upsert_etymon("*werh₁-", "proto-indo-european")
+        kept = db.upsert_etymon("al-Quadim", "arabic")
+        forms = {
+            r[0]
+            for r in db.conn.execute(
+                "SELECT canonical_form FROM etymon WHERE id IN (?, ?)", (pie, kept)
+            )
+        }
+        assert forms == {"*werh₁", "al-Quadim"}
+
+
+def test_upsert_etymon_raises_on_strip_to_empty_junk(fresh_db: Path) -> None:
+    """A form that de-dashes to nothing (a bare ``-``/``--``/``*-``) is a
+    contract violation at the choke — junk must be dropped at the ingest
+    boundary, so upsert_etymon raises rather than minting an empty-keyed row
+    (wyrd-aicu.8)."""
+    with LexiconDB(fresh_db) as db:
+        for junk in ("-", "--", "*-"):
+            with pytest.raises(ValueError, match="non-empty morpheme surface"):
+                db.upsert_etymon(junk, "old-english")
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon").fetchone()[0] == 0
+
+
 def test_upsert_reflex_returns_same_id_on_duplicate(fresh_db: Path) -> None:
     with LexiconDB(fresh_db) as db:
         first = db.upsert_reflex("-ham", "post")
@@ -10474,8 +10511,9 @@ def test_export_meanings_surfaces_cognate_cluster_modern_forms(fresh_db: Path) -
     only in the separate era_reflexes field).
 
     Fixture: OE ``ceaster`` (2 citations, promotable) cognate-linked
-    to modern-english ``-chester``. Post-fix ``modern_english`` carries
-    ``-chester``."""
+    to modern-english ``chester``. Post-fix ``modern_english`` carries
+    ``chester`` (stored BARE — wyrd-aicu.8, D45; position is the separate
+    axis, not a dash on the identity)."""
     with LexiconDB(fresh_db) as db:
         for src in ("a", "b"):
             db.upsert_source(id=src, title=src)
@@ -10484,7 +10522,7 @@ def test_export_meanings_surfaces_cognate_cluster_modern_forms(fresh_db: Path) -
         db.add_tag(ceaster, "architecture")
         db.add_citation(ceaster, "a")
         db.add_citation(ceaster, "b")
-        chester = db.upsert_etymon("-chester", "modern-english")
+        chester = db.upsert_etymon("chester", "modern-english")
         db.conn.execute(
             "UPDATE etymon SET cognate_id = ? WHERE id IN (?, ?)",
             (ceaster, ceaster, chester),
@@ -10494,7 +10532,7 @@ def test_export_meanings_surfaces_cognate_cluster_modern_forms(fresh_db: Path) -
     assert len(subjects) == 1
     word = subjects[0]["words"][0]
     assert word.get("old_english") == ["ceaster"]
-    assert word.get("modern_english") == ["-chester"], (
+    assert word.get("modern_english") == ["chester"], (
         f"forms_by_lang should include cluster mate's modern-english surface; "
         f"got modern_english={word.get('modern_english')!r}"
     )
@@ -10513,7 +10551,7 @@ def test_export_meanings_surfaces_descent_edge_modern_forms(fresh_db: Path) -> N
         db.add_gloss(burg, "fortified town")
         db.add_citation(burg, "a")
         db.add_citation(burg, "b")
-        borough = db.upsert_etymon("-borough", "modern-english")
+        borough = db.upsert_etymon("borough", "modern-english")  # bare (wyrd-aicu.8, D45)
         # Tier 2: direct inheritance edge, no cognate_id on either end.
         db.conn.execute(
             "INSERT INTO etymon_descent "
@@ -10526,7 +10564,7 @@ def test_export_meanings_surfaces_descent_edge_modern_forms(fresh_db: Path) -> N
     assert len(subjects) == 1
     word = subjects[0]["words"][0]
     assert word.get("old_english") == ["burg"]
-    assert word.get("modern_english") == ["-borough"], (
+    assert word.get("modern_english") == ["borough"], (
         f"Tier-2 descent edge should surface modern-english child in forms_by_lang; "
         f"got modern_english={word.get('modern_english')!r}"
     )
@@ -13833,7 +13871,8 @@ def test_cluster_cognates_v2_does_not_bridge_through_proto_indo_european(fresh_d
     assert cid["dūn"] != cid["thymia"] or (cid["dūn"] is None and cid["thymia"] is None)
     assert cid["dūn"] is None  # no surviving edge → not a candidate
     assert cid["thymia"] is None
-    assert cid["*dʰewh₂-"] is None
+    # PIE root stored de-dashed (wyrd-aicu.8, D45): '*dʰewh₂-' → '*dʰewh₂'.
+    assert cid["*dʰewh₂"] is None
 
 
 def test_cluster_cognates_dry_run_does_not_write(fresh_db: Path) -> None:
