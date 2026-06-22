@@ -15,3 +15,9 @@
 {"ref": "old-english:bere", "reason": "conflates bere (barley) with cow / swine-pasture senses (bær/bera confusion) — mixed homographs, needs disambiguation"}
 {"ref": "old-english:hām-stede", "reason": "composite (hām+stede = homestead); expand to constituents per D51.3"}
 {"ref": "old-english:hām-tūn", "reason": "composite (hām+tūn = home-farm); expand to constituents per D51.3"}
+{"ref": "latin:acus", "reason": "place-name-forming suffix, no semantic content — not a content morpheme"}
+{"ref": "old-english:bōc-land", "reason": "composite (bōc+land = charter-land); expand to constituents per D51.3"}
+{"ref": "old-english:cocc", "reason": "conflates hillock/heap with cock (bird?) / Cocc (personal name?) — ambiguous, needs review"}
+{"ref": "celtic:ros", "reason": "genuine 3-way Celtic polysemy (promontory / wood / moor) with overlapping glosses — needs careful split"}
+{"ref": "old-english:Bucca", "reason": "personal-name element; gloss is just 'a personal name' — render as the name, no sense to compress"}
+{"ref": "old-english:ton", "reason": "settlement wall + 'clearing or hill' outlier + inflection note; macron-less dup of tūn — dedup/disambiguation"}
