@@ -48,6 +48,19 @@ def test_resolve_round_trip_and_colon_in_form(tmp_path):
     db.close()
 
 
+def test_resolve_de_dashes_ref_form_keeping_interior_hyphen(tmp_path):
+    """wyrd-aicu.8 (D45) read-path sweep: resolve_etymon_ref de-dashes a dashed
+    ref form to the BARE-stored etymon, while PRESERVING an interior hyphen
+    (al-Quadim must not collapse to alQuadim — the sweep's key invariant)."""
+    db = _db(tmp_path)
+    ach = _etymon(db, "ach", "celtic")  # bare-stored
+    alq = _etymon(db, "al-Quadim", "arabic")  # interior hyphen
+    db.commit()
+    assert resolve_etymon_ref(db.conn, "celtic:-ach") == ach  # dashed ref → bare
+    assert resolve_etymon_ref(db.conn, "arabic:al-Quadim") == alq  # interior kept
+    db.close()
+
+
 def test_resolve_none_branches(tmp_path):
     db = _db(tmp_path)
     _etymon(db, "tun", "old-english")

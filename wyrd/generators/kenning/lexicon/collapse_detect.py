@@ -26,6 +26,8 @@ from __future__ import annotations
 import re
 import sqlite3
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
+
 VARIANT_GLOSS_METHOD = "deterministic-variant-gloss-overlap"
 POINTER_PARSE_METHOD = "deterministic-pointer-parse"
 
@@ -133,6 +135,10 @@ def _detect_pointer_parse(conn: sqlite3.Connection) -> list[dict[str, str]]:
             if m:
                 target = m.group(1).strip(".,;\"'")
                 break
+        # De-dash the pointer-gloss target (wyrd-aicu.8, D45) so it matches the
+        # bare-stored canonical_form (both the self-check and the lookup below).
+        if target:
+            target = normalize_morpheme_surface(target) or target
         if not target or target == c["canonical_form"]:
             continue
         resolved = conn.execute(

@@ -10,6 +10,7 @@ import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -248,6 +249,9 @@ def _resolve_set_stratum_target(
             click.echo(f"Error: no etymon with id={etymon_id}.", err=True)
             sys.exit(1)
     else:
+        # De-dash the looked-up form (wyrd-aicu.8, D45) so a dashed argument
+        # resolves to the bare-stored etymon.
+        canonical_form = normalize_morpheme_surface(canonical_form) or canonical_form
         row = db.conn.execute(
             "SELECT id, canonical_form, language, stratum, merged_into_id FROM etymon "
             "WHERE canonical_form = ? AND language = ?",

@@ -27,6 +27,8 @@ import json
 import sqlite3
 from typing import Any
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
+
 # ---------------------------------------------------------------------------
 # Ref parsing helpers
 # ---------------------------------------------------------------------------
@@ -89,6 +91,9 @@ def fetch_etymon(conn: sqlite3.Connection, ref: str) -> dict[str, Any] | None:
     the caller two follow-up round trips.
     """
     language, form = parse_etymon_ref(ref)
+    # De-dash the form (wyrd-aicu.8, D45) so a dashed ref resolves to the
+    # bare-stored etymon.
+    form = normalize_morpheme_surface(form) or form
     row = conn.execute(
         """
         SELECT e.id, e.canonical_form, e.language, e.modifier_type, e.position_pref, e.notes,

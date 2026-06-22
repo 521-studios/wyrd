@@ -462,10 +462,16 @@ def _init_runtime_schema(conn: sqlite3.Connection) -> None:
 # D45 (wyrd-aicu.5): the stored-identity surfaces the exporter guards. KEY
 # columns are short bare surfaces, so a SQL ``LIKE '%-%'`` is exact; the BLOB
 # tables need a JSON parse (a greedy ``LIKE`` over the blob false-positives on
-# dashes in OTHER fields). Two columns are deliberately ABSENT:
-#   * ``morpheme_id`` — the L3-derived content key (``language:form``), still
-#     dash-bearing until wyrd-aicu.3 de-dashes the L3 morpheme entity; this
-#     gate gains it then.
+# dashes in OTHER fields).
+#
+# ``morpheme_id`` (the L3-derived content key ``language:form``) is guarded
+# SEPARATELY (below) at the FORM level (wyrd-aicu.8) — NOT in this list —
+# because its language PREFIX legitimately carries a dash (``old-english:``) and
+# an interior in-word hyphen is legitimate (``al-Quadim``); only a BOUNDARY dash
+# on the form is the affix-position decoration D45 forbids, so a blanket
+# ``LIKE '%-%'`` here would false-flag every dash-language morpheme forever.
+#
+# One column is still deliberately ABSENT:
 #   * ``fantasy_morpheme.usage_key`` — a whole input-NAME lookup key, never a
 #     positionally dash-decorated morpheme surface, so it's outside D45.
 _DASH_GUARD_KEY_COLUMNS = (
@@ -477,34 +483,55 @@ _DASH_GUARD_KEY_COLUMNS = (
 )
 _DASH_GUARD_BLOB_TABLES = ("meaning", "morpheme")
 
+# morpheme_id is ``language:form``; flag a LEADING/TRAILING dash on the FORM part
+# (after the first ':') — the affix-position decoration (D45/wyrd-aicu.8). The
+# language prefix and interior in-word hyphens are left alone.
+_MORPHEME_ID_FORM_DASH_SQL = (
+    "SELECT COUNT(*) FROM morpheme "
+    "WHERE substr(morpheme_id, instr(morpheme_id, ':') + 1) LIKE '-%' "
+    "   OR substr(morpheme_id, instr(morpheme_id, ':') + 1) LIKE '%-'"
+)
+
+
+def _count_dashed_blob_modern_usage(conn: sqlite3.Connection, table: str) -> int:
+    """Count blob rows in ``table`` whose ``word.modern_usage`` (the identity)
+    carries a dash. Full scan, but skip the JSON parse on any row whose RAW
+    payload has no '-' at all — if there's no dash anywhere, modern_usage can't
+    have one. The prefilter is a Python substring check on the actual fetched
+    value (bytes for this BLOB column), NOT a SQLite ``LIKE`` — a LIKE with a
+    TEXT pattern silently matches ZERO blob rows and would neuter the guard
+    (wyrd-aicu.5 round-3 regression). This check sees the real value regardless
+    of storage class, so it can't under-match."""
+    dashed = 0
+    for (data,) in conn.execute(f"SELECT data FROM {table}"):
+        if (b"-" not in data) if isinstance(data, bytes) else ("-" not in data):
+            continue
+        for entry in json.loads(data).get("entries", []):
+            if "-" in ((entry.get("word") or {}).get("modern_usage") or ""):
+                dashed += 1
+    return dashed
+
 
 def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
     """D45 (wyrd-aicu.5) exporter guard: raise if any stored morpheme IDENTITY
     carries a dash — a morpheme's identity is its bare surface; position is an
     explicit column and dashes are render-time decoration (D39). Checks the
     bare-keyed usage columns (SQL) + the meaning/morpheme blob ``modern_usage``
-    values (JSON parse). ``morpheme_id`` is exempt (L3-derived; wyrd-aicu.3).
-    Runs on every emit so a regression fails the build, not the operator."""
+    values (JSON parse) + the ``morpheme_id`` content key's FORM part (de-dashed
+    by wyrd-aicu.8; boundary dash only — the language prefix / interior hyphens
+    are legitimate). Runs on every emit so a regression fails the build, not the
+    operator."""
     violations: list[str] = []
     for table, col in _DASH_GUARD_KEY_COLUMNS:
         n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} LIKE '%-%'").fetchone()[0]
         if n:
             violations.append(f"{table}.{col}: {n} dashed")
+    # morpheme_id (language:form) — boundary dash on the FORM part only (D45/wyrd-aicu.8).
+    n = conn.execute(_MORPHEME_ID_FORM_DASH_SQL).fetchone()[0]
+    if n:
+        violations.append(f"morpheme.morpheme_id form: {n} boundary-dashed")
     for table in _DASH_GUARD_BLOB_TABLES:
-        # Full scan, but skip the JSON parse on any row whose RAW payload has no
-        # '-' at all — if there's no dash anywhere, modern_usage can't have one.
-        # The prefilter is a Python substring check on the actual fetched value
-        # (bytes for this BLOB column), NOT a SQLite ``LIKE`` — a LIKE with a
-        # TEXT pattern silently matches ZERO blob rows and would neuter the
-        # guard (wyrd-aicu.5 round-3 regression). This check sees the real value
-        # regardless of storage class, so it can't under-match.
-        dashed = 0
-        for (data,) in conn.execute(f"SELECT data FROM {table}"):
-            if (b"-" not in data) if isinstance(data, bytes) else ("-" not in data):
-                continue
-            for entry in json.loads(data).get("entries", []):
-                if "-" in ((entry.get("word") or {}).get("modern_usage") or ""):
-                    dashed += 1
+        dashed = _count_dashed_blob_modern_usage(conn, table)
         if dashed:
             violations.append(f"{table} blob modern_usage: {dashed} dashed")
     if violations:
@@ -513,7 +540,7 @@ def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
             + "; ".join(violations)
             + ". A morpheme's stored identity must be its bare surface (position "
             "is an explicit column; dashes are render-time decoration, D39). "
-            "morpheme_id is exempt (L3-derived, wyrd-aicu.3)."
+            "morpheme_id is guarded at the form level (de-dashed by wyrd-aicu.8)."
         )
 
 
