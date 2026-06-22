@@ -697,7 +697,10 @@ def test_entry_combines_etymology_and_descendants_emits_both(
 
     assert result["upward_edges"] == 1
     assert result["downward_edges"] == 1
-    assert ("*dewh₂-", "*tūnaz", "inheritance", "wiktionary") in edges
+    # The PIE root is stored de-dashed (wyrd-aicu.8, D45): the boundary dash on
+    # the raw template arg '*dewh₂-' is affix-position decoration and is
+    # stripped, while the '*' reconstruction sigil survives.
+    assert ("*dewh₂", "*tūnaz", "inheritance", "wiktionary") in edges
     assert ("*tūnaz", "tūn", "inheritance", "wiktionary") in edges
 
 
@@ -765,7 +768,8 @@ def test_root_template_emits_inheritance_edge_to_pie_root(fresh_db: Path) -> Non
     with LexiconDB(fresh_db) as db:
         ingest_wiktextract_stream(db, _stream(line), apply=True)
         edges = _all_descent_edges(db)
-    assert ("*werh₁-", "word", "inheritance", "wiktionary") in edges
+    # Stored de-dashed (wyrd-aicu.8, D45): '*werh₁-' → '*werh₁'.
+    assert ("*werh₁", "word", "inheritance", "wiktionary") in edges
 
 
 def test_root_template_with_multiple_parallel_roots_emits_one_edge_each(
@@ -788,8 +792,9 @@ def test_root_template_with_multiple_parallel_roots_emits_one_edge_each(
     with LexiconDB(fresh_db) as db:
         ingest_wiktextract_stream(db, _stream(line), apply=True)
         edges = _all_descent_edges(db)
-    assert ("*werh₁-", "word", "inheritance", "wiktionary") in edges
-    assert ("*dʰeh₁-", "word", "inheritance", "wiktionary") in edges
+    # Stored de-dashed (wyrd-aicu.8, D45): boundary dash stripped, '*' kept.
+    assert ("*werh₁", "word", "inheritance", "wiktionary") in edges
+    assert ("*dʰeh₁", "word", "inheritance", "wiktionary") in edges
 
 
 @pytest.mark.parametrize(

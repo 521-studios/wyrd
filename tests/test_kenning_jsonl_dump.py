@@ -1496,9 +1496,12 @@ def test_fantasy_morpheme_uncited_etymon_round_trips_through_dump_and_build(tmp_
         "WHERE fm.input_name = 'Bækard'"
     ).fetchone()
     # Language, form AND the gloss carried on the emitted etymon row survive.
+    # The dashed fixture form '-ard' rebuilds de-dashed to 'ard' (wyrd-aicu.8,
+    # D45): the build de-dashes both the etymon row and the fantasy ref in
+    # lockstep, so the FK still resolves (no orphan) onto the bare key.
     assert (row["language"], row["canonical_form"], row["gloss"]) == (
         "middle-english",
-        "-ard",
+        "ard",
         "agent suffix",
     )
     rebuilt.close()

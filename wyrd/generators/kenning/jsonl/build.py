@@ -52,6 +52,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from ..lexicon.morpheme_surface import normalize_morpheme_surface
 from .log import ReplayState, replay_file
 
 _logger = logging.getLogger(__name__)
@@ -130,13 +131,19 @@ def _parse_etymon_ref(ref: str) -> tuple[str, str]:
     ``language`` is required (the natural key needs a language). An empty
     ``canonical_form`` is accepted — the live DB has junk rows with empty
     canonical_form that we preserve through the round-trip; cleanup
-    happens in a separate prune pass."""
+    happens in a separate prune pass.
+
+    The form is de-dashed to its bare morpheme surface (wyrd-aicu.8, D45) so a
+    dashed L2 ref (``celtic:-ach``) resolves to the bare row the de-dashed write
+    path now stores (``celtic:ach``) — keeping the parsed ref and the stored
+    etymon on the same key. A strip-to-empty junk ref collapses to the existing
+    empty-form sentinel (preserved, not crashed)."""
     if ":" not in ref:
         raise BuildError(f"etymon ref must be 'lang:form', got {ref!r}")
     lang, form = ref.split(":", 1)
     if not lang:
         raise BuildError(f"etymon ref has empty language: {ref!r}")
-    return lang, form
+    return lang, normalize_morpheme_surface(form) or ""
 
 
 def _upsert_source(conn: sqlite3.Connection, source_id: str, payload: dict[str, Any]) -> None:
@@ -215,6 +222,12 @@ def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
     cols = [c for c in _ETYMON_INSERT_COLUMNS if c in payload]
     if "canonical_form" not in cols or "language" not in cols:
         raise BuildError(f"etymon row missing canonical_form or language: {payload}")
+    # De-dash to the bare morpheme surface (wyrd-aicu.8, D45) on the payload so
+    # both the INSERT below and the _merge_etymon_conflict SELECT (which reads
+    # the same payload) key on the bare form. Mirrors _parse_etymon_ref so a
+    # dashed L2 etymon row and the refs that point at it land on one key; an
+    # empty-after-de-dash junk form is preserved as the empty-form sentinel.
+    payload["canonical_form"] = normalize_morpheme_surface(payload["canonical_form"]) or ""
     vals = [payload[c] for c in cols]
     placeholders = ", ".join("?" * len(cols))
     cur = conn.execute(

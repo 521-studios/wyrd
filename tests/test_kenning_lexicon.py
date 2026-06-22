@@ -10474,8 +10474,9 @@ def test_export_meanings_surfaces_cognate_cluster_modern_forms(fresh_db: Path) -
     only in the separate era_reflexes field).
 
     Fixture: OE ``ceaster`` (2 citations, promotable) cognate-linked
-    to modern-english ``-chester``. Post-fix ``modern_english`` carries
-    ``-chester``."""
+    to modern-english ``chester``. Post-fix ``modern_english`` carries
+    ``chester`` (stored BARE — wyrd-aicu.8, D45; position is the separate
+    axis, not a dash on the identity)."""
     with LexiconDB(fresh_db) as db:
         for src in ("a", "b"):
             db.upsert_source(id=src, title=src)
@@ -10484,7 +10485,7 @@ def test_export_meanings_surfaces_cognate_cluster_modern_forms(fresh_db: Path) -
         db.add_tag(ceaster, "architecture")
         db.add_citation(ceaster, "a")
         db.add_citation(ceaster, "b")
-        chester = db.upsert_etymon("-chester", "modern-english")
+        chester = db.upsert_etymon("chester", "modern-english")
         db.conn.execute(
             "UPDATE etymon SET cognate_id = ? WHERE id IN (?, ?)",
             (ceaster, ceaster, chester),
@@ -10494,7 +10495,7 @@ def test_export_meanings_surfaces_cognate_cluster_modern_forms(fresh_db: Path) -
     assert len(subjects) == 1
     word = subjects[0]["words"][0]
     assert word.get("old_english") == ["ceaster"]
-    assert word.get("modern_english") == ["-chester"], (
+    assert word.get("modern_english") == ["chester"], (
         f"forms_by_lang should include cluster mate's modern-english surface; "
         f"got modern_english={word.get('modern_english')!r}"
     )
@@ -10513,7 +10514,7 @@ def test_export_meanings_surfaces_descent_edge_modern_forms(fresh_db: Path) -> N
         db.add_gloss(burg, "fortified town")
         db.add_citation(burg, "a")
         db.add_citation(burg, "b")
-        borough = db.upsert_etymon("-borough", "modern-english")
+        borough = db.upsert_etymon("borough", "modern-english")  # bare (wyrd-aicu.8, D45)
         # Tier 2: direct inheritance edge, no cognate_id on either end.
         db.conn.execute(
             "INSERT INTO etymon_descent "
@@ -10526,7 +10527,7 @@ def test_export_meanings_surfaces_descent_edge_modern_forms(fresh_db: Path) -> N
     assert len(subjects) == 1
     word = subjects[0]["words"][0]
     assert word.get("old_english") == ["burg"]
-    assert word.get("modern_english") == ["-borough"], (
+    assert word.get("modern_english") == ["borough"], (
         f"Tier-2 descent edge should surface modern-english child in forms_by_lang; "
         f"got modern_english={word.get('modern_english')!r}"
     )
@@ -13833,7 +13834,8 @@ def test_cluster_cognates_v2_does_not_bridge_through_proto_indo_european(fresh_d
     assert cid["dūn"] != cid["thymia"] or (cid["dūn"] is None and cid["thymia"] is None)
     assert cid["dūn"] is None  # no surviving edge → not a candidate
     assert cid["thymia"] is None
-    assert cid["*dʰewh₂-"] is None
+    # PIE root stored de-dashed (wyrd-aicu.8, D45): '*dʰewh₂-' → '*dʰewh₂'.
+    assert cid["*dʰewh₂"] is None
 
 
 def test_cluster_cognates_dry_run_does_not_write(fresh_db: Path) -> None:

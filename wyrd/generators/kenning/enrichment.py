@@ -48,6 +48,7 @@ from .lexicon import (
 )
 from .lexicon.canonicalization_projection import project_canonical
 from .lexicon.english_shaping import derive_english_shaped_all
+from .lexicon.morpheme_surface import normalize_morpheme_surface
 from .lexicon.phonological_vector_enrichment import (
     tag_phonological_vectors_all,
 )
@@ -682,6 +683,11 @@ def _apply_split_child(ctx: _SplitContext, parent: _SplitParent, child: Any) -> 
         ctx.counts["children_skipped_invalid_suffix"] += 1
         return None
     child_form = f"{parent.form}#{suffix}"
+    # De-dash the bare morpheme surface (wyrd-aicu.8, D45) so a split-child
+    # minted off a still-dashed parent form lands on the bare key — the same
+    # key the existence SELECT below and the de-dashed parent will share. The
+    # ``#suffix`` is non-empty (gated above) so the form never strips to junk.
+    child_form = normalize_morpheme_surface(child_form) or child_form
 
     existing = ctx.db.conn.execute(
         "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",

@@ -31,6 +31,7 @@ from typing import Any
 import click
 
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 from wyrd.generators.kenning.lexicon.wiktextract_ingester import (
     _canonical_language,
     _extract_head_template_renderings,
@@ -691,7 +692,10 @@ def _write_one(
     ``transliteration`` matters here too — not just for the explicitly-
     non-Latin slices the full ingester also handles.
     """
-    canonical_form = (entry.get("word") or "").strip()
+    # De-dash to the bare morpheme surface (wyrd-aicu.8, D45); a strip-to-empty
+    # junk word (a bare '-' headword) normalizes to None and is dropped here at
+    # the ingest boundary, before the upsert choke would reject it.
+    canonical_form = normalize_morpheme_surface(entry.get("word"))
     sense = _select_canonical_sense(entry)
     if not canonical_form or sense is None:
         return
@@ -813,7 +817,9 @@ def _process_corpus_entry(
     canonical headword isn't in the lexicon — counted under ``etymons_missing``;
     forms-mining enriches existing rows, never creates them). Mutates ``counts``
     in place; DB writes (idempotent ON CONFLICT upsert) are gated on ``apply``."""
-    canonical_form = (entry.get("word") or "").strip()
+    # De-dash the lookup form (wyrd-aicu.8, D45) so a dashed wiktextract headword
+    # resolves to the bare etymon row the de-dashed write path now stores.
+    canonical_form = normalize_morpheme_surface(entry.get("word"))
     if not canonical_form:
         return False
     # ``_canonical_language`` returns the empty string for missing lang_code

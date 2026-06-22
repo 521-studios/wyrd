@@ -31,6 +31,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import URL, Engine
 from sqlalchemy.pool import StaticPool
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 from wyrd.generators.kenning.lexicon.sql.queries import (
     INSERT_CITATION_IF_ABSENT,
     INSERT_GLOSS_OR_IGNORE,
@@ -229,7 +230,26 @@ class LexiconDB:
         See ``lexicon.sql.queries.etymon.UPSERT_ETYMON`` for the
         CASE-on-conflict contract that keeps pronunciation_ipa +
         pronunciation_dialect updating atomically.
+
+        ``canonical_form`` is de-dashed to its bare morpheme surface here
+        (wyrd-aicu.8, D45) — this is the central write choke every etymon
+        writer funnels through, so the boundary affix-position dash never
+        enters the store regardless of the calling path (the durable ingest
+        guard; a one-time UPDATE alone would be undone on the next rebuild).
+        The de-dash is a pure idempotent transform; the strip-to-empty *junk*
+        drop is a record-level decision that belongs at the ingest boundary
+        (the bulk miner / ingester pre-filter junk before they reach here),
+        so a form that normalizes to nothing is a contract violation and
+        raises rather than silently minting an empty-keyed row.
         """
+        normalized = normalize_morpheme_surface(canonical_form)
+        if normalized is None:
+            raise ValueError(
+                "upsert_etymon requires a non-empty morpheme surface; "
+                f"{canonical_form!r} is empty after de-dash (drop junk at the "
+                "ingest boundary, not here)"
+            )
+        canonical_form = normalized
         cur = self.conn.execute(
             UPSERT_ETYMON,
             (
