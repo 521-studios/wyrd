@@ -16,3 +16,6 @@
 {"ref": "goidelic:mo", "reason": "2-char particle 'my'; substring grounding over-matches every name with 'mo'"}
 {"ref": "old-english:Tribal-Name", "reason": "placeholder ('Tribal name'), not a real morpheme — like unknown:Place-name; no coherent surface"}
 {"ref": "old-english:éa", "reason": "2-char river element 'ea'; substring over-matches + attributed toponyms are non-toponym citation fragments"}
+{"ref": "celtic:-an", "reason": "2-char diminutive suffix; over-matches (celtic:an already covers 'an')"}
+{"ref": "celtic:ma", "reason": "2-char particle 'place'; substring over-match"}
+{"ref": "goidelic:choill", "reason": "messy/uncertain lenited realizations (chell/hile/coly); attribution unclear"}
