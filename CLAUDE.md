@@ -87,6 +87,12 @@ ruff check .           # lint
 pytest -n auto         # full suite (pytest-xdist; -n auto ≈ CPU count)
 ```
 
+**If ruff *is* installed in a worktree venv, confirm it matches CI's pinned
+version first.** A stale local ruff (e.g. `0.14.x` local vs `0.15.x` in CI)
+formats differently, so it passes local `ruff format` yet fails CI's
+`ruff format --check .` — a different failure mode than the absent-ruff case
+above, and just as easy to merge red on.
+
 A green from `check-ci.sh` immediately after a push can be stale (it races the
 new commit's check-runs and may report the previous commit's result). Before
 merging, verify the **actual HEAD SHA's** checks:
