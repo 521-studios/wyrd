@@ -218,20 +218,20 @@ resource "aws_lambda_function" "api" {
   memory_size      = 1769
   timeout          = 15
 
-  # wyrd-ocs8: SnapStart is DISABLED. It cached a 1769MB snapshot per published
-  # version, and `publish = true` + staging's per-push auto-deploy cut a new
-  # version every merge — so snapshots accumulated unbounded (~300+ versions),
-  # each billing snapshot storage forever. That blew the cost budget and grew
-  # daily. apply_on = "None" stops new snapshots; the accumulated versions were
-  # deleted out-of-band (2026-06-22). Cold start is ~3.7s on this 1769MB config
-  # (prod has no users yet — acceptable). `publish = true` stays for now so the
-  # `live` alias + Function URL routing is unchanged; the proper fix (serve
-  # $LATEST directly, drop publish + alias so versions can't accumulate) is
-  # tracked in wyrd-ocs8. Do NOT re-enable SnapStart without fixing publish.
+  # wyrd-ocs8: SnapStart is gated behind var.enable_snapstart (DEFAULT OFF).
+  # SnapStart cached a 1769MB snapshot per published version, and `publish = true`
+  # + staging's per-push auto-deploy cut a new version every merge — so snapshots
+  # accumulated unbounded (~300+ versions), each billing snapshot storage forever.
+  # That blew the cost budget and grew daily. With the flag off, apply_on = "None"
+  # stops new snapshots; cold start is ~3.7s on this 1769MB config (prod has no
+  # users yet — acceptable). Only flip enable_snapstart=true once version
+  # retention bounds the published-version count (keep current + prior), or the
+  # snapshot cost returns. `publish = true` stays so the `live` alias + Function
+  # URL routing is unchanged.
   publish = true
 
   snap_start {
-    apply_on = "None"
+    apply_on = var.enable_snapstart ? "PublishedVersions" : "None"
   }
 
   environment {
