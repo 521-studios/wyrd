@@ -2115,3 +2115,24 @@
 {"ref": "welsh:tra", "reason": "adverb 'quite/very'"}
 {"ref": "welsh:ystum", "reason": "'gesture/posture' sense, not the river-bend sense"}
 {"ref": "old-english:Ēadgifu", "reason": "feminine personal-name; render as the name, not a compressible sense (name-wall)"}
+{"ref": "goidelic:coman", "reason": "'hurling-stick'; OCR-garbled 'comdns'; not toponymic"}
+{"ref": "goidelic:eire", "reason": "proper noun (Ireland / goddess Ériu)"}
+{"ref": "goidelic:eireann", "reason": "proper noun (Ireland); garbled 'Barn'"}
+{"ref": "goidelic:fuav", "reason": "garbled surface 'fuav'; mixed cold/knoll"}
+{"ref": "goidelic:mhearndig", "reason": "garbled 'mhearndig'; saint's-name/epithet"}
+{"ref": "goidelic:renny", "reason": "anglicized; mixed gap/ferns, uncertain"}
+{"ref": "goidelic:siigain", "reason": "'twisted heather-rope'; OCR 'siigain'; not toponymic"}
+{"ref": "goidelic:torn", "reason": "mixed cold/knoll; uncertain"}
+{"ref": "latin:bassius", "reason": "Roman gentilice (family name)"}
+{"ref": "latin:massula", "reason": "Roman woman's cognomen"}
+{"ref": "latin:renus", "reason": "river-name (the Reno)"}
+{"ref": "latin:turius", "reason": "Roman gentilice (family name)"}
+{"ref": "modern-english:davy", "reason": "personal name (David)"}
+{"ref": "old-english:aecceling(a)", "reason": "patronymic (sons of Aeccel); parenthetical surface"}
+{"ref": "old-english:ale", "reason": "verb-inflection contamination (of alan) + 'hall'; mixed"}
+{"ref": "old-english:bare", "reason": "inflection contamination (of bær) + barley"}
+{"ref": "old-english:bec", "reason": "inflection contamination (of bōc) + stream"}
+{"ref": "old-english:bedeling(a)", "reason": "patronymic (sons of Bedel)"}
+{"ref": "old-english:bide", "reason": "inflection contamination (of bīdan) + pale"}
+{"ref": "old-english:bit", "reason": "verb-imperative contamination (of bītan) + 'piece of land'"}
+{"ref": "old-english:botan", "reason": "personal name (Bota/Bote)"}
