@@ -1637,3 +1637,13 @@
 {"ref": "old-norse:eng", "reason": "'eng' covers it; -ing conflates with OE -ing suffix"}
 {"ref": "old-norse:hlíð", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed/homographic — no safely-generalizable new surface"}
 {"ref": "old-norse:hryggr", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed/homographic — no safely-generalizable new surface"}
+{"ref": "old-norse:rauðr", "reason": "covered (raw/ruth); -roth conflates with PN Hrotha, -rath with Irish ráth"}
+{"ref": "old-norse:skáli", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail Celtic-idiosyncratic/misattributed/homographic/gloss-leak — no safely-generalizable new surface"}
+{"ref": "celtic:breac", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail Celtic-idiosyncratic/misattributed/homographic/gloss-leak — no safely-generalizable new surface"}
+{"ref": "celtic:caer", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail Celtic-idiosyncratic/misattributed/homographic/gloss-leak — no safely-generalizable new surface"}
+{"ref": "celtic:carn", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail Celtic-idiosyncratic/misattributed/homographic/gloss-leak — no safely-generalizable new surface"}
+{"ref": "celtic:cill", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail Celtic-idiosyncratic/misattributed/homographic/gloss-leak — no safely-generalizable new surface"}
+{"ref": "celtic:din", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail Celtic-idiosyncratic/misattributed/homographic/gloss-leak — no safely-generalizable new surface"}
+{"ref": "celtic:fionn", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail Celtic-idiosyncratic/misattributed/homographic/gloss-leak — no safely-generalizable new surface"}
+{"ref": "celtic:gwaun", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail Celtic-idiosyncratic/misattributed/homographic/gloss-leak — no safely-generalizable new surface"}
+{"ref": "celtic:liath", "reason": "covered (leagh/liath); -lea conflates with lēah"}
