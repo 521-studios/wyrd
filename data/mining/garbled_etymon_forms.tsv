@@ -80,3 +80,4 @@ CORRUPTION	goidelic	a?	suspected=? ('?' literal in form) — junk, human triage
 CORRUPTION	modern-english	lmbeald	suspected OE -beald personal name (lm- garble, no clear twin in DB) — human triage
 CORRUPTION	old-english	*gzfl	junk/no-twin (z,f,l consonant cluster, leading *) — human triage
 CORRUPTION	old-english	/edh	leading-slash garble of -edh/eð pasture element — human triage
+CORRUPTION	old-english	H)rencga	leading 'H)' paren-garble of a Hrenc-/Reng- personal name (→Rangeworthy) — human triage
