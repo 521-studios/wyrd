@@ -44,6 +44,7 @@ from wyrd.generators.kenning.canonicalization.assertions import (
 )
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 from wyrd.generators.kenning.lexicon.etymon_refs import (
+    etymon_ref,
     gloss_ref,
     resolve_etymon_ref,
     split_gloss_ref,
@@ -161,6 +162,37 @@ def wall_glosses(conn: sqlite3.Connection, etymon_id: int) -> set[str]:
     }
 
 
+def _grounding_errors(conn: sqlite3.Connection, eid: int, c: GlossSenseCandidate) -> list[str]:
+    """Wall-grounding + partition + label/degeneracy checks for one resolved
+    candidate (the per-candidate half of the gate; split out to keep the caller's
+    complexity in check)."""
+    wall = wall_glosses(conn, eid)
+    if not wall:
+        return [f"{c.ref}: morpheme has no gloss wall to compress"]
+    errs: list[str] = []
+    assigned = c.all_glosses
+    assigned_set = set(assigned)
+    invented = assigned_set - wall
+    if invented:
+        errs.append(f"{c.ref}: glosses not in the wall (invented): {sorted(invented)}")
+    if len(assigned) != len(assigned_set):
+        errs.append(f"{c.ref}: a gloss appears in more than one sense (not a partition)")
+    missing = wall - assigned_set
+    if missing:
+        errs.append(f"{c.ref}: wall glosses left unassigned: {sorted(missing)}")
+    bad_labels = [s.label for s in c.senses if not _label_ok(s.label)]
+    if bad_labels:
+        errs.append(f"{c.ref}: labels not short compressions: {bad_labels}")
+    # A sense covering zero gloss rows mints a canonical_sense hub + label bound to
+    # nothing. parse_candidate rejects empty glosses per sense; guard it here too
+    # for hand-built candidates (wall-completeness above passes as long as the
+    # OTHER senses cover the wall).
+    empty_senses = [s.label for s in c.senses if not s.glosses]
+    if empty_senses:
+        errs.append(f"{c.ref}: sense(s) cover no glosses: {empty_senses}")
+    return errs
+
+
 def validate_gloss_sense_candidates(
     conn: sqlite3.Connection,
     committed_refs: set[str],
@@ -183,6 +215,19 @@ def validate_gloss_sense_candidates(
         if eid is None:
             errors.append(f"{c.ref}: resolves to no etymon")
             continue
+        # The gate grounds against the etymon resolved from c.ref, but
+        # sense_assertions authors the same-sense binds from c.language /
+        # c.canonical_form (via gloss_ref). If those disagree with c.ref the binds
+        # resolve to a different/absent gloss row at projection and the minted hub
+        # is bound to nothing — reject the inconsistency. (parse_candidate derives
+        # both from the ref so they always agree on the agent path; validate is the
+        # independent gate for hand-built candidates.)
+        if _nfc(etymon_ref(c.language, c.canonical_form)) != _nfc(c.ref):
+            errors.append(
+                f"{c.ref}: ref disagrees with language/canonical_form "
+                f"({c.language}:{c.canonical_form})"
+            )
+            continue
         # NFC-normalize the ref for the dedup checks: committed_refs (from
         # committed_done) and the slice/parked sets are all NFC, so a non-NFC
         # (decomposed-diacritic) candidate ref — the OE/Welsh forms this campaign
@@ -196,23 +241,7 @@ def validate_gloss_sense_candidates(
             errors.append(f"{c.ref}: duplicated in this batch")
             continue
         seen.add(ref_key)
-        wall = wall_glosses(conn, eid)
-        if not wall:
-            errors.append(f"{c.ref}: morpheme has no gloss wall to compress")
-            continue
-        assigned = c.all_glosses
-        assigned_set = set(assigned)
-        invented = assigned_set - wall
-        if invented:
-            errors.append(f"{c.ref}: glosses not in the wall (invented): {sorted(invented)}")
-        if len(assigned) != len(assigned_set):
-            errors.append(f"{c.ref}: a gloss appears in more than one sense (not a partition)")
-        missing = wall - assigned_set
-        if missing:
-            errors.append(f"{c.ref}: wall glosses left unassigned: {sorted(missing)}")
-        bad_labels = [s.label for s in c.senses if not _label_ok(s.label)]
-        if bad_labels:
-            errors.append(f"{c.ref}: labels not short compressions: {bad_labels}")
+        errors.extend(_grounding_errors(conn, eid, c))
     return errors
 
 

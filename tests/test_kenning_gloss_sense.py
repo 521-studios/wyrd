@@ -136,6 +136,36 @@ def test_validate_rejects_whitespace_only_label(tmp_path):
     db.close()
 
 
+def test_validate_rejects_ref_inconsistent_with_form(tmp_path):
+    """validate grounds on the etymon from c.ref, but sense_assertions authors the
+    same-sense binds from c.language/c.canonical_form. A hand-built candidate whose
+    ref disagrees with those fields must be rejected — else the binds resolve
+    elsewhere at projection and the hub is minted bound to nothing."""
+    db = _db(tmp_path)
+    _etymon(db, "tūn", ["town"])
+    # ref resolves to tūn, but canonical_form points elsewhere (lēah)
+    c = _cand("old-english:tūn", "old-english", "lēah", [("town", ["town"])])
+    errs = validate_gloss_sense_candidates(db.conn, set(), [c])
+    assert any("disagrees with language/canonical_form" in e for e in errs)
+    db.close()
+
+
+def test_validate_rejects_sense_with_no_glosses(tmp_path):
+    """A sense covering zero gloss rows mints a canonical_sense hub + label bound to
+    nothing; reject it even when the OTHER senses cover the whole wall."""
+    db = _db(tmp_path)
+    _etymon(db, "tūn", ["town", "farm"])
+    c = _cand(
+        "old-english:tūn",
+        "old-english",
+        "tūn",
+        [("town", ["town", "farm"]), ("empty", [])],  # 2nd sense covers nothing
+    )
+    errs = validate_gloss_sense_candidates(db.conn, set(), [c])
+    assert any("cover no glosses" in e for e in errs)
+    db.close()
+
+
 def test_validate_rejects_already_committed_and_dupes(tmp_path):
     db = _db(tmp_path)
     _etymon(db, "tūn", ["town"])
