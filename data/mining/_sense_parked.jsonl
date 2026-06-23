@@ -468,3 +468,4 @@
 {"ref": "celtic:lune", "reason": "specific river-name, not a generative morpheme"}
 {"ref": "celtic:ddewi", "reason": "saint name (David / St. David) — render as the name"}
 {"ref": "celtic:gortna", "reason": "connective fragment 'gort na' (field + article); over-segmentation"}
+{"ref": "goidelic:aodha", "reason": "personal-name element — render as the name"}
