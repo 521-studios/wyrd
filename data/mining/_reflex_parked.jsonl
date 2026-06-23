@@ -1425,3 +1425,13 @@
 {"ref": "old-english:ingas", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are idiosyncratic/homographic worn forms or misattributions — no safely-generalizable new surface"}
 {"ref": "old-english:ēg", "reason": "well-covered (eg/ey/ney/sey + authored ey); remaining -sea/-ay forms homographic/too-short"}
 {"ref": "old-english:ford", "reason": "well-covered by ford/forth; gap toponyms are misattributions with no ford surface"}
+{"ref": "old-english:berg", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-english:hēah", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-english:tun", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-norse:by", "reason": "covered by 'by'; remaining -bi forms are Domesday spellings, too short (2ch) to generalize safely"}
+{"ref": "old-english:burh", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-english:mere", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-norse:haugr", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "celtic:lann", "reason": "covered by lani/lann; the -land worn form (Helland) is a homograph of OE land — unsafe to generalize"}
+{"ref": "old-english:denu", "reason": "covered by dean/den/denu/don; gap toponyms are -ton (tūn) misattributions"}
+{"ref": "old-english:ōra", "reason": "only 'orr' committed but worn -or/-nor/-sor forms are too short/homographic to generalize safely; revisit if a cleaner form appears"}

@@ -151,6 +151,12 @@ changes no output.
   homographic (-low=hlāw, -sea=sǣ), or junk toponyms ("Not in Dom"). Emerging
   policy: author the clean generalizable worn form; park a well-covered morpheme
   once its tail is only homographic/noise rather than pollute the matcher.
+- Fire #10 (2026-06-23): authored 2 — burna→`borne` (Enborne/Golborne), hōh→`hoo`
+  (Hoo/Hooton). Parked 10 (berg, hēah, tun, by, burh, mere, haugr, celtic:lann,
+  denu, ōra). YIELD DROPPING (5→4→2 clean authors/fire): the top variant-gap
+  morphemes are draining — their clean generalizable worn forms are authored, and
+  the long tail is mostly misattributions, junk toponyms, or homographs being
+  parked. Cumulative: 11 reflexes authored, 23 parked.
 
 ## Loop procedure (each 5-min fire)
 0. `date '+%F %T %Z'` (ITERATION START). `git pull --rebase`.
