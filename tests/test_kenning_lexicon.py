@@ -5034,28 +5034,33 @@ def test_derive_surface_in_modern_uses_mined_reflex_surface(fresh_db: Path) -> N
     assert surfaces[1] == "ton"
 
 
-def test_project_period_forms_ignores_reflex_table(fresh_db: Path) -> None:
-    """The historical-form projection must NOT pull reflexes (include_reflexes
-    defaults False) — medieval attested forms align to the OE variants, and a
-    modern reflex would mis-anchor. A reflex-only 'ton' must not segment a
-    historical 'Cestreton' attestation (no OE 'ton' variant exists)."""
+def test_suffix_candidates_excludes_reflex_unless_requested(fresh_db: Path) -> None:
+    """wyrd-5b1a: _suffix_candidates_for_etymon only pulls reflex surfaces when
+    include_reflexes=True. The default-False path is what keeps project_period_forms
+    (the historical-form projection) reflex-free — a modern reflex ('ton') would
+    mis-anchor a medieval attested form. Also pins the sub-2-char guard: a 1-char
+    reflex surface is dropped so it can never suffix-match as noise.
+
+    (Tests the helper directly rather than driving project_period_forms — the
+    helper's include_reflexes default IS the historical path's contract.)"""
     from wyrd.generators.kenning.lexicon.period_form import _suffix_candidates_for_etymon
 
     with LexiconDB(fresh_db) as db:
         tun_id = db.upsert_etymon("tūn", "old-english")
-        reflex_id = db.conn.execute(
-            "INSERT INTO reflex (surface_form, position) VALUES ('ton', 'post')"
-        ).lastrowid
-        db.conn.execute(
-            "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)",
-            (reflex_id, tun_id),
-        )
+        for sf in ("ton", "n"):  # 'n' is sub-2-char → must be dropped by the len>=2 guard
+            rid = db.conn.execute(
+                "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
+            ).lastrowid
+            db.conn.execute(
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, tun_id)
+            )
         db.commit()
         without = _suffix_candidates_for_etymon(db, tun_id, "tūn", None)
         with_reflex = _suffix_candidates_for_etymon(db, tun_id, "tūn", None, include_reflexes=True)
 
-    assert "ton" not in without  # historical path: reflex excluded
-    assert "ton" in with_reflex  # modern path: reflex included
+    assert "ton" not in without  # default path: reflex excluded
+    assert "ton" in with_reflex  # include_reflexes=True: reflex included
+    assert "n" not in with_reflex  # sub-2-char reflex dropped by the len>=2 guard
 
 
 def test_suffix_candidates_drops_composite_reflexes(fresh_db: Path) -> None:

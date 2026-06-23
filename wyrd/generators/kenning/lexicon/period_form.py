@@ -114,7 +114,9 @@ def _suffix_candidates_for_etymon(
         minimal = {
             sf
             for sf in reflex_surfaces
-            if not any(o != sf and len(o) >= 2 and sf.endswith(o) for o in reflex_surfaces)
+            # reflex_surfaces is already filtered to len >= 2 above, so no length
+            # guard is needed on the inner term.
+            if not any(o != sf and sf.endswith(o) for o in reflex_surfaces)
         }
         for sf in minimal:
             _add(sf)
