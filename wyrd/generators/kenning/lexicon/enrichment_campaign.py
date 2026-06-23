@@ -638,13 +638,13 @@ def tag_next_slice(
     restricts to a single band. ``db_path`` is accepted for signature parity with
     the reflex rail; the cohort comes from ``conn``."""
     del db_path  # cohort is computed from conn, not a fresh path-opened connection
-    done = tag_mining.existing_refs(str(tags_path))
+    done = {_nfc(r) for r in tag_mining.existing_refs(str(tags_path))}
     targets: list[dict[str, Any]] = []
     for row in tag_cohort(conn):
         if impact is not None and row["impact"] != impact:
             continue
         ref = etymon_ref(row["language"], row["canonical_form"])
-        if ref in done:
+        if _nfc(ref) in done:
             continue
         targets.append(
             {
@@ -670,7 +670,7 @@ def validate_tag_candidates(
     "tags"``; ``ref`` resolves to a real etymon; every tag is in the controlled
     vocabulary (an empty list is the valid 'none' outcome); no duplicate decision
     for a ref already committed or seen in this batch."""
-    done = tag_mining.existing_refs(str(tags_path))
+    done = {_nfc(r) for r in tag_mining.existing_refs(str(tags_path))}
     seen: set[str] = set()
     errors: list[str] = []
     for i, rec in enumerate(candidates):
@@ -689,9 +689,10 @@ def validate_tag_candidates(
         bad = [t for t in tags if t not in _TAG_VOCAB_SET]
         if bad:
             errors.append(f"{tag}: tags not in controlled vocabulary: {bad}")
-        if ref in done or ref in seen:
+        key = _nfc(ref)
+        if key in done or key in seen:
             errors.append(f"{tag}: duplicate tag decision for {ref}")
-        seen.add(ref)
+        seen.add(key)
     return errors
 
 
@@ -700,11 +701,11 @@ def tag_progress(conn: sqlite3.Connection, db_path: Path, tags_path: Path) -> in
     DB, remainder from the committed ``_tags.jsonl`` — equivalent on a clean
     rebuild where DB tags == the committed ledger)."""
     del db_path  # cohort is computed from conn
-    done = tag_mining.existing_refs(str(tags_path))
+    done = {_nfc(r) for r in tag_mining.existing_refs(str(tags_path))}
     return sum(
         1
         for row in tag_cohort(conn)
-        if etymon_ref(row["language"], row["canonical_form"]) not in done
+        if _nfc(etymon_ref(row["language"], row["canonical_form"])) not in done
     )
 
 
@@ -908,7 +909,7 @@ def bands_status(
     its committed ledger. Only bands with remaining work are returned — the first
     row is the current top band for the band-by-band loop."""
     reflex_done = committed_reflex_refs(reflexes_path) | parked_refs(parked_path)
-    tag_led = tag_mining.existing_refs(str(tags_path))
+    tag_led = {_nfc(r) for r in tag_mining.existing_refs(str(tags_path))}
     ipa_led = ledger_refs(ipa_path, "pronunciation")
     gloss_led = ledger_refs(gloss_path, "etymon_gloss_add")
     agg: dict[int, dict[str, int]] = {}

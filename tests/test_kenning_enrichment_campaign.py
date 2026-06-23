@@ -282,6 +282,32 @@ def test_tag_validate_rejects_committed_duplicate(world):
     assert tag_progress(db.conn, tmp_path / "lexicon.db", tags) == 1  # only 'by' remains
 
 
+def test_tag_done_set_matches_across_unicode_normalization(world):
+    """A tag decision committed in one Unicode form must mark the etymon done even
+    when the DB ref folds to the other (NFC/NFD): the tag ``done``/``tag_led`` sets
+    are NFC-normalized like every other dimension. Without it, diacritic-heavy
+    etymons (tūn, bōfa, …) re-surface forever (Gemini, wyrd-eni4.3)."""
+    import unicodedata
+
+    db, tmp_path = world
+    tags = tmp_path / "_tags.jsonl"
+    nfd_ref = "old-english:" + unicodedata.normalize("NFD", "tūn")
+    assert nfd_ref != "old-english:tūn"  # genuinely byte-different forms
+    tags.write_text(
+        json.dumps({"_type": "tags", "ref": nfd_ref, "tags": [_VALID_TAG]}) + "\n",
+        encoding="utf-8",
+    )
+    # tūn is committed (in NFD) → drops from the slice + progress, and an NFC
+    # re-decision reads as a duplicate.
+    slice_refs = {t["ref"] for t in tag_next_slice(db.conn, tmp_path / "lexicon.db", tags, n=10)}
+    assert "old-english:tūn" not in slice_refs
+    assert tag_progress(db.conn, tmp_path / "lexicon.db", tags) == 1
+    dup = validate_tag_candidates(
+        db.conn, tags, [{"_type": "tags", "ref": "old-english:tūn", "tags": [_VALID_TAG]}]
+    )
+    assert any("duplicate" in e for e in dup)
+
+
 # --- band-by-band holistic loop (wyrd-eni4.3) -------------------------------
 
 
