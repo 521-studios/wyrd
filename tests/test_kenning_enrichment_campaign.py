@@ -301,6 +301,36 @@ def test_variant_rail_slice_validate_and_dedup(tmp_path):
     )
 
 
+def test_cmd_variants_park_validates_and_dedups(tmp_path):
+    """`variants-park` (shared `_park_ref`): rejects a bogus ref (exit 1, nothing
+    written), parks a real ref, and skips a no-op re-park."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.enrich_campaign import enrich_campaign
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    dun = _etymon(db, "dūn")
+    _toponym(db, "Battlesden", [dun])
+    db.commit()
+
+    parked = tmp_path / "_variant_parked.jsonl"
+    runner = CliRunner()
+    base = ["variants-park", "--db", str(db.path), "--parked-path", str(parked)]
+
+    bogus = runner.invoke(enrich_campaign, [*base, "--ref", "old-english:nope", "--reason", "x"])
+    assert bogus.exit_code == 1
+    assert not parked.exists()
+
+    ok = runner.invoke(enrich_campaign, [*base, "--ref", "old-english:dūn", "--reason", "none"])
+    assert ok.exit_code == 0, ok.output
+    again = runner.invoke(enrich_campaign, [*base, "--ref", "old-english:dūn", "--reason", "again"])
+    assert again.exit_code == 0, again.output
+    assert len(parked.read_text().splitlines()) == 1  # deduped, not appended
+
+
 def test_parked_refs_excluded_from_slice(world):
     db, tmp_path = world
     empty = tmp_path / "empty.jsonl"

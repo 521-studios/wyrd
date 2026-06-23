@@ -107,17 +107,11 @@ def cmd_next_slice(
     click.echo(f"emitted {len(slice_)} etymons (reflexes-path={reflexes_path})", err=True)
 
 
-@enrich_campaign.command("park")
-@_db_option
-@_parked_option
-@click.option("--ref", "ref", required=True, help="The 'language:canonical_form' ref to park.")
-@click.option("--reason", required=True, help="Why it can't be grounded (one line).")
-def cmd_park(db_path: Path, parked_path: Path, ref: str, reason: str) -> None:
-    """Record an un-groundable etymon so it drops out of future slices.
-
-    Validates the ref resolves to a real etymon (a typo'd ref would otherwise sit
-    in the park ledger forever, never matching — and never grounding — a slice)
-    and skips a no-op re-park if the ref is already listed."""
+def _park_ref(db_path: Path, parked_path: Path, ref: str, reason: str, *, label: str = "") -> None:
+    """Shared park primitive (reflex + variant rails): validate the ref resolves
+    (a typo'd ref would otherwise sit in the ledger forever, never matching — and
+    never grounding — a slice), skip a no-op re-park if already listed, else append
+    a ``{ref, reason}`` row."""
     import unicodedata
 
     from wyrd.generators.kenning.lexicon.enrichment_campaign import parked_refs
@@ -127,14 +121,23 @@ def cmd_park(db_path: Path, parked_path: Path, ref: str, reason: str) -> None:
         if resolve_etymon_ref(conn, ref) is None:
             click.echo(f"Error: etymon ref {ref!r} resolves to no etymon", err=True)
             sys.exit(1)
-
     if unicodedata.normalize("NFC", ref) in parked_refs(parked_path):
         click.echo(f"already parked {ref}", err=True)
         return
     parked_path.parent.mkdir(parents=True, exist_ok=True)
     with parked_path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps({"ref": ref, "reason": reason}, ensure_ascii=False) + "\n")
-    click.echo(f"parked {ref}", err=True)
+    click.echo(f"parked {ref}{label}", err=True)
+
+
+@enrich_campaign.command("park")
+@_db_option
+@_parked_option
+@click.option("--ref", "ref", required=True, help="The 'language:canonical_form' ref to park.")
+@click.option("--reason", required=True, help="Why it can't be grounded (one line).")
+def cmd_park(db_path: Path, parked_path: Path, ref: str, reason: str) -> None:
+    """Record an un-groundable etymon so it drops out of future reflex slices."""
+    _park_ref(db_path, parked_path, ref, reason)
 
 
 @enrich_campaign.command("validate")
@@ -299,24 +302,8 @@ def cmd_variants_validate(db_path: Path, variants_path: Path, candidates_path: P
 @click.option("--reason", required=True, help="Why no groundable variant exists (one line).")
 def cmd_variants_park(db_path: Path, parked_path: Path, ref: str, reason: str) -> None:
     """Record an etymon with no groundable toponymic-surface variant so it drops
-    out of future variant slices. Validates the ref resolves + dedups (mirrors
-    reflex park; shares the parked-ledger format, separate file)."""
-    import unicodedata
-
-    from wyrd.generators.kenning.lexicon.enrichment_campaign import parked_refs
-    from wyrd.generators.kenning.lexicon.etymon_refs import resolve_etymon_ref
-
-    with _readonly_lexicon(db_path) as conn:
-        if resolve_etymon_ref(conn, ref) is None:
-            click.echo(f"Error: etymon ref {ref!r} resolves to no etymon", err=True)
-            sys.exit(1)
-    if unicodedata.normalize("NFC", ref) in parked_refs(parked_path):
-        click.echo(f"already parked {ref}", err=True)
-        return
-    parked_path.parent.mkdir(parents=True, exist_ok=True)
-    with parked_path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps({"ref": ref, "reason": reason}, ensure_ascii=False) + "\n")
-    click.echo(f"parked {ref} (variant)", err=True)
+    out of future variant slices (separate ledger file, shared park primitive)."""
+    _park_ref(db_path, parked_path, ref, reason, label=" (variant)")
 
 
 _tags_option = click.option(

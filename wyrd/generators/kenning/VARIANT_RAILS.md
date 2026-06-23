@@ -100,19 +100,40 @@ fire. Update the checkboxes here as pieces land.
       --phase`). Live smoke OK (tūn, lēah). Tested (26 pass), ruff clean.
       MINOR DEBT for B6: `variants-park` ~dups reflex `cmd_park` — dedup into a
       shared `_park_ref` helper.
-- [ ] B4. Generation gate: standalone-name generation excludes
-      `toponymic-surface`-tagged variants; composition/worn-form path includes
-      them. Test it both ways.
-- [ ] B5. Authoring path: grounded alt-spellings → `validate` → append
-      `_variants.jsonl`; park un-groundable.
-- [ ] B6. Tests + ruff + rebuild-runbook + db-reconstructibility wiring green.
+- [⛔ PARKED] B4. Generation gate. **BLOCKED — needs a user decision.** Discovery:
+      the runtime bundle export does NOT read `etymon_variant` at all (its `_variants`
+      field is reflex-surface dash-grouping, unrelated). So generation cannot emit
+      toponymic-surface variants today — there is **no standalone read path to gate**
+      (hence no leak risk), and the variants would be **inert until generation is
+      wired to consume them**. Wiring `etymon_variant` (incl. the toponymic-surface
+      pool) into the runtime bundle + name generation IS the substance of wyrd-740t:
+      a separate design effort (bundle schema for the spelling pool; runtime
+      composition-vs-standalone usage; respelling/name.py integration) the locked
+      decisions don't cover. The gate PREDICATE is already built and waiting
+      (`schema.is_toponymic_surface_variant`, B1). DO NOT guess the integration
+      architecture. Resolution options for the user: (a) authorize the 740t
+      generation-integration as new scoped work; (b) defer Rail B authoring and run
+      Rail A only; (c) other.
+- [x] B5. Authoring path. DONE — no new code: `variants-next-slice` →
+      `variants-validate` (grounding) → append `_variants.jsonl` → replay
+      (`_insert_variant_rows`, B2). Covered end-to-end by the B3 validate test +
+      B2 replay test + the `variants-park` CLI test.
+- [x] B6. DONE — park dedup landed (`_park_ref` shared by reflex + variant park,
+      tested both rails); enrichment (27) + build/replay + rebuild-runbook suites
+      green; ruff clean; db-reconstructibility 4-file wiring in place (B2).
 
-### Run phase (after BOTH rails are built + green)
-- [ ] Drain `variant-gap-next-slice` (Rail A) and `variants-next-slice` (Rail B),
-      authoring grounded rows (`variants-validate` for Rail B) / parking, committing
-      each slice. NB the run command is `variants-next-slice`, NOT `next-slice
-      --phase variants` (the cron prompt's wording predates the shipped convention;
-      this doc is the source of truth).
+### Run phase — STATUS: Rail A runnable; Rail B HELD on B4 (user decision)
+Rail A (variant-gap reflexes) is fully built + EFFECTIVE (reflexes feed the
+matcher/CAN-IT) — the unblocked CAN-IT lever. Rail B authoring is build-complete
+but **inert until B4/740t**, so authoring it now would write ledger data that
+changes no output.
+- [ ] **Next fire (judgment call, surfaced to user): RUN RAIL A authoring** —
+      `variant-gap-next-slice --n 20`, propose grounded worn spans, `validate`
+      (reflex gate), append `_reflexes.jsonl`, park the ungroundable. This is
+      unblocked, effective, and serves the CAN-IT north star.
+- [ ] **HOLD Rail B authoring** (`variants-next-slice`) until the user resolves B4.
+      Do NOT author inert variant rows; do NOT build the 740t integration unprompted.
+- NB run command is `variants-next-slice`, NOT `next-slice --phase variants`.
 
 ## Loop procedure (each 5-min fire)
 0. `date '+%F %T %Z'` (ITERATION START). `git pull --rebase`.
