@@ -430,3 +430,4 @@
 {"ref": "old-english:blaca", "reason": "personal-name element (garbled 'pers. n.' gloss) — render as the name"}
 {"ref": "old-english:cylla", "reason": "personal-name/ethnonym element — render as the name"}
 {"ref": "old-english:eadgar", "reason": "personal-name/ethnonym element — render as the name"}
+{"ref": "old-english:eorð-burg", "reason": "composite (eorð+burg = earth-fort); expand to constituents per D51.3"}
