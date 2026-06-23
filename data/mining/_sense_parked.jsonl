@@ -1404,3 +1404,13 @@
 {"ref": "brittonic:Carey", "reason": "river-name of uncertain meaning"}
 {"ref": "brittonic:Soar", "reason": "river-name ('flowing one')"}
 {"ref": "brittonic:lei", "reason": "etymological root note ('to flow'); not a standalone gloss"}
+{"ref": "celtic:ro", "reason": "intensive prefix; not a generative root"}
+{"ref": "celtic:ssa", "reason": "Gaulish place-name suffix; not a generative root"}
+{"ref": "germanic:garius", "reason": "abstract gloss 'desirous/avid'; no toponymic sense / name-element"}
+{"ref": "goidelic:buadhnat", "reason": "diminutive epithet 'little one of virtue'; likely a name"}
+{"ref": "goidelic:clouté", "reason": "river epithet 'the washer/strongly-flowing'; specific name"}
+{"ref": "goidelic:daihhche", "reason": "OCR-corrupt surface 'daihhche' (likely dabhcha); morpheme-quality issue"}
+{"ref": "goidelic:elpin", "reason": "Pictish king's name (Alpin) — render as the name"}
+{"ref": "goidelic:farg", "reason": "abstract gloss 'efficacy/work/deed'; no clear toponymic sense"}
+{"ref": "goidelic:fraiyh", "reason": "OCR-corrupt surface 'fraiyh' (likely fraigh); morpheme-quality issue"}
+{"ref": "goidelic:frith", "reason": "old-Gaelic preposition 'against/parallel'; connective, not a root"}
