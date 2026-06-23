@@ -99,3 +99,4 @@ continental-germanic:Personal-name	NOTE	parser-artifact: literal placeholder "Pe
 celtic:gap	NOTE	suspect mis-parsed gloss (heath-hens) — verify form/gloss attribution; human triage
 celtic:gat	NOTE	suspect mis-parsed gloss (hangmen) — verify form/gloss attribution; human triage
 celtic:gark	NOTE	suspect mis-parsed gloss (heath-hens) — verify form/gloss attribution; human triage
+old-english:6j^	CORRUPTION	OCR junk "6j^" gloss=cow-byre — no recoverable twin; human triage/delete
