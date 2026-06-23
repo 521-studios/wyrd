@@ -5003,7 +5003,83 @@ def test_derive_surface_in_modern_uses_cluster_mate_modern_suffix(fresh_db: Path
     assert surfaces[1] == "ton"
 
 
-def test_derive_surface_in_modern_dry_run_writes_nothing(fresh_db: Path) -> None:
+def test_derive_surface_in_modern_uses_mined_reflex_surface(fresh_db: Path) -> None:
+    """wyrd-5b1a: the modern reflex surface ('ton') lives in the reflex table (the
+    eni4 scholar-reflex campaign's output) — NOT as a cognate-cluster etymon and
+    NOT as an etymon_variant. derive_surface_in_modern must consult reflex /
+    reflex_etymon so 'Chesterton' = ceaster + tūn splits 'Chester' + 'ton'. This is
+    the exact path that was unwired: the OE inflection 'tūn' never suffix-matches a
+    modern name, so without the reflex the alignment fails."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        ceaster_id = db.upsert_etymon("ceaster", "old-english")
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        # 'ton' is ONLY a mined reflex — no cognate mate, no etymon_variant.
+        reflex_id = db.conn.execute(
+            "INSERT INTO reflex (surface_form, position) VALUES ('ton', 'post')"
+        ).lastrowid
+        db.conn.execute(
+            "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)",
+            (reflex_id, tun_id),
+        )
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Chesterton", first_etymon_id=ceaster_id, last_etymon_id=tun_id
+        )
+        result = derive_surface_in_modern(db, apply=True)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["rows_projected"] == 1
+    assert surfaces[0] == "Chester"
+    assert surfaces[1] == "ton"
+
+
+def test_project_period_forms_ignores_reflex_table(fresh_db: Path) -> None:
+    """The historical-form projection must NOT pull reflexes (include_reflexes
+    defaults False) — medieval attested forms align to the OE variants, and a
+    modern reflex would mis-anchor. A reflex-only 'ton' must not segment a
+    historical 'Cestreton' attestation (no OE 'ton' variant exists)."""
+    from wyrd.generators.kenning.lexicon.period_form import _suffix_candidates_for_etymon
+
+    with LexiconDB(fresh_db) as db:
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        reflex_id = db.conn.execute(
+            "INSERT INTO reflex (surface_form, position) VALUES ('ton', 'post')"
+        ).lastrowid
+        db.conn.execute(
+            "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)",
+            (reflex_id, tun_id),
+        )
+        db.commit()
+        without = _suffix_candidates_for_etymon(db, tun_id, "tūn", None)
+        with_reflex = _suffix_candidates_for_etymon(db, tun_id, "tūn", None, include_reflexes=True)
+
+    assert "ton" not in without  # historical path: reflex excluded
+    assert "ton" in with_reflex  # modern path: reflex included
+
+
+def test_suffix_candidates_drops_composite_reflexes(fresh_db: Path) -> None:
+    """wyrd-5b1a: a COMPOSITE reflex ('eton' = ēa+tūn fused, ends in the bare
+    reflex 'ton') must be dropped so the longest-suffix anchor lands on the
+    morpheme boundary — else 'Stapleton' splits 'Stapl'+'eton' instead of
+    'Staple'+'ton'. Keep only minimal morpheme surfaces."""
+    from wyrd.generators.kenning.lexicon.period_form import _suffix_candidates_for_etymon
+
+    with LexiconDB(fresh_db) as db:
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        for sf in ("ton", "eton", "aughton"):  # 'eton'/'aughton' end in 'ton'
+            rid = db.conn.execute(
+                "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
+            ).lastrowid
+            db.conn.execute(
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, tun_id)
+            )
+        db.commit()
+        cands = _suffix_candidates_for_etymon(db, tun_id, "tūn", None, include_reflexes=True)
+
+    assert "ton" in cands  # minimal morpheme surface kept
+    assert "eton" not in cands  # composite dropped
+    assert "aughton" not in cands  # composite dropped
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="src", title="S")
         brad_id = db.upsert_etymon("brad", "old-english")

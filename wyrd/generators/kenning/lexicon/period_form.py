@@ -48,12 +48,24 @@ def _suffix_candidates_for_etymon(
     etymon_id: int,
     canonical_form: str,
     cognate_id: int | None,
+    *,
+    include_reflexes: bool = False,
 ) -> set[str]:
-    """Build the set of forms a historical-form suffix may match
-    against for THIS etymon: canonical_form + cognate-cluster mates
-    (any language; gmw-msc / Middle Scots forms like 'tone' are real
-    historical reflexes that survive into the broader cognate set) +
-    etymon_variant rows.
+    """Build the set of forms a suffix may match against for THIS etymon:
+    canonical_form + cognate-cluster mates (any language; gmw-msc / Middle Scots
+    forms like 'tone' are real historical reflexes that survive into the broader
+    cognate set) + etymon_variant rows.
+
+    When ``include_reflexes`` is set (the MODERN-name projection,
+    :func:`derive_surface_in_modern`), the etymon's mined modern reflex surfaces
+    (``reflex.surface_form`` via ``reflex_etymon``) are added too. Those are the
+    forms that actually appear in modern names — OE ``tūn`` surfaces as ``ton`` /
+    ``tone`` in Houghton / Boulton — whereas the ``etymon_variant`` rows are OE
+    inflections (``tūn`` / ``tūnas`` / ``tūne``) that almost never suffix-match a
+    modern name. The historical-form projection (:func:`project_period_forms`)
+    leaves reflexes out: medieval attested forms align to the OE variants, and the
+    matched span is scoped to the known last morpheme of a known binary breakdown
+    + a ≥2-char-segment guard, so this stays string-only matching (wyrd-5b1a).
 
     All forms returned lowercased. Both diacritic-bearing and
     diacritic-stripped variants are included so 'tūn' and 'tun' both
@@ -81,6 +93,31 @@ def _suffix_candidates_for_etymon(
     )
     for row in cur:
         _add(row["form"])
+    if include_reflexes:
+        reflex_surfaces: set[str] = set()
+        cur = db.conn.execute(
+            "SELECT DISTINCT r.surface_form "
+            "FROM reflex r JOIN reflex_etymon re ON re.reflex_id = r.id "
+            "WHERE re.etymon_id = ?",
+            (etymon_id,),
+        )
+        for row in cur:
+            sf = (row["surface_form"] or "").lower()
+            if len(sf) >= 2:
+                reflex_surfaces.add(sf)
+        # Drop COMPOSITE reflex surfaces — ones that merely append the previous
+        # element's context onto a shorter reflex of the SAME morpheme (OE tūn
+        # mines 'ton' but also 'eton'/'aughton'/'oulton', which all end in 'ton').
+        # Keeping the longer composite would let the longest-suffix anchor eat a
+        # char of the previous element (Stapleton → 'Stapl'+'eton' instead of
+        # 'Staple'+'ton'). Keep only the minimal morpheme surfaces (wyrd-5b1a).
+        minimal = {
+            sf
+            for sf in reflex_surfaces
+            if not any(o != sf and len(o) >= 2 and sf.endswith(o) for o in reflex_surfaces)
+        }
+        for sf in minimal:
+            _add(sf)
     return candidates
 
 
@@ -344,9 +381,11 @@ def derive_surface_in_modern(
 
     For each binary breakdown, segment the modern name's suffix against the LAST
     morpheme's known reflexes (canonical form + cognate-cluster mates + etymon
-    variants); the matched suffix is that morpheme's surface, and the remaining
-    prefix is the FIRST morpheme's surface. e.g. 'Ardeley' = OE ``earda`` + OE
-    ``lēah`` → first morpheme surfaces as 'Arde', last as 'ley'.
+    variants + the morpheme's mined ``reflex`` surfaces — wyrd-5b1a, so the modern
+    reflex ``ton`` aligns where the OE inflection ``tūn`` cannot); the matched
+    suffix is that morpheme's surface, and the remaining prefix is the FIRST
+    morpheme's surface. e.g. 'Ardeley' = OE ``earda`` + OE ``lēah`` → first
+    morpheme surfaces as 'Arde', last as 'ley'.
 
     Limits mirror :func:`project_period_forms`: binary breakdowns only,
     last-morpheme suffix-anchoring only, skip ``merged_into_id`` losers, both
@@ -393,7 +432,13 @@ def derive_surface_in_modern(
         first, last = elements[0], elements[1]
         if last["etymon_id"] not in cached_candidates:
             cached_candidates[last["etymon_id"]] = _suffix_candidates_for_etymon(
-                db, last["etymon_id"], last["canonical_form"], last["cognate_id"]
+                db,
+                last["etymon_id"],
+                last["canonical_form"],
+                last["cognate_id"],
+                # Modern names end in modern reflex surfaces (ton/tone), not OE
+                # inflections (tūn/tūnas) — pull the mined reflexes too (wyrd-5b1a).
+                include_reflexes=True,
             )
         match = _find_longest_suffix_match(modern_name, cached_candidates[last["etymon_id"]])
         if match is not None:
