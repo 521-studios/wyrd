@@ -121,14 +121,23 @@ def _suffix_candidates_for_etymon(
         # when its extra prefix is NOT a prefix of the canonical form (wyrd-5b1a;
         # Gemini #741: without this guard, base 'ham'/'east'/'bury' etc. get
         # wrongly dropped, mis-splitting Birmingham → 'Birmingh'+'am').
+        #
+        # All comparands are diacritic-stripped together: norm_canonical is
+        # stripped, so a diacritic-bearing reflex (e.g. 'môr', 'cwmbrân') must be
+        # too — otherwise an 'ā'-prefixed extra would never match the stripped
+        # canonical and a legit base form would be wrongly dropped (Gemini #741 r2).
         norm_canonical = _strip_diacritics(canonical_form.lower())
+        stripped = {sf: _strip_diacritics(sf) for sf in reflex_surfaces}
         minimal = {
             sf
             for sf in reflex_surfaces
-            # reflex_surfaces is already filtered to len >= 2 above, so no length
-            # guard is needed on the inner term.
+            # reflex_surfaces is already filtered to len >= 2 above; `and stripped[o]`
+            # guards the rare all-combining-marks surface that strips to "".
             if not any(
-                o != sf and sf.endswith(o) and not norm_canonical.startswith(sf[: -len(o)])
+                stripped[o] != stripped[sf]
+                and stripped[o]
+                and stripped[sf].endswith(stripped[o])
+                and not norm_canonical.startswith(stripped[sf][: -len(stripped[o])])
                 for o in reflex_surfaces
             )
         }

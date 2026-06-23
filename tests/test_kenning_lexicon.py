@@ -5116,6 +5116,30 @@ def test_suffix_candidates_keeps_base_reflex_with_reduced_sibling(fresh_db: Path
     assert "ury" in cands  # reduced sibling kept too
 
 
+def test_suffix_candidates_diacritic_base_reflex_not_dropped(fresh_db: Path) -> None:
+    """wyrd-5b1a (Gemini #741): the composite filter must compare diacritic-stripped
+    forms. A diacritic-bearing base reflex ('ācen' of canonical 'āc') whose extra
+    prefix 'ā' starts the morpheme must be KEPT — without consistent stripping, the
+    unstripped 'ā' would not match the stripped canonical 'ac', so 'ācen' would be
+    wrongly dropped as a composite."""
+    from wyrd.generators.kenning.lexicon.period_form import _suffix_candidates_for_etymon
+
+    with LexiconDB(fresh_db) as db:
+        ac_id = db.upsert_etymon("āc", "old-english")
+        for sf in ("ācen", "cen"):  # diacritic-bearing base + reduced sibling
+            rid = db.conn.execute(
+                "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
+            ).lastrowid
+            db.conn.execute(
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, ac_id)
+            )
+        db.commit()
+        cands = _suffix_candidates_for_etymon(db, ac_id, "āc", None, include_reflexes=True)
+
+    # 'ācen' kept → _add stores its diacritic-stripped form 'acen' too.
+    assert "acen" in cands  # base reflex not wrongly dropped on a diacritic mismatch
+
+
 def test_derive_surface_in_modern_dry_run_writes_nothing(fresh_db: Path) -> None:
     """apply=False reports the projection count but writes no surface_in_modern."""
     with LexiconDB(fresh_db) as db:
