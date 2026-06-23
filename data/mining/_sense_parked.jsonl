@@ -469,3 +469,6 @@
 {"ref": "celtic:ddewi", "reason": "saint name (David / St. David) — render as the name"}
 {"ref": "celtic:gortna", "reason": "connective fragment 'gort na' (field + article); over-segmentation"}
 {"ref": "goidelic:aodha", "reason": "personal-name element — render as the name"}
+{"ref": "germanic:lin", "reason": "opaque gloss 'to fill' for germanic lin; uncertain — needs review"}
+{"ref": "goidelic:ach", "reason": "adjectival suffix '-ach' (abounding in); not a generative root"}
+{"ref": "goidelic:alach", "reason": "connective fragment 'place of'; over-segmentation"}
