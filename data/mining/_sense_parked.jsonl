@@ -108,3 +108,8 @@
 {"ref": "old-english:Lufa", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:Wicga", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:low", "reason": "conflates hlāw (mound/tumulus) with pool / valley / low (adj) — over-merged surface, needs disambiguation"}
+{"ref": "old-english:æppel-tūn", "reason": "composite (æppel+tūn = apple-orchard); expand to constituents per D51.3"}
+{"ref": "old-english:ān-stiga", "reason": "composite (ān+stiga); expand to constituents per D51.3"}
+{"ref": "celtic:cam", "reason": "Celtic cam multi-sense (crooked/bent + cairn + little + quarry) — needs careful split"}
+{"ref": "celtic:port", "reason": "Celtic port 2-way (harbour/landing-place + fortress) with overlapping glosses — needs careful split"}
+{"ref": "old-english:Acca", "reason": "personal-name element — render as the name, no sense to compress"}
