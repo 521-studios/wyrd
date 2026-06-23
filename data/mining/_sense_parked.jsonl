@@ -154,6 +154,45 @@
 {"ref": "brittonic:Frome", "reason": "specific river-name, not a generative morpheme"}
 {"ref": "old-english:stdn", "reason": "OCR-corrupt surface 'stdn' (likely stān); morpheme-quality issue"}
 {"ref": "old-norse:kross-bý", "reason": "composite (kross+bý = cross-village); expand to constituents per D51.3"}
-{"ref": "middle-english:Babba old-english:Aldo old-english:Baldhere old-english:Bēage old-english:Bila old-english:Bild old-english:Billa old-english:Brandr old-english:Codda old-english:Croc old-english:Cuca old-english:Cybba", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:Brettas", "reason": "ethnonym (the Britons) — render as the name"}
 {"ref": "old-english:Cumbre", "reason": "ethnonym (the Cymry/Welsh) — render as the name"}
+{"ref": "middle-english:Babba", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Aldo", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Baldhere", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bēage", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bila", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bild", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Billa", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Brandr", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Codda", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Croc", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Cuca", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Cybba", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Deor", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Ealda", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Earda", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Ecgwulf", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Ēadburh", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Ēsa", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Frithi", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Glappa", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Helgi", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hemma", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hrolfr", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hrōc", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hrōþwulf", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hæfer", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hægel", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Inga", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Iwerne", "reason": "specific river-name, not a generative morpheme"}
+{"ref": "old-english:Koli", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Luhha", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Scı̄ene", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Sibba", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Soppa", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Stān", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Wey", "reason": "specific river-name, not a generative morpheme"}
+{"ref": "old-english:Wiburh", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Wigmund", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Wineca", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Wulf", "reason": "personal-name element — render as the name, no sense to compress"}
