@@ -883,3 +883,7 @@
 {"ref": "old-norse:Wraggi", "reason": "personal-name/ethnonym/theonym element — render as the name"}
 {"ref": "old-norse:esi", "reason": "personal-name/ethnonym/theonym element — render as the name"}
 {"ref": "old-norse:krokr", "reason": "personal-name/ethnonym/theonym element — render as the name"}
+{"ref": "old-norse:hdkon", "reason": "personal name (Hákon, OCR) — render as the name"}
+{"ref": "old-norse:hdr", "reason": "OCR-corrupt surface 'hdr' (likely hár); morpheme-quality issue"}
+{"ref": "old-norse:kali", "reason": "personal name (man's name) — render as the name"}
+{"ref": "old-norse:kaup-maðr", "reason": "composite kaup+maðr (merchant); expand to constituents per D51.3"}
