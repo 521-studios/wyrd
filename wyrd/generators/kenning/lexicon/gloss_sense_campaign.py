@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import sys
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -88,17 +89,27 @@ class GlossEvidence:
 
 
 def parked_refs(parked_path: str | Path) -> set[str]:
-    """Refs parked (fragment / no-consensus / ambiguous) — excluded from slices."""
+    """Refs parked (fragment / no-consensus / ambiguous) — excluded from slices.
+
+    The park file is an operator-facing append log (``cmd_park`` appends; manual
+    triage edits it), so a truncated or hand-mangled line is plausible. A bad line
+    is skipped with a stderr warning rather than aborting EVERY ``next-slice`` /
+    ``status`` (both call this) — the loop rail would otherwise stop dead on one
+    corrupt row, with no indication which."""
     path = Path(parked_path)
     if not path.is_file():
         return set()
     out: set[str] = set()
     with path.open(encoding="utf-8") as fh:
-        for line in fh:
+        for line_no, line in enumerate(fh, 1):
             line = line.strip()
             if not line:
                 continue
-            ref = json.loads(line).get("ref")
+            try:
+                ref = json.loads(line).get("ref")
+            except json.JSONDecodeError:
+                print(f"{path}:{line_no}: skipping malformed park line", file=sys.stderr)
+                continue
             if ref:
                 out.add(_nfc(ref))
     return out
@@ -106,13 +117,29 @@ def parked_refs(parked_path: str | Path) -> set[str]:
 
 def committed_done(base_dir: str | Path) -> set[str]:
     """Morpheme refs already sense-bound in the committed canonicalization ledger
-    (remainder source — wyrd-1rw4: the ledger, never the live DB)."""
-    return committed_sense_refs(effective_assertions(list(load_assertions(base_dir))))
+    (remainder source — wyrd-1rw4: the ledger, never the live DB).
+
+    NFC-normalized to match both sides of the exclusion check: ``next_slice`` and
+    ``sense_progress`` compare against ``_nfc(etymon_ref(...))`` and ``parked_refs``
+    is ``_nfc``'d too, but ``committed_sense_refs`` carries the raw authored form.
+    Without this, a non-NFC stored ``canonical_form`` (decomposed combining marks —
+    the diacritic-heavy Old English / Welsh morphemes this campaign targets) would
+    never match its NFC slice ref, so an already-sense-bound morpheme would reappear
+    in every slice and be undercounted as remaining."""
+    return {
+        _nfc(r) for r in committed_sense_refs(effective_assertions(list(load_assertions(base_dir))))
+    }
 
 
 def _wall(conn: sqlite3.Connection, eid: int) -> tuple[str, ...]:
+    # ORDER BY gloss for a deterministic wall: _wall's output is emitted verbatim
+    # on the next-slice stdout the loop agent reads/diffs, and SQLite row order
+    # without ORDER BY is unspecified (can shift across rebuild/VACUUM).
     return tuple(
-        r[0] for r in conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (eid,))
+        r[0]
+        for r in conn.execute(
+            "SELECT gloss FROM etymon_gloss WHERE etymon_id = ? ORDER BY gloss", (eid,)
+        )
     )
 
 

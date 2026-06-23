@@ -208,8 +208,11 @@ def sense_assertions(
     ``meaning_synset`` axis (D28), not this."""
     out: list[Assertion] = []
     for idx, sense in enumerate(c.senses):
-        # Hub id is stable per (morpheme, label) so a re-run with the same label
-        # reuses the hub; idx disambiguates the rare same-label collision.
+        # Hub id is stable per (morpheme, label, position): idx is part of the
+        # hashed identity, so re-running with the same label at the same idx reuses
+        # the hub (re-author safe for the common monosemous idx=0 case), but a
+        # polysemous re-run that emits the labels in a different order lands a label
+        # at a different idx and mints a different hub.
         hub = mint_canonical_id(_NODE, c.language, c.canonical_form, sense.label, str(idx))
         rationale = (
             f"sense '{sense.label}' of '{c.canonical_form}' ({c.language}); {c.rationale}".strip(

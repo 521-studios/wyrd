@@ -184,6 +184,83 @@ def test_roundtrip_polysemous_wall_projects_distinct_senses(tmp_path):
     db.close()
 
 
+def test_parse_candidate_normalizes_confidence_and_derives_fields():
+    """_norm_conf coerces case + fails safe to 'low'; language/canonical_form fall
+    back to the ref halves when their keys are absent."""
+    up = parse_candidate(
+        {
+            "_type": "gloss_sense",
+            "ref": "a:b",
+            "senses": [{"label": "x", "glosses": ["g"]}],
+            "confidence": "HIGH",
+        }
+    )
+    assert up is not None
+    assert up.confidence == "high"  # upper-cased -> lower
+    assert up.language == "a" and up.canonical_form == "b"  # derived from ref
+    bogus = parse_candidate(
+        {
+            "_type": "gloss_sense",
+            "ref": "a:b",
+            "senses": [{"label": "x", "glosses": ["g"]}],
+            "confidence": "bogus",
+        }
+    )
+    assert bogus is not None and bogus.confidence == "low"  # unknown -> fail-safe low
+
+
+def test_parse_candidate_rejects_non_dict():
+    assert parse_candidate("not a dict") is None  # type: ignore[arg-type]
+
+
+def test_validate_rejects_unresolvable_ref(tmp_path):
+    db = _db(tmp_path)
+    c = _cand("old-english:nope", "old-english", "nope", [("x", ["g"])])
+    errs = validate_gloss_sense_candidates(db.conn, set(), [c])
+    assert any("resolves to no etymon" in e for e in errs)
+    db.close()
+
+
+def test_validate_rejects_morpheme_with_no_gloss_wall(tmp_path):
+    db = _db(tmp_path)
+    _etymon(db, "barf", [])  # resolves, but no gloss wall to compress
+    c = _cand("old-english:barf", "old-english", "barf", [("x", ["g"])])
+    errs = validate_gloss_sense_candidates(db.conn, set(), [c])
+    assert any("no gloss wall" in e for e in errs)
+    db.close()
+
+
+def test_validate_rejects_gloss_in_two_senses(tmp_path):
+    """The partition-cleanliness invariant (distinct from the completeness check):
+    a gloss assigned to two senses is not a partition."""
+    db = _db(tmp_path)
+    _etymon(db, "tūn", ["town", "city"])
+    c = _cand(
+        "old-english:tūn",
+        "old-english",
+        "tūn",
+        [("town", ["town"]), ("city", ["town", "city"])],  # 'town' in both senses
+    )
+    errs = validate_gloss_sense_candidates(db.conn, set(), [c])
+    assert any("more than one sense" in e for e in errs)
+    db.close()
+
+
+def test_sense_assertions_is_idempotent():
+    """Re-authoring the same candidate mints the SAME hub id and SAME gloss bind
+    subjects — the projection dedups by node id, so a drifting hub id would create
+    duplicate canonical_sense hubs / double-bind glosses on a re-run."""
+    c = _cand("old-english:tūn", "old-english", "tūn", [("town", ["enclosure", "town"])])
+
+    def _subjects(asserts, predicate):
+        return [a.subject.ref for a in asserts if a.predicate == predicate]
+
+    first, second = sense_assertions(c), sense_assertions(c)
+    assert _subjects(first, "mint-canonical") == _subjects(second, "mint-canonical")
+    assert _subjects(first, "bind") == _subjects(second, "bind")
+    assert _subjects(first, "mint-canonical")  # guard: non-empty
+
+
 def test_committed_sense_refs_reads_the_ledger(tmp_path):
     db = _db(tmp_path)
     _etymon(db, "tūn", ["town"])

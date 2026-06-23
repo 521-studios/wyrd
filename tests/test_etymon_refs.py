@@ -15,7 +15,9 @@ from wyrd.generators.kenning.lexicon.cognate_descent_mining import DescentEdge, 
 from wyrd.generators.kenning.lexicon.etymon_refs import (
     etymon_ref,
     etymon_refs_for,
+    gloss_ref,
     resolve_etymon_ref,
+    split_gloss_ref,
 )
 
 
@@ -104,3 +106,17 @@ def test_descent_assertions_raises_on_incomplete_refs():
     edge = DescentEdge(child_etymon=1, cluster_root=2, confidence="medium", rationale="r")
     with pytest.raises(KeyError):
         descent_assertions([edge], {1: "old-english:tun"}, source="test")  # missing root=2
+
+
+def test_gloss_ref_round_trips_through_split():
+    """The U+001F separator contract (wyrd-u6fn.10) is load-bearing for composite-PK
+    resolution: gloss_ref -> split_gloss_ref must recover (etymon_ref, gloss) even
+    when the gloss text itself contains ':'."""
+    ref = gloss_ref("old-english", "tūn", "town: a settlement")
+    assert ref == "old-english:tūn\x1ftown: a settlement"
+    assert split_gloss_ref(ref) == ("old-english:tūn", "town: a settlement")
+
+
+def test_split_gloss_ref_none_branches():
+    assert split_gloss_ref("old-english:tūn") is None  # no separator -> not a gloss ref
+    assert split_gloss_ref(12345) is None  # type: ignore[arg-type]  # non-str -> None

@@ -70,9 +70,10 @@ PER FIRE:
      {"_type":"gloss_sense","ref":"<ref from slice>","language":"...","canonical_form":"...",
       "senses":[{"label":"town","glosses":["enclosure","farmstead","town"]}],
       "confidence":"high","method":"opus-gloss-sense-v1","model":"opus","rationale":"<one clause>"}
-   You may instead shell to an Ollama model on the Mac (gemma4:26b default; qwen3.5:9b / qwen3:8b
-   ok; do NOT use qwen3.5:35b). A/B different models/prompts and keep what reads best; stamp method
-   + model honestly. Then:
+   You may instead shell to a large local Ollama model on the Mac (10.5.2.31; e.g. gemma4:26b,
+   qwen3.5:9b, or qwen3:8b — do NOT use qwen3.5:35b, it times out). Confirm what's actually loaded
+   with `curl http://10.5.2.31:11434/api/tags` before relying on a tag. A/B different models/prompts
+   and keep what reads best; stamp method + model honestly. Then:
      wyrd kenning lexicon gloss-campaign validate --candidates /tmp/gloss_cand.jsonl   # exit 0 or FIX/DROP
      wyrd kenning lexicon gloss-campaign author   --candidates /tmp/gloss_cand.jsonl
      git add data/mining/canonicalization && git commit -m "gloss-sense: <n> morphemes" && git pull --rebase && git push

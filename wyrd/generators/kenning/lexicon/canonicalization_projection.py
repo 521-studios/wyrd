@@ -35,7 +35,7 @@ fatal. The leave-separate confidence gate is validated at entry.
 ``same-sense`` binds (``etymon_gloss`` -> ``canonical_sense``, wyrd-u6fn.10): a
 gloss row's ref is ``"<etymon_ref>\x1f<gloss>"`` (the etymon natural key + the
 gloss text, joined by U+001F), resolved to its composite PK ``(etymon_id, gloss)``
-in ``_resolve_binds``. Modeled as IDENTITY (mint a ``canonical_sense`` hub +
+in ``_resolve_obs_key`` (extracted out of ``_resolve_binds``). Modeled as IDENTITY (mint a ``canonical_sense`` hub +
 ``bind`` each gloss to it), not a new predicate; the per-sense ``canonical-label``
 is the short "compressed gloss". The mint / merge / label paths are type-generic,
 so a sense hub flows through them unchanged.
@@ -96,7 +96,7 @@ _SUBJECT_TARGET: dict[str, tuple[str, str, str]] = {
     "toponym_etymology": ("toponym_etymology", "canonical_place_id", "canonical_place"),
     # same-sense binds (wyrd-u6fn.10): a gloss row binds to a canonical_sense hub.
     # etymon_gloss has a composite PK (etymon_id, gloss) and a natural-key ref
-    # (etymon_ref + \x1f + gloss), resolved in _resolve_binds like the etymon case.
+    # (etymon_ref + \x1f + gloss), resolved in _resolve_obs_key like the etymon case.
     "etymon_gloss": ("etymon_gloss", "canonical_sense_id", "canonical_sense"),
 }
 

@@ -10,6 +10,7 @@ from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.gloss_sense import GlossSenseCandidate, Sense, sense_assertions
 from wyrd.generators.kenning.lexicon.gloss_sense_campaign import (
     next_slice,
+    parked_refs,
     sense_progress,
 )
 
@@ -154,3 +155,95 @@ def test_sense_progress_counts(tmp_path):
     done, parked_n, total = sense_progress(db.conn, tmp_path, parked, min_impact=2)
     assert (done, parked_n, total) == (1, 1, 3)
     db.close()
+
+
+def test_full_inventory_excludes_committed_and_parked(tmp_path):
+    """The committed-done + parked exclusion is computed once and applied to BOTH
+    phases — phase 3 (full_inventory=True) must omit done/parked morphemes too, not
+    just phase 1 (a regression that wired the filter into only phase 1 would re-serve
+    them in overflow — the exact bias the rail exists to avoid)."""
+    db = _db(tmp_path)
+    _etymon(db, "tūn", ["enclosure", "town"])
+    _etymon(db, "lēah", ["wood"])
+    _etymon(db, "ford", ["ford"])
+    db.commit()
+    parked = tmp_path / "_sense_parked.jsonl"
+    parked.write_text('{"ref": "old-english:lēah", "reason": "x"}\n', encoding="utf-8")
+    _author_sense(tmp_path, "old-english:tūn", "old-english", "tūn", "town", ["enclosure", "town"])
+    inv = [
+        e.canonical_form
+        for e in next_slice(db.conn, tmp_path, n=10, full_inventory=True, parked_path=parked)
+    ]
+    assert inv == ["ford"]  # tūn done + lēah parked, both omitted in phase 3
+    db.close()
+
+
+def test_next_slice_respects_n_limit_top_impact(tmp_path):
+    """``n`` caps the slice AFTER exclusion/gloss filtering, returning the top-impact
+    ``n`` eligible morphemes (a regression counting filtered-out rows toward n would
+    return short slices)."""
+    db = _db(tmp_path)
+    hi = _etymon(db, "tūn", ["town"])
+    mid = _etymon(db, "lēah", ["wood"])
+    lo = _etymon(db, "ford", ["ford"])
+    _attribute(db, hi, 5)
+    _attribute(db, mid, 4)
+    _attribute(db, lo, 3)
+    db.commit()
+    sl = next_slice(db.conn, tmp_path, n=2, parked_path=tmp_path / "_sense_parked.jsonl")
+    assert [e.canonical_form for e in sl] == ["tūn", "lēah"]  # top-2 by impact, ford dropped
+    db.close()
+
+
+def test_sense_progress_done_beats_parked(tmp_path):
+    """A ref that is BOTH committed-done AND parked counts as done, not parked (the
+    if/elif precedence) — parking an already-authored morpheme must not flip the
+    scoreboard or double-count it."""
+    db = _db(tmp_path)
+    e = _etymon(db, "tūn", ["town"])
+    _attribute(db, e, 2)
+    db.commit()
+    parked = tmp_path / "_sense_parked.jsonl"
+    parked.write_text('{"ref": "old-english:tūn", "reason": "x"}\n', encoding="utf-8")
+    _author_sense(tmp_path, "old-english:tūn", "old-english", "tūn", "town", ["town"])
+    assert sense_progress(db.conn, tmp_path, parked, min_impact=2) == (1, 0, 1)
+    db.close()
+
+
+def test_committed_done_matches_non_nfc_form(tmp_path):
+    """NFC asymmetry regression (wyrd-1rw4): a committed sense bind on a DECOMPOSED
+    (non-NFC) canonical_form must still exclude that morpheme from future slices,
+    whose ref is NFC-normalized. Without committed_done normalizing, the decomposed
+    authored ref never matches the composed slice ref and the morpheme — exactly the
+    diacritic-heavy OE/Welsh forms this campaign targets — reappears forever."""
+    import unicodedata
+
+    decomposed = unicodedata.normalize("NFD", "tūn")  # u + combining macron
+    assert decomposed != "tūn"  # guard: genuinely non-NFC
+    db = _db(tmp_path)
+    e = _etymon(db, decomposed, ["town"])
+    _attribute(db, e, 2)
+    db.commit()
+    _author_sense(
+        tmp_path, f"old-english:{decomposed}", "old-english", decomposed, "town", ["town"]
+    )
+    refs = [
+        ev.ref
+        for ev in next_slice(db.conn, tmp_path, n=10, parked_path=tmp_path / "_sense_parked.jsonl")
+    ]
+    assert refs == []  # the decomposed-form morpheme is recognized as already done
+    db.close()
+
+
+def test_parked_refs_skips_malformed_line(tmp_path, capsys):
+    """The park file is an operator-facing append log; one corrupt line must not
+    abort every next-slice/status — it's skipped with a stderr warning."""
+    parked = tmp_path / "_sense_parked.jsonl"
+    parked.write_text(
+        '{"ref": "old-english:tūn", "reason": "x"}\n'
+        "not json at all\n"
+        '{"ref": "old-english:lēah", "reason": "y"}\n',
+        encoding="utf-8",
+    )
+    assert parked_refs(parked) == {"old-english:tūn", "old-english:lēah"}
+    assert "skipping malformed park line" in capsys.readouterr().err

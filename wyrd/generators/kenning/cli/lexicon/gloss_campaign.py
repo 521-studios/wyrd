@@ -20,11 +20,14 @@ from __future__ import annotations
 import json
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
+from wyrd.generators.kenning.canonicalization import append_assertion
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.lexicon.gloss_sense import (
+    GlossSenseCandidate,
     parse_candidate,
     sense_assertions,
     validate_gloss_sense_candidates,
@@ -35,14 +38,19 @@ from wyrd.generators.kenning.lexicon.gloss_sense_campaign import (
     sense_progress,
 )
 
+if TYPE_CHECKING:
+    import sqlite3
+    from collections.abc import Iterator
+
 _DEFAULT_MINING_DIR = "data/mining"
 _PARKED_FILENAME = "_sense_parked.jsonl"
 
 
 @contextmanager
-def _open_lexicon(db_path):
+def _open_lexicon(db_path: str | Path) -> Iterator[sqlite3.Connection]:
     """Read-only lexicon connection (via the shared cli.utils helper, so this CLI
-    file never imports sqlite3 itself — the package-boundary rule)."""
+    file never imports sqlite3 itself — the package-boundary rule; the sqlite3 /
+    Iterator names are type-only, imported under TYPE_CHECKING)."""
     db_file = Path(db_path)
     if not db_file.exists():
         raise click.ClickException(f"Lexicon DB not found: {db_file}")
@@ -54,14 +62,18 @@ def _parked_path(mining_dir: str) -> Path:
     return Path(mining_dir) / _PARKED_FILENAME
 
 
-def _load_candidates(candidates_path: str) -> list:
-    out = []
+def _load_candidates(candidates_path: str) -> list[GlossSenseCandidate]:
+    out: list[GlossSenseCandidate] = []
     with Path(candidates_path).open(encoding="utf-8") as fh:
         for line_no, line in enumerate(fh, 1):
             line = line.strip()
             if not line:
                 continue
-            c = parse_candidate(json.loads(line))
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise click.ClickException(f"{candidates_path}:{line_no}: invalid JSON") from exc
+            c = parse_candidate(data)
             if c is None:
                 raise click.ClickException(
                     f"{candidates_path}:{line_no}: malformed gloss_sense row"
@@ -88,14 +100,21 @@ _mining_option = click.option(
 @gloss_campaign.command("next-slice")
 @_db_option
 @_mining_option
-@click.option("--n", type=int, default=20, help="Slice size (self-tune to ~10 min of work).")
+@click.option("--n", type=int, default=20, help="Slice size (runbook uses 40 phase 1, 8 phase 2).")
 @click.option(
-    "--min-impact", type=int, default=2, help="Impact floor (phase 1/2 = 2; lower for phase 3)."
+    "--min-impact",
+    type=int,
+    default=2,
+    help="Impact floor (phase 1/2 = 2; ignored when --full-inventory is set).",
 )
 @click.option(
     "--unglossed", is_flag=True, help="Phase 2: the UNGLOSSED cohort (needs glossing first)."
 )
-@click.option("--full-inventory", is_flag=True, help="Phase 3: every glossed etymon, by wall size.")
+@click.option(
+    "--full-inventory",
+    is_flag=True,
+    help="Phase 3: every glossed etymon by wall size (overrides --min-impact).",
+)
 def cmd_next_slice(db_path, mining_dir, n, min_impact, unglossed, full_inventory):
     """Emit the next impact-ordered morphemes still needing sense compression."""
     with _open_lexicon(db_path) as conn:
@@ -138,8 +157,6 @@ def cmd_validate(db_path, mining_dir, candidates):
 )
 def cmd_author(db_path, mining_dir, candidates):
     """Validate, then append the canonical_sense assertions for each candidate."""
-    from wyrd.generators.kenning.canonicalization import append_assertion
-
     cands = _load_candidates(candidates)
     with _open_lexicon(db_path) as conn:
         errors = validate_gloss_sense_candidates(conn, committed_done(mining_dir), cands)
