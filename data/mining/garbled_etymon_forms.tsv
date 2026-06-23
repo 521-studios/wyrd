@@ -83,3 +83,4 @@ CORRUPTION	old-english	/edh	leading-slash garble of -edh/eð pasture element —
 CORRUPTION	old-english	H)rencga	leading 'H)' paren-garble of a Hrenc-/Reng- personal name (→Rangeworthy) — human triage
 CORRUPTION_lettersub	old-english	bldc	letter-sub of blæc (black/pale); 'd' for 'æ' OCR — potential collapse into blæc, human verify
 CORRUPTION_lettersub	old-english	bopltun	garble of boltun (Bolton); 'pl' inserted — potential collapse into boltun, human verify
+CORRUPTION_lettersub	old-english	dcen	letter-sub of æcen (oaken/of-oak); 'dc' for 'æc' OCR — reflexed 'oaken', potential collapse into æcen, human verify
