@@ -87,3 +87,4 @@ CORRUPTION_lettersub	old-english	dcen	letter-sub of æcen (oaken/of-oak); 'dc' f
 CORRUPTION_lettersub	old-english	dr$ge	'$' OCR junk for drȳge (dry); potential collapse into drȳge/dryge, human verify
 CORRUPTION_lettersub	old-english	flexcca	letter-sub of flecca (hurdle); 'x' insertion — potential collapse into flecca, human verify
 CORRUPTION	old-english	geha>ge	'>' OCR junk in gehæge (fenced-in enclosure) — potential collapse into gehæge, human verify
+CORRUPTION_lettersub	old-english	grceg	letter-sub of grǣg (gray); 'ce' for 'ǣ' OCR — reflexed 'gray', potential collapse into grǣg, human verify
