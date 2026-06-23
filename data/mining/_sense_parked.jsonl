@@ -2007,3 +2007,19 @@
 {"ref": "old-norse:full-nautr", "reason": "composite full+nautr (full-sharer); expand to constituents"}
 {"ref": "old-norse:gandr", "reason": "abstract 'witchery/black-magic'"}
 {"ref": "old-norse:gildi-hús", "reason": "composite gildi+hús (guild-house); expand to constituents"}
+{"ref": "old-norse:hel", "reason": "underworld/goddess Hel (proper/abstract)"}
+{"ref": "old-norse:hunda-maðr", "reason": "composite hunda+maðr (houndsman); expand to constituents"}
+{"ref": "old-norse:hunda-sveinn", "reason": "composite hunda+sveinn (houndsman); expand to constituents"}
+{"ref": "old-norse:hurftarbak", "reason": "corrupt gloss/surface 'hurftarbak'; morpheme-quality issue"}
+{"ref": "old-norse:innan", "reason": "adverb 'from within'"}
+{"ref": "old-norse:kall", "reason": "abstract/sound 'call/cry'"}
+{"ref": "old-norse:kapp", "reason": "abstract 'match/contest'"}
+{"ref": "old-norse:kaupa-land", "reason": "composite kaupa+land (purchased-land); expand to constituents"}
+{"ref": "old-norse:ker", "reason": "'tub/vessel' sense, not the toponymic marsh sense"}
+{"ref": "old-norse:kind", "reason": "abstract 'race/kin'"}
+{"ref": "old-norse:knapp-r", "reason": "dash-notation surface 'knapp-r' (knappr, knob); morpheme-quality issue"}
+{"ref": "old-norse:kyn", "reason": "abstract 'kind/type' (gloss has URL artifact)"}
+{"ref": "old-norse:leið-gríma", "reason": "composite leið+gríma (track-mark); expand to constituents"}
+{"ref": "old-norse:mein", "reason": "abstract 'harm/mischief'"}
+{"ref": "old-norse:menna", "reason": "verb 'to breed/make a man'"}
+{"ref": "old-norse:meta", "reason": "verb 'to estimate/value'"}
