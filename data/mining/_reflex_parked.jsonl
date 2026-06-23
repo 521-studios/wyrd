@@ -121,7 +121,6 @@
 {"ref": "goidelic:sidhean", "reason": "impact-2 Goidelic floor: 2-char/unclear, no clean toponym surface"}
 {"ref": "goidelic:ui", "reason": "impact-2 Goidelic floor: 2-char/unclear, no clean toponym surface"}
 {"ref": "goidelic:án", "reason": "impact-2 Goidelic floor: 2-char/unclear, no clean toponym surface"}
-{"ref": "brittonic:canto", "reason": "ambiguous surface: canto spans kent-/caundle/camel across toponyms; no single confident grounded reflex"}
 {"ref": "brittonic:to", "reason": "2-char surface 'to'; over-matches, precision risk"}
 {"ref": "brittonic:dubo", "reason": "brittonic 'dubo'→dove/dud diffuse"}
 {"ref": "brittonic:lemano", "reason": "brittonic 'lemano' no gloss, diffuse (Lyme/Burslem)"}
@@ -136,9 +135,7 @@
 {"ref": "latin:aria", "reason": "'aria' overlaps arias/ia/ascus; no confident distinct surface"}
 {"ref": "latin:caper", "reason": "'caper'→capr/cavr diffuse; no confident surface"}
 {"ref": "latin:clausum", "reason": "'clausum'→Close calque"}
-{"ref": "latin:colonia", "reason": "'colonia'→col/coln diffuse (Colchester vs Lincoln)"}
 {"ref": "latin:fabius", "reason": "'fabius' gentilicium; diffuse worn surface, no span"}
-{"ref": "latin:ia", "reason": "2-char span 'ia' — over-matches, precision risk"}
 {"ref": "latin:iacus", "reason": "Latin suffix 'iacus' not visible in the attested forms (De Renos/Hispaxia)"}
 {"ref": "latin:icus", "reason": "3-char suffix 'icus'; suffix-soup, precision risk"}
 {"ref": "latin:io", "reason": "2-char 'io'; precision risk"}

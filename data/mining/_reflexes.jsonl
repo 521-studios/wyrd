@@ -33369,3 +33369,6 @@
 {"_type": "reflex", "surface_form": "orm", "position": "pre", "etymon_refs": ["old-norse:ormr"]}
 {"_type": "reflex", "surface_form": "sla", "position": "pre", "etymon_refs": ["old-norse:slag"]}
 {"_type": "reflex", "surface_form": "iscus", "position": "post", "etymon_refs": ["latin:iscus"]}
+{"_type": "reflex", "surface_form": "col", "position": "pre", "etymon_refs": ["latin:colonia"]}
+{"_type": "reflex", "surface_form": "ia", "position": "post", "etymon_refs": ["latin:ia"]}
+{"_type": "reflex", "surface_form": "kent", "position": "pre", "etymon_refs": ["brittonic:canto"]}
