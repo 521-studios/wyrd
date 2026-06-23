@@ -76,3 +76,4 @@ risky-tail — rather than pollute the matcher. Commit + push every fire.
 - 2026-06-23: **pivot landed** — removed the `etymon_variant` rail (former B1–B6)
   and the B4/740t generation-integration; folded 4.2.2 into this one reflex rail.
 - Fire #30 (2026-06-23, post-pivot): authored 3 — eglēs→`eggle`/`eglys` (Eggleston/Eglysham), Cuda→`cud` (Cudham). Parked 10 (melr, thwaite, canto, cnoc, sub, Acca, Alhmund, Banna, Boll, Pica). Cumulative: 90 authored, ~173 parked. Deep tail — mostly PN/short/translation forms now.
+- Fire #31 (2026-06-23): authored 7 — amore→`amber` (Amberley), biscop→`bisp` (Bispham), brant→`brent` (Brentor), bred→`bret` (Bretford), gelād→`lade`/`lode` (Cricklade/Evenlode), grēne→`gren` (Grendon). Parked 6 (calc, croft, cyning, elfitu, flēot, hldw). Cumulative: 97 authored, ~179 parked.
