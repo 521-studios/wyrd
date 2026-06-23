@@ -484,3 +484,12 @@
 {"ref": "middle-english:Eadric", "reason": "personal-name element — render as the name"}
 {"ref": "middle-english:Eadwine", "reason": "personal-name element — render as the name"}
 {"ref": "middle-english:Ecgel", "reason": "personal-name element — render as the name"}
+{"ref": "goidelic:yn", "reason": "plural suffix; not a generative root"}
+{"ref": "goidelic:án", "reason": "diminutive suffix; not a generative root"}
+{"ref": "goidelic:ui", "reason": "genealogical prefix 'Uí' (descendants of); connective, not a root"}
+{"ref": "latin:aria", "reason": "connective 'place where'; over-segmentation"}
+{"ref": "latin:fabius", "reason": "Roman family name (gentilicium) — render as the name"}
+{"ref": "latin:iacus", "reason": "place-name suffix; not a generative root"}
+{"ref": "latin:icus", "reason": "place-name suffix; not a generative root"}
+{"ref": "latin:iolus", "reason": "diminutive suffix; not a generative root"}
+{"ref": "latin:ola", "reason": "diminutive suffix; not a generative root"}
