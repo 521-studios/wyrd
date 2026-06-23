@@ -236,14 +236,30 @@ def test_committed_done_matches_non_nfc_form(tmp_path):
 
 
 def test_parked_refs_skips_malformed_line(tmp_path, capsys):
-    """The park file is an operator-facing append log; one corrupt line must not
-    abort every next-slice/status — it's skipped with a stderr warning."""
+    """The park file is an operator-facing append log; a corrupt line must not
+    abort every next-slice/status — it's skipped with a stderr warning. Covers
+    BOTH a JSON-syntax error AND valid-JSON-that-isn't-an-object (a bare list /
+    string has no .get and would otherwise AttributeError)."""
     parked = tmp_path / "_sense_parked.jsonl"
     parked.write_text(
         '{"ref": "old-english:tūn", "reason": "x"}\n'
-        "not json at all\n"
+        "not json at all\n"  # JSONDecodeError
+        "[1, 2, 3]\n"  # valid JSON, not a dict
+        '"a bare string"\n'  # valid JSON, not a dict
         '{"ref": "old-english:lēah", "reason": "y"}\n',
         encoding="utf-8",
     )
     assert parked_refs(parked) == {"old-english:tūn", "old-english:lēah"}
-    assert "skipping malformed park line" in capsys.readouterr().err
+    assert capsys.readouterr().err.count("skipping malformed park line") == 3
+
+
+def test_wall_glosses_are_emitted_sorted(tmp_path):
+    """_wall ORDER BY gloss: the slice's gloss wall (emitted verbatim on stdout
+    the loop agent diffs) is alphabetical, not SQLite rowid/insertion order."""
+    db = _db(tmp_path)
+    e = _etymon(db, "tūn", ["zebra", "apple", "moor"])  # inserted out of order
+    _attribute(db, e, 2)
+    db.commit()
+    sl = next_slice(db.conn, tmp_path, n=10, parked_path=tmp_path / "_sense_parked.jsonl")
+    assert sl[0].glosses == ("apple", "moor", "zebra")  # sorted, not insert order
+    db.close()

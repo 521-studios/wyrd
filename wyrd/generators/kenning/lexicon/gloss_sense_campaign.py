@@ -106,10 +106,16 @@ def parked_refs(parked_path: str | Path) -> set[str]:
             if not line:
                 continue
             try:
-                ref = json.loads(line).get("ref")
+                data = json.loads(line)
             except json.JSONDecodeError:
                 print(f"{path}:{line_no}: skipping malformed park line", file=sys.stderr)
                 continue
+            # Valid JSON that isn't an object (a bare list/number/string) has no
+            # .get — guard it too, so a hand-mangled line can't crash the rail.
+            if not isinstance(data, dict):
+                print(f"{path}:{line_no}: skipping malformed park line", file=sys.stderr)
+                continue
+            ref = data.get("ref")
             if ref:
                 out.add(_nfc(ref))
     return out

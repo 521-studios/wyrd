@@ -32,6 +32,8 @@ A/B harness — wyrd-u6fn.10 follow-up — wired to its own CLI verb + a test.)
 from __future__ import annotations
 
 import sqlite3
+import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -56,6 +58,10 @@ _NODE = "canonical_sense"
 # get copied through.
 _MAX_LABEL_WORDS = 3
 _MAX_LABEL_CHARS = 40
+
+
+def _nfc(s: str) -> str:
+    return unicodedata.normalize("NFC", s)
 
 
 @dataclass(frozen=True)
@@ -168,13 +174,19 @@ def validate_gloss_sense_candidates(
         if eid is None:
             errors.append(f"{c.ref}: resolves to no etymon")
             continue
-        if c.ref in committed_refs:
+        # NFC-normalize the ref for the dedup checks: committed_refs (from
+        # committed_done) and the slice/parked sets are all NFC, so a non-NFC
+        # (decomposed-diacritic) candidate ref — the OE/Welsh forms this campaign
+        # targets — must be folded the same way or it bypasses the already-bound
+        # guard and re-mints a second canonical_sense hub for the same morpheme.
+        ref_key = _nfc(c.ref)
+        if ref_key in committed_refs:
             errors.append(f"{c.ref}: already sense-bound in the committed ledger")
             continue
-        if c.ref in seen:
+        if ref_key in seen:
             errors.append(f"{c.ref}: duplicated in this batch")
             continue
-        seen.add(c.ref)
+        seen.add(ref_key)
         wall = wall_glosses(conn, eid)
         if not wall:
             errors.append(f"{c.ref}: morpheme has no gloss wall to compress")
@@ -262,7 +274,7 @@ def sense_assertions(
 # --- remainder: which morphemes are already sense-bound (committed) ----------
 
 
-def committed_sense_refs(assertions) -> set[str]:
+def committed_sense_refs(assertions: Iterable[Assertion]) -> set[str]:
     """Etymon refs that already carry an effective ``same-sense`` bind — the
     "done" set ``sense-next-slice`` excludes (remainder from the COMMITTED ledger,
     not the live DB; the wyrd-1rw4 invariant). ``assertions`` is an iterable of

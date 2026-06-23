@@ -35,7 +35,7 @@ fatal. The leave-separate confidence gate is validated at entry.
 ``same-sense`` binds (``etymon_gloss`` -> ``canonical_sense``, wyrd-u6fn.10): a
 gloss row's ref is ``"<etymon_ref>\x1f<gloss>"`` (the etymon natural key + the
 gloss text, joined by U+001F), resolved to its composite PK ``(etymon_id, gloss)``
-in ``_resolve_obs_key`` (extracted out of ``_resolve_binds``). Modeled as IDENTITY (mint a ``canonical_sense`` hub +
+in ``_resolve_obs_key``. Modeled as IDENTITY (mint a ``canonical_sense`` hub +
 ``bind`` each gloss to it), not a new predicate; the per-sense ``canonical-label``
 is the short "compressed gloss". The mint / merge / label paths are type-generic,
 so a sense hub flows through them unchanged.

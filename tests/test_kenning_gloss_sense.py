@@ -261,6 +261,46 @@ def test_sense_assertions_is_idempotent():
     assert _subjects(first, "mint-canonical")  # guard: non-empty
 
 
+def test_sense_assertions_hub_id_is_label_and_idx_keyed():
+    """Pin the hub-identity formula (node, language, form, label, idx) the
+    idempotency + reuse docstring relies on — in particular that ``idx`` is part of
+    it (a polysemous re-run emitting labels in a different order lands a different
+    hub). Dropping str(idx) from the mint would break this exact assertion."""
+    from wyrd.generators.kenning.canonicalization.assertions import mint_canonical_id
+
+    c = _cand(
+        "old-english:weall",
+        "old-english",
+        "weall",
+        [("wall", ["wall, rampart"]), ("well", ["spring"])],
+    )
+    mints = [a.subject.ref for a in sense_assertions(c) if a.predicate == "mint-canonical"]
+    expected = [
+        mint_canonical_id("canonical_sense", "old-english", "weall", "wall", "0"),
+        mint_canonical_id("canonical_sense", "old-english", "weall", "well", "1"),
+    ]
+    assert mints == expected  # keyed on label AND position (idx)
+    assert len(set(mints)) == 2  # distinct hubs per sense
+
+
+def test_validate_rejects_already_committed_non_nfc_ref(tmp_path):
+    """validate must NFC-fold the candidate ref before the committed-dedup check,
+    matching committed_done (NFC). A decomposed candidate ref whose NFC form is
+    already committed must be rejected — else author re-mints a second
+    canonical_sense hub for the same morpheme (the diacritic-heavy OE/Welsh case)."""
+    import unicodedata
+
+    decomposed = unicodedata.normalize("NFD", "tūn")
+    assert decomposed != "tūn"  # guard: genuinely non-NFC
+    db = _db(tmp_path)
+    _etymon(db, decomposed, ["town"])  # DB stores the decomposed form
+    committed = {"old-english:tūn"}  # NFC form, as committed_done would yield
+    c = _cand(f"old-english:{decomposed}", "old-english", decomposed, [("town", ["town"])])
+    errs = validate_gloss_sense_candidates(db.conn, committed, [c])
+    assert any("already sense-bound" in e for e in errs)
+    db.close()
+
+
 def test_committed_sense_refs_reads_the_ledger(tmp_path):
     db = _db(tmp_path)
     _etymon(db, "tūn", ["town"])
