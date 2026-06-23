@@ -1396,3 +1396,11 @@
 {"ref": "welsh:Wil", "reason": "personal-name wall — render as the name"}
 {"ref": "old-english:stīg-rāp", "reason": "composite stīg+rāp (stirrup); expand to constituents per D51.3"}
 {"ref": "old-english:wealinga", "reason": "patronymic 'sons of the Briton/stranger'; connective, not a root"}
+{"ref": "biblical:armon", "reason": "saint name (St Garmon) — render as the name"}
+{"ref": "biblical:drostan", "reason": "saint name (St Drostan) — render as the name"}
+{"ref": "biblical:patrick", "reason": "saint name (St Patrick) — render as the name"}
+{"ref": "breton:Kerglof", "reason": "specific place-name (Kergloff commune)"}
+{"ref": "breton:barn", "reason": "verb 'to judge'; no clear toponymic sense — uncertain"}
+{"ref": "brittonic:Carey", "reason": "river-name of uncertain meaning"}
+{"ref": "brittonic:Soar", "reason": "river-name ('flowing one')"}
+{"ref": "brittonic:lei", "reason": "etymological root note ('to flow'); not a standalone gloss"}
