@@ -4341,3 +4341,4 @@
 {"_type": "tags", "confidence": "high", "form": "vra", "language": "old-norse", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-norse:vra", "tags": ["topography"]}
 {"_type": "tags", "confidence": "medium", "form": "víkingr", "language": "old-norse", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-norse:víkingr", "tags": ["social"]}
 {"_type": "tags", "confidence": "high", "form": "wra", "language": "old-norse", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-norse:wra", "tags": ["topography"]}
+{"_type": "tags", "confidence": "high", "form": "þrǽll", "language": "old-norse", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "ref": "old-norse:þrǽll", "tags": ["social"]}
