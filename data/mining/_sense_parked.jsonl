@@ -1266,3 +1266,7 @@
 {"ref": "celtic:mám", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
 {"ref": "celtic:odharna", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
 {"ref": "celtic:phoill", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "goidelic:oluim", "reason": "genitive of a king's name (Olom) — render as the name"}
+{"ref": "middle-english:John", "reason": "personal name — render as the name"}
+{"ref": "middle-english:Walter", "reason": "personal name — render as the name"}
+{"ref": "modern-english:blak", "reason": "wall conflates toponymic 'black' with anachronistic modern slang 'Indigenous'; needs review"}
