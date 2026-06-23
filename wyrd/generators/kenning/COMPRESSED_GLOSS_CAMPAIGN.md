@@ -132,6 +132,26 @@ PREDATES this gate and contains ~27 pure-boilerplate authors — left in place
 (append-only ledger; low-confidence; negligible) but flag them for drop in PR
 review. The gate applies from fire 74 on.
 
+### Phase 3 strategy: PROSE-HARVEST, not park-through (measured fire 85)
+
+A full-inventory measurement (fire 85) found **16,020** phase-3 morphemes
+remaining: **2,159 with a real prose gloss** (authorable) and **13,861 pure
+boilerplate**. `next-slice --full-inventory` sorts biggest-wall-first and the
+boilerplate walls are the biggest, so reaching the prose items via next-slice
+would mean PARKING ~13.8k boilerplate (≈401 fires of park-bloat) just to surface
+2.2k real ones — the exact bloat the gate exists to avoid.
+
+**So: harvest the prose items DIRECTLY, don't park-through.** Each fire:
+`next-slice --n 100000 --full-inventory` (the whole remaining queue; already
+excludes authored+parked), filter to rows with a prose gloss, take the next ~40,
+author them by ref with real sense judgment (splits/contamination as usual), and
+park ONLY names/contaminated rows in that batch. **Do NOT mass-park the 13.8k
+boilerplate** — leave it untouched (skip-by-policy). This drains the 2,159 real
+items in ~54 author-only fires with zero boilerplate-park-bloat. `status` stays
+frozen at `2070/2969` (impact≥2 cohort) throughout — phase-3 progress = commit
+volume / shrinking prose-count in the dump. When the prose count hits ~0, the
+campaign's authorable work is genuinely done → then idle (timing + report only).
+
 ## Verbs (the rail, wyrd-u6fn.10.1)
 
 | Verb | Does |
