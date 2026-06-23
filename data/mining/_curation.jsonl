@@ -489,3 +489,9 @@
 {"_type": "collapse", "ref": "old-norse:hdkon", "into": "old-norse:Hákon"}
 {"_type": "collapse", "ref": "old-norse:hdr", "into": "old-norse:hár"}
 {"_type": "collapse", "ref": "old-norse:skégr", "into": "old-norse:skogr"}
+{"_type": "collapse", "ref": "old-english:st&n", "into": "old-english:stān"}
+{"_type": "collapse", "ref": "old-english:dcen", "into": "old-english:æcen"}
+{"_type": "collapse", "ref": "old-norse:bro&ir", "into": "old-norse:bróðir"}
+{"_type": "collapse", "ref": "old-english:lln", "into": "old-english:lin"}
+{"_type": "collapse", "ref": "old-english:grceg", "into": "old-english:grǣg"}
+{"_type": "collapse", "ref": "old-english:bldc", "into": "old-english:blæc"}
