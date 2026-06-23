@@ -244,6 +244,23 @@ def test_variant_gap_authored_reflex_validates(tmp_path):
     assert any("grounding guard" in e for e in validate_candidates(db.conn, empty, bad))
 
 
+def test_is_toponymic_surface_variant_tag():
+    """The toponymic-surface marker lives in the etymon_variant.tags JSON array;
+    the parse helper is tolerant of NULL / non-list / malformed tags."""
+    from wyrd.generators.kenning.lexicon.schema import (
+        TOPONYMIC_SURFACE_TAG,
+        is_toponymic_surface_variant,
+    )
+
+    assert is_toponymic_surface_variant(json.dumps([TOPONYMIC_SURFACE_TAG])) is True
+    assert is_toponymic_surface_variant(json.dumps(["plural", TOPONYMIC_SURFACE_TAG])) is True
+    assert is_toponymic_surface_variant(json.dumps(["plural"])) is False
+    assert is_toponymic_surface_variant(None) is False
+    assert is_toponymic_surface_variant("") is False
+    assert is_toponymic_surface_variant("{not json") is False
+    assert is_toponymic_surface_variant(json.dumps({"x": 1})) is False  # not a list
+
+
 def test_parked_refs_excluded_from_slice(world):
     db, tmp_path = world
     empty = tmp_path / "empty.jsonl"

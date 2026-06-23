@@ -67,8 +67,16 @@ fire. Update the checkboxes here as pieces land.
       enrichment tests pass, ruff clean. **Rail A complete.** (No new ledger/table.)
 
 ### Rail B — 4.2.2 variant rail + tag convention (etymon.variants; authorized, grounded)
-- [ ] B1. Tag convention (740t): add the `toponymic-surface` marker to variant
-      storage (D18 pool — confirm `etymon_text_match` vs `etymon_variant`).
+- [x] B1. Tag convention (740t). DONE. Storage = `etymon_variant` (the D18 pool).
+      Marker = the string `"toponymic-surface"` in the row's `tags` JSON array
+      (`schema.TOPONYMIC_SURFACE_TAG` + `is_toponymic_surface_variant()`), NOT a new
+      `variant_class` — the variant_class CHECK enum is closed
+      (alternative/inflection/romanization/canonical/other), and the locked
+      decision says "tagged", so the tags column avoids a schema migration.
+      Toponymic-surface rows use `variant_class='alternative'` + the tag.
+      **B2 writes** rows as (etymon_id, form, 'alternative', tags=["toponymic-surface"]).
+      **B4 gates** the standalone-name path with `is_toponymic_surface_variant`;
+      `period_form`/composition already reads all forms, so it needs no change. Tested.
 - [ ] B2. Variant L2 ledger `data/mining/_variants.jsonl`
       (`{_type:variant, ref, surface_form, tag:"toponymic-surface", ...}`) + a
       replay pass that applies it. **Rebuild-discipline 4-file change.**
