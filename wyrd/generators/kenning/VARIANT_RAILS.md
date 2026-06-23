@@ -50,11 +50,13 @@ fire. Update the checkboxes here as pieces land.
       (Differs from the ticket's cluster-level launch estimate; reflex-less is high
       because the live DB is NOT yet rebuilt with PR #727's merged reflexes. A2 must
       decide per-etymon vs cluster-level coverage — ticket wording says per-etymon.)
-- [ ] A2. Selector `enrich-campaign variant-gap-next-slice --n N`: per not-yet-
-      CAN-IT toponym, surface the scholar morpheme(s) whose reflexes DON'T
-      substring-match this toponym + the residual span(s) to author. Prioritize
-      toponyms where it's the LAST unmatched morpheme (flips CAN-IT), then
-      morphemes appearing in the most such toponyms. JSON on stdout + progress.
+- [x] A2. Selector `enrich-campaign variant-gap-next-slice --n N`. DONE —
+      `variant_gap_next_slice()` + `VariantGapTask`. Per-etymon reflex surfaces =
+      DB ∪ committed `_reflexes.jsonl` ledger (so it drains between fires without a
+      rebuild). Prioritized flip-CAN-IT-first (sole unmatched morpheme) then by
+      gap-toponym frequency. Each task carries evidence toponyms with a residual-
+      span HINT (best-effort, not authoritative — author proposes, gate decides).
+      Live smoke: lēah (697 gaps), dūn (133, Battlesden→den), hundred (125). Tested.
 - [ ] A3. Authoring path: reuse `validate_candidates` (grounding holds: span ∈
       toponym). Append accepted rows to `data/mining/_reflexes.jsonl`.
 - [ ] A4. Tests + ruff. (No new ledger/table → no rebuild-discipline wiring.)

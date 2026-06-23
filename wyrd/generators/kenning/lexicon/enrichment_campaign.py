@@ -45,7 +45,7 @@ import json
 import re
 import sqlite3
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -310,6 +310,185 @@ def variant_gap_census(conn: sqlite3.Connection) -> dict[str, int]:
         else:
             counts["variant_gap"] += 1
     return counts
+
+
+@dataclass(frozen=True)
+class VariantGapTask:
+    """A scholar morpheme that HAS reflex surface(s), none of which substring-match
+    some toponym(s) it appears in — the wyrd-eni4.3.1 lever. The loop authors a NEW
+    grounded reflex surface (the worn span in such a toponym) for it.
+
+    ``flips_can_it`` is True when the morpheme is the SOLE unmatched morpheme in at
+    least one toponym, so a single authored surface flips that toponym to CAN-IT.
+    ``gap_toponyms`` is how many of its toponyms it's variant-gap in (frequency)."""
+
+    ref: str
+    language: str
+    canonical_form: str
+    glosses: list[str] = field(default_factory=list)
+    existing_surfaces: list[str] = field(default_factory=list)
+    flips_can_it: bool = False
+    gap_toponyms: int = 0
+    evidence: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ref": self.ref,
+            "language": self.language,
+            "canonical_form": self.canonical_form,
+            "glosses": self.glosses,
+            "existing_surfaces": self.existing_surfaces,
+            "flips_can_it": self.flips_can_it,
+            "gap_toponyms": self.gap_toponyms,
+            "evidence": self.evidence,
+        }
+
+
+def _committed_reflex_surfaces_by_ref(reflexes_path: Path | None) -> dict[str, set[str]]:
+    """NFC-ref → folded reflex surfaces committed in the JSONL ledger but not yet
+    in the DB. The loop has no rebuild between fires, so a surface authored this
+    campaign lives only here; folding it in stops the selector re-emitting the same
+    morpheme every fire."""
+    out: dict[str, set[str]] = {}
+    if reflexes_path is None or not Path(reflexes_path).exists():
+        return out
+    with Path(reflexes_path).open(encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            if not (isinstance(row, dict) and row.get("_type") == "reflex"):
+                continue
+            f = fold_surface(row.get("surface_form") or "")
+            if not f:
+                continue
+            for ref in row.get("etymon_refs") or []:
+                out.setdefault(_nfc(ref), set()).add(f)
+    return out
+
+
+def _residual_span(folded_name: str, covered: list[str]) -> str:
+    """Best-effort worn-span hint: ``folded_name`` with each covered surface's
+    first occurrence blanked, returning the longest remaining contiguous letter
+    run — where the unmatched morpheme most likely lives. A hint for the author,
+    not a guarantee."""
+    s = folded_name
+    for c in sorted(covered, key=len, reverse=True):
+        i = s.find(c)
+        if i >= 0:
+            s = s[:i] + " " + s[i + len(c) :]
+    frags = [f for f in s.split() if f]
+    return max(frags, key=len) if frags else ""
+
+
+def _collect_variant_gaps(
+    conn: sqlite3.Connection,
+    surfaces_for: Callable[[int], set[str]],
+    allowed: set[int],
+    max_evidence: int,
+) -> dict[int, dict[str, Any]]:
+    """Per scope-clean morpheme, accumulate its variant-gap evidence across the
+    toponyms it appears in: a flip flag (it's the SOLE unmatched morpheme there),
+    a gap count, and up to ``max_evidence`` sample toponyms. A morpheme is
+    variant-gap in a toponym when it has reflex surface(s) but none substring-match
+    the folded name."""
+    topo_eids: dict[str, set[int]] = {}
+    for row in conn.execute(
+        "SELECT t.modern_name AS name, tee.etymon_id AS eid "
+        "FROM toponym_etymology te JOIN toponym t ON t.id = te.toponym_id "
+        "JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id"
+    ):
+        topo_eids.setdefault(row["name"], set()).add(row["eid"])
+
+    agg: dict[int, dict[str, Any]] = {}
+    for name, eids in topo_eids.items():
+        folded_name = fold_surface(name or "")
+        if not folded_name:
+            continue
+        covered: list[str] = []
+        gap_eids: list[int] = []
+        n_unmatched = 0
+        for eid in eids:
+            surfs = surfaces_for(eid)
+            matched = [s for s in surfs if s in folded_name]
+            if matched:
+                covered.extend(matched)
+                continue
+            n_unmatched += 1
+            if surfs and eid in allowed:
+                gap_eids.append(eid)
+        for eid in gap_eids:
+            a = agg.setdefault(eid, {"flips": False, "count": 0, "evidence": []})
+            a["flips"] = a["flips"] or n_unmatched == 1
+            a["count"] += 1
+            if len(a["evidence"]) < max_evidence:
+                a["evidence"].append(
+                    {
+                        "modern_name": name,
+                        "covered_spans": sorted(set(covered)),
+                        "residual_span": _residual_span(folded_name, covered),
+                        "is_flip": n_unmatched == 1,
+                    }
+                )
+    return agg
+
+
+def variant_gap_next_slice(
+    conn: sqlite3.Connection,
+    reflexes_path: Path | None,
+    *,
+    n: int = 20,
+    impact: int | None = None,
+    max_evidence: int = 5,
+) -> list[VariantGapTask]:
+    """The next ``n`` scope-clean scholar morphemes that are VARIANT-GAP in one or
+    more toponyms (have a reflex, none matching that spelling), prioritized
+    flip-CAN-IT-first then by gap-toponym frequency. Per-etymon reflex surfaces are
+    the DB reflexes UNIONED with the committed ``_reflexes.jsonl`` ledger. Each task
+    carries evidence toponyms (modern name, covered spans, a residual-span hint)
+    for the author to ground a new reflex surface against."""
+    db_folds = _etymon_reflex_folds(conn)
+    ledger = _committed_reflex_surfaces_by_ref(reflexes_path)
+
+    meta: dict[int, sqlite3.Row] = {}
+    eid_ref: dict[int, str] = {}
+    for r in scholar_impact_ranking(conn):
+        meta[r["eid"]] = r
+        eid_ref[r["eid"]] = etymon_ref(r["language"], r["canonical_form"])
+
+    def surfaces_for(eid: int) -> set[str]:
+        s = set(db_folds.get(eid, set()))
+        ref = eid_ref.get(eid)
+        if ref is not None:
+            s |= ledger.get(_nfc(ref), set())
+        return s
+
+    agg = _collect_variant_gaps(conn, surfaces_for, set(meta), max_evidence)
+
+    tasks: list[VariantGapTask] = []
+    for eid, a in agg.items():
+        if impact is not None and meta[eid]["impact"] != impact:
+            continue
+        a["evidence"].sort(key=lambda e: (not e["is_flip"], e["modern_name"]))
+        glosses = [
+            g["gloss"]
+            for g in conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (eid,))
+        ]
+        tasks.append(
+            VariantGapTask(
+                ref=eid_ref[eid],
+                language=meta[eid]["language"],
+                canonical_form=meta[eid]["canonical_form"],
+                glosses=glosses,
+                existing_surfaces=sorted(surfaces_for(eid)),
+                flips_can_it=a["flips"],
+                gap_toponyms=a["count"],
+                evidence=a["evidence"],
+            )
+        )
+    tasks.sort(key=lambda t: (not t.flips_can_it, -t.gap_toponyms, t.ref))
+    return tasks[:n]
 
 
 def etymon_evidence(conn: sqlite3.Connection, eid: int, *, impact: int) -> EtymonEvidence:

@@ -35,6 +35,7 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     validate_ipa_candidates,
     validate_tag_candidates,
     variant_gap_census,
+    variant_gap_next_slice,
 )
 
 
@@ -152,6 +153,53 @@ def test_variant_gap_census_classifies_pairs(tmp_path):
     c = variant_gap_census(db.conn)
     assert c["total"] == 3
     assert (c["matched"], c["variant_gap"], c["reflex_less"]) == (1, 1, 1)
+
+
+def test_variant_gap_next_slice_selects_and_ledger_excludes(tmp_path):
+    """Selects variant-gap morphemes (have a reflex, none matching this toponym),
+    flags flip-CAN-IT (sole unmatched morpheme), and drains once the committed
+    ledger gives the morpheme a surface that matches."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    tun = _etymon(db, "tūn", gloss="enclosure")
+    by = _etymon(db, "by", language="old-norse", gloss="farm")
+    for eid, surf in ((tun, "ton"), (by, "by")):
+        rid = db.conn.execute(
+            "INSERT INTO reflex (surface_form, position, productivity) VALUES (?, 'post', 1)",
+            (surf,),
+        ).lastrowid
+        db.conn.execute(
+            "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, eid)
+        )
+    _toponym(db, "Tunby", [tun, by])  # 'ton'⊄'tunby' (tun gap), 'by'⊂'tunby' (by matched)
+    _toponym(db, "Newton", [tun])  # 'ton'⊂'newton' → tun matched here, no gap
+    db.commit()
+
+    empty = tmp_path / "_reflexes.jsonl"
+    tasks = variant_gap_next_slice(db.conn, empty, n=10)
+    assert {t.ref for t in tasks} == {"old-english:tūn"}  # only tun is variant-gap
+    t = tasks[0]
+    assert t.flips_can_it is True  # tun is the sole unmatched morpheme in Tunby
+    assert t.gap_toponyms == 1
+    assert t.evidence[0]["modern_name"] == "Tunby"
+    assert "tun" in t.evidence[0]["residual_span"].lower()
+
+    # Commit a 'tun' surface to the ledger → tun now matches 'tunby' → slice drains.
+    empty.write_text(
+        json.dumps(
+            {
+                "_type": "reflex",
+                "surface_form": "tun",
+                "position": "pre",
+                "etymon_refs": ["old-english:tūn"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert variant_gap_next_slice(db.conn, empty, n=10) == []
 
 
 def test_parked_refs_excluded_from_slice(world):

@@ -42,6 +42,7 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     validate_ipa_candidates,
     validate_tag_candidates,
     variant_gap_census,
+    variant_gap_next_slice,
 )
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
@@ -205,6 +206,28 @@ def cmd_variant_gap_status(db_path: Path) -> None:
         f"matched={c['matched']} ({100 * c['matched'] / total:.1f}%)  "
         f"variant-gap={c['variant_gap']} ({100 * c['variant_gap'] / total:.1f}%)  "
         f"reflex-less={c['reflex_less']} ({100 * c['reflex_less'] / total:.1f}%)",
+        err=True,
+    )
+
+
+@enrich_campaign.command("variant-gap-next-slice")
+@_db_option
+@_reflexes_option
+@_impact_option
+@_n_option
+def cmd_variant_gap_next_slice(
+    db_path: Path, reflexes_path: Path, impact: int | None, n: int
+) -> None:
+    """Emit the next N variant-gap scholar morphemes (have a reflex, none matching
+    some toponym's spelling), flip-CAN-IT-first then by frequency, each with
+    evidence toponyms + a residual-span hint, as a JSON array on stdout. Author a
+    grounded reflex surface_form for the worn span (it's IN the toponym)."""
+    with _readonly_lexicon(db_path) as conn:
+        slice_ = variant_gap_next_slice(conn, reflexes_path, n=n, impact=impact)
+    click.echo(json.dumps([t.to_dict() for t in slice_], ensure_ascii=False, indent=2))
+    click.echo(
+        f"emitted {len(slice_)} variant-gap morphemes "
+        f"({sum(1 for t in slice_ if t.flips_can_it)} flip CAN-IT)",
         err=True,
     )
 
