@@ -99,6 +99,39 @@ Stay on data/mining/canonicalization/** + data/mining/_sense_parked.jsonl + .bea
 do NOT touch _curation.jsonl / _reflexes.jsonl / _tags.jsonl (the eni4 loop owns those; collision-free).
 ```
 
+## Phase 3 quality gate (decided 2026-06-23 — Phase 1 COMPLETE)
+
+**Phase 1 (the impact≥2 generation-eligible cohort) is 100% done** — 2,070
+sense-compressed + 899 parked = the full 2,969, `0 remaining`. That was the
+campaign's actual target. `status` (which measures only the impact≥2 cohort) is
+now frozen at `2070/2969, 0 remaining` and no longer moves — for phase-3 progress
+count committed phase-3 authors/parks instead.
+
+Phase 3 (`--full-inventory`, impact-0) surfaces morphemes whose walls are
+**synthetic category-boilerplate** (semantic-neighborhood fill — e.g. the literal
+row-set `Bog|Marsh|Marshy|Mire|Moor|Quagmire|Swamp`, or
+`Area|District|Domain|Land|Market|Merchant|Precinct|Quarter|Trading area|Ward`,
+repeated verbatim across dozens of morphemes), **not scholar glosses**.
+
+**The gate (user decision — "quality-gated phase 3"): author an impact-0 morpheme
+ONLY if its wall contains ≥1 genuine PROSE gloss** (a definitional row — a
+sentence-like gloss with internal punctuation / lowercase phrasing, e.g.
+`"A marsh, a swamp, boggy ground."` or `"lake that dries up ... in summer"`).
+A bare trailing category word (`marsh`, `land`, `bull's`) does **not** qualify.
+
+- **Has a prose gloss, consistent with the rest** → author (label from the prose
+  gloss), `confidence: "low"`.
+- **Has a prose gloss but the boilerplate contradicts it** (`monadh`=hill but
+  bog-filled; `hrynge`=pole but enclosure-filled) → PARK `contaminated wall …`.
+- **Pure boilerplate, no prose row** (`ferann`, `brog`, `eanach`, `tír`, …) →
+  PARK `synthetic category-boilerplate wall (no scholar gloss); cannot compress`.
+
+This keeps the loop productive without flooding PR #737 with generic
+category labels. NOTE: fire-73's first phase-3 batch (34 authored, `e6202bd0`)
+PREDATES this gate and contains ~27 pure-boilerplate authors — left in place
+(append-only ledger; low-confidence; negligible) but flag them for drop in PR
+review. The gate applies from fire 74 on.
+
 ## Verbs (the rail, wyrd-u6fn.10.1)
 
 | Verb | Does |
