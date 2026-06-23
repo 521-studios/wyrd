@@ -253,6 +253,20 @@ def test_parked_refs_skips_malformed_line(tmp_path, capsys):
     assert capsys.readouterr().err.count("skipping malformed park line") == 3
 
 
+def test_parked_refs_ignores_non_string_ref(tmp_path):
+    """A dict whose 'ref' is non-string (int/list/bool) must be skipped, not crash
+    on _nfc (which raises TypeError on a non-str)."""
+    parked = tmp_path / "_sense_parked.jsonl"
+    parked.write_text(
+        '{"ref": 123, "reason": "x"}\n'
+        '{"ref": ["a"], "reason": "y"}\n'
+        '{"reason": "no ref key"}\n'
+        '{"ref": "old-english:tūn", "reason": "z"}\n',
+        encoding="utf-8",
+    )
+    assert parked_refs(parked) == {"old-english:tūn"}  # non-string/absent refs skipped, no crash
+
+
 def test_wall_glosses_are_emitted_sorted(tmp_path):
     """The slice's gloss wall (emitted verbatim on the next-slice stdout the loop
     agent diffs) is alphabetical, not insertion order — the deterministic-output

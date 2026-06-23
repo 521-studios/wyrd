@@ -115,8 +115,11 @@ def parked_refs(parked_path: str | Path) -> set[str]:
             if not isinstance(data, dict):
                 print(f"{path}:{line_no}: skipping malformed park line", file=sys.stderr)
                 continue
+            # isinstance(str) guard: a dict whose "ref" maps to a non-string
+            # (int/list/bool) would make _nfc(ref) raise TypeError — skip it like a
+            # dict with no usable ref at all.
             ref = data.get("ref")
-            if ref:
+            if isinstance(ref, str) and ref:
                 out.add(_nfc(ref))
     return out
 

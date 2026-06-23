@@ -119,6 +119,11 @@ _mining_option = click.option(
 )
 def cmd_next_slice(db_path, mining_dir, n, min_impact, unglossed, full_inventory):
     """Emit the next impact-ordered morphemes still needing sense compression."""
+    # Phase 2 (--unglossed) and Phase 3 (--full-inventory) are mutually exclusive:
+    # full-inventory's SQL only returns glossed rows, which require_gloss=False then
+    # filters out, so the pair silently yields []. Fail loudly instead.
+    if unglossed and full_inventory:
+        raise click.UsageError("--unglossed and --full-inventory are mutually exclusive.")
     with _open_lexicon(db_path) as conn:
         slice_ = next_slice(
             conn,

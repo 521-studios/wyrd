@@ -160,6 +160,31 @@ def test_cli_author_rejects_invalid_json(tmp_path):
     assert "invalid JSON" in result.output  # clean ClickException, not a raw traceback
 
 
+def test_cli_next_slice_rejects_both_phase_flags(tmp_path):
+    """--unglossed (phase 2) and --full-inventory (phase 3) are mutually exclusive;
+    together they'd silently return [] — the CLI must fail loudly (UsageError)."""
+    db_path = _db(tmp_path)
+    mining = tmp_path / "mining"
+    mining.mkdir()
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "gloss-campaign",
+            "next-slice",
+            "--db",
+            str(db_path),
+            "--mining-dir",
+            str(mining),
+            "--unglossed",
+            "--full-inventory",
+        ],
+    )
+    assert result.exit_code == 2  # click.UsageError
+    assert "mutually exclusive" in result.output
+
+
 def test_cli_park_appends_sidecar(tmp_path):
     mining = tmp_path / "mining"
     mining.mkdir()
