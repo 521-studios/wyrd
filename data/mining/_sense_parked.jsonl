@@ -300,3 +300,6 @@
 {"ref": "old-norse:Ulfketill", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-norse:Wulfstān", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:æppel-trēow", "reason": "composite morpheme; expand to constituents per D51.3"}
+{"ref": "celtic:nan", "reason": "conflates 'lamb' + genitive connective 'of the' — mixed, needs review"}
+{"ref": "celtic:owen", "reason": "personal-name element (Owen) — render as the name, no sense to compress"}
+{"ref": "continental-germanic:Personal-name", "reason": "placeholder 'Personal-name' morpheme, not a real element"}
