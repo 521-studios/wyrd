@@ -207,3 +207,9 @@
 {"ref": "old-norse:Krōk", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:Þunor", "reason": "theonym (the god Thunor) — render as the name"}
 {"ref": "old-english:ēg-land", "reason": "composite (ēg+land = island-land); expand to constituents per D51.3"}
+{"ref": "middle-english:Sigemund", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "middle-english:Wada", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "middle-english:Wiglaf", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "celtic:con", "reason": "Celtic con- conflates dog/hound + grammatical senses (collection/high/together) — multi-sense, needs split"}
+{"ref": "celtic:gar", "reason": "Celtic gar conflates near/short + 'to cry' — multi-sense, needs split"}
+{"ref": "goidelic:air", "reason": "Goidelic air conflates preposition 'on/over' + 'slaughter' (ár) — multi-sense, needs split"}
