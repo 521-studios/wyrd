@@ -1002,3 +1002,15 @@
 {"_type": "pronunciation", "ref": "brittonic:garth", "language": "brittonic", "form": "garth", "ipa": "/ɡarθ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
 {"_type": "pronunciation", "ref": "brittonic:mǭr", "language": "brittonic", "form": "mǭr", "ipa": "/moːr/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
 {"_type": "pronunciation", "ref": "goidelic:kil", "language": "goidelic", "form": "kil", "ipa": "/kʲiːlʲ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "goidelic:maol", "language": "goidelic", "form": "maol", "ipa": "/mˠiːlˠ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "middle-english:mont", "language": "middle-english", "form": "mont", "ipa": "/mɔnt/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:canto", "language": "brittonic", "form": "canto", "ipa": "/ˈkan.to/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:lïs", "language": "brittonic", "form": "lïs", "ipa": "/liːs/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:rïd", "language": "brittonic", "form": "rïd", "ipa": "/riːd/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:treβ", "language": "brittonic", "form": "treβ", "ipa": "/trɛβ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "celtic:barr", "language": "celtic", "form": "barr", "ipa": "/barː/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "goidelic:achaidh", "language": "goidelic", "form": "achaidh", "ipa": "/ˈax.iː/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "goidelic:coille", "language": "goidelic", "form": "coille", "ipa": "/ˈkɔlʲ.ə/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "latin:etum", "language": "latin", "form": "etum", "ipa": "/ˈeː.tum/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "middle-english:Cylla", "language": "middle-english", "form": "Cylla", "ipa": "/ˈkyl.la/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "middle-english:bōthe", "language": "middle-english", "form": "bōthe", "ipa": "/ˈboː.θə/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
