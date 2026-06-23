@@ -39,18 +39,20 @@ from wyrd.generators.kenning.lexicon.gloss_sense_campaign import (
 )
 
 if TYPE_CHECKING:
-    import sqlite3
     from collections.abc import Iterator
+
+    from wyrd.generators.kenning.cli.utils import Connection
 
 _DEFAULT_MINING_DIR = "data/mining"
 _PARKED_FILENAME = "_sense_parked.jsonl"
 
 
 @contextmanager
-def _open_lexicon(db_path: str | Path) -> Iterator[sqlite3.Connection]:
+def _open_lexicon(db_path: str | Path) -> Iterator[Connection]:
     """Read-only lexicon connection (via the shared cli.utils helper, so this CLI
-    file never imports sqlite3 itself — the package-boundary rule; the sqlite3 /
-    Iterator names are type-only, imported under TYPE_CHECKING)."""
+    file never imports sqlite3 itself — the package-boundary rule). ``Connection``
+    is cli.utils's re-export of ``sqlite3.Connection``, so the annotation stays
+    sqlite3-free; ``Connection`` / ``Iterator`` are type-only (TYPE_CHECKING)."""
     db_file = Path(db_path)
     if not db_file.exists():
         raise click.ClickException(f"Lexicon DB not found: {db_file}")
