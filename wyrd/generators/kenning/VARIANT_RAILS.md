@@ -145,6 +145,12 @@ changes no output.
   parked morphemes don't re-surface — `variant-gap-next-slice` CLI gained
   `--parked-path`. High-impact morphemes (lēah 697, dūn 133 gaps) correctly
   re-surface with fewer gaps until enough surfaces are authored.
+- Fire #9 (2026-06-23): authored 4 — stoc→`stoke`, stān→`ston`, hēah→`hea`,
+  berg→`barrow` (validated). Parked 8 well-covered/long-tail morphemes (dūn, lēah,
+  ingtūn, tūn, halh, ingas, ēg, ford) whose remaining gaps are idiosyncratic,
+  homographic (-low=hlāw, -sea=sǣ), or junk toponyms ("Not in Dom"). Emerging
+  policy: author the clean generalizable worn form; park a well-covered morpheme
+  once its tail is only homographic/noise rather than pollute the matcher.
 
 ## Loop procedure (each 5-min fire)
 0. `date '+%F %T %Z'` (ITERATION START). `git pull --rebase`.

@@ -1417,3 +1417,11 @@
 {"ref": "latin:magna", "reason": "Latin qualifier realized as English translation 'Great', not a phonological reflex — would mis-attribute English Great- names"}
 {"ref": "old-english:hyll", "reason": "well-covered by hill/hyll/ill; residual gap toponyms are idiosyncratic worn forms not safely generalizable"}
 {"ref": "old-english:ing", "reason": "rare hill-homograph of place-suffix -ing; gap toponyms surface no distinct groundable hill-ing form"}
+{"ref": "old-english:dūn", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are idiosyncratic/homographic worn forms or misattributions — no safely-generalizable new surface"}
+{"ref": "old-english:lēah", "reason": "well-covered (lay/lea/leah/lee/leigh + authored ley); remaining worn forms (-low=hlāw, -le) are homographic — unsafe to generalize"}
+{"ref": "old-english:ingtūn", "reason": "worn form -ton is a homograph of tūn; -ington already covers the clean cases"}
+{"ref": "old-english:tūn", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are idiosyncratic/homographic worn forms or misattributions — no safely-generalizable new surface (incl. junk toponyms like 'Not in Dom')"}
+{"ref": "old-english:halh", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are idiosyncratic/homographic worn forms or misattributions — no safely-generalizable new surface"}
+{"ref": "old-english:ingas", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are idiosyncratic/homographic worn forms or misattributions — no safely-generalizable new surface"}
+{"ref": "old-english:ēg", "reason": "well-covered (eg/ey/ney/sey + authored ey); remaining -sea/-ay forms homographic/too-short"}
+{"ref": "old-english:ford", "reason": "well-covered by ford/forth; gap toponyms are misattributions with no ford surface"}
