@@ -144,3 +144,5 @@
 {"ref": "old-english:Wōden", "reason": "theonym (the god Woden) — render as the name"}
 {"ref": "old-english:Tribal-Name", "reason": "placeholder 'Tribal-Name' morpheme, not a real element"}
 {"ref": "old-english:bol#hill", "reason": "corrupt surface 'bol#hill' (# artifact); morpheme-quality issue"}
+{"ref": "old-english:here-ford", "reason": "composite (here+ford = army-ford); expand to constituents per D51.3"}
+{"ref": "old-english:holm", "reason": "holm multi-sense (island/holm + sea poetic + mound/hill) with umbrella gloss — needs careful split"}
