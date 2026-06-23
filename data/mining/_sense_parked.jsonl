@@ -57,3 +57,14 @@
 {"ref": "old-english:tūn-stall", "reason": "composite (tūn+stall); expand to constituents per D51.3"}
 {"ref": "old-english:wīc-hām", "reason": "composite (wīc+hām); expand to constituents per D51.3"}
 {"ref": "old-english:hdm", "reason": "OCR-corrupt surface 'hdm' (likely hām); morpheme-quality issue, not a gloss-sense target"}
+{"ref": "old-english:Alhmund", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Ali", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Beda", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Grimr", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hun", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hutta", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Sótr", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Wēna", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:hagu-þorn", "reason": "composite (hagu+þorn = hawthorn); expand to constituents per D51.3"}
+{"ref": "old-english:here-pæð", "reason": "composite (here+pæð = army-path/highway); expand to constituents per D51.3"}
+{"ref": "old-english:leak", "reason": "lēah/lea dup wall + 'island'/'stream' outliers — needs review"}
