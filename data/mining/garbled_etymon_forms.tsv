@@ -95,3 +95,4 @@ CORRUPTION	old-english	st&n	'&' OCR junk in stān (stone); reflexed 'ston' — d
 CORRUPTION	old-norse	bro&ir	'&' OCR junk in bróðir (brother); reflexed 'brother' — potential collapse into bróðir (twin in DB), human verify
 NOTE	old-english	bopltun	collapse-validate: no 'boltun' twin in DB — NOT collapsed, human triage (maybe boltūn or drop)
 NOTE	old-english	flexcca	collapse-validate: no 'flecca' twin (only 'fleca') — NOT collapsed, human triage
+continental-germanic:Personal-name	NOTE	parser-artifact: literal placeholder "Personal-name" stored as a morpheme — junk, no twin; human delete

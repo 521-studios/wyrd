@@ -1106,3 +1106,15 @@
 {"_type": "pronunciation", "ref": "brittonic:eclẹ̄si̥ā", "language": "brittonic", "form": "eclẹ̄si̥ā", "ipa": "/ɛkˈleː.si.aː/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
 {"_type": "pronunciation", "ref": "brittonic:felin", "language": "brittonic", "form": "felin", "ipa": "/ˈvɛ.lin/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
 {"_type": "pronunciation", "ref": "brittonic:ial", "language": "brittonic", "form": "ial", "ipa": "/jaːl/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:llys", "language": "brittonic", "form": "llys", "ipa": "/ɬɨːs/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:main", "language": "brittonic", "form": "main", "ipa": "/main/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:mönið", "language": "brittonic", "form": "mönið", "ipa": "/ˈmɔ.nɨð/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:perth", "language": "brittonic", "form": "perth", "ipa": "/pɛrθ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:riu", "language": "brittonic", "form": "riu", "ipa": "/r̥iu/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "celtic:a'", "language": "celtic", "form": "a'", "ipa": "/ə/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "celtic:ait", "language": "celtic", "form": "ait", "ipa": "/aːtʲ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "celtic:dairt", "language": "celtic", "form": "dairt", "ipa": "/dˠaɾˠtʲ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "celtic:gad", "language": "celtic", "form": "gad", "ipa": "/ɡad/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "celtic:lin", "language": "celtic", "form": "lin", "ipa": "/lʲin/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "celtic:nan", "language": "celtic", "form": "nan", "ipa": "/nan/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "goidelic:aig", "language": "goidelic", "form": "aig", "ipa": "/ɛɟ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
