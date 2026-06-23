@@ -5110,6 +5110,10 @@ def test_suffix_candidates_keeps_base_reflex_with_reduced_sibling(fresh_db: Path
 
     assert "ham" in cands  # base kept — extra prefix 'h' starts canonical 'ham'
     assert "am" in cands  # reduced sibling kept too
+
+
+def test_derive_surface_in_modern_dry_run_writes_nothing(fresh_db: Path) -> None:
+    """apply=False reports the projection count but writes no surface_in_modern."""
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="src", title="S")
         brad_id = db.upsert_etymon("brad", "old-english")
