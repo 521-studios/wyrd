@@ -495,3 +495,15 @@
 {"_type": "collapse", "ref": "old-english:lln", "into": "old-english:lin"}
 {"_type": "collapse", "ref": "old-english:grceg", "into": "old-english:grǣg"}
 {"_type": "collapse", "ref": "old-english:bldc", "into": "old-english:blæc"}
+{"_type": "etymon_gloss_add", "ref": "brittonic:cē¸d", "additions": [{"gloss": "A wood, a forest.", "reason": "wyrd-eni4.3 IPA/gloss tail: Brittonic *cēd > Welsh coed 'wood'; toponym element for woodland (cf. Cheadle, Lytchett)."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:crṻg", "additions": [{"gloss": "A mound, a hill, a tumulus.", "reason": "wyrd-eni4.3 IPA/gloss tail: Brittonic *crūg > Welsh crug 'mound/barrow'; common in Crick-/Crich/Creech names."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:eglẹ̄s", "additions": [{"gloss": "A church.", "reason": "wyrd-eni4.3 IPA/gloss tail: Brittonic *eglēs (< Latin ecclesia) > Welsh eglwys; Eccles-type names mark early British churches."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:berc", "additions": [{"gloss": "A birch-tree.", "reason": "wyrd-eni4.3 IPA/gloss tail: OE berc/beorc 'birch'; toponym element (Berkswell, Barkway)."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:wæsse", "additions": [{"gloss": "A wet place, a marsh; alluvial land by a river.", "reason": "wyrd-eni4.3 IPA/gloss tail: OE wæsse 'wet ground/alluvium' (Buildwas, Alrewas, Broadwas)."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:cēping", "additions": [{"gloss": "A market, a market-place.", "reason": "wyrd-eni4.3 IPA/gloss tail: OE cēping/cēaping 'market' (Chipping-, Chepstow); the trading-place sense."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:æppel", "additions": [{"gloss": "An apple; an apple-tree.", "reason": "wyrd-eni4.3 IPA/gloss tail: OE æppel 'apple'; orchard/apple-tree toponym element (Appleton, Eppleton)."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:garth", "additions": [{"gloss": "An enclosure; a ridge or hill.", "reason": "wyrd-eni4.3 IPA/gloss tail: Welsh/Brittonic garth 'enclosure, ridge'; both senses in toponyms (Garthorpe, Garth)."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:mǭr", "additions": [{"gloss": "Big, great.", "reason": "wyrd-eni4.3 IPA/gloss tail: Brittonic *māro- > Welsh mawr 'big'; intensifier element in British names."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:scīete", "additions": [{"gloss": "A nook, a corner; a projecting piece of land.", "reason": "wyrd-eni4.3 IPA/gloss tail: OE scīete/scēat 'corner of land, angle' (-shoot/-shet names)."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:canto", "additions": [{"gloss": "A border, a district; also white, bright.", "reason": "wyrd-eni4.3 IPA/gloss tail: Brittonic canto- 'rim/border' (and the bright sense); Kent/Canterbury stratum."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:lïs", "additions": [{"gloss": "A court, a hall, a manor.", "reason": "wyrd-eni4.3 IPA/gloss tail: Brittonic *līssos > Welsh llys 'court/hall'; Lis-/Lease-/-lis names mark a chief's seat."}]}

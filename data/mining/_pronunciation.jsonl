@@ -1014,3 +1014,17 @@
 {"_type": "pronunciation", "ref": "latin:etum", "language": "latin", "form": "etum", "ipa": "/ˈeː.tum/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
 {"_type": "pronunciation", "ref": "middle-english:Cylla", "language": "middle-english", "form": "Cylla", "ipa": "/ˈkyl.la/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
 {"_type": "pronunciation", "ref": "middle-english:bōthe", "language": "middle-english", "form": "bōthe", "ipa": "/ˈboː.θə/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "middle-english:monke", "language": "middle-english", "form": "monke", "ipa": "/ˈmun.kə/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "middle-english:prior", "language": "middle-english", "form": "prior", "ipa": "/ˈpriː.or/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "middle-english:priorie", "language": "middle-english", "form": "priorie", "ipa": "/ˈpriː.o.ri.ə/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "old-english:pæð", "language": "old-english", "form": "pæð", "ipa": "/pæθ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "old-norse:marr", "language": "old-norse", "form": "marr", "ipa": "/marː/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:cadeir", "language": "brittonic", "form": "cadeir", "ipa": "/ˈka.deir/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:ciltā", "language": "brittonic", "form": "ciltā", "ipa": "/ˈkil.taː/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:coed", "language": "brittonic", "form": "coed", "ipa": "/koːɨd/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:eglēs", "language": "brittonic", "form": "eglēs", "ipa": "/eˈɡleːs/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:lẹ̄d", "language": "brittonic", "form": "lẹ̄d", "ipa": "/leːd/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:mę̄l", "language": "brittonic", "form": "mę̄l", "ipa": "/mɛːl/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:āco", "language": "brittonic", "form": "āco", "ipa": "/ˈaː.ko/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "goidelic:balla", "language": "goidelic", "form": "balla", "ipa": "/ˈbˠal̪ˠə/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "goidelic:mo", "language": "goidelic", "form": "mo", "ipa": "/mˠɔ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
