@@ -301,12 +301,10 @@
 {"ref": "old-english:bruna", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:brynca", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:bulut", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-english:burh-stall", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:busc", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:butt", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:bydan", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:bū", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-english:cedda", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:ceg", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:celte", "reason": "diffuse / garbled form / no confident grounded surface across its toponyms"}
 {"ref": "old-english:cerring", "reason": "diffuse / garbled form / no confident grounded surface across its toponyms"}
@@ -332,7 +330,6 @@
 {"ref": "old-english:esc", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:estun", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:ete", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-english:flage", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:flōde", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:furlang", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:fyrhðen", "reason": "diffuse / no confident grounded surface across its toponyms"}
@@ -350,12 +347,10 @@
 {"ref": "old-english:hlīf", "reason": "diffuse / garbled form / no confident grounded surface"}
 {"ref": "old-english:horningas", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:hwyrfel", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-english:hwæs", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:hygel", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:hōfe", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:hǣse", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:ig", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-english:lida", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-english:lǣt", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
 {"ref": "old-english:mearg", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
 {"ref": "old-english:middle", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
@@ -422,14 +417,9 @@
 {"ref": "old-english:þȳfel", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-french:bruiere", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-french:ette", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-norse:Arnulf", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-norse:Bak", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-norse:Beorhtsige", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-norse:Blað", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-norse:Boli", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-norse:Bretar", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-norse:Earnwulf", "reason": "diffuse / no confident grounded surface across its toponyms"}
-{"ref": "old-norse:Hvit", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-norse:Kafni", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-norse:Skrápi", "reason": "diffuse / no confident grounded surface across its toponyms"}
 {"ref": "old-norse:Wibba", "reason": "diffuse / garbled toponyms / no confident grounded surface"}
@@ -483,7 +473,6 @@
 {"ref": "brittonic:alban", "reason": "impact-1 Brittonic; single toponym / Welsh mutation prevents clean grounding"}
 {"ref": "brittonic:albo", "reason": "impact-1 Brittonic; single toponym / Welsh mutation prevents clean grounding"}
 {"ref": "brittonic:aodann", "reason": "impact-1 Brittonic; single toponym / Welsh mutation prevents clean grounding"}
-{"ref": "brittonic:au", "reason": "impact-1 Brittonic; single toponym / Welsh mutation prevents clean grounding"}
 {"ref": "brittonic:bedh", "reason": "impact-1 Brittonic; single toponym / Welsh mutation prevents clean grounding"}
 {"ref": "brittonic:berow", "reason": "impact-1 Brittonic; single toponym / Welsh mutation prevents clean grounding"}
 {"ref": "brittonic:blaidd", "reason": "impact-1 Brittonic; single toponym / Welsh mutation prevents clean grounding"}
