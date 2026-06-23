@@ -96,3 +96,6 @@ CORRUPTION	old-norse	bro&ir	'&' OCR junk in bróðir (brother); reflexed 'brothe
 NOTE	old-english	bopltun	collapse-validate: no 'boltun' twin in DB — NOT collapsed, human triage (maybe boltūn or drop)
 NOTE	old-english	flexcca	collapse-validate: no 'flecca' twin (only 'fleca') — NOT collapsed, human triage
 continental-germanic:Personal-name	NOTE	parser-artifact: literal placeholder "Personal-name" stored as a morpheme — junk, no twin; human delete
+celtic:gap	NOTE	suspect mis-parsed gloss (heath-hens) — verify form/gloss attribution; human triage
+celtic:gat	NOTE	suspect mis-parsed gloss (hangmen) — verify form/gloss attribution; human triage
+celtic:gark	NOTE	suspect mis-parsed gloss (heath-hens) — verify form/gloss attribution; human triage
