@@ -1066,6 +1066,7 @@ REPLAY_EXCLUDED_LEDGERS: frozenset[str] = frozenset(
         "_element_gloss_adjudications.jsonl",
         "_pronunciation.jsonl",
         "_modern_reflexes.jsonl",
+        "_sense_parked.jsonl",
     }
 )
 
