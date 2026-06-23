@@ -473,3 +473,6 @@
 {"ref": "goidelic:ach", "reason": "adjectival suffix '-ach' (abounding in); not a generative root"}
 {"ref": "goidelic:alach", "reason": "connective fragment 'place of'; over-segmentation"}
 {"ref": "goidelic:bran", "reason": "personal-name element — render as the name"}
+{"ref": "goidelic:eoghain", "reason": "saint name (Owen / Eoghan) — render as the name"}
+{"ref": "goidelic:bille", "reason": "opaque gloss 'little rocks' for bille; uncertain — needs review"}
+{"ref": "goidelic:findchan", "reason": "epithet 'the fair one'; likely a name/descriptor, not a generative root"}
