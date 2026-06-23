@@ -306,3 +306,21 @@
 {"ref": "middle-english:Coll", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "middle-english:Ealdgyð", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "goidelic:corr#peak", "reason": "corrupt surface 'corr#peak' (# artifact); morpheme-quality issue, not a gloss-sense target"}
+{"ref": "middle-english:Ibba", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "middle-english:Maðhere", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "middle-english:Peter", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "middle-english:Scot", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "middle-english:Wulfric", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Abbe", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Aelfgyth", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Alhhere", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bakki", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Balda", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Baldr", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Becci", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Beohha", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Beorhtel", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Beornwulf", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Berica", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Besi", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "modern-english:head", "reason": "modern 'head' conflates head/upper-end + hill + personal name — multi-sense, needs split"}
