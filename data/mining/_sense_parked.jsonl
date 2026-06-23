@@ -893,3 +893,9 @@
 {"ref": "old-norse:set-berg", "reason": "composite set+berg (flat-topped hill); expand to constituents per D51.3"}
 {"ref": "old-norse:stall-r", "reason": "malformed surface 'stall-r' (dash artifact of stallr); morpheme-quality issue"}
 {"ref": "old-norse:styrr", "reason": "personal name (Styrr) — render as the name"}
+{"ref": "old-english:spearca", "reason": "contaminated wall: pole-category + brush-category fill mixed (real='brushwood/shrub'); cannot compress honestly"}
+{"ref": "celtic:cdathrú", "reason": "OCR-corrupt surface 'cdathrú' (likely ceathrú); morpheme-quality issue"}
+{"ref": "old-english:waefre", "reason": "contaminated wall: wetland category-fill conflicts with real gloss 'Wandering/Winding' (wæfre); needs review"}
+{"ref": "goidelic:monadh", "reason": "contaminated wall: wetland category-fill conflicts with real gloss 'hill' (monadh=moor/upland); needs review"}
+{"ref": "old-english:hala", "reason": "contaminated wall: enclosure category-fill conflicts with real gloss 'nook' (halh); needs review"}
+{"ref": "old-english:hrynge", "reason": "contaminated wall: enclosure category-fill conflicts with real gloss 'pole/stake'; needs review"}
