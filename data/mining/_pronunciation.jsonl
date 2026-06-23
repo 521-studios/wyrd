@@ -990,3 +990,15 @@
 {"_type": "pronunciation", "language": "goidelic", "form": "poll", "ref": "goidelic:poll", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/pɔl/", "confidence": "medium"}
 {"_type": "pronunciation", "language": "celtic", "form": "tir", "ref": "celtic:tir", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/tiːr/", "confidence": "medium"}
 {"_type": "pronunciation", "language": "latin", "form": "sub", "ref": "latin:sub", "model": "claude-opus-4-8[1m]", "method": "agent-ipa-v1", "ipa": "/sub/", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:cē¸d", "language": "brittonic", "form": "cē¸d", "ipa": "/keːd/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:crṻg", "language": "brittonic", "form": "crṻg", "ipa": "/kryːɡ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:eglẹ̄s", "language": "brittonic", "form": "eglẹ̄s", "ipa": "/eˈɡleːs/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "latin:super", "language": "latin", "form": "super", "ipa": "/ˈsu.per/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "middle-english:temple", "language": "middle-english", "form": "temple", "ipa": "/ˈtɛm.pəl/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "old-norse:Abba", "language": "old-norse", "form": "Abba", "ipa": "/ˈabː.a/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:creig", "language": "brittonic", "form": "creig", "ipa": "/kreiɡ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "goidelic:gleann", "language": "goidelic", "form": "gleann", "ipa": "/ɟlʲaun̪ˠ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "old-english:Sótr", "language": "old-english", "form": "Sótr", "ipa": "/ˈsoːtr/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:garth", "language": "brittonic", "form": "garth", "ipa": "/ɡarθ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:mǭr", "language": "brittonic", "form": "mǭr", "ipa": "/moːr/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "goidelic:kil", "language": "goidelic", "form": "kil", "ipa": "/kʲiːlʲ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
