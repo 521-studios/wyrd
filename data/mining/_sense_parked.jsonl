@@ -866,3 +866,7 @@
 {"ref": "old-norse:Earnwulf", "reason": "personal-name/ethnonym/theonym element — render as the name"}
 {"ref": "old-norse:Hūnstān", "reason": "personal-name/ethnonym/theonym element — render as the name"}
 {"ref": "old-norse:Hvit", "reason": "personal-name/ethnonym/theonym element — render as the name"}
+{"ref": "old-english:þǣre", "reason": "definite article 'the'; connective, not a generative root"}
+{"ref": "old-english:ēa-mōt", "reason": "composite ēa+mōt (river-confluence); expand to constituents per D51.3"}
+{"ref": "old-french:ette", "reason": "diminutive suffix; not a generative root"}
+{"ref": "old-norse:Bretar", "reason": "ethnonym (the Britons) — render as the name"}
