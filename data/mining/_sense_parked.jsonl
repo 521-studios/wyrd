@@ -462,3 +462,4 @@
 {"ref": "old-norse:vrd", "reason": "OCR-corrupt surface 'vrd' (likely vrá); morpheme-quality issue"}
 {"ref": "brittonic:cyfeiliog", "reason": "opaque gloss 'compact together' / likely region name — uncertain, needs review"}
 {"ref": "brittonic:rhys", "reason": "personal-name element — render as the name"}
+{"ref": "brittonic:pyrr", "reason": "personal name (Pyrrus) — render as the name"}
