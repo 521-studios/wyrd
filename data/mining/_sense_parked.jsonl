@@ -196,3 +196,5 @@
 {"ref": "old-english:Wigmund", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:Wineca", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:Wulf", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:bere-ærn", "reason": "composite (bere+ærn = barley-barn); expand to constituents per D51.3"}
+{"ref": "old-english:burh-weard", "reason": "composite (burh+weard = town-guardian); expand to constituents per D51.3"}
