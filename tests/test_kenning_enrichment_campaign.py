@@ -34,6 +34,7 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     validate_gloss_candidates,
     validate_ipa_candidates,
     validate_tag_candidates,
+    variant_gap_census,
 )
 
 
@@ -128,6 +129,29 @@ def test_progress_counts_committed(world):
     )
     done, parked, total = reflex_progress(db.conn, ledger)
     assert (done, parked, total) == (1, 0, 2)
+
+
+def test_variant_gap_census_classifies_pairs(tmp_path):
+    """A scholar pair is matched (a reflex substring-matches this toponym),
+    variant-gap (has a reflex, none match this spelling), or reflex-less."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    tun = _etymon(db, "tūn")
+    bare = _etymon(db, "zzz")  # no reflex → reflex-less
+    rid = db.conn.execute(
+        "INSERT INTO reflex (surface_form, position, productivity) VALUES ('ton', 'post', 1)"
+    ).lastrowid
+    db.conn.execute("INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, tun))
+    _toponym(db, "Newton", [tun])  # 'ton' ⊂ 'newton' → matched
+    _toponym(db, "Tunbridge", [tun])  # reflex 'ton' ⊄ 'tunbridge' → variant-gap
+    _toponym(db, "Zzzham", [bare])  # no reflex → reflex-less
+    db.commit()
+
+    c = variant_gap_census(db.conn)
+    assert c["total"] == 3
+    assert (c["matched"], c["variant_gap"], c["reflex_less"]) == (1, 1, 1)
 
 
 def test_parked_refs_excluded_from_slice(world):

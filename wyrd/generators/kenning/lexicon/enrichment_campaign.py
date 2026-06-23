@@ -264,6 +264,54 @@ def scholar_impact_ranking(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return list(conn.execute(_IMPACT_SQL))
 
 
+def _etymon_reflex_folds(conn: sqlite3.Connection) -> dict[int, set[str]]:
+    """etymon_id → its folded reflex surfaces (every reflex position). The
+    surface inventory the matcher can emit/recognize for that morpheme."""
+    folds: dict[int, set[str]] = {}
+    for row in conn.execute(
+        "SELECT re.etymon_id AS eid, r.surface_form AS sf "
+        "FROM reflex r JOIN reflex_etymon re ON re.reflex_id = r.id"
+    ):
+        f = fold_surface(row["sf"] or "")
+        if f:
+            folds.setdefault(row["eid"], set()).add(f)
+    return folds
+
+
+def variant_gap_census(conn: sqlite3.Connection) -> dict[str, int]:
+    """Classify every scholar (toponym, morpheme) pair by reflex-matchability —
+    the wyrd-eni4.3.1 diagnostic that sizes the variant-gap lever:
+
+    * ``matched``     — the morpheme has a reflex surface that substring-matches
+      (folded) THIS toponym's modern name;
+    * ``variant_gap`` — the morpheme HAS reflex surface(s), but none match this
+      toponym's spelling (the 'barthos' class: covered, yet blocks CAN-IT here);
+    * ``reflex_less`` — the morpheme has no reflex surface at all.
+
+    Returns counts keyed ``matched`` / ``variant_gap`` / ``reflex_less`` /
+    ``total``. Pure folded-substring test — no matcher/trie, so it's a cheap
+    deterministic census, not a grade."""
+    folds = _etymon_reflex_folds(conn)
+    counts = {"matched": 0, "variant_gap": 0, "reflex_less": 0, "total": 0}
+    for row in conn.execute(
+        "SELECT t.modern_name AS name, tee.etymon_id AS eid "
+        "FROM toponym_etymology te "
+        "JOIN toponym t ON t.id = te.toponym_id "
+        "JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id"
+    ):
+        counts["total"] += 1
+        surfaces = folds.get(row["eid"])
+        if not surfaces:
+            counts["reflex_less"] += 1
+            continue
+        folded_name = fold_surface(row["name"] or "")
+        if any(s in folded_name for s in surfaces):
+            counts["matched"] += 1
+        else:
+            counts["variant_gap"] += 1
+    return counts
+
+
 def etymon_evidence(conn: sqlite3.Connection, eid: int, *, impact: int) -> EtymonEvidence:
     """Pull the grounding evidence for one etymon (called only for a slice)."""
     erow = conn.execute(

@@ -43,9 +43,13 @@ fire. Update the checkboxes here as pieces land.
 ## Build checklist (one coherent, tested piece per fire)
 
 ### Rail A — 4.3.1 variant-gap reflex selector (reflexes; within remit)
-- [ ] A1. Diagnostic census: reflex-less vs variant-gap vs matched pairs
-      (launch baseline was reflex-less≈21.3%, variant-gap≈22.4%, matched≈56.2% of
-      ~43,361 pairs). Add as `enrich-campaign variant-gap-status`.
+- [x] A1. Diagnostic census: reflex-less vs variant-gap vs matched pairs. DONE —
+      `enrich-campaign variant-gap-status` + `variant_gap_census()` (pure folded-
+      substring test, per-etymon reflexes; no matcher). Live DB census 2026-06-23:
+      43,361 pairs — matched 37.8% / variant-gap 19.8% (8,581) / reflex-less 42.4%.
+      (Differs from the ticket's cluster-level launch estimate; reflex-less is high
+      because the live DB is NOT yet rebuilt with PR #727's merged reflexes. A2 must
+      decide per-etymon vs cluster-level coverage — ticket wording says per-etymon.)
 - [ ] A2. Selector `enrich-campaign variant-gap-next-slice --n N`: per not-yet-
       CAN-IT toponym, surface the scholar morpheme(s) whose reflexes DON'T
       substring-match this toponym + the residual span(s) to author. Prioritize

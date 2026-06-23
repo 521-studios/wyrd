@@ -41,6 +41,7 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     validate_gloss_candidates,
     validate_ipa_candidates,
     validate_tag_candidates,
+    variant_gap_census,
 )
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
@@ -187,6 +188,24 @@ def cmd_status(db_path: Path, reflexes_path: Path, parked_path: Path) -> None:
     click.echo(
         f"scholar-reflex coverage: {done}/{total} ({pct:.1f}%) "
         f"— {parked} parked, {remaining} remaining to attempt"
+    )
+
+
+@enrich_campaign.command("variant-gap-status")
+@_db_option
+def cmd_variant_gap_status(db_path: Path) -> None:
+    """Diagnostic census (wyrd-eni4.3.1): classify every scholar (toponym,
+    morpheme) pair as matched / variant-gap / reflex-less. Sizes the variant-gap
+    lever — pairs where the morpheme HAS a reflex but none match this spelling."""
+    with _readonly_lexicon(db_path) as conn:
+        c = variant_gap_census(conn)
+    total = c["total"] or 1
+    click.echo(
+        f"scholar (toponym,morpheme) pairs: {c['total']}  "
+        f"matched={c['matched']} ({100 * c['matched'] / total:.1f}%)  "
+        f"variant-gap={c['variant_gap']} ({100 * c['variant_gap'] / total:.1f}%)  "
+        f"reflex-less={c['reflex_less']} ({100 * c['reflex_less'] / total:.1f}%)",
+        err=True,
     )
 
 
