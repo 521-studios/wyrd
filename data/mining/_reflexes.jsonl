@@ -33572,3 +33572,5 @@
 {"_type": "reflex", "surface_form": "adling", "position": "pre", "etymon_refs": ["old-english:æðeling"]}
 {"_type": "reflex", "surface_form": "borough", "position": "post", "etymon_refs": ["old-norse:borg"]}
 {"_type": "reflex", "surface_form": "borrow", "position": "pre", "etymon_refs": ["old-norse:borg"]}
+{"_type": "reflex", "surface_form": "episcopi", "position": "post", "etymon_refs": ["latin:episcopus"]}
+{"_type": "reflex", "surface_form": "balder", "position": "pre", "etymon_refs": ["old-english:Baldhere"]}
