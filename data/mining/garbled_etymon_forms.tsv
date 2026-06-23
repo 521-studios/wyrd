@@ -85,3 +85,4 @@ CORRUPTION_lettersub	old-english	bldc	letter-sub of blæc (black/pale); 'd' for 
 CORRUPTION_lettersub	old-english	bopltun	garble of boltun (Bolton); 'pl' inserted — potential collapse into boltun, human verify
 CORRUPTION_lettersub	old-english	dcen	letter-sub of æcen (oaken/of-oak); 'dc' for 'æc' OCR — reflexed 'oaken', potential collapse into æcen, human verify
 CORRUPTION_lettersub	old-english	dr$ge	'$' OCR junk for drȳge (dry); potential collapse into drȳge/dryge, human verify
+CORRUPTION_lettersub	old-english	flexcca	letter-sub of flecca (hurdle); 'x' insertion — potential collapse into flecca, human verify
