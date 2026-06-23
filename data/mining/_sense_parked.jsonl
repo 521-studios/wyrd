@@ -45,3 +45,15 @@
 {"ref": "old-english:Káti", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:Tāta", "reason": "personal-name element — render as the name, no sense to compress"}
 {"ref": "old-english:Tarrant", "reason": "specific river-name, not a generative morpheme"}
+{"ref": "old-english:Baca", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Becca", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bota", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bōfa", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Cana", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Dunna", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Ecga", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-norse:Abba", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:bere-wīc", "reason": "composite (bere+wīc = barley-farm); expand to constituents per D51.3"}
+{"ref": "old-english:tūn-stall", "reason": "composite (tūn+stall); expand to constituents per D51.3"}
+{"ref": "old-english:wīc-hām", "reason": "composite (wīc+hām); expand to constituents per D51.3"}
+{"ref": "old-english:hdm", "reason": "OCR-corrupt surface 'hdm' (likely hām); morpheme-quality issue, not a gloss-sense target"}
