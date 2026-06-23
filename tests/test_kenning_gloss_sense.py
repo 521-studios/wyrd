@@ -123,6 +123,19 @@ def test_validate_rejects_long_label_paraphrase(tmp_path):
     db.close()
 
 
+def test_validate_rejects_whitespace_only_label(tmp_path):
+    """A whitespace-only label ('   ') is truthy and splits to zero words, so it
+    must be rejected by _label_ok's strip guard — else author would mint an empty
+    canonical-label. validate is the independent gate (a hand-built candidate can
+    carry a label that never passed parse_candidate's strip)."""
+    db = _db(tmp_path)
+    _etymon(db, "tūn", ["town"])
+    c = _cand("old-english:tūn", "old-english", "tūn", [("   ", ["town"])])
+    errs = validate_gloss_sense_candidates(db.conn, set(), [c])
+    assert any("short compressions" in e for e in errs)
+    db.close()
+
+
 def test_validate_rejects_already_committed_and_dupes(tmp_path):
     db = _db(tmp_path)
     _etymon(db, "tūn", ["town"])

@@ -254,8 +254,18 @@ def test_parked_refs_skips_malformed_line(tmp_path, capsys):
 
 
 def test_wall_glosses_are_emitted_sorted(tmp_path):
-    """_wall ORDER BY gloss: the slice's gloss wall (emitted verbatim on stdout
-    the loop agent diffs) is alphabetical, not SQLite rowid/insertion order."""
+    """The slice's gloss wall (emitted verbatim on the next-slice stdout the loop
+    agent diffs) is alphabetical, not insertion order — the deterministic-output
+    contract.
+
+    NB: with the current ``etymon_gloss`` schema (PRIMARY KEY (etymon_id, gloss),
+    not WITHOUT ROWID) SQLite already serves ``_wall``'s equality scan from the
+    covering ``(etymon_id, gloss)`` autoindex in gloss order, so removing the
+    explicit ``ORDER BY gloss`` would NOT fail this test today (verified via
+    EXPLAIN QUERY PLAN). The ``ORDER BY`` is kept as query-level insurance against
+    a future schema/planner change; this test pins the observable contract (sorted
+    wall) and would catch a ``_wall`` rewrite — a JOIN, DISTINCT, or UNION — that
+    scrambles row order out from under the index."""
     db = _db(tmp_path)
     e = _etymon(db, "tūn", ["zebra", "apple", "moor"])  # inserted out of order
     _attribute(db, e, 2)

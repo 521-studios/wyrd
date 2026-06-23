@@ -141,7 +141,16 @@ def parse_candidate(row: dict) -> GlossSenseCandidate | None:
 
 
 def _label_ok(label: str) -> bool:
-    return bool(label) and len(label) <= _MAX_LABEL_CHARS and len(label.split()) <= _MAX_LABEL_WORDS
+    # Strip first: a whitespace-only label ("   ") is truthy and splits to zero
+    # words, so without the strip it would slip through the word-count guard and
+    # author an empty canonical-label. parse_candidate already strips on the agent
+    # path, but validate is the independent gate (hand-built candidates).
+    stripped = label.strip()
+    return (
+        bool(stripped)
+        and len(stripped) <= _MAX_LABEL_CHARS
+        and len(stripped.split()) <= _MAX_LABEL_WORDS
+    )
 
 
 def wall_glosses(conn: sqlite3.Connection, etymon_id: int) -> set[str]:
