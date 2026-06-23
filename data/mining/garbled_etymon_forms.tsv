@@ -81,3 +81,5 @@ CORRUPTION	modern-english	lmbeald	suspected OE -beald personal name (lm- garble,
 CORRUPTION	old-english	*gzfl	junk/no-twin (z,f,l consonant cluster, leading *) — human triage
 CORRUPTION	old-english	/edh	leading-slash garble of -edh/eð pasture element — human triage
 CORRUPTION	old-english	H)rencga	leading 'H)' paren-garble of a Hrenc-/Reng- personal name (→Rangeworthy) — human triage
+CORRUPTION_lettersub	old-english	bldc	letter-sub of blæc (black/pale); 'd' for 'æ' OCR — potential collapse into blæc, human verify
+CORRUPTION_lettersub	old-english	bopltun	garble of boltun (Bolton); 'pl' inserted — potential collapse into boltun, human verify
