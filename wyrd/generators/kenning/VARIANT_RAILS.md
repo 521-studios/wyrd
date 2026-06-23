@@ -157,6 +157,10 @@ changes no output.
   morphemes are draining — their clean generalizable worn forms are authored, and
   the long tail is mostly misattributions, junk toponyms, or homographs being
   parked. Cumulative: 11 reflexes authored, 23 parked.
+- Fire #11 (2026-06-23): authored 4 — bearu→`beare` (Aylesbeare/Loxbeare),
+  fenn→`fen` (Fen Ditton), mersc→`mars` (Marston), wudu→`wode` (Chetwode). Parked
+  8 (hōh, ham, hām, āc, hamm, hlāw, leah, ēa). Yield recovered to 4 (distinctive
+  worn forms). Cumulative: 15 reflexes authored, 31 parked.
 
 ## Loop procedure (each 5-min fire)
 0. `date '+%F %T %Z'` (ITERATION START). `git pull --rebase`.

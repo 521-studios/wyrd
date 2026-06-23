@@ -1435,3 +1435,11 @@
 {"ref": "celtic:lann", "reason": "covered by lani/lann; the -land worn form (Helland) is a homograph of OE land — unsafe to generalize"}
 {"ref": "old-english:denu", "reason": "covered by dean/den/denu/don; gap toponyms are -ton (tūn) misattributions"}
 {"ref": "old-english:ōra", "reason": "only 'orr' committed but worn -or/-nor/-sor forms are too short/homographic to generalize safely; revisit if a cleaner form appears"}
+{"ref": "old-english:hōh", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-english:ham", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-english:hām", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-english:āc", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-english:hamm", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-english:hlāw", "reason": "covered by hlaw/low; the -law worn form is too common an English word to generalize without over-matching"}
+{"ref": "old-english:leah", "reason": "well-covered by existing reflexes; remaining variant-gap toponyms are long-tail idiosyncratic/misattributed or junk — no safely-generalizable new surface"}
+{"ref": "old-english:ēa", "reason": "covered by ea/yea; worn -ew/-en forms idiosyncratic/too-short to generalize"}
