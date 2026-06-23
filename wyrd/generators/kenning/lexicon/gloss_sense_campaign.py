@@ -95,12 +95,14 @@ def parked_refs(parked_path: str | Path) -> set[str]:
     triage edits it), so a truncated or hand-mangled line is plausible. A bad line
     is skipped with a stderr warning rather than aborting EVERY ``next-slice`` /
     ``status`` (both call this) — the loop rail would otherwise stop dead on one
-    corrupt row, with no indication which."""
+    corrupt row, with no indication which. ``errors="replace"`` so even a non-UTF-8
+    byte degrades to U+FFFD (then fails the per-line guards) instead of raising
+    UnicodeDecodeError at read time, before any guard can fire."""
     path = Path(parked_path)
     if not path.is_file():
         return set()
     out: set[str] = set()
-    with path.open(encoding="utf-8") as fh:
+    with path.open(encoding="utf-8", errors="replace") as fh:
         for line_no, line in enumerate(fh, 1):
             line = line.strip()
             if not line:

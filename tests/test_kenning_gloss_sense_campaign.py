@@ -267,6 +267,19 @@ def test_parked_refs_ignores_non_string_ref(tmp_path):
     assert parked_refs(parked) == {"old-english:tūn"}  # non-string/absent refs skipped, no crash
 
 
+def test_parked_refs_survives_non_utf8_byte(tmp_path):
+    """A non-UTF-8 byte in the operator-appended log must NOT abort the rail at
+    read time (errors='replace'); the docstring promises one bad line never kills
+    next-slice/status."""
+    parked = tmp_path / "_sense_parked.jsonl"
+    parked.write_bytes(
+        b'{"ref": "old-english:m\xffr", "reason": "x"}\n'  # invalid UTF-8 byte
+        b'{"ref": "old-english:l\xc4\x93ah", "reason": "y"}\n'  # valid UTF-8 (lēah)
+    )
+    refs = parked_refs(parked)  # must not raise UnicodeDecodeError
+    assert "old-english:lēah" in refs  # the valid line still parses
+
+
 def test_wall_glosses_are_emitted_sorted(tmp_path):
     """The slice's gloss wall (emitted verbatim on the next-slice stdout the loop
     agent diffs) is alphabetical, not insertion order — the deterministic-output
