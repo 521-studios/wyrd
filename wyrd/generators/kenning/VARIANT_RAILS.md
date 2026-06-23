@@ -57,9 +57,14 @@ fire. Update the checkboxes here as pieces land.
       gap-toponym frequency. Each task carries evidence toponyms with a residual-
       span HINT (best-effort, not authoritative — author proposes, gate decides).
       Live smoke: lēah (697 gaps), dūn (133, Battlesden→den), hundred (125). Tested.
-- [ ] A3. Authoring path: reuse `validate_candidates` (grounding holds: span ∈
-      toponym). Append accepted rows to `data/mining/_reflexes.jsonl`.
-- [ ] A4. Tests + ruff. (No new ledger/table → no rebuild-discipline wiring.)
+- [x] A3. Authoring path. DONE — confirmed NO new production code needed: the run
+      phase is `variant-gap-next-slice` → author reflex rows → `enrich-campaign
+      validate` (= `validate_candidates`) → append `_reflexes.jsonl`. Grounding
+      holds because `_attested_folds` includes the toponym `modern_name`, and the
+      worn span comes from that name (e.g. `den` ⊂ `battlesden`).
+- [x] A4. Tests + ruff. DONE — `test_variant_gap_authored_reflex_validates`
+      (worn span accepted, off-name span rejected by the grounding gate). 24/24
+      enrichment tests pass, ruff clean. **Rail A complete.** (No new ledger/table.)
 
 ### Rail B — 4.2.2 variant rail + tag convention (etymon.variants; authorized, grounded)
 - [ ] B1. Tag convention (740t): add the `toponymic-surface` marker to variant

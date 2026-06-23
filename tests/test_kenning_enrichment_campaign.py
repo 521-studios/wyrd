@@ -202,6 +202,48 @@ def test_variant_gap_next_slice_selects_and_ledger_excludes(tmp_path):
     assert variant_gap_next_slice(db.conn, empty, n=10) == []
 
 
+def test_variant_gap_authored_reflex_validates(tmp_path):
+    """End-to-end Rail A: a variant-gap morpheme's worn span, authored as a reflex,
+    passes validate_candidates (the span is in the toponym's modern name); an
+    off-name span is rejected by the same grounding gate. No new authoring code —
+    the path reuses validate_candidates / `enrich-campaign validate`."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    dun = _etymon(db, "dūn", gloss="hill")
+    rid = db.conn.execute(
+        "INSERT INTO reflex (surface_form, position, productivity) VALUES ('don', 'post', 1)"
+    ).lastrowid
+    db.conn.execute("INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, dun))
+    _toponym(db, "Battlesden", [dun])  # 'don' ⊄ 'battlesden' → dūn variant-gap, worn span 'den'
+    db.commit()
+
+    empty = tmp_path / "_reflexes.jsonl"
+    assert "old-english:dūn" in {t.ref for t in variant_gap_next_slice(db.conn, empty, n=10)}
+
+    # Author the worn span 'den' → grounded in 'battlesden' → accepted.
+    ok = [
+        {
+            "_type": "reflex",
+            "surface_form": "den",
+            "position": "post",
+            "etymon_refs": ["old-english:dūn"],
+        }
+    ]
+    assert validate_candidates(db.conn, empty, ok) == []
+    # An off-name span is refused by the same grounding gate.
+    bad = [
+        {
+            "_type": "reflex",
+            "surface_form": "xyz",
+            "position": "post",
+            "etymon_refs": ["old-english:dūn"],
+        }
+    ]
+    assert any("grounding guard" in e for e in validate_candidates(db.conn, empty, bad))
+
+
 def test_parked_refs_excluded_from_slice(world):
     db, tmp_path = world
     empty = tmp_path / "empty.jsonl"
