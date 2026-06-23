@@ -146,3 +146,11 @@
 {"ref": "old-english:bol#hill", "reason": "corrupt surface 'bol#hill' (# artifact); morpheme-quality issue"}
 {"ref": "old-english:here-ford", "reason": "composite (here+ford = army-ford); expand to constituents per D51.3"}
 {"ref": "old-english:holm", "reason": "holm multi-sense (island/holm + sea poetic + mound/hill) with umbrella gloss — needs careful split"}
+{"ref": "old-english:Ælfhere", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Þóri", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-norse:Asmund", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-norse:Thórir", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-norse:Wulfhere", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "brittonic:Frome", "reason": "specific river-name, not a generative morpheme"}
+{"ref": "old-english:stdn", "reason": "OCR-corrupt surface 'stdn' (likely stān); morpheme-quality issue"}
+{"ref": "old-norse:kross-bý", "reason": "composite (kross+bý = cross-village); expand to constituents per D51.3"}
