@@ -887,3 +887,9 @@
 {"ref": "old-norse:hdr", "reason": "OCR-corrupt surface 'hdr' (likely hár); morpheme-quality issue"}
 {"ref": "old-norse:kali", "reason": "personal name (man's name) — render as the name"}
 {"ref": "old-norse:kaup-maðr", "reason": "composite kaup+maðr (merchant); expand to constituents per D51.3"}
+{"ref": "old-norse:lopt-hús", "reason": "composite lopt+hús (loft-house); expand to constituents per D51.3"}
+{"ref": "old-norse:lum#pool", "reason": "corrupt surface (# artifact 'lum#pool'); morpheme-quality issue"}
+{"ref": "old-norse:ndttfari", "reason": "byname 'night-traveller' (náttfari) — render as the name"}
+{"ref": "old-norse:set-berg", "reason": "composite set+berg (flat-topped hill); expand to constituents per D51.3"}
+{"ref": "old-norse:stall-r", "reason": "malformed surface 'stall-r' (dash artifact of stallr); morpheme-quality issue"}
+{"ref": "old-norse:styrr", "reason": "personal name (Styrr) — render as the name"}
