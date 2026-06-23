@@ -105,18 +105,32 @@ def _suffix_candidates_for_etymon(
             sf = (row["surface_form"] or "").lower()
             if len(sf) >= 2:
                 reflex_surfaces.add(sf)
-        # Drop COMPOSITE reflex surfaces — ones that merely append the previous
+        # Drop COMPOSITE reflex surfaces — ones that merely append the PREVIOUS
         # element's context onto a shorter reflex of the SAME morpheme (OE tūn
         # mines 'ton' but also 'eton'/'aughton'/'oulton', which all end in 'ton').
         # Keeping the longer composite would let the longest-suffix anchor eat a
         # char of the previous element (Stapleton → 'Stapl'+'eton' instead of
-        # 'Staple'+'ton'). Keep only the minimal morpheme surfaces (wyrd-5b1a).
+        # 'Staple'+'ton').
+        #
+        # But a longer reflex that ends in a shorter one is NOT always a composite:
+        # the shorter one may be a phonetic REDUCTION of the same morpheme (hām →
+        # 'ham' base + 'am' h-dropped; lēah → 'ley' + 'ey'). There the extra prefix
+        # ('h' of 'ham', 'l' of 'ley') belongs to the morpheme itself, so it
+        # prefixes the canonical form — whereas a composite's extra prefix ('e' of
+        # 'eton') comes from the preceding element and does NOT. So drop sf only
+        # when its extra prefix is NOT a prefix of the canonical form (wyrd-5b1a;
+        # Gemini #741: without this guard, base 'ham'/'east'/'bury' etc. get
+        # wrongly dropped, mis-splitting Birmingham → 'Birmingh'+'am').
+        norm_canonical = _strip_diacritics(canonical_form.lower())
         minimal = {
             sf
             for sf in reflex_surfaces
             # reflex_surfaces is already filtered to len >= 2 above, so no length
             # guard is needed on the inner term.
-            if not any(o != sf and sf.endswith(o) for o in reflex_surfaces)
+            if not any(
+                o != sf and sf.endswith(o) and not norm_canonical.startswith(sf[: -len(o)])
+                for o in reflex_surfaces
+            )
         }
         for sf in minimal:
             _add(sf)
