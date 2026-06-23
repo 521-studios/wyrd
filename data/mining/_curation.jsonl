@@ -615,3 +615,6 @@
 {"_type": "collapse", "ref": "old-english:hdm", "into": "old-english:hām"}
 {"_type": "collapse", "ref": "old-english:hldw", "into": "old-english:hlāw"}
 {"_type": "collapse", "ref": "brittonic:eglẹ̄s", "into": "brittonic:eglēs"}
+{"_type": "collapse", "ref": "old-norse:kn^rr", "into": "old-norse:knǫrr"}
+{"_type": "collapse", "ref": "old-norse:va6", "into": "old-norse:vað"}
+{"_type": "collapse", "ref": "old-english:grcef", "into": "old-english:grǣfe"}
