@@ -370,3 +370,25 @@ def test_grade_can_it_separates_generated_from_selected(world):
     # Exact-equality is the stricter sibling: never exceeds recall=1.
     assert s.can_it_exact <= s.can_it_recall1
     assert s.did_we_exact <= s.did_we_recall1
+
+
+def test_report_can_it_handles_zero_graded(capsys):
+    """``_report_can_it``'s ``graded or 1`` guard prevents a ZeroDivisionError
+    when the corpus produced no gradable toponyms."""
+    from wyrd.generators.kenning.cli.lexicon.grade_decomposition import _report_can_it
+    from wyrd.generators.kenning.lexicon.decomposition_grader import CanItSummary
+
+    _report_can_it(
+        CanItSummary(
+            graded=0,
+            product_capped=0,
+            can_it_exact=0,
+            did_we_exact=0,
+            gap_exact=0,
+            can_it_recall1=0,
+            did_we_recall1=0,
+            gap_recall1=0,
+        )
+    )
+    err = capsys.readouterr().err
+    assert "CAN-IT vs DID-WE over 0 toponyms" in err

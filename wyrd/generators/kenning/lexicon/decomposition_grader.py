@@ -51,6 +51,7 @@ import time
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from typing import Any
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
@@ -544,7 +545,7 @@ class CanItSummary:
     gap_recall1: int
 
 
-def _decomp_signature(decomp: list, index: ClusterIndex) -> frozenset[str]:
+def _decomp_signature(decomp: list[Any], index: ClusterIndex) -> frozenset[str]:
     """One decomposition's cluster signature: the clusters across its morphemes."""
     clusters: set[str] = set()
     for m in iter_morphemes(decomp):
@@ -600,6 +601,8 @@ def grade_can_it(
     recall=1 criteria. See the section docstring."""
     n = capped = 0
     c_ex = d_ex = g_ex = c_r1 = d_r1 = g_r1 = 0
+    total = len(corpus)
+    started = time.monotonic()
     for sc in corpus:
         scholar = sc.clusters
         if not scholar:
@@ -621,7 +624,9 @@ def grade_can_it(
         d_r1 += sel_r1
         g_r1 += in_r1 and not sel_r1
         if progress_every and n % progress_every == 0:
-            print(f"  can-it ..{n}/{len(corpus)}", file=sys.stderr, flush=True)
+            _emit_progress("can-it", n, total, started)
+    if progress_every and n % progress_every != 0:
+        _emit_progress("can-it", n, total, started)
     return CanItSummary(
         graded=n,
         product_capped=capped,

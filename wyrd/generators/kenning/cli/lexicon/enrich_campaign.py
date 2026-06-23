@@ -1,16 +1,20 @@
 """``wyrd kenning lexicon enrich-campaign`` — rail for the scholar-morpheme
 enrichment loop (wyrd-eni4.1).
 
-Three subcommands the 30-minute loop drives:
+The 5-minute loop drives a family of subcommands across four authored
+dimensions — reflex, tag, IPA, gloss — plus parking, collapse validation,
+band-status, and identity-reflex emission. The reflex-rail anchors:
 
   next-slice  — emit the next impact-ordered scholar etymons needing a reflex,
                 with grounding evidence (JSON on stdout).
   validate    — gate authored reflex candidates (a JSONL file) before commit;
                 exits non-zero with errors if any record fails.
   status      — committed reflex coverage of the scholar etymon set.
+  park        — record an un-groundable etymon so it drops out of future slices.
 
-Read-only against the lexicon DB; the only writes the campaign makes are the
-loop appending validated candidates to ``data/mining/_reflexes.jsonl``.
+Read-only against the lexicon DB; every write is an append to a JSONL ledger
+under ``data/mining/`` (``_reflexes`` / ``_tags`` / ``_pronunciation`` /
+``_curation`` / ``_reflex_parked``) — never to the DB itself.
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -43,8 +48,8 @@ _DEFAULT_REFLEXES_PATH = Path("data/mining/_reflexes.jsonl")
 _DEFAULT_PARKED_PATH = Path("data/mining/_reflex_parked.jsonl")
 _DEFAULT_TAGS_PATH = Path("data/mining/_tags.jsonl")
 _DEFAULT_IPA_PATH = Path("data/mining/_pronunciation.jsonl")
+# _curation.jsonl carries both gloss-add and collapse rows — one ledger, one path.
 _DEFAULT_GLOSS_PATH = Path("data/mining/_curation.jsonl")
-_DEFAULT_CURATION_PATH = Path("data/mining/_curation.jsonl")
 
 _impact_option = click.option(
     "--impact", type=int, default=None, help="Restrict to a single impact band (band-by-band loop)."
@@ -97,11 +102,29 @@ def cmd_next_slice(
 
 
 @enrich_campaign.command("park")
+@_db_option
 @_parked_option
 @click.option("--ref", "ref", required=True, help="The 'language:canonical_form' ref to park.")
 @click.option("--reason", required=True, help="Why it can't be grounded (one line).")
-def cmd_park(parked_path: Path, ref: str, reason: str) -> None:
-    """Record an un-groundable etymon so it drops out of future slices."""
+def cmd_park(db_path: Path, parked_path: Path, ref: str, reason: str) -> None:
+    """Record an un-groundable etymon so it drops out of future slices.
+
+    Validates the ref resolves to a real etymon (a typo'd ref would otherwise sit
+    in the park ledger forever, never matching — and never grounding — a slice)
+    and skips a no-op re-park if the ref is already listed."""
+    import unicodedata
+
+    from wyrd.generators.kenning.lexicon.enrichment_campaign import parked_refs
+    from wyrd.generators.kenning.lexicon.etymon_refs import resolve_etymon_ref
+
+    with _readonly_lexicon(db_path) as conn:
+        if resolve_etymon_ref(conn, ref) is None:
+            click.echo(f"Error: etymon ref {ref!r} resolves to no etymon", err=True)
+            sys.exit(1)
+
+    if unicodedata.normalize("NFC", ref) in parked_refs(parked_path):
+        click.echo(f"already parked {ref}", err=True)
+        return
     parked_path.parent.mkdir(parents=True, exist_ok=True)
     with parked_path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps({"ref": ref, "reason": reason}, ensure_ascii=False) + "\n")
@@ -248,8 +271,8 @@ _gloss_option = click.option(
 )
 
 
-def _load_candidates(candidates_path: Path) -> list:
-    out = []
+def _load_candidates(candidates_path: Path) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
     for lineno, line in enumerate(candidates_path.read_text(encoding="utf-8").splitlines(), 1):
         line = line.strip()
         if not line:
@@ -411,7 +434,7 @@ def cmd_identity_reflexes(
 @click.option(
     "--curation-path",
     type=click.Path(dir_okay=False, path_type=Path),
-    default=_DEFAULT_CURATION_PATH,
+    default=_DEFAULT_GLOSS_PATH,
     show_default=True,
     help="Curation ledger (_curation.jsonl) carrying committed collapse rows.",
 )

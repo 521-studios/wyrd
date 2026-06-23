@@ -1,9 +1,10 @@
 """Rail for the scholar-morpheme enrichment campaign (wyrd-eni4.1).
 
-The campaign raises decomposition COVERAGE by giving the ~8,939 etymons the
-scholarly toponym breakdowns reference a reflex the matcher can emit/recognize
-(only 14.5% had one at baseline). This module is the harness the 30-minute
-enrichment loop rides — two primitives plus a progress read-out:
+The campaign raises decomposition COVERAGE by giving the etymons the scholarly
+toponym breakdowns reference a reflex the matcher can emit/recognize. This
+module is the harness the enrichment loop rides — the reflex/tag/IPA/gloss
+selectors and validators, band-status, collapse validation, and identity-reflex
+emission. The reflex rail's two anchors:
 
 * :func:`next_slice` — the next ``n`` scholar etymons still missing a reflex,
   **impact-ordered** (descending by the number of distinct toponyms the etymon
@@ -438,6 +439,12 @@ def _shape_error(rec: dict[str, Any], tag: str) -> str | None:
     sf = rec.get("surface_form")
     if not isinstance(sf, str) or not sf.strip():
         return f"{tag}: surface_form must be a non-empty string"
+    if sf.strip().startswith("-") or sf.strip().endswith("-"):
+        return (
+            f"{tag}: surface_form {sf!r} must be a bare surface — an affix-position "
+            f"dash ('-ton' / 'ton-') is never stored identity (D45); the slot lives "
+            f"in the separate 'position' field"
+        )
     if rec.get("position") not in VALID_POSITIONS:
         return f"{tag}: position {rec.get('position')!r} not in {sorted(VALID_POSITIONS)}"
     refs = rec.get("etymon_refs") or []
@@ -446,6 +453,26 @@ def _shape_error(rec: dict[str, Any], tag: str) -> str | None:
     if not fold_surface(sf):
         return f"{tag}: surface_form {sf!r} folds to empty (no letters)"
     return None
+
+
+def _dedup_errors(
+    sf: str,
+    pos: str,
+    refs: list[str],
+    tag: str,
+    committed: set[tuple[str, str, str]],
+    seen_in_batch: set[tuple[str, str, str]],
+) -> list[str]:
+    """Per-ref dedup keys for an otherwise-valid row, recording each in
+    ``seen_in_batch``. Only valid rows reach here — one that failed an earlier
+    check won't be written, so it must not pollute the batch set."""
+    errors: list[str] = []
+    for ref in refs:
+        key = (sf, pos, _nfc(ref))
+        if key in committed or key in seen_in_batch:
+            errors.append(f"{tag}: duplicate reflex (committed or in-batch): {key}")
+        seen_in_batch.add(key)
+    return errors
 
 
 def _validate_one(
@@ -457,8 +484,13 @@ def _validate_one(
     scholar_only: bool,
     committed: set[tuple[str, str, str]],
     seen_in_batch: set[tuple[str, str, str]],
+    folds_cache: dict[int, set[str]],
 ) -> list[str]:
-    """Validate one candidate reflex row; return its errors (empty = passed)."""
+    """Validate one candidate reflex row; return its errors (empty = passed).
+
+    ``folds_cache`` memoises :func:`_attested_folds` per etymon id across the
+    batch, so the grounding guard doesn't re-query the same etymon once per
+    candidate that references it."""
     shape = _shape_error(rec, tag)
     if shape is not None:
         return [shape]
@@ -476,6 +508,8 @@ def _validate_one(
             errors.append(f"{tag}: etymon_ref {ref!r} resolves to no etymon")
         else:
             resolved_eids.append(eid)
+            if eid not in folds_cache:
+                folds_cache[eid] = _attested_folds(conn, eid)
     if not resolved_eids:
         return errors
 
@@ -483,18 +517,16 @@ def _validate_one(
         errors.append(
             f"{tag}: no ref is a scholar-referenced etymon (out of campaign scope): {refs}"
         )
-    if not any(
-        folded_surface in hay for eid in resolved_eids for hay in _attested_folds(conn, eid)
-    ):
+    if not any(folded_surface in hay for eid in resolved_eids for hay in folds_cache[eid]):
         errors.append(
             f"{tag}: grounding guard FAILED — surface {sf!r} (folded {folded_surface!r}) "
             f"appears in no attested toponym form of {refs}"
         )
-    for ref in refs:
-        key = (sf, pos, _nfc(ref))
-        if key in committed or key in seen_in_batch:
-            errors.append(f"{tag}: duplicate reflex (committed or in-batch): {key}")
-        seen_in_batch.add(key)
+    # Only dedup an otherwise-valid row: one that already failed grounding/scope
+    # won't be written, so it must neither pollute seen_in_batch nor draw a
+    # second, spurious "duplicate reflex" error on top of its real one.
+    if not errors:
+        errors.extend(_dedup_errors(sf, pos, refs, tag, committed, seen_in_batch))
     return errors
 
 
@@ -521,9 +553,12 @@ def validate_candidates(
       * dedup: ``(surface_form, position, ref)`` not already committed, and not
         duplicated within the candidate batch.
     """
+    if not candidates:
+        return []
     scholar_eids = {r["eid"] for r in scholar_impact_ranking(conn)} if scholar_only else set()
     committed = committed_reflex_keys(reflexes_path)
     seen_in_batch: set[tuple[str, str, str]] = set()
+    folds_cache: dict[int, set[str]] = {}
     errors: list[str] = []
     for i, rec in enumerate(candidates):
         errors.extend(
@@ -535,6 +570,7 @@ def validate_candidates(
                 scholar_only=scholar_only,
                 committed=committed,
                 seen_in_batch=seen_in_batch,
+                folds_cache=folds_cache,
             )
         )
     return errors
@@ -698,10 +734,11 @@ def ledger_refs(path: Path | None, row_type: str) -> set[str]:
             line = line.strip()
             if not line:
                 continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
+            # Fail loud on a corrupt line — same as committed_reflex_refs/_keys
+            # and parked_refs. Silently skipping a bad line would drop its ref
+            # from the "done" set and make the IPA/gloss loop re-emit that etymon
+            # every fire with no diagnostic.
+            row = json.loads(line)
             if isinstance(row, dict) and row.get("_type") == row_type and row.get("ref"):
                 refs.add(_nfc(row["ref"]))
     return refs

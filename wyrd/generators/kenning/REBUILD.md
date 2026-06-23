@@ -226,9 +226,13 @@ What it does, in order:
    `_curation.jsonl`, `_collapses.jsonl`, `_tags.jsonl`, `_merge_audit.jsonl`.
    The replay-excluded ledgers in `build.REPLAY_EXCLUDED_LEDGERS` (the audit
    verdict logs + `_element_glosses` / `_element_gloss_adjudications` /
-   `_pronunciation` / `_modern_reflexes`) are skipped — they don't conform to
-   the replay schema; their effects round-trip through the conforming ledgers
-   above or are re-applied by their own enrichment/import pass (wyrd-5qg7).
+   `_pronunciation` / `_modern_reflexes` / `_reflex_parked`) are skipped — they
+   don't conform to the replay schema; their effects round-trip through the
+   conforming ledgers above or are re-applied by their own enrichment/import
+   pass (wyrd-5qg7). `_reflex_parked.jsonl` (rows `{ref, reason}`, written by
+   `enrich-campaign park`) is pure campaign state — a git-tracked record of
+   etymons the loop couldn't ground, consumed by the enrichment selectors to
+   skip them; it has no DB effect and survives a rebuild unchanged.
    Later file order wins on scalar conflicts; glosses/tags union.
 4. Runs the `run_full_enrichment` chain (because
    `--with-enrichment`): `normalize-ocr → link-lemmas → [curation /

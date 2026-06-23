@@ -191,18 +191,24 @@ def lexicon_grade_decomposition(
     can_it: bool,
 ) -> None:
     """wyrd-aicu.9 Phase 3: grade the decomposition matcher against the scholarly
-    breakdown corpus, diffing connective OFF (today's matcher) vs ON (genitive
-    connective + the smoothed split prior).
+    breakdown corpus.
 
-    Builds the matcher trie from the runtime bundle (the same morpheme inventory
-    the generation proportions train on), grades every labeled toponym by
-    cognate-cluster recall / precision / exact-set agreement / coverage, and
-    prints the off→on deltas plus the regression list — the overfitting tripwire.
+    Has two mutually exclusive modes:
 
-    The genitive prior is read from ``genitive_split_prior`` (run
-    ``mine-genitive-priors --apply`` first); if the table is empty the ON config
-    still measures the connective's coverage gains, only the homograph tiebreak
-    is silent (reported).
+    * default — diff connective OFF (today's matcher) vs ON (genitive connective +
+      the smoothed split prior), grading every labeled toponym by cognate-cluster
+      recall / precision / exact-set agreement / coverage and printing the off→on
+      deltas plus the regression list (the overfitting tripwire). ``--passthroughs``
+      swaps the diff axis to composed-of attribution OFF vs ON.
+    * ``--can-it`` (wyrd-eni4.3) — report CAN-IT (the decomposer GENERATES the
+      scholar breakdown) vs DID-WE (it is the SELECTED parse) over the corpus, then
+      return early. The enrichment loop's scoreboard; ignores the connective diff.
+
+    Both build the matcher trie from the runtime bundle (the same morpheme
+    inventory the generation proportions train on). The genitive prior is read
+    from ``genitive_split_prior`` (run ``mine-genitive-priors --apply`` first); if
+    the table is empty the ON config still measures the connective's coverage
+    gains, only the homograph tiebreak is silent (reported).
     """
     meanings_data = _load_meanings_data(meanings)
     meaning_db, _ = load_meanings(meanings_data)

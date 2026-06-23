@@ -385,11 +385,53 @@ def test_validate_collapse_gate(world):
     ok = [{"_type": "collapse", "ref": "old-english:tvn", "into": "old-english:tūn"}]
     assert validate_collapse_candidates(db.conn, empty, ok) == []
     bad = [
-        {"_type": "collapse", "ref": "old-english:bol#hill", "into": "old-english:tūn"},  # #sense
+        {
+            "_type": "collapse",
+            "ref": "old-english:bol#hill",
+            "into": "old-english:tūn",
+        },  # unresolvable ref
         {"_type": "collapse", "ref": "old-english:tūn", "into": "old-english:tūn"},  # self
         {"_type": "collapse", "ref": "old-english:tvn", "into": "old-english:nope"},  # no twin
     ]
     assert len(validate_collapse_candidates(db.conn, empty, bad)) == 3
+
+
+def test_validate_collapse_rejects_sense_suffix_in_into(world):
+    """The '#' sense-suffix guard fires when it's the resolvable side's ``into``
+    that carries the suffix. (The ref-side guard is unreachable on its own: an
+    unresolvable '#' ref short-circuits at the resolve check first — pr-test.)"""
+    db, tmp_path = world
+    empty = tmp_path / "_curation.jsonl"
+    cand = [{"_type": "collapse", "ref": "old-english:tūn", "into": "old-english:bol#hill"}]
+    errors = validate_collapse_candidates(db.conn, empty, cand)
+    assert any("'#' present" in e for e in errors), errors
+
+
+def test_cmd_park_validates_ref_and_dedups(world):
+    """``enrich-campaign park`` rejects a ref that resolves to no etymon (exit 1,
+    nothing written) and skips a no-op re-park of an already-listed ref."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.enrich_campaign import enrich_campaign
+
+    db, tmp_path = world
+    parked = tmp_path / "_reflex_parked.jsonl"
+    runner = CliRunner()
+    base = ["park", "--db", str(db.path), "--parked-path", str(parked)]
+
+    bogus = runner.invoke(enrich_campaign, [*base, "--ref", "old-english:nope", "--reason", "x"])
+    assert bogus.exit_code == 1
+    assert not parked.exists()
+
+    first = runner.invoke(
+        enrich_campaign, [*base, "--ref", "old-english:tūn", "--reason", "no groundable span"]
+    )
+    assert first.exit_code == 0, first.output
+    assert len(parked.read_text().splitlines()) == 1
+
+    again = runner.invoke(enrich_campaign, [*base, "--ref", "old-english:tūn", "--reason", "again"])
+    assert again.exit_code == 0, again.output
+    assert len(parked.read_text().splitlines()) == 1  # deduped, not appended
 
 
 def test_identity_reflexes_grounded_only(world):
