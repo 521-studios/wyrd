@@ -33400,3 +33400,7 @@
 {"_type": "reflex", "surface_form": "arn", "position": "pre", "etymon_refs": ["old-norse:Earnwulf"]}
 {"_type": "reflex", "surface_form": "whi", "position": "pre", "etymon_refs": ["old-norse:Hvit"]}
 {"_type": "reflex", "surface_form": "au", "position": "post", "etymon_refs": ["brittonic:au"]}
+{"_type": "reflex", "surface_form": "war", "position": "inner", "etymon_refs": ["brittonic:war"]}
+{"_type": "reflex", "surface_form": "ann", "position": "post", "etymon_refs": ["goidelic:ann"]}
+{"_type": "reflex", "surface_form": "gof", "position": "pre", "etymon_refs": ["germanic:gof"]}
+{"_type": "reflex", "surface_form": "beal", "position": "pre", "etymon_refs": ["goidelic:bealnalicka"]}

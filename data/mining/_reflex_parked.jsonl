@@ -531,7 +531,6 @@
 {"ref": "brittonic:tírim", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:u̥entā", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:u̯ariā", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
-{"ref": "brittonic:war", "reason": "impact-1 Celtic; un-groundable (continental/citation toponym) or short-unglossed worn surface"}
 {"ref": "brittonic:ïd", "reason": "impact-1 Celtic; un-groundable (continental/citation toponym) or short-unglossed worn surface"}
 {"ref": "celtic:ahès", "reason": "impact-1 Celtic; un-groundable (continental/citation toponym) or short-unglossed worn surface"}
 {"ref": "celtic:aine", "reason": "impact-1 Celtic; un-groundable (continental/citation toponym) or short-unglossed worn surface"}
@@ -559,7 +558,6 @@
 {"ref": "germanic:agil", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
 {"ref": "germanic:berel(a)", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
 {"ref": "germanic:crin", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
-{"ref": "germanic:gof", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
 {"ref": "germanic:halbert", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
 {"ref": "germanic:hlothewig", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
 {"ref": "germanic:hrotha", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
@@ -573,9 +571,7 @@
 {"ref": "goidelic:agnos", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
 {"ref": "goidelic:ailein", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
 {"ref": "goidelic:amad", "reason": "impact-1 tail; citation/continental/garbled toponym or short-unglossed worn surface — no confident grounded surface"}
-{"ref": "goidelic:ann", "reason": "impact-1 goidelic; citation/calque toponym or opaque worn surface — no confident grounded span"}
 {"ref": "goidelic:aper", "reason": "impact-1 goidelic; citation/calque toponym or opaque worn surface — no confident grounded span"}
-{"ref": "goidelic:bealnalicka", "reason": "impact-1 goidelic; citation/calque toponym or opaque worn surface — no confident grounded span"}
 {"ref": "goidelic:bean", "reason": "impact-1 goidelic; citation/calque toponym or opaque worn surface — no confident grounded span"}
 {"ref": "goidelic:bedan", "reason": "impact-1 goidelic; citation/calque toponym or opaque worn surface — no confident grounded span"}
 {"ref": "goidelic:bhaoddin", "reason": "impact-1 goidelic; citation/calque toponym or opaque worn surface — no confident grounded span"}
