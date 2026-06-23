@@ -136,3 +136,4 @@ start	finish	summary
 2026-06-23 09:38:31 UTC	2026-06-23 09:38:50 UTC	fire#147: 0-yield (terminal). reflex=0, tags=wlc-only, 86.4% (7676). No lever has new material (parked file + garbled both fully drained fires #144-146). Lean confirmation only. STOP cron recommended.
 2026-06-23 09:43:23 UTC	2026-06-23 09:43:35 UTC	fire#148: 0-yield (terminal, unchanged). reflex=0, 86.4% (7676). Campaign complete since #144; lean confirmation. STOP cron recommended.
 2026-06-23 09:48:23 UTC	2026-06-23 09:48:35 UTC	fire#149: 0-yield (terminal, unchanged). reflex=0, 86.4% (7676). STOP cron recommended.
+2026-06-23 09:53:21 UTC	2026-06-23 09:53:35 UTC	fire#150: 0-yield (terminal, unchanged). reflex=0, 86.4% (7676). 6th consecutive no-op; STOP cron recommended.
