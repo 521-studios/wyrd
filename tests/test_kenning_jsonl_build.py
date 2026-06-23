@@ -2433,55 +2433,6 @@ def test_build_replays_reflex_rows_links_modern_usage_to_etymon(tmp_path: Path):
         conn.close()
 
 
-def test_build_replays_variant_rows_to_etymon_variant(tmp_path: Path):
-    """wyrd-eni4.2.2: a ``_variants.jsonl`` variant row restores a
-    toponymic-surface ``etymon_variant`` on rebuild — the paid authored layer
-    round-trips through L2 (unlike the re-derivable wiktextract forms)."""
-    from wyrd.generators.kenning.lexicon.schema import is_toponymic_surface_variant
-
-    db_path = _init_real_schema(tmp_path)
-    _write_jsonl(
-        tmp_path,
-        "rando-port",
-        [
-            {"_type": "source", "ref": "rando-port", "title": "Rando"},
-            {
-                "_type": "etymon",
-                "ref": "old-english:dūn",
-                "language": "old-english",
-                "canonical_form": "dūn",
-                "glosses": ["hill"],
-            },
-        ],
-    )
-    write_jsonl(
-        tmp_path / "_variants.jsonl",
-        [
-            {"_type": "source", "ref": "variant-uplift", "title": "Variant uplift"},
-            {
-                "_type": "variant",
-                "ref": "old-english:dūn",
-                "form": "Dune",
-                "tags": ["toponymic-surface"],
-            },
-        ],
-    )
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
-        assert counts["variant"] == 1
-        assert counts["variant_link_orphans"] == 0
-        row = conn.execute(
-            "SELECT ev.form, ev.variant_class, ev.tags FROM etymon_variant ev "
-            "JOIN etymon e ON e.id = ev.etymon_id WHERE e.canonical_form = 'dūn'"
-        ).fetchone()
-        assert (row["form"], row["variant_class"]) == ("Dune", "alternative")
-        assert is_toponymic_surface_variant(row["tags"]) is True
-    finally:
-        conn.close()
-
-
 def test_build_reflex_unresolved_ref_is_orphan_but_reflex_upserts(tmp_path: Path):
     """An etymon_ref that doesn't resolve is counted as a link orphan +
     skipped; the reflex row itself still upserts (empty link set is a

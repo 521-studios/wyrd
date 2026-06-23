@@ -79,13 +79,6 @@
    "runbook_token": "_reflexes.jsonl"
   },
   {
-   "layer": "toponymic-surface-variants",
-   "summary": "etymon_variant rows tagged toponymic-surface in their tags JSON — worn place-name spellings authored by the variant rail (wyrd-eni4.2.2), grounded against an attested toponym form. Distinct from the ~5.8M re-derivable wiktextract etymon_variant rows: these are paid/authored, so they round-trip through data/mining/_variants.jsonl (replayed by build._insert_variant_rows) rather than being re-mined. The standalone-name generator skips toponymic-surface variants; the composition/worn-form path uses them.",
-   "restored_by": "l2-replay",
-   "cost": "free",
-   "runbook_token": "_variants.jsonl"
-  },
-  {
    "layer": "element-gloss-backfill",
    "summary": "reflex_etymon links that gloss unglossed generation surfaces (wyrd-u9k6). run_full_enrichment replays the committed data/mining/_element_glosses.jsonl (deterministic consensus) + _element_gloss_adjudications.jsonl (LLM picks) into reflex_etymon, so the surface inherits its etymon's authoritative gloss. Additive over the _reflexes.jsonl reflex links above.",
    "restored_by": "enrichment",

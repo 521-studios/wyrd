@@ -223,9 +223,7 @@ What it does, in order:
    with `--fetch-bulk`).
 3. Replays the conforming `data/mining/*.jsonl` L2 files — the curated
    sources plus the synthetic `_reflexes.jsonl`, `_fantasy_morphemes.jsonl`,
-   `_curation.jsonl`, `_collapses.jsonl`, `_tags.jsonl`, `_merge_audit.jsonl`,
-   `_variants.jsonl` (variant-rail toponymic-surface alt-spellings →
-   `etymon_variant`, replayed by `build._insert_variant_rows`, wyrd-eni4.2.2).
+   `_curation.jsonl`, `_collapses.jsonl`, `_tags.jsonl`, `_merge_audit.jsonl`.
    The replay-excluded ledgers in `build.REPLAY_EXCLUDED_LEDGERS` (the audit
    verdict logs + `_element_glosses` / `_element_gloss_adjudications` /
    `_pronunciation` / `_modern_reflexes` / `_reflex_parked`) are skipped — they

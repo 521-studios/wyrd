@@ -42,26 +42,6 @@ from pathlib import Path
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB, _apply_persistent_pragmas
 
-# wyrd-eni4.2.2 / wyrd-740t: a toponymic-surface variant is a worn place-name
-# spelling promoted into the D18 pool. It is marked by the "toponymic-surface"
-# entry in ``etymon_variant.tags`` (a JSON array), NOT a new ``variant_class`` —
-# the variant_class CHECK enum is closed, and the locked decision is "tagged".
-# The composition / worn-form path reads all variant forms; the standalone-name
-# generator excludes tagged rows so a worn span never surfaces as a name itself.
-TOPONYMIC_SURFACE_TAG = "toponymic-surface"
-
-
-def is_toponymic_surface_variant(tags: str | None) -> bool:
-    """True if an ``etymon_variant.tags`` JSON array carries the toponymic-surface
-    marker. Tolerant of NULL / malformed tags (treated as not-tagged)."""
-    if not tags:
-        return False
-    try:
-        parsed = json.loads(tags)
-    except (ValueError, TypeError):
-        return False
-    return isinstance(parsed, list) and TOPONYMIC_SURFACE_TAG in parsed
-
 
 def init_schema(db_path: Path | str) -> None:
     """Create a fresh lexicon DB at db_path with the schema applied.

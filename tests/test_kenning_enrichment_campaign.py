@@ -34,10 +34,8 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     validate_gloss_candidates,
     validate_ipa_candidates,
     validate_tag_candidates,
-    validate_variant_candidates,
     variant_gap_census,
     variant_gap_next_slice,
-    variant_next_slice,
 )
 
 
@@ -251,91 +249,6 @@ def test_variant_gap_authored_reflex_validates(tmp_path):
         }
     ]
     assert any("grounding guard" in e for e in validate_candidates(db.conn, empty, bad))
-
-
-def test_is_toponymic_surface_variant_tag():
-    """The toponymic-surface marker lives in the etymon_variant.tags JSON array;
-    the parse helper is tolerant of NULL / non-list / malformed tags."""
-    from wyrd.generators.kenning.lexicon.schema import (
-        TOPONYMIC_SURFACE_TAG,
-        is_toponymic_surface_variant,
-    )
-
-    assert is_toponymic_surface_variant(json.dumps([TOPONYMIC_SURFACE_TAG])) is True
-    assert is_toponymic_surface_variant(json.dumps(["plural", TOPONYMIC_SURFACE_TAG])) is True
-    assert is_toponymic_surface_variant(json.dumps(["plural"])) is False
-    assert is_toponymic_surface_variant(None) is False
-    assert is_toponymic_surface_variant("") is False
-    assert is_toponymic_surface_variant("{not json") is False
-    assert is_toponymic_surface_variant(json.dumps({"x": 1})) is False  # not a list
-
-
-def test_variant_rail_slice_validate_and_dedup(tmp_path):
-    """The variant rail: the slice surfaces an etymon missing a toponymic-surface
-    variant; validate grounds a worn alt-spelling (same gate as reflexes) and
-    rejects off-name forms, the missing tag, and affix dashes; a committed variant
-    drains the etymon from the slice and a re-author reads as a duplicate."""
-    db_path = tmp_path / "lexicon.db"
-    init_schema(db_path)
-    db = LexiconDB(db_path)
-    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
-    dun = _etymon(db, "dūn", gloss="hill")
-    _toponym(db, "Battlesden", [dun])
-    db.commit()
-
-    variants = tmp_path / "_variants.jsonl"
-    tag = ["toponymic-surface"]
-
-    def cand(form, tags=tag):
-        return [{"_type": "variant", "ref": "old-english:dūn", "form": form, "tags": tags}]
-
-    assert "old-english:dūn" in {e.ref for e in variant_next_slice(db.conn, variants, n=10)}
-    assert validate_variant_candidates(db.conn, variants, cand("den")) == []  # grounded
-    assert any(
-        "grounding guard" in e for e in validate_variant_candidates(db.conn, variants, cand("xyz"))
-    )
-    assert any(
-        "toponymic-surface" in e
-        for e in validate_variant_candidates(db.conn, variants, cand("den", []))
-    )
-    assert any("D45" in e for e in validate_variant_candidates(db.conn, variants, cand("-den")))
-
-    # Commit a variant → dūn drains from the slice; a re-author reads as duplicate.
-    variants.write_text(json.dumps(cand("den")[0]) + "\n", encoding="utf-8")
-    assert variant_next_slice(db.conn, variants, n=10) == []
-    assert any(
-        "duplicate" in e for e in validate_variant_candidates(db.conn, variants, cand("den"))
-    )
-
-
-def test_cmd_variants_park_validates_and_dedups(tmp_path):
-    """`variants-park` (shared `_park_ref`): rejects a bogus ref (exit 1, nothing
-    written), parks a real ref, and skips a no-op re-park."""
-    from click.testing import CliRunner
-
-    from wyrd.generators.kenning.cli.lexicon.enrich_campaign import enrich_campaign
-
-    db_path = tmp_path / "lexicon.db"
-    init_schema(db_path)
-    db = LexiconDB(db_path)
-    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
-    dun = _etymon(db, "dūn")
-    _toponym(db, "Battlesden", [dun])
-    db.commit()
-
-    parked = tmp_path / "_variant_parked.jsonl"
-    runner = CliRunner()
-    base = ["variants-park", "--db", str(db.path), "--parked-path", str(parked)]
-
-    bogus = runner.invoke(enrich_campaign, [*base, "--ref", "old-english:nope", "--reason", "x"])
-    assert bogus.exit_code == 1
-    assert not parked.exists()
-
-    ok = runner.invoke(enrich_campaign, [*base, "--ref", "old-english:dūn", "--reason", "none"])
-    assert ok.exit_code == 0, ok.output
-    again = runner.invoke(enrich_campaign, [*base, "--ref", "old-english:dūn", "--reason", "again"])
-    assert again.exit_code == 0, again.output
-    assert len(parked.read_text().splitlines()) == 1  # deduped, not appended
 
 
 def test_parked_refs_excluded_from_slice(world):

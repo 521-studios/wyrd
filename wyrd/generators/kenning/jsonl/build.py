@@ -46,7 +46,6 @@ Out of scope for this v0
 
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 from collections.abc import Iterable
@@ -759,57 +758,6 @@ def _insert_reflex_rows(
             conn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (reflex_id, eid))
 
 
-# Synthetic source for variant-rail rows (wyrd-eni4.2.2). The assertion "this worn
-# spelling is a toponymic-surface variant of that lemma" comes from the grounded
-# authoring decision, not a corpus. Idempotently re-created on every rebuild.
-VARIANT_UPLIFT_SOURCE_ID = "variant-uplift"
-
-
-def _insert_variant_rows(
-    conn: sqlite3.Connection,
-    rows: list[dict[str, Any]],
-    etymon_id_by_ref: dict[str, int],
-    counts: dict[str, Any],
-) -> None:
-    """Replay ``variant`` rows (wyrd-eni4.2.2): INSERT OR IGNORE an
-    ``etymon_variant`` for each row whose ``ref`` resolves.
-
-    These are the variant rail's grounded toponymic-surface alt-spellings — paid
-    (human/agent-authored, grounded against an attested toponym form), so unlike
-    the ~5.8M wiktextract ``etymon_variant`` rows they are NOT re-derivable from
-    L1 and must round-trip through this L2 ledger. Idempotent on the
-    ``(etymon_id, form, variant_class)`` UNIQUE key. ``tags`` is stored as the raw
-    JSON array (carrying the ``toponymic-surface`` marker). An ``orphan`` ref (the
-    lemma absent on this rebuild) is skipped + counted, mirroring reflex replay."""
-    if not rows:
-        return
-    conn.execute(
-        "INSERT OR IGNORE INTO source (id, title) VALUES (?, ?)",
-        (VARIANT_UPLIFT_SOURCE_ID, "Variant uplift (toponymic-surface)"),
-    )
-    for row in rows:
-        form = row.get("form")
-        if not form:
-            raise BuildError(f"variant row missing form: {row!r}")
-        eid = etymon_id_by_ref.get(row.get("ref"))
-        if eid is None:
-            counts["variant_link_orphans"] += 1
-            continue
-        tags = row.get("tags")
-        conn.execute(
-            "INSERT OR IGNORE INTO etymon_variant "
-            "(etymon_id, form, variant_class, tags, source_id) VALUES (?, ?, ?, ?, ?)",
-            (
-                eid,
-                form,
-                row.get("variant_class") or "alternative",
-                json.dumps(tags) if tags else None,
-                VARIANT_UPLIFT_SOURCE_ID,
-            ),
-        )
-        counts["variant"] += 1
-
-
 def _extract_source_id(path: Path, state: ReplayState) -> str:
     """Validate the contract: exactly one ``source`` row per file.
     Returns its ref (= the source_id)."""
@@ -885,8 +833,6 @@ def build_from_jsonl(
         "reflex": 0,
         "reflex_link_orphans": 0,
         "reflex_link_orphan_refs": [],
-        "variant": 0,
-        "variant_link_orphans": 0,
     }
 
     # ----- Pass 1: replay every file, accumulate merged state.
@@ -960,9 +906,6 @@ def build_from_jsonl(
         # wyrd-ned5: replay the seed reflex layer (from _reflexes.jsonl).
         # Runs after etymons are inserted so etymon_refs resolve.
         _insert_reflex_rows(conn, state.lists["reflex"], etymon_id_by_ref, counts)
-        # wyrd-eni4.2.2: replay variant-rail rows (from _variants.jsonl) →
-        # etymon_variant. Same post-etymon timing so refs resolve.
-        _insert_variant_rows(conn, state.lists["variant"], etymon_id_by_ref, counts)
 
     conn.commit()
 
