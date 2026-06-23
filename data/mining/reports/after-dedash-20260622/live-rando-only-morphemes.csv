@@ -1,0 +1,817 @@
+language,morpheme_id,form,modern_usage,gloss
+celtic_mix,brittonic:sarn,sarn,sarn,"Causeway, Roman road"
+celtic_mix,brittonic:ynys,ynys,ynys,"Island, an island, island"
+celtic_mix,celtic:abh,abh,Ow,"Brook, River, Stream"
+celtic_mix,celtic:airc,airc,hark,Hardship
+celtic_mix,celtic:airgid,airgid,arget,Silver
+celtic_mix,celtic:airgid,airgid,argid,Silver
+celtic_mix,celtic:allmhagh,allmhagh,Allo,Rocky plain
+celtic_mix,celtic:aoil,aoil,iel,Lime
+celtic_mix,celtic:aoire,aoire,eary,"Herder, Herdsmen, Shepherd"
+celtic_mix,celtic:arracht,arracht,raght,Apparition
+celtic_mix,celtic:austel,austel,Austel,"Austell (Name), Austol (Name)"
+celtic_mix,celtic:austel,austel,Austell,"Austell (Name), Austol (Name)"
+celtic_mix,celtic:aírd,aírd,Ar,"Height, Top of something"
+celtic_mix,celtic:aírd,aírd,Ard,"Height, Top of something"
+celtic_mix,celtic:aírd,aírd,Art,"Height, Top of something"
+celtic_mix,celtic:aírd,aírd,ar,"Height, Top of something"
+celtic_mix,celtic:bard,bard,vaird,Bard
+celtic_mix,celtic:beaga,beaga,beg,"Little, Small"
+celtic_mix,celtic:bechan,bechan,fechan,"Little, Small"
+celtic_mix,celtic:bedd,bedd,Bed,"Grave, Pit, Quarry"
+celtic_mix,celtic:belach,belach,Balla,"Mountain pass, Pass"
+celtic_mix,celtic:bhaile,bhaile,Bal,"Estate, Farmstead, Homestead, Manor, Village"
+celtic_mix,celtic:bhaile,bhaile,Ball,"Estate, Farmstead, Homestead, Manor, Village"
+celtic_mix,celtic:bhaile,bhaile,Balla,"Estate, Farmstead, Homestead, Manor, Village"
+celtic_mix,celtic:bhaile,bhaile,Balli,"Estate, Farmstead, Homestead, Manor, Village"
+celtic_mix,celtic:bhaile,bhaile,Bally,"Estate, Farmstead, Homestead, Manor, Village"
+celtic_mix,celtic:bharr,bharr,var,"Height, Top of something"
+celtic_mix,celtic:bhfiadh,bhfiadh,vea,"Deer, Hind, Stag"
+celtic_mix,celtic:bhfiadh,bhfiadh,veigh,"Deer, Hind, Stag"
+celtic_mix,celtic:bhfuath,bhfuath,woo,"Demon, Evil spirit, Phantom, Spectre"
+celtic_mix,celtic:bhile,bhile,bell,"Tree (holy, sacred)"
+celtic_mix,celtic:bhile,bhile,villy,"Tree (holy, sacred)"
+celtic_mix,celtic:bhileanach,bhileanach,Vilan,"Peasant, Serf, Villein"
+celtic_mix,celtic:bhreac,bhreac,Brack,"Dapled, Speckled"
+celtic_mix,celtic:bhreac,bhreac,brack,"Dapled, Speckled"
+celtic_mix,celtic:bhràghaid,bhràghaid,vraid,"Brea, Upland"
+celtic_mix,celtic:bhrúin,bhrúin,breen,Fairy hill
+celtic_mix,celtic:bhóthair,bhóthair,Boher,"Lane, Path, Road, Street, Track, Way"
+celtic_mix,celtic:blátha,blátha,blatha,Flowers
+celtic_mix,celtic:boc,boc,Bucc,Buck
+celtic_mix,celtic:boc,boc,Buck,Buck
+celtic_mix,celtic:boc,boc,Bux,Buck
+celtic_mix,celtic:bogach,bogach,Bog,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:bosells,bosells,Boswells,Boswells (Name)
+celtic_mix,celtic:bref,bref,brefi,"Loud, Noisy"
+celtic_mix,celtic:breig,breig,Breig,Breock (Name)
+celtic_mix,celtic:breock,breock,Breock,Breock (Name)
+celtic_mix,celtic:breock,breock,Breoke,Breock (Name)
+celtic_mix,celtic:brieg,brieg,Briavels,Breock (Name)
+celtic_mix,celtic:briog,briog,Briog,Breock (Name)
+celtic_mix,celtic:briog,briog,Broic,Breock (Name)
+celtic_mix,celtic:brog,brog,brog,"Area, District, Domain, Land, Market, Merchant, Precinct, Quarter, Trading area, Ward"
+celtic_mix,celtic:bruic,bruic,bruic,Badger
+celtic_mix,celtic:bruinsech,bruinsech,Beriana,Buryan (Name)
+celtic_mix,celtic:bruinsech,bruinsech,Berriona,Buryan (Name)
+celtic_mix,celtic:bruinsech,bruinsech,Beryan,Buryan (Name)
+celtic_mix,celtic:bruinsech,bruinsech,Buriana,Buryan (Name)
+celtic_mix,celtic:bruinsech,bruinsech,Buryan,Buryan (Name)
+celtic_mix,celtic:buí,buí,boy,Yellow
+celtic_mix,celtic:bàine,bàine,bain,"Holy, White"
+celtic_mix,celtic:bàine,bàine,ban,"Holy, White"
+celtic_mix,celtic:bàine,bàine,bane,"Holy, White"
+celtic_mix,celtic:bàine,bàine,baun,"Holy, White"
+celtic_mix,celtic:bàn,bàn,bawn,"Holy, White"
+celtic_mix,celtic:bó,bó,Boul,"Bull, Calf, Cattle, Cow, Heifer, Steer"
+celtic_mix,celtic:bó,bó,Bul,"Bull, Calf, Cattle, Cow, Heifer, Steer"
+celtic_mix,celtic:bó,bó,bo,"Bull, Calf, Cattle, Cow, Heifer, Steer"
+celtic_mix,celtic:bó,bó,bo,"Bull, Calf, Cattle, Cow, Heifer, Steer"
+celtic_mix,celtic:caillighe,caillighe,callee,Hag
+celtic_mix,celtic:caisteal,caisteal,Castle,"Castle, Fortress"
+celtic_mix,celtic:canto,canto,canto,"Area, District, Domain, Land, Market, Merchant, Precinct, Quarter, Trading area, Ward"
+celtic_mix,celtic:caolas,caolas,Kyle,Narrows
+celtic_mix,celtic:caolas,caolas,Kyles,Narrows
+celtic_mix,celtic:caorthainn,caorthainn,keeran,Rowan tree
+celtic_mix,celtic:capel,capel,capel,"Abbey, Chapel, Church, Monastery, Temple"
+celtic_mix,celtic:carden,carden,cardine,"Copse, Grove, Hill slope, Hillside"
+celtic_mix,celtic:carrach,carrach,carragh,Rough
+celtic_mix,celtic:carraig,carraig,Carrick,"Marking stone, Rock, Stone, Stony"
+celtic_mix,celtic:cau,cau,gow,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:cdathrú,cdathrú,Carrow,"Area, District, Domain, Land, Market, Merchant, Precinct, Quarter, Trading area, Ward"
+celtic_mix,celtic:cearr,cearr,cearr,"Bend, Bent, Crooked"
+celtic_mix,celtic:cevn,cevn,Ken,"Brow, Ridge"
+celtic_mix,celtic:cevn,cevn,Shev,"Brow, Ridge"
+celtic_mix,celtic:chairce,chairce,carky,Oats
+celtic_mix,celtic:chaisil,chaisil,gashel,"Fort, Fortress mound, Stronghold"
+celtic_mix,celtic:chaonaigh,chaonaigh,keeny,"Lichen, Moss"
+celtic_mix,celtic:cheo,cheo,cheo,Mist
+celtic_mix,celtic:chladaigh,chladaigh,clady,"Bank, Shore, Strand"
+celtic_mix,celtic:chléithe,chléithe,chleithe,Wattle
+celtic_mix,celtic:choilleadh,choilleadh,Kelly,"Forest, Grove, Wood"
+celtic_mix,celtic:choire,choire,curry,Cauldron
+celtic_mix,celtic:choll,choll,choll,Hazel tree
+celtic_mix,celtic:chorráin,chorráin,curran,Sickle
+celtic_mix,celtic:chraosaigh,chraosaigh,creasig,Glutton
+celtic_mix,celtic:chuillinn,chuillinn,cullen,"Hill slope, Hillside"
+celtic_mix,celtic:chéir,chéir,kere,Candle
+celtic_mix,celtic:claene,claene,claene,"Clean, Clear, Pure"
+celtic_mix,celtic:clarus,clarus,Clarus,Cleer (Name)]
+celtic_mix,celtic:cleacán,cleacán,Clare,Plain
+celtic_mix,celtic:cleacán,cleacán,Leck,Plain
+celtic_mix,celtic:cliora,cliora,cliora,Pasture
+celtic_mix,celtic:clochog,clochog,Clack,"Marking stone, Rock, Stone, Stony"
+celtic_mix,celtic:clochog,clochog,Clogh,"Marking stone, Rock, Stone, Stony"
+celtic_mix,celtic:clochog,clochog,clochog,"Marking stone, Rock, Stone, Stony"
+celtic_mix,celtic:cogaidh,cogaidh,cogue,War
+celtic_mix,celtic:collachair,collachair,colliher,Hazel tree
+celtic_mix,celtic:collachair,collachair,collogher,Hazel tree
+celtic_mix,celtic:colm cille,colm cille,Columb,Columb (Name)
+celtic_mix,celtic:colm cille,colm cille,Columba,Columb (Name)
+celtic_mix,celtic:conarta,conarta,conrath,"Dog, Hound"
+celtic_mix,celtic:conarta,conarta,cun,"Dog, Hound"
+celtic_mix,celtic:cora,cora,curra,Weir (fishing enclosure)
+celtic_mix,celtic:critheann,critheann,critheann,Aspen tree
+celtic_mix,celtic:croabh,croabh,chrew,Tree (unspecified)
+celtic_mix,celtic:croabh,croabh,cruvie,Tree (unspecified)
+celtic_mix,celtic:croes,croes,Cros,"Cross (holy symbol), Cross roads"
+celtic_mix,celtic:croes,croes,Cross,"Cross (holy symbol), Cross roads"
+celtic_mix,celtic:croes,croes,Groes,"Cross (holy symbol), Cross roads"
+celtic_mix,celtic:crois,crois,gross,"Cross (holy symbol), Cross roads"
+celtic_mix,celtic:crug,crug,crug,Hill
+celtic_mix,celtic:crüg,crüg,crug,"Barrow, Tumulus"
+celtic_mix,celtic:cuach,cuach,Cook,Cuckoo
+celtic_mix,celtic:cuach,cuach,coogh,Cuckoo
+celtic_mix,celtic:cuach,cuach,cuik,Cuckoo
+celtic_mix,celtic:cuileann,cuileann,Cul,Holly
+celtic_mix,celtic:cuileann,cuileann,cullen,Holly
+celtic_mix,celtic:cuileann,cuileann,whillan,Holly
+celtic_mix,celtic:cuinge,cuinge,cung,Yoke
+celtic_mix,celtic:currach,currach,Curragh,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:currach,currach,curry,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:cuíl,cuíl,Cool,Nook of land
+celtic_mix,celtic:càrr,càrr,Car,"Marking stone, Rock, Stone, Stony"
+celtic_mix,celtic:càrr,càrr,car,"Marking stone, Rock, Stone, Stony"
+celtic_mix,celtic:cēd,cēd,Chea,"Forest, Grove, Wood"
+celtic_mix,celtic:cēd,cēd,Cheet,"Forest, Grove, Wood"
+celtic_mix,celtic:cēd,cēd,Chet,"Forest, Grove, Wood"
+celtic_mix,celtic:cēd,cēd,cheth,"Forest, Grove, Wood"
+celtic_mix,celtic:cēd,cēd,coe,"Forest, Grove, Wood"
+celtic_mix,celtic:cēd,cēd,keth,"Forest, Grove, Wood"
+celtic_mix,celtic:cēd,cēd,keth,"Forest, Grove, Wood"
+celtic_mix,celtic:dara,dara,Daar,"Oak grove, Oak tree"
+celtic_mix,celtic:dara,dara,Derreen,"Oak grove, Oak tree"
+celtic_mix,celtic:dara,dara,Derry,"Oak grove, Oak tree"
+celtic_mix,celtic:dara,dara,dare,"Oak grove, Oak tree"
+celtic_mix,celtic:dara,dara,derry,"Oak grove, Oak tree"
+celtic_mix,celtic:dealga,dealga,dealga,Thorn tree
+celtic_mix,celtic:dhubh,dhubh,Dhu,"Black, Dark"
+celtic_mix,celtic:dhubh,dhubh,Dow,"Black, Dark"
+celtic_mix,celtic:dhubh,dhubh,Dub,"Black, Dark"
+celtic_mix,celtic:dhubh,dhubh,Dubh,"Black, Dark"
+celtic_mix,celtic:dhubh,dhubh,Duff,"Black, Dark"
+celtic_mix,celtic:dhubh,dhubh,doo,"Black, Dark"
+celtic_mix,celtic:dhubh,dhubh,dubh,"Black, Dark"
+celtic_mix,celtic:dhubh,dhubh,duff,"Black, Dark"
+celtic_mix,celtic:dierne,dierne,Durn,Hidden
+celtic_mix,celtic:domhnach,domhnach,Dona,"Abbey, Chapel, Church, Monastery, Temple"
+celtic_mix,celtic:domhnach,domhnach,Donagh,"Abbey, Chapel, Church, Monastery, Temple"
+celtic_mix,celtic:domhnach,domhnach,downey,"Abbey, Chapel, Church, Monastery, Temple"
+celtic_mix,celtic:dorais,dorais,drish,Door
+celtic_mix,celtic:draigneach,draigneach,dreenaugh,"Blackthorn tree, Sloe"
+celtic_mix,celtic:driseog,driseog,drishoge,"Brambles, Brush, Brush wood, Bush land, Heath, Shrubbery"
+celtic_mix,celtic:droichead,droichead,Droich,Bridge
+celtic_mix,celtic:droim,droim,Drom,"Brow, Ridge"
+celtic_mix,celtic:droim,droim,Drum,"Brow, Ridge"
+celtic_mix,celtic:droim,droim,drum,"Brow, Ridge"
+celtic_mix,celtic:drïs,drïs,dern,Thorn tree
+celtic_mix,celtic:dtarbh,dtarbh,darriv,"Bull, Calf, Cattle, Cow, Heifer, Steer"
+celtic_mix,celtic:dtorc,dtorc,dork,"Boar, Hog, Pig, Pig sty"
+celtic_mix,celtic:duibhinn,duibhinn,duibhinn,"Chief, Jarl"
+celtic_mix,celtic:dumbel,dumbel,Dumble,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:dumha,dumha,Doo,"Burial mound, Cairn"
+celtic_mix,celtic:dumha,dumha,Toem,"Burial mound, Cairn"
+celtic_mix,celtic:dwy,dwy,Dwy,Two
+celtic_mix,celtic:dá,dá,Du,Two
+celtic_mix,celtic:dín,dín,deen,"Brook, River, Stream"
+celtic_mix,celtic:díseart,díseart,Desert,"Hermit, Hermitage"
+celtic_mix,celtic:díseart,díseart,Dyser,"Hermit, Hermitage"
+celtic_mix,celtic:dôl,dôl,Dal,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:dôl,dôl,dale,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:dùbhlaidh,dùbhlaidh,dubhlaidh,"Black, Dark"
+celtic_mix,celtic:eglos,eglos,eglos,"Abbey, Chapel, Church, Monastery, Temple"
+celtic_mix,celtic:eich,eich,eigh,"Foal, Horse, Stud"
+celtic_mix,celtic:eidhneach,eidhneach,iny,Ivy
+celtic_mix,celtic:eilean,eilean,ellen,Island
+celtic_mix,celtic:eisc,eisc,Esk,"Gravel, Gravelly"
+celtic_mix,celtic:elri,elri,Eller,Alder tree
+celtic_mix,celtic:elri,elri,Orle,Alder tree
+celtic_mix,celtic:etisc,etisc,tish,Pasture
+celtic_mix,celtic:faiche,faiche,Faha,"Green, Village green"
+celtic_mix,celtic:faiche,faiche,feigh,"Green, Village green"
+celtic_mix,celtic:feadag,feadag,fettack,Plover
+celtic_mix,celtic:fearnáin,fearnáin,arney,Alder tree
+celtic_mix,celtic:fearnáin,fearnáin,farne,Alder tree
+celtic_mix,celtic:fearnáin,fearnáin,fearn,Alder tree
+celtic_mix,celtic:fearsad,fearsad,Fars,Sandbank
+celtic_mix,celtic:fforest,fforest,fforest,"Forest, Grove, Wood"
+celtic_mix,celtic:fhia,fhia,eigh,"Deer, Hind, Stag"
+celtic_mix,celtic:fhir mhoír,fhir mhoír,firmor,"Big man, Giant"
+celtic_mix,celtic:fhuar,fhuar,ur,"Cold, Cool"
+celtic_mix,celtic:fiacal,fiacal,feakle,Teeth
+celtic_mix,celtic:firth,firth,Firth,"Bay, Cove, Fjord, Harbor, Sea inlet"
+celtic_mix,celtic:firth,firth,firth,"Bay, Cove, Fjord, Harbor, Sea inlet"
+celtic_mix,celtic:fliuch,fliuch,flugh,West
+celtic_mix,celtic:foithir,foithir,Fetter,Thicket
+celtic_mix,celtic:fola,fola,fulla,Blood
+celtic_mix,celtic:fosgadh,fosgadh,foskie,"Refuge, Retreat, Sanctuary, Shelter"
+celtic_mix,celtic:foter,foter,foter,"Lower, Under, beneath"
+celtic_mix,celtic:fraoigh,fraoigh,Freagh,Heather
+celtic_mix,celtic:fraoigh,fraoigh,free,Heather
+celtic_mix,celtic:fraoigh,fraoigh,fries,Heather
+celtic_mix,celtic:frome,frome,frome,"Beneficial, Fair, Good"
+celtic_mix,celtic:fáoda,fáoda,Fee,"Forest, Grove, Wood"
+celtic_mix,celtic:fáoda,fáoda,Fid,"Forest, Grove, Wood"
+celtic_mix,celtic:gabhra,gabhra,gore,Goat
+celtic_mix,celtic:gabhra,gabhra,gowr,Goat
+celtic_mix,celtic:gall,gall,gall,"Marking stone, Rock, Stone, Stony, Stranger"
+celtic_mix,celtic:garraí,garraí,Garry,Garden
+celtic_mix,celtic:garrán,garrán,garran,"Forest, Grove, Wood"
+celtic_mix,celtic:gcadhan,gcadhan,goyne,Duck
+celtic_mix,celtic:gcaor,gcaor,geer,"Berries, Berry"
+celtic_mix,celtic:gcaorach,gcaorach,geary,"Lamb, Ram, Sheep"
+celtic_mix,celtic:gcaorach,gcaorach,geeragh,"Lamb, Ram, Sheep"
+celtic_mix,celtic:gcaorach,gcaorach,keeragh,"Lamb, Ram, Sheep"
+celtic_mix,celtic:gcapall,gcapall,gappul,"Foal, Horse, Stud"
+celtic_mix,celtic:gcarn,gcarn,garn,"Burial mound, Cairn"
+celtic_mix,celtic:gceall,gceall,gall,"Abbey, Chapel, Church, Monastery, Temple"
+celtic_mix,celtic:gcnámh,gcnámh,gnave,Bone
+celtic_mix,celtic:gcorp,gcorp,gorp,Corpse
+celtic_mix,celtic:geata,geata,Gath,"Gap, Gate"
+celtic_mix,celtic:geata,geata,Yate,"Gap, Gate"
+celtic_mix,celtic:ghairr,ghairr,gar,Offal
+celtic_mix,celtic:gheise,gheise,gesh,Taboo
+celtic_mix,celtic:ghil,ghil,gelly,"Holy, White"
+celtic_mix,celtic:ghlas,ghlas,glass,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:ghlas,ghlas,gle,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:ghlasaich,ghlasaich,glassie,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:ghobair,ghobair,gower,"Spring, Well"
+celtic_mix,celtic:giuthsach,giuthsach,gussie,Pine tree
+celtic_mix,celtic:glan,glan,Glam,"Bank, Shore, Strand"
+celtic_mix,celtic:glente,glente,Glent,"Bird of prey, Buzzard, Hawk"
+celtic_mix,celtic:glind,glind,Glin,"Fence, Fenced"
+celtic_mix,celtic:glind,glind,Glynde,"Fence, Fenced"
+celtic_mix,celtic:glinne,glinne,Glen,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:glinne,glinne,glen,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:glinne,glinne,glinn,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:glo,glo,glo,"Charcoal, Coal"
+celtic_mix,celtic:gobhan,gobhan,gowan,"Furnace, Smith"
+celtic_mix,celtic:gobhan,gobhan,gown,"Furnace, Smith"
+celtic_mix,celtic:greanach,greanach,Grenagh,"Gravel, Gravelly"
+celtic_mix,celtic:grianán,grianán,Green,"Bright, Shining, Sunny"
+celtic_mix,celtic:gro,gro,Gro,"Gravel, Gravelly"
+celtic_mix,celtic:grugog,grugog,rugog,Heather
+celtic_mix,celtic:gráig,gráig,Graig,"Hamlet, Outlying homestead"
+celtic_mix,celtic:gulip,gulip,gulip,"Damp, Wet"
+celtic_mix,celtic:gwydhyel,gwydhyel,gwydhyel,"Forest, Grove, Wood"
+celtic_mix,celtic:gwyr,gwyr,Gower,Peninsula
+celtic_mix,celtic:haut,haut,haut,"High, Important, Noble"
+celtic_mix,celtic:hearg,hearg,hearg,"Abbey, Chapel, Church, Monastery, Temple"
+celtic_mix,celtic:helygen,helygen,Halkyn,"Osier, Sallow Tree, Willow tree"
+celtic_mix,celtic:heorna,heorna,horna,Barley
+celtic_mix,celtic:homna,homna,hoimna,"Oak grove, Oak tree"
+celtic_mix,celtic:hrycg,hrycg,ridge,"Brow, Ridge"
+celtic_mix,celtic:hrycg,hrycg,rigg,"Brow, Ridge"
+celtic_mix,celtic:huamha,huamha,huamha,Cave
+celtic_mix,celtic:háithe,háithe,haha,Kiln
+celtic_mix,celtic:iarainn,iarainn,anierin,Iron
+celtic_mix,celtic:iarainn,iarainn,erin,Iron
+celtic_mix,celtic:iarainn,iarainn,ierin,Iron
+celtic_mix,celtic:iarla,iarla,Earl,Nobleman
+celtic_mix,celtic:iarla,iarla,Erle,Nobleman
+celtic_mix,celtic:iasc,iasc,eask,"Fish, Fishermen"
+celtic_mix,celtic:imleach,imleach,Em,"Border, Borderland, Edge"
+celtic_mix,celtic:imleach,imleach,Emlagh,"Border, Borderland, Edge"
+celtic_mix,celtic:isca,isca,Axe,Water
+celtic_mix,celtic:isca,isca,Esk,Water
+celtic_mix,celtic:isca,isca,Exe,Water
+celtic_mix,celtic:isca,isca,Usk,Water
+celtic_mix,celtic:iubhar,iubhar,iubhar,Yew tree
+celtic_mix,celtic:iuir,iuir,York,Yew tree
+celtic_mix,celtic:iúir,iúir,our,Tower
+celtic_mix,celtic:kelk,kelk,Kilk,"Circle, Ring"
+celtic_mix,celtic:kelli,kelli,colla,"Forest, Grove, Wood"
+celtic_mix,celtic:kelli,kelli,cul,"Forest, Grove, Wood"
+celtic_mix,celtic:kelli,kelli,killew,"Forest, Grove, Wood"
+celtic_mix,celtic:kelli,kelli,killy,"Forest, Grove, Wood"
+celtic_mix,celtic:labhar,labhar,labhair,"Loud, Noisy"
+celtic_mix,celtic:laggan,laggan,Lag,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:laggan,laggan,Laggan,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:laggan,laggan,lag,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:laig,laig,Lag,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:laig,laig,Laggan,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:laig,laig,Leg,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:laig,laig,Leggs,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:laig,laig,lag,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:lathaigh,lathaigh,lathaigh,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:lathaí,lathaí,loy,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:leaba,leaba,Laba,"Grave, Pit, Quarry"
+celtic_mix,celtic:leaba,leaba,Labba,"Grave, Pit, Quarry"
+celtic_mix,celtic:leabhar,leabhar,leabhar,Book
+celtic_mix,celtic:leacach,leacach,Lick,Flagstone
+celtic_mix,celtic:leacan,leacan,lacken,"Hill slope, Hillside"
+celtic_mix,celtic:leamháin,leamháin,Lim,Elm tree
+celtic_mix,celtic:leamháin,leamháin,Lym,Elm tree
+celtic_mix,celtic:leathan,leathan,lehan,"Broad, Wide"
+celtic_mix,celtic:leathoir,leathoir,leathoir,"Slant, Slope"
+celtic_mix,celtic:lefant,lefant,lefant,Hole
+celtic_mix,celtic:lethan,lethan,lehan,Broad
+celtic_mix,"celtic:liag, liagán","liag, liagán",Leeke,Pillar stone
+celtic_mix,"celtic:liag, liagán","liag, liagán",Legan,Pillar stone
+celtic_mix,celtic:liagach,liagach,legagh,"Marking stone, Rock, Stone, Stony"
+celtic_mix,celtic:llannerch,llannerch,Llanerch,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:llech,llech,lech,"Marking stone, Rock, Stone, Stony"
+celtic_mix,celtic:llyn,llyn,Lin,Lake
+celtic_mix,celtic:llyn,llyn,Llyn,Lake
+celtic_mix,celtic:lobh,lobh,Lov,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:loinge,loinge,long,"Boat, Ship"
+celtic_mix,celtic:luachar,luachar,Lear,Rushes
+celtic_mix,celtic:luachar,luachar,Leuchar,Rushes
+celtic_mix,celtic:luachar,luachar,Loughros,Rushes
+celtic_mix,celtic:luimneach,luimneach,Limerick,"Bald, Bare, Dilapidated, Empty"
+celtic_mix,celtic:lára,lára,lara,"Foal, Horse, Stud"
+celtic_mix,celtic:léith,léith,leagh,Gray
+celtic_mix,celtic:lïss,lïss,Leece,"Chief house, Court, Hall"
+celtic_mix,celtic:lïss,lïss,Lis,"Chief house, Court, Hall"
+celtic_mix,celtic:lïss,lïss,Liz,"Chief house, Court, Hall"
+celtic_mix,celtic:lïss,lïss,Llys,"Chief house, Court, Hall"
+celtic_mix,celtic:lôn,lôn,lon,"Lane, Path, Road, Street, Track, Way"
+celtic_mix,celtic:lúan,lúan,Yan,"Lamb, Ram, Sheep"
+celtic_mix,celtic:lúan,lúan,loon,"Lamb, Ram, Sheep"
+celtic_mix,celtic:maegthe,maegthe,Mag,Mayweed
+celtic_mix,celtic:maegthe,maegthe,May,Mayweed
+celtic_mix,celtic:maen,maen,Maen,"Bell, Place"
+celtic_mix,celtic:maen,maen,faen,"Bell, Place"
+celtic_mix,celtic:maighean,maighean,Moyne,"Area, District, Domain, Land, Precinct, Quarter, Ward"
+celtic_mix,celtic:mainistir,mainistir,Monaster,"Abbey, Chapel, Church, Monastery, Temple"
+celtic_mix,celtic:mawr,mawr,Mawr,"Big, Great, Large"
+celtic_mix,celtic:mawr,mawr,fawr,"Big, Great, Large"
+celtic_mix,celtic:mawr,mawr,mawr,"Big, Great, Large"
+celtic_mix,celtic:mbarc,mbarc,mbarc,"Boat, Ship"
+celtic_mix,celtic:mbard,mbard,mard,Bard
+celtic_mix,celtic:meal,meal,Maul,Knoll
+celtic_mix,celtic:medd,medd,medd,Mead
+celtic_mix,celtic:medon,medon,Med,Middle
+celtic_mix,celtic:meáin,meáin,maan,Middle
+celtic_mix,celtic:mhaoil,mhaoil,mhaoil,Strait
+celtic_mix,celtic:mhaol,mhaol,Mal,"Bald, Bare, Dilapidated, Empty"
+celtic_mix,celtic:mhaol,mhaol,Meel,"Bald, Bare, Dilapidated, Empty"
+celtic_mix,celtic:mhaol,mhaol,moyle,"Bald, Bare, Dilapidated, Empty"
+celtic_mix,celtic:mhara,mhara,varra,"Salt water, Sea"
+celtic_mix,celtic:mharga,mharga,mharga,"Market, Merchant, Trading area"
+celtic_mix,celtic:mheithean,mheithean,mihin,Saplings
+celtic_mix,celtic:mhuine,mhuine,Money,Thicket
+celtic_mix,celtic:mhuine,mhuine,money,Thicket
+celtic_mix,celtic:mhín,mhín,meen,"Sleek, Smooth"
+celtic_mix,celtic:mhòr,mhòr,mor,"Big, Great, Large"
+celtic_mix,celtic:mhòr,mhòr,more,"Big, Great, Large"
+celtic_mix,celtic:micel,micel,Mick,"Big, Great, Large"
+celtic_mix,celtic:micel,micel,Mickle,"Big, Great, Large"
+celtic_mix,celtic:migh,migh,Meg,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:migh,migh,Mei,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:migh,migh,miglo,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:mocc,mocc,Muck,"Boar, Hog, Pig, Pig sty"
+celtic_mix,celtic:mocc,mocc,mock,"Boar, Hog, Pig, Pig sty"
+celtic_mix,celtic:mocc,mocc,muck,"Boar, Hog, Pig, Pig sty"
+celtic_mix,celtic:muclaí,muclaí,muckly,"Boar, Hog, Pig, Pig sty"
+celtic_mix,celtic:muileann,muileann,vullen,"Mill, Quern, Water-wheel, Windmill"
+celtic_mix,celtic:muiríoch,muiríoch,Mureagh,Beach
+celtic_mix,celtic:murúch,murúch,Murroogh,Beach
+celtic_mix,celtic:mynach,mynach,mynach,Monk
+celtic_mix,celtic:mynach,mynach,mynech,Monk
+celtic_mix,celtic:málainn,málainn,Mal,"Brow, Ridge"
+celtic_mix,celtic:mám,mám,Maam,"Mountain pass, Pass"
+celtic_mix,celtic:mám,mám,Maum,"Mountain pass, Pass"
+celtic_mix,celtic:mòr,mòr,mor,Town
+celtic_mix,celtic:móta,móta,Moate,"Ditch, Moat, Water channel"
+celtic_mix,celtic:mönïth,mönïth,Min,"Mountain, Peak, Summit"
+celtic_mix,celtic:māwe,māwe,mow,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:nead,nead,Ned,Nest
+celtic_mix,celtic:nectona,nectona,nethy,"Clean, Clear, Pure"
+celtic_mix,celtic:ngédh,ngédh,Gay,Goose
+celtic_mix,celtic:nua,nua,noo,New
+celtic_mix,celtic:nua,nua,nua,New
+celtic_mix,celtic:nás,nás,Naas,"Assembly, Council, Meeting place"
+celtic_mix,celtic:núir,núir,Nure,Yew tree
+celtic_mix,celtic:núir,núir,nure,Yew tree
+celtic_mix,celtic:odharna,odharna,Ourna,"Brown, Dun-colored"
+celtic_mix,celtic:odharna,odharna,ore,"Brown, Dun-colored"
+celtic_mix,celtic:odn,odn,Onn,Kiln
+celtic_mix,celtic:oirthir,oirthir,irrer,East
+celtic_mix,celtic:pailís,pailís,Pallas,Stockade
+celtic_mix,celtic:pailís,pailís,Pallis,Stockade
+celtic_mix,celtic:perta,perta,Perth,Thicket
+celtic_mix,celtic:phoill,phoill,foyle,"Pond, Pool"
+celtic_mix,celtic:phraisce,phraisce,frask,Kale
+celtic_mix,celtic:phúca,phúca,phuca,"Elf, Fairy, Sprite"
+celtic_mix,celtic:pollach,pollach,Poll,Hole
+celtic_mix,celtic:prys,prys,Pres,"Forest, Grove, Wood"
+celtic_mix,celtic:pum,pum,pum,Five
+celtic_mix,celtic:rae,rae,rae,"Even, Flat, Level"
+celtic_mix,celtic:raithean,raithean,Rahan,Fern
+celtic_mix,celtic:raithean,raithean,raney,Fern
+celtic_mix,celtic:ras,ras,Res,"Brambles, Brush, Brush wood, Bush land, Heath, Shrubbery"
+celtic_mix,celtic:ras,ras,Ris,"Brambles, Brush, Brush wood, Bush land, Heath, Shrubbery"
+celtic_mix,celtic:ras,ras,Rys,"Brambles, Brush, Brush wood, Bush land, Heath, Shrubbery"
+celtic_mix,celtic:ras,ras,res,"Brambles, Brush, Brush wood, Bush land, Heath, Shrubbery"
+celtic_mix,celtic:rhobell,rhobell,Rhobell,Saddle
+celtic_mix,celtic:rhudd,rhudd,Rhudd,Red
+celtic_mix,celtic:riach,riach,rea,Gray
+celtic_mix,celtic:riach,riach,reagh,Gray
+celtic_mix,celtic:riascadh,riascadh,risk,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:rid,rid,Rad,Red
+celtic_mix,celtic:rid,rid,Red,Red
+celtic_mix,celtic:rma,rma,rma,Arms (weapons)
+celtic_mix,celtic:rois,rois,Ros,"Forest, Grove, Wood"
+celtic_mix,celtic:rua,rua,roe,Red
+celtic_mix,celtic:rua,rua,roy,Red
+celtic_mix,celtic:ruanach,ruanach,ronagh,Seal
+celtic_mix,celtic:ràth,ràth,Rat,"Fort, Fortress mound, Stronghold"
+celtic_mix,celtic:ràth,ràth,Rath,"Fort, Fortress mound, Stronghold"
+celtic_mix,celtic:ràth,ràth,ragh,"Fort, Fortress mound, Stronghold"
+celtic_mix,celtic:réamainn,réamainn,ree,Striped
+celtic_mix,celtic:rí,rí,ree,"King, Royal"
+celtic_mix,celtic:sabhall,sabhall,Saval,Barn
+celtic_mix,celtic:saileáin,saileáin,Saigh,"Osier, Sallow Tree, Willow tree"
+celtic_mix,celtic:saileáin,saileáin,Salle,"Osier, Sallow Tree, Willow tree"
+celtic_mix,celtic:salach,salach,sallaugh,"Dirty, Foul, Muddy"
+celtic_mix,celtic:samhaisce,samhaisce,sooska,"Bull, Calf, Cattle, Cow, Heifer, Steer"
+celtic_mix,celtic:scine,scine,scine,Knife
+celtic_mix,celtic:screathan,screathan,Scra,Scree
+celtic_mix,celtic:scrib,scrib,Screeb,Furrow
+celtic_mix,celtic:scrín,scrín,Screen,Shrine
+celtic_mix,celtic:scuir,scuir,scur,Camp
+celtic_mix,celtic:scáil,scáil,scaul,"Demon, Evil spirit, Phantom, Spectre"
+celtic_mix,celtic:searbhóg,searbhóg,Sharavogue,Bitter
+celtic_mix,celtic:sidh,sidh,Schie,"Elf, Fairy, Sprite"
+celtic_mix,celtic:siesceann,siesceann,Sheskin,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:siúr,siúr,Suir,Sister
+celtic_mix,celtic:sleamhain,sleamhain,Slane,"Sleek, Smooth"
+celtic_mix,celtic:smóil,smóil,smoil,Thrush
+celtic_mix,celtic:sneachta,sneachta,snaght,Snow
+celtic_mix,celtic:spidéal,spidéal,Spiddal,Hospital
+celtic_mix,celtic:sròn,sròn,sron,Broad
+celtic_mix,celtic:srón,srón,Shron,"Estuary, River mouth"
+celtic_mix,celtic:steach,steach,Tac,"Cottage, Dwelling, House, Hut"
+celtic_mix,celtic:stob,stob,Steb,"Tree stump, Tree trunk"
+celtic_mix,celtic:stob,stob,Stob,"Tree stump, Tree trunk"
+celtic_mix,celtic:stob,stob,Stove,"Tree stump, Tree trunk"
+celtic_mix,celtic:stob,stob,Stub,"Tree stump, Tree trunk"
+celtic_mix,celtic:sumarr,sumarr,Summer,Summer
+celtic_mix,celtic:suí,suí,See,Seat
+celtic_mix,celtic:tabhallort,tabhallort,Oulart,Orchard
+celtic_mix,celtic:tafol,tafol,Tafo,Dock (plant)
+celtic_mix,celtic:tairbeart,tairbeart,Tarbert,"Drayage, Ford, Portage"
+celtic_mix,celtic:tairbeart,tairbeart,Tarbet,"Drayage, Ford, Portage"
+celtic_mix,celtic:tam,tam,Tam,"Black, Dark"
+celtic_mix,celtic:tam,tam,Thame,"Black, Dark"
+celtic_mix,celtic:tamhnaigh,tamhnaigh,Tawny,"Cultivated land, Ploughed or tilled land"
+celtic_mix,celtic:taonach,taonach,taonach,"Assembly, Council, Meeting place"
+celtic_mix,celtic:tathan,tathan,Athan,Athan (Name)
+celtic_mix,celtic:teampall,teampall,Temple,"Abbey, Chapel, Church, Monastery, Temple"
+celtic_mix,celtic:teine,teine,tinny,"Becon fire, Fire"
+celtic_mix,celtic:toirc,toirc,tyrch,"Boar, Hog, Pig, Pig sty"
+celtic_mix,celtic:tomach,tomach,Tom,Knoll
+celtic_mix,celtic:tonnach,tonnach,Tunny,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+celtic_mix,celtic:tor,tor,tor,"Hill with a pointed ridge or spur, Hillspur-"
+celtic_mix,celtic:torc,torc,turk,"Boar, Hog, Pig, Pig sty"
+celtic_mix,celtic:toric,toric,trich,"Boar, Hog, Pig, Pig sty"
+celtic_mix,celtic:traeth,traeth,dreath,Beach
+celtic_mix,celtic:traeth,traeth,traith,Beach
+celtic_mix,celtic:traeth,traeth,treath,Beach
+celtic_mix,celtic:trani,trani,Tran,"Crane, Heron"
+celtic_mix,celtic:trasna,trasna,trasna,"Mountain, Peak, Summit"
+celtic_mix,celtic:trá,trá,Tra,"Bank, Shore, Strand"
+celtic_mix,celtic:tsalainn,tsalainn,salon,"Salt water, Sea"
+celtic_mix,celtic:tsamhaid,tsamhaid,tsamhaid,Sorrel
+celtic_mix,celtic:tsiáine,tsiáine,shane,Fairy hill
+celtic_mix,celtic:tsiáine,tsiáine,teeaun,Fairy hill
+celtic_mix,celtic:tsléibhe,tsléibhe,tlea,"Mountain, Peak, Summit"
+celtic_mix,celtic:tsudáire,tsudáire,tooder,Tanner
+celtic_mix,celtic:tsáile,tsáile,sal,"Salt water, Sea"
+celtic_mix,celtic:tsáile,tsáile,saley,"Salt water, Sea"
+celtic_mix,celtic:tuaidh,tuaidh,tooey,North
+celtic_mix,celtic:tuaisceart,tuaisceart,tooskert,North
+celtic_mix,celtic:tuama,tuama,toom,"Barrow, Tumulus"
+celtic_mix,celtic:tâl,tâl,Tal,"End, Last, Tail end"
+celtic_mix,celtic:tír,tír,Teer,"Area, District, Domain, Land, Precinct, Quarter, Ward"
+celtic_mix,celtic:tóchar,tóchar,Togher,Causeway
+celtic_mix,celtic:tóin,tóin,Ton,"Dale, Hollow, Vale, Valley"
+celtic_mix,celtic:tŷ,tŷ,Ty,"Cottage, Dwelling, House, Hut"
+celtic_mix,celtic:uachtair,uachtair,waughter,"Up, Upper"
+celtic_mix,celtic:uaigh,uaigh,Owey,Cave
+celtic_mix,celtic:uaimh,uaimh,Uamh,Cave
+celtic_mix,celtic:uird,uird,uird,Ritual
+celtic_mix,"celtic:ulaidh, ulán","ulaidh, ulán",Ulla,Penitential
+celtic_mix,celtic:uvis,uvis,wyvis,Terror
+celtic_mix,celtic:whin,whin,Whin,Gorse
+celtic_mix,celtic:wig,wig,wig,"Forest, Grove, Wood"
+celtic_mix,celtic:wisc,wisc,Whist,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:wisc,wisc,wich,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:wïg,wïg,Wee,Heathen
+celtic_mix,celtic:y,y,y,"""at the"", ""of the"", Possessive indication"
+celtic_mix,celtic:ysgor,ysgor,ysgor,"Fort, Fortress mound, Stronghold"
+celtic_mix,celtic:àilean,àilean,Allan,"Glade, Meadow, Woodland clearing"
+celtic_mix,celtic:álainn,álainn,allen,Beautiful
+celtic_mix,celtic:áthna,áthna,athna,"Drayage, Ford, Portage"
+celtic_mix,celtic:òrd,òrd,ord,Hill
+celtic_mix,celtic:óir,óir,ore,Gold
+celtic_mix,celtic:ùig,ùig,Uig,"Bay, Cove, Fjord, Harbor, Sea inlet"
+celtic_mix,goidelic:achadh,achadh,achadh,"Field, Open land, field"
+celtic_mix,goidelic:cluana,clúain,cluana,"Pasture, meadow"
+celtic_mix,goidelic:craoibhe,cráeb,craoibhe,"Tree (unspecified), branch or branchy tree"
+celtic_mix,goidelic:saighead,saighdeoir,saighead,"Arrow, arrow"
+celtic_mix,goidelic:tan,tan,tan,"Becon fire, Fire, fire"
+celtic_mix,goidelic:turlach,Tairdelbach,turlach,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp, lake that dries up or nearly dries up in summer"
+celtic_mix,latin:cadocus,cattwg,Cadoc,Cadocs (Name)
+celtic_mix,latin:cadocus,cattwg,Cadog,Cadocs (Name)
+celtic_mix,norman-french:molin,muileann,Mullin,"Mill, Quern, Water-wheel, Windmill"
+celtic_mix,norman-french:molin,muileann,mullen,"Mill, Quern, Water-wheel, Windmill"
+celtic_mix,norman-french:molin,muileann,mullin,"Mill, Quern, Water-wheel, Windmill"
+celtic_mix,old-english:grange,gráinseach,Grang,Farm or estate belonging to a religious community
+celtic_mix,old-english:grange,gráinseach,Grange,Farm or estate belonging to a religious community
+celtic_mix,old-norse:efri,uachtair,Oughter,"Up, Upper"
+celtic_mix,old-norse:hlaup,léim,Leap,"Leap, Leaping"
+latin,celtic:tathan,tatheus,Athan,Athan (Name)
+latin,latin:alanus,alanus,Allen,Allen (Name)
+latin,latin:austolus,austolus,Austolus,"Austell (Name), Austol (Name)"
+latin,latin:cadocus,cadocus,Cadoc,Cadocs (Name)
+latin,latin:cadocus,cadocus,Cadog,Cadocs (Name)
+latin,latin:clederus,clederus,Clederus,Clether (Name)
+latin,latin:clederus,clederus,Clether,Clether (Name)
+latin,latin:katharina,katharina,Katherine,Catherine (Name)
+latin,latin:plovarius,plovarius,Plover,Plover
+old_english,celtic:cuach,cucu,Cook,Cuckoo
+old_english,celtic:cuach,cucu,coogh,Cuckoo
+old_english,celtic:cuach,cucu,cuik,Cuckoo
+old_english,norman-french:garde,garder,Guard,Guard
+old_english,norman-french:lāch,lēagum,ley,"Glade, Meadow, Woodland clearing"
+old_english,norman-french:roche,rok,Rock,"Marking stone, Rock, Stone, Stony"
+old_english,old-english:aepple,aepple,App,Apple tree
+old_english,old-english:aepple,aepple,Apple,Apple tree
+old_english,old-english:aldwyn,aldwyn,Aldwyn,Aldwyns (Name)
+old_english,old-english:aldwyn,aldwyn,aldwyn,Aldwyns (Name)
+old_english,old-english:audrey,audrey,Audrie,"Audrey (Name), Audrie (Name)"
+old_english,old-english:audrey,audrey,Audry,"Audrey (Name), Audrie (Name)"
+old_english,old-english:botolph,botolph,Botolph,Botolph (Name)
+old_english,old-english:botolph,botolph,botolph,Botolph (Name)
+old_english,old-english:braegels,braegels,braegels,"Barrow, Tumulus"
+old_english,old-english:breward,breward,Breward,Breward (Name)
+old_english,old-english:brucg,brucg,Bridge,Bridge
+old_english,old-english:by,by,bie,"Estate, Farmstead, Homestead, Manor, Village"
+old_english,old-english:by,by,by,"Estate, Farmstead, Homestead, Manor, Village"
+old_english,old-english:caelc,caelc,Kel,Chalk
+old_english,old-english:chace,chace,chase,Land for breeding and hunting wild animals
+old_english,old-english:chapele,chapele,chapele,"Abbey, Chapel, Church, Monastery, Temple"
+old_english,old-english:chardon,chardon,chardon,Thistle
+old_english,old-english:cilla,cilla,Chil,"Spring, Well"
+old_english,old-english:cirning,cirning,Kirming,"Butter, Butter churning"
+old_english,old-english:clara,clara,Clara,Clare (Name)
+old_english,old-english:clara,clara,Clare,Clare (Name)
+old_english,old-english:clara,clara,clara,Clare (Name)
+old_english,old-english:clerc,clerc,Clerk,"Student, clergyman, clerk"
+old_english,"old-english:elm, elmen","elm, elmen",Elm,Elm tree
+old_english,old-english:erth,erth,Earth,"Cultivated land, Ploughed or tilled land"
+old_english,old-english:erth,erth,earth,"Cultivated land, Ploughed or tilled land"
+old_english,old-english:exna,exna,Ex,Oxen
+old_english,old-english:exna,exna,Ox,Oxen
+old_english,old-english:exna,exna,Oxen,Oxen
+old_english,old-english:fine,fine,Fin,Woodpecker
+old_english,old-english:frithen,frithen,Frin,"Refuge, Retreat, Sanctuary, Shelter"
+old_english,old-english:fyrd,fyrd,fyrd,"A host (military), Army"
+old_english,old-english:fyrhth,fyrhth,farth,Forest (sparse)
+old_english,old-english:fyrhth,fyrhth,frith,Forest (sparse)
+old_english,old-english:fāh,fāh,fah,Multi-colored
+old_english,old-english:gardin,gardin,Garden,Garden
+old_english,old-english:gefeaxe,gefeaxe,fax,"Bent grass, Coarse grass, Grass"
+old_english,old-english:gewaed,gewaed,Wade,"Drayage, Ford, Portage"
+old_english,old-english:gewaed,gewaed,wade,"Drayage, Ford, Portage"
+old_english,old-english:glaesne,glaesne,Glasson,"Clean, Clear, Pure"
+old_english,old-english:glisnian,glisnian,Glus,"Bright, Shining, Sunny"
+old_english,old-english:graeg,graeg,Grey,Wolf
+old_english,old-english:grange,grange,Grang,Farm or estate belonging to a religious community
+old_english,old-english:grange,grange,Grange,Farm or estate belonging to a religious community
+old_english,old-english:gyldande,gyldande,gyldande,"Gushing, Gyser"
+old_english,old-english:hafri,hafri,Haver,Oats
+old_english,old-english:hagu-thyrne,hagu-thyrne,Hather,Hawthorn tree
+old_english,old-english:hagu-thyrne,hagu-thyrne,Hathern,Hawthorn tree
+old_english,old-english:hammel,hammel,Hamble,"Bend, Bent, Crooked"
+old_english,old-english:healf,healf,Hal,Half
+old_english,old-english:hirdman,hirdman,hirdman,"Herder, Herdsmen, Shepherd"
+old_english,old-english:hlyn,hlyn,Lin,Maple tree
+old_english,old-english:hofuth,hofuth,head,"Headland, Point, Promontory"
+old_english,old-english:horig,horig,Hor,"Dirty, Foul, Muddy"
+old_english,old-english:horig,horig,Hori,"Dirty, Foul, Muddy"
+old_english,old-english:hraun,hraun,hraun,Rough
+old_english,old-english:huluc,huluc,huluc,"Estate, Farmstead, Homestead, Manor, Village"
+old_english,old-english:hurth,hurth,Hurd,"Fence, Fenced"
+old_english,old-english:hwaete,hwaete,What,Wheat
+old_english,old-english:hwaete,hwaete,Wheat,Wheat
+old_english,old-english:hwaete,hwaete,Whed,Wheat
+old_english,old-english:hyrning,hyrning,Herring,"Horn, Horn-shaped"
+old_english,old-english:hyrning,hyrning,Horn,"Horn, Horn-shaped"
+old_english,old-english:hyrning,hyrning,horn,"Horn, Horn-shaped"
+old_english,old-english:hyrning,hyrning,horne,"Horn, Horn-shaped"
+old_english,old-english:hāth,hāth,Hath,Healthy
+old_english,old-english:hēa,hēa,hea,"High, Important, Noble"
+old_english,old-english:hēore,hēore,heore,Pleasant
+old_english,old-english:knaepp,knaepp,Nap,"Dale, Hollow, Vale, Valley"
+old_english,old-english:lael,lael,Leal,"Brambles, Brush, Brush wood, Bush land, Heath, Shrubbery"
+old_english,old-english:llumon,llumon,limon,Beacon
+old_english,old-english:lutegar,lutegar,Ludger,Trapping spear
+old_english,old-english:lēagum,lēagum,Leigh,"Glade, Meadow, Woodland clearing"
+old_english,old-english:lēagum,lēagum,lea,"Glade, Meadow, Woodland clearing"
+old_english,old-english:lēagum,lēagum,leigh,"Glade, Meadow, Woodland clearing"
+old_english,old-english:muscelle,muscelle,Mussel,Mussel
+old_english,old-english:mythe,mythe,Mit,River confluence
+old_english,old-english:mythe,mythe,Myton,River confluence
+old_english,old-english:nant,nant,Nant,"Deep valley, Gully, Ravine"
+old_english,old-english:naru,naru,Na,Narrow
+old_english,old-english:nata,nata,Nat,Nettle
+old_english,old-english:nata,nata,Nate,Nettle
+old_english,old-english:nata,nata,Nettle,Nettle
+old_english,old-english:neotherra,neotherra,Nether,"Lower, Under, beneath"
+old_english,old-english:philipa,philipa,Philipa,Philipa (Name)
+old_english,old-english:plaga,plaga,Play,"Play, Sport"
+old_english,old-english:plaga,plaga,Plea,"Play, Sport"
+old_english,old-english:pricca,pricca,Prick,"Goad, Skewer"
+old_english,old-english:prāw,prāw,praw,"Look-out, Watch"
+old_english,old-english:pīcel,pīcel,Peak,"Hill with a pointed ridge or spur, Hillspur-"
+old_english,old-english:pīcel,pīcel,Peck,"Hill with a pointed ridge or spur, Hillspur-"
+old_english,old-english:pūl,pūl,Pil,"Pond, Pool"
+old_english,old-english:pūl,pūl,Pul,"Pond, Pool"
+old_english,old-english:pūl,pūl,pill,"Pond, Pool"
+old_english,old-english:pūl,pūl,pol,"Pond, Pool"
+old_english,old-english:pūl,pūl,pole,"Pond, Pool"
+old_english,old-english:pūl,pūl,pool,"Pond, Pool"
+old_english,old-english:ragu,ragu,Raugh,"Lichen, Moss"
+old_english,old-english:reopul,reopul,Rip,"Neck of land, Strip of land"
+old_english,old-english:reopul,reopul,repps,"Neck of land, Strip of land"
+old_english,old-english:risc,risc,Rish,Rushes
+old_english,old-english:risc,risc,Rush,Rushes
+old_english,old-english:saetere,saetere,Satter,"Criminal, Robber"
+old_english,old-english:scamol,scamol,Sam,"Cliff, Edge, Ledge, Shelf"
+old_english,old-english:sceocca,sceocca,Shock,"Demon, Evil spirit, Phantom, Spectre"
+old_english,old-english:sceocca,sceocca,Shuck,"Demon, Evil spirit, Phantom, Spectre"
+old_english,old-english:scielling,scielling,scielling,"Loud, Noisy"
+old_english,old-english:scraef,scraef,Shraw,"Dale, Hollow, Vale, Valley"
+old_english,old-english:sealt-aern,sealt-aern,salter,"Place where salt is stored, Salt-works"
+old_english,old-english:seynte,seynte,Saint,Saint
+old_english,old-english:seynte,seynte,St,Saint
+old_english,old-english:seynte,seynte,St.,Saint
+old_english,old-english:slīc,slīc,Sleek,"Sleek, Smooth"
+old_english,old-english:slōh,slōh,Slaugh,"Blackthorn tree, Sloe"
+old_english,old-english:slōh,slōh,Slo,"Blackthorn tree, Sloe"
+old_english,old-english:snōr,snōr,Snor,Hill
+old_english,old-english:spitu,spitu,Spit,Sandbank
+old_english,old-english:styrc,styrc,Stirch,"Bull, Calf, Cattle, Cow, Heifer, Steer"
+old_english,old-english:succa,succa,Suck,Sparrow
+old_english,old-english:swealwe,swealwe,Swal,Swallow
+old_english,old-english:swealwe,swealwe,Swale,Swallow
+old_english,old-english:swealwe,swealwe,Swallow,Swallow
+old_english,old-english:taechne,taechne,taechne,Beacon
+old_english,old-english:thaecce,thaecce,Thake,Thatch
+old_english,old-english:thaecce,thaecce,Thatch,Thatch
+old_english,old-english:thriddda,thriddda,thriddda,"Third, Three"
+old_english,old-english:thyrnei,thyrnei,Thirn,Thorn tree
+old_english,old-english:thyrnei,thyrnei,Thorn,Thorn tree
+old_english,old-english:thyrnei,thyrnei,Thurn,Thorn tree
+old_english,old-english:thyrnei,thyrnei,tern,Thorn tree
+old_english,old-english:thyrnei,thyrnei,thorne,Thorn tree
+old_english,old-english:thēod,thēod,theod,"Peasant, Serf, Villein"
+old_english,old-english:tiglere,tiglere,Tyler,Tile maker
+old_english,old-english:tāde,tāde,Tad,"Frog, Toad"
+old_english,old-english:tāde,tāde,Tath,"Frog, Toad"
+old_english,old-english:unthanc,unthanc,Unthank,"Land difficult to cultivate, Waste land, Wild land"
+old_english,old-english:waethe-mann,waethe-mann,waethemann,Hunter
+old_english,old-english:wealm,wealm,wealm,"Spring, Well"
+old_english,old-english:wearg-trēow,wearg-trēow,Warter,Gallows
+old_english,old-english:wilgum,wilgum,Willen,"Osier, Sallow Tree, Willow tree"
+old_english,old-english:wincen,wincen,Winchen,"Winch, Windlass"
+old_english,old-english:wreatt,wreatt,Wratt,Crosswort
+old_english,old-english:wreatt,wreatt,Wrett,Crosswort
+old_english,old-english:wulfpytt,wulfpytt,Woolpit,"Snare, Wolf pit"
+old_english,old-english:wēfer,wēfer,Waver,Winding
+old_english,old-english:wēfer,wēfer,Weaver,Winding
+old_english,old-english:wēsten,wēsten,westen,"Land difficult to cultivate, Waste land, Wild land"
+old_english,old-english:īg,īg,ig,Yew tree
+old_english,old-norse:hlaup,hlīep,Leap,"Leap, Leaping"
+old_english,old-norse:hlaup,hlīep,lip,"Leap, Leaping"
+old_english,old-norse:suthr,sūtherra,South,South
+old_english,old-norse:suthr,sūtherra,Suther,South
+old_english,old-norse:suthr,sūtherra,south,South
+old_french,latin:plovarius,plover,Plover,Plover
+old_french,norman-french:aigre,aigre,Egre,"Hill with a pointed ridge or spur, Hillspur-"
+old_french,norman-french:assart,assart,essart,"Glade, Meadow, Woodland clearing"
+old_french,norman-french:brieuc,brieuc,Brieuc,Breock (Name)
+old_french,norman-french:budeaux,budeaux,Budeaux,Budeaux (Name)
+old_french,norman-french:budeaux,budeaux,Budoc,Budeaux (Name)
+old_french,norman-french:catherine,catherine,Catherine,Catherine (Name)
+old_french,norman-french:chèvre,chèvre,chevre,Goat
+old_french,norman-french:clarus,clarus,Cleer,Cleer (Name)]
+old_french,norman-french:denis,denis,Denis,Dennis (Name)
+old_french,norman-french:denis,denis,Dennis,Dennis (Name)
+old_french,norman-french:denis,denis,Denys,Dennis (Name)
+old_french,norman-french:emprise,emprise,emprice,Enterprise
+old_french,norman-french:ette,ette,ett,"Little, Small"
+old_french,norman-french:fflynt,fflynt,Flint,"Flint, Hard rock"
+old_french,norman-french:garde,garde,Guard,Guard
+old_french,norman-french:gros,gros,Gros,"Big, Great, Large"
+old_french,norman-french:launde,launde,launde,"Glade, Meadow, Woodland clearing"
+old_french,norman-french:lès,lès,les,"In the vicinity of, Near to"
+old_french,norman-french:lāch,lāch,ley,"Glade, Meadow, Woodland clearing"
+old_french,norman-french:mal,mal,Mal,"Difficult, Hard, Harsh, Stern, Tough"
+old_french,norman-french:marais,marais,mares,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+old_french,norman-french:marais,marais,maris,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+old_french,norman-french:marais,marais,marsh,"Bog, Marsh, Marshy, Mire, Moor, Quagmire, Swamp"
+old_french,norman-french:molin,molin,Mullin,"Mill, Quern, Water-wheel, Windmill"
+old_french,norman-french:molin,molin,mullen,"Mill, Quern, Water-wheel, Windmill"
+old_french,norman-french:molin,molin,mullin,"Mill, Quern, Water-wheel, Windmill"
+old_french,norman-french:pas,pas,pas,"Mountain pass, Pass"
+old_french,norman-french:pomme,pomme,Pomer,Apple tree
+old_french,norman-french:pont,pont,Pont,Bridge
+old_french,norman-french:pont,pont,Ponte,Bridge
+old_french,norman-french:pont,pont,pont,Bridge
+old_french,norman-french:pui,pui,pui,Hill
+old_french,norman-french:riche,riche,Rich,Strong
+old_french,norman-french:roche,roche,Roch,"Marking stone, Rock, Stone, Stony"
+old_french,norman-french:roche,roche,Rock,"Marking stone, Rock, Stone, Stony"
+old_french,norman-french:roial,roial,royal,"King, Royal"
+old_french,norman-french:rouge,rouge,rouge,Red
+old_french,norman-french:val,val,Vale,"Dale, Hollow, Vale, Valley"
+old_french,norman-french:val,val,vale,"Dale, Hollow, Vale, Valley"
+old_french,old-english:gardin,jardin,Garden,Garden
+old_scandinavian,celtic:firth,fjorthr,Firth,"Bay, Cove, Fjord, Harbor, Sea inlet"
+old_scandinavian,celtic:firth,fjorthr,firth,"Bay, Cove, Fjord, Harbor, Sea inlet"
+old_scandinavian,old-norse:balder,balder,Balder,Balder (Name)
+old_scandinavian,old-norse:balder,balder,balder,Balder (Name)
+old_scandinavian,old-norse:beinn,beinn,bain,Short
+old_scandinavian,old-norse:braekni,braekni,Bracon,Bracken
+old_scandinavian,old-norse:bólstathr,bólstathr,bister,"Estate, Farmstead, Homestead, Manor, Village"
+old_scandinavian,old-norse:bólstathr,bólstathr,bost,"Estate, Farmstead, Homestead, Manor, Village"
+old_scandinavian,old-norse:cauthr,cauthr,cauthr,"Lamb, Ram, Sheep"
+old_scandinavian,old-norse:coiní,coiní,coini,"Hare, Rabbit"
+old_scandinavian,old-norse:draeg,draeg,Dray,"Drayage, Ford, Portage"
+old_scandinavian,old-norse:efri,efri,Off,"Up, Upper"
+old_scandinavian,old-norse:efri,efri,Or,"Up, Upper"
+old_scandinavian,old-norse:efri,efri,Oughter,"Up, Upper"
+old_scandinavian,old-norse:endi,endi,end,"End, Last, Tail end"
+old_scandinavian,old-norse:fjorthr,fjorthr,ford,"Bay, Cove, Fjord, Harbor, Sea inlet"
+old_scandinavian,old-norse:fár,fár,far,"Lamb, Ram, Sheep"
+old_scandinavian,old-norse:gcoiníní,gcoiníní,goney,"Hare, Rabbit"
+old_scandinavian,old-norse:granar,granar,granar,Pine tree
+old_scandinavian,old-norse:gron,gron,gron,Pine tree
+old_scandinavian,old-norse:guth,guth,guth,God
+old_scandinavian,old-norse:gás,gás,Gais,Goose
+old_scandinavian,old-norse:góthr,góthr,gothr,God
+old_scandinavian,old-norse:haeth,haeth,haeth,Hill
+old_scandinavian,old-norse:haki,haki,Hack,"Headland, Point, Promontory"
+old_scandinavian,old-norse:hearg,hearg,hearg,"Abbey, Chapel, Church, Monastery, Temple"
+old_scandinavian,old-norse:helm,helm,helm,Barn
+old_scandinavian,old-norse:herath,herath,Harris,"Area, District, Domain, Land, Market, Merchant, Precinct, Quarter, Trading area, Ward"
+old_scandinavian,old-norse:hjorth,hjorth,Har,"Herder, Herdsmen, Shepherd"
+old_scandinavian,old-norse:hlaup,hlaup,Leap,"Leap, Leaping"
+old_scandinavian,old-norse:hlaup,hlaup,lip,"Leap, Leaping"
+old_scandinavian,old-norse:hrāgra,hrāgra,Raw,"Crane, Heron"
+old_scandinavian,old-norse:hvalr,hvalr,Whal,Whale
+old_scandinavian,old-norse:hvarf,hvarfi,Wharfe,"A bend, a nook, a corner., Bend, Bent, Crooked, Nook of land"
+old_scandinavian,old-norse:hvit,hvit,Whis,"Holy, White"
+old_scandinavian,old-norse:hvit,hvit,Whit,"Holy, White"
+old_scandinavian,old-norse:kjóss,kjóss,kjoss,"Dale, Hollow, Vale, Valley"
+old_scandinavian,old-norse:ká,ká,Ka,Jackdaw
+old_scandinavian,old-norse:leysingi,leysingi,Lazen,Freeman
+old_scandinavian,old-norse:mapel,mapel,Maple,Maple tree
+old_scandinavian,old-norse:mapel,mapel,Mapper,Maple tree
+old_scandinavian,old-norse:mapel,mapel,Mapple,Maple tree
+old_scandinavian,old-norse:mapel,mapel,Mappowder,Maple tree
+old_scandinavian,old-norse:megin,megin,Main,"Big, Great, High, Important, Large, Noble"
+old_scandinavian,old-norse:megin,megin,Mingin,"Big, Great, High, Important, Large, Noble"
+old_scandinavian,old-norse:nyr,nyr,Ny,New
+old_scandinavian,old-norse:refr,refr,refr,Fox
+old_scandinavian,old-norse:rugr,rugr,Ray,Rye
+old_scandinavian,old-norse:rugr,rugr,Rey,Rye
+old_scandinavian,old-norse:rugr,rugr,Ri,Rye
+old_scandinavian,old-norse:rugr,rugr,Roy,Rye
+old_scandinavian,old-norse:rugr,rugr,Ry,Rye
+old_scandinavian,old-norse:sceard,sceard,Scar,"Gap, Gate"
+old_scandinavian,old-norse:skalpr,skalpr,Scapa,"Boat, Ship"
+old_scandinavian,old-norse:skarfr,skarfr,Scar,Cormorant
+old_scandinavian,old-norse:skinnari,skinnari,skinnari,Skinner
+old_scandinavian,old-norse:skálli,skálli,scall,"Cottage, Dwelling, House, Hut"
+old_scandinavian,old-norse:skálli,skálli,shiels,"Cottage, Dwelling, House, Hut"
+old_scandinavian,old-norse:snútr,snútr,snutr,"Flies, Gnats"
+old_scandinavian,old-norse:stafn,stafn,Stave,"Beam, Pole, Post, Shaft, Spar, Staff, Stave"
+old_scandinavian,old-norse:stakkr,stakkr,Stack,"Rock column, Rock pillar"
+old_scandinavian,old-norse:star,star,Star,Sedge
+old_scandinavian,old-norse:stefna,stefna,steven,"Assembly, Council, Meeting place"
+old_scandinavian,old-norse:stokkr,stokkr,Stock,"Hamlet, Outlying homestead"
+old_scandinavian,old-norse:stokkr,stokkr,Stoke,"Hamlet, Outlying homestead"
+old_scandinavian,old-norse:stokkr,stokkr,stock,"Hamlet, Outlying homestead"
+old_scandinavian,old-norse:straumr,straumr,Strom,Current
+old_scandinavian,old-norse:strjón,strjón,Stron,"Splendid, Wealthy"
+old_scandinavian,old-norse:sunn,sunn,sunn,South
+old_scandinavian,old-norse:suthr,suthr,South,South
+old_scandinavian,old-norse:suthr,suthr,Suther,South
+old_scandinavian,old-norse:suthr,suthr,south,South
+old_scandinavian,old-norse:svitha,svitha,Swith,Burnt clearing
+old_scandinavian,old-norse:svithningr,svithningr,Swinith,Burnt clearing
+old_scandinavian,old-norse:sík,sík,Syke,"Brook, River, Stream"
+old_scandinavian,old-norse:sól,sól,Sol,"Bright, Shining, Sunny"
+old_scandinavian,old-norse:sól,sól,Sul,"Bright, Shining, Sunny"
+old_scandinavian,old-norse:tjorn,tjorn,tjorn,"Pond, Pool"
+old_scandinavian,old-norse:varp,varp,warp,"Alluvial land, Silt, Warp"
+old_scandinavian,old-norse:vath,vath,wath,"Drayage, Ford, Portage"
+old_scandinavian,old-norse:vither,vither,with,"Forest, Grove, Wood"
+old_scandinavian,old-norse:vorthr,vorthr,War,"Look-out, Watch"
+old_scandinavian,old-norse:vorthr,vorthr,Ward,"Look-out, Watch"
+old_scandinavian,old-norse:á-mót,á-mót,Eamont,River confluence
