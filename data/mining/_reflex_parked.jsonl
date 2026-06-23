@@ -1412,3 +1412,8 @@
 {"ref": "old-norse:vǫrthr", "reason": "impact-1 ON; citation toponym (IX/CD/Wm), opaque shift, or short (≤3char) worn element — no confident grounded span"}
 {"ref": "old-norse:Ælfrūn", "reason": "impact-1 ON; citation toponym (IX/CD/Wm), opaque shift, or short (≤3char) worn element — no confident grounded span"}
 {"ref": "old-norse:áll", "reason": "impact-1 ON; áll→au short (2char) — no confident grounded span"}
+{"ref": "old-english:hundred", "reason": "administrative-division annotation, not a surface element — no groundable worn form in its toponyms"}
+{"ref": "latin:parva", "reason": "Latin qualifier realized as English translation 'Little', not a phonological reflex — would mis-attribute English Little- names"}
+{"ref": "latin:magna", "reason": "Latin qualifier realized as English translation 'Great', not a phonological reflex — would mis-attribute English Great- names"}
+{"ref": "old-english:hyll", "reason": "well-covered by hill/hyll/ill; residual gap toponyms are idiosyncratic worn forms not safely generalizable"}
+{"ref": "old-english:ing", "reason": "rare hill-homograph of place-suffix -ing; gap toponyms surface no distinct groundable hill-ing form"}

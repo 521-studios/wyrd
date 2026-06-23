@@ -135,6 +135,17 @@ changes no output.
       Do NOT author inert variant rows; do NOT build the 740t integration unprompted.
 - NB run command is `variants-next-slice`, NOT `next-slice --phase variants`.
 
+### Run log
+- Fire #8 (2026-06-23): first Rail A authoring slice. Authored 5 grounded
+  variant-gap reflexes — lēah→`ley`, dūn→`den`, æsc→`ash`, burh→`borough`,
+  ēg→`ey` (all validated). Parked 5 — `hundred` (admin annotation, no surface),
+  `latin:parva`/`latin:magna` ("Little"/"Great" are English translations not Latin
+  reflexes), `hyll` (well-covered), `ing` (rare hill-homograph). Also FIXED a gap:
+  `variant_gap_next_slice` now takes `parked_path` (shared reflex park ledger) so
+  parked morphemes don't re-surface — `variant-gap-next-slice` CLI gained
+  `--parked-path`. High-impact morphemes (lēah 697, dūn 133 gaps) correctly
+  re-surface with fewer gaps until enough surfaces are authored.
+
 ## Loop procedure (each 5-min fire)
 0. `date '+%F %T %Z'` (ITERATION START). `git pull --rebase`.
 1. Read this checklist. If a build piece is unchecked → do the NEXT one (one

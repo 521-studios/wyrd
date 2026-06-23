@@ -220,17 +220,21 @@ def cmd_variant_gap_status(db_path: Path) -> None:
 @enrich_campaign.command("variant-gap-next-slice")
 @_db_option
 @_reflexes_option
+@_parked_option
 @_impact_option
 @_n_option
 def cmd_variant_gap_next_slice(
-    db_path: Path, reflexes_path: Path, impact: int | None, n: int
+    db_path: Path, reflexes_path: Path, parked_path: Path, impact: int | None, n: int
 ) -> None:
     """Emit the next N variant-gap scholar morphemes (have a reflex, none matching
     some toponym's spelling), flip-CAN-IT-first then by frequency, each with
     evidence toponyms + a residual-span hint, as a JSON array on stdout. Author a
-    grounded reflex surface_form for the worn span (it's IN the toponym)."""
+    grounded reflex surface_form for the worn span (it's IN the toponym). Parked
+    refs are excluded (shared reflex park ledger)."""
     with _readonly_lexicon(db_path) as conn:
-        slice_ = variant_gap_next_slice(conn, reflexes_path, n=n, impact=impact)
+        slice_ = variant_gap_next_slice(
+            conn, reflexes_path, n=n, impact=impact, parked_path=parked_path
+        )
     click.echo(json.dumps([t.to_dict() for t in slice_], ensure_ascii=False, indent=2))
     click.echo(
         f"emitted {len(slice_)} variant-gap morphemes "

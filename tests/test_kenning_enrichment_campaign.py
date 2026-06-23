@@ -188,6 +188,13 @@ def test_variant_gap_next_slice_selects_and_ledger_excludes(tmp_path):
     assert t.evidence[0]["modern_name"] == "Tunby"
     assert "tun" in t.evidence[0]["residual_span"].lower()
 
+    # A parked ref is excluded so an un-authorable morpheme can't re-surface.
+    parked = tmp_path / "_reflex_parked.jsonl"
+    parked.write_text(
+        json.dumps({"ref": "old-english:tūn", "reason": "x"}) + "\n", encoding="utf-8"
+    )
+    assert variant_gap_next_slice(db.conn, empty, n=10, parked_path=parked) == []
+
     # Commit a 'tun' surface to the ledger → tun now matches 'tunby' → slice drains.
     empty.write_text(
         json.dumps(

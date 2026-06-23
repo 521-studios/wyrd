@@ -441,16 +441,20 @@ def variant_gap_next_slice(
     *,
     n: int = 20,
     impact: int | None = None,
+    parked_path: Path | None = None,
     max_evidence: int = 5,
 ) -> list[VariantGapTask]:
     """The next ``n`` scope-clean scholar morphemes that are VARIANT-GAP in one or
     more toponyms (have a reflex, none matching that spelling), prioritized
     flip-CAN-IT-first then by gap-toponym frequency. Per-etymon reflex surfaces are
-    the DB reflexes UNIONED with the committed ``_reflexes.jsonl`` ledger. Each task
-    carries evidence toponyms (modern name, covered spans, a residual-span hint)
-    for the author to ground a new reflex surface against."""
+    the DB reflexes UNIONED with the committed ``_reflexes.jsonl`` ledger. Parked
+    refs (``parked_path``, the shared reflex park ledger) are excluded so an
+    un-authorable morpheme doesn't re-surface every fire. Each task carries evidence
+    toponyms (modern name, covered spans, a residual-span hint) for the author to
+    ground a new reflex surface against."""
     db_folds = _etymon_reflex_folds(conn)
     ledger = _committed_reflex_surfaces_by_ref(reflexes_path)
+    parked = parked_refs(parked_path)
 
     meta: dict[int, sqlite3.Row] = {}
     eid_ref: dict[int, str] = {}
@@ -465,7 +469,8 @@ def variant_gap_next_slice(
             s |= ledger.get(_nfc(ref), set())
         return s
 
-    agg = _collect_variant_gaps(conn, surfaces_for, set(meta), max_evidence)
+    allowed = {eid for eid in meta if _nfc(eid_ref[eid]) not in parked}
+    agg = _collect_variant_gaps(conn, surfaces_for, allowed, max_evidence)
 
     tasks: list[VariantGapTask] = []
     for eid, a in agg.items():
