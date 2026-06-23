@@ -663,45 +663,35 @@
 {"ref": "latin:cappella", "reason": "impact-1 Latin; citation/garbled toponym, calque, or short surface — no confident grounded span"}
 {"ref": "latin:catti", "reason": "impact-1 Latin; citation/garbled toponym, calque, or short surface — no confident grounded span"}
 {"ref": "latin:cor(st)", "reason": "impact-1 Latin; citation/garbled toponym, calque, or short surface — no confident grounded span"}
-{"ref": "latin:cus", "reason": "impact-1 Latin; citation/garbled toponym, calque, or short surface — no confident grounded span"}
 {"ref": "latin:daeiy", "reason": "impact-1 Latin; citation/garbled toponym, calque, or short surface — no confident grounded span"}
 {"ref": "latin:eberulphus", "reason": "impact-1 Latin; citation/garbled toponym, calque, or short surface — no confident grounded span"}
 {"ref": "latin:esc", "reason": "impact-1 Latin; citation/garbled toponym, calque, or short surface — no confident grounded span"}
 {"ref": "latin:german", "reason": "impact-1 Latin; citation/garbled toponym, calque, or short surface — no confident grounded span"}
 {"ref": "latin:icas", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:icia", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
-{"ref": "latin:ilo", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
-{"ref": "latin:ilum", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:in", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
-{"ref": "latin:iola", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
-{"ref": "latin:ium", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:lentenus", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:muera", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:nidus", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:nux", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:omni", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:onis", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
-{"ref": "latin:pomns", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:populus", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:renniacus", "reason": "impact-1 Latin; short declension suffix (icas/ilo/ium) or citation/calque/opaque — low-confidence/no span"}
 {"ref": "latin:sancio", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "latin:scotia", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
-{"ref": "latin:ssia", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "latin:triduana", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "latin:tum", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "latin:vallem", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "latin:varis", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
-{"ref": "latin:vibius", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "middle-english:Almund", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "middle-english:Baga", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "middle-english:Beorhtmund", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "middle-english:Cotel", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "middle-english:Dicon", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
-{"ref": "middle-english:Seli", "reason": "impact-1; calque/citation/garbled toponym, short suffix, or opaque worn surface — no confident span"}
 {"ref": "middle-english:assart", "reason": "impact-1 ME; calque/grammatical or short worn surface or no identifiable span"}
 {"ref": "middle-english:atter", "reason": "impact-1 ME; calque/grammatical or short worn surface or no identifiable span"}
 {"ref": "middle-english:blanche", "reason": "impact-1 ME; calque/grammatical or short worn surface or no identifiable span"}
-{"ref": "middle-english:bone", "reason": "impact-1 ME; calque/grammatical or short worn surface or no identifiable span"}
 {"ref": "middle-english:cauel", "reason": "impact-1 ME; calque/grammatical or short worn surface or no identifiable span"}
 {"ref": "middle-english:cou", "reason": "impact-1 ME; calque/grammatical or short worn surface or no identifiable span"}
 {"ref": "middle-english:ferme", "reason": "impact-1 ME; calque/grammatical or short worn surface or no identifiable span"}
