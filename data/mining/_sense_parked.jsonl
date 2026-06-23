@@ -540,3 +540,5 @@
 {"ref": "old-english:Bosi", "reason": "personal-name element — render as the name"}
 {"ref": "old-english:Branta", "reason": "personal-name element — render as the name"}
 {"ref": "old-english:Brece", "reason": "personal-name element — render as the name"}
+{"ref": "norman-french:le", "reason": "French article 'le' (the) + stray 'side'; connective, not a generative root"}
+{"ref": "old-english:6j^", "reason": "OCR-corrupt surface '6j^'; morpheme-quality issue"}
