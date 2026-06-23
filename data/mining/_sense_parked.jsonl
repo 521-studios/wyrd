@@ -154,3 +154,6 @@
 {"ref": "brittonic:Frome", "reason": "specific river-name, not a generative morpheme"}
 {"ref": "old-english:stdn", "reason": "OCR-corrupt surface 'stdn' (likely stān); morpheme-quality issue"}
 {"ref": "old-norse:kross-bý", "reason": "composite (kross+bý = cross-village); expand to constituents per D51.3"}
+{"ref": "middle-english:Babba old-english:Aldo old-english:Baldhere old-english:Bēage old-english:Bila old-english:Bild old-english:Billa old-english:Brandr old-english:Codda old-english:Croc old-english:Cuca old-english:Cybba", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Brettas", "reason": "ethnonym (the Britons) — render as the name"}
+{"ref": "old-english:Cumbre", "reason": "ethnonym (the Cymry/Welsh) — render as the name"}
