@@ -1,13 +1,11 @@
 {"ref": "old-english:wald", "reason": "ambiguous realization — Walton/Waltham often wealh/weald not wald; needs disambiguation"}
 {"ref": "old-norse:vápnatak", "reason": "administrative hundred-names; no toponym surface realization to ground"}
-{"ref": "old-english:mǣre", "reason": "short ambiguous realizations (mar/mer/more) collide with mere(pool) — uncertain attribution"}
 {"ref": "middle-english:atten", "reason": "realized as a single-letter juncture (atten-ash→Nash); no cleanly groundable surface span"}
 {"ref": "old-english:hȳð", "reason": "messy attributions; only Maidenhead shows a clean 'head' span — defer for review"}
 {"ref": "old-norse:erg", "reason": "short ambiguous realizations (er/ar/ergh); needs careful disambiguation"}
 {"ref": "old-french:le", "reason": "2-char article; substring grounding is meaningless (matches 'le' in any name) — over-match risk"}
 {"ref": "old-english:hoh", "reason": "worn single/double-char endings (a/oe/ow); no cleanly groundable surface"}
 {"ref": "old-english:ēl", "reason": "clean realization is the 2-char 'el' — substring over-matches; defer"}
-{"ref": "brittonic:breg", "reason": "short varied realizations (bre/bri/bray); attribution uncertain"}
 {"ref": "old-english:lǣs", "reason": "attributed toponyms are field-name fragments; no leaze/leas surface to ground"}
 {"ref": "celtic:ar", "reason": "2-char (ar/or); substring grounding over-matches"}
 {"ref": "old-english:Bōfa", "reason": "varied uncertain realizations (bow/cov/cob/hov); unclear which is the name reflex"}
@@ -53,7 +51,6 @@
 {"ref": "old-english:farm", "reason": "impact-3: attributed toponyms show no clean derived surface"}
 {"ref": "old-english:hang", "reason": "impact-3: attributed toponyms show no clean derived surface"}
 {"ref": "old-english:héah", "reason": "impact-3: attributed toponyms show no clean derived surface"}
-{"ref": "old-english:æt", "reason": "impact-3: 2-char preposition or short/unclear realization, no clean groundable surface"}
 {"ref": "old-norse:hofud", "reason": "impact-3: 2-char preposition or short/unclear realization, no clean groundable surface"}
 {"ref": "old-norse:hylr", "reason": "impact-3: 2-char preposition or short/unclear realization, no clean groundable surface"}
 {"ref": "old-norse:hár", "reason": "impact-3: 2-char preposition or short/unclear realization, no clean groundable surface"}
@@ -126,8 +123,6 @@
 {"ref": "goidelic:ui", "reason": "impact-2 Goidelic floor: 2-char/unclear, no clean toponym surface"}
 {"ref": "goidelic:án", "reason": "impact-2 Goidelic floor: 2-char/unclear, no clean toponym surface"}
 {"ref": "brittonic:canto", "reason": "ambiguous surface: canto spans kent-/caundle/camel across toponyms; no single confident grounded reflex"}
-{"ref": "brittonic:āco", "reason": "ambiguous: short Brittonic -ock/-ake suffix, mixed across Charnock/Savernake/York; precision risk"}
-{"ref": "brittonic:ek", "reason": "ambiguous: short Brittonic -ock/-iock suffix; precision risk"}
 {"ref": "brittonic:to", "reason": "2-char surface 'to'; over-matches, precision risk"}
 {"ref": "brittonic:dubo", "reason": "brittonic 'dubo'→dove/dud diffuse"}
 {"ref": "brittonic:lemano", "reason": "brittonic 'lemano' no gloss, diffuse (Lyme/Burslem)"}
@@ -548,27 +543,18 @@
 {"ref": "brittonic:el", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
 {"ref": "brittonic:et", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
 {"ref": "brittonic:heði̯og", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
-{"ref": "brittonic:hên", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
 {"ref": "brittonic:i", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
 {"ref": "brittonic:ise", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
 {"ref": "brittonic:katerick", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
 {"ref": "brittonic:landā", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
 {"ref": "brittonic:lannergh", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
-{"ref": "brittonic:lindo", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
-{"ref": "brittonic:lo-dre", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
 {"ref": "brittonic:lusow", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
-{"ref": "brittonic:mages", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
-{"ref": "brittonic:magoer", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface (low-confidence) or no identifiable span"}
-{"ref": "brittonic:mandu", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
-{"ref": "brittonic:men", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
-{"ref": "brittonic:menehi", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:mölin", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:nauny", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:oerddrws", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:oil", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:olic", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:onn", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
-{"ref": "brittonic:onnen", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:plu", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:pren", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
 {"ref": "brittonic:rïcc", "reason": "impact-1 unglossed Brittonic; short/ambiguous worn surface or no identifiable span"}
