@@ -1276,3 +1276,15 @@
 {"ref": "modern-english:henry", "reason": "anachronistic SI-unit def + personal name Henry; render as the name"}
 {"ref": "modern-english:hyl", "reason": "anachronistic mass-unit def + toponymic 'hill' (hyll); needs review"}
 {"ref": "modern-english:ladies", "reason": "poker def + 'the Virgin Mary'; toponymic = Lady/Mary, mixed; needs review"}
+{"ref": "modern-english:roose", "reason": "name/verb mix ('Roose' + 'to flatter'); render as the name"}
+{"ref": "modern-english:sac", "reason": "sac/pouch def vs toponymic 'oak'; unrelated, needs review"}
+{"ref": "modern-english:tate", "reason": "anachronistic video-game def vs toponymic 'measure of land'; needs review"}
+{"ref": "old-english:Beffa", "reason": "masculine personal name — render as the name"}
+{"ref": "old-english:Beornede", "reason": "masculine personal name — render as the name"}
+{"ref": "old-english:Burdel", "reason": "masculine personal name — render as the name"}
+{"ref": "old-english:Bæll", "reason": "masculine personal name — render as the name"}
+{"ref": "old-english:Cilla", "reason": "masculine personal name — render as the name"}
+{"ref": "old-english:Cnihtwine", "reason": "masculine personal name — render as the name"}
+{"ref": "old-english:Hemmede", "reason": "masculine personal name — render as the name"}
+{"ref": "old-english:Lugga", "reason": "masculine personal name — render as the name"}
+{"ref": "old-english:Lutta", "reason": "masculine personal name — render as the name"}
