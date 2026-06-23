@@ -201,3 +201,9 @@
 {"ref": "old-english:hoc", "reason": "conflates hōc (hook/promontory) + hocc (marshmallow plant) + charter — multi-sense, needs split"}
 {"ref": "old-english:ingtun", "reason": "composite (ing+tūn); expand to constituents per D51.3"}
 {"ref": "old-english:wlc", "reason": "OCR-corrupt surface 'wlc' (likely wīc); morpheme-quality issue, not a gloss-sense target"}
+{"ref": "old-english:Ægen", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Ælfsige", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Ætla", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-norse:Krōk", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Þunor", "reason": "theonym (the god Thunor) — render as the name"}
+{"ref": "old-english:ēg-land", "reason": "composite (ēg+land = island-land); expand to constituents per D51.3"}
