@@ -1414,3 +1414,12 @@
 {"ref": "goidelic:farg", "reason": "abstract gloss 'efficacy/work/deed'; no clear toponymic sense"}
 {"ref": "goidelic:fraiyh", "reason": "OCR-corrupt surface 'fraiyh' (likely fraigh); morpheme-quality issue"}
 {"ref": "goidelic:frith", "reason": "old-Gaelic preposition 'against/parallel'; connective, not a root"}
+{"ref": "goidelic:gdbhal", "reason": "OCR-corrupt surface 'gdbhal' (likely gabhal); morpheme-quality issue"}
+{"ref": "goidelic:guille", "reason": "personal name (of Gullia) — render as the name"}
+{"ref": "goidelic:seanruigh", "reason": "composite sean+ruigh (old-slope); expand to constituents"}
+{"ref": "goidelic:tafl", "reason": "gloss 'a cast, sling'; no clear toponymic sense — uncertain"}
+{"ref": "irish:Nic", "reason": "Irish prefix 'Nic' (daughter of); connective, not a root"}
+{"ref": "irish:Sicil", "reason": "specific place-name (Sicily)"}
+{"ref": "irish:aga", "reason": "abstract 'period of time'; no toponymic sense"}
+{"ref": "irish:aice", "reason": "abstract 'nearness' used only in fixed phrases; not a standalone root"}
+{"ref": "irish:balsa", "reason": "anachronistic 'balsa tree' (tropical wood); Wiktionary contamination"}
