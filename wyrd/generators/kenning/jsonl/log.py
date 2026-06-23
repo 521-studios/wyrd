@@ -176,6 +176,12 @@ LIST_TYPES: frozenset[str] = frozenset(
         # carries the mandatory canonical ``source`` row (ref ``tag-backfill``)
         # like every other synthetic L2 file.
         "tags",
+        # wyrd-eni4.2.2: variant-rail authored alt-spellings
+        # (``data/mining/_variants.jsonl``) → etymon_variant rows tagged
+        # ``toponymic-surface``. Replayed by build._insert_variant_rows. Paid,
+        # grounded authoring (NOT the re-derivable wiktextract forms), so it
+        # round-trips through L2 here.
+        "variant",
     }
 )
 

@@ -77,9 +77,16 @@ fire. Update the checkboxes here as pieces land.
       **B2 writes** rows as (etymon_id, form, 'alternative', tags=["toponymic-surface"]).
       **B4 gates** the standalone-name path with `is_toponymic_surface_variant`;
       `period_form`/composition already reads all forms, so it needs no change. Tested.
-- [ ] B2. Variant L2 ledger `data/mining/_variants.jsonl`
-      (`{_type:variant, ref, surface_form, tag:"toponymic-surface", ...}`) + a
-      replay pass that applies it. **Rebuild-discipline 4-file change.**
+- [x] B2. Variant L2 ledger `data/mining/_variants.jsonl` + replay. DONE. Row
+      shape: `{_type:variant, ref, form, tags:["toponymic-surface"]}` (+ a one
+      `source` row, ref `variant-uplift`, per the L2 contract). Replayed by
+      `build._insert_variant_rows` → `etymon_variant` (INSERT OR IGNORE on the
+      (etymon_id, form, variant_class) UNIQUE key; orphan refs skipped+counted;
+      `variant_class='alternative'`). Rebuild-discipline wiring: `log.LIST_TYPES`
+      adds `variant`; `_rebuild_layers.json` layer `toponymic-surface-variants`;
+      `REBUILD.md` step-3 list; `L2_L3_BOUNDARY.md` map. Replay test +
+      rebuild-runbook green (77 pass), ruff clean. NB authoring uses `form` (the
+      variant spelling), not `surface_form`.
 - [ ] B3. Rail CLI: `enrich-campaign next-slice --phase variants` (admit-cohort
       etymons missing a variant; remainder from committed `_variants.jsonl`; with
       grounding evidence) + `validate --phase variants` (grounding guard identical
