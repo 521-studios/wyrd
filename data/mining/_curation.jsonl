@@ -607,3 +607,11 @@
 {"_type": "etymon_gloss_add", "ref": "old-norse:brink", "additions": [{"gloss": "A brink, a steep slope; the edge of a hill.", "reason": "wyrd-eni4.3 gloss tail: ON brink/brekka 'slope, hill-edge' (Brink-, -brink); a steep declivity."}]}
 {"_type": "etymon_gloss_add", "ref": "goidelic:farannan", "additions": [{"gloss": "An Irish personal name; a saint's name (Farannán).", "reason": "wyrd-eni4.3 gloss tail: Goidelic Farannán, an early Irish saint-name; underlies eccles/kil- dedications."}]}
 {"_type": "etymon_gloss_add", "ref": "old-english:feleðe", "additions": [{"gloss": "Hay; mown or dried grass.", "reason": "wyrd-eni4.3 gloss tail: OE filiðe/feleðe 'hay' (Filey?, hay-meadow element); a place yielding hay."}]}
+{"_type": "collapse", "ref": "old-english:cl&fre", "into": "old-english:clǣfre"}
+{"_type": "collapse", "ref": "old-english:cl&te", "into": "old-english:clāte"}
+{"_type": "collapse", "ref": "old-norse:0yrr", "into": "old-norse:eyrr"}
+{"_type": "collapse", "ref": "old-norse:0ystri", "into": "old-norse:eystri"}
+{"_type": "collapse", "ref": "old-english:nlwe", "into": "old-english:niwe"}
+{"_type": "collapse", "ref": "old-english:hdm", "into": "old-english:hām"}
+{"_type": "collapse", "ref": "old-english:hldw", "into": "old-english:hlāw"}
+{"_type": "collapse", "ref": "brittonic:eglẹ̄s", "into": "brittonic:eglēs"}
