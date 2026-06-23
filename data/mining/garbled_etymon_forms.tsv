@@ -78,3 +78,5 @@ CORRUPTION_lettersub	old-norse	pveit	suspected=þveit (clearing); twin exists bu
 CORRUPTION	germanic	e6d	suspected=ēad/ead (road); '6' OCR for a letter — reflexed 'road', human triage
 CORRUPTION	goidelic	a?	suspected=? ('?' literal in form) — junk, human triage
 CORRUPTION	modern-english	lmbeald	suspected OE -beald personal name (lm- garble, no clear twin in DB) — human triage
+CORRUPTION	old-english	*gzfl	junk/no-twin (z,f,l consonant cluster, leading *) — human triage
+CORRUPTION	old-english	/edh	leading-slash garble of -edh/eð pasture element — human triage
