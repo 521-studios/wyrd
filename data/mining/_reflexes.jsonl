@@ -33366,3 +33366,6 @@
 {"_type": "reflex", "surface_form": "ain", "position": "pre", "etymon_refs": ["old-norse:einn"]}
 {"_type": "reflex", "surface_form": "eth", "position": "inner", "etymon_refs": ["old-norse:eth"]}
 {"_type": "reflex", "surface_form": "hel", "position": "pre", "etymon_refs": ["old-norse:hella"]}
+{"_type": "reflex", "surface_form": "orm", "position": "pre", "etymon_refs": ["old-norse:ormr"]}
+{"_type": "reflex", "surface_form": "sla", "position": "pre", "etymon_refs": ["old-norse:slag"]}
+{"_type": "reflex", "surface_form": "iscus", "position": "post", "etymon_refs": ["latin:iscus"]}

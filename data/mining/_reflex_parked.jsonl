@@ -40,7 +40,6 @@
 {"ref": "latin:albus", "reason": "impact-3 tail: 2-char/placeholder/translation-only, no clean groundable surface"}
 {"ref": "latin:crux", "reason": "impact-3 tail: 2-char/Latin-fragment/translation-only/junk, no clean groundable surface"}
 {"ref": "latin:iolum", "reason": "impact-3 tail: 2-char/Latin-fragment/translation-only/junk, no clean groundable surface"}
-{"ref": "latin:iscus", "reason": "impact-3 tail: 2-char/Latin-fragment/translation-only/junk, no clean groundable surface"}
 {"ref": "middle-english:copis", "reason": "impact-3 tail: 2-char/Latin-fragment/translation-only/junk, no clean groundable surface"}
 {"ref": "old-english:-es", "reason": "impact-3 tail: 2-char/Latin-fragment/translation-only/junk, no clean groundable surface"}
 {"ref": "old-english:Bugga", "reason": "impact-3 name tail: only 2-char/unclear realizations, no clean groundable surface"}
@@ -1422,7 +1421,6 @@
 {"ref": "old-norse:mót", "reason": "impact-1 ON; Domesday/citation/truncated toponym, opaque shift, or short (≤3char) worn element — no confident grounded span"}
 {"ref": "old-norse:nár", "reason": "impact-1 ON; Domesday/citation/truncated toponym, opaque shift, or short (≤3char) worn element — no confident grounded span"}
 {"ref": "old-norse:oddr", "reason": "impact-1 ON; Domesday/citation/truncated toponym, opaque shift, or short (≤3char) worn element — no confident grounded span"}
-{"ref": "old-norse:ormr", "reason": "impact-1 ON; Domesday/citation/truncated toponym, opaque shift, or short (≤3char) worn element — no confident grounded span"}
 {"ref": "old-norse:os", "reason": "impact-1 ON; Domesday/citation/truncated toponym, opaque shift, or short (≤3char) worn element — no confident grounded span"}
 {"ref": "old-norse:pufa", "reason": "impact-1 ON; Domesday/citation/truncated toponym, opaque shift, or short (≤3char) worn element — no confident grounded span"}
 {"ref": "old-norse:puke", "reason": "impact-1 ON; Domesday/citation/truncated toponym, opaque shift, or short (≤3char) worn element — no confident grounded span"}
@@ -1439,7 +1437,6 @@
 {"ref": "old-norse:skraki", "reason": "impact-1 ON; Domesday/citation toponym, opaque shift, or short worn element — no confident grounded span"}
 {"ref": "old-norse:skreið", "reason": "impact-1 ON; Domesday/citation toponym, opaque shift, or short worn element — no confident grounded span"}
 {"ref": "old-norse:skúti", "reason": "impact-1 ON; Domesday/citation toponym, opaque shift, or short worn element — no confident grounded span"}
-{"ref": "old-norse:slag", "reason": "impact-1 ON; Domesday/citation toponym, opaque shift, or short worn element — no confident grounded span"}
 {"ref": "old-norse:slettr", "reason": "impact-1 ON; Domesday/citation toponym, opaque shift, or short worn element — no confident grounded span"}
 {"ref": "old-norse:soen", "reason": "impact-1 ON; Domesday/citation toponym, opaque shift, or short worn element — no confident grounded span"}
 {"ref": "old-norse:staftr", "reason": "impact-1 ON; Domesday/citation toponym, opaque shift, or short worn element — no confident grounded span"}
