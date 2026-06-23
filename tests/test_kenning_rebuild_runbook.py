@@ -58,6 +58,7 @@ _EXTRA_DATA_POPULATION_COMMANDS = frozenset(
         "normalize-l2-vocab",  # one-time Class-A region/country normalization of L2 in place (wyrd-3q6m.4)
         "gloss-campaign author",  # compressed-gloss sense assertions → canonicalization L2 (wyrd-u6fn.10.1)
         "gloss-campaign park",  # queue-exclusion sidecar → _sense_parked.jsonl (wyrd-u6fn.10.1)
+        "enrich-campaign park",  # appends {ref,reason} to git-tracked _reflex_parked.jsonl (wyrd-eni4.3)
     }
 )
 

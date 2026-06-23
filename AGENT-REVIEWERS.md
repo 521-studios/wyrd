@@ -2,7 +2,7 @@
 
 ```json
 {
-  "defaults_version_checked": "1.5.0",
+  "defaults_version_checked": "1.6.0",
   "disabled": [
     "silent-failure-hunter",
     "code-simplifier"

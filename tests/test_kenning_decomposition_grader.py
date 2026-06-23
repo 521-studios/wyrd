@@ -24,6 +24,7 @@ from wyrd.generators.kenning.lexicon.decomposition_grader import (
     MatcherConfig,
     ToponymGrade,
     diff_grades,
+    grade_can_it,
     grade_configuration,
     grade_corpus_diff,
     grade_passthrough_diff,
@@ -344,3 +345,50 @@ def test_grade_passthrough_diff_irrelevant_map_is_noop(world):
     assert not diff.improvements and not diff.regressions
     assert diff.on.mean_recall == diff.off.mean_recall
     assert diff.on.coverage_rate == diff.off.coverage_rate
+
+
+def test_grade_can_it_separates_generated_from_selected(world):
+    """CAN-IT (the decomposer GENERATES a scholar-recovering parse) is a ceiling
+    above DID-WE (it SELECTS it). Bishopston is the canonical gap: bishop+ston
+    (stone) outscores the bishop+[s]+ton parse that recovers the scholar's tūn,
+    so the right parse is generated but not selected."""
+    db, trie = world
+    index = load_cluster_index(db)
+    corpus = load_scholar_corpus(db, index)  # Bishopston, Grimsworth, Rudston
+    # No connective inventory → the selected parse is always a plain candidate, so
+    # DID-WE ⊆ CAN-IT and the gap identity holds exactly.
+    s = grade_can_it(corpus, trie, index, config=MatcherConfig(), progress_every=0)
+
+    assert s.graded == 3
+    # All three scholar breakdowns are generable from the inventory (ceiling).
+    assert s.can_it_recall1 == 3
+    # Selection leaves at least Bishopston on the floor.
+    assert s.did_we_recall1 < s.can_it_recall1
+    assert s.gap_recall1 >= 1
+    # GAP is exactly the generated-but-not-selected difference (DID-WE ⊆ CAN-IT).
+    assert s.gap_recall1 == s.can_it_recall1 - s.did_we_recall1
+    # Exact-equality is the stricter sibling: never exceeds recall=1.
+    assert s.can_it_exact <= s.can_it_recall1
+    assert s.did_we_exact <= s.did_we_recall1
+
+
+def test_report_can_it_handles_zero_graded(capsys):
+    """``_report_can_it``'s ``graded or 1`` guard prevents a ZeroDivisionError
+    when the corpus produced no gradable toponyms."""
+    from wyrd.generators.kenning.cli.lexicon.grade_decomposition import _report_can_it
+    from wyrd.generators.kenning.lexicon.decomposition_grader import CanItSummary
+
+    _report_can_it(
+        CanItSummary(
+            graded=0,
+            product_capped=0,
+            can_it_exact=0,
+            did_we_exact=0,
+            gap_exact=0,
+            can_it_recall1=0,
+            did_we_recall1=0,
+            gap_recall1=0,
+        )
+    )
+    err = capsys.readouterr().err
+    assert "CAN-IT vs DID-WE over 0 toponyms" in err

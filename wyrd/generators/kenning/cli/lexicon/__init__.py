@@ -104,6 +104,7 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import dump_jsonl as _dump_jsonl_module
 from wyrd.generators.kenning.cli.lexicon import enrich as _enrich_module
+from wyrd.generators.kenning.cli.lexicon import enrich_campaign as _enrich_campaign_module
 from wyrd.generators.kenning.cli.lexicon import enrichment_status as _enrichment_status_module
 from wyrd.generators.kenning.cli.lexicon import era_cell as _era_cell_module
 from wyrd.generators.kenning.cli.lexicon import era_coverage as _era_coverage_module
@@ -311,6 +312,7 @@ _diff_rebuild_module.add_to(lexicon)
 _disambiguate_fuzzy_module.add_to(lexicon)
 _dump_jsonl_module.add_to(lexicon)
 _enrich_module.add_to(lexicon)
+_enrich_campaign_module.add_to(lexicon)
 _enrichment_status_module.add_to(lexicon)
 _era_cell_module.add_to(lexicon)
 _era_coverage_module.add_to(lexicon)

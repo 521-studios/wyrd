@@ -1066,7 +1066,10 @@ REPLAY_EXCLUDED_LEDGERS: frozenset[str] = frozenset(
         "_element_gloss_adjudications.jsonl",
         "_pronunciation.jsonl",
         "_modern_reflexes.jsonl",
+        # park-list sidecars (rows are {ref, reason}); consumed by the campaign
+        # selectors (next-slice/status), not the generic replay schema.
         "_sense_parked.jsonl",
+        "_reflex_parked.jsonl",
     }
 )
 
