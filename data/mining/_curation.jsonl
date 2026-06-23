@@ -536,3 +536,10 @@
 {"_type": "etymon_gloss_add", "ref": "old-english:sceld", "additions": [{"gloss": "A shield; figuratively a shelving bank, a shallow.", "reason": "wyrd-eni4.3 gloss tail: OE sceld/scield 'shield', applied to a shelving bank or shallow place."}]}
 {"_type": "etymon_gloss_add", "ref": "old-english:sceldu", "additions": [{"gloss": "A shield, a shelter; a shelving bank.", "reason": "wyrd-eni4.3 gloss tail: OE scieldu/sceldu 'shield, protection'; toponymically a shelving bank."}]}
 {"_type": "etymon_gloss_add", "ref": "old-english:swalwe", "additions": [{"gloss": "A swallow (the bird); also a rushing or swallowing stream.", "reason": "wyrd-eni4.3 gloss tail: OE swealwe 'swallow'; bird-name and 'swallowing' watercourse element."}]}
+{"_type": "etymon_gloss_add", "ref": "old-english:wǣr", "additions": [{"gloss": "A weir, a dam; a fishing-enclosure in a river.", "reason": "wyrd-eni4.3 gloss tail: OE wǣr/wer 'weir' (Edgware, Warleigh); a barrier for catching fish."}]}
+{"_type": "etymon_gloss_add", "ref": "old-norse:búð", "additions": [{"gloss": "A booth, a temporary shelter or hut; a herdsman's summer dwelling.", "reason": "wyrd-eni4.3 gloss tail: ON búð 'booth, shieling' (-booth names of the northern uplands)."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:ardd", "additions": [{"gloss": "A height, a hill; high ground.", "reason": "wyrd-eni4.3 gloss tail: Brittonic/Welsh ardd 'height, hill'; upland element."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:brïnn", "additions": [{"gloss": "A hill.", "reason": "wyrd-eni4.3 gloss tail: Brittonic *brinn > Welsh bryn 'hill'; common Bryn-/-brin element."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:cors", "additions": [{"gloss": "A bog, a fen, a marsh; a reed-bed.", "reason": "wyrd-eni4.3 gloss tail: Welsh cors 'bog, fen' (Corse, Cors- names of wet ground)."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:cṻl", "additions": [{"gloss": "Narrow; a narrow place or strip of land.", "reason": "wyrd-eni4.3 gloss tail: Welsh cul 'narrow'; describes a narrow ridge, strip, or defile."}]}
+{"_type": "collapse", "ref": "brittonic:cev˜n", "into": "brittonic:cefn"}
