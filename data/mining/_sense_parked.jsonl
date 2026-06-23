@@ -809,3 +809,10 @@
 {"ref": "old-english:fox-hol", "reason": "composite fox+hol (fox-hole); expand to constituents per D51.3"}
 {"ref": "old-english:gegn", "reason": "personal-name/ethnonym/theonym element — render as the name"}
 {"ref": "old-english:hicca", "reason": "personal-name/ethnonym/theonym element — render as the name"}
+{"ref": "old-english:gecca", "reason": "personal name (Gecca) — render as the name"}
+{"ref": "old-english:golda", "reason": "personal name (Golda) — render as the name"}
+{"ref": "old-english:grcef", "reason": "OCR-corrupt surface 'grcef' (likely grǣf); morpheme-quality issue"}
+{"ref": "old-english:grdfe", "reason": "OCR-corrupt surface 'grdfe' (likely grǣfe); morpheme-quality issue"}
+{"ref": "old-english:gærs-tūn", "reason": "composite gærs+tūn (grass-enclosure); expand to constituents per D51.3"}
+{"ref": "old-english:hdr", "reason": "OCR-corrupt surface 'hdr' (likely hār); morpheme-quality issue"}
+{"ref": "old-english:hlid-geat", "reason": "composite hlid+geat (swing-gate); expand to constituents per D51.3"}
