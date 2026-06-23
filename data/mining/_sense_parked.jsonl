@@ -2136,3 +2136,17 @@
 {"ref": "old-english:bide", "reason": "inflection contamination (of bīdan) + pale"}
 {"ref": "old-english:bit", "reason": "verb-imperative contamination (of bītan) + 'piece of land'"}
 {"ref": "old-english:botan", "reason": "personal name (Bota/Bote)"}
+{"ref": "old-english:brandes", "reason": "personal-name genitive (Brand's)"}
+{"ref": "old-english:brig", "reason": "conflation: 'alt form of brīw (broth)' vs bridge"}
+{"ref": "old-english:bruning(a)", "reason": "patronymic (sons of Brun)"}
+{"ref": "old-english:coc", "reason": "conflation: alt-form-of-cocc vs cook"}
+{"ref": "old-english:engle", "reason": "conflation: Angles (people) vs engel (angel)"}
+{"ref": "old-english:ful", "reason": "conflation: full vs foul/dirty"}
+{"ref": "old-english:gds(a)", "reason": "OCR-garbled surface 'gds(a)'"}
+{"ref": "old-english:malt", "reason": "conflation: malt (mealt) vs sign/cross (mǣl)"}
+{"ref": "old-english:micela(ri)", "reason": "garbled surface 'micela(ri)'"}
+{"ref": "old-english:mores", "reason": "conflation: barley vs mōr (moor)"}
+{"ref": "old-english:sealt-aern", "reason": "composite sealt+aern (salt-works); expand to constituents"}
+{"ref": "old-english:sett", "reason": "verb-inflection (settan) + settlement; mixed"}
+{"ref": "old-english:twi", "reason": "conflation: twiġ (twig) vs two"}
+{"ref": "old-english:wah", "reason": "verb-inflection (wīgan) + crooked; mixed"}
