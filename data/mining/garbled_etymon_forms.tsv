@@ -92,3 +92,4 @@ CORRUPTION_lettersub	old-english	lln	letter-sub of lin (flax); 'ln' for 'in' OCR
 CORRUPTION_lettersub	old-english	m#d	'#' OCR junk in mēd (meadow) — potential collapse into mēd/mæd, human verify
 CORRUPTION	old-english	p&&	'&&' OCR junk in pæð/path; reflexed 'peth' — potential collapse into pæð/path, human verify
 CORRUPTION	old-english	st&n	'&' OCR junk in stān (stone); reflexed 'ston' — definite collapse into stān (major morpheme), human verify
+CORRUPTION	old-norse	bro&ir	'&' OCR junk in bróðir (brother); reflexed 'brother' — potential collapse into bróðir (twin in DB), human verify
