@@ -5089,27 +5089,31 @@ def test_suffix_candidates_drops_composite_reflexes(fresh_db: Path) -> None:
 
 def test_suffix_candidates_keeps_base_reflex_with_reduced_sibling(fresh_db: Path) -> None:
     """wyrd-5b1a (Gemini #741): a longer reflex that ends in a shorter one is NOT a
-    composite when the shorter is a phonetic REDUCTION of the same morpheme. OE hām
-    has 'ham' (base) + 'am' (h-dropped); 'ham' ends in 'am', but its extra prefix
-    'h' starts the canonical 'ham', so it's a genuine base form and must be KEPT —
-    else Birmingham mis-splits as 'Birmingh'+'am'. The composite filter only drops a
-    surface whose extra prefix does NOT prefix the canonical form."""
+    composite when the shorter is a phonetic REDUCTION of the same morpheme. OE burh
+    has 'bury' (base) + 'ury' (reduced, as in Canterbury); 'bury' ends in 'ury', but
+    its extra prefix 'b' starts the canonical 'burh', so it's a genuine base form and
+    must be KEPT — not dropped as a composite. The filter only drops a surface whose
+    extra prefix does NOT prefix the canonical.
+
+    Uses burh/bury so the canonical form does NOT itself strip to the base reflex
+    'bury' — otherwise _add(canonical_form) would independently re-add 'bury' and
+    mask whether the composite filter kept it (the test would pass even unfixed)."""
     from wyrd.generators.kenning.lexicon.period_form import _suffix_candidates_for_etymon
 
     with LexiconDB(fresh_db) as db:
-        ham_id = db.upsert_etymon("hām", "old-english")
-        for sf in ("ham", "am"):  # base + phonetically-reduced sibling
+        burh_id = db.upsert_etymon("burh", "old-english")
+        for sf in ("bury", "ury"):  # base + phonetically-reduced sibling
             rid = db.conn.execute(
                 "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
             ).lastrowid
             db.conn.execute(
-                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, ham_id)
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, burh_id)
             )
         db.commit()
-        cands = _suffix_candidates_for_etymon(db, ham_id, "hām", None, include_reflexes=True)
+        cands = _suffix_candidates_for_etymon(db, burh_id, "burh", None, include_reflexes=True)
 
-    assert "ham" in cands  # base kept — extra prefix 'h' starts canonical 'ham'
-    assert "am" in cands  # reduced sibling kept too
+    assert "bury" in cands  # base kept — extra prefix 'b' starts canonical 'burh'
+    assert "ury" in cands  # reduced sibling kept too
 
 
 def test_derive_surface_in_modern_dry_run_writes_nothing(fresh_db: Path) -> None:
