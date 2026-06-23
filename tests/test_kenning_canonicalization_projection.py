@@ -20,7 +20,7 @@ from wyrd.generators.kenning.lexicon.canonicalization_projection import (
     clear_canonical_graph,
     project_canonical,
 )
-from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
+from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref, gloss_ref
 
 
 def _db(tmp_path):
@@ -348,21 +348,113 @@ def test_canonical_label_highest_confidence_wins(tmp_path):
     db.close()
 
 
-def test_same_sense_bind_is_skipped_observably(tmp_path):
+def _gloss(db, etymon_id, gloss):
+    db.conn.execute("INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)", (etymon_id, gloss))
+
+
+def _sense_bind(db, etymon_id, gloss, node_id, *, confidence="high"):
+    # etymon_gloss subject ref is the composite "<etymon_ref>\x1f<gloss>" (wyrd-u6fn.10).
+    language, canonical_form = db.conn.execute(
+        "SELECT language, canonical_form FROM etymon WHERE id = ?", (etymon_id,)
+    ).fetchone()
+    return Assertion(
+        predicate="bind",
+        subject=NodeRef("etymon_gloss", gloss_ref(language, canonical_form, gloss)),
+        object=NodeRef("canonical_sense", node_id),
+        qualifiers={"kind": "same-sense"},
+        confidence=confidence,
+    )
+
+
+def _sense_id(db, etymon_id, gloss):
+    return db.conn.execute(
+        "SELECT canonical_sense_id FROM etymon_gloss WHERE etymon_id = ? AND gloss = ?",
+        (etymon_id, gloss),
+    ).fetchone()["canonical_sense_id"]
+
+
+def _label(node_id, value, *, node_type="canonical_morpheme", stratum=""):
+    return Assertion(
+        predicate="canonical-label",
+        subject=NodeRef(node_type, node_id),
+        qualifiers={"stratum": stratum, "value": value},
+        confidence="high",
+    )
+
+
+def test_same_sense_bind_projects_onto_gloss_row(tmp_path):
+    # A monosemous wall: tun's many glosses collapse to ONE sense (wyrd-u6fn.10).
+    db = _db(tmp_path)
+    tun = _etymon(db, "tūn")
+    for g in ("enclosure", "farmstead", "town"):
+        _gloss(db, tun, g)
+    db.commit()
+    _author(
+        tmp_path,
+        _mint("CS-town", "canonical_sense"),
+        _sense_bind(db, tun, "enclosure", "CS-town"),
+        _sense_bind(db, tun, "farmstead", "CS-town"),
+        _sense_bind(db, tun, "town", "CS-town"),
+    )
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert res.minted == {"canonical_sense": 1}
+    assert res.bound == {"etymon_gloss": 3}
+    assert not res.skipped_unsupported  # same-sense is now supported
+    assert _sense_id(db, tun, "enclosure") == "CS-town"
+    assert _sense_id(db, tun, "town") == "CS-town"
+    db.close()
+
+
+def test_polysemous_morpheme_binds_glosses_to_distinct_senses(tmp_path):
+    # A polysemous morpheme: two genuine senses -> two hubs -> two labels (the
+    # "small array" of one short label per DISTINCT sense, wyrd-u6fn.10).
+    db = _db(tmp_path)
+    e = _etymon(db, "weall")
+    _gloss(db, e, "wall, rampart")
+    _gloss(db, e, "spring, well")
+    db.commit()
+    _author(
+        tmp_path,
+        _mint("CS-wall", "canonical_sense"),
+        _mint("CS-well", "canonical_sense"),
+        _sense_bind(db, e, "wall, rampart", "CS-wall"),
+        _sense_bind(db, e, "spring, well", "CS-well"),
+        _label("CS-wall", "wall", node_type="canonical_sense"),
+        _label("CS-well", "well", node_type="canonical_sense"),
+    )
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert res.minted == {"canonical_sense": 2}
+    assert _sense_id(db, e, "wall, rampart") == "CS-wall"
+    assert _sense_id(db, e, "spring, well") == "CS-well"
+    # The per-sense canonical-label is the short compressed gloss.
+    labels = {
+        r["canonical_id"]: r["value"]
+        for r in db.conn.execute(
+            "SELECT canonical_id, value FROM canonical_label WHERE canonical_type = 'canonical_sense'"
+        )
+    }
+    assert labels == {"CS-wall": "wall", "CS-well": "well"}
+    db.close()
+
+
+def test_malformed_gloss_ref_is_skipped_not_fatal(tmp_path):
+    # A bare ref (no \x1f gloss separator) is not a valid gloss ref: skip with a
+    # warning before the destructive write, never abort the rebuild.
     db = _db(tmp_path)
     _author(
         tmp_path,
         _mint("CS-1", "canonical_sense"),
         Assertion(
             predicate="bind",
-            subject=NodeRef("etymon_gloss", "1:new"),
+            subject=NodeRef("etymon_gloss", "old-english:tūn"),  # no \x1f<gloss>
             object=NodeRef("canonical_sense", "CS-1"),
             qualifiers={"kind": "same-sense"},
             confidence="high",
         ),
     )
     res = project_canonical(db, mining_dir=tmp_path, apply=True)
-    assert res.skipped_unsupported == {"same-sense": 1}  # flagged, not silently dropped
+    assert res.bound.get("etymon_gloss", 0) == 0
+    assert any("not a valid gloss ref" in w for w in res.warnings)
     db.close()
 
 

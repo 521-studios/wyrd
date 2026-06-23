@@ -37,6 +37,11 @@ from wyrd.generators.kenning.paths import default_lexicon_path
 from wyrd.generators.kenning.runtime.decomposition import decompose_with_canonical
 from wyrd.generators.kenning.runtime.name import Name
 
+# The read-only connection type yielded by _readonly_lexicon, re-exported so
+# cli/lexicon/*.py consumers can annotate against it WITHOUT importing sqlite3
+# directly (the package-boundary rule — test_kenning_package_boundary).
+Connection = sqlite3.Connection
+
 
 def _select_parser_and_run(
     text: str,

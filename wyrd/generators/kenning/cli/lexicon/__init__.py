@@ -120,6 +120,7 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import fetch_bulk_sources as _fetch_bulk_sources_module
 from wyrd.generators.kenning.cli.lexicon import fold_variants as _fold_variants_module
 from wyrd.generators.kenning.cli.lexicon import fuzzy_search as _fuzzy_search_module
+from wyrd.generators.kenning.cli.lexicon import gloss_campaign as _gloss_campaign_module
 from wyrd.generators.kenning.cli.lexicon import grade_decomposition as _grade_decomposition_module
 from wyrd.generators.kenning.cli.lexicon import import_mining_log as _import_mining_log_module
 from wyrd.generators.kenning.cli.lexicon import (
@@ -300,6 +301,7 @@ _decompose_module.add_to(lexicon)
 _detect_collapses_module.add_to(lexicon)
 _dump_empirical_priors_module.add_to(lexicon)
 _dump_genitive_priors_module.add_to(lexicon)
+_gloss_campaign_module.add_to(lexicon)
 _extract_pfsrd2_monsters_module.add_to(lexicon)
 _derive_english_shaped_module.add_to(lexicon)
 _derive_pronunciation_ipa_module.add_to(lexicon)

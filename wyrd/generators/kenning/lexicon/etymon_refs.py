@@ -84,3 +84,29 @@ def resolve_etymon_ref(conn: sqlite3.Connection, ref: str | int) -> int | None:
         (language, canonical_form),
     ).fetchone()
     return row["id"] if row else None
+
+
+# A gloss observation (``etymon_gloss``, composite PK ``(etymon_id, gloss)``) has
+# no surrogate id, so its stable ref is the etymon's natural-key ref + the gloss
+# text, joined by the unit separator U+001F. The gloss is free text (may contain
+# ``:`` and ``\x1f`` is the one char it cannot), so the separator is unambiguous:
+# split ONCE on the FIRST ``\x1f`` -> (etymon_ref, gloss). Used by the
+# compressed-gloss / same-sense binding (wyrd-u6fn.10) at the L2->L3 boundary.
+_GLOSS_SEP = "\x1f"
+
+
+def gloss_ref(language: str | None, canonical_form: str, gloss: str) -> str:
+    """The stable ref for an ``etymon_gloss`` row: ``"<etymon_ref>\\x1f<gloss>"``."""
+    return f"{etymon_ref(language, canonical_form)}{_GLOSS_SEP}{gloss}"
+
+
+def split_gloss_ref(ref: str) -> tuple[str, str] | None:
+    """Split a gloss ref back into ``(etymon_ref, gloss)`` (None if not a gloss ref).
+
+    The inverse of :func:`gloss_ref`. The caller resolves the ``etymon_ref`` half
+    via :func:`resolve_etymon_ref` and keys the ``etymon_gloss`` row by
+    ``(etymon_id, gloss)``. A ref without the separator is not a gloss ref."""
+    if not isinstance(ref, str) or _GLOSS_SEP not in ref:
+        return None
+    etymon_part, gloss = ref.split(_GLOSS_SEP, 1)
+    return etymon_part, gloss
