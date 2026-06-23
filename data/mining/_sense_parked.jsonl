@@ -113,3 +113,34 @@
 {"ref": "celtic:cam", "reason": "Celtic cam multi-sense (crooked/bent + cairn + little + quarry) — needs careful split"}
 {"ref": "celtic:port", "reason": "Celtic port 2-way (harbour/landing-place + fortress) with overlapping glosses — needs careful split"}
 {"ref": "old-english:Acca", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bacca", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Banna", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bena", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bitta", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Boll", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Brun", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Brūna", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bubba", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bucge", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Budda", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bunna", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Bæra", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Cippa", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Crǣta", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Cuda", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Gunni", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hucca", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hákr", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Ketil", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Lēofwine", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Luda", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Otta", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Totta", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Tōta", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Tuda", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Willa", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Witta", "reason": "personal-name element — render as the name, no sense to compress"}
+{"ref": "old-english:Hwicce", "reason": "tribal-name element (the Hwicce) — render as the name"}
+{"ref": "old-english:Wōden", "reason": "theonym (the god Woden) — render as the name"}
+{"ref": "old-english:Tribal-Name", "reason": "placeholder 'Tribal-Name' morpheme, not a real element"}
+{"ref": "old-english:bol#hill", "reason": "corrupt surface 'bol#hill' (# artifact); morpheme-quality issue"}
