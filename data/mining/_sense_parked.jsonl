@@ -817,3 +817,7 @@
 {"ref": "old-english:hdr", "reason": "OCR-corrupt surface 'hdr' (likely hār); morpheme-quality issue"}
 {"ref": "old-english:hlid-geat", "reason": "composite hlid+geat (swing-gate); expand to constituents per D51.3"}
 {"ref": "old-english:icel", "reason": "personal-name/ethnonym/theonym element — render as the name"}
+{"ref": "old-english:horningas", "reason": "patronymic 'sons of Horn'; connective, not a generative root"}
+{"ref": "old-english:hunda", "reason": "personal name (Hunda) / genitive of hund — render as the name"}
+{"ref": "old-english:hwet-stān", "reason": "composite hwet+stān (whetstone); expand to constituents per D51.3"}
+{"ref": "old-english:hēah-dēor", "reason": "composite hēah+dēor (high-deer/stag); expand to constituents per D51.3"}
