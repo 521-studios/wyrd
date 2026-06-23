@@ -445,3 +445,7 @@
 {"ref": "old-english:Æðelbeorht", "reason": "personal-name element — render as the name"}
 {"ref": "old-norse:Kari", "reason": "personal-name element — render as the name"}
 {"ref": "old-norse:Strútr", "reason": "personal-name element — render as the name"}
+{"ref": "old-norse:Danir", "reason": "ethnonym (the Danes) — render as the name"}
+{"ref": "old-english:ēa-land", "reason": "composite morpheme; expand to constituents per D51.3"}
+{"ref": "old-norse:býjar-lǫg", "reason": "composite morpheme; expand to constituents per D51.3"}
+{"ref": "old-norse:gall#foreigner", "reason": "corrupt surface (# artifact); morpheme-quality issue"}
