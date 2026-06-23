@@ -173,3 +173,4 @@ changes no output.
 - Single branch `enrichment/variant-rails`, single PR — commit+push every fire.
   Do NOT merge to main mid-build; merge only when BOTH rails are built, authoring
   has drained (or a clean milestone), and CI is green on HEAD.
+- Fire #12 (2026-06-23): authored 2 — cald→`cold` (Cold Brayfield), cumb→`coombe` (Coombe). Parked 10 (cēd, feld, ēast, hǣð, trēow, wella, west, wudu, bearu, saint — incl. `St.`-abbrev & homographs -will/-beer). Cumulative: 17 authored, 41 parked. CLEARLY into diminishing returns: slices now dominated by well-covered morphemes + homographs + misattributions; ~2 clean authors/fire.
