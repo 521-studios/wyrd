@@ -454,3 +454,10 @@
 {"ref": "brittonic:cynfarch", "reason": "personal-name element — render as the name"}
 {"ref": "brittonic:edeyrn", "reason": "personal-name element — render as the name"}
 {"ref": "brittonic:illtyd", "reason": "personal-name element — render as the name"}
+{"ref": "biblical:asa", "reason": "saint name (Asaph) — render as the name"}
+{"ref": "brittonic:alwent", "reason": "specific river-name"}
+{"ref": "brittonic:cocker", "reason": "specific river-name (Cocker)"}
+{"ref": "brittonic:daf", "reason": "specific river-name (Taff)"}
+{"ref": "old-norse:skdli", "reason": "OCR-corrupt surface 'skdli' (likely skáli); morpheme-quality issue"}
+{"ref": "old-norse:vrd", "reason": "OCR-corrupt surface 'vrd' (likely vrá); morpheme-quality issue"}
+{"ref": "brittonic:cyfeiliog", "reason": "opaque gloss 'compact together' / likely region name — uncertain, needs review"}
