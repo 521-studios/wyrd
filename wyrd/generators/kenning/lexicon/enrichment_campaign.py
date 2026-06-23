@@ -53,6 +53,7 @@ from typing import Any
 from wyrd.generators.kenning.lexicon import tag_mining
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref, resolve_etymon_ref
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
+from wyrd.generators.kenning.lexicon.schema import TOPONYMIC_SURFACE_TAG
 
 _TAG_VOCAB_SET = frozenset(tag_mining.TAG_VOCAB)
 # An IPA value must be slash- or bracket-delimited (/.../ or [...]) and non-empty
@@ -800,6 +801,133 @@ def validate_candidates(
                 folds_cache=folds_cache,
             )
         )
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Variant rail (phase 2 — toponymic-surface alt-spelling uplift, wyrd-eni4.2.2).
+# Mirrors the reflex rail: select admit-cohort etymons missing a committed
+# toponymic-surface variant, author grounded worn alt-spellings (same grounding
+# guard), park the un-authorable. Authored to data/mining/_variants.jsonl as
+# `{_type: variant, ref, form, tags: ["toponymic-surface"]}`.
+# ---------------------------------------------------------------------------
+
+
+def committed_variant_keys(variants_path: Path | None) -> set[tuple[str, str]]:
+    """(NFC ref, folded form) pairs already committed to the variant ledger — the
+    dedup source of truth."""
+    keys: set[tuple[str, str]] = set()
+    if variants_path is None or not Path(variants_path).exists():
+        return keys
+    with Path(variants_path).open(encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            if isinstance(row, dict) and row.get("_type") == "variant" and row.get("ref"):
+                folded = fold_surface(row.get("form") or "")
+                if folded:
+                    keys.add((_nfc(row["ref"]), folded))
+    return keys
+
+
+def committed_variant_refs(variants_path: Path | None) -> set[str]:
+    """NFC refs that already have at least one committed toponymic-surface variant
+    — the slice remainder source (one variant per ref per pass)."""
+    return {ref for ref, _ in committed_variant_keys(variants_path)}
+
+
+def variant_next_slice(
+    conn: sqlite3.Connection,
+    variants_path: Path | None,
+    *,
+    n: int = 20,
+    parked_path: Path | None = None,
+    impact: int | None = None,
+) -> list[EtymonEvidence]:
+    """The next ``n`` impact-ordered admit-cohort etymons still missing a committed
+    toponymic-surface variant AND not parked, each with grounding evidence
+    (toponyms + ``surface_in_modern`` spans the author worns into an alt-spelling).
+    Same evidence shape as the reflex rail; only the remainder source differs."""
+    excluded = committed_variant_refs(variants_path) | parked_refs(parked_path)
+    out: list[EtymonEvidence] = []
+    for row in scholar_impact_ranking(conn):
+        if impact is not None and row["impact"] != impact:
+            continue
+        ref = etymon_ref(row["language"], row["canonical_form"])
+        if _nfc(ref) in excluded:
+            continue
+        out.append(etymon_evidence(conn, row["eid"], impact=row["impact"]))
+        if len(out) >= n:
+            break
+    return out
+
+
+def _variant_shape_error(rec: dict[str, Any], tag: str) -> str | None:
+    """First structural problem with a variant candidate row, or None. Well-formed
+    = ``_type == "variant"``, ``ref`` a string, ``form`` a non-empty bare surface
+    (no affix-position dash, D45) that folds to >=1 letter, ``tags`` carrying the
+    ``toponymic-surface`` marker."""
+    if rec.get("_type") != "variant":
+        return f"{tag}: _type must be 'variant' (got {rec.get('_type')!r})"
+    if not isinstance(rec.get("ref"), str):
+        return f"{tag}: ref must be a 'language:canonical_form' string"
+    form = rec.get("form")
+    if not isinstance(form, str) or not form.strip():
+        return f"{tag}: form must be a non-empty string"
+    if form.strip().startswith("-") or form.strip().endswith("-"):
+        return (
+            f"{tag}: form {form!r} must be a bare surface — an affix-position dash "
+            f"('-ton'/'ton-') is never stored identity (D45)"
+        )
+    if not fold_surface(form):
+        return f"{tag}: form {form!r} folds to empty (no letters)"
+    if TOPONYMIC_SURFACE_TAG not in (rec.get("tags") or []):
+        return f"{tag}: tags must include {TOPONYMIC_SURFACE_TAG!r} (this rail authors those)"
+    return None
+
+
+def validate_variant_candidates(
+    conn: sqlite3.Connection,
+    variants_path: Path | None,
+    candidates: Sequence[dict[str, Any]],
+    *,
+    scholar_only: bool = True,
+) -> list[str]:
+    """Validate authored toponymic-surface variant rows. The GROUNDING GUARD is
+    identical to the reflex rail: the folded ``form`` must be a substring of >=1
+    folded attested toponym form of the ref. Also checks shape (see
+    :func:`_variant_shape_error`), campaign scope, and dedup against the committed
+    ledger + the in-batch set. Empty result = every row passed."""
+    scholar_eids = {r["eid"] for r in scholar_impact_ranking(conn)} if scholar_only else set()
+    committed = committed_variant_keys(variants_path)
+    seen: set[tuple[str, str]] = set()
+    errors: list[str] = []
+    for i, rec in enumerate(candidates):
+        tag = f"candidate[{i}]"
+        shape = _variant_shape_error(rec, tag)
+        if shape is not None:
+            errors.append(shape)
+            continue
+        ref = rec["ref"]
+        form = rec["form"]
+        eid = resolve_etymon_ref(conn, ref)
+        if eid is None:
+            errors.append(f"{tag}: ref {ref!r} resolves to no etymon")
+            continue
+        if scholar_only and eid not in scholar_eids:
+            errors.append(f"{tag}: {ref!r} is not a scholar-referenced etymon (out of scope)")
+        folded = fold_surface(form)
+        if not any(folded in hay for hay in _attested_folds(conn, eid)):
+            errors.append(
+                f"{tag}: grounding guard FAILED — form {form!r} (folded {folded!r}) "
+                f"appears in no attested toponym form of {ref}"
+            )
+        key = (_nfc(ref), folded)
+        if key in committed or key in seen:
+            errors.append(f"{tag}: duplicate variant (committed or in-batch): {ref} {form!r}")
+        seen.add(key)
     return errors
 
 

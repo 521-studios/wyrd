@@ -34,8 +34,10 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     validate_gloss_candidates,
     validate_ipa_candidates,
     validate_tag_candidates,
+    validate_variant_candidates,
     variant_gap_census,
     variant_gap_next_slice,
+    variant_next_slice,
 )
 
 
@@ -259,6 +261,44 @@ def test_is_toponymic_surface_variant_tag():
     assert is_toponymic_surface_variant("") is False
     assert is_toponymic_surface_variant("{not json") is False
     assert is_toponymic_surface_variant(json.dumps({"x": 1})) is False  # not a list
+
+
+def test_variant_rail_slice_validate_and_dedup(tmp_path):
+    """The variant rail: the slice surfaces an etymon missing a toponymic-surface
+    variant; validate grounds a worn alt-spelling (same gate as reflexes) and
+    rejects off-name forms, the missing tag, and affix dashes; a committed variant
+    drains the etymon from the slice and a re-author reads as a duplicate."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    dun = _etymon(db, "dūn", gloss="hill")
+    _toponym(db, "Battlesden", [dun])
+    db.commit()
+
+    variants = tmp_path / "_variants.jsonl"
+    tag = ["toponymic-surface"]
+
+    def cand(form, tags=tag):
+        return [{"_type": "variant", "ref": "old-english:dūn", "form": form, "tags": tags}]
+
+    assert "old-english:dūn" in {e.ref for e in variant_next_slice(db.conn, variants, n=10)}
+    assert validate_variant_candidates(db.conn, variants, cand("den")) == []  # grounded
+    assert any(
+        "grounding guard" in e for e in validate_variant_candidates(db.conn, variants, cand("xyz"))
+    )
+    assert any(
+        "toponymic-surface" in e
+        for e in validate_variant_candidates(db.conn, variants, cand("den", []))
+    )
+    assert any("D45" in e for e in validate_variant_candidates(db.conn, variants, cand("-den")))
+
+    # Commit a variant → dūn drains from the slice; a re-author reads as duplicate.
+    variants.write_text(json.dumps(cand("den")[0]) + "\n", encoding="utf-8")
+    assert variant_next_slice(db.conn, variants, n=10) == []
+    assert any(
+        "duplicate" in e for e in validate_variant_candidates(db.conn, variants, cand("den"))
+    )
 
 
 def test_parked_refs_excluded_from_slice(world):

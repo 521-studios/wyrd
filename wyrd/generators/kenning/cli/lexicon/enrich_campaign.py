@@ -41,8 +41,10 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     validate_gloss_candidates,
     validate_ipa_candidates,
     validate_tag_candidates,
+    validate_variant_candidates,
     variant_gap_census,
     variant_gap_next_slice,
+    variant_next_slice,
 )
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
@@ -52,6 +54,8 @@ _DEFAULT_TAGS_PATH = Path("data/mining/_tags.jsonl")
 _DEFAULT_IPA_PATH = Path("data/mining/_pronunciation.jsonl")
 # _curation.jsonl carries both gloss-add and collapse rows — one ledger, one path.
 _DEFAULT_GLOSS_PATH = Path("data/mining/_curation.jsonl")
+_DEFAULT_VARIANTS_PATH = Path("data/mining/_variants.jsonl")
+_DEFAULT_VARIANT_PARKED_PATH = Path("data/mining/_variant_parked.jsonl")
 
 _impact_option = click.option(
     "--impact", type=int, default=None, help="Restrict to a single impact band (band-by-band loop)."
@@ -230,6 +234,89 @@ def cmd_variant_gap_next_slice(
         f"({sum(1 for t in slice_ if t.flips_can_it)} flip CAN-IT)",
         err=True,
     )
+
+
+_variants_option = click.option(
+    "--variants-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=_DEFAULT_VARIANTS_PATH,
+    show_default=True,
+    help="Committed variant ledger (_variants.jsonl) — the remainder/dedup source.",
+)
+_variant_parked_option = click.option(
+    "--parked-path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=_DEFAULT_VARIANT_PARKED_PATH,
+    show_default=True,
+    help="Parked variant ledger — etymons with no groundable variant, excluded from slices.",
+)
+
+
+@enrich_campaign.command("variants-next-slice")
+@_db_option
+@_variants_option
+@_variant_parked_option
+@_impact_option
+@_n_option
+def cmd_variants_next_slice(
+    db_path: Path, variants_path: Path, parked_path: Path, impact: int | None, n: int
+) -> None:
+    """Emit the next N impact-ordered admit-cohort etymons missing a toponymic-
+    surface variant (and not parked), each with grounding evidence (toponyms +
+    surface_in_modern spans), as a JSON array on stdout. Author a grounded worn
+    alt-spelling per the 'barthos' rule; tag it toponymic-surface."""
+    with _readonly_lexicon(db_path) as conn:
+        slice_ = variant_next_slice(
+            conn, variants_path, n=n, parked_path=parked_path, impact=impact
+        )
+    click.echo(json.dumps([e.to_dict() for e in slice_], ensure_ascii=False, indent=2))
+    click.echo(f"emitted {len(slice_)} etymons for variant uplift", err=True)
+
+
+@enrich_campaign.command("variants-validate")
+@_db_option
+@_variants_option
+@click.option(
+    "--candidates",
+    "candidates_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="JSONL file of authored toponymic-surface variant rows to validate.",
+)
+def cmd_variants_validate(db_path: Path, variants_path: Path, candidates_path: Path) -> None:
+    """Validate authored variant rows (grounding guard identical to reflexes).
+    Exit 0 if all pass, 1 otherwise."""
+    candidates = _load_candidates(candidates_path)
+    with _readonly_lexicon(db_path) as conn:
+        errors = validate_variant_candidates(conn, variants_path, candidates)
+    _report_validation(errors, len(candidates), "variant(s)")
+
+
+@enrich_campaign.command("variants-park")
+@_db_option
+@_variant_parked_option
+@click.option("--ref", "ref", required=True, help="The 'language:canonical_form' ref to park.")
+@click.option("--reason", required=True, help="Why no groundable variant exists (one line).")
+def cmd_variants_park(db_path: Path, parked_path: Path, ref: str, reason: str) -> None:
+    """Record an etymon with no groundable toponymic-surface variant so it drops
+    out of future variant slices. Validates the ref resolves + dedups (mirrors
+    reflex park; shares the parked-ledger format, separate file)."""
+    import unicodedata
+
+    from wyrd.generators.kenning.lexicon.enrichment_campaign import parked_refs
+    from wyrd.generators.kenning.lexicon.etymon_refs import resolve_etymon_ref
+
+    with _readonly_lexicon(db_path) as conn:
+        if resolve_etymon_ref(conn, ref) is None:
+            click.echo(f"Error: etymon ref {ref!r} resolves to no etymon", err=True)
+            sys.exit(1)
+    if unicodedata.normalize("NFC", ref) in parked_refs(parked_path):
+        click.echo(f"already parked {ref}", err=True)
+        return
+    parked_path.parent.mkdir(parents=True, exist_ok=True)
+    with parked_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"ref": ref, "reason": reason}, ensure_ascii=False) + "\n")
+    click.echo(f"parked {ref} (variant)", err=True)
 
 
 _tags_option = click.option(

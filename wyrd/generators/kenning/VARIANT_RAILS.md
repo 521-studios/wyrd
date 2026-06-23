@@ -87,10 +87,19 @@ fire. Update the checkboxes here as pieces land.
       `REBUILD.md` step-3 list; `L2_L3_BOUNDARY.md` map. Replay test +
       rebuild-runbook green (77 pass), ruff clean. NB authoring uses `form` (the
       variant spelling), not `surface_form`.
-- [ ] B3. Rail CLI: `enrich-campaign next-slice --phase variants` (admit-cohort
-      etymons missing a variant; remainder from committed `_variants.jsonl`; with
-      grounding evidence) + `validate --phase variants` (grounding guard identical
-      to reflexes) + park. (Tag rail half already shipped in #727 — mirror it.)
+- [x] B3. Rail CLI. DONE — built as per-dimension commands (mirroring the SHIPPED
+      `tags-next-slice` style, NOT a `--phase` flag; the prompt's "--phase variants"
+      wording predates that convention). `variants-next-slice` (cohort missing a
+      committed toponymic-surface variant, remainder from `_variants.jsonl` +
+      `_variant_parked.jsonl`, reuses `etymon_evidence` grounding) +
+      `variants-validate` (`validate_variant_candidates`: grounding guard identical
+      to reflexes, D45 dash-reject, requires the toponymic-surface tag, scope, dedup
+      on (ref,folded-form)) + `variants-park`. Lexicon fns: `committed_variant_keys`
+      / `committed_variant_refs` / `variant_next_slice` / `validate_variant_candidates`.
+      RUN PHASE uses `variants-next-slice` / `variants-validate` (not `next-slice
+      --phase`). Live smoke OK (tūn, lēah). Tested (26 pass), ruff clean.
+      MINOR DEBT for B6: `variants-park` ~dups reflex `cmd_park` — dedup into a
+      shared `_park_ref` helper.
 - [ ] B4. Generation gate: standalone-name generation excludes
       `toponymic-surface`-tagged variants; composition/worn-form path includes
       them. Test it both ways.
@@ -99,8 +108,11 @@ fire. Update the checkboxes here as pieces land.
 - [ ] B6. Tests + ruff + rebuild-runbook + db-reconstructibility wiring green.
 
 ### Run phase (after BOTH rails are built + green)
-- [ ] Drain `variant-gap-next-slice` (Rail A) and `next-slice --phase variants`
-      (Rail B), authoring grounded rows / parking, committing each slice.
+- [ ] Drain `variant-gap-next-slice` (Rail A) and `variants-next-slice` (Rail B),
+      authoring grounded rows (`variants-validate` for Rail B) / parking, committing
+      each slice. NB the run command is `variants-next-slice`, NOT `next-slice
+      --phase variants` (the cron prompt's wording predates the shipped convention;
+      this doc is the source of truth).
 
 ## Loop procedure (each 5-min fire)
 0. `date '+%F %T %Z'` (ITERATION START). `git pull --rebase`.
