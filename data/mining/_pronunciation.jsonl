@@ -1092,3 +1092,17 @@
 {"_type": "pronunciation", "ref": "old-english:Krókr", "language": "old-english", "form": "Krókr", "ipa": "/ˈkroːkr/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
 {"_type": "pronunciation", "ref": "old-english:hærg", "language": "old-english", "form": "hærg", "ipa": "/hærj/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
 {"_type": "pronunciation", "ref": "old-english:næt", "language": "old-english", "form": "næt", "ipa": "/næt/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "old-english:Ædd", "language": "old-english", "form": "Ædd", "ipa": "/æd/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "old-norse:Haddr", "language": "old-norse", "form": "Haddr", "ipa": "/ˈhadːr/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "old-norse:dal", "language": "old-norse", "form": "dal", "ipa": "/dal/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "old-norse:drag", "language": "old-norse", "form": "drag", "ipa": "/draɡ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "old-norse:vagr", "language": "old-norse", "form": "vagr", "ipa": "/vaːɡr/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:ardd", "language": "brittonic", "form": "ardd", "ipa": "/arð/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:brïnn", "language": "brittonic", "form": "brïnn", "ipa": "/brɨn/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:cair", "language": "brittonic", "form": "cair", "ipa": "/kair/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:cors", "language": "brittonic", "form": "cors", "ipa": "/kɔrs/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:cṻl", "language": "brittonic", "form": "cṻl", "ipa": "/kɨːl/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:duβ", "language": "brittonic", "form": "duβ", "ipa": "/duːβ/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:eclẹ̄si̥ā", "language": "brittonic", "form": "eclẹ̄si̥ā", "ipa": "/ɛkˈleː.si.aː/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:felin", "language": "brittonic", "form": "felin", "ipa": "/ˈvɛ.lin/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}
+{"_type": "pronunciation", "ref": "brittonic:ial", "language": "brittonic", "form": "ial", "ipa": "/jaːl/", "method": "agent-campaign-v1", "model": "claude-opus-4-8[1m]", "confidence": "medium"}

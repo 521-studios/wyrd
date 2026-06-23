@@ -543,3 +543,8 @@
 {"_type": "etymon_gloss_add", "ref": "brittonic:cors", "additions": [{"gloss": "A bog, a fen, a marsh; a reed-bed.", "reason": "wyrd-eni4.3 gloss tail: Welsh cors 'bog, fen' (Corse, Cors- names of wet ground)."}]}
 {"_type": "etymon_gloss_add", "ref": "brittonic:cṻl", "additions": [{"gloss": "Narrow; a narrow place or strip of land.", "reason": "wyrd-eni4.3 gloss tail: Welsh cul 'narrow'; describes a narrow ridge, strip, or defile."}]}
 {"_type": "collapse", "ref": "brittonic:cev˜n", "into": "brittonic:cefn"}
+{"_type": "etymon_gloss_add", "ref": "brittonic:duβ", "additions": [{"gloss": "Black, dark (of water or soil).", "reason": "wyrd-eni4.3 gloss tail: Brittonic *dubo- > Welsh du 'black'; Dub-/Dove/Douglas (dubo-glassio 'black stream')."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:eclẹ̄si̥ā", "additions": [{"gloss": "A church; an early British Christian site.", "reason": "wyrd-eni4.3 gloss tail: Brittonic eclēsiā (< Latin ecclesia) 'church'; the Eccles-stratum reconstruction."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:main", "additions": [{"gloss": "A stone; a standing stone, a rock.", "reason": "wyrd-eni4.3 gloss tail: Brittonic *makno- > Welsh maen 'stone' (Maen-, -vane standing-stone names)."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:mönið", "additions": [{"gloss": "A mountain, a hill; upland moor.", "reason": "wyrd-eni4.3 gloss tail: Brittonic *monijo- > Welsh mynydd 'mountain' (Mynydd-, Long Mynd, Minto)."}]}
+{"_type": "etymon_gloss_add", "ref": "brittonic:riu", "additions": [{"gloss": "A hill, a slope, an ascent.", "reason": "wyrd-eni4.3 gloss tail: Welsh rhiw 'hill/slope/ascent'; a steep way up (Rew-, -rue names)."}]}
