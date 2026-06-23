@@ -899,3 +899,37 @@
 {"ref": "goidelic:monadh", "reason": "contaminated wall: wetland category-fill conflicts with real gloss 'hill' (monadh=moor/upland); needs review"}
 {"ref": "old-english:hala", "reason": "contaminated wall: enclosure category-fill conflicts with real gloss 'nook' (halh); needs review"}
 {"ref": "old-english:hrynge", "reason": "contaminated wall: enclosure category-fill conflicts with real gloss 'pole/stake'; needs review"}
+{"ref": "old-english:warde", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-norse:buski", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-norse:garthr", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-norse:stafn", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:bhóthair", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:bó", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:driseog", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:dtarbh", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:lôn", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:ras", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:samhaisce", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "norman-french:", "reason": "blank/empty surface; morpheme-quality issue"}
+{"ref": "old-english:caelf", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:haer", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:haes", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:hryther", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:lael", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:lanu", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:paeth", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:pound", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:straet", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:styrc", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:swaeth", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:tīege", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:waeter", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-english:worthig", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-norse:bula", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "old-norse:megin", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "brittonic:porth", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:bhaile", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:capel", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:domhnach", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:eglos", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
+{"ref": "celtic:firth", "reason": "synthetic category-boilerplate wall (no scholar prose gloss); cannot compress — phase-3 quality gate"}
