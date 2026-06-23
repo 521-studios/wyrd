@@ -1394,3 +1394,5 @@
 {"ref": "welsh:Meurig", "reason": "personal-name wall — render as the name"}
 {"ref": "welsh:Rhydderch", "reason": "personal-name wall — render as the name"}
 {"ref": "welsh:Wil", "reason": "personal-name wall — render as the name"}
+{"ref": "old-english:stīg-rāp", "reason": "composite stīg+rāp (stirrup); expand to constituents per D51.3"}
+{"ref": "old-english:wealinga", "reason": "patronymic 'sons of the Briton/stranger'; connective, not a root"}
