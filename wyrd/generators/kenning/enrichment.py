@@ -1896,35 +1896,30 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-# wyrd-van9: per enrichment stage, the result key (also the displayed
-# section name) and the unresolved-ref / typo counters it can expose.
-# Adding a stage or counter is a one-line edit here; the counter order
-# within a stage is the order they render.
-_UNRESOLVED_WARNING_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    (
-        "curation",
-        (
-            "unresolved_etymon",
-            "unresolved_lemma_ref",
-            "unresolved_merge_ref",
-            "self_reference_lemma",
-            "self_reference_merge",
-        ),
+# wyrd-van9: each enrichment stage's result key (also the displayed
+# section name) mapped to the unresolved-ref / typo counters it can
+# expose. Adding a stage or counter is a one-line edit here. Order is
+# load-bearing (and asserted in tests): sections render in insertion
+# order, counters in tuple order.
+_UNRESOLVED_WARNING_SECTIONS: dict[str, tuple[str, ...]] = {
+    "curation": (
+        "unresolved_etymon",
+        "unresolved_lemma_ref",
+        "unresolved_merge_ref",
+        "self_reference_lemma",
+        "self_reference_merge",
     ),
-    ("gloss_suppressions", ("unresolved_etymon", "unresolved_gloss")),
-    ("gloss_additions", ("unresolved_etymon",)),
-    (
-        "etymon_splits",
-        (
-            "unresolved_etymon",
-            "glosses_missing",
-            "tags_missing",
-            "children_skipped_no_suffix",
-            "children_skipped_invalid_suffix",
-            "multiple_primary_collapsed",
-        ),
+    "gloss_suppressions": ("unresolved_etymon", "unresolved_gloss"),
+    "gloss_additions": ("unresolved_etymon",),
+    "etymon_splits": (
+        "unresolved_etymon",
+        "glosses_missing",
+        "tags_missing",
+        "children_skipped_no_suffix",
+        "children_skipped_invalid_suffix",
+        "multiple_primary_collapsed",
     ),
-)
+}
 
 
 def format_unresolved_warnings(result: dict[str, Any]) -> str:
@@ -1937,7 +1932,7 @@ def format_unresolved_warnings(result: dict[str, Any]) -> str:
     so an interactive operator sees them, but the exit code stays 0.
     """
     flagged: list[tuple[str, str, int]] = []
-    for name, counters in _UNRESOLVED_WARNING_SECTIONS:
+    for name, counters in _UNRESOLVED_WARNING_SECTIONS.items():
         section = result.get(name)
         if not section:
             continue
