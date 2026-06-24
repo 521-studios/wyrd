@@ -145,6 +145,12 @@ def render_form_particle_pairs(pairs: list[tuple[str, bool]], *, smart_join: boo
         return _concat_form_pairs_simple(pairs)
     if not pairs:
         return ""
+    return _titlecase_join_tokens(_group_pairs_into_tokens(pairs))
+
+
+def _group_pairs_into_tokens(pairs: list[tuple[str, bool]]) -> list[str]:
+    """Smart-join pass 1: collapse each run of adjacent non-particle forms into
+    one token, and emit each particle (lowercased) as its own token."""
     tokens: list[str] = []  # space-separated output tokens
     pending: list[str] = []  # buffer of adjacent non-particle forms
     for form, is_particle in pairs:
@@ -157,7 +163,12 @@ def render_form_particle_pairs(pairs: list[tuple[str, bool]], *, smart_join: boo
             pending.append(form)
     if pending:
         tokens.append("".join(pending))
-    # Title-case each non-particle token; particles stay lowercase.
+    return tokens
+
+
+def _titlecase_join_tokens(tokens: list[str]) -> str:
+    """Smart-join pass 2: title-case each non-particle token, leave free
+    particles lowercase, drop empties, and space-join."""
     rendered: list[str] = []
     for token in tokens:
         if token in _FREE_PARTICLES:
