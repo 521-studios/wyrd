@@ -34371,3 +34371,7 @@
 {"_type": "reflex", "surface_form": "boro", "position": "post", "etymon_refs": ["old-norse:bergh"]}
 {"_type": "reflex", "surface_form": "chest", "position": "post", "etymon_refs": ["latin:cestr"]}
 {"_type": "reflex", "surface_form": "chest", "position": "post", "etymon_refs": ["latin:cestre"]}
+{"_type": "reflex", "surface_form": "field", "position": "pre", "etymon_refs": ["modern-english:feld"]}
+{"_type": "reflex", "surface_form": "hitch", "position": "pre", "etymon_refs": ["old-english:Hwicce"]}
+{"_type": "reflex", "surface_form": "boro", "position": "post", "etymon_refs": ["old-english:berge"]}
+{"_type": "reflex", "surface_form": "bart", "position": "pre", "etymon_refs": ["old-english:beorh"]}
