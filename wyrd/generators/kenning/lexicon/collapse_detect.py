@@ -159,6 +159,59 @@ def _detect_pointer_parse(conn: sqlite3.Connection) -> list[dict[str, str]]:
     return out
 
 
+def _break_collapse_cycles(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Drop every edge that would close a cycle in the ``merged_into_id`` graph.
+
+    Union-find over the ``ref``/``into`` nodes. Edges are processed in
+    deterministic ``(ref, into)`` order; the first direction seen for a pair
+    survives, the cycle-closer is skipped — so a wiktextract pair registered
+    BIDIRECTIONALLY (``wode`` a variant of ``wood`` AND ``wood`` of ``wode``)
+    can't tombstone each node into the other (a ``merged_into_id`` cycle that
+    ``_resolve_live_etymon`` could never settle).
+    """
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:  # path compression
+            parent[x], x = root, parent[x]
+        return root
+
+    kept: list[dict[str, str]] = []
+    for r in sorted(rows, key=lambda e: (e["ref"], e["into"])):
+        ra, rb = find(r["ref"]), find(r["into"])
+        if ra == rb:
+            continue  # already in one cluster — this edge would close a cycle
+        parent[ra] = rb
+        kept.append(r)
+    return kept
+
+
+def _flatten_collapse_chains(kept: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Re-point every collapse at its cluster's TERMINAL survivor.
+
+    The survivor is the node that is never itself a ``ref``, so the ledger is a
+    flat forest. Without this a chain ``wella -> well -> wiell`` is apply-order-
+    fragile: if ``well`` is tombstoned before the ``wella -> well`` row,
+    ``well`` no longer resolves and that fold is silently missed. Transitively
+    still correct — a variant of a variant of X is a variant of X. Rows whose
+    ref IS its own survivor (the terminal nodes) are dropped.
+    """
+    direct = {r["ref"]: r["into"] for r in kept}
+
+    def survivor(ref: str) -> str:
+        cur, seen = ref, set()
+        while cur in direct and cur not in seen:
+            seen.add(cur)
+            cur = direct[cur]
+        return cur
+
+    return [{**r, "into": survivor(r["ref"])} for r in kept if survivor(r["ref"]) != r["ref"]]
+
+
 def detect_deterministic_collapses(conn: sqlite3.Connection) -> list[dict[str, str]]:
     """Return collapse rows for the deterministic cases, with cycles broken.
 
@@ -180,39 +233,4 @@ def detect_deterministic_collapses(conn: sqlite3.Connection) -> list[dict[str, s
             seen.add(r["ref"])
             rows.append(r)
 
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        parent.setdefault(x, x)
-        root = x
-        while parent[root] != root:
-            root = parent[root]
-        while parent[x] != root:  # path compression
-            parent[x], x = root, parent[x]
-        return root
-
-    kept: list[dict[str, str]] = []
-    for r in sorted(rows, key=lambda e: (e["ref"], e["into"])):
-        ra, rb = find(r["ref"]), find(r["into"])
-        if ra == rb:
-            continue  # already in one cluster — this edge would close a cycle
-        parent[ra] = rb
-        kept.append(r)
-
-    # Flatten chains: re-point every collapse at its cluster's TERMINAL
-    # survivor (the node that is never itself a ``ref``), so the ledger is
-    # a flat forest. Without this a chain ``wella -> well -> wiell`` is
-    # apply-order-fragile: if ``well`` is tombstoned before the
-    # ``wella -> well`` row, ``well`` no longer resolves and that fold is
-    # silently missed. Transitively still correct — a variant of a variant
-    # of X is a variant of X.
-    direct = {r["ref"]: r["into"] for r in kept}
-
-    def survivor(ref: str) -> str:
-        cur, seen = ref, set()
-        while cur in direct and cur not in seen:
-            seen.add(cur)
-            cur = direct[cur]
-        return cur
-
-    return [{**r, "into": survivor(r["ref"])} for r in kept if survivor(r["ref"]) != r["ref"]]
+    return _flatten_collapse_chains(_break_collapse_cycles(rows))
