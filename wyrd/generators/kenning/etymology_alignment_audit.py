@@ -276,17 +276,15 @@ def audit_jsonl_dir(
     return AuditReport(sources=results, sample_limit_per_source=sample_limit)
 
 
-def format_audit_report(report: AuditReport, *, top_n: int = 20) -> str:
-    """Markdown rendering. Ranks by absolute flag count (volume
-    drives where operator work has highest payoff)."""
-    sorted_sources = sorted(
-        report.sources,
-        key=lambda s: (-s.flagged_count, -s.total_etymologies, s.source_id),
-    )
-    lines: list[str] = ["# Toponym/etymology alignment audit (wyrd-8upf)", ""]
-    lines.append(f"- Sources scanned: {len(report.sources)}")
-    lines.append(f"- Total etymology rows: {report.total_etymologies:,}")
-    lines.append(f"- Probably misaligned: {report.total_flagged:,} ({report.overall_rate:.1f}%)")
+def _audit_summary_lines(report: AuditReport) -> list[str]:
+    """Header block: totals plus the per-reason flag breakdown."""
+    lines = [
+        "# Toponym/etymology alignment audit (wyrd-8upf)",
+        "",
+        f"- Sources scanned: {len(report.sources)}",
+        f"- Total etymology rows: {report.total_etymologies:,}",
+        f"- Probably misaligned: {report.total_flagged:,} ({report.overall_rate:.1f}%)",
+    ]
     # wyrd-j6co: split the flag count by reason so operators can pick
     # one failure mode at a time (empty_form needs a re-mine; hallucinated
     # needs a prune/curate). Counts are global across sources, drawn
@@ -301,33 +299,60 @@ def format_audit_report(report: AuditReport, *, top_n: int = 20) -> str:
             f"{count} {reason}" for reason, count in sorted(reason_counts.items())
         )
         lines.append(f"- By reason: {breakdown}")
-    lines.append("")
-    lines.append("## Top sources by flag count")
-    lines.append("")
-    lines.append("| Source | Flagged / Total | Rate |")
-    lines.append("| --- | ---: | ---: |")
+    return lines
+
+
+def _audit_top_sources_lines(sorted_sources: list[SourceAuditResult], top_n: int) -> list[str]:
+    """Markdown table of the top sources by flag count (skips clean sources)."""
+    lines = [
+        "## Top sources by flag count",
+        "",
+        "| Source | Flagged / Total | Rate |",
+        "| --- | ---: | ---: |",
+    ]
     for s in sorted_sources[:top_n]:
         if s.flagged_count == 0:
             continue
         lines.append(
             f"| `{s.source_id}` | {s.flagged_count} / {s.total_etymologies} | {s.flag_rate:.1f}% |"
         )
-    lines.append("")
+    return lines
+
+
+def _audit_samples_lines(
+    sorted_sources: list[SourceAuditResult], report: AuditReport, top_n: int
+) -> list[str]:
+    """Per-source sample misses, or a placeholder when the corpus is clean."""
     affected = [s for s in sorted_sources if s.flagged_count > 0]
-    if affected:
-        lines.append(f"## Samples (up to {report.sample_limit_per_source} per source)")
+    if not affected:
+        return ["_No alignment misses detected._"]
+    lines = [f"## Samples (up to {report.sample_limit_per_source} per source)", ""]
+    for s in affected[:top_n]:
+        lines.append(f"### `{s.source_id}` ({s.flagged_count} flagged)")
+        for f in s.samples:
+            lines.append(
+                f"- `{f.toponym_ref}` [{f.reason}] — historical_form=`{f.historical_form or '∅'}`, "
+                f"elements=[{', '.join(f.elements)}], "
+                f"missing=[{', '.join(f.missing_morphemes)}]"
+            )
+            if f.notes_preview:
+                lines.append(f"  - notes: `{f.notes_preview}`")
         lines.append("")
-        for s in affected[:top_n]:
-            lines.append(f"### `{s.source_id}` ({s.flagged_count} flagged)")
-            for f in s.samples:
-                lines.append(
-                    f"- `{f.toponym_ref}` [{f.reason}] — historical_form=`{f.historical_form or '∅'}`, "
-                    f"elements=[{', '.join(f.elements)}], "
-                    f"missing=[{', '.join(f.missing_morphemes)}]"
-                )
-                if f.notes_preview:
-                    lines.append(f"  - notes: `{f.notes_preview}`")
-            lines.append("")
-    else:
-        lines.append("_No alignment misses detected._")
+    return lines
+
+
+def format_audit_report(report: AuditReport, *, top_n: int = 20) -> str:
+    """Markdown rendering. Ranks by absolute flag count (volume
+    drives where operator work has highest payoff)."""
+    sorted_sources = sorted(
+        report.sources,
+        key=lambda s: (-s.flagged_count, -s.total_etymologies, s.source_id),
+    )
+    lines = [
+        *_audit_summary_lines(report),
+        "",
+        *_audit_top_sources_lines(sorted_sources, top_n),
+        "",
+        *_audit_samples_lines(sorted_sources, report, top_n),
+    ]
     return "\n".join(lines).rstrip() + "\n"
