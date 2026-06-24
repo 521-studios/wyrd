@@ -33828,3 +33828,6 @@
 {"_type": "reflex", "surface_form": "wath", "position": "post", "etymon_refs": ["old-norse:vað"]}
 {"_type": "reflex", "surface_form": "wath", "position": "post", "etymon_refs": ["old-english:vad"]}
 {"_type":"reflex","surface_form":"esh","position":"pre","etymon_refs":["old-english:ash"]}
+{"_type": "reflex", "surface_form": "pike", "position": "post", "etymon_refs": ["old-english:pightle"]}
+{"_type": "reflex", "surface_form": "dolphin", "position": "pre", "etymon_refs": ["old-norse:dolfin"]}
+{"_type": "reflex", "surface_form": "droin", "position": "pre", "etymon_refs": ["old-norse:drengr"]}
