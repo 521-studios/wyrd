@@ -3289,3 +3289,14 @@
 {"ref": "old-norse:torp", "reason": "2-form well-covered, junk/misattribution residual (DL/Li/Lane/Dingbell) — no authorable worn-form gap"}
 {"ref": "old-norse:vra", "reason": "2-form well-covered, junk/misattribution residual (DL/Li/Lane/Dingbell) — no authorable worn-form gap"}
 {"ref": "old-norse:þing", "reason": "2-form well-covered, junk/misattribution residual (DL/Li/Lane/Dingbell) — no authorable worn-form gap"}
+{"ref": "latin:castra", "reason": "Lleon=legionum; castra 'camp' has no worn span in the attested toponym"}
+{"ref": "latin:cum", "reason": "Latin prep in manorial affixes (Eaton Socon); no toponym surface realization"}
+{"ref": "latin:fractum", "reason": "Latin gloss; no worn span in Pountirayir/evidence"}
+{"ref": "latin:locus", "reason": "Bewley=beau+leah; locus 'place' has no worn span"}
+{"ref": "modern-english:coppid", "reason": "Crook=ON krokr; coppid 'pollarded' is a co-occurring element, not the worn form (misattribution)"}
+{"ref": "modern-english:hat", "reason": "Hett=OE haett; ModE 'hat' is not its worn form (distinct etymon)"}
+{"ref": "norman-french:berk", "reason": "Bartlow=beorg+hlaw; berk is a co-occurring element (misattribution)"}
+{"ref": "old-english:Mold", "reason": "Marton=mere-tun; Mold has no worn span (misattribution)"}
+{"ref": "old-english:cof", "reason": "Prescot=preost+cot; Cofa-PN 'cof' not present (misattribution)"}
+{"ref": "old-english:copse", "reason": "Sparsholt=spearwa+holt; copse not present (misattribution)"}
+{"ref": "old-english:eowestre", "reason": "DOCUMENTED TRAP: Osborne=Osbeorn PN, not eowestre 'sheepfold' (cross-match misattribution)"}
