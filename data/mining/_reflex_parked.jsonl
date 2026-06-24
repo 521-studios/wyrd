@@ -3316,3 +3316,26 @@
 {"ref": "old-english:fore", "reason": "Fordon=ford+dun; fore 'in front' is a distinct etymon (misattribution)"}
 {"ref": "old-english:fāg", "reason": "Foolow=fugol 'bird'; fāg 'variegated' misattribution"}
 {"ref": "old-english:hauk", "reason": "Haughstrother=halh 'haugh'; hauk 'hawk' is a distinct etymon (misattribution)"}
+{"ref": "old-english:efes", "reason": "Woodstone=wudu+stan mis-linkage; efes fully grounded (aves/eaves/efes)"}
+{"ref": "old-english:eiki", "reason": "Ayscough=eik+skarð realizes as 'ays' (not a clean eiki span)"}
+{"ref": "old-english:enclosure", "reason": "gloss token; Ludworth=Hluda+worð has no 'enclosure' span"}
+{"ref": "old-english:esley", "reason": "Edmondsley residual not from esley (mis-linkage)"}
+{"ref": "old-english:gar", "reason": "Goring=Gara already grounded (gar); residual toponym adds no span"}
+{"ref": "old-english:gelced", "reason": "garbled canonical; Warninglid no clean span"}
+{"ref": "old-english:haeshere", "reason": "gloss 'Clough'; no worn span"}
+{"ref": "old-english:head", "reason": "Birkett Houses mis-linkage; head fully grounded"}
+{"ref": "old-english:heal", "reason": "Wirral=wir+halh realizes as 2-char; no groundable span >=3"}
+{"ref": "old-english:hean", "reason": "Benacre=bean+aecer mis-linkage; hean not present"}
+{"ref": "old-english:hemp", "reason": "Templand=temple mis-linkage; hemp not present"}
+{"ref": "old-english:hengest", "reason": "garbled toponym (HnrxwoRTH); no clean span; hengest well-covered"}
+{"ref": "old-english:heord", "reason": "Harborough realizes as 'harb' (not clean heord); covered (hard/heord)"}
+{"ref": "old-english:herte", "reason": "Hardemetetoft residual; herte fully covered (hart/herte/hertes/heruteu)"}
+{"ref": "old-english:hinde", "reason": "Catlip not from hinde 'hind' (mis-linkage)"}
+{"ref": "old-english:hisa", "reason": "garbled toponym (Merter Nosyntre); no span"}
+{"ref": "old-english:hlawen", "reason": "Dragley Beck not from hlawen (mis-linkage)"}
+{"ref": "old-english:hleomoc", "reason": "Leighton=leac-tun; hleomoc 'brooklime' misattribution"}
+{"ref": "old-english:hramsa", "reason": "Rempstone realizes as ram/roms (covered); residual no new span"}
+{"ref": "old-english:hulh", "reason": "Hachelintone realizes as 'hach' (not clean hulh)"}
+{"ref": "old-english:hunda", "reason": "garbled toponym (HinsrcoAT); covered (hound/hunda)"}
+{"ref": "old-english:hwamm", "reason": "Midgeholme=mycg+holm; hwamm not present (mis-linkage)"}
+{"ref": "old-english:hæfen", "reason": "Tatten not from hæfen 'haven' (mis-linkage); covered"}
