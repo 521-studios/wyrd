@@ -34444,3 +34444,6 @@
 {"_type": "reflex", "surface_form": "olm", "position": "pre", "etymon_refs": ["latin:ulm"]}
 {"_type": "reflex", "surface_form": "cot", "position": "pre", "etymon_refs": ["modern-english:cot(t)a"]}
 {"_type": "reflex", "surface_form": "brea", "position": "pre", "etymon_refs": ["modern-english:brake"]}
+{"_type": "reflex", "surface_form": "law", "position": "post", "etymon_refs": ["modern-english:lawe"]}
+{"_type": "reflex", "surface_form": "thorn", "position": "pre", "etymon_refs": ["old-english:*pornede"]}
+{"_type": "reflex", "surface_form": "mit", "position": "pre", "etymon_refs": ["old-english:(ge)mythe"]}
