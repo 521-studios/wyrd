@@ -479,6 +479,29 @@ def test_format_run_omits_period_forms_section_when_absent():
     assert "### Period-form projection" not in md
 
 
+def test_run_section_renderers_wiring_is_pinned():
+    """Pin the `_RUN_SECTION_RENDERERS` (result-key -> renderer) mapping and its
+    order. This table is the one thing the format_enrichment_run table-driving
+    refactor introduced; a typo'd key, a swapped renderer, or a reorder would
+    pass every direct format_*_run unit test yet silently change the bundled
+    report. Each renderer's own output is covered by its unit tests; this guards
+    the wiring (the string-returning analogue of the _OPTIONAL_SECTIONS pin)."""
+    from wyrd.generators.kenning.enrichment import (
+        _RUN_SECTION_RENDERERS,
+        format_curation_run,
+        format_etymon_split_run,
+        format_gloss_addition_run,
+        format_gloss_suppression_run,
+    )
+
+    assert list(_RUN_SECTION_RENDERERS) == [
+        ("curation", format_curation_run),
+        ("gloss_suppressions", format_gloss_suppression_run),
+        ("gloss_additions", format_gloss_addition_run),
+        ("etymon_splits", format_etymon_split_run),
+    ]
+
+
 def test_format_run_renders_all_optional_sections_together():
     """A full-chain run populates every optional section. Pin the
     section ordering so the rendered report stays grep-friendly."""

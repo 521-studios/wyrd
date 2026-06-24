@@ -1840,7 +1840,7 @@ _OPTIONAL_SECTIONS: tuple[tuple[str, Any], ...] = (
 # line list). Rendered in this order, each preceded by a blank line, only when
 # the stage ran. Stays ahead of the inline element-gloss / tag / pronunciation
 # blocks in format_enrichment_run to preserve section order.
-_RUN_SECTION_RENDERERS: tuple[tuple[str, Any], ...] = (
+_RUN_SECTION_RENDERERS: tuple[tuple[str, Callable[[dict[str, Any]], str]], ...] = (
     ("curation", format_curation_run),
     ("gloss_suppressions", format_gloss_suppression_run),
     ("gloss_additions", format_gloss_addition_run),
