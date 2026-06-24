@@ -132,6 +132,30 @@ def collect_pronunciation(path: str | None) -> dict[tuple[str, str], str]:
     return state
 
 
+def _g2p_outcome(lang: str, form: str, existing: str | None) -> tuple[str, str | None]:
+    """Classify one G2P etymon row — returns ``(summary_key, ipa_to_write)``.
+
+    Pure (no DB). ``ipa_to_write`` is non-None only when the row should be
+    updated: a clean form whose deterministic G2P is real IPA (not a
+    passthrough) AND is either currently empty (``filled``) or an Old-English
+    onset-h to fix (``fixed_initial_h``). The skip / keep outcomes
+    (``skipped_unclean`` / ``skipped_passthrough`` / ``kept_existing``) write
+    nothing.
+    """
+    cf = _clean_form(form)
+    if cf is None:
+        return "skipped_unclean", None
+    derived = to_ipa(cf, _G2P_LANG[lang])
+    if not _is_real_ipa(derived, cf):
+        return "skipped_passthrough", None
+    existing = (existing or "").strip()
+    if not existing:
+        return "filled", derived
+    if lang == "old-english" and _initial_h_is_x(cf, existing):
+        return "fixed_initial_h", derived
+    return "kept_existing", None
+
+
 def derive_pronunciation_ipa(
     db, *, apply: bool = True, llm_state: dict[tuple[str, str], str] | None = None
 ) -> dict[str, Any]:
@@ -150,23 +174,9 @@ def derive_pronunciation_ipa(
 
     summary: Counter = Counter()
     for eid, lang, form, existing in rows:
-        cf = _clean_form(form)
-        if cf is None:
-            summary["skipped_unclean"] += 1
-            continue
-        derived = to_ipa(cf, _G2P_LANG[lang])
-        if not _is_real_ipa(derived, cf):
-            summary["skipped_passthrough"] += 1
-            continue
-        existing = (existing or "").strip()
-        if not existing:
-            summary["filled"] += 1
-        elif lang == "old-english" and _initial_h_is_x(cf, existing):
-            summary["fixed_initial_h"] += 1
-        else:
-            summary["kept_existing"] += 1
-            continue
-        if apply:
+        outcome, derived = _g2p_outcome(lang, form, existing)
+        summary[outcome] += 1
+        if derived is not None and apply:
             conn.execute("UPDATE etymon SET pronunciation_ipa=? WHERE id=?", (derived, eid))
 
     # LLM jsonl replay — no-G2P-table languages, gaps only (never overrides).
