@@ -239,21 +239,34 @@ def compute_readiness(
 
 def format_readiness(report: ReadinessReport) -> str:
     """Markdown rendering, one section per criterion + verdict."""
-    lines: list[str] = ["# Rando-port retirement readiness (wyrd-j2bv)", ""]
     verdict = (
         "PASS — retirement gate open" if report.overall_passes else "FAIL — retirement gate closed"
     )
-    lines.append(f"**Overall: {verdict}**")
-    lines.append("")
-    lines.append(f"Coverage threshold: {report.coverage_threshold * 100:.0f}%")
-    lines.append("")
-    lines.append("## Per-language criteria")
-    lines.append("")
-    lines.append(
+    lines = [
+        "# Rando-port retirement readiness (wyrd-j2bv)",
+        "",
+        f"**Overall: {verdict}**",
+        "",
+        f"Coverage threshold: {report.coverage_threshold * 100:.0f}%",
+        "",
+        *_readiness_table_lines(report),
+        "",
+        *_readiness_definitions_lines(report),
+        "",
+        *_readiness_failure_lines(report),
+    ]
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _readiness_table_lines(report: ReadinessReport) -> list[str]:
+    """The per-language criteria table — one row per language with C1/C2/C3 marks."""
+    lines = [
+        "## Per-language criteria",
+        "",
         "| Language | Total | Scholar | Empirical | Rando-only | Uncited "
-        "| Scholar only | Coverage | C1 ≥thresh | C2 rando=0 | C3 slice |"
-    )
-    lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |")
+        "| Scholar only | Coverage | C1 ≥thresh | C2 rando=0 | C3 slice |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |",
+    ]
     for lc in report.per_language:
         c1 = "✓" if lc.passes_coverage(report.coverage_threshold) else "✗"
         c2 = "✓" if lc.passes_rando_only_zero() else "✗"
@@ -264,38 +277,40 @@ def format_readiness(report: ReadinessReport) -> str:
             f"| {lc.scholar_only_pct:.1f}% | {lc.coverage_pct:.1f}% "
             f"| {c1} | {c2} | {c3} |"
         )
-    lines.append("")
-    lines.append("## Criterion definitions")
-    lines.append("")
-    lines.append(
+    return lines
+
+
+def _readiness_definitions_lines(report: ReadinessReport) -> list[str]:
+    """Criterion definitions (C1/C2/C3 + the Scholar-only visibility note). Only
+    the C1 line interpolates ``report.coverage_threshold``; the rest is fixed text."""
+    return [
+        "## Criterion definitions",
+        "",
         "- **C1 (coverage)** — scholar + empirical attestation covers "
-        f"≥{report.coverage_threshold * 100:.0f}% of bundle subjects."
-    )
-    lines.append("- **C2 (rando-only zero)** — no bundle subject is attested ONLY by rando-port.")
-    lines.append(
+        f"≥{report.coverage_threshold * 100:.0f}% of bundle subjects.",
+        "- **C2 (rando-only zero)** — no bundle subject is attested ONLY by rando-port.",
         "- **C3 (slice comparison)** — rando-only count ≤ scholar-attested "
-        "count per language (rando is no longer the dominant slice)."
-    )
-    lines.append(
+        "count per language (rando is no longer the dominant slice).",
         "- **Scholar only** (visibility, not a gate) — scholar-attested "
         "share of bundle subjects (excluding the empirical wedge). "
         "Surfaces how much of a language's coverage rests on the "
-        "wiktionary-empirical pipeline vs the named bibliographic sources."
-    )
-    lines.append("")
-    if not report.overall_passes:
-        lines.append("## Why the gate is closed")
-        lines.append("")
-        for lc in report.per_language:
-            failures: list[str] = []
-            if not lc.passes_coverage(report.coverage_threshold):
-                failures.append(
-                    f"C1 ({lc.coverage_pct:.1f}% < {report.coverage_threshold * 100:.0f}%)"
-                )
-            if not lc.passes_rando_only_zero():
-                failures.append(f"C2 ({lc.rando_only} rando-only)")
-            if not lc.passes_slice_comparison():
-                failures.append(f"C3 (rando_only={lc.rando_only} > scholar={lc.scholar_attested})")
-            if failures:
-                lines.append(f"- `{lc.language}` — {', '.join(failures)}")
-    return "\n".join(lines).rstrip() + "\n"
+        "wiktionary-empirical pipeline vs the named bibliographic sources.",
+    ]
+
+
+def _readiness_failure_lines(report: ReadinessReport) -> list[str]:
+    """The 'why the gate is closed' per-language breakdown — empty when it passes."""
+    if report.overall_passes:
+        return []
+    lines = ["## Why the gate is closed", ""]
+    for lc in report.per_language:
+        failures: list[str] = []
+        if not lc.passes_coverage(report.coverage_threshold):
+            failures.append(f"C1 ({lc.coverage_pct:.1f}% < {report.coverage_threshold * 100:.0f}%)")
+        if not lc.passes_rando_only_zero():
+            failures.append(f"C2 ({lc.rando_only} rando-only)")
+        if not lc.passes_slice_comparison():
+            failures.append(f"C3 (rando_only={lc.rando_only} > scholar={lc.scholar_attested})")
+        if failures:
+            lines.append(f"- `{lc.language}` — {', '.join(failures)}")
+    return lines
