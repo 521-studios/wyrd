@@ -70,3 +70,18 @@ def test_flatten_leaves_a_single_edge_untouched():
     assert _flatten_collapse_chains([_edge("a", "b")]) == [
         {"ref": "a", "into": "b", "variant_class": "a->b"}
     ]
+
+
+def test_break_keeps_disjoint_clusters_independently():
+    # Two genuinely separate components (no shared node) — both edges survive.
+    rows = [_edge("a", "b"), _edge("c", "d")]
+    assert _pairs(_break_collapse_cycles(rows)) == [("a", "b"), ("c", "d")]
+
+
+def test_flatten_is_defensive_against_a_cyclic_direct_map():
+    # `_break_collapse_cycles` normally guarantees an acyclic `direct`, but the
+    # helper is independently callable. The `cur not in seen` walk guard must
+    # terminate (not hang) on a cycle, and the `survivor(ref) != ref` filter
+    # then drops the self-resolving rows. Both a 2-cycle and a self-loop -> [].
+    assert _flatten_collapse_chains([_edge("a", "b"), _edge("b", "a")]) == []
+    assert _flatten_collapse_chains([_edge("a", "a")]) == []
