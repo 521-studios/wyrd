@@ -326,18 +326,31 @@ def _apply_row(state: ReplayState, row: dict[str, Any], *, line_no: int | None =
     _validate_row(row, line_no=line_no)
     _type = row["_type"]
     op = row.get("_op")
-
     if _type in LIST_TYPES:
-        if op is not None and op != "add":
-            raise ReplayError(
-                f"list-type {_type!r} does not support _op={op!r}; only append (no _op or _op=add)",
-                row=row,
-                line_no=line_no,
-            )
-        fact = {k: v for k, v in row.items() if k not in ("_type", "_op")}
-        state.lists[_type].append(fact)
-        return
+        _apply_list_row(state, _type, op, row, line_no)
+    else:
+        _apply_keyed_row(state, _type, op, row, line_no)
 
+
+def _apply_list_row(
+    state: ReplayState, _type: str, op: str | None, row: dict[str, Any], line_no: int | None
+) -> None:
+    """Append-only list fact. List types take no ``_op`` (or ``_op=add``)."""
+    if op is not None and op != "add":
+        raise ReplayError(
+            f"list-type {_type!r} does not support _op={op!r}; only append (no _op or _op=add)",
+            row=row,
+            line_no=line_no,
+        )
+    fact = {k: v for k, v in row.items() if k not in ("_type", "_op")}
+    state.lists[_type].append(fact)
+
+
+def _apply_keyed_row(
+    state: ReplayState, _type: str, op: str | None, row: dict[str, Any], line_no: int | None
+) -> None:
+    """Keyed fact dispatched by ``_op``: set / add (no-clobber) / patch (per-field
+    merge) / remove (idempotent) — all keyed on ``row["ref"]``."""
     ref = row["ref"]
     bucket = state.keyed[_type]
     payload = {k: v for k, v in row.items() if k not in ("_type", "_op", "ref")}
