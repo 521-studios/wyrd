@@ -41,6 +41,11 @@ _DIGRAPH_MAP: dict[str, str] = {
     "ʤ": "J",
 }
 
+# Digraph keys longest-first, so a cluster is matched before any shorter key
+# that is its substring (``tʃ`` before ``ʃ``). Materialised once at import
+# rather than re-sorted on every anglicize_ipa call.
+_SORTED_DIGRAPHS: tuple[str, ...] = tuple(sorted(_DIGRAPH_MAP, key=len, reverse=True))
+
 # Single-char IPA → reader letter. wyrd-03cx round 2: vowels are
 # single-letter so the length marker (ː) can double them cleanly
 # (``/xɑːm/`` → ``KH + A + A (doubled) + M`` → ``KHAAM``). The pre-
@@ -185,12 +190,39 @@ def anglicize_ipa(ipa: str | None) -> str | None:
     # Strip combining diacritics first so subsequent char-by-char
     # mapping doesn't trip on a base+diacritic pair.
     s = "".join(ch for ch in s if not _is_combining_diacritic(ch))
+    result = "".join(_map_phonemes(_mark_digraphs(s)))
+    if not result:
+        return None
+    # Collapse runs of 3+ same letter to 2. Preserves intentional
+    # doubled letters ('LL' from ɬ; 'AA' from length-marked vowel)
+    # while clipping pathological triples (a hypothetical /ɑːː/
+    # would produce AAA which reads as a typo, collapsed to AA).
+    return _collapse_runs(result)
 
-    # Multi-char digraphs (longest first so e.g. 't͡ʃ' beats 't').
-    for digraph in sorted(_DIGRAPH_MAP.keys(), key=len, reverse=True):
+
+def _mark_digraphs(s: str) -> str:
+    """Wrap each multi-char IPA cluster's mapping in ``\\0`` sentinels.
+
+    The sentinels let the single-phoneme pass lift the mapping out verbatim
+    instead of re-mapping its letters. Clusters are applied longest-first
+    (``_SORTED_DIGRAPHS``) so ``tʃ`` is matched before ``ʃ`` (its suffix, also
+    a digraph key)."""
+    # Drop any pre-existing NUL so every ``\0`` in the result is a sentinel we
+    # added (paired). Otherwise a stray ``\0`` in the input leaves _map_phonemes'
+    # ``s.index("\0", i + 1)`` searching for a non-existent partner → ValueError.
+    s = s.replace("\0", "")
+    for digraph in _SORTED_DIGRAPHS:
         s = s.replace(digraph, f"\0{_DIGRAPH_MAP[digraph]}\0")
+    return s
 
-    # Char-by-char single-phoneme pass + length-marker handling.
+
+def _map_phonemes(s: str) -> list[str]:
+    """Render the digraph-marked string into output letter-tokens.
+
+    The load-bearing detail is the coupling to :func:`_mark_digraphs`: this
+    consumes the ``\\0`` sentinels it planted, lifting each wrapped digraph
+    mapping out verbatim. Beyond that it doubles a vowel before a ``ː`` length
+    marker, drops stripped/unknown chars, and maps singles via ``_PHONEME_MAP``."""
     out: list[str] = []
     i = 0
     while i < len(s):
@@ -216,15 +248,7 @@ def anglicize_ipa(ipa: str | None) -> str | None:
         # drop — better to ship a partial reader-pronunciation than
         # to bail entirely.
         i += 1
-
-    result = "".join(out)
-    if not result:
-        return None
-    # Collapse runs of 3+ same letter to 2. Preserves intentional
-    # doubled letters ('LL' from ɬ; 'AA' from length-marked vowel)
-    # while clipping pathological triples (a hypothetical /ɑːː/
-    # would produce AAA which reads as a typo, collapsed to AA).
-    return _collapse_runs(result)
+    return out
 
 
 def _collapse_runs(s: str) -> str:
