@@ -113,6 +113,29 @@ def list_defects_cmd(env, profile, status, generator, limit, as_json) -> None:
     click.echo(f"\n{len(reports)} report(s).", err=True)
 
 
+# Human-readable ``show`` layout: (label, report-key). Header fields always
+# print; optional fields print only when their value is truthy. Both render
+# with a shared label column (`_LABEL_WIDTH`) so values line up.
+_SHOW_HEADER_FIELDS = (
+    ("id", "id"),
+    ("status", "status"),
+    ("created_at", "created_at"),
+    ("generator", "generator"),
+    ("name", "name"),
+    ("reason", "reason"),
+)
+_SHOW_OPTIONAL_FIELDS = (
+    ("etymology", "explanation"),
+    ("triaged_at", "triaged_at"),
+    ("ticket", "ticket"),
+    ("note", "triage_note"),
+)
+
+# Longest label + colon + a trailing space; derived so alignment can't drift
+# when a longer-labelled field is added to either table above.
+_LABEL_WIDTH = max(len(label) for label, _ in (*_SHOW_HEADER_FIELDS, *_SHOW_OPTIONAL_FIELDS)) + 2
+
+
 @defects.command("show")
 @_env_options
 @click.argument("defect_id")
@@ -132,20 +155,12 @@ def show_defect_cmd(env, profile, defect_id, as_json) -> None:
         click.echo(json.dumps(report, indent=2, ensure_ascii=False))
         return
 
-    click.echo(f"id:         {report.get('id')}")
-    click.echo(f"status:     {report.get('status')}")
-    click.echo(f"created_at: {report.get('created_at')}")
-    click.echo(f"generator:  {report.get('generator')}")
-    click.echo(f"name:       {report.get('name')}")
-    click.echo(f"reason:     {report.get('reason')}")
-    if report.get("explanation"):
-        click.echo(f"etymology:  {report.get('explanation')}")
-    if report.get("triaged_at"):
-        click.echo(f"triaged_at: {report.get('triaged_at')}")
-    if report.get("ticket"):
-        click.echo(f"ticket:     {report.get('ticket')}")
-    if report.get("triage_note"):
-        click.echo(f"note:       {report.get('triage_note')}")
+    for label, key in _SHOW_HEADER_FIELDS:
+        click.echo(f"{label + ':':<{_LABEL_WIDTH}}{report.get(key)}")
+    for label, key in _SHOW_OPTIONAL_FIELDS:
+        value = report.get(key)
+        if value:
+            click.echo(f"{label + ':':<{_LABEL_WIDTH}}{value}")
     bv = report.get("bundle_version")
     if bv:
         click.echo("bundle_version:")

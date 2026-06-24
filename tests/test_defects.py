@@ -276,6 +276,22 @@ def test_cli_show_renders_reproduce_block(defects_table):
     assert "kenning" in result.output
 
 
+def test_cli_show_renders_optional_fields_and_gates_absent_ones(defects_table):
+    # Locks the data-driven show rendering: a populated optional field
+    # (explanation → "etymology:") must render under its display label, and
+    # optionals absent from a fresh report (triaged_at / ticket / note) must be
+    # suppressed by the `if value:` gate. Guards against a typo in the
+    # _SHOW_OPTIONAL_FIELDS (label, key) tuples silently emitting None.
+    created = defects.record_defect(_SAMPLE, env="staging")
+    runner = CliRunner()
+    result = runner.invoke(defects_cli, ["show", created["id"], "--profile", ""])
+    assert result.exit_code == 0, result.output
+    assert "etymology:  Ton + North" in result.output
+    assert "triaged_at:" not in result.output
+    assert "ticket:" not in result.output
+    assert "\nnote:" not in result.output
+
+
 def test_cli_show_unknown_id_errors(defects_table):
     runner = CliRunner()
     result = runner.invoke(defects_cli, ["show", "no-such-id", "--profile", ""])
