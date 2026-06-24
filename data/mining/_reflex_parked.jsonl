@@ -3365,3 +3365,29 @@
 {"ref": "old-english:orfris", "reason": "garbled/gloss (Ey); no span"}
 {"ref": "old-english:poll", "reason": "Poot River mis-linkage; poll 'pool' not present"}
 {"ref": "old-english:porn", "reason": "Torentun realizes þorn differently; 'torn' gate-rejected for porn"}
+{"ref": "old-english:pyrne", "reason": "Stapleton Terne; pyrne realizes differently (misattribution)"}
+{"ref": "old-english:pēac", "reason": "Petton=Peatt; pēac mis (covered peak/peck/pex)"}
+{"ref": "old-english:racu", "reason": "Drax residual; racu covered (rack/rick)"}
+{"ref": "old-english:redd", "reason": "garbled toponym (Stolze); no span"}
+{"ref": "old-english:ride", "reason": "truncated toponym (Ri-); no clean span"}
+{"ref": "old-english:rise", "reason": "Rushbrooke=risc; rise covered (ris/rise)"}
+{"ref": "old-english:rǣw", "reason": "Lynch Farm=hlinc; rǣw mis (covered rew/row)"}
+{"ref": "old-english:sealt", "reason": "Stafford=stæð; sealt misattribution (covered sal/salt/sawt)"}
+{"ref": "old-english:seles", "reason": "Agars Hill mis-linkage; seles not present"}
+{"ref": "old-english:sic", "reason": "Sink not from sic 'stream' (misattribution)"}
+{"ref": "old-english:skitter", "reason": "garbled toponym (Kipperlynn); no span"}
+{"ref": "old-english:sol", "reason": "Grazeley mis-linkage; sol 'mud' not present"}
+{"ref": "old-english:sticol", "reason": "gloss 'Names of Hills'; no worn span"}
+{"ref": "old-english:stig", "reason": "Swaintley residual; stig covered (stig/sty)"}
+{"ref": "old-english:stiga", "reason": "garbled toponym (Ansibt); covered (sty)"}
+{"ref": "old-english:sty", "reason": "Swinsey=swin; sty mis"}
+{"ref": "old-english:testede", "reason": "garbled canonical; Minsted realizes as 'sted' (mynster-family)"}
+{"ref": "old-english:thwaite", "reason": "gloss 'Big Forth'; thwaite fully grounded elsewhere"}
+{"ref": "old-english:tiolh", "reason": "Greenhalgh=grene+halh; tiolh mis (the halgh is halh)"}
+{"ref": "old-english:treow", "reason": "Edwinstbee=Eadwine; treow mis (covered tre/tree/treow/trow)"}
+{"ref": "old-english:tune", "reason": "Grottington -ton is tūn (separate etymon); tune covered"}
+{"ref": "old-english:waru", "reason": "garbled toponym (Limene); covered (wara/waru)"}
+{"ref": "old-english:wealinga", "reason": "garbled toponym (Waxungton); no clean span"}
+{"ref": "old-english:wedla", "reason": "Wannock=wōn; wedla mis-linkage"}
+{"ref": "old-english:weod", "reason": "Woodacre=wudu 'wood'; weod 'weed' misattribution"}
+{"ref": "old-english:weðer", "reason": "Watermillock realizes as 'water'; weðer 'wether' mis (covered wether/wither)"}
