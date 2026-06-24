@@ -185,42 +185,57 @@ def _parse_one_spec(spec: str, seen_primary: bool) -> tuple[dict, bool]:
         part = part.strip()
         if not part:
             continue
-        if "=" in part:
-            key, _, value = part.partition("=")
-            key = key.strip()
-            value = value.strip()
-            if key not in _SPLIT_INTO_ALLOWED_KEYS:
-                raise click.UsageError(
-                    f"--into spec {spec!r}: unknown key {key!r}; "
-                    f"allowed keys: {sorted(_SPLIT_INTO_ALLOWED_KEYS)} "
-                    "(plus the bare token 'primary')."
-                )
-            if key in ("glosses", "tags"):
-                child[key] = [g.strip() for g in value.split(";") if g.strip()]
-            else:
-                child[key] = value
-        elif part == "primary":
-            if seen_primary:
-                raise click.UsageError(
-                    "More than one --into spec flagged 'primary'; at most one child may be primary."
-                )
-            child["primary"] = True
-            seen_primary = True
-        else:
+        seen_primary = _apply_into_field(spec, part, child, seen_primary)
+    _validate_into_suffix(spec, child)
+    return child, seen_primary
+
+
+def _apply_into_field(spec: str, part: str, child: dict, seen_primary: bool) -> bool:
+    """Apply one ``key=value`` field, or the bare ``primary`` token, to ``child``.
+
+    Returns the updated ``seen_primary``. Raises ``click.UsageError`` on an
+    unknown key, a second ``primary``, or an unrecognized bare token.
+    """
+    if "=" in part:
+        key, _, value = part.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if key not in _SPLIT_INTO_ALLOWED_KEYS:
             raise click.UsageError(
-                f"--into spec {spec!r}: unrecognized token {part!r}; "
-                "use key=value form or the bare token 'primary'."
+                f"--into spec {spec!r}: unknown key {key!r}; "
+                f"allowed keys: {sorted(_SPLIT_INTO_ALLOWED_KEYS)} "
+                "(plus the bare token 'primary')."
             )
+        if key in ("glosses", "tags"):
+            child[key] = [g.strip() for g in value.split(";") if g.strip()]
+        else:
+            child[key] = value
+    elif part == "primary":
+        if seen_primary:
+            raise click.UsageError(
+                "More than one --into spec flagged 'primary'; at most one child may be primary."
+            )
+        child["primary"] = True
+        seen_primary = True
+    else:
+        raise click.UsageError(
+            f"--into spec {spec!r}: unrecognized token {part!r}; "
+            "use key=value form or the bare token 'primary'."
+        )
+    return seen_primary
+
+
+def _validate_into_suffix(spec: str, child: dict) -> None:
+    """Require a present, charset-safe ``suffix`` (raises ``click.UsageError``).
+
+    wyrd-van9: children land at ref ``<language>:<original-form>#<suffix>``, so a
+    suffix carrying ``:`` (ref-grammar separator), ``#`` (disambiguator), or
+    whitespace would corrupt downstream ref parsers that naively split on those.
+    Lock to ``[a-z0-9_-]+`` for human readability + ref-safety.
+    """
     suffix = child.get("suffix")
     if not suffix:
         raise click.UsageError(f"--into spec {spec!r}: missing or empty required ``suffix`` field.")
-    # wyrd-van9: suffix charset validation. Children land at
-    # canonical form ``<original-form>#<suffix>`` and ref
-    # ``<language>:<original-form>#<suffix>``. A suffix carrying
-    # ``:`` (the ref-grammar separator), ``#`` (the disambiguator),
-    # or whitespace would corrupt downstream ref parsers that
-    # naively split on those. Lock to ``[a-z0-9_-]+`` for human
-    # readability + ref-safety.
     if not SUFFIX_PATTERN.fullmatch(suffix):
         raise click.UsageError(
             f"--into spec {spec!r}: suffix {suffix!r} contains "
@@ -228,7 +243,6 @@ def _parse_one_spec(spec: str, seen_primary: bool) -> tuple[dict, bool]:
             "(lowercase alphanumeric, underscore, hyphen). Disambiguators "
             "like #/: would corrupt downstream ref parsing."
         )
-    return child, seen_primary
 
 
 @click.command("curate-split-etymon")
