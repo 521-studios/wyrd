@@ -176,9 +176,11 @@ def _titlecase_join_tokens(tokens: list[tuple[str, bool]]) -> str:
     ``Under``) is still title-cased (wyrd-mfmr)."""
     rendered: list[str] = []
     for token, is_particle in tokens:
+        if not token:
+            continue  # drop empties uniformly (incl. empty particles) — no double spaces
         if is_particle:
             rendered.append(token)
-        elif token:
+        else:
             rendered.append(token[0].upper() + token[1:])
     return " ".join(rendered)
 

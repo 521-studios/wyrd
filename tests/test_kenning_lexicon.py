@@ -7457,6 +7457,9 @@ def test_render_form_particle_pairs_casing_keyed_on_particle_flag() -> None:
         )
         == "Under on Upon"
     )
+    # Empty tokens are dropped on BOTH branches (incl. an empty flagged particle),
+    # so no doubled spaces leak into the join.
+    assert render_form_particle_pairs([("foo", False), ("", True), ("bar", False)]) == "Foo Bar"
 
 
 def test_kenning_rewind_smart_join_off_at_modern_via_bundle_path() -> None:
