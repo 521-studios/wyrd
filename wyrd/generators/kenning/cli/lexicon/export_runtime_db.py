@@ -338,28 +338,42 @@ def _reject_non_default_filters_under_dev(
     use, so a future bump to one of those propagates to both sites at
     once and can't drift.
     """
-    offenders: list[str] = []
-    if min_witnesses != _DEFAULT_MIN_WITNESSES:
-        offenders.append(f"--min-witnesses={min_witnesses} (canonical: {_DEFAULT_MIN_WITNESSES})")
-    if lang_threshold_specs:
-        offenders.append(f"--lang-threshold {lang_threshold_specs!r} (canonical: none)")
-    if use_preset != _DEFAULT_USE_PRESET:
-        offenders.append("--no-preset (canonical: --preset)")
-    if include_rando != _DEFAULT_INCLUDE_RANDO:
-        offenders.append("--no-include-rando (canonical: --include-rando)")
-    if rando_min_corroborators != _DEFAULT_RANDO_MIN_CORROBORATORS:
-        offenders.append(
+    # (this filter differs from canonical?, the conflict message) — one row per
+    # upstream filter, in report order. Adding a filter is a one-line entry; the
+    # message-vs-condition pairing stays visible instead of a wall of `if`s.
+    checks: list[tuple[bool, str]] = [
+        (
+            min_witnesses != _DEFAULT_MIN_WITNESSES,
+            f"--min-witnesses={min_witnesses} (canonical: {_DEFAULT_MIN_WITNESSES})",
+        ),
+        (
+            bool(lang_threshold_specs),
+            f"--lang-threshold {lang_threshold_specs!r} (canonical: none)",
+        ),
+        (use_preset != _DEFAULT_USE_PRESET, "--no-preset (canonical: --preset)"),
+        (
+            include_rando != _DEFAULT_INCLUDE_RANDO,
+            "--no-include-rando (canonical: --include-rando)",
+        ),
+        (
+            rando_min_corroborators != _DEFAULT_RANDO_MIN_CORROBORATORS,
             f"--rando-min-corroborators={rando_min_corroborators} "
-            f"(canonical: {_DEFAULT_RANDO_MIN_CORROBORATORS})"
-        )
-    if include_wiktionary_empirical != _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL:
-        offenders.append(
-            "--no-include-wiktionary-empirical (canonical: --include-wiktionary-empirical)"
-        )
-    if include_wave2_enriched != _DEFAULT_INCLUDE_WAVE2_ENRICHED:
-        offenders.append("--no-include-wave2-enriched (canonical: --include-wave2-enriched)")
-    if include_toponym_breakdown != _DEFAULT_INCLUDE_TOPONYM_BREAKDOWN:
-        offenders.append("--include-toponym-breakdown (canonical: --no-include-toponym-breakdown)")
+            f"(canonical: {_DEFAULT_RANDO_MIN_CORROBORATORS})",
+        ),
+        (
+            include_wiktionary_empirical != _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL,
+            "--no-include-wiktionary-empirical (canonical: --include-wiktionary-empirical)",
+        ),
+        (
+            include_wave2_enriched != _DEFAULT_INCLUDE_WAVE2_ENRICHED,
+            "--no-include-wave2-enriched (canonical: --include-wave2-enriched)",
+        ),
+        (
+            include_toponym_breakdown != _DEFAULT_INCLUDE_TOPONYM_BREAKDOWN,
+            "--include-toponym-breakdown (canonical: --no-include-toponym-breakdown)",
+        ),
+    ]
+    offenders = [message for differs, message in checks if differs]
     if offenders:
         raise click.UsageError(
             "--dev requires canonical defaults on every upstream filter "
