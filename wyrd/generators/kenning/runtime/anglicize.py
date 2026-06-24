@@ -41,6 +41,11 @@ _DIGRAPH_MAP: dict[str, str] = {
     "ʤ": "J",
 }
 
+# Digraph keys longest-first, so a cluster is matched before any shorter key
+# that is its substring (``tʃ`` before ``ʃ``). Materialised once at import
+# rather than re-sorted on every anglicize_ipa call.
+_SORTED_DIGRAPHS: tuple[str, ...] = tuple(sorted(_DIGRAPH_MAP, key=len, reverse=True))
+
 # Single-char IPA → reader letter. wyrd-03cx round 2: vowels are
 # single-letter so the length marker (ː) can double them cleanly
 # (``/xɑːm/`` → ``KH + A + A (doubled) + M`` → ``KHAAM``). The pre-
@@ -196,20 +201,24 @@ def anglicize_ipa(ipa: str | None) -> str | None:
 
 
 def _mark_digraphs(s: str) -> str:
-    """Replace each multi-char IPA cluster (longest first, so e.g. ``t͡ʃ``
-    beats ``t``) with its mapping wrapped in ``\\0`` sentinels, so the
-    single-phoneme pass lifts it out verbatim instead of re-mapping its
-    letters."""
-    for digraph in sorted(_DIGRAPH_MAP.keys(), key=len, reverse=True):
+    """Wrap each multi-char IPA cluster's mapping in ``\\0`` sentinels.
+
+    The sentinels let the single-phoneme pass lift the mapping out verbatim
+    instead of re-mapping its letters. Clusters are applied longest-first
+    (``_SORTED_DIGRAPHS``) so ``tʃ`` is matched before ``ʃ`` (its suffix, also
+    a digraph key)."""
+    for digraph in _SORTED_DIGRAPHS:
         s = s.replace(digraph, f"\0{_DIGRAPH_MAP[digraph]}\0")
     return s
 
 
 def _map_phonemes(s: str) -> list[str]:
-    """Char-by-char single-phoneme pass over the digraph-marked string:
-    lift sentinel-wrapped digraph runs verbatim, double a vowel before a
-    ``ː`` length marker, drop other stripped/unknown chars, and map the
-    rest via ``_PHONEME_MAP``."""
+    """Render the digraph-marked string into output letter-tokens.
+
+    The load-bearing detail is the coupling to :func:`_mark_digraphs`: this
+    consumes the ``\\0`` sentinels it planted, lifting each wrapped digraph
+    mapping out verbatim. Beyond that it doubles a vowel before a ``ː`` length
+    marker, drops stripped/unknown chars, and maps singles via ``_PHONEME_MAP``."""
     out: list[str] = []
     i = 0
     while i < len(s):
