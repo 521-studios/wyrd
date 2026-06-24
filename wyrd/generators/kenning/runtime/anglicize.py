@@ -185,12 +185,31 @@ def anglicize_ipa(ipa: str | None) -> str | None:
     # Strip combining diacritics first so subsequent char-by-char
     # mapping doesn't trip on a base+diacritic pair.
     s = "".join(ch for ch in s if not _is_combining_diacritic(ch))
+    result = "".join(_map_phonemes(_mark_digraphs(s)))
+    if not result:
+        return None
+    # Collapse runs of 3+ same letter to 2. Preserves intentional
+    # doubled letters ('LL' from ɬ; 'AA' from length-marked vowel)
+    # while clipping pathological triples (a hypothetical /ɑːː/
+    # would produce AAA which reads as a typo, collapsed to AA).
+    return _collapse_runs(result)
 
-    # Multi-char digraphs (longest first so e.g. 't͡ʃ' beats 't').
+
+def _mark_digraphs(s: str) -> str:
+    """Replace each multi-char IPA cluster (longest first, so e.g. ``t͡ʃ``
+    beats ``t``) with its mapping wrapped in ``\\0`` sentinels, so the
+    single-phoneme pass lifts it out verbatim instead of re-mapping its
+    letters."""
     for digraph in sorted(_DIGRAPH_MAP.keys(), key=len, reverse=True):
         s = s.replace(digraph, f"\0{_DIGRAPH_MAP[digraph]}\0")
+    return s
 
-    # Char-by-char single-phoneme pass + length-marker handling.
+
+def _map_phonemes(s: str) -> list[str]:
+    """Char-by-char single-phoneme pass over the digraph-marked string:
+    lift sentinel-wrapped digraph runs verbatim, double a vowel before a
+    ``ː`` length marker, drop other stripped/unknown chars, and map the
+    rest via ``_PHONEME_MAP``."""
     out: list[str] = []
     i = 0
     while i < len(s):
@@ -216,15 +235,7 @@ def anglicize_ipa(ipa: str | None) -> str | None:
         # drop — better to ship a partial reader-pronunciation than
         # to bail entirely.
         i += 1
-
-    result = "".join(out)
-    if not result:
-        return None
-    # Collapse runs of 3+ same letter to 2. Preserves intentional
-    # doubled letters ('LL' from ɬ; 'AA' from length-marked vowel)
-    # while clipping pathological triples (a hypothetical /ɑːː/
-    # would produce AAA which reads as a typo, collapsed to AA).
-    return _collapse_runs(result)
+    return out
 
 
 def _collapse_runs(s: str) -> str:
