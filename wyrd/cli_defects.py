@@ -115,7 +115,7 @@ def list_defects_cmd(env, profile, status, generator, limit, as_json) -> None:
 
 # Human-readable ``show`` layout: (label, report-key). Header fields always
 # print; optional fields print only when their value is truthy. Both render
-# with a 12-char label column so values line up.
+# with a shared label column (`_LABEL_WIDTH`) so values line up.
 _SHOW_HEADER_FIELDS = (
     ("id", "id"),
     ("status", "status"),
@@ -130,6 +130,10 @@ _SHOW_OPTIONAL_FIELDS = (
     ("ticket", "ticket"),
     ("note", "triage_note"),
 )
+
+# Longest label + colon + a trailing space; derived so alignment can't drift
+# when a longer-labelled field is added to either table above.
+_LABEL_WIDTH = max(len(label) for label, _ in (*_SHOW_HEADER_FIELDS, *_SHOW_OPTIONAL_FIELDS)) + 2
 
 
 @defects.command("show")
@@ -152,11 +156,11 @@ def show_defect_cmd(env, profile, defect_id, as_json) -> None:
         return
 
     for label, key in _SHOW_HEADER_FIELDS:
-        click.echo(f"{label + ':':<12}{report.get(key)}")
+        click.echo(f"{label + ':':<{_LABEL_WIDTH}}{report.get(key)}")
     for label, key in _SHOW_OPTIONAL_FIELDS:
         value = report.get(key)
         if value:
-            click.echo(f"{label + ':':<12}{value}")
+            click.echo(f"{label + ':':<{_LABEL_WIDTH}}{value}")
     bv = report.get("bundle_version")
     if bv:
         click.echo("bundle_version:")
