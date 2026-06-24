@@ -7,6 +7,7 @@ import types
 
 from wyrd.generators.kenning.lexicon.pronunciation_backfill import (
     _clean_form,
+    _g2p_outcome,
     _initial_h_is_x,
     _is_real_ipa,
     collect_pronunciation,
@@ -91,6 +92,29 @@ def test_derive_pronunciation_ipa_fill_and_fix():
     assert ipa["ham"] == "/hɑm/"  # fixed: /x/ → /h/
     assert ipa["tun"] == "/tʊn/"  # untouched
     assert ipa["baile"] is None  # irish (Goidelic) not selected
+
+
+def test_g2p_outcome_classifies_every_bucket():
+    """Pin the pure classifier the DB loop drives on: each of the five outcomes,
+    and that ``derived`` (the value written) is non-None for EXACTLY the two
+    write outcomes (filled / fixed_initial_h). Covers ``skipped_passthrough``,
+    which had no end-to-end DB assertion."""
+    cases = [
+        # (lang, form, existing) -> (outcome, writes_a_value)
+        (("old-english", "hām", ""), ("filled", True)),
+        (("old-english", "hām", "/xɑːm/"), ("fixed_initial_h", True)),
+        (("old-english", "cot", "ˈkɔt"), ("kept_existing", False)),
+        (("old-english", "123", ""), ("skipped_unclean", False)),
+        (("old-norse", "xyz", ""), ("skipped_passthrough", False)),
+    ]
+    for (lang, form, existing), (outcome, writes) in cases:
+        key, derived = _g2p_outcome(lang, form, existing)
+        assert key == outcome, f"{lang} {form!r}/{existing!r}: expected {outcome}, got {key}"
+        assert (derived is not None) is writes, (
+            f"{lang} {form!r}: write-flag mismatch ({derived!r})"
+        )
+    # the OE onset-h fix rewrites the existing /x/ onset to the G2P /h/ form
+    assert _g2p_outcome("old-english", "hām", "/xɑːm/")[1] == "/hɑːm/"
 
 
 def test_dry_run_writes_nothing():
