@@ -33824,3 +33824,6 @@
 {"_type": "reflex", "surface_form": "new", "position": "pre", "etymon_refs": ["old-english:neowe"]}
 {"_type": "reflex", "surface_form": "lar", "position": "pre", "etymon_refs": ["old-norse:leirr"]}
 {"_type": "reflex", "surface_form": "lon", "position": "pre", "etymon_refs": ["old-norse:loun"]}
+{"_type": "reflex", "surface_form": "winster", "position": "pre", "etymon_refs": ["old-norse:vinstra"]}
+{"_type": "reflex", "surface_form": "wath", "position": "post", "etymon_refs": ["old-norse:vað"]}
+{"_type": "reflex", "surface_form": "wath", "position": "post", "etymon_refs": ["old-english:vad"]}
