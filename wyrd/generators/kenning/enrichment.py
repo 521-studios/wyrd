@@ -1925,6 +1925,21 @@ _UNRESOLVED_WARNING_SECTIONS: dict[str, tuple[str, ...]] = {
         "children_skipped_invalid_suffix",
         "multiple_primary_collapsed",
     ),
+    # wyrd-66gr: the collapses stage (apply_collapses) tracks the same class of
+    # operator-typo / stale-event silent no-ops the other sections surface, but
+    # was never wired in. Mirror curation's pattern: unresolved-ref signals
+    # (a from/into/inherits/detach ref that didn't resolve) + self-reference
+    # signals (collapse/link of a row into itself). empty_into_skipped is left
+    # out — an empty `into` can be a legitimate detach-only row, not a typo.
+    "collapses": (
+        "unresolved_from",
+        "unresolved_into",
+        "unresolved_inherits",
+        "detach_unresolved_from",
+        "detach_unresolved_endpoint",
+        "self_collapse_skipped",
+        "self_link_skipped",
+    ),
 }
 
 
