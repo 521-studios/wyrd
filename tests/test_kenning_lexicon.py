@@ -5003,7 +5003,145 @@ def test_derive_surface_in_modern_uses_cluster_mate_modern_suffix(fresh_db: Path
     assert surfaces[1] == "ton"
 
 
+def test_derive_surface_in_modern_uses_mined_reflex_surface(fresh_db: Path) -> None:
+    """wyrd-5b1a: the modern reflex surface ('ton') lives in the reflex table (the
+    eni4 scholar-reflex campaign's output) — NOT as a cognate-cluster etymon and
+    NOT as an etymon_variant. derive_surface_in_modern must consult reflex /
+    reflex_etymon so 'Chesterton' = ceaster + tūn splits 'Chester' + 'ton'. This is
+    the exact path that was unwired: the OE inflection 'tūn' never suffix-matches a
+    modern name, so without the reflex the alignment fails."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        ceaster_id = db.upsert_etymon("ceaster", "old-english")
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        # 'ton' is ONLY a mined reflex — no cognate mate, no etymon_variant.
+        reflex_id = db.conn.execute(
+            "INSERT INTO reflex (surface_form, position) VALUES ('ton', 'post')"
+        ).lastrowid
+        db.conn.execute(
+            "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)",
+            (reflex_id, tun_id),
+        )
+        db.commit()
+        _seed_toponym_with_binary_breakdown(
+            db, modern_name="Chesterton", first_etymon_id=ceaster_id, last_etymon_id=tun_id
+        )
+        result = derive_surface_in_modern(db, apply=True)
+        surfaces = _surfaces_by_ordinal(db)
+
+    assert result["rows_projected"] == 1
+    assert surfaces[0] == "Chester"
+    assert surfaces[1] == "ton"
+
+
+def test_suffix_candidates_excludes_reflex_unless_requested(fresh_db: Path) -> None:
+    """wyrd-5b1a: _suffix_candidates_for_etymon only pulls reflex surfaces when
+    include_reflexes=True. The default-False path is what keeps project_period_forms
+    (the historical-form projection) reflex-free — a modern reflex ('ton') would
+    mis-anchor a medieval attested form. Also pins the sub-2-char guard: a 1-char
+    reflex surface is dropped so it can never suffix-match as noise.
+
+    (Tests the helper directly rather than driving project_period_forms — the
+    helper's include_reflexes default IS the historical path's contract.)"""
+    from wyrd.generators.kenning.lexicon.period_form import _suffix_candidates_for_etymon
+
+    with LexiconDB(fresh_db) as db:
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        for sf in ("ton", "n"):  # 'n' is sub-2-char → must be dropped by the len>=2 guard
+            rid = db.conn.execute(
+                "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
+            ).lastrowid
+            db.conn.execute(
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, tun_id)
+            )
+        db.commit()
+        without = _suffix_candidates_for_etymon(db, tun_id, "tūn", None)
+        with_reflex = _suffix_candidates_for_etymon(db, tun_id, "tūn", None, include_reflexes=True)
+
+    assert "ton" not in without  # default path: reflex excluded
+    assert "ton" in with_reflex  # include_reflexes=True: reflex included
+    assert "n" not in with_reflex  # sub-2-char reflex dropped by the len>=2 guard
+
+
+def test_suffix_candidates_drops_composite_reflexes(fresh_db: Path) -> None:
+    """wyrd-5b1a: a COMPOSITE reflex ('eton' = ēa+tūn fused, ends in the bare
+    reflex 'ton') must be dropped so the longest-suffix anchor lands on the
+    morpheme boundary — else 'Stapleton' splits 'Stapl'+'eton' instead of
+    'Staple'+'ton'. Keep only minimal morpheme surfaces."""
+    from wyrd.generators.kenning.lexicon.period_form import _suffix_candidates_for_etymon
+
+    with LexiconDB(fresh_db) as db:
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        for sf in ("ton", "eton", "aughton"):  # 'eton'/'aughton' end in 'ton'
+            rid = db.conn.execute(
+                "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
+            ).lastrowid
+            db.conn.execute(
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, tun_id)
+            )
+        db.commit()
+        cands = _suffix_candidates_for_etymon(db, tun_id, "tūn", None, include_reflexes=True)
+
+    assert "ton" in cands  # minimal morpheme surface kept
+    assert "eton" not in cands  # composite dropped
+    assert "aughton" not in cands  # composite dropped
+
+
+def test_suffix_candidates_keeps_base_reflex_with_reduced_sibling(fresh_db: Path) -> None:
+    """wyrd-5b1a (Gemini #741): a longer reflex that ends in a shorter one is NOT a
+    composite when the shorter is a phonetic REDUCTION of the same morpheme. OE burh
+    has 'bury' (base) + 'ury' (reduced, as in Canterbury); 'bury' ends in 'ury', but
+    its extra prefix 'b' starts the canonical 'burh', so it's a genuine base form and
+    must be KEPT — not dropped as a composite. The filter only drops a surface whose
+    extra prefix does NOT prefix the canonical.
+
+    Uses burh/bury so the canonical form does NOT itself strip to the base reflex
+    'bury' — otherwise _add(canonical_form) would independently re-add 'bury' and
+    mask whether the composite filter kept it (the test would pass even unfixed)."""
+    from wyrd.generators.kenning.lexicon.period_form import _suffix_candidates_for_etymon
+
+    with LexiconDB(fresh_db) as db:
+        burh_id = db.upsert_etymon("burh", "old-english")
+        for sf in ("bury", "ury"):  # base + phonetically-reduced sibling
+            rid = db.conn.execute(
+                "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
+            ).lastrowid
+            db.conn.execute(
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, burh_id)
+            )
+        db.commit()
+        cands = _suffix_candidates_for_etymon(db, burh_id, "burh", None, include_reflexes=True)
+
+    assert "bury" in cands  # base kept — extra prefix 'b' starts canonical 'burh'
+    assert "ury" in cands  # reduced sibling kept too
+
+
+def test_suffix_candidates_diacritic_base_reflex_not_dropped(fresh_db: Path) -> None:
+    """wyrd-5b1a (Gemini #741): the composite filter must compare diacritic-stripped
+    forms. A diacritic-bearing base reflex ('ācen' of canonical 'āc') whose extra
+    prefix 'ā' starts the morpheme must be KEPT — without consistent stripping, the
+    unstripped 'ā' would not match the stripped canonical 'ac', so 'ācen' would be
+    wrongly dropped as a composite."""
+    from wyrd.generators.kenning.lexicon.period_form import _suffix_candidates_for_etymon
+
+    with LexiconDB(fresh_db) as db:
+        ac_id = db.upsert_etymon("āc", "old-english")
+        for sf in ("ācen", "cen"):  # diacritic-bearing base + reduced sibling
+            rid = db.conn.execute(
+                "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
+            ).lastrowid
+            db.conn.execute(
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, ac_id)
+            )
+        db.commit()
+        cands = _suffix_candidates_for_etymon(db, ac_id, "āc", None, include_reflexes=True)
+
+    # 'ācen' kept → _add stores its diacritic-stripped form 'acen' too.
+    assert "acen" in cands  # base reflex not wrongly dropped on a diacritic mismatch
+
+
 def test_derive_surface_in_modern_dry_run_writes_nothing(fresh_db: Path) -> None:
+    """apply=False reports the projection count but writes no surface_in_modern."""
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="src", title="S")
         brad_id = db.upsert_etymon("brad", "old-english")
