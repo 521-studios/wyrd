@@ -3255,3 +3255,32 @@
 {"ref": "old-norse:0yrr", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
 {"ref": "old-norse:0ystri", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
 {"ref": "old-norse:va6", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:drceg", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:dtc", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:edsttun", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:fdh", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:felestar", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:grafesy", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:hcest", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:hcsdan", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:hdh", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:htun", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:mgid", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:msctun", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:rcege", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:sburh", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:teghrycg", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:wcetlinga", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:weligum", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:wicxim", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:wlgstan", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:wlsa", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "modern-english:babllings", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "modern-english:bldke", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "modern-english:caldckere", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "modern-english:stdn", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:brdc", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:ddl", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:pceccan", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:pcets", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
+{"ref": "old-english:piicel", "reason": "OCR-corrupted etymon canonical (non-letter char or impossible cluster): not a real etymon form"}
