@@ -306,3 +306,4 @@ risky-tail — rather than pollute the matcher. Commit + push every fire.
 - Fire #259 (2026-06-24): vowel-shift refreshed. Authored 4 — foeger→`fair` (Fairsnape), hulle→`hill` (Calver Hill), hwcce→`hatch` (Hatch), scaga→`shaw` (Catshaw). Cumulative: 956 authored, ~1887 parked.
 - Fire #260 (2026-06-24): vowel-shift [30:62]. Authored 4 — ON *senk→`sink` (Sinkfall), ON bergh→`boro` (Finborough), latin cestr+cestre→`chest` (Ebchester/Lanchester, ceaster). Cumulative: 960 authored, ~1887 parked. 260 fires.
 - Fire #261 (2026-06-24): vowel-shift [62:95]. Authored 4 — ModE feld→`field` (Field), Hwicce→`hitch` (Hitcham), berge→`boro` (Brogborow), beorh→`bart` (Bartlow). Cumulative: 964 authored, ~1887 parked.
+- Fire #262 (2026-06-24): vowel-shift [95:130]. Authored 4 — burg→`berth` (Tilberthwaite), hertes→`harts` (Hartside), forster→`frost` (Frosterley), feud→`field` (Broxfield). Cumulative: 968 authored, ~1887 parked.
