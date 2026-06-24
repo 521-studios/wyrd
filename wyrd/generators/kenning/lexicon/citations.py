@@ -171,6 +171,48 @@ def _quote_body_excerpt(quote: str) -> str:
     return quote[idx + len(sep) :]
 
 
+def _resolve_quote_page(
+    quote: str | None,
+    *,
+    norm_text: str,
+    norm_to_orig: list[int],
+    headers: list[tuple[int, int]],
+) -> tuple[int | None, str, bool]:
+    """Resolve one quoted excerpt to its source page.
+
+    Pure given the pre-normalized body (``norm_text`` + its ``norm_to_orig``
+    offset map) and the header sequence — no DB, no shared counters. Returns
+    ``(page, status, ambiguous)``:
+
+      - ``status`` is ``"ok"`` (``page`` set), or one of the skip reasons
+        ``"no_quote"`` / ``"quote_not_in_text"`` / ``"before_first_page"``
+        (``page`` is None).
+      - ``ambiguous`` (wyrd-3yu) is True when the normalized excerpt occurs at
+        more than one position, so the leftmost-match heuristic was forced to
+        guess. It is independent of ``status`` — a quote can be both ambiguous
+        and resolve to a page, or be ambiguous yet land ``before_first_page``;
+        the caller tallies it regardless of outcome.
+    """
+    if not quote:
+        return None, "no_quote", False
+    body = _quote_body_excerpt(quote).strip()
+    if not body:
+        return None, "no_quote", False
+    norm_quote, _ = _normalize_for_quote_match(body)
+    norm_quote = norm_quote.strip()
+    if not norm_quote:
+        return None, "no_quote", False
+    norm_offset = norm_text.find(norm_quote)
+    if norm_offset < 0:
+        return None, "quote_not_in_text", False
+    ambiguous = norm_text.find(norm_quote, norm_offset + 1) >= 0
+    orig_offset = norm_to_orig[norm_offset]
+    page = page_for_offset(headers, orig_offset)
+    if page is None:
+        return None, "before_first_page", ambiguous
+    return page, "ok", ambiguous
+
+
 def backfill_citation_pages(
     db: LexiconDB,
     source_id: str,
@@ -230,29 +272,12 @@ def backfill_citation_pages(
     norm_text, norm_to_orig = _normalize_for_quote_match(source_text)
 
     def _resolve_page(quote: str | None) -> tuple[int | None, str]:
-        if not quote:
-            return None, "no_quote"
-        body = _quote_body_excerpt(quote).strip()
-        if not body:
-            return None, "no_quote"
-        norm_quote, _ = _normalize_for_quote_match(body)
-        norm_quote = norm_quote.strip()
-        if not norm_quote:
-            return None, "no_quote"
-        norm_offset = norm_text.find(norm_quote)
-        if norm_offset < 0:
-            return None, "quote_not_in_text"
-        # wyrd-3yu: if the quote appears at more than one position the
-        # leftmost-match heuristic may attribute the citation to a nearby
-        # but wrong entry. Track the count so operators can spot when a
-        # source's quotes are systematically too-short to disambiguate.
-        if norm_text.find(norm_quote, norm_offset + 1) >= 0:
+        page, status, ambiguous = _resolve_quote_page(
+            quote, norm_text=norm_text, norm_to_orig=norm_to_orig, headers=headers
+        )
+        if ambiguous:
             counts["ambiguous_match"] += 1
-        orig_offset = norm_to_orig[norm_offset]
-        page = page_for_offset(headers, orig_offset)
-        if page is None:
-            return None, "before_first_page"
-        return page, "ok"
+        return page, status
 
     _backfill_table_pages(
         db,
