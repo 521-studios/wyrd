@@ -281,7 +281,8 @@ def _readiness_table_lines(report: ReadinessReport) -> list[str]:
 
 
 def _readiness_definitions_lines(report: ReadinessReport) -> list[str]:
-    """Static criterion definitions (C1/C2/C3 + the Scholar-only visibility note)."""
+    """Criterion definitions (C1/C2/C3 + the Scholar-only visibility note). Only
+    the C1 line interpolates ``report.coverage_threshold``; the rest is fixed text."""
     return [
         "## Criterion definitions",
         "",

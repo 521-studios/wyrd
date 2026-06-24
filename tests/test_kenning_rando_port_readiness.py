@@ -485,10 +485,13 @@ def test_format_readiness_documents_scholar_only_column():
 
 
 def test_format_readiness_pass_marker():
-    """Passing report includes the PASS verdict."""
+    """Passing report includes the PASS verdict and omits the failure section."""
     report = ReadinessReport(coverage_threshold=0.80, per_language=())
     out = format_readiness(report)
     assert "PASS — retirement gate open" in out
+    # The "why closed" section must be absent on a pass — pins the
+    # _readiness_failure_lines early-return (returns [] when overall_passes).
+    assert "Why the gate is closed" not in out
 
 
 def test_format_readiness_fail_marker_shows_why():
