@@ -393,3 +393,4 @@ risky-tail — rather than pollute the matcher. Commit + push every fire.
 - Fire #346 (2026-06-24): no-op (floor; Rail B=0). Cumulative UNCHANGED: 1194. PR #740 mergeable; awaiting user close-out.
 - Fire #347 (2026-06-24): no-op (floor; Rail B=0). Cumulative UNCHANGED: 1194. PR #740 mergeable; awaiting user close-out.
 - Fire #348 (2026-06-24): no-op (floor; Rail B=0). Cumulative UNCHANGED: 1194. PR #740 mergeable; awaiting user close-out.
+- Fire #349 (2026-06-24): no-op (floor; Rail B=0). Cumulative UNCHANGED: 1194. PR #740 mergeable; awaiting user close-out.
