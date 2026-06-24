@@ -7448,6 +7448,15 @@ def test_render_form_particle_pairs_casing_keyed_on_particle_flag() -> None:
     )
     # A lone genuine free particle stays lowercase.
     assert render_form_particle_pairs([("on", True)]) == "on"
+    # Both passes together: two non-particle runs that each collide with a free
+    # particle ("un"+"der"="under", "up"+"on"="upon") are title-cased, while the
+    # genuine flagged particle between them stays lowercase.
+    assert (
+        render_form_particle_pairs(
+            [("un", False), ("der", False), ("on", True), ("up", False), ("on", False)]
+        )
+        == "Under on Upon"
+    )
 
 
 def test_kenning_rewind_smart_join_off_at_modern_via_bundle_path() -> None:
