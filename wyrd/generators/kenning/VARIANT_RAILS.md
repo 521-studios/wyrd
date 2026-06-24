@@ -369,3 +369,4 @@ risky-tail — rather than pollute the matcher. Commit + push every fire.
 - Fire #322 (2026-06-24): first-2 tight scan. Authored 4 — ticce→`tix` (Tixall, cc→x), latin renus+rennius→`renos` (De Renos), ancra→`anker` (Ankerdine, c→k). Cumulative: 1164 authored, ~1887 parked.
 - Fire #323 (2026-06-24): first-2 scan [62:92]. Authored 3 — mearft→`merte` (Mertelai, mearð marten), drie→`dry` (Dry Burn), sabeorht→`sawbe` (Sawbridgeworth, Sæbeorht). Cumulative: 1167 authored, ~1887 parked.
 - Fire #324 (2026-06-24): first-2 scan (tail 0 clean; front residue). Authored 2 — latin brinnius→`brign` (Brignon, nn→gn), blec→`blak` (Blakoumore, blæc). Cumulative: 1169 authored, ~1887 parked. Scan pool ~103, genuine yield ~2/fire — residue floor approaching.
+- Fire #325 (2026-06-24): first-2 scan refreshed. Authored 3 — ripel→`ribyl` (Ribyl, p→b), OFr Alan→`allen` (Allensmore), telia→`telh` (Telham, Tela). Cumulative: 1172 authored, ~1887 parked.
