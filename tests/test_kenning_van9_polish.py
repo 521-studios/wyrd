@@ -202,6 +202,35 @@ def test_format_warnings_surfaces_each_section():
     assert "etymon_splits.children_skipped_invalid_suffix: 1" in text
 
 
+def test_format_warnings_surfaces_collapses_signals():
+    """wyrd-66gr: the collapses stage's unresolved-ref / self-reference typo
+    counters were never wired into the warning block, so collapse-event typos
+    (an unresolved from/into/inherits ref, or a row collapsed into itself)
+    produced silent no-ops invisible to operators and to --strict. The result's
+    ``collapses`` key is apply_collapses' counts dict (run_full_enrichment line
+    ~1631, slot_counts['collapses']) with these counters at the top level, so a
+    realistic result now surfaces them — and a non-empty return is the --strict
+    fail signal."""
+    # Shape mirrors run_full_enrichment's result["collapses"] = slot_counts["collapses"].
+    result = {
+        "collapses": {
+            "collapses_processed": 5,  # normal-operation count: must NOT surface
+            "unresolved_from": 2,
+            "unresolved_into": 0,
+            "self_collapse_skipped": 1,
+            "detach_unresolved_endpoint": 3,
+        },
+    }
+    text = format_unresolved_warnings(result)
+    assert text != ""  # drives `lexicon enrich --strict` (non-empty == fail)
+    assert "collapses.unresolved_from: 2" in text
+    assert "collapses.self_collapse_skipped: 1" in text
+    assert "collapses.detach_unresolved_endpoint: 3" in text
+    # Zero-valued and normal-operation counts stay out of the report.
+    assert "unresolved_into" not in text
+    assert "collapses_processed" not in text
+
+
 def test_format_warnings_render_order_follows_section_table():
     """Multiple simultaneously-flagged signals render in a fixed order —
     sections in `_UNRESOLVED_WARNING_SECTIONS` insertion order, counters in
@@ -249,6 +278,14 @@ _ALL_COUNTER_NAMES = [
     ("etymon_splits", "children_skipped_no_suffix"),
     ("etymon_splits", "children_skipped_invalid_suffix"),
     ("etymon_splits", "multiple_primary_collapsed"),
+    # wyrd-66gr: collapses-stage unresolved-ref + self-reference typo signals.
+    ("collapses", "unresolved_from"),
+    ("collapses", "unresolved_into"),
+    ("collapses", "unresolved_inherits"),
+    ("collapses", "detach_unresolved_from"),
+    ("collapses", "detach_unresolved_endpoint"),
+    ("collapses", "self_collapse_skipped"),
+    ("collapses", "self_link_skipped"),
 ]
 
 
