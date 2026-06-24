@@ -33967,3 +33967,6 @@
 {"_type": "reflex", "surface_form": "furth", "position": "pre", "etymon_refs": ["old-english:forð"]}
 {"_type": "reflex", "surface_form": "rod", "position": "pre", "etymon_refs": ["old-english:rēad"]}
 {"_type": "reflex", "surface_form": "hort", "position": "pre", "etymon_refs": ["old-english:heorot"]}
+{"_type": "reflex", "surface_form": "star", "position": "post", "etymon_refs": ["old-norse:sker"]}
+{"_type": "reflex", "surface_form": "mepper", "position": "pre", "etymon_refs": ["norman-french:meipert"]}
+{"_type": "reflex", "surface_form": "monaster", "position": "pre", "etymon_refs": ["latin:monasterium"]}
