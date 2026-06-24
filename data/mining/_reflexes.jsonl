@@ -34066,3 +34066,5 @@
 {"_type": "reflex", "surface_form": "storn", "position": "pre", "etymon_refs": ["old-norse:stjorn"]}
 {"_type": "reflex", "surface_form": "soul", "position": "pre", "etymon_refs": ["old-norse:súl"]}
 {"_type": "reflex", "surface_form": "was", "position": "pre", "etymon_refs": ["old-norse:vað"]}
+{"_type": "reflex", "surface_form": "dieu", "position": "post", "etymon_refs": ["latin:dei"]}
+{"_type": "reflex", "surface_form": "keel", "position": "pre", "etymon_refs": ["middle-english:Cylla"]}
