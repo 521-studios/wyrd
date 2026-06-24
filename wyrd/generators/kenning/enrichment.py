@@ -1835,6 +1835,19 @@ _OPTIONAL_SECTIONS: tuple[tuple[str, Any], ...] = (
 )
 
 
+# Sibling of _OPTIONAL_SECTIONS for stages whose run summary renders as a
+# single markdown block via a format_*_run helper (returns one string, not a
+# line list). Rendered in this order, each preceded by a blank line, only when
+# the stage ran. Stays ahead of the inline element-gloss / tag / pronunciation
+# blocks in format_enrichment_run to preserve section order.
+_RUN_SECTION_RENDERERS: tuple[tuple[str, Any], ...] = (
+    ("curation", format_curation_run),
+    ("gloss_suppressions", format_gloss_suppression_run),
+    ("gloss_additions", format_gloss_addition_run),
+    ("etymon_splits", format_etymon_split_run),
+)
+
+
 def format_enrichment_run(result: dict[str, Any]) -> str:
     """Render :func:`run_full_enrichment` output as markdown."""
     verb_ocr = "merged" if result["applied"] else "mergeable"
@@ -1852,18 +1865,11 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
         "### Lemma linkage (`" + result["lemmas"]["method_version"] + "`)",
         f"- Inflected etymons {verb_lemmas}: {result['lemmas']['candidates']}",
     ]
-    if result.get("curation"):
-        lines.append("")
-        lines.append(format_curation_run(result["curation"]))
-    if result.get("gloss_suppressions"):
-        lines.append("")
-        lines.append(format_gloss_suppression_run(result["gloss_suppressions"]))
-    if result.get("gloss_additions"):
-        lines.append("")
-        lines.append(format_gloss_addition_run(result["gloss_additions"]))
-    if result.get("etymon_splits"):
-        lines.append("")
-        lines.append(format_etymon_split_run(result["etymon_splits"]))
+    for key, render in _RUN_SECTION_RENDERERS:
+        payload = result.get(key)
+        if payload:
+            lines.append("")
+            lines.append(render(payload))
     if result.get("element_glosses"):
         eg = result["element_glosses"]
         lines.append("")
