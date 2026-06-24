@@ -1896,6 +1896,37 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# wyrd-van9: per enrichment stage, the result key (also the displayed
+# section name) and the unresolved-ref / typo counters it can expose.
+# Adding a stage or counter is a one-line edit here; the counter order
+# within a stage is the order they render.
+_UNRESOLVED_WARNING_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "curation",
+        (
+            "unresolved_etymon",
+            "unresolved_lemma_ref",
+            "unresolved_merge_ref",
+            "self_reference_lemma",
+            "self_reference_merge",
+        ),
+    ),
+    ("gloss_suppressions", ("unresolved_etymon", "unresolved_gloss")),
+    ("gloss_additions", ("unresolved_etymon",)),
+    (
+        "etymon_splits",
+        (
+            "unresolved_etymon",
+            "glosses_missing",
+            "tags_missing",
+            "children_skipped_no_suffix",
+            "children_skipped_invalid_suffix",
+            "multiple_primary_collapsed",
+        ),
+    ),
+)
+
+
 def format_unresolved_warnings(result: dict[str, Any]) -> str:
     """wyrd-van9: pull the unresolved-ref / typo counters out of the
     enrichment result + render a stderr warning block when any are
@@ -1905,62 +1936,13 @@ def format_unresolved_warnings(result: dict[str, Any]) -> str:
     signal; without ``--strict`` the warnings still surface on stderr
     so an interactive operator sees them, but the exit code stays 0.
     """
-    sections: list[tuple[str, dict[str, int]]] = []
-    curation = result.get("curation")
-    if curation:
-        sections.append(
-            (
-                "curation",
-                {
-                    "unresolved_etymon": curation.get("unresolved_etymon", 0),
-                    "unresolved_lemma_ref": curation.get("unresolved_lemma_ref", 0),
-                    "unresolved_merge_ref": curation.get("unresolved_merge_ref", 0),
-                    "self_reference_lemma": curation.get("self_reference_lemma", 0),
-                    "self_reference_merge": curation.get("self_reference_merge", 0),
-                },
-            )
-        )
-    sup = result.get("gloss_suppressions")
-    if sup:
-        sections.append(
-            (
-                "gloss_suppressions",
-                {
-                    "unresolved_etymon": sup.get("unresolved_etymon", 0),
-                    "unresolved_gloss": sup.get("unresolved_gloss", 0),
-                },
-            )
-        )
-    addition = result.get("gloss_additions")
-    if addition:
-        sections.append(
-            (
-                "gloss_additions",
-                {
-                    "unresolved_etymon": addition.get("unresolved_etymon", 0),
-                },
-            )
-        )
-    splits = result.get("etymon_splits")
-    if splits:
-        sections.append(
-            (
-                "etymon_splits",
-                {
-                    "unresolved_etymon": splits.get("unresolved_etymon", 0),
-                    "glosses_missing": splits.get("glosses_missing", 0),
-                    "tags_missing": splits.get("tags_missing", 0),
-                    "children_skipped_no_suffix": splits.get("children_skipped_no_suffix", 0),
-                    "children_skipped_invalid_suffix": splits.get(
-                        "children_skipped_invalid_suffix", 0
-                    ),
-                    "multiple_primary_collapsed": splits.get("multiple_primary_collapsed", 0),
-                },
-            )
-        )
     flagged: list[tuple[str, str, int]] = []
-    for name, counters in sections:
-        for counter, value in counters.items():
+    for name, counters in _UNRESOLVED_WARNING_SECTIONS:
+        section = result.get(name)
+        if not section:
+            continue
+        for counter in counters:
+            value = section.get(counter, 0)
             if value:
                 flagged.append((name, counter, value))
     if not flagged:
