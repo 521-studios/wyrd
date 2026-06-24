@@ -57,3 +57,19 @@ def test_ambiguous_is_independent_of_before_first_page_status():
 def test_whitespace_runs_in_quote_are_normalized_before_matching():
     # The stored quote may carry OCR multi-spaces; matching is on normalized text.
     assert _resolve("PROV |   brown    fox  ") == (5, "ok", False)
+
+
+def test_offset_is_translated_through_non_identity_norm_to_orig_map():
+    # The header lookup must use the ORIGINAL offset (norm_to_orig[norm_offset]),
+    # not the normalized one. Use a non-identity map (every norm position shifted
+    # +5, as if 5 chars were collapsed before it) and a header keyed in original
+    # coordinates: a bug that looked up page_for_offset with the *normalized*
+    # offset would fall before the header and wrongly report before_first_page.
+    norm_text = "alpha beta gamma"
+    norm_to_orig = [i + 5 for i in range(len(norm_text))]
+    beta_norm = norm_text.find("beta")  # 6 -> original offset 11
+    headers = [(norm_to_orig[beta_norm], 8)]  # page 8 starts at original offset 11
+    result = _resolve_quote_page(
+        "PROV | beta", norm_text=norm_text, norm_to_orig=norm_to_orig, headers=headers
+    )
+    assert result == (8, "ok", False)
