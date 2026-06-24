@@ -3241,3 +3241,17 @@
 {"ref": "goidelic:va", "reason": "goidelic/celtic gaps=1 (residual out-of-scope): non-English Gaelic/Celtic etymon, not an anglicized English matcher element"}
 {"ref": "goidelic:val", "reason": "goidelic/celtic gaps=1 (residual out-of-scope): non-English Gaelic/Celtic etymon, not an anglicized English matcher element"}
 {"ref": "goidelic:ystre", "reason": "goidelic/celtic gaps=1 (residual out-of-scope): non-English Gaelic/Celtic etymon, not an anglicized English matcher element"}
+{"ref": "old-english:hy§", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:neoj>or", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:*h8ema", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:ceolfer&es", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:cl&fre", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:j>yrne", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:l&g", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:m&r-deni4", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:mc&d", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:né&p", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-english:weorj>", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-norse:0yrr", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-norse:0ystri", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
+{"ref": "old-norse:va6", "reason": "garbled etymon canonical (contains digit/&/>/§ — OCR/data-quality corruption): not a real etymon form, cannot ground an authorable reflex"}
