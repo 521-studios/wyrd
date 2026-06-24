@@ -10,6 +10,20 @@ from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import LexiconDB, clear_enrichment
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
+# Per clearable enrichment artifact: (result key, human noun for the count line).
+# Printed in this order; a count of 0 (or an absent key for a stage that doesn't
+# produce it) prints nothing.
+_CLEAR_COUNT_LINES: tuple[tuple[str, str], ...] = (
+    ("ocr_merges_to_clear", "merged_into_id rows"),
+    ("lemma_links_to_clear", "lemma links"),
+    ("text_match_rows_to_clear", "text-match rows"),
+    ("cognate_assignments_to_clear", "cognate_id assignments"),
+    ("attested_years_to_clear", "attested_year values"),
+    ("attestation_rows_to_clear", "toponym_attestation rows"),
+    ("period_form_rows_to_clear", "etymon_period_form rows"),
+    ("canonical_nodes_to_clear", "canonical nodes (+ binds/labels)"),
+)
+
 
 @click.command("clear-enrichment")
 @click.option(
@@ -72,33 +86,10 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
 
     verb = "cleared" if apply_changes else "would clear"
     click.echo(f"Stage: {result['stage']}", err=True)
-    if result["ocr_merges_to_clear"]:
-        click.echo(f"  {verb} {result['ocr_merges_to_clear']} merged_into_id rows", err=True)
-    if result["lemma_links_to_clear"]:
-        click.echo(f"  {verb} {result['lemma_links_to_clear']} lemma links", err=True)
-    if result["text_match_rows_to_clear"]:
-        click.echo(f"  {verb} {result['text_match_rows_to_clear']} text-match rows", err=True)
-    if result["cognate_assignments_to_clear"]:
-        click.echo(
-            f"  {verb} {result['cognate_assignments_to_clear']} cognate_id assignments", err=True
-        )
-    if result.get("attested_years_to_clear"):
-        click.echo(f"  {verb} {result['attested_years_to_clear']} attested_year values", err=True)
-    if result.get("attestation_rows_to_clear"):
-        click.echo(
-            f"  {verb} {result['attestation_rows_to_clear']} toponym_attestation rows",
-            err=True,
-        )
-    if result.get("period_form_rows_to_clear"):
-        click.echo(
-            f"  {verb} {result['period_form_rows_to_clear']} etymon_period_form rows",
-            err=True,
-        )
-    if result.get("canonical_nodes_to_clear"):
-        click.echo(
-            f"  {verb} {result['canonical_nodes_to_clear']} canonical nodes (+ binds/labels)",
-            err=True,
-        )
+    for key, noun in _CLEAR_COUNT_LINES:
+        count = result.get(key)
+        if count:
+            click.echo(f"  {verb} {count} {noun}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 
