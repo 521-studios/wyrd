@@ -7427,6 +7427,41 @@ def test_render_form_particle_pairs_smart_join_branches() -> None:
     assert render_form_particle_pairs([("foo", False), ("on", True)]) == "Foo on"
 
 
+def test_render_form_particle_pairs_casing_keyed_on_particle_flag() -> None:
+    """wyrd-mfmr: casing is decided by the is_particle flag, not by whether the
+    rendered surface happens to equal a free particle. A non-particle run whose
+    forms concatenate to a free-particle string is still title-cased, and a
+    single non-particle whose form is a free-particle string is title-cased per
+    the docstring contract — while genuine (flagged) free particles stay
+    lowercase. Previously the pass-2 ``token in _FREE_PARTICLES`` surface check
+    mis-lowercased the first two cases."""
+    from wyrd.generators.kenning.era.rewind import render_form_particle_pairs
+
+    # Concatenated non-particles that form a free-particle string -> title-cased.
+    assert render_form_particle_pairs([("un", False), ("der", False)]) == "Under"
+    # Single non-particle whose form IS a free-particle string -> title-cased.
+    assert render_form_particle_pairs([("on", False)]) == "On"
+    assert render_form_particle_pairs([("of", False)]) == "Of"
+    # Genuine free particle (flagged) stays lowercase as its own spaced token.
+    assert (
+        render_form_particle_pairs([("foo", False), ("on", True), ("bar", False)]) == "Foo on Bar"
+    )
+    # A lone genuine free particle stays lowercase.
+    assert render_form_particle_pairs([("on", True)]) == "on"
+    # Both passes together: two non-particle runs that each collide with a free
+    # particle ("un"+"der"="under", "up"+"on"="upon") are title-cased, while the
+    # genuine flagged particle between them stays lowercase.
+    assert (
+        render_form_particle_pairs(
+            [("un", False), ("der", False), ("on", True), ("up", False), ("on", False)]
+        )
+        == "Under on Upon"
+    )
+    # Empty tokens are dropped on BOTH branches (incl. an empty flagged particle),
+    # so no doubled spaces leak into the join.
+    assert render_form_particle_pairs([("foo", False), ("", True), ("bar", False)]) == "Foo Bar"
+
+
 def test_kenning_rewind_smart_join_off_at_modern_via_bundle_path() -> None:
     """wyrd-2pio: the bundle-driven KenningRewind path applies
     smart_join=False at modern-english (per wyrd-t2bh). Pins the

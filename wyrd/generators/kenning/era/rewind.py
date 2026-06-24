@@ -145,24 +145,42 @@ def render_form_particle_pairs(pairs: list[tuple[str, bool]], *, smart_join: boo
         return _concat_form_pairs_simple(pairs)
     if not pairs:
         return ""
-    tokens: list[str] = []  # space-separated output tokens
+    return _titlecase_join_tokens(_group_pairs_into_tokens(pairs))
+
+
+def _group_pairs_into_tokens(pairs: list[tuple[str, bool]]) -> list[tuple[str, bool]]:
+    """Smart-join pass 1: collapse each run of adjacent non-particle forms into
+    one ``(token, is_particle=False)`` token, and emit each particle as its own
+    ``(form.lower(), is_particle=True)`` token. The particle flag rides along so
+    pass 2 can decide casing by origin, not by the rendered surface string."""
+    tokens: list[tuple[str, bool]] = []  # (token, is_particle), space-separated
     pending: list[str] = []  # buffer of adjacent non-particle forms
     for form, is_particle in pairs:
         if is_particle:
             if pending:
-                tokens.append("".join(pending))
+                tokens.append(("".join(pending), False))
                 pending = []
-            tokens.append(form.lower())
+            tokens.append((form.lower(), True))
         else:
             pending.append(form)
     if pending:
-        tokens.append("".join(pending))
-    # Title-case each non-particle token; particles stay lowercase.
+        tokens.append(("".join(pending), False))
+    return tokens
+
+
+def _titlecase_join_tokens(tokens: list[tuple[str, bool]]) -> str:
+    """Smart-join pass 2: keep particle tokens lowercase, title-case non-particle
+    tokens, drop empties, and space-join. Casing is keyed on the ``is_particle``
+    flag — NOT on ``_FREE_PARTICLES`` membership — so a non-particle run whose
+    forms happen to concatenate to a free-particle string (``un`` + ``der`` →
+    ``Under``) is still title-cased (wyrd-mfmr)."""
     rendered: list[str] = []
-    for token in tokens:
-        if token in _FREE_PARTICLES:
+    for token, is_particle in tokens:
+        if not token:
+            continue  # drop empties uniformly (incl. empty particles) — no double spaces
+        if is_particle:
             rendered.append(token)
-        elif token:
+        else:
             rendered.append(token[0].upper() + token[1:])
     return " ".join(rendered)
 
