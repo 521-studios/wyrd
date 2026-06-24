@@ -202,6 +202,33 @@ def test_format_warnings_surfaces_each_section():
     assert "etymon_splits.children_skipped_invalid_suffix: 1" in text
 
 
+def test_format_warnings_render_order_follows_section_table():
+    """Multiple simultaneously-flagged signals render in a fixed order —
+    sections in `_UNRESOLVED_WARNING_SECTIONS` insertion order, counters in
+    their declared tuple order — independent of the input dict's key order.
+    Locks the ordering contract so a future table reorder can't silently
+    change operator output (all other tests fire one section/counter)."""
+    # etymon_splits intentionally lists glosses_missing before unresolved_etymon
+    # in the INPUT; the render must still follow the table (unresolved_etymon first).
+    result = {
+        "curation": {"unresolved_etymon": 1, "unresolved_merge_ref": 2},
+        "gloss_suppressions": {"unresolved_gloss": 3},
+        "gloss_additions": {"unresolved_etymon": 4},
+        "etymon_splits": {"glosses_missing": 5, "unresolved_etymon": 6},
+    }
+    text = format_unresolved_warnings(result)
+    expected_order = [
+        "curation.unresolved_etymon: 1",
+        "curation.unresolved_merge_ref: 2",
+        "gloss_suppressions.unresolved_gloss: 3",
+        "gloss_additions.unresolved_etymon: 4",
+        "etymon_splits.unresolved_etymon: 6",
+        "etymon_splits.glosses_missing: 5",
+    ]
+    positions = [text.index(line) for line in expected_order]
+    assert positions == sorted(positions), f"lines rendered out of order:\n{text}"
+
+
 _ALL_COUNTER_NAMES = [
     ("curation", "unresolved_etymon"),
     ("curation", "unresolved_lemma_ref"),
