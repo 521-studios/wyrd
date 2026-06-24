@@ -29,7 +29,17 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.cli.lexicon.export_runtime_db import SCHEMA_VERSION
+from wyrd.generators.kenning.cli.lexicon.export_runtime_db import (
+    _DEFAULT_INCLUDE_RANDO,
+    _DEFAULT_INCLUDE_TOPONYM_BREAKDOWN,
+    _DEFAULT_INCLUDE_WAVE2_ENRICHED,
+    _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL,
+    _DEFAULT_MIN_WITNESSES,
+    _DEFAULT_RANDO_MIN_CORROBORATORS,
+    _DEFAULT_USE_PRESET,
+    SCHEMA_VERSION,
+    _reject_non_default_filters_under_dev,
+)
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
     DEV_BUILT_AT,
     DEV_SOURCE_LEXICON_SENTINEL,
@@ -789,6 +799,63 @@ def test_dev_flag_rejects_rando_min_corroborators(tmp_path: Path) -> None:
     )
     assert result.exit_code != 0
     assert "--rando-min-corroborators" in result.output
+
+
+# Canonical (all-default) kwargs for the --dev guard, built from the _DEFAULT_*
+# constants so this baseline is all-canonical by construction even if a default
+# is bumped later.
+_CANONICAL_DEV_FILTERS = {
+    "min_witnesses": _DEFAULT_MIN_WITNESSES,
+    "lang_threshold_specs": (),
+    "use_preset": _DEFAULT_USE_PRESET,
+    "include_rando": _DEFAULT_INCLUDE_RANDO,
+    "rando_min_corroborators": _DEFAULT_RANDO_MIN_CORROBORATORS,
+    "include_wiktionary_empirical": _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL,
+    "include_wave2_enriched": _DEFAULT_INCLUDE_WAVE2_ENRICHED,
+    "include_toponym_breakdown": _DEFAULT_INCLUDE_TOPONYM_BREAKDOWN,
+}
+
+
+@pytest.mark.parametrize(
+    "override, expected_flag",
+    [
+        ({"min_witnesses": _DEFAULT_MIN_WITNESSES + 1}, "--min-witnesses"),
+        ({"lang_threshold_specs": ("welsh:3",)}, "--lang-threshold"),
+        ({"use_preset": not _DEFAULT_USE_PRESET}, "--no-preset"),
+        ({"include_rando": not _DEFAULT_INCLUDE_RANDO}, "--no-include-rando"),
+        (
+            {"rando_min_corroborators": _DEFAULT_RANDO_MIN_CORROBORATORS + 1},
+            "--rando-min-corroborators",
+        ),
+        (
+            {"include_wiktionary_empirical": not _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL},
+            "--no-include-wiktionary-empirical",
+        ),
+        (
+            {"include_wave2_enriched": not _DEFAULT_INCLUDE_WAVE2_ENRICHED},
+            "--no-include-wave2-enriched",
+        ),
+        (
+            {"include_toponym_breakdown": not _DEFAULT_INCLUDE_TOPONYM_BREAKDOWN},
+            "--include-toponym-breakdown",
+        ),
+    ],
+)
+def test_dev_guard_rejects_each_non_default_filter(override, expected_flag):
+    """Pin every (condition -> message) row of the --dev canonical-defaults guard
+    (export_runtime_db._reject_non_default_filters_under_dev). The refactor turned
+    the eight checks into a (condition, message) table — exactly where a row could
+    silently carry the wrong message or compare the wrong _DEFAULT_* constant. Each
+    single non-default filter must raise with ITS OWN flag in the message; the
+    all-canonical baseline must NOT raise."""
+    import click
+
+    # All-canonical → accepted (no offender).
+    _reject_non_default_filters_under_dev(**_CANONICAL_DEV_FILTERS)
+    # Exactly one filter flipped to non-default → rejected, naming that filter.
+    with pytest.raises(click.UsageError) as excinfo:
+        _reject_non_default_filters_under_dev(**{**_CANONICAL_DEV_FILTERS, **override})
+    assert expected_flag in str(excinfo.value)
 
 
 def test_dev_flag_respects_top_n_cap(tmp_path: Path) -> None:
