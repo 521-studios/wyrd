@@ -327,13 +327,18 @@ def _apply_row(state: ReplayState, row: dict[str, Any], *, line_no: int | None =
     _type = row["_type"]
     op = row.get("_op")
     if _type in LIST_TYPES:
-        _apply_list_row(state, _type, op, row, line_no)
+        _apply_list_row(state, _type, op, row, line_no=line_no)
     else:
-        _apply_keyed_row(state, _type, op, row, line_no)
+        _apply_keyed_row(state, _type, op, row, line_no=line_no)
 
 
 def _apply_list_row(
-    state: ReplayState, _type: str, op: str | None, row: dict[str, Any], line_no: int | None
+    state: ReplayState,
+    _type: str,
+    op: str | None,
+    row: dict[str, Any],
+    *,
+    line_no: int | None = None,
 ) -> None:
     """Append-only list fact. List types take no ``_op`` (or ``_op=add``)."""
     if op is not None and op != "add":
@@ -347,7 +352,12 @@ def _apply_list_row(
 
 
 def _apply_keyed_row(
-    state: ReplayState, _type: str, op: str | None, row: dict[str, Any], line_no: int | None
+    state: ReplayState,
+    _type: str,
+    op: str | None,
+    row: dict[str, Any],
+    *,
+    line_no: int | None = None,
 ) -> None:
     """Keyed fact dispatched by ``_op``: set / add (no-clobber) / patch (per-field
     merge) / remove (idempotent) — all keyed on ``row["ref"]``."""
