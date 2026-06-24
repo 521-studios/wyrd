@@ -92,6 +92,17 @@ def test_anglicize_collapses_excessive_runs():
     assert "AHAHAH" not in (out or "")
 
 
+def test_anglicize_tolerates_pre_existing_nul_in_input():
+    """A literal NUL in the input must not crash: the digraph pass uses NUL as
+    a paired sentinel, and an unpaired stray NUL previously made the phoneme
+    pass' `str.index("\\0", ...)` raise ValueError. A NUL is never a phoneme,
+    so it's stripped and the result matches the NUL-free input."""
+    assert anglicize_ipa("a\x00b") == anglicize_ipa("ab")
+    assert anglicize_ipa("\x00wyrm\x00") == anglicize_ipa("wyrm")
+    # A NUL adjacent to a real digraph (which itself uses sentinels) is fine.
+    assert anglicize_ipa("\x00tʃ\x00") == anglicize_ipa("tʃ")
+
+
 def test_collect_renderings_derives_reader_pronunciation_from_ipa():
     """Integration: a Meaning with IPA but no english_shaped should
     have reader_pronunciation populated by _collect_renderings via

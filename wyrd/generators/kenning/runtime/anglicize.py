@@ -207,6 +207,10 @@ def _mark_digraphs(s: str) -> str:
     instead of re-mapping its letters. Clusters are applied longest-first
     (``_SORTED_DIGRAPHS``) so ``tʃ`` is matched before ``ʃ`` (its suffix, also
     a digraph key)."""
+    # Drop any pre-existing NUL so every ``\0`` in the result is a sentinel we
+    # added (paired). Otherwise a stray ``\0`` in the input leaves _map_phonemes'
+    # ``s.index("\0", i + 1)`` searching for a non-existent partner → ValueError.
+    s = s.replace("\0", "")
     for digraph in _SORTED_DIGRAPHS:
         s = s.replace(digraph, f"\0{_DIGRAPH_MAP[digraph]}\0")
     return s
