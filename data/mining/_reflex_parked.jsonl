@@ -3300,3 +3300,19 @@
 {"ref": "old-english:cof", "reason": "Prescot=preost+cot; Cofa-PN 'cof' not present (misattribution)"}
 {"ref": "old-english:copse", "reason": "Sparsholt=spearwa+holt; copse not present (misattribution)"}
 {"ref": "old-english:eowestre", "reason": "DOCUMENTED TRAP: Osborne=Osbeorn PN, not eowestre 'sheepfold' (cross-match misattribution)"}
+{"ref": "modern-english:field", "reason": "Migley=micge+leah is a mis-linkage; field fully grounded (feld/field) — residual toponym not a field name"}
+{"ref": "modern-english:legh", "reason": "well-grounded (ley/legh/light); residual unmatched toponym adds no new clean span"}
+{"ref": "modern-english:worth", "reason": "Fitches=fiche mis-linkage; worth fully grounded (worth/worthe)"}
+{"ref": "old-english:Peoht", "reason": "Spettisbury not from Peoht 'Pict' (misattribution)"}
+{"ref": "old-english:atun", "reason": "worn realization is the -ton (=tun, separate etymon); atun itself has no distinct span"}
+{"ref": "old-english:byr", "reason": "Birkrow=ON birki 'birch'; byr 'byre' misattribution"}
+{"ref": "old-english:byrg", "reason": "byrig element lost in modern Shropshire (Scrobb+scir); no worn span"}
+{"ref": "old-english:dirt", "reason": "Droitwich 'droit' belongs to a distinct etymon (gate-confirmed); dirt un-groundable here"}
+{"ref": "old-english:ear", "reason": "no worn span of ear in Bridge Green"}
+{"ref": "old-english:ecgan", "reason": "Egton=Ecga realizes as 2-char 'eg'; no groundable span >=3"}
+{"ref": "old-english:ege", "reason": "ege=eg (ēg 'island') realizes as 2-char 'eg' in Egdean; too short to ground"}
+{"ref": "old-english:eorth", "reason": "Arbury=eorð-burh realizes eorð as 2-char 'ar'; too short to ground"}
+{"ref": "old-english:fealwe", "reason": "DOCUMENTED TRAP: Palmer is not fealwe (cross-match misattribution)"}
+{"ref": "old-english:fore", "reason": "Fordon=ford+dun; fore 'in front' is a distinct etymon (misattribution)"}
+{"ref": "old-english:fāg", "reason": "Foolow=fugol 'bird'; fāg 'variegated' misattribution"}
+{"ref": "old-english:hauk", "reason": "Haughstrother=halh 'haugh'; hauk 'hawk' is a distinct etymon (misattribution)"}
