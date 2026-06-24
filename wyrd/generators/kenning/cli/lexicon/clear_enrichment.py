@@ -86,8 +86,6 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
 
     verb = "cleared" if apply_changes else "would clear"
     click.echo(f"Stage: {result['stage']}", err=True)
-    # (result key, noun) for each clearable count, in report order. A count of
-    # 0 (or an absent key for a stage that doesn't produce it) prints nothing.
     for key, noun in _CLEAR_COUNT_LINES:
         count = result.get(key)
         if count:
