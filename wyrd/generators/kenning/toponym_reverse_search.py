@@ -109,16 +109,9 @@ def _normalize_for_match(form: str) -> str:
     ``"Birmingham`` (opening quote), ``(Birmingham`` (parenthetical
     intro), or ``[Birmingham`` (editor bracket). Without this strip,
     these forms would silently never match a known toponym
-    (Gemini PR #212 round-2 finding). The quote set covers the Unicode
-    typographic variants too (curly “” ‘’, guillemets « » ‹ ›, low „ ‚)
-    — OCR / LLM prose emits those far more than ASCII quotes, and an
-    un-stripped ``“Birmingham”`` is the same silent-miss for non-ASCII.
+    (Gemini PR #212 round-2 finding). The strip sets cover the Unicode
+    quote variants too — see :data:`_MATCH_STRIP_ENDS`.
     """
-    # Both leading and trailing punctuation strip. Including the paired
-    # quote/bracket characters (ASCII + Unicode) on both ends so a form
-    # quoted before and/or after normalizes to bare text. Closing quotes
-    # are in the trailing set too, so a ``“Birmingham”.`` (quote then
-    # period) fully unwraps after the period is stripped.
     return form.strip().strip(_MATCH_STRIP_ENDS).rstrip(_MATCH_STRIP_TRAILING).lower()
 
 

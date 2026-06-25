@@ -90,6 +90,27 @@ def test_normalize_for_match_strips_unicode_quotes():
     assert _normalize_for_match("King’s Lynn") == "king’s lynn"
 
 
+def test_normalize_for_match_every_strip_codepoint_is_covered():
+    """Data-driven lock over both strip constants: every boundary char unwraps to
+    the bare form, so a future edit dropping one (e.g. the low-quote ‚ that has no
+    representative case above) fails here."""
+    from wyrd.generators.kenning.toponym_reverse_search import (
+        _MATCH_STRIP_ENDS,
+        _MATCH_STRIP_TRAILING,
+    )
+
+    for ch in _MATCH_STRIP_ENDS:
+        # Wrapped both ends (the both-ends strip set).
+        assert _normalize_for_match(f"{ch}Birmingham{ch}") == "birmingham", (
+            f"{ch!r} (U+{ord(ch):04X}) not stripped at both ends"
+        )
+    for ch in _MATCH_STRIP_TRAILING:
+        # Trailing only.
+        assert _normalize_for_match(f"Birmingham{ch}") == "birmingham", (
+            f"{ch!r} (U+{ord(ch):04X}) not stripped trailing"
+        )
+
+
 def test_build_lookup_includes_modern_names_and_attestation_forms():
     """Lookup contains modern_name entries AND historical forms
     from existing attestations."""
