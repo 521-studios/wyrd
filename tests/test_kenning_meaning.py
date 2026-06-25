@@ -937,3 +937,49 @@ def test_db_to_export_to_load_round_trip_preserves_stratum(tmp_path):
     assert "Caer" in meaning_db  # wyrd-aicu.3: export reads the BARE reflex surface (was 'Caer-')
     m = meaning_db["Caer"][0]
     assert m.stratum["celtic_mix"]["caer"] == "latin-loan"
+
+
+def test_first_nonempty_form_is_the_single_source_for_the_form_scan():
+    """``Meaning._first_nonempty_form`` is the centralized "non-empty form" scan
+    shared by ``_forms_nonempty`` / ``primary_language`` /
+    ``vector_name_select._lemma_ref_for`` (unified so a forms[0]-only copy can't
+    drift again, as it did in #788). Returns the FIRST usable form across ALL
+    entries (string or ``{form|canonical_form}`` dict), or None when none."""
+    f = Meaning._first_nonempty_form
+    # No usable form → None.
+    assert f(None) is None
+    assert f([]) is None
+    assert f([""]) is None
+    assert f([None]) is None
+    assert f([{"form": ""}]) is None
+    assert f([{}]) is None
+    # First non-empty across all entries (NOT just forms[0]).
+    assert f(["wic"]) == "wic"
+    assert f(["", "wic"]) == "wic"  # leading empty: scan continues
+    assert f([{"form": "wic"}]) == "wic"
+    assert f([{"canonical_form": "scir"}]) == "scir"  # form-less → canonical_form
+    assert f([{"form": ""}, {"form": "wic"}]) == "wic"
+    # form wins over canonical_form when both present.
+    assert f([{"form": "a", "canonical_form": "b"}]) == "a"
+    # A bare-string source value is the single form, NOT iterated char-by-char
+    # (``load_meanings`` copies the word field verbatim, so ``"old_english":
+    # "burna"`` reaches the scan as the str "burna", not ["burna"]). Iterating
+    # would have wrongly yielded "b".
+    assert f("burna") == "burna"
+    assert f("") is None  # empty string → no usable form
+    # _forms_nonempty is exactly "first non-empty is not None".
+    assert Meaning._forms_nonempty(["", "wic"]) is True
+    assert Meaning._forms_nonempty([""]) is False
+    assert Meaning._forms_nonempty("burna") is True
+
+
+def test_lemma_ref_handles_bare_string_source_value():
+    """Regression (Gemini #789): a source value that is a bare string (not a list)
+    — which ``load_meanings`` produces from ``{"old_english": "burna"}`` — must key
+    on the WHOLE form, not its first character. Pre-fix the char-scan returned
+    'old-english:b'."""
+    from wyrd.generators.kenning.runtime.vector_name_select import _lemma_ref_for
+
+    m = Meaning("River", [], [], {"old_english": "burna"})
+    assert _lemma_ref_for(m) == "old-english:burna"
+    assert m.primary_language() == "old_english"  # unchanged: a string still attests
