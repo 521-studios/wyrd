@@ -1054,3 +1054,8 @@ def test_parse_citation_block_collects_multiple_ascharter_refs():
     _pase, _dlv, asch, rest = _parse_citation_block("ASCh10.2 ASCh11 body")
     assert asch == ["ASCh10.2", "ASCh11"]
     assert rest == "body"
+
+
+def test_parse_citation_block_all_citations_leaves_empty_body():
+    # The only path where consumed == len(tokens): the slice/join yields "".
+    assert _parse_citation_block("PASE5 DLV") == (5, True, [], "")
