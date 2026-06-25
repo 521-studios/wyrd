@@ -1186,13 +1186,14 @@ def _lemma_ref_for(meaning: Meaning) -> str:
     keys on (``f"{l3_language}:{canonical_form}"`` — same shape
     ``empirical_priors.extract_priors`` emits).
 
-    Walks ``meaning.sources`` (dict[bundle_lang_field, list[form]])
-    in alphabetical order, picks the first non-empty entry, maps
-    bundle-field → L3 lang via ``_BUNDLE_FIELD_TO_L3_LANG``, and
-    returns ``f"{l3_lang}:{form}"``. The alphabetical walk is
-    deterministic + stable across re-runs; ``old_english`` lands
-    first under it which matches the dominant-English-priors-data
-    we have today.
+    Walks ``meaning.sources`` (dict[bundle_lang_field, list[form]]) in
+    alphabetical order; for each language it scans ALL form entries and takes
+    the FIRST non-empty one (so a leading-empty ``["", "wīc"]`` still attests
+    via the later form — matching ``Meaning.primary_language`` /
+    ``Meaning._forms_nonempty``, the documented shared "non-empty form"
+    semantics). Maps bundle-field → L3 lang via ``_BUNDLE_FIELD_TO_L3_LANG`` and
+    returns ``f"{l3_lang}:{form}"``. The alphabetical source walk is
+    deterministic + stable across re-runs.
 
     Falls back to the bare-usage form (legacy ecjp.5 v1 behavior) when
     a meaning has no source-language form at all (synthesized /
