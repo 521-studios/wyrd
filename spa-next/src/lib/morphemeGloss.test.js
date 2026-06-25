@@ -80,4 +80,27 @@ describe('glossesByResults', () => {
     expect(glossesByResults(null)).toEqual([]);
     expect(glossesByResults([])).toEqual([]);
   });
+
+  it('contains a malformed morpheme to its own slot, not the whole column', () => {
+    // A single null/non-object morpheme (a corrupt or stale restored/shared
+    // workspace) must degrade to '' for THAT slot — not throw out of the nested
+    // map and blank every gloss. Pre-fix this raised TypeError on `morph.meanings`
+    // and lost the valid 'town' gloss beside it.
+    const results = [{ morphemes_by_word: [[{ usage: 'ton', meanings: ['town'] }, null]] }];
+    expect(glossesByResults(results)).toEqual([[['town', '']]]);
+  });
+
+  it('tolerates a null word (whole sub-array) without dropping sibling words', () => {
+    const results = [{ morphemes_by_word: [null, [{ usage: 'dun', meanings: ['hill'] }]] }];
+    expect(glossesByResults(results)).toEqual([[[], ['hill']]]);
+  });
+});
+
+describe('glossFor defensive input', () => {
+  it('returns "" for a null / undefined / non-object morpheme instead of throwing', () => {
+    expect(glossFor(null)).toBe('');
+    expect(glossFor(undefined)).toBe('');
+    expect(glossFor('a personal name')).toBe('');
+    expect(glossFor(42)).toBe('');
+  });
 });
