@@ -19,6 +19,7 @@ from wyrd.generators.kenning.jsonl.build import build_from_jsonl
 from wyrd.generators.kenning.jsonl.dump import dump_reflexes_to_file, dump_source_to_file
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.implied_reflex_mining import (
+    _is_proper_affix,
     apply_implied_reflexes,
     extract_implied_reflexes,
     implied_reflex_assertions,
@@ -722,3 +723,33 @@ def test_guard_co_present_known_reflex_dropped(tmp_path):
     # 'ton' is a known (cognate-expanded) reflex of the co-present tūn → not
     # re-attributed to dūn.
     assert all(r.residual != "ton" for r in out)
+
+
+# --- _is_proper_affix (the boundary-misalignment predicate, wyrd refactor) ---
+
+
+def test_is_proper_affix_proper_suffix_and_prefix():
+    # short is a strictly-shorter suffix / prefix of long
+    assert _is_proper_affix("ton", "nton", check_pre=False, check_post=True) is True
+    assert _is_proper_affix("ac", "acton", check_pre=True, check_post=False) is True
+
+
+def test_is_proper_affix_excludes_exact_equality():
+    # PROPER means strictly shorter — an exact match is a legitimate reflex, NOT a
+    # boundary leak. This is the load-bearing "exact equality is not a leak" rule.
+    assert _is_proper_affix("ton", "ton", check_pre=True, check_post=True) is False
+
+
+def test_is_proper_affix_excludes_when_short_is_longer():
+    assert _is_proper_affix("nton", "ton", check_pre=True, check_post=True) is False
+
+
+def test_is_proper_affix_gates_on_position_flags():
+    # "ton" IS a proper suffix of "nton", but only the prefix end is admissible.
+    assert _is_proper_affix("ton", "nton", check_pre=True, check_post=False) is False
+    # neither end admissible -> never a match
+    assert _is_proper_affix("ton", "nton", check_pre=False, check_post=False) is False
+
+
+def test_is_proper_affix_non_affix_is_false():
+    assert _is_proper_affix("xy", "acton", check_pre=True, check_post=True) is False

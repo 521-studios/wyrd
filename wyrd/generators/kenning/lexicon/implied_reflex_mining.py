@@ -396,24 +396,37 @@ def _known_reflex_leftover(
         return False  # residual is itself an attested reflex → legitimate, not a leak
     check_post = aln.position in ("post", "inner")
     check_pre = aln.position in ("pre", "inner")
-    # UNDER-consume: element's OWN surfaces only (broadening leaks false positives).
-    for known in own:
-        if len(known) >= len(residual):
-            continue
-        if check_post and residual.endswith(known):
-            return True
-        if check_pre and residual.startswith(known):
-            return True
-    # OVER-consume: the CROSS-CLUSTER cognate union (so an impoverished singleton
-    # inherits the longer true reflex its residual is a fragment of).
-    for known in expanded:
-        if len(known) <= len(residual):
-            continue
-        if check_post and known.endswith(residual):
-            return True
-        if check_pre and known.startswith(residual):
-            return True
-    return False
+    # UNDER-consume: a known reflex (element's OWN surfaces only — broadening leaks
+    # false positives) is a proper affix of the LONGER residual; the anchor leaked
+    # a char INTO the residual.
+    if any(
+        _is_proper_affix(known, residual, check_pre=check_pre, check_post=check_post)
+        for known in own
+    ):
+        return True
+    # OVER-consume: the residual is a proper affix of a LONGER known reflex from the
+    # CROSS-CLUSTER cognate union (so an impoverished singleton inherits the longer
+    # true reflex its residual is a fragment of); the anchor stole a boundary char.
+    return any(
+        _is_proper_affix(residual, known, check_pre=check_pre, check_post=check_post)
+        for known in expanded
+    )
+
+
+def _is_proper_affix(short: str, long: str, *, check_pre: bool, check_post: bool) -> bool:
+    """True if ``short`` is a PROPER prefix (``check_pre``) or PROPER suffix
+    (``check_post``) of ``long`` — strictly shorter, so exact equality is excluded.
+
+    The two boundary-misalignment cases in :func:`_known_reflex_leftover` are this
+    same relation with the arguments swapped: under-consume asks whether a known
+    reflex is a proper affix of the residual; over-consume whether the residual is a
+    proper affix of a known reflex. ``check_pre``/``check_post`` gate which ends are
+    admissible for the residual's tiling position (a ``post`` tail residual leaks at
+    the suffix, a ``pre`` head residual at the prefix, an ``inner`` residual both).
+    """
+    if len(short) >= len(long):
+        return False
+    return (check_post and long.endswith(short)) or (check_pre and long.startswith(short))
 
 
 def _residual_from_anchors(
