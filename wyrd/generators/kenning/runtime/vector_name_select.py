@@ -1186,13 +1186,14 @@ def _lemma_ref_for(meaning: Meaning) -> str:
     keys on (``f"{l3_language}:{canonical_form}"`` — same shape
     ``empirical_priors.extract_priors`` emits).
 
-    Walks ``meaning.sources`` (dict[bundle_lang_field, list[form]])
-    in alphabetical order, picks the first non-empty entry, maps
-    bundle-field → L3 lang via ``_BUNDLE_FIELD_TO_L3_LANG``, and
-    returns ``f"{l3_lang}:{form}"``. The alphabetical walk is
-    deterministic + stable across re-runs; ``old_english`` lands
-    first under it which matches the dominant-English-priors-data
-    we have today.
+    Walks ``meaning.sources`` (dict[bundle_lang_field, list[form]]) in
+    alphabetical order; for each language it scans ALL form entries and takes
+    the FIRST non-empty one (so a leading-empty ``["", "wīc"]`` still attests
+    via the later form — matching ``Meaning.primary_language`` /
+    ``Meaning._forms_nonempty``, the documented shared "non-empty form"
+    semantics). Maps bundle-field → L3 lang via ``_BUNDLE_FIELD_TO_L3_LANG`` and
+    returns ``f"{l3_lang}:{form}"``. The alphabetical source walk is
+    deterministic + stable across re-runs.
 
     Falls back to the bare-usage form (legacy ecjp.5 v1 behavior) when
     a meaning has no source-language form at all (synthesized /
@@ -1205,14 +1206,23 @@ def _lemma_ref_for(meaning: Meaning) -> str:
         if not forms:
             continue
         l3_lang = _BUNDLE_FIELD_TO_L3_LANG.get(lang_field, lang_field.replace("_", "-"))
-        # forms entries are usually plain strings; tolerate dict-shaped
-        # entries (some bundle schemas wrap forms with metadata) by
-        # picking the canonical-form-ish key.
-        first = forms[0]
-        if isinstance(first, dict):
-            first = first.get("form") or first.get("canonical_form") or ""
-        if first:
-            return f"{l3_lang}:{first}"
+        # forms entries are usually plain strings; tolerate dict-shaped entries
+        # (some bundle schemas wrap forms with metadata) by picking the
+        # canonical-form-ish key. Scan ALL entries, not just forms[0]: a language
+        # whose first form is empty (``["", "wīc"]``) still attests via a later
+        # non-empty form. This matches ``Meaning.primary_language`` /
+        # ``Meaning._forms_nonempty`` — the documented shared "non-empty form"
+        # semantics. Checking only forms[0] diverged: ``primary_language`` (the
+        # pool-eligibility key) scans all entries, so the same Meaning could be
+        # keyed on one language for eligibility and a different one for this
+        # priors-baseline lookup.
+        for entry in forms:
+            if isinstance(entry, dict):
+                form_str = entry.get("form") or entry.get("canonical_form") or ""
+            else:
+                form_str = entry
+            if form_str:
+                return f"{l3_lang}:{form_str}"
     return meaning.usage.replace("-", "")
 
 

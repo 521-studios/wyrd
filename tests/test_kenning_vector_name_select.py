@@ -172,6 +172,28 @@ def test_lemma_ref_skips_empty_source_lists():
     assert _lemma_ref_for(m) == "celtic:abona"
 
 
+def test_lemma_ref_scans_past_a_leading_empty_form_within_a_language():
+    """A language whose FIRST form is empty but a later one is non-empty
+    (``["", "abona"]``) still attests via that later form — ``_lemma_ref_for``
+    must scan ALL entries, not just ``forms[0]``, to stay aligned with
+    ``Meaning.primary_language`` (the pool-eligibility key). Pre-fix it inspected
+    only ``forms[0]``, so the leading empty made it fall THROUGH celtic_mix to
+    old_english here, keying the priors-baseline lookup on old_english while
+    ``primary_language`` (scanning all forms) kept the Meaning on celtic_mix — a
+    per-Meaning identity split in the scoring path (D36)."""
+    m = _meaning("River")
+    # celtic_mix sorts first; its later non-empty 'abona' attests it, so the
+    # leading empty must NOT fall through to old_english's 'wīc'.
+    m.sources = {"celtic_mix": ["", "abona"], "old_english": ["wīc"]}
+    assert _lemma_ref_for(m) == "celtic:abona"
+    assert m.primary_language() == "celtic_mix"  # the two per-Meaning keys agree
+
+    # Same for dict-shaped entries with a leading form-less dict.
+    m2 = _meaning("River")
+    m2.sources = {"celtic_mix": [{"form": ""}, {"form": "abona"}], "old_english": ["wīc"]}
+    assert _lemma_ref_for(m2) == "celtic:abona"
+
+
 def test_lemma_ref_unknown_lang_field_kebabs_underscore():
     """A bundle field not in ``_BUNDLE_FIELD_TO_L3_LANG`` falls back
     to ``snake_case → kebab-case`` conversion. Forward-compat path
