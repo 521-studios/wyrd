@@ -209,6 +209,25 @@ def test_select_targets_only_untagged_glossed_reachable(tmp_path: Path):
     assert targets[0][2] == "spear"
 
 
+def test_select_targets_excludes_merged_tombstone(tmp_path: Path):
+    # A merged OCR-loser etymon (merged_into_id set) with a gloss + no tags + a reflex
+    # edge IS reachable by the channel check, but it's a tombstone — generation
+    # reroutes through its winner, so a tag minted on it is unreachable (and would
+    # leak into the priors baseline via the breakdown channel, wyrd-ckro). Exclude it.
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    winner = _etymon(conn, "old-english", "gar", gloss="spear")  # ✓ live target
+    loser = _etymon(conn, "old-english", "garr", gloss="spear")  # OCR variant, reachable
+    conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (winner, loser))
+    conn.commit()
+    conn.close()
+
+    forms = [form for _, form, _ in select_targets(str(db_path))]
+    assert "gar" in forms  # the live winner is still a target
+    assert "garr" not in forms  # the merged tombstone is excluded
+
+
 def _breakdown(conn, etymon_id: int, n_toponyms: int) -> None:
     """Add ``etymon_id`` as an element in ``n_toponyms`` distinct scholarly
     toponym_etymology breakdowns (wyrd-oth3 admit signal)."""

@@ -144,7 +144,13 @@ def select_targets(db_path: str) -> list[tuple[str, str, str]]:
     once). Channel (2) is the largely-reflex-less admit cohort the reflex-only
     gate used to miss — untagged, those morphemes are matchable for decomposition
     but never SELECTED in generation (the >=1-tag gate skips them). Dead etymons
-    (neither channel) are still excluded, so we don't pay to tag them."""
+    (neither channel) are still excluded, so we don't pay to tag them — as are
+    merged OCR-loser etymons (``merged_into_id`` set): a tombstone can still carry a
+    reflex/breakdown edge, but the bundle reroutes generation through its merge
+    winner (``_family.py``), so a tag minted onto the tombstone is unreachable, and
+    the empirical-priors extract that joins ``etymon_tag`` on a breakdown element
+    would read it as a live tag (wyrd-ckro). Every other reachability reader filters
+    ``merged_into_id IS NULL``; this one must too."""
     # Path.as_uri() handles spaces / '?' / '#' / Windows backslashes robustly
     # (matches runtime_db.py's read-only open), unlike bare f-string interp.
     uri = f"{Path(db_path).absolute().as_uri()}?mode=ro"
@@ -177,6 +183,7 @@ def select_targets(db_path: str) -> list[tuple[str, str, str]]:
             f"         ) >= {_BREAKDOWN_ADMIT_MIN_TOPONYMS} "
             "  ) "
             "    AND NOT EXISTS (SELECT 1 FROM etymon_tag t WHERE t.etymon_id = e.id) "
+            "    AND e.merged_into_id IS NULL "
             "  ORDER BY e.id, g.gloss"
             ") GROUP BY id ORDER BY language, canonical_form"  # noqa: S608 — interpolated int constant
         ).fetchall()
