@@ -422,3 +422,4 @@ risky-tail — rather than pollute the matcher. Commit + push every fire.
 - Fire #375 (2026-06-25): probe-pass — OE h-/i-/k-/l-. Authored 1 — leofstan→`layst` (Layston, Lēofstān). PARKED 34 (mis-linkage/gloss/garble/covered — i-/l- region dense with covered + gloss). Slice 349→314; park 3826→3860. Cumulative: 1230 authored.
 - Fire #376 (2026-06-25): probe-pass — OE l-/m-/n-/o-. Authored 2 garbled-canonical own-stems — mdrledh→`morl` (Morley, mōr-lēah), mds→`moss` (Mosswood, mos). PARKED 33. Slice 314→279; park 3860→3893. Cumulative: 1232 authored.
 - Fire #377 (2026-06-25): probe-pass — OE o-/p-/r-/s-. 0 authored (all mis-linkage/gloss/garble/covered). Parked 35. Slice 279→244; park 3893→3928. Cumulative UNCHANGED: 1232.
+- Fire #378 (2026-06-25): probe-pass — OE s-. 0 authored (all mis-linkage/gloss/garble/covered — sc-/sh- already richly covered). Parked 35. Slice 244→209; park 3928→3963. Cumulative UNCHANGED: 1232.
