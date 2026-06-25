@@ -1848,3 +1848,21 @@ def test_apply_per_usage_frequency_does_not_double_count_case_twins():
         by_surface[key] = by_surface.get(key, 0.0) + w
     assert by_surface["combe"] == 10.0  # was 20.0 (double-counted across the 2 twins)
     assert by_surface["dale"] == 10.0
+
+
+def test_apply_per_usage_frequency_splits_merged_twins_by_score():
+    """Within a merged twin surface, the aggregated freq splits across the COMBINED
+    items by score (``freq * s / merged_score_sum``) — pinning that the allocation
+    denominator spans BOTH twins, not each key alone. With equal twin scores the
+    split is degenerate (½/½ either way), so this uses distinct scores: Combe(3) +
+    combe(1) over surface-freq 10 → 7.5 / 2.5 (sum 10). A per-key-then-summed
+    allocation would instead give each twin its own freq → 10 + 10."""
+    eligible = {
+        "Combe": [(_meaning("Combe"), 3.0)],
+        "combe": [(_meaning("combe"), 1.0)],
+    }
+    freq = {"Combe": 5.0, "combe": 5.0}  # → surface "combe" aggregated freq 10
+    weights = {m.usage: w for m, w in _apply_per_usage_frequency(eligible, freq)}
+    assert weights["Combe"] == 7.5
+    assert weights["combe"] == 2.5
+    assert weights["Combe"] + weights["combe"] == 10.0  # surface total == its freq
