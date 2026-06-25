@@ -71,6 +71,16 @@ def _consonant_skeleton(form: str) -> str:
 
 # Common-gloss stopwords: function words + generic dictionary-definition framing
 # that would over-group on token match without signalling shared meaning.
+#
+# Onomastic ENTRY-TYPE framing is the load-bearing addition (wyrd-21p8): a
+# bare name gloss like "a feminine personal name" carries no DISTINGUISHING
+# meaning — only the name's class — so its only surviving tokens (feminine,
+# personal) group every name of that class, pairing genuinely DISTINCT names
+# (Ede≠Eve, Godelin≠Godling) by surface similarity alone. The judge then has no
+# gloss signal to tell them apart and has mis-folded distinct names (Ede→Eve,
+# committed at medium confidence). These class words are NEVER a morpheme's
+# meaning, so stripping them is pure precision gain. Toponymic CONTENT
+# (hill/place/river/tree/…) is the opposite — the real meaning — and is kept.
 _GLOSS_STOPWORDS = frozenset(
     [
         "the",
@@ -119,6 +129,21 @@ _GLOSS_STOPWORDS = frozenset(
         "your",
         "they",
         "them",
+        # onomastic entry-type framing (name CLASS, not the name's meaning)
+        "personal",
+        "feminine",
+        "masculine",
+        "saint",
+        "diminutive",
+        "patronymic",
+        "matronymic",
+        "hypocoristic",
+        "cognomen",
+        "byname",
+        "epithet",
+        "surname",
+        "forename",
+        "nickname",
     ]
 )
 
