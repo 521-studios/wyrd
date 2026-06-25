@@ -133,6 +133,17 @@ def test_normalize_form_strips_unicode_dashes_too():
     assert _normalize_form("tun_stem") == "tun_stem"
 
 
+def test_normalize_form_drops_every_dash_codepoint():
+    """Data-driven lock over the shared _BOUNDARY_DASHES set: every dash variant
+    drops, so an interior one keys identically to the bare form. Guards the regex
+    against a future narrowing (and the small/fullwidth forms that NFKD folds but
+    the set still enumerates)."""
+    from wyrd.generators.kenning.toponym_etymology_canonical import _BOUNDARY_DASHES
+
+    for ch in _BOUNDARY_DASHES:
+        assert _normalize_form(f"tun{ch}stem") == "tunstem", f"{ch!r} (U+{ord(ch):04X}) not dropped"
+
+
 def test_normalize_form_real_disagreement_stays_distinct():
     """Two cases the normalizer must NOT collapse:
 
