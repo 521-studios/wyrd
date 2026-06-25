@@ -38,7 +38,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -304,6 +304,59 @@ _EXTRACT_SQL_ORDERED = (
 )
 
 
+def _classify_prior_row(row) -> tuple[str, _NativeKey | None, _LoanKey | None]:
+    """Apply the country / culture / year / era / tag gates to one scanned row.
+
+    Returns ``(status, native_key, loan_key)``. ``status`` is ``"ok"`` (both keys
+    set) or one of the skip-reason names (both keys ``None``) — the names match
+    the ``ExtractionResult`` skip fields, so the caller can tally them directly.
+    """
+    # Gate 1: country.
+    country = row["country"]
+    if not country:
+        return "skipped_country_unknown", None, None
+    culture = _COUNTRY_TO_CULTURE.get(country)
+    if culture is None:
+        return "skipped_country_unmapped", None, None
+
+    # Gate 2a: attested year present. era_midpoint_for_culture raises on config
+    # drift (missing _CULTURE_TO_FAMILY entry for a culture we route to), so NULL
+    # year is the only "missing year" path here.
+    attested = row["attested_year"]
+    if attested is None:
+        return "skipped_year_unknown", None, None
+    # Gate 2b: year falls into an era cell. None means the year is outside every
+    # cell's range — operator: extend ERA_CELLS or accept the proto-period gap.
+    midpoint = era_midpoint_for_culture(culture, attested)
+    if midpoint is None:
+        return "skipped_year_out_of_range", None, None
+
+    # Gate 3: tag. LEFT JOIN keeps untagged etymons in the result set so the gap
+    # surfaces here rather than at the SQL layer.
+    tag = row["tag"]
+    if tag is None:
+        return "skipped_no_tag", None, None
+
+    position = _position_label(row["ordinal"], row["element_count"])
+    lemma_ref = f"{row['language']}:{row['canonical_form']}"
+    native_key = _NativeKey(
+        culture=culture,
+        position=position,
+        tag=tag,
+        era_midpoint=midpoint,
+        lemma_ref=lemma_ref,
+    )
+    loan_key = _LoanKey(
+        donor=row["language"],
+        recipient=culture,
+        position=position,
+        tag=tag,
+        era_midpoint=midpoint,
+        lemma_ref=lemma_ref,
+    )
+    return "ok", native_key, loan_key
+
+
 def extract_priors(
     db: LexiconDB,
     *,
@@ -329,20 +382,16 @@ def extract_priors(
     loan: dict[_LoanKey, int] = defaultdict(int)
     rows_scanned = 0
     rows_emitted = 0
-    skipped_country_unknown = 0
-    skipped_country_unmapped = 0
-    skipped_year_unknown = 0
-    skipped_year_out_of_range = 0
-    skipped_no_tag = 0
+    skips: Counter[str] = Counter()
 
     def _emit_progress() -> None:
         print(
             f"  [{rows_scanned}] scanned  emitted={rows_emitted} "
-            f"skip_country_unknown={skipped_country_unknown} "
-            f"skip_country_unmapped={skipped_country_unmapped} "
-            f"skip_year_unknown={skipped_year_unknown} "
-            f"skip_year_out_of_range={skipped_year_out_of_range} "
-            f"skip_no_tag={skipped_no_tag}",
+            f"skip_country_unknown={skips['skipped_country_unknown']} "
+            f"skip_country_unmapped={skips['skipped_country_unmapped']} "
+            f"skip_year_unknown={skips['skipped_year_unknown']} "
+            f"skip_year_out_of_range={skips['skipped_year_out_of_range']} "
+            f"skip_no_tag={skips['skipped_no_tag']}",
             file=sys.stderr,
             flush=True,
         )
@@ -352,62 +401,12 @@ def extract_priors(
         if progress_every and rows_scanned % progress_every == 0:
             _emit_progress()
 
-        country = row["country"]
-        attested = row["attested_year"]
-        tag = row["tag"]
-
-        # Gate 1: country.
-        if not country:
-            skipped_country_unknown += 1
+        status, native_key, loan_key = _classify_prior_row(row)
+        if status != "ok":
+            skips[status] += 1
             continue
-        culture = _COUNTRY_TO_CULTURE.get(country)
-        if culture is None:
-            skipped_country_unmapped += 1
-            continue
-
-        # Gate 2a: attested year present. era_midpoint_for_culture
-        # raises on config drift (missing _CULTURE_TO_FAMILY entry for
-        # a culture we route to), so NULL year is the only "missing
-        # year" path here.
-        if attested is None:
-            skipped_year_unknown += 1
-            continue
-        # Gate 2b: year falls into an era cell. None means the year is
-        # outside every cell's range — operator: extend ERA_CELLS or
-        # accept the proto-period gap.
-        midpoint = era_midpoint_for_culture(culture, attested)
-        if midpoint is None:
-            skipped_year_out_of_range += 1
-            continue
-
-        # Gate 3: tag. LEFT JOIN keeps untagged etymons in the result
-        # set so the gap surfaces here rather than at the SQL layer.
-        if tag is None:
-            skipped_no_tag += 1
-            continue
-
-        position = _position_label(row["ordinal"], row["element_count"])
-        lemma_ref = f"{row['language']}:{row['canonical_form']}"
-
-        native[
-            _NativeKey(
-                culture=culture,
-                position=position,
-                tag=tag,
-                era_midpoint=midpoint,
-                lemma_ref=lemma_ref,
-            )
-        ] += 1
-        loan[
-            _LoanKey(
-                donor=row["language"],
-                recipient=culture,
-                position=position,
-                tag=tag,
-                era_midpoint=midpoint,
-                lemma_ref=lemma_ref,
-            )
-        ] += 1
+        native[native_key] += 1
+        loan[loan_key] += 1
         rows_emitted += 1
 
     # Final progress line — CLAUDE.md requires "Always echo a final
@@ -421,11 +420,11 @@ def extract_priors(
         rows_emitted=rows_emitted,
         native_cells_written=len(native),
         loan_cells_written=len(loan),
-        skipped_country_unknown=skipped_country_unknown,
-        skipped_country_unmapped=skipped_country_unmapped,
-        skipped_year_unknown=skipped_year_unknown,
-        skipped_year_out_of_range=skipped_year_out_of_range,
-        skipped_no_tag=skipped_no_tag,
+        skipped_country_unknown=skips["skipped_country_unknown"],
+        skipped_country_unmapped=skips["skipped_country_unmapped"],
+        skipped_year_unknown=skips["skipped_year_unknown"],
+        skipped_year_out_of_range=skips["skipped_year_out_of_range"],
+        skipped_no_tag=skips["skipped_no_tag"],
     )
     return dict(native), dict(loan), summary
 
