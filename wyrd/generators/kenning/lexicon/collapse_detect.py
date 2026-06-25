@@ -113,21 +113,30 @@ def _resolve_pointer_target(
     an optional register/dialect qualifier ("Northumbrian form of earon" → earon),
     and a qualifier word can ITSELF be a live lemma — "...form of west saxon burg"
     has both ``west`` and ``burg`` — so trusting the first word after "of" would
-    fold onto the qualifier. Instead de-dash EVERY tail word and fold only when
-    EXACTLY ONE resolves; an ambiguous tail (≥2 resolve) is left for the LLM merge
-    pass. This fold is AUTO-APPLIED (no LLM gate), so it must never guess — D46: a
-    missed fold is harmless, a wrong fold tombstones a distinct morpheme. (A capital
-    qualifier like ``Old English`` is filtered for free by the bare-lower-case
-    canonical_form, so the unique resolver is the real lemma.) Does NOT fix a
-    sole-gloss FALSE pointer — a real meaning that merely matches the pointer regex,
-    e.g. "early form of writing" → ``writing`` — which is a separate semantic gap
-    (wyrd-800c)."""
+    fold onto the qualifier. Instead de-dash EVERY word in the LEMMA REGION and fold
+    only when EXACTLY ONE resolves; an ambiguous region (≥2 resolve) is left for the
+    LLM merge pass. This fold is AUTO-APPLIED (no LLM gate), so it must never guess —
+    D46: a missed fold is harmless, a wrong fold tombstones a distinct morpheme. (A
+    capital qualifier like ``Old English`` is filtered for free by the bare-lower-case
+    canonical_form, so the unique resolver is the real lemma.)
+
+    The lemma region is the tail UP TO the first ``(`` — a parenthetical sense-gloss
+    ('form of wiell ("spring, fountain, well")') holds the lemma's MEANING, never the
+    lemma, so its words must not be resolution candidates (else, with the lemma
+    absent, the fold lands on a sense word). Does NOT fix two sole-gloss FALSE-pointer
+    shapes left to wyrd-800c, because a clean wiktextract form-of template produces
+    neither: (a) a real meaning matching the pointer regex ("early form of writing"
+    → ``writing``), and (b) trailing bare prose after the lemma ("form of burg used
+    widely" — if ``burg`` is absent the region's lone resolver is the prose word).
+    Both are hand-written definitions mis-read as pointers — a semantic gap a resolver
+    count can't close."""
     for g in glosses:
         m = _POINTER_TAIL_RE.search(g)
         if not m:
             continue
+        region = m.group(1).split("(", 1)[0]  # drop a parenthetical sense-gloss
         resolved: set[str] = set()
-        for word in _TAIL_WORD_RE.findall(m.group(1)):
+        for word in _TAIL_WORD_RE.findall(region):
             cand = normalize_morpheme_surface(word) or word
             if not cand or cand == canonical_form:
                 continue

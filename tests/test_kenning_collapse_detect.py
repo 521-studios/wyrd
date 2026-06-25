@@ -137,6 +137,32 @@ def test_pointer_capital_lang_qualifier_folds_to_real_lemma(tmp_path):
     assert rows[0]["method"] == POINTER_PARSE_METHOD
 
 
+def test_pointer_parenthetical_sense_words_not_targets(tmp_path):
+    """Regression (cycle-84 review): a parenthetical sense-gloss after the lemma
+    ('form of wiell (spring, well)') holds the lemma's MEANING, never the lemma, so
+    its words are not fold candidates. 'wiell' is the target even though the sense
+    words 'spring'/'well' are also live lemmas. (Pre-fix the parens were scanned, so
+    three live words → ambiguous → the legit fold was MISSED.)"""
+    conn = _conn(tmp_path / "lex.db")
+    _ety(conn, 1, "wvar", ["alternative form of wiell (spring, well)"])
+    _ety(conn, 2, "wiell", ["a spring"])  # the real lemma
+    _ety(conn, 3, "spring", ["season"])  # a sense word — must NOT be the target
+    _ety(conn, 4, "well", ["a water source"])  # another sense word
+    rows = detect_deterministic_collapses(conn)
+    assert {r["ref"]: r["into"] for r in rows} == {"old-english:wvar": "old-english:wiell"}
+
+
+def test_pointer_parenthetical_absent_lemma_not_redirected(tmp_path):
+    """The lemma named before the parens is absent while a sense word INSIDE the
+    parens is live. An auto-applied fold must not silently land on the sense word
+    (D46) — the parenthetical is not scanned, so nothing resolves → no fold. Pre-fix
+    this folded the variant onto the sense word 'spring'."""
+    conn = _conn(tmp_path / "lex.db")
+    _ety(conn, 1, "wvar", ["alternative form of ghostlemma (spring, well)"])
+    _ety(conn, 2, "spring", ["season"])  # live sense word, but 'ghostlemma' is absent
+    assert detect_deterministic_collapses(conn) == []
+
+
 def test_bidirectional_variants_dont_cycle(tmp_path):
     """wode↔wood mutually registered as variants → only ONE direction
     emitted (no merged_into_id cycle)."""
