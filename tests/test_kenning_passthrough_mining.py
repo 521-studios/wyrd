@@ -15,9 +15,42 @@ from wyrd.generators.kenning.lexicon.decomposition_grader import load_cluster_in
 from wyrd.generators.kenning.lexicon.passthrough_mining import (
     METHOD,
     Passthrough,
+    _segment_order,
     extract_cross_scholar_passthroughs,
     passthrough_assertions,
 )
+
+
+def test_segment_order_unique_tiling_returns_order():
+    """A surface that tiles under exactly ONE cluster order returns that order — the
+    constituent (ordinal) ordering, left to right."""
+    assert _segment_order("tunton", ["ctun", "cton"], {"ctun": {"tun"}, "cton": {"ton"}}) == (
+        "ctun",
+        "cton",
+    )
+    assert _segment_order("xyz", ["ca"], {"ca": {"q"}}) is None  # no tiling
+
+
+def test_segment_order_three_clusters_unique_tiling():
+    """Multiplicity is about distinct TILING orders, not how many permutations are
+    tried: 3 constituents with distinct surfaces yield 3!=6 candidate orders but only
+    ONE tiles, so that order is returned (not None). (The caller passes ``list(fine_only)``
+    — a set difference — so the cluster list is always duplicate-free; a repeated key
+    that would make permutations collide is unreachable.)"""
+    out = _segment_order("axbycz", ["ca", "cb", "cc"], {"ca": {"ax"}, "cb": {"by"}, "cc": {"cz"}})
+    assert out == ("ca", "cb", "cc")
+
+
+def test_segment_order_ambiguous_tiling_left_separate():
+    """Regression: when constituent clusters share folded reflex surfaces, a surface
+    can tile under MORE THAN ONE order (both clusters carry 'tun' AND 'ton' → 'tunton'
+    tiles as tun|ton OR ton|tun). The old code returned the lexicographically-smallest
+    cluster-key permutation — an arbitrary 'ordinal' guess that would commit a WRONG
+    split. Ambiguous → None (D46 leave-separate; a missed passthrough is harmless)."""
+    out = _segment_order(
+        "tunton", ["ctun", "cton"], {"ctun": {"tun", "ton"}, "cton": {"ton", "tun"}}
+    )
+    assert out is None  # was ('cton','ctun') — an arbitrary, possibly-wrong ordinal
 
 
 def _etymon(db, form, *, language="old-english"):
