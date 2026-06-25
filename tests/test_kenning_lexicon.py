@@ -15164,6 +15164,28 @@ def test_compute_phonological_bridges_matches_skips_and_counts_missing() -> None
     assert missing_target == 1  # 'lea' bridged to 'lēah', which had no etymon
 
 
+def test_compute_phonological_bridges_case_folds_both_sides() -> None:
+    """The match is case-insensitive on BOTH sides: a mixed-case stored
+    canonical_form (normalize_morpheme_surface preserves case, so mixed case
+    survives to here) and a mixed-case bridge-table VALUE both fold to lowercase
+    before lookup. Pins the load-bearing .lower() calls — dropping either the
+    canonical_form fold or the wiktionary-form fold would miss the lookup and
+    fail here (pr-test-analyzer #765)."""
+    from wyrd.generators.kenning.lexicon.bridges._common import _compute_phonological_bridges
+
+    examined = [
+        {"id": 1, "canonical_form": "Ton"},  # mixed-case form -> folds to 'ton'
+        {"id": 2, "canonical_form": "lea"},  # table value is mixed-case 'LĒAH'
+    ]
+    table = {"ton": "tūn", "lea": "LĒAH"}
+    target_index = {"tūn": 10, "lēah": 20}  # keys are lower-cased resolved canonicals
+
+    bridges, missing_target = _compute_phonological_bridges(examined, table, target_index)
+
+    assert bridges == [(1, 10), (2, 20)]  # both bridge despite case on either side
+    assert missing_target == 0
+
+
 def test_bridge_phonological_oe_merges_known_pair(fresh_db: Path) -> None:
     """A known OE place-name form (`ton`) with a canonical Wiktionary
     target (`tūn`) gets merged_into_id set to the canonical's id.
