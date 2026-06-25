@@ -600,7 +600,7 @@ def _insert_attestation_rows(
 # exactly the dumped columns (single-sourced in _l2_columns), so dump and build
 # can't drift. ``etymon_id`` is resolved separately from ``etymon_ref`` below; the
 # schema's autoincrement ``id`` is allocated by SQLite.
-_FANTASY_MORPHEME_INSERT_COLUMNS = _FANTASY_MORPHEME_COLUMNS
+_FANTASY_MORPHEME_INSERT_COLUMNS: tuple[str, ...] = _FANTASY_MORPHEME_COLUMNS
 
 
 # Columns the schema declares NOT NULL on ``fantasy_morpheme``. The

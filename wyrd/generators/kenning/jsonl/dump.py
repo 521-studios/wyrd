@@ -894,7 +894,7 @@ _FANTASY_MINING_SOURCE_ROW = {
 # aren't stable across rebuilds but (language, canonical_form) is.
 # The scalar surface dumped per fantasy_morpheme — single-sourced in _l2_columns so
 # it can't drift from build's inserter (see _FANTASY_MORPHEME_INSERT_COLUMNS).
-_FANTASY_MORPHEME_SCALAR_COLUMNS = _FANTASY_MORPHEME_COLUMNS
+_FANTASY_MORPHEME_SCALAR_COLUMNS: tuple[str, ...] = _FANTASY_MORPHEME_COLUMNS
 
 
 def _dump_fantasy_morpheme_rows(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:
