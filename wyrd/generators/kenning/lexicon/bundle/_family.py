@@ -871,7 +871,16 @@ def _fetch_member_variants(
     placeholders = ",".join("?" * len(member_ids))
     member_variants: dict[int, list[tuple[str, int]]] = {}
     for row in db.conn.execute(
-        f"SELECT etymon_id, matched_form, "
+        # MAX(matched_form), not a bare ``matched_form``: the GROUP BY folds
+        # case-variants (``Chimaera``/``chimaera``) into one row, so a bare
+        # non-aggregated column would surface an ENGINE-DEFINED arbitrary row's
+        # casing — a byte-reproducibility hole (the bundle must rebuild
+        # identically across SQLite versions / query plans). MAX pins it to the
+        # lexicographically-greatest casing, which is exactly what the bare
+        # column already returns on the current engine (verified: cur == MAX for
+        # all 1,780 collided groups), so this is byte-identical today and
+        # deterministic going forward.
+        f"SELECT etymon_id, MAX(matched_form) AS matched_form, "
         f"  SUM(match_count) AS total_count, "
         f"  GROUP_CONCAT(DISTINCT method) AS methods "
         f"FROM etymon_text_match "

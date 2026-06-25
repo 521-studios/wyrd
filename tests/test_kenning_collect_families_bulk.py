@@ -13,6 +13,7 @@ from wyrd.generators.kenning.lexicon.bundle._export import _iterate_families_wit
 from wyrd.generators.kenning.lexicon.bundle._family import (
     _bulk_attested_years,
     _fetch_member_attested_years,
+    _fetch_member_variants,
 )
 
 
@@ -199,3 +200,30 @@ def test_cross_family_isolation(tmp_path: Path) -> None:
     # list pins per-family slicing AND isolation (no extra or bled-in keys).
     years = [f["member_attested_years"] for f in families]
     assert years == [{a: 1000}, {b: 2000}]
+
+
+def test_fetch_member_variants_deterministic_casing_on_collision(tmp_path: Path) -> None:
+    """Case-variant collisions ("Chimaera"/"chimaera") fold into ONE
+    ``GROUP BY etymon_id, LOWER(matched_form)`` row, so the emitted casing must be
+    deterministic. A bare non-aggregated ``matched_form`` would surface an
+    engine-defined arbitrary row's casing — a byte-reproducibility hole, since the
+    bundle must rebuild identically across SQLite versions / query plans. The query
+    pins it with ``MAX(matched_form)`` → the lexicographically-greatest casing
+    (lowercase-leading wins in ASCII)."""
+    p = tmp_path / "lex.db"
+    init_schema(p)
+    with LexiconDB(p) as db:
+        db.upsert_source(id="s", title="S")
+        eid = db.upsert_etymon("chim", "old-english")  # canonical differs from the variant
+        for form in ("Chimaera", "chimaera"):
+            db.conn.execute(
+                "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+                "match_count, edit_distance, attested_year, method) "
+                "VALUES (?, 's', ?, 2, 0, NULL, 'reverse-search')",
+                (eid, form),
+            )
+        db.commit()
+        variants = _fetch_member_variants(db, [eid], canonical_forms_lower=set())
+        forms = [f for f, _count in variants[eid]]
+        # The two casings fold to ONE variant, deterministically the MAX casing.
+        assert forms == ["chimaera"]  # MAX("Chimaera", "chimaera") — not engine-arbitrary
