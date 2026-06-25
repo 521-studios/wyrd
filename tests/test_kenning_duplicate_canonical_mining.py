@@ -514,6 +514,7 @@ def test_detect_dash_compound_excluded_but_foldequal_kept(lex):
     wulf-pytt; kaup-maðr vs kaup-madr — note ð folds to d) and is kept."""
     _etymon(lex, "gos", "old-english", ["goose"])
     _etymon(lex, "gos-wic", "old-english", ["goose", "farm"])  # compound (goose-farm)
+    _etymon(lex, "gos–wic", "old-english", ["goose", "farm"])  # SAME compound, en-dash (U+2013)
     _etymon(lex, "gos-tun", "old-english", ["goose", "farm"])  # ANOTHER compound (both dashed)
     _etymon(lex, "wulfpytt", "old-english", ["wolf", "pit"])
     _etymon(lex, "wulf-pytt", "old-english", ["wolf", "pit"])  # same word, dash spelling
@@ -523,6 +524,10 @@ def test_detect_dash_compound_excluded_but_foldequal_kept(lex):
     pairs = {frozenset((c.a_form, c.b_form)) for c in detect_candidates(lex.conn).candidates}
     assert frozenset(("gos", "gos-wic")) not in pairs  # compound↔constituent excluded
     assert frozenset(("gos-wic", "gos-tun")) not in pairs  # both dashed, folds differ → excluded
+    # The en-dash compound must exclude against its constituent end-to-end (the #781
+    # fix), AND fold-equal its ASCII twin so the two dash spellings stay merge-eligible.
+    assert frozenset(("gos", "gos–wic")) not in pairs  # en-dash compound↔constituent excluded
+    assert frozenset(("gos-wic", "gos–wic")) in pairs  # en-dash ≡ ASCII compound → kept
     assert frozenset(("wulfpytt", "wulf-pytt")) in pairs  # fold-equal dash variant kept
     assert frozenset(("kaup-maðr", "kaup-madr")) in pairs  # ð folds to d → kept (was the #687 miss)
 
