@@ -31,7 +31,10 @@ from typing import Any
 import click
 
 from wyrd.generators.kenning.lexicon import LexiconDB
-from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
+from wyrd.generators.kenning.lexicon.morpheme_surface import (
+    _BOUNDARY_DASHES,
+    normalize_morpheme_surface,
+)
 from wyrd.generators.kenning.lexicon.wiktextract_ingester import (
     _canonical_language,
     _extract_head_template_renderings,
@@ -40,6 +43,14 @@ from wyrd.generators.kenning.lexicon.wiktextract_ingester import (
 )
 from wyrd.generators.kenning.runtime.meaning import load_meanings
 from wyrd.generators.kenning.runtime.name import load_names
+
+# Translate ANY dash (ASCII hyphen + the Unicode variants in _BOUNDARY_DASHES) to
+# a space when tokenizing a place name into words. The bundled corpora hyphenate
+# with ASCII (``Saint-Pierre``), but a re-sourced / typographic corpus can carry
+# an en-dash (``Saint–Pierre``); ASCII-only ``replace("-", " ")`` left that as one
+# un-split token, mis-tokenizing the name (D45 — a dash is a boundary, never
+# identity; same class as the resolver #777 / cluster-key #778 normalizers).
+_DASH_TO_SPACE = str.maketrans(dict.fromkeys(_BOUNDARY_DASHES, " "))
 
 # Synthetic source row written on first --apply run.
 WIKTIONARY_EMPIRICAL_SOURCE_ID = "wiktionary-empirical"
@@ -309,12 +320,12 @@ def _collect_word_substrings(
     words from the original name PLUS each word's boundary-adjacent
     prefixes and suffixes within ``[min_length, max_length]``.
 
-    Splitting on space, hyphen, and apostrophe matches the conventions
-    of the bundled place-name corpora (``Saint-Pierre`` / ``O'Connor``
-    / ``Bryneglwys``).
+    Splitting on space, dash (any variant — :data:`_DASH_TO_SPACE`), and
+    apostrophe matches the conventions of the bundled place-name corpora
+    (``Saint-Pierre`` / ``O'Connor`` / ``Bryneglwys``).
     """
     flat_lower = raw_name.lower()
-    for word in flat_lower.replace("-", " ").replace("'", " ").split():
+    for word in flat_lower.translate(_DASH_TO_SPACE).replace("'", " ").split():
         if len(word) < min_length:
             continue
         _accept_candidate(word, candidates, seen_in_name, min_length, max_length)
@@ -1145,9 +1156,9 @@ def _load_flat_names(place_names_path: Path) -> list[str]:
 
 def _walk_names(node: Any, out: list[str]) -> None:
     """Recursive walk of the nested place_names JSON, emitting per-word tokens
-    (split on space + hyphen, lowercased, apostrophes stripped)."""
+    (split on space + dash of any variant, lowercased, apostrophes stripped)."""
     if isinstance(node, str):
-        for word in node.lower().replace("-", " ").replace("'", "").split():
+        for word in node.lower().translate(_DASH_TO_SPACE).replace("'", "").split():
             if word:
                 out.append(word)
     elif isinstance(node, list):
