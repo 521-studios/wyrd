@@ -157,8 +157,9 @@ def normalize_ocr_form(form: str) -> str:
 def position_from_usage(modern_usage: str) -> str:
     """Derive a reflex position from the dash markers on a modern_usage string.
 
-    Starts and ends with '-' → inner, ends with '-' → pre, otherwise
-    post.
+    Starts and ends with a boundary dash → inner, ends with one → pre,
+    otherwise post. "Dash" is any codepoint in ``_BOUNDARY_DASHES`` (ASCII
+    hyphen or a Unicode dash), matching the surface de-dash.
 
     NB (wyrd-vpri): this INTENTIONALLY diverges from
     ``Meaning._set_location``, which now maps a no-dash usage to the

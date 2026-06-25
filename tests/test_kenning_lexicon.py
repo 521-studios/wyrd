@@ -171,9 +171,14 @@ def test_seed_reflex_dedashes_unicode_boundary_markers(tmp_path: Path) -> None:
             ],
             source_id="rando-port",
         )
-    rows = set(sqlite3.connect(db_path).execute("SELECT surface_form, position FROM reflex"))
+    conn = sqlite3.connect(db_path)
+    rows = set(conn.execute("SELECT surface_form, position FROM reflex"))
     # Bare surfaces (no '–shire'/'ton‐'), correct positions, no junk '' row.
     assert rows == {("shire", "post"), ("ton", "pre")}
+    # The dropped junk word ('–') left NO dangling reflex_etymon link — one link
+    # per surviving reflex, none for the skipped one (the `continue` fires before
+    # the link loop).
+    assert conn.execute("SELECT COUNT(*) FROM reflex_etymon").fetchone()[0] == 2
 
 
 def test_init_schema_creates_tables(fresh_db: Path) -> None:
