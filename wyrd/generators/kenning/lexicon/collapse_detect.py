@@ -159,27 +159,16 @@ def _detect_pointer_parse(conn: sqlite3.Connection) -> list[dict[str, str]]:
     return out
 
 
-def detect_deterministic_collapses(conn: sqlite3.Connection) -> list[dict[str, str]]:
-    """Return collapse rows for the deterministic cases, with cycles broken.
+def _break_collapse_cycles(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Drop every edge that would close a cycle in the ``merged_into_id`` graph.
 
-    Method A wins on ``ref`` collisions (it carries the wiktextract
-    variant_class). Then union-find drops any edge that would close a
-    cycle in the ``merged_into_id`` graph — wiktextract registers some
-    variants BIDIRECTIONALLY (``wode`` is a variant of ``wood`` AND
-    ``wood`` of ``wode``), so naively emitting both would tombstone each
-    into the other — a ``merged_into_id`` cycle that
-    ``_resolve_live_etymon`` (it excludes already-tombstoned rows)
-    could never settle. Edges are processed in deterministic ``(ref,
-    into)`` order; the first direction seen for a pair survives, the
-    cycle-closer is skipped.
+    Union-find over the ``ref``/``into`` nodes. Edges are processed in
+    deterministic ``(ref, into)`` order; the first direction seen for a pair
+    survives, the cycle-closer is skipped — so a wiktextract pair registered
+    BIDIRECTIONALLY (``wode`` a variant of ``wood`` AND ``wood`` of ``wode``)
+    can't tombstone each node into the other (a ``merged_into_id`` cycle that
+    ``_resolve_live_etymon`` could never settle).
     """
-    rows = _detect_variant_gloss_overlap(conn)
-    seen = {r["ref"] for r in rows}
-    for r in _detect_pointer_parse(conn):
-        if r["ref"] not in seen:
-            seen.add(r["ref"])
-            rows.append(r)
-
     parent: dict[str, str] = {}
 
     def find(x: str) -> str:
@@ -198,14 +187,24 @@ def detect_deterministic_collapses(conn: sqlite3.Connection) -> list[dict[str, s
             continue  # already in one cluster — this edge would close a cycle
         parent[ra] = rb
         kept.append(r)
+    return kept
 
-    # Flatten chains: re-point every collapse at its cluster's TERMINAL
-    # survivor (the node that is never itself a ``ref``), so the ledger is
-    # a flat forest. Without this a chain ``wella -> well -> wiell`` is
-    # apply-order-fragile: if ``well`` is tombstoned before the
-    # ``wella -> well`` row, ``well`` no longer resolves and that fold is
-    # silently missed. Transitively still correct — a variant of a variant
-    # of X is a variant of X.
+
+def _flatten_collapse_chains(kept: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Re-point every collapse at its cluster's TERMINAL survivor.
+
+    The survivor is the node that is never itself a ``ref``, so the ledger is a
+    flat forest. Without this a chain ``wella -> well -> wiell`` is apply-order-
+    fragile: if ``well`` is tombstoned before the ``wella -> well`` row,
+    ``well`` no longer resolves and that fold is silently missed. Transitively
+    still correct — a variant of a variant of X is a variant of X.
+
+    The ``survivor(ref) != ref`` filter and the ``cur not in seen`` walk guard
+    are purely defensive: :func:`_break_collapse_cycles` runs first and leaves
+    ``direct`` acyclic, so ``survivor(ref)`` always reaches a distinct terminal
+    node. Were a cycle to reach here anyway, the guard stops the walk and the
+    filter drops the self-resolving rows rather than looping forever.
+    """
     direct = {r["ref"]: r["into"] for r in kept}
 
     def survivor(ref: str) -> str:
@@ -216,3 +215,28 @@ def detect_deterministic_collapses(conn: sqlite3.Connection) -> list[dict[str, s
         return cur
 
     return [{**r, "into": survivor(r["ref"])} for r in kept if survivor(r["ref"]) != r["ref"]]
+
+
+def detect_deterministic_collapses(conn: sqlite3.Connection) -> list[dict[str, str]]:
+    """Return collapse rows for the deterministic cases, with cycles broken.
+
+    A three-step pipeline over the candidate collapse edges:
+
+      1. Gather from both detectors. Method A (variant/gloss overlap, which
+         carries the wiktextract ``variant_class``) wins on ``ref`` collisions;
+         Method B (pointer-parse) fills only refs Method A didn't claim.
+      2. :func:`_break_collapse_cycles` drops edges that would close a
+         ``merged_into_id`` cycle.
+      3. :func:`_flatten_collapse_chains` re-points each surviving edge at its
+         cluster's terminal survivor.
+
+    See those helpers for the cycle-breaking and chain-flattening rationale.
+    """
+    rows = _detect_variant_gloss_overlap(conn)
+    seen = {r["ref"] for r in rows}
+    for r in _detect_pointer_parse(conn):
+        if r["ref"] not in seen:
+            seen.add(r["ref"])
+            rows.append(r)
+
+    return _flatten_collapse_chains(_break_collapse_cycles(rows))
