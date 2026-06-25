@@ -891,6 +891,43 @@ def mine_toponym_mentions_from_chunks(
     )
 
 
+def _record_chunk_failure(
+    report: MineToponymMentionsReport,
+    head_failures: list[FailedChunk],
+    tail_failures: deque[FailedChunk],
+    *,
+    index: int,
+    chunk: str,
+    error: Exception,
+    on_chunk_failed: Callable[[FailedChunk], None] | None,
+    log_warning: Callable[[str], None] | None,
+) -> None:
+    """Record one per-chunk LLM failure: count it on ``report``, capture it into
+    the head/tail ring buffer (first ``_FAILED_CHUNKS_HEAD`` directly, the rest in
+    the bounded ``tail_failures`` deque), and fire the ``on_chunk_failed`` callback
+    + the operator warning.
+
+    The error string is UTF-8-sanitized (wyrd-8wa4): provider-SDK exceptions can
+    carry LLM response excerpts (or stringified JSON parse offsets) containing
+    lone surrogates, and without this the writer that persists failed-chunk
+    records would hit that same crash class one layer downstream.
+    """
+    report.chunks_failed += 1
+    failure = FailedChunk(
+        index=index,
+        error=_sanitize_for_utf8(f"{type(error).__name__}: {error}"),
+        chunk_body=chunk,
+    )
+    if len(head_failures) < _FAILED_CHUNKS_HEAD:
+        head_failures.append(failure)
+    else:
+        tail_failures.append(failure)
+    if on_chunk_failed is not None:
+        on_chunk_failed(failure)
+    if log_warning is not None:
+        log_warning(f"chunk {index} failed: {type(error).__name__}: {error}")
+
+
 def _process_indexed_chunks(
     client,
     source_id: str,
@@ -943,25 +980,16 @@ def _process_indexed_chunks(
             # the whole multi-source run. Programmer-error types are
             # re-raised in the prior clause; KeyboardInterrupt and
             # SystemExit (BaseException) still propagate naturally.
-            report.chunks_failed += 1
-            # Sanitize the error string — provider-SDK exceptions can
-            # carry LLM response excerpts (or stringified JSON parse
-            # offsets) containing lone surrogates. Without this the
-            # writer that persists failed-chunk records would hit the
-            # same wyrd-8wa4 crash class one layer downstream.
-            failure = FailedChunk(
+            _record_chunk_failure(
+                report,
+                head_failures,
+                tail_failures,
                 index=i,
-                error=_sanitize_for_utf8(f"{type(e).__name__}: {e}"),
-                chunk_body=chunk,
+                chunk=chunk,
+                error=e,
+                on_chunk_failed=on_chunk_failed,
+                log_warning=log_warning,
             )
-            if len(head_failures) < _FAILED_CHUNKS_HEAD:
-                head_failures.append(failure)
-            else:
-                tail_failures.append(failure)
-            if on_chunk_failed is not None:
-                on_chunk_failed(failure)
-            if log_warning is not None:
-                log_warning(f"chunk {i} failed: {type(e).__name__}: {e}")
             continue
         # wyrd-w7i3 crash-safety ordering: on_chunk_mentions fires
         # FIRST, before any mutation of `report` and before the

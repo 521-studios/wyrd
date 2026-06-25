@@ -21,10 +21,47 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.extractors.toponym_mentions import (
+    _FAILED_CHUNKS_HEAD,
+    MineToponymMentionsReport,
     ToponymMention,
+    _record_chunk_failure,
     chunk_source_body,
     mine_toponym_mentions,
 )
+
+
+def test_record_chunk_failure_buffers_sanitizes_and_notifies():
+    """``_record_chunk_failure`` (extracted from the per-chunk loop): counts the
+    failure, captures it head-first then into the bounded tail ring buffer,
+    UTF-8-sanitizes the STORED error (wyrd-8wa4) while passing the raw exception
+    text to the operator log, and fires the on_chunk_failed callback."""
+    from collections import deque
+
+    report = MineToponymMentionsReport(source_id="s")
+    head: list = []
+    tail: deque = deque(maxlen=4)
+    failed_cb: list = []
+    logs: list = []
+
+    # First _FAILED_CHUNKS_HEAD failures land in head; the next overflows to tail.
+    for n in range(_FAILED_CHUNKS_HEAD + 1):
+        _record_chunk_failure(
+            report,
+            head,
+            tail,
+            index=n,
+            chunk="body",
+            error=ValueError(f"boom {n} \udce9"),  # lone surrogate exercises sanitize
+            on_chunk_failed=failed_cb.append,
+            log_warning=logs.append,
+        )
+    assert report.chunks_failed == _FAILED_CHUNKS_HEAD + 1
+    assert len(head) == _FAILED_CHUNKS_HEAD and len(tail) == 1
+    assert len(failed_cb) == _FAILED_CHUNKS_HEAD + 1
+    # Stored error is sanitized (no lone surrogate); the log line keeps raw text.
+    assert "\udce9" not in head[0].error
+    assert head[0].error.startswith("ValueError: boom 0")
+    assert logs[0] == "chunk 0 failed: ValueError: boom 0 \udce9"
 
 
 class FakeClient:
