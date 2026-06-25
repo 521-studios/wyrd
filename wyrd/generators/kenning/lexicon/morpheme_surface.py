@@ -14,6 +14,13 @@ preserving any *legitimate interior* hyphen in a form — ``al-Quadim``,
 ``'s-Hertogenbosch``, the PIE proto-segmentation hyphens in ``*(H)réh₁-ti-s`` —
 which a blanket ``replace('-', '')`` would corrupt.
 
+"Dash" here is any dash-like codepoint, not just ASCII hyphen-minus: a boundary
+marker pasted as U+2010 HYPHEN, U+2011 NON-BREAKING HYPHEN, or an en/em dash is
+just as much position decoration, and would otherwise fork ``–ach`` from ``ach``
+(see :data:`_BOUNDARY_DASHES`). Boundary whitespace is likewise trimmed across
+the full Unicode set (tab, NBSP, …), not only the ASCII space — a non-ASCII
+boundary space could otherwise shield an ASCII position-dash from the trim.
+
 The leading reconstruction sigil ``*`` (``*tūn``, ``*-at-``) is PRESERVED: it is
 identity, not decoration, and its own folding (``*`` → a ``reconstructed``
 boolean, with the recon/attested collision handling) is deferred to wyrd-qoy8.
@@ -29,6 +36,43 @@ junk guard sits at the ingest boundary, not in the upsert primitive).
 """
 
 from __future__ import annotations
+
+# Boundary position-markers may be drawn with ANY dash-like codepoint, not just
+# ASCII hyphen-minus: text pasted from PDFs / Wiktionary / etymonline routinely
+# carries U+2010 HYPHEN or U+2011 NON-BREAKING HYPHEN (and en/em dashes appear
+# too). All are boundary decoration that must be trimmed, or ``–ach`` would fork
+# from ``ach`` — the very duplicate this module exists to prevent (D45). Interior
+# occurrences are NOT in scope here (only boundaries are trimmed), so a real
+# interior hyphen like ``al-Quadim`` is untouched.
+_BOUNDARY_DASHES = (
+    "-"  # U+002D HYPHEN-MINUS (ASCII)
+    "‐"  # HYPHEN
+    "‑"  # NON-BREAKING HYPHEN
+    "‒"  # FIGURE DASH
+    "–"  # EN DASH
+    "—"  # EM DASH
+    "―"  # HORIZONTAL BAR
+    "−"  # MINUS SIGN
+    "﹘"  # SMALL EM DASH
+    "﹣"  # SMALL HYPHEN-MINUS
+    "－"  # FULLWIDTH HYPHEN-MINUS
+)
+
+
+def _strip_boundary_decoration(s: str) -> str:
+    """Trim boundary position-decoration from both ends: ALL Unicode whitespace
+    (via bare ``str.strip``) AND any dash-like codepoint (:data:`_BOUNDARY_DASHES`).
+
+    Alternates the two strips to a fixed point so an interleaving like NBSP +
+    dash + NBSP (where a non-ASCII space shields the dash from the boundary)
+    fully resolves. Interior characters — including legitimate interior hyphens
+    (``al-Quadim``) — are never touched, since ``strip`` only acts on the ends.
+    """
+    prev = None
+    while s != prev:
+        prev = s
+        s = s.strip().strip(_BOUNDARY_DASHES)
+    return s
 
 
 def normalize_morpheme_surface(raw: str | None) -> str | None:
@@ -53,14 +97,16 @@ def normalize_morpheme_surface(raw: str | None) -> str | None:
     """
     if not isinstance(raw, str):
         return None
-    # Strip boundary spaces AND dashes FIRST, so a leading dash before the sigil
-    # ("-*ach-") or a nested-space form ("-  ach  -") still resolves: the sigil
-    # is then at position 0 and the stem carries no stray boundary chars.
-    s = raw.strip(" -")
+    # Strip boundary whitespace AND dashes FIRST, so a leading dash before the
+    # sigil ("-*ach-") or a nested-space form ("-  ach  -") still resolves: the
+    # sigil is then at position 0 and the stem carries no stray boundary chars.
+    # ``_strip_boundary_decoration`` covers Unicode dashes/whitespace, not just
+    # ASCII " -", so a U+2010/U+2011/en-dash boundary marker can't survive (D45).
+    s = _strip_boundary_decoration(raw)
     reconstructed = s.startswith("*")
     if reconstructed:
         # Re-strip the stem after peeling the sigil ("* -ach" / "*-ach-").
-        s = s[1:].strip(" -")
+        s = _strip_boundary_decoration(s[1:])
     # Junk if nothing survives, or the stem is only sigils/dashes ("-*", "**") —
     # a bare sigil is not a morpheme. (`strip` is the junk TEST only; the
     # returned `s` keeps its interior hyphens.)
