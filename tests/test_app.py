@@ -313,3 +313,33 @@ def test_manifest_era_stages_optional_for_other_generators():
         if g["name"] != "kenning":
             # other generators don't define the attribute → None
             assert g["era_stages"] is None or isinstance(g["era_stages"], dict)
+
+
+def test_stripped_str_treats_non_string_as_absent():
+    from wyrd.app import _stripped_str
+
+    assert _stripped_str("  hi  ") == "hi"
+    assert _stripped_str("hi") == "hi"
+    # non-strings normalize to "" (absent) instead of raising on .strip()
+    assert _stripped_str(5) == ""
+    assert _stripped_str(None) == ""
+    assert _stripped_str(["a", "b"]) == ""
+    assert _stripped_str({"x": 1}) == ""
+
+
+def test_record_defect_non_string_reason_is_400_not_500():
+    """A malformed defect report whose reason/generator is a non-string (number,
+    list, object) is a clean 400 'bad_report' — not a 500 from calling .strip()
+    on a non-string (the old `(5 or "").strip()` AttributeError)."""
+    app = create_app()
+    with app.test_client() as client:
+        for body in (
+            {"reason": 5, "generator": "kenning"},
+            {"reason": ["a", "b"], "generator": "kenning"},
+            {"reason": {"x": 1}, "generator": "kenning"},
+            {"reason": "ok", "generator": 7},
+            {"reason": "ok", "generator": ["k"]},
+        ):
+            resp = client.post("/api/defects", json=body)
+            assert resp.status_code == 400, body
+            assert resp.get_json()["error"] == "bad_report"

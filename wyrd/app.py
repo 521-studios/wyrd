@@ -244,6 +244,13 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
     )
 
 
+def _stripped_str(value: Any) -> str:
+    """A required free-text field, normalized to a stripped string. A non-string
+    (number, list, null) is treated as absent (``""``) so a malformed report is a
+    clean 400 rather than a 500 from ``.strip()`` on a non-string."""
+    return value.strip() if isinstance(value, str) else ""
+
+
 def _record_defect(body: dict[str, Any]):
     """Validate + persist a defect report (wyrd-dsl5). Requires a non-empty
     ``reason`` and a ``generator``; everything else is reproduction context
@@ -257,8 +264,12 @@ def _record_defect(body: dict[str, Any]):
         # on .get below → 500. Reject cleanly instead.
         return jsonify({"error": "bad_report", "detail": "body must be a JSON object"}), 400
 
-    reason = (body.get("reason") or "").strip()
-    generator = (body.get("generator") or "").strip()
+    # A non-STRING reason/generator (a number, list, or object) is a malformed
+    # report, not a valid one: treat it as absent so it falls to the clean 400
+    # below. Calling .strip() on a non-string (the old `(5 or "").strip()`)
+    # would AttributeError into a 500 — masking a bad request as a server crash.
+    reason = _stripped_str(body.get("reason"))
+    generator = _stripped_str(body.get("generator"))
     if not reason:
         return jsonify({"error": "bad_report", "detail": "reason is required"}), 400
     if not generator:
