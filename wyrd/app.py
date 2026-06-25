@@ -145,13 +145,18 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
     # when no WYRD_DEFAULT_* is set, so local / CLI / tests stay bit-stable.
     apply_env_defaults(params, generator.input_schema().get("properties", {}))
 
-    seed = resolve_seed(params.pop("seed", None))
-    # Snapshot params before count is popped so the log line carries
-    # the actual operator input shape (count, mode, knobs).
+    # Snapshot params before count/seed are popped so the log line carries the
+    # actual operator input shape (count, mode, knobs); the snapshot drops
+    # ``seed`` by key whether or not it has been popped yet.
     param_snapshot = {k: v for k, v in params.items() if k != "seed"}
     started = time.perf_counter()
 
     try:
+        # Resolve the seed INSIDE the try: a non-coercible seed (a non-numeric
+        # string, a list) raises ValueError → the except below maps it to a 400
+        # bad_params. Outside the try (where this used to live) it crashed as an
+        # uncaught 500.
+        seed = resolve_seed(params.pop("seed", None))
         if generator.multi_result:
             # Multi-result generators size their own output from the input
             # (e.g. an explainer returning every matching decomposition), so

@@ -45,6 +45,18 @@ def test_resolve_seed_string_int_is_coerced():
     assert resolve_seed("0") == 0
 
 
+def test_resolve_seed_non_coercible_raises_value_error():
+    """A non-coercible seed raises ValueError (a bad-param signal the dispatcher
+    maps to 400) — never a bare TypeError. A non-numeric string raises ValueError
+    on int(); a list/object raises TypeError on int() — both surface as ValueError
+    here so a single catch covers them."""
+    import pytest
+
+    for bad in ("abc", "1.5", "  ", [1, 2], {"x": 1}):
+        with pytest.raises(ValueError, match="seed must be an integer"):
+            resolve_seed(bad)
+
+
 def test_rng_for_returns_random_instance():
     assert isinstance(rng_for(42), random.Random)
 
