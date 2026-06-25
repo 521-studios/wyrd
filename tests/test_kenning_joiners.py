@@ -717,6 +717,31 @@ def test_word_elements_skips_none_and_strips_dashes() -> None:
     assert elements[0][1] == [m1]  # the meaning_db list rides along as the middle element
 
 
+def test_word_elements_override_drives_modern_surface() -> None:
+    """When a slot carries a ``_lang_override`` (a diversified cross-language
+    synonym, set by ``_resolve_repeat``), ``_word_elements`` takes that slot's
+    MODERN surface from ``override.usage`` (dash-stripped) while the native
+    surface stays the picked morpheme — so the modern companion can diverge from
+    the native canonical (NewName.modern_name semantics). Un-overridden slots
+    fall back to the dash-stripped morpheme key."""
+    from wyrd.generators.kenning import _word_elements
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
+    m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
+    meaning_db = {"Bridge-": [m1], "-water": [m2]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Bridge-", "-water"]])
+    # Slot 0 diversified to a Welsh synonym whose usage differs from the bucket key.
+    synonym = Meaning("pont-", tags=[], meanings=["Bridge"], sources={"welsh": ["pont"]})
+    new_name._lang_override = [[synonym, None]]
+
+    elements = _word_elements(new_name, 0, new_name.name[0])
+
+    assert elements[0][0] == "Bridge"  # native surface unchanged (no rendered)
+    assert elements[0][2] == "pont"  # modern surface from override.usage, dash-stripped
+    assert elements[1][2] == "water"  # un-overridden slot falls back to the key
+
+
 def test_apply_joiner_insertion_skips_when_no_shared_lang() -> None:
     """``_apply_joiner_insertion`` is a no-op when adjacent morphemes
     don't share any lang_field with a populated joiner pool."""
