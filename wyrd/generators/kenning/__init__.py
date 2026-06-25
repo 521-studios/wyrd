@@ -1404,6 +1404,32 @@ def _weighted_joiner_choice(
     return pool[-1][0]
 
 
+def _word_elements(new_name, wi: int, word) -> list[tuple[str, list[Meaning], str]]:
+    """Build the ``(native_surface, meanings, modern_surface)`` tuples for one
+    word's picked morphemes, skipping empty (``None``) slots.
+
+    The native surface prefers the rendered (era / native / substituted) form;
+    the modern surface mirrors :meth:`NewName.modern_name` — the diversified
+    cross-language synonym's own usage when one overrode the slot, else the
+    modern bucket key. Both have dash markers stripped (D45). Pure given
+    ``new_name`` — no RNG — so the joiner draw order in
+    :func:`_apply_joiner_insertion` is unaffected.
+    """
+    elements: list[tuple[str, list[Meaning], str]] = []
+    for ei, e in enumerate(word):
+        if e is None:
+            continue
+        if new_name.rendered is not None and new_name.rendered[wi][ei] is not None:
+            surface = new_name.rendered[wi][ei]
+        else:
+            surface = e.replace("-", "")
+        override = new_name._lang_override[wi][ei] if new_name._lang_override else None
+        modern_surface = (override.usage if override is not None else e).replace("-", "")
+        meanings = new_name.meaning_db[e]
+        elements.append((surface, meanings, modern_surface))
+    return elements
+
+
 def _apply_joiner_insertion(
     new_name,
     joiners: dict[str, list[tuple[str, int]]],
@@ -1432,23 +1458,7 @@ def _apply_joiner_insertion(
     modern_word_surfaces: list[str] = []
     inserted: list[tuple[str, str]] = []  # (joiner_surface, lang_field)
     for wi, word in enumerate(new_name.name):
-        # Each element: (native_surface, meanings, modern_surface). The native
-        # surface prefers the rendered (era / native / substituted) form; the
-        # modern surface mirrors NewName.modern_name() — the diversified
-        # cross-language synonym's own usage when one overrode the slot, else
-        # the modern bucket key. Both have dash markers stripped.
-        elements: list[tuple[str, list[Meaning], str]] = []
-        for ei, e in enumerate(word):
-            if e is None:
-                continue
-            if new_name.rendered is not None and new_name.rendered[wi][ei] is not None:
-                surface = new_name.rendered[wi][ei]
-            else:
-                surface = e.replace("-", "")
-            override = new_name._lang_override[wi][ei] if new_name._lang_override else None
-            modern_surface = (override.usage if override is not None else e).replace("-", "")
-            meanings = new_name.meaning_db[e]
-            elements.append((surface, meanings, modern_surface))
+        elements = _word_elements(new_name, wi, word)
         word_parts: list[str] = []
         modern_parts: list[str] = []
         for ei in range(len(elements)):
