@@ -2786,7 +2786,9 @@ def test_l2_round_trip_columns_are_single_sourced():
         _ETYMON_INSERT_COLUMNS,
         _SOURCE_INSERT_COLUMNS,
     )
-    from wyrd.generators.kenning.jsonl.dump import _ETYMON_L2_COLUMNS, _SOURCE_COLUMNS
+    # Import the dumped-column lists from the single source directly (not via dump's
+    # re-export) — the invariant under test is that build derives from _l2_columns.
+    from wyrd.generators.kenning.jsonl._l2_columns import _ETYMON_L2_COLUMNS, _SOURCE_COLUMNS
 
     # Every dumped etymon column is insertable → no round-trip data loss.
     assert set(_ETYMON_L2_COLUMNS) <= set(_ETYMON_INSERT_COLUMNS)
