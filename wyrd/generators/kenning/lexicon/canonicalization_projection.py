@@ -73,6 +73,7 @@ from wyrd.generators.kenning.lexicon.etymon_refs import (
     resolve_etymon_ref,
     split_gloss_ref,
 )
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 
 # Legacy deterministic clustering (merged_into_id OCR variants + lemma_id
 # inflections) is folded into in-memory assertions stamped with this method, so
@@ -272,6 +273,27 @@ def _merge_roots(
     return {node: find(node) for node in parent if find(node) != node}
 
 
+def _identity_group_ref(subj_type: str, subj_ref: str) -> str:
+    """Reduce an observation ref to its IDENTITY key for conflict grouping. The etymon
+    form is de-dashed exactly as :func:`resolve_etymon_ref` does (via
+    ``normalize_morpheme_surface``, D45 — a boundary dash is never identity), so two
+    binds whose refs differ only by an affix dash ("old-english:foo" vs
+    "old-english:foo-") share ONE group: they resolve to the same etymon row, so
+    binding them to distinct hubs is a CONFLICT (D46, left unbound + flagged), not two
+    silent writes where the last one wins. The de-dashed key still resolves correctly
+    in ``_resolve_binds`` (``resolve_etymon_ref`` de-dashes again, idempotently). Gloss
+    refs reduce on their etymon component; row-id / malformed refs pass through."""
+    if subj_type == "etymon" and ":" in subj_ref:
+        language, form = subj_ref.split(":", 1)
+        return f"{language}:{normalize_morpheme_surface(form) or form}"
+    if subj_type == "etymon_gloss":
+        parts = split_gloss_ref(subj_ref)
+        if parts is not None:
+            etymon_part, gloss = parts
+            return f"{_identity_group_ref('etymon', etymon_part)}\x1f{gloss}"
+    return subj_ref
+
+
 def _group_binds(
     binds: list[Assertion], gate: float, result: ProjectionResult
 ) -> dict[tuple[str, str], list[Assertion]]:
@@ -310,7 +332,7 @@ def _group_binds(
                 f"bind {a.subject.type}:{a.subject.ref} has a non-integer observation ref; skipped"
             )
             continue
-        grouped[(a.subject.type, a.subject.ref)].append(a)
+        grouped[(a.subject.type, _identity_group_ref(a.subject.type, a.subject.ref))].append(a)
     return grouped
 
 

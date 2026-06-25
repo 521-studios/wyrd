@@ -260,6 +260,48 @@ def test_conflict_two_distinct_hubs_left_unbound_and_flagged(tmp_path):
     db.close()
 
 
+def test_conflict_dash_and_bare_ref_for_same_etymon(tmp_path):
+    """Regression (D45/D46): a bind via the bare ref "old-english:mere" and another via
+    the dashed ref "old-english:mere-" both resolve to the SAME etymon (resolve_etymon_ref
+    de-dashes the form), so binding them to two DISTINCT unmerged hubs is a CONFLICT —
+    left unbound + flagged. Before the de-dash group key the two refs landed in separate
+    raw-ref groups, so conflict detection never saw them together and the dash variant
+    silently won (a boundary dash leaking into identity)."""
+    db = _db(tmp_path)
+    a = _etymon(db, "mere")
+    db.commit()
+    lang, form = db.conn.execute(
+        "SELECT language, canonical_form FROM etymon WHERE id = ?", (a,)
+    ).fetchone()
+    bare = etymon_ref(lang, form)  # "old-english:mere"
+    dashed = f"{bare}-"  # "old-english:mere-" — de-dashes to the same etymon row
+    _author(
+        tmp_path,
+        _mint("CM-1"),
+        _mint("CM-2"),
+        Assertion(
+            predicate="bind",
+            subject=NodeRef("etymon", bare),
+            object=NodeRef("canonical_morpheme", "CM-1"),
+            qualifiers={"kind": "same-morpheme"},
+            confidence="high",
+        ),
+        Assertion(
+            predicate="bind",
+            subject=NodeRef("etymon", dashed),
+            object=NodeRef("canonical_morpheme", "CM-2"),
+            qualifiers={"kind": "same-morpheme"},
+            confidence="high",
+        ),
+    )
+    res = project_canonical(db, mining_dir=tmp_path, apply=True)
+    assert _morpheme_id(db, a) is None  # left UNBOUND — the dash/bare split is one conflict
+    assert len(res.conflicts) == 1
+    assert res.conflicts[0][0] == "etymon"
+    assert res.conflicts[0][2] == ["CM-1", "CM-2"]
+    db.close()
+
+
 def test_conflict_dissolves_when_hubs_are_merged(tmp_path):
     db = _db(tmp_path)
     a = _etymon(db, "mere")
