@@ -293,13 +293,13 @@ def test_extraction_result_partition_invariant_passes_when_balanced():
 
 def test_classify_prior_row_each_gate_returns_its_skip_status() -> None:
     """The pure gate chain extracted from extract_priors, called directly on dict
-    rows. Each reachable gate returns its own skip-status name (both keys None); a
-    fully-valid row returns "ok" with both the native + loan keys built.
+    rows. Each gate returns its own skip-status name (both keys None); a fully-
+    valid row returns "ok" with both the native + loan keys built.
 
-    (``skipped_year_out_of_range`` is omitted: for the english era cells every
-    year maps to a cell, so era_midpoint_for_culture never returns None here — the
-    gate is defensive. It is covered structurally by the byte-identity diff vs the
-    pre-refactor inline chain.)
+    ``skipped_year_out_of_range`` can't be hit with an english country (english
+    era cells are open-ended, so every english year resolves), so it's exercised
+    via a temporarily-injected closed-bound culture — latin's cells end at 1800,
+    mirroring test_extract_priors_skips_year_out_of_range_when_year_past_cells.
     """
     from wyrd.generators.kenning.lexicon.empirical_priors import _classify_prior_row
 
@@ -321,6 +321,18 @@ def test_classify_prior_row_each_gate_returns_its_skip_status() -> None:
     assert _classify_prior_row(row(country="Atlantis"))[0] == "skipped_country_unmapped"
     assert _classify_prior_row(row(attested_year=None))[0] == "skipped_year_unknown"
     assert _classify_prior_row(row(tag=None))[0] == "skipped_no_tag"
+
+    # year-out-of-range: a closed-bound culture (latin ends at 1800) + a year past it.
+    _CULTURE_TO_FAMILY["__test_latin"] = "latin"
+    _COUNTRY_TO_CULTURE["__TestCountry"] = "__test_latin"
+    try:
+        out_of_range = _classify_prior_row(
+            row(country="__TestCountry", attested_year=2000, language="latin")
+        )
+        assert out_of_range[0] == "skipped_year_out_of_range"
+    finally:
+        del _CULTURE_TO_FAMILY["__test_latin"]
+        del _COUNTRY_TO_CULTURE["__TestCountry"]
 
     status, native_key, loan_key = _classify_prior_row(row())
     assert status == "ok"
