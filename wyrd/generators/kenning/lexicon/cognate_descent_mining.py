@@ -73,7 +73,6 @@ class _Target:
     """A clustered etymon a cohort morpheme might descend into."""
 
     cluster_root: int  # cognate_id (most-ancestral etymon, D27)
-    language: str
     glosses: frozenset[str]
 
 
@@ -83,7 +82,6 @@ class _Cohort:
 
     etymon_id: int
     folded: str
-    language: str
     glosses: frozenset[str]
 
 
@@ -109,53 +107,59 @@ def _glosses_for(db: LexiconDB, ids: set[int]) -> dict[int, frozenset[str]]:
 def _load(db: LexiconDB) -> tuple[list[_Cohort], dict[str, list[_Target]]]:
     """The cohort (unclustered breakdown morphemes) and the clustered targets
     indexed by folded surface (only folds the cohort actually shares, to bound the
-    cost over the ~600k clustered rows)."""
-    breakdown = {
-        r["etymon_id"]
-        for r in db.conn.execute("SELECT DISTINCT etymon_id FROM toponym_etymology_element")
-    }
+    cost over the ~600k clustered rows).
 
+    The match key is the folded surface ALONE — deliberately cross-language: a
+    cognate cluster spans languages (D27), so an Old-English cohort morpheme placing
+    into a proto-Germanic/Old-Norse cluster is the intended case, not a leak. (Precision
+    against cross-language homographs is the job of the gloss corroboration in
+    :func:`_place` + the downstream confidence gate, not a language filter here.)"""
     # Cohort rows first, so we know which folded surfaces a target could match.
-    cohort_raw: dict[int, tuple[str, str]] = {}  # eid -> (folded, language)
+    # The "is an admitted breakdown morpheme" filter is an IN-subquery, not a Python
+    # membership test over a separately-fetched id set: ``toponym_etymology_element.
+    # etymon_id`` is NOT NULL, so the subquery is exactly the set of breakdown
+    # etymon_ids, and SQLite can index it (idx_toponym_etymology_element_etymon)
+    # instead of us fetching + instantiating every unclustered etymon on a large table.
+    cohort_raw: dict[int, str] = {}  # eid -> folded
     cohort_folds: set[str] = set()
     for r in db.conn.execute(
-        "SELECT id, language, canonical_form FROM etymon "
-        "WHERE cognate_id IS NULL AND merged_into_id IS NULL"
+        "SELECT id, canonical_form FROM etymon "
+        "WHERE cognate_id IS NULL AND merged_into_id IS NULL "
+        "AND id IN (SELECT etymon_id FROM toponym_etymology_element)"
     ):
-        if r["id"] not in breakdown:
-            continue
         folded = fold_surface(r["canonical_form"])
         if not folded:
             continue
-        cohort_raw[r["id"]] = (folded, r["language"] or "")
+        cohort_raw[r["id"]] = folded
         cohort_folds.add(folded)
 
+    # Nothing to place → skip the ~600k-row clustered-etymon scan below and the full
+    # etymon_gloss scan in _glosses_for. (Empty cohort_folds ⟺ empty cohort_raw, so
+    # the targets-by-fold map would be empty anyway — this is the same ([], {}) result.)
+    if not cohort_folds:
+        return [], {}
+
     # Clustered targets, kept only when their fold matches a cohort fold.
-    target_raw: dict[str, list[tuple[int, str, int]]] = defaultdict(
-        list
-    )  # fold -> (root, lang, eid)
+    target_raw: dict[str, list[tuple[int, int]]] = defaultdict(list)  # fold -> (root, eid)
     target_ids: set[int] = set()
     for r in db.conn.execute(
-        "SELECT id, cognate_id, language, canonical_form FROM etymon WHERE cognate_id IS NOT NULL"
+        "SELECT id, cognate_id, canonical_form FROM etymon WHERE cognate_id IS NOT NULL"
     ):
         folded = fold_surface(r["canonical_form"])
         if folded not in cohort_folds:
             continue
-        target_raw[folded].append((r["cognate_id"], r["language"] or "", r["id"]))
+        target_raw[folded].append((r["cognate_id"], r["id"]))
         target_ids.add(r["id"])
 
     glosses = _glosses_for(db, set(cohort_raw) | target_ids)
     empty: frozenset[str] = frozenset()
 
     cohort = [
-        _Cohort(etymon_id=eid, folded=folded, language=lang, glosses=glosses.get(eid, empty))
-        for eid, (folded, lang) in cohort_raw.items()
+        _Cohort(etymon_id=eid, folded=folded, glosses=glosses.get(eid, empty))
+        for eid, folded in cohort_raw.items()
     ]
     targets_by_fold = {
-        fold: [
-            _Target(cluster_root=root, language=lang, glosses=glosses.get(tid, empty))
-            for root, lang, tid in rows
-        ]
+        fold: [_Target(cluster_root=root, glosses=glosses.get(tid, empty)) for root, tid in rows]
         for fold, rows in target_raw.items()
     }
     return cohort, targets_by_fold
