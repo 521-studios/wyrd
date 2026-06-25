@@ -807,6 +807,26 @@ def test_snippet_expander_returns_marked_snippet() -> None:
     assert len(snippet) <= len("«heath»") + 50  # +5 fudge for trim/replace edges
 
 
+def test_snippet_expander_marks_boundary_occurrence_not_substring() -> None:
+    """Regression: the highlight marker must wrap the SAME ``\\b``-anchored
+    occurrence the window is built around — not the first plain-substring match.
+    When the form is also a substring of an earlier longer word (``heath`` inside
+    ``heathen``), a ``snippet.replace(norm, ...)`` marked the wrong word, feeding a
+    misleading anchor to the LLM disambiguator (whose job is etymon attribution).
+    Now marked by position."""
+    body = "the heathen folk lived near the heath today and more"
+    expander = SnippetExpander.from_in_memory({"b": body})
+    snippet = expander.make_snippet("b", "heath", radius_before=40, radius_after=20)
+    assert snippet is not None
+    assert "the «heath» today" in snippet  # the standalone occurrence
+    assert "«heath»en" not in snippet  # NOT the substring inside "heathen"
+    assert "heathen" in snippet  # the longer word survives unmarked
+    # A form that appears ONLY as a substring of a longer word has no \b-anchored
+    # occurrence → None (the marker is never misapplied).
+    only_sub = SnippetExpander.from_in_memory({"b": "only heathen here, no standalone"})
+    assert only_sub.make_snippet("b", "heath", radius_before=40, radius_after=20) is None
+
+
 def test_snippet_expander_returns_none_for_missing_source() -> None:
     """Missing source_id → None, so the orchestrator can short-circuit
     to a forced commit instead of looping forever."""

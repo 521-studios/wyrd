@@ -313,8 +313,13 @@ class SnippetExpander:
         idx = match.start()
         start = max(0, idx - radius_before)
         end = min(len(body), idx + len(norm) + radius_after)
-        snippet = body[start:end].strip()
-        return snippet.replace(norm, f"«{norm}»", 1)
+        # Mark by POSITION (``idx``), not ``snippet.replace(norm, ...)``: a plain
+        # substring replace wraps the first substring occurrence in the window,
+        # which — for a form that is also a substring of a longer word (``heath`` in
+        # ``heathen``) — lands on the WRONG word, throwing away the ``\b`` anchoring
+        # this method documents. ``body[idx:idx + len(norm)]`` is the boundary match.
+        marked = body[start:idx] + f"«{norm}»" + body[idx + len(norm) : end]
+        return marked.strip()
 
 
 # Gemini's OpenAPI-flavored schema for the agentic response. Both
