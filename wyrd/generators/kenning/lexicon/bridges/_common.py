@@ -16,6 +16,36 @@ from __future__ import annotations
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
 
+def _compute_phonological_bridges(
+    examined_rows: list, table: dict[str, str], target_index: dict[str, int]
+) -> tuple[list[tuple[int, int]], int]:
+    """Match each examined (canonical) row to its bridge target.
+
+    For each row, look its lower-cased ``canonical_form`` up in the bridge
+    ``table`` to get the Wiktionary form, resolve that form to a target etymon id
+    via ``target_index``, and collect the ``(source_id, target_id)`` redirect.
+    Returns ``(bridges, missing_target)`` where ``missing_target`` counts rows
+    whose bridged Wiktionary form had no matching etymon. Rows absent from the
+    table, and rows that would self-bridge (target is the row itself), are
+    skipped. Pure — no DB.
+    """
+    bridges: list[tuple[int, int]] = []
+    missing_target = 0
+    for row in examined_rows:
+        form = row["canonical_form"].lower()
+        wiktionary_form = table.get(form)
+        if wiktionary_form is None:
+            continue
+        target_id = target_index.get(wiktionary_form.lower())
+        if target_id is None:
+            missing_target += 1
+            continue
+        if target_id == row["id"]:
+            continue
+        bridges.append((row["id"], target_id))
+    return bridges, missing_target
+
+
 def _bridge_same_language_phonological(
     db: LexiconDB, *, language: str, table: dict[str, str], apply: bool
 ) -> dict:
@@ -53,21 +83,7 @@ def _bridge_same_language_phonological(
             target_index[key] = _resolve_canonical(row["id"])
 
     examined_rows = [r for r in all_rows if r["merged_into_id"] is None]
-
-    bridges: list[tuple[int, int]] = []
-    missing_target = 0
-    for row in examined_rows:
-        form = row["canonical_form"].lower()
-        wiktionary_form = table.get(form)
-        if wiktionary_form is None:
-            continue
-        target_id = target_index.get(wiktionary_form.lower())
-        if target_id is None:
-            missing_target += 1
-            continue
-        if target_id == row["id"]:
-            continue
-        bridges.append((row["id"], target_id))
+    bridges, missing_target = _compute_phonological_bridges(examined_rows, table, target_index)
 
     rows_written = 0
     if apply and bridges:
