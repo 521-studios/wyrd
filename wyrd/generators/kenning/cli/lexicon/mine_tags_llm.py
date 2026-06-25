@@ -40,8 +40,8 @@ _MAX_CONSECUTIVE_FAILS = 10
 def _select_todo(
     db_path: Path, output: Path, *, skip_resolved: bool, limit: int | None
 ) -> tuple[list[tuple[str, str, str]], int, int]:
-    """The untagged-with-gloss etymons still needing classification, plus the raw
-    target / already-resolved counts for the run's plan line.
+    """Return the untagged-with-gloss etymons still needing classification, plus
+    the raw target / already-resolved counts for the run's plan line.
 
     ``skip_resolved`` drops ``lang:form`` refs already recorded in ``output``
     (resume without re-paying); ``limit`` caps the list (smoke runs). Pure read —
