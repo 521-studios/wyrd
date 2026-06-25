@@ -23,6 +23,15 @@ LANGUAGE_FIELDS`` etc.
 
 from __future__ import annotations
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import _BOUNDARY_DASHES
+
+# Single source of truth for "what counts as a boundary position-dash" — the same
+# set ``normalize_morpheme_surface`` trims from a stored surface (D45). As a
+# prefix/suffix tuple for ``str.startswith``/``endswith`` (empty-string safe,
+# unlike a substring test). Shared so ``position_from_usage`` derives position
+# from the SAME notion of "dash" the surface de-dash uses.
+_BOUNDARY_DASH_AFFIXES = tuple(_BOUNDARY_DASHES)
+
 # Map meanings.json source-language field names to the lexicon's
 # canonical language codes. Keep in sync with _LEGEND in the kenning
 # generator. The misspellings ('old_scandanavian', 'old _english')
@@ -148,8 +157,9 @@ def normalize_ocr_form(form: str) -> str:
 def position_from_usage(modern_usage: str) -> str:
     """Derive a reflex position from the dash markers on a modern_usage string.
 
-    Starts and ends with '-' → inner, ends with '-' → pre, otherwise
-    post.
+    Starts and ends with a boundary dash → inner, ends with one → pre,
+    otherwise post. "Dash" is any codepoint in ``_BOUNDARY_DASHES`` (ASCII
+    hyphen or a Unicode dash), matching the surface de-dash.
 
     NB (wyrd-vpri): this INTENTIONALLY diverges from
     ``Meaning._set_location``, which now maps a no-dash usage to the
@@ -161,8 +171,14 @@ def position_from_usage(modern_usage: str) -> str:
     dashed surface form). So no-dash → 'post' is the correct DB-side
     mapping; don't "fix" it to 'bare' or the constraint rejects it.
     """
-    if modern_usage.startswith("-") and modern_usage.endswith("-"):
+    # Recognize ANY boundary dash, not just ASCII "-": a marker drawn with an
+    # en-dash / U+2010 must derive the SAME position as its ASCII twin, or a
+    # Unicode-dash reflex forks from the ASCII one on the position axis (the
+    # surface is already de-dashed via ``normalize_morpheme_surface``, D45).
+    if modern_usage.startswith(_BOUNDARY_DASH_AFFIXES) and modern_usage.endswith(
+        _BOUNDARY_DASH_AFFIXES
+    ):
         return "inner"
-    if modern_usage.endswith("-"):
+    if modern_usage.endswith(_BOUNDARY_DASH_AFFIXES):
         return "pre"
     return "post"

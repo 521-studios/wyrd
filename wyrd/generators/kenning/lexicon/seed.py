@@ -78,11 +78,18 @@ def _link_subject_reflexes(
             continue
         # Position is derived from the (dash-decorated) input modern_usage, but
         # the surface is stored BARE — D45/wyrd-aicu.3: position lives in the
-        # reflex.position column, never dash-encoded in the identity. strip("-")
-        # (not replace) removes only the leading/trailing position markers, so a
-        # legitimate internal hyphen in the form survives.
+        # reflex.position column, never dash-encoded in the identity. Use the
+        # shared ``normalize_morpheme_surface`` choke (as the etymon path above
+        # already does) rather than a bespoke ``strip("-")``: it trims Unicode
+        # boundary dashes + whitespace too, so reflex identity de-dashes
+        # IDENTICALLY to etymon identity and to modern_reflex_import — a marker
+        # drawn with an en-dash / U+2010 must not fork one morpheme into two
+        # reflex rows. A form that strips to junk is dropped (no empty reflex).
+        bare_surface = normalize_morpheme_surface(modern_usage)
+        if bare_surface is None:
+            continue
         position = position_from_usage(modern_usage)
-        reflex_id = db.upsert_reflex(modern_usage.strip("-"), position)
+        reflex_id = db.upsert_reflex(bare_surface, position)
         counts["reflexes"] += 1
         for json_field, lang_code in LANGUAGE_FIELDS.items():
             forms = word.get(json_field) or []
