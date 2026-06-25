@@ -1858,9 +1858,9 @@ def test_fantasy_morpheme_round_trips_through_dump_and_build(tmp_path: Path):
         (eid_engel,),
     )
     # Fully populate every nullable column so the round-trip exercises
-    # the entire scalar surface. Missing any column from either
-    # _FANTASY_MORPHEME_SCALAR_COLUMNS (dump) or
-    # _FANTASY_MORPHEME_INSERT_COLUMNS (build) makes this test fail.
+    # the entire scalar surface. Dropping any column from the single-sourced
+    # _FANTASY_MORPHEME_COLUMNS (jsonl/_l2_columns — aliased as the dump SCALAR
+    # and build INSERT lists) makes this test fail.
     pre.execute(
         "INSERT INTO fantasy_morpheme "
         "(input_name, input_description, usable, etymon_id, "
