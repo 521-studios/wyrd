@@ -98,6 +98,49 @@ def _detect_variant_gloss_overlap(conn: sqlite3.Connection) -> list[dict[str, st
     return out
 
 
+_POINTER_TAIL_RE = re.compile(r"\b(?:form|spelling|variant) of\s+(.+)", re.IGNORECASE)
+# Words in the "...of <tail>" span, case-PRESERVED and split on whitespace /
+# punctuation. Case matters: canonical_form is stored bare lower-case, so a
+# capitalized language qualifier ("Old", "English") simply fails to resolve.
+_TAIL_WORD_RE = re.compile(r"[^\s(,.;:\"']+")
+
+
+def _resolve_pointer_target(
+    conn: sqlite3.Connection, language: str, canonical_form: str, glosses: list[str]
+) -> str | None:
+    """The lemma a pure-pointer etymon folds INTO: the UNIQUE live same-language
+    lemma named in its first form-of gloss tail. A pointer names its target after
+    an optional register/dialect qualifier ("Northumbrian form of earon" → earon),
+    and a qualifier word can ITSELF be a live lemma — "...form of west saxon burg"
+    has both ``west`` and ``burg`` — so trusting the first word after "of" would
+    fold onto the qualifier. Instead de-dash EVERY tail word and fold only when
+    EXACTLY ONE resolves; an ambiguous tail (≥2 resolve) is left for the LLM merge
+    pass. This fold is AUTO-APPLIED (no LLM gate), so it must never guess — D46: a
+    missed fold is harmless, a wrong fold tombstones a distinct morpheme. (A capital
+    qualifier like ``Old English`` is filtered for free by the bare-lower-case
+    canonical_form, so the unique resolver is the real lemma.) Does NOT fix a
+    sole-gloss FALSE pointer — a real meaning that merely matches the pointer regex,
+    e.g. "early form of writing" → ``writing`` — which is a separate semantic gap
+    (wyrd-800c)."""
+    for g in glosses:
+        m = _POINTER_TAIL_RE.search(g)
+        if not m:
+            continue
+        resolved: set[str] = set()
+        for word in _TAIL_WORD_RE.findall(m.group(1)):
+            cand = normalize_morpheme_surface(word) or word
+            if not cand or cand == canonical_form:
+                continue
+            if conn.execute(
+                "SELECT 1 FROM etymon "
+                "WHERE language = ? AND canonical_form = ? AND merged_into_id IS NULL",
+                (language, cand),
+            ).fetchone():
+                resolved.add(cand)
+        return next(iter(resolved)) if len(resolved) == 1 else None
+    return None
+
+
 def _detect_pointer_parse(conn: sqlite3.Connection) -> list[dict[str, str]]:
     """Method B: pure form-of etymons (every gloss is a pointer) whose
     named target resolves to an existing same-language lemma."""
@@ -129,24 +172,11 @@ def _detect_pointer_parse(conn: sqlite3.Connection) -> list[dict[str, str]]:
         # pointer+real-gloss etymon might be a real lemma; that's P3's call.
         if not glosses or not all(_POINTER_GLOSS_RE.search(g) for g in glosses):
             continue
-        target = None
-        for g in glosses:
-            m = _POINTER_TARGET_RE.search(g)
-            if m:
-                target = m.group(1).strip(".,;\"'")
-                break
-        # De-dash the pointer-gloss target (wyrd-aicu.8, D45) so it matches the
-        # bare-stored canonical_form (both the self-check and the lookup below).
-        if target:
-            target = normalize_morpheme_surface(target) or target
-        if not target or target == c["canonical_form"]:
-            continue
-        resolved = conn.execute(
-            "SELECT 1 FROM etymon "
-            "WHERE language = ? AND canonical_form = ? AND merged_into_id IS NULL",
-            (c["language"], target),
-        ).fetchone()
-        if resolved is None:
+        # The fold target: the UNIQUE live same-language lemma named in the
+        # pointer tail (de-dashed, wyrd-aicu.8/D45). None = no target, or an
+        # ambiguous tail left for the LLM pass (see _resolve_pointer_target).
+        target = _resolve_pointer_target(conn, c["language"], c["canonical_form"], glosses)
+        if target is None:
             continue
         out.append(
             {
