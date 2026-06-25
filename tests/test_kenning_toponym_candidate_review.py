@@ -254,10 +254,12 @@ def test_prepare_candidate_coerces_integer_valued_float_date_year():
 
 def test_prepare_candidate_rejects_unparseable_date_year():
     """Values that can't be coerced to a clean int land as None —
-    same as commit layer."""
+    same as commit layer. Includes Unicode digit-but-not-decimal strings
+    (superscripts) that ``isdigit()`` admits but ``int()`` rejects: these must
+    drop to None, NOT raise ValueError (the isdigit→isdecimal fix)."""
     conn = _make_conn()
     toponyms = _toponym_rows(conn)
-    for bad in ["ten eighty-six", "1066 AD", 1086.5, True, False]:
+    for bad in ["ten eighty-six", "1066 AD", 1086.5, True, False, "²", "1086²", "⁵"]:
         raw = {"source_id": "s", "form": "X", "date_year": bad}
         assert prepare_candidate(raw, toponyms).date_year is None
 
