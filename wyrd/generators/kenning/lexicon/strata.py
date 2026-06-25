@@ -71,10 +71,22 @@ _WELSH_ANCESTOR_TO_STRATUM: dict[str, str] = {
     "la-med": "latin-loan",
     "la-ecc": "latin-loan",
     "vulgar-latin": "latin-loan",
+    # English loan-source codes. Same rule as Latin: the ingester normalizes
+    # ``en``→``modern-english`` / ``ang``→``old-english`` / ``enm``→``middle-english``
+    # (wiktextract_ingester.py) but leaves the period/dialect/regional variants
+    # (``en-ear`` Early Modern English, ``enm-wmi`` a Middle English dialect, ``en-GB``
+    # British English) as raw ``etymon.language`` values — so each must be enumerated
+    # too, else a Welsh←English loan whose only English-bearing parent uses one of
+    # these falls through to native-welsh. (``sco`` Scots is deliberately NOT mapped:
+    # it is a distinct language sister to English, not an English variety, so whether
+    # a Welsh←Scots borrowing is an "english-loan" is a curation call, not a gap.)
     "modern-english": "english-loan",
     "middle-english": "english-loan",
     "old-english": "english-loan",
     "english": "english-loan",
+    "en-ear": "english-loan",
+    "enm-wmi": "english-loan",
+    "en-GB": "english-loan",
     "cel-bry-pro": "brittonic-substrate",
     "proto-celtic": "brittonic-substrate",
     "old-welsh": "brittonic-substrate",

@@ -197,6 +197,27 @@ def test_classify_welsh_english_loan_via_descent(fresh_db: Path) -> None:
     assert proposals[welsh_id] == "english-loan"
 
 
+def test_classify_welsh_english_variants_all_route_to_english_loan(fresh_db: Path) -> None:
+    """The period/dialect/regional English variants the ingester leaves un-normalized
+    (en-ear Early Modern English / enm-wmi a Middle English dialect / en-GB British
+    English) route a Welsh loan to ``english-loan``, exactly as the la-* Latin variants
+    do. Pre-fix the Welsh map listed only modern-/middle-/old-english + english, so a
+    Welsh loan whose sole English-bearing parent used one of these fell through to
+    ``native-welsh`` — 3 such etymons (sole en-ear parent) were mis-bucketed in the
+    live DB. (``sco`` Scots is deliberately excluded — a distinct sister language.)"""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        welsh_ids = {}
+        for parent_lang in ("en-ear", "enm-wmi", "en-GB"):
+            parent_id = db.upsert_etymon(f"{parent_lang}-parent", parent_lang)
+            child_id = db.upsert_etymon(f"{parent_lang}-child", "welsh")
+            _add_descent(db, parent_id=parent_id, child_id=child_id, edge_type="borrowing")
+            welsh_ids[parent_lang] = child_id
+        proposals = classify_welsh(db)
+    for parent_lang, child_id in welsh_ids.items():
+        assert proposals[child_id] == "english-loan", parent_lang
+
+
 def test_classify_welsh_brittonic_substrate_via_descent(fresh_db: Path) -> None:
     """A welsh etymon descending from cel-bry-pro / proto-celtic /
     old-welsh ancestor → ``brittonic-substrate``."""
