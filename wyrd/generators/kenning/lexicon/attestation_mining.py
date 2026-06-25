@@ -253,6 +253,13 @@ _ATTEST_FORM_BLACKLIST = frozenset(
         "vol",
         "ipm",
         "ipms",
+        # EPNS roll/record-series names that read like a Title-case place form
+        # and otherwise leak as dated attestations (e.g. "Orig, 1325",
+        # "Banco, 1399", "...Fees, 1283"): Originalia Rolls, De Banco Rolls,
+        # Book of Fees. Not historical spellings of any toponym.
+        "orig",
+        "banco",
+        "fees",
     }
 )
 

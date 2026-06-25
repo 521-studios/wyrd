@@ -3363,6 +3363,19 @@ def test_extract_attestation_pairs_rejects_blacklisted_sentence_words() -> None:
     assert pairs == []
 
 
+def test_extract_attestation_pairs_rejects_record_series_source_names() -> None:
+    """EPNS record-series names (Originalia Rolls 'Orig', De Banco Rolls
+    'Banco', Book of Fees 'Fees') read like a Title-case place form and
+    pass the lowercase filter, so they leaked as dated attestations
+    ('Banco, 1399') until blacklisted. They are sources, not spellings."""
+    extract, _ = _import_attestation_helpers()
+    assert extract("Orig, 1325 Cl Cippenham") == []
+    assert extract("Banco, 1399, 1406 YI Yearesley") == []
+    assert extract("Hundesburton 1224-30 Fees, 1283") == []
+    # a real Title-case form in the same shape is still admitted
+    assert extract("Cestretone, 1316") == [("Cestretone", 1316)]
+
+
 def test_extract_attestation_pairs_rejects_page_marker_year() -> None:
     """A digit run preceded by 'p.', 'pp.', 'vol.' is a bibliographic
     reference, not a date citation. Same guard the wyrd-bag scan
