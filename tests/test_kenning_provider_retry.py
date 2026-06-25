@@ -75,6 +75,28 @@ def test_retries_then_succeeds_on_429(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls["n"] == 2
 
 
+@pytest.mark.parametrize("code", [429, 503, 529])
+def test_retries_then_succeeds_on_transient_overload(
+    code: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every transient status — 429 rate-limit AND the overload codes (Anthropic
+    529, Gemini 503) — is retried, not just 429. The first call raises the code;
+    the second succeeds."""
+    calls = {"n": 0}
+
+    def fake_urlopen(req, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _http_error(code)
+        return _ok_response(b"recovered")(req, timeout=timeout)
+
+    monkeypatch.setattr(pr.time, "sleep", lambda _s: None)
+    with patch("urllib.request.urlopen", fake_urlopen):
+        body = pr.open_with_429_retry(_make_req(), timeout=1.0, provider_label="X")
+    assert body == b"recovered"
+    assert calls["n"] == 2
+
+
 def test_propagates_429_after_max_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
     """After exhausting attempts the most recent 429 propagates so the
     provider's caller can convert it to a transport_error_result."""
@@ -94,8 +116,9 @@ def test_propagates_429_after_max_attempts(monkeypatch: pytest.MonkeyPatch) -> N
     assert calls["n"] == 3
 
 
-def test_non_429_http_error_propagates_immediately() -> None:
-    """500 errors aren't worth retrying — propagate without sleeping."""
+def test_non_retryable_http_error_propagates_immediately() -> None:
+    """A 500 is a genuine server error, NOT a transient overload (unlike 503/529),
+    so it isn't in _RETRYABLE_STATUS — propagate without sleeping."""
     calls = {"n": 0}
 
     def always_500(req, timeout=None):
