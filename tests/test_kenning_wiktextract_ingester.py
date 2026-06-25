@@ -330,7 +330,10 @@ def test_descendants_tag_to_edge_type_mapping(
     fresh_db: Path, tag: str, expected_edge_type: str
 ) -> None:
     """Each entry in _DESCENDANT_TAG_TO_EDGE pinned individually so a
-    map shrink can't silently drop one."""
+    map shrink can't silently drop one. NB: of these, only ``calque`` actually
+    occurs in ``tags`` in real wiktextract data — ``borrowed`` / ``derived`` live in
+    ``raw_tags`` (see test_descendants_raw_tags_to_edge_type_mapping). These cases
+    via ``tags`` are synthetic contract pins for the map, not the real shape."""
     line = _wiktextract_entry(
         word="*head",
         lang_code="gem-pro",
