@@ -161,6 +161,30 @@ def test_classify_welsh_latin_loan_via_descent(fresh_db: Path) -> None:
     assert latin_id not in proposals
 
 
+def test_classify_welsh_latin_variants_all_route_to_latin_loan(fresh_db: Path) -> None:
+    """All period-specific Latin variants left un-normalized by the ingester
+    (la-lat / la-med / la-ecc / vulgar-latin) route a Welsh loan to ``latin-loan``,
+    matching the OE / ON classifiers. Pre-fix the Welsh map only listed plain
+    ``latin``, so a Welsh←la-lat/la-med/la-ecc/vulgar-latin loan fell through to
+    ``native-welsh`` — 75 such etymons were mis-bucketed in the live DB."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        welsh_ids = {}
+        for parent_form, parent_lang in (
+            ("la-lat-parent", "la-lat"),
+            ("la-med-parent", "la-med"),
+            ("la-ecc-parent", "la-ecc"),
+            ("vulgar-latin-parent", "vulgar-latin"),
+        ):
+            parent_id = db.upsert_etymon(parent_form, parent_lang)
+            child_id = db.upsert_etymon(f"{parent_lang}-child", "welsh")
+            _add_descent(db, parent_id=parent_id, child_id=child_id)
+            welsh_ids[parent_lang] = child_id
+        proposals = classify_welsh(db)
+    for parent_lang, child_id in welsh_ids.items():
+        assert proposals[child_id] == "latin-loan", parent_lang
+
+
 def test_classify_welsh_english_loan_via_descent(fresh_db: Path) -> None:
     """A welsh etymon descending from any English variety gets
     ``english-loan``."""
