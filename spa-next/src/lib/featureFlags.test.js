@@ -102,6 +102,17 @@ describe('coerceToType', () => {
     expect(coerceToType('   ', { type: 'integer' })).toBeUndefined();
   });
 
+  it('rejects non-finite numbers (Infinity / overflow), not just NaN', () => {
+    // Number('Infinity') / Number('1e999') yield Infinity, which Number.isNaN
+    // does NOT catch and which serializes to null in the request — must fall
+    // back to the schema default, matching the server's math.isfinite guard.
+    expect(coerceToType('Infinity', { type: 'number' })).toBeUndefined();
+    expect(coerceToType('-Infinity', { type: 'number' })).toBeUndefined();
+    expect(coerceToType('1e999', { type: 'number' })).toBeUndefined();
+    // The integer path (parseInt) never yields Infinity — still finite-or-undefined.
+    expect(coerceToType('5', { type: 'integer' })).toBe(5);
+  });
+
   it('parses booleans with the same truthy set as the server', () => {
     for (const t of ['1', 'true', 'TRUE', 'yes', 'on']) {
       expect(coerceToType(t, { type: 'boolean' })).toBe(true);

@@ -96,8 +96,9 @@ def _coerce_to_schema_type(raw: str, prop: Mapping) -> object | None:
             return None
         # float() accepts "nan"/"inf"; reject non-finite so an operator typo
         # (WYRD_DEFAULT_NOVELTY=inf) can't poison the score blend or serialize as
-        # invalid-JSON `NaN` in the echoed params. Mirrors the SPA's
-        # Number.isNaN guard. (int() can't produce nan/inf.)
+        # invalid-JSON `NaN`/`Infinity` in the echoed params. Mirrors the SPA's
+        # Number.isFinite guard (featureFlags.coerceToType — which also rejects an
+        # overflow like Number('1e999') → Infinity). (int() can't produce nan/inf.)
         if isinstance(value, float) and not math.isfinite(value):
             return None
         return value

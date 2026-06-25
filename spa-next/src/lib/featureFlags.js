@@ -77,12 +77,18 @@ export function coerceToType(raw, prop) {
   if (prop?.type === 'array') return undefined;
   if (prop?.type === 'integer' || prop?.type === 'number') {
     // A bad/empty numeric env (e.g. WYRD_DEFAULT_COUNT=abc, or '') would
-    // otherwise yield NaN / 0 and silently seed a junk value (NaN serializes
-    // to null in the request). Return undefined so the caller falls back to
-    // the schema default / type-based empty rather than shipping garbage.
+    // otherwise yield NaN / 0 and silently seed a junk value. Reject anything
+    // NON-FINITE, not just NaN: Number('Infinity') and an overflow like
+    // Number('1e999') both yield Infinity, which Number.isNaN does NOT catch
+    // and which serializes to null in the request — the very junk this guard
+    // exists to stop. Number.isFinite rejects NaN AND ±Infinity, matching the
+    // server's math.isfinite mirror (feature_flags._coerce_to_schema_type).
+    // Return undefined so the caller falls back to the schema default rather
+    // than shipping garbage. (parseInt never yields Infinity, so the integer
+    // path is unaffected.)
     if (String(raw).trim() === '') return undefined;
     const n = prop.type === 'integer' ? parseInt(raw, 10) : Number(raw);
-    return Number.isNaN(n) ? undefined : n;
+    return Number.isFinite(n) ? n : undefined;
   }
   if (prop?.type === 'boolean') {
     return ['1', 'true', 'yes', 'on'].includes(String(raw).toLowerCase());
