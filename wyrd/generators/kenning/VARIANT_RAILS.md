@@ -425,3 +425,4 @@ risky-tail — rather than pollute the matcher. Commit + push every fire.
 - Fire #378 (2026-06-25): probe-pass — OE s-. 0 authored (all mis-linkage/gloss/garble/covered — sc-/sh- already richly covered). Parked 35. Slice 244→209; park 3928→3963. Cumulative UNCHANGED: 1232.
 - Fire #379 (2026-06-25): probe-pass — OE s-/t-/u-/w-. 0 authored (all mis-linkage/gloss/garble/covered). Parked 35. Slice 209→174; park 3963→3998. Cumulative UNCHANGED: 1232.
 - Fire #380 (2026-06-25): probe-pass — OE w-. 0 authored (all garble/gloss/mis-linkage/covered/misattrib). Parked 35. Slice 174→139; park 3998→4033. Cumulative UNCHANGED: 1232. 380 fires.
+- Fire #381 (2026-06-25): probe-pass — OE special-char + OF + ON. Authored 2 — yese→`jes` (Jesmond, ġēos g→j), ON boces→`box` (Boxworth). PARKED 33. Slice 139→104; park 4033→4066. Cumulative: 1234 authored. Slice now ~104 — approaching empty terminal.
