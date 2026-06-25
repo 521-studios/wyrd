@@ -100,9 +100,9 @@ def _suffix_candidates_for_etymon(
 
 
 def _reflex_suffix_candidates(db: LexiconDB, etymon_id: int, canonical_form: str) -> set[str]:
-    """Mined modern reflex surfaces for ``etymon_id`` (>=2 chars), with COMPOSITE
-    surfaces dropped — the ``include_reflexes`` half of
-    :func:`_suffix_candidates_for_etymon`. Returns the MINIMAL morpheme surfaces.
+    """Return the MINIMAL modern reflex surfaces for ``etymon_id`` (>=2 chars) — the
+    ``include_reflexes`` half of :func:`_suffix_candidates_for_etymon`, with COMPOSITE
+    surfaces dropped.
     """
     reflex_surfaces: set[str] = set()
     cur = db.conn.execute(
