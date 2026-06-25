@@ -123,8 +123,9 @@ def assert_merge_chains_flat(conn: sqlite3.Connection) -> None:
         )
 
 
-# Etymon + source L2 column lists are the single-sourced round-trip schema (the
-# inserter in build.py derives its insert columns from these — see _l2_columns).
+# (The etymon + source L2 column lists are single-sourced in _l2_columns, imported
+# above; build.py derives its insert columns from them.) Mining-run columns are
+# dump-only — the rebuilder writes mining_run inline, so this list stays local.
 # Order is significant only for diff stability — the kernel doesn't care.
 _MINING_RUN_COLUMNS: tuple[str, ...] = (
     "provider",
