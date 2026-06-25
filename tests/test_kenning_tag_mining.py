@@ -604,3 +604,28 @@ def test_mine_tags_llm_api_failure_not_recorded(tmp_path: Path, monkeypatch):
     lines = [json.loads(ln) for ln in out.read_text().splitlines()]
     assert [row["_type"] for row in lines] == ["source"]
     assert existing_refs(str(out)) == set()
+
+
+def test_select_todo_filters_resolved_limits_and_counts(monkeypatch, tmp_path):
+    """``_select_todo`` (extracted from the mine-tags-llm command body) drops
+    already-resolved refs when ``skip_resolved``, caps the list at ``limit``, and
+    returns the raw target / resolved counts for the run's plan line."""
+    from wyrd.generators.kenning.cli.lexicon import mine_tags_llm as mt
+
+    targets = [("oe", "tun", "settlement"), ("welsh", "llan", "church"), ("oe", "ham", "home")]
+    monkeypatch.setattr(mt.tag_mining, "select_targets", lambda _p: list(targets))
+    monkeypatch.setattr(mt.tag_mining, "existing_refs", lambda _p: {"oe:tun"})
+    db, out = tmp_path / "l.db", tmp_path / "_tags.jsonl"
+
+    # skip_resolved drops the oe:tun ref; counts are the RAW totals.
+    todo, n_targets, n_resolved = mt._select_todo(db, out, skip_resolved=True, limit=None)
+    assert [(lang, form) for lang, form, _ in todo] == [("welsh", "llan"), ("oe", "ham")]
+    assert (n_targets, n_resolved) == (3, 1)
+
+    # skip_resolved=False ignores the resolved set entirely (count 0, nothing dropped).
+    todo_all, _, n_res_off = mt._select_todo(db, out, skip_resolved=False, limit=None)
+    assert len(todo_all) == 3 and n_res_off == 0
+
+    # limit caps the POST-filter list.
+    todo_capped, _, _ = mt._select_todo(db, out, skip_resolved=True, limit=1)
+    assert todo_capped == [("welsh", "llan", "church")]
