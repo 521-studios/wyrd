@@ -37,6 +37,26 @@ _DEFAULT_MODEL = "gemma4:26b"
 _MAX_CONSECUTIVE_FAILS = 10
 
 
+def _select_todo(
+    db_path: Path, output: Path, *, skip_resolved: bool, limit: int | None
+) -> tuple[list[tuple[str, str, str]], int, int]:
+    """The untagged-with-gloss etymons still needing classification, plus the raw
+    target / already-resolved counts for the run's plan line.
+
+    ``skip_resolved`` drops ``lang:form`` refs already recorded in ``output``
+    (resume without re-paying); ``limit`` caps the list (smoke runs). Pure read —
+    no LLM, no writes. Returns ``(todo, n_targets, n_resolved)``.
+    """
+    targets = tag_mining.select_targets(str(db_path))
+    resolved = tag_mining.existing_refs(str(output)) if skip_resolved else set()
+    todo = [
+        (lang, form, gloss) for (lang, form, gloss) in targets if f"{lang}:{form}" not in resolved
+    ]
+    if limit is not None:
+        todo = todo[:limit]
+    return todo, len(targets), len(resolved)
+
+
 @click.command("mine-tags-llm")
 @click.option(
     "--db",
@@ -74,17 +94,12 @@ def lexicon_mine_tags_llm(
     skip_resolved: bool,
 ) -> None:
     """Classify untagged-but-glossed etymons into the controlled tag vocab."""
-    targets = tag_mining.select_targets(str(db_path))
-    resolved = tag_mining.existing_refs(str(output)) if skip_resolved else set()
-    todo = [
-        (lang, form, gloss) for (lang, form, gloss) in targets if f"{lang}:{form}" not in resolved
-    ]
-    if limit is not None:
-        todo = todo[:limit]
-
+    todo, n_targets, n_resolved = _select_todo(
+        db_path, output, skip_resolved=skip_resolved, limit=limit
+    )
     click.echo(
-        f"mine-tags-llm: {len(targets)} untagged-with-gloss targets, "
-        f"{len(resolved)} already resolved, {len(todo)} to classify "
+        f"mine-tags-llm: {n_targets} untagged-with-gloss targets, "
+        f"{n_resolved} already resolved, {len(todo)} to classify "
         f"→ {output} ({model})",
         err=True,
     )
