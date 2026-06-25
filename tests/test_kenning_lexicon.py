@@ -5140,6 +5140,58 @@ def test_suffix_candidates_diacritic_base_reflex_not_dropped(fresh_db: Path) -> 
     assert "acen" in cands  # base reflex not wrongly dropped on a diacritic mismatch
 
 
+def test_reflex_suffix_candidates_helper_drops_composite_keeps_reduction(fresh_db: Path) -> None:
+    """The extracted `_reflex_suffix_candidates` (the include_reflexes / composite-drop
+    half of `_suffix_candidates_for_etymon`), called directly, returns ONLY the minimal
+    morpheme surfaces. One set exercises every side of the wyrd-5b1a guard:
+    - 'ingham' DROPPED: composite — ends in the sibling 'ham', and its extra prefix
+      'ing' does NOT prefix canonical 'ham'.
+    - 'ham' KEPT: base — ends in the sibling 'am', but its extra prefix 'h' DOES start
+      'ham', so the reduction guard protects it from being dropped.
+    - 'am' KEPT: shortest sibling — no surface is a strict suffix-superset of it, so
+      nothing can drop it."""
+    from wyrd.generators.kenning.lexicon.period_form import _reflex_suffix_candidates
+
+    with LexiconDB(fresh_db) as db:
+        ham_id = db.upsert_etymon("hām", "old-english")
+        for sf in ("ham", "am", "ingham"):
+            rid = db.conn.execute(
+                "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
+            ).lastrowid
+            db.conn.execute(
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, ham_id)
+            )
+        db.commit()
+        minimal = _reflex_suffix_candidates(db, ham_id, "hām")
+
+    assert minimal == {"ham", "am"}  # base + reduction kept; composite 'ingham' dropped
+
+
+def test_reflex_suffix_candidates_all_combining_mark_surface_guard(fresh_db: Path) -> None:
+    """wyrd-5b1a `and stripped[o]` guard: a reflex surface that diacritic-strips to ""
+    (pure combining marks, but len>=2 so it survives the length filter) must NOT be
+    treated as a suffix of every other surface (`"".endswith` is always True). The
+    guard skips such an `o`, so a real base reflex ('ton') is never wrongly dropped,
+    and the combining-mark surface itself is kept (nothing strips it away)."""
+    from wyrd.generators.kenning.lexicon.period_form import _reflex_suffix_candidates
+
+    combining = "́̂"  # two combining accents → strips to "" (len 2)
+    with LexiconDB(fresh_db) as db:
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        for sf in ("ton", combining):
+            rid = db.conn.execute(
+                "INSERT INTO reflex (surface_form, position) VALUES (?, 'post')", (sf,)
+            ).lastrowid
+            db.conn.execute(
+                "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, tun_id)
+            )
+        db.commit()
+        minimal = _reflex_suffix_candidates(db, tun_id, "tūn")
+
+    assert "ton" in minimal  # real base reflex not dropped by the strip-to-empty surface
+    assert combining in minimal  # the combining-mark surface survives (nothing drops it)
+
+
 def test_derive_surface_in_modern_dry_run_writes_nothing(fresh_db: Path) -> None:
     """apply=False reports the projection count but writes no surface_in_modern."""
     with LexiconDB(fresh_db) as db:
