@@ -74,6 +74,22 @@ def test_normalize_for_match_strips_leading_punctuation():
     assert _normalize_for_match("(Birmingham,") == "birmingham"
 
 
+def test_normalize_for_match_strips_unicode_quotes():
+    """OCR / LLM prose quotes with the typographic Unicode variants far more than
+    ASCII — curly “” ‘’, guillemets « » ‹ ›, low „. Stripping only ASCII left a
+    curly-quoted form silently never matching a known toponym (same silent-miss
+    the ASCII leading-strip was added to prevent)."""
+    assert _normalize_for_match("“Birmingham”") == "birmingham"  # curly double
+    assert _normalize_for_match("‘Stratford’") == "stratford"  # curly single
+    assert _normalize_for_match("«Birmingham»") == "birmingham"  # guillemets
+    assert _normalize_for_match("‹Stratford›") == "stratford"  # single guillemets
+    assert _normalize_for_match("„Birmingham“") == "birmingham"  # low-open + curly
+    # A closing quote AFTER trailing punctuation still fully unwraps.
+    assert _normalize_for_match("“Birmingham”.") == "birmingham"
+    # An interior curly apostrophe is identity, NOT stripped (boundary-only).
+    assert _normalize_for_match("King’s Lynn") == "king’s lynn"
+
+
 def test_build_lookup_includes_modern_names_and_attestation_forms():
     """Lookup contains modern_name entries AND historical forms
     from existing attestations."""
