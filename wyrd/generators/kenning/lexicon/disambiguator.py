@@ -317,8 +317,10 @@ class SnippetExpander:
         # substring replace wraps the first substring occurrence in the window,
         # which — for a form that is also a substring of a longer word (``heath`` in
         # ``heathen``) — lands on the WRONG word, throwing away the ``\b`` anchoring
-        # this method documents. ``body[idx:idx + len(norm)]`` is the boundary match.
-        marked = body[start:idx] + f"«{norm}»" + body[idx + len(norm) : end]
+        # this method documents. Mark the body's own matched span (== ``norm`` since
+        # the body is normalized, but faithful to the actual text), not ``norm``.
+        matched = body[idx : idx + len(norm)]
+        marked = body[start:idx] + f"«{matched}»" + body[idx + len(norm) : end]
         return marked.strip()
 
 
