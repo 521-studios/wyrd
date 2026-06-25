@@ -120,6 +120,19 @@ def test_normalize_form_strips_whitespace_hyphens_asterisks():
     assert _normalize_form("*déiwos") == _normalize_form("deiwos")
 
 
+def test_normalize_form_strips_unicode_dashes_too():
+    """ANY dash is non-semantic for the cluster key, not just ASCII hyphen-minus.
+    A Unicode dash variant (en-dash, U+2010 hyphen, em-dash) — which scholarly
+    source text uses — must drop too, or the same morpheme forks into separate
+    clusters: ``al–Quadim`` (en-dash) MUST normalize equal to ``al-Quadim``."""
+    assert _normalize_form("al–Quadim") == _normalize_form("al-Quadim") == "alquadim"
+    assert _normalize_form("bedeling‐tun") == "bedelingtun"  # U+2010 HYPHEN
+    assert _normalize_form("tūn—stem") == "tunstem"  # em-dash
+    assert _normalize_form("tūn–") == "tun"  # trailing en-dash
+    # Underscore is still KEPT (real morpheme boundary, not punctuation).
+    assert _normalize_form("tun_stem") == "tun_stem"
+
+
 def test_normalize_form_real_disagreement_stays_distinct():
     """Two cases the normalizer must NOT collapse:
 

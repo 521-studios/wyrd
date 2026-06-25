@@ -85,6 +85,14 @@ _EXTRACTOR_RE = re.compile(r"^extracted_by:([^;|]+?)(?:\s*[;|]|$)")
 # variants normalize to the same morphological root, so we strip the
 # parenthetical for clustering. Same logic strips bracketed [...] notes.
 _PAREN_OPTIONAL_RE = re.compile(r"\([^)]*\)|\[[^\]]*\]")
+# Non-semantic punctuation dropped from a cluster-key form: whitespace, the
+# asterisk reconstruction marker, and ANY dash — ASCII hyphen plus the Unicode
+# dash variants (U+2010..U+2015 hyphen / NB-hyphen / figure / en / em /
+# horizontal-bar, U+2212 minus, U+FE58/FE63/FF0D small+fullwidth). Stripping only
+# the ASCII hyphen left ``al–Quadim`` (en-dash) keyed differently from
+# ``al-Quadim`` → the same morpheme forks into separate clusters. Mirrors the
+# morpheme de-dash dash set (D45); underscores are KEPT (real morpheme boundaries).
+_CLUSTER_KEY_DROP_RE = re.compile(r"[\s*\-‐-―−﹘﹣－]+")
 
 
 def _normalize_form(canonical_form: str) -> str:
@@ -113,7 +121,7 @@ def _normalize_form(canonical_form: str) -> str:
     # Strip whitespace, hyphens, asterisks (Indo-Europeanist
     # reconstruction marker). Underscores left in — they show up in
     # some forms as morpheme boundaries that ARE semantically real.
-    no_punct = re.sub(r"[\s\-*]+", "", no_paren)
+    no_punct = _CLUSTER_KEY_DROP_RE.sub("", no_paren)
     return no_punct
 
 
