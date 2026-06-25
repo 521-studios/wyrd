@@ -37,6 +37,59 @@ _NON_BRIDGING_LANGUAGES = ("proto-indo-european",)
 _CLUSTER_COGNATES_METHOD = "cluster-cognates-v2"
 
 
+def _assign_cognate_clusters(
+    canonical_edges: list[tuple[int, int]],
+) -> tuple[dict[int, int], list[int], set[int]]:
+    """Assign every reachable node to its cluster root by BFS over the canonical
+    bridging edges. Pure graph computation — no DB.
+
+    Returns ``(assignments, roots, cycle_orphans)``:
+      - ``assignments``: ``{etymon_id: root_id}`` — every node reachable from a
+        root, including the roots themselves (``root_id == etymon_id``).
+      - ``roots``: canonical etymons that appear as a parent but never a child,
+        sorted ascending so the smallest root id wins a contested node (the BFS
+        skips already-assigned nodes, and roots are walked in ascending order).
+      - ``cycle_orphans``: nodes that participate in bridging edges but never
+        reached a root — a pure cycle has no anchor.
+    """
+    # Build child-of-parent index for the BFS. Parent → set of children.
+    children_by_parent: dict[int, set[int]] = {}
+    bridging_participants: set[int] = set()
+    parent_set: set[int] = set()
+    child_set: set[int] = set()
+    for parent_id, child_id in canonical_edges:
+        children_by_parent.setdefault(parent_id, set()).add(child_id)
+        bridging_participants.add(parent_id)
+        bridging_participants.add(child_id)
+        parent_set.add(parent_id)
+        child_set.add(child_id)
+
+    # Roots: canonical etymons that appear as parent but never as
+    # child in the canonical edge set.
+    roots = sorted(parent_set - child_set)
+
+    assignments: dict[int, int] = {}
+    for root_id in roots:
+        if root_id in assignments:
+            # Already claimed by an earlier (smaller-id) root via cross-edges.
+            continue
+        assignments[root_id] = root_id
+        frontier: list[int] = [root_id]
+        while frontier:
+            next_frontier: list[int] = []
+            for node_id in frontier:
+                for child_id in children_by_parent.get(node_id, ()):
+                    if child_id not in assignments:
+                        assignments[child_id] = root_id
+                        next_frontier.append(child_id)
+            frontier = next_frontier
+
+    # Cycle-orphans: canonical etymons that participate in bridging
+    # edges but never reached a root. A pure cycle has no anchor.
+    cycle_orphans = bridging_participants - set(assignments.keys())
+    return assignments, roots, cycle_orphans
+
+
 def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     """Walk etymon_descent inheritance + borrowing edges from each root
     and assign cognate_id to every reachable descendant (D27 / wyrd-81n).
@@ -135,41 +188,7 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
         if row["parent_canon"] != row["child_canon"]
     ]
 
-    # Build child-of-parent index for the BFS. Parent → set of children.
-    children_by_parent: dict[int, set[int]] = {}
-    bridging_participants: set[int] = set()
-    parent_set: set[int] = set()
-    child_set: set[int] = set()
-    for parent_id, child_id in canonical_edges:
-        children_by_parent.setdefault(parent_id, set()).add(child_id)
-        bridging_participants.add(parent_id)
-        bridging_participants.add(child_id)
-        parent_set.add(parent_id)
-        child_set.add(child_id)
-
-    # Roots: canonical etymons that appear as parent but never as
-    # child in the canonical edge set.
-    roots = sorted(parent_set - child_set)
-
-    assignments: dict[int, int] = {}
-    for root_id in roots:
-        if root_id in assignments:
-            # Already claimed by an earlier (smaller-id) root via cross-edges.
-            continue
-        assignments[root_id] = root_id
-        frontier: list[int] = [root_id]
-        while frontier:
-            next_frontier: list[int] = []
-            for node_id in frontier:
-                for child_id in children_by_parent.get(node_id, ()):
-                    if child_id not in assignments:
-                        assignments[child_id] = root_id
-                        next_frontier.append(child_id)
-            frontier = next_frontier
-
-    # Cycle-orphans: canonical etymons that participate in bridging
-    # edges but never reached a root. A pure cycle has no anchor.
-    cycle_orphans = bridging_participants - set(assignments.keys())
+    assignments, roots, cycle_orphans = _assign_cognate_clusters(canonical_edges)
 
     # wyrd-hn03: enforce the documented "tombstones stay NULL" invariant. The
     # BFS only ever assigns CANONICAL ids (every edge endpoint is resolved
