@@ -83,14 +83,21 @@ def _cluster_surfaces(db: LexiconDB, index: ClusterIndex) -> dict[str, set[str]]
 def _segment_order(
     surface: str, clusters: list[str], cluster_surfaces: dict[str, set[str]]
 ) -> tuple[str, ...] | None:
-    """If ``surface`` segments into exactly one reflex surface per cluster, return
-    the clusters in the order they tile the surface (left to right) — both the
-    confirmation that the composite IS the merge of these constituents AND the
-    ``ordinal`` ordering. ``None`` when no clean segmentation exists.
+    """If ``surface`` segments into exactly one reflex surface per cluster under a
+    UNIQUE cluster order, return that order (left to right) — both the confirmation
+    that the composite IS the merge of these constituents AND the ``ordinal``
+    ordering. ``None`` when no clean segmentation exists OR the segmentation is
+    AMBIGUOUS.
 
-    Deterministic: tries cluster orderings sorted, returns the first that tiles —
-    and since each cluster's reflex set is fixed, the tiling order is unique per
-    successful permutation."""
+    Deterministic. An ambiguous tiling — more than one cluster order tiles the same
+    surface, which happens when constituent clusters share folded reflex surfaces
+    (two clusters both carrying ``tun``/``ton`` tile ``tunton`` as either
+    ``tun``|``ton`` or ``ton``|``tun``) — is left SEPARATE (D46), not resolved by an
+    arbitrary cluster-key sort: a guessed order would commit a wrong ``ordinal`` to
+    the ``composed-of`` assertions (a wrong split corrupts; a missed passthrough is a
+    harmless recall loss). Mirrors the genitive_priors "touches BOTH / NEITHER →
+    skip, don't guess" rule."""
+    matches: list[tuple[str, ...]] = []
     for order in sorted(permutations(clusters)):
 
         def _consume(pos: int, i: int, order: tuple[str, ...] = order) -> bool:
@@ -102,8 +109,8 @@ def _segment_order(
             return False
 
         if _consume(0, 0):
-            return order
-    return None
+            matches.append(order)
+    return matches[0] if len(matches) == 1 else None
 
 
 @dataclass(frozen=True)
