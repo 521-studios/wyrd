@@ -87,3 +87,16 @@ def test_normalize_is_idempotent():
     ]:
         once = normalize_morpheme_surface(raw)
         assert normalize_morpheme_surface(once) == once
+
+
+def test_every_boundary_dash_codepoint_is_trimmed():
+    """Data-driven lock over the full ``_BOUNDARY_DASHES`` set: every codepoint is
+    boundary decoration, so it trims at BOTH ends and a lone one is junk. Guards
+    against a silent member-drop in a future cleanup — the obscure small/fullwidth
+    variants (U+FE58/FE63/FF0D) have no representative case in the table above."""
+    from wyrd.generators.kenning.lexicon.morpheme_surface import _BOUNDARY_DASHES
+
+    for ch in _BOUNDARY_DASHES:
+        tag = f"{ch!r} (U+{ord(ch):04X})"
+        assert normalize_morpheme_surface(f"{ch}ach{ch}") == "ach", f"{tag} not trimmed"
+        assert normalize_morpheme_surface(ch) is None, f"lone {tag} not junk"

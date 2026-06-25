@@ -14,12 +14,11 @@ preserving any *legitimate interior* hyphen in a form — ``al-Quadim``,
 ``'s-Hertogenbosch``, the PIE proto-segmentation hyphens in ``*(H)réh₁-ti-s`` —
 which a blanket ``replace('-', '')`` would corrupt.
 
-"Dash" here is any dash-like codepoint, not just ASCII hyphen-minus: a boundary
-marker pasted as U+2010 HYPHEN, U+2011 NON-BREAKING HYPHEN, or an en/em dash is
-just as much position decoration, and would otherwise fork ``–ach`` from ``ach``
-(see :data:`_BOUNDARY_DASHES`). Boundary whitespace is likewise trimmed across
-the full Unicode set (tab, NBSP, …), not only the ASCII space — a non-ASCII
-boundary space could otherwise shield an ASCII position-dash from the trim.
+"Dash" here is any dash-like codepoint, not just ASCII hyphen-minus (see
+:data:`_BOUNDARY_DASHES` for the set and why). Boundary whitespace is likewise
+trimmed across the full Unicode set (tab, NBSP, …), not only the ASCII space — a
+non-ASCII boundary space could otherwise shield an ASCII position-dash from the
+trim.
 
 The leading reconstruction sigil ``*`` (``*tūn``, ``*-at-``) is PRESERVED: it is
 identity, not decoration, and its own folding (``*`` → a ``reconstructed``
