@@ -94,6 +94,35 @@ def test_detect_mixed_pointer_candidates(tmp_path):
     assert cands == {"old-english:wall": "old-english:weall"}
 
 
+def test_mixed_pointer_multiword_tail_targets_real_lemma(tmp_path):
+    """The mixed-pointer candidate target now uses the shared _resolve_pointer_target
+    (cycle-85): a multi-word pointer tail resolves the real lemma, not the first word.
+    'alternative form of Old English burg' targets 'burg', skipping the capitalized
+    language qualifier (a bare-lower-case canonical_form never matches 'Old'). The old
+    first-word extraction captured 'Old' → no resolve → the candidate was MISSED."""
+    conn = _conn(tmp_path / "lex.db")
+    _ety(conn, 1, "ealdburh", ["a stronghold", "alternative form of Old English burg"])
+    _ety(conn, 2, "burg", ["fort"])
+    _ety(conn, 3, "old", ["aged"])  # capital 'Old' in the gloss must NOT match this lemma
+    cands = {c.from_ref: c.into_ref for c in detect_merge_candidates(conn)}
+    assert cands == {"old-english:ealdburh": "old-english:burg"}
+
+
+def test_mixed_pointer_ignores_form_of_in_prose_gloss(tmp_path):
+    """Guard (cycle-85): only the START-ANCHORED pointer glosses feed target
+    resolution. A real PROSE gloss that merely contains 'form of' deep in the sentence
+    is not a pointer (fails the ≤3-word anchor), so it must never steer the target —
+    the candidate targets 'weall' (the actual pointer's lemma), never 'stone' from the
+    prose. Pins that the helper receives the filtered pointer glosses, not the full
+    gloss list (whose unanchored tail regex would mis-resolve the prose)."""
+    conn = _conn(tmp_path / "lex.db")
+    _ety(conn, 1, "wal", ["a wall of a particular form of stone", "alternative form of weall"])
+    _ety(conn, 2, "weall", ["wall, rampart"])
+    _ety(conn, 3, "stone", ["rock"])  # appears in 'form of stone' prose — must NOT be the target
+    cands = {c.from_ref: c.into_ref for c in detect_merge_candidates(conn)}
+    assert cands == {"old-english:wal": "old-english:weall"}
+
+
 def _cand():
     return MergeCandidate(
         from_ref="old-english:burh",

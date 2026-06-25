@@ -41,8 +41,6 @@ _POINTER_GLOSS_RE = re.compile(
     r"^\s*(?:[a-zà-öø-ÿ0-9'-]+\s+){0,3}(?:form|spelling|variant)\s+of\s+\S",
     re.IGNORECASE,
 )
-# Extract the target lemma named by a form-of pointer ("... form of <X>").
-_POINTER_TARGET_RE = re.compile(r"\b(?:form|variant|spelling) of\s+([^\s(,.;\"']+)", re.IGNORECASE)
 
 
 def is_form_of_pointer(gloss: str) -> bool:
