@@ -53,6 +53,23 @@ METHOD = "same-morpheme-uplift-v1"
 # duplicate); medium = same surface + gloss overlap only.
 Confidence = Literal["high", "medium"]
 
+# Placeholder glosses that carry NO morpheme identity — "a personal name" / "personal
+# name" mean "this is a person's name used in a place-name", not a morpheme meaning,
+# so two DISTINCT morphemes sharing only one (plus a folded surface) are NOT the same
+# morpheme. The medium tier matches glosses by string equality, which collapse_merge
+# already documents can't decide a generic gloss; here we refuse to let a
+# placeholder-only overlap be identity evidence (a wrong bind is identity-collapse
+# corruption, D46/D50.2 — leave separate instead).
+#
+# SCOPED to the placeholders that ACTUALLY cause a wrong medium bind in the live DB
+# today (exactly these two). Other zero-identity "<x> name" placeholders exist in the
+# gloss pool ("masculine personal name.", "river name", "name", …) but are inert (none
+# is a sole bind overlap now); a literal allowlist deliberately avoids over-suppressing
+# the REAL morpheme glossed "name" (OE nama). Broadening this safely (a curated set or
+# a placeholder predicate that excludes the real "name" sense) is tracked in wyrd-kmt9
+# — revisit if a re-mine makes one of those variants a live wrong bind.
+_GENERIC_GLOSSES: frozenset[str] = frozenset({"a personal name", "personal name"})
+
 
 @dataclass(frozen=True)
 class EtymonRow:
@@ -176,8 +193,13 @@ def _match_shipped(x: EtymonRow, shipped: list[EtymonRow]) -> tuple[EtymonRow, C
         return same_cluster[0], "high"
     if same_cluster:
         return None  # ambiguous within-cluster
+    # The unique gloss match (len == 1) is identity evidence only if the OVERLAP
+    # carries a NON-placeholder gloss: a shared "a personal name" alone binds two
+    # distinct morphemes (old-norse ami / old-english Ami) as one — identity-collapse.
+    # The uniqueness gate (== 1) is unchanged, so this never resolves an ambiguous
+    # >1-match into a bind; it only suppresses a placeholder-only overlap.
     gloss_match = [y for y in shipped if x.glosses & y.glosses]
-    if len(gloss_match) == 1:
+    if len(gloss_match) == 1 and (x.glosses & gloss_match[0].glosses) - _GENERIC_GLOSSES:
         return gloss_match[0], "medium"
     return None
 

@@ -132,6 +132,47 @@ def test_medium_confidence_gloss_only_bind(tmp_path):
     assert groups[0].breakdown_etymons == (leah_bd,)
 
 
+def test_placeholder_gloss_only_overlap_not_bound(tmp_path):
+    """Regression: a medium bind must NOT rest SOLELY on a placeholder gloss.
+    'a personal name' is on 8507 etymons and carries no morpheme identity, so two
+    distinct same-surface morphemes sharing only it (old-norse ami / old-english Ami)
+    were wrongly bound as the same morpheme — identity-collapse (D46/D50.2 leave-
+    separate). Same setup as the medium-bind test above but with a placeholder gloss."""
+    db = _db(tmp_path)
+    ami_shipped = _etymon(db, "Ami")
+    _ship(db, ami_shipped)
+    _gloss(db, ami_shipped, "a personal name")
+    ami_bd = _etymon(db, "ami", language="old-norse")
+    _unclustered(db, ami_bd)
+    _gloss(db, ami_bd, "a personal name")
+    _breakdown_only(db, ami_bd, "Amiton")
+    db.commit()
+    groups = mine_same_morpheme_binds(db)
+    db.close()
+    assert groups == []  # placeholder-only overlap → no bind
+
+
+def test_real_gloss_binds_even_with_shared_placeholder(tmp_path):
+    """The placeholder filter only removes the placeholder FROM the overlap — a
+    genuine shared gloss ('wolf') still binds even when 'a personal name' is also
+    shared. (Guards against the fix over-suppressing real-gloss binds.)"""
+    db = _db(tmp_path)
+    s = _etymon(db, "wulf")
+    _ship(db, s)
+    _gloss(db, s, "a personal name")
+    _gloss(db, s, "wolf")
+    bd = _etymon(db, "Wulf", language="old-norse")
+    _unclustered(db, bd)
+    _gloss(db, bd, "a personal name")
+    _gloss(db, bd, "wolf")
+    _breakdown_only(db, bd, "Wulfton")
+    db.commit()
+    groups = mine_same_morpheme_binds(db)
+    db.close()
+    assert len(groups) == 1 and groups[0].confidence == "medium"
+    assert groups[0].breakdown_etymons == (bd,)
+
+
 def test_ambiguous_two_shipped_left_separate(tmp_path):
     # Two shipped etymons share the breakdown's surface + cluster -> ambiguous ->
     # left separate (D46), no bind.
