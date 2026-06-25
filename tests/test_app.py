@@ -315,6 +315,31 @@ def test_manifest_era_stages_optional_for_other_generators():
             assert g["era_stages"] is None or isinstance(g["era_stages"], dict)
 
 
+def test_dispatch_non_coercible_seed_is_400_not_500():
+    """A non-coercible seed (non-numeric string, list, object) is a clean 400
+    bad_params — not a 500. resolve_seed was called OUTSIDE the dispatch try, so
+    its int() ValueError/TypeError escaped uncaught; it now resolves inside the
+    try and maps to bad_params. A valid int / numeric-string seed is unchanged."""
+    app = create_app()
+    with app.test_client() as client:
+        for seed in ("abc", "1.5", [1, 2], {"x": 1}):
+            resp = client.post(
+                "/api/kenning", json={"culture": "english", "count": 1, "seed": seed}
+            )
+            assert resp.status_code == 400, seed
+            assert resp.get_json()["error"] == "bad_params"
+        # GET path (string seed from the query) — same bad_params mapping.
+        assert client.get("/api/kenning?culture=english&count=1&seed=abc").status_code == 400
+        # valid seeds still succeed (the determinism path is untouched).
+        assert (
+            client.post(
+                "/api/kenning", json={"culture": "english", "count": 1, "seed": 42}
+            ).status_code
+            == 200
+        )
+        assert client.get("/api/kenning?culture=english&count=1&seed=42").status_code == 200
+
+
 def test_stripped_str_treats_non_string_as_absent():
     from wyrd.app import _stripped_str
 

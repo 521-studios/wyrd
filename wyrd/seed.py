@@ -22,12 +22,21 @@ MAX_SAFE_INTEGER = 2**53 - 1
 
 def resolve_seed(value: int | str | None) -> int:
     """Coerce a request-supplied seed to an int, or generate a random
-    JS-safe seed when blank."""
+    JS-safe seed when blank.
+
+    Raises ``ValueError`` for a non-coercible seed — a non-numeric string
+    (``"abc"``, ``"1.5"``) or a non-string/non-int (a list/object) — so the
+    dispatcher maps it to a 400 bad_params. (A bare ``int(value)`` would raise
+    ValueError for a bad string but TypeError for a list; both surface as
+    ValueError here for a single, catchable bad-param signal.)"""
     if value is None or value == "":
         return secrets.randbelow(MAX_SAFE_INTEGER + 1)
     if isinstance(value, int):
         return value
-    return int(value)
+    try:
+        return int(value)
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"seed must be an integer, got {value!r}") from e
 
 
 def rng_for(seed: int) -> random.Random:
