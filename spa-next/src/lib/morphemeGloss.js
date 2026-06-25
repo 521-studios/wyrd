@@ -134,6 +134,12 @@ export function isNameMorpheme(morph) {
  * Pure (regex + Map build over `morph`), so the caller can memoize it.
  */
 export function glossFor(morph) {
+  // A null / non-object morph yields no gloss rather than crashing — the array
+  // may come from a restored/shared workspace (not just a live API roll), and
+  // one malformed entry must degrade to '' for that slot, not throw out of the
+  // whole glossesByResults map and blank every gloss in the column. Matches the
+  // defensive posture of `clean` (non-string guard) and `isNameMorpheme` (?.).
+  if (!morph || typeof morph !== 'object') return '';
   const g = representativeMeanings(morph.meanings);
   if (g.length) return g.join(' · ');
   const looksProper = /^[A-Z]/.test(morph.usage || '');
@@ -153,6 +159,6 @@ export function glossFor(morph) {
  */
 export function glossesByResults(results) {
   return (results ?? []).map((r) =>
-    (r?.morphemes_by_word ?? []).map((word) => word.map((morph) => glossFor(morph))),
+    (r?.morphemes_by_word ?? []).map((word) => (word ?? []).map((morph) => glossFor(morph))),
   );
 }
