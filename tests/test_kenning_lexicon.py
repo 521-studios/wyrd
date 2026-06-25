@@ -13923,6 +13923,27 @@ def _seed_descent_chain(db: LexiconDB, *edges: tuple[str, str, str]) -> dict[str
     return forms
 
 
+def test_assign_cognate_clusters_smallest_root_wins_and_flags_cycle_orphans() -> None:
+    """The pure BFS assigner extracted from cluster_cognates, called directly on
+    canonical (parent_id, child_id) edges. Pins the two load-bearing properties:
+    a node reachable from multiple roots is claimed by the SMALLEST root id
+    (roots are walked ascending and the BFS skips already-assigned nodes), and a
+    pure cycle with no external anchor yields cycle_orphans (nothing assigned)."""
+    from wyrd.generators.kenning.lexicon.cognate_cluster import _assign_cognate_clusters
+
+    # Node 3 is reachable from root 1 (1->2->3) AND root 5 (5->3): smaller root wins.
+    assignments, roots, orphans = _assign_cognate_clusters([(1, 2), (2, 3), (5, 3)])
+    assert roots == [1, 5]
+    assert assignments == {1: 1, 2: 1, 3: 1, 5: 5}  # 3 claimed by 1, not 5
+    assert orphans == set()
+
+    # A pure 2-cycle has no root (each node is also a child) -> both are orphans.
+    assignments2, roots2, orphans2 = _assign_cognate_clusters([(7, 8), (8, 7)])
+    assert roots2 == []
+    assert assignments2 == {}
+    assert orphans2 == {7, 8}
+
+
 def test_cluster_cognates_assigns_root_id_to_inheritance_chain(fresh_db: Path) -> None:
     """Happy path: a → b → c inheritance chain. All three rows get
     cognate_id = a.id, cognate_method = 'cluster-cognates-v2'."""
