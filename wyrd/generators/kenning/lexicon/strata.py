@@ -461,46 +461,20 @@ def _stratum_to_ancestors(
     return inverted
 
 
-def _classify_family(
-    db: LexiconDB,
-    *,
-    modern_lang: str,
-    strata_order: tuple[str, ...],
-    ancestor_to_stratum: dict[str, str],
-    self_lang_to_stratum: dict[str, str],
-    default_stratum: str,
-) -> dict[int, str]:
-    """Generic classifier shared by classify_welsh / classify_french /
-    (and Phase 4b/4c follow-ons).
+def _self_language_proposals(db: LexiconDB, self_lang_to_stratum: dict[str, str]) -> dict[int, str]:
+    """Pass 1: assign every etymon whose ``language`` is a key in
+    ``self_lang_to_stratum`` directly to that stratum.
 
-    Two passes:
-    1. Self-language pass: every etymon whose ``language`` is a key
-       in ``self_lang_to_stratum`` gets assigned the corresponding
-       stratum directly. This covers ancestor varieties (proto-
-       Brittonic, Frankish, vulgar-Latin, ...) and period varieties
-       (middle-welsh, old-french, ...) that ARE the ancestor — their
-       own descent walk would describe what fed INTO them, not their
-       own register.
-    2. Ancestor-walk pass: every etymon whose ``language ==
-       modern_lang`` gets its parent-language set built via a single
-       chunked join over ``etymon_descent``, then iterates
-       ``strata_order`` and picks the first stratum whose
-       ancestor-language set intersects the parent set.
-
-    Both passes skip ``merged_into_id IS NOT NULL`` rows — OCR-
-    clustering losers that callers already filter out.
-
-    Pure read; doesn't mutate the DB. Caller decides whether to write
-    the proposed assignments back to ``etymon.stratum``.
+    These ARE the ancestor/period varieties (proto-Brittonic, Frankish,
+    vulgar-Latin, middle-welsh, old-french, ...) — their own descent walk would
+    describe what fed INTO them, not their own register, so they're assigned by
+    self-language rather than by ancestor walk. Skips ``merged_into_id IS NOT
+    NULL`` rows (OCR-clustering losers). ``ORDER BY id`` pins a stable,
+    rebuild-independent insertion order: the by_stratum counters in
+    ``classify_stratum_all`` and the ``format_enrichment_run`` sections iterate
+    this dict, so a physical-row-order drift would be a Phase 3 byte-diff risk.
     """
     proposals: dict[int, str] = {}
-
-    # ORDER BY id pins the proposals-dict insertion order to a
-    # stable rebuild-independent sequence. Without it, the dict's
-    # iteration order downstream (the by_stratum counters in
-    # classify_stratum_all, the format_enrichment_run sections)
-    # would drift across rebuilds with different physical row
-    # orderings — Phase 3 byte-diff risk on the enrichment report.
     for lang, stratum in self_lang_to_stratum.items():
         rows = db.conn.execute(
             "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL ORDER BY id",
@@ -508,18 +482,37 @@ def _classify_family(
         )
         for r in rows:
             proposals[r["id"]] = stratum
+    return proposals
 
+
+def _ancestor_walk_proposals(
+    db: LexiconDB,
+    *,
+    modern_lang: str,
+    strata_order: tuple[str, ...],
+    ancestor_to_stratum: dict[str, str],
+    default_stratum: str,
+) -> dict[int, str]:
+    """Pass 2: classify every etymon whose ``language == modern_lang`` by its
+    ancestor languages.
+
+    Builds each etymon's parent-language set via a single chunked join over
+    ``etymon_descent``, then iterates ``strata_order`` and picks the first
+    stratum whose ancestor-language set intersects that parent set (the default
+    stratum has no ancestor mapping, so it falls through). Skips
+    ``merged_into_id IS NOT NULL`` rows; ``ORDER BY id`` pins insertion order
+    for the same byte-diff reason as :func:`_self_language_proposals`.
+    """
     modern_rows = db.conn.execute(
         "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL ORDER BY id",
         (modern_lang,),
     ).fetchall()
     if not modern_rows:
-        return proposals
+        return {}
 
-    # Pull every parent-language for the modern-variety etymon set
-    # in one pass. Chunked at SQLite's 999-variable limit. The inner
-    # SELECT keys on ``child_id`` so ``idx_etymon_descent_child``
-    # carries the lookup.
+    # Pull every parent-language for the modern-variety etymon set in one pass.
+    # Chunked at SQLite's 999-variable limit. The inner SELECT keys on
+    # ``child_id`` so ``idx_etymon_descent_child`` carries the lookup.
     modern_ids = [r["id"] for r in modern_rows]
     parents_by_child: dict[int, set[str]] = {}
     for i in range(0, len(modern_ids), 999):
@@ -536,13 +529,13 @@ def _classify_family(
 
     stratum_ancestors = _stratum_to_ancestors(ancestor_to_stratum)
 
+    proposals: dict[int, str] = {}
     for eid in modern_ids:
         parent_langs = parents_by_child.get(eid, set())
         assigned = default_stratum
-        # Iterate strata in priority order; first stratum whose
-        # ancestor-language set intersects this etymon's parent set
-        # wins. The default stratum has no ancestor-language mapping
-        # so it naturally falls through.
+        # Iterate strata in priority order; first stratum whose ancestor-language
+        # set intersects this etymon's parent set wins. The default stratum has
+        # no ancestor-language mapping so it naturally falls through.
         for stratum_target in strata_order:
             if stratum_target == default_stratum:
                 continue
@@ -550,7 +543,58 @@ def _classify_family(
                 assigned = stratum_target
                 break
         proposals[eid] = assigned
+    return proposals
 
+
+def _classify_family(
+    db: LexiconDB,
+    *,
+    modern_lang: str,
+    strata_order: tuple[str, ...],
+    ancestor_to_stratum: dict[str, str],
+    self_lang_to_stratum: dict[str, str],
+    default_stratum: str,
+) -> dict[int, str]:
+    """Generic classifier shared by classify_welsh / classify_french /
+    (and Phase 4b/4c follow-ons).
+
+    Two passes, merged into one ``{etymon_id: stratum}`` proposal map:
+
+    1. :func:`_self_language_proposals` — the ancestor/period varieties that
+       ARE the ancestor, assigned by their own ``language``.
+    2. :func:`_ancestor_walk_proposals` — the modern variety, assigned by the
+       ancestor languages reached through ``etymon_descent``.
+
+    The self-language pass is applied first, then merged with the ancestor-walk
+    pass. This relies on a precondition — ``modern_lang`` must NOT be a key in
+    ``self_lang_to_stratum`` — so the two passes select disjoint etymon sets
+    (one selects ``language == modern_lang``, the other ``language IN
+    self_lang_to_stratum``) and the merge never overwrites, preserving the
+    documented self-language-then-modern insertion order. Every current
+    ``classify_<lang>`` wrapper satisfies it; it's enforced below because the
+    wrappers are an explicit extension point (see the Celtic section). Both
+    passes skip ``merged_into_id IS NOT NULL`` rows and emit ``ORDER BY id``
+    order (see the helpers).
+
+    Pure read; doesn't mutate the DB. Caller decides whether to write the
+    proposed assignments back to ``etymon.stratum``.
+    """
+    if modern_lang in self_lang_to_stratum:
+        raise ValueError(
+            f"modern_lang {modern_lang!r} must not also be a self_lang_to_stratum key: "
+            "the self-language and ancestor-walk passes would select overlapping etymons, "
+            "so pass 2 would silently overwrite pass 1 (and break the proposal order)."
+        )
+    proposals = _self_language_proposals(db, self_lang_to_stratum)
+    proposals.update(
+        _ancestor_walk_proposals(
+            db,
+            modern_lang=modern_lang,
+            strata_order=strata_order,
+            ancestor_to_stratum=ancestor_to_stratum,
+            default_stratum=default_stratum,
+        )
+    )
     return proposals
 
 
