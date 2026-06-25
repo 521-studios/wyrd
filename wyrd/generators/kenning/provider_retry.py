@@ -81,7 +81,7 @@ def open_with_429_retry(
             # half-open sockets across retries and hit the FD limit.
             e.close()
             logger.warning(
-                "%s %d transient; retry %d/%d in %.1fs",
+                "%s %d (transient); retry %d/%d in %.1fs",
                 provider_label,
                 e.code,
                 attempt,
