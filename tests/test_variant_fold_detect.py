@@ -63,6 +63,34 @@ def test_bare_gloss_folds_into_descriptive_lemma(fresh_db: Path) -> None:
         assert stone[0].lemma_cluster_size >= 5
 
 
+def test_onomastic_framing_gloss_does_not_group_distinct_names(fresh_db: Path) -> None:
+    # A bare name gloss "a feminine personal name" carries only name-CLASS framing
+    # (feminine, personal — now stopwords), not distinguishing meaning. Two DISTINCT
+    # feminine names with similar surfaces (Ede/Eve, difflib ~0.67) must NOT become a
+    # fold candidate on that framing alone: the shared gloss yields no content token,
+    # so they are never grouped. (Pre-fix, 'feminine'/'personal' survived → the pair
+    # was proposed and the judge mis-folded distinct names — Ede→Eve, committed at
+    # medium confidence. wyrd-21p8.)
+    with LexiconDB(fresh_db) as db:
+        _e(db, "Ede", "middle-english", "a feminine personal name")
+        _rich(db, "Eve", "middle-english", "a feminine personal name")
+        db.commit()
+        assert detect_variant_fold_candidates(db.conn, min_similarity=0.6) == []
+
+
+def test_name_gloss_with_real_meaning_token_still_groups(fresh_db: Path) -> None:
+    # Stripping name-CLASS framing must not nuke a name gloss that ALSO carries a real
+    # meaning token: a genuine spelling variant whose glosses share 'wolf' still folds.
+    # Confirms the fix removes only the framing words, not content.
+    with LexiconDB(fresh_db) as db:
+        _e(db, "Wulfa", "old-english", "a masculine personal name, wolf")
+        _rich(db, "Wulf", "old-english", "a masculine personal name, the wolf")
+        db.commit()
+        cands = detect_variant_fold_candidates(db.conn, min_similarity=0.6)
+        assert [c.barren_ref for c in cands] == ["old-english:Wulfa"]
+        assert cands[0].lemma_ref == "old-english:Wulf"
+
+
 def test_vowel_shift_folds_via_consonant_skeleton(fresh_db: Path) -> None:
     # wood↔wudu: difflib ratio ~0.5 (below the floor) but a shared consonant
     # skeleton 'wd' rescues the pair.
