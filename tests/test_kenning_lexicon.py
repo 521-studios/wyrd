@@ -123,6 +123,59 @@ def test_position_from_usage() -> None:
     assert _position_from_usage("-ar-") == "inner"
 
 
+def test_position_from_usage_recognizes_unicode_boundary_dashes() -> None:
+    """A boundary marker drawn with a NON-ASCII dash derives the SAME position as
+    its ASCII twin — else a Unicode-dash reflex forks from the ASCII one on the
+    position axis (D45). Leading-only already mapped to 'post'; the trailing /
+    both-ends cases are the ones the old ASCII-only check got wrong."""
+    assert _position_from_usage("Ac–") == "pre"  # trailing en-dash (was 'post')
+    assert _position_from_usage("Ac‐") == "pre"  # trailing U+2010 HYPHEN
+    assert _position_from_usage("–ar–") == "inner"  # both en-dashes (was 'post')
+    assert _position_from_usage("–ham") == "post"  # leading en-dash — unchanged
+    # ASCII behavior is unchanged for every case.
+    assert _position_from_usage("Ac-") == "pre"
+    assert _position_from_usage("-ar-") == "inner"
+
+
+def test_seed_reflex_dedashes_unicode_boundary_markers(tmp_path: Path) -> None:
+    """Seeded reflex IDENTITY (surface + position) de-dashes through the shared
+    ``normalize_morpheme_surface`` / boundary-dash set, so a ``modern_usage`` with
+    a non-ASCII boundary dash stores BARE with the right position — identical to
+    the etymon path and ``modern_reflex_import`` — instead of forking the morpheme
+    into a dashed reflex row. A strip-to-junk ``modern_usage`` stores no reflex."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        seed_from_meanings(
+            db,
+            [
+                {  # leading en-dash suffix marker → bare surface, 'post'
+                    "meaning": ["x"],
+                    "modifier_tags": [],
+                    "modifier_type": None,
+                    "words": [{"modern_usage": "–shire", "old_english": ["scir"]}],
+                },
+                {  # trailing U+2010 prefix marker → bare surface, 'pre'
+                    "meaning": ["y"],
+                    "modifier_tags": [],
+                    "modifier_type": None,
+                    "words": [{"modern_usage": "ton‐", "old_english": ["tun"]}],
+                },
+                {  # strips to junk → no reflex stored at all
+                    "meaning": ["z"],
+                    "modifier_tags": [],
+                    "modifier_type": None,
+                    "words": [{"modern_usage": "–", "old_english": ["junk"]}],
+                },
+            ],
+            source_id="rando-port",
+        )
+    rows = set(sqlite3.connect(db_path).execute("SELECT surface_form, position FROM reflex"))
+    # Bare surfaces (no '–shire'/'ton‐'), correct positions, no junk '' row.
+    assert rows == {("shire", "post"), ("ton", "pre")}
+
+
 def test_init_schema_creates_tables(fresh_db: Path) -> None:
     conn = sqlite3.connect(fresh_db)
     try:
