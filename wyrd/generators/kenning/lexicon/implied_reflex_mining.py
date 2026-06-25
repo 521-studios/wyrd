@@ -392,7 +392,17 @@ def _known_reflex_leftover(
     residual = aln.residual
     own = {s for s in cluster_surfaces.get(residual_element.cluster, ()) if s}
     expanded = {s for s in expanded_surfaces.get(residual_element.cluster, ()) if s}
-    if residual in expanded:
+    # The over-consume "broadened" set is own ∪ expanded, NOT expanded alone:
+    # ``expanded`` (the cross-cluster cognate union, _cognate_reflex_expansion) carries
+    # reflex-TABLE surfaces only, while a cluster's longer true reflexes can enter via
+    # the etymon canonical_form path — those live in ``own`` (_cluster_surfaces) and are
+    # absent from ``expanded``. Reading expanded alone made the over-consume guard blind
+    # to them, so a fragment stealing a boundary char off a canonical-form-only reflex
+    # leaked through (e.g. ``anger``←hangra, the anchor stole the leading ``h`` of the
+    # true reflex ``hanger``; ``bush``←biscop of ``bushop``). The under-consume branch
+    # stays own-only (broadening it rejects legitimate longer residuals — see docstring).
+    over_consume_known = own | expanded
+    if residual in over_consume_known:
         return False  # residual is itself an attested reflex → legitimate, not a leak
     check_post = aln.position in ("post", "inner")
     check_pre = aln.position in ("pre", "inner")
@@ -405,11 +415,12 @@ def _known_reflex_leftover(
     ):
         return True
     # OVER-consume: the residual is a proper affix of a LONGER known reflex from the
-    # CROSS-CLUSTER cognate union (so an impoverished singleton inherits the longer
-    # true reflex its residual is a fragment of); the anchor stole a boundary char.
+    # element's own surfaces ∪ the CROSS-CLUSTER cognate union (so an impoverished
+    # singleton inherits the longer true reflex its residual is a fragment of, AND a
+    # canonical-form-only reflex is still consulted); the anchor stole a boundary char.
     return any(
         _is_proper_affix(residual, known, check_pre=check_pre, check_post=check_post)
-        for known in expanded
+        for known in over_consume_known
     )
 
 

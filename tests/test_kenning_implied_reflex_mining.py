@@ -19,7 +19,10 @@ from wyrd.generators.kenning.jsonl.build import build_from_jsonl
 from wyrd.generators.kenning.jsonl.dump import dump_reflexes_to_file, dump_source_to_file
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.implied_reflex_mining import (
+    _Alignment,
+    _Element,
     _is_proper_affix,
+    _known_reflex_leftover,
     apply_implied_reflexes,
     extract_implied_reflexes,
     implied_reflex_assertions,
@@ -263,6 +266,29 @@ def test_over_consume_known_reflex_superstring_rejected(tmp_path):
     # 'ac' anchor → residual 'ton' equals a known reflex of tūn → already-known skip.
     assert all(r.residual != "on" for r in out)
     assert out == []  # nothing minted — never the over-consumed fragment 'on'
+
+
+def test_over_consume_guard_consults_canonical_form_only_reflex():
+    """Regression: the over-consume guard must read own ∪ expanded, not ``expanded``
+    alone. ``expanded`` (the cross-cluster cognate union, _cognate_reflex_expansion)
+    carries reflex-TABLE surfaces only, but a cluster's longer TRUE reflex can live
+    ONLY as a folded etymon canonical_form — present in ``own`` (_cluster_surfaces)
+    and absent from ``expanded``. Reading expanded alone let a fragment that stole a
+    boundary char off such a reflex leak through and reach L2/bundle (anger←hangra:
+    the anchor stole the leading 'h' of the true reflex 'hanger'; bush←biscop of
+    'bushop'). Here 'hanger' is in own only — pre-fix the guard returned False (leak)."""
+    el = _Element(etymon_id=1, cluster="cX", language="old-english", canonical_form="hangra")
+    own = {"cX": {"hanger"}}  # the true reflex, via the canonical-form path
+    expanded = {"cX": set()}  # the reflex-only cross-cluster union lacks it
+    leak = _Alignment(
+        breakdown=None, residual_element=el, residual="anger", position="post", spans={}
+    )
+    assert _known_reflex_leftover(el, leak, own, expanded) is True  # over-consume leak caught
+    # Control: a residual that IS the attested reflex (in own) short-circuits → not a leak.
+    ok = _Alignment(
+        breakdown=None, residual_element=el, residual="hanger", position="post", spans={}
+    )
+    assert _known_reflex_leftover(el, ok, own, expanded) is False
 
 
 def test_over_consume_pre_residual_superstring_rejected(tmp_path):
