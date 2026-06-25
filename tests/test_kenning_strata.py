@@ -240,6 +240,22 @@ def test_classify_welsh_priority_latin_over_brittonic(fresh_db: Path) -> None:
     assert proposals[welsh_id] == "latin-loan"
 
 
+def test_classify_welsh_priority_latin_variant_over_brittonic(fresh_db: Path) -> None:
+    """Defense-in-depth for the variant fix: a Latin VARIANT loan (la-lat) still
+    wins over a Brittonic ancestor by priority order — not just plain ``latin``.
+    Without the variant in the ancestor map the la-lat parent would be unmatched,
+    the brittonic parent would win, and this would mis-classify brittonic-substrate."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        la_lat_id = db.upsert_etymon("ecclesia", "la-lat")
+        bry_id = db.upsert_etymon("*ekklesia", "cel-bry-pro")
+        welsh_id = db.upsert_etymon("eglwys", "welsh")
+        _add_descent(db, parent_id=la_lat_id, child_id=welsh_id, edge_type="borrowing")
+        _add_descent(db, parent_id=bry_id, child_id=welsh_id)
+        proposals = classify_welsh(db)
+    assert proposals[welsh_id] == "latin-loan"
+
+
 def test_classify_welsh_priority_english_over_medieval(fresh_db: Path) -> None:
     """Priority: english-loan beats medieval-welsh (rare combo, but
     the rule needs to be deterministic so callers can trust the
