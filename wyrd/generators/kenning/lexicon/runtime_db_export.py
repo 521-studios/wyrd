@@ -461,16 +461,16 @@ def _init_runtime_schema(conn: sqlite3.Connection) -> None:
 
 
 # D45 (wyrd-aicu.5): the stored-identity surfaces the exporter guards. KEY
-# columns are short bare surfaces, so a SQL ``LIKE '%-%'`` is exact; the BLOB
-# tables need a JSON parse (a greedy ``LIKE`` over the blob false-positives on
-# dashes in OTHER fields).
+# columns are short bare surfaces, so an any-dash ``GLOB`` (``_ANY_DASH_GLOB``)
+# is exact; the BLOB tables need a JSON parse (a greedy whole-blob match
+# false-positives on dashes in OTHER fields).
 #
 # ``morpheme_id`` (the L3-derived content key ``language:form``) is guarded
 # SEPARATELY (below) at the FORM level (wyrd-aicu.8) — NOT in this list —
 # because its language PREFIX legitimately carries a dash (``old-english:``) and
 # an interior in-word hyphen is legitimate (``al-Quadim``); only a BOUNDARY dash
 # on the form is the affix-position decoration D45 forbids, so a blanket
-# ``LIKE '%-%'`` here would false-flag every dash-language morpheme forever.
+# any-dash match here would false-flag every dash-language morpheme forever.
 #
 # One column is still deliberately ABSENT:
 #   * ``fantasy_morpheme.usage_key`` — a whole input-NAME lookup key, never a
