@@ -587,6 +587,13 @@ class Meaning:
         ``_lemma_ref_for`` bug (#788)."""
         if not forms:
             return None
+        # A source value is normally a list of form entries, but ``load_meanings``
+        # copies the word field verbatim, so loosely-shaped data can hand us a bare
+        # string (``{"old_english": "burna"}`` rather than ``["burna"]``). Treat it
+        # as the single form — iterating the str would scan its CHARACTERS and yield
+        # the first letter (the old forms[0]-style copies returned "b" for "burna").
+        if isinstance(forms, str):
+            return forms  # non-empty (guarded above)
         for entry in forms:
             if isinstance(entry, dict):
                 form_str = entry.get("form") or entry.get("canonical_form") or ""
