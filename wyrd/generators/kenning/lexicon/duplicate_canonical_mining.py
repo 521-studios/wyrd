@@ -174,14 +174,21 @@ def _emit_pairs(
 
 
 def _reflex_link_child_roots(conn: sqlite3.Connection) -> set[int]:
-    """Etymon lemma-roots that roll up to an ANCESTOR via a curated reflex-link
+    """Etymon family-roots that roll up to an ANCESTOR via a curated reflex-link
     inheritance edge — the ``collapse``-sourced ``etymon_descent`` edges that
     :func:`bundle._export.build_family_rollup` follows (wyrd-rogd.15). Such a root
     passes the cheap ``lemma_id = id`` "is-a-root" screen yet is NOT its legacy
-    rollup root: the rollup hops it onto its ancestor's hub. The lemma-root is
-    ``COALESCE(merged_into_id, lemma_id, id)`` (build_family_rollup's ``_lemma_root``);
-    a child-root that lands on a DIFFERENT parent-root genuinely hops, so exclude it.
-    Lazy import — enrichment imports the lexicon package (cycle), same as the rollup."""
+    rollup root: the rollup hops it onto its ancestor's hub. A child whose rollup
+    root lands on a DIFFERENT parent root genuinely hops, so exclude it.
+
+    The rollup root is build_family_rollup's ``_lemma_root`` — a TWO-step rollup:
+    ``target = merged_into_id OR lemma_id OR id`` then ``root = target.lemma_id OR
+    target``. This is NOT a flat ``COALESCE(merged_into_id, lemma_id, id)``, which
+    diverges from it on an etymon carrying BOTH a merged_into_id and a lemma_id (flat
+    stops at the merge target and drops ITS lemma hop). Mirroring the two steps keeps
+    the finder's "root" and the legacy root in lock-step on every etymon (wyrd-wnh4),
+    not just those without a merge+lemma chain. Lazy import — enrichment imports the
+    lexicon package (cycle), same as the rollup."""
     from wyrd.generators.kenning.enrichment import COLLAPSE_VARIANT_SOURCE_ID
 
     edges = conn.execute(
@@ -193,17 +200,33 @@ def _reflex_link_child_roots(conn: sqlite3.Connection) -> set[int]:
     if not endpoints:
         return set()
     placeholders = ",".join("?" * len(endpoints))
-    root = {
+    # Step 1: each endpoint's redirect target (merged_into → lemma → self).
+    target = {
         r[0]: (r[1] or r[2] or r[0])
         for r in conn.execute(
             f"SELECT id, merged_into_id, lemma_id FROM etymon WHERE id IN ({placeholders})",
             tuple(endpoints),
         )
     }
+    # Step 2: the redirect target's OWN lemma hop (a reflex whose merge target is
+    # itself inflected). The targets need not be edge endpoints, so fetch them.
+    targets = set(target.values())
+    target_ph = ",".join("?" * len(targets))
+    target_lemma = {
+        r[0]: r[1]
+        for r in conn.execute(
+            f"SELECT id, lemma_id FROM etymon WHERE id IN ({target_ph})", tuple(targets)
+        )
+    }
+
+    def lemma_root(eid: int) -> int:
+        t = target.get(eid, eid)
+        return target_lemma.get(t) or t
+
     out: set[int] = set()
     for parent_id, child_id in edges:
-        child_root = root.get(child_id, child_id)
-        if child_root != root.get(parent_id, parent_id):
+        child_root = lemma_root(child_id)
+        if child_root != lemma_root(parent_id):
             out.add(child_root)
     return out
 
