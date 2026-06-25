@@ -6661,6 +6661,20 @@ def test_find_longest_suffix_match_returns_none_for_no_match() -> None:
     assert _find_longest_suffix_match("Cestretone", set()) is None
 
 
+def test_find_longest_suffix_match_length_changing_target_aligns_raw_cut() -> None:
+    """Regression: ``_strip_diacritics`` uses NFKD, which is NOT length-preserving —
+    a ligature ``ﬁ`` (U+FB01) decomposes to ``fi`` (1 char → 2). When the TARGET
+    carries such a char, measuring the matched candidate's length against the stripped
+    form and slicing that count off the RAW form shifts the morpheme boundary. The cut
+    must be raw-form-aligned: ``Sutﬁeld`` + ``{field}`` splits at ``ﬁeld``, not the
+    one-char-off ``tﬁeld`` the stripped-length slice produced."""
+    assert _find_longest_suffix_match("Sutﬁeld", {"field"}) == "ﬁeld"  # was 'tﬁeld'
+    # the corresponding prefix (what the caller projects as morpheme 1) is now correct:
+    target = "Sutﬁeld"
+    match = _find_longest_suffix_match(target, {"field"})
+    assert target[: len(target) - len(match)] == "Sut"  # was 'Su'
+
+
 def test_find_longest_suffix_match_rejects_single_char_candidates() -> None:
     """Single-char candidates (a trailing 'e' / 's') are rejected to
     avoid spurious 1-char hits — too noisy to project as a morpheme

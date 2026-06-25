@@ -163,17 +163,21 @@ def _find_longest_suffix_match(attested_form: str, candidates: set[str]) -> str 
     (a trailing 's' / 'e' is too noisy to project as a morpheme
     surface).
     """
-    af_lower = attested_form.lower()
-    af_stripped = _strip_diacritics(af_lower)
-    best_len = 0
-    for cand in candidates:
-        if len(cand) < 2:
-            continue
-        if (af_lower.endswith(cand) or af_stripped.endswith(cand)) and len(cand) > best_len:
-            best_len = len(cand)
-    if best_len == 0:
+    cands = {c for c in candidates if len(c) >= 2}
+    if not cands:
         return None
-    return attested_form[-best_len:]
+    # Walk RAW suffixes longest-first and return the first whose normalized form is a
+    # candidate. Matching and slicing must happen in the SAME string: ``_strip_diacritics``
+    # uses NFKD, which is not length-preserving (a ligature ``ﬁ`` → ``fi`` expands 1→2
+    # chars), so measuring a candidate's length against the stripped form and slicing
+    # that count off the RAW form would shift the morpheme boundary. Returning the raw
+    # suffix itself keeps the cut raw-form-aligned and preserves casing/diacritics.
+    for i in range(len(attested_form)):
+        suffix = attested_form[i:]
+        suffix_lower = suffix.lower()
+        if suffix_lower in cands or _strip_diacritics(suffix_lower) in cands:
+            return suffix
+    return None
 
 
 def project_period_forms(
