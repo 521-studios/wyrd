@@ -83,6 +83,22 @@ def test_similarity_threshold_filters(fresh_db: Path) -> None:
         assert detect_reflex_link_candidates(db.conn, min_similarity=0.99) == []
 
 
+def test_best_per_child_tiebreak_is_deterministic() -> None:
+    # Regression: two parents tying on (parent_rank, similarity) for one child must
+    # resolve input-order-independently, else the proposed parent flips across a DB
+    # rebuild / VACUUM (unordered SQL scan), breaking the LLM ledger's byte-stable-
+    # rebuild contract (D36.9). The pick is keyed on the unique parent_ref.
+    from wyrd.generators.kenning.lexicon.reflex_link_detect import _best_per_child
+
+    child = "modern-english:grave"
+    # tuple: (child_ref, parent_ref, child_form, parent_form, shared, sim, parent_rank)
+    p1 = (child, "old-english:gratf", "grave", "gratf", ("x",), 0.6, 0)
+    p2 = (child, "old-english:greot", "grave", "greot", ("x",), 0.6, 0)
+    forward = _best_per_child([p1, p2])[child][1]
+    reverse = _best_per_child([p2, p1])[child][1]
+    assert forward == reverse  # was gratf vs greot (first-seen) before the parent_ref tiebreak
+
+
 def _cand():
     from wyrd.generators.kenning.lexicon.reflex_link_detect import ReflexLinkCandidate
 
