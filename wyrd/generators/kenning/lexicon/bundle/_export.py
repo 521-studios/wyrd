@@ -318,17 +318,11 @@ def build_family_rollup(
         if child_root != parent_root:  # already one family via merge/lemma
             candidates.setdefault(child_root, set()).add(parent_root)
 
-    # Content keys for the deterministic tie-break (rebuild-stable).
-    parent_roots = list({p for ps in candidates.values() for p in ps})
-    form_by_id: dict[int, tuple[str, str]] = {}
-    for i in range(0, len(parent_roots), 900):  # chunk: SQLite caps host params at 999
-        chunk = parent_roots[i : i + 900]
-        qmarks = ",".join("?" * len(chunk))
-        for r in db.conn.execute(
-            f"SELECT id, language, canonical_form FROM etymon WHERE id IN ({qmarks})",
-            tuple(chunk),
-        ):
-            form_by_id[r["id"]] = (r["language"], r["canonical_form"])
+    # Content keys for the deterministic tie-break (rebuild-stable). Reuse the
+    # shared ``_content_keys`` chunked fetch (the canonical rollup already uses
+    # it). ``etymon.canonical_form``/``language`` are NOT NULL, so its None→""
+    # coalesce never fires — the result is identical to the old inline loop.
+    form_by_id = _content_keys(db, {p for ps in candidates.values() for p in ps})
 
     inheritance_parent: dict[int, int] = {
         child_root: min(prs, key=lambda p: (form_by_id.get(p, ("", "")), p))
