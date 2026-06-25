@@ -94,56 +94,63 @@ def _suffix_candidates_for_etymon(
     for row in cur:
         _add(row["form"])
     if include_reflexes:
-        reflex_surfaces: set[str] = set()
-        cur = db.conn.execute(
-            "SELECT DISTINCT r.surface_form "
-            "FROM reflex r JOIN reflex_etymon re ON re.reflex_id = r.id "
-            "WHERE re.etymon_id = ?",
-            (etymon_id,),
-        )
-        for row in cur:
-            sf = (row["surface_form"] or "").lower()
-            if len(sf) >= 2:
-                reflex_surfaces.add(sf)
-        # Drop COMPOSITE reflex surfaces — ones that merely append the PREVIOUS
-        # element's context onto a shorter reflex of the SAME morpheme (OE tūn
-        # mines 'ton' but also 'eton'/'aughton'/'oulton', which all end in 'ton').
-        # Keeping the longer composite would let the longest-suffix anchor eat a
-        # char of the previous element (Stapleton → 'Stapl'+'eton' instead of
-        # 'Staple'+'ton').
-        #
-        # But a longer reflex that ends in a shorter one is NOT always a composite:
-        # the shorter one may be a phonetic REDUCTION of the same morpheme (hām →
-        # 'ham' base + 'am' h-dropped; lēah → 'ley' + 'ey'). There the extra prefix
-        # ('h' of 'ham', 'l' of 'ley') belongs to the morpheme itself, so it
-        # prefixes the canonical form — whereas a composite's extra prefix ('e' of
-        # 'eton') comes from the preceding element and does NOT. So drop sf only
-        # when its extra prefix is NOT a prefix of the canonical form (wyrd-5b1a;
-        # Gemini #741: without this guard, base 'ham'/'east'/'bury' etc. get
-        # wrongly dropped, mis-splitting Birmingham → 'Birmingh'+'am').
-        #
-        # All comparands are diacritic-stripped together: norm_canonical is
-        # stripped, so a diacritic-bearing reflex (e.g. 'môr', 'cwmbrân') must be
-        # too — otherwise an 'ā'-prefixed extra would never match the stripped
-        # canonical and a legit base form would be wrongly dropped (Gemini #741 r2).
-        norm_canonical = _strip_diacritics(canonical_form.lower())
-        stripped = {sf: _strip_diacritics(sf) for sf in reflex_surfaces}
-        minimal = {
-            sf
-            for sf in reflex_surfaces
-            # reflex_surfaces is already filtered to len >= 2 above; `and stripped[o]`
-            # guards the rare all-combining-marks surface that strips to "".
-            if not any(
-                stripped[o] != stripped[sf]
-                and stripped[o]
-                and stripped[sf].endswith(stripped[o])
-                and not norm_canonical.startswith(stripped[sf][: -len(stripped[o])])
-                for o in reflex_surfaces
-            )
-        }
-        for sf in minimal:
+        for sf in _reflex_suffix_candidates(db, etymon_id, canonical_form):
             _add(sf)
     return candidates
+
+
+def _reflex_suffix_candidates(db: LexiconDB, etymon_id: int, canonical_form: str) -> set[str]:
+    """Mined modern reflex surfaces for ``etymon_id`` (>=2 chars), with COMPOSITE
+    surfaces dropped — the ``include_reflexes`` half of
+    :func:`_suffix_candidates_for_etymon`. Returns the MINIMAL morpheme surfaces.
+    """
+    reflex_surfaces: set[str] = set()
+    cur = db.conn.execute(
+        "SELECT DISTINCT r.surface_form "
+        "FROM reflex r JOIN reflex_etymon re ON re.reflex_id = r.id "
+        "WHERE re.etymon_id = ?",
+        (etymon_id,),
+    )
+    for row in cur:
+        sf = (row["surface_form"] or "").lower()
+        if len(sf) >= 2:
+            reflex_surfaces.add(sf)
+    # Drop COMPOSITE reflex surfaces — ones that merely append the PREVIOUS
+    # element's context onto a shorter reflex of the SAME morpheme (OE tūn
+    # mines 'ton' but also 'eton'/'aughton'/'oulton', which all end in 'ton').
+    # Keeping the longer composite would let the longest-suffix anchor eat a
+    # char of the previous element (Stapleton → 'Stapl'+'eton' instead of
+    # 'Staple'+'ton').
+    #
+    # But a longer reflex that ends in a shorter one is NOT always a composite:
+    # the shorter one may be a phonetic REDUCTION of the same morpheme (hām →
+    # 'ham' base + 'am' h-dropped; lēah → 'ley' + 'ey'). There the extra prefix
+    # ('h' of 'ham', 'l' of 'ley') belongs to the morpheme itself, so it
+    # prefixes the canonical form — whereas a composite's extra prefix ('e' of
+    # 'eton') comes from the preceding element and does NOT. So drop sf only
+    # when its extra prefix is NOT a prefix of the canonical form (wyrd-5b1a;
+    # Gemini #741: without this guard, base 'ham'/'east'/'bury' etc. get
+    # wrongly dropped, mis-splitting Birmingham → 'Birmingh'+'am').
+    #
+    # All comparands are diacritic-stripped together: norm_canonical is
+    # stripped, so a diacritic-bearing reflex (e.g. 'môr', 'cwmbrân') must be
+    # too — otherwise an 'ā'-prefixed extra would never match the stripped
+    # canonical and a legit base form would be wrongly dropped (Gemini #741 r2).
+    norm_canonical = _strip_diacritics(canonical_form.lower())
+    stripped = {sf: _strip_diacritics(sf) for sf in reflex_surfaces}
+    return {
+        sf
+        for sf in reflex_surfaces
+        # reflex_surfaces is already filtered to len >= 2 above; `and stripped[o]`
+        # guards the rare all-combining-marks surface that strips to "".
+        if not any(
+            stripped[o] != stripped[sf]
+            and stripped[o]
+            and stripped[sf].endswith(stripped[o])
+            and not norm_canonical.startswith(stripped[sf][: -len(stripped[o])])
+            for o in reflex_surfaces
+        )
+    }
 
 
 def _find_longest_suffix_match(attested_form: str, candidates: set[str]) -> str | None:
