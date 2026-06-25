@@ -114,19 +114,19 @@ def _load(db: LexiconDB) -> tuple[list[_Cohort], dict[str, list[_Target]]]:
     into a proto-Germanic/Old-Norse cluster is the intended case, not a leak. (Precision
     against cross-language homographs is the job of the gloss corroboration in
     :func:`_place` + the downstream confidence gate, not a language filter here.)"""
-    breakdown = {
-        r["etymon_id"]
-        for r in db.conn.execute("SELECT DISTINCT etymon_id FROM toponym_etymology_element")
-    }
-
     # Cohort rows first, so we know which folded surfaces a target could match.
+    # The "is an admitted breakdown morpheme" filter is an IN-subquery, not a Python
+    # membership test over a separately-fetched id set: ``toponym_etymology_element.
+    # etymon_id`` is NOT NULL, so the subquery is exactly the set of breakdown
+    # etymon_ids, and SQLite can index it (idx_toponym_etymology_element_etymon)
+    # instead of us fetching + instantiating every unclustered etymon on a large table.
     cohort_raw: dict[int, str] = {}  # eid -> folded
     cohort_folds: set[str] = set()
     for r in db.conn.execute(
-        "SELECT id, canonical_form FROM etymon WHERE cognate_id IS NULL AND merged_into_id IS NULL"
+        "SELECT id, canonical_form FROM etymon "
+        "WHERE cognate_id IS NULL AND merged_into_id IS NULL "
+        "AND id IN (SELECT etymon_id FROM toponym_etymology_element)"
     ):
-        if r["id"] not in breakdown:
-            continue
         folded = fold_surface(r["canonical_form"])
         if not folded:
             continue
