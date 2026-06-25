@@ -1094,6 +1094,26 @@ def _seed_tier4_fixture_db() -> sqlite3.Connection:
     return conn
 
 
+def test_form_fires_tier4_firing_and_non_firing() -> None:
+    """The per-etymon Tier-4 firing test extracted from
+    _tier4_phonology_coverage, called directly. A form a phonology rule transforms
+    for some target era fires; a form no rule touches doesn't; a falsy form never
+    fires; an empty target list never fires (any() over nothing is False)."""
+    from wyrd.generators.kenning.language_quality.audits import _form_fires_tier4
+    from wyrd.generators.kenning.registers.phonology_rules import chain_for
+
+    resolved, _family, chain = chain_for("modern-english")
+    i_self = chain.index(resolved)
+    targets = sorted(
+        (s for s in chain if s != resolved), key=lambda s: abs(chain.index(s) - i_self)
+    )
+
+    assert _form_fires_tier4("house", resolved, targets) is True  # transformed across eras
+    assert _form_fires_tier4("zzzz", resolved, targets) is False  # no rule touches it
+    assert _form_fires_tier4("", resolved, targets) is False  # falsy form never fires
+    assert _form_fires_tier4("house", resolved, []) is False  # no targets -> never fires
+
+
 def test_tier4_phonology_coverage_returns_negative_one_for_no_chain() -> None:
     """Languages without a registered phonology chain (Goidelic, Norse,
     Romance, etc.) return -1 — sentinel for 'no rules to apply', which

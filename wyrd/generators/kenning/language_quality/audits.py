@@ -975,6 +975,20 @@ def _bundle_ipa_coverage(
     return n
 
 
+def _form_fires_tier4(canonical_form: str, resolved: str, targets: list[str]) -> bool:
+    """True if ``canonical_form`` produces a transformed reflex for at least one
+    of ``targets`` when routed through ``phonology_rules.rule_form`` (wyrd-98cs
+    Tier-4 fallback) — the per-etymon firing test for
+    :func:`_tier4_phonology_coverage`. Empty/falsy forms never fire. Stops at the
+    first firing target (the metric is "fires for at least one era").
+    """
+    if not canonical_form:
+        return False
+    # Pass the pre-resolved language name to skip the alias lookup that rule_form
+    # would otherwise repeat per call; any() stops at the first firing target.
+    return any(rule_form(canonical_form, resolved, target) is not None for target in targets)
+
+
 def _tier4_phonology_coverage(
     conn: sqlite3.Connection,
     language: str,
@@ -994,19 +1008,18 @@ def _tier4_phonology_coverage(
 
     Full-population walk: the rule library doesn't persist outputs to
     DB tables, so the count can only be computed by applying the rules
-    over every etymon. Early-breaks on the first target language that
-    produces a non-None result, since 'this etymon fires Tier-4 for at
-    least one era' is the metric semantic. Optional
-    ``progress_callback(done, total)`` lets the CLI surface progress
-    on the long modern-english walk (~3 minutes for 1.4M etymons).
+    over every etymon. :func:`_form_fires_tier4` is the per-etymon test —
+    an etymon counts once when its form transforms for at least one era.
+    Optional ``progress_callback(done, total)`` lets the CLI surface
+    progress on the long modern-english walk (~3 minutes for 1.4M etymons).
     """
     _ensure_eligible_etymon_table(conn)
     chain_info = chain_for(language)
     if chain_info is None:
         return -1
     resolved, _family, chain = chain_info
-    # Order targets by chain-distance from self ascending so the inner
-    # loop's early-break tries the cheapest walk first. For ModE the
+    # Order targets by chain-distance from self ascending so
+    # _form_fires_tier4's early-break tries the cheapest walk first. For ModE the
     # walk to EModE is one cell, to ME two cells, to OE three cells —
     # at ~99% fire rate the closest target almost always wins, so the
     # average per-etymon cost drops materially vs. declaration order.
@@ -1050,13 +1063,8 @@ def _tier4_phonology_coverage(
         (language,),
     ):
         seen += 1
-        if canonical_form:
-            for target in other_stops:
-                # Pass the pre-resolved language name to skip the alias
-                # lookup that rule_form would otherwise repeat per call.
-                if rule_form(canonical_form, resolved, target) is not None:
-                    fires += 1
-                    break
+        if _form_fires_tier4(canonical_form, resolved, other_stops):
+            fires += 1
         if progress_callback is not None and seen % progress_step == 0:
             progress_callback(seen, total_in_lang)
     if progress_callback is not None and seen % progress_step != 0:
