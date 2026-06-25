@@ -53,6 +53,7 @@ from pathlib import Path
 from typing import Any
 
 from ..lexicon.morpheme_surface import normalize_morpheme_surface
+from ._l2_columns import _ETYMON_L2_COLUMNS, _SOURCE_COLUMNS
 from .log import ReplayState, replay_file
 
 _logger = logging.getLogger(__name__)
@@ -63,36 +64,22 @@ class BuildError(ValueError):
     cannot be resolved during insert."""
 
 
-# Columns we insert when upserting the source row. NULL-omitted columns
-# stay NULL in the DB.
-_SOURCE_INSERT_COLUMNS: tuple[str, ...] = (
-    "id",
-    "author",
-    "title",
-    "year",
-    "region",
-    "language_focus",
-    "notes",
-)
+# Columns we insert when upserting the source row, derived from the single-sourced
+# L2 schema (_l2_columns) + the synthetic row ``id`` the inserter supplies. NULL-
+# omitted columns stay NULL in the DB. Deriving (rather than re-listing) makes a
+# dump/insert column drift — and the silent round-trip data loss it causes —
+# impossible by construction.
+_SOURCE_INSERT_COLUMNS: tuple[str, ...] = ("id", *_SOURCE_COLUMNS)
 
-# L2 etymon-row columns the build pipeline writes on INSERT. Allowlist
-# scope: only scalar L2-authored fields appear here. L3 enrichment
-# columns (lemma_id, merged_into_id, cognate_id, stratum, english_shaped,
-# phonological_vector, etc.) are deliberately absent — they're populated
-# by the post-build enrichment chain, not by L2 replay. Keeping them out
-# of this tuple is the load-bearing seam that prevents L2 replay from
-# clobbering L3-derived state on rebuild.
-_ETYMON_INSERT_COLUMNS: tuple[str, ...] = (
-    "canonical_form",
-    "language",
-    "modifier_type",
-    "position_pref",
-    "notes",
-    "pronunciation_ipa",
-    "pronunciation_dialect",
-    "original_script",
-    "transliteration",
-)
+# L2 etymon-row columns the build pipeline writes on INSERT — exactly the dumped L2
+# columns (_ETYMON_L2_COLUMNS), so dump and build can't drift apart. Allowlist
+# scope: only scalar L2-authored fields appear here. L3 enrichment columns
+# (lemma_id, merged_into_id, cognate_id, stratum, english_shaped,
+# phonological_vector, etc.) are deliberately absent from the L2 list — they're
+# populated by the post-build enrichment chain, not by L2 replay. Keeping them out
+# is the load-bearing seam that prevents L2 replay from clobbering L3-derived state
+# on rebuild.
+_ETYMON_INSERT_COLUMNS: tuple[str, ...] = _ETYMON_L2_COLUMNS
 
 
 def _merge_etymon(target: dict[str, Any], payload: dict[str, Any]) -> None:
