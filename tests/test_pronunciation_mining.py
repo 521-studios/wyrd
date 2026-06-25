@@ -58,22 +58,31 @@ def test_select_targets(tmp_path):
     conn = sqlite3.connect(db)
     conn.executescript(
         "CREATE TABLE etymon (id INTEGER PRIMARY KEY, language TEXT, canonical_form TEXT, "
-        "pronunciation_ipa TEXT);"
+        "pronunciation_ipa TEXT, merged_into_id INTEGER);"
         "CREATE TABLE reflex_etymon (reflex_id INTEGER, etymon_id INTEGER);"
     )
     conn.executemany(
-        "INSERT INTO etymon VALUES (?,?,?,?)",
+        "INSERT INTO etymon VALUES (?,?,?,?,?)",
         [
-            (1, "irish", "baile", None),  # target
-            (2, "irish", "cnoc", "/knɔk/"),  # has IPA → excluded
-            (3, "irish", "a b", None),  # space → excluded
-            (4, "irish", "*recon", None),  # star → excluded
-            (5, "old-french", "ville", None),  # target (other lang)
-            (6, "irish", "orphan", None),  # no reflex link → excluded
+            (1, "irish", "baile", None, None),  # target
+            (2, "irish", "cnoc", "/knɔk/", None),  # has IPA → excluded
+            (3, "irish", "a b", None, None),  # space → excluded
+            (4, "irish", "*recon", None, None),  # star → excluded
+            (5, "old-french", "ville", None, None),  # target (other lang)
+            (6, "irish", "orphan", None, None),  # no reflex link → excluded
+            (7, "irish", "tombst", None, 1),  # merged OCR-loser (tombstone) → excluded
         ],
     )
     conn.executemany(
-        "INSERT INTO reflex_etymon VALUES (?,?)", [(10, 1), (11, 2), (12, 3), (13, 4), (14, 5)]
+        "INSERT INTO reflex_etymon VALUES (?,?)",
+        [
+            (10, 1),
+            (11, 2),
+            (12, 3),
+            (13, 4),
+            (14, 5),
+            (15, 7),
+        ],  # row 7 HAS a reflex but is a tombstone
     )
     conn.commit()
     conn.close()
