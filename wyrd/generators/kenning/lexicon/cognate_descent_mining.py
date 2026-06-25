@@ -133,6 +133,12 @@ def _load(db: LexiconDB) -> tuple[list[_Cohort], dict[str, list[_Target]]]:
         cohort_raw[r["id"]] = folded
         cohort_folds.add(folded)
 
+    # Nothing to place → skip the ~600k-row clustered-etymon scan below and the full
+    # etymon_gloss scan in _glosses_for. (Empty cohort_folds ⟺ empty cohort_raw, so
+    # the targets-by-fold map would be empty anyway — this is the same ([], {}) result.)
+    if not cohort_folds:
+        return [], {}
+
     # Clustered targets, kept only when their fold matches a cohort fold.
     target_raw: dict[str, list[tuple[int, int]]] = defaultdict(list)  # fold -> (root, eid)
     target_ids: set[int] = set()
