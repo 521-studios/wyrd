@@ -38,7 +38,12 @@ METHOD = "llm-ipa-v1"
 def select_targets(db_path: str, languages: tuple[str, ...]) -> list[tuple[str, str]]:
     """Generation-reachable etymons (those with reflex links) in ``languages``
     that still lack ``pronunciation_ipa`` and have a clean single-word form.
-    Read-only; returns ``[(language, canonical_form), …]``."""
+    Read-only; returns ``[(language, canonical_form), …]``.
+
+    Merged OCR-loser etymons (``merged_into_id`` set) are excluded: a reflex link
+    can still point at a tombstone, but generation reroutes through its merge winner
+    (``_family.py``), so mining an IPA onto the tombstone is unreachable (mirrors
+    ``tag_mining.select_targets``)."""
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         placeholders = ",".join("?" for _ in languages)
@@ -47,6 +52,7 @@ def select_targets(db_path: str, languages: tuple[str, ...]) -> list[tuple[str, 
             f"JOIN reflex_etymon re ON re.etymon_id = e.id "
             f"WHERE e.language IN ({placeholders}) "
             f"AND (e.pronunciation_ipa IS NULL OR e.pronunciation_ipa = '') "
+            f"AND e.merged_into_id IS NULL "
             f"AND e.canonical_form NOT LIKE '%*%' AND e.canonical_form NOT LIKE '% %' "
             f"ORDER BY e.language, e.canonical_form",
             languages,
