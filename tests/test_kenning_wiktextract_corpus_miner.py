@@ -22,6 +22,7 @@ from wyrd.generators.kenning.wiktextract_corpus_miner import (
     WIKTIONARY_EMPIRICAL_SOURCE_ID,
     _accept_candidate,
     _classify_positions,
+    _iter_index_entries,
     _select_canonical_sense,
     _surface_form_for_position,
     build_index,
@@ -184,6 +185,29 @@ def test_build_index_filters_by_target_form_and_language(tmp_path: Path) -> None
     assert ("eglwys", "welsh") in index
     assert ("betws", "welsh") in index
     assert len(index) == 2
+
+
+def test_iter_index_entries_filters_and_keys(tmp_path: Path) -> None:
+    """``_iter_index_entries`` (the per-slice matcher extracted from build_index)
+    yields ``((form_lower, canonical_language), entry)`` for matching headwords
+    only: empty words, off-target forms, and lang-mismatched stubs are skipped,
+    and the key form is lower-cased. It does NOT dedup — the caller does."""
+    slice_path = tmp_path / "wiktextract_welsh.jsonl"
+    _write_slice(
+        slice_path,
+        [
+            {"word": "  EGLWYS  ", "lang_code": "cy", "senses": [{"glosses": ["church"]}]},
+            {"word": "", "lang_code": "cy", "senses": []},  # empty word -> skipped
+            {"word": "noise", "lang_code": "cy", "senses": []},  # off-target -> skipped
+            {"word": "eglwys", "lang_code": "la", "senses": []},  # lang mismatch -> skipped
+            {"word": "eglwys", "lang_code": "cy", "senses": [{"glosses": ["dup"]}]},  # 2nd match
+        ],
+    )
+    pairs = list(_iter_index_entries(slice_path, "welsh", {"eglwys"}))
+    # Both welsh 'eglwys' rows yielded (no dedup here), key lower-cased; the
+    # empty / off-target / lang-mismatch rows are filtered out.
+    assert [k for k, _ in pairs] == [("eglwys", "welsh"), ("eglwys", "welsh")]
+    assert [e["senses"][0]["glosses"][0] for _, e in pairs] == ["church", "dup"]
 
 
 def test_missing_slice_languages_reports_only_published_absent_slices(

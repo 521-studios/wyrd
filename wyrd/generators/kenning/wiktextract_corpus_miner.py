@@ -509,27 +509,38 @@ def build_index(
         slice_path = sources_dir / slice_basename
         if not slice_path.exists():
             continue
-        for entry in _iter_wiktextract_entries(slice_path):
-            word = (entry.get("word") or "").strip()
-            if not word:
-                continue
-            wl = word.lower()
-            if wl not in target_forms_lower:
-                continue
-            entry_lang = _canonical_language(entry.get("lang_code", ""))
-            # Defensive: only keep entries whose declared lang matches the
-            # slice's intended language. Wiktionary occasionally has
-            # cross-language entries in a slice (Latin terms in the OE
-            # dump as etymon stubs, etc.) that aren't real headwords.
-            if entry_lang != lang:
-                continue
-            key = (wl, entry_lang)
+        for key, entry in _iter_index_entries(slice_path, lang, target_forms_lower):
             # Same headword can have multiple entries with
             # ``etymology_number`` distinguishing senses (e.g. coch¹/coch²);
             # keep the first non-empty one we see.
             if key not in index:
                 index[key] = entry
     return index
+
+
+def _iter_index_entries(
+    slice_path: Path, lang: str, target_forms_lower: set[str]
+) -> Iterator[tuple[tuple[str, str], dict[str, Any]]]:
+    """Yield ``((form_lower, canonical_language), entry)`` for each headword in
+    ``slice_path`` matching the target set.
+
+    Skips entries with an empty word, words outside ``target_forms_lower``, and —
+    defensively — entries whose declared language doesn't match the slice's
+    intended ``lang``: Wiktionary occasionally has cross-language entries in a
+    slice (Latin terms in the OE dump as etymon stubs, etc.) that aren't real
+    headwords. Pure pass over the slice; the caller applies first-wins dedup.
+    """
+    for entry in _iter_wiktextract_entries(slice_path):
+        word = (entry.get("word") or "").strip()
+        if not word:
+            continue
+        wl = word.lower()
+        if wl not in target_forms_lower:
+            continue
+        entry_lang = _canonical_language(entry.get("lang_code", ""))
+        if entry_lang != lang:
+            continue
+        yield (wl, entry_lang), entry
 
 
 def _ensure_source_row(db: LexiconDB) -> None:
