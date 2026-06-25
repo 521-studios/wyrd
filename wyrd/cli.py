@@ -22,7 +22,10 @@ def main() -> None:
 
 @main.command()
 def manifest() -> None:
-    """Print the manifest of registered generators (same as GET /api/manifest)."""
+    """Print the manifest of registered generators — the same per-generator
+    entries as GET /api/manifest (incl. the optional ``era_stages`` axis). The
+    API's ``config`` block (env-resolved SPA feature flags) is API-only; the CLI
+    doesn't gate any UI, so it's omitted here."""
     out = {
         "generators": [
             {
@@ -32,6 +35,9 @@ def manifest() -> None:
                 "details": g.details,
                 "legend": g.legend,
                 "input_schema": g.input_schema(),
+                # Parity with /api/manifest: the optional per-family era-stage
+                # axis (kenning), null for generators that don't define it.
+                "era_stages": getattr(g, "era_stages", None),
             }
             for g in registry.all_generators()
         ]
