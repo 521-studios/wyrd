@@ -38,6 +38,7 @@ from wyrd.generators.kenning.lexicon.strata import (
     OLD_ENGLISH_STRATA,
     OLD_NORSE_STRATA,
     WELSH_STRATA,
+    _classify_family,
     classify_brittonic,
     classify_celtic,
     classify_french,
@@ -2949,3 +2950,50 @@ def test_classify_stratum_all_routes_celtic_families(fresh_db: Path) -> None:
         "native-goidelic": 1,
         "proto-celtic-substrate": 1,
     }
+
+
+# --- _classify_family precondition + proposal-order invariants -------------
+
+
+def test_classify_family_rejects_modern_lang_in_self_language_map(fresh_db: Path) -> None:
+    """Guard (comment-analyzer #757): if ``modern_lang`` is also a key in
+    ``self_lang_to_stratum`` the self-language and ancestor-walk passes select
+    overlapping etymons, so pass 2 would silently overwrite pass 1 and break the
+    documented proposal order. The classifier rejects that misconfiguration
+    loudly instead — the ``classify_<lang>`` wrappers are an explicit extension
+    point, so the precondition is enforced, not merely documented."""
+    with (
+        LexiconDB(fresh_db) as db,
+        pytest.raises(ValueError, match="must not also be a self_lang_to_stratum key"),
+    ):
+        _classify_family(
+            db,
+            modern_lang="welsh",
+            strata_order=WELSH_STRATA,
+            ancestor_to_stratum={},
+            self_lang_to_stratum={"welsh": "native-welsh"},
+            default_stratum="native-welsh",
+        )
+
+
+def test_classify_welsh_proposal_order_is_self_language_then_modern(fresh_db: Path) -> None:
+    """The proposals dict lists all self-language (ancestor-variety) ids before
+    all modern (welsh) ids — the order produced by applying the self-language
+    pass then ``.update()``-ing the ancestor-walk pass. This is load-bearing:
+    ``classify_stratum_all`` iterates ``proposals.items()`` in insertion order to
+    build ``by_stratum``, which feeds the enrichment report (Phase 3 byte-diff).
+    Ids are interleaved on insert so the order proves the two-pass structure, not
+    physical row order. (pr-test-analyzer #757.)"""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        w1 = db.upsert_etymon("waaa", "welsh")  # modern variety
+        mw = db.upsert_etymon("mwww", "middle-welsh")  # self-language (ancestor)
+        w2 = db.upsert_etymon("wbbb", "welsh")  # modern variety
+        cbp = db.upsert_etymon("cccc", "cel-bry-pro")  # self-language (ancestor)
+        proposals = classify_welsh(db)
+    keys = list(proposals.keys())
+    # Cross-pass split: the two self-language ids precede the two modern ids
+    # (the property the .update() merge guarantees), and the modern block is in
+    # ascending id order.
+    assert set(keys[:2]) == {cbp, mw}
+    assert keys[2:] == [w1, w2]

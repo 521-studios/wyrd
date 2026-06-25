@@ -565,14 +565,26 @@ def _classify_family(
     2. :func:`_ancestor_walk_proposals` — the modern variety, assigned by the
        ancestor languages reached through ``etymon_descent``.
 
-    The self-language pass is applied first; its etymons (ancestor varieties)
-    and the ancestor-walk pass's (modern variety) are disjoint by ``language``,
-    so the merge never overwrites. Both passes skip ``merged_into_id IS NOT
-    NULL`` rows and emit ``ORDER BY id`` order (see the helpers).
+    The self-language pass is applied first, then merged with the ancestor-walk
+    pass. This relies on a precondition — ``modern_lang`` must NOT be a key in
+    ``self_lang_to_stratum`` — so the two passes select disjoint etymon sets
+    (one selects ``language == modern_lang``, the other ``language IN
+    self_lang_to_stratum``) and the merge never overwrites, preserving the
+    documented self-language-then-modern insertion order. Every current
+    ``classify_<lang>`` wrapper satisfies it; it's enforced below because the
+    wrappers are an explicit extension point (see the Celtic section). Both
+    passes skip ``merged_into_id IS NOT NULL`` rows and emit ``ORDER BY id``
+    order (see the helpers).
 
     Pure read; doesn't mutate the DB. Caller decides whether to write the
     proposed assignments back to ``etymon.stratum``.
     """
+    if modern_lang in self_lang_to_stratum:
+        raise ValueError(
+            f"modern_lang {modern_lang!r} must not also be a self_lang_to_stratum key: "
+            "the self-language and ancestor-walk passes would select overlapping etymons, "
+            "so pass 2 would silently overwrite pass 1 (and break the proposal order)."
+        )
     proposals = _self_language_proposals(db, self_lang_to_stratum)
     proposals.update(
         _ancestor_walk_proposals(
