@@ -42,3 +42,20 @@ _SOURCE_COLUMNS: tuple[str, ...] = (
     "language_focus",
     "notes",
 )
+
+# fantasy_morpheme scalar columns that round-trip through L2 (the ``etymon_id`` FK
+# is carried separately by the inserter). dump SELECTs these; build INSERTs them.
+_FANTASY_MORPHEME_COLUMNS: tuple[str, ...] = (
+    "input_name",
+    "input_description",
+    "usable",
+    "bar_reason",
+    "resolution_method",
+    "approach_version",
+    "confidence",
+    "citation",
+    "reasoning",
+    "unapproved_language",
+    "unapproved_form",
+    "processed_at",
+)

@@ -87,7 +87,11 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from ._l2_columns import _ETYMON_L2_COLUMNS, _SOURCE_COLUMNS
+from ._l2_columns import (
+    _ETYMON_L2_COLUMNS,
+    _FANTASY_MORPHEME_COLUMNS,
+    _SOURCE_COLUMNS,
+)
 from .log import write_jsonl
 
 _logger = logging.getLogger(__name__)
@@ -888,20 +892,9 @@ _FANTASY_MINING_SOURCE_ROW = {
 # (input_name, approach_version) UNIQUE on rebuild). ``etymon_id`` is
 # resolved to ``etymon_ref`` for cross-rebuild stability — etymon ids
 # aren't stable across rebuilds but (language, canonical_form) is.
-_FANTASY_MORPHEME_SCALAR_COLUMNS: tuple[str, ...] = (
-    "input_name",
-    "input_description",
-    "usable",
-    "bar_reason",
-    "resolution_method",
-    "approach_version",
-    "confidence",
-    "citation",
-    "reasoning",
-    "unapproved_language",
-    "unapproved_form",
-    "processed_at",
-)
+# The scalar surface dumped per fantasy_morpheme — single-sourced in _l2_columns so
+# it can't drift from build's inserter (see _FANTASY_MORPHEME_INSERT_COLUMNS).
+_FANTASY_MORPHEME_SCALAR_COLUMNS = _FANTASY_MORPHEME_COLUMNS
 
 
 def _dump_fantasy_morpheme_rows(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:

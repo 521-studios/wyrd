@@ -53,7 +53,11 @@ from pathlib import Path
 from typing import Any
 
 from ..lexicon.morpheme_surface import normalize_morpheme_surface
-from ._l2_columns import _ETYMON_L2_COLUMNS, _SOURCE_COLUMNS
+from ._l2_columns import (
+    _ETYMON_L2_COLUMNS,
+    _FANTASY_MORPHEME_COLUMNS,
+    _SOURCE_COLUMNS,
+)
 from .log import ReplayState, replay_file
 
 _logger = logging.getLogger(__name__)
@@ -592,23 +596,11 @@ def _insert_attestation_rows(
         counts["attestation"] += 1
 
 
-# wyrd-2thc: fantasy_morpheme scalar columns inserted as-is from the
-# JSONL row. ``etymon_id`` is resolved separately from ``etymon_ref``
-# below; the schema's autoincrement ``id`` is allocated by SQLite.
-_FANTASY_MORPHEME_INSERT_COLUMNS: tuple[str, ...] = (
-    "input_name",
-    "input_description",
-    "usable",
-    "bar_reason",
-    "resolution_method",
-    "approach_version",
-    "confidence",
-    "citation",
-    "reasoning",
-    "unapproved_language",
-    "unapproved_form",
-    "processed_at",
-)
+# wyrd-2thc: fantasy_morpheme scalar columns inserted as-is from the JSONL row —
+# exactly the dumped columns (single-sourced in _l2_columns), so dump and build
+# can't drift. ``etymon_id`` is resolved separately from ``etymon_ref`` below; the
+# schema's autoincrement ``id`` is allocated by SQLite.
+_FANTASY_MORPHEME_INSERT_COLUMNS = _FANTASY_MORPHEME_COLUMNS
 
 
 # Columns the schema declares NOT NULL on ``fantasy_morpheme``. The
