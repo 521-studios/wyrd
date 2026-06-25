@@ -240,10 +240,14 @@ def _coerce_form(raw: object) -> str:
 
 
 def _coerce_date_year(raw: object) -> int | None:
-    """Normalize a date_year field from the JSONL to int-or-None.
+    """Normalize a date_year field (from mined JSONL) to int-or-None.
     Accepts ints, integer-valued floats (``1086.0`` from a sloppy
     JSON encoder), and parseable decimal-digit strings. Rejects bools,
-    fractional floats, NaN/inf, and non-numeric strings."""
+    fractional floats, NaN/inf, and non-numeric strings.
+
+    The single source of truth for date_year coercion — also imported by the
+    downstream ``toponym_candidate_review`` triage layer (wyrd #772 fix kept in
+    one place)."""
     if raw is None or isinstance(raw, bool):
         return None
     if isinstance(raw, int):

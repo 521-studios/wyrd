@@ -45,6 +45,10 @@ from wyrd.generators.kenning.lexicon.region_model import (
 )
 from wyrd.generators.kenning.lexicon.regions import country_for_region
 
+# Single source of truth for date_year coercion — the Phase 2b.1 ingester owns
+# it (this triage layer is downstream of ingest). Shared rather than duplicated
+# so the isdecimal/int contract (wyrd #772) can't drift between the two.
+from .toponym_mention_ingest import _coerce_date_year
 from .toponym_reverse_search import _normalize_for_match
 
 # Top-N fuzzy match suggestions per candidate. Three is a good
@@ -362,33 +366,6 @@ def _coerce_text(raw: object) -> str:
     if raw is None or not isinstance(raw, str):
         return ""
     return raw.strip()
-
-
-def _coerce_date_year(raw: object) -> int | None:
-    """Same year-coercion semantics as Phase 2b.1's ingester —
-    accepts int, integer-valued float, decimal-digit string; rejects
-    bool, NaN/inf, non-numeric strings."""
-    if raw is None or isinstance(raw, bool):
-        return None
-    if isinstance(raw, int):
-        return raw
-    if (
-        isinstance(raw, float)
-        and raw == raw
-        and raw not in (float("inf"), float("-inf"))
-        and raw.is_integer()
-    ):
-        return int(raw)
-    # ``isdecimal`` (NOT ``isdigit``): isdigit() admits Unicode digit-but-not-
-    # decimal chars (superscripts ``²``/``⁵``, a footnote year ``"1086²"``) that
-    # ``int()`` then rejects with ValueError — a crash on input the contract
-    # promises to drop. isdecimal() == exactly what int() parses. (Same guard as
-    # the toponym_mention_ingest copy — a MANUAL invariant until the two are
-    # deduped; both copies' superscript cases are asserted in tests so drift
-    # fails.)
-    if isinstance(raw, str) and raw.strip().isdecimal():
-        return int(raw.strip())
-    return None
 
 
 def _existing_toponym_id_for_create(

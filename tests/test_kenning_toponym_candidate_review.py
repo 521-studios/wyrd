@@ -264,6 +264,16 @@ def test_prepare_candidate_rejects_unparseable_date_year():
         assert prepare_candidate(raw, toponyms).date_year is None
 
 
+def test_coerce_date_year_is_the_single_shared_ingester_copy():
+    """The triage layer imports the ingester's _coerce_date_year rather than
+    keeping its own copy — pin that they are the SAME object so a future re-fork
+    (which would re-introduce the wyrd #772 manual-sync drift risk) fails here."""
+    from wyrd.generators.kenning import toponym_candidate_review as cr
+    from wyrd.generators.kenning import toponym_mention_ingest as ing
+
+    assert cr._coerce_date_year is ing._coerce_date_year
+
+
 # ---------- commit_triage_decisions: map --------------------------------
 
 
