@@ -1187,13 +1187,12 @@ def _lemma_ref_for(meaning: Meaning) -> str:
     ``empirical_priors.extract_priors`` emits).
 
     Walks ``meaning.sources`` (dict[bundle_lang_field, list[form]]) in
-    alphabetical order; for each language it scans ALL form entries and takes
-    the FIRST non-empty one (so a leading-empty ``["", "wīc"]`` still attests
-    via the later form — matching ``Meaning.primary_language`` /
-    ``Meaning._forms_nonempty``, the documented shared "non-empty form"
-    semantics). Maps bundle-field → L3 lang via ``_BUNDLE_FIELD_TO_L3_LANG`` and
-    returns ``f"{l3_lang}:{form}"``. The alphabetical source walk is
-    deterministic + stable across re-runs.
+    alphabetical order and takes the first language with a usable form (via the
+    shared :meth:`Meaning._first_nonempty_form` scan — see it for the
+    "non-empty form" semantics this keeps aligned with
+    ``Meaning.primary_language``). Maps bundle-field → L3 lang via
+    ``_BUNDLE_FIELD_TO_L3_LANG`` and returns ``f"{l3_lang}:{form}"``. The
+    alphabetical source walk is deterministic + stable across re-runs.
 
     Falls back to the bare-usage form (legacy ecjp.5 v1 behavior) when
     a meaning has no source-language form at all (synthesized /
@@ -1202,10 +1201,9 @@ def _lemma_ref_for(meaning: Meaning) -> str:
     graceful-degrade contract.
     """
     for lang_field in sorted(meaning.sources):
-        # First non-empty form across ALL entries (not just forms[0]) via the
-        # shared scan, so this priors-baseline key keys the same language as the
-        # ``primary_language`` pool-eligibility key — a forms[0]-only copy here
-        # diverging from that all-entries scan was #788.
+        # Reach the shared scan via the instance: vector_name_select imports
+        # Meaning only under TYPE_CHECKING (runtime→meaning cycle), so there's no
+        # module-level ``Meaning`` to call the staticmethod on.
         form_str = meaning._first_nonempty_form(meaning.sources[lang_field])
         if form_str:
             l3_lang = _BUNDLE_FIELD_TO_L3_LANG.get(lang_field, lang_field.replace("_", "-"))
