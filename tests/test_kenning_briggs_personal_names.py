@@ -31,6 +31,7 @@ from wyrd.generators.kenning.briggs_personal_names_ingester import (
     _expand_bracket_variants,
     _normalize_form,
     _parse_attestations,
+    _parse_citation_block,
     _parse_entry,
     _resolve_pn_language,
     _split_pages,
@@ -1020,3 +1021,36 @@ def test_cli_ingest_briggs_personal_names_is_idempotent(
         cit2 = db.conn.execute("SELECT COUNT(*) AS c FROM etymon_citation").fetchone()["c"]
 
     assert (ety1, cit1) == (ety2, cit2)
+
+
+# --- _parse_citation_block (extracted citation-token consumer) -------------
+
+
+def test_parse_citation_block_consumes_pase_dlv_ascharter_then_stops():
+    pase, dlv, asch, rest = _parse_citation_block("PASE5 DLV ASCh1 Acton (X)")
+    assert (pase, dlv, asch) == (5, True, ["ASCh1"])
+    assert rest == "Acton (X)"  # stops at the first non-citation token
+
+
+def test_parse_citation_block_no_citations_returns_body_untouched():
+    assert _parse_citation_block("Acton (X)") == (None, False, [], "Acton (X)")
+
+
+def test_parse_citation_block_strips_trailing_punctuation_on_citation_tokens():
+    # "PASE3." and "DLV;" still match after rstrip(",;.").
+    pase, dlv, asch, rest = _parse_citation_block("PASE3. DLV; Acton")
+    assert (pase, dlv, asch, rest) == (3, True, [], "Acton")
+
+
+def test_parse_citation_block_stops_at_first_non_citation_even_if_more_follow():
+    # A non-citation token ends consumption — a later PASE is NOT pulled into the
+    # citation block (it stays in the remaining body).
+    pase, _dlv, _asch, rest = _parse_citation_block("PASE1 garbage PASE2 Acton")
+    assert pase == 1
+    assert rest == "garbage PASE2 Acton"
+
+
+def test_parse_citation_block_collects_multiple_ascharter_refs():
+    _pase, _dlv, asch, rest = _parse_citation_block("ASCh10.2 ASCh11 body")
+    assert asch == ["ASCh10.2", "ASCh11"]
+    assert rest == "body"

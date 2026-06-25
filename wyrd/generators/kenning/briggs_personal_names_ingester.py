@@ -415,6 +415,40 @@ def _expand_bracket_variants(name: str) -> list[str]:
     return out or [name]
 
 
+def _parse_citation_block(body: str) -> tuple[int | None, bool, list[str], str]:
+    """Consume the leading citation tokens from an entry body.
+
+    Briggs's head order puts citations before everything else:
+    ``PASE# [DLV]? [ASCh#...]?``. Walk the whitespace tokens (each stripped of a
+    trailing ``,;.``) and accept any that match a citation pattern; stop at the
+    first token that doesn't (the headform's attestations / lang-hint paren).
+    Returns ``(pase_count, has_dlv, ascharter_refs, remaining_body)`` — the
+    remaining body is the untouched tail rejoined on single spaces.
+    """
+    pase_count: int | None = None
+    has_dlv = False
+    ascharter_refs: list[str] = []
+    tokens = body.split()
+    consumed = 0
+    for tok in tokens:
+        cleaned = tok.rstrip(",;.")
+        pase_m = RE_PASE.match(cleaned)
+        if pase_m:
+            pase_count = int(pase_m.group(1))
+            consumed += 1
+            continue
+        if RE_DLV.match(cleaned):
+            has_dlv = True
+            consumed += 1
+            continue
+        if RE_ASCH.match(cleaned):
+            ascharter_refs.append(cleaned)
+            consumed += 1
+            continue
+        break
+    return pase_count, has_dlv, ascharter_refs, " ".join(tokens[consumed:]).strip()
+
+
 def _parse_entry(entry_text: str, *, stats: IngestStats | None = None) -> ParsedEntry | None:
     """Parse one entry blob. Returns ``None`` for blobs we couldn't
     recognise as a PN entry (alphabet headers etc. should already be
@@ -440,28 +474,7 @@ def _parse_entry(entry_text: str, *, stats: IngestStats | None = None) -> Parsed
     #   Headform [fem]? PASE# [DLV]? [ASCh#...]? [(lang_hints)]? attestations
     # So citation tokens come BEFORE the optional language-hint paren.
     # Pull citations first, then the lang-hint group, then attestations.
-    pase_count: int | None = None
-    has_dlv = False
-    ascharter_refs: list[str] = []
-    tokens = body.split()
-    consumed = 0
-    for tok in tokens:
-        cleaned = tok.rstrip(",;.")
-        pase_m = RE_PASE.match(cleaned)
-        if pase_m:
-            pase_count = int(pase_m.group(1))
-            consumed += 1
-            continue
-        if RE_DLV.match(cleaned):
-            has_dlv = True
-            consumed += 1
-            continue
-        if RE_ASCH.match(cleaned):
-            ascharter_refs.append(cleaned)
-            consumed += 1
-            continue
-        break
-    body = " ".join(tokens[consumed:]).strip()
+    pase_count, has_dlv, ascharter_refs, body = _parse_citation_block(body)
 
     # Language hints in parens immediately after the citation block:
     # ``(OE)``, ``(Bib, OE)``, ``(ODan, OE)``. Only treat the leading
