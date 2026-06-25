@@ -81,6 +81,16 @@ def test_record_defect_rejects_blank_reason():
         defects.record_defect({**_SAMPLE, "reason": "   "}, table_name=TABLE)
 
 
+def test_record_defect_rejects_non_string_reason():
+    """A non-string reason (number, list, object) is as invalid as a blank one —
+    it must raise DefectsError (honoring the documented contract), not an
+    AttributeError from calling .strip() on a non-string. The reason check runs
+    before any DynamoDB call, so this needs no table."""
+    for bad in (5, ["a", "b"], {"x": 1}, None):
+        with pytest.raises(defects.DefectsError, match="non-empty 'reason'"):
+            defects.record_defect({**_SAMPLE, "reason": bad}, table_name=TABLE)
+
+
 def test_resolve_table_name_prefers_env(monkeypatch):
     monkeypatch.setenv(defects.ENV_TABLE, "explicit-table")
     assert defects.resolve_table_name(env="staging") == "explicit-table"

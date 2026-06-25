@@ -194,7 +194,12 @@ def record_defect(
 
     Raises :class:`DefectsError` on a missing reason or any AWS failure.
     """
-    reason = (report.get("reason") or "").strip()
+    # A non-STRING reason (number, list, object) is as invalid as a blank one:
+    # treat it as empty so it raises the same DefectsError below, rather than an
+    # AttributeError from `.strip()` on a non-string (which would violate this
+    # function's documented "Raises DefectsError on a missing reason" contract).
+    raw_reason = report.get("reason")
+    reason = raw_reason.strip() if isinstance(raw_reason, str) else ""
     if not reason:
         raise DefectsError("defect report requires a non-empty 'reason'")
 
