@@ -21,6 +21,7 @@ from wyrd.generators.kenning.canonicalization import (
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.bundle._export import (
     _build_canonical_rollup,
+    _canonical_hub_root,
     build_family_rollup,
 )
 from wyrd.generators.kenning.lexicon.canonicalization_projection import project_canonical
@@ -248,3 +249,23 @@ def test_export_subjects_identical_canonical_vs_legacy(tmp_path):
         exp._build_canonical_rollup = orig
     db.close()
     assert canon == legacy
+
+
+def test_canonical_hub_root_walks_chain_and_guards_cycles():
+    """``_canonical_hub_root`` (the merged_into walk extracted from
+    _build_canonical_rollup) follows the chain to the surviving hub, treats a
+    no/empty-target node as its own hub, and breaks on a cycle instead of
+    looping forever."""
+    # Chain a -> b -> c: every node resolves to the terminal hub c.
+    chain = {"a": "b", "b": "c"}
+    assert _canonical_hub_root(chain, "a") == "c"
+    assert _canonical_hub_root(chain, "b") == "c"
+    assert _canonical_hub_root(chain, "c") == "c"  # no merged_into target -> own hub
+    # A node absent from the map is its own hub.
+    assert _canonical_hub_root(chain, "z") == "z"
+    # Falsy targets (None / empty string) terminate the walk at that node.
+    assert _canonical_hub_root({"x": None}, "x") == "x"
+    assert _canonical_hub_root({"p": "q", "q": ""}, "p") == "q"
+    # Cycle guard: a <-> b and a 3-cycle both terminate (no infinite loop).
+    assert _canonical_hub_root({"a": "b", "b": "a"}, "a") in {"a", "b"}
+    assert _canonical_hub_root({"a": "b", "b": "c", "c": "a"}, "a") in {"a", "b", "c"}

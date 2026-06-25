@@ -352,6 +352,17 @@ def build_family_rollup(
     return members_by_root, root_of
 
 
+def _canonical_hub_root(merged_into: dict[str, str], node_id: str) -> str:
+    """Walk ``canonical_morpheme.merged_into`` from ``node_id`` to the surviving
+    hub id, cycle-guarded (the merge graph can be noisy). A node with no / empty
+    ``merged_into`` target is its own hub."""
+    seen: set[str] = set()
+    while merged_into.get(node_id) and node_id not in seen:
+        seen.add(node_id)
+        node_id = merged_into[node_id]
+    return node_id
+
+
 def _build_canonical_rollup(
     db: LexiconDB,
 ) -> tuple[dict[int, list[int]], Callable[[int], int]]:
@@ -382,13 +393,6 @@ def _build_canonical_rollup(
 
     merged_into = dict(db.conn.execute("SELECT id, merged_into FROM canonical_morpheme").fetchall())
 
-    def _hub_root(node_id: str) -> str:
-        seen: set[str] = set()
-        while merged_into.get(node_id) and node_id not in seen:
-            seen.add(node_id)
-            node_id = merged_into[node_id]
-        return node_id
-
     bound = db.conn.execute(
         "SELECT id, canonical_morpheme_id FROM etymon WHERE canonical_morpheme_id IS NOT NULL"
     ).fetchall()
@@ -414,7 +418,9 @@ def _build_canonical_rollup(
                 stacklevel=2,
             )
         return legacy_members, legacy_root_of
-    hub_of: dict[int, str] = {r["id"]: _hub_root(r["canonical_morpheme_id"]) for r in bound}
+    hub_of: dict[int, str] = {
+        r["id"]: _canonical_hub_root(merged_into, r["canonical_morpheme_id"]) for r in bound
+    }
 
     # Group by canonical family, tracking which LEGACY roots land in each. Iterate
     # legacy_members (already keyed by legacy root from build_family_rollup) so we
