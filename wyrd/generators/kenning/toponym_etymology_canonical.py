@@ -28,7 +28,7 @@ two distinct extractors agreed).
 
 The clustering normalization is deliberately conservative: lowercase,
 strip diacritics + macrons + Mawer's parenthetical "(a)" notation, strip
-whitespace + hyphens. Two extractors emitting ``tūn`` and ``tun`` count
+whitespace + dashes (ASCII and Unicode). Two extractors emitting ``tūn`` and ``tun`` count
 as agreement (the macron is a transliteration convention, not semantic
 difference); two extractors emitting ``tun`` and ``thun`` do NOT (the
 ``th-`` is a real spelling variant Mawer's notes call out as
