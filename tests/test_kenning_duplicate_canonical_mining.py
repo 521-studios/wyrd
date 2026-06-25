@@ -84,6 +84,35 @@ def test_detect_flags_niwe_ne_excludes_low_overlap_and_cross_language(lex):
     assert len(pairs) == 1
 
 
+def test_detect_excludes_reflex_link_children(lex):
+    """A reflex-link child passes the cheap ``lemma_id = id`` root screen but rolls up
+    to its ancestor's hub in the legacy family rollup (which follows the
+    ``collapse``-sourced inheritance edges). Authoring a merge that binds it from its
+    OWN form would conflict with that ancestor bind (D24) and leave it unbound, so the
+    finder must NOT propose it — while a clean same-language duplicate pair still is."""
+    from wyrd.generators.kenning.enrichment import COLLAPSE_VARIANT_SOURCE_ID
+
+    lex.upsert_source(id=COLLAPSE_VARIANT_SOURCE_ID, title="collapse")
+    anc = _etymon(lex, "niwe", "old-english", ["new"])  # the ancestor root
+    child = _etymon(lex, "newe", "middle-english", ["new"])  # its reflex-link child
+    lex.conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (?, ?, 'inheritance', ?)",
+        (anc, child, COLLAPSE_VARIANT_SOURCE_ID),
+    )
+    # a same-language duplicate of the child's gloss → WITHOUT the fix, (child, newa)
+    # is a candidate; the fix drops `child`, so the pair never forms.
+    newa = _etymon(lex, "newa", "middle-english", ["new"])
+    # a clean same-language pair (neither a reflex-link child) stays pairable.
+    g1 = _etymon(lex, "gleo", "old-saxon", ["joy"])
+    g2 = _etymon(lex, "gleu", "old-saxon", ["joy"])
+    lex.commit()
+    pairs = {(c.a_id, c.b_id) for c in detect_candidates(lex.conn).candidates}
+    assert not any(child in p for p in pairs)  # reflex-link child excluded
+    assert (min(g1, g2), max(g1, g2)) in pairs  # clean pair preserved (no over-exclusion)
+    assert (min(child, newa), max(child, newa)) not in pairs
+
+
 def test_detect_skips_already_collapsed_pair(lex):
     """A pair already sharing a canonical_morpheme_id (collapsed by a prior run) is
     not re-proposed."""

@@ -173,6 +173,41 @@ def _emit_pairs(
                     res.candidates.append(cand)
 
 
+def _reflex_link_child_roots(conn: sqlite3.Connection) -> set[int]:
+    """Etymon lemma-roots that roll up to an ANCESTOR via a curated reflex-link
+    inheritance edge — the ``collapse``-sourced ``etymon_descent`` edges that
+    :func:`bundle._export.build_family_rollup` follows (wyrd-rogd.15). Such a root
+    passes the cheap ``lemma_id = id`` "is-a-root" screen yet is NOT its legacy
+    rollup root: the rollup hops it onto its ancestor's hub. The lemma-root is
+    ``COALESCE(merged_into_id, lemma_id, id)`` (build_family_rollup's ``_lemma_root``);
+    a child-root that lands on a DIFFERENT parent-root genuinely hops, so exclude it.
+    Lazy import — enrichment imports the lexicon package (cycle), same as the rollup."""
+    from wyrd.generators.kenning.enrichment import COLLAPSE_VARIANT_SOURCE_ID
+
+    edges = conn.execute(
+        "SELECT parent_id, child_id FROM etymon_descent "
+        "WHERE edge_type = 'inheritance' AND source_id = ?",
+        (COLLAPSE_VARIANT_SOURCE_ID,),
+    ).fetchall()
+    endpoints = {e for row in edges for e in (row[0], row[1])}
+    if not endpoints:
+        return set()
+    placeholders = ",".join("?" * len(endpoints))
+    root = {
+        r[0]: (r[1] or r[2] or r[0])
+        for r in conn.execute(
+            f"SELECT id, merged_into_id, lemma_id FROM etymon WHERE id IN ({placeholders})",
+            tuple(endpoints),
+        )
+    }
+    out: set[int] = set()
+    for parent_id, child_id in edges:
+        child_root = root.get(child_id, child_id)
+        if child_root != root.get(parent_id, parent_id):
+            out.add(child_root)
+    return out
+
+
 def detect_candidates(
     conn: sqlite3.Connection,
     *,
@@ -185,11 +220,14 @@ def detect_candidates(
     ``min_gloss_overlap``. Pairs already sharing a canonical_morpheme_id (collapsed by
     a prior run) are skipped. Recall-biased — the two-pass LLM judge decides sameness.
 
-    Roots only (``merged_into_id IS NULL AND (lemma_id IS NULL OR lemma_id = id)``):
-    the authoring binds each etymon to a hub minted from ITS OWN form, which matches
-    the legacy rollup hub only when the etymon is its family root. Pairing a non-root
-    survivor (e.g. an inflection child) would mint a divergent hub and fail to collapse
-    the family cleanly — so we exclude them (a missed merge is harmless, D46)."""
+    Roots only (``merged_into_id IS NULL AND (lemma_id IS NULL OR lemma_id = id)``,
+    plus the reflex-link exclusion below): the authoring binds each etymon to a hub
+    minted from ITS OWN form, which matches the legacy rollup hub only when the etymon
+    is its family root. Pairing a non-root survivor (an inflection child, OR a
+    reflex-link child that hops onto its ancestor's hub — see
+    :func:`_reflex_link_child_roots`) would mint a divergent hub, conflict with the
+    legacy bind (D24) and leave the etymon unbound — so we exclude them (a missed
+    merge is harmless, D46)."""
     # Tuple rows + index unpack — no need to mutate the shared conn's row_factory.
     rows = conn.execute(
         """
@@ -218,6 +256,13 @@ def detect_candidates(
         if gloss:
             d["glosses"].add(gloss)
             d["tokens"] |= _gloss_tokens(gloss)
+
+    # Drop reflex-link children: they pass the cheap lemma_id=id "root" screen but
+    # roll up to an ANCESTOR's hub in the legacy rollup, so binding them from their
+    # OWN form conflicts with that bind (D24) and severs their reflex family. The
+    # SQL screen can't see the inheritance hop; exclude them here (D46-harmless).
+    for eid in _reflex_link_child_roots(conn):
+        by_id.pop(eid, None)
 
     # Inverted index: (language, gloss-token) -> etymon ids that carry it.
     index: dict[tuple[str, str], set[int]] = defaultdict(set)
