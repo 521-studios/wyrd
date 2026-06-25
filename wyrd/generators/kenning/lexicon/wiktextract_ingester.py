@@ -489,11 +489,19 @@ _DESCENDANT_TAG_TO_EDGE: dict[str, str] = {
 
 
 def _descendant_edge_type(node: dict[str, Any]) -> str:
-    """Resolve the edge_type for a descendants-tree node from its `tags`
-    array. Defaults to 'inheritance' (the implied relationship of any
-    Descendants section entry). The first matching tag wins; multiple
-    matches are theoretically possible but not observed in real data."""
-    for tag in node.get("tags") or []:
+    """Resolve the edge_type for a descendants-tree node from its tag arrays.
+    Defaults to 'inheritance' (the implied relationship of any Descendants section
+    entry). The first matching tag wins; multiple matches are theoretically
+    possible but not observed in real data.
+
+    Reads BOTH ``tags`` and ``raw_tags``: wiktextract puts normalized labels in
+    ``tags`` but the ``borrowed`` / ``derived`` markers land in ``raw_tags`` (the
+    un-normalized array). Looking only at ``tags`` silently defaulted every
+    borrowed descendant to ``inheritance`` — etymologically impossible across
+    language families (a Welsh←English descendant is a loan, never inherited) — and
+    left the ``borrowed`` / ``borrowing`` map entries as dead code that never fired
+    on real data (16k+ such nodes in the English slice alone)."""
+    for tag in (node.get("tags") or []) + (node.get("raw_tags") or []):
         mapped = _DESCENDANT_TAG_TO_EDGE.get(tag)
         if mapped is not None:
             return mapped

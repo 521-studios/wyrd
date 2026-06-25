@@ -342,6 +342,35 @@ def test_descendants_tag_to_edge_type_mapping(
     assert edge_type == expected_edge_type
 
 
+@pytest.mark.parametrize(
+    "raw_tag,expected_edge_type",
+    [
+        ("borrowed", "borrowing"),
+        ("borrowing", "borrowing"),
+        ("derived", "derivation"),
+    ],
+)
+def test_descendants_raw_tags_to_edge_type_mapping(
+    fresh_db: Path, raw_tag: str, expected_edge_type: str
+) -> None:
+    """Regression: the ``borrowed`` / ``derived`` markers land in wiktextract's
+    ``raw_tags`` (un-normalized) array, NOT ``tags`` — only ``calque`` appears in
+    ``tags``. ``_descendant_edge_type`` read only ``tags``, so every borrowed
+    descendant defaulted to ``inheritance`` (16k+ nodes in the English slice; the
+    501 modern-english→welsh "inheritance" edges of wyrd-fljy were exactly this —
+    obvious loans like phone→ffôn). Now reads both arrays. The tags-based test
+    above keeps passing (additive); this pins the REAL data shape."""
+    line = _wiktextract_entry(
+        word="*head",
+        lang_code="gem-pro",
+        descendants=[{"lang_code": "ang", "word": "child", "raw_tags": [raw_tag]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edge_type = db.conn.execute("SELECT edge_type FROM etymon_descent").fetchone()["edge_type"]
+    assert edge_type == expected_edge_type
+
+
 def test_descendants_node_without_word_is_skipped_but_recursion_continues(
     fresh_db: Path,
 ) -> None:
