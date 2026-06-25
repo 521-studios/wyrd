@@ -83,6 +83,23 @@ def test_ratio_gate_blocks_comparable_clusters(fresh_db: Path) -> None:
         assert detect_meaning_merge_candidates(db.conn, min_similarity=0.6, major_min=10) == []
 
 
+def test_equal_size_clusters_not_bidirectional_at_low_ratio(fresh_db: Path) -> None:
+    # Regression: two same-language EQUAL-size clusters sharing a gloss token + form.
+    # With overlapping bands (major_min ≤ minor_max) and ratio=1 the old dominance
+    # guard `richness < ratio*rmi` reduced to `richness < rmi`, so an equal-size pair
+    # passed in BOTH directions (mere→meer AND meer→mere) — two conflicting merges
+    # each tombstoning the other. Strict dominance (major must be STRICTLY richer)
+    # rejects the equal-size pair entirely, in either direction.
+    with LexiconDB(fresh_db) as db:
+        _cluster(db, "mere", "old-english", "pool, lake", size=5)
+        _cluster(db, "meer", "old-english", "pool, lake", size=5)  # equal size, shared token
+        db.commit()
+        cands = detect_meaning_merge_candidates(
+            db.conn, min_similarity=0.6, minor_max=10, major_min=5, ratio=1
+        )
+        assert cands == []  # no clear major → no candidate either way
+
+
 def test_same_cluster_is_not_a_candidate(fresh_db: Path) -> None:
     # two forms already in ONE cognate cluster are not a cross-cluster merge.
     with LexiconDB(fresh_db) as db:
