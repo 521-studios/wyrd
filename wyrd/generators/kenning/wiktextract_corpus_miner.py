@@ -1136,12 +1136,12 @@ def _write_reflexes_for(
 
 def _load_flat_names(place_names_path: Path) -> list[str]:
     """Read a place-names JSON corpus and return a flat list of lowercased
-    WORDS — each space-/hyphen-separated word of every name, apostrophes
-    stripped.
+    WORDS — each space-/dash-separated word of every name (dash = any variant,
+    :data:`_DASH_TO_SPACE`), apostrophes stripped.
 
     wyrd-7nab: words are kept SEPARATE (not flattened into one string) so a
     standalone word (`Combe` in `Castle Combe`) is classifiable as ``bare``,
-    not mistaken for a suffix. Splitting on space AND hyphen treats
+    not mistaken for a suffix. Splitting on space AND dash treats
     ``Great-Abington`` like ``Great Abington`` — both are two words. This is
     what restores grammatical two-word structures (and the ~30% two-word rate).
     """
