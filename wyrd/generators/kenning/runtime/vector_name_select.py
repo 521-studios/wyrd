@@ -670,9 +670,21 @@ def _apply_per_usage_frequency(
     for form, f in slot_usage_frequency.items():
         surface = form.lower().replace("-", "")
         freq_by_surface[surface] = freq_by_surface.get(surface, 0.0) + f
-    out: list[tuple[Meaning, float]] = []
+    # Merge eligible groups that fold to the SAME bare surface — case/dash twins
+    # (`"Combe"` vs `"combe"`, `"Giles-"` vs `"-giles"`) arrive as distinct
+    # ``eligible_by_usage`` keys. ``freq_by_surface`` already un-split them into one
+    # aggregated per-surface frequency above; we must spend that freq ONCE across
+    # all the surface's Meanings, not once per twin key. Allocating per-usage gave a
+    # surface present under N twin keys N×freq of pool weight — re-introducing for
+    # ~89% of english (title-cased place elements) the exact per-usage skew wyrd-bol9
+    # was built to remove. Group by bare surface, then allocate (by score, else
+    # uniform) so the surface's emitted weight equals its aggregated freq.
+    eligible_by_surface: dict[str, list[tuple[Meaning, float]]] = {}
     for usage, items in eligible_by_usage.items():
-        freq = freq_by_surface.get(usage.lower().replace("-", ""), 0.0)
+        eligible_by_surface.setdefault(usage.lower().replace("-", ""), []).extend(items)
+    out: list[tuple[Meaning, float]] = []
+    for surface, items in eligible_by_surface.items():
+        freq = freq_by_surface.get(surface, 0.0)
         if freq <= 0:
             continue
         score_sum = sum(s for _, s in items)

@@ -14,6 +14,7 @@ import pytest
 
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.vector_name_select import (
+    _apply_per_usage_frequency,
     _blend_uniform_by_novelty,
     _cohesion_multipliers,
     _cohesion_raw,
@@ -1824,3 +1825,26 @@ def test_register_composition_combines_phonological_and_semantic():
     assert abs(sem_score(["animal", "water"], register) - 1.0) < 1e-9
     # Tags the request doesn't weight contribute 0
     assert abs(sem_score(["rock"], register) - 0.0) < 1e-9
+
+
+def test_apply_per_usage_frequency_does_not_double_count_case_twins():
+    """A surface present under multiple case/dash-TWIN usage keys ("Combe" vs
+    "combe", "Giles-" vs "-giles") must receive its aggregated per-surface frequency
+    ONCE across all its Meanings — not once per twin key. ``freq_by_surface`` already
+    un-splits the twins into one bucket; allocating per-usage then spent that freq
+    once per group, so a surface under N twin keys got N×weight — re-introducing the
+    per-usage skew wyrd-bol9 removed (~89% of english surfaces are title-cased twins).
+    Here Combe+combe (freq 5 each → surface 10) must total 10, same as single-key Dale.
+    """
+    eligible = {
+        "Combe": [(_meaning("Combe"), 1.0)],
+        "combe": [(_meaning("combe"), 1.0)],
+        "Dale": [(_meaning("Dale"), 1.0)],
+    }
+    freq = {"Combe": 5.0, "combe": 5.0, "Dale": 10.0}
+    by_surface: dict[str, float] = {}
+    for m, w in _apply_per_usage_frequency(eligible, freq):
+        key = m.usage.lower().replace("-", "")
+        by_surface[key] = by_surface.get(key, 0.0) + w
+    assert by_surface["combe"] == 10.0  # was 20.0 (double-counted across the 2 twins)
+    assert by_surface["dale"] == 10.0
