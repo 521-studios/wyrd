@@ -382,18 +382,8 @@ class Meaning:
             sources = self.sources or {}
             self._primary_language_cache: str | None = None
             for key in sorted(sources):
-                forms = sources[key]
-                if not forms:
-                    continue
-                for form_entry in forms:
-                    if isinstance(form_entry, dict):
-                        form_str = form_entry.get("form") or form_entry.get("canonical_form") or ""
-                    else:
-                        form_str = form_entry
-                    if form_str:
-                        self._primary_language_cache = key
-                        break
-                if self._primary_language_cache is not None:
+                if Meaning._first_nonempty_form(sources[key]) is not None:
+                    self._primary_language_cache = key
                     break
         return self._primary_language_cache
 
@@ -586,20 +576,30 @@ class Meaning:
         return min(years) if years else None
 
     @staticmethod
-    def _forms_nonempty(forms: list | None) -> bool:
-        """At least one usable form (matches ``primary_language`` /
-        ``_lemma_ref_for`` semantics: empty strings / None / form-less dict
-        entries don't count)."""
+    def _first_nonempty_form(forms: list | None) -> str | None:
+        """The first usable form string in ``forms``, or ``None`` if there is
+        none. Single source for the "non-empty form" scan shared by
+        :meth:`_forms_nonempty`, :meth:`primary_language`, and
+        ``vector_name_select._lemma_ref_for``: an empty string / ``None`` / a
+        form-less dict entry doesn't count, and a dict entry yields its
+        ``form`` / ``canonical_form``. Centralized so the three can't drift —
+        a forms[0]-only copy diverging from this all-entries scan was the
+        ``_lemma_ref_for`` bug (#788)."""
         if not forms:
-            return False
-        for form_entry in forms:
-            if isinstance(form_entry, dict):
-                form_str = form_entry.get("form") or form_entry.get("canonical_form") or ""
+            return None
+        for entry in forms:
+            if isinstance(entry, dict):
+                form_str = entry.get("form") or entry.get("canonical_form") or ""
             else:
-                form_str = form_entry
+                form_str = entry
             if form_str:
-                return True
-        return False
+                return form_str
+        return None
+
+    @staticmethod
+    def _forms_nonempty(forms: list | None) -> bool:
+        """At least one usable form — see :meth:`_first_nonempty_form`."""
+        return Meaning._first_nonempty_form(forms) is not None
 
     def in_stratum(self, stratum: str | None) -> bool:
         """wyrd-lr4 Phase 3 stratum filter: True if any of this

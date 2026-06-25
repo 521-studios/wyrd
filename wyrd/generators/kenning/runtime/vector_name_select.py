@@ -1202,27 +1202,14 @@ def _lemma_ref_for(meaning: Meaning) -> str:
     graceful-degrade contract.
     """
     for lang_field in sorted(meaning.sources):
-        forms = meaning.sources[lang_field]
-        if not forms:
-            continue
-        l3_lang = _BUNDLE_FIELD_TO_L3_LANG.get(lang_field, lang_field.replace("_", "-"))
-        # forms entries are usually plain strings; tolerate dict-shaped entries
-        # (some bundle schemas wrap forms with metadata) by picking the
-        # canonical-form-ish key. Scan ALL entries, not just forms[0]: a language
-        # whose first form is empty (``["", "wīc"]``) still attests via a later
-        # non-empty form. This matches ``Meaning.primary_language`` /
-        # ``Meaning._forms_nonempty`` — the documented shared "non-empty form"
-        # semantics. Checking only forms[0] diverged: ``primary_language`` (the
-        # pool-eligibility key) scans all entries, so the same Meaning could be
-        # keyed on one language for eligibility and a different one for this
-        # priors-baseline lookup.
-        for entry in forms:
-            if isinstance(entry, dict):
-                form_str = entry.get("form") or entry.get("canonical_form") or ""
-            else:
-                form_str = entry
-            if form_str:
-                return f"{l3_lang}:{form_str}"
+        # First non-empty form across ALL entries (not just forms[0]) via the
+        # shared scan, so this priors-baseline key keys the same language as the
+        # ``primary_language`` pool-eligibility key — a forms[0]-only copy here
+        # diverging from that all-entries scan was #788.
+        form_str = meaning._first_nonempty_form(meaning.sources[lang_field])
+        if form_str:
+            l3_lang = _BUNDLE_FIELD_TO_L3_LANG.get(lang_field, lang_field.replace("_", "-"))
+            return f"{l3_lang}:{form_str}"
     return meaning.usage.replace("-", "")
 
 
