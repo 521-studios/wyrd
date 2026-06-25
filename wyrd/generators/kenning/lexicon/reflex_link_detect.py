@@ -200,13 +200,21 @@ def _eval_reflex_pair(
 
 def _best_per_child(raw: list[tuple]) -> dict[str, tuple]:
     """One best ancestor per child: the most IMMEDIATE (highest parent era rank,
-    closest to the child), tie-broken by form similarity — so a child never
-    writes multiple same-``ref`` ledger rows where collect_collapses'
-    last-write-wins would pick an arbitrary ancestor."""
+    closest to the child), tie-broken by form similarity then by ``parent_ref`` —
+    so a child never writes multiple same-``ref`` ledger rows where
+    collect_collapses' last-write-wins would pick an arbitrary ancestor.
+
+    The ``parent_ref`` (``t[1]``) final tiebreak is load-bearing for reproducibility:
+    when two parents tie on (rank, similarity) — e.g. modern ``grave`` with two OE
+    candidates ``gratf``/``greot`` at the same rank+ratio — a strict ``>`` on
+    ``(rank, sim)`` alone would keep whichever the unordered SQL scan yielded first,
+    so the proposed parent flips across a DB rebuild / VACUUM. Keying on the unique
+    ``parent_ref`` makes the pick input-order-independent (the candidate set feeds an
+    LLM ledger whose D36.9 contract requires a byte-stable rebuild)."""
     best: dict[str, tuple] = {}
     for t in raw:
         cur = best.get(t[0])
-        if cur is None or (t[6], t[5]) > (cur[6], cur[5]):
+        if cur is None or (t[6], t[5], t[1]) > (cur[6], cur[5], cur[1]):
             best[t[0]] = t
     return best
 
