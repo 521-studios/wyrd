@@ -843,6 +843,22 @@ def test_chain_for_returns_none_for_non_chain_language() -> None:
     assert chain_for("latin") is None
 
 
+def test_walk_chain_forward_and_inverse_directions() -> None:
+    """``_walk_chain`` (the per-cell phonology walk extracted from rule_form)
+    selects direction from i_from vs i_to: forward when ``i_from < i_to``, inverse
+    when ``i_from > i_to``. The english chain is (OE, ME, EModE, ModE) at indices
+    0..3; both directions transform a known pair."""
+    from wyrd.generators.kenning.registers.phonology_rules import _walk_chain, chain_for
+
+    _resolved, family, chain = chain_for("modern-english")
+    i_oe, i_mod = chain.index("old-english"), chain.index("modern-english")
+
+    # Inverse walk (later era index -> earlier): the modern 'house' yields its OE form.
+    assert _walk_chain("house", family, chain, i_mod, i_oe) == "hūsē"
+    # Forward walk (earlier era index -> later): the OE 'hūsē' yields the modern form.
+    assert _walk_chain("hūsē", family, chain, i_oe, i_mod) == "house"
+
+
 def test_rule_form_walks_oe_to_me_chain_forward() -> None:
     """Forward walk from modern-english to old-english applies cells
     in inverse mode. Pin against a known-firing form so the chain walk

@@ -870,6 +870,37 @@ def chain_for(language: str) -> tuple[str, str, tuple[str, ...]] | None:
     return resolved, family, chain
 
 
+def _walk_chain(
+    form: str, family: str, chain: tuple[str, ...], i_from: int, i_to: int
+) -> str | None:
+    """Apply phonology cells along the family ``chain`` from ``i_from`` to
+    ``i_to``, picking the highest-probability candidate at each step.
+
+    Forward when ``i_from < i_to`` — cells ``(chain[i], chain[i+1])`` for ``i`` in
+    ``[i_from, i_to)`` in ``mode="forward"``. Inverse otherwise — cells
+    ``(chain[i-1], chain[i])`` for ``i`` in ``(i_to, i_from]`` in
+    ``mode="inverse"``, so the input treated as the later-era form yields the
+    earlier-era candidate. Returns the transformed form, or ``None`` if a cell
+    produced no candidates. (``apply_rules`` carries its own probability-floor
+    restore so it never returns ``[]``; the ``if not candidates`` checks are
+    belt-and-suspenders against a future change in its API contract.)
+    """
+    current = form
+    if i_from < i_to:
+        for i in range(i_from, i_to):
+            candidates = apply_rules(current, family, chain[i], chain[i + 1], mode="forward")
+            if not candidates:
+                return None
+            current = max(candidates, key=lambda c: c[1])[0]
+    else:
+        for i in range(i_from, i_to, -1):
+            candidates = apply_rules(current, family, chain[i - 1], chain[i], mode="inverse")
+            if not candidates:
+                return None
+            current = max(candidates, key=lambda c: c[1])[0]
+    return current
+
+
 def rule_form(
     canonical_form: str,
     from_language: str,
@@ -887,12 +918,10 @@ def rule_form(
       caller should prefer the canonical_form directly)
     - the chain walk's final form equals the input (no rule fired)
 
-    Walks forward when the target era is later in the family chain,
-    inverse when the target is earlier. At each step picks the
-    highest-probability candidate; downstream consumers wanting
-    multiple readings would need a richer return shape (deferred
-    until KenningRewind explainer surfaces multiple Tier-4 forms —
-    Phase 2).
+    The chain walk itself (forward vs inverse direction, the per-cell
+    highest-probability candidate pick) lives in :func:`_walk_chain`. Downstream
+    consumers wanting multiple readings would need a richer return shape (deferred
+    until the KenningRewind explainer surfaces multiple Tier-4 forms — Phase 2).
     """
     # Route both languages through ``chain_for`` so alias resolution +
     # registry lookup share one code path. The resolved era names are
@@ -916,33 +945,11 @@ def rule_form(
     i_from = chain.index(from_resolved)
     i_to = chain.index(to_resolved)
 
-    current = canonical_form
-    # Note: ``apply_rules`` carries its own probability-floor restore
-    # so it never returns []; the ``if not candidates`` branches below
-    # are belt-and-suspenders, defensive against a future change in
-    # the apply_rules API contract.
-    if i_from < i_to:
-        # Forward walk: apply cells (chain[i], chain[i+1]) for i in
-        # [i_from, i_to). Each step picks the highest-probability
-        # candidate produced by the cell.
-        for i in range(i_from, i_to):
-            candidates = apply_rules(current, family, chain[i], chain[i + 1], mode="forward")
-            if not candidates:
-                return None
-            current = max(candidates, key=lambda c: c[1])[0]
-    else:
-        # Inverse walk: apply cells (chain[i-1], chain[i]) for i in
-        # (i_from, i_to], reading them in inverse mode so the input
-        # treated as the to_era form produces the from_era candidate.
-        for i in range(i_from, i_to, -1):
-            candidates = apply_rules(current, family, chain[i - 1], chain[i], mode="inverse")
-            if not candidates:
-                return None
-            current = max(candidates, key=lambda c: c[1])[0]
-    if current == canonical_form:
-        # No rule fired across the walk — the form passed through
-        # unchanged. Downstream consumers don't need a Tier-4 reflex
-        # that's the same as the input; treat as no result so the
-        # caller falls back to the canonical.
+    current = _walk_chain(canonical_form, family, chain, i_from, i_to)
+    if current is None or current == canonical_form:
+        # ``None`` — a cell produced no candidates mid-walk. ``== canonical_form``
+        # — no rule fired, the form passed through unchanged. Either way,
+        # downstream consumers don't need a Tier-4 reflex identical to the input,
+        # so treat as no result and let the caller fall back to the canonical.
         return None
     return current
