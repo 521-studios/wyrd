@@ -82,3 +82,18 @@ def test_list_defects_query_still_early_exits(monkeypatch):
 
     assert [r["id"] for r in result] == ["n"]
     assert fake.calls == 1  # did not page into the older page
+
+
+def test_list_defects_query_pages_until_limit_matches_under_generator_filter(monkeypatch):
+    """The early-exit counts POST-filter matches: when page 0's rows are all
+    excluded by the generator filter, the GSI path must page on to page 1 to reach
+    `limit`, rather than stopping at the (zero-match) first page."""
+    p0 = _item("a", "2026-05-01T00:00:00+00:00", generator="other")  # filtered out
+    p1 = _item("b", "2026-04-01T00:00:00+00:00", generator="kenning")  # matches
+    fake = _FakeTable([[p0], [p1]])
+    monkeypatch.setattr(defects, "_defects_table", lambda **kw: fake)
+
+    result = defects.list_defects(status="new", generator="kenning", limit=1, env="staging")
+
+    assert [r["id"] for r in result] == ["b"]
+    assert fake.calls == 2  # paged past the all-filtered page 0 to collect the match

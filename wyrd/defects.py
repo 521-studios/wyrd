@@ -231,11 +231,13 @@ def list_defects(
     ``status-created_at`` GSI (cheaper, returned newest-first). ``generator``
     filters in-memory (a low-cardinality field not worth its own index).
 
-    Both paths paginate: DynamoDB's ``Limit`` is a per-page evaluation cap,
-    not a total-results cap, and the generator filter is applied after the
-    fetch — so a single page could silently return fewer than ``limit``
-    matching rows. We page (following ``LastEvaluatedKey``) until ``limit``
-    matches are collected or the table is exhausted.
+    Both paths paginate (following ``LastEvaluatedKey``); DynamoDB's ``Limit``
+    is a per-page evaluation cap, not a total-results cap, and the generator
+    filter is applied after the fetch, so a single page can yield fewer than
+    ``limit`` matches. The GSI-query path returns rows newest-first, so it stops
+    once ``limit`` matches are collected. The ``status='all'`` scan returns rows
+    in ARBITRARY order, so it must exhaust the table before the newest-first sort
+    below — stopping early could drop a newer row on an unscanned page.
     """
     if status != "all" and status not in STATUSES:
         raise DefectsError(f"unknown status {status!r}; expected one of {STATUSES} or 'all'")
