@@ -87,6 +87,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from ._l2_columns import _ETYMON_L2_COLUMNS, _SOURCE_COLUMNS
 from .log import write_jsonl
 
 _logger = logging.getLogger(__name__)
@@ -122,29 +123,9 @@ def assert_merge_chains_flat(conn: sqlite3.Connection) -> None:
         )
 
 
-# Etymon columns that are L2-attributable facts. Order is significant
-# only for diff stability — the kernel doesn't care about field order.
-_ETYMON_L2_COLUMNS: tuple[str, ...] = (
-    "canonical_form",
-    "language",
-    "modifier_type",
-    "position_pref",
-    "notes",
-    "pronunciation_ipa",
-    "pronunciation_dialect",
-    "original_script",
-    "transliteration",
-)
-
-_SOURCE_COLUMNS: tuple[str, ...] = (
-    "author",
-    "title",
-    "year",
-    "region",
-    "language_focus",
-    "notes",
-)
-
+# Etymon + source L2 column lists are the single-sourced round-trip schema (the
+# inserter in build.py derives its insert columns from these — see _l2_columns).
+# Order is significant only for diff stability — the kernel doesn't care.
 _MINING_RUN_COLUMNS: tuple[str, ...] = (
     "provider",
     "model",
