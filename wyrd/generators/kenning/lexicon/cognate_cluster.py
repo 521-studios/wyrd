@@ -113,10 +113,15 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
                     as non-bridging for v1, refine if mining surfaces
                     a clear case.
 
-    Determinism: when an etymon is reachable from multiple roots (rare;
-    happens when scholars disagree on the chain), the smallest root id
-    wins. Iteration order is sorted by root id so the assignment is
-    bit-stable across runs.
+    Determinism: when an etymon is reachable from multiple roots, the
+    smallest root id wins. Iteration order is sorted by root id so the
+    assignment is bit-stable across runs. NOTE this multi-root case is
+    NOT rare — ~164k live nodes are reachable from >=2 distinct roots,
+    often across unrelated IE families via borrowing chains (e.g.
+    ``majem`` reaches Proto-Semitic, Greek, and French roots). Smallest-id
+    is therefore a deterministic but ARBITRARY tiebreak, not a closest/
+    deepest-ancestor pick; whether that mis-clusters at this volume — and
+    whether to switch to a nearest-root tiebreak — is open in wyrd-asi7.
 
     Operates in CANONICAL space (per D22 / wyrd-223): edges'
     parent_id and child_id are resolved through merged_into_id before
