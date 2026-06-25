@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import _BOUNDARY_DASHES
 from wyrd.generators.kenning.paths import seed_data_path
 
 _logger = logging.getLogger(__name__)
@@ -483,31 +484,50 @@ _DASH_GUARD_KEY_COLUMNS = (
 )
 _DASH_GUARD_BLOB_TABLES = ("meaning", "morpheme")
 
-# morpheme_id is ``language:form``; flag a LEADING/TRAILING dash on the FORM part
-# (after the first ':') — the affix-position decoration (D45/wyrd-aicu.8). The
-# language prefix and interior in-word hyphens are left alone.
+# A position-marker dash is any dash-like codepoint, not just the ASCII hyphen —
+# the de-dash this guard backstops is Unicode-aware (``normalize_morpheme_surface``,
+# #769), so a regression that left an en-dash / U+2010 boundary marker on a stored
+# identity must trip the guard too, or it ships unseen. SQLite ``GLOB`` matches a
+# ``[...]`` char-class by Unicode codepoint (unlike ``LIKE``, whose only dash is the
+# ASCII one); the ASCII hyphen sits LAST in the class so it isn't read as a range.
+# These are ASCII byte-identical to the old ``LIKE '%-%'`` / ``LIKE '-%'`` for
+# ASCII-only data — they only ADD the Unicode variants.
+_DASH_GLOB_CLASS = "".join(d for d in _BOUNDARY_DASHES if d != "-") + "-"
+_ANY_DASH_GLOB = f"*[{_DASH_GLOB_CLASS}]*"  # a dash anywhere
+_LEAD_DASH_GLOB = f"[{_DASH_GLOB_CLASS}]*"  # leading dash
+_TRAIL_DASH_GLOB = f"*[{_DASH_GLOB_CLASS}]"  # trailing dash
+_DASH_CHARS = frozenset(_BOUNDARY_DASHES)  # Python membership (str values)
+_DASH_BYTES = tuple(d.encode("utf-8") for d in _BOUNDARY_DASHES)  # blob (bytes) prefilter
+
+# morpheme_id is ``language:form``; flag a LEADING/TRAILING dash (ANY variant) on
+# the FORM part (after the first ':') — the affix-position decoration
+# (D45/wyrd-aicu.8). The language prefix and interior in-word hyphens are left
+# alone (the boundary GLOBs match only the ends, never an interior ``al-Quadim``).
 _MORPHEME_ID_FORM_DASH_SQL = (
     "SELECT COUNT(*) FROM morpheme "
-    "WHERE substr(morpheme_id, instr(morpheme_id, ':') + 1) LIKE '-%' "
-    "   OR substr(morpheme_id, instr(morpheme_id, ':') + 1) LIKE '%-'"
+    f"WHERE substr(morpheme_id, instr(morpheme_id, ':') + 1) GLOB '{_LEAD_DASH_GLOB}' "
+    f"   OR substr(morpheme_id, instr(morpheme_id, ':') + 1) GLOB '{_TRAIL_DASH_GLOB}'"
 )
 
 
 def _count_dashed_blob_modern_usage(conn: sqlite3.Connection, table: str) -> int:
     """Count blob rows in ``table`` whose ``word.modern_usage`` (the identity)
-    carries a dash. Full scan, but skip the JSON parse on any row whose RAW
-    payload has no '-' at all — if there's no dash anywhere, modern_usage can't
-    have one. The prefilter is a Python substring check on the actual fetched
-    value (bytes for this BLOB column), NOT a SQLite ``LIKE`` — a LIKE with a
-    TEXT pattern silently matches ZERO blob rows and would neuter the guard
-    (wyrd-aicu.5 round-3 regression). This check sees the real value regardless
-    of storage class, so it can't under-match."""
+    carries a dash of ANY variant. Full scan, but skip the JSON parse on any row
+    whose RAW payload has no dash at all — if there's no dash anywhere, modern_usage
+    can't have one. The prefilter is a Python substring check on the actual fetched
+    value (bytes for this BLOB column — match the UTF-8 encoding of each dash
+    codepoint), NOT a SQLite ``LIKE`` — a LIKE with a TEXT pattern silently matches
+    ZERO blob rows and would neuter the guard (wyrd-aicu.5 round-3 regression). This
+    check sees the real value regardless of storage class, so it can't under-match."""
     dashed = 0
     for (data,) in conn.execute(f"SELECT data FROM {table}"):
-        if (b"-" not in data) if isinstance(data, bytes) else ("-" not in data):
+        if isinstance(data, bytes):
+            if not any(db in data for db in _DASH_BYTES):
+                continue
+        elif not _DASH_CHARS.intersection(data):
             continue
         for entry in json.loads(data).get("entries", []):
-            if "-" in ((entry.get("word") or {}).get("modern_usage") or ""):
+            if _DASH_CHARS.intersection((entry.get("word") or {}).get("modern_usage") or ""):
                 dashed += 1
     return dashed
 
@@ -523,7 +543,9 @@ def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
     operator."""
     violations: list[str] = []
     for table, col in _DASH_GUARD_KEY_COLUMNS:
-        n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} LIKE '%-%'").fetchone()[0]
+        n = conn.execute(
+            f"SELECT COUNT(*) FROM {table} WHERE {col} GLOB ?", (_ANY_DASH_GLOB,)
+        ).fetchone()[0]
         if n:
             violations.append(f"{table}.{col}: {n} dashed")
     # morpheme_id (language:form) — boundary dash on the FORM part only (D45/wyrd-aicu.8).

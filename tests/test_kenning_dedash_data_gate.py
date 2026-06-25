@@ -26,6 +26,8 @@ import sqlite3
 import pytest
 
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
+    _ANY_DASH_GLOB,
+    _DASH_CHARS,
     _DASH_GUARD_BLOB_TABLES,
     _DASH_GUARD_KEY_COLUMNS,
     _MORPHEME_ID_FORM_DASH_SQL,
@@ -46,22 +48,24 @@ def test_committed_seed_has_no_dashed_identity():
     db_uri = f"{_bundled_seed_path().absolute().as_uri()}?mode=ro"
     conn = sqlite3.connect(db_uri, uri=True)
     try:
-        # Key columns — exact (short bare surfaces).
+        # Key columns — exact (short bare surfaces). Any dash variant (GLOB).
         for table, col in _DASH_GUARD_KEY_COLUMNS:
-            n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} LIKE '%-%'").fetchone()[0]
+            n = conn.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE {col} GLOB ?", (_ANY_DASH_GLOB,)
+            ).fetchone()[0]
             assert n == 0, f"{table}.{col} has {n} dash-marked rows in the committed seed"
         # morpheme_id FORM part — boundary dash only (the language prefix +
         # interior hyphens are legitimate; wyrd-aicu.8).
         n = conn.execute(_MORPHEME_ID_FORM_DASH_SQL).fetchone()[0]
         assert n == 0, f"morpheme.morpheme_id has {n} boundary-dashed forms in the committed seed"
         # Blob modern_usage — JSON parse (a greedy LIKE false-positives on
-        # dashes in other fields, e.g. compound headwords like lēac-tūn).
+        # dashes in other fields, e.g. compound headwords like lēac-tūn). Any variant.
         for table in _DASH_GUARD_BLOB_TABLES:
             dashed = [
                 (entry.get("word") or {}).get("modern_usage")
                 for (data,) in conn.execute(f"SELECT data FROM {table}")
                 for entry in json.loads(data).get("entries", [])
-                if "-" in ((entry.get("word") or {}).get("modern_usage") or "")
+                if _DASH_CHARS.intersection((entry.get("word") or {}).get("modern_usage") or "")
             ]
             assert not dashed, f"{table} blob has dash-marked modern_usage: {dashed[:5]}"
     finally:
@@ -191,4 +195,61 @@ def test_guard_allows_dashed_language_and_interior_hyphen_in_morpheme_id():
         (_blob({"entries": []}),),
     )
     _verify_no_dashed_identity(conn)  # no raise — only the form boundary matters
+    conn.close()
+
+
+# ---- Unicode-dash variants (#782): the de-dash this guard backstops is
+# Unicode-aware (#769), so an en-dash / U+2010 boundary marker that slipped past
+# a missed de-dash must ALSO trip the guard. Pre-fix (ASCII-only LIKE / "-")
+# these all escaped it — the guard's whole point is to fail the build on exactly
+# this regression class.
+
+
+def test_guard_raises_on_unicode_dashed_usage_key():
+    """An en-dash (U+2013) boundary marker on a key column trips the guard —
+    the old ``LIKE '%-%'`` (ASCII hyphen only) silently missed it."""
+    conn = _guard_db()
+    conn.execute("INSERT INTO proportions_usage VALUES ('–ton')")  # en-dash
+    with pytest.raises(RuntimeError, match=r"proportions_usage.usage_key: 1 dashed"):
+        _verify_no_dashed_identity(conn)
+    conn.close()
+
+
+def test_guard_raises_on_unicode_boundary_dashed_morpheme_id_form():
+    """A U+2010 boundary dash on the morpheme_id FORM part trips the guard;
+    an interior Unicode dash (legitimate, like ``al‑Quadim``) does NOT."""
+    conn = _guard_db()
+    conn.execute(
+        "INSERT INTO morpheme (morpheme_id, data) VALUES ('celtic:‐ach', ?)",  # U+2010 lead
+        (_blob({"entries": []}),),
+    )
+    with pytest.raises(RuntimeError, match=r"morpheme.morpheme_id form: 1 boundary-dashed"):
+        _verify_no_dashed_identity(conn)
+    conn.close()
+
+
+def test_guard_allows_interior_unicode_hyphen_in_morpheme_id_form():
+    """An INTERIOR Unicode dash (a typographic ``al‑Quadim``, U+2010) is a
+    legitimate in-word hyphen, not boundary decoration — it must NOT trip the
+    guard (the boundary GLOBs match only the ends)."""
+    conn = _guard_db()
+    conn.execute(
+        "INSERT INTO morpheme (morpheme_id, data) VALUES ('arabic:al‐Quadim', ?)",
+        (_blob({"entries": []}),),
+    )
+    _verify_no_dashed_identity(conn)  # no raise — interior, not boundary
+    conn.close()
+
+
+def test_guard_raises_on_unicode_dashed_blob_modern_usage():
+    """An en-dash in a blob ``modern_usage`` identity trips the guard even
+    though the prefilter on the RAW bytes must match the UTF-8 dash encoding
+    (``b"-"`` alone would skip the row and neuter the guard)."""
+    conn = _guard_db()
+    dashed = _blob({"entries": [{"word": {"modern_usage": "–ham–"}}]})  # en-dash both ends
+    conn.execute("INSERT INTO morpheme (data) VALUES (?)", (dashed,))
+    # The raw blob really carries no ASCII hyphen — the old prefilter would skip it.
+    assert b"-" not in dashed
+    with pytest.raises(RuntimeError, match=r"morpheme blob modern_usage: 1 dashed"):
+        _verify_no_dashed_identity(conn)
     conn.close()
