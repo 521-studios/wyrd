@@ -49,6 +49,7 @@ from wyrd.generators.kenning.lexicon.etymon_refs import (
     resolve_etymon_ref,
     split_gloss_ref,
 )
+from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
 
 METHOD_AGENT = "opus-gloss-sense-v1"
 DEFAULT_SOURCE = "gloss-sense-audit"
@@ -63,6 +64,24 @@ _MAX_LABEL_CHARS = 40
 
 def _nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
+
+
+def _identity_ref(ref: str) -> str:
+    """The ref reduced to the etymon it RESOLVES to: NFC + de-dash the form
+    (``normalize_morpheme_surface``, D45 — an affix-position dash is never identity),
+    mirroring ``resolve_etymon_ref`` and ``canonicalization_projection._identity_group_ref``.
+
+    The dedup guards MUST key on this. ``resolve_etymon_ref`` de-dashes, and the
+    etymon is stored bare, so ``old-english:tun`` and ``old-english:-tun`` resolve to
+    one row — but a raw-ref dedup treats them as two morphemes, authoring two
+    ``canonical_sense`` hubs. The projection then de-dashes the gloss's binds, sees 2
+    distinct roots, conflicts (D46), and leaves the gloss UNBOUND. Keying on the
+    de-dashed identity ref closes that hole."""
+    nfc = _nfc(ref)
+    if ":" in nfc:
+        lang, form = nfc.split(":", 1)
+        return f"{lang}:{normalize_morpheme_surface(form) or form}"
+    return nfc
 
 
 @dataclass(frozen=True)
@@ -228,12 +247,13 @@ def validate_gloss_sense_candidates(
                 f"({c.language}:{c.canonical_form})"
             )
             continue
-        # NFC-normalize the ref for the dedup checks: committed_refs (from
-        # committed_done) and the slice/parked sets are all NFC, so a non-NFC
-        # (decomposed-diacritic) candidate ref — the OE/Welsh forms this campaign
-        # targets — must be folded the same way or it bypasses the already-bound
-        # guard and re-mints a second canonical_sense hub for the same morpheme.
-        ref_key = _nfc(c.ref)
+        # Reduce the ref to its resolved-etymon identity for the dedup checks:
+        # committed_refs and the slice/parked sets are all keyed the same way, so a
+        # non-NFC (decomposed-diacritic) OR affix-dashed candidate ref — the OE/Welsh
+        # forms this campaign targets — must be folded identically or it bypasses the
+        # already-bound guard and re-mints a second canonical_sense hub for the same
+        # morpheme (old-english:tun vs old-english:-tun both resolve to one row).
+        ref_key = _identity_ref(c.ref)
         if ref_key in committed_refs:
             errors.append(f"{c.ref}: already sense-bound in the committed ledger")
             continue
@@ -326,5 +346,8 @@ def committed_sense_refs(assertions: Iterable[Assertion]) -> set[str]:
         ):
             parts = split_gloss_ref(a.subject.ref)
             if parts is not None:
-                done.add(parts[0])
+                # De-dash to the resolved-etymon identity so the "done" set matches
+                # the validate-side dedup key (else a committed bare ref wouldn't
+                # block a later dashed variant of the same morpheme).
+                done.add(_identity_ref(parts[0]))
     return done

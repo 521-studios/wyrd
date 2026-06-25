@@ -92,6 +92,26 @@ def test_validate_accepts_grounded_complete_partition(tmp_path):
     db.close()
 
 
+def test_validate_dedups_affix_dash_ref_variant(tmp_path):
+    # Regression (D45): `old-english:tun` and `old-english:-tun` resolve to the SAME
+    # bare etymon (an affix-position dash is never identity). The dedup must treat
+    # them as ONE morpheme; otherwise both author a canonical_sense hub for one
+    # morpheme and the projection (which de-dashes) conflicts → the gloss is left
+    # unbound + two orphan hubs minted.
+    db = _db(tmp_path)
+    _etymon(db, "tun", ["enclosure", "farmstead"])  # stored BARE
+    bare = _cand(
+        "old-english:tun", "old-english", "tun", [("homestead", ["enclosure", "farmstead"])]
+    )
+    dashed = _cand(
+        "old-english:-tun", "old-english", "-tun", [("homestead", ["enclosure", "farmstead"])]
+    )
+    errs = validate_gloss_sense_candidates(db.conn, set(), [bare, dashed])
+    # the dashed variant is the same morpheme as the bare one → in-batch duplicate
+    assert any("duplicated in this batch" in e for e in errs), errs
+    db.close()
+
+
 def test_validate_rejects_invented_gloss(tmp_path):
     db = _db(tmp_path)
     _etymon(db, "tūn", ["enclosure", "town"])
