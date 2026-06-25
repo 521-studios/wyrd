@@ -310,17 +310,14 @@ class SnippetExpander:
         match = re.search(r"\b" + re.escape(norm) + r"\b", body)
         if match is None:
             return None
-        idx = match.start()
-        start = max(0, idx - radius_before)
-        end = min(len(body), idx + len(norm) + radius_after)
-        # Mark by POSITION (``idx``), not ``snippet.replace(norm, ...)``: a plain
+        start = max(0, match.start() - radius_before)
+        end = min(len(body), match.end() + radius_after)
+        # Mark by the match's POSITION, not ``snippet.replace(norm, ...)``: a plain
         # substring replace wraps the first substring occurrence in the window,
         # which — for a form that is also a substring of a longer word (``heath`` in
         # ``heathen``) — lands on the WRONG word, throwing away the ``\b`` anchoring
-        # this method documents. Mark the body's own matched span (== ``norm`` since
-        # the body is normalized, but faithful to the actual text), not ``norm``.
-        matched = body[idx : idx + len(norm)]
-        marked = body[start:idx] + f"«{matched}»" + body[idx + len(norm) : end]
+        # this method documents. ``match.group(0)`` is the body's own matched span.
+        marked = body[start : match.start()] + f"«{match.group(0)}»" + body[match.end() : end]
         return marked.strip()
 
 
