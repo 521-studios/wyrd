@@ -366,7 +366,7 @@ def _coerce_text(raw: object) -> str:
 
 def _coerce_date_year(raw: object) -> int | None:
     """Same year-coercion semantics as Phase 2b.1's ingester —
-    accepts int, integer-valued float, digit-only string; rejects
+    accepts int, integer-valued float, decimal-digit string; rejects
     bool, NaN/inf, non-numeric strings."""
     if raw is None or isinstance(raw, bool):
         return None
@@ -379,7 +379,14 @@ def _coerce_date_year(raw: object) -> int | None:
         and raw.is_integer()
     ):
         return int(raw)
-    if isinstance(raw, str) and raw.strip().isdigit():
+    # ``isdecimal`` (NOT ``isdigit``): isdigit() admits Unicode digit-but-not-
+    # decimal chars (superscripts ``²``/``⁵``, a footnote year ``"1086²"``) that
+    # ``int()`` then rejects with ValueError — a crash on input the contract
+    # promises to drop. isdecimal() == exactly what int() parses. (Same guard as
+    # the toponym_mention_ingest copy — a MANUAL invariant until the two are
+    # deduped; both copies' superscript cases are asserted in tests so drift
+    # fails.)
+    if isinstance(raw, str) and raw.strip().isdecimal():
         return int(raw.strip())
     return None
 

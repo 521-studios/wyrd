@@ -17,6 +17,7 @@ from click.testing import CliRunner
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.toponym_mention_ingest import (
     ResolverIndexes,
+    _coerce_date_year,
     build_resolver_indexes,
     ingest_mentions,
     resolve_mention,
@@ -64,6 +65,30 @@ def _seed_toponyms(conn: sqlite3.Connection, rows: list[dict]) -> dict[str, int]
 
 
 # ---------- build_resolver_indexes ----------------------------------------
+
+
+def test_coerce_date_year_decimal_vs_digit() -> None:
+    """``_coerce_date_year`` must use isdecimal, not isdigit: a Unicode
+    digit-but-not-decimal string (superscript ``²``/``⁵``, footnote year
+    ``"1086²"``) is admitted by ``str.isdigit()`` but rejected by ``int()`` with
+    ValueError — so isdigit would CRASH the ingest on input the contract promises
+    to drop as None. isdecimal() drops them cleanly while still accepting every
+    real decimal-digit string (ASCII, Arabic-Indic, fullwidth)."""
+    # The crash cases — must be None, not a raised ValueError.
+    assert _coerce_date_year("²") is None
+    assert _coerce_date_year("1086²") is None
+    assert _coerce_date_year("⁵") is None
+    # Legitimate decimal-digit strings still coerce (int() accepts all of these).
+    assert _coerce_date_year("1086") == 1086
+    assert _coerce_date_year("  1066  ") == 1066
+    assert _coerce_date_year("١٠٨٦") == 1086  # Arabic-Indic decimal digits
+    assert _coerce_date_year("１０８６") == 1086  # fullwidth decimal digits
+    # Unchanged non-string paths.
+    assert _coerce_date_year(1086) == 1086
+    assert _coerce_date_year(1086.0) == 1086
+    assert _coerce_date_year(1086.5) is None
+    assert _coerce_date_year(True) is None
+    assert _coerce_date_year("ten") is None
 
 
 def test_build_resolver_indexes_includes_unambiguous_form():

@@ -242,7 +242,7 @@ def _coerce_form(raw: object) -> str:
 def _coerce_date_year(raw: object) -> int | None:
     """Normalize a date_year field from the JSONL to int-or-None.
     Accepts ints, integer-valued floats (``1086.0`` from a sloppy
-    JSON encoder), and parseable digit strings. Rejects bools,
+    JSON encoder), and parseable decimal-digit strings. Rejects bools,
     fractional floats, NaN/inf, and non-numeric strings."""
     if raw is None or isinstance(raw, bool):
         return None
@@ -257,7 +257,14 @@ def _coerce_date_year(raw: object) -> int | None:
         return None
     if isinstance(raw, str):
         s = raw.strip()
-        if s.isdigit():
+        # ``isdecimal`` (NOT ``isdigit``): isdigit() is True for Unicode
+        # digit-but-not-decimal chars like the superscripts ``²``/``⁵`` (and a
+        # footnote-marked year ``"1086²"``), which ``int()`` then REJECTS with
+        # ValueError — crashing the ingest on input the contract promises to
+        # drop as None. isdecimal() admits exactly the category-Nd digits int()
+        # accepts (ASCII, Arabic-Indic, fullwidth), so the guard and the parse
+        # agree.
+        if s.isdecimal():
             return int(s)
         return None
     return None
