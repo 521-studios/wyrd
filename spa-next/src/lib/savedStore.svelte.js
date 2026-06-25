@@ -184,6 +184,14 @@ class SavedStore {
     } catch (err) {
       return { added: 0, skipped: 0, error: `parse failed: ${err.message}` };
     }
+    // A JSON literal that parses to a non-object — `null` most notably, but also
+    // a number / string / array — has no `schema_version`. `null.schema_version`
+    // would THROW (TypeError) past this method's "returns {added, skipped, error}"
+    // contract, the way an imported file of literally `null` (or a truncated
+    // export) does. Reject it as a clean error instead of crashing the importer.
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { added: 0, skipped: 0, error: 'not a saved-store export (expected a JSON object)' };
+    }
     if (parsed.schema_version !== CURRENT_SCHEMA) {
       return {
         added: 0,
