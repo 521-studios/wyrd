@@ -207,19 +207,27 @@ def identity_reflex_rows(
         fc = fold_surface(r["cf"] or "")
         if len(fc) < min_len:
             continue
-        position = None
+        # Collect EVERY position fc fold-matches at, then pick a DETERMINISTIC
+        # representative by fixed precedence. ``r["forms"]`` is a bare GROUP_CONCAT
+        # (no ORDER BY → implementation-defined concat order), so taking the FIRST
+        # match made the emitted position a coin flip for the ~9% of morphemes that
+        # fold-match at >1 position (e.g. old-english:ofer, pre via Over + post via
+        # Ada-ofer). The dedup/build key is (surface, position, ref) with PK
+        # (surface, position), so a position flip on a later run (different DB
+        # state / SQLite version) is NOT in the committed set → it re-emits a
+        # spurious second, position-variant reflex. Deriving position from the SET of
+        # matched positions (not concat order) makes it stable across rebuilds.
+        positions: set[str] = set()
         for occ in (r["forms"] or "").split("~"):
             for fld in occ.split("|"):
                 ff = fold_surface(fld)
                 if fc and fc in ff:
-                    position = (
+                    positions.add(
                         "pre" if ff.startswith(fc) else "post" if ff.endswith(fc) else "inner"
                     )
-                    break
-            if position:
-                break
-        if position is None:
+        if not positions:
             continue
+        position = next(p for p in ("pre", "post", "inner") if p in positions)
         ref = etymon_ref(r["lang"], r["cf"])
         if (fc, position, _nfc(ref)) in existing:
             continue

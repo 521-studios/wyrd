@@ -613,6 +613,31 @@ def test_identity_reflexes_grounded_only(world):
     )
 
 
+def test_identity_reflex_position_deterministic_when_multi_position(world):
+    """Regression: a morpheme that fold-matches its toponyms at MORE THAN ONE position
+    must get a DETERMINISTIC position — not the GROUP_CONCAT-order first match (the
+    concat order is implementation-defined, so the emitted position was a coin flip
+    for ~9% of the identity cohort). Since the dedup / build key is
+    (surface, position, ref), a position flip on a later run re-emits a spurious
+    second, position-variant reflex. ``foo`` appears post (Barfoo) and pre (Fooby);
+    the fixed precedence (pre > post > inner) picks ``pre`` regardless of which
+    toponym SQLite concatenates first. The post toponym is inserted FIRST so the
+    pre-fix first-match yielded ``post`` (this asserts ``pre``)."""
+    db, tmp_path = world
+    foo = _etymon(db, "foo", gloss="a foo")
+    _toponym(db, "Barfoo", [foo])  # 'foo' at the END → post (inserted first)
+    _toponym(db, "Fooby", [foo])  # 'foo' at the START → pre
+    db.commit()
+    rows = [
+        r
+        for r in identity_reflex_rows(db.conn, tmp_path / "none.jsonl")
+        if r["etymon_refs"] == ["old-english:foo"]
+    ]
+    assert len(rows) == 1
+    assert rows[0]["surface_form"] == "foo"
+    assert rows[0]["position"] == "pre"  # deterministic precedence, not concat order
+
+
 def test_identity_reflexes_require_gloss_gate(tmp_path):
     """The gloss gate (default on) excludes UNGLOSSED morphemes — a grounded
     identity reflex is only blanket-asserted for morphemes we've confirmed are
