@@ -18,6 +18,7 @@ from click.testing import CliRunner
 from wyrd.generators.kenning.cli import cli
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.wiktextract_corpus_miner import (
+    _DASH_TO_SPACE,
     CULTURE_LANG_SCOPE,
     WIKTIONARY_EMPIRICAL_SOURCE_ID,
     _accept_candidate,
@@ -25,6 +26,7 @@ from wyrd.generators.kenning.wiktextract_corpus_miner import (
     _iter_index_entries,
     _select_canonical_sense,
     _surface_form_for_position,
+    _walk_names,
     build_index,
     compute_unaccounted_fragments,
     derive_positions,
@@ -562,6 +564,27 @@ def test_classify_positions_skips_too_short() -> None:
     """Single-char canonical forms are too noisy to classify."""
     counts = _classify_positions("a", ["abington", "great"])
     assert counts == {"bare": 0, "pre": 0, "post": 0, "inner": 0}
+
+
+def test_walk_names_splits_on_unicode_dashes_too():
+    """Place-name tokenization splits on ANY dash, not just ASCII hyphen: a
+    re-sourced / typographic corpus emitting an en-dash (``Stratford–upon–Avon``)
+    must tokenize the same as the ASCII-hyphen form, or a standalone morpheme
+    keys as a prefix of one un-split mega-token (mis-classified position)."""
+    ascii_out: list[str] = []
+    _walk_names("Stratford-upon-Avon", ascii_out)
+    uni_out: list[str] = []
+    _walk_names("Stratford–upon–Avon", uni_out)  # en-dashes
+    assert uni_out == ascii_out == ["stratford", "upon", "avon"]
+    # U+2010 HYPHEN variant too.
+    out: list[str] = []
+    _walk_names("Stoke‐on‐Trent", out)
+    assert out == ["stoke", "on", "trent"]
+    # Data-driven: every dash in _DASH_TO_SPACE is a word boundary.
+    for ch in _DASH_TO_SPACE:
+        tok: list[str] = []
+        _walk_names(f"great{chr(ch)}tun", tok)
+        assert tok == ["great", "tun"], f"U+{ch:04X} not split"
 
 
 def test_surface_form_for_position_emits_bare_surface() -> None:
