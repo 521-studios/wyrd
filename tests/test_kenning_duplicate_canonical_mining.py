@@ -113,6 +113,37 @@ def test_detect_excludes_reflex_link_children(lex):
     assert (min(child, newa), max(child, newa)) not in pairs
 
 
+def test_reflex_link_child_root_uses_two_step_rollup(lex):
+    """The excluded id is build_family_rollup's TWO-step _lemma_root — target
+    (merged_into→lemma→self) THEN the target's own lemma — not a flat
+    COALESCE(merged_into_id, lemma_id, id). A reflex-link child merged into an
+    INFLECTED etymon rolls up to that etymon's LEMMA, so the lemma is the excluded
+    root, not the merge target. Keeps the finder's root in lock-step with the legacy
+    rollup on merge+lemma chains (wyrd-wnh4); the flat COALESCE would pick the merge
+    target and leave the true rollup root pairable (→ a D24 bind conflict)."""
+    from wyrd.generators.kenning.enrichment import COLLAPSE_VARIANT_SOURCE_ID
+    from wyrd.generators.kenning.lexicon.duplicate_canonical_mining import (
+        _reflex_link_child_roots,
+    )
+
+    lex.upsert_source(id=COLLAPSE_VARIANT_SOURCE_ID, title="collapse")
+    leaf = _etymon(lex, "leaf", "old-english", ["x"])  # the true 2-step rollup root
+    mid = _etymon(lex, "mid", "old-english", ["x"])
+    lex.conn.execute("UPDATE etymon SET lemma_id=? WHERE id=?", (leaf, mid))  # mid → leaf
+    child = _etymon(lex, "child", "old-english", ["x"])
+    lex.conn.execute("UPDATE etymon SET merged_into_id=? WHERE id=?", (mid, child))  # child → mid
+    anc = _etymon(lex, "anc", "old-english", ["x"])  # the inheritance ancestor (own root)
+    lex.conn.execute(
+        "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+        "VALUES (?, ?, 'inheritance', ?)",
+        (anc, child, COLLAPSE_VARIANT_SOURCE_ID),
+    )
+    lex.commit()
+    excluded = _reflex_link_child_roots(lex.conn)
+    assert leaf in excluded  # the 2-step rollup root (target.lemma)
+    assert mid not in excluded  # the flat COALESCE would have wrongly stopped here
+
+
 def test_detect_skips_already_collapsed_pair(lex):
     """A pair already sharing a canonical_morpheme_id (collapsed by a prior run) is
     not re-proposed."""
