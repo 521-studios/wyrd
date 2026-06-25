@@ -132,7 +132,7 @@ def test_guard_raises_on_dashed_blob_modern_usage():
     conn = _guard_db()
     dashed = _blob({"entries": [{"word": {"modern_usage": "-ham-"}}]})
     conn.execute("INSERT INTO morpheme (data) VALUES (?)", (dashed,))
-    with pytest.raises(RuntimeError, match=r"morpheme blob modern_usage: 1 dashed"):
+    with pytest.raises(RuntimeError, match=r"morpheme blob identity: 1 dashed"):
         _verify_no_dashed_identity(conn)
     conn.close()
 
@@ -151,19 +151,36 @@ def test_guard_catches_dash_in_blob_storage_class():
     )
     stored_classes = {row[0] for row in conn.execute("SELECT typeof(data) FROM morpheme")}
     assert stored_classes == {"blob"}, f"test must exercise blob storage, got {stored_classes}"
-    with pytest.raises(RuntimeError, match=r"morpheme blob modern_usage: 1 dashed"):
+    with pytest.raises(RuntimeError, match=r"morpheme blob identity: 1 dashed"):
         _verify_no_dashed_identity(conn)
     conn.close()
 
 
 def test_guard_ignores_internal_hyphen_in_other_blob_fields():
-    """A hyphen in a NON-identity field (a compound source form like
-    ``lēac-tūn``) must not trip the guard — only modern_usage is the
-    identity. Guards against a greedy-LIKE false positive."""
+    """An INTERIOR hyphen on a language-form surface (a compound like ``lēac-tūn``)
+    must not trip the guard — D45 forbids only the affix-position BOUNDARY dash; an
+    in-word hyphen (``al-Quadim``) is legitimate identity. Guards against a greedy
+    false positive."""
     conn = _guard_db()
     ok = _blob({"entries": [{"word": {"modern_usage": "leighton", "old_english": ["lēac-tūn"]}}]})
     conn.execute("INSERT INTO meaning VALUES ('leighton', ?)", (ok,))
-    _verify_no_dashed_identity(conn)  # no raise — the dash is in old_english, not the identity
+    _verify_no_dashed_identity(conn)  # no raise — interior hyphen, not a boundary dash
+    conn.close()
+
+
+def test_guard_raises_on_boundary_dashed_blob_form():
+    """Regression: the blob IDENTITY is not just ``modern_usage`` — each word's
+    language-form ``form`` / ``canonical_form`` is a stored morpheme surface too.
+    A BOUNDARY-dashed form (an affix etymon like ``-tun`` that became reflex-reachable
+    and exported into a word blob) must trip the guard, even when modern_usage is
+    bare. Before this, a dashed identity could ship to prod with the guard silent."""
+    conn = _guard_db()
+    dashed = _blob(
+        {"entries": [{"word": {"modern_usage": "ton", "old-english": [{"form": "-tun"}]}}]}
+    )
+    conn.execute("INSERT INTO morpheme (data) VALUES (?)", (dashed,))
+    with pytest.raises(RuntimeError, match=r"morpheme blob identity: 1 dashed"):
+        _verify_no_dashed_identity(conn)
     conn.close()
 
 
@@ -250,6 +267,6 @@ def test_guard_raises_on_unicode_dashed_blob_modern_usage():
     conn.execute("INSERT INTO morpheme (data) VALUES (?)", (dashed,))
     # The raw blob really carries no ASCII hyphen — the old prefilter would skip it.
     assert b"-" not in dashed
-    with pytest.raises(RuntimeError, match=r"morpheme blob modern_usage: 1 dashed"):
+    with pytest.raises(RuntimeError, match=r"morpheme blob identity: 1 dashed"):
         _verify_no_dashed_identity(conn)
     conn.close()

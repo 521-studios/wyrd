@@ -510,15 +510,46 @@ _MORPHEME_ID_FORM_DASH_SQL = (
 )
 
 
-def _count_dashed_blob_modern_usage(conn: sqlite3.Connection, table: str) -> int:
-    """Count blob rows in ``table`` whose ``word.modern_usage`` (the identity)
-    carries a dash of ANY variant. Full scan, but skip the JSON parse on any row
-    whose RAW payload has no dash at all — if there's no dash anywhere, modern_usage
-    can't have one. The prefilter is a Python substring check on the actual fetched
-    value (bytes for this BLOB column — match the UTF-8 encoding of each dash
-    codepoint), NOT a SQLite ``LIKE`` — a LIKE with a TEXT pattern silently matches
-    ZERO blob rows and would neuter the guard (wyrd-aicu.5 round-3 regression). This
-    check sees the real value regardless of storage class, so it can't under-match."""
+def _word_has_dashed_identity(word: dict[str, Any]) -> bool:
+    """True when a word's stored IDENTITY carries a forbidden dash: ANY dash variant
+    in ``modern_usage`` (the bare-rendered identity), OR a BOUNDARY (leading/trailing)
+    dash on a language-form array's ``form`` / ``canonical_form`` — a stored morpheme
+    surface, so D45 forbids the affix-position decoration while interior in-word
+    hyphens (``al-Quadim``) stay legitimate (mirrors the ``morpheme_id`` form guard).
+
+    The language-axis selection mirrors ``_pick_primary_language`` so metadata-suffix
+    siblings (``*_variants``, ``*_citations``, …) and the ``modern_usage`` /
+    ``era_reflexes`` keys aren't mis-scanned as an identity axis."""
+    if _DASH_CHARS.intersection(word.get("modern_usage") or ""):
+        return True
+    for key, value in word.items():
+        if key in ("modern_usage", "era_reflexes"):
+            continue
+        if any(key.endswith(suffix) for suffix in _NON_LANGUAGE_SUFFIXES):
+            continue
+        if not isinstance(value, list):
+            continue
+        for sub in value:
+            surfaces = (
+                (sub.get("form"), sub.get("canonical_form")) if isinstance(sub, dict) else (sub,)
+            )
+            for s in surfaces:
+                if isinstance(s, str) and s and (s[0] in _DASH_CHARS or s[-1] in _DASH_CHARS):
+                    return True
+    return False
+
+
+def _count_dashed_blob_identity(conn: sqlite3.Connection, table: str) -> int:
+    """Count blob rows in ``table`` whose word IDENTITY carries a forbidden dash —
+    ``modern_usage`` (any dash) OR a language-form ``form`` / ``canonical_form``
+    (boundary dash); see :func:`_word_has_dashed_identity`. Full scan, but skip the
+    JSON parse on any row whose RAW payload has no dash at all — if there's no dash
+    anywhere, neither an identity field can have one. The prefilter is a Python
+    substring check on the actual fetched value (bytes for this BLOB column — match
+    the UTF-8 encoding of each dash codepoint), NOT a SQLite ``LIKE`` — a LIKE with a
+    TEXT pattern silently matches ZERO blob rows and would neuter the guard
+    (wyrd-aicu.5 round-3 regression). This check sees the real value regardless of
+    storage class, so it can't under-match."""
     dashed = 0
     for (data,) in conn.execute(f"SELECT data FROM {table}"):
         if isinstance(data, bytes):
@@ -527,7 +558,7 @@ def _count_dashed_blob_modern_usage(conn: sqlite3.Connection, table: str) -> int
         elif not _DASH_CHARS.intersection(data):
             continue
         for entry in json.loads(data).get("entries", []):
-            if _DASH_CHARS.intersection((entry.get("word") or {}).get("modern_usage") or ""):
+            if _word_has_dashed_identity(entry.get("word") or {}):
                 dashed += 1
     return dashed
 
@@ -536,11 +567,11 @@ def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
     """D45 (wyrd-aicu.5) exporter guard: raise if any stored morpheme IDENTITY
     carries a dash — a morpheme's identity is its bare surface; position is an
     explicit column and dashes are render-time decoration (D39). Checks the
-    bare-keyed usage columns (SQL) + the meaning/morpheme blob ``modern_usage``
-    values (JSON parse) + the ``morpheme_id`` content key's FORM part (de-dashed
-    by wyrd-aicu.8; boundary dash only — the language prefix / interior hyphens
-    are legitimate). Runs on every emit so a regression fails the build, not the
-    operator."""
+    bare-keyed usage columns (SQL) + the meaning/morpheme blob IDENTITY (JSON parse:
+    each word's ``modern_usage`` AND its language-form ``form`` / ``canonical_form``
+    surfaces) + the ``morpheme_id`` content key's FORM part (de-dashed by wyrd-aicu.8;
+    boundary dash only — the language prefix / interior hyphens are legitimate). Runs
+    on every emit so a regression fails the build, not the operator."""
     violations: list[str] = []
     for table, col in _DASH_GUARD_KEY_COLUMNS:
         n = conn.execute(
@@ -553,9 +584,9 @@ def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
     if n:
         violations.append(f"morpheme.morpheme_id form: {n} boundary-dashed")
     for table in _DASH_GUARD_BLOB_TABLES:
-        dashed = _count_dashed_blob_modern_usage(conn, table)
+        dashed = _count_dashed_blob_identity(conn, table)
         if dashed:
-            violations.append(f"{table} blob modern_usage: {dashed} dashed")
+            violations.append(f"{table} blob identity: {dashed} dashed")
     if violations:
         raise RuntimeError(
             "D45 (wyrd-aicu.5): refusing to emit dash-marked stored identity — "
