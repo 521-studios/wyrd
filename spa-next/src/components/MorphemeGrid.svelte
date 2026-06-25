@@ -130,9 +130,12 @@
                    it) AND any era reflex that equals the identity — so the parent
                    form is always visible + swappable-back, whatever era is live. -->
               {@const isUsage = cell.is_usage === true}
-              <!-- wyrd-rogd.17: name the cell by its accented display surface
-                   (the same one shown), not the raw stored form. -->
-              {@const cellName = accentForm(cell.form, morpheme)}
+              <!-- wyrd-rogd.17: name the cell by its accented display surface —
+                   the SAME withPlacement() surface shown below (accent +
+                   placement dashes + position case), not the bare accent-only
+                   form, which drops the dashes and can leak a capital in an
+                   inner/post slot ("Swap to Tūn" vs the shown "-tūn"). -->
+              {@const cellName = withPlacement(cell.form)}
               {@const swapTitle = inferred
                 ? `Swap to ${cellName} — inferred via phonology rule (not attested)`
                 : isUsage

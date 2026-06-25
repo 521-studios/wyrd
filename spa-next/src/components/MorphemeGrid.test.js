@@ -65,3 +65,25 @@ describe('MorphemeGrid originalUsage (wyrd-c6o1.1 / wyrd-200v)', () => {
     expect(setSwap).toHaveBeenCalledWith(expect.objectContaining({ original: 'BASE-ton' }));
   });
 });
+
+describe('MorphemeGrid cell tooltip mirrors the displayed surface (wyrd-rogd.17)', () => {
+  it('names the cell in the swap tooltip by its placement+accent surface, not the bare accent-only form', () => {
+    // usage '-ton' is an inner/post slot (leading dash) → the position rule
+    // lowercases. A rendering whose original_script is capitalized + accented
+    // ('Tūn') for the cell form ('tun') is the discriminating case: the displayed
+    // surface applies BOTH accent and placement/position ('-tūn'), and the swap
+    // tooltip must name the cell by that SAME surface — not the bare accent-only
+    // 'Tūn', which drops the dashes and leaks the capital.
+    const morpheme = {
+      ...MORPHEME,
+      renderings: { 'old-english': { tun: { original_script: 'Tūn' } } },
+    };
+    const { container } = render(MorphemeGrid, { props: { morpheme } });
+    const cell = container.querySelector('button.cell');
+    const shown = cell.querySelector('.cell-form').textContent.trim();
+    expect(shown).toBe('-tūn'); // accent + placement dashes + position case
+    const title = cell.getAttribute('title');
+    expect(title).toContain(shown); // tooltip names the cell by the shown surface…
+    expect(title).not.toContain('Tūn'); // …not the bare accent-only capital form
+  });
+});
