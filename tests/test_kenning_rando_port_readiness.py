@@ -270,9 +270,10 @@ def test_rando_refs_from_lines_dedashes_skips_tolerates_trailing_raises_midfile(
     """The pure ledger-line parser extracted from load_rando_attested_refs,
     called directly on a line list. Pins the load-bearing destructive-gate-safety
     contract in one place: citation refs are de-dashed (D45) to match bare
-    morpheme_ids; non-citation / no-separator records are skipped; a truncated
-    TRAILING line is tolerated; but a mid-file decode error RAISES (never
-    silently under-count a remove-authorizing gate)."""
+    morpheme_ids; malformed records are skipped (non-citation, non-dict JSON,
+    non-string etymon_ref, no ':' separator); a truncated TRAILING line is
+    tolerated; but a mid-file decode error RAISES (never silently under-count a
+    remove-authorizing gate)."""
 
     def cite(ref):
         return json.dumps({"_type": "citation", "etymon_ref": ref})
@@ -280,6 +281,8 @@ def test_rando_refs_from_lines_dedashes_skips_tolerates_trailing_raises_midfile(
     lines = [
         cite("old-english:-tūn"),  # leading dash -> 'old-english:tūn'
         json.dumps({"_type": "other", "etymon_ref": "x:y"}),  # not a citation -> skipped
+        "[1, 2, 3]",  # valid JSON but not a dict -> skipped (isinstance(rec, dict) guard)
+        json.dumps({"_type": "citation", "etymon_ref": 123}),  # ref not a str -> skipped
         cite("noseparator"),  # ref has no ':' -> skipped
         cite("welsh:môr-"),  # trailing dash -> 'welsh:môr'
         '{"_type": "citation"',  # truncated TRAILING line -> tolerated

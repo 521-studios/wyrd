@@ -194,10 +194,9 @@ def load_rando_attested_refs(path: Path | None = None) -> frozenset[str]:
 
     The gate cross-references this against each bundle word's ``morpheme_id``
     to recover the rando-only flag the scrubbed ``<lang>_citations`` field
-    can't carry. The ledger's ``etymon_ref`` may still hold affix-position
-    dashes (L2 stays dashed); ``normalize_morpheme_surface`` de-dashes the
-    form so it matches the bundle's bare ``morpheme_id``. Returns an empty
-    set if the ledger is absent — the breakdown then degrades to the old
+    can't carry; :func:`_rando_refs_from_lines` does the line parse + D45
+    de-dash so the refs match the bundle's bare ``morpheme_id``. Returns an
+    empty set if the ledger is absent — the breakdown then degrades to the old
     citation-field-only behavior rather than crashing, but it also warns:
     a silently-empty set re-creates the very bug this fixes (rando_only=0)
     and could let a destructive retirement gate falsely PASS.
