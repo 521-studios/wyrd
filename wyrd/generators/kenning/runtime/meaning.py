@@ -576,7 +576,7 @@ class Meaning:
         return min(years) if years else None
 
     @staticmethod
-    def _first_nonempty_form(forms: list | None) -> str | None:
+    def _first_nonempty_form(forms: list | str | None) -> str | None:
         """The first usable form string in ``forms``, or ``None`` if there is
         none. Single source for the "non-empty form" scan shared by
         :meth:`_forms_nonempty`, :meth:`primary_language`, and
@@ -604,7 +604,7 @@ class Meaning:
         return None
 
     @staticmethod
-    def _forms_nonempty(forms: list | None) -> bool:
+    def _forms_nonempty(forms: list | str | None) -> bool:
         """At least one usable form — see :meth:`_first_nonempty_form`."""
         return Meaning._first_nonempty_form(forms) is not None
 
