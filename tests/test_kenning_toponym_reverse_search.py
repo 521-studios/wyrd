@@ -74,6 +74,43 @@ def test_normalize_for_match_strips_leading_punctuation():
     assert _normalize_for_match("(Birmingham,") == "birmingham"
 
 
+def test_normalize_for_match_strips_unicode_quotes():
+    """OCR / LLM prose quotes with the typographic Unicode variants far more than
+    ASCII — curly “” ‘’, guillemets « » ‹ ›, low „. Stripping only ASCII left a
+    curly-quoted form silently never matching a known toponym (same silent-miss
+    the ASCII leading-strip was added to prevent)."""
+    assert _normalize_for_match("“Birmingham”") == "birmingham"  # curly double
+    assert _normalize_for_match("‘Stratford’") == "stratford"  # curly single
+    assert _normalize_for_match("«Birmingham»") == "birmingham"  # guillemets
+    assert _normalize_for_match("‹Stratford›") == "stratford"  # single guillemets
+    assert _normalize_for_match("„Birmingham“") == "birmingham"  # low-open + curly
+    # A closing quote AFTER trailing punctuation still fully unwraps.
+    assert _normalize_for_match("“Birmingham”.") == "birmingham"
+    # An interior curly apostrophe is identity, NOT stripped (boundary-only).
+    assert _normalize_for_match("King’s Lynn") == "king’s lynn"
+
+
+def test_normalize_for_match_every_strip_codepoint_is_covered():
+    """Data-driven lock over both strip constants: every boundary char unwraps to
+    the bare form, so a future edit dropping one (e.g. the low-quote ‚ that has no
+    representative case above) fails here."""
+    from wyrd.generators.kenning.toponym_reverse_search import (
+        _MATCH_STRIP_ENDS,
+        _MATCH_STRIP_TRAILING,
+    )
+
+    for ch in _MATCH_STRIP_ENDS:
+        # Wrapped both ends (the both-ends strip set).
+        assert _normalize_for_match(f"{ch}Birmingham{ch}") == "birmingham", (
+            f"{ch!r} (U+{ord(ch):04X}) not stripped at both ends"
+        )
+    for ch in _MATCH_STRIP_TRAILING:
+        # Trailing only.
+        assert _normalize_for_match(f"Birmingham{ch}") == "birmingham", (
+            f"{ch!r} (U+{ord(ch):04X}) not stripped trailing"
+        )
+
+
 def test_build_lookup_includes_modern_names_and_attestation_forms():
     """Lookup contains modern_name entries AND historical forms
     from existing attestations."""

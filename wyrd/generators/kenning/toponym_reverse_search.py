@@ -87,6 +87,16 @@ class ReverseSearchReport:
     unmatched_samples: list[tuple[str, int]] = field(default_factory=list)
 
 
+# Surrounding quote/bracket chars stripped from BOTH ends — ASCII plus the
+# Unicode typographic quotes scholarly prose / OCR / LLM output actually use:
+# curly double “ ” (U+201C/D), curly single ‘ ’ (U+2018/9), guillemets « » ‹ ›
+# (U+00AB/BB, U+2039/A), low quotes „ ‚ (U+201E, U+201A).
+_MATCH_STRIP_ENDS = "\"'([{<~" + "“”‘’«»‹›„‚"
+# Trailing-only punctuation strip (closing punctuation + closing quotes), so a
+# closing quote that sits AFTER trailing punctuation (``…”.``) still unwraps.
+_MATCH_STRIP_TRAILING = ",.;:!?)'\"]}>~" + "”’»›"
+
+
 def _normalize_for_match(form: str) -> str:
     """Lowercase + strip surrounding whitespace + drop both LEADING
     and TRAILING punctuation. Mirrors the lightweight normalization
@@ -99,12 +109,10 @@ def _normalize_for_match(form: str) -> str:
     ``"Birmingham`` (opening quote), ``(Birmingham`` (parenthetical
     intro), or ``[Birmingham`` (editor bracket). Without this strip,
     these forms would silently never match a known toponym
-    (Gemini PR #212 round-2 finding).
+    (Gemini PR #212 round-2 finding). The strip sets cover the Unicode
+    quote variants too — see :data:`_MATCH_STRIP_ENDS`.
     """
-    # Both leading and trailing punctuation strip. Including the
-    # paired quote/bracket characters on both ends so a form quoted
-    # both before and after still normalizes to bare text.
-    return form.strip().strip("\"'([{<~").rstrip(",.;:!?)'\"]}>~").lower()
+    return form.strip().strip(_MATCH_STRIP_ENDS).rstrip(_MATCH_STRIP_TRAILING).lower()
 
 
 def _build_form_to_toponym_lookup(conn: sqlite3.Connection) -> dict[str, int]:
