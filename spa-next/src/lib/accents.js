@@ -63,7 +63,16 @@ export function accentedUsage(morph) {
       if (os && norm(form) === u && hasAccent(os)) {
         const lead = morph.usage.match(/^-+/)?.[0] || '';
         const trail = morph.usage.match(/-+$/)?.[0] || '';
-        return lead + stripDashes(os) + trail;
+        // Apply the slot's position case rule, mirroring graftPosition: a
+        // leading dash marks an inner/post slot, which renders lowercase, while
+        // pre/bare keep the original_script's case. Without this a capitalized
+        // accented original_script ("Bȳ", "Rōm") in a dashed slot would leak its
+        // capital into col 2 ("-Bȳ") where the position rule — and col 3, which
+        // routes through graftPosition — both say "-bȳ". Diacritics survive
+        // toLowerCase (ā/ȳ/ō unaffected).
+        let core = stripDashes(os);
+        if (lead) core = core.toLowerCase();
+        return lead + core + trail;
       }
     }
   }

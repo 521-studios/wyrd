@@ -2,7 +2,7 @@
 // leak into rendered surfaces — it grafts away on display + swap, and folds
 // away for matching. Plus the core accentFold / graftPosition behavior.
 import { describe, it, expect } from 'vitest';
-import { accentForm, accentFold, graftPosition } from './accents.js';
+import { accentForm, accentFold, graftPosition, accentedUsage } from './accents.js';
 
 describe('accentFold', () => {
   it('folds case, diacritics, dashes — and the reconstructed * marker', () => {
@@ -73,5 +73,35 @@ describe('graftPosition', () => {
   it('falls back to the original slot when the surface is empty (or only *)', () => {
     expect(graftPosition('-ton', '*')).toBe('-ton');
     expect(graftPosition('-ton', '')).toBe('-ton');
+  });
+});
+
+describe('accentedUsage applies the slot position case rule (like graftPosition)', () => {
+  // A capitalized accented original_script ("Bȳ", "Rōm") in a dashed (post/inner)
+  // slot must render lowercase — col 2 (which renders accentedUsage raw, with no
+  // renderName title-case) otherwise leaks the capital ("-Bȳ") where the position
+  // rule and col 3 (via graftPosition) both say "-bȳ".
+  it('lowercases the accented surface in a post/inner slot', () => {
+    const post = { usage: '-by', renderings: { oe: { by: { original_script: 'Bȳ' } } } };
+    expect(accentedUsage(post)).toBe('-bȳ');
+    const inner = { usage: '-rom-', renderings: { oe: { rom: { original_script: 'Rōm' } } } };
+    expect(accentedUsage(inner)).toBe('-rōm-');
+  });
+
+  it('keeps the original_script case in a pre/bare slot (no leading dash)', () => {
+    const pre = { usage: 'Cornel-', renderings: { oe: { cornel: { original_script: 'Córnel' } } } };
+    expect(accentedUsage(pre)).toBe('Córnel-');
+    const bare = { usage: 'Rom', renderings: { oe: { rom: { original_script: 'Rōm' } } } };
+    expect(accentedUsage(bare)).toBe('Rōm');
+  });
+
+  it('is a no-op when the original_script is already lowercase (the common case)', () => {
+    const m = { usage: '-by', renderings: { oe: { by: { original_script: 'bȳ' } } } };
+    expect(accentedUsage(m)).toBe('-bȳ');
+  });
+
+  it('returns null when no rendering supplies an accented surface', () => {
+    const m = { usage: '-by', renderings: { oe: { by: { original_script: 'by' } } } };
+    expect(accentedUsage(m)).toBeNull();
   });
 });
