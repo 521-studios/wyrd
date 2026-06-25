@@ -53,13 +53,21 @@ METHOD = "same-morpheme-uplift-v1"
 # duplicate); medium = same surface + gloss overlap only.
 Confidence = Literal["high", "medium"]
 
-# Placeholder glosses that carry NO morpheme identity — "a personal name" is on 8507
-# etymons, "personal name" on 137. They mean "this is a person's name used in a
-# place-name", not a morpheme meaning, so two DISTINCT morphemes sharing only one
-# (plus a folded surface) are NOT the same morpheme. The medium tier matches glosses
-# by string equality, which collapse_merge already documents can't decide a generic
-# gloss; here we simply refuse to let a placeholder-only overlap be identity evidence
-# (a wrong bind is identity-collapse corruption, D46/D50.2 — leave separate instead).
+# Placeholder glosses that carry NO morpheme identity — "a personal name" / "personal
+# name" mean "this is a person's name used in a place-name", not a morpheme meaning,
+# so two DISTINCT morphemes sharing only one (plus a folded surface) are NOT the same
+# morpheme. The medium tier matches glosses by string equality, which collapse_merge
+# already documents can't decide a generic gloss; here we refuse to let a
+# placeholder-only overlap be identity evidence (a wrong bind is identity-collapse
+# corruption, D46/D50.2 — leave separate instead).
+#
+# SCOPED to the placeholders that ACTUALLY cause a wrong medium bind in the live DB
+# today (exactly these two). Other zero-identity "<x> name" placeholders exist in the
+# gloss pool ("masculine personal name.", "river name", "name", …) but are inert (none
+# is a sole bind overlap now); a literal allowlist deliberately avoids over-suppressing
+# the REAL morpheme glossed "name" (OE nama). Broadening this safely (a curated set or
+# a placeholder predicate that excludes the real "name" sense) is tracked in wyrd-kmt9
+# — revisit if a re-mine makes one of those variants a live wrong bind.
 _GENERIC_GLOSSES: frozenset[str] = frozenset({"a personal name", "personal name"})
 
 
