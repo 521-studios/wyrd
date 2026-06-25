@@ -59,7 +59,18 @@ WELSH_STRATA: tuple[str, ...] = (
 # ``language='welsh'`` whose ``etymon_descent`` parents include any
 # of these gets mapped to the corresponding stratum.
 _WELSH_ANCESTOR_TO_STRATUM: dict[str, str] = {
+    # Latin loan-source codes. The wiktextract ingester normalizes ``la``→``latin``
+    # and ``la-vul``→``vulgar-latin``, but leaves the period-specific variants
+    # (``la-lat`` classical, ``la-med`` medieval, ``la-ecc`` ecclesiastical) as
+    # stored ``etymon.language`` values — so all of them must be enumerated here to
+    # catch a Welsh←Latin loan, exactly as the OE / ON ancestor maps do. (Greek is
+    # not included: unlike OE's Christian-era Greek-via-Latin channel, the bundle
+    # has no Welsh←ancient-greek descent edges.)
     "latin": "latin-loan",
+    "la-lat": "latin-loan",
+    "la-med": "latin-loan",
+    "la-ecc": "latin-loan",
+    "vulgar-latin": "latin-loan",
     "modern-english": "english-loan",
     "middle-english": "english-loan",
     "old-english": "english-loan",
