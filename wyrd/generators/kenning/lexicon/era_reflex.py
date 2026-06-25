@@ -248,11 +248,10 @@ def _tier3_period_form_reflexes(
         params.append(end)
     cur = db.conn.execute(
         f"""
-        SELECT DISTINCT pf.form, MIN(pf.date_year) AS year
+        SELECT DISTINCT pf.form
         FROM etymon_period_form pf
         JOIN etymon e ON e.id = pf.etymon_id
         WHERE {" AND ".join(clauses)}
-        GROUP BY pf.form
         ORDER BY pf.form
         """,
         params,
