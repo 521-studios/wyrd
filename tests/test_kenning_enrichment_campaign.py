@@ -34,6 +34,8 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     validate_gloss_candidates,
     validate_ipa_candidates,
     validate_tag_candidates,
+    variant_gap_census,
+    variant_gap_next_slice,
 )
 
 
@@ -128,6 +130,125 @@ def test_progress_counts_committed(world):
     )
     done, parked, total = reflex_progress(db.conn, ledger)
     assert (done, parked, total) == (1, 0, 2)
+
+
+def test_variant_gap_census_classifies_pairs(tmp_path):
+    """A scholar pair is matched (a reflex substring-matches this toponym),
+    variant-gap (has a reflex, none match this spelling), or reflex-less."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    tun = _etymon(db, "tūn")
+    bare = _etymon(db, "zzz")  # no reflex → reflex-less
+    rid = db.conn.execute(
+        "INSERT INTO reflex (surface_form, position, productivity) VALUES ('ton', 'post', 1)"
+    ).lastrowid
+    db.conn.execute("INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, tun))
+    _toponym(db, "Newton", [tun])  # 'ton' ⊂ 'newton' → matched
+    _toponym(db, "Tunbridge", [tun])  # reflex 'ton' ⊄ 'tunbridge' → variant-gap
+    _toponym(db, "Zzzham", [bare])  # no reflex → reflex-less
+    db.commit()
+
+    c = variant_gap_census(db.conn)
+    assert c["total"] == 3
+    assert (c["matched"], c["variant_gap"], c["reflex_less"]) == (1, 1, 1)
+
+
+def test_variant_gap_next_slice_selects_and_ledger_excludes(tmp_path):
+    """Selects variant-gap morphemes (have a reflex, none matching this toponym),
+    flags flip-CAN-IT (sole unmatched morpheme), and drains once the committed
+    ledger gives the morpheme a surface that matches."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    tun = _etymon(db, "tūn", gloss="enclosure")
+    by = _etymon(db, "by", language="old-norse", gloss="farm")
+    for eid, surf in ((tun, "ton"), (by, "by")):
+        rid = db.conn.execute(
+            "INSERT INTO reflex (surface_form, position, productivity) VALUES (?, 'post', 1)",
+            (surf,),
+        ).lastrowid
+        db.conn.execute(
+            "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, eid)
+        )
+    _toponym(db, "Tunby", [tun, by])  # 'ton'⊄'tunby' (tun gap), 'by'⊂'tunby' (by matched)
+    _toponym(db, "Newton", [tun])  # 'ton'⊂'newton' → tun matched here, no gap
+    db.commit()
+
+    empty = tmp_path / "_reflexes.jsonl"
+    tasks = variant_gap_next_slice(db.conn, empty, n=10)
+    assert {t.ref for t in tasks} == {"old-english:tūn"}  # only tun is variant-gap
+    t = tasks[0]
+    assert t.flips_can_it is True  # tun is the sole unmatched morpheme in Tunby
+    assert t.gap_toponyms == 1
+    assert t.evidence[0]["modern_name"] == "Tunby"
+    assert "tun" in t.evidence[0]["residual_span"].lower()
+
+    # A parked ref is excluded so an un-authorable morpheme can't re-surface.
+    parked = tmp_path / "_reflex_parked.jsonl"
+    parked.write_text(
+        json.dumps({"ref": "old-english:tūn", "reason": "x"}) + "\n", encoding="utf-8"
+    )
+    assert variant_gap_next_slice(db.conn, empty, n=10, parked_path=parked) == []
+
+    # Commit a 'tun' surface to the ledger → tun now matches 'tunby' → slice drains.
+    empty.write_text(
+        json.dumps(
+            {
+                "_type": "reflex",
+                "surface_form": "tun",
+                "position": "pre",
+                "etymon_refs": ["old-english:tūn"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert variant_gap_next_slice(db.conn, empty, n=10) == []
+
+
+def test_variant_gap_authored_reflex_validates(tmp_path):
+    """End-to-end Rail A: a variant-gap morpheme's worn span, authored as a reflex,
+    passes validate_candidates (the span is in the toponym's modern name); an
+    off-name span is rejected by the same grounding gate. No new authoring code —
+    the path reuses validate_candidates / `enrich-campaign validate`."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+    dun = _etymon(db, "dūn", gloss="hill")
+    rid = db.conn.execute(
+        "INSERT INTO reflex (surface_form, position, productivity) VALUES ('don', 'post', 1)"
+    ).lastrowid
+    db.conn.execute("INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, dun))
+    _toponym(db, "Battlesden", [dun])  # 'don' ⊄ 'battlesden' → dūn variant-gap, worn span 'den'
+    db.commit()
+
+    empty = tmp_path / "_reflexes.jsonl"
+    assert "old-english:dūn" in {t.ref for t in variant_gap_next_slice(db.conn, empty, n=10)}
+
+    # Author the worn span 'den' → grounded in 'battlesden' → accepted.
+    ok = [
+        {
+            "_type": "reflex",
+            "surface_form": "den",
+            "position": "post",
+            "etymon_refs": ["old-english:dūn"],
+        }
+    ]
+    assert validate_candidates(db.conn, empty, ok) == []
+    # An off-name span is refused by the same grounding gate.
+    bad = [
+        {
+            "_type": "reflex",
+            "surface_form": "xyz",
+            "position": "post",
+            "etymon_refs": ["old-english:dūn"],
+        }
+    ]
+    assert any("grounding guard" in e for e in validate_candidates(db.conn, empty, bad))
 
 
 def test_parked_refs_excluded_from_slice(world):

@@ -41,6 +41,8 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     validate_gloss_candidates,
     validate_ipa_candidates,
     validate_tag_candidates,
+    variant_gap_census,
+    variant_gap_next_slice,
 )
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
@@ -101,17 +103,11 @@ def cmd_next_slice(
     click.echo(f"emitted {len(slice_)} etymons (reflexes-path={reflexes_path})", err=True)
 
 
-@enrich_campaign.command("park")
-@_db_option
-@_parked_option
-@click.option("--ref", "ref", required=True, help="The 'language:canonical_form' ref to park.")
-@click.option("--reason", required=True, help="Why it can't be grounded (one line).")
-def cmd_park(db_path: Path, parked_path: Path, ref: str, reason: str) -> None:
-    """Record an un-groundable etymon so it drops out of future slices.
-
-    Validates the ref resolves to a real etymon (a typo'd ref would otherwise sit
-    in the park ledger forever, never matching — and never grounding — a slice)
-    and skips a no-op re-park if the ref is already listed."""
+def _park_ref(db_path: Path, parked_path: Path, ref: str, reason: str, *, label: str = "") -> None:
+    """Shared park primitive (reflex + variant rails): validate the ref resolves
+    (a typo'd ref would otherwise sit in the ledger forever, never matching — and
+    never grounding — a slice), skip a no-op re-park if already listed, else append
+    a ``{ref, reason}`` row."""
     import unicodedata
 
     from wyrd.generators.kenning.lexicon.enrichment_campaign import parked_refs
@@ -121,14 +117,23 @@ def cmd_park(db_path: Path, parked_path: Path, ref: str, reason: str) -> None:
         if resolve_etymon_ref(conn, ref) is None:
             click.echo(f"Error: etymon ref {ref!r} resolves to no etymon", err=True)
             sys.exit(1)
-
     if unicodedata.normalize("NFC", ref) in parked_refs(parked_path):
         click.echo(f"already parked {ref}", err=True)
         return
     parked_path.parent.mkdir(parents=True, exist_ok=True)
     with parked_path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps({"ref": ref, "reason": reason}, ensure_ascii=False) + "\n")
-    click.echo(f"parked {ref}", err=True)
+    click.echo(f"parked {ref}{label}", err=True)
+
+
+@enrich_campaign.command("park")
+@_db_option
+@_parked_option
+@click.option("--ref", "ref", required=True, help="The 'language:canonical_form' ref to park.")
+@click.option("--reason", required=True, help="Why it can't be grounded (one line).")
+def cmd_park(db_path: Path, parked_path: Path, ref: str, reason: str) -> None:
+    """Record an un-groundable etymon so it drops out of future reflex slices."""
+    _park_ref(db_path, parked_path, ref, reason)
 
 
 @enrich_campaign.command("validate")
@@ -187,6 +192,50 @@ def cmd_status(db_path: Path, reflexes_path: Path, parked_path: Path) -> None:
     click.echo(
         f"scholar-reflex coverage: {done}/{total} ({pct:.1f}%) "
         f"— {parked} parked, {remaining} remaining to attempt"
+    )
+
+
+@enrich_campaign.command("variant-gap-status")
+@_db_option
+def cmd_variant_gap_status(db_path: Path) -> None:
+    """Diagnostic census (wyrd-eni4.3.1): classify every scholar (toponym,
+    morpheme) pair as matched / variant-gap / reflex-less. Sizes the variant-gap
+    lever — pairs where the morpheme HAS a reflex but none match this spelling."""
+    with _readonly_lexicon(db_path) as conn:
+        c = variant_gap_census(conn)
+    total = c["total"] or 1
+    click.echo(
+        f"scholar (toponym,morpheme) pairs: {c['total']}  "
+        f"matched={c['matched']} ({100 * c['matched'] / total:.1f}%)  "
+        f"variant-gap={c['variant_gap']} ({100 * c['variant_gap'] / total:.1f}%)  "
+        f"reflex-less={c['reflex_less']} ({100 * c['reflex_less'] / total:.1f}%)",
+        err=True,
+    )
+
+
+@enrich_campaign.command("variant-gap-next-slice")
+@_db_option
+@_reflexes_option
+@_parked_option
+@_impact_option
+@_n_option
+def cmd_variant_gap_next_slice(
+    db_path: Path, reflexes_path: Path, parked_path: Path, impact: int | None, n: int
+) -> None:
+    """Emit the next N variant-gap scholar morphemes (have a reflex, none matching
+    some toponym's spelling), flip-CAN-IT-first then by frequency, each with
+    evidence toponyms + a residual-span hint, as a JSON array on stdout. Author a
+    grounded reflex surface_form for the worn span (it's IN the toponym). Parked
+    refs are excluded (shared reflex park ledger)."""
+    with _readonly_lexicon(db_path) as conn:
+        slice_ = variant_gap_next_slice(
+            conn, reflexes_path, n=n, impact=impact, parked_path=parked_path
+        )
+    click.echo(json.dumps([t.to_dict() for t in slice_], ensure_ascii=False, indent=2))
+    click.echo(
+        f"emitted {len(slice_)} variant-gap morphemes "
+        f"({sum(1 for t in slice_ if t.flips_can_it)} flip CAN-IT)",
+        err=True,
     )
 
 
