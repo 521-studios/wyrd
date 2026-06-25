@@ -27,8 +27,6 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
-from wyrd.generators.kenning.lexicon.morpheme_surface import normalize_morpheme_surface
-
 CONFIDENCE_RANK = {"low": 0, "medium": 1, "high": 2}
 LLM_MERGE_METHOD = "llm-meaning-match-v1"
 LLM_REJECT_METHOD = "llm-rejected-v1"
@@ -143,7 +141,7 @@ def detect_merge_candidates(conn: sqlite3.Connection) -> list[MergeCandidate]:
 def _detect_pointer_merge_candidates(conn: sqlite3.Connection) -> list[MergeCandidate]:
     from wyrd.generators.kenning.lexicon.collapse_detect import (
         _POINTER_GLOSS_RE,
-        _POINTER_TARGET_RE,
+        _resolve_pointer_target,
     )
 
     candidates = conn.execute(
@@ -166,17 +164,14 @@ def _detect_pointer_merge_candidates(conn: sqlite3.Connection) -> list[MergeCand
         # MIXED only: skip pure-pointer (the deterministic detector owns those).
         if not ptr or all(_POINTER_GLOSS_RE.search(g) for g in gl):
             continue
-        target = None
-        for g in ptr:
-            m = _POINTER_TARGET_RE.search(g)
-            if m:
-                target = m.group(1).strip(".,;\"'")
-                break
-        # De-dash the pointer-gloss target (wyrd-aicu.8, D45) so it matches the
-        # bare-stored canonical_form (the self-check + the lookup below).
-        if target:
-            target = normalize_morpheme_surface(target) or target
-        if not target or target == c["canonical_form"]:
+        # Resolve the UNIQUE live same-language lemma named in the pointer tail
+        # (de-dashed, lemma-region-bounded), shared with the deterministic detector
+        # so both passes target identically. Pass the START-ANCHORED ``ptr`` glosses
+        # ONLY — the helper's tail regex is unanchored, so handing it a MIXED
+        # etymon's real prose gloss ("...particular form of a cone...") would let
+        # the prose's "form of" mis-resolve. None = no/ambiguous target.
+        target = _resolve_pointer_target(conn, c["language"], c["canonical_form"], ptr)
+        if target is None:
             continue
         tgt = conn.execute(
             "SELECT id, canonical_form FROM etymon "
