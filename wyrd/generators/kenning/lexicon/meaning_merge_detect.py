@@ -165,8 +165,14 @@ def _merge_pair_sim(
     has seq1 set to the minor's bare form (reused across majors)."""
     if mrec["lang"] != arec["lang"] or mrec["clu"] == arec["clu"]:
         return None  # same language, DIFFERENT clusters
-    if arec["richness"] < ratio * rmi:
-        return None  # major must clearly dominate
+    if arec["richness"] < ratio * rmi or arec["richness"] <= rmi:
+        # Major must clearly dominate: ≥ratio× the minor AND STRICTLY richer. The
+        # second clause guards the direction when ratio is small — at ratio=1 the
+        # first clause reduces to ``richness < rmi``, which would admit an EQUAL-size
+        # pair in BOTH directions (A→B and B→A, each tombstoning the other). Requiring
+        # strict dominance keeps the merge poorer→richer regardless of ratio. (At the
+        # default ratio=5 the first clause already subsumes this — no behavior change.)
+        return None
     fr = arec["bare"]
     if not fr:
         return None
