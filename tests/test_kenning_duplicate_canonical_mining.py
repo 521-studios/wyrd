@@ -514,6 +514,7 @@ def test_detect_dash_compound_excluded_but_foldequal_kept(lex):
     wulf-pytt; kaup-maðr vs kaup-madr — note ð folds to d) and is kept."""
     _etymon(lex, "gos", "old-english", ["goose"])
     _etymon(lex, "gos-wic", "old-english", ["goose", "farm"])  # compound (goose-farm)
+    _etymon(lex, "gos–wic", "old-english", ["goose", "farm"])  # SAME compound, en-dash (U+2013)
     _etymon(lex, "gos-tun", "old-english", ["goose", "farm"])  # ANOTHER compound (both dashed)
     _etymon(lex, "wulfpytt", "old-english", ["wolf", "pit"])
     _etymon(lex, "wulf-pytt", "old-english", ["wolf", "pit"])  # same word, dash spelling
@@ -523,8 +524,53 @@ def test_detect_dash_compound_excluded_but_foldequal_kept(lex):
     pairs = {frozenset((c.a_form, c.b_form)) for c in detect_candidates(lex.conn).candidates}
     assert frozenset(("gos", "gos-wic")) not in pairs  # compound↔constituent excluded
     assert frozenset(("gos-wic", "gos-tun")) not in pairs  # both dashed, folds differ → excluded
+    # The en-dash compound must exclude against its constituent end-to-end (the #781
+    # fix), AND fold-equal its ASCII twin so the two dash spellings stay merge-eligible.
+    assert frozenset(("gos", "gos–wic")) not in pairs  # en-dash compound↔constituent excluded
+    assert frozenset(("gos-wic", "gos–wic")) in pairs  # en-dash ≡ ASCII compound → kept
     assert frozenset(("wulfpytt", "wulf-pytt")) in pairs  # fold-equal dash variant kept
     assert frozenset(("kaup-maðr", "kaup-madr")) in pairs  # ð folds to d → kept (was the #687 miss)
+
+
+def test_maybe_pair_excludes_unicode_dash_compound():
+    """wyrd-szyd sibling (#778 surface-as-identity class): the compound pre-filter
+    keyed on the ASCII hyphen only (``"-" in form``), so an interior Unicode dash —
+    en-dash / U+2010, which mining yields from PDF/Wiktionary and
+    ``normalize_morpheme_surface`` PRESERVES (boundary-only trim) — slipped past it.
+    ``gos–wic`` (en-dash) vs its constituent ``gos`` folds differently
+    (goswic != gos) and MUST be excluded exactly like the ASCII ``gos-wic``; a
+    fold-EQUAL Unicode-dash variant (same etymon, different dash spelling) stays kept.
+    """
+    from wyrd.generators.kenning.lexicon.duplicate_canonical_mining import _maybe_pair
+    from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
+
+    def _row(form: str, tokens: set[str]) -> dict:
+        return {
+            "cm_id": None,
+            "form": form,
+            "fold": fold_surface(form),
+            "lang": "old-english",
+            "glosses": set(tokens),
+            "tokens": set(tokens),
+        }
+
+    constituent = _row("gos", {"goose", "farm"})  # identical tokens → Jaccard 1.0
+    # en-dash (U+2013) and U+2010 compounds vs the constituent: fold differs → excluded
+    assert _maybe_pair(_row("gos–wic", {"goose", "farm"}), constituent, 1, 2, 0.5) is None
+    assert _maybe_pair(_row("gos‐wic", {"goose", "farm"}), constituent, 1, 2, 0.5) is None
+    # ASCII control is unchanged (already excluded pre-fix)
+    assert _maybe_pair(_row("gos-wic", {"goose", "farm"}), constituent, 1, 2, 0.5) is None
+    # a fold-EQUAL Unicode-dash variant is still KEPT for the LLM to judge
+    assert (
+        _maybe_pair(
+            _row("wulf–pytt", {"wolf", "pit"}),
+            _row("wulfpytt", {"wolf", "pit"}),
+            1,
+            2,
+            0.5,
+        )
+        is not None
+    )
 
 
 def test_prompts_reject_compound_derivation_name_classes():

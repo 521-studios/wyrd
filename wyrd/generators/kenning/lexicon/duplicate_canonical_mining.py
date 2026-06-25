@@ -49,11 +49,26 @@ from wyrd.generators.kenning.canonicalization.assertions import (
 from wyrd.generators.kenning.lexicon.collapse_merge import CONFIDENCE_RANK
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
 from wyrd.generators.kenning.lexicon.genitive_priors import fold_surface
+from wyrd.generators.kenning.lexicon.morpheme_surface import _BOUNDARY_DASHES
 from wyrd.generators.kenning.lexicon.variant_fold_detect import _gloss_tokens
 
 METHOD = "duplicate-canonical-finder-v1"
 DEFAULT_SOURCE = "duplicate-canonical-audit"
 _NODE = "canonical_morpheme"
+
+# A morpheme-boundary dash can be drawn with ANY dash-like codepoint, not just the
+# ASCII hyphen — mining from PDF/Wiktionary/etymonline routinely yields U+2010 /
+# en-dash forms, and ``normalize_morpheme_surface`` preserves *interior* dashes
+# (it trims only boundaries). So ``gos–wic`` (en-dash) must read as a compound
+# exactly like ``gos-wic``. Reuse the canonical D45 dash set as the membership
+# test (the same single-source set #778 reused for the cluster key).
+_DASH_CHARS = frozenset(_BOUNDARY_DASHES)
+
+
+def _has_dash(form: str) -> bool:
+    """True if ``form`` contains a dash of any variant (compound marker, D45)."""
+    return any(ch in _DASH_CHARS for ch in form)
+
 
 # Pre-screen: pair canonical etymons (same language) whose gloss token-sets reach
 # at least this Jaccard overlap. Recall-biased — the LLM does precision.
@@ -105,14 +120,15 @@ def _maybe_pair(da: dict, db: dict, a: int, b: int, min_gloss_overlap: float):
     already collapsed and their gloss token-sets reach the Jaccard floor; else None."""
     if da["cm_id"] is not None and da["cm_id"] == db["cm_id"]:
         return None  # already collapsed into the same hub
-    # High-precision compound exclusion: a dash marks a morpheme boundary, so a
-    # dashed form is a compound. If the two forms don't fold to the SAME string,
-    # one is a compound and the other its constituent (or a different compound) —
-    # not one etymon (gōs vs gos-wic). A fold-equal dashed pair is the same etymon
-    # under a punctuation/diacritic variant (wulfpytt vs wulf-pytt, kaup-maðr vs
-    # kaup-madr) and is kept for the LLM to judge. da["fold"] is precomputed per etymon
-    # by detect_candidates (required key) so this O(n^2) candidate loop doesn't re-fold.
-    if ("-" in da["form"] or "-" in db["form"]) and da["fold"] != db["fold"]:
+    # High-precision compound exclusion: a dash (ANY variant — :func:`_has_dash`)
+    # marks a morpheme boundary, so a dashed form is a compound. If the two forms
+    # don't fold to the SAME string, one is a compound and the other its constituent
+    # (or a different compound) — not one etymon (gōs vs gos-wic). A fold-equal dashed
+    # pair is the same etymon under a punctuation/diacritic variant (wulfpytt vs
+    # wulf-pytt, kaup-maðr vs kaup-madr) and is kept for the LLM to judge. da["fold"]
+    # is precomputed per etymon by detect_candidates (required key) so this O(n^2)
+    # candidate loop doesn't re-fold.
+    if (_has_dash(da["form"]) or _has_dash(db["form"])) and da["fold"] != db["fold"]:
         return None
     ta, tb = da["tokens"], db["tokens"]
     if not ta or not tb:
