@@ -28,7 +28,7 @@ two distinct extractors agreed).
 
 The clustering normalization is deliberately conservative: lowercase,
 strip diacritics + macrons + Mawer's parenthetical "(a)" notation, strip
-whitespace + hyphens. Two extractors emitting ``tūn`` and ``tun`` count
+whitespace + dashes (ASCII and Unicode). Two extractors emitting ``tūn`` and ``tun`` count
 as agreement (the macron is a transliteration convention, not semantic
 difference); two extractors emitting ``tun`` and ``thun`` do NOT (the
 ``th-`` is a real spelling variant Mawer's notes call out as
@@ -53,6 +53,7 @@ from dataclasses import dataclass, field
 from typing import NamedTuple
 
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.morpheme_surface import _BOUNDARY_DASHES
 
 
 class _RowUpdate(NamedTuple):
@@ -85,6 +86,14 @@ _EXTRACTOR_RE = re.compile(r"^extracted_by:([^;|]+?)(?:\s*[;|]|$)")
 # variants normalize to the same morphological root, so we strip the
 # parenthetical for clustering. Same logic strips bracketed [...] notes.
 _PAREN_OPTIONAL_RE = re.compile(r"\([^)]*\)|\[[^\]]*\]")
+# Non-semantic punctuation dropped from a cluster-key form: whitespace, the
+# asterisk reconstruction marker, and ANY dash. The dash set is the canonical
+# morpheme de-dash one (:data:`morpheme_surface._BOUNDARY_DASHES` — ASCII hyphen
+# plus the Unicode variants), reused so "what counts as a dash" lives in ONE
+# place (D45). Stripping only the ASCII hyphen left ``al–Quadim`` (en-dash) keyed
+# differently from ``al-Quadim`` → the same morpheme forked into separate
+# clusters. Underscores are KEPT (real morpheme boundaries).
+_CLUSTER_KEY_DROP_RE = re.compile(r"[\s*" + re.escape(_BOUNDARY_DASHES) + "]+")
 
 
 def _normalize_form(canonical_form: str) -> str:
@@ -92,8 +101,9 @@ def _normalize_form(canonical_form: str) -> str:
 
     Lowercase, strip diacritics (NFKD → ASCII), strip Mawer's
     parenthetical "(a)" notation and bracketed editorial notes, drop
-    whitespace + hyphens + asterisks. Two forms compare equal iff
-    their normalized forms match.
+    whitespace + dashes (ASCII hyphen AND the Unicode dash variants,
+    see :data:`_CLUSTER_KEY_DROP_RE`) + asterisks. Two forms compare
+    equal iff their normalized forms match.
 
     Examples:
       "tūn" → "tun"
@@ -110,10 +120,10 @@ def _normalize_form(canonical_form: str) -> str:
     no_diacritics = "".join(c for c in decomposed if not unicodedata.combining(c))
     lowered = no_diacritics.lower()
     no_paren = _PAREN_OPTIONAL_RE.sub("", lowered)
-    # Strip whitespace, hyphens, asterisks (Indo-Europeanist
-    # reconstruction marker). Underscores left in — they show up in
-    # some forms as morpheme boundaries that ARE semantically real.
-    no_punct = re.sub(r"[\s\-*]+", "", no_paren)
+    # Strip whitespace, dashes (any variant), asterisks (Indo-Europeanist
+    # reconstruction marker). Underscores left in — they show up in some
+    # forms as morpheme boundaries that ARE semantically real.
+    no_punct = _CLUSTER_KEY_DROP_RE.sub("", no_paren)
     return no_punct
 
 
