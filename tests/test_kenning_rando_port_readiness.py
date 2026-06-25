@@ -13,6 +13,7 @@ from wyrd.generators.kenning.bundle.rando_port_readiness import (
     DEFAULT_TARGET_LANGUAGES,
     LanguageCriterion,
     ReadinessReport,
+    _rando_refs_from_lines,
     _sibling_for_language,
     compute_readiness,
     format_readiness,
@@ -263,6 +264,31 @@ def test_compute_readiness_rando_only_closes_gate():
     assert lc.rando_only == 1
     assert not lc.passes_rando_only_zero()
     assert not report.overall_passes
+
+
+def test_rando_refs_from_lines_dedashes_skips_tolerates_trailing_raises_midfile() -> None:
+    """The pure ledger-line parser extracted from load_rando_attested_refs,
+    called directly on a line list. Pins the load-bearing destructive-gate-safety
+    contract in one place: citation refs are de-dashed (D45) to match bare
+    morpheme_ids; non-citation / no-separator records are skipped; a truncated
+    TRAILING line is tolerated; but a mid-file decode error RAISES (never
+    silently under-count a remove-authorizing gate)."""
+
+    def cite(ref):
+        return json.dumps({"_type": "citation", "etymon_ref": ref})
+
+    lines = [
+        cite("old-english:-tūn"),  # leading dash -> 'old-english:tūn'
+        json.dumps({"_type": "other", "etymon_ref": "x:y"}),  # not a citation -> skipped
+        cite("noseparator"),  # ref has no ':' -> skipped
+        cite("welsh:môr-"),  # trailing dash -> 'welsh:môr'
+        '{"_type": "citation"',  # truncated TRAILING line -> tolerated
+    ]
+    assert _rando_refs_from_lines(lines) == {"old-english:tūn", "welsh:môr"}
+
+    # A mid-file (non-trailing) decode error must RAISE, not silently under-count.
+    with pytest.raises(json.JSONDecodeError):
+        _rando_refs_from_lines([cite("a:b"), "{ corrupt mid-file", cite("c:d")])
 
 
 def test_load_rando_attested_refs_reads_citations_and_dedashes(tmp_path: Path):

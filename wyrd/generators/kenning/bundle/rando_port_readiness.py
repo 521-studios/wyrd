@@ -149,36 +149,19 @@ def _sibling_for_language(language: str) -> str:
     return language.replace("-", "_")
 
 
-def load_rando_attested_refs(path: Path | None = None) -> frozenset[str]:
-    """De-dashed ``language:form`` set of every etymon cited by rando-port,
-    read from the committed ``rando-port.jsonl`` ledger (wyrd-qkn0).
+def _rando_refs_from_lines(lines: list[str]) -> set[str]:
+    """Parse rando-port ledger lines into a de-dashed ``lang:form`` ref set.
 
-    The gate cross-references this against each bundle word's ``morpheme_id``
-    to recover the rando-only flag the scrubbed ``<lang>_citations`` field
-    can't carry. The ledger's ``etymon_ref`` may still hold affix-position
-    dashes (L2 stays dashed); ``normalize_morpheme_surface`` de-dashes the
-    form so it matches the bundle's bare ``morpheme_id``. Returns an empty
-    set if the ledger is absent — the breakdown then degrades to the old
-    citation-field-only behavior rather than crashing, but it also warns:
-    a silently-empty set re-creates the very bug this fixes (rando_only=0)
-    and could let a destructive retirement gate falsely PASS.
+    Tolerate a truncated TRAILING line (a crash mid-append leaves a partial last
+    record) but RAISE on a mid-file decode error: corruption like merge markers
+    would otherwise silently drop valid rando-only citations and let this
+    destructive gate falsely PASS. The blanket tolerate-and-skip used by the
+    mining ingesters is wrong here — under-counting a remove-authorizing gate is
+    not a tolerable failure mode. Skips non-``citation`` records and refs without
+    a ``lang:form`` shape; de-dashes the form via ``normalize_morpheme_surface``
+    (the ledger's ``etymon_ref`` may still hold affix-position dashes — L2 stays
+    dashed) so it matches the bundle's bare ``morpheme_id``.
     """
-    src = path or DEFAULT_RANDO_PORT_JSONL
-    if not src.is_file():
-        warnings.warn(
-            f"rando-port ledger not found at {src}; rando-only detection is "
-            "disabled — the gate will under-report (falsely toward PASS). "
-            "This should not happen in a repo checkout.",
-            stacklevel=2,
-        )
-        return frozenset()
-    # Tolerate a truncated TRAILING line (a crash mid-append leaves a partial
-    # last record) but RAISE on a mid-file decode error: corruption like merge
-    # markers would otherwise silently drop valid rando-only citations and let
-    # this destructive gate falsely PASS. The blanket tolerate-and-skip used by
-    # the mining ingesters is wrong here — under-counting a remove-authorizing
-    # gate is not a tolerable failure mode.
-    lines = src.read_text(encoding="utf-8").splitlines()
     last_nonempty = max((i for i, ln in enumerate(lines) if ln.strip()), default=-1)
     refs: set[str] = set()
     for idx, line in enumerate(lines):
@@ -202,7 +185,34 @@ def load_rando_attested_refs(path: Path | None = None) -> frozenset[str]:
         bare = normalize_morpheme_surface(form)
         if bare:
             refs.add(f"{lang}:{bare}")
-    return frozenset(refs)
+    return refs
+
+
+def load_rando_attested_refs(path: Path | None = None) -> frozenset[str]:
+    """De-dashed ``language:form`` set of every etymon cited by rando-port,
+    read from the committed ``rando-port.jsonl`` ledger (wyrd-qkn0).
+
+    The gate cross-references this against each bundle word's ``morpheme_id``
+    to recover the rando-only flag the scrubbed ``<lang>_citations`` field
+    can't carry. The ledger's ``etymon_ref`` may still hold affix-position
+    dashes (L2 stays dashed); ``normalize_morpheme_surface`` de-dashes the
+    form so it matches the bundle's bare ``morpheme_id``. Returns an empty
+    set if the ledger is absent — the breakdown then degrades to the old
+    citation-field-only behavior rather than crashing, but it also warns:
+    a silently-empty set re-creates the very bug this fixes (rando_only=0)
+    and could let a destructive retirement gate falsely PASS.
+    """
+    src = path or DEFAULT_RANDO_PORT_JSONL
+    if not src.is_file():
+        warnings.warn(
+            f"rando-port ledger not found at {src}; rando-only detection is "
+            "disabled — the gate will under-report (falsely toward PASS). "
+            "This should not happen in a repo checkout.",
+            stacklevel=2,
+        )
+        return frozenset()
+    lines = src.read_text(encoding="utf-8").splitlines()
+    return frozenset(_rando_refs_from_lines(lines))
 
 
 def compute_readiness(
