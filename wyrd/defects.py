@@ -243,7 +243,7 @@ def list_defects(
         table = _defects_table(env=env, table_name=table_name, profile=profile, region=region)
         reports: list[dict[str, Any]] = []
         start_key: dict | None = None
-        while len(reports) < limit:
+        while True:
             if status == "all":
                 kwargs: dict[str, Any] = {}
             else:
@@ -264,6 +264,13 @@ def list_defects(
                 reports.append(report)
             start_key = resp.get("LastEvaluatedKey")
             if not start_key:
+                break
+            # The GSI query returns rows newest-first, so once we hold `limit`
+            # matches the remaining pages are strictly older — stop. A scan
+            # (status == 'all') yields rows in ARBITRARY order, so stopping early
+            # would let a newer row on an unscanned page be missed by the
+            # newest-first sort below: we MUST exhaust the table first.
+            if status != "all" and len(reports) >= limit:
                 break
     except DefectsError:
         raise
