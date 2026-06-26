@@ -39,6 +39,12 @@ def parse_lang_thresholds(specs: tuple[str, ...], *, use_preset: bool) -> dict[s
             n = int(n_str)
         except ValueError as exc:
             raise click.BadParameter(f"--lang-threshold {spec!r}: N must be an integer") from exc
+        if n < 0:
+            # A witness threshold is a count of distinct scholar witnesses; a
+            # negative value would silently admit every morpheme (N >= -1 is
+            # always true), disabling the filter for that language instead of
+            # erroring. 0 stays valid — an explicit "no minimum / admit all".
+            raise click.BadParameter(f"--lang-threshold {spec!r}: N must be non-negative, got {n}")
         lang = LANGUAGE_FIELDS.get(lang, lang)
         lang_thresholds[lang] = n
     return lang_thresholds

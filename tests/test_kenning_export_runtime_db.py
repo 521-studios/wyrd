@@ -691,6 +691,20 @@ def test_parse_lang_thresholds_rejects_empty_parts() -> None:
         parse_lang_thresholds(("=3",), use_preset=False)
 
 
+def test_parse_lang_thresholds_rejects_negative_n() -> None:
+    """A negative witness threshold is nonsensical (every morpheme has
+    >= -1 witnesses, so it silently disables the filter for that language).
+    Reject it loudly rather than admit-all (wyrd review #849)."""
+    with pytest.raises(click.BadParameter, match="must be non-negative"):
+        parse_lang_thresholds(("old_english=-1",), use_preset=False)
+
+
+def test_parse_lang_thresholds_allows_zero() -> None:
+    """N=0 is a valid explicit 'no minimum / admit all' — only negatives reject."""
+    out = parse_lang_thresholds(("old_english=0",), use_preset=False)
+    assert out["old-english"] == 0
+
+
 # ---------- proportions_structure PK invariant ----------
 
 
