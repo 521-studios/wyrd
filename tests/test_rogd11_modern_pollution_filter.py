@@ -150,6 +150,59 @@ def test_filtered_forms_do_not_reach_forms_by_lang(fresh_db: Path) -> None:
         assert forms_by_lang.get("modern-english") == ["ton"]
 
 
+def test_reflex_linked_word_includes_cluster_era_reflexes_in_pool() -> None:
+    """wyrd-nxhh consumption seam: the reflex-LINKED word path
+    (``_word_for_reflex``, the common case — most morphemes have a modern
+    reflex) must fold the cluster-carried era-reflex surfaces into the
+    generator's draw pool, not just the member-descendant walk.
+
+    Those surfaces come from the wider ``cognate_id`` cluster, so they live in
+    ``fam["forms_by_lang"]`` (merged by ``_merge_era_reflexes_into_forms_by_lang``)
+    but NOT in ``member_form_by_id`` (the member-only descendant walk). Pre-fix
+    ``_word_for_reflex`` read only the walk, so ``modern_english`` came back
+    ``None`` and the surfaces wyrd-nxhh added were silently un-sampleable — even
+    though ``_synthesize_word_for_family`` (the reflex-LESS path) reads
+    ``forms_by_lang`` directly and got them right."""
+    from wyrd.generators.kenning.lexicon.bundle._subject import _word_for_reflex
+
+    # OE 'ceaster' member, with modern cluster mates 'caster'/'chester' that are
+    # in forms_by_lang (post-merge) but NOT member_form_by_id.
+    fam = {
+        "member_descendants": {1: [1]},
+        "member_form_by_id": {1: ("old-english", "ceaster")},
+        "forms_by_lang": {"old-english": ["ceaster"], "modern-english": ["caster", "chester"]},
+        "reflexes": [],
+        "era_reflexes": {},
+        "glosses": [],
+        "tags": [],
+        "modifier_type": None,
+    }
+    word = _word_for_reflex({"surface_form": "chester"}, [(fam, [1])])
+    # The cluster reflexes reach the draw pool (pre-fix: None).
+    assert word.get("modern_english") == ["caster", "chester"]
+    # The member's own language is unaffected.
+    assert word.get("old_english") == ["ceaster"]
+
+
+def test_reflex_linked_word_pool_dedups_walk_and_forms_by_lang() -> None:
+    """A form present in BOTH the member walk and forms_by_lang must appear once
+    (the union is dedup-append, no draw-probability double-count)."""
+    from wyrd.generators.kenning.lexicon.bundle._subject import _word_for_reflex
+
+    fam = {
+        "member_descendants": {1: [1]},
+        "member_form_by_id": {1: ("modern-english", "ton")},
+        "forms_by_lang": {"modern-english": ["ton", "chester"]},
+        "reflexes": [],
+        "era_reflexes": {},
+        "glosses": [],
+        "tags": [],
+        "modifier_type": None,
+    }
+    word = _word_for_reflex({"surface_form": "ton"}, [(fam, [1])])
+    assert word.get("modern_english") == ["ton", "chester"]  # 'ton' not doubled
+
+
 def test_fantasy_export_also_filters_modern_pollution(fresh_db: Path) -> None:
     from wyrd.generators.kenning.lexicon.fantasy_export import collect_fantasy_morphemes
 

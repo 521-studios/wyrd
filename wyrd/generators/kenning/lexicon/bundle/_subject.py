@@ -276,6 +276,23 @@ def _word_for_reflex(
                 _absorb_member_pronunciation(accs, fam, descendant_id, lang, form)
                 _absorb_member_stratum(accs, fam, descendant_id, lang, form)
                 _absorb_member_phonological_vector(accs, fam, descendant_id, lang, form)
+        # wyrd-nxhh: the member-descendant walk above only sees the family's own
+        # members + their descendants, but the attested era-reflex surfaces are
+        # CLUSTER-carried (cognate_id, wider than member_ids) and were folded
+        # into ``fam["forms_by_lang"]`` by ``_merge_era_reflexes_into_forms_by_lang``.
+        # ``_synthesize_word_for_family`` reads forms_by_lang directly, so without
+        # this union the reflex-LINKED path (the common case — most morphemes have
+        # a modern reflex) silently drops exactly the surfaces wyrd-nxhh added to
+        # make them sampleable, leaving the generator under-drawing real variants.
+        # Dedup-append so members already in the walk don't double-count.
+        # ``.get`` is defensive: a production fam always carries forms_by_lang
+        # (``_gather_family`` sets it), but a partial unit-test fam may not, and
+        # an absent pool simply contributes nothing.
+        for lang, forms in fam.get("forms_by_lang", {}).items():
+            bucket = accs.forms_by_lang.setdefault(lang, [])
+            for form in forms:
+                if form not in bucket:
+                    bucket.append(form)
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
     morpheme_id = _word_morpheme_id([fam for fam, _ in link_pairs])
     if morpheme_id is not None:
