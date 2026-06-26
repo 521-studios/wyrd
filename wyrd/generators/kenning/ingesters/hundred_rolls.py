@@ -50,7 +50,6 @@ from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.ingesters import _csv_events
-from wyrd.generators.kenning.jsonl.log import write_jsonl
 
 HUNDRED_ROLLS_SOURCE_ID = "rotuli_hundredorum"
 HUNDRED_ROLLS_YEAR = 1279
@@ -177,30 +176,12 @@ def build_events(
 
 
 def ingest(csv_path: str | Path, out_path: str | Path, *, apply: bool = False) -> dict[str, int]:
-    """Read CSV, write JSONL events to ``out_path``. Counts:
-    csv_rows_scanned, toponym_events, attestation_events, written."""
-    csv_path = Path(csv_path)
-    out_path = Path(out_path)
-
-    counts = {
-        "csv_rows_scanned": 0,
-        "toponym_events": 0,
-        "attestation_events": 0,
-    }
-
-    def _counting_rows() -> Iterable[dict[str, str]]:
-        for row in iter_csv_rows(csv_path):
-            counts["csv_rows_scanned"] += 1
-            yield row
-
-    events = build_events(_counting_rows())
-    for event in events:
-        if event["_type"] == "toponym":
-            counts["toponym_events"] += 1
-        elif event["_type"] == "attestation":
-            counts["attestation_events"] += 1
-
-    if apply:
-        write_jsonl(out_path, events)
-        counts["written"] = 1
-    return counts
+    """Hundred Rolls: read CSV → write JSONL events (dry-run by default), via the
+    shared ingester fed this source's CSV reader + event builder (orchestration in _csv_events)."""
+    return _csv_events.ingest(
+        csv_path,
+        out_path,
+        iter_csv_rows=iter_csv_rows,
+        build_events=build_events,
+        apply=apply,
+    )
