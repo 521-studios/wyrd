@@ -342,6 +342,56 @@ def test_non_numeric_knob_value_returns_400_not_500():
     assert ok.status_code == 200
 
 
+def test_coerce_str_list_matches_old_idiom_and_rejects_non_strings():
+    """_coerce_str_list replaces the ``params.get(k, []) or []`` + ``isinstance
+    str`` wrap for tags/mood. Byte-identical for every falsy value and valid
+    string/list-of-strings; a non-list/non-string value (or a list with a
+    non-string element) raises ValueError → 400 instead of being iterated /
+    tuple()'d downstream into a TypeError → 500."""
+    from wyrd.generators.kenning import _coerce_str_list
+
+    # falsy → [] (matches the old `or []` collapse)
+    for falsy in (None, "", [], 0, False):
+        assert _coerce_str_list(falsy, "tags") == []
+    # a bare string → one-element list (the SPA/CLI single-value shape)
+    assert _coerce_str_list("water", "tags") == ["water"]
+    # list of strings → unchanged
+    assert _coerce_str_list(["water", "tree"], "tags") == ["water", "tree"]
+    assert _coerce_str_list(["harsh:0.5"], "mood") == ["harsh:0.5"]
+    # non-list/non-string, or a list with a non-string element → ValueError
+    for bad in (5, {"x": 1}):
+        with pytest.raises(ValueError, match="string or a list of strings"):
+            _coerce_str_list(bad, "mood")
+    for bad in ([1, 2], ["ok", 2]):
+        with pytest.raises(ValueError, match="list of strings"):
+            _coerce_str_list(bad, "mood")
+
+
+def test_malformed_tags_or_mood_returns_400_not_500():
+    """A non-list/non-string tags or mood — or a list with a non-string element
+    — is a 400 bad_params, not a 500. Pre-fix `tuple(5)` / iterating an int
+    raised TypeError past the dispatcher's catch. A valid roll and the
+    unmatched-but-string empty-pool 422 path are both unchanged."""
+    client = create_app().test_client()
+    for field in ("tags", "mood"):
+        for bad in (5, {"x": 1}, [1, 2]):
+            resp = client.post("/api/kenning", json={"culture": "english", "count": 1, field: bad})
+            assert resp.status_code == 400, (field, bad, resp.status_code)
+            assert resp.get_json()["error"] == "bad_params"
+    # valid tags + mood still roll
+    ok = client.post(
+        "/api/kenning",
+        json={"culture": "english", "count": 1, "tags": ["water"], "mood": ["harsh"]},
+    )
+    assert ok.status_code == 200
+    # a STRING tag that simply matches nothing is still the 422 empty-pool path
+    # (wyrd-hh2m) — element-type validation only rejects non-strings.
+    pool = client.post(
+        "/api/kenning", json={"culture": "english", "count": 1, "tags": ["religion"]}
+    )
+    assert pool.status_code == 422
+
+
 def test_kenning_generate_string_false_does_not_invert_gate():
     """Defense in depth: even if a future client sends include_fiction
     as the string 'false' (the SPA's pre-fix shape), Kenning.generate
