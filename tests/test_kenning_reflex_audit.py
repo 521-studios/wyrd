@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import sqlite3
 
+import pytest
+
 from wyrd.generators.kenning.lexicon.reflex_audit import (
+    _known_forms,
     find_candidates,
     prune_links,
     strip_surface,
@@ -133,3 +136,28 @@ def test_prune_deletes_verdicted_links_keeps_reflex_rows():
     # subject, never re-polluting hām's grid.
     all_rows = {r[0] for r in db.execute("SELECT surface_form FROM reflex")}
     assert all_rows == {"-ham", "-burnham", "Belch-"}
+
+
+def test_known_forms_tolerates_absent_etymon_variant():
+    """etymon_variant is an additive table: on an older/partial DB that lacks it,
+    _known_forms must degrade to an empty variant set, not crash. Pins the
+    intended fail-soft (preserved by the narrowed except)."""
+    db = _fixture()
+    db.row_factory = sqlite3.Row
+    db.execute("DROP TABLE etymon_variant")
+    _et, _cluster, var, _desc, _gloss = _known_forms(db)
+    assert dict(var) == {}  # absent table tolerated, no exception
+
+
+def test_known_forms_surfaces_etymon_variant_schema_error():
+    """Regression: a REAL operational error on etymon_variant — here a schema
+    mismatch (table present but missing the 'form' column, e.g. a partial
+    migration) — must SURFACE, not be silently swallowed as if the table were
+    absent. The former bare ``except OperationalError: pass`` masked it and
+    degraded the audit to an empty variant set on a corrupt DB."""
+    db = _fixture()
+    db.row_factory = sqlite3.Row
+    db.execute("DROP TABLE etymon_variant")
+    db.execute("CREATE TABLE etymon_variant (etymon_id INTEGER)")  # no 'form' column
+    with pytest.raises(sqlite3.OperationalError, match="form"):
+        _known_forms(db)
