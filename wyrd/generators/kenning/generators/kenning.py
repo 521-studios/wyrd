@@ -20,6 +20,7 @@ from wyrd.generators.kenning import (
     _apply_joiner_insertion,
     _coerce_bool,
     _coerce_float,
+    _coerce_str_list,
     _era_options_by_culture,
     _load_culture,
     _load_joiners,
@@ -428,9 +429,7 @@ class Kenning(Generator):
 
     def generate(self, params: dict[str, Any], seed: int) -> GenerationResult:
         culture = params.get("culture", "english")
-        raw_tags = params.get("tags", []) or []
-        if isinstance(raw_tags, str):
-            raw_tags = [raw_tags]
+        raw_tags = _coerce_str_list(params.get("tags"), "tags")
         spelling_variety = _coerce_float(params.get("spelling_variety"))
         inflection_density = _coerce_float(params.get("inflection_density"))
         novelty = _coerce_float(params.get("novelty"))
@@ -459,9 +458,7 @@ class Kenning(Generator):
         # PackOverlay + pack_meaning_dbs.
         packs_raw = params.get("packs") or []
 
-        moods = params.get("mood", []) or []
-        if isinstance(moods, str):
-            moods = [moods]
+        moods = _coerce_str_list(params.get("mood"), "mood")
         # The vector adapter expands mood specs + base harshness through the
         # register-effect catalog itself, so pass the raw specs + base values
         # straight through (no tag/harshness pre-mutation here).

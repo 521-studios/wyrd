@@ -12,6 +12,7 @@ from wyrd.generators.kenning import (
     CULTURES,
     _coerce_bool,
     _coerce_float,
+    _coerce_str_list,
     _load_culture,
     _resolve_era_param,
     _resolve_era_render_language,
@@ -388,12 +389,8 @@ def _parse_knobs(params: dict[str, Any]) -> dict[str, Any]:
     parsing so the regeneration pool resolves under the same context as the
     original roll."""
     culture = params.get("culture", "english")
-    raw_tags = params.get("tags", []) or []
-    if isinstance(raw_tags, str):
-        raw_tags = [raw_tags]
-    moods = params.get("mood", []) or []
-    if isinstance(moods, str):
-        moods = [moods]
+    raw_tags = _coerce_str_list(params.get("tags"), "tags")
+    moods = _coerce_str_list(params.get("mood"), "mood")
     include_fiction = _coerce_bool(params.get("include_fiction", False))
     # Lazy import (the wyrd.generators.kenning.__init__ cycle; same reason as the
     # function-local _resolve_vector_inputs import in generate_all above).

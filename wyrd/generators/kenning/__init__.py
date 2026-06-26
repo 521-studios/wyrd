@@ -767,6 +767,28 @@ def _coerce_float(value: Any, default: float = 0.0) -> float:
         raise ValueError(f"{value!r} is not a number") from e
 
 
+def _coerce_str_list(value: Any, field: str) -> list[str]:
+    """Coerce a list-of-strings param (``tags`` / ``mood``) to a list of strings.
+
+    Any falsy value (None / missing / "" / [] / 0 / False) → ``[]``, matching the
+    old ``params.get(k, []) or []`` collapse. A bare string → a one-element list
+    (the SPA/CLI single-value shape, matching the old ``isinstance(v, str)``
+    wrap). A list is validated: every element must be a string. A non-list /
+    non-string value (a number, dict) — or a list with a non-string element —
+    raises ``ValueError`` (→ 400 bad_params) instead of being iterated / passed to
+    ``tuple()`` downstream, where a non-string element or a non-iterable value
+    raised ``TypeError`` and escaped uncaught as a 500."""
+    if not value:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        if all(isinstance(v, str) for v in value):
+            return list(value)
+        raise ValueError(f"{field} must be a list of strings")
+    raise ValueError(f"{field} must be a string or a list of strings")
+
+
 _PRESENT_DAY_ERA = "present-day"
 
 
