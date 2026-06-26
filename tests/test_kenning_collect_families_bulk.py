@@ -11,6 +11,7 @@ import pytest
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.bundle._export import _iterate_families_with_progress
 from wyrd.generators.kenning.lexicon.bundle._family import (
+    _attested_years_sql,
     _bulk_attested_years,
     _fetch_member_attested_years,
 )
@@ -199,3 +200,14 @@ def test_cross_family_isolation(tmp_path: Path) -> None:
     # list pins per-family slicing AND isolation (no extra or bled-in keys).
     years = [f["member_attested_years"] for f in families]
     assert years == [{a: 1000}, {b: 2000}]
+
+
+def test_attested_years_sql_rejects_non_identifier() -> None:
+    """The shared subquery interpolates the members-table NAME (a bind param
+    can't name a table), so it enforces the trusted-identifier contract: the
+    two real callers pass bare identifiers, but anything else fails loud rather
+    than composing injectable SQL."""
+    assert "_bulk_attested_members" in _attested_years_sql("_bulk_attested_members")
+    assert "targets" in _attested_years_sql("targets")
+    with pytest.raises(ValueError, match="bare identifier"):
+        _attested_years_sql("members; DROP TABLE etymon --")

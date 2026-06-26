@@ -936,6 +936,12 @@ def _attested_years_sql(members_table: str) -> str:
     f-string interpolation carries no injection risk. Members with no attested
     year on either source are absent from the result (both branches filter
     ``attested_year IS NOT NULL``)."""
+    # Defence-in-depth: the table name is interpolated (a bind param can't name a
+    # table), so enforce the trusted-identifier contract at runtime — a future
+    # caller passing anything but a bare identifier fails loud here rather than
+    # composing injectable SQL.
+    if not members_table.isidentifier():
+        raise ValueError(f"members_table must be a bare identifier, got {members_table!r}")
     return f"""
         SELECT etymon_id, MIN(year) AS earliest_year FROM (
             SELECT etm.etymon_id, etm.attested_year AS year
@@ -1020,7 +1026,10 @@ def _fetch_member_attested_years(db: LexiconDB, member_ids: list[int]) -> dict[i
     targets_values = ",".join("(?)" for _ in member_ids)
     member_years: dict[int, int] = {}
     cur = db.conn.execute(
-        f"WITH targets(etymon_id) AS (VALUES {targets_values}) " + _attested_years_sql("targets"),
+        f"""
+        WITH targets(etymon_id) AS (VALUES {targets_values})
+        {_attested_years_sql("targets")}
+        """,
         member_ids,
     )
     for row in cur:
