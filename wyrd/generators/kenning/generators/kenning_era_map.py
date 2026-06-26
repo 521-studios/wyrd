@@ -11,6 +11,30 @@ from wyrd.generators.kenning import (
 )
 from wyrd.registry import GenerationResult, Generator
 
+_DEFAULT_COUNT = 6
+_MAX_COUNT = 50
+
+
+def _region_count(params: dict[str, Any]) -> int:
+    """The requested region size (name count) for the era map: schema 1-50,
+    default 6.
+
+    A non-coercible value (list, dict, non-numeric string) or an out-of-range one
+    raises ``ValueError`` — which the dispatcher maps to 400 bad_params — rather
+    than a bare ``int()`` raising ``TypeError`` on a list/dict, which escapes
+    uncaught as a 500. A blank/missing count defaults to 6; a CLI/POST int and a
+    GET numeric-string coerce identically. (The API dispatcher used to POP
+    ``count`` for multi_result generators, pinning this to 6 and ignoring the
+    user — the CLI calls generate_all directly and always honored it.)"""
+    raw = params.get("count")
+    try:
+        count = _DEFAULT_COUNT if raw is None or raw == "" else int(raw)
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"count must be an integer, got {raw!r}") from e
+    if not 1 <= count <= _MAX_COUNT:
+        raise ValueError(f"count must be between 1 and {_MAX_COUNT}, got {count}")
+    return count
+
 
 class KenningEraMap(Generator):
     """wyrd-381 — bulk-generate N names AND render each at multiple
@@ -81,7 +105,7 @@ class KenningEraMap(Generator):
     def generate_all(self, params: dict[str, Any], seed: int) -> list[GenerationResult]:
         culture = params.get("culture") or "english"
         tags = params.get("tags") or []
-        count = int(params.get("count") or 6)
+        count = _region_count(params)
 
         # Deferred imports — Kenning + KenningRewind live in sibling
         # modules under generators/, and importing them at module-load time
