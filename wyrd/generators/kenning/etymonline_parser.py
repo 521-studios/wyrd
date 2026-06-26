@@ -132,11 +132,23 @@ _ATTESTED_YEAR_RE = re.compile(
 
 # Cognate-list parens we want to skip past wholesale — they're not
 # chain links, just parallel branches of the same PIE root.
-_COGNATE_LIST_RE = re.compile(r"\(\s*source also of[^)]*\)", re.IGNORECASE)
+#
+# The body is ``(?:[^()]|\([^()]*\))*`` — non-paren runs PLUS one level of
+# NESTED parens — not a flat ``[^)]*``. Real cognate lists carry inner parens
+# (an attestation year / gloss, "Greek drakon (genitive drakontos)"); a flat
+# matcher stops at that first inner ``)`` and leaks the rest of the list into the
+# prose, where a cognate's own hedge ("derived from Latin draco") is then minted
+# as a SPURIOUS descent link — a fabricated ancestor from a parallel cognate.
+# A truly unbalanced ``(source also of …`` (no close) still doesn't match and is
+# left in place, exactly as before.
+_COGNATE_LIST_RE = re.compile(r"\(\s*source also of(?:[^()]|\([^()]*\))*\)", re.IGNORECASE)
 
 # Compound parens (Modern French trôler) — also skip past for chain
-# extraction; they're alt-form annotations on the previous link.
-_INTERPOLATION_RE = re.compile(r"\(\s*(?:compare|cf\.|see|Modern\s)[^)]*\)", re.IGNORECASE)
+# extraction; they're alt-form annotations on the previous link. Same
+# nested-paren-aware body as _COGNATE_LIST_RE (see its note).
+_INTERPOLATION_RE = re.compile(
+    r"\(\s*(?:compare|cf\.|see|Modern\s)(?:[^()]|\([^()]*\))*\)", re.IGNORECASE
+)
 
 
 @dataclass(frozen=True)
