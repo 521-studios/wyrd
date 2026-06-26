@@ -22,6 +22,8 @@ from pathlib import Path
 
 import click
 
+from wyrd.generators.kenning.cli.lexicon._judge_retry import judge_with_retry
+
 _AUDIT_SOURCE_ROW = {
     "_type": "source",
     "ref": "cluster-reflex-audit",
@@ -77,18 +79,9 @@ def _judge_with_retry(client, c):
         parse_verdict,
     )
 
-    system, user = build_judge_prompt(c)
-    last_err = "unparseable verdict"
-    for _attempt in range(2):
-        try:
-            v = parse_verdict(client.chat_json(system, user, {}))
-            if v is not None:
-                return v
-            last_err = "unparseable verdict"  # reflect THIS attempt, not a stale prior exception
-        except Exception as exc:  # transient LLM/transport noise: skip, don't crash the batch
-            last_err = str(exc) or exc.__class__.__name__
-    click.echo(f"  skip (judge failed for {c.reflex_ref}): {last_err}", err=True)
-    return None
+    return judge_with_retry(
+        client, c, build_prompt=build_judge_prompt, parse_verdict=parse_verdict, ref=c.reflex_ref
+    )
 
 
 def _append(fh, row: dict) -> None:
