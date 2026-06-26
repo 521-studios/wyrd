@@ -8,7 +8,11 @@ rides on /api/manifest and reflects env at request time.
 from __future__ import annotations
 
 from wyrd.app import create_app
-from wyrd.feature_flags import apply_env_defaults, resolve_feature_config
+from wyrd.feature_flags import (
+    _coerce_to_schema_type,
+    apply_env_defaults,
+    resolve_feature_config,
+)
 
 _NOVELTY_PROP = {"type": "number", "default": 0.0, "minimum": 0.0, "maximum": 1.0}
 _PROPS = {"novelty": _NOVELTY_PROP, "count": {"type": "integer", "default": 5}}
@@ -146,6 +150,38 @@ def test_apply_env_defaults_integer_coercion():
     params = {}
     apply_env_defaults(params, _PROPS, env={"WYRD_DEFAULT_COUNT": "7"})
     assert params["count"] == 7
+    assert isinstance(params["count"], int)
+
+
+def test_integer_coercion_mirrors_spa_parseint():
+    """Integer coercion must match the SPA's ``parseInt(raw, 10)``: a leading
+    optional-sign integer, ignoring a trailing fractional/garbage part. Plain
+    ``int()`` rejected these (ValueError → None), so a default styled as a
+    decimal (``WYRD_DEFAULT_COUNT=5.0``) made the SPA show 5 while the server
+    fell back to the schema default — the wyrd-7f22 SPA/server mismatch this
+    module exists to prevent."""
+    intp = {"type": "integer"}
+    # parseInt-lenient leading-integer cases (each was None before the fix).
+    assert _coerce_to_schema_type("5.0", intp) == 5  # parseInt('5.0', 10) === 5
+    assert _coerce_to_schema_type("5.5", intp) == 5  # parseInt('5.5', 10) === 5
+    assert _coerce_to_schema_type("5px", intp) == 5  # parseInt('5px', 10) === 5
+    assert _coerce_to_schema_type("-3.9", intp) == -3
+    # Still strict where parseInt yields NaN → undefined.
+    assert _coerce_to_schema_type("abc", intp) is None
+    assert _coerce_to_schema_type("", intp) is None
+    assert _coerce_to_schema_type(".5", intp) is None  # no leading int → NaN
+    # Pure integers and whitespace unchanged.
+    assert _coerce_to_schema_type("7", intp) == 7
+    assert _coerce_to_schema_type("  7  ", intp) == 7
+
+
+def test_apply_env_defaults_decimal_styled_integer_reaches_params():
+    """End-to-end of the divergence: a decimal-styled integer default seeds the
+    parsed int into params (pre-fix it was dropped, leaving the schema default
+    while the SPA slider showed 5)."""
+    params = {}
+    apply_env_defaults(params, _PROPS, env={"WYRD_DEFAULT_COUNT": "5.0"})
+    assert params["count"] == 5
     assert isinstance(params["count"], int)
 
 

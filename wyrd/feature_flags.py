@@ -30,7 +30,13 @@ from __future__ import annotations
 
 import math
 import os
+import re
 from collections.abc import Mapping
+
+# Leading optional-sign integer, mirroring JS ``parseInt(raw, 10)``: it parses
+# the leading run of digits and ignores any trailing fractional/garbage part
+# (``parseInt('5.0', 10) === 5``, ``parseInt('5px', 10) === 5``).
+_LEADING_INT_RE = re.compile(r"[+-]?\d+")
 
 _FF_PREFIX = "WYRD_FF_"
 _DEFAULT_PREFIX = "WYRD_DEFAULT_"
@@ -86,20 +92,28 @@ def _coerce_to_schema_type(raw: str, prop: Mapping) -> object | None:
     schema_type = (prop or {}).get("type")
     if schema_type == "array":
         return None
-    if schema_type in ("number", "integer"):
+    if schema_type == "integer":
+        # Mirror the SPA's ``parseInt(raw, 10)``: take the leading optional-sign
+        # integer, ignoring a trailing fractional/garbage part ("5.0"→5, "5px"→5).
+        # Plain ``int(text)`` rejects those (ValueError) and falls back to the
+        # schema default while the SPA seeds the parsed number — exactly the
+        # wyrd-7f22 SPA/server mismatch this module exists to prevent.
+        m = _LEADING_INT_RE.match(str(raw).strip())
+        return int(m.group()) if m is not None else None
+    if schema_type == "number":
         text = str(raw).strip()
         if not text:
             return None
         try:
-            value = int(text) if schema_type == "integer" else float(text)
+            value = float(text)
         except ValueError:
             return None
         # float() accepts "nan"/"inf"; reject non-finite so an operator typo
         # (WYRD_DEFAULT_NOVELTY=inf) can't poison the score blend or serialize as
         # invalid-JSON `NaN`/`Infinity` in the echoed params. Mirrors the SPA's
         # Number.isFinite guard (featureFlags.coerceToType — which also rejects an
-        # overflow like Number('1e999') → Infinity). (int() can't produce nan/inf.)
-        if isinstance(value, float) and not math.isfinite(value):
+        # overflow like Number('1e999') → Infinity).
+        if not math.isfinite(value):
             return None
         return value
     if schema_type == "boolean":
