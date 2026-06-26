@@ -60,7 +60,9 @@ class AppState {
   // wyrd-yxf6: which result is currently selected for col 3 inspection.
   // null = nothing selected, show placeholder. Lifted out of
   // OutputColumn's local state so InspectorColumn can read it
-  // reactively. Cleared on re-roll via the OutputColumn $effect.
+  // reactively. Set by OutputColumn.selectResult (click a row) and reset to
+  // null on every re-roll in roll.js (rollCurrent) — there is no OutputColumn
+  // $effect — so the index never dangles past the replaced results array.
   currentResultIndex = $state(null);
 
   // wyrd-14hn round 2 (frontend LOW): single matchMedia source of
