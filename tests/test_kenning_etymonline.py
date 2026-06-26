@@ -472,6 +472,38 @@ def test_ingest_sense_carries_confidence_through_to_edge(fresh_db: Path) -> None
     assert rows[0]["confidence"] == "medium"
 
 
+def test_ingest_sense_adjacent_edge_takes_parent_links_hedge(fresh_db: Path) -> None:
+    """An ADJACENT (interior) descent edge is labeled by the PARENT link's hedge,
+    not the child's. In "word, from Old French aaa, probably from Latin bbb", the
+    chain is [aaa (from→high), bbb (probably from→medium)]. The bbb→aaa edge is
+    introduced by "probably from", so it's medium — NOT aaa's high. Pre-fix the
+    ingester read the child link (chain[i]) and mislabeled it high. A uniform
+    all-high chain (the harpy/dragon fixtures) can't catch this off-by-one."""
+    sense_obj = parse_text(
+        "word(n.)\n\nlate 14c., from Old French aaa, probably from Latin bbb, a root.\n\n"
+    )[0]
+    # Sanity: the two links really do carry different confidences.
+    assert [link.confidence for link in sense_obj.chain] == ["high", "medium"]
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon(db, canonical_form="word", language="modern-english")
+        ensure_source(db)
+        ingest_sense(db, sense_obj, apply=True)
+        db.commit()
+        rows = db.conn.execute(
+            """SELECT p.canonical_form AS parent, c.canonical_form AS child, d.confidence
+               FROM etymon_descent d
+               JOIN etymon p ON p.id = d.parent_id
+               JOIN etymon c ON c.id = d.child_id
+               WHERE d.source_id = 'etymonline'"""
+        ).fetchall()
+    by_edge = {(r["parent"], r["child"]): r["confidence"] for r in rows}
+    # Leaf edge (already correct): aaa → word carries aaa's high hedge.
+    assert by_edge[("aaa", "word")] == "high"
+    # Adjacent edge (the fix): bbb → aaa carries bbb's "probably from" = medium,
+    # NOT aaa's high.
+    assert by_edge[("bbb", "aaa")] == "medium"
+
+
 def test_ingest_sense_no_chain_returns_early(fresh_db: Path) -> None:
     """A sense without a parseable chain (e.g. all hedges led to
     unknown languages) is a no-op on the DB."""

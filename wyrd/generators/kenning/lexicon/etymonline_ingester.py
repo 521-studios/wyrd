@@ -140,10 +140,16 @@ def _emit_adjacent_edges(
         # edge to a non-existent etymon.
         if parent_id is None or child_id is None:
             continue
-        # The edge type comes from the CHILD's hedge — that's the link
-        # describing how the child relates to its parent.
-        edge_type = sense.chain[i].edge_type
-        confidence = _confidence_label(sense.chain[i].confidence)
+        # The edge label comes from the PARENT link (chain[i+1]): each chain
+        # link is introduced by the hedge that describes its descent down to the
+        # PREVIOUS element (parse_chain, "X from Y" → ChainLink(Y) carrying the
+        # "from" edge_type/confidence for the Y→X edge). So the hedge for the
+        # chain[i+1]→chain[i] edge lives on chain[i+1], not chain[i]. Matches
+        # _emit_leaf_edge, which correctly reads chain[0] for the
+        # chain[0]→headword edge; using chain[i] here mislabeled every adjacent
+        # edge with the next-shallower link's hedge (off-by-one).
+        edge_type = sense.chain[i + 1].edge_type
+        confidence = _confidence_label(sense.chain[i + 1].confidence)
         if _emit_descent_edge(db, parent_id, child_id, edge_type, confidence):
             counts["edges_added"] += 1
         else:
