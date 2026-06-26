@@ -621,6 +621,16 @@ def validate_response(
             failures.append(
                 ValidationFailure("form_not_in_body", f"element[{i}].form={el.get('form')!r}")
             )
+        # A digit in a linguistic form is an OCR misread, not a real form: no
+        # OE/ME/Latin/Norse/reconstructed headword carries an Arabic numeral
+        # (macrons / asterisks / æþð yes, 0-9 never). The anti-hallucination
+        # check above PASSES such garbage when the OCR noise is in the body
+        # ("6j^", "*h8ema", "0yrr"), so it would land as a corrupt etymon
+        # canonical_form (wyrd-tru5). Reject the entry instead.
+        if any(c.isdigit() for c in form):
+            failures.append(
+                ValidationFailure("form_has_digit", f"element[{i}].form={el.get('form')!r}")
+            )
         lang = el.get("language")
         if lang not in allowed_languages:
             failures.append(ValidationFailure("bad_language", f"element[{i}].language={lang!r}"))
