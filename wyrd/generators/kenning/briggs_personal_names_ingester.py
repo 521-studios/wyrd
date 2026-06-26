@@ -533,7 +533,13 @@ def _parse_entry(entry_text: str, *, stats: IngestStats | None = None) -> Parsed
 RE_TRAILING_COUNTY = re.compile(r"\s*\(([A-Za-z]+)\)\s*$")
 RE_DATE_PREFIX = re.compile(
     r"\s+("
-    r"n\.d\.|\d{3,4}(?:[×-]\d{1,4})?(?:th)?|"
+    # 3-4 digit year (optional ×/- range, optional ordinal) OR a 1-2 digit
+    # century ordinal (``13th``, ``9th``). The century branch follows the year
+    # branch so a 3-4 digit ``1300th`` still parses as the longer year token; it
+    # is REQUIRED here because the module comment lists ``13th`` as a supported
+    # qualifier yet ``\d{3,4}`` alone silently glued the century into the toponym
+    # for the ~220 century-dated attestations in the source.
+    r"n\.d\.|\d{3,4}(?:[×-]\d{1,4})?(?:th)?|\d{1,2}th|"
     r"Hy[1-8]|Edw[1-3]|Ric[1-3]|John|Steph"
     r")(?:\s+|$)"
 )

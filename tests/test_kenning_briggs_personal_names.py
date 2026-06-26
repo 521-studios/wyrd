@@ -875,6 +875,40 @@ def test_parse_attestations_regnal_year_date_qualifiers(body: str, expected_date
     assert atts[0].toponym_form == body.split()[0]
 
 
+@pytest.mark.parametrize(
+    ("body", "expected_date"),
+    [
+        ("Abington 13th (Bk)", "13th"),
+        ("Acton 11th (D)", "11th"),
+        ("Barton 9th (O)", "9th"),
+        ("Carlton 15th (We)", "15th"),
+    ],
+)
+def test_parse_attestations_century_date_qualifiers(body: str, expected_date: str) -> None:
+    """A 1-2 digit century ordinal (``13th``, ``9th``) is a date qualifier the
+    module comment lists, but ``RE_DATE_PREFIX``'s ``\\d{3,4}`` branch only
+    matched 3-4 digit years — so the century silently glued into ``toponym_form``
+    and ``date_qualifier`` came back ``None`` for the ~220 century-dated
+    attestations in the source. The century branch now extracts it cleanly."""
+    atts = list(_parse_attestations(body))
+    assert len(atts) == 1
+    assert atts[0].date_qualifier == expected_date
+    # The century no longer contaminates the toponym form.
+    assert atts[0].toponym_form == body.split()[0]
+
+
+def test_parse_attestation_item_century_date_in_clause() -> None:
+    """The ``X <date> in Y`` split also works for a century qualifier: the date
+    is lifted out, X is the attested variant, Y the modern toponym — previously
+    the unmatched century left the whole ``X 13th in Y`` string mis-split."""
+    atts = list(_parse_attestations("ælfredes denn 13th in Taynton (O)"))
+    assert len(atts) == 1
+    rec = atts[0]
+    assert rec.date_qualifier == "13th"
+    assert rec.attested_variant == "ælfredes denn"
+    assert rec.toponym_form == "Taynton"
+
+
 def test_emit_briggs_jsonl_emits_charter_citation_for_ascharter_refs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
