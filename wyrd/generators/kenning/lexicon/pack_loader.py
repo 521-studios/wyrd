@@ -77,6 +77,9 @@ def load_packs_from_traversable(packs_root: Any) -> dict[str, PackBundle]:
       skipped (work-in-progress packs, README-only dirs).
     * Subdirs with malformed manifest: raises ValueError so the
       operator notices rather than silently shipping a broken pack.
+    * Two subdirs declaring the same manifest ``pack_name``: raises
+      ValueError for the same reason — last-dir-wins would silently
+      drop one pack from the registry.
 
     The ``packs_root`` argument is intentionally typed as Any so the
     function accepts both filesystem Path objects (for testing) and
@@ -100,6 +103,18 @@ def load_packs_from_traversable(packs_root: Any) -> dict[str, PackBundle]:
         with meanings_path.open(encoding="utf-8") as f:
             meanings_payload = json.load(f)
         meaning_db, tag_db = load_meanings(meanings_payload)
+        if manifest.pack_name in out:
+            # Two pack directories declare the same manifest pack_name (e.g.
+            # `cp -r packs/foo packs/foo_v2` without editing pack_name). Since
+            # the registry keys on pack_name, last-dir-wins would silently drop
+            # one pack — raise instead, consistent with the malformed-manifest
+            # ValueError above, so the operator notices rather than shipping a
+            # registry that's missing a pack.
+            raise ValueError(
+                f"duplicate pack_name {manifest.pack_name!r}: more than one pack "
+                f"directory declares it; rename one so the registry doesn't "
+                f"silently drop a pack"
+            )
         out[manifest.pack_name] = PackBundle(
             manifest=manifest,
             meaning_db=meaning_db,
