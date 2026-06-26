@@ -144,4 +144,32 @@ describe('InspectorColumn time-warp bar (wyrd-410t)', () => {
     expect(btn('Modern').getAttribute('aria-pressed')).toBe('true');
     expect(btn('Old English').getAttribute('aria-pressed')).toBe('false');
   });
+
+  it('re-captures the base when a saved workspace loads at the SAME index (no stale base)', async () => {
+    // wyrd-c6o1.1 follow-up: the base-capture guard keyed off the result INDEX, so
+    // loading a saved workspace over an already-inspected result at the same index
+    // (SavedList.load always restores into index 0) skipped the re-capture — the
+    // new workspace's steps then ran against the PRIOR result's morphemes.
+    const run = vi.spyOn(pipeline, 'run');
+    render(InspectorColumn, { props: {} });
+    await settle();
+    // result 0 = 'Dūnton' (seedResult) is inspected → base captured, lastResultIndex=0.
+    expect(run.mock.calls.at(-1)[0].name).toBe('Dūnton');
+
+    // Simulate SavedList.load() of a DIFFERENT workspace at the SAME index 0:
+    // clear + re-add the saved steps, flag the load, replace results[0], keep idx 0.
+    pipeline.clear();
+    pipeline.addStep('rewind', { era: 'oe-late' });
+    appState.isLoadingSavedWorkspace = true;
+    appState.results = [
+      { result: 'Welby', morphemes_by_word: [[{ usage: 'wel-', _wordIndex: 0, _morphemeIndex: 0 }]] },
+    ];
+    appState.currentResultIndex = 0; // SAME index as before
+    await settle();
+
+    // The base must re-capture from the just-loaded result. Pre-fix the index-only
+    // guard (0 === lastResultIndex) skipped it, so pipeline.run still received the
+    // OLD 'Dūnton' base → the loaded workspace rendered the prior result's morphemes.
+    expect(run.mock.calls.at(-1)[0].name).toBe('Welby');
+  });
 });

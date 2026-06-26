@@ -120,7 +120,15 @@
     // untrack the previous-index memo: it's bookkeeping, not a reactive dep, so
     // writing it below can't re-trigger this effect (avoids a redundant re-run +
     // its no-op re-commit on a subject switch).
-    if (idx !== untrack(() => lastResultIndex)) {
+    //
+    // `|| isLoad`: a saved-workspace load (SavedList.load) always restores into
+    // index 0, so loading workspace B while result 0 was already inspected leaves
+    // the index UNCHANGED — but the result CONTENT at that index is wholly
+    // replaced. Without this the base wasn't re-captured, so B's restored steps
+    // ran against A's morphemes (the active card showed the prior workspace).
+    // isLoad fires this branch to re-snapshot the base; it still suppresses the
+    // clear() below (the restored steps must survive).
+    if (idx !== untrack(() => lastResultIndex) || isLoad) {
       lastResultIndex = idx;
       if (!isLoad) pipeline.clear();
       // Re-snapshot the base from the now-current result. untrack: the capture
