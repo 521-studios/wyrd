@@ -24,6 +24,7 @@ from wyrd.generators.kenning.canonicalization import (
     score_confidence,
 )
 from wyrd.generators.kenning.canonicalization.streams import CANONICALIZATION_DIRNAME
+from wyrd.generators.kenning.cli.lexicon._judge_retry import judge_with_retry
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
@@ -71,17 +72,9 @@ def _judge_with_retry(client, c):
         parse_verdict,
     )
 
-    system, user = build_judge_prompt(c)
-    last_err = "unparseable verdict"
-    for _attempt in range(2):
-        try:
-            v = parse_verdict(client.chat_json(system, user, {}))
-            if v is not None:
-                return v
-        except Exception as exc:  # transient LLM/transport noise: skip, don't crash the batch
-            last_err = str(exc) or exc.__class__.__name__
-    click.echo(f"  skip (judge failed for te={c.te_id}): {last_err}", err=True)
-    return None
+    return judge_with_retry(
+        client, c, build_prompt=build_judge_prompt, parse_verdict=parse_verdict, ref=f"te={c.te_id}"
+    )
 
 
 def _judge_loop(

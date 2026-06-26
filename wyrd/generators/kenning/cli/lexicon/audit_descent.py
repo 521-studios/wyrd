@@ -20,6 +20,8 @@ from pathlib import Path
 
 import click
 
+from wyrd.generators.kenning.cli.lexicon._judge_retry import judge_with_retry
+
 _DESCENT_AUDIT_SOURCE_ROW = {
     "_type": "source",
     "ref": "descent-audit",
@@ -98,17 +100,13 @@ def _judge_with_retry(client, c):
         parse_descent_verdict,
     )
 
-    system, user = build_descent_judge_prompt(c)
-    last_err = "unparseable verdict"
-    for _attempt in range(2):
-        try:
-            verdict = parse_descent_verdict(client.chat_json(system, user, {}))
-            if verdict is not None:
-                return verdict
-        except Exception as exc:  # transient LLM/transport noise: skip, don't crash the batch
-            last_err = str(exc) or exc.__class__.__name__
-    click.echo(f"  skip (judge failed for {c.edge_key}): {last_err}", err=True)
-    return None
+    return judge_with_retry(
+        client,
+        c,
+        build_prompt=build_descent_judge_prompt,
+        parse_verdict=parse_descent_verdict,
+        ref=c.edge_key,
+    )
 
 
 def _append(fh, row: dict) -> None:

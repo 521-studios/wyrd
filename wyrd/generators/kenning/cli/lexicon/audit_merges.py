@@ -21,6 +21,8 @@ from pathlib import Path
 
 import click
 
+from wyrd.generators.kenning.cli.lexicon._judge_retry import judge_with_retry
+
 _MERGE_AUDIT_SOURCE_ROW = {
     "_type": "source",
     "ref": "merge-audit",
@@ -103,17 +105,13 @@ def _judge_with_retry(client, c):
         parse_audit_verdict,
     )
 
-    system, user = build_audit_judge_prompt(c)
-    last_err = "unparseable verdict"
-    for _attempt in range(2):
-        try:
-            verdict = parse_audit_verdict(client.chat_json(system, user, {}))
-            if verdict is not None:
-                return verdict
-        except Exception as exc:  # transient LLM/transport noise: skip, don't crash the batch
-            last_err = str(exc) or exc.__class__.__name__
-    click.echo(f"  skip (judge failed for {c.member_ref}): {last_err}", err=True)
-    return None
+    return judge_with_retry(
+        client,
+        c,
+        build_prompt=build_audit_judge_prompt,
+        parse_verdict=parse_audit_verdict,
+        ref=c.member_ref,
+    )
 
 
 def _append(fh, row: dict) -> None:
