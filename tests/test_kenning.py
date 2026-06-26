@@ -841,6 +841,44 @@ def test_unknown_culture_is_a_400():
     assert resp.status_code == 400
 
 
+def test_non_string_culture_is_a_400_not_500():
+    """An UNHASHABLE culture (a list/dict from a malformed request) reaches the
+    lru_cached _load_culture and used to TypeError on the cache key → uncaught
+    500. It now gets the same 'unknown culture' ValueError → 400 that a hashable
+    wrong value (number, null, unknown string) already got. Both /api/kenning and
+    /api/kenning-regenerate-morpheme."""
+    client = create_app().test_client()
+    for bad in ([1, 2], {"x": 1}):
+        resp = client.post("/api/kenning", json={"culture": bad, "count": 1})
+        assert resp.status_code == 400, (bad, resp.status_code)
+        assert resp.get_json()["error"] == "bad_params"
+        regen = client.post(
+            "/api/kenning-regenerate-morpheme",
+            json={
+                "culture": bad,
+                "words": [[{"usage": "ton"}]],
+                "name": "Ton",
+                "word_index": 0,
+                "morpheme_index": 0,
+            },
+        )
+        assert regen.status_code == 400, (bad, regen.status_code)
+
+
+def test_load_culture_rejects_non_string_before_the_cache():
+    """_load_culture validates the type BEFORE the lru_cache, so an unhashable
+    arg raises ValueError (not TypeError) and the cache control surface is
+    preserved for the cache-coupling machinery."""
+    from wyrd.generators.kenning import _load_culture
+
+    for bad in ([1, 2], {"x": 1}, 5, None):
+        with pytest.raises(ValueError, match="unknown culture"):
+            _load_culture(bad)
+    # forwarded lru_cache control surface still present
+    assert callable(_load_culture.cache_clear)
+    assert callable(_load_culture.cache_info)
+
+
 def test_unknown_generator_is_404():
     app = create_app()
     client = app.test_client()
