@@ -19,6 +19,7 @@ from wyrd.generators.kenning import (
     _load_joiners,
     _load_meanings,
 )
+from wyrd.generators.kenning.era import rewind
 
 
 def test_load_meanings_cache_clear_is_wired_to_coupled_helper() -> None:
@@ -111,3 +112,32 @@ def test_load_meanings_cache_clear_also_clears_load_joiners() -> None:
     assert _load_joiners.cache_info().currsize == 0, (
         "_load_meanings.cache_clear() should also drop _load_joiners' cache"
     )
+
+
+def test_coupled_clear_also_clears_rewind_stripped_index() -> None:
+    """The rewind anchor resolver's stripped-usage index is the SAME
+    id(meaning_db)-keyed bundle cache as proportions._SURFACE_INDEX_CACHE, with
+    the same stale-on-reload hazard: after a bundle reload CPython can reuse the
+    freed meaning_db's id() for a new bundle's db, and the cache would then serve
+    the OLD bundle's index. The coupled clear must drop it in lockstep with
+    _load_meanings (it previously did not — the cache was absent from the
+    coupling)."""
+    rewind._STRIPPED_INDEX_CACHE.clear()
+    rewind._get_stripped_index({"-ham": ["m"]})
+    assert rewind._STRIPPED_INDEX_CACHE  # populated
+    _load_meanings.cache_clear()  # the standard coupled entry point
+    assert rewind._STRIPPED_INDEX_CACHE == {}, (
+        "_load_meanings.cache_clear() must also drop the rewind stripped-index "
+        "cache; it is an id(meaning_db)-keyed bundle cache and goes stale on reload"
+    )
+
+
+def test_get_stripped_index_rebuilds_on_id_recycle() -> None:
+    """Identity-check guard: if id(meaning_db) was recycled (a freed db's id now
+    belongs to a NEW db), the cache must NOT return the stale prior entry — the
+    stored (meaning_db, index) back-reference forces a rebuild. Simulated by
+    planting a different-db entry under the new db's id key."""
+    rewind._STRIPPED_INDEX_CACHE.clear()
+    db_new = {"-ton": ["m1"]}
+    rewind._STRIPPED_INDEX_CACHE[id(db_new)] = ({"-stale": []}, {"stale": ["WRONG"]})
+    assert rewind._get_stripped_index(db_new) == {"ton": ["m1"]}  # rebuilt, not stale

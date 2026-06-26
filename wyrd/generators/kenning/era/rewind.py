@@ -485,40 +485,57 @@ class _Anchor:
 
 # Cache of stripped-usage indexes per meaning_db. Keyed by
 # ``id(meaning_db)`` rather than the dict itself since dicts aren't
-# hashable. Built lazily on first lookup; the meaning_db is loaded
-# once per CLI invocation so the cache is effectively per-call.
-# WeakValueDict isn't used because meaning_db has no __weakref__
-# slot and is intended to outlive the rewind calls.
-_STRIPPED_INDEX_CACHE: dict[int, dict[str, list[Meaning]]] = {}
+# hashable. The stored value is ``(meaning_db, index)``: the back-reference
+# lets the lookup verify the cached entry belongs to THIS meaning_db, so an
+# id() recycled after GC (CPython reuses a freed object's id) can never return
+# a stale index. Bounded so ad-hoc test meaning_dbs don't accumulate, and
+# dropped wholesale on bundle reload via ``_clear_stripped_index_cache`` (wired
+# into the kenning coupled cache-clear) — mirrors proportions._SURFACE_INDEX_CACHE.
+_STRIPPED_INDEX_CACHE: dict[int, tuple[dict, dict[str, list[Meaning]]]] = {}
+_STRIPPED_INDEX_CACHE_MAX = 32
+
+
+def _clear_stripped_index_cache() -> None:
+    """Drop the stripped-usage index cache. Wired into the kenning bundle's
+    coupled cache-clear so a meaning_db reload can't read a stale index via an
+    id() collision — mirrors ``proportions._clear_surface_index_cache``."""
+    _STRIPPED_INDEX_CACHE.clear()
 
 
 def _get_stripped_index(
     meaning_db: dict[str, list[Meaning]],
 ) -> dict[str, list[Meaning]]:
     """Return a stripped-usage → list[Meaning] index for ``meaning_db``,
-    building it lazily on first lookup and caching by ``id()``.
+    building it lazily on first lookup and caching by ``id()`` with an identity
+    check.
 
     Stripping the hyphens unifies the bundle's three usage shapes
     (``-ham``, ``ham``, ``ham-``) under a single key so the anchor
     resolver can find OE post-modifier Meanings even when the trie
     picked a no-hyphen Celtic Meaning at the same stripped usage.
 
-    Cache lifetime: the cache key is ``id(meaning_db)``, which
-    persists across repeated calls within one process. ``_load_meanings``
-    in the kenning package returns the same cached meaning_db across
-    calls, so the index is built once per process and reused — O(1)
-    sibling lookup for the rewind anchor resolver instead of O(N)
-    full-scan."""
+    Cache lifetime: keyed by ``id(meaning_db)``. ``_load_meanings`` returns the
+    same cached meaning_db across calls, so the index is built once per process
+    and reused — O(1) sibling lookup instead of O(N) full-scan. The cached
+    ``(meaning_db, index)`` back-reference guards an id() recycled onto a new
+    bundle, and the coupled cache-clear drops the whole cache on reload."""
     cache_key = id(meaning_db)
     cached = _STRIPPED_INDEX_CACHE.get(cache_key)
-    if cached is not None:
-        return cached
+    if cached is not None and cached[0] is meaning_db:
+        return cached[1]
     index: dict[str, list[Meaning]] = {}
     for usage, meanings in meaning_db.items():
         stripped = usage.replace("-", "").lower()
         bucket = index.setdefault(stripped, [])
         bucket.extend(meanings)
-    _STRIPPED_INDEX_CACHE[cache_key] = index
+    # Evict oldest on overflow (matters only for the many small ad-hoc
+    # meaning_dbs tests build; production reuses one long-lived bundle).
+    if (
+        cache_key not in _STRIPPED_INDEX_CACHE
+        and len(_STRIPPED_INDEX_CACHE) >= _STRIPPED_INDEX_CACHE_MAX
+    ):
+        del _STRIPPED_INDEX_CACHE[next(iter(_STRIPPED_INDEX_CACHE))]
+    _STRIPPED_INDEX_CACHE[cache_key] = (meaning_db, index)
     return index
 
 
