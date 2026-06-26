@@ -136,10 +136,14 @@ def _known_forms(db: sqlite3.Connection) -> tuple[dict, dict, dict, dict, dict]:
             var[r["etymon_id"]].add(strip_surface(r["form"]))
     except sqlite3.OperationalError as exc:
         # etymon_variant is an additive table — tolerate its ABSENCE on an older /
-        # partial DB (variants simply don't contribute). Any OTHER operational error
-        # (a schema mismatch, a lock, a malformed query) is a real fault: surface it
-        # rather than silently degrading the audit to an empty variant set.
-        if "no such table" not in str(exc).lower():
+        # partial DB (variants simply don't contribute). Match the table BY NAME so
+        # only ITS absence is tolerated: any other operational error — a schema
+        # mismatch, a lock, or a missing CORE table (reflex_etymon, referenced in the
+        # subquery) — is a real fault and re-raises rather than silently degrading the
+        # audit to an empty variant set. (Two substrings, not the exact message, so a
+        # schema-qualified "no such table: main.etymon_variant" still matches.)
+        err_msg = str(exc).lower()
+        if "no such table" not in err_msg or "etymon_variant" not in err_msg:
             raise
     desc: dict[int, set[str]] = defaultdict(set)
     for r in db.execute(
