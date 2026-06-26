@@ -33,6 +33,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from wyrd.generators.kenning.ingesters import _csv_events
 from wyrd.generators.kenning.jsonl.log import write_jsonl
 
 SPEED_1611_SOURCE_ID = "speed_1611"
@@ -132,24 +133,14 @@ def build_events(
     *,
     include_source_row: bool = True,
 ) -> list[dict[str, Any]]:
-    """Pure: CSV rows → JSONL events. Source row first (optional);
-    toponym refs dedupe; attestations don't (each Speed entry is
-    independently auditable)."""
-    out: list[dict[str, Any]] = []
-    if include_source_row:
-        out.append(dict(_SOURCE_ROW))
-    seen_toponym_refs: set[str] = set()
-    for row in csv_rows:
-        pair = _normalize_row(row)
-        if pair is None:
-            continue
-        toponym_event, attestation_event = pair
-        ref = toponym_event["ref"]
-        if ref not in seen_toponym_refs:
-            out.append(toponym_event)
-            seen_toponym_refs.add(ref)
-        out.append(attestation_event)
-    return out
+    """Speed 1611: CSV rows → JSONL events, via the shared builder fed this
+    source's metadata row + row mapper (orchestration in _csv_events)."""
+    return _csv_events.build_events(
+        csv_rows,
+        source_row=_SOURCE_ROW,
+        normalize_row=_normalize_row,
+        include_source_row=include_source_row,
+    )
 
 
 def ingest(csv_path: str | Path, out_path: str | Path, *, apply: bool = False) -> dict[str, int]:
