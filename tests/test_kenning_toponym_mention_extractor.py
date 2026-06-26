@@ -211,6 +211,22 @@ def test_coerce_year_strict_rejects_non_canonical_string(raw):
         assert _coerce_year(raw) == (None, True)
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "١٠٨٦",  # Arabic-Indic 1086
+        "१०८६",  # Devanagari 1086
+        "１０８６",  # fullwidth 1086
+    ],
+)
+def test_coerce_year_rejects_unicode_digits(raw):
+    """ASCII-only guard: ``\\d`` ALSO matches Unicode decimal digits, which
+    Python ``int()`` then parses as a year (``int('١٠٨٦') == 1086``) — silently
+    admitting the non-canonical/non-ASCII input this restriction exists to clamp.
+    The pattern is ``[0-9]`` not ``\\d`` so these clamp like any other nonsense."""
+    assert _coerce_year(raw) == (None, True)
+
+
 def test_coerce_year_rejects_float():
     """JSON allows numeric values without subtype info — a provider
     that returns 1086.0 (json.loads on `"1086.0"` gives float) must

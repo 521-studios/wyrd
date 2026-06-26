@@ -341,8 +341,12 @@ class ValidationCounters:
 # Strict digit-only match for year strings — Python's int() accepts
 # underscore separators ("1_086"), leading "+/-", and leading zeros
 # ("01086"), all of which would silently admit non-canonical years
-# from the LLM. Module-level for compile-once.
-_YEAR_STRING_PATTERN = re.compile(r"\d{3,4}")
+# from the LLM. ASCII ``[0-9]`` not ``\d``: ``\d`` also matches Unicode
+# decimal digits (Arabic-Indic ``١٠٨٦``, Devanagari, fullwidth) that
+# ``int()`` then parses as a year, silently admitting the very
+# non-canonical/non-ASCII input this restriction exists to clamp.
+# Module-level for compile-once.
+_YEAR_STRING_PATTERN = re.compile(r"[0-9]{3,4}")
 
 
 def _coerce_year(raw: object) -> tuple[int | None, bool]:
