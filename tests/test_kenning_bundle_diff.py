@@ -423,3 +423,29 @@ def test_format_first_divergence_window_strips_newlines_for_readability() -> Non
     # The window-rendering replaces "\n" with "\\n" so the report stays
     # one line per side — pin that escaping here.
     assert "\\n" in rendered or "committed:" in rendered  # at least one of these
+
+
+def test_first_divergence_byte_offset_accounts_for_multibyte_utf8() -> None:
+    """compute_bundle_diff reports the UTF-8 BYTE offset (what ``wc -c`` / a hex
+    editor see), not the Python ``str`` char index. The bundle is written
+    ensure_ascii=False, so non-ASCII forms (þ, ŵ, æ, …) before the divergence
+    push the byte offset past the char index — the exact distinction the field
+    exists to capture, previously only exercised on pure-ASCII content."""
+    # 'þ' and 'ŵ' are 2 bytes each in UTF-8; the values diverge after "þŵ-".
+    committed = '{"k": "þŵ-AAA"}'
+    rebuilt = '{"k": "þŵ-BBB"}'
+    diff = compute_bundle_diff(committed, rebuilt)
+    char_index = next(k for k, (c, r) in enumerate(zip(committed, rebuilt, strict=False)) if c != r)
+    assert diff.first_divergence_byte == len(committed[:char_index].encode("utf-8"))
+    assert diff.first_divergence_byte > char_index  # multibyte before it
+
+
+def test_first_divergence_byte_offset_multibyte_prefix_case() -> None:
+    """When one text is a prefix of the other (no mid-string divergence), the
+    offset is the BYTE length of the shorter text — multibyte content in the
+    common prefix still makes it exceed the char length."""
+    committed = '{"k": "þŵ"}'
+    rebuilt = committed + "TAIL"
+    diff = compute_bundle_diff(committed, rebuilt)
+    assert diff.first_divergence_byte == len(committed.encode("utf-8"))
+    assert diff.first_divergence_byte > len(committed)  # multibyte in the prefix
