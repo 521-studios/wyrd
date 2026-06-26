@@ -136,25 +136,10 @@ _SHOW_OPTIONAL_FIELDS = (
 _LABEL_WIDTH = max(len(label) for label, _ in (*_SHOW_HEADER_FIELDS, *_SHOW_OPTIONAL_FIELDS)) + 2
 
 
-@defects.command("show")
-@_env_options
-@click.argument("defect_id")
-@click.option("--json", "as_json", is_flag=True, default=False, help="Emit raw JSON.")
-def show_defect_cmd(env, profile, defect_id, as_json) -> None:
-    """Show a single report in full, with a reproduction hint."""
-    from wyrd.defects import DefectsError, get_defect
-
-    try:
-        report = get_defect(defect_id, env=env, profile=_resolve_profile(env, profile))
-    except DefectsError as exc:
-        raise click.ClickException(str(exc)) from exc
-    if report is None:
-        raise click.ClickException(f"no defect with id {defect_id!r}")
-
-    if as_json:
-        click.echo(json.dumps(report, indent=2, ensure_ascii=False))
-        return
-
+def _echo_defect_human(report: dict) -> None:
+    """Render one report for a terminal: the aligned header/optional field
+    columns, the nested ``bundle_version`` block, then a copy-paste reproduce
+    hint. The ``--json`` path bypasses this and emits the raw dict."""
     for label, key in _SHOW_HEADER_FIELDS:
         click.echo(f"{label + ':':<{_LABEL_WIDTH}}{report.get(key)}")
     for label, key in _SHOW_OPTIONAL_FIELDS:
@@ -177,6 +162,28 @@ def show_defect_cmd(env, profile, defect_id, as_json) -> None:
         f"{report.get('generator')} with the parameters above against the "
         "stamped bundle_version)"
     )
+
+
+@defects.command("show")
+@_env_options
+@click.argument("defect_id")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Emit raw JSON.")
+def show_defect_cmd(env, profile, defect_id, as_json) -> None:
+    """Show a single report in full, with a reproduction hint."""
+    from wyrd.defects import DefectsError, get_defect
+
+    try:
+        report = get_defect(defect_id, env=env, profile=_resolve_profile(env, profile))
+    except DefectsError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if report is None:
+        raise click.ClickException(f"no defect with id {defect_id!r}")
+
+    if as_json:
+        click.echo(json.dumps(report, indent=2, ensure_ascii=False))
+        return
+
+    _echo_defect_human(report)
 
 
 @defects.command("accept")
