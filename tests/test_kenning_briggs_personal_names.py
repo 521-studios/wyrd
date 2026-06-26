@@ -150,6 +150,37 @@ def test_expand_bracket_variants_returns_single_form_when_no_paren() -> None:
     assert _expand_bracket_variants("Ēadwulf") == ["Ēadwulf"]
 
 
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        # Stray trailing '(' (truncated headform OCR artifact) — the
+        # balanced-group regex left it in the "without" variant before.
+        ("H(", ["H"]),
+        ("Sc(", ["Sc"]),
+        # Lone ')' with no '(' — slipped past the old `"(" not in name` early
+        # return entirely.
+        ("Luffenham)", ["Luffenham"]),
+        ("Overton)", ["Overton"]),
+        # Mid-name stray ')' (a mis-OCR'd "(E)alhstān").
+        ("E)alhstān", ["Ealhstān"]),
+        ("H)rencga", ["Hrencga"]),
+    ],
+)
+def test_expand_bracket_variants_strips_unbalanced_stray_parens(
+    name: str, expected: list[str]
+) -> None:
+    """A stray UNBALANCED paren is an OCR/column-reconstruction artifact, not
+    Briggs's optional-letter convention. It must not survive into a headform —
+    a paren in an etymon ``canonical_form`` is corrupt identity. 12 such forms
+    (``H(``, ``Luffenham)``, ``E)alhstān``, …) reached the committed etymon
+    output before this. Balanced groups still expand normally (the tests
+    above)."""
+    variants = _expand_bracket_variants(name)
+    assert variants == expected
+    # No returned variant carries a paren.
+    assert all("(" not in v and ")" not in v for v in variants)
+
+
 # ---------------------------------------------------------------------
 # _split_pages: detect page-number-line boundaries
 # ---------------------------------------------------------------------
