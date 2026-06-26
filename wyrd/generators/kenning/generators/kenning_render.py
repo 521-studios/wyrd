@@ -6,6 +6,7 @@ from typing import Any
 
 from wyrd.generators.kenning import (
     _LEGEND,
+    _required_name,
 )
 from wyrd.registry import GenerationResult, Generator
 
@@ -58,9 +59,7 @@ class KenningRender(Generator):
     def generate(self, params: dict[str, Any], seed: int) -> GenerationResult:
         from wyrd.generators.kenning.runtime.scripts import transliterate
 
-        text = (params.get("name") or "").strip()
-        if not text:
-            raise ValueError("name is required")
+        text = _required_name(params)
         script = params.get("script") or "shavian"
         rendered = transliterate(text, script)
         return GenerationResult(

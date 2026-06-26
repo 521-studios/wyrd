@@ -52,6 +52,26 @@ def test_empty_name_raises():
         KenningExplain().generate_all({"name": ""}, 0)
 
 
+def test_non_string_name_raises_value_error_not_attribute_error():
+    """A non-string ``name`` (number, list, object) is as invalid as an empty
+    one: it must raise ValueError ("name is required") — which the dispatcher
+    maps to 400 — not AttributeError from ``.strip()`` on a non-string, which
+    escapes as a 500. Covers the shared ``_required_name`` helper used by every
+    name-taking generator (explain, render, creature, rewind)."""
+    for bad in (5, ["a", "b"], {"x": 1}, None):
+        with pytest.raises(ValueError, match="name is required"):
+            KenningExplain().generate_all({"name": bad}, 0)
+
+
+def test_required_name_strips_valid_and_rejects_non_string():
+    from wyrd.generators.kenning import _required_name
+
+    assert _required_name({"name": "  Ton By  "}) == "Ton By"
+    for bad in (5, ["a"], {"x": 1}, None, "", "   "):
+        with pytest.raises(ValueError, match="name is required"):
+            _required_name({"name": bad})
+
+
 def test_components_carry_structured_parts(bundle_swapper, explain_test_bundle):
     with bundle_swapper(explain_test_bundle):
         r = KenningExplain().generate_all({"name": "Bridgewater"}, 0)[0]
@@ -108,6 +128,17 @@ def test_dispatcher_ignores_count_for_multi_result(client, bundle_swapper, expla
 def test_empty_name_returns_400(client):
     resp = client.post("/api/kenning-explain", json={"name": ""})
     assert resp.status_code == 400
+
+
+def test_non_string_name_returns_400_across_name_generators(client):
+    """A non-string ``name`` is a 400 bad_params, not a 500, for EVERY
+    name-taking generator — the shared ``_required_name`` guard. Pre-fix each
+    `(params.get("name") or "").strip()` AttributeError'd into an uncaught 500."""
+    for path in ("kenning-explain", "kenning-render", "kenning-creature", "kenning-rewind"):
+        for bad in (5, ["a"], {"x": 1}):
+            resp = client.post(f"/api/{path}", json={"name": bad})
+            assert resp.status_code == 400, (path, bad, resp.status_code)
+            assert resp.get_json()["error"] == "bad_params"
 
 
 def test_manifest_lists_explainer_with_multi_result(client):
