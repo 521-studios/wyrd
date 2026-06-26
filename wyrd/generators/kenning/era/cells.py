@@ -585,10 +585,20 @@ def resolve_era_input(
         return era_year_range(default_family, cell)
     try:
         year = int(era)
-    except ValueError:
+    except (ValueError, TypeError):
+        # ValueError: a non-numeric string (a cell label like "oe-late") — falls
+        # through to the label paths below. TypeError: a non-string/non-int value
+        # (a list/dict from a malformed request) — int() can't take it; it is
+        # rejected as an unknown era input just below rather than escaping
+        # uncaught (a bare int(["x"]) TypeError surfaces as a 500, not a 400).
         year = None
     if year is not None:
         return resolve_era_input(year, default_family=default_family)
+    if not isinstance(era, str):
+        raise ValueError(
+            f"unknown era input {era!r}; expected a year, a cell label "
+            "(e.g. 'oe-late'), or a 'family/label' string"
+        )
     if "/" in era:
         family, _, label = era.partition("/")
         return _range_for_family_label(family, label)

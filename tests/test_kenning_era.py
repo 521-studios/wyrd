@@ -330,6 +330,23 @@ def test_resolve_era_input_numeric_string_treated_as_year() -> None:
     assert era.resolve_era_input("1086") == (800, 1100)
 
 
+def test_resolve_era_input_float_year_still_resolves() -> None:
+    """A float year (a JSON number from the API) coerces through int() like an
+    int/numeric-string — guards that the non-string rejection below doesn't
+    over-reach and break a valid numeric era."""
+    assert era.resolve_era_input(1086.0) == (800, 1100)
+
+
+def test_resolve_era_input_non_string_non_number_raises_value_error() -> None:
+    """A list/dict era (a malformed request) is an UNKNOWN era input — a
+    ValueError the dispatcher maps to 400 bad_params — not a bare int() TypeError
+    that escapes uncaught as a 500. The validator already raised ValueError for an
+    unknown string; this closes the non-string/non-number type hole."""
+    for bad in ([1, 2], {"x": 1}, [], ("oe-late",)):
+        with pytest.raises(ValueError, match="unknown era input"):
+            era.resolve_era_input(bad)
+
+
 def test_resolve_era_input_year_out_of_range_raises_value_error() -> None:
     """A year outside the family's defined cells should fail loudly,
     not silently return None — that would let a bad --era 9999 sneak
