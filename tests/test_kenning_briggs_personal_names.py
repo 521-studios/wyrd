@@ -602,6 +602,23 @@ def test_parse_briggs_index_yields_expected_entries(
     assert abba.attestations[0].toponym_form == "Abbey"
 
 
+def test_parse_briggs_index_strips_stray_paren_from_single_headform(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stray-paren OCR headform expands to ONE cleaned variant (no balanced
+    bracket). The ``len(variants) == 1`` fast path must not yield the uncleaned
+    original — a paren in canonical_form/normalized_form is corrupt identity
+    (surface artifact), and ``Luffenham)`` would never match the bare
+    ``Luffenham``."""
+    src = tmp_path / "briggs.txt"
+    src.write_text("—A—\nLuffenham) PASE1 Somewhere (Bk).\n", encoding="utf-8")
+    monkeypatch.setattr(briggs, "INDEX_FIRST_LINE_NUM", 0)
+    entries = list(parse_briggs_index(src))
+    assert len(entries) == 1
+    assert entries[0].name.headform == "Luffenham"  # not "Luffenham)"
+    assert entries[0].name.normalized_form == "luffenham"  # not "luffenham)"
+
+
 def test_emit_briggs_jsonl_emits_standard_etymon_and_citation_rows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

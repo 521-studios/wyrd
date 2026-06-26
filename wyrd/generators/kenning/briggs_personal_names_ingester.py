@@ -731,7 +731,13 @@ def parse_briggs_index(path: Path, *, stats: IngestStats | None = None) -> Itera
             # Expand bracket-variant headforms into separate entries
             # that share the same attestations.
             variants = _expand_bracket_variants(entry.name.headform)
-            if len(variants) == 1:
+            if len(variants) == 1 and variants[0] == entry.name.headform:
+                # Fast path ONLY when nothing changed. A single variant that
+                # DIFFERS from the headform is a stray-paren OCR artifact that
+                # _expand_bracket_variants cleaned ("Luffenham)" → "Luffenham");
+                # yielding the original here would leak the paren into
+                # canonical_form/normalized_form (corrupt identity), so it must
+                # fall through to the clone path below.
                 yield entry
                 continue
             for variant in variants:
