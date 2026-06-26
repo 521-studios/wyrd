@@ -21,10 +21,10 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
+from wyrd.generators.kenning.cli.lexicon._threshold_args import parse_lang_thresholds
 from wyrd.generators.kenning.cli.lexicon.export_runtime_db import (
     EMITTER_VERSION,
     SCHEMA_VERSION,
-    _parse_lang_thresholds,
 )
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
@@ -657,20 +657,29 @@ def test_write_canonical_decompositions_inserts_blob(tmp_path: Path) -> None:
 
 def test_parse_lang_thresholds_happy_path() -> None:
     """Specs override the preset; aliases are normalized."""
-    out = _parse_lang_thresholds(("old_english=2", "celtic_mix=4"), use_preset=False)
+    out = parse_lang_thresholds(("old_english=2", "celtic_mix=4"), use_preset=False)
     assert out["old-english"] == 2  # LANGUAGE_FIELDS alias
     assert out["celtic"] == 4
 
 
+def test_parse_lang_thresholds_case_insensitive() -> None:
+    """Mixed-case / upper-case LANG normalizes to the lower-case alias key so a
+    typo'd ``Old_English=2`` matches rather than silently applying the preset
+    (wyrd review #849)."""
+    out = parse_lang_thresholds(("Old_English=2", "CELTIC_MIX=4"), use_preset=False)
+    assert out["old-english"] == 2
+    assert out["celtic"] == 4
+
+
 def test_parse_lang_thresholds_no_preset_empties_map() -> None:
-    out = _parse_lang_thresholds((), use_preset=False)
+    out = parse_lang_thresholds((), use_preset=False)
     assert out == {}
 
 
 def test_parse_lang_thresholds_keeps_preset_when_use_preset() -> None:
     """The preset (RECOMMENDED_LANG_THRESHOLDS) should be present when
     no overrides are supplied."""
-    out = _parse_lang_thresholds((), use_preset=True)
+    out = parse_lang_thresholds((), use_preset=True)
     # Preset is calibrated against corpus availability; OE is the
     # canonical strict entry.
     assert "old-english" in out
@@ -678,17 +687,31 @@ def test_parse_lang_thresholds_keeps_preset_when_use_preset() -> None:
 
 def test_parse_lang_thresholds_rejects_missing_equals() -> None:
     with pytest.raises(click.BadParameter, match="LANG=N"):
-        _parse_lang_thresholds(("old_english",), use_preset=False)
+        parse_lang_thresholds(("old_english",), use_preset=False)
 
 
 def test_parse_lang_thresholds_rejects_non_integer_n() -> None:
     with pytest.raises(click.BadParameter, match="must be an integer"):
-        _parse_lang_thresholds(("old_english=two",), use_preset=False)
+        parse_lang_thresholds(("old_english=two",), use_preset=False)
 
 
 def test_parse_lang_thresholds_rejects_empty_parts() -> None:
     with pytest.raises(click.BadParameter, match="must be non-empty"):
-        _parse_lang_thresholds(("=3",), use_preset=False)
+        parse_lang_thresholds(("=3",), use_preset=False)
+
+
+def test_parse_lang_thresholds_rejects_negative_n() -> None:
+    """A negative witness threshold is nonsensical (every morpheme has
+    >= -1 witnesses, so it silently disables the filter for that language).
+    Reject it loudly rather than admit-all (wyrd review #849)."""
+    with pytest.raises(click.BadParameter, match="must be non-negative"):
+        parse_lang_thresholds(("old_english=-1",), use_preset=False)
+
+
+def test_parse_lang_thresholds_allows_zero() -> None:
+    """N=0 is a valid explicit 'no minimum / admit all' — only negatives reject."""
+    out = parse_lang_thresholds(("old_english=0",), use_preset=False)
+    assert out["old-english"] == 0
 
 
 # ---------- proportions_structure PK invariant ----------

@@ -9,10 +9,8 @@ from typing import Any
 
 import click
 
-from wyrd.generators.kenning.cli.lexicon.export_meanings import (
-    _load_joiners_sidecar,
-    _parse_lang_thresholds,
-)
+from wyrd.generators.kenning.cli.lexicon._threshold_args import parse_lang_thresholds
+from wyrd.generators.kenning.cli.lexicon.export_meanings import _load_joiners_sidecar
 from wyrd.generators.kenning.lexicon import (
     LexiconDB,
     collect_canonical_decompositions,
@@ -147,7 +145,7 @@ def lexicon_diff_bundle(
     # Shared with `export-meanings` so the two CLIs accept identical
     # flag shapes — operators validating the committed bundle can pass
     # the same `--lang-threshold` flags the export used.
-    lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
+    lang_thresholds = parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
 
     joiners = _load_joiners_sidecar(joiners_path) if joiners_path is not None else {}
 
