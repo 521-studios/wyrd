@@ -128,6 +128,23 @@ _CULTURE_TO_ERA_FAMILY: dict[str, str] = {
 }
 
 
+def _required_name(params: dict[str, Any]) -> str:
+    """The required free-text ``name`` param, normalized to a stripped string.
+
+    A non-string ``name`` (number, list, object) is treated as absent so a
+    malformed request raises ``ValueError`` ("name is required") — which the API
+    dispatcher maps to a 400 bad_params — rather than ``AttributeError`` from
+    calling ``.strip()`` on a non-string (which escapes uncaught as a 500). The
+    old ``(params.get("name") or "").strip()`` crashed on a non-string. Mirrors
+    ``app._stripped_str``; shared by the name-taking generators (explain, render,
+    creature, rewind)."""
+    raw = params.get("name")
+    text = raw.strip() if isinstance(raw, str) else ""
+    if not text:
+        raise ValueError("name is required")
+    return text
+
+
 def _era_options_by_culture() -> dict[str, list[str]]:
     """Per-culture list of era STAGE labels for the SPA's dependent select.
 

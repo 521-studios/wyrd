@@ -8,6 +8,7 @@ from wyrd.generators.kenning import (
     _LEGEND,
     _format_creature_explanation,
     _load_fantasy_morphemes,
+    _required_name,
 )
 from wyrd.registry import GenerationResult, Generator
 
@@ -65,9 +66,7 @@ class KenningCreature(Generator):
         }
 
     def generate(self, params: dict[str, Any], seed: int) -> GenerationResult:
-        text = (params.get("name") or "").strip()
-        if not text:
-            raise ValueError("name is required")
+        text = _required_name(params)
         creatures = _load_fantasy_morphemes()
         entry = creatures.get(text.lower())
         if entry is None:

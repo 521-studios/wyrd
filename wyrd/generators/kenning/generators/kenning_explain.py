@@ -14,6 +14,7 @@ from wyrd.generators.kenning import (
     _decomposition_signature,
     _load_canonical_decompositions,
     _load_meanings,
+    _required_name,
 )
 from wyrd.generators.kenning.runtime.name import Name
 from wyrd.registry import GenerationResult, Generator
@@ -69,9 +70,7 @@ class KenningExplain(Generator):
         return results[0]
 
     def generate_all(self, params: dict[str, Any], seed: int) -> list[GenerationResult]:
-        text = (params.get("name") or "").strip()
-        if not text:
-            raise ValueError("name is required")
+        text = _required_name(params)
         meaning_db, _ = _load_meanings()
         name_obj = Name(text)
         # reduce=False keeps every alternative decomposition instead of

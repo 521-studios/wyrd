@@ -9,6 +9,7 @@ from wyrd.generators.kenning import (
     _bundle_era_form,
     _decomposition_matcher,
     _load_meanings,
+    _required_name,
 )
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.name import Name
@@ -101,9 +102,7 @@ class KenningRewind(Generator):
         from wyrd.generators.kenning.era.cells import canonical_language_for_cell
         from wyrd.generators.kenning.era.rewind import render_form_particle_pairs
 
-        text = (params.get("name") or "").strip()
-        if not text:
-            raise ValueError("name is required")
+        text = _required_name(params)
         supplied_words = params.get("words")
         meaning_db, _ = _load_meanings()
         # wyrd-y9aa: branch on whether the caller supplied pre-picked
