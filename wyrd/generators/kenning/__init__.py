@@ -610,7 +610,7 @@ def _load_packs():
 
 
 @lru_cache(maxsize=len(CULTURES))
-def _load_culture(culture: str):
+def _load_culture_cached(culture: str):
     if culture not in CULTURES:
         raise ValueError(f"unknown culture: {culture}; expected one of {CULTURES}")
     meaning_db, tag_db = _load_meanings()
@@ -623,6 +623,26 @@ def _load_culture(culture: str):
     # wyrd-hzqs: thread the culture NAME so the per-language structure allowlist
     # (is_structure_enabled) can key on it.
     return load_proportions(proportions, meaning_db, tag_db, culture=culture), tag_db
+
+
+def _load_culture(culture: Any):
+    """Load (and cache) a culture's NameGenerator + tag_db.
+
+    Validates that ``culture`` is a string BEFORE the lru_cached body: an
+    unhashable list/dict key — from a malformed ``{"culture": [...]}`` request —
+    would otherwise raise ``TypeError`` from the cache lookup itself (escaping
+    uncaught as a 500), instead of the ``ValueError`` (→ 400 bad_params) an
+    unknown culture STRING gets. A non-string now gets the same clean error."""
+    if not isinstance(culture, str):
+        raise ValueError(f"unknown culture: {culture}; expected one of {CULTURES}")
+    return _load_culture_cached(culture)
+
+
+# Forward the lru_cache control surface so existing callers
+# (``_coupled_cache_clear``, the cache-coupling tests) keep using
+# ``_load_culture.cache_clear()`` / ``.cache_info()`` unchanged.
+_load_culture.cache_clear = _load_culture_cached.cache_clear
+_load_culture.cache_info = _load_culture_cached.cache_info
 
 
 # wyrd-h3ls: ``_load_culture`` independently caches a ``NameGenerator``
