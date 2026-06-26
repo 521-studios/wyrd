@@ -158,10 +158,15 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
         # uncaught 500.
         seed = resolve_seed(params.pop("seed", None))
         if generator.multi_result:
-            # Multi-result generators size their own output from the input
-            # (e.g. an explainer returning every matching decomposition), so
-            # count and per-result sub-seeds don't apply.
-            params.pop("count", None)
+            # Multi-result generators produce their whole result set in ONE
+            # generate_all call, so the dispatcher neither loops nor derives
+            # per-result sub-seeds. ``count`` is LEFT in params for the generator
+            # to use as it sees fit: one that sizes from the INPUT (explain —
+            # every decomposition) ignores it, while one that sizes to a
+            # requested N (era-map — region size) reads + validates it itself.
+            # (Popping it here silently pinned era-map to its default count,
+            # ignoring the user's value over the API — the CLI, which calls
+            # generate_all directly, never hit the pop and already honored it.)
             results = generator.generate_all(params, seed)
             count = len(results) if hasattr(results, "__len__") else 1
         else:
