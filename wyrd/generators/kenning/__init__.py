@@ -749,6 +749,24 @@ def _coerce_bool(value: Any) -> bool:
     return bool(value)
 
 
+def _coerce_float(value: Any, default: float = 0.0) -> float:
+    """Coerce a generation-knob param to a float, defaulting a blank value.
+
+    ``None`` / ``""`` (a missing or empty field) → ``default``. A numeric string
+    coerces (the GET query-string path). A NON-coercible value — a list, dict, or
+    non-numeric string — raises ``ValueError`` (which the dispatcher maps to a 400
+    bad_params) rather than letting a bare ``float()`` raise ``TypeError`` on a
+    list/dict, which escapes uncaught as a 500. Replaces the
+    ``float(params.get(k, 0.0) or 0.0)`` idiom, byte-for-byte for every scalar/
+    string/blank value — only a list/dict knob value changes (500 → 400)."""
+    if value is None or value == "":
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"{value!r} is not a number") from e
+
+
 _PRESENT_DAY_ERA = "present-day"
 
 
