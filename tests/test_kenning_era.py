@@ -497,6 +497,23 @@ def test_cross_family_stage_label_gives_helpful_error() -> None:
         era.era_cell_for_input("old-welsh", default_family="english")
 
 
+def test_era_cell_for_input_float_year_still_resolves() -> None:
+    """A float year coerces through int() like an int/numeric-string — guards
+    that the non-string rejection doesn't over-reach a valid numeric era."""
+    assert era.era_cell_for_input(1086.0, default_family="english") == ("english", "oe-late")
+
+
+def test_era_cell_for_input_non_string_non_number_raises_value_error() -> None:
+    """era_cell_for_input mirrors resolve_era_input's error contract (its
+    docstring says so): a non-string/non-number era (a list/dict from a malformed
+    request) is a ValueError, not a bare int() TypeError. Sibling of the
+    resolve_era_input fix — a public era resolver that must not 500 on a bad type
+    even though the main /api paths guard it upstream via resolve_era_input."""
+    for bad in ([1, 2], {"x": 1}, ("oe-late",), []):
+        with pytest.raises(ValueError, match="era must be a year"):
+            era.era_cell_for_input(bad, default_family="english")
+
+
 def test_invalid_family_label_lists_cells_and_stages_consistently() -> None:
     # wyrd-rogd.2: both resolvers give the same helpful error (cells + stages)
     # for a bad label under an explicit family.

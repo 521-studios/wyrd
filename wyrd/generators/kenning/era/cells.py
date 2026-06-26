@@ -304,10 +304,17 @@ def era_cell_for_input(
         return (default_family, cell)
     try:
         year = int(era)
-    except ValueError:
+    except (ValueError, TypeError):
+        # Mirrors resolve_era_input: ValueError → a non-numeric string (a cell
+        # label); TypeError → a non-string/non-int (a list/dict from a malformed
+        # request), which is rejected as malformed just below rather than letting
+        # int()'s bare TypeError escape uncaught (a 500 instead of the documented
+        # ValueError → 400).
         year = None
     if year is not None:
         return era_cell_for_input(year, default_family=default_family)
+    if not isinstance(era, str):
+        raise ValueError(f"era must be a year, cell label, or family/label pair (got {era!r})")
     if "/" in era:
         family, _, label = era.partition("/")
         return _cell_for_family_label(family, label)
