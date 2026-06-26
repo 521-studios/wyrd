@@ -408,8 +408,10 @@ class _ReviewOutcome:
 def _classify_review_result(name: str, result: Any, dt: float) -> _ReviewOutcome:
     """Take a provider's LLMResult and produce a structured outcome.
 
-    Mirrors the writer's drop-low gate (`lexicon.py:1394`) so dry-run and
-    apply-mode summaries both report what's actually persisted.
+    Mirrors the writer's drop-low gate (`lexicon/ingest.py`
+    ``ingest_parsed_entries``: ``has_breakdown = confidence != "low" and
+    bool(entry.elements)``) so dry-run and apply-mode summaries both report
+    what's actually persisted.
     """
     if not result.accepted:
         failures = tuple(f.reason for f in result.failures)

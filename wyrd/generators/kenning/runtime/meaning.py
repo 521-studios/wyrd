@@ -43,7 +43,7 @@ _CONNECTOR_PARTICLE_SURFACES = frozenset({"cum", "le", "la", "sur", "sous", "jux
 
 # Suffix used in meanings.json to mark per-language variant pools, e.g.
 # "old_english" canonical forms have their variants in "old_english_variants".
-# Matches the export-meanings emit shape in lexicon.py:_emit_variant_list.
+# Matches the export-meanings emit shape in lexicon/bundle/_emit.py:_emit_variant_list.
 _VARIANT_SUFFIX = "_variants"
 
 # Suffix used for per-language inflection metadata (D8). Each entry is
