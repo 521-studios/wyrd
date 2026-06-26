@@ -451,6 +451,33 @@ def test_parse_attestations_date_no_in_clause() -> None:
     assert atts[0].date_qualifier == "1257"
 
 
+def test_parse_attestations_count_multiplier_stripped_from_identity() -> None:
+    """``×N`` is Briggs's "attested N times" count, not part of the name. It
+    must NOT leak into toponym_form/attested_variant — ``Abington×2`` would
+    never match the bare ``Abington`` and would silently break the name↔toponym
+    linkage (surface-string-as-identity). The date-range ``×`` (``1257×1260``)
+    is NOT a count and must survive untouched in date_qualifier."""
+    # count on the toponym_form slot (no "in Y")
+    atts = list(_parse_attestations("Abington×2 (Bk)"))
+    assert len(atts) == 1
+    assert atts[0].toponym_form == "Abington"  # not "Abington×2"
+
+    # count on the attested-variant (X) slot of "X in Y"
+    atts2 = list(_parse_attestations("Adelwesdenn×3 in Rolvenden (Bk)"))
+    assert len(atts2) == 1
+    assert atts2[0].toponym_form == "Rolvenden"
+    assert atts2[0].attested_variant == "Adelwesdenn"  # not "Adelwesdenn×3"
+
+    # date-range × is NOT a count — must survive in date_qualifier
+    atts3 = list(_parse_attestations("Abingdon 1257×1260 (Bk)"))
+    assert len(atts3) == 1
+    assert atts3[0].toponym_form == "Abingdon"
+    assert atts3[0].date_qualifier == "1257×1260"
+
+    # an item that is ONLY a count has no real attested form → dropped
+    assert list(_parse_attestations("×2 (Bk)")) == []
+
+
 def test_parse_attestations_uncertainty_prefixes_propagate() -> None:
     """? → is_uncertain; ?? → is_uncertain AND is_serious_doubt."""
     atts = list(_parse_attestations("?Abel, ??Brand (Bk)"))
