@@ -170,6 +170,11 @@ def test_integer_coercion_mirrors_spa_parseint():
     assert _coerce_to_schema_type("abc", intp) is None
     assert _coerce_to_schema_type("", intp) is None
     assert _coerce_to_schema_type(".5", intp) is None  # no leading int → NaN
+    # ASCII-only, matching parseInt: Unicode digits (Arabic-Indic, Devanagari)
+    # yield NaN in JS even though Python int() would accept them — the regex must
+    # use [0-9] not \d, or it re-introduces a server/SPA divergence.
+    assert _coerce_to_schema_type("١٢٣", intp) is None  # Arabic-Indic 123
+    assert _coerce_to_schema_type("१२३", intp) is None  # Devanagari 123
     # Pure integers and whitespace unchanged.
     assert _coerce_to_schema_type("7", intp) == 7
     assert _coerce_to_schema_type("  7  ", intp) == 7

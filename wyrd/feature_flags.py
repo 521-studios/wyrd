@@ -35,8 +35,11 @@ from collections.abc import Mapping
 
 # Leading optional-sign integer, mirroring JS ``parseInt(raw, 10)``: it parses
 # the leading run of digits and ignores any trailing fractional/garbage part
-# (``parseInt('5.0', 10) === 5``, ``parseInt('5px', 10) === 5``).
-_LEADING_INT_RE = re.compile(r"[+-]?\d+")
+# (``parseInt('5.0', 10) === 5``, ``parseInt('5px', 10) === 5``). ASCII ``[0-9]``,
+# NOT ``\d``: ``\d`` also matches Unicode digits (Arabic-Indic ``١٢٣``, Devanagari)
+# which ``int()`` would then accept, but JS ``parseInt`` is ASCII-only and yields
+# NaN there — so ``\d`` would re-introduce a server/SPA divergence, not close one.
+_LEADING_INT_RE = re.compile(r"[+-]?[0-9]+")
 
 _FF_PREFIX = "WYRD_FF_"
 _DEFAULT_PREFIX = "WYRD_DEFAULT_"
