@@ -123,6 +123,34 @@ def test_validate_response_strips_dashes_before_form_check() -> None:
     assert not any(f.reason == "form_not_in_body" for f in failures)
 
 
+def test_validate_response_rejects_digit_bearing_form() -> None:
+    """An OCR-misread element form with a digit ('h8ema', '6j^', '0yrr') is in
+    the noisy source body, so it PASSES the anti-hallucination check — but a
+    digit is never a real linguistic form (no OE/ME/Norse/reconstructed headword
+    carries an Arabic numeral), so it must still be rejected. Without this,
+    digit-garbage lands as a corrupt etymon canonical_form (wyrd-tru5)."""
+    response = _ok_response()
+    response["elements"][0]["form"] = "h8ema"
+    body = _BARTON_BODY + " The OCR-mangled form h8ema also appears here."
+    failures = validate_response(response, body)
+    reasons = [f.reason for f in failures]
+    assert "form_has_digit" in reasons
+    # Isolate the new check: the garbage IS in the body, so the
+    # anti-hallucination guard alone would NOT have caught it.
+    assert "form_not_in_body" not in reasons
+
+
+def test_validate_response_accepts_macron_and_asterisk_forms() -> None:
+    """The digit guard must not over-reach onto legitimate non-ASCII form marks:
+    macrons (ū), the reconstruction asterisk (*), and æ/þ/ð are NOT digits."""
+    response = _ok_response()
+    response["elements"][0]["form"] = "berġ"
+    response["elements"][1]["form"] = "*tūn"
+    body = _BARTON_BODY + " Compare berġ and the reconstructed *tūn."
+    failures = validate_response(response, body)
+    assert not any(f.reason == "form_has_digit" for f in failures)
+
+
 def test_validate_response_rejects_bad_language() -> None:
     response = _ok_response()
     response["elements"][0]["language"] = "klingon"  # not in allowed set
