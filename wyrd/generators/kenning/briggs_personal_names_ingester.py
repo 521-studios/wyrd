@@ -621,6 +621,11 @@ def _attestation_group_head(group: str, stats: IngestStats | None) -> tuple[str,
     return county_code, head
 
 
+# Trailing ``×N`` attestation-count multiplier on a name field (``Abington×2``).
+# Module-level for compile-once, like the other RE_ patterns in this module.
+RE_COUNT_MULTIPLIER = re.compile(r"\s*×\d+\s*$")
+
+
 def _strip_count_multiplier(name: str | None) -> str | None:
     """Strip a trailing ``×N`` attestation-count multiplier from a name field
     (``Abington×2`` → ``Abington``).
@@ -632,10 +637,11 @@ def _strip_count_multiplier(name: str | None) -> str | None:
     silently breaking the name↔toponym linkage. The date-range ``×`` (e.g.
     ``1257×1260``) lives in ``date_qualifier``, never in these name fields, so
     anchoring the strip at end-of-string is unambiguous. A name that is *only*
-    a count (``×2``) collapses to None (no real attested form)."""
+    a count (``×2``) collapses to None (no real attested form). Empty/None in →
+    None out, so an empty name field normalizes to None not ``""``."""
     if not name:
-        return name
-    return re.sub(r"\s*×\d+\s*$", "", name).strip() or None
+        return None
+    return RE_COUNT_MULTIPLIER.sub("", name).strip() or None
 
 
 def _parse_attestation_item(item: str, county_code: str) -> AttestationRecord | None:
