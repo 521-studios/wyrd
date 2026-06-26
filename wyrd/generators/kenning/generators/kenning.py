@@ -19,6 +19,7 @@ from wyrd.generators.kenning import (
     CULTURES,
     _apply_joiner_insertion,
     _coerce_bool,
+    _coerce_float,
     _era_options_by_culture,
     _load_culture,
     _load_joiners,
@@ -430,13 +431,13 @@ class Kenning(Generator):
         raw_tags = params.get("tags", []) or []
         if isinstance(raw_tags, str):
             raw_tags = [raw_tags]
-        spelling_variety = float(params.get("spelling_variety", 0.0) or 0.0)
-        inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
-        novelty = float(params.get("novelty", 0.0) or 0.0)
-        harshness = float(params.get("harshness", 0.0) or 0.0)
-        cohesion = float(params.get("cohesion", 0.0) or 0.0)
-        manorial_affix = float(params.get("manorial_affix", 0.0) or 0.0)
-        joiner_density = float(params.get("joiner_density", 0.0) or 0.0)
+        spelling_variety = _coerce_float(params.get("spelling_variety"))
+        inflection_density = _coerce_float(params.get("inflection_density"))
+        novelty = _coerce_float(params.get("novelty"))
+        harshness = _coerce_float(params.get("harshness"))
+        cohesion = _coerce_float(params.get("cohesion"))
+        manorial_affix = _coerce_float(params.get("manorial_affix"))
+        joiner_density = _coerce_float(params.get("joiner_density"))
         include_fiction = _coerce_bool(params.get("include_fiction", False))
         # wyrd-glos: glossing is a project pillar — the etymology line is
         # the load-bearing feature — so the generator only draws morphemes

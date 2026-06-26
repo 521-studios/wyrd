@@ -302,6 +302,46 @@ def test_coerce_bool_handles_spa_string_path():
     assert _coerce_bool("on") is True
 
 
+def test_coerce_float_matches_old_idiom_and_rejects_non_numbers():
+    """_coerce_float replaces ``float(params.get(k, 0.0) or 0.0)``. It is
+    byte-identical for every scalar / numeric-string / blank value, and a
+    non-coercible value (list, dict, non-numeric string) raises ValueError —
+    which the dispatcher maps to 400 — instead of a bare float() raising
+    TypeError on a list/dict, which escaped uncaught as a 500."""
+    from wyrd.generators.kenning import _coerce_float
+
+    # Blank / missing → default (the `... or 0.0` arm of the old idiom).
+    assert _coerce_float(None) == 0.0
+    assert _coerce_float("") == 0.0
+    assert _coerce_float(0) == 0.0
+    assert _coerce_float(0.0) == 0.0
+    # Scalars + numeric strings (the GET query-string path) coerce.
+    assert _coerce_float(0.5) == 0.5
+    assert _coerce_float(-0.5) == -0.5
+    assert _coerce_float("0.5") == 0.5
+    assert _coerce_float("1e3") == 1000.0
+    assert _coerce_float(None, 6.0) == 6.0  # non-zero default honored
+    # A non-coercible knob value is a bad param (ValueError → 400), not a 500.
+    for bad in ([1, 2], {"x": 1}, "abc"):
+        with pytest.raises(ValueError, match="not a number"):
+            _coerce_float(bad)
+
+
+def test_non_numeric_knob_value_returns_400_not_500():
+    """A list/dict value for a float generation knob (spelling_variety, novelty,
+    …) is a 400 bad_params, not a 500. Pre-fix `float([1,2])` raised TypeError
+    past the dispatcher's ValueError/KeyError catch → uncaught 500."""
+    client = create_app().test_client()
+    for knob in ("spelling_variety", "inflection_density", "novelty", "harshness", "cohesion"):
+        for bad in ([1, 2], {"x": 1}):
+            resp = client.post("/api/kenning", json={"culture": "english", "count": 1, knob: bad})
+            assert resp.status_code == 400, (knob, bad, resp.status_code)
+            assert resp.get_json()["error"] == "bad_params"
+    # a valid knob value still rolls
+    ok = client.post("/api/kenning", json={"culture": "english", "count": 1, "novelty": 0.8})
+    assert ok.status_code == 200
+
+
 def test_kenning_generate_string_false_does_not_invert_gate():
     """Defense in depth: even if a future client sends include_fiction
     as the string 'false' (the SPA's pre-fix shape), Kenning.generate
