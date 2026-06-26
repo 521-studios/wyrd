@@ -29,7 +29,13 @@ def parse_lang_thresholds(specs: tuple[str, ...], *, use_preset: bool) -> dict[s
         if "=" not in spec:
             raise click.BadParameter(f"--lang-threshold expects LANG=N, got {spec!r}")
         lang, _, n_str = spec.partition("=")
-        lang = lang.strip()
+        # Lower-case before the LANGUAGE_FIELDS alias lookup: every alias key and
+        # every canonical language code is lower-case, so a mixed-case override
+        # (``Old_English=2`` / ``OLD_ENGLISH=2``) would otherwise fall through
+        # the alias map and silently fail to match any consensus row (the preset
+        # fallback applies instead) — the same silent-operator-input gap the
+        # alias step itself exists to close.
+        lang = lang.strip().lower()
         n_str = n_str.strip()
         if not lang or not n_str:
             raise click.BadParameter(

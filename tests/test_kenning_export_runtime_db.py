@@ -662,6 +662,15 @@ def test_parse_lang_thresholds_happy_path() -> None:
     assert out["celtic"] == 4
 
 
+def test_parse_lang_thresholds_case_insensitive() -> None:
+    """Mixed-case / upper-case LANG normalizes to the lower-case alias key so a
+    typo'd ``Old_English=2`` matches rather than silently applying the preset
+    (wyrd review #849)."""
+    out = parse_lang_thresholds(("Old_English=2", "CELTIC_MIX=4"), use_preset=False)
+    assert out["old-english"] == 2
+    assert out["celtic"] == 4
+
+
 def test_parse_lang_thresholds_no_preset_empties_map() -> None:
     out = parse_lang_thresholds((), use_preset=False)
     assert out == {}
