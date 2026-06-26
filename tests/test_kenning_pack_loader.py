@@ -262,3 +262,29 @@ def test_load_packs_propagates_malformed_manifest_error(tmp_path: Path):
     (pack_dir / "meanings.json").write_text(json.dumps({"subjects": []}))
     with pytest.raises(ValueError, match="template_donor"):
         load_packs_from_traversable(packs_root)
+
+
+def test_load_packs_duplicate_pack_name_raises(tmp_path: Path):
+    """Two pack DIRECTORIES declaring the same manifest pack_name must raise,
+    not silently drop one. The registry keys on pack_name (dir-name-independent
+    by design), so `cp -r packs/foo packs/foo_v2` without editing pack_name
+    would otherwise let the second dir clobber the first — a pack vanishes with
+    no error. Consistent with the malformed-manifest ValueError so the operator
+    notices rather than shipping a registry missing a pack."""
+    packs_root = tmp_path / "packs"
+    packs_root.mkdir()
+    for dir_name in ("foo", "foo_copy"):
+        pack_dir = packs_root / dir_name
+        pack_dir.mkdir()
+        (pack_dir / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "pack_name": "foo",  # SAME pack_name in two different dirs
+                    "template_donor": "old-norse",
+                    "template_recipient": "old-english",
+                }
+            )
+        )
+        (pack_dir / "meanings.json").write_text(json.dumps({"subjects": []}))
+    with pytest.raises(ValueError, match="duplicate pack_name"):
+        load_packs_from_traversable(packs_root)
