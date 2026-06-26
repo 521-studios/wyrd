@@ -134,8 +134,13 @@ def _known_forms(db: sqlite3.Connection) -> tuple[dict, dict, dict, dict, dict]:
             f"SELECT etymon_id,form FROM etymon_variant WHERE etymon_id IN {_LINKED}"
         ):
             var[r["etymon_id"]].add(strip_surface(r["form"]))
-    except sqlite3.OperationalError:
-        pass
+    except sqlite3.OperationalError as exc:
+        # etymon_variant is an additive table — tolerate its ABSENCE on an older /
+        # partial DB (variants simply don't contribute). Any OTHER operational error
+        # (a schema mismatch, a lock, a malformed query) is a real fault: surface it
+        # rather than silently degrading the audit to an empty variant set.
+        if "no such table" not in str(exc).lower():
+            raise
     desc: dict[int, set[str]] = defaultdict(set)
     for r in db.execute(
         f"SELECT parent_id,child.canonical_form cf FROM etymon_descent ed "
