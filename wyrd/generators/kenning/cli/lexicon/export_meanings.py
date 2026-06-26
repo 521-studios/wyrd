@@ -10,14 +10,14 @@ import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import (
-    LANGUAGE_FIELDS,
-    RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
     collect_canonical_decompositions,
     collect_fantasy_morphemes,
     export_meanings,
 )
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
+
+from ._threshold_args import parse_lang_thresholds
 
 
 @click.command("export-meanings")
@@ -152,7 +152,7 @@ def lexicon_export_meanings(
     ``RECOMMENDED_LANG_THRESHOLDS`` in ``lexicon/bundle/_export.py`` for the
     full rationale plus the rando-port corroborator policy.
     """
-    lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
+    lang_thresholds = parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
     with LexiconDB(db_path) as db:
         subjects = export_meanings(
             db,
@@ -205,37 +205,6 @@ def lexicon_export_meanings(
             f"Wrote {len(subjects)} subjects{suffix} to {output_path}",
             err=True,
         )
-
-
-def _parse_lang_thresholds(specs: tuple[str, ...], *, use_preset: bool) -> dict[str, int]:
-    """Parse a tuple of ``LANG=N`` strings into a {lang_code: threshold}
-    dict, starting from the recommended preset when ``use_preset`` is
-    True. Used by both ``export-meanings`` and ``diff-bundle`` so the
-    flag shape can't drift across them.
-
-    Accepts JSON-field aliases (``old_english`` → ``old-english``,
-    ``celtic_mix`` → ``celtic``) via LANGUAGE_FIELDS. Without the
-    alias step an override like ``--lang-threshold old_english=2``
-    silently fails to match any consensus row and the preset fallback
-    applies instead."""
-    lang_thresholds: dict[str, int] = dict(RECOMMENDED_LANG_THRESHOLDS) if use_preset else {}
-    for spec in specs:
-        if "=" not in spec:
-            raise click.BadParameter(f"--lang-threshold expects LANG=N, got {spec!r}")
-        lang, _, n_str = spec.partition("=")
-        lang = lang.strip()
-        n_str = n_str.strip()
-        if not lang or not n_str:
-            raise click.BadParameter(
-                f"--lang-threshold {spec!r}: both LANG and N must be non-empty"
-            )
-        try:
-            n = int(n_str)
-        except ValueError as exc:
-            raise click.BadParameter(f"--lang-threshold {spec!r}: N must be an integer") from exc
-        lang = LANGUAGE_FIELDS.get(lang, lang)
-        lang_thresholds[lang] = n
-    return lang_thresholds
 
 
 def _load_joiners_sidecar(path: Path) -> dict[str, list[dict[str, Any]]]:

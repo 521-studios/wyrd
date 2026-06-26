@@ -13,8 +13,6 @@ import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import (
-    LANGUAGE_FIELDS,
-    RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
     collect_canonical_decompositions,
     collect_empirical_priors,
@@ -32,6 +30,8 @@ from wyrd.generators.kenning.lexicon.runtime_db_export import (
     write_runtime_db,
 )
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
+
+from ._threshold_args import parse_lang_thresholds
 
 # Re-exports kept for tests that import the schema-version constants
 # through this module path.
@@ -219,7 +219,7 @@ def lexicon_export_runtime_db(
             include_toponym_breakdown=include_toponym_breakdown,
         )
 
-    lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
+    lang_thresholds = parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
 
     with LexiconDB(db_path) as db:
         subjects = export_meanings(
@@ -292,28 +292,6 @@ def lexicon_export_runtime_db(
     if dev_subset:
         structures_path = _regen_structure_allowlist(output_path)
         click.echo(f"Wrote structure allowlist to {structures_path}", err=True)
-
-
-def _parse_lang_thresholds(specs: tuple[str, ...], *, use_preset: bool) -> dict[str, int]:
-    """Parse ``LANG=N`` overrides. Mirrors the export-meanings shape."""
-    lang_thresholds: dict[str, int] = dict(RECOMMENDED_LANG_THRESHOLDS) if use_preset else {}
-    for spec in specs:
-        if "=" not in spec:
-            raise click.BadParameter(f"--lang-threshold expects LANG=N, got {spec!r}")
-        lang, _, n_str = spec.partition("=")
-        lang = lang.strip()
-        n_str = n_str.strip()
-        if not lang or not n_str:
-            raise click.BadParameter(
-                f"--lang-threshold {spec!r}: both LANG and N must be non-empty"
-            )
-        try:
-            n = int(n_str)
-        except ValueError as exc:
-            raise click.BadParameter(f"--lang-threshold {spec!r}: N must be an integer") from exc
-        lang = LANGUAGE_FIELDS.get(lang, lang)
-        lang_thresholds[lang] = n
-    return lang_thresholds
 
 
 def _reject_non_default_filters_under_dev(
