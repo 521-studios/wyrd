@@ -692,6 +692,13 @@ def _coupled_cache_clear() -> None:
     # would then read the OLD bundle's stale index. Drop it here so it rebuilds
     # against the fresh bundle in lockstep with _load_meanings.
     _clear_surface_index_cache()
+    # The rewind anchor resolver's stripped-usage index is the SAME
+    # id(meaning_db)-keyed bundle cache, with the same stale-on-reload hazard —
+    # clear it in lockstep too. Deferred import: era.rewind pulls in the kenning
+    # package, so a module-level import here would be circular.
+    from wyrd.generators.kenning.era.rewind import _clear_stripped_index_cache
+
+    _clear_stripped_index_cache()
 
 
 # mypy flags reassigning a bound method on the lru_cache wrapper as
