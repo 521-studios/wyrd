@@ -261,6 +261,35 @@ def _cell_for_bare_label(era: str, default_family: str) -> tuple[str, str]:
     )
 
 
+def _coerce_era_year(era: object) -> int | None:
+    """The int YEAR for an int or numeric-string era; ``None`` for anything else
+    — a (non-numeric) string LABEL, or a malformed non-string/non-int value. The
+    caller's own ``isinstance(era, str)`` check then distinguishes a label from a
+    bad type (and raises its own message).
+
+    Catches ``TypeError`` (a ``list``/``dict`` era from a malformed request)
+    alongside ``ValueError`` so a bad type doesn't escape ``int()`` uncaught as a
+    500. Shared by ``resolve_era_input`` + ``era_cell_for_input`` so their
+    year-coercion stays in ONE place — the two drifted apart once (#831 fixed
+    only one of the identical TypeError gaps; #832 swept the sibling)."""
+    if isinstance(era, int):
+        return era
+    try:
+        return int(era)  # type: ignore[arg-type]
+    except (ValueError, TypeError):
+        return None
+
+
+def _era_year_to_cell(default_family: str, year: int) -> str:
+    """The cell label containing ``year`` in ``default_family``, or a ValueError
+    when the year is outside the family's defined cells. The year-branch shared by
+    both era resolvers (they differ only in what they return AROUND the cell)."""
+    cell = era_cell_for_family(default_family, year)
+    if cell is None:
+        raise ValueError(f"year {year} is outside the defined cells for family {default_family!r}")
+    return cell
+
+
 def era_cell_for_input(
     era: str | int,
     *,
@@ -295,24 +324,9 @@ def era_cell_for_input(
         raise ValueError(
             "era must be a year, cell label, or family/label pair (got None or empty string)"
         )
-    if isinstance(era, int):
-        cell = era_cell_for_family(default_family, era)
-        if cell is None:
-            raise ValueError(
-                f"year {era} is outside the defined cells for family {default_family!r}"
-            )
-        return (default_family, cell)
-    try:
-        year = int(era)
-    except (ValueError, TypeError):
-        # Mirrors resolve_era_input: ValueError → a non-numeric string (a cell
-        # label); TypeError → a non-string/non-int (a list/dict from a malformed
-        # request), which is rejected as malformed just below rather than letting
-        # int()'s bare TypeError escape uncaught (a 500 instead of the documented
-        # ValueError → 400).
-        year = None
+    year = _coerce_era_year(era)
     if year is not None:
-        return era_cell_for_input(year, default_family=default_family)
+        return (default_family, _era_year_to_cell(default_family, year))
     if not isinstance(era, str):
         raise ValueError(f"era must be a year, cell label, or family/label pair (got {era!r})")
     if "/" in era:
@@ -583,24 +597,9 @@ def resolve_era_input(
     """
     if era is None:
         return None
-    if isinstance(era, int):
-        cell = era_cell_for_family(default_family, era)
-        if cell is None:
-            raise ValueError(
-                f"year {era} is outside the defined cells for family {default_family!r}"
-            )
-        return era_year_range(default_family, cell)
-    try:
-        year = int(era)
-    except (ValueError, TypeError):
-        # ValueError: a non-numeric string (a cell label like "oe-late") — falls
-        # through to the label paths below. TypeError: a non-string/non-int value
-        # (a list/dict from a malformed request) — int() can't take it; it is
-        # rejected as an unknown era input just below rather than escaping
-        # uncaught (a bare int(["x"]) TypeError surfaces as a 500, not a 400).
-        year = None
+    year = _coerce_era_year(era)
     if year is not None:
-        return resolve_era_input(year, default_family=default_family)
+        return era_year_range(default_family, _era_year_to_cell(default_family, year))
     if not isinstance(era, str):
         raise ValueError(
             f"unknown era input {era!r}; expected a year, a cell label "
