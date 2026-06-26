@@ -401,12 +401,22 @@ def _expand_bracket_variants(name: str) -> list[str]:
     ``["Gǣg", "Gǣga"]``. The bracketed-character form is Briggs's
     convention for compactly listing two near-identical headforms;
     expanding here means downstream lookups against either variant
-    find the row."""
-    if "(" not in name:
+    find the row.
+
+    Every returned variant is paren-FREE: an UNBALANCED stray paren (an
+    OCR / column-reconstruction artifact like ``H(`` or ``Luffenham)`` or
+    ``E)alhstān``) is stripped rather than carried into the stored headform —
+    a paren in an etymon's ``canonical_form`` is corrupt identity (surface
+    artifact), and the matcher never benefits from it. Without this, the
+    ``\\([^)]*\\)`` removal only drops BALANCED groups, so a lone ``(``
+    survived in the with-out variant and a lone ``)`` (no ``(`` at all) slipped
+    past the early return untouched."""
+    if "(" not in name and ")" not in name:
         return [name]
-    # Single-bracket case: keep with/without the bracketed content.
     out: list[str] = []
-    without = re.sub(r"\([^)]*\)", "", name)
+    # Absent-variant: drop balanced (…) groups, THEN strip any unbalanced stray
+    # paren left over. with-variant: strip every paren. Both are paren-free.
+    without = re.sub(r"[()]", "", re.sub(r"\([^)]*\)", "", name))
     with_ = re.sub(r"[()]", "", name)
     if without:
         out.append(without)
