@@ -153,6 +153,38 @@ def test_parse_chain_cognate_list_paren_is_ignored():
     assert "latin" in langs
 
 
+def test_parse_chain_nested_paren_cognate_list_is_fully_ignored():
+    """A `(source also of ...)` list that carries an INNER paren (an attestation
+    year / gloss like `Greek drakon (genitive drakontos)`) must be skipped
+    WHOLE. A flat `[^)]*` matcher stopped at the inner `)` and leaked the tail
+    of the list — and any cognate's own hedge (`derived from Latin draco`) was
+    minted as a spurious descent link, fabricating a lineage from a parallel
+    cognate that should have been ignored entirely."""
+    summary = (
+        "from PIE *drk- (source also of Sanskrit foo (Vedic), "
+        "also derived from Latin draco), the root."
+    )
+    chain = parse_chain(summary)
+    forms = [c.word for c in chain]
+    langs = [c.language for c in chain]
+    # The real PIE root link survives.
+    assert "proto-indo-european" in langs
+    # The cognate 'draco' inside the (nested) list must NOT become a chain link.
+    assert "draco" not in forms
+    assert "latin" not in langs
+
+
+def test_parse_chain_nested_paren_compare_note_is_fully_ignored():
+    """Same nested-paren leak for the `(compare ...)` interpolation regex."""
+    summary = (
+        "from Old Norse aaa (compare Old High German bbb (a gloss), borrowed from Latin ccc), end."
+    )
+    chain = parse_chain(summary)
+    forms = [c.word for c in chain]
+    assert "aaa" in forms  # the real link
+    assert "bbb" not in forms and "ccc" not in forms  # the whole compare-note skipped
+
+
 def test_parse_chain_compare_paren_is_ignored():
     """`(compare Old High German trollen ...)` is a parallel cognate
     note, not a chain link."""
