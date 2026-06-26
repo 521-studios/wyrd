@@ -189,6 +189,35 @@ def test_build_index_filters_by_target_form_and_language(tmp_path: Path) -> None
     assert len(index) == 2
 
 
+@pytest.mark.parametrize("redirect_first", [True, False])
+def test_build_index_prefers_entry_with_usable_sense(tmp_path: Path, redirect_first: bool) -> None:
+    """When a headword has multiple etymology_number entries — a redirect-only
+    one (no usable sense) and a real-sense one — build_index must keep the
+    real-sense entry regardless of slice order. A blind first-wins kept the
+    redirect when it came first, so _select_canonical_sense returned None and
+    the etymon was silently dropped despite a usable sense existing for the same
+    (form, language). Real Wiktionary dumps routinely list the redirect first."""
+    redirect = {
+        "word": "bryn",
+        "lang_code": "cy",
+        "etymology_number": 1,
+        "senses": [{"glosses": ["alternative form of brynn"], "tags": ["alt-of"]}],
+    }
+    real = {
+        "word": "bryn",
+        "lang_code": "cy",
+        "etymology_number": 2,
+        "senses": [{"glosses": ["hill, mound"]}],
+    }
+    entries = [redirect, real] if redirect_first else [real, redirect]
+    _write_slice(tmp_path / "wiktextract_welsh.jsonl", entries)
+    index = build_index(tmp_path, {"bryn"}, {"welsh"})
+    kept = index[("bryn", "welsh")]
+    selected = _select_canonical_sense(kept)
+    assert selected is not None, "the real-sense entry was dropped"
+    assert selected[0] == "hill, mound"
+
+
 def test_iter_index_entries_filters_and_keys(tmp_path: Path) -> None:
     """``_iter_index_entries`` (the per-slice matcher extracted from build_index)
     yields ``((form_lower, canonical_language), entry)`` for matching headwords

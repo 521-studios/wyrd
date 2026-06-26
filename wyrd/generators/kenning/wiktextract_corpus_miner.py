@@ -522,9 +522,22 @@ def build_index(
             continue
         for key, entry in _iter_index_entries(slice_path, lang, target_forms_lower):
             # Same headword can have multiple entries with
-            # ``etymology_number`` distinguishing senses (e.g. coch¹/coch²);
-            # keep the first non-empty one we see.
-            if key not in index:
+            # ``etymology_number`` distinguishing senses (e.g. coch¹/coch²).
+            # Keep the first entry that has a USABLE sense — not merely the
+            # first non-empty WORD. _iter_index_entries only checks the word is
+            # non-empty; sense-selection (which drops redirect-only / alt-of /
+            # form-of / prose-derivative entries) runs later in _write_one. So a
+            # blind first-wins would lock in a redirect-only entry that appears
+            # BEFORE the real lemma (the usual Wiktionary dump order), make
+            # _select_canonical_sense return None, and DROP the etymon — even
+            # though a real sense for this exact (form, language) exists in the
+            # slice. Upgrade a sense-less incumbent to a sense-bearing entry.
+            # `key not in index` short-circuits before the index[key] read, so a
+            # brand-new key is stored without evaluating the sense check.
+            if key not in index or (
+                _select_canonical_sense(index[key]) is None
+                and _select_canonical_sense(entry) is not None
+            ):
                 index[key] = entry
     return index
 
