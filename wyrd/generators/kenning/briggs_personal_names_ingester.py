@@ -621,6 +621,23 @@ def _attestation_group_head(group: str, stats: IngestStats | None) -> tuple[str,
     return county_code, head
 
 
+def _strip_count_multiplier(name: str | None) -> str | None:
+    """Strip a trailing ``×N`` attestation-count multiplier from a name field
+    (``Abington×2`` → ``Abington``).
+
+    Briggs writes ``×N`` to mean the orthographic form is attested N times in
+    that toponym. The count is not a stored field, so leaving ``×2`` in
+    ``toponym_form``/``attested_variant`` would corrupt the identity with a
+    surface artifact — ``Abington×2`` would never match the bare ``Abington``,
+    silently breaking the name↔toponym linkage. The date-range ``×`` (e.g.
+    ``1257×1260``) lives in ``date_qualifier``, never in these name fields, so
+    anchoring the strip at end-of-string is unambiguous. A name that is *only*
+    a count (``×2``) collapses to None (no real attested form)."""
+    if not name:
+        return name
+    return re.sub(r"\s*×\d+\s*$", "", name).strip() or None
+
+
 def _parse_attestation_item(item: str, county_code: str) -> AttestationRecord | None:
     """Parse one comma-separated attestation item (already stripped) into an
     AttestationRecord, or ``None`` when it carries no toponym form.
@@ -658,9 +675,10 @@ def _parse_attestation_item(item: str, county_code: str) -> AttestationRecord | 
             left, right = toponym_form.split(" in ", 1)
             attested_variant = left.strip().rstrip(",")
             toponym_form = right.strip()
-    toponym_form = toponym_form.rstrip(",;")
+    toponym_form = _strip_count_multiplier(toponym_form.rstrip(",;"))
     if not toponym_form:
         return None
+    attested_variant = _strip_count_multiplier(attested_variant)
     return AttestationRecord(
         toponym_form=toponym_form,
         attested_variant=attested_variant,
