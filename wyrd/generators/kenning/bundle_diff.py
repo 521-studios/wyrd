@@ -327,17 +327,10 @@ def _format_other_fields_section(lines: list[str], diff: BundleDiff) -> None:
         lines.append(f"  fantasy_morphemes: {diff.fantasy_morphemes_changed} changed")
 
 
-def format_bundle_diff(diff: BundleDiff, max_subjects_per_section: int = 10) -> str:
-    """Render a BundleDiff as a human-readable summary string.
-
-    ``max_subjects_per_section`` caps the added/removed/changed sample
-    lists so a wholesale rewrite (e.g. every subject churned) doesn't
-    dump a 4-MB diff to the terminal. The cap is suffixed with
-    ``... and N more`` when truncated."""
-    if diff.bytes_match:
-        return "No drift — rebuilt bundle is byte-identical to committed bundle."
-
-    lines: list[str] = ["Bundle drift detected.", ""]
+def _format_byte_header(lines: list[str], diff: BundleDiff) -> None:
+    """Append the byte-level metadata block (size delta + first-divergence
+    window) for a drifted bundle — the diagnostics that matter before the
+    structural diff."""
     if diff.byte_size_committed != diff.byte_size_rebuilt:
         lines.append(
             f"Byte size: committed={diff.byte_size_committed:,}, "
@@ -357,6 +350,20 @@ def format_bundle_diff(diff: BundleDiff, max_subjects_per_section: int = 10) -> 
                     "  rebuilt:   ..." + rebuilt_win.replace("\n", "\\n") + "...",
                 ]
             )
+
+
+def format_bundle_diff(diff: BundleDiff, max_subjects_per_section: int = 10) -> str:
+    """Render a BundleDiff as a human-readable summary string.
+
+    ``max_subjects_per_section`` caps the added/removed/changed sample
+    lists so a wholesale rewrite (e.g. every subject churned) doesn't
+    dump a 4-MB diff to the terminal. The cap is suffixed with
+    ``... and N more`` when truncated."""
+    if diff.bytes_match:
+        return "No drift — rebuilt bundle is byte-identical to committed bundle."
+
+    lines: list[str] = ["Bundle drift detected.", ""]
+    _format_byte_header(lines, diff)
 
     if diff.parse_error:
         lines.append("")
