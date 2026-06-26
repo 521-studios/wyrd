@@ -370,6 +370,15 @@ def _seed_direct_hits(
     return hits
 
 
+# Max bind parameters per descent-edge IN-clause. SQLite's
+# SQLITE_MAX_VARIABLE_NUMBER is 999 on older builds (raised to 32766 in 3.32),
+# so a BFS frontier wider than that overflows an unchunked IN-list with
+# "too many SQL variables". 900 leaves margin under the conservative 999 and
+# matches the etymon-id chunking elsewhere (canonicalization_projection,
+# reverse_search, toponym_etymology_canonical).
+_BFS_PARAM_CHUNK = 900
+
+
 def descent_walking_lookup(
     db_path: Path | str,
     name: str,
@@ -409,14 +418,22 @@ def descent_walking_lookup(
         # depth; corpus depth rarely exceeds ~5.
         while frontier:
             next_frontier: list[int] = []
-            placeholders = ",".join("?" * len(frontier))
-            edges = conn.execute(
-                f"""SELECT e.id, e.canonical_form, e.language, d.edge_type
-                    FROM etymon_descent d
-                    JOIN etymon e ON e.id = d.parent_id
-                    WHERE d.child_id IN ({placeholders})""",
-                frontier,
-            ).fetchall()
+            # Chunk the IN-list so a frontier wider than the SQLite variable
+            # limit doesn't raise "too many SQL variables" (frontiers stay tiny
+            # in practice, so this is a single chunk on the hot path).
+            edges: list[sqlite3.Row] = []
+            for i in range(0, len(frontier), _BFS_PARAM_CHUNK):
+                chunk = frontier[i : i + _BFS_PARAM_CHUNK]
+                placeholders = ",".join("?" * len(chunk))
+                edges.extend(
+                    conn.execute(
+                        f"""SELECT e.id, e.canonical_form, e.language, d.edge_type
+                            FROM etymon_descent d
+                            JOIN etymon e ON e.id = d.parent_id
+                            WHERE d.child_id IN ({placeholders})""",
+                        chunk,
+                    ).fetchall()
+                )
             for e in edges:
                 if e["id"] in seen_etymon_ids:
                     continue

@@ -1652,3 +1652,33 @@ def test_cli_mine_fantasy_name_skip_resolved_is_case_insensitive(
     # No processing line printed.
     assert "USABLE" not in combined
     assert "BARRED" not in combined
+
+
+def test_descent_walking_lookup_chunks_frontier_over_sqlite_var_limit(
+    fresh_db: Path, monkeypatch
+) -> None:
+    """A BFS frontier wider than SQLite's variable limit must not raise
+    'too many SQL variables' — the descent-edge IN-list is chunked. Forces a low
+    limit + tiny chunk so a modest 8-wide second-level frontier overflows an
+    UNchunked query (8 > 6) but a chunked one stays under (4 <= 6)."""
+    with LexiconDB(fresh_db) as db:
+        child = _seed_etymon(db, canonical_form="frontierbeast", language="modern-english")
+        for i in range(8):
+            pid = _seed_etymon(db, canonical_form=f"anc{i}", language="old-english", gloss=f"g{i}")
+            _seed_descent(db, parent_id=pid, child_id=child)
+        db.commit()
+
+    monkeypatch.setattr(fp, "_BFS_PARAM_CHUNK", 4)
+    orig_connect = fp._connect_ro
+
+    def _ro_low_limit(path):
+        conn = orig_connect(path)
+        conn.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, 6)
+        return conn
+
+    monkeypatch.setattr(fp, "_connect_ro", _ro_low_limit)
+
+    # Unchunked, the second-level query binds all 8 frontier ids at once and
+    # raises sqlite3.OperationalError "too many SQL variables"; chunked, it works.
+    matches = fp.descent_walking_lookup(fresh_db, "frontierbeast")
+    assert {m.canonical_form for m in matches} == {f"anc{i}" for i in range(8)}
