@@ -922,6 +922,37 @@ def _fetch_member_citations(db: LexiconDB, member_ids: list[int]) -> dict[int, l
     return member_citations
 
 
+def _attested_years_sql(members_table: str) -> str:
+    """The ``{etymon_id: earliest_attested_year}`` subquery shared by
+    :func:`_bulk_attested_years` (members in a temp table) and
+    :func:`_fetch_member_attested_years` (members in a CTE). Single-sources the
+    set of year-bearing tables — ``etymon_text_match.attested_year`` +
+    ``toponym_etymology.attested_year`` (via ``toponym_etymology_element``) — so
+    adding a THIRD year source touches ONE place, not two (the drift the
+    per-family docstring warned about).
+
+    ``members_table`` is a trusted internal identifier (the temp table or CTE
+    name the caller binds the member-id set into) — NEVER user input, so the
+    f-string interpolation carries no injection risk. Members with no attested
+    year on either source are absent from the result (both branches filter
+    ``attested_year IS NOT NULL``)."""
+    return f"""
+        SELECT etymon_id, MIN(year) AS earliest_year FROM (
+            SELECT etm.etymon_id, etm.attested_year AS year
+            FROM etymon_text_match etm
+            JOIN {members_table} t ON t.etymon_id = etm.etymon_id
+            WHERE etm.attested_year IS NOT NULL
+            UNION ALL
+            SELECT tee.etymon_id, te.attested_year AS year
+            FROM toponym_etymology_element tee
+            JOIN {members_table} t ON t.etymon_id = tee.etymon_id
+            JOIN toponym_etymology te ON te.id = tee.toponym_etymology_id
+            WHERE te.attested_year IS NOT NULL
+        )
+        GROUP BY etymon_id
+    """
+
+
 def _bulk_attested_years(db: LexiconDB, member_ids: Iterable[int]) -> dict[int, int]:
     """wyrd-4zyb: earliest attested year per member for ALL family members in
     ONE pass — the bulk counterpart of :func:`_fetch_member_attested_years`.
@@ -951,23 +982,7 @@ def _bulk_attested_years(db: LexiconDB, member_ids: Iterable[int]) -> dict[int, 
                 "INSERT OR IGNORE INTO _bulk_attested_members(etymon_id) VALUES (?)",
                 ((i,) for i in ids),
             )
-        cur = conn.execute(
-            """
-            SELECT etymon_id, MIN(year) AS earliest_year FROM (
-                SELECT etm.etymon_id, etm.attested_year AS year
-                FROM etymon_text_match etm
-                JOIN _bulk_attested_members t ON t.etymon_id = etm.etymon_id
-                WHERE etm.attested_year IS NOT NULL
-                UNION ALL
-                SELECT tee.etymon_id, te.attested_year AS year
-                FROM toponym_etymology_element tee
-                JOIN _bulk_attested_members t ON t.etymon_id = tee.etymon_id
-                JOIN toponym_etymology te ON te.id = tee.toponym_etymology_id
-                WHERE te.attested_year IS NOT NULL
-            )
-            GROUP BY etymon_id
-            """
-        )
+        cur = conn.execute(_attested_years_sql("_bulk_attested_members"))
         for row in cur:
             out[row["etymon_id"]] = row["earliest_year"]
     finally:
@@ -1005,22 +1020,7 @@ def _fetch_member_attested_years(db: LexiconDB, member_ids: list[int]) -> dict[i
     targets_values = ",".join("(?)" for _ in member_ids)
     member_years: dict[int, int] = {}
     cur = db.conn.execute(
-        f"""
-        WITH targets(etymon_id) AS (VALUES {targets_values})
-        SELECT etymon_id, MIN(year) AS earliest_year FROM (
-            SELECT etm.etymon_id, etm.attested_year AS year
-            FROM etymon_text_match etm
-            JOIN targets t ON t.etymon_id = etm.etymon_id
-            WHERE etm.attested_year IS NOT NULL
-            UNION ALL
-            SELECT tee.etymon_id, te.attested_year AS year
-            FROM toponym_etymology_element tee
-            JOIN targets t ON t.etymon_id = tee.etymon_id
-            JOIN toponym_etymology te ON te.id = tee.toponym_etymology_id
-            WHERE te.attested_year IS NOT NULL
-        )
-        GROUP BY etymon_id
-        """,
+        f"WITH targets(etymon_id) AS (VALUES {targets_values}) " + _attested_years_sql("targets"),
         member_ids,
     )
     for row in cur:
