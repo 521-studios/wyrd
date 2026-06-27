@@ -17,6 +17,7 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.ingesters.os_open_names import (
+    _COLUMNS,
     OS_OPEN_NAMES_SOURCE_ID,
     _normalize_row,
     build_events,
@@ -119,6 +120,30 @@ def test_normalize_row_skips_non_settlement_local_type():
         "LOCAL_TYPE": "Postcode",
     }
     assert _normalize_row(row) is None
+
+
+def test_normalize_row_truncated_row_present_none_trailing_cols_does_not_crash():
+    """A SHORT CSV row: csv.DictReader fills missing trailing columns with
+    restval=None (the columns are PRESENT with a None value, not absent), and the
+    drift guard only catches EXTRA columns. COUNTY_UNITARY@24 / COUNTRY@29 sit
+    AFTER the populated-place gate (TYPE@6/LOCAL_TYPE@7), so a gate-passing-but-
+    truncated row presents them as None — and ``row.get(col, "")`` returns that
+    None (its default applies to ABSENT keys only), so ``None.strip()`` would
+    crash the whole ingest. This mirrors the real DictReader row shape (every
+    fieldname present), unlike the sparse-dict tests above that omit keys."""
+    row = dict.fromkeys(_COLUMNS, None)  # DictReader shape: all fieldnames present
+    row["NAMES_URI"] = "http://example/1"  # before the gate — present in a real short row
+    row["NAME1"] = "Edlingham"
+    row["TYPE"] = "populatedPlace"
+    row["LOCAL_TYPE"] = "Village"
+    # COUNTRY / COUNTY_UNITARY left None (row truncated after the gate columns)
+    pair = _normalize_row(row)  # must NOT raise (was None.strip() AttributeError)
+    assert pair is not None
+    toponym, _ = pair
+    assert toponym["modern_name"] == "Edlingham"
+    assert toponym["ref"] == "Edlingham@-"  # None region → @-
+    assert "country" not in toponym  # present-None → "" → falsy → omitted
+    assert "region" not in toponym
 
 
 def test_normalize_row_handles_null_region():

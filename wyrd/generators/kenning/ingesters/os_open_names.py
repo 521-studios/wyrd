@@ -154,8 +154,14 @@ def _normalize_row(row: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]]
     name = row.get("NAME1", "").strip()
     if not name:
         return None
-    country = row.get("COUNTRY", "").strip() or None
-    region = row.get("COUNTY_UNITARY", "").strip() or None
+    # COUNTRY / COUNTY_UNITARY sit AFTER the populated-place gate's columns
+    # (TYPE/LOCAL_TYPE), so a row that passes the gate but is truncated before
+    # them gets ``None`` from DictReader's restval (the drift guard only catches
+    # EXTRA columns, not fewer). ``.get(col, "")`` returns that None as-is (the
+    # default applies to absent keys, not present-None) — ``None.strip()`` would
+    # crash the whole ingest. ``(... or "")`` coerces a present-None to "".
+    country = (row.get("COUNTRY") or "").strip() or None
+    region = (row.get("COUNTY_UNITARY") or "").strip() or None
     ref = _toponym_ref(name, region)
     uri = row.get("NAMES_URI", "").strip()
     local_type = row.get("LOCAL_TYPE", "").strip() or "unknown"
