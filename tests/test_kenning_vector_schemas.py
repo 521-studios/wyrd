@@ -9,10 +9,12 @@ shapes the downstream phases consume.
 from __future__ import annotations
 
 import math
+from typing import get_type_hints
 
 import pytest
 
 from wyrd.generators.kenning.vectors.schemas import (
+    _DIMENSION_NAMES,
     EligibilityGate,
     EmpiricalPriors,
     PackOverlay,
@@ -64,6 +66,32 @@ def test_phonological_vector_dot_zero_weight_skips():
     v = PhonologicalVector()
     s = v.dot({"cluster_density": 0.0, "made_up_dim": 0.0})
     assert s == 0.0
+
+
+def test_dimension_names_match_dataclass_fields():
+    """``_DIMENSION_NAMES`` (the runtime mirror of the ``PhonologicalFeatureName``
+    Literal) is the whitelist ``dot()`` scores against. It MUST stay in lockstep
+    with the ``PhonologicalVector`` dataclass's DIMENSION fields — the two are
+    hand-maintained on separate sides. A dimension field present on the dataclass
+    but absent from the Literal has its weight SILENTLY IGNORED by ``dot()`` (a
+    dimension that never contributes to scoring); a Literal name with no field is a
+    dead weight key. Dimensions get added over time (wyrd-119p liquid_l_m_n/rhotic_r,
+    wyrd-mkry vowel_tenseness), so pin the parity here — a one-sided addition fails
+    CI rather than silently producing wrong scores.
+
+    Identify the dimensions by their ``float`` annotation rather than
+    'every field except extras': the dataclass deliberately permits future
+    NON-dimension metadata fields (a provenance string, a version stamp — see
+    ``test_dot_ignores_non_dimension_dataclass_fields``), which ``dot()`` ignores
+    and which must not be demanded into the Literal. Only the float dimensions are
+    compared."""
+    dimension_fields = {n for n, t in get_type_hints(PhonologicalVector).items() if t is float}
+    assert dimension_fields == _DIMENSION_NAMES, (
+        f"float dimension on the dataclass but NOT scored by dot() (add to the "
+        f"Literal): {dimension_fields - _DIMENSION_NAMES}; "
+        f"in the Literal but no dataclass field (dead weight key): "
+        f"{_DIMENSION_NAMES - dimension_fields}"
+    )
 
 
 # ---- RegisterEffect + composition --------------------------------------
