@@ -37,12 +37,15 @@ def open_failure_sink(capture_failures: Path | None):
     resume across multiple invocations accumulates failures end-to-end. Warns on
     an existing non-empty file so an operator-blind append doesn't silently bury
     old records. ``errors="replace"`` is the wyrd-klod surrogate-escape backstop
-    — a "?" means a surrogate slipped past the in-band sanitizer."""
+    — a "?" means a surrogate slipped past the in-band sanitizer. The stale-count
+    read uses it too: a crash *mid-write* (this is a crash-safety pipeline) can
+    leave a truncated multibyte sequence that the write-side backstop can't catch,
+    and the resume warning-read must not die decoding it."""
     if capture_failures is None:
         return None
     capture_failures.parent.mkdir(parents=True, exist_ok=True)
     if capture_failures.exists() and capture_failures.stat().st_size > 0:
-        with capture_failures.open("r", encoding="utf-8") as _fh:
+        with capture_failures.open("r", encoding="utf-8", errors="replace") as _fh:
             stale = sum(1 for ln in _fh if ln.strip())
         click.echo(
             f"  warning: --capture-failures {capture_failures} already has "

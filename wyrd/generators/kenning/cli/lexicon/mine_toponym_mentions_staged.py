@@ -329,6 +329,13 @@ def lexicon_mine_toponym_mentions_staged(
             client_box["client"] = built
             client_box["extractor"] = f"{provider}:{built.model}"
 
+    # Validate sources before opening the failure sink: in fresh-mining mode a
+    # bad --source raises ClickException (inside _run_fresh_mining below), and
+    # opening the sink first would leave a stray empty failure file (+ mkdir'd
+    # parent) for a run that processed nothing. Mirrors the tiered ordering;
+    # _run_fresh_mining re-resolves cheaply for the actual list.
+    if from_failures is None:
+        resolve_source_ids(sources, sources_dir)
     failure_sink = open_failure_sink(capture_failures)
 
     def _emit_failure(source_id, fc):
