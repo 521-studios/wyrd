@@ -91,7 +91,10 @@ export function coerceToType(raw, prop) {
     return Number.isFinite(n) ? n : undefined;
   }
   if (prop?.type === 'boolean') {
-    return ['1', 'true', 'yes', 'on'].includes(String(raw).toLowerCase());
+    // .trim() for parity with the server (feature_flags._parse_bool strips) and
+    // with this function's own number branch (String(raw).trim()): a padded
+    // ' true ' must coerce to true, not silently false.
+    return ['1', 'true', 'yes', 'on'].includes(String(raw).trim().toLowerCase());
   }
   return raw;
 }

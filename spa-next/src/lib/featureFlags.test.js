@@ -122,6 +122,17 @@ describe('coerceToType', () => {
     }
   });
 
+  it('trims surrounding whitespace on booleans (server / number-branch parity)', () => {
+    // The number branch already trims (String(raw).trim()), and the server's
+    // boolean coerce strips via _parse_bool. A padded truthy value like ' true '
+    // must coerce to true — otherwise the SPA shows a boolean option OFF while
+    // the server (which strips) generates with it ON (a WYRD_DEFAULT_* parity
+    // break, the exact divergence feature_flags exists to prevent).
+    for (const t of [' true ', '\ttrue', 'yes ', ' 1 ', ' ON ']) {
+      expect(coerceToType(t, { type: 'boolean' })).toBe(true);
+    }
+  });
+
   it('passes strings through unchanged', () => {
     expect(coerceToType('english', { type: 'string' })).toBe('english');
   });
