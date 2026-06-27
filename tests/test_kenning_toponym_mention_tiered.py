@@ -544,6 +544,39 @@ def test_cli_walks_all_txt_files_when_no_source_specified(tmp_path, monkeypatch)
     assert line_a["form"] == "Edlingham"
 
 
+def test_cli_invalid_source_does_not_open_failure_sink(tmp_path):
+    """A bad --source must fail source validation BEFORE the --capture-failures
+    sink is opened. Otherwise open_failure_sink() leaks the file handle and
+    leaves a stray empty failure file (+ mkdir'd parent) for a run that never
+    processed anything. Regression for the open-then-resolve ordering: resolve
+    raises a ClickException, so the sink must be opened only after it succeeds."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "real.txt").write_text("Edlingham.", encoding="utf-8")
+    capture = tmp_path / "failures" / "fail.jsonl"
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--source",
+            "does-not-exist",
+            "--capture-failures",
+            str(capture),
+        ],
+    )
+    assert result.exit_code != 0  # source validation failed
+    # The sink was never opened: no stray file and no mkdir'd parent dir.
+    assert not capture.exists()
+    assert not capture.parent.exists()
+
+
 def test_cli_skip_existing_resumes_without_reprocessing(tmp_path, monkeypatch):
     """--skip-existing: sources whose output JSONL already exists are
     skipped without invoking the LLM. Idempotent resume contract."""

@@ -20,6 +20,7 @@ from typing import Any
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
+from wyrd.generators.kenning.cli.lexicon._mention_mining_io import open_failure_sink
 from wyrd.generators.kenning.extractors.toponym_mentions import (
     _FAILED_CHUNKS_HEAD,
     MineToponymMentionsReport,
@@ -547,6 +548,56 @@ def test_cli_fresh_happy_path_unlinks_inprogress_log(tmp_path: Path, monkeypatch
     inprogress = output_dir / "_inprogress" / "src_a.chunks.jsonl"
     assert canonical.exists()
     assert not inprogress.exists()
+
+
+def test_open_failure_sink_tolerates_crash_truncated_log(tmp_path: Path):
+    """A crash mid-write can leave a truncated/invalid multibyte sequence in the
+    failure log — the write-side errors='replace' can't catch a half-written
+    char. The resume stale-count read must tolerate it (errors='replace'), not
+    die with UnicodeDecodeError before the run even starts."""
+    log = tmp_path / "failures" / "fail.jsonl"
+    log.parent.mkdir()
+    # One valid record + a lone invalid UTF-8 start byte (a crash mid-multibyte).
+    log.write_bytes(b'{"source_id": "s", "x": 1}\n\xff partial')
+    sink = open_failure_sink(log)  # must not raise on the stale-count read
+    assert sink is not None
+    sink.close()
+
+
+def test_cli_staged_invalid_source_does_not_open_failure_sink(tmp_path: Path):
+    """Staged mirror of the tiered guard: a bad --source must fail source
+    validation BEFORE the --capture-failures sink is opened. Staged closes the
+    sink in a finally (so no handle leak), but opening it first still leaves a
+    stray empty failure file (+ mkdir'd parent) for a run that processed
+    nothing."""
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "real.txt").write_text("Edlingham.", encoding="utf-8")
+    capture = tmp_path / "failures" / "fail.jsonl"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--provider",
+            "ollama",
+            "--model",
+            "fake-test-model",
+            "--source",
+            "does-not-exist",
+            "--capture-failures",
+            str(capture),
+        ],
+    )
+    assert result.exit_code != 0  # source validation failed
+    assert not capture.exists()
+    assert not capture.parent.exists()
 
 
 def test_cli_fresh_crash_preserves_inprogress_log(tmp_path: Path, monkeypatch):

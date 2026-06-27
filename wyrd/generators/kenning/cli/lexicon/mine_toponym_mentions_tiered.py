@@ -11,6 +11,10 @@ from pathlib import Path
 import click
 
 from wyrd.generators.kenning.cli.lexicon._dedup import dedup_key
+from wyrd.generators.kenning.cli.lexicon._mention_mining_io import (
+    open_failure_sink,
+    resolve_source_ids,
+)
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions import _build_extractor_client
 
 
@@ -25,45 +29,6 @@ def _tiered_line(source_id: str, m) -> str:
         },
         ensure_ascii=False,
     )
-
-
-def _open_failure_sink(capture_failures: Path | None):
-    """Open the --capture-failures append sink (or None). Append mode so a
-    resume across multiple invocations accumulates failures end-to-end (mirrors
-    the staged-cascade behavior). Warns on an existing non-empty file so an
-    operator-blind append doesn't silently bury old records. errors="replace"
-    is the wyrd-klod surrogate-escape backstop — a "?" means a surrogate
-    slipped past the in-band sanitizer."""
-    if capture_failures is None:
-        return None
-    capture_failures.parent.mkdir(parents=True, exist_ok=True)
-    if capture_failures.exists() and capture_failures.stat().st_size > 0:
-        with capture_failures.open("r", encoding="utf-8") as _fh:
-            stale = sum(1 for ln in _fh if ln.strip())
-        click.echo(
-            f"  warning: --capture-failures {capture_failures} already has "
-            f"{stale} record(s); appending (`> {capture_failures}` to clear)",
-            err=True,
-        )
-    return capture_failures.open("a", encoding="utf-8", errors="replace")
-
-
-def _resolve_tiered_source_ids(sources, sources_dir: Path) -> list[str]:
-    """Resolve the source list: validate each --source exists as a .txt under
-    sources_dir, or walk *.txt (sorted, deterministic) when --source is
-    omitted. Raises if a named source is missing or none are found."""
-    if sources:
-        source_ids = []
-        for sid in sources:
-            txt = sources_dir / f"{Path(sid).name}.txt"
-            if not txt.exists():
-                raise click.ClickException(f"source body not found: {txt}")
-            source_ids.append(Path(sid).name)
-    else:
-        source_ids = sorted(p.stem for p in sources_dir.glob("*.txt") if p.name != "MANIFEST.md")
-    if not source_ids:
-        raise click.ClickException(f"no sources under {sources_dir}")
-    return source_ids
 
 
 def _emit_source_summary(out_path: Path, report) -> None:
@@ -422,8 +387,12 @@ def lexicon_mine_toponym_mentions_tiered(
         raise click.ClickException("--skip-existing and --force are mutually exclusive")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    failure_sink = _open_failure_sink(capture_failures)
-    source_ids = _resolve_tiered_source_ids(sources, sources_dir)
+    # Resolve (and validate) sources BEFORE opening the failure sink: a bad
+    # --source raises ClickException, and opening the sink first would leak the
+    # file handle and leave a stray empty failure file for a run that never
+    # processed anything (staged already orders it this way / wraps in finally).
+    source_ids = resolve_source_ids(sources, sources_dir)
+    failure_sink = open_failure_sink(capture_failures)
 
     click.echo(f"Sources to process: {len(source_ids)}", err=True)
     click.echo(
