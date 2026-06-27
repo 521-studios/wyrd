@@ -11,6 +11,10 @@ from pathlib import Path
 import click
 
 from wyrd.generators.kenning.cli.lexicon._dedup import dedup_key_from_mention
+from wyrd.generators.kenning.cli.lexicon._mention_mining_io import (
+    open_failure_sink,
+    resolve_source_ids,
+)
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions import _build_extractor_client
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_tiered import (
     _load_existing_mention_keys,
@@ -110,27 +114,6 @@ def _validate_staged_flags(from_failures, sources, skip_existing, force) -> None
         )
     if skip_existing and force:
         raise click.ClickException("--skip-existing and --force are mutually exclusive")
-
-
-def _open_staged_failure_sink(capture_failures):
-    """Open the --capture-failures append sink (or None). Append-mode so
-    re-running a stage doesn't blow away the prior run's tail; warns on an
-    existing non-empty file because stale records from a DIFFERENT cascade run
-    would silently flow into the next stage's input (wyrd-srd2 R1). Stream-
-    counts the warning rather than read_text() so a large file doesn't load
-    into memory. errors="replace" is the wyrd-klod surrogate backstop."""
-    if capture_failures is None:
-        return None
-    capture_failures.parent.mkdir(parents=True, exist_ok=True)
-    if capture_failures.exists() and capture_failures.stat().st_size > 0:
-        with capture_failures.open("r", encoding="utf-8") as _fh:
-            stale = sum(1 for ln in _fh if ln.strip())
-        click.echo(
-            f"  warning: --capture-failures {capture_failures} already has "
-            f"{stale} record(s); appending (`> {capture_failures}` to clear)",
-            err=True,
-        )
-    return capture_failures.open("a", encoding="utf-8", errors="replace")
 
 
 def _emit_staged_summary(totals: dict, from_failures, capture_failures) -> None:
@@ -346,7 +329,7 @@ def lexicon_mine_toponym_mentions_staged(
             client_box["client"] = built
             client_box["extractor"] = f"{provider}:{built.model}"
 
-    failure_sink = _open_staged_failure_sink(capture_failures)
+    failure_sink = open_failure_sink(capture_failures)
 
     def _emit_failure(source_id, fc):
         if failure_sink is None:
@@ -684,7 +667,7 @@ def _run_fresh_mining(
 ) -> None:
     """Fresh-mining mode body, extracted out of the click command. mine_fn
     is injected (matches mine_toponym_mentions at the only call site)."""
-    source_ids = _resolve_source_ids(sources, sources_dir)
+    source_ids = resolve_source_ids(sources, sources_dir)
 
     click.echo(f"Sources to process: {len(source_ids)}", err=True)
     click.echo(f"Provider: {provider} (model={model or 'default'})", err=True)
@@ -816,26 +799,6 @@ def _run_fresh_mining(
         totals["years_clamped"] += report.years_clamped
         totals["surrogates_sanitized"] += report.surrogates_sanitized
         totals["mentions"] += len(report.mentions)
-
-
-def _resolve_source_ids(sources: tuple[str, ...], sources_dir: Path) -> list[str]:
-    """Resolve the operator's ``--source`` selection (returned in
-    caller-supplied order) or, when empty, every ``.txt`` file under
-    ``sources_dir`` (returned sorted). Raises ClickException on any
-    explicit selection that doesn't correspond to an existing .txt
-    file, or when the all-files branch finds zero sources."""
-    if sources:
-        source_ids = []
-        for sid in sources:
-            txt = sources_dir / f"{Path(sid).name}.txt"
-            if not txt.exists():
-                raise click.ClickException(f"source body not found: {txt}")
-            source_ids.append(Path(sid).name)
-    else:
-        source_ids = sorted(p.stem for p in sources_dir.glob("*.txt") if p.name != "MANIFEST.md")
-    if not source_ids:
-        raise click.ClickException(f"no sources under {sources_dir}")
-    return source_ids
 
 
 def _should_skip_existing_output(
