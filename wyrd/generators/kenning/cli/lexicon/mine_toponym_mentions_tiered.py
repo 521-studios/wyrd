@@ -387,8 +387,12 @@ def lexicon_mine_toponym_mentions_tiered(
         raise click.ClickException("--skip-existing and --force are mutually exclusive")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    failure_sink = open_failure_sink(capture_failures)
+    # Resolve (and validate) sources BEFORE opening the failure sink: a bad
+    # --source raises ClickException, and opening the sink first would leak the
+    # file handle and leave a stray empty failure file for a run that never
+    # processed anything (staged already orders it this way / wraps in finally).
     source_ids = resolve_source_ids(sources, sources_dir)
+    failure_sink = open_failure_sink(capture_failures)
 
     click.echo(f"Sources to process: {len(source_ids)}", err=True)
     click.echo(
