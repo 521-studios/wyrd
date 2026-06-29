@@ -36,9 +36,12 @@ pytestmark = pytest.mark.no_lexicon_isolation
 
 N_SEEDS = 150
 # Every `-ton` pick in an english request must resolve to one of english's
-# real culture-source languages (mirrors CULTURE_LANGUAGES["english"] in the
-# proportions builder: the OE/ME/ModE line PLUS Old Norse + Old French —
-# english place-names are genuinely multi-source). The Old Norse `tún` cognate
+# real culture-source languages — a SUPERSET of CULTURE_LANGUAGES["english"]
+# in the proportions builder (its old_english/modern_english + old_scandinavian
+# [=old-norse] + old_french [=old-french] sources), PLUS middle-english kept
+# from the prior english-family allowlist (ME tūn is in the same cognate
+# cluster, so retaining it is correct). English place-names are genuinely
+# multi-source. The Old Norse `tún` cognate
 # of OE `tūn` (same "enclosure/farmstead" gloss, same cognate cluster) IS the
 # accurate source for a Danelaw -ton name — not a leak. What this guards
 # against is a different-GLOSS homograph absorbing the surface: welsh / celtic

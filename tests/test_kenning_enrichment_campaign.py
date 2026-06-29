@@ -27,6 +27,7 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     ipa_next_slice,
     next_slice,
     reflex_progress,
+    scholar_impact_ranking,
     tag_next_slice,
     tag_progress,
     validate_candidates,
@@ -381,8 +382,7 @@ def test_tag_cohort_excludes_merged_tombstone(world):
     impact 2) and the assertion fails — i.e. the filter line is load-bearing."""
     db, tmp_path = world
     tun = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'tūn'").fetchone()[0]
-    _etymon(db, "ton", gloss="A worn form of tūn.", merged_into=tun)
-    stub = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'ton'").fetchone()[0]
+    stub = _etymon(db, "ton", gloss="A worn form of tūn.", merged_into=tun)
     _toponym(db, "Acton", [stub])
     _toponym(db, "Bolton", [stub])  # impact 2 — would otherwise admit
     db.conn.commit()
@@ -391,6 +391,12 @@ def test_tag_cohort_excludes_merged_tombstone(world):
     assert "old-english:ton" not in refs
     # the live etymons still surface — the filter is narrow, not a blanket drop.
     assert refs == {"old-english:tūn", "old-norse:by"}
+    # The same merged_into_id exclusion guards scholar_impact_ranking
+    # (_IMPACT_SQL), which drives the reflex / variant-gap / band cohorts too
+    # (wyrd-tze2, Gemini round 2): the tombstoned stub is absent there as well.
+    impact_forms = {r["canonical_form"] for r in scholar_impact_ranking(db.conn)}
+    assert "ton" not in impact_forms
+    assert "tūn" in impact_forms
 
 
 def test_tag_validate_vocab_and_none_outcome(world):

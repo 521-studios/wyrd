@@ -253,6 +253,13 @@ _IMPACT_SQL = """
     WHERE tee.etymon_id IS NOT NULL
       AND e.language <> 'unknown'
       AND e.canonical_form NOT LIKE '% %'
+      -- wyrd-tze2: same #804 merged_into_id exclusion as _TAG_COHORT_SQL.
+      -- scholar_impact_ranking drives the reflex / variant-gap / band (IPA,
+      -- gloss) campaign cohorts too, so a tombstoned stub must not surface as
+      -- a target in ANY of them — its reflexes/IPAs/glosses belong on the
+      -- merge winner, and a campaign author minted onto the tombstone is the
+      -- same wyrd-ckro priors-pollution / unreachable-target waste.
+      AND e.merged_into_id IS NULL
     GROUP BY tee.etymon_id, e.language, e.canonical_form
     ORDER BY impact DESC, e.language, e.canonical_form
 """
