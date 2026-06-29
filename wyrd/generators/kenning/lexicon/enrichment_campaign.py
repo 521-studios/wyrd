@@ -838,8 +838,10 @@ _TAG_COHORT_SQL = """
           AND e.canonical_form NOT LIKE '% %'
           -- wyrd-tze2: exclude merged/tombstoned etymons (the #804 filter, ported
           -- from tag_mining.select_targets). A bare-surface stub folded into its
-          -- canonical (wick->wīc) must not be re-tagged on a later campaign slice;
-          -- tagging a tombstone re-creates the stub-out-ranks-canonical ranking bug.
+          -- canonical (wick->wīc) is a tombstone: generation reroutes through the
+          -- merge winner so it can't out-rank anything, but a tag minted onto it on
+          -- a later campaign slice pollutes consumers that read etymon_tag as live
+          -- (the empirical-priors extract, wyrd-ckro) — the harm #804 documents.
           AND e.merged_into_id IS NULL
         GROUP BY tee.etymon_id, e.language, e.canonical_form
         HAVING impact >= 2
