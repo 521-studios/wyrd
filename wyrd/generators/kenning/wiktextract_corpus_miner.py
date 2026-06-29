@@ -279,7 +279,7 @@ def compute_unaccounted_fragments(
     surfacing the highest-leverage gap-fills.
     """
     word_db, _ = load_meanings(meanings_data)
-    names = load_names(json.loads(Path(place_names_path).read_text()))
+    names = load_names(json.loads(Path(place_names_path).read_text(encoding="utf-8")))
     candidates: Counter = Counter()
     for name in names:
         name.find_meaning(word_db)

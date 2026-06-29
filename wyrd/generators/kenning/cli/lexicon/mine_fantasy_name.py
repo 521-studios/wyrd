@@ -46,7 +46,7 @@ def _parse_batch_inputs(batch_path: Path) -> list[tuple[str, str]]:
     """Parse the batch JSONL into ``(name, description)`` pairs, raising a
     friendly ClickException on bad JSON or a missing field (with line number)."""
     inputs: list[tuple[str, str]] = []
-    with batch_path.open() as f:
+    with batch_path.open(encoding="utf-8") as f:
         for i, line in enumerate(f, 1):
             line = line.strip()
             if not line:

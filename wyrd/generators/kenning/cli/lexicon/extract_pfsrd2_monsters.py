@@ -59,7 +59,7 @@ def lexicon_extract_pfsrd2_monsters(
             --batch /tmp/pfsrd2-monsters.jsonl --apply
     """
     record_count = 0
-    out_handle = output_path.open("w") if output_path is not None else None
+    out_handle = output_path.open("w", encoding="utf-8") if output_path is not None else None
     try:
         for record in pfsrd2_monster_extractor.extract_corpus(corpus_root, limit=limit):
             line = json.dumps(record, ensure_ascii=False)

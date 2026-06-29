@@ -26,7 +26,7 @@ def lexicon_parse_pages(source_path: Path, limit: int) -> None:
     along with a sample. Use this to decide whether a book is amenable
     to page-anchored citations.
     """
-    text = source_path.read_text(errors="replace")
+    text = source_path.read_text(errors="replace", encoding="utf-8")
     headers, parser = detect_running_headers(text)
     click.echo(f"{source_path.name}: {len(headers)} running header(s) detected (parser: {parser})")
     if not headers:

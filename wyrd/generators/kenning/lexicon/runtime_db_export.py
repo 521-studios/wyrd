@@ -456,7 +456,7 @@ def _compute_proportions_inline(
 
 def _init_runtime_schema(conn: sqlite3.Connection) -> None:
     """Run runtime.sql against the freshly-created DB."""
-    sql = seed_data_path("runtime.sql").read_text()
+    sql = seed_data_path("runtime.sql").read_text(encoding="utf-8")
     conn.executescript(sql)
 
 

@@ -110,7 +110,7 @@ def _load_meanings_data(meanings: Path | None) -> dict:
         )
 
         return bundle_dict_from_runtime_db(get_runtime_db())
-    return json.loads(meanings.read_text())
+    return json.loads(meanings.read_text(encoding="utf-8"))
 
 
 def _decompose_corpus(

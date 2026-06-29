@@ -53,7 +53,7 @@ def lexicon_mine_skeat(path: Path, db_path: Path, source_id: str | None) -> None
         }
         click.echo(f"warn: no metadata for source_id={derived_id!r}; using stub", err=True)
 
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     entries = parse_skeat_text(text)
 
     by_conf: dict[str, int] = {}

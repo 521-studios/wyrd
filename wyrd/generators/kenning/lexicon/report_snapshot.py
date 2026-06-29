@@ -165,11 +165,11 @@ def parse_report_dir(report_dir: Path) -> list[Metric]:
     for fname, parser in simple.items():
         path = report_dir / fname
         if path.is_file():
-            metrics.extend(parser(path.read_text()))
+            metrics.extend(parser(path.read_text(encoding="utf-8")))
 
     for drift_path in sorted(report_dir.glob("drift_*.json")):
         culture = drift_path.stem[len("drift_") :]
-        metrics.extend(_parse_drift(drift_path.read_text(), culture))
+        metrics.extend(_parse_drift(drift_path.read_text(encoding="utf-8"), culture))
 
     # Dedup on (category, metric) — last wins — then sort for determinism.
     by_key: dict[tuple[str, str], Metric] = {}

@@ -191,7 +191,7 @@ def lexicon_export_meanings(
     if output_path is None:
         click.echo(payload)
     else:
-        output_path.write_text(payload + "\n")
+        output_path.write_text(payload + "\n", encoding="utf-8")
         notes = []
         if canonical_decompositions:
             notes.append(f"{len(canonical_decompositions)} canonical decompositions")
@@ -215,7 +215,7 @@ def _load_joiners_sidecar(path: Path) -> dict[str, list[dict[str, Any]]]:
     issues raised as ``click.ClickException`` so the operator gets a
     pointed error rather than a JSON parse traceback."""
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise click.ClickException(f"--joiners-from {path}: invalid JSON: {exc}") from exc
     if not isinstance(data, dict):

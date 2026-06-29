@@ -231,7 +231,7 @@ def _load_norman_manorial_families() -> tuple[str, ...]:
     Domesday-and-after subsidy rolls, focusing on surnames that
     actually attach to English toponyms in the historical record.
     """
-    with _data_path("norman_manorial_families.json").open() as f:
+    with _data_path("norman_manorial_families.json").open(encoding="utf-8") as f:
         return tuple(json.load(f))
 
 
@@ -470,7 +470,7 @@ def _load_meanings():
     the morpheme as "FR" rather than "(?)".
     """
     data = _runtime_db_bundle_dict()
-    with _data_path("irish_anglicizations.json").open() as f:
+    with _data_path("irish_anglicizations.json").open(encoding="utf-8") as f:
         sidecar = json.load(f)
     manorial = _norman_manorial_subjects()
     saints = _saint_personal_name_subjects()
