@@ -27,6 +27,7 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
     ipa_next_slice,
     next_slice,
     reflex_progress,
+    scholar_impact_ranking,
     tag_next_slice,
     tag_progress,
     validate_candidates,
@@ -39,12 +40,14 @@ from wyrd.generators.kenning.lexicon.enrichment_campaign import (
 )
 
 
-def _etymon(db, form, *, language="old-english", gloss=None):
+def _etymon(db, form, *, language="old-english", gloss=None, merged_into=None):
     eid = db.conn.execute(
         "INSERT INTO etymon (canonical_form, language) VALUES (?, ?)", (form, language)
     ).lastrowid
     if gloss is not None:
         db.conn.execute("INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)", (eid, gloss))
+    if merged_into is not None:
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (merged_into, eid))
     return eid
 
 
@@ -368,6 +371,32 @@ def test_tag_next_slice_surfaces_glossed_untagged_admit(world):
     assert slice_[0]["vocab"] == list(tag_mining.TAG_VOCAB)
     # Impact-ordered: tūn (3) before by (2).
     assert slice_[0]["ref"] == "old-english:tūn"
+
+
+def test_tag_cohort_excludes_merged_tombstone(world):
+    """wyrd-tze2: a bare-surface stub folded into its canonical (merged_into_id
+    set) is a tombstone and must NOT surface in the tag cohort — else a later
+    slice re-tags the tombstone, polluting downstream consumers that read
+    etymon_tag as live (the #804 / wyrd-ckro harm). Without the
+    ``merged_into_id IS NULL`` filter this stub qualifies (glossed, untagged,
+    impact 2) and the assertion fails — i.e. the filter line is load-bearing."""
+    db, tmp_path = world
+    tun = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'tūn'").fetchone()[0]
+    stub = _etymon(db, "ton", gloss="A worn form of tūn.", merged_into=tun)
+    _toponym(db, "Acton", [stub])
+    _toponym(db, "Bolton", [stub])  # impact 2 — would otherwise admit
+    db.conn.commit()
+    empty = tmp_path / "_tags.jsonl"
+    refs = {t["ref"] for t in tag_next_slice(db.conn, tmp_path / "lexicon.db", empty, n=10)}
+    assert "old-english:ton" not in refs
+    # the live etymons still surface — the filter is narrow, not a blanket drop.
+    assert refs == {"old-english:tūn", "old-norse:by"}
+    # The same merged_into_id exclusion guards scholar_impact_ranking
+    # (_IMPACT_SQL), which drives the reflex / variant-gap / band cohorts too
+    # (wyrd-tze2, Gemini round 2): the tombstoned stub is absent there as well.
+    impact_forms = {r["canonical_form"] for r in scholar_impact_ranking(db.conn)}
+    assert "ton" not in impact_forms
+    assert "tūn" in impact_forms
 
 
 def test_tag_validate_vocab_and_none_outcome(world):
