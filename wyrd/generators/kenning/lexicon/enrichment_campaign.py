@@ -836,6 +836,11 @@ _TAG_COHORT_SQL = """
         WHERE tee.etymon_id IS NOT NULL
           AND e.language <> 'unknown'
           AND e.canonical_form NOT LIKE '% %'
+          -- wyrd-tze2: exclude merged/tombstoned etymons (the #804 filter, ported
+          -- from tag_mining.select_targets). A bare-surface stub folded into its
+          -- canonical (wick->wīc) must not be re-tagged on a later campaign slice;
+          -- tagging a tombstone re-creates the stub-out-ranks-canonical ranking bug.
+          AND e.merged_into_id IS NULL
         GROUP BY tee.etymon_id, e.language, e.canonical_form
         HAVING impact >= 2
     )
