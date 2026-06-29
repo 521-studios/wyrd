@@ -489,7 +489,7 @@ def _review_one_book(
     }
     by_failure: dict[str, int] = {}
 
-    text = source_path.read_text()
+    text = source_path.read_text(encoding="utf-8")
     parsed = _select_parser_and_run(text, "auto")
     entries_by_name: dict[str, object] = {p.toponym: p for p in parsed}
 

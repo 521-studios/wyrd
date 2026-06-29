@@ -212,9 +212,9 @@ def _stage_place_names_paths(
     paths: dict[str, Path] = {}
     try:
         for culture in target_cultures:
-            text = seed_data_path(f"{culture}_place_names.json").read_text()
+            text = seed_data_path(f"{culture}_place_names.json").read_text(encoding="utf-8")
             p = tmpdir / f"{culture}_place_names.json"
-            p.write_text(text)
+            p.write_text(text, encoding="utf-8")
             paths[culture] = p
     except Exception:
         shutil.rmtree(tmpdir, ignore_errors=True)

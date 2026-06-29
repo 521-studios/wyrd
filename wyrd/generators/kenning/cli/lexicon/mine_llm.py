@@ -166,7 +166,7 @@ def lexicon_mine_llm(
         },
     )
 
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     parsed = _select_parser_and_run(
         text, parser, min_entry_number=min_entry, max_entry_number=max_entry
     )

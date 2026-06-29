@@ -198,7 +198,7 @@ def extract_corpus(
     emitted = 0
     for path in iter_monster_files(corpus_root):
         try:
-            monster = json.loads(path.read_text())
+            monster = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             continue
         for record in extract_records(monster):

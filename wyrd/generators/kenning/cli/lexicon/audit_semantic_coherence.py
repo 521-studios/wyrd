@@ -624,7 +624,7 @@ def lexicon_audit_semantic_coherence(
         bundle = bundle_dict_from_runtime_db(get_runtime_db())
     else:
         click.echo(f"Loading {meanings_path}...", err=True)
-        with meanings_path.open() as f:
+        with meanings_path.open(encoding="utf-8") as f:
             bundle = json.load(f)
     subjects = bundle.get("subjects", [])
     click.echo(f"  {len(subjects)} subjects", err=True)
@@ -685,9 +685,9 @@ def lexicon_audit_semantic_coherence(
 
 def _write_csv(path: Path, rows: list[dict]) -> None:
     if not rows:
-        path.write_text("")
+        path.write_text("", encoding="utf-8")
         return
-    with path.open("w", newline="") as f:
+    with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         w.writeheader()
         w.writerows(rows)

@@ -36,7 +36,7 @@ def _load_norman_manorial_family_tokens() -> frozenset[str]:
     documents).
     """
     data = resources.files("wyrd.generators.kenning.data").joinpath("norman_manorial_families.json")
-    families = json.loads(data.read_text())
+    families = json.loads(data.read_text(encoding="utf-8"))
     return frozenset(family.split()[-1] for family in families)
 
 

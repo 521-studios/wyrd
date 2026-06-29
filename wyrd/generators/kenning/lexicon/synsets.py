@@ -26,7 +26,7 @@ from wyrd.generators.kenning.paths import seed_data_path
 
 def _meaning_synsets_seed() -> dict:
     """Read the bundled seed catalog from package data."""
-    raw = seed_data_path("meaning_synsets.json").read_text()
+    raw = seed_data_path("meaning_synsets.json").read_text(encoding="utf-8")
     return json.loads(raw)
 
 

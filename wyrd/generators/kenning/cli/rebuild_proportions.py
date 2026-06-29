@@ -81,7 +81,7 @@ def rebuild_proportions(
     """
     meanings_data = _load_meanings_data(meanings)
 
-    names_data = json.loads(place_names.read_text())
+    names_data = json.loads(place_names.read_text(encoding="utf-8"))
     name_entries = load_names_with_regions(names_data)
     word_db, _ = load_meanings(meanings_data)
 

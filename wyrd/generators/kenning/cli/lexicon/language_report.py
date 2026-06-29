@@ -178,7 +178,7 @@ def lexicon_language_report(
         runtime_db = get_runtime_db()
         bundle = bundle_dict_from_runtime_db(runtime_db)
     else:
-        bundle = json.loads(bundle_path.read_text())
+        bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
 
     if proportions_path is None:
         # Fetch English proportions straight from the L4 and hand the
@@ -227,7 +227,7 @@ def lexicon_language_report(
         )
 
     if json_path is not None:
-        json_path.write_text(report_to_json(report))
+        json_path.write_text(report_to_json(report), encoding="utf-8")
 
     if output_format == "json":
         click.echo(report_to_json(report))

@@ -64,7 +64,7 @@ def lexicon_import_mining_log(path: Path, db_path: Path, apply_changes: bool) ->
         # source that doesn't exist yet (rather than FK-failing on insert).
         known = {r["id"] for r in db.conn.execute("SELECT id FROM source")}
 
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             for ln, raw in enumerate(f, 1):
                 outcome = _import_mining_log_record(db, raw, ln, known, apply_changes)
                 if outcome == "inserted":

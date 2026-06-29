@@ -92,7 +92,7 @@ def lexicon_ingest_etymonline(
         if apply_changes:
             etymonline_ingester.ensure_source(db)
         for completed, f in enumerate(files, start=1):
-            text = f.read_text()
+            text = f.read_text(encoding="utf-8")
             counts = etymonline_ingester.ingest_text(db, text, apply=apply_changes)
             totals["files"] += 1
             for k, v in counts.items():

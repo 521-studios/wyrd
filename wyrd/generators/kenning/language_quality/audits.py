@@ -78,7 +78,7 @@ def load_reference_tags(
         if not proportions.exists():
             return list(FALLBACK_REFERENCE_TAGS[:top_n])
         try:
-            data = json.loads(proportions.read_text())
+            data = json.loads(proportions.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return list(FALLBACK_REFERENCE_TAGS[:top_n])
     marginal = (data or {}).get("tag_marginal") or {}

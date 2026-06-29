@@ -21,7 +21,7 @@ def validate_meanings(meanings: Path | None) -> None:
     Replaces Rando's `bin/validate_names`. Reads the path argument or stdin.
     Exits non-zero if any entries are malformed.
     """
-    raw = meanings.read_text() if meanings else sys.stdin.read()
+    raw = meanings.read_text(encoding="utf-8") if meanings else sys.stdin.read()
     data = json.loads(raw)
 
     bad = []

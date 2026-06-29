@@ -60,7 +60,7 @@ def lexicon_backfill_pages(
             source_id = path.stem
             if source_filter and source_id != source_filter:
                 continue
-            text = path.read_text(errors="replace")
+            text = path.read_text(errors="replace", encoding="utf-8")
             counts = backfill_citation_pages(db, source_id, text, apply=apply_changes)
             totals["sources_processed"] += 1
             if counts["no_headers"]:

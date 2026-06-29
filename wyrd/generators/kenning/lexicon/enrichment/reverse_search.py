@@ -312,7 +312,7 @@ def _load_normalized_source_texts(sources_path: Path) -> dict[str, str]:
     """
     source_texts: dict[str, str] = {}
     for f in sources_path.glob("*.txt"):
-        text = f.read_text(errors="replace").lower()
+        text = f.read_text(errors="replace", encoding="utf-8").lower()
         source_texts[f.stem] = normalize_ocr_form(text)
     return source_texts
 

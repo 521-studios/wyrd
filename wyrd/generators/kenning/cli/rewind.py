@@ -31,7 +31,7 @@ def _load_json_objects(from_json: Path) -> list[dict]:
     if str(from_json) == "-":
         raw = sys.stdin.read()
     else:
-        raw = from_json.read_text()
+        raw = from_json.read_text(encoding="utf-8")
     objects: list[dict] = []
     for line in raw.splitlines():
         line = line.strip()
