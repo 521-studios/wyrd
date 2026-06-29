@@ -3931,3 +3931,58 @@ and D44 (identity is era-invariant): a morpheme's stored identity is a bare,
 lower-case, timeless, position-free surface; case, dashes, position, and era are
 lenses applied on the way out. Ticket: wyrd-x5y4 — D53 standard (.1),
 meaning-table fold (.2), proportions fold (.3), enforcement gate (.4), reseed (.5).
+## D54. Cultures are multi-source; the generation discriminator is cognate vs homograph, not language family (wyrd-tze2, 2026-06-29).
+
+A culture draws morphemes from **multiple language families**, not a single
+linguistic descent line. `CULTURE_LANGUAGES` (`lexicon/proportions_builder.py`)
+is the source of truth:
+
+- `english`  → `{old_english, modern_english, old_scandinavian, old_french}`
+- `scottish` → `{celtic_mix, old_english, old_scandinavian}`
+- `welsh` / `irish` → `{celtic_mix}`
+- `breton`   → `{celtic_mix, old_french}`
+
+This corrects an early (UI-era) oversimplification that treated a culture as one
+descent line — e.g. "english = Old English → Middle English → Modern English."
+English place-names are genuinely multi-source: the Norse and Norman influences
+are first-class sources, not noise to filter out.
+
+**Cognate ≠ homograph — and only the homograph is pollution.** When two etymons
+from different families share a surface:
+
+- A **cognate** (same gloss, same `cognate_id` per D28 — e.g. Old Norse `tún`
+  and Old English `tūn`, both "enclosure / farmstead") is an *accurate* source
+  for the culture's morpheme. A Danelaw `-ton` name genuinely descends from ON
+  `tún`; the generated name is identical to the OE-`tūn` one. Admitting it is
+  correct — not a cross-family leak.
+- A **homograph** (different gloss — welsh `ton` "wave", celtic `ton` "bottom",
+  irish `ton` "tone" against english `-ton`) is the genuine pollution: a
+  wrong-meaning word absorbing the surface's picks.
+
+**Consequence for generation-family guards.** Any check that constrains a
+culture's picks for a surface — the wyrd-pfoo per-Meaning attested-language
+narrowing, the `test_present_day_core_morphemes` `-ton` gate — must allowlist
+the culture's **real culture-source languages** (`CULTURE_LANGUAGES[culture]`,
+plus any retained intermediate stage such as `middle-english`), NOT a
+single-family descent line. The homographs fall out by construction — they
+belong to families outside the culture's sources (celtic is not among english's
+sources). The discriminator that decides "pollution" is **gloss / cognate
+cluster, not language-family membership**.
+
+### Provenance
+
+Surfaced by wyrd-tze2 (PR #863): a from-L2 reseed correctly added the ON `tún`
+cognate to the english `-ton` pool, which the gate's over-strict
+`{old-english, middle-english, modern-english}` allowlist false-positived as a
+"leak." That allowlist had only ever passed because the pre-reseed seed lacked
+the cognate. The fix relaxed it to english's culture-source languages (a
+superset of `CULTURE_LANGUAGES["english"]` + `middle-english`); the
+welsh/celtic/irish `ton` homographs stay excluded.
+
+### Relationship to prior decisions
+
+Builds on **D28** (cognate clusters via `etymon.cognate_id`, which already
+records `tūn`/`tún` as one cluster) and refines the **D5-3 / wyrd-c6o1.3**
+present-day homograph gate. Governs every multi-source culture, not just english
+`-ton`: scottish (Old English + Old Norse over a celtic base), breton (celtic +
+Old French), and any future cross-family cognate case.
