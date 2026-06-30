@@ -10,15 +10,14 @@
 // (different morphemes sharing an etymon) require a backend
 // endpoint and land in a follow-up PR.
 //
-// Pipeline composition with Rewind: when the user has Rewind→OE
-// before Swap, Swap operates on the post-rewind state. NOTE (wyrd-7cvv):
-// rewind now REBUILDS morphemes_by_word at the rewound era (rewound
-// surfaces; input morphemes the rewind couldn't resolve are dropped), so a
-// Swap created against the post-rewind cards indexes into that rebuilt
-// structure. Swap's bounds check below fails loudly if a later reorder
-// leaves a (wordIndex, morphemeIndex) pointing past the current structure.
-// If Swap is BEFORE Rewind, the downstream Rewind sees the swapped
-// morphemes via the supplied-morphemes path (wyrd-y9aa).
+// Pipeline composition with Rewind (swap-clear, 2026-06-30): a rewind/time-warp
+// CLEARS all swap steps (pipeline.setRewind), so the old "Rewind front-pinned,
+// Swap layers on top" composition is retired. A pre-rewind swap targeting the
+// as-generated cards broke against rewind's rebuilt subsequence (wyrd-7cvv:
+// rewind drops unresolvable morphemes, leaving the swap's (wordIndex,
+// morphemeIndex) out of bounds — the loud bounds check below). Clearing swaps
+// on time-warp avoids that. The bounds check still guards a swap layered onto a
+// later structural change (e.g. a regenerate that re-rolls a slot, wyrd-6p2u).
 
 export const swapTransform = {
   kind: 'swap',

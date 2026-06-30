@@ -273,14 +273,15 @@
       </div>
     </header>
 
-    <!-- wyrd-410t: Section 2 — time-warp button bar. One button per era stage;
-         pressing a stage rewinds EVERY morpheme to that era (closest-it-can,
-         handled server-side) as a SINGLE rewind step at the front of the
-         pipeline, so it's the global era FLOOR. Pressing the active stage
-         clears it (back to as-generated). Per-slot grid swaps (Section 3) layer
-         on top and win, which is what surfaces the "Mixed" badge on the active
-         card above. Flag-gated (rewind); not rendered in prod until wyrd-k2gn.
-         This is NOT the transform-stack palette — that stays out of col 3. -->
+    <!-- wyrd-410t + swap-clear (2026-06-30): Section 2 — time-warp button bar.
+         One button per era stage; pressing a stage rewinds EVERY morpheme to that
+         era (closest-it-can, handled server-side) as a SINGLE rewind step.
+         Pressing the active stage clears it (back to as-generated). A time-warp
+         CLEARS all per-slot grid swaps (Section 3) — a pre-rewind swap breaks
+         against the rewound subsequence — but PRESERVES re-rolls; the rewind sits
+         at its press-time position among them, not front-pinned (pipeline.setRewind).
+         Flag-gated (rewind); not rendered in prod until wyrd-k2gn. This is NOT the
+         transform-stack palette — that stays out of col 3. -->
     {#if rewindEnabled}
       <div class="time-warp" role="group" aria-label="Time-warp: render every morpheme at an era">
         <span class="time-warp-label">Time-warp</span>

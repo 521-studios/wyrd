@@ -1,11 +1,11 @@
-// wyrd-410t (round-1 review): pin the rewind↔swap COMPOSITION through run().
-// setRewind keeps the rewind step at the FRONT, so a swap (added earlier, or the
-// later per-cell tweak) layers on top + wins. The risk a reviewer flagged: a
-// front rewind that DROPS morphemes (wyrd-7cvv subsequence) can leave a
-// pre-existing swap's (wordIndex, morphemeIndex) out of bounds. swap.js's
-// deliberate loud bounds-check must then surface a per-step ERROR (visible on
-// the step card) — never silently swap a different morpheme. These tests pin
-// both the happy path (swap wins) and the drop path (loud, not silent).
+// wyrd-410t + swap-clear (2026-06-30): pin the rewind↔swap interaction through
+// run(). A time-warp now CLEARS all swap steps (setRewind), so a pre-rewind swap
+// is DISCARDED — run() produces the clean rewound result, never the swapped one.
+// This retires the old "rewind front-pinned, swap layers on top" composition,
+// which broke when the rewound subsequence (wyrd-7cvv) left a pre-existing swap's
+// (wordIndex, morphemeIndex) out of bounds (the "swap then time-warp doesn't
+// work" report). Re-roll preservation + non-front-pinning is pinned at the
+// stack level in pipeline.rewind.test.js.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const mock = vi.hoisted(() => ({
@@ -61,33 +61,36 @@ describe('pipeline rewind↔swap composition (wyrd-410t)', () => {
     appState.manifest = { config: { flags: { REWIND: true } } }; // rewind flag ON
   });
 
-  it('swap THEN time-warp: rewind lands at front, the swap layers on top and WINS', async () => {
+  it('swap THEN time-warp: the swap is CLEARED — run() yields the clean rewound result', async () => {
     pipeline.setSwap({ wordIndex: 0, morphemeIndex: 0, to: 'A2', original: 'A' });
-    pipeline.setRewind('oe-late'); // preserves structure → swap index stays valid
-    expect(pipeline.steps.map((s) => s.kind)).toEqual(['rewind', 'swap']);
+    pipeline.setRewind('oe-late');
+    // The swap step is gone — only the rewind remains in the stack.
+    expect(pipeline.steps.map((s) => s.kind)).toEqual(['rewind']);
 
     await pipeline.run(base());
 
     expect(pipeline.errors.every((e) => e === null)).toBe(true);
-    // Final state: rewound (every morpheme at the era) WITH the swapped cell on top.
+    // Final state is the clean rewound name — the original morpheme, NOT 'A2'.
     const final = pipeline.states[pipeline.states.length - 1];
-    expect(final.morphemes_by_word[0][0].usage).toBe('A2'); // swap won
-    expect(final.morphemes_by_word[0][1].usage).toBe('B'); // untouched cell rewound
+    expect(final.morphemes_by_word[0][0].usage).toBe('A'); // swap discarded
+    expect(final.morphemes_by_word[0][1].usage).toBe('B');
+    expect(final.name).toBe('Orig~oe-late');
   });
 
-  it('drop case fails LOUDLY, not silently: rewind drops the swapped morpheme → swap step errors', async () => {
-    // Swap targets morpheme (0,1); then time-warp to ME, which drops the last
-    // morpheme of the word — so (0,1) is now out of bounds at apply time.
+  it('drop-era time-warp after a swap still runs clean (no out-of-bounds swap to error)', async () => {
+    // The old failure mode: a swap on (0,1) + a rewind that drops the last
+    // morpheme left the swap out of bounds → loud per-step error. Now the swap
+    // is cleared on time-warp, so the drop era runs without any swap to break.
     pipeline.setSwap({ wordIndex: 0, morphemeIndex: 1, to: 'B2', original: 'B' });
-    pipeline.setRewind('me');
-    expect(pipeline.steps.map((s) => s.kind)).toEqual(['rewind', 'swap']);
+    pipeline.setRewind('me'); // ME drops the last morpheme of each word
+    expect(pipeline.steps.map((s) => s.kind)).toEqual(['rewind']);
 
     await pipeline.run(base());
 
-    // Rewind (step 0) succeeded; the swap (step 1) errored LOUDLY — the user sees
-    // a ⚠ on that step rather than the edit silently landing on a different morpheme.
-    expect(pipeline.errors[0]).toBe(null);
-    expect(pipeline.errors[1]).toBeTruthy();
-    expect(String(pipeline.errors[1])).toMatch(/morpheme 1 not in word 0/);
+    // No swap step → no error; the rewound (dropped-subsequence) result stands.
+    expect(pipeline.errors.every((e) => e === null)).toBe(true);
+    const final = pipeline.states[pipeline.states.length - 1];
+    expect(final.name).toBe('Orig~me');
+    expect(final.morphemes_by_word[0].map((m) => m.usage)).toEqual(['A']); // B dropped, no B2
   });
 });

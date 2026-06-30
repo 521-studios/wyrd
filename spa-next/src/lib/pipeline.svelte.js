@@ -97,7 +97,7 @@ class PipelineState {
   /** Build a fresh step ({id, kind, params}) with a unique id, merging the
    *  transform's defaultParams under `paramOverrides`. The single place the
    *  step shape + id allocation live; callers splice it in wherever they need
-   *  (append for addStep, front for setRewind). */
+   *  (append for addStep + setRewind). */
   #makeStep(kind, paramOverrides = {}) {
     const t = getTransform(kind);
     this.#nextStepId += 1;
@@ -208,29 +208,44 @@ class PipelineState {
     }
   }
 
-  /** Direct-manipulation time-warp (wyrd-410t): maintain AT MOST ONE rewind
-   *  step, kept at the FRONT of the pipeline so it acts as the global era
-   *  FLOOR. Per-slot swaps (added later, indexing the post-rewind cards per
-   *  swap.js's documented "Rewind before Swap" ordering) then layer on top and
-   *  WIN — which is what blends eras into the active card's "Mixed (…)" badge.
+  /** Direct-manipulation time-warp (wyrd-410t; swap-clear 2026-06-30):
+   *  maintain AT MOST ONE rewind step.
    *
-   *  Pressing a stage: no rewind step → add one at the front; a rewind step at
-   *  a DIFFERENT era → update its era in place; the ACTIVE era (rewind already
-   *  at that era) → remove it, the "back to as-generated" affordance. */
+   *  A rewind CLEARS all swap steps from the stack. Swaps target the
+   *  as-generated cards by (wordIndex, morphemeIndex); the rewind REBUILDS
+   *  morphemes_by_word as a subsequence at the rewound era (wyrd-7cvv, dropping
+   *  unresolvable morphemes), so a pre-rewind swap lands out of bounds and the
+   *  step errors loudly — "swap then time-warp doesn't work". Rather than the
+   *  old "rewind front-pinned, swaps layer on top" composition, time-warp now
+   *  discards swaps and renders the clean (re-rolled) morphemes. This mirrors
+   *  the wyrd-6p2u rule (regenerate supersedes a slot's swap) but is GLOBAL —
+   *  a rewind is a whole-name operation, so it clears EVERY swap.
+   *
+   *  Re-rolls (regenerate-morpheme) are PRESERVED. The rewind is NO LONGER
+   *  front-pinned: it sits at its press-time position, so it stays at the
+   *  appropriate spot vs prior AND future re-rolls (prior re-rolls run before
+   *  it; later re-rolls append after and operate on the rewound state).
+   *
+   *  Pressing a stage: no rewind step → append one (after clearing swaps); a
+   *  DIFFERENT era → update its era in place; the ACTIVE era → remove it, the
+   *  "back to as-generated" affordance (which also clears swaps). */
   setRewind(era) {
-    const idx = this.steps.findIndex((s) => s.kind === 'rewind');
+    // Clear swaps in every branch — the swap-clear commits even when the press
+    // toggles the rewind off (back to a clean as-generated/re-rolled state).
+    const noSwaps = this.steps.filter((s) => s.kind !== 'swap');
+    const idx = noSwaps.findIndex((s) => s.kind === 'rewind');
     if (idx !== -1) {
-      if (this.steps[idx].params.era === era) {
-        this.removeStep(idx); // press the active stage → clear
+      if (noSwaps[idx].params.era === era) {
+        this.steps = noSwaps.filter((_, i) => i !== idx); // press active stage → clear
         return;
       }
-      const next = [...this.steps];
-      next[idx] = { ...next[idx], params: { ...next[idx].params, era } };
-      this.steps = next; // switch era in place
+      noSwaps[idx] = { ...noSwaps[idx], params: { ...noSwaps[idx].params, era } };
+      this.steps = noSwaps; // switch era in place
       return;
     }
-    // New rewind step at the FRONT — addStep appends, so splice via #makeStep.
-    this.steps = [this.#makeStep('rewind', { era }), ...this.steps];
+    // New rewind APPENDED at its press-time position (not front-pinned), so it
+    // keeps its chronological place among re-rolls.
+    this.steps = [...noSwaps, this.#makeStep('rewind', { era })];
   }
 
   /** The era of the single rewind step (null if none) — drives the time-warp
