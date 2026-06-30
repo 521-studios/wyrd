@@ -260,11 +260,13 @@ def write_runtime_db(
             conn.execute("PRAGMA synchronous = OFF")
             conn.execute("PRAGMA cache_size = 10000")
             _init_runtime_schema(conn)
-            # D45 (wyrd-aicu.1): de-dash every subject word's modern_usage ONCE
-            # so BOTH blob tables (meaning + the dormant morpheme) store the bare
-            # surface — the runtime keys meaning_db off word['modern_usage'], and
-            # the render (D39) owns positional dashes + case. Stored case is kept
-            # (initial-slot front-cap preserves internal name caps like McLeod).
+            # D45 (wyrd-aicu.1) + D53 (wyrd-x5y4.2): bare every subject word's
+            # modern_usage ONCE so BOTH blob tables (meaning + the dormant
+            # morpheme) store the canonical surface — the runtime keys meaning_db
+            # off word['modern_usage'], and the render (D39) owns positional
+            # dashes AND case. _bare_modern_usage strips dashes + whitespace AND
+            # lower-cases, so 'Abbey'/'abbey' collapse to one row (D53: case is
+            # never identity; the internal-capital allowlist is empty — 0 in data).
             # Proportions are already computed above (they tally bare via
             # get_samples regardless), so this only affects the blob tables; the
             # mutation is export-local (subjects is not reused after this).
