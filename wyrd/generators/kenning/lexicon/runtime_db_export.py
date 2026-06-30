@@ -293,6 +293,9 @@ def write_runtime_db(
             # Runs on every export so a future regression fails the BUILD loudly
             # instead of silently re-introducing the bug class D45 forbids.
             _verify_no_dashed_identity(conn)
+            # D53 (wyrd-x5y4): the case sibling of the dash guard — a mint that
+            # stopped lower-casing surface identity fails the BUILD, not the user.
+            _verify_no_capitalized_identity(conn)
             # Populate sqlite_stat tables so the runtime query planner has
             # accurate index statistics for the sampling queries (the L4
             # DB is read-only at runtime; ANALYZE pays off on every cold
@@ -599,6 +602,50 @@ def _verify_no_dashed_identity(conn: sqlite3.Connection) -> None:
             + ". A morpheme's stored identity must be its bare surface (position "
             "is an explicit column; dashes are render-time decoration, D39). "
             "morpheme_id is guarded at the form level (de-dashed by wyrd-aicu.8)."
+        )
+
+
+# D53 (wyrd-x5y4): the SAME surface-identity key columns the dash guard checks —
+# case, like dashes, is never identity, and these are exactly the columns the
+# mint case-folds (meaning + the proportions usage_keys; fantasy_morpheme is a
+# whole-name lookup key, outside this just as it is outside D45).
+_CASE_GUARD_KEY_COLUMNS = _DASH_GUARD_KEY_COLUMNS
+
+# Internal-capital allowlist (D53): genuine medial capitals (``McMansion``,
+# ``al-Quadim``). CURRENTLY EMPTY — the data has 0 internal-capital morphemes
+# (every capital is a leading capital inherited from a source toponym). A real
+# medial-capital morpheme is ADDED here, never granted a fold bypass.
+_CASE_ALLOWLIST: frozenset[str] = frozenset()
+
+
+def _verify_no_capitalized_identity(conn: sqlite3.Connection) -> None:
+    """D53 (wyrd-x5y4) exporter guard: raise if any stored morpheme IDENTITY key
+    carries an uppercase letter — case, like dashes (D45), is render-time
+    decoration the render owns by position (D39), never identity. Runs on every
+    emit so a mint regression that stopped case-folding fails the BUILD, not the
+    operator.
+
+    Unicode-aware: checks ``key != key.lower()`` in Python (matching the mint's
+    ``str.lower()``), because SQLite ``LOWER`` / ``GLOB [A-Z]`` only fold ASCII —
+    a leaked ``Þorn`` (OE capital thorn) would slip an ASCII-only check. Scoped to
+    the key columns the mint folds; the ``_CASE_ALLOWLIST`` (currently empty)
+    exempts any future genuine internal-capital morpheme."""
+    violations: list[str] = []
+    for table, col in _CASE_GUARD_KEY_COLUMNS:
+        n = sum(
+            1
+            for (key,) in conn.execute(f"SELECT {col} FROM {table}")
+            if key and key != key.lower() and key not in _CASE_ALLOWLIST
+        )
+        if n:
+            violations.append(f"{table}.{col}: {n} capitalized")
+    if violations:
+        raise RuntimeError(
+            "D53 (wyrd-x5y4): refusing to emit capitalized stored identity — "
+            + "; ".join(violations)
+            + ". A morpheme's stored identity is its bare LOWER-CASE surface "
+            "(the render owns capitalization by position, D39); add a genuine "
+            "medial-capital morpheme to _CASE_ALLOWLIST, never bypass the fold."
         )
 
 
