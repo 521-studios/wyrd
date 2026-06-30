@@ -78,10 +78,12 @@ def test_word_compound_samples_use_whitespace_clean_surface():
 
 
 def test_bare_modern_usage_strips_dash_and_whitespace():
-    assert _bare_modern_usage("Oak- ") == "Oak"
-    assert _bare_modern_usage(" Oak-") == "Oak"  # leading
-    assert _bare_modern_usage("Har ") == "Har"
-    assert _bare_modern_usage("Mac Leod") == "Mac Leod"  # interior space kept
+    # D53: case is identity-neutral too (render owns it), so the bare surface is
+    # also lower-cased — dashes + surrounding whitespace + case all folded.
+    assert _bare_modern_usage("Oak- ") == "oak"
+    assert _bare_modern_usage(" Oak-") == "oak"  # leading
+    assert _bare_modern_usage("Har ") == "har"
+    assert _bare_modern_usage("Mac Leod") == "mac leod"  # interior space kept, case folded
 
 
 def test_bare_modern_usage_dirty_and_clean_collide():
@@ -92,9 +94,9 @@ def test_bare_modern_usage_dirty_and_clean_collide():
 
 def test_write_meanings_merges_whitespace_variant_into_one_row():
     """The downstream consequence the ticket targets: after the export de-dash
-    + whitespace-strip, a dirty ``'Oak- '`` word and a clean ``'Oak-'`` word
-    collapse into ONE ``'Oak'`` meaning row with both entries unioned — not two
-    rows splitting the weight."""
+    + whitespace-strip + case-fold (D53), a dirty ``'Oak- '`` word and a clean
+    ``'Oak-'`` word collapse into ONE ``'oak'`` meaning row with both entries
+    unioned — not two rows splitting the weight."""
     conn = sqlite3.connect(":memory:")
     conn.execute(
         "CREATE TABLE meaning (usage_key TEXT, primary_language TEXT, "
@@ -120,10 +122,61 @@ def test_write_meanings_merges_whitespace_variant_into_one_row():
             word["modern_usage"] = _bare_modern_usage(word["modern_usage"])
 
     n = _write_meanings(conn, subjects)
-    assert n == 1  # one merged 'Oak' row, not two whitespace variants
+    assert n == 1  # one merged 'oak' row, not two whitespace variants
     rows = conn.execute("SELECT usage_key, data FROM meaning").fetchall()
-    assert [r[0] for r in rows] == ["Oak"]
+    assert [r[0] for r in rows] == ["oak"]
     entries = json.loads(rows[0][1])["entries"]
+    assert len(entries) == 2  # both subjects' entries unioned onto the winner
+    conn.close()
+
+
+def test_write_meanings_merges_case_variant_into_one_row():
+    """D53 (wyrd-x5y4.2): case is never morpheme identity. A word-initial
+    ``'Abbey'`` (capitalized because it led a source toponym) and an internal
+    ``'abbey'`` are the SAME morpheme — they collapse into ONE ``'abbey'`` row
+    with both entries unioned, not two case-variant rows splitting the weight.
+    This is the ~566-duplicate fix; the mechanism is the existing de-dash union
+    (regroup-then-repick), now keyed on the case-folded bare surface.
+
+    The degraded-metadata case is covered too: the capitalized variant carries
+    NO ``primary_language`` while the lowercase one is ``modern_english`` — the
+    re-pick must land on the populated value, not the empty one."""
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE meaning (usage_key TEXT, primary_language TEXT, "
+        "stratum TEXT, data BLOB NOT NULL)"
+    )
+    subjects = [
+        {
+            "meaning": ["monastery"],
+            "modifier_tags": ["religious"],
+            "modifier_type": "noun",
+            # Word-initial occurrence: capitalized in the source, no language axis
+            # (the degraded duplicate — mirrors the real 'Acre' with no language).
+            "words": [{"modern_usage": "Abbey"}],
+        },
+        {
+            "meaning": ["abbey ruins"],
+            "modifier_tags": ["religious"],
+            "modifier_type": "noun",
+            # Internal occurrence: lowercase, with a real language-form axis.
+            "words": [{"modern_usage": "abbey", "modern_english": ["abbey"]}],
+        },
+    ]
+    # Mirror write_runtime_db's pre-_write_meanings normalization (de-dash +
+    # whitespace-strip + case-fold).
+    for subject in subjects:
+        for word in subject["words"]:
+            word["modern_usage"] = _bare_modern_usage(word["modern_usage"])
+
+    n = _write_meanings(conn, subjects)
+    assert n == 1  # 'Abbey' + 'abbey' → one row, not two case variants
+    rows = conn.execute("SELECT usage_key, primary_language, data FROM meaning").fetchall()
+    assert [r[0] for r in rows] == ["abbey"]  # canonical lower-case key
+    # Re-pick over the union lands on the POPULATED language, not the degraded
+    # variant's absent one.
+    assert rows[0][1] == "modern_english"
+    entries = json.loads(rows[0][2])["entries"]
     assert len(entries) == 2  # both subjects' entries unioned onto the winner
     conn.close()
 

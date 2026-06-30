@@ -3852,3 +3852,82 @@ sibling generator axis and D44 (`--era`) / `--culture` in how it will compose.
 Bounded by wyrd-3q6m.1 (must not contaminate the dedup region hierarchy) and the
 Class-A guards (zones are an enrichment classification, not an ingest-gated
 controlled vocabulary). Ticket: wyrd-hytz.
+
+## D53. Case is NEVER morpheme identity — the canonical surface-encoding standard (2026-06-30, wyrd-x5y4).
+
+**The decision: a morpheme's stored identity is a BARE, LOWER-CASE surface
+string. Case — like dashes (D45) and position (D40) — is render-time decoration
+the generator owns by position (D39), never part of identity.** This generalizes
+D45 (dashes-never-identity) into ONE normative encoding standard for every stored
+surface key (`meaning.usage_key`, the `proportions_*` `usage_key` columns,
+`fantasy_morpheme.usage_key`, reflex surfaces).
+
+### The canonical surface-encoding standard (the normative spec the gate enforces)
+
+A stored morpheme surface key MUST be:
+
+1. **NFC-normalized** (Unicode canonical composition — one code-point sequence
+   per grapheme).
+2. **Lower-cased**, with a documented internal-capital allowlist for genuine
+   medial capitals (`McMansion`, `al-Quadim`). The allowlist is **currently
+   empty** — the data has 0 internal-capital morphemes (every capital is a
+   *leading* capital inherited from a source toponym), so the present rule is a
+   blanket lower-case. A real medial-capital morpheme is added to the allowlist,
+   never granted a fold bypass.
+3. **Dash-free** in identity (D45 — boundary position dashes stripped; a genuine
+   interior hyphen like `al-Quadim` is part of the surface, not a position mark).
+4. **Whitespace-clean** (surrounding whitespace stripped, wyrd-an8u; interior
+   spaces in a multi-word surface kept).
+
+Everything else about how a morpheme *appears* — capitalization, position
+dashes, stratum/era forms — is DERIVED at render (D39) from the bare surface +
+the slot it lands in.
+
+### Why this was a bug (the same root cause as D45)
+
+Morpheme surfaces are minted from source-toponym text. A morpheme attested
+word-initially inherits the toponym's LEADING CAPITAL (`Abbey`); the same
+morpheme attested internally stays lower-case (`abbey`). Dashes were folded out
+of identity (D45) but **case never was** — so `Abbey` and `abbey` were stored as
+two identities. Committed-seed audit: 657 / 1383 meaning keys (48%) carried an
+uppercase letter, ALL leading (0 internal), producing **566 case-variant
+duplicate groups (~41% of the pool)** — confirmed true duplicates, not
+homographs (`Abbey`/`abbey` both `modern_english`), some DEGRADED (a capitalized
+`Acre` with no language vs the `old_english` `acre`). Duplicates fragment the
+proportions/scoring pool (D36) and silently collide on the case-folding runtime
+load (last-wins data loss).
+
+### Lookup was already case-insensitive — the fix is at the MINT
+
+The match path already folds case: `build_morpheme_trie` lowercases every key
+(`trie_matcher.py:186`), `Meaning.__str__` folds on access, the SPA `normKey`
+lowercases, `fantasy_morpheme` collates NOCASE. Lookups always *tolerated* case
+variation — the bug is purely that STORED keys weren't folded, leaving
+duplicates at rest. The fix lowercases the surface at MINT (the export
+normalizers), exactly as D45 de-dashed at mint; the de-dash union machinery
+(`_write_meanings` regroup-then-repick) collapses the case duplicates
+mechanically — no LLM merge.
+
+### The inconsistency this standard closes
+
+Case-folding was ad hoc across the export writers: `meaning`
+(`_bare_modern_usage`), `proportions_usage`, and `proportions_single_usage` did
+NOT fold; `proportions_attested_language`, `proportions_bare_word_position`, and
+`fantasy_morpheme` DID. Three folded, three didn't — exactly the drift a single
+normative standard + an enforcing data-gate prevents.
+
+### Enforcement
+
+A data-gate (parallel to `test_kenning_dedash_data_gate.py`) asserts no stored
+surface key contains an uppercase letter (outside the allowlist), across the seed
++ any built bundle — flipped to CI-gating once the reseed makes the committed
+data conform (wyrd-x5y4.4/.5). Stops case reaccreting the way it (and dashes) did.
+
+### Relationship to prior decisions
+
+Generalizes D45 (dashes-never-identity) — same principle, same playbook. Composes
+with D39 (render owns decoration), D40 (position derived, never a match gate),
+and D44 (identity is era-invariant): a morpheme's stored identity is a bare,
+lower-case, timeless, position-free surface; case, dashes, position, and era are
+lenses applied on the way out. Ticket: wyrd-x5y4 — D53 standard (.1),
+meaning-table fold (.2), proportions fold (.3), enforcement gate (.4), reseed (.5).
