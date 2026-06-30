@@ -983,7 +983,7 @@ def _iter_single_usage_rows(single_usages: dict[str, int]) -> Iterable[tuple[str
         bare = _bare_modern_usage(key)
         folded[bare] = folded.get(bare, 0) + int(weight)
     for bare, weight in folded.items():
-        yield bare, "bare", int(weight)
+        yield bare, "bare", weight
 
 
 def _iter_usage_rows(usages: dict[str, dict[str, int]]) -> Iterable[tuple[str, str, int]]:
@@ -1006,7 +1006,7 @@ def _iter_usage_rows(usages: dict[str, dict[str, int]]) -> Iterable[tuple[str, s
         for position, weight in value.items():
             folded[(bare, position)] = folded.get((bare, position), 0) + int(weight)
     for (bare, position), weight in folded.items():
-        yield bare, position, int(weight)
+        yield bare, position, weight
 
 
 def _insert_cumulative(
