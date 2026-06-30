@@ -1,7 +1,9 @@
-// wyrd-410t: pipeline.setRewind backs the time-warp button bar. It maintains
-// AT MOST ONE rewind step, kept at the FRONT of the pipeline (the global era
-// floor) so per-slot swaps added later layer on top and win. Pressing a stage
-// adds/switches it; pressing the active stage clears it.
+// wyrd-410t + swap-clear (2026-06-30): pipeline.setRewind backs the time-warp
+// button bar. It maintains AT MOST ONE rewind step. A time-warp CLEARS all swap
+// steps (a pre-rewind swap breaks against the rewound subsequence) but PRESERVES
+// re-rolls; the rewind is appended at its press-time position (NOT front-pinned),
+// so it sits at the appropriate spot among prior + future re-rolls. Pressing a
+// stage adds/switches it; pressing the active stage clears it.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { pipeline } from './pipeline.svelte.js';
 
@@ -43,22 +45,39 @@ describe('pipeline.setRewind', () => {
     expect(pipeline.rewindEra).toBe(null); // a swap is not a rewind
   });
 
-  it('keeps the rewind step at the FRONT so later swaps win (era floor)', () => {
-    // Swap first, then time-warp: rewind must land BEFORE the swap so the
-    // swapped cell layers on top of the global era floor (→ Mixed badge).
+  it('a time-warp CLEARS all swaps from the stack', () => {
+    // Swap two cells, then time-warp: both swaps are discarded (a pre-rewind
+    // swap targets the as-generated cards + breaks against the rewound
+    // subsequence). Only the rewind remains.
     pipeline.setSwap({ wordIndex: 0, morphemeIndex: 0, to: '-hām', original: '-ton' });
+    pipeline.setSwap({ wordIndex: 0, morphemeIndex: 1, to: '-by', original: '-ford' });
+    expect(pipeline.steps.map((s) => s.kind)).toEqual(['swap', 'swap']);
     pipeline.setRewind('oe-late');
-    expect(pipeline.steps.map((s) => s.kind)).toEqual(['rewind', 'swap']);
-    // Switching era keeps the front position.
+    expect(pipeline.steps.map((s) => s.kind)).toEqual(['rewind']);
+    // Switching era keeps it single + swap-free.
     pipeline.setRewind('modern');
-    expect(pipeline.steps.map((s) => s.kind)).toEqual(['rewind', 'swap']);
+    expect(pipeline.steps.map((s) => s.kind)).toEqual(['rewind']);
     expect(pipeline.steps[0].params.era).toBe('modern');
   });
 
-  it('clearing the rewind leaves other steps untouched', () => {
-    pipeline.setSwap({ wordIndex: 0, morphemeIndex: 0, to: '-hām', original: '-ton' });
+  it('a time-warp PRESERVES re-rolls and is NOT front-pinned (sits among them)', () => {
+    // Re-roll, then time-warp: the rewind is appended AFTER the prior re-roll,
+    // not front-pinned — it keeps its chronological position.
+    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 0 });
     pipeline.setRewind('me');
-    pipeline.setRewind('me'); // clear
-    expect(pipeline.steps.map((s) => s.kind)).toEqual(['swap']);
+    expect(pipeline.steps.map((s) => s.kind)).toEqual(['regenerate-morpheme', 'rewind']);
+    // A FUTURE re-roll appends after the rewind (operates on the rewound state).
+    pipeline.setRegenerate({ wordIndex: 0, morphemeIndex: 1 });
+    expect(pipeline.steps.map((s) => s.kind)).toEqual([
+      'regenerate-morpheme',
+      'rewind',
+      'regenerate-morpheme',
+    ]);
+    // Pressing the active stage clears ONLY the rewind; both re-rolls remain.
+    pipeline.setRewind('me');
+    expect(pipeline.steps.map((s) => s.kind)).toEqual([
+      'regenerate-morpheme',
+      'regenerate-morpheme',
+    ]);
   });
 });

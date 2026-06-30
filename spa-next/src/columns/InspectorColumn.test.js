@@ -103,7 +103,7 @@ describe('InspectorColumn time-warp bar (wyrd-410t)', () => {
     ]);
   });
 
-  it('pressing a stage adds ONE front rewind step + marks ONLY it active; pressing again clears (in state + DOM)', async () => {
+  it('pressing a stage adds ONE rewind step + marks ONLY it active; pressing again clears (in state + DOM)', async () => {
     appState.manifest = { config: { all: true } };
     const setRewind = vi.spyOn(pipeline, 'setRewind');
     const { getByRole } = render(InspectorColumn, { props: {} });
@@ -129,7 +129,7 @@ describe('InspectorColumn time-warp bar (wyrd-410t)', () => {
     expect(btn('Middle English').getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('switching stage moves the active highlight (single front step, era updated)', async () => {
+  it('switching stage moves the active highlight (single step, era updated)', async () => {
     appState.manifest = { config: { all: true } };
     const { getByRole } = render(InspectorColumn, { props: {} });
     await settle();
