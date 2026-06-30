@@ -7564,6 +7564,39 @@ def test_render_form_particle_pairs_smart_join_branches() -> None:
     assert render_form_particle_pairs([("foo", False), ("on", True)]) == "Foo on"
 
 
+def test_render_form_particle_pairs_case_is_position_driven_not_surface() -> None:
+    """Case is a function of POSITION, never of the stored surface. Morpheme
+    surfaces inherit the source toponym's case — a morpheme attested
+    word-initially is stored title-cased (``Tun``, ``Ford``) — so a capitalized
+    INNER morpheme concatenated into a token must NOT leak through as CamelCase.
+    The word-initial letter is upper-cased; the rest of every token is
+    lower-cased, regardless of the input forms' case.
+
+    Pre-fix (``token[0].upper() + token[1:]``) rendered ``stan`` + ``Tun`` as
+    ``StanTun``; the fix lower-cases the tail so it renders ``Stantun``."""
+    from wyrd.generators.kenning.era.rewind import render_form_particle_pairs
+
+    # Capitalized inner morpheme — smart-join path. Was "StanTun" (CamelCase).
+    assert render_form_particle_pairs([("stan", False), ("Tun", False)]) == "Stantun"
+    # Capitalized inner morpheme — simple-concat path (modern-english stop).
+    assert (
+        render_form_particle_pairs([("stan", False), ("Tun", False)], smart_join=False) == "Stantun"
+    )
+    # A fully title-cased input still renders as one position-cased token.
+    assert render_form_particle_pairs([("Ash", False), ("Ford", False)]) == "Ashford"
+    # Capitalized inner around a particle: each non-particle token is position-cased,
+    # the particle stays lowercase — no CamelCase in either word.
+    assert (
+        render_form_particle_pairs(
+            [("helde", False), ("on", True), ("Mort", False)],
+            smart_join=True,
+        )
+        == "Helde on Mort"
+    )
+    # Accented inner surface case is normalized too (the tail .lower() is Unicode-aware).
+    assert render_form_particle_pairs([("sūþ", False), ("Fǣre", False)]) == "Sūþfǣre"
+
+
 def test_render_form_particle_pairs_casing_keyed_on_particle_flag() -> None:
     """wyrd-mfmr: casing is decided by the is_particle flag, not by whether the
     rendered surface happens to equal a free particle. A non-particle run whose
