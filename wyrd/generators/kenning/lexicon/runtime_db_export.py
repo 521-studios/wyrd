@@ -157,14 +157,17 @@ DEV_TOP_N_PER_CULTURE = 200
 
 
 def _bare_modern_usage(value: str) -> str:
-    """The stored bare surface for a subject word's ``modern_usage``: dashes are
-    render-time decoration (D45/D39) and surrounding whitespace is never part of
-    a morpheme's identity (wyrd-an8u), so both are stripped. Keeps the meaning /
-    dormant-morpheme blob keys bare + whitespace-clean, so a dirty ``'Oak- '``
-    merges into the ``'Oak'`` meaning row rather than duplicating it and
-    splitting its weight. Mirrors ``word._bare_surface`` (the proportions key
-    path)."""
-    return value.replace("-", "").strip()
+    """The stored bare surface for a subject word's ``modern_usage``. Three
+    things are never part of a morpheme's identity and are stripped/folded here:
+    dashes (render-time decoration, D45/D39), **case** (render-time decoration,
+    D53/D39 — the render owns capitalization by position), and surrounding
+    whitespace (wyrd-an8u). Keeps the meaning / dormant-morpheme blob keys bare,
+    lower-case, and whitespace-clean, so a dirty ``'Oak- '`` merges into the
+    ``'oak'`` meaning row rather than duplicating it + splitting its weight — and
+    a word-initial ``'Abbey'`` collapses into the same ``'abbey'`` row as an
+    internal ``'abbey'`` (D53: ~566 case-variant duplicates folded). Mirrors
+    ``word._bare_surface`` (the proportions key path)."""
+    return value.replace("-", "").strip().lower()
 
 
 def write_runtime_db(
@@ -1231,17 +1234,17 @@ def select_dev_subset(
 
     trimmed_subjects: list[dict[str, Any]] = []
     for subject in subjects:
-        # D45: subject modern_usage is still dash-marked here (de-dashed later
-        # before _write_meanings); fold to bare-lower to match keep_surfaces.
-        # Must use the SAME fold as the keep_surfaces source (_bare_surface →
-        # dash + surrounding-whitespace strip, wyrd-an8u): keep_surfaces is
-        # whitespace-clean, so a raw ``'Oak- '`` folded with replace-only would
-        # be ``'oak '`` and miss the stripped ``'oak'`` — silently dropping the
-        # word from the --dev / generation_subset (prod cold-start) bundle.
+        # D45/D53: subject modern_usage is still dash-marked + possibly
+        # capitalized here (de-dashed + case-folded later before _write_meanings);
+        # fold to bare-lower via _bare_modern_usage to match keep_surfaces (also
+        # bare-lower). Whitespace strip matters: a raw ``'Oak- '`` must fold to
+        # ``'oak'`` (not ``'oak '``) or it'd miss the stripped key + silently drop
+        # the word from the --dev / generation_subset (prod cold-start) bundle.
+        # (_bare_modern_usage now folds case too, so no explicit .lower() here.)
         kept_words = [
             word
             for word in (subject.get("words") or [])
-            if _bare_modern_usage(word.get("modern_usage") or "").lower() in keep_surfaces
+            if _bare_modern_usage(word.get("modern_usage") or "") in keep_surfaces
         ]
         if not kept_words:
             continue
