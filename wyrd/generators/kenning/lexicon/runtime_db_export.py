@@ -969,27 +969,44 @@ def _insert_attested_languages(
 
 def _iter_single_usage_rows(single_usages: dict[str, int]) -> Iterable[tuple[str, str, int]]:
     """Flatten ``single_usages`` (lone-word pool) into ``(surface, 'bare', weight)``
-    rows for the L4 writer. D45: lone words are bare by construction (position is
-    always ``'bare'``) and the key is the bare surface — fold any dash +
-    surrounding whitespace defensively (wyrd-an8u) so an operator-JSON / legacy
-    key can't smuggle a dash or trailing space into the table. Mirrors the
-    ``_iter_usage_rows`` fold for the single-usage path."""
+    rows for the L4 writer. D45/D53: lone words are bare by construction (position
+    is always ``'bare'``) and the key is the canonical surface — ``_bare_modern_usage``
+    folds dash + surrounding whitespace (wyrd-an8u) + CASE (D53), so an operator-JSON
+    / legacy key can't smuggle a dash, trailing space, or capital into the table.
+
+    Case-folding can newly collide variants the upstream pool kept separate
+    (``'Abbey'``/``'abbey'``), so weights are RE-AGGREGATED here (summed per folded
+    surface) — first-occurrence order preserved for a bit-stable cumulative
+    downstream. Mirrors ``_iter_usage_rows``."""
+    folded: dict[str, int] = {}
     for key, weight in single_usages.items():
-        yield key.replace("-", "").strip(), "bare", int(weight)
+        bare = _bare_modern_usage(key)
+        folded[bare] = folded.get(bare, 0) + int(weight)
+    for bare, weight in folded.items():
+        yield bare, "bare", int(weight)
 
 
 def _iter_usage_rows(usages: dict[str, dict[str, int]]) -> Iterable[tuple[str, str, int]]:
-    """D45 (wyrd-aicu): flatten the nested ``{surface: {position: weight}}``
-    part pool into ``(surface, position, weight)`` rows for the L4 writer. The
-    nested Counter from ``proportions_from`` already SUMS any (surface, position)
-    collisions, so no weight-merge / cumulative-rebuild is needed on a fresh
-    export — each row appears once."""
+    """D45/D53 (wyrd-aicu/wyrd-x5y4.3): flatten the nested
+    ``{surface: {position: weight}}`` part pool into ``(surface, position, weight)``
+    rows for the L4 writer. Each surface is folded to its canonical bare-lower
+    form via ``_bare_modern_usage`` (dash + whitespace + CASE).
+
+    The upstream ``proportions_from`` Counter SUMS collisions only by its OWN
+    (cased) key, so case-folding can newly collide variants it kept separate
+    (``'Abbey'``/``'abbey'`` → one ``'abbey'``). Weights are therefore
+    RE-AGGREGATED here — summed per folded ``(surface, position)`` — so a folded
+    collision merges instead of emitting two split-weight rows (the
+    ``PRIMARY KEY (culture, cumulative)`` table tolerates duplicate usage_keys, so
+    a missing merge would silently halve a morpheme's sampling weight). First
+    -occurrence order is preserved for a bit-stable cumulative downstream."""
+    folded: dict[tuple[str, str], int] = {}
     for key, value in usages.items():
-        # Fold the key defensively so operator-JSON / dirty keys can't smuggle a
-        # dash or surrounding whitespace into the table (D45 / wyrd-an8u).
-        bare = key.replace("-", "").strip()
+        bare = _bare_modern_usage(key)
         for position, weight in value.items():
-            yield bare, position, int(weight)
+            folded[(bare, position)] = folded.get((bare, position), 0) + int(weight)
+    for (bare, position), weight in folded.items():
+        yield bare, position, int(weight)
 
 
 def _insert_cumulative(

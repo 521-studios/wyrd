@@ -196,18 +196,36 @@ def test_attested_language_surface_strips_whitespace():
 # ---- export write-time defensive folds (operator-JSON / legacy keys) -------
 
 
-def test_iter_usage_rows_strips_whitespace_dirty_key():
-    # The nested part-pool writer folds the key to a bare, whitespace-clean
-    # surface.
+def test_iter_usage_rows_folds_dash_whitespace_and_case():
+    # D53 (wyrd-x5y4.3): the nested part-pool writer folds the key to a bare,
+    # whitespace-clean, LOWER-CASE surface.
     rows = list(_iter_usage_rows({"Oak- ": {"pre": 5}}))
-    assert rows == [("Oak", "pre", 5)]
+    assert rows == [("oak", "pre", 5)]
 
 
-def test_iter_single_usage_rows_strips_whitespace_dirty_key():
+def test_iter_usage_rows_sums_case_variant_collisions():
+    # D53 (wyrd-x5y4.3): a word-initial 'Abbey' and an internal 'abbey' fold to
+    # the same key, so their per-position weights SUM into one row — never two
+    # split-weight rows (the (culture, cumulative) PK tolerates duplicate
+    # usage_keys, so a missing merge would silently halve the sampling weight).
+    rows = list(_iter_usage_rows({"Abbey": {"pre": 3}, "abbey": {"pre": 5}}))
+    assert rows == [("abbey", "pre", 8)]
+    # Distinct positions stay distinct (summed only within a position); the
+    # folded key's first occurrence fixes the emission order.
+    rows = list(_iter_usage_rows({"Ton-": {"post": 2}, "-ton": {"post": 4, "inner": 1}}))
+    assert rows == [("ton", "post", 6), ("ton", "inner", 1)]
+
+
+def test_iter_single_usage_rows_folds_dash_whitespace_and_case():
     # The single_usage (lone-word) writer is a SEPARATE path from
-    # _iter_usage_rows; pin its own defensive whitespace fold so a revert to
-    # replace-only is caught.
-    assert list(_iter_single_usage_rows({"Oak- ": 5})) == [("Oak", "bare", 5)]
+    # _iter_usage_rows; pin its own dash + whitespace + CASE fold (D53) so a
+    # revert to replace-only / no-lower is caught.
+    assert list(_iter_single_usage_rows({"Oak- ": 5})) == [("oak", "bare", 5)]
+
+
+def test_iter_single_usage_rows_sums_case_variant_collisions():
+    # D53: case-variant lone-word keys fold + SUM, not emit two split rows.
+    assert list(_iter_single_usage_rows({"Abbey": 3, "abbey": 5})) == [("abbey", "bare", 8)]
 
 
 def test_insert_attested_languages_strips_whitespace_dirty_key():
