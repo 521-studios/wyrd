@@ -632,9 +632,17 @@ def _verify_no_capitalized_identity(conn: sqlite3.Connection) -> None:
     exempts any future genuine internal-capital morpheme."""
     violations: list[str] = []
     for table, col in _CASE_GUARD_KEY_COLUMNS:
+        # GLOB pre-filter (C-level) skips the pure-lowercase-ASCII majority so the
+        # build doesn't pull every row into Python. The second clause also fetches
+        # any non-ASCII surface (þ, ǣ, …); the Python ``key != key.lower()``
+        # post-check stays authoritative (a lower-case þ is fetched but NOT
+        # flagged), keeping the guard Unicode-aware.
         n = sum(
             1
-            for (key,) in conn.execute(f"SELECT {col} FROM {table}")
+            for (key,) in conn.execute(
+                f"SELECT {col} FROM {table} "
+                f"WHERE {col} GLOB '*[A-Z]*' OR {col} GLOB '*[^a-z0-9_ -]*'"
+            )
             if key and key != key.lower() and key not in _CASE_ALLOWLIST
         )
         if n:

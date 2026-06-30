@@ -28,6 +28,7 @@ import sqlite3
 import pytest
 
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
+    _CASE_ALLOWLIST,
     _CASE_GUARD_KEY_COLUMNS,
     _verify_no_capitalized_identity,
 )
@@ -58,7 +59,7 @@ def test_committed_seed_has_no_capitalized_identity():
             n = sum(
                 1
                 for (key,) in conn.execute(f"SELECT {col} FROM {table}")
-                if key and key != key.lower()
+                if key and key != key.lower() and key not in _CASE_ALLOWLIST
             )
             assert n == 0, f"{table}.{col} has {n} capitalized rows in the committed seed"
     finally:
