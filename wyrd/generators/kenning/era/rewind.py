@@ -175,12 +175,12 @@ def _titlecase_join_tokens(tokens: list[tuple[str, bool]]) -> str:
     forms happen to concatenate to a free-particle string (``un`` + ``der`` →
     ``Under``) is still title-cased (wyrd-mfmr).
 
-    Title-case is **position-driven**: the word-initial letter is upper-cased
-    and the rest of the token is LOWER-cased. The tail lowercase is load-bearing
-    — morpheme surfaces inherit the source toponym's case (a word-initial part
-    is stored title-cased, e.g. ``Tun``), so a capitalized INNER morpheme
+    Title-case is **position-driven** via ``str.capitalize()`` (first char
+    title-cased, the rest LOWER-cased). The tail lowercase is load-bearing —
+    morpheme surfaces inherit the source toponym's case (a word-initial part is
+    stored title-cased, e.g. ``Tun``), so a capitalized INNER morpheme
     concatenated into a token (``stan`` + ``Tun`` → ``stanTun``) would otherwise
-    render as CamelCase (``StanTun``). Lower-casing the tail makes case a pure
+    render as CamelCase (``StanTun``). ``capitalize()`` makes case a pure
     function of position, never of the stored surface."""
     rendered: list[str] = []
     for token, is_particle in tokens:
@@ -189,15 +189,16 @@ def _titlecase_join_tokens(tokens: list[tuple[str, bool]]) -> str:
         if is_particle:
             rendered.append(token)
         else:
-            rendered.append(token[0].upper() + token[1:].lower())
+            rendered.append(token.capitalize())
     return " ".join(rendered)
 
 
 def _concat_form_pairs_simple(pairs: list[tuple[str, bool]]) -> str:
     """wyrd-t2bh / wyrd-2pio: simple concatenation of form-particle
-    pairs, position-driven title-case (word-initial upper, rest lower).
-    Used at the modern-english era stop where canonical short-circuit
-    (wyrd-8qbi) already produces the operator's input shape.
+    pairs, position-driven title-case via ``str.capitalize()`` (first char
+    title-cased, rest lower). Used at the modern-english era stop where
+    canonical short-circuit (wyrd-8qbi) already produces the operator's
+    input shape.
 
     The tail lower-case mirrors ``_titlecase_join_tokens`` — a capitalized
     inner morpheme surface (``stan`` + ``Tun``) must not leak through as
@@ -206,7 +207,7 @@ def _concat_form_pairs_simple(pairs: list[tuple[str, bool]]) -> str:
         return ""
     joined = "".join(form for form, _ in pairs)
     if joined:
-        joined = joined[0].upper() + joined[1:].lower()
+        joined = joined.capitalize()
     return joined
 
 
