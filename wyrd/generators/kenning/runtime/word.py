@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import _strip_all_dashes
+
 from .connective import is_connective
 from .meaning import Meaning
 
@@ -64,8 +66,17 @@ def _bare_surface(meaning: Meaning) -> str:
     Surrounding whitespace is stripped too (wyrd-an8u): it's never part of a
     morpheme's identity, and a dirty ``'Oak- '`` would otherwise tally a
     distinct ``'Oak '`` surface that splits proportion weight from the clean
-    ``'Oak'``."""
-    return meaning.usage.replace("-", "").strip()
+    ``'Oak'``.
+
+    wyrd-p0e4: de-dash via :func:`_strip_all_dashes` — the Unicode-aware drop-in
+    for the L4 fold family's ``replace("-", "")`` (SAME all-positions semantics,
+    extended to all 11 boundary-dash codepoints: U+2010, en/em dash, …). A
+    non-ASCII boundary marker (``'Oak–'``) can no longer fork from ``'Oak'`` in
+    the proportions pool. Interior dashes are folded too (keeping this key family
+    mutually consistent — the aicu.4 sweep, not this hardening, is where interior
+    hyphens would become identity-bearing). Inert on today's fully-de-dashed
+    bundle; a guard against a future dash slipping through."""
+    return _strip_all_dashes(meaning.usage).strip()
 
 
 def _position_form(meaning: Meaning, position: str) -> str:
@@ -77,7 +88,7 @@ def _position_form(meaning: Meaning, position: str) -> str:
     dashed for continuity with the explainer / grid readers that fold on
     ``replace("-", "")``. D39 casing: post/inner lowercased; pre/bare keep
     stored case."""
-    surface = meaning.usage.replace("-", "")
+    surface = _strip_all_dashes(meaning.usage)
     if position == "pre":
         return f"{surface}-"
     if position == "post":
@@ -259,7 +270,7 @@ class Word:
             position = _structural_position(content_index_per_slot[index], count)
             if m.is_name():
                 structure.append((position, "name"))
-            elif m.usage.replace("-", "").lower() == "saint":
+            elif _strip_all_dashes(m.usage).lower() == "saint":
                 # The "saint" qualifier is the DEDICATION PARTICLE (the word
                 # "Saint" in "Saint Albans"), identified by SURFACE — not the
                 # saint TAG (which also marks the dedicated name, Mary/Giles).
