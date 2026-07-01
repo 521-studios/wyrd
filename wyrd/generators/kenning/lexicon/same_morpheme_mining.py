@@ -32,6 +32,7 @@ deterministic. Mirrors ``passthrough_mining``.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
@@ -53,22 +54,63 @@ METHOD = "same-morpheme-uplift-v1"
 # duplicate); medium = same surface + gloss overlap only.
 Confidence = Literal["high", "medium"]
 
-# Placeholder glosses that carry NO morpheme identity — "a personal name" / "personal
-# name" mean "this is a person's name used in a place-name", not a morpheme meaning,
-# so two DISTINCT morphemes sharing only one (plus a folded surface) are NOT the same
-# morpheme. The medium tier matches glosses by string equality, which collapse_merge
-# already documents can't decide a generic gloss; here we refuse to let a
-# placeholder-only overlap be identity evidence (a wrong bind is identity-collapse
-# corruption, D46/D50.2 — leave separate instead).
+# Placeholder glosses that carry NO morpheme identity — "a personal name" / "river
+# name" / "man's name" name a TYPE of name ("this element is a person's/river's name
+# used in a place-name"), not a morpheme meaning. Two DISTINCT morphemes sharing only
+# a placeholder (plus a folded surface) are NOT the same morpheme, so the medium
+# (gloss-overlap) tier must not treat a placeholder-only overlap as identity evidence
+# (a wrong bind is identity-collapse corruption, D46/D50.2 — leave separate instead).
 #
-# SCOPED to the placeholders that ACTUALLY cause a wrong medium bind in the live DB
-# today (exactly these two). Other zero-identity "<x> name" placeholders exist in the
-# gloss pool ("masculine personal name.", "river name", "name", …) but are inert (none
-# is a sole bind overlap now); a literal allowlist deliberately avoids over-suppressing
-# the REAL morpheme glossed "name" (OE nama). Broadening this safely (a curated set or
-# a placeholder predicate that excludes the real "name" sense) is tracked in wyrd-kmt9
-# — revisit if a re-mine makes one of those variants a live wrong bind.
-_GENERIC_GLOSSES: frozenset[str] = frozenset({"a personal name", "personal name"})
+# wyrd-kmt9: broadened from the original two-entry allowlist ({"a personal name",
+# "personal name"}) to a normalized predicate (``_is_placeholder_gloss``) covering the
+# full family of zero-identity name placeholders in the corpus ("masculine personal
+# name.", "a male given name", "river-name", "man's name", "surname", …). Broadening is
+# safe by D46 direction: more placeholders → fewer binds → leave-separate (a MISSED
+# merge is harmless; a WRONG merge corrupts). Two senses are deliberately KEPT as
+# identity evidence so broadening never suppresses a legitimate bind:
+#   * bare "name" — the real OE morpheme *nama*, not a placeholder;
+#   * "X (Name)" (e.g. "Austell (Name)") — names WHICH specific person, so two such
+#     glosses ARE which-name identity.
+_PLACEHOLDER_NAME_GLOSSES: frozenset[str] = frozenset(
+    {
+        "personal name",
+        "personal name element",
+        "personal name (saint)",
+        "proper name",
+        "family name",
+        "surname",
+        "tribal name",
+        "river name",
+        "river-name",
+        "roman gentilice (family name)",
+        "feminine personal name",
+        "masculine personal name",
+        "masculine personal-name",
+        "male given name",
+        "female given name",
+        "man's name",
+        "woman's name",
+        "person's name",
+        "saint's name",
+    }
+)
+_GLOSS_ARTICLE_PREFIX_RE = re.compile(r"^(?:an?|the)\s+")
+
+
+def _normalize_gloss(gloss: str) -> str:
+    """Fold a gloss to its comparison form: lower, whitespace-collapsed, trailing
+    period(s) stripped, leading article (a/an/the) dropped. So "A river-name." and
+    "a feminine personal name" reach the placeholder set as "river-name" /
+    "feminine personal name"."""
+    g = " ".join(gloss.strip().lower().split()).rstrip(".").strip()
+    return _GLOSS_ARTICLE_PREFIX_RE.sub("", g)
+
+
+def _is_placeholder_gloss(gloss: str) -> bool:
+    """True when a gloss names a TYPE of name (zero morpheme identity) rather than a
+    specific morpheme meaning (wyrd-kmt9). Deliberately excludes bare "name" (OE
+    *nama*) and "X (Name)" specific-name glosses — see the module note above."""
+    return _normalize_gloss(gloss) in _PLACEHOLDER_NAME_GLOSSES
 
 
 @dataclass(frozen=True)
@@ -199,7 +241,9 @@ def _match_shipped(x: EtymonRow, shipped: list[EtymonRow]) -> tuple[EtymonRow, C
     # The uniqueness gate (== 1) is unchanged, so this never resolves an ambiguous
     # >1-match into a bind; it only suppresses a placeholder-only overlap.
     gloss_match = [y for y in shipped if x.glosses & y.glosses]
-    if len(gloss_match) == 1 and (x.glosses & gloss_match[0].glosses) - _GENERIC_GLOSSES:
+    if len(gloss_match) == 1 and any(
+        not _is_placeholder_gloss(g) for g in x.glosses & gloss_match[0].glosses
+    ):
         return gloss_match[0], "medium"
     return None
 
