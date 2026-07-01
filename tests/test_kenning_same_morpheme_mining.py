@@ -8,13 +8,55 @@ left separate (D46).
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.etymon_refs import etymon_ref
 from wyrd.generators.kenning.lexicon.same_morpheme_mining import (
     METHOD,
+    _is_placeholder_gloss,
     bind_assertions,
     mine_same_morpheme_binds,
 )
+
+
+@pytest.mark.parametrize(
+    "gloss",
+    [
+        "a personal name",
+        "personal name",
+        "Masculine personal name.",
+        "a feminine personal name",
+        "a male given name",
+        "river-name",
+        "A river-name.",
+        "man's name",
+        "a surname",
+        "person's name",
+        "saint's name",
+        "personal name element",
+        "personal name (saint)",
+    ],
+)
+def test_is_placeholder_gloss_true_for_type_names(gloss):
+    assert _is_placeholder_gloss(gloss) is True
+
+
+@pytest.mark.parametrize(
+    "gloss",
+    [
+        # wyrd-kmt9: kept as identity evidence — must NOT be placeholders.
+        "name",  # the real OE morpheme *nama*
+        "Austell (Name)",  # names WHICH specific person
+        "Breock (Name)",
+        "a male given name from Old Irish",  # carries language identity
+        "a female given name, equivalent to English Mary",
+        "glade",
+        "wooded hill",
+    ],
+)
+def test_is_placeholder_gloss_false_for_identity_bearing(gloss):
+    assert _is_placeholder_gloss(gloss) is False
 
 
 def _etymon(db, form, *, language="old-english", cognate=None):

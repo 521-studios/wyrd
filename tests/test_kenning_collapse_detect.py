@@ -5,12 +5,49 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from wyrd.generators.kenning.lexicon import init_schema
 from wyrd.generators.kenning.lexicon.collapse_detect import (
     POINTER_PARSE_METHOD,
     VARIANT_GLOSS_METHOD,
     detect_deterministic_collapses,
+    is_form_of_pointer,
 )
+
+
+@pytest.mark.parametrize(
+    "gloss",
+    [
+        "alternative form of burg",
+        "h-prothesized form of ea",
+        "Northumbrian form of earon",
+        "pet form of Edith",
+        "variant of tun",
+        "spelling of wiell",
+    ],
+)
+def test_is_form_of_pointer_keeps_real_cross_references(gloss):
+    assert is_form_of_pointer(gloss) is True
+
+
+@pytest.mark.parametrize(
+    "gloss",
+    [
+        # wyrd-800c: definitions that merely OPEN with the pointer shape.
+        "early form of writing",
+        "earliest form of settlement",
+        "old spelling of the name",
+        "old form of dwelling",
+        # tail opens with an article — a real pointer names a bare lemma.
+        "form of the settlement",
+        "pet form of a name",
+        # not a pointer at all.
+        "a wooded hill",
+    ],
+)
+def test_is_form_of_pointer_rejects_definitional_shapes(gloss):
+    assert is_form_of_pointer(gloss) is False
 
 
 def _conn(db_path: Path) -> sqlite3.Connection:

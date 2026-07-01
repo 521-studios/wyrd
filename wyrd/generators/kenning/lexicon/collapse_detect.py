@@ -42,14 +42,48 @@ _POINTER_GLOSS_RE = re.compile(
     re.IGNORECASE,
 )
 
+# wyrd-800c: the coarse regex above matches "<≤3 words> form/spelling/variant
+# of <X>", which also fits DEFINITIONS that merely open with that shape —
+# "early form of writing" (a primitive writing system), "old spelling of the
+# name" — not cross-references. Method B AUTO-APPLIES pointer folds (no LLM
+# gate), so a false positive tombstones a distinct morpheme (D46: a missed fold
+# is harmless, a wrong fold corrupts). Two high-precision semantic guards reject
+# the definitional shapes while keeping every real pointer observed in the
+# corpus (all 51 live hits: "alternative"/"pet"/"northumbrian"/… form of):
+#   1. the word immediately modifying form/spelling/variant is a bare
+#      temporal/degree adjective ("early form of", "old spelling of") — real
+#      pointers use register/dialect qualifiers, not "how old a form" ones;
+#   2. the pointer TAIL opens with an article ("of the name") — a real pointer
+#      names a bare lemma, never "the <word>".
+# Borderline cases these reject fall through to the LLM-gated merge pass (D46).
+_DEFINITIONAL_LEAD_ADJ = frozenset(
+    {"early", "earlier", "earliest", "old", "older", "oldest", "primitive", "ancient"}
+)
+_TAIL_ARTICLES = frozenset({"the", "a", "an"})
+_POINTER_KEYWORDS = frozenset({"form", "spelling", "variant"})
+_POINTER_WORD_RE = re.compile(r"[a-zà-öø-ÿ0-9'-]+", re.IGNORECASE)
+
 
 def is_form_of_pointer(gloss: str) -> bool:
     """True if a gloss is a form-of cross-reference ("alternative form of
     burg", "h-prothesized form of ea") rather than a meaning. Used both to
     detect collapse candidates here and to drop pointer glosses from the
     exported bundle (wyrd-6r09) so a folded form-of etymon shows its
-    lemma's real meaning, not the pointer."""
-    return bool(_POINTER_GLOSS_RE.search(gloss))
+    lemma's real meaning, not the pointer.
+
+    Applies the wyrd-800c definitional-shape guards (see ``_POINTER_GLOSS_RE``
+    comment) so a genuine definition opening "early form of <X>" / "old
+    spelling of the <X>" is NOT read as a pointer."""
+    if not _POINTER_GLOSS_RE.search(gloss):
+        return False
+    words = _POINTER_WORD_RE.findall(gloss.lower())
+    for i, w in enumerate(words):
+        # First keyword that is followed by "of" — the shape the regex matched.
+        if w in _POINTER_KEYWORDS and i + 1 < len(words) and words[i + 1] == "of":
+            lead = words[i - 1] if i > 0 else None
+            tail_first = words[i + 2] if i + 2 < len(words) else None
+            return lead not in _DEFINITIONAL_LEAD_ADJ and tail_first not in _TAIL_ARTICLES
+    return False
 
 
 def _detect_variant_gloss_overlap(conn: sqlite3.Connection) -> list[dict[str, str]]:
@@ -177,7 +211,8 @@ def _detect_pointer_parse(conn: sqlite3.Connection) -> list[dict[str, str]]:
         ]
         # require EVERY gloss to be a pointer — a pure form-of etymon. A
         # pointer+real-gloss etymon might be a real lemma; that's P3's call.
-        if not glosses or not all(_POINTER_GLOSS_RE.search(g) for g in glosses):
+        # is_form_of_pointer applies the wyrd-800c definitional-shape guards.
+        if not glosses or not all(is_form_of_pointer(g) for g in glosses):
             continue
         # The fold target: the UNIQUE live same-language lemma named in the
         # pointer tail (de-dashed, wyrd-aicu.8/D45). None = no target, or an
