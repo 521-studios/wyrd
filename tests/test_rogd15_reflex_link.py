@@ -14,6 +14,41 @@ import pytest
 
 from wyrd.generators.kenning.enrichment import apply_collapses
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+from wyrd.generators.kenning.lexicon.reflex_link_detect import _reflex_pair_eligible
+
+
+def _e(lang: str) -> dict:
+    return {"lang": lang, "form": "x"}
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        # wyrd-s48q: latin's cells are classical … vulgar-latin … medieval …
+        # renaissance, so `latin` (rank=classical) and `vulgar-latin` (the 200-700
+        # stage between classical and medieval latin) cannot be ordered by a single
+        # first-seen rank — the pair is ambiguous and must be skipped in BOTH
+        # directions (a backwards reflex link corrupts; a missed one is harmless).
+        ("latin", "vulgar-latin"),
+        ("vulgar-latin", "latin"),
+    ],
+)
+def test_reflex_pair_eligible_skips_straddling_language_pairs(a: str, b: str) -> None:
+    assert _reflex_pair_eligible(_e(a), _e(b)) is None
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        # Contiguous polychronic / distinct-stage same-family pairs stay eligible —
+        # no intervening stage falls inside either language's cell span, so the
+        # first-seen rank orders them correctly (the s48q guard must not over-reject).
+        ("old-english", "middle-english"),
+        ("old-english", "modern-english"),
+    ],
+)
+def test_reflex_pair_eligible_keeps_orderable_same_family_pairs(a: str, b: str) -> None:
+    assert _reflex_pair_eligible(_e(a), _e(b)) is not None
 
 
 @pytest.fixture

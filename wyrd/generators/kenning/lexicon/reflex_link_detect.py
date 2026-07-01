@@ -34,9 +34,21 @@ LLM_REFLEX_REJECT_METHOD = "llm-reflex-rejected-v1"
 # reflexes.
 _LANGUAGE_ERA_RANK: dict[str, int] = {}
 _LANGUAGE_FAMILY: dict[str, str] = {}
+# Per-language [min, max] span of enumeration indices. wyrd-s48q: a language whose
+# cells are NON-CONTIGUOUS — another language's stage sits between two of its own
+# (``latin``: classical(13) … vulgar-latin(14) … medieval(15) … renaissance(16)) —
+# cannot be reliably ordered against that intervening language by a single first-seen
+# rank. ``latin`` collapses to rank 13 (classical), so ``vulgar-latin`` (rank 14, the
+# 200-700 stage that is chronologically BETWEEN classical and medieval latin) ranks
+# LATER than every latin cell — silently reversing the reflex direction for a
+# medieval-latin ← vulgar-latin pair. Contiguous polychronic languages (old-english's
+# oe-early/oe-late, etc.) are unaffected: no other stage falls inside their span.
+_LANGUAGE_CELL_SPAN: dict[str, tuple[int, int]] = {}
 for _i, ((_fam, _cell), _lang) in enumerate(CANONICAL_LANGUAGE_FOR_CELL.items()):
     _LANGUAGE_ERA_RANK.setdefault(_lang, _i)
     _LANGUAGE_FAMILY.setdefault(_lang, _fam)
+    _lo, _hi = _LANGUAGE_CELL_SPAN.get(_lang, (_i, _i))
+    _LANGUAGE_CELL_SPAN[_lang] = (min(_lo, _i), max(_hi, _i))
 
 
 @dataclass(frozen=True)
@@ -149,6 +161,14 @@ def _reflex_pair_eligible(ea: dict, eb: dict) -> tuple[int, int] | None:
     if ra is None or rb is None or ra == rb:
         return None
     if _LANGUAGE_FAMILY[ea["lang"]] != _LANGUAGE_FAMILY[eb["lang"]]:
+        return None
+    # wyrd-s48q: skip pairs whose orientation is ambiguous because one language's
+    # cells straddle the other's stage (latin ⟂ vulgar-latin). A first-seen rank
+    # can't order them, so parent=earlier would be a coin flip — and a backwards
+    # reflex link corrupts (D46: a missed link is harmless).
+    a_lo, a_hi = _LANGUAGE_CELL_SPAN[ea["lang"]]
+    b_lo, b_hi = _LANGUAGE_CELL_SPAN[eb["lang"]]
+    if a_lo < rb < a_hi or b_lo < ra < b_hi:
         return None
     return ra, rb
 
