@@ -1272,8 +1272,11 @@ def select_dev_subset(
         kept_usage_surfaces = [s for s, _w in _top_n_by_weight(usage_totals, top_n_per_culture)]
         kept_usages = {s: usages[s] for s in kept_usage_surfaces}
         kept_single = dict(_top_n_by_weight(single_usages, top_n_per_culture))
-        keep_surfaces.update(s.lower() for s in kept_usages)
-        keep_surfaces.update(s.lower() for s in kept_single)
+        # wyrd-n8hw: build with the SAME fold the lookup uses (_bare_modern_usage
+        # at the modern_usage check below), so a set-vs-query dash mismatch can't
+        # silently drop an interior-dash key. Inert today (keys minted de-dashed).
+        keep_surfaces.update(_bare_modern_usage(s) for s in kept_usages)
+        keep_surfaces.update(_bare_modern_usage(s) for s in kept_single)
         # Sort tag dicts so re-runs against the same data produce the
         # same insertion order — defensive against future ingesters that
         # might emit a different dict order than today's.

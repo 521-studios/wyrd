@@ -267,6 +267,16 @@ def test_attested_language_surface_strips_whitespace():
     assert all(" " not in surface for surface in attested)
 
 
+def test_attested_language_surface_folds_non_ascii_dash():
+    # wyrd-n8hw: the attested-language key folds ALL dash codepoints (Unicode),
+    # matching _bare_surface / _bare_modern_usage — a non-ASCII marker can't fork
+    # this key from the clean one.
+    name = SimpleNamespace(words={"w": [Word([_meaning("Oak–")])]})  # trailing EN DASH
+    attested: dict[str, set[str]] = {}
+    _accumulate_attested_languages(name, attested)
+    assert "oak" in attested
+
+
 # ---- export write-time defensive folds (operator-JSON / legacy keys) -------
 
 
@@ -312,4 +322,18 @@ def test_insert_attested_languages_strips_whitespace_dirty_key():
     assert n == 1
     usage_key = conn.execute("SELECT usage_key FROM proportions_attested_language").fetchone()[0]
     assert usage_key == "oak"  # bare + lowercased + whitespace-stripped
+    conn.close()
+
+
+def test_insert_attested_languages_folds_non_ascii_dash_key():
+    # wyrd-n8hw: the fold key is Unicode-aware (all 11 boundary-dash codepoints),
+    # so a non-ASCII boundary dash folds to the same key the guard expects.
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE proportions_attested_language "
+        "(culture TEXT, usage_key TEXT, primary_language TEXT)"
+    )
+    _insert_attested_languages(conn, "english", {"‐Ton–": ["old_english"]})  # U+2010 + en-dash
+    usage_key = conn.execute("SELECT usage_key FROM proportions_attested_language").fetchone()[0]
+    assert usage_key == "ton"
     conn.close()
