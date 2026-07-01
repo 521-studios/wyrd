@@ -163,6 +163,13 @@ DEV_SOURCE_LEXICON_SENTINEL = "DEV_SOURCE_LEXICON"
 # range — and thinned per-tag diversity enough to starve reroll tests (e.g.
 # english 'water' dropped to 2 morphemes, leaving no position-compatible
 # replacement). 350 restores the subset to ~1379, back in range.
+#
+# NB: at 350 the cap is currently NON-BINDING — the largest per-culture
+# proportion-referenced inventory is ~300 keys, so the --dev subset is the
+# full referenced set rather than a top-350 slice (it trims nothing today).
+# 350 is deliberate headroom: the cap only re-engages once some culture's
+# referenced inventory grows past it, at which point it caps deterministically
+# (sorted by (-weight, key)).
 DEV_TOP_N_PER_CULTURE = 350
 
 
