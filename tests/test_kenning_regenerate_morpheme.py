@@ -195,10 +195,12 @@ def test_reroll_of_sole_tag_carrier_stays_tagged():
 
     The guarantee is "stays tagged OR fails loudly, never a silent untagged
     swap": a sole-carrier re-roll must EITHER return another tagged morpheme OR
-    raise NoEligibleReplacementError (the honest empty-pool signal). So we assert
-    the tagged replacement on every re-roll that DOES produce one, and treat
-    NoEligible as a valid guarantee-honoring outcome — not a bug the search
-    masks. We keep searching seeds (then tags) until the positive
+    raise NoEligibleReplacementError (the honest empty-pool signal). On the
+    exercised scenario we assert the tagged replacement across a RANGE of
+    re-roll seeds (not one pinned seed — a broken c6o1.4 gate drops the tag on
+    only a fraction of seeds, so a single seed can coincidentally miss it), and
+    treat NoEligible as a valid guarantee-honoring outcome — not a bug the
+    search masks. We keep searching seeds (then tags) until the positive
     tagged-replacement path is exercised at least once, else fail."""
     exercised = False
     for tag in _REROLL_CANDIDATE_TAGS:
@@ -212,25 +214,32 @@ def test_reroll_of_sole_tag_carrier_stays_tagged():
             if len(carriers) != 1:
                 continue  # want an unambiguous SOLE-carrier name to re-roll
             wi, mi = carriers[0]
-            try:
-                out = _regen(
-                    rolled.morphemes_by_word, wi, mi, seed=3, culture="english", tags=[tag]
+            # Re-roll the sole carrier across a RANGE of seeds: EVERY produced
+            # replacement must stay tagged. A wv85-class silent untagged swap
+            # drops the tag on a large fraction of seeds, so pinning ONE seed
+            # can coincidentally miss it (that pick happens to stay tagged even
+            # with the c6o1.4 gate removed) — iterate so the guard actually
+            # bites the regression. NoEligible on a given seed is the honest
+            # empty-pool signal, not a silent drop; skip it and keep going.
+            produced = 0
+            for rs in range(30):
+                try:
+                    out = _regen(
+                        rolled.morphemes_by_word, wi, mi, seed=rs, culture="english", tags=[tag]
+                    )
+                except NoEligibleReplacementError:
+                    continue
+                # A replacement WAS produced — it MUST carry the tag (the sole
+                # carrier is restricted to tagged candidates; never a silent drop).
+                assert tag in (out.morphemes_by_word[wi][mi].get("tags") or []), (
+                    f"re-roll of the sole {tag}-carrier (seed={rs}) silently dropped the tag"
                 )
-            except NoEligibleReplacementError:
-                # No tagged alternative for THIS slot: the endpoint failed loudly
-                # instead of silently substituting an untagged morpheme — that
-                # honors the >=1-tag guarantee. Keep searching (more seeds, then
-                # the next tag) for a scenario that exercises the positive path.
-                continue
-            # A replacement WAS produced — it MUST carry the tag (the sole
-            # carrier is restricted to tagged candidates; never a silent drop).
-            assert tag in (out.morphemes_by_word[wi][mi].get("tags") or []), (
-                f"re-roll of the sole {tag}-carrier silently dropped the tag"
-            )
-            # ...and the name as a whole still carries the tag.
-            assert _carriers(out.morphemes_by_word, tag)
-            exercised = True
-            break
+                # ...and the name as a whole still carries the tag.
+                assert _carriers(out.morphemes_by_word, tag)
+                produced += 1
+            if produced:
+                exercised = True
+                break
         if exercised:
             break
 
