@@ -28,6 +28,7 @@ import pytest
 
 from wyrd.app import create_app
 from wyrd.generators.kenning import _load_culture
+from wyrd.generators.kenning.errors import EmptyEligiblePool
 from wyrd.generators.kenning.generators import Kenning, KenningRegenerateMorpheme
 from wyrd.generators.kenning.generators.kenning_regenerate import (
     NoEligibleReplacementError,
@@ -177,27 +178,53 @@ def _carriers(words, tag):
     ]
 
 
+# Tags with enough english morpheme diversity in the committed --dev seed to
+# yield a sole-carrier name whose carrier can re-roll to ANOTHER tagged
+# morpheme. The behavior under test is tag-agnostic; we pick whichever tag the
+# fixture can actually exercise. (wyrd-x5y4.5: the case-fold reseed thinned
+# some pools — e.g. english 'water' dropped to 2 morphemes with no
+# position-compatible alternative — so a single hardcoded tag is
+# fixture-brittle. The full bundle is unaffected; this is a --dev subset limit.)
+_REROLL_CANDIDATE_TAGS = ("topography", "tree", "water", "hill", "wood", "stone")
+
+
 def test_reroll_of_sole_tag_carrier_stays_tagged():
     """wyrd-c6o1.4: a --tag reserves ONE slot (not every slot, the wv85 bug). On
     a re-roll, only the name's SOLE tag-carrier is restricted to tagged
     candidates — so re-rolling it can't silently drop the name's >=1-tagged
     guarantee. (A free slot, with the tag satisfied elsewhere, samples freely.)"""
-    words = carrier_slot = None
-    for s in range(50):
-        rolled = Kenning().generate({"culture": "english", "tags": ["water"]}, seed=s)
-        carriers = _carriers(rolled.morphemes_by_word, "water")
-        assert carriers, f"roll seed={s} must satisfy the --tag guarantee"
-        if len(carriers) == 1:  # an unambiguous sole-carrier name to re-roll
-            words, carrier_slot = rolled.morphemes_by_word, carriers[0]
-            break
-    assert words is not None, "expected a single-water-carrier roll within 50 seeds"
+    found = None
+    for tag in _REROLL_CANDIDATE_TAGS:
+        words = carrier_slot = None
+        for s in range(50):
+            try:
+                rolled = Kenning().generate({"culture": "english", "tags": [tag]}, seed=s)
+            except EmptyEligiblePool:
+                break  # this tag has no eligible english name in the --dev seed
+            carriers = _carriers(rolled.morphemes_by_word, tag)
+            assert carriers, f"roll tag={tag} seed={s} must satisfy the --tag guarantee"
+            if len(carriers) == 1:  # an unambiguous sole-carrier name to re-roll
+                words, carrier_slot = rolled.morphemes_by_word, carriers[0]
+                break
+        if words is None:
+            continue
+        wi, mi = carrier_slot
+        try:
+            out = _regen(words, wi, mi, seed=3, culture="english", tags=[tag])
+        except NoEligibleReplacementError:
+            continue  # no tagged alternative for this slot — try the next tag
+        found = (tag, out, wi, mi)
+        break
 
-    wi, mi = carrier_slot
-    out = _regen(words, wi, mi, seed=3, culture="english", tags=["water"])
-    # the sole carrier re-rolls to another water morpheme (guarantee preserved)
-    assert "water" in (out.morphemes_by_word[wi][mi].get("tags") or [])
+    assert found is not None, (
+        "expected a candidate tag to yield a sole-carrier roll whose carrier "
+        "re-rolls to another tagged morpheme"
+    )
+    tag, out, wi, mi = found
+    # the sole carrier re-rolls to ANOTHER same-tag morpheme (guarantee preserved)
+    assert tag in (out.morphemes_by_word[wi][mi].get("tags") or [])
     # ...and the name as a whole still carries the tag
-    assert _carriers(out.morphemes_by_word, "water")
+    assert _carriers(out.morphemes_by_word, tag)
 
 
 def test_reroll_of_free_slot_under_tag_samples_freely():

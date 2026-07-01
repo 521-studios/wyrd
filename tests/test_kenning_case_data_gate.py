@@ -37,16 +37,11 @@ from wyrd.generators.kenning.runtime.runtime_db import _bundled_seed_path
 pytestmark = pytest.mark.no_lexicon_isolation
 
 
-# ---- committed-artifact gate (xfail-strict until the wyrd-x5y4.5 reseed) ----
+# ---- committed-artifact gate (LIVE since the wyrd-x5y4.5 case-fold reseed) ----
+# The xfail-strict marker was dropped here once the reseed made the committed
+# seed conform (0 capitalized identity keys); this is now a hard live gate.
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="committed seed predates the wyrd-x5y4.5 case-fold reseed (~657 "
-    "capitalized meaning keys + proportions caps). It XPASSes once the reseed "
-    "makes the committed data conform — that strict-xfail failure is the signal "
-    "to drop this marker and let the gate go live.",
-)
 def test_committed_seed_has_no_capitalized_identity():
     """The shipped seed-runtime.db carries no uppercase in any guarded
     surface-identity key. Unicode-aware (``key != key.lower()``, matching the

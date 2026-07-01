@@ -1,8 +1,10 @@
 # `seed-runtime.db`
 
-A committed snapshot of the kenning L4 runtime DB at ~17MB (grows with the
-corpus as mining campaigns enrich existing meanings), large enough for unit
-tests + local dev to exercise the
+A committed snapshot of the kenning L4 runtime DB at ~24MB (grows with the
+corpus as mining campaigns enrich existing meanings, and with the
+`DEV_TOP_N_PER_CULTURE` per-culture cap — raised to 350 in the wyrd-x5y4.5
+case-fold reseed to keep the --dev subset in its 1000–1500 meaning range),
+large enough for unit tests + local dev to exercise the
 generator surface against, small enough to ship in git. Built from the live L3
 lexicon via `lexicon export-runtime-db --dev` (see D38 in `DECISIONS.md` for the
 L4 architecture).
