@@ -89,7 +89,7 @@ _CULTURE_TO_FAMILY: dict[str, str] = {
 # Open-high (start, None):  start + _OPEN_BOUND_OFFSET.
 _OPEN_BOUND_OFFSET = 100
 
-PositionLabel = Literal["pre", "inner", "post"]
+PositionLabel = Literal["bare", "pre", "inner", "post"]
 
 
 def _era_midpoint(start: int | None, end: int | None) -> int:
@@ -155,14 +155,21 @@ def era_midpoint_for_culture(culture: str, year: int) -> int | None:
 def _position_label(ordinal: int, element_count: int) -> PositionLabel:
     """Derive a position label from (ordinal, element_count).
 
-    Single-element 'words' use ``'pre'`` — the solo morpheme is
-    treated as the head. Multi-element compounds use ``'pre'`` /
-    ``'inner'`` / ``'post'`` by ordinal (first / middle / last).
-    The choice for single-element 'pre' is this module's convention,
-    not inherited from any legacy proportions data.
+    Single-element 'words' use ``'bare'`` — the sole morpheme, matching
+    D40's derived-position vocabulary (sole piece → ``bare``, first →
+    ``pre``, interior → ``inner``, last → ``post``). Multi-element
+    compounds use ``'pre'`` / ``'inner'`` / ``'post'`` by ordinal.
+
+    wyrd-nkiq: this MUST agree with the runtime lookup label
+    (``runtime.vector_name_select._slot_position_label``), which resolves
+    a no-dash (single-morpheme) slot to ``'bare'``. Baking single-element
+    words at ``'pre'`` here (the old convention) stranded them in a cell
+    the ``'bare'`` lookup never queried — the baseline axis silently
+    fell through to the coarse position-agnostic fallback for every
+    single-word generation.
     """
     if element_count == 1:
-        return "pre"
+        return "bare"
     if ordinal == 0:
         return "pre"
     if ordinal == element_count - 1:

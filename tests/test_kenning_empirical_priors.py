@@ -112,9 +112,27 @@ def _add_etymology(
 # ---------- _position_label ---------------------------------------------
 
 
-def test_position_label_single_element_is_pre():
-    """Solo morpheme acts as the head (this module's convention)."""
-    assert _position_label(0, 1) == "pre"
+def test_position_label_single_element_is_bare():
+    """Solo morpheme → 'bare' (D40 vocabulary; wyrd-nkiq).
+
+    Must match the runtime lookup label
+    (``_slot_position_label`` returns 'bare' for a no-dash slot), else
+    single-word priors are stranded in an unqueried cell.
+    """
+    assert _position_label(0, 1) == "bare"
+
+
+def test_position_label_single_element_matches_runtime_lookup_label():
+    """wyrd-nkiq regression: the bake-side single-element label MUST equal
+    the runtime lookup label for a no-dash (single-morpheme) slot. If these
+    drift again, single-word priors go unreachable silently."""
+    from wyrd.generators.kenning.runtime.vector_name_select import (
+        _slot_position_label,
+    )
+
+    # A bare (dash-free) structural element is a single-morpheme word.
+    assert _slot_position_label("Barechester") == "bare"
+    assert _position_label(0, 1) == _slot_position_label("Barechester")
 
 
 def test_position_label_binary_compound():
@@ -396,8 +414,9 @@ def test_extract_priors_multi_tag_lemma_emits_one_cell_per_tag(db):
 
     native, _loan, summary = extract_priors(db)
 
-    assert native[_NativeKey("english", "pre", "plant", 950, "old-english:āc")] == 1
-    assert native[_NativeKey("english", "pre", "tree", 950, "old-english:āc")] == 1
+    # Single-element toponym → 'bare' (wyrd-nkiq).
+    assert native[_NativeKey("english", "bare", "plant", 950, "old-english:āc")] == 1
+    assert native[_NativeKey("english", "bare", "tree", 950, "old-english:āc")] == 1
     # LEFT JOIN: 2 rows (one per tag), both emitted.
     assert summary.rows_scanned == 2
     assert summary.rows_emitted == 2
@@ -427,8 +446,9 @@ def test_extract_priors_different_era_cells_are_separate(db):
 
     native, _loan, _summary = extract_priors(db)
 
-    assert native[_NativeKey("english", "pre", "architecture", 950, "old-english:tūn")] == 1
-    assert native[_NativeKey("english", "pre", "architecture", 1300, "old-english:tūn")] == 1
+    # Single-element toponyms → 'bare' (wyrd-nkiq).
+    assert native[_NativeKey("english", "bare", "architecture", 950, "old-english:tūn")] == 1
+    assert native[_NativeKey("english", "bare", "architecture", 1300, "old-english:tūn")] == 1
 
 
 def test_extract_priors_skips_country_unknown_when_null(db):
@@ -631,7 +651,7 @@ def test_extract_priors_mixed_tagged_and_untagged_compound(db):
     ordinal=1 would NOT exist (ordinal would be out of range). But
     if SQLite kept the row anyway with ordinal=1 against
     element_count=1, _position_label(1, 1) hits the single-element
-    branch and returns 'pre'. With the LEFT JOIN preserved, cnt=2
+    branch and returns 'bare'. With the LEFT JOIN preserved, cnt=2
     and _position_label(1, 2) returns 'post'. The diverging position
     keys catch the regression — a tagged-at-ordinal-0 setup would
     return 'pre' under both arms and silently pass.
@@ -745,7 +765,8 @@ def test_dump_json_structure(db, tmp_path):
     assert len(artifact["native"]) == 1
     cell = artifact["native"][0]
     assert cell["culture"] == "english"
-    assert cell["position"] == "pre"
+    # Single-element toponym → 'bare' (wyrd-nkiq; matches runtime lookup).
+    assert cell["position"] == "bare"
     assert cell["tag"] == "plant"
     assert cell["era_midpoint"] == 950
     assert cell["lemmas"] == {"old-english:x": 1}
