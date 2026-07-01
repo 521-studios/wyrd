@@ -28,6 +28,7 @@ import pytest
 
 from wyrd.app import create_app
 from wyrd.generators.kenning import _load_culture
+from wyrd.generators.kenning.errors import EmptyEligiblePool
 from wyrd.generators.kenning.generators import Kenning, KenningRegenerateMorpheme
 from wyrd.generators.kenning.generators.kenning_regenerate import (
     NoEligibleReplacementError,
@@ -177,27 +178,79 @@ def _carriers(words, tag):
     ]
 
 
+# Tags to probe for a sole-carrier re-roll scenario. The behavior under test is
+# tag-agnostic; we search for whichever tag the committed --dev seed can
+# actually exercise (wyrd-x5y4.5: the case-fold reseed thinned some pools —
+# e.g. english 'water' fell to 2 morphemes with no position-compatible
+# alternative — so a single hardcoded tag is fixture-brittle. The full bundle
+# is unaffected; this is a --dev subset limit.)
+_REROLL_CANDIDATE_TAGS = ("topography", "tree", "water", "hill", "wood", "stone")
+
+
 def test_reroll_of_sole_tag_carrier_stays_tagged():
     """wyrd-c6o1.4: a --tag reserves ONE slot (not every slot, the wv85 bug). On
     a re-roll, only the name's SOLE tag-carrier is restricted to tagged
     candidates — so re-rolling it can't silently drop the name's >=1-tagged
-    guarantee. (A free slot, with the tag satisfied elsewhere, samples freely.)"""
-    words = carrier_slot = None
-    for s in range(50):
-        rolled = Kenning().generate({"culture": "english", "tags": ["water"]}, seed=s)
-        carriers = _carriers(rolled.morphemes_by_word, "water")
-        assert carriers, f"roll seed={s} must satisfy the --tag guarantee"
-        if len(carriers) == 1:  # an unambiguous sole-carrier name to re-roll
-            words, carrier_slot = rolled.morphemes_by_word, carriers[0]
-            break
-    assert words is not None, "expected a single-water-carrier roll within 50 seeds"
+    guarantee. (A free slot, with the tag satisfied elsewhere, samples freely.)
 
-    wi, mi = carrier_slot
-    out = _regen(words, wi, mi, seed=3, culture="english", tags=["water"])
-    # the sole carrier re-rolls to another water morpheme (guarantee preserved)
-    assert "water" in (out.morphemes_by_word[wi][mi].get("tags") or [])
-    # ...and the name as a whole still carries the tag
-    assert _carriers(out.morphemes_by_word, "water")
+    The guarantee is "stays tagged OR fails loudly, never a silent untagged
+    swap": a sole-carrier re-roll must EITHER return another tagged morpheme OR
+    raise NoEligibleReplacementError (the honest empty-pool signal). On the
+    exercised scenario we assert the tagged replacement across a RANGE of
+    re-roll seeds (not one pinned seed — a broken c6o1.4 gate drops the tag on
+    only a fraction of seeds, so a single seed can coincidentally miss it), and
+    treat NoEligible as a valid guarantee-honoring outcome — not a bug the
+    search masks. We keep searching seeds (then tags) until the positive
+    tagged-replacement path is exercised at least once, else fail."""
+    exercised = False
+    for tag in _REROLL_CANDIDATE_TAGS:
+        for s in range(50):
+            try:
+                rolled = Kenning().generate({"culture": "english", "tags": [tag]}, seed=s)
+            except EmptyEligiblePool:
+                # No eligible english name for THIS (tag, seed): the structure
+                # sampled at this seed may be unfillable even when the tag has
+                # morphemes, so keep trying other seeds before giving up on the
+                # tag (continue, not break).
+                continue
+            carriers = _carriers(rolled.morphemes_by_word, tag)
+            assert carriers, f"roll tag={tag} seed={s} must satisfy the --tag guarantee"
+            if len(carriers) != 1:
+                continue  # want an unambiguous SOLE-carrier name to re-roll
+            wi, mi = carriers[0]
+            # Re-roll the sole carrier across a RANGE of seeds: EVERY produced
+            # replacement must stay tagged. A wv85-class silent untagged swap
+            # drops the tag on a large fraction of seeds, so pinning ONE seed
+            # can coincidentally miss it (that pick happens to stay tagged even
+            # with the c6o1.4 gate removed) — iterate so the guard actually
+            # bites the regression. NoEligible on a given seed is the honest
+            # empty-pool signal, not a silent drop; skip it and keep going.
+            produced = 0
+            for rs in range(30):
+                try:
+                    out = _regen(
+                        rolled.morphemes_by_word, wi, mi, seed=rs, culture="english", tags=[tag]
+                    )
+                except NoEligibleReplacementError:
+                    continue
+                # A replacement WAS produced — it MUST carry the tag (the sole
+                # carrier is restricted to tagged candidates; never a silent drop).
+                assert tag in (out.morphemes_by_word[wi][mi].get("tags") or []), (
+                    f"re-roll of the sole {tag}-carrier (seed={rs}) silently dropped the tag"
+                )
+                # ...and the name as a whole still carries the tag.
+                assert _carriers(out.morphemes_by_word, tag)
+                produced += 1
+            if produced:
+                exercised = True
+                break
+        if exercised:
+            break
+
+    assert exercised, (
+        "expected a candidate tag to yield a sole-carrier roll whose carrier "
+        "re-rolls to another tagged morpheme (none did)"
+    )
 
 
 def test_reroll_of_free_slot_under_tag_samples_freely():

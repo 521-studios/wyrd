@@ -153,10 +153,24 @@ DEV_BUILT_AT = "1970-01-01T00:00:00Z"
 DEV_SOURCE_LEXICON_SENTINEL = "DEV_SOURCE_LEXICON"
 
 # Default per-culture cap on usages / single_usages in --dev mode. Sized
-# to keep the committed seed-runtime.db under ~5MB while still covering
-# enough of the morpheme inventory for the test suite + local dev to
-# exercise the generator surface end-to-end.
-DEV_TOP_N_PER_CULTURE = 200
+# to keep the committed seed-runtime.db small while still covering enough of
+# the morpheme inventory for the test suite + local dev to exercise the
+# generator surface end-to-end.
+#
+# Bumped 200 -> 350 for the wyrd-x5y4.5 case-fold reseed: folding
+# case-variant identity keys (Abbey -> abbey, ~566 meaning dups) shrank the
+# --dev subset from 1383 to 807 meanings — below the documented 1000-1500
+# range — and thinned per-tag diversity enough to starve reroll tests (e.g.
+# english 'water' dropped to 2 morphemes, leaving no position-compatible
+# replacement). 350 restores the subset to ~1379, back in range.
+#
+# NB: at 350 the cap is currently NON-BINDING — the largest per-culture
+# proportion-referenced inventory is ~300 keys, so the --dev subset is the
+# full referenced set rather than a top-350 slice (it trims nothing today).
+# 350 is deliberate headroom: the cap only re-engages once some culture's
+# referenced inventory grows past it, at which point it caps deterministically
+# (sorted by (-weight, key)).
+DEV_TOP_N_PER_CULTURE = 350
 
 
 def _bare_modern_usage(value: str) -> str:

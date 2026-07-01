@@ -9,11 +9,12 @@ Two layers, mirroring the D45 dash gate (``test_kenning_dedash_data_gate.py``):
    and PASSING now — the mint (wyrd-x5y4.2/.3) lower-cases every surface key.
 
 2. **Committed-artifact gate** — the shipped ``seed-runtime.db`` is asserted
-   uppercase-free. This currently **XFAILs (strict)**: the committed seed
-   predates the case-fold reseed (wyrd-x5y4.5) and still carries ~657 capitalized
-   ``meaning`` keys + the ``proportions`` caps. When the reseed lands and the
-   seed conforms, the test XPASSes → the strict marker FAILS the suite, the
-   signal to drop the xfail and make this a live gate.
+   uppercase-free. As of the wyrd-x5y4.5 case-fold reseed the committed seed
+   conforms (0 capitalized identity keys), so this is now a **live hard gate**
+   (a plain assertion): a mint/reseed regression that reintroduces an uppercase
+   key fails the suite. It previously shipped as an ``xfail(strict=True)``
+   self-policer whose XPASS-on-conformance was the designed signal to drop the
+   marker — which the reseed did.
 
 Guarded surfaces (D53): the same key columns as the dash gate —
 ``meaning.usage_key`` + the four ``proportions`` ``usage_key`` columns
@@ -37,16 +38,11 @@ from wyrd.generators.kenning.runtime.runtime_db import _bundled_seed_path
 pytestmark = pytest.mark.no_lexicon_isolation
 
 
-# ---- committed-artifact gate (xfail-strict until the wyrd-x5y4.5 reseed) ----
+# ---- committed-artifact gate (LIVE since the wyrd-x5y4.5 case-fold reseed) ----
+# The xfail-strict marker was dropped here once the reseed made the committed
+# seed conform (0 capitalized identity keys); this is now a hard live gate.
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="committed seed predates the wyrd-x5y4.5 case-fold reseed (~657 "
-    "capitalized meaning keys + proportions caps). It XPASSes once the reseed "
-    "makes the committed data conform — that strict-xfail failure is the signal "
-    "to drop this marker and let the gate go live.",
-)
 def test_committed_seed_has_no_capitalized_identity():
     """The shipped seed-runtime.db carries no uppercase in any guarded
     surface-identity key. Unicode-aware (``key != key.lower()``, matching the
