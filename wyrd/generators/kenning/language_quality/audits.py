@@ -1269,6 +1269,7 @@ def compute_scorecard(
     default_threshold: int = 3,
     lang_thresholds: dict[str, int] | None = None,
     rando_port_audit: dict[str, dict[str, int]] | None = None,
+    rando_refs: frozenset[str] | None = None,
     compute_tier4: bool = True,
     tier4_progress_callback: Any = None,
 ) -> LanguageScorecard:
@@ -1279,6 +1280,13 @@ def compute_scorecard(
     ``compute_rando_port_grandfather_audit``. Passed in rather than
     recomputed because the rollup walks all ~900K etymons. ``None``
     skips the K. fields (they stay at default 0).
+
+    ``rando_refs`` (wyrd-vwjz, optional) is the de-dashed ``language:form``
+    set of rando-port-attested morphemes, threaded into
+    ``_bundle_attestation_breakdown`` so the B2 bundle-attestation
+    ``rando_only`` bin is populated. Without it that bin is structurally
+    0 (the bundle scrubs rando-port from ``<lang>_citations``), mirroring
+    the readiness gate's fix (wyrd-qkn0).
     """
     if lang_thresholds is None:
         lang_thresholds = RECOMMENDED_LANG_THRESHOLDS
@@ -1288,7 +1296,7 @@ def compute_scorecard(
     sibling = _BUNDLE_LANG_KEY.get(language)
     bundle_words = _bundle_language_word_count(bundle, sibling)
     bundle_tag_counts = _bundle_tag_coverage_for_sibling(bundle, sibling, reference_tags)
-    attestation = _bundle_attestation_breakdown(bundle, sibling)
+    attestation = _bundle_attestation_breakdown(bundle, sibling, rando_refs)
     shared_with: list[str] = []
     if sibling is not None and sibling in _SHARED_BUNDLE_SIBLINGS:
         shared_with = [other for other in _SHARED_BUNDLE_SIBLINGS[sibling] if other != language]
@@ -1452,6 +1460,14 @@ def compute_report(
     # would be wasteful). Each scorecard reads its bucket from the
     # precomputed map.
     rando_port_audit = compute_rando_port_grandfather_audit(conn)
+    # wyrd-vwjz: load the rando-port morpheme_id refs ONCE and thread them
+    # into every scorecard's bundle-attestation breakdown, so language-report's
+    # B2 rando_only bin is populated (not structurally 0). Local import avoids a
+    # cycle: bundle.rando_port_readiness imports _bundle_attestation_breakdown
+    # from this package.
+    from wyrd.generators.kenning.bundle.rando_port_readiness import load_rando_attested_refs
+
+    rando_refs = load_rando_attested_refs()
     cards: list[LanguageScorecard] = []
     for lang in languages_to_check:
         per_lang_callback = None
@@ -1468,6 +1484,7 @@ def compute_report(
             default_threshold=default_threshold,
             lang_thresholds=lang_thresholds,
             rando_port_audit=rando_port_audit,
+            rando_refs=rando_refs,
             compute_tier4=compute_tier4,
             tier4_progress_callback=per_lang_callback,
         )

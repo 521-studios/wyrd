@@ -417,6 +417,41 @@ def test_bundle_attestation_rando_refs_recovers_rando_only() -> None:
     assert with_refs["uncited"] == 0
 
 
+def test_compute_scorecard_threads_rando_refs_into_attestation() -> None:
+    """wyrd-vwjz: compute_scorecard must forward ``rando_refs`` into the
+    bundle-attestation breakdown so language-report's B2 ``bundle_rando_only``
+    is populated (not structurally 0, the same blind spot the readiness gate
+    fixed in wyrd-qkn0). Same rando-only OE morpheme as the breakdown test
+    above, exercised end-to-end through the scorecard."""
+    conn = _build_fixture_db()
+    bundle = [
+        {
+            "meaning": ["enclosure"],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "-ton",
+                    "old_english": ["tun"],
+                    "morpheme_id": "old-english:tun",
+                }
+            ],
+        }
+    ]
+    ref = list(FALLBACK_REFERENCE_TAGS[:5])
+    no_refs = compute_scorecard(conn, "old-english", bundle, ref, compute_tier4=False)
+    with_refs = compute_scorecard(
+        conn,
+        "old-english",
+        bundle,
+        ref,
+        compute_tier4=False,
+        rando_refs=frozenset({"old-english:tun"}),
+    )
+    assert no_refs.bundle_rando_only == 0
+    assert with_refs.bundle_rando_only == 1
+
+
 def test_bundle_attestation_rando_refs_scholar_wins() -> None:
     """A rando-ledger morpheme that ALSO carries a scholar citation stays
     scholar_attested — corroborated morphemes are not rando-only. The
