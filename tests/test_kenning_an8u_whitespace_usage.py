@@ -68,6 +68,31 @@ def test_word_lone_sample_uses_whitespace_clean_surface():
     assert Word([_meaning("Oak- ")]).get_lone_samples() == {"Oak"}
 
 
+def test_bare_surface_strips_non_ascii_boundary_dash():
+    # wyrd-p0e4: an ASCII-only .replace("-", "") left a non-ASCII boundary dash
+    # (en-dash / U+2010) in the pool KEY, forking 'Oak–' from 'Oak'. The shared
+    # Unicode normalizer strips all 11 boundary-dash codepoints.
+    assert _bare_surface(_meaning("Oak–")) == "Oak"  # trailing EN DASH
+    assert _bare_surface(_meaning("‐ton")) == "ton"  # leading HYPHEN U+2010
+    assert _bare_surface(_meaning("Oak–")) == _bare_surface(_meaning("Oak-"))
+
+
+def test_bare_surface_preserves_interior_hyphen():
+    # D45: a genuine interior hyphen is part of the surface identity — de-dashing
+    # trims only boundary markers, never al-Quadim's interior hyphen.
+    assert _bare_surface(_meaning("al-Quadim")) == "al-Quadim"
+    assert _bare_surface(_meaning("-al-Quadim-")) == "al-Quadim"  # boundary trimmed
+
+
+def test_bare_modern_usage_strips_non_ascii_boundary_dash():
+    # wyrd-n8hw: _bare_modern_usage matches _verify_no_dashed_identity's Unicode
+    # dash scope, so a non-ASCII boundary dash can't slip the stripper yet trip
+    # the guard. (Also case-folds per D53; interior hyphen preserved.)
+    assert _bare_modern_usage("Oak–") == "oak"
+    assert _bare_modern_usage("‐Ton") == "ton"
+    assert _bare_modern_usage("Al-Quadim") == "al-quadim"
+
+
 def test_word_compound_samples_use_whitespace_clean_surface():
     samples = Word([_meaning("Oak- "), _meaning("ton")]).get_samples()
     assert ("Oak", "pre") in samples

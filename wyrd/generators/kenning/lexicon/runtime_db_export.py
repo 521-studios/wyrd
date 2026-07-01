@@ -35,7 +35,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from wyrd.generators.kenning.lexicon.morpheme_surface import _BOUNDARY_DASHES
+from wyrd.generators.kenning.lexicon.morpheme_surface import (
+    _BOUNDARY_DASHES,
+    _strip_boundary_decoration,
+)
 from wyrd.generators.kenning.paths import seed_data_path
 
 _logger = logging.getLogger(__name__)
@@ -166,8 +169,14 @@ def _bare_modern_usage(value: str) -> str:
     ``'oak'`` meaning row rather than duplicating it + splitting its weight — and
     a word-initial ``'Abbey'`` collapses into the same ``'abbey'`` row as an
     internal ``'abbey'`` (D53: ~566 case-variant duplicates folded). Mirrors
-    ``word._bare_surface`` (the proportions key path)."""
-    return value.replace("-", "").strip().lower()
+    ``word._bare_surface`` (the proportions key path).
+
+    wyrd-n8hw: de-dash via :func:`_strip_boundary_decoration` (Unicode-aware,
+    all 11 boundary-dash codepoints) rather than an ASCII-only ``replace("-",
+    "")`` — matching the ``_verify_no_dashed_identity`` guard (which already
+    scans the full ``_BOUNDARY_DASHES`` set) so a non-ASCII boundary dash can't
+    slip past the stripper yet trip the guard. Interior hyphens are preserved."""
+    return _strip_boundary_decoration(value).lower()
 
 
 def write_runtime_db(
@@ -688,7 +697,10 @@ def _write_meanings(conn: sqlite3.Connection, subjects: list[dict[str, Any]]) ->
             grouped.setdefault(usage, []).append(entry)
 
     rows = []
-    for usage_key, entries in grouped.items():
+    # wyrd-n8hw: sort by usage_key so the INSERT order (hence the seed DB's byte
+    # layout) is stable to THIS write site, not the caller's dict insertion order
+    # — the same byte-stability convention as _insert_attested_languages below.
+    for usage_key, entries in sorted(grouped.items()):
         primary_language = _pick_primary_language(entries)
         stratum = _pick_unanimous_stratum(entries)
         payload = json.dumps({"entries": entries}, ensure_ascii=False)
@@ -1004,8 +1016,8 @@ def _insert_attested_languages(
     for usage_key, langs in attested.items():
         # Fold dash + surrounding whitespace (wyrd-an8u) so a dirty operator-JSON
         # key keys the same surface as the clean one and matches the stripped
-        # runtime lookup.
-        surface = usage_key.replace("-", "").strip().lower()
+        # runtime lookup (wyrd-n8hw: Unicode-aware, via the shared normalizer).
+        surface = _strip_boundary_decoration(usage_key).lower()
         folded.setdefault(surface, set()).update(langs)
     # Sort the outer surface loop too so byte-stability is local to this write
     # site rather than leaning on the caller's dict insertion order (seed-repro).
