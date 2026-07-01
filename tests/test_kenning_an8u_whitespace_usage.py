@@ -71,26 +71,75 @@ def test_word_lone_sample_uses_whitespace_clean_surface():
 def test_bare_surface_strips_non_ascii_boundary_dash():
     # wyrd-p0e4: an ASCII-only .replace("-", "") left a non-ASCII boundary dash
     # (en-dash / U+2010) in the pool KEY, forking 'Oak–' from 'Oak'. The shared
-    # Unicode normalizer strips all 11 boundary-dash codepoints.
+    # Unicode fold (_strip_all_dashes) strips all 11 boundary-dash codepoints.
     assert _bare_surface(_meaning("Oak–")) == "Oak"  # trailing EN DASH
     assert _bare_surface(_meaning("‐ton")) == "ton"  # leading HYPHEN U+2010
     assert _bare_surface(_meaning("Oak–")) == _bare_surface(_meaning("Oak-"))
 
 
-def test_bare_surface_preserves_interior_hyphen():
-    # D45: a genuine interior hyphen is part of the surface identity — de-dashing
-    # trims only boundary markers, never al-Quadim's interior hyphen.
-    assert _bare_surface(_meaning("al-Quadim")) == "al-Quadim"
-    assert _bare_surface(_meaning("-al-Quadim-")) == "al-Quadim"  # boundary trimmed
+def test_bare_surface_folds_all_dashes_like_the_l4_family():
+    # wyrd-p0e4/n8hw: _strip_all_dashes is a Unicode-aware drop-in for the L4
+    # fold family's replace("-", "") — it folds ALL dashes (interior too), so
+    # this key stays IDENTICAL to _bare_modern_usage (the mint) and the other
+    # fold sites. (Interior-hyphen-as-identity is the separate aicu.4 concern.)
+    assert _bare_surface(_meaning("al-Quadim")) == "alQuadim"  # interior folded
+    assert _bare_surface(_meaning("al–Quadim")) == "alQuadim"  # en-dash too
+    # The mint and the runtime key agree on the same input (no reader/writer fork).
+    assert _bare_surface(_meaning("al-Quadim")).lower() == _bare_modern_usage("al-Quadim")
 
 
 def test_bare_modern_usage_strips_non_ascii_boundary_dash():
     # wyrd-n8hw: _bare_modern_usage matches _verify_no_dashed_identity's Unicode
     # dash scope, so a non-ASCII boundary dash can't slip the stripper yet trip
-    # the guard. (Also case-folds per D53; interior hyphen preserved.)
+    # the guard. All-strip + D53 case-fold, consistent with word._bare_surface.
     assert _bare_modern_usage("Oak–") == "oak"
     assert _bare_modern_usage("‐Ton") == "ton"
-    assert _bare_modern_usage("Al-Quadim") == "al-quadim"
+    assert _bare_modern_usage("Al-Quadim") == "alquadim"  # interior folded too
+
+
+def test_position_form_strips_non_ascii_boundary_dash():
+    # wyrd-p0e4: the render-key de-dash is Unicode-aware, so a non-ASCII marker
+    # doesn't survive into the rendered slot. Positional dashes are re-added by
+    # _position_form itself (ASCII, D39), not inherited from the surface.
+    from wyrd.generators.kenning.runtime.word import _position_form
+
+    assert _position_form(_meaning("Oak–"), "pre") == "Oak-"
+    assert _position_form(_meaning("‐ton"), "post") == "-ton"
+    assert _position_form(_meaning("Oak–"), "bare") == "Oak"
+
+
+def test_get_structure_saint_particle_detected_through_unicode_dash():
+    # wyrd-p0e4: the "saint" dedication-particle check de-dashes Unicode-aware,
+    # so a dash-decorated 'Saint' surface is still recognised as the particle.
+    saint = _meaning("‐Saint")  # leading U+2010
+    place = _meaning("Albans")
+    structure = Word([saint, place]).get_structure()
+    # First of two morphemes → 'pre'; detected as the saint particle despite the
+    # non-ASCII dash (an ASCII-only fold would have missed it).
+    assert ("pre", "saint") in structure
+
+
+def test_write_meanings_row_order_is_sorted_by_usage_key():
+    # wyrd-n8hw: _write_meanings sorts by usage_key so the seed DB byte layout is
+    # stable to this write site, independent of caller dict-insertion order.
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE meaning (usage_key TEXT PRIMARY KEY, primary_language TEXT, "
+        "stratum TEXT, data BLOB)"
+    )
+
+    def _subject(usage: str) -> dict:
+        return {
+            "meaning": ["m"],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [{"modern_usage": usage, "old_english": [usage.lower()]}],
+        }
+
+    # Deliberately unsorted insertion order; output must come back sorted.
+    _write_meanings(conn, [_subject("ton"), _subject("abbey"), _subject("mere")])
+    keys = [r[0] for r in conn.execute("SELECT usage_key FROM meaning")]
+    assert keys == sorted(keys)
 
 
 def test_word_compound_samples_use_whitespace_clean_surface():

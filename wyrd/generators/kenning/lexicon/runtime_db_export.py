@@ -37,7 +37,7 @@ from urllib.parse import quote
 
 from wyrd.generators.kenning.lexicon.morpheme_surface import (
     _BOUNDARY_DASHES,
-    _strip_boundary_decoration,
+    _strip_all_dashes,
 )
 from wyrd.generators.kenning.paths import seed_data_path
 
@@ -171,12 +171,13 @@ def _bare_modern_usage(value: str) -> str:
     internal ``'abbey'`` (D53: ~566 case-variant duplicates folded). Mirrors
     ``word._bare_surface`` (the proportions key path).
 
-    wyrd-n8hw: de-dash via :func:`_strip_boundary_decoration` (Unicode-aware,
-    all 11 boundary-dash codepoints) rather than an ASCII-only ``replace("-",
-    "")`` — matching the ``_verify_no_dashed_identity`` guard (which already
-    scans the full ``_BOUNDARY_DASHES`` set) so a non-ASCII boundary dash can't
-    slip past the stripper yet trip the guard. Interior hyphens are preserved."""
-    return _strip_boundary_decoration(value).lower()
+    wyrd-n8hw: de-dash via :func:`_strip_all_dashes` — the Unicode-aware drop-in
+    for ``replace("-", "")`` (SAME all-positions fold, all 11 boundary-dash
+    codepoints) — so a non-ASCII boundary dash can't slip the stripper yet trip
+    the ``_verify_no_dashed_identity`` guard (which already scans the full
+    ``_BOUNDARY_DASHES`` set). Folds interior dashes too, keeping this key
+    identical to ``word._bare_surface`` and the other L4 fold sites."""
+    return _strip_all_dashes(value).strip().lower()
 
 
 def write_runtime_db(
@@ -1017,7 +1018,7 @@ def _insert_attested_languages(
         # Fold dash + surrounding whitespace (wyrd-an8u) so a dirty operator-JSON
         # key keys the same surface as the clean one and matches the stripped
         # runtime lookup (wyrd-n8hw: Unicode-aware, via the shared normalizer).
-        surface = _strip_boundary_decoration(usage_key).lower()
+        surface = _strip_all_dashes(usage_key).strip().lower()
         folded.setdefault(surface, set()).update(langs)
     # Sort the outer surface loop too so byte-stability is local to this write
     # site rather than leaning on the caller's dict insertion order (seed-repro).
@@ -1283,12 +1284,17 @@ def select_dev_subset(
         # set) would leak rows: a usage_key kept in culture A's top-N
         # but absent from culture B's would survive in B's attestation
         # output. Build a per-culture set instead.
-        culture_keep_surfaces = {s.lower() for s in kept_usages} | {s.lower() for s in kept_single}
+        # wyrd-n8hw: de-dash BOTH the keep-set and the lookups (below) with the
+        # same fold, so an interior-hyphen key can't be silently dropped by a
+        # set-vs-query fold mismatch. Inert today (keys are minted de-dashed).
+        culture_keep_surfaces = {_strip_all_dashes(s.lower()) for s in kept_usages} | {
+            _strip_all_dashes(s.lower()) for s in kept_single
+        }
         raw_attested = data.get("attested_languages") or {}
         trimmed_attested = {
             k: sorted(raw_attested[k])
             for k in sorted(raw_attested)
-            if k.lower().replace("-", "") in culture_keep_surfaces
+            if _strip_all_dashes(k.lower()) in culture_keep_surfaces
         }
         # wyrd-rogd.13: narrow the per-word-position bare stats to THIS
         # culture's kept single_usages (the bare pool the runtime samples
@@ -1297,13 +1303,13 @@ def select_dev_subset(
         # as attested_languages above. Compared by bare SURFACE: the
         # positional rows are surface-keyed (D40 identity) while
         # kept_single carries stored-form keys (case twins like 'Ghyll').
-        kept_single_surfaces = {u.lower().replace("-", "") for u in kept_single}
+        kept_single_surfaces = {_strip_all_dashes(u.lower()) for u in kept_single}
         raw_bare_positions = data.get("bare_word_positions") or {}
         trimmed_bare_positions = {
             position: {
                 usage: count
                 for usage, count in sorted(raw_bare_positions[position].items())
-                if usage.lower().replace("-", "") in kept_single_surfaces
+                if _strip_all_dashes(usage.lower()) in kept_single_surfaces
             }
             for position in sorted(raw_bare_positions)
         }

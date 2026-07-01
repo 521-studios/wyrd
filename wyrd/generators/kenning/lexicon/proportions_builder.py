@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from wyrd.generators.kenning.lexicon.morpheme_surface import _strip_all_dashes
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.proportions import is_structurally_grammatical
 
@@ -72,7 +73,10 @@ def _accumulate_attested_languages(name, attested_languages: dict[str, set[str]]
                 # ``.strip()`` drops surrounding whitespace (wyrd-an8u) so a
                 # dirty ``'Oak- '`` keys the same bare surface as ``'Oak-'``,
                 # matching _bare_surface (the usages/single_usages key path).
-                surface = elem.usage.replace("-", "").strip().lower()
+                # wyrd-n8hw: Unicode-aware fold (drop-in for replace("-","")),
+                # matching _bare_surface / _bare_modern_usage so the attested key
+                # can't fork on a non-ASCII dash.
+                surface = _strip_all_dashes(elem.usage).strip().lower()
                 attested_languages.setdefault(surface, set()).add(primary)
 
 

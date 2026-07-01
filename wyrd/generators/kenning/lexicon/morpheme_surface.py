@@ -58,6 +58,26 @@ _BOUNDARY_DASHES = (
 )
 
 
+# Delete-map for EVERY dash codepoint at ANY position (the Unicode-aware
+# equivalent of the legacy ``str.replace("-", "")`` fold idiom, D45). Distinct
+# from :func:`_strip_boundary_decoration`, which trims only the ENDS and keeps a
+# genuine interior hyphen. The L4 meaning / proportions key family folds ALL
+# dashes (interior included) so its keys collide a dashed operator surface onto
+# the clean one; :func:`_strip_all_dashes` is that fold, extended past ASCII.
+_DASH_DELETE_MAP = str.maketrans("", "", _BOUNDARY_DASHES)
+
+
+def _strip_all_dashes(s: str) -> str:
+    """Delete every dash codepoint (all 11 :data:`_BOUNDARY_DASHES` variants, any
+    position) — the Unicode-aware drop-in for the legacy ``str.replace("-", "")``
+    fold used across the L4 meaning / proportions key sites (wyrd-p0e4/n8hw).
+
+    Callers add their own ``.strip()`` / ``.lower()`` as before. Use THIS (not
+    :func:`_strip_boundary_decoration`) wherever the surrounding code folds
+    interior hyphens too, so the whole key family stays mutually consistent."""
+    return s.translate(_DASH_DELETE_MAP)
+
+
 def _strip_boundary_decoration(s: str) -> str:
     """Trim boundary position-decoration from both ends: ALL Unicode whitespace
     (via bare ``str.strip``) AND any dash-like codepoint (:data:`_BOUNDARY_DASHES`).
