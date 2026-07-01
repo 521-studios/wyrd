@@ -155,7 +155,7 @@ Read `.reviewers/importlib-resources-reviewer.md` and follow it as your complete
 ## dataclass-decorator-reviewer
 
 **What it checks:** classes that use `dataclasses.field(default_factory=...)` or `field(default=...)` without a `@dataclass` decorator — a P1 correctness bug that passes type checkers and surfaces at first instance use.
-**When to spawn:** PR touches `*.py` that imports from `dataclasses` or calls `field(`. Especially relevant for extraction PRs that move classes between files. Skip otherwise.
+**When to spawn:** PR **moves or extracts a class between files**, OR a diff hunk adds `field(default=...)`/`field(default_factory=...)` to a class body **whose `@dataclass` line is outside the hunk** (so the decorator can't be confirmed next to the `field()` call) — the cases where a missing `@dataclass` actually hides. Skip PRs that merely touch `dataclasses` with the decorator visibly intact in-hunk, and in-place edits to already-decorated classes: a brand-new undecorated `field()` class fails fast at first instantiation and tests catch it, so it doesn't need this reviewer. (Firing data: the any-`dataclasses`-touch trigger fired 27× for 1 finding; the move/out-of-hunk case is the subtle one worth the spawn.)
 
 Read `.reviewers/dataclass-decorator-reviewer.md` and follow it as your complete review specification.
 
