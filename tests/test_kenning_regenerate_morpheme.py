@@ -208,7 +208,11 @@ def test_reroll_of_sole_tag_carrier_stays_tagged():
             try:
                 rolled = Kenning().generate({"culture": "english", "tags": [tag]}, seed=s)
             except EmptyEligiblePool:
-                break  # this tag has no eligible english name in the --dev seed
+                # No eligible english name for THIS (tag, seed): the structure
+                # sampled at this seed may be unfillable even when the tag has
+                # morphemes, so keep trying other seeds before giving up on the
+                # tag (continue, not break).
+                continue
             carriers = _carriers(rolled.morphemes_by_word, tag)
             assert carriers, f"roll tag={tag} seed={s} must satisfy the --tag guarantee"
             if len(carriers) != 1:
