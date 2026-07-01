@@ -452,6 +452,55 @@ def test_compute_scorecard_threads_rando_refs_into_attestation() -> None:
     assert with_refs.bundle_rando_only == 1
 
 
+def _rando_only_oe_bundle() -> list[dict]:
+    return [
+        {
+            "meaning": ["enclosure"],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "-ton",
+                    "old_english": ["tun"],
+                    "morpheme_id": "old-english:tun",
+                }
+            ],
+        }
+    ]
+
+
+def test_compute_report_forwards_rando_refs_to_scorecards() -> None:
+    """wyrd-vwjz: compute_report must LOAD-and-FORWARD rando_refs to every
+    scorecard — not just accept the param on compute_scorecard. Injecting the
+    refs (the seam the default-path load uses) proves the forward at the report
+    layer: without it, the B2 bundle_rando_only would stay structurally 0."""
+    conn = _build_fixture_db()
+    bundle = _rando_only_oe_bundle()
+    ref = list(FALLBACK_REFERENCE_TAGS[:3])
+    without = compute_report(
+        conn,
+        bundle,
+        languages=["old-english"],
+        reference_tags=ref,
+        drop_empty=False,
+        compute_tier4=False,
+        rando_refs=frozenset(),
+    )
+    with_refs = compute_report(
+        conn,
+        bundle,
+        languages=["old-english"],
+        reference_tags=ref,
+        drop_empty=False,
+        compute_tier4=False,
+        rando_refs=frozenset({"old-english:tun"}),
+    )
+    oe_without = next(c for c in without.languages if c.language == "old-english")
+    oe_with = next(c for c in with_refs.languages if c.language == "old-english")
+    assert oe_without.bundle_rando_only == 0
+    assert oe_with.bundle_rando_only == 1
+
+
 def test_bundle_attestation_rando_refs_scholar_wins() -> None:
     """A rando-ledger morpheme that ALSO carries a scholar citation stays
     scholar_attested — corroborated morphemes are not rando-only. The

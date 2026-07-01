@@ -1420,6 +1420,7 @@ def compute_report(
     tier4_progress_callback: Any = None,
     source_filter: str | None = None,
     tag_filter: str | None = None,
+    rando_refs: frozenset[str] | None = None,
 ) -> LanguageQualityReport:
     """Compute the full multi-language report.
 
@@ -1460,14 +1461,18 @@ def compute_report(
     # would be wasteful). Each scorecard reads its bucket from the
     # precomputed map.
     rando_port_audit = compute_rando_port_grandfather_audit(conn)
-    # wyrd-vwjz: load the rando-port morpheme_id refs ONCE and thread them
-    # into every scorecard's bundle-attestation breakdown, so language-report's
-    # B2 rando_only bin is populated (not structurally 0). Local import avoids a
-    # cycle: bundle.rando_port_readiness imports _bundle_attestation_breakdown
-    # from this package.
-    from wyrd.generators.kenning.bundle.rando_port_readiness import load_rando_attested_refs
+    # wyrd-vwjz: thread the rando-port morpheme_id refs into every scorecard's
+    # bundle-attestation breakdown, so language-report's B2 rando_only bin is
+    # populated (not structurally 0). Loaded ONCE here when not injected;
+    # ``rando_refs`` is a param so tests can inject a synthetic set. Local import
+    # avoids a cycle: bundle.rando_port_readiness imports
+    # _bundle_attestation_breakdown from this package.
+    if rando_refs is None:
+        from wyrd.generators.kenning.bundle.rando_port_readiness import (
+            load_rando_attested_refs,
+        )
 
-    rando_refs = load_rando_attested_refs()
+        rando_refs = load_rando_attested_refs()
     cards: list[LanguageScorecard] = []
     for lang in languages_to_check:
         per_lang_callback = None
