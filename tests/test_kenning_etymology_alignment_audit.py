@@ -317,6 +317,10 @@ def test_format_audit_report_ranks_by_flag_count(tmp_path: Path):
     report = audit_jsonl_dir(tmp_path)
     out = format_audit_report(report)
     assert out.index("high_volume") < out.index("high_rate")
+    # wyrd-73ma: suppression is narrow — with flags present, both section headers
+    # still render (the normal top_n=20 path is unchanged).
+    assert "## Top sources by flag count" in out
+    assert "## Samples" in out
 
 
 def test_format_audit_report_clean_corpus(tmp_path: Path):
@@ -327,6 +331,26 @@ def test_format_audit_report_clean_corpus(tmp_path: Path):
     report = audit_jsonl_dir(tmp_path)
     out = format_audit_report(report)
     assert "_No alignment misses detected" in out
+    # wyrd-73ma: a clean corpus has no flagged sources, so the top-sources table
+    # is suppressed rather than rendered as an orphaned header + empty table.
+    assert "## Top sources by flag count" not in out
+
+
+def test_format_audit_report_suppresses_empty_sections_when_top_n_zero(tmp_path: Path):
+    """wyrd-73ma: with misses present but ``top_n <= 0`` rendering none, neither
+    the '## Top sources' table nor the '## Samples' section emits an orphaned
+    header — only the summary. (Degenerate input; the CLI defaults to top_n=20.)"""
+    _write_jsonl(
+        tmp_path / "flagged.jsonl",
+        [_row(elements=[{"etymon_ref": "oe:foo"}], historical_form="bar")] * 3,
+    )
+    report = audit_jsonl_dir(tmp_path)
+    out = format_audit_report(report, top_n=0)
+    assert "## Top sources by flag count" not in out
+    assert "## Samples" not in out
+    # There ARE misses (so not the clean-corpus placeholder), but none are shown.
+    assert "_No alignment misses detected" not in out
+    assert out.strip()  # the summary section still renders
 
 
 # ---------------------------------------------------------------------------
