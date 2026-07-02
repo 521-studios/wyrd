@@ -84,10 +84,18 @@ export function coerceToType(raw, prop) {
     // exists to stop. Number.isFinite rejects NaN AND ±Infinity, matching the
     // server's math.isfinite mirror (feature_flags._coerce_to_schema_type).
     // Return undefined so the caller falls back to the schema default rather
-    // than shipping garbage. (parseInt never yields Infinity, so the integer
-    // path is unaffected.)
+    // than shipping garbage.
     if (String(raw).trim() === '') return undefined;
-    const n = prop.type === 'integer' ? parseInt(raw, 10) : Number(raw);
+    const n = Number(raw);
+    if (prop.type === 'integer') {
+      // Integer parity with the server (_coerce_to_schema_type, wyrd-8uuq):
+      // accept integral floats ('5.0'→5), reject non-integers and trailing
+      // garbage ('5.5'/'3abc'/'12px'→undefined). Number.isInteger is false for
+      // NaN and ±Infinity, so it subsumes the non-finite guard on this path.
+      // (Was parseInt(raw,10), which leniently parsed '3abc'→3 — a slider≠
+      // generation divergence against the server's strict int(); wyrd-8uuq.)
+      return Number.isInteger(n) ? n : undefined;
+    }
     return Number.isFinite(n) ? n : undefined;
   }
   if (prop?.type === 'boolean') {

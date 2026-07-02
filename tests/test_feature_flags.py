@@ -153,31 +153,41 @@ def test_apply_env_defaults_integer_coercion():
     assert isinstance(params["count"], int)
 
 
-def test_integer_coercion_mirrors_spa_parseint():
-    """Integer coercion must match the SPA's ``parseInt(raw, 10)``: a leading
-    optional-sign integer, ignoring a trailing fractional/garbage part. Plain
-    ``int()`` rejected these (ValueError → None), so a default styled as a
-    decimal (``WYRD_DEFAULT_COUNT=5.0``) made the SPA show 5 while the server
-    fell back to the schema default — the wyrd-7f22 SPA/server mismatch this
-    module exists to prevent."""
+# The shared server/SPA integer-coercion parity vector (wyrd-8uuq). The SPA's
+# featureFlags.test.js asserts the SAME (input → outcome) list against
+# coerceToType, so both sides agree in BOTH directions: a slider seeded from a
+# WYRD_DEFAULT never disagrees with what generation uses. ``None`` here == the
+# SPA's ``undefined`` (fall back to the schema default).
+_INTEGER_PARITY_VECTOR = {
+    "5": 5,
+    "5.0": 5,  # integral float → accepted (the wyrd-7f22 decimal-styled default)
+    "5.5": None,  # non-integral → rejected (was 5 under the old lenient parseInt)
+    "3abc": None,  # trailing garbage → rejected (was 3 under parseInt)
+    "12px": None,  # trailing garbage → rejected (was 12)
+    "-3.9": None,  # non-integral → rejected (was -3)
+    "": None,
+    "-2": -2,
+    " 7 ": 7,
+    "Infinity": None,
+    "NaN": None,
+    ".5": None,  # non-integral → rejected
+    "١٢٣": None,  # Arabic-Indic 123: JS Number → NaN, so ASCII-reject to match
+    "१२३": None,  # Devanagari 123: same ASCII-only parity
+}
+
+
+def test_integer_coercion_parity_vector():
+    """Integer coercion is CONVERGED with the SPA's ``coerceToType`` (wyrd-8uuq):
+    accept a plain integer or an integral float ("5"/"5.0" → 5), reject
+    non-integers and trailing garbage ("5.5"/"3abc"/"12px" → None). Replaces the
+    old parseInt-lenient behavior where the server strict-``int()`` and the SPA
+    lenient-``parseInt`` disagreed on malformed integer defaults (slider ≠
+    generation). ASCII-only, mirroring JS ``Number`` (Python int/float would
+    otherwise accept Unicode digits JS yields NaN for)."""
     intp = {"type": "integer"}
-    # parseInt-lenient leading-integer cases (each was None before the fix).
-    assert _coerce_to_schema_type("5.0", intp) == 5  # parseInt('5.0', 10) === 5
-    assert _coerce_to_schema_type("5.5", intp) == 5  # parseInt('5.5', 10) === 5
-    assert _coerce_to_schema_type("5px", intp) == 5  # parseInt('5px', 10) === 5
-    assert _coerce_to_schema_type("-3.9", intp) == -3
-    # Still strict where parseInt yields NaN → undefined.
-    assert _coerce_to_schema_type("abc", intp) is None
-    assert _coerce_to_schema_type("", intp) is None
-    assert _coerce_to_schema_type(".5", intp) is None  # no leading int → NaN
-    # ASCII-only, matching parseInt: Unicode digits (Arabic-Indic, Devanagari)
-    # yield NaN in JS even though Python int() would accept them — the regex must
-    # use [0-9] not \d, or it re-introduces a server/SPA divergence.
-    assert _coerce_to_schema_type("١٢٣", intp) is None  # Arabic-Indic 123
-    assert _coerce_to_schema_type("१२३", intp) is None  # Devanagari 123
-    # Pure integers and whitespace unchanged.
-    assert _coerce_to_schema_type("7", intp) == 7
-    assert _coerce_to_schema_type("  7  ", intp) == 7
+    for raw, expected in _INTEGER_PARITY_VECTOR.items():
+        got = _coerce_to_schema_type(raw, intp)
+        assert got == expected, f"{raw!r} → {got!r}, expected {expected!r}"
 
 
 def test_apply_env_defaults_decimal_styled_integer_reaches_params():
