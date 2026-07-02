@@ -175,7 +175,7 @@ _IDENTITY_SQL = """
   JOIN toponym t ON t.id = te.toponym_id
   WHERE e.language <> 'unknown' AND e.canonical_form NOT LIKE '% %'
   -- wyrd-aoac: same #804/#863 merged_into_id exclusion as _IMPACT_SQL +
-  -- _TAG_COHORT_SQL. A tombstoned stub (merged_into_id set, e.g. wick->wic)
+  -- _TAG_COHORT_SQL. A tombstoned stub (merged_into_id set, e.g. wick->wīc)
   -- must not get an identity-reflex minted onto the LOSER — the identity
   -- reflex belongs on the merge winner, which carries its own row here.
   AND e.merged_into_id IS NULL
