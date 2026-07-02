@@ -226,8 +226,9 @@ def _anchor_intruders(
     # the family's "correct" one. Without it, ``dominant`` (below) falls back to
     # the largest MEMBER cluster — a coin-flip that asserts a guessed dominant and
     # over-flags the other glossed members. Skip the disjoint-sense screen for
-    # glossless anchors rather than emit a guessed candidate to the LLM; a
-    # dash-independent glossless-member screen is a separate recall concern.
+    # glossless anchors rather than emit a guessed candidate to the LLM.
+    # (Restoring recall for glossless-member conflations is a known gap, tracked
+    # separately.)
     if not by_id[anchor_id]["tokens"]:
         return []
     glossed = [(i, by_id[i]["glosses"]) for i in (anchor_id, *child_ids) if by_id[i]["tokens"]]
@@ -274,7 +275,7 @@ def _anchor_disjoint_candidates(
 def _collapse_fold_candidates(
     by_id: dict[int, dict], id_for_ref: dict[str, int], collapse_state: dict[str, dict]
 ) -> list[MergeAuditCandidate]:
-    """Source 3 — every fold live in ``_collapses.jsonl`` (full ledger re-audit),
+    """Source 2 — every fold live in ``_collapses.jsonl`` (full ledger re-audit),
     regardless of gloss disjointness."""
     cands: list[MergeAuditCandidate] = []
     for ref, row in collapse_state.items():

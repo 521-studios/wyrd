@@ -242,17 +242,21 @@ def test_detect_collapse_fold_provenance_and_scope(tmp_path):
 
 
 def test_detect_dedup_across_sources(tmp_path):
-    """A member that is BOTH a collapse fold and an affix candidate is judged
-    once (deduped by member ref)."""
+    """A member produced by BOTH surviving sources — the disjoint-sense anchor
+    screen AND a live collapse fold — is judged once (deduped by member ref), and
+    collapse-fold provenance wins (it IS a live fold, layered first). 'eng'
+    (water-meadow) is a disjoint intruder off the glossed 'ing' anchor and is also
+    a live fold into it."""
     conn = _conn(tmp_path / "lex.db")
-    _ety(conn, 1, "ton", ["units of mass"])
-    _ety(conn, 2, "-ton", [], merged_into=1)
-    collapse_state = {"modern-english:-ton": {"into": "modern-english:ton"}}
+    _ety(conn, 1, "ing", ["patronymic descendants people"], lang="old-english")
+    _ety(conn, 2, "ingas", ["patronymic son descendants"], lang="old-english", merged_into=1)
+    _ety(conn, 3, "eng", ["water-meadow grassland"], lang="old-english", merged_into=1)
+    collapse_state = {"old-english:eng": {"into": "old-english:ing"}}
     cands = detect_merge_audit_candidates(conn, collapse_state, scope="both")
     members = [c.member_ref for c in cands]
-    assert members.count("modern-english:-ton") == 1
-    # collapse-fold provenance wins (it IS a live fold)
-    assert cands[0].provenance == PROV_COLLAPSE
+    assert members.count("old-english:eng") == 1  # deduped across the two sources
+    eng = next(c for c in cands if c.member_ref == "old-english:eng")
+    assert eng.provenance == PROV_COLLAPSE  # collapse-fold wins on dedup
 
 
 # --- verdict routing -------------------------------------------------------

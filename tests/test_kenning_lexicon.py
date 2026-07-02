@@ -8634,6 +8634,24 @@ def test_parse_running_header_pages_skips_spoof_body_lines():
     assert page_for_offset(headers, off) == 9
 
 
+def test_parse_running_header_pages_resets_on_leading_spoof_seed():
+    """wyrd-w5wh: a high spurious FIRST match (a front-matter heading like
+    'ABBREVIATIONS 200', or OCR noise) must NOT seed prev_page high and lock out
+    every real header after it (which would fail 'prev < page'). When the second
+    accepted page descends, the first is treated as the spoof, discarded, and the
+    sequence re-seeds — so the real headers survive instead of being dropped."""
+
+    body = (
+        "BEALHAM 200\n"  # spurious leading seed (front-matter / OCR noise)
+        "  front-matter noise...\n"
+        "BACKWORTH 8\n"  # first REAL header — page descends, so 200 is discarded
+        "  body...\n"
+        "BAMBURGH 9\n"  # real header (8 -> 9)
+    )
+    headers = parse_running_header_pages(body)
+    assert [page for _offset, page in headers] == [8, 9]
+
+
 def test_parse_running_header_pages_returns_empty_when_no_match():
     """Skeat-style §-section headers don't match the Mawer pattern;
     return an empty list rather than raising."""

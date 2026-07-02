@@ -44,7 +44,11 @@ _RUNNING_HEADER_RE = re.compile(
 # wyrd-w5wh: cross-reference lead-words. An all-caps body cross-reference ending
 # in a stray OCR integer ('SEE ALSO 12') matches the running-header shape; if its
 # first word is one of these it is a body line, not a page header. Compared after
-# stripping a trailing '.' ('CF.' → 'CF').
+# stripping a trailing '.' ('CF.' → 'CF'). Short lead-words ('CF' / 'V') can only
+# reach this guard as the first word of a MULTI-word header ('CF SUPRA 12') —
+# single-word 'CF 12' / 'V. 12' are already excluded by _RUNNING_HEADER_RE (which
+# needs a 3+ char single word and matches no '.'); they are kept for the
+# multi-word case.
 _CROSSREF_LEAD_WORDS = frozenset({"SEE", "CF", "VIDE", "SUB", "V"})
 
 # wyrd-w5wh: largest plausible page jump between consecutive real running headers.
@@ -86,19 +90,26 @@ def parse_running_header_pages(text: str) -> list[tuple[int, int]]:
     headers match.
 
     wyrd-w5wh data-quality guards, because an all-caps BODY line ending in a
-    stray OCR integer ('SEE ALSO 12', or an all-caps entry name + a spurious
-    page) otherwise spoofs a header and injects a false page boundary:
+    stray OCR integer ('SEE ALSO 12'), or a legitimate front-matter heading
+    ('ABBREVIATIONS 47'), otherwise spoofs a header and injects a false page
+    boundary. Per match, in loop order (b) then (a):
 
-    * (b) a candidate whose first word is a cross-reference lead-word
-      (``SEE`` / ``CF`` / ``VIDE`` / ``SUB`` / ``V``) is a body cross-reference,
-      dropped.
-    * (a) the load-bearing guard: each real header's page is just past the
-      previous accepted one (``prev < page <= prev + _MAX_PAGE_JUMP``); the
-      first header seeds the sequence. A mid-book stray integer far from the
-      running page count fails the window and is dropped.
+    * (a) monotonic page-sequence window (the load-bearing guard): each accepted
+      header's page is just past the previous one
+      (``prev < page <= prev + _MAX_PAGE_JUMP``). The first match seeds the
+      sequence; if the second accepted page is SMALLER than the first, the first
+      was a spurious lead-in (front-matter / OCR noise) — it is discarded and the
+      sequence re-seeds, so a high stray seed can't lock out the rest of the book.
+      A mid-book stray integer far from the running count fails the window.
+    * (b) cross-reference lead-word rejection (checked first, a cheap pre-filter):
+      a candidate whose first word is ``SEE`` / ``CF`` / ``VIDE`` / ``SUB`` / ``V``
+      is a body cross-reference, dropped.
 
     Both guards only *reduce* false headers (an inherent limit of header-pattern
-    scraping); they never assign a wrong page where the plain regex was correct.
+    scraping); neither mis-parses the page of a header it accepts. (Guard (a)
+    could in principle drop a real header on a > ``_MAX_PAGE_JUMP`` page jump —
+    its content then inheriting the prior page — but per-page running headers
+    increase by ~1, so real headers never trip it.)
     """
     out: list[tuple[int, int]] = []
     prev_page: int | None = None
@@ -106,8 +117,15 @@ def parse_running_header_pages(text: str) -> list[tuple[int, int]]:
         page = int(m.group(2))
         if m.group(1).split()[0].rstrip(".") in _CROSSREF_LEAD_WORDS:
             continue  # (b) cross-reference body line, not a page header
-        if prev_page is not None and not (prev_page < page <= prev_page + _MAX_PAGE_JUMP):
-            continue  # (a) out of the monotonic page-sequence window
+        if prev_page is not None:
+            # (a) A high spurious FIRST match (front-matter heading / OCR noise)
+            # would seed prev_page high and lock out every real header after it.
+            # If the second accepted page descends, treat the first as the spoof:
+            # drop it and re-seed with this match.
+            if len(out) == 1 and page < prev_page:
+                out.clear()
+            elif not (prev_page < page <= prev_page + _MAX_PAGE_JUMP):
+                continue  # out of the monotonic page-sequence window
         out.append((m.start(), page))
         prev_page = page
     return out
