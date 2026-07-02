@@ -154,7 +154,10 @@ def test_classify_welsh_latin_loan_via_descent(fresh_db: Path) -> None:
         _seed_source(db)
         latin_id = db.upsert_etymon("pons", "latin")
         welsh_id = db.upsert_etymon("pont", "welsh")
-        _add_descent(db, parent_id=latin_id, child_id=welsh_id)
+        # wyrd-fljy: a Welsh←Latin loan is a BORROWING (cross-family; Welsh is
+        # Celtic, so it cannot inherit from Latin) — a loan stratum now counts
+        # only loan edge_types, so use borrowing rather than the default inheritance.
+        _add_descent(db, parent_id=latin_id, child_id=welsh_id, edge_type="borrowing")
         proposals = classify_welsh(db)
     assert proposals[welsh_id] == "latin-loan"
     # Latin parent itself isn't in the welsh family — not classified.
@@ -178,7 +181,9 @@ def test_classify_welsh_latin_variants_all_route_to_latin_loan(fresh_db: Path) -
         ):
             parent_id = db.upsert_etymon(parent_form, parent_lang)
             child_id = db.upsert_etymon(f"{parent_lang}-child", "welsh")
-            _add_descent(db, parent_id=parent_id, child_id=child_id)
+            # wyrd-fljy: Welsh←Latin loans are borrowings (loan strata now
+            # count only loan edge_types, not the default inheritance).
+            _add_descent(db, parent_id=parent_id, child_id=child_id, edge_type="borrowing")
             welsh_ids[parent_lang] = child_id
         proposals = classify_welsh(db)
     for parent_lang, child_id in welsh_ids.items():
@@ -207,11 +212,12 @@ def test_classify_welsh_english_variants_all_route_to_english_loan(fresh_db: Pat
     live DB. (``sco`` Scots is deliberately excluded — a distinct sister language.)
 
     Edge types mirror the live DB: en-ear/en-GB arrive via ``borrowing``, enm-wmi via
-    ``derivation`` (e.g. Welsh ``siom`` ← ME ``schome``). ``_ancestor_walk_proposals``
-    counts ALL descent edges (no edge_type filter), and that is correct HERE by
-    construction: en-ear/enm-wmi/en-GB all post-date the Brythonic/English split, so any
-    edge from them into Welsh is necessarily a loan, never inheritance (whether that
-    no-filter behavior should hold in general is the separate wyrd-fljy question)."""
+    ``derivation`` (e.g. Welsh ``siom`` ← ME ``schome``). All three are LOAN edge_types,
+    so they route to ``english-loan`` under the wyrd-fljy loan-edge filter — an english
+    INHERITANCE edge would NOT (see
+    :func:`test_classify_welsh_english_inheritance_parent_not_loan`), which is correct:
+    en-ear/enm-wmi/en-GB all post-date the Brythonic/English split, so any real edge from
+    them into Welsh is a loan, never inheritance."""
     with LexiconDB(fresh_db) as db:
         _seed_source(db)
         welsh_ids = {}
@@ -227,6 +233,85 @@ def test_classify_welsh_english_variants_all_route_to_english_loan(fresh_db: Pat
         proposals = classify_welsh(db)
     for parent_lang, child_id in welsh_ids.items():
         assert proposals[child_id] == "english-loan", parent_lang
+
+
+def test_classify_welsh_english_inheritance_parent_not_loan(fresh_db: Path) -> None:
+    """wyrd-fljy: english-loan is a LOAN stratum, so it counts only loan edge_types.
+    A welsh etymon reached from an english parent by INHERITANCE (mis-traced mining
+    noise — no genuine cross-family inheritance) is NOT english-loan (falls through to
+    native-welsh); the SAME parent via BORROWING IS english-loan. Guards the 501
+    mis-typed modern-english→welsh inheritance edges in the live DB."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eng_id = db.upsert_etymon("borrow-src", "modern-english")
+        borrowed = db.upsert_etymon("borrowed-child", "welsh")
+        inherited = db.upsert_etymon("inherited-child", "welsh")
+        _add_descent(db, parent_id=eng_id, child_id=borrowed, edge_type="borrowing")
+        _add_descent(db, parent_id=eng_id, child_id=inherited, edge_type="inheritance")
+        proposals = classify_welsh(db)
+    assert proposals[borrowed] == "english-loan"
+    assert proposals[inherited] == "native-welsh"  # inheritance excluded from the loan stratum
+
+
+def test_classify_welsh_substrate_fires_via_inheritance(fresh_db: Path) -> None:
+    """wyrd-fljy: substrate strata are NOT loan-class, so they keep ALL edge types — a
+    substrate legitimately rides inheritance. A welsh etymon INHERITING from a
+    proto-celtic (brittonic-substrate) parent is still brittonic-substrate."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        pc_id = db.upsert_etymon("proto-celtic-root", "proto-celtic")
+        welsh_id = db.upsert_etymon("welsh-child", "welsh")
+        _add_descent(db, parent_id=pc_id, child_id=welsh_id, edge_type="inheritance")
+        proposals = classify_welsh(db)
+    assert proposals[welsh_id] == "brittonic-substrate"
+
+
+def test_classify_old_english_norse_inheritance_parent_not_loan(fresh_db: Path) -> None:
+    """wyrd-fljy (cross-family, OE): norse-loan is a LOAN stratum, so an OE etymon
+    reached from an old-norse parent by INHERITANCE is NOT norse-loan (falls through
+    to native-old-english); a BORROWING from old-norse IS norse-loan."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        on_id = db.upsert_etymon("on-root", "old-norse")
+        borrowed = db.upsert_etymon("oe-borrowed", "old-english")
+        inherited = db.upsert_etymon("oe-inherited", "old-english")
+        _add_descent(db, parent_id=on_id, child_id=borrowed, edge_type="borrowing")
+        _add_descent(db, parent_id=on_id, child_id=inherited, edge_type="inheritance")
+        proposals = classify_old_english(db)
+    assert proposals[borrowed] == "norse-loan"
+    assert proposals[inherited] == "native-old-english"
+
+
+def test_classify_old_norse_low_german_inheritance_parent_not_loan(fresh_db: Path) -> None:
+    """wyrd-fljy (cross-family, ON): low-german-loan is a LOAN stratum, so an ON
+    etymon reached from a gml (Middle Low German) parent by INHERITANCE is NOT
+    low-german-loan (falls through to native-old-norse)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gml_id = db.upsert_etymon("gml-root", "gml")
+        on_id = db.upsert_etymon("on-child", "old-norse")
+        _add_descent(db, parent_id=gml_id, child_id=on_id, edge_type="inheritance")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "native-old-norse"
+
+
+def test_classify_old_norse_priority_flip_inheritance_excluded(fresh_db: Path) -> None:
+    """wyrd-fljy priority-flip: an ON etymon whose only gml (low-german-loan, HIGHER
+    priority) edge is INHERITANCE — excluded by the loan filter — so the genuine
+    old-english (english-loan) BORROWING wins, promoting low-german-loan → english-loan
+    (the 2 such live-DB cases in the dry-run). Pre-fix, the gml inheritance would have
+    taken the higher-priority low-german-loan."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gml_id = db.upsert_etymon("gml-root", "gml")
+        oe_id = db.upsert_etymon("oe-root", "old-english")
+        on_id = db.upsert_etymon("on-child", "old-norse")
+        _add_descent(
+            db, parent_id=gml_id, child_id=on_id, edge_type="inheritance"
+        )  # low-german (excluded)
+        _add_descent(db, parent_id=oe_id, child_id=on_id, edge_type="borrowing")  # english (wins)
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "english-loan"
 
 
 def test_classify_welsh_brittonic_substrate_via_descent(fresh_db: Path) -> None:
@@ -348,7 +433,11 @@ def test_cli_classify_stratum_dry_run_does_not_write(fresh_db: Path) -> None:
         _seed_source(db)
         latin_id = db.upsert_etymon("pons", "latin")
         welsh_id = db.upsert_etymon("pont", "welsh")
-        _add_descent(db, parent_id=latin_id, child_id=welsh_id)
+        # wyrd-fljy: borrowing (a loan edge) so latin-loan is genuinely proposed —
+        # under the default inheritance edge the loan stratum no longer fires, and
+        # the "latin-loan" assertion below would false-pass on the count-0 row the
+        # summary pre-populates for every stratum.
+        _add_descent(db, parent_id=latin_id, child_id=welsh_id, edge_type="borrowing")
 
     runner = CliRunner()
     result = runner.invoke(
@@ -371,7 +460,8 @@ def test_cli_classify_stratum_apply_writes_column(fresh_db: Path) -> None:
         _seed_source(db)
         latin_id = db.upsert_etymon("pons", "latin")
         welsh_id = db.upsert_etymon("pont", "welsh")
-        _add_descent(db, parent_id=latin_id, child_id=welsh_id)
+        # wyrd-fljy: borrowing (a loan edge) so latin-loan fires under the filter.
+        _add_descent(db, parent_id=latin_id, child_id=welsh_id, edge_type="borrowing")
 
     runner = CliRunner()
     result = runner.invoke(
