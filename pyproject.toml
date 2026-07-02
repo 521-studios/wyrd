@@ -95,8 +95,22 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "C901"]
+# wyrd-850l: PLW1514 (unspecified-encoding) enforces an explicit ``encoding=`` on
+# text I/O so the encoding="utf-8" drift #862 normalized can't regress. It's a
+# PREVIEW rule on ruff 0.15.x, so ``preview`` must be on; ``explicit-preview-rules``
+# caps the NEW-rule blast radius to exactly the codes in ``select`` (only PLW1514
+# activates, not every preview-only rule). It does NOT — and cannot — stop
+# ``preview`` from ALSO enabling preview-mode behavior on some already-stable rules
+# (SIM/UP/F families carry preview extensions); that is inherent to ruff's preview
+# flag. So the "no other delta" property is EMPIRICAL, not structural: full
+# ``ruff check .`` + ``ruff format --check .`` are byte-identical pre/post on ruff
+# 0.15.18 and green on CI's floated ruff — nothing in the repo currently trips those
+# preview behaviors. When PLW1514 graduates to stable upstream, drop
+# ``preview``/``explicit-preview-rules`` and keep only the select entry (wyrd-y0d0).
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "C901", "PLW1514"]
 ignore = ["E501", "SIM108"]
+preview = true
+explicit-preview-rules = true
 
 # wyrd-8uvi: enforce the McCabe ≤10 floor in CI so reduced functions can't
 # regress and new complexity is caught at PR time.
