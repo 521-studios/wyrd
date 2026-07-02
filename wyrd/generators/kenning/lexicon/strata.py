@@ -23,6 +23,7 @@ Norse follow.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -521,7 +522,9 @@ LOAN_STRATA: frozenset[str] = frozenset(
 )
 
 # The ``etymon_descent.edge_type`` values that count as a loan for a LOAN_STRATA
-# stratum. Excludes ``inheritance`` and ``compound``.
+# stratum. ONLY these three: every other value in the column's CHECK constraint —
+# ``inheritance`` / ``compound`` / ``cognate`` / ``unknown`` — is excluded (a
+# cross-family borrowing/derivation/calque is a loan; the rest are not).
 _LOAN_EDGE_TYPES: frozenset[str] = frozenset({"borrowing", "derivation", "calque"})
 
 
@@ -536,12 +539,14 @@ def _ancestor_walk_proposals(
     """Pass 2: classify every etymon whose ``language == modern_lang`` by its
     ancestor languages.
 
-    Builds each etymon's parent-language set via a single chunked join over
-    ``etymon_descent``, then iterates ``strata_order`` and picks the first
-    stratum whose ancestor-language set intersects that parent set (the default
-    stratum has no ancestor mapping, so it falls through). Skips
-    ``merged_into_id IS NOT NULL`` rows; ``ORDER BY id`` pins insertion order
-    for the same byte-diff reason as :func:`_self_language_proposals`.
+    Builds two parent-language sets per etymon via a single chunked join over
+    ``etymon_descent`` — one over ALL edges and one over LOAN edges only
+    (``_LOAN_EDGE_TYPES``) — then iterates ``strata_order`` and picks the first
+    stratum whose ancestor-language set intersects the applicable parent set: a
+    ``LOAN_STRATA`` stratum intersects the loan-only set (wyrd-fljy), every other
+    stratum the all-edges set (the default stratum has no ancestor mapping, so it
+    falls through). Skips ``merged_into_id IS NOT NULL`` rows; ``ORDER BY id`` pins
+    insertion order for the same byte-diff reason as :func:`_self_language_proposals`.
     """
     modern_rows = db.conn.execute(
         "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL ORDER BY id",
@@ -557,8 +562,8 @@ def _ancestor_walk_proposals(
     # Two parent-language sets per child: ALL edges (for substrate/native strata)
     # and LOAN edges only (for LOAN_STRATA — wyrd-fljy). Pull ``edge_type`` in the
     # same pass so the loan set is free.
-    parents_by_child: dict[int, set[str]] = {}
-    loan_parents_by_child: dict[int, set[str]] = {}
+    parents_by_child: dict[int, set[str]] = defaultdict(set)
+    loan_parents_by_child: dict[int, set[str]] = defaultdict(set)
     for i in range(0, len(modern_ids), 999):
         chunk = modern_ids[i : i + 999]
         placeholders = ",".join("?" * len(chunk))
@@ -569,16 +574,16 @@ def _ancestor_walk_proposals(
             chunk,
         )
         for row in cur:
-            parents_by_child.setdefault(row["child_id"], set()).add(row["language"])
+            parents_by_child[row["child_id"]].add(row["language"])
             if row["edge_type"] in _LOAN_EDGE_TYPES:
-                loan_parents_by_child.setdefault(row["child_id"], set()).add(row["language"])
+                loan_parents_by_child[row["child_id"]].add(row["language"])
 
     stratum_ancestors = _stratum_to_ancestors(ancestor_to_stratum)
 
     proposals: dict[int, str] = {}
     for eid in modern_ids:
-        parent_langs = parents_by_child.get(eid, set())
-        loan_parent_langs = loan_parents_by_child.get(eid, set())
+        parent_langs = parents_by_child.get(eid, frozenset())
+        loan_parent_langs = loan_parents_by_child.get(eid, frozenset())
         assigned = default_stratum
         # Iterate strata in priority order; first stratum whose ancestor-language
         # set intersects this etymon's parent set wins. The default stratum has
@@ -586,10 +591,10 @@ def _ancestor_walk_proposals(
         for stratum_target in strata_order:
             if stratum_target == default_stratum:
                 continue
-            # wyrd-fljy: a LOAN-class stratum only counts loan-type parent edges
-            # (borrowing/derivation/calque); a substrate/native stratum counts all.
+            # wyrd-fljy: a LOAN-class stratum counts only loan-type parent edges — a
+            # cross-family inheritance/compound edge is mining noise, not a loan.
             candidate_parents = loan_parent_langs if stratum_target in LOAN_STRATA else parent_langs
-            if candidate_parents & stratum_ancestors.get(stratum_target, set()):
+            if candidate_parents & stratum_ancestors.get(stratum_target, frozenset()):
                 assigned = stratum_target
                 break
         proposals[eid] = assigned
