@@ -97,15 +97,23 @@ class ClusterIndex:
 def load_cluster_index(db: LexiconDB) -> ClusterIndex:
     """Build the surface ⇄ cluster bridge from the lexicon's etymon + reflex
     tables (all positions)."""
+    # wyrd-qdau: exclude merged losers (merged_into_id set) — a merge repoints
+    # neither reflex_etymon nor toponym_etymology_element rows, so readers must
+    # filter merged_into_id IS NULL (as collapse_merge.py / era_reflex.py /
+    # variant_fold_detect.py all do). Without it, a merged loser (cognate_id
+    # almost always NULL) yields a stale singleton e<id> key — its dead identity
+    # — fracturing the surviving cluster and mis-keying downstream miners.
     cluster_of: dict[int, str] = {}
-    for row in db.conn.execute("SELECT id, cognate_id FROM etymon"):
+    for row in db.conn.execute("SELECT id, cognate_id FROM etymon WHERE merged_into_id IS NULL"):
         cid = row["cognate_id"]
         cluster_of[row["id"]] = f"c{cid}" if cid is not None else f"e{row['id']}"
 
     surface_etymons: dict[str, set[int]] = defaultdict(set)
     for row in db.conn.execute(
         "SELECT re.etymon_id AS eid, r.surface_form AS sf "
-        "FROM reflex r JOIN reflex_etymon re ON re.reflex_id = r.id"
+        "FROM reflex r JOIN reflex_etymon re ON re.reflex_id = r.id "
+        "JOIN etymon e ON e.id = re.etymon_id "
+        "WHERE e.merged_into_id IS NULL"
     ):
         folded = fold_surface(row["sf"])
         if folded:
@@ -149,6 +157,11 @@ def load_scholar_corpus(
         FROM toponym_etymology te
         JOIN toponym t ON t.id = te.toponym_id
         JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
+        -- wyrd-qdau: skip breakdown elements anchored on a merged loser; its
+        -- eid is absent from cluster_of (built merged_into_id IS NULL above),
+        -- and its dead identity must not pool into the corpus.
+        JOIN etymon e ON e.id = tee.etymon_id
+        WHERE e.merged_into_id IS NULL
         """
     ):
         pooled[row["name"]].add(index.cluster_of[row["eid"]])
