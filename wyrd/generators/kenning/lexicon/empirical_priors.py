@@ -46,6 +46,13 @@ from typing import Any, Literal
 
 from wyrd.generators.kenning.era.cells import ERA_CELLS
 from wyrd.generators.kenning.lexicon import LexiconDB
+
+# wyrd-3x9e: source _LANG_CODE_TO_JSON_FIELD from its defining submodule rather
+# than the lexicon package __init__. The package re-exports it, but __init__ also
+# imports this module (``collect_empirical_priors``), so pulling it from the
+# package couples correctness to __init__ statement order; the submodule import is
+# ordering-independent (bundle carries no back-edge to empirical_priors).
+from wyrd.generators.kenning.lexicon.bundle import _LANG_CODE_TO_JSON_FIELD
 from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
 
 # Culture inference from toponym.country. v1 covers the English slice
@@ -311,6 +318,31 @@ _EXTRACT_SQL_ORDERED = (
 )
 
 
+# wyrd-3x9e: the celtic-family L3 languages the emit map carries collapse into the
+# single ``celtic_mix`` bundle field, and at runtime ``_lemma_ref_for`` maps that
+# field back to the lone representative ``celtic`` (``_BUNDLE_FIELD_TO_L3_LANG``).
+# So a native prior keyed on any OTHER celtic language — ``welsh:``, ``old-irish:``,
+# … — is unreachable: the runtime lookup only ever synthesizes ``celtic:<form>``.
+# Collapse the celtic family to that representative when building the ``lemma_ref``
+# key so the emitted key matches the runtime lookup.
+#
+# The member set is DERIVED from the emit map (so emit-map growth can't silently
+# reintroduce an unreachable key) and unioned with the two coarse family tags
+# (``brittonic``/``goidelic``) the emit map doesn't carry but the L3
+# ``etymon.language`` column does — etymons under those tags never reach the
+# bundle, but extract_priors still emits their (permanently-dead) priors, so
+# normalizing them retires the unreachable key. This is a CELTIC-SCOPED fix
+# (wyrd-3x9e owner decision) — the analogous full representative normalization for
+# the other bundle fields is deliberately out of scope.
+_CELTIC_LEMMA_LANGUAGES: frozenset[str] = frozenset(
+    lang for lang, field in _LANG_CODE_TO_JSON_FIELD.items() if field == "celtic_mix"
+) | {"brittonic", "goidelic"}
+# The runtime representative for ``celtic_mix`` — MUST stay in sync with
+# ``_BUNDLE_FIELD_TO_L3_LANG["celtic_mix"]`` (runtime/vector_name_select.py); the
+# end-to-end reachability test pins the two together.
+_CELTIC_LEMMA_REPRESENTATIVE: str = "celtic"
+
+
 def _classify_prior_row(row) -> tuple[str, _NativeKey | None, _LoanKey | None]:
     """Apply the country / culture / year / era / tag gates to one scanned row.
 
@@ -345,7 +377,14 @@ def _classify_prior_row(row) -> tuple[str, _NativeKey | None, _LoanKey | None]:
         return "skipped_no_tag", None, None
 
     position = _position_label(row["ordinal"], row["element_count"])
-    lemma_ref = f"{row['language']}:{row['canonical_form']}"
+    # wyrd-3x9e: normalize the celtic family to its runtime representative for the
+    # lemma_ref key ONLY. loan_key.donor below keeps the raw language — donor
+    # identity is a separate axis, outside this celtic-scoped fix.
+    language = row["language"]
+    lemma_language = (
+        _CELTIC_LEMMA_REPRESENTATIVE if language in _CELTIC_LEMMA_LANGUAGES else language
+    )
+    lemma_ref = f"{lemma_language}:{row['canonical_form']}"
     native_key = _NativeKey(
         culture=culture,
         position=position,
