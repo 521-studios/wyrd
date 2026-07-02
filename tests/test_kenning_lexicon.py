@@ -8652,6 +8652,26 @@ def test_parse_running_header_pages_resets_on_leading_spoof_seed():
     assert [page for _offset, page in headers] == [8, 9]
 
 
+def test_parse_running_header_pages_recovers_after_large_gap():
+    """wyrd-w5wh: a genuine gap of more than _MAX_PAGE_JUMP pages with no parseable
+    headers (a plates section / OCR dropout) must NOT permanently lock out the rest
+    of the book. The first post-gap header is HELD (out of window); a second header
+    consecutive to it confirms the gap, so both are accepted and the sequence
+    resyncs — rather than every post-gap header failing 'prev < page' forever."""
+
+    body = (
+        "ALNWICK 48\n  body...\n"
+        "AMBLE 49\n  body...\n"
+        "ASHINGTON 50\n"  # last header before a >15-page plates / OCR gap
+        "  [plates / OCR dropout — no parseable headers for 20 pages]\n"
+        "BAMBURGH 71\n  body...\n"  # first post-gap header (71 > 50 + 15) — held
+        "BEADNELL 72\n  body...\n"  # consecutive to 71 → confirms the gap; both kept
+        "BELFORD 73\n"
+    )
+    headers = parse_running_header_pages(body)
+    assert [page for _offset, page in headers] == [48, 49, 50, 71, 72, 73]
+
+
 def test_parse_running_header_pages_returns_empty_when_no_match():
     """Skeat-style §-section headers don't match the Mawer pattern;
     return an empty list rather than raising."""

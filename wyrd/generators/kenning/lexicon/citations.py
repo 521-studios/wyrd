@@ -96,38 +96,46 @@ def parse_running_header_pages(text: str) -> list[tuple[int, int]]:
 
     * (a) monotonic page-sequence window (the load-bearing guard): each accepted
       header's page is just past the previous one
-      (``prev < page <= prev + _MAX_PAGE_JUMP``). The first match seeds the
-      sequence; if the second accepted page is SMALLER than the first, the first
-      was a spurious lead-in (front-matter / OCR noise) — it is discarded and the
-      sequence re-seeds, so a high stray seed can't lock out the rest of the book.
-      A mid-book stray integer far from the running count fails the window.
+      (``prev < page <= prev + _MAX_PAGE_JUMP``). Two edge cases keep a single
+      stray integer from *locking out* the rest of the book (once ``prev`` is set
+      high, all smaller real pages would fail ``prev < page`` forever):
+      (1) if the second accepted page DESCENDS below the first, the first was a
+      spurious lead-in (front-matter / OCR noise) — discard it and re-seed;
+      (2) an out-of-window page is HELD, not dropped: a lone stray stays dropped,
+      but a header CONSECUTIVE to the held page confirms a genuine large gap
+      (plates section / OCR dropout) and both are accepted, resyncing the
+      sequence past the gap.
     * (b) cross-reference lead-word rejection (checked first, a cheap pre-filter):
       a candidate whose first word is ``SEE`` / ``CF`` / ``VIDE`` / ``SUB`` / ``V``
       is a body cross-reference, dropped.
 
     Both guards only *reduce* false headers (an inherent limit of header-pattern
-    scraping); neither mis-parses the page of a header it accepts. (Guard (a)
-    could in principle drop a real header on a > ``_MAX_PAGE_JUMP`` page jump —
-    its content then inheriting the prior page — but per-page running headers
-    increase by ~1, so real headers never trip it.)
+    scraping); neither mis-parses the page of a header it accepts. Across a real
+    large gap, only the first post-gap header is deferred one match (its content
+    briefly attributed to the pre-gap page) before the sequence resyncs.
     """
     out: list[tuple[int, int]] = []
     prev_page: int | None = None
+    held: tuple[int, int] | None = None  # (offset, page) out-of-window, awaiting a follower
     for m in _RUNNING_HEADER_RE.finditer(text):
         page = int(m.group(2))
         if m.group(1).split()[0].rstrip(".") in _CROSSREF_LEAD_WORDS:
             continue  # (b) cross-reference body line, not a page header
         if prev_page is not None:
-            # (a) A high spurious FIRST match (front-matter heading / OCR noise)
-            # would seed prev_page high and lock out every real header after it.
-            # If the second accepted page descends, treat the first as the spoof:
-            # drop it and re-seed with this match.
             if len(out) == 1 and page < prev_page:
-                out.clear()
+                out.clear()  # (a.1) leading spoof seed: real second descends → re-seed
             elif not (prev_page < page <= prev_page + _MAX_PAGE_JUMP):
-                continue  # out of the monotonic page-sequence window
+                # (a.2) out of window: a lone stray stays dropped, but a header
+                # consecutive to a previously-held page confirms a real gap.
+                if held is not None and held[1] < page <= held[1] + _MAX_PAGE_JUMP:
+                    out.append(held)
+                    prev_page = held[1]
+                else:
+                    held = (m.start(), page)
+                    continue
         out.append((m.start(), page))
         prev_page = page
+        held = None
     return out
 
 
