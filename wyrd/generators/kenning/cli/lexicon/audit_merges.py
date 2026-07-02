@@ -231,10 +231,10 @@ def _emit_reverts(
 )
 @click.option(
     "--scope",
-    type=click.Choice(["anchors", "collapses", "affixes", "both"]),
+    type=click.Choice(["anchors", "collapses", "both"]),
     default="both",
     show_default=True,
-    help="Candidate sources: disjoint-sense anchors, collapse folds, affix↔bare, or all.",
+    help="Candidate sources: disjoint-sense anchors, collapse folds, or both.",
 )
 @click.option(
     "--model",

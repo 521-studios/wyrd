@@ -41,6 +41,18 @@ _RUNNING_HEADER_RE = re.compile(
     re.MULTILINE,
 )
 
+# wyrd-w5wh: cross-reference lead-words. An all-caps body cross-reference ending
+# in a stray OCR integer ('SEE ALSO 12') matches the running-header shape; if its
+# first word is one of these it is a body line, not a page header. Compared after
+# stripping a trailing '.' ('CF.' → 'CF').
+_CROSSREF_LEAD_WORDS = frozenset({"SEE", "CF", "VIDE", "SUB", "V"})
+
+# wyrd-w5wh: largest plausible page jump between consecutive real running headers.
+# Each printed page carries one header (pages increase by ~1); this tolerates
+# header-less / OCR-dropped pages while rejecting a stray mid-book integer far
+# from the running page count. Tune against real Mawer OCR if under-yielding.
+_MAX_PAGE_JUMP = 15
+
 
 # wyrd-8st: pattern for Skeat-style §-section running headers
 # (e.g. '§ 2. NAMES ENDING IN -TON. 9' on Skeat 1901 Cambridgeshire).
@@ -72,8 +84,33 @@ def parse_running_header_pages(text: str) -> list[tuple[int, int]]:
     pairs. Skeat-style books use a different convention — see
     `parse_skeat_section_header_pages`. Returns an empty list when no
     headers match.
+
+    wyrd-w5wh data-quality guards, because an all-caps BODY line ending in a
+    stray OCR integer ('SEE ALSO 12', or an all-caps entry name + a spurious
+    page) otherwise spoofs a header and injects a false page boundary:
+
+    * (b) a candidate whose first word is a cross-reference lead-word
+      (``SEE`` / ``CF`` / ``VIDE`` / ``SUB`` / ``V``) is a body cross-reference,
+      dropped.
+    * (a) the load-bearing guard: each real header's page is just past the
+      previous accepted one (``prev < page <= prev + _MAX_PAGE_JUMP``); the
+      first header seeds the sequence. A mid-book stray integer far from the
+      running page count fails the window and is dropped.
+
+    Both guards only *reduce* false headers (an inherent limit of header-pattern
+    scraping); they never assign a wrong page where the plain regex was correct.
     """
-    return [(m.start(), int(m.group(2))) for m in _RUNNING_HEADER_RE.finditer(text)]
+    out: list[tuple[int, int]] = []
+    prev_page: int | None = None
+    for m in _RUNNING_HEADER_RE.finditer(text):
+        page = int(m.group(2))
+        if m.group(1).split()[0].rstrip(".") in _CROSSREF_LEAD_WORDS:
+            continue  # (b) cross-reference body line, not a page header
+        if prev_page is not None and not (prev_page < page <= prev_page + _MAX_PAGE_JUMP):
+            continue  # (a) out of the monotonic page-sequence window
+        out.append((m.start(), page))
+        prev_page = page
+    return out
 
 
 def parse_skeat_section_header_pages(text: str) -> list[tuple[int, int]]:

@@ -59,28 +59,30 @@ def _cand(member_ref, anchor_ref, provenance):
 # --- detection -------------------------------------------------------------
 
 
-def test_detect_glossless_affix_into_glossed_bare_anchor_is_ocr(tmp_path):
-    """The -ton class: a glossless dashed affix OCR-merged into a glossed bare
-    word surfaces as an OCR-provenance candidate."""
+def test_glossless_anchor_disjoint_members_are_skipped_not_guessed(tmp_path):
+    """wyrd-bk69: a GLOSSLESS anchor gives no evidence for the family's correct
+    sense, so the disjoint-sense screen SKIPS it rather than falling back to the
+    largest member cluster as a guessed 'dominant' and over-flagging the rest.
+    Here the anchor is glossless and its two glossed members carry disjoint
+    senses; no candidate is emitted (pre-fix, the smaller member was flagged an
+    intruder off a coin-flip dominant)."""
     conn = _conn(tmp_path / "lex.db")
-    _ety(conn, 1, "ton", ["Any of various units of mass"])  # bare weight unit
-    _ety(conn, 2, "-ton", [], merged_into=1)  # glossless toponym suffix, OCR-merged
-    cands = detect_merge_audit_candidates(conn, {}, scope="affixes")
-    assert len(cands) == 1
-    c = cands[0]
-    assert c.member_ref == "modern-english:-ton"
-    assert c.anchor_ref == "modern-english:ton"
-    assert c.provenance == PROV_OCR
+    _ety(conn, 1, "ton", [])  # glossless family head — no anchor evidence
+    _ety(conn, 2, "tonne", ["Any of various units of mass"], merged_into=1)
+    _ety(conn, 3, "tun", ["An enclosure; a farmstead, a village"], merged_into=1)
+    assert detect_merge_audit_candidates(conn, {}, scope="anchors") == []
 
 
-def test_detect_benign_affix_into_root_still_surfaces_for_llm(tmp_path):
-    """A correct affix↔root pair (-land/land) is still emitted as a candidate —
-    the LLM decides; the detector only screens."""
+def test_glossed_anchor_still_flags_disjoint_intruder(tmp_path):
+    """The glossless guard is narrow: a GLOSSED anchor still drives the
+    disjoint-sense screen normally (regression guard for the wyrd-bk69 skip)."""
     conn = _conn(tmp_path / "lex.db")
-    _ety(conn, 1, "land", ["The part of Earth not covered by water"])
-    _ety(conn, 2, "-land", [], merged_into=1)
-    cands = detect_merge_audit_candidates(conn, {}, scope="affixes")
-    assert [c.member_ref for c in cands] == ["modern-english:-land"]
+    _ety(conn, 1, "ing", ["patronymic descendants people"], lang="old-english")
+    _ety(conn, 2, "ingas", ["patronymic son descendants"], lang="old-english", merged_into=1)
+    _ety(conn, 3, "eng", ["water-meadow grassland"], lang="old-english", merged_into=1)
+    refs = {c.member_ref for c in detect_merge_audit_candidates(conn, {}, scope="anchors")}
+    assert "old-english:eng" in refs  # topographic intruder flagged
+    assert "old-english:ingas" not in refs  # patronymic core (with anchor) spared
 
 
 def test_detect_member_level_disjoint_sense_intruder(tmp_path):

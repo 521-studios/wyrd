@@ -8597,13 +8597,41 @@ def test_parse_running_header_pages_finds_mawer_style_headers():
 
 
 def test_parse_running_header_pages_handles_multi_word_headwords():
-    """Multi-word ALL CAPS headwords (e.g. 'ABBEY DORE 1') are detected."""
+    """Multi-word ALL CAPS headwords (e.g. 'ABBEY DORE 1') are detected.
+    Pages are consecutive (running headers are per printed page) so they clear
+    the wyrd-w5wh monotonic-sequence guard."""
 
-    body = "ABBEY DORE 1\n  body...\nST PETER'S 47\n"
+    body = "ABBEY DORE 1\n  body...\nST PETER'S 2\n"
     headers = parse_running_header_pages(body)
     pages = [page for _offset, page in headers]
     assert 1 in pages
-    assert 47 in pages
+    assert 2 in pages
+
+
+def test_parse_running_header_pages_skips_spoof_body_lines():
+    """wyrd-w5wh: an all-caps BODY line ending in a stray integer must NOT be
+    parsed as a running header. A 'SEE ALSO 12' cross-reference (keyword guard)
+    and a bare entry name with a far-off OCR integer ('BEALHAM 44', out of the
+    monotonic window) are both dropped, so page_for_offset stays correct through
+    the region instead of jumping to a spurious boundary."""
+
+    body = (
+        "BACKWORTH 8\n"
+        "  body of backworth...\n"
+        "SEE ALSO 12\n"  # cross-reference body line — keyword guard drops it
+        "  more body...\n"
+        "BAMBURGH 9\n"  # real next header (8 -> 9)
+        "  body of bamburgh...\n"
+        "BEALHAM 44\n"  # spoof: entry name + stray far integer (9 -> 44 > 9+15)
+        "  body of bealham...\n"
+        "BEDLINGTON 10\n"  # real header (9 -> 10)
+    )
+    headers = parse_running_header_pages(body)
+    assert [page for _offset, page in headers] == [8, 9, 10]
+    # A quote sitting in the BEALHAM body is on page 9 (the last real header),
+    # not the spurious 44.
+    off = body.index("body of bealham")
+    assert page_for_offset(headers, off) == 9
 
 
 def test_parse_running_header_pages_returns_empty_when_no_match():
