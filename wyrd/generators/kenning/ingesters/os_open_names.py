@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.ingesters import _csv_events
+from wyrd.generators.kenning.jsonl.dump import toponym_ref
 from wyrd.generators.kenning.jsonl.log import write_jsonl
 
 # Source identity. Excluded from default dump-jsonl (see
@@ -124,13 +125,6 @@ _SOURCE_ROW = {
 }
 
 
-def _toponym_ref(modern_name: str, region: str | None) -> str:
-    """Cross-file toponym ref. Same shape as jsonl.dump.toponym_ref;
-    duplicated here to avoid a cross-module import cycle at module
-    load."""
-    return f"{modern_name}@{region or '-'}"
-
-
 def _format_source_doc(uri: str, local_type: str) -> str:
     """Stable source_doc string the build can use to identify the row
     came from OS Open Names. Embeds the LOCAL_TYPE (City/Town/etc.)
@@ -162,7 +156,7 @@ def _normalize_row(row: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]]
     # crash the whole ingest. ``(... or "")`` coerces a present-None to "".
     country = (row.get("COUNTRY") or "").strip() or None
     region = (row.get("COUNTY_UNITARY") or "").strip() or None
-    ref = _toponym_ref(name, region)
+    ref = toponym_ref(name, region)
     uri = row.get("NAMES_URI", "").strip()
     local_type = row.get("LOCAL_TYPE", "").strip() or "unknown"
 
