@@ -508,6 +508,23 @@ def _self_language_proposals(db: LexiconDB, self_lang_to_stratum: dict[str, str]
     return proposals
 
 
+# wyrd-fljy: the LOAN-class strata across all families (enumerated explicitly,
+# NOT by a "-loan" name pattern). A loan stratum means "borrowed a form from the
+# mapped ancestor language", so the ancestor walk counts only LOAN edge_types for
+# these — inheritance/compound across families is mis-traced mining noise (e.g.
+# 501 modern-english→welsh ``inheritance`` edges in the live DB; no genuine
+# cross-family inheritance exists), not a real loan. Substrate / native / dialect
+# strata are NOT listed: a substrate legitimately rides inheritance, so they keep
+# ALL edge types.
+LOAN_STRATA: frozenset[str] = frozenset(
+    {"latin-loan", "english-loan", "norse-loan", "low-german-loan"}
+)
+
+# The ``etymon_descent.edge_type`` values that count as a loan for a LOAN_STRATA
+# stratum. Excludes ``inheritance`` and ``compound``.
+_LOAN_EDGE_TYPES: frozenset[str] = frozenset({"borrowing", "derivation", "calque"})
+
+
 def _ancestor_walk_proposals(
     db: LexiconDB,
     *,
@@ -537,24 +554,31 @@ def _ancestor_walk_proposals(
     # Chunked at SQLite's 999-variable limit. The inner SELECT keys on
     # ``child_id`` so ``idx_etymon_descent_child`` carries the lookup.
     modern_ids = [r["id"] for r in modern_rows]
+    # Two parent-language sets per child: ALL edges (for substrate/native strata)
+    # and LOAN edges only (for LOAN_STRATA — wyrd-fljy). Pull ``edge_type`` in the
+    # same pass so the loan set is free.
     parents_by_child: dict[int, set[str]] = {}
+    loan_parents_by_child: dict[int, set[str]] = {}
     for i in range(0, len(modern_ids), 999):
         chunk = modern_ids[i : i + 999]
         placeholders = ",".join("?" * len(chunk))
         cur = db.conn.execute(
-            f"SELECT d.child_id, e.language "  # noqa: S608 — placeholders are ints
+            f"SELECT d.child_id, e.language, d.edge_type "  # noqa: S608 — placeholders are ints
             f"FROM etymon_descent d JOIN etymon e ON d.parent_id = e.id "
             f"WHERE d.child_id IN ({placeholders})",
             chunk,
         )
         for row in cur:
             parents_by_child.setdefault(row["child_id"], set()).add(row["language"])
+            if row["edge_type"] in _LOAN_EDGE_TYPES:
+                loan_parents_by_child.setdefault(row["child_id"], set()).add(row["language"])
 
     stratum_ancestors = _stratum_to_ancestors(ancestor_to_stratum)
 
     proposals: dict[int, str] = {}
     for eid in modern_ids:
         parent_langs = parents_by_child.get(eid, set())
+        loan_parent_langs = loan_parents_by_child.get(eid, set())
         assigned = default_stratum
         # Iterate strata in priority order; first stratum whose ancestor-language
         # set intersects this etymon's parent set wins. The default stratum has
@@ -562,7 +586,10 @@ def _ancestor_walk_proposals(
         for stratum_target in strata_order:
             if stratum_target == default_stratum:
                 continue
-            if parent_langs & stratum_ancestors.get(stratum_target, set()):
+            # wyrd-fljy: a LOAN-class stratum only counts loan-type parent edges
+            # (borrowing/derivation/calque); a substrate/native stratum counts all.
+            candidate_parents = loan_parent_langs if stratum_target in LOAN_STRATA else parent_langs
+            if candidate_parents & stratum_ancestors.get(stratum_target, set()):
                 assigned = stratum_target
                 break
         proposals[eid] = assigned
