@@ -8597,13 +8597,79 @@ def test_parse_running_header_pages_finds_mawer_style_headers():
 
 
 def test_parse_running_header_pages_handles_multi_word_headwords():
-    """Multi-word ALL CAPS headwords (e.g. 'ABBEY DORE 1') are detected."""
+    """Multi-word ALL CAPS headwords (e.g. 'ABBEY DORE 1') are detected.
+    Pages are consecutive (running headers are per printed page) so they clear
+    the wyrd-w5wh monotonic-sequence guard."""
 
-    body = "ABBEY DORE 1\n  body...\nST PETER'S 47\n"
+    body = "ABBEY DORE 1\n  body...\nST PETER'S 2\n"
     headers = parse_running_header_pages(body)
     pages = [page for _offset, page in headers]
     assert 1 in pages
-    assert 47 in pages
+    assert 2 in pages
+
+
+def test_parse_running_header_pages_skips_spoof_body_lines():
+    """wyrd-w5wh: an all-caps BODY line ending in a stray integer must NOT be
+    parsed as a running header. A 'SEE ALSO 12' cross-reference (keyword guard)
+    and a bare entry name with a far-off OCR integer ('BEALHAM 44', out of the
+    monotonic window) are both dropped, so page_for_offset stays correct through
+    the region instead of jumping to a spurious boundary."""
+
+    body = (
+        "BACKWORTH 8\n"
+        "  body of backworth...\n"
+        "SEE ALSO 12\n"  # cross-reference body line — keyword guard drops it
+        "  more body...\n"
+        "BAMBURGH 9\n"  # real next header (8 -> 9)
+        "  body of bamburgh...\n"
+        "BEALHAM 44\n"  # spoof: entry name + stray far integer (9 -> 44 > 9+15)
+        "  body of bealham...\n"
+        "BEDLINGTON 10\n"  # real header (9 -> 10)
+    )
+    headers = parse_running_header_pages(body)
+    assert [page for _offset, page in headers] == [8, 9, 10]
+    # A quote sitting in the BEALHAM body is on page 9 (the last real header),
+    # not the spurious 44.
+    off = body.index("body of bealham")
+    assert page_for_offset(headers, off) == 9
+
+
+def test_parse_running_header_pages_resets_on_leading_spoof_seed():
+    """wyrd-w5wh: a high spurious FIRST match (a front-matter heading like
+    'ABBREVIATIONS 200', or OCR noise) must NOT seed prev_page high and lock out
+    every real header after it (which would fail 'prev < page'). When the second
+    accepted page descends, the first is treated as the spoof, discarded, and the
+    sequence re-seeds — so the real headers survive instead of being dropped."""
+
+    body = (
+        "BEALHAM 200\n"  # spurious leading seed (front-matter / OCR noise)
+        "  front-matter noise...\n"
+        "BACKWORTH 8\n"  # first REAL header — page descends, so 200 is discarded
+        "  body...\n"
+        "BAMBURGH 9\n"  # real header (8 -> 9)
+    )
+    headers = parse_running_header_pages(body)
+    assert [page for _offset, page in headers] == [8, 9]
+
+
+def test_parse_running_header_pages_recovers_after_large_gap():
+    """wyrd-w5wh: a genuine gap of more than _MAX_PAGE_JUMP pages with no parseable
+    headers (a plates section / OCR dropout) must NOT permanently lock out the rest
+    of the book. The first post-gap header is HELD (out of window); a second header
+    consecutive to it confirms the gap, so both are accepted and the sequence
+    resyncs — rather than every post-gap header failing 'prev < page' forever."""
+
+    body = (
+        "ALNWICK 48\n  body...\n"
+        "AMBLE 49\n  body...\n"
+        "ASHINGTON 50\n"  # last header before a >15-page plates / OCR gap
+        "  [plates / OCR dropout — no parseable headers for 20 pages]\n"
+        "BAMBURGH 71\n  body...\n"  # first post-gap header (71 > 50 + 15) — held
+        "BEADNELL 72\n  body...\n"  # consecutive to 71 → confirms the gap; both kept
+        "BELFORD 73\n"
+    )
+    headers = parse_running_header_pages(body)
+    assert [page for _offset, page in headers] == [48, 49, 50, 71, 72, 73]
 
 
 def test_parse_running_header_pages_returns_empty_when_no_match():

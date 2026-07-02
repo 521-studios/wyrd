@@ -41,6 +41,22 @@ _RUNNING_HEADER_RE = re.compile(
     re.MULTILINE,
 )
 
+# wyrd-w5wh: cross-reference lead-words. An all-caps body cross-reference ending
+# in a stray OCR integer ('SEE ALSO 12') matches the running-header shape; if its
+# first word is one of these it is a body line, not a page header. Compared after
+# stripping a trailing '.' ('CF.' → 'CF'). Short lead-words ('CF' / 'V') can only
+# reach this guard as the first word of a MULTI-word header ('CF SUPRA 12') —
+# single-word 'CF 12' / 'V. 12' are already excluded by _RUNNING_HEADER_RE (which
+# needs a 3+ char single word and matches no '.'); they are kept for the
+# multi-word case.
+_CROSSREF_LEAD_WORDS = frozenset({"SEE", "CF", "VIDE", "SUB", "V"})
+
+# wyrd-w5wh: largest plausible page jump between consecutive real running headers.
+# Each printed page carries one header (pages increase by ~1); this tolerates
+# header-less / OCR-dropped pages while rejecting a stray mid-book integer far
+# from the running page count. Tune against real Mawer OCR if under-yielding.
+_MAX_PAGE_JUMP = 15
+
 
 # wyrd-8st: pattern for Skeat-style §-section running headers
 # (e.g. '§ 2. NAMES ENDING IN -TON. 9' on Skeat 1901 Cambridgeshire).
@@ -72,8 +88,55 @@ def parse_running_header_pages(text: str) -> list[tuple[int, int]]:
     pairs. Skeat-style books use a different convention — see
     `parse_skeat_section_header_pages`. Returns an empty list when no
     headers match.
+
+    wyrd-w5wh data-quality guards, because an all-caps BODY line ending in a
+    stray OCR integer ('SEE ALSO 12'), or a legitimate front-matter heading
+    ('ABBREVIATIONS 47'), otherwise spoofs a header and injects a false page
+    boundary. Per match, in loop order (b) then (a):
+
+    * (a) monotonic page-sequence window (the load-bearing guard): each accepted
+      header's page is just past the previous one
+      (``prev < page <= prev + _MAX_PAGE_JUMP``). Two edge cases keep a single
+      stray integer from *locking out* the rest of the book (once ``prev`` is set
+      high, all smaller real pages would fail ``prev < page`` forever):
+      (1) if the second accepted page DESCENDS below the first, the first was a
+      spurious lead-in (front-matter / OCR noise) — discard it and re-seed;
+      (2) an out-of-window page is HELD, not dropped: a lone stray stays dropped,
+      but a header CONSECUTIVE to the held page confirms a genuine large gap
+      (plates section / OCR dropout) and both are accepted, resyncing the
+      sequence past the gap.
+    * (b) cross-reference lead-word rejection (checked first, a cheap pre-filter):
+      a candidate whose first word is ``SEE`` / ``CF`` / ``VIDE`` / ``SUB`` / ``V``
+      is a body cross-reference, dropped.
+
+    Both guards only *reduce* false headers (an inherent limit of header-pattern
+    scraping); neither mis-parses the page of a header it accepts. Across a real
+    large gap, only the first post-gap header is deferred one match (its content
+    briefly attributed to the pre-gap page) before the sequence resyncs.
     """
-    return [(m.start(), int(m.group(2))) for m in _RUNNING_HEADER_RE.finditer(text)]
+    out: list[tuple[int, int]] = []
+    prev_page: int | None = None
+    held: tuple[int, int] | None = None  # (offset, page) out-of-window, awaiting a follower
+    for m in _RUNNING_HEADER_RE.finditer(text):
+        page = int(m.group(2))
+        if m.group(1).split()[0].rstrip(".") in _CROSSREF_LEAD_WORDS:
+            continue  # (b) cross-reference body line, not a page header
+        if prev_page is not None:
+            if len(out) == 1 and page < prev_page:
+                out.clear()  # (a.1) leading spoof seed: real second descends → re-seed
+            elif not (prev_page < page <= prev_page + _MAX_PAGE_JUMP):
+                # (a.2) out of window: a lone stray stays dropped, but a header
+                # consecutive to a previously-held page confirms a real gap.
+                if held is not None and held[1] < page <= held[1] + _MAX_PAGE_JUMP:
+                    out.append(held)
+                    prev_page = held[1]
+                else:
+                    held = (m.start(), page)
+                    continue
+        out.append((m.start(), page))
+        prev_page = page
+        held = None
+    return out
 
 
 def parse_skeat_section_header_pages(text: str) -> list[tuple[int, int]]:

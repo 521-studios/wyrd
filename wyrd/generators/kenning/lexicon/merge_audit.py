@@ -78,13 +78,6 @@ class MergeAuditVerdict:
     reason: str
 
 
-def _is_affix(form: str) -> bool:
-    """True for a dashed affix surface (``-ton`` / ``Ham-`` / ``-ing-``) — a
-    different morphological role from a bare word, used to flag affix↔bare-word
-    OCR over-merges where the affix has no gloss of its own."""
-    return form.startswith("-") or form.endswith("-")
-
-
 def _union_find_components[K](nodes: list[tuple[K, set[str]]]) -> list[list[K]]:
     """Union-find over ``nodes = [(key, {token, …}), …]``: keys that share ≥1
     content token land in one component. Returns one list per component
@@ -229,6 +222,15 @@ def _anchor_intruders(
     can therefore land in several clusters; only a member whose senses are ALL
     outside the dominant cluster is an intruder — one that shares the dominant
     sense (incl. the mixed anchor itself) BELONGS."""
+    # wyrd-bk69: a GLOSSLESS anchor gives no evidence for which member sense is
+    # the family's "correct" one. Without it, ``dominant`` (below) falls back to
+    # the largest MEMBER cluster — a coin-flip that asserts a guessed dominant and
+    # over-flags the other glossed members. Skip the disjoint-sense screen for
+    # glossless anchors rather than emit a guessed candidate to the LLM.
+    # (Restoring recall for glossless-member conflations is a known gap, tracked
+    # separately.)
+    if not by_id[anchor_id]["tokens"]:
+        return []
     glossed = [(i, by_id[i]["glosses"]) for i in (anchor_id, *child_ids) if by_id[i]["tokens"]]
     if len(glossed) < 2:
         return []
@@ -270,35 +272,10 @@ def _anchor_disjoint_candidates(
     return cands
 
 
-def _affix_candidates(
-    by_id: dict[int, dict], collapse_folds: set[str]
-) -> list[MergeAuditCandidate]:
-    """Source 2 — a glossless dashed affix merged into a GLOSSED bare (non-affix)
-    anchor: the affix inherits the bare word's unrelated sense (the ``-ton`` →
-    ``ton`` weight-unit class, which the member-disjoint screen misses because the
-    affix carries no gloss). Benign affix↔root pairs (``-land``→``land``) survive
-    the LLM judge."""
-    cands: list[MergeAuditCandidate] = []
-    for member in by_id.values():
-        anchor_id = member["merged_into_id"] or member["lemma_id"]
-        if anchor_id is None or anchor_id not in by_id:
-            continue
-        anchor = by_id[anchor_id]
-        if (
-            _is_affix(member["form"])
-            and not member["glosses"]
-            and not _is_affix(anchor["form"])
-            and anchor["glosses"]
-            and anchor["merged_into_id"] is None
-        ):
-            cands.append(_candidate(anchor, member, _provenance(member, collapse_folds)))
-    return cands
-
-
 def _collapse_fold_candidates(
     by_id: dict[int, dict], id_for_ref: dict[str, int], collapse_state: dict[str, dict]
 ) -> list[MergeAuditCandidate]:
-    """Source 3 — every fold live in ``_collapses.jsonl`` (full ledger re-audit),
+    """Source 2 — every fold live in ``_collapses.jsonl`` (full ledger re-audit),
     regardless of gloss disjointness."""
     cands: list[MergeAuditCandidate] = []
     for ref, row in collapse_state.items():
@@ -321,9 +298,9 @@ def detect_merge_audit_candidates(
     """Gather merge-audit candidates from all sources, deduped by member ref.
 
     ``collapse_state`` is the net ``_collapses.jsonl`` state (``collect_collapses``
-    output: ref → row, last-write-wins). ``scope`` ∈ {"anchors", "affixes",
-    "collapses", "both"}. Collapse-fold provenance wins on dedup (it IS a live
-    fold), so collapse candidates are layered first.
+    output: ref → row, last-write-wins). ``scope`` ∈ {"anchors", "collapses",
+    "both"}. Collapse-fold provenance wins on dedup (it IS a live fold), so
+    collapse candidates are layered first.
     """
     by_id, id_for_ref = _load_corpus(conn)
     # Live collapse folds = refs whose net state still folds into something.
@@ -334,8 +311,6 @@ def detect_merge_audit_candidates(
         sources += _collapse_fold_candidates(by_id, id_for_ref, collapse_state)
     if scope in ("anchors", "both"):
         sources += _anchor_disjoint_candidates(by_id, collapse_folds)
-    if scope in ("affixes", "both"):
-        sources += _affix_candidates(by_id, collapse_folds)
 
     out: dict[str, MergeAuditCandidate] = {}  # member_ref → candidate (first wins)
     for cand in sources:
