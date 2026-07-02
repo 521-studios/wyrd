@@ -27,7 +27,7 @@ from wyrd.generators.kenning.cli.lexicon.mine_element_glosses import lexicon_min
 
 
 def _touch(p: Path) -> Path:
-    p.write_text("x")  # a non-empty file so click.Path(exists=True) is satisfied
+    p.write_text("x", encoding="utf-8")  # a non-empty file so click.Path(exists=True) is satisfied
     return p
 
 

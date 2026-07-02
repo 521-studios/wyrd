@@ -42,7 +42,7 @@ def _write_manifest(path: Path, slices: list[dict] | None = None) -> None:
         "compression": "zstd",
         "slices": slices or [],
     }
-    path.write_text(json.dumps(payload, indent=2))
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def _make_slice(name: str = "wiktextract_xx", sha: str = "x" * 64) -> Slice:

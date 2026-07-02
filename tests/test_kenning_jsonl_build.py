@@ -1643,7 +1643,9 @@ def test_round_trip_dump_rebuild_dump(tmp_path: Path):
 
 
 def _read_rows(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
 
 
 # ---------------------------------------------------------------------------

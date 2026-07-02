@@ -553,7 +553,7 @@ def test_format_audit_report_breakdown_reflects_full_scan_not_samples(tmp_path: 
         )
     )
     path = tmp_path / "src.jsonl"
-    with open(path, "w") as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         for r in rows:
             fh.write(json.dumps(r) + "\n")
 

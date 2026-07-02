@@ -95,8 +95,15 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "C901"]
+# wyrd-850l: PLW1514 (unspecified-encoding) enforces the encoding="utf-8"
+# convention on text I/O so the drift #862 normalized can't regress. It's a
+# preview rule on ruff 0.15.x, so ``preview`` is on; ``explicit-preview-rules``
+# restricts preview activation to EXACTLY the codes in ``select`` — no other
+# preview rule silently turns on and no stable-rule behavior shifts under preview.
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "C901", "PLW1514"]
 ignore = ["E501", "SIM108"]
+preview = true
+explicit-preview-rules = true
 
 # wyrd-8uvi: enforce the McCabe ≤10 floor in CI so reduced functions can't
 # regress and new complexity is caught at PR time.

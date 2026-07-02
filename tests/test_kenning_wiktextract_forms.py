@@ -170,7 +170,7 @@ def _seed_minimal_db(db_path: Path) -> int:
 
 def _write_slice(slice_path: Path, entries: list[dict]) -> None:
     """Write a wiktextract-shaped JSONL file."""
-    with slice_path.open("w") as f:
+    with slice_path.open("w", encoding="utf-8") as f:
         for entry in entries:
             f.write(json.dumps(entry) + "\n")
 
