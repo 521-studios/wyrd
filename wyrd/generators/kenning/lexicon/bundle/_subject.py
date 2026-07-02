@@ -294,7 +294,13 @@ def _surface_fold(s: str) -> str:
     ``by``; ``*mos`` / ``Mos-`` both fold to ``mos``), so we don't emit two
     fold-equal cells that would light up at once."""
     decomposed = unicodedata.normalize("NFD", (s or "").replace("*", "").strip("-"))
-    return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
+    # wyrd-nndd: drop category-Mn combining marks (matching proportions._grid_match_key
+    # and the SPA accentFold's \p{Mn} test), NOT ccc!=0. The two differ only on
+    # non-Latin Mn-with-ccc==0 marks (Indic anusvara/vowel-signs) which never reach
+    # this fold — it only sees romanized-Latin generated surfaces + era-cell forms,
+    # where every accent NFD-decomposes to a ccc>0 Mn mark, so both agree
+    # (byte-identical over all 26,696 live reflex surfaces; drift gate = 0).
+    return "".join(c for c in decomposed if unicodedata.category(c) != "Mn").lower()
 
 
 # Cached: pure function of static era.cells data over the closed, finite set of
