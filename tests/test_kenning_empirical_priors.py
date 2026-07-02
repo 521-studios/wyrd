@@ -15,14 +15,10 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.lexicon import (
-    _LANG_CODE_TO_JSON_FIELD,
-    LexiconDB,
-    init_schema,
-    migrate_schema,
-)
+from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
 from wyrd.generators.kenning.lexicon.empirical_priors import (
     _CELTIC_LEMMA_LANGUAGES,
+    _CELTIC_LEMMA_REPRESENTATIVE,
     _COUNTRY_TO_CULTURE,
     _CULTURE_TO_FAMILY,
     _OPEN_BOUND_OFFSET,
@@ -38,7 +34,10 @@ from wyrd.generators.kenning.lexicon.empirical_priors import (
     mine_empirical_baselines,
 )
 from wyrd.generators.kenning.runtime.meaning import Meaning
-from wyrd.generators.kenning.runtime.vector_name_select import _lemma_ref_for
+from wyrd.generators.kenning.runtime.vector_name_select import (
+    _BUNDLE_FIELD_TO_L3_LANG,
+    _lemma_ref_for,
+)
 
 # ---------- fixtures -----------------------------------------------------
 
@@ -415,50 +414,65 @@ def test_extract_priors_ternary_compound_emits_pre_inner_post(db):
     assert native[_NativeKey("english", "post", "architecture", 950, "old-english:tūn")] == 1
 
 
-def test_extract_priors_celtic_family_lemma_ref_normalized_to_celtic(db):
-    """wyrd-3x9e: a celtic-family etymon (here brittonic) in an England toponym
-    emits its NATIVE prior keyed on the 'celtic' representative — matching the
-    runtime _lemma_ref_for(celtic_mix)->'celtic' lookup — not the raw 'brittonic'
-    language, whose key would be permanently unreachable. The LOAN-key donor keeps
-    the raw language (donor identity is a separate axis, outside this fix)."""
-    tid = _add_toponym(db, "Pentrich")
-    e = _add_etymon(db, "penn", "brittonic", tags=("landscape",))
+@pytest.mark.parametrize(
+    "raw_language, form",
+    [
+        ("brittonic", "penn"),  # coarse family tag — NOT in the emit map
+        ("welsh", "caer"),  # emit-map-tracked celtic_mix member
+        ("old-irish", "dun"),  # emit-map-tracked celtic_mix member
+    ],
+)
+def test_extract_priors_celtic_family_lemma_ref_normalized_to_celtic(db, raw_language, form):
+    """wyrd-3x9e: EVERY celtic-family language — the coarse 'brittonic'/'goidelic'
+    tags AND the emit-map-tracked members (welsh, old-irish, …) — emits its NATIVE
+    prior keyed on the 'celtic' representative, matching the runtime
+    _lemma_ref_for(celtic_mix)->'celtic' lookup, not the raw language (whose key
+    would be permanently unreachable). The LOAN-key donor keeps the raw language
+    (separate axis) but the raw-language-keyed lemma_ref must NOT leak on either
+    key — that would be a double-emit."""
+    tid = _add_toponym(db, "Placename")
+    e = _add_etymon(db, form, raw_language, tags=("landscape",))
     _add_etymology(db, toponym_id=tid, elements=[e], attested_year=950)
 
     native, loan, _summary = extract_priors(db)
 
-    assert _NativeKey("english", "bare", "landscape", 950, "celtic:penn") in native
-    assert _NativeKey("english", "bare", "landscape", 950, "brittonic:penn") not in native
-    # loan donor keeps the raw language; only the shared lemma_ref is normalized
-    assert _LoanKey("brittonic", "english", "bare", "landscape", 950, "celtic:penn") in loan
+    assert _NativeKey("english", "bare", "landscape", 950, f"celtic:{form}") in native
+    assert _NativeKey("english", "bare", "landscape", 950, f"{raw_language}:{form}") not in native
+    # loan donor keeps the raw language; the shared lemma_ref is normalized, and the
+    # raw-language-keyed loan cell must not co-exist (guards against a double-emit).
+    assert _LoanKey(raw_language, "english", "bare", "landscape", 950, f"celtic:{form}") in loan
+    assert (
+        _LoanKey(raw_language, "english", "bare", "landscape", 950, f"{raw_language}:{form}")
+        not in loan
+    )
 
 
 def test_extract_priors_celtic_lemma_ref_reachable_from_runtime_lemma_ref_for(db):
-    """wyrd-3x9e end-to-end reachability: the lemma_ref the extractor emits for a
-    celtic-family etymon is byte-identical to what the runtime _lemma_ref_for
-    synthesizes for the corresponding celtic_mix Meaning — so the baseline lookup
-    actually HITS the cell (the bug was that 'brittonic:penn' never matched the
-    runtime's 'celtic:penn')."""
-    tid = _add_toponym(db, "Pentrich")
-    e = _add_etymon(db, "penn", "brittonic", tags=("landscape",))
+    """wyrd-3x9e end-to-end reachability: a welsh etymon (an emit-map-tracked
+    celtic_mix member, so a real welsh etymon DOES route into a runtime celtic_mix
+    Meaning) gets a native prior whose lemma_ref is byte-identical to what the
+    runtime _lemma_ref_for synthesizes for that Meaning — proving the baseline
+    lookup HITS the cell rather than missing on a raw-language key ('welsh:caer'
+    would never match the runtime's 'celtic:caer')."""
+    tid = _add_toponym(db, "Caerwent")
+    e = _add_etymon(db, "caer", "welsh", tags=("architecture",))
     _add_etymology(db, toponym_id=tid, elements=[e], attested_year=950)
     native, _loan, _summary = extract_priors(db)
 
     (extracted_key,) = native  # single element, single tag -> exactly one native cell
-    runtime_ref = _lemma_ref_for(Meaning("Penn", [], [], {"celtic_mix": ["penn"]}))
-    assert runtime_ref == "celtic:penn"
+    runtime_ref = _lemma_ref_for(Meaning("Caer", [], [], {"celtic_mix": ["caer"]}))
+    assert runtime_ref == "celtic:caer"
     assert extracted_key.lemma_ref == runtime_ref
 
 
-def test_celtic_lemma_languages_covers_emit_map_and_coarse_tags():
-    """wyrd-3x9e tripwire: the normalization set must stay a superset of the emit
-    map's celtic_mix members (so a celtic language added to the bundle can't
-    silently reintroduce an unreachable prior key) and must include the two coarse
-    family tags the emit map doesn't carry ('brittonic'/'goidelic')."""
-    emit_celtic = {
-        lang for lang, field in _LANG_CODE_TO_JSON_FIELD.items() if field == "celtic_mix"
-    }
-    assert emit_celtic <= _CELTIC_LEMMA_LANGUAGES
+def test_celtic_lemma_normalization_pins_runtime_representative_and_coarse_tags():
+    """wyrd-3x9e tripwire: the extractor's celtic representative MUST equal the
+    runtime bundle-field representative (_BUNDLE_FIELD_TO_L3_LANG['celtic_mix']).
+    If those two constants drift, every celtic native prior silently misses again —
+    this is the real cross-module invariant the fix rests on. Also pins that the
+    two coarse family tags the emit map doesn't carry ('brittonic'/'goidelic') are
+    included in the normalization set."""
+    assert _BUNDLE_FIELD_TO_L3_LANG["celtic_mix"] == _CELTIC_LEMMA_REPRESENTATIVE
     assert {"brittonic", "goidelic"} <= _CELTIC_LEMMA_LANGUAGES
 
 
