@@ -295,11 +295,14 @@ def _surface_fold(s: str) -> str:
     fold-equal cells that would light up at once."""
     decomposed = unicodedata.normalize("NFD", (s or "").replace("*", "").strip("-"))
     # wyrd-nndd: drop category-Mn combining marks (matching proportions._grid_match_key
-    # and the SPA accentFold's \p{Mn} test), NOT ccc!=0. The two differ only on
-    # non-Latin Mn-with-ccc==0 marks (Indic anusvara/vowel-signs) which never reach
-    # this fold — it only sees romanized-Latin generated surfaces + era-cell forms,
-    # where every accent NFD-decomposes to a ccc>0 Mn mark, so both agree
-    # (byte-identical over all 26,696 live reflex surfaces; drift gate = 0).
+    # and the SPA accentFold's \p{Mn} test) rather than filtering on the canonical
+    # combining class (the old `combining(c) != 0`). The two criteria diverge on two
+    # rare non-Latin classes: Mn marks with ccc==0 (Indic anusvara/vowel-signs —
+    # Mn-fold drops them, ccc-fold kept) and non-Mn marks with ccc>0 (a few Mc
+    # viramas/tone marks — Mn-fold keeps them, ccc-fold dropped). NEITHER reaches
+    # this fold, which only sees romanized-Latin generated surfaces + era-cell forms
+    # where every accent NFD-decomposes to a ccc>0 Mn mark (both criteria agree) —
+    # byte-identical over all 26,696 live reflex surfaces; drift gate = 0.
     return "".join(c for c in decomposed if unicodedata.category(c) != "Mn").lower()
 
 

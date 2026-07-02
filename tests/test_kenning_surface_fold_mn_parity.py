@@ -29,6 +29,10 @@ _VECTOR = [
     ("b\u064e", "b"),  # Arabic fatha (Mn)
     ("c\u1ab0", "c"),  # Combining Diacritical Marks Extended (Mn)
     ("k\u093e", "k\u093e"),  # Devanagari vowel sign AA (Mc, spacing) - KEPT by both
+    # Distinguishes the Python predicate change (Mn-with-ccc==0): the OLD
+    # combining()!=0 fold KEPT this (ccc==0 -> falsy), the NEW category=='Mn' fold
+    # DROPS it. A revert of _surface_fold to combining() fails this row.
+    ("k\u0902", "k"),  # Devanagari anusvara (Mn, ccc==0)
 ]
 
 

@@ -22,8 +22,9 @@ const norm = (s) => stripDashes(s).toLowerCase();
 // Mn marks in other blocks (Hebrew niqqud, Arabic harakat, …) that the Python
 // side dropped — a documented-parity divergence. `\p{Mn}/u` is a Unicode
 // property escape (ES2018+): it covers Mn in every block AND keeps a raw
-// combining char out of source (the same safety the codepoint check gave).
-const isCombiningMark = (ch) => /\p{Mn}/u.test(ch);
+// combining char out of source (the same safety the codepoint check gave). The
+// `g` flag lets accentFold strip them in one native `.replace` pass.
+const COMBINING_MARKS_RE = /\p{Mn}/gu;
 
 /**
  * Dedup key that folds BOTH case and diacritics: "bȳ", "by", and "By" all
@@ -37,13 +38,12 @@ const isCombiningMark = (ch) => /\p{Mn}/u.test(ch);
  * stripped surface ("ur") still matches its starred cell form ("*ur").
  */
 export function accentFold(s) {
-  // strip the reconstructed '*' marker upfront (consistent with graftPosition).
-  const decomposed = stripDashes((s || '').replace(/\*/g, '')).normalize('NFD');
-  let out = '';
-  for (const ch of decomposed) {
-    if (!isCombiningMark(ch)) out += ch;
-  }
-  return out.toLowerCase();
+  // strip the reconstructed '*' marker upfront (consistent with graftPosition),
+  // NFD-decompose, drop category-Mn marks in one pass, lowercase.
+  return stripDashes((s || '').replace(/\*/g, ''))
+    .normalize('NFD')
+    .replace(COMBINING_MARKS_RE, '')
+    .toLowerCase();
 }
 
 // A string carries a diacritic if NFD-decomposing it yields combining

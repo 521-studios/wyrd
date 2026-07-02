@@ -29,6 +29,8 @@ describe('accentFold', () => {
     // Spacing combining mark (Mc, ccc==0): NOT Mn, so KEPT by both sides — this
     // is why we unify on \p{Mn}, never \p{M} (which would corrupt Indic matras).
     expect(accentFold('k\u093e')).toBe('k\u093e'); // Devanagari vowel sign AA (Mc, spacing) - KEPT
+    // Distinguishes the JS change too: old range kept U+0902, \p{Mn} drops it.
+    expect(accentFold('k\u0902')).toBe('k'); // Devanagari anusvara (Mn, ccc==0)
   });
 });
 
