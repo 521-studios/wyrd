@@ -664,3 +664,25 @@ def test_identity_reflexes_require_gloss_gate(tmp_path):
         r["etymon_refs"][0] for r in identity_reflex_rows(db.conn, empty, require_gloss=False)
     }
     assert refs_all == {"old-english:ham", "old-english:wīc"}
+
+
+def test_identity_reflex_excludes_merged_tombstone(world):
+    """wyrd-aoac: a tombstoned stub (merged_into_id set) whose folded canonical
+    appears in an attested toponym must NOT get an identity-reflex minted onto
+    the LOSER — the identity reflex belongs on the merge winner, which carries
+    its own row. Ports the #804/#863 merged_into_id exclusion (already on
+    _IMPACT_SQL + _TAG_COHORT_SQL) to _IDENTITY_SQL. Without the filter the stub
+    'ton' qualifies (glossed, its surface is in 'Acton') and the assertion
+    fails — the filter line is load-bearing. The live 'den' control still
+    surfaces, proving the filter is narrow, not a blanket drop."""
+    db, tmp_path = world
+    tun = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'tūn'").fetchone()[0]
+    stub = _etymon(db, "ton", gloss="A worn form of tūn.", merged_into=tun)
+    _toponym(db, "Acton", [stub])  # 'ton' ⊂ 'acton' → would mint an identity reflex
+    live = _etymon(db, "den", gloss="A valley.")  # non-merged control
+    _toponym(db, "Denby", [live])  # 'den' ⊂ 'denby'
+    db.conn.commit()
+    empty = tmp_path / "_reflexes.jsonl"
+    refs = {ref for r in identity_reflex_rows(db.conn, empty) for ref in r["etymon_refs"]}
+    assert "old-english:ton" not in refs
+    assert "old-english:den" in refs

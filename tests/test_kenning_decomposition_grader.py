@@ -392,3 +392,57 @@ def test_report_can_it_handles_zero_graded(capsys):
     )
     err = capsys.readouterr().err
     assert "CAN-IT vs DID-WE over 0 toponyms" in err
+
+
+def _merge(db, loser_id, winner_id):
+    """Tombstone ``loser_id`` into ``winner_id`` (the D22 merged_into_id redirect)
+    WITHOUT repointing its reflex / breakdown rows — the exact live-DB shape
+    wyrd-qdau guards against (a merge sets merged_into_id on the loser but leaves
+    reflex_etymon / toponym_etymology_element pointing at the dead id)."""
+    db.conn.execute(
+        "UPDATE etymon SET merged_into_id = ?, cognate_id = NULL WHERE id = ?",
+        (winner_id, loser_id),
+    )
+
+
+def test_cluster_index_excludes_merged_losers(tmp_path):
+    """wyrd-qdau: load_cluster_index / load_scholar_corpus must filter
+    merged_into_id IS NULL like every sibling index-builder. A merged loser
+    (cognate_id NULL) whose reflex + breakdown rows still point at it must NOT
+    yield a stale singleton ``e<loser>`` key that fractures the surviving
+    cluster, and its breakdown must not pool the dead identity (nor KeyError)."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'Test')")
+
+    tun = _etymon(db, "tūn")  # merge WINNER (own cognate cluster)
+    tun_dup = _etymon(db, "tun", cluster=False)  # duplicate, cognate_id NULL
+
+    # ONE shared 'ton' reflex with TWO etymon links (winner + loser) — the
+    # tūn/ton cognate bridge whose evidence should pool onto a single cluster.
+    rid = db.conn.execute(
+        "INSERT INTO reflex (surface_form, position) VALUES ('ton', 'post')"
+    ).lastrowid
+    db.conn.execute("INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, tun))
+    db.conn.execute(
+        "INSERT INTO reflex_etymon (reflex_id, etymon_id) VALUES (?, ?)", (rid, tun_dup)
+    )
+
+    _toponym(db, "Merton", [tun_dup])  # breakdown anchored solely on the loser
+    _merge(db, tun_dup, tun)
+    db.commit()
+
+    index = load_cluster_index(db)
+    # The loser's dead identity is absent — no stale e<loser> singleton, so the
+    # shared 'ton' surface resolves to the winner cluster ALONE (not fractured
+    # into {c<tun>, e<tun_dup>}).
+    assert tun_dup not in index.cluster_of
+    assert index.clusters_for("ton") == frozenset({f"c{tun}"})
+    assert f"e{tun_dup}" not in index.clusters_for("ton")
+
+    # A breakdown anchored only on the loser yields no cluster → dropped
+    # (not a KeyError, not the loser's dead cluster).
+    corpus = load_scholar_corpus(db, index)
+    assert "Merton" not in {sc.name for sc in corpus}
+    db.close()
