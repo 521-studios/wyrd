@@ -17,7 +17,10 @@ function b64url(str) {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// A workspace carrying every falsy value the regression class threatens.
+// A workspace carrying the zero/false/empty values the regression class
+// threatens. Only seed:0 / count:0 / novelty:0 / cohesion:false / era:'' are
+// strictly falsy (what a truthiness gate would drop); packs:[] / name:'' etc.
+// are empty-but-truthy, pinned alongside for completeness.
 const FALSY_WORKSPACE = {
   generator: 'kenning',
   params: { seed: 0, count: 0, novelty: 0, cohesion: false, packs: [], era: '' },
@@ -41,7 +44,7 @@ describe('shareLink encode → decode round-trip', () => {
     expect(decoded.pipeline).toEqual(ws.pipeline);
   });
 
-  it('preserves ALL falsy values (seed:0, count:0, novelty:0, cohesion:false, packs:[], explanation:"")', () => {
+  it('preserves zero/false/empty values (seed:0, cohesion:false, explanation:"", packs:[]) across the round-trip', () => {
     const decoded = decodeWorkspace(encodeWorkspace(FALSY_WORKSPACE));
     expect(decoded.params.seed).toBe(0);
     expect(decoded.params.count).toBe(0);

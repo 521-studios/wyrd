@@ -92,6 +92,8 @@ def _coerce_int(text: str) -> int | None:
     try:
         return int(text)
     except ValueError:
+        # Known case: not a plain integer (e.g. "5.0"). Fall through and try it
+        # as an integral float below; None is returned only if BOTH parses fail.
         pass
     try:
         value = float(text)
@@ -117,7 +119,10 @@ def _coerce_to_schema_type(raw: str, prop: Mapping) -> object | None:
         return _coerce_int(str(raw).strip())
     if schema_type == "number":
         text = str(raw).strip()
-        if not text:
+        # ASCII-only for the same reason as _coerce_int (wyrd-8uuq): Python
+        # float() accepts Unicode digits (float("١٢٣") == 123.0) that JS Number()
+        # rejects as NaN — guard so the number path keeps server/SPA parity too.
+        if not text or not text.isascii():
             return None
         try:
             value = float(text)

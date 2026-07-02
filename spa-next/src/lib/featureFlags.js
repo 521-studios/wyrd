@@ -92,8 +92,9 @@ export function coerceToType(raw, prop) {
       // accept integral floats ('5.0'→5), reject non-integers and trailing
       // garbage ('5.5'/'3abc'/'12px'→undefined). Number.isInteger is false for
       // NaN and ±Infinity, so it subsumes the non-finite guard on this path.
-      // (Was parseInt(raw,10), which leniently parsed '3abc'→3 — a slider≠
-      // generation divergence against the server's strict int(); wyrd-8uuq.)
+      // (Was parseInt(raw,10); the server's old _LEADING_INT_RE mirrored it, so
+      // both leniently truncated '3abc'→3. wyrd-8uuq converges both to strict
+      // rejection so a malformed default falls back to the schema default.)
       return Number.isInteger(n) ? n : undefined;
     }
     return Number.isFinite(n) ? n : undefined;

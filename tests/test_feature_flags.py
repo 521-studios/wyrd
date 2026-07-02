@@ -179,15 +179,29 @@ _INTEGER_PARITY_VECTOR = {
 def test_integer_coercion_parity_vector():
     """Integer coercion is CONVERGED with the SPA's ``coerceToType`` (wyrd-8uuq):
     accept a plain integer or an integral float ("5"/"5.0" → 5), reject
-    non-integers and trailing garbage ("5.5"/"3abc"/"12px" → None). Replaces the
-    old parseInt-lenient behavior where the server strict-``int()`` and the SPA
-    lenient-``parseInt`` disagreed on malformed integer defaults (slider ≠
-    generation). ASCII-only, mirroring JS ``Number`` (Python int/float would
+    non-integers and trailing garbage ("5.5"/"3abc"/"12px" → None). Before this,
+    BOTH sides were lenient and agreed — the server's ``_LEADING_INT_RE`` mirrored
+    the SPA's ``parseInt`` — but both silently TRUNCATED a malformed integer
+    ("3abc" → 3, "5.5" → 5); this converges both to STRICT rejection, so a
+    malformed default falls back to the schema default on both sides instead of
+    being truncated. ASCII-only, mirroring JS ``Number`` (Python int/float
     otherwise accept Unicode digits JS yields NaN for)."""
     intp = {"type": "integer"}
     for raw, expected in _INTEGER_PARITY_VECTOR.items():
         got = _coerce_to_schema_type(raw, intp)
         assert got == expected, f"{raw!r} → {got!r}, expected {expected!r}"
+
+
+def test_number_coercion_rejects_unicode_digits():
+    """wyrd-8uuq (Gemini): the ``number`` path is ASCII-guarded too. Python
+    ``float()`` accepts Unicode digits (``float("١٢٣") == 123.0``) whereas JS
+    ``Number("١٢٣")`` is NaN, so the server must reject them to keep number-default
+    parity with the SPA. Plain ASCII floats are still accepted."""
+    nump = {"type": "number"}
+    assert _coerce_to_schema_type("1.5", nump) == 1.5  # ASCII float → accepted
+    assert _coerce_to_schema_type("١٢٣", nump) is None  # Arabic-Indic → rejected
+    assert _coerce_to_schema_type("١.٢", nump) is None  # Unicode digits, ASCII point
+    assert _coerce_to_schema_type("१२३", nump) is None  # Devanagari → rejected
 
 
 def test_apply_env_defaults_decimal_styled_integer_reaches_params():

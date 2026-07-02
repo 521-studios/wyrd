@@ -43,7 +43,7 @@ describe('currentWorkspaceSnapshot', () => {
     expect(snap.pipeline).toEqual([{ kind: 'rewind', params: { era: 'oe-late' } }]);
   });
 
-  it('preserves falsy params (seed:0 / count:0 / cohesion:false / packs:[])', () => {
+  it('preserves zero/false/empty params (seed:0 / count:0 / cohesion:false / packs:[])', () => {
     appState.results = [{ result: 'Ton', explanation: '' }];
     appState.currentResultIndex = 0;
     appState.resultsGenerator = 'kenning';
