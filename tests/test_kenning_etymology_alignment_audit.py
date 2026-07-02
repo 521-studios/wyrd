@@ -318,9 +318,11 @@ def test_format_audit_report_ranks_by_flag_count(tmp_path: Path):
     out = format_audit_report(report)
     assert out.index("high_volume") < out.index("high_rate")
     # wyrd-73ma: suppression is narrow — with flags present, both section headers
-    # still render (the normal top_n=20 path is unchanged).
-    assert "## Top sources by flag count" in out
-    assert "## Samples" in out
+    # still render (the normal top_n=20 path is unchanged). The leading "\n\n"
+    # pins the single blank-line inter-section separator, so a regression from the
+    # "\n\n"-join back to a "\n"-join (losing the byte-identical layout) fails here.
+    assert "\n\n## Top sources by flag count" in out
+    assert "\n\n## Samples" in out
 
 
 def test_format_audit_report_clean_corpus(tmp_path: Path):
@@ -336,21 +338,24 @@ def test_format_audit_report_clean_corpus(tmp_path: Path):
     assert "## Top sources by flag count" not in out
 
 
-def test_format_audit_report_suppresses_empty_sections_when_top_n_zero(tmp_path: Path):
+def test_format_audit_report_suppresses_empty_sections_when_top_n_non_positive(tmp_path: Path):
     """wyrd-73ma: with misses present but ``top_n <= 0`` rendering none, neither
     the '## Top sources' table nor the '## Samples' section emits an orphaned
-    header — only the summary. (Degenerate input; the CLI defaults to top_n=20.)"""
+    header — only the summary. Covers 0 AND negative (a negative top_n is clamped
+    to 0, not left to Python's negative slicing). Degenerate input; the CLI
+    defaults to top_n=20."""
     _write_jsonl(
         tmp_path / "flagged.jsonl",
         [_row(elements=[{"etymon_ref": "oe:foo"}], historical_form="bar")] * 3,
     )
     report = audit_jsonl_dir(tmp_path)
-    out = format_audit_report(report, top_n=0)
-    assert "## Top sources by flag count" not in out
-    assert "## Samples" not in out
-    # There ARE misses (so not the clean-corpus placeholder), but none are shown.
-    assert "_No alignment misses detected" not in out
-    assert out.strip()  # the summary section still renders
+    for val in (0, -1):
+        out = format_audit_report(report, top_n=val)
+        assert "## Top sources by flag count" not in out, val
+        assert "## Samples" not in out, val
+        # There ARE misses (so not the clean-corpus placeholder), but none shown.
+        assert "_No alignment misses detected" not in out, val
+        assert "Probably misaligned:" in out, val  # the summary section still renders
 
 
 # ---------------------------------------------------------------------------

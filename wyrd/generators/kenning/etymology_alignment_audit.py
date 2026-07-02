@@ -354,6 +354,11 @@ def _audit_samples_lines(
 def format_audit_report(report: AuditReport, *, top_n: int = 20) -> str:
     """Markdown rendering. Ranks by absolute flag count (volume
     drives where operator work has highest payoff)."""
+    # Clamp so a NEGATIVE top_n suppresses the ranked sections rather than
+    # triggering Python's negative slicing (``list[:-1]`` returns all-but-last,
+    # not ``[]``) — the section helpers slice ``[:top_n]``, so ``top_n <= 0`` must
+    # mean "show none" (wyrd-73ma).
+    top_n = max(0, top_n)
     sorted_sources = sorted(
         report.sources,
         key=lambda s: (-s.flagged_count, -s.total_etymologies, s.source_id),
