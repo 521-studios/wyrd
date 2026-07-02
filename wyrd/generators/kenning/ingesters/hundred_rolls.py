@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.ingesters import _csv_events
+from wyrd.generators.kenning.jsonl.dump import toponym_ref
 
 HUNDRED_ROLLS_SOURCE_ID = "rotuli_hundredorum"
 HUNDRED_ROLLS_YEAR = 1279
@@ -87,11 +88,6 @@ _SOURCE_ROW = {
 }
 
 
-def _toponym_ref(modern_name: str, region: str | None) -> str:
-    """Cross-file toponym ref. Same shape as the rest of the project."""
-    return f"{modern_name}@{region or '-'}"
-
-
 def _normalize_row(row: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]] | None:
     """Convert one CSV row into a (toponym, attestation) event pair.
 
@@ -109,7 +105,7 @@ def _normalize_row(row: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]]
     country = (row.get("country") or "").strip() or "England"
     hundred = (row.get("hundred") or "").strip() or None
 
-    ref = _toponym_ref(modern_name, region)
+    ref = toponym_ref(modern_name, region)
     toponym_event: dict[str, Any] = {
         "_type": "toponym",
         "ref": ref,
