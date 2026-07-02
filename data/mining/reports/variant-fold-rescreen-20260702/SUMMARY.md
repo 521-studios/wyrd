@@ -7,7 +7,7 @@ Re-screen of all **487** `llm-variant-fold-v1` fold rows in `data/mining/_collap
 - **KEEP: 465** / 487
 - **REVERT: 22** / 487 (uncertain-treated-as-revert included)
 
-Reverts are appended to `_collapses.jsonl` as `into: ""` rows (method `llm-variant-fold-rescreen-v1`, last-write-wins per ref); the live-DB `merged_into_id` heals on the next enrichment replay/rebuild (derived — the L2 ledger is the fix). Existing rows are never edited (append-only, D50).
+Reverts are appended to `_collapses.jsonl` as `into: ""` rows (method `llm-variant-fold-rescreen-v1`, last-write-wins per ref); the live-DB `merged_into_id` heals on the next **full rebuild-from-jsonl (fresh DB)** (derived — the L2 ledger is the fix). Note: an *incremental* enrichment re-apply does NOT un-tombstone an already-folded row — `apply_collapses` no-ops on an `into: ""` row (`empty_into_skipped`) before touching `merged_into_id`; only a fresh rebuild re-derives it from the corrected ledger. Existing rows are never edited (append-only, D50).
 
 ## Method
 
