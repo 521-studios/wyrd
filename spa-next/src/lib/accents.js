@@ -15,29 +15,35 @@ import { renderName } from './transforms/swap.js';
 const stripDashes = (s) => (s || '').replace(/^-+|-+$/g, '');
 const norm = (s) => stripDashes(s).toLowerCase();
 
-// True for a combining diacritical mark (Unicode block U+0300–U+036F), the
-// marks NFD decomposition splits accents into.
-const isCombiningMark = (cp) => cp >= 0x300 && cp <= 0x36f;
+// True for a category-Mn combining mark — matching the Python folds'
+// `unicodedata.category(c) == 'Mn'` (bundle/_subject._surface_fold +
+// runtime/proportions._grid_match_key), wyrd-nndd. Was a U+0300–U+036F codepoint
+// range, which dropped ONLY the main Combining Diacritical Marks block and left
+// Mn marks in other blocks (Hebrew niqqud, Arabic harakat, …) that the Python
+// side dropped — a documented-parity divergence. `\p{Mn}/u` is a Unicode
+// property escape (ES2018+): it covers Mn in every block AND keeps a raw
+// combining char out of source (the same safety the codepoint check gave). The
+// `g` flag lets accentFold strip them in one native `.replace` pass.
+const COMBINING_MARKS_RE = /\p{Mn}/gu;
 
 /**
  * Dedup key that folds BOTH case and diacritics: "bȳ", "by", and "By" all
  * map to "by". Used to collapse case/accent variants of the same form into a
  * single row (keeping the richest), while genuinely-distinct inflections
- * ("byht", "byhtas") stay separate. NFD-decompose, drop combining marks,
- * strip dashes, lowercase. The mark range is checked by codepoint (not a
- * raw-combining-char regex literal) so editors/git can't normalize it away.
+ * ("byht", "byhtas") stay separate. NFD-decompose, drop category-Mn combining
+ * marks, strip dashes, lowercase. Marks are matched by the ``\p{Mn}/u`` property
+ * escape (not a raw combining char) so editors/git can't normalize it away.
  *
  * Also drops the scholarly '*' reconstructed/unattested-form marker so a
  * stripped surface ("ur") still matches its starred cell form ("*ur").
  */
 export function accentFold(s) {
-  // strip the reconstructed '*' marker upfront (consistent with graftPosition).
-  const decomposed = stripDashes((s || '').replace(/\*/g, '')).normalize('NFD');
-  let out = '';
-  for (const ch of decomposed) {
-    if (!isCombiningMark(ch.codePointAt(0))) out += ch;
-  }
-  return out.toLowerCase();
+  // strip the reconstructed '*' marker upfront (consistent with graftPosition),
+  // NFD-decompose, drop category-Mn marks in one pass, lowercase.
+  return stripDashes((s || '').replace(/\*/g, ''))
+    .normalize('NFD')
+    .replace(COMBINING_MARKS_RE, '')
+    .toLowerCase();
 }
 
 // A string carries a diacritic if NFD-decomposing it yields combining

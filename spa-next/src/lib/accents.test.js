@@ -15,6 +15,23 @@ describe('accentFold', () => {
     expect(accentFold('*ur')).toBe(accentFold('ur'));
     expect(accentFold('*bearwe')).toBe('bearwe');
   });
+
+  it('drops category-Mn marks in ANY block, keeps spacing (Mc) matras — parity with the Python folds (wyrd-nndd)', () => {
+    // Latin accents (Mn, U+0300-U+036F) — unchanged by the widening.
+    expect(accentFold('\u00e9')).toBe('e'); // e-acute (Mn U+0301)
+    expect(accentFold('\u0101')).toBe('a'); // a-macron (Mn U+0304)
+    // Mn marks OUTSIDE U+0300-U+036F: the old codepoint range KEPT these (the
+    // documented divergence vs Python); the \p{Mn} test now DROPS them, matching
+    // bundle/_subject._surface_fold + runtime/proportions._grid_match_key.
+    expect(accentFold('n\u05b4')).toBe('n'); // Hebrew point hiriq (Mn, outside U+0300-036F)
+    expect(accentFold('b\u064e')).toBe('b'); // Arabic fatha (Mn)
+    expect(accentFold('c\u1ab0')).toBe('c'); // Combining Diacritical Marks Extended (Mn)
+    // Spacing combining mark (Mc, ccc==0): NOT Mn, so KEPT by both sides — this
+    // is why we unify on \p{Mn}, never \p{M} (which would corrupt Indic matras).
+    expect(accentFold('k\u093e')).toBe('k\u093e'); // Devanagari vowel sign AA (Mc, spacing) - KEPT
+    // Distinguishes the JS change too: old range kept U+0902, \p{Mn} drops it.
+    expect(accentFold('k\u0902')).toBe('k'); // Devanagari anusvara (Mn, ccc==0)
+  });
 });
 
 describe('accentForm (wyrd-rogd.17: Inspect grid cell matches Output accents)', () => {
